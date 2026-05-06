@@ -298,12 +298,12 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                     <div>
                       <label className="block text-sm font-bold text-slate-700 mb-2">Tasa de Interés (%)</label>
                       <input
-                        type="text"
-                        inputMode="decimal"
-                        value={tasaInteresInput}
-                        onChange={(e) => setTasaInteresInput(e.target.value.replace(/[^0-9.]/g, ''))}
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
-                        placeholder="10.0"
+                          type="text"
+                          inputMode="decimal"
+                          value={tasaInteresInput}
+                          onChange={(e) => setTasaInteresInput(e.target.value.replace(/[^0-9.]/g, ''))}
+                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
+                          placeholder="10.0"
                       />
                     </div>
                     <div>
@@ -342,9 +342,14 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                               fechaActual.setDate(fechaActual.getDate() + 1)
                               setFechaPrimerCobro(getBogotaDateKey(fechaActual))
                             }
-                           } else {
-                             setFechaPrimerCobro(getBogotaDateKey(new Date()))
-                           }
+                          } else if (val === 'SEMANAL') {
+                            const target = new Date()
+                            target.setDate(target.getDate() + 7)
+                            if (target.getDay() === 0) target.setDate(target.getDate() + 1)
+                            setFechaPrimerCobro(getBogotaDateKey(target))
+                          } else {
+                            setFechaPrimerCobro(getBogotaDateKey(new Date()))
+                          }
                          }}
                          className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
                       >

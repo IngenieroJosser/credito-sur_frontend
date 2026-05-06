@@ -601,25 +601,29 @@ export default function ClientesFeature({
                       </td>
 
                       <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-end gap-2">
                           <button
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               setSelectedClientId(cliente.id);
                               setIsDetailsModalOpen(true);
                             }}
-                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
+                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                            title="Ver expediente"
                           >
-                            <Eye className="h-4 w-4" />
+                            <Eye className="h-5 w-5" />
                           </button>
                           {puedeEditar && (
                             <button
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 setClientToEdit(cliente);
                                 setIsEditModalOpen(true);
                               }}
-                              className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg"
+                              className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
+                              title="Editar cliente"
                             >
-                              <Pencil className="h-4 w-4" />
+                              <Pencil className="h-5 w-5" />
                             </button>
                           )}
                           {puedeEliminar && (
@@ -698,9 +702,41 @@ export default function ClientesFeature({
               <div className="flex justify-between items-center pt-3 border-t border-slate-100">
                  <div className="text-sm font-bold">{formatCurrency(cliente.montoTotal ?? 0)}</div>
                  <div className="flex gap-2" onClick={e => e.stopPropagation()}>
-                    <button onClick={() => { setSelectedClientId(cliente.id); setIsDetailsModalOpen(true); }} className="p-2 text-slate-400"><Eye className="h-4 w-4" /></button>
-                    {puedeEditar && <button onClick={() => { setClientToEdit(cliente); setIsEditModalOpen(true); }} className="p-2 text-slate-400"><Pencil className="h-4 w-4" /></button>}
-                    {puedeEliminar && <button onClick={() => handleDeleteClick(cliente)} className="p-2 text-slate-400"><Trash2 className="h-4 w-4" /></button>}
+                    <button 
+                      onClick={(e) => { 
+                        e.stopPropagation();
+                        setSelectedClientId(cliente.id); 
+                        setIsDetailsModalOpen(true); 
+                      }} 
+                      className="p-2 text-slate-400"
+                    >
+                      <Eye className="h-5 w-5" />
+                    </button>
+                    {puedeEditar && (
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setClientToEdit(cliente);
+                          setIsEditModalOpen(true);
+                        }} 
+                        className="p-2 text-slate-400"
+                        title="Editar cliente"
+                      >
+                        <Pencil className="h-5 w-5" />
+                      </button>
+                    )}
+                    {puedeEliminar && (
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteClick(cliente);
+                        }} 
+                        className="p-2 text-slate-400"
+                        title="Eliminar cliente"
+                      >
+                        <Trash2 className="h-5 w-5" />
+                      </button>
+                    )}
                  </div>
               </div>
             </div>
