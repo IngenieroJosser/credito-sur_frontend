@@ -14,9 +14,10 @@
  * - CreacionPrestamoElegante (Dinero)
  * - CreacionCreditoArticulo (Artículos)
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { DollarSign, ShoppingBag, ArrowLeft, X, Plus } from 'lucide-react';
+import { getCajas, Caja } from '@/services/contabilidad-service';
 import CreacionPrestamoElegante from '@/components/prestamos/CreacionPrestamo';
 import CreacionCreditoArticulo from '@/components/creditos/CreacionCreditoArticulo';
 import { cn } from '@/lib/utils';
@@ -32,6 +33,27 @@ export default function CreacionUnificada({ isModal, initialClienteId, onClose }
   
   // Estado para alternar entre formularios
   const [tipoCredito, setTipoCredito] = useState<'DINERO' | 'ARTICULO'>('DINERO');
+  
+  // Estado para validación de capital en CAJA-OFICINA
+  const [errorCapital, setErrorCapital] = useState<boolean>(false);
+  const [verificandoCapital, setVerificandoCapital] = useState<boolean>(true);
+
+  useEffect(() => {
+    const verificarCapital = async () => {
+      try {
+        const cajas = await getCajas();
+        const cajaOficina = cajas.find((c: Caja) => c.codigo === 'CAJA-OFICINA');
+        if (!cajaOficina || cajaOficina.saldo <= 0) {
+          setErrorCapital(true);
+        }
+      } catch (error) {
+        console.error('Error verificando capital:', error);
+      } finally {
+        setVerificandoCapital(false);
+      }
+    };
+    verificarCapital();
+  }, []);
 
   return (
     <div className={cn("relative", isModal ? "w-full" : "min-h-screen bg-slate-50 pb-12")}>
@@ -111,7 +133,30 @@ export default function CreacionUnificada({ isModal, initialClienteId, onClose }
 
         {/* Content Area */}
         <div className={cn("bg-white/50 backdrop-blur-sm rounded-3xl border border-slate-200/60 p-1 md:p-6 shadow-xl shadow-slate-200/40", isModal && "bg-white shadow-none border-none p-0")}>
-            {tipoCredito === 'DINERO' ? (
+            {verificandoCapital ? (
+              <div className="flex flex-col items-center justify-center py-20 text-slate-500">
+                <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mb-4"></div>
+                <p className="font-medium text-lg">Validando disponibilidad de capital...</p>
+              </div>
+            ) : errorCapital ? (
+              <div className="bg-rose-50 border border-rose-200 rounded-2xl p-8 text-center max-w-2xl mx-auto my-12 shadow-sm">
+                <div className="w-16 h-16 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <DollarSign className="w-8 h-8" />
+                </div>
+                <h2 className="text-2xl font-black text-rose-900 mb-2">Capital Insuficiente</h2>
+                <p className="text-rose-700 text-lg mb-6">
+                  No hay capital disponible en la <strong>Caja de Oficina</strong>. Es necesario tener dinero en el sistema para poder realizar nuevos créditos.
+                </p>
+                {!isModal && (
+                  <button
+                    onClick={() => router.back()}
+                    className="px-6 py-3 bg-white border border-rose-200 text-rose-700 rounded-xl font-bold hover:bg-rose-100 transition-all shadow-sm"
+                  >
+                    Volver
+                  </button>
+                )}
+              </div>
+            ) : tipoCredito === 'DINERO' ? (
                 <CreacionPrestamoElegante initialClienteId={initialClienteId} isModal={isModal} />
             ) : (
                 <CreacionCreditoArticulo initialClienteId={initialClienteId} isModal={isModal} />
