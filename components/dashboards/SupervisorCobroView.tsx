@@ -3795,6 +3795,14 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
           isOpen={showGastoModal}
 
           onClose={() => setShowGastoModal(false)}
+          
+          rutaId={rutaId as string}
+          
+          cobradorId={(rutaInfo as any)?.cobradorId || userSession?.id}
+          
+          recaudoDia={rutaStats.recaudo}
+          
+          gastosDia={rutaStats.gastos}
 
           onConfirm={async (data) => {
             if (!rutaId) return

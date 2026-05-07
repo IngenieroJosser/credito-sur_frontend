@@ -94,21 +94,45 @@ export const parseCOPDecimalInputToNumber = (raw: string) => {
 
 export const resolveMediaUrl = (rawUrl: unknown) => {
   if (!rawUrl) return ''
-  const url = String(rawUrl)
+  let url = String(rawUrl).trim()
   if (!url) return ''
+
+  // 1. Si ya es una URL absoluta, la devolvemos tal cual
   if (url.startsWith('http://') || url.startsWith('https://')) return url
 
-  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
-  const looksLikeCloudinaryPublicId =
-    (url.includes('/') && (url.startsWith('creditos-del-sur') || url.startsWith('creditos-del-sur-local') || url.startsWith('clientes/'))) ||
-    url.includes('/clientes/')
+  // 2. DEUDA TÉCNICA: Limpiar prefijos accidentales (/uploads/) si el contenido es de Cloudinary
+  // Esto corrige registros antiguos que se guardaron mal en la DB
+  if (url.startsWith('/uploads/') || url.startsWith('uploads/')) {
+    const potentialId = url.replace(/^\/?uploads\//, '')
+    // Si el resto de la cadena parece un ID de Cloudinary (ej: contiene el nombre del proyecto o es un hash largo)
+    if (
+      potentialId.includes('creditos-del-sur') || 
+      potentialId.includes('clientes/') ||
+      (potentialId.length > 15 && !potentialId.includes('.'))
+    ) {
+      url = potentialId
+    }
+  }
 
-  if (cloudName && looksLikeCloudinaryPublicId) {
+  // 3. Detectar si es un Public ID de Cloudinary
+  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
+  const looksLikeCloudinary = 
+    url.length > 10 && 
+    !url.includes('.') && 
+    !url.startsWith('/') && 
+    !url.startsWith('http');
+
+  if (cloudName && looksLikeCloudinary) {
     const isVideo = /\.(mp4|webm|ogg|mov)$/i.test(url) || url.includes('/videos/')
     return `https://res.cloudinary.com/${cloudName}/${isVideo ? 'video' : 'image'}/upload/${url}`
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001'
-  if (url.startsWith('/')) return `${baseUrl}${url}`
-  return `${baseUrl}/${url}`
+  // 4. Fallback a servidor local (API base)
+  let baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://127.0.0.1:3001'
+  if (!baseUrl.endsWith('/api-credisur')) {
+    baseUrl = baseUrl.replace(/\/$/, '') + '/api-credisur'
+  }
+
+  const cleanUrl = url.startsWith('/') ? url : `/${url}`
+  return `${baseUrl}${cleanUrl}`
 }

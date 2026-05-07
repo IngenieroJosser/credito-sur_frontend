@@ -5029,6 +5029,14 @@ const VistaCobrador = () => {
           isOpen={showGastoModal}
 
           onClose={() => setShowGastoModal(false)}
+          
+          rutaId={rutaActual?.id}
+          
+          cobradorId={userSession?.id}
+          
+          recaudoDia={rutaStats.recaudo}
+          
+          gastosDia={rutaStats.gastos}
 
           onConfirm={async (data) => {
 
@@ -5109,14 +5117,6 @@ const VistaCobrador = () => {
             }
 
           }}
-
-          cobradorId={userSession?.id}
-
-          rutaId={rutaActual?.id}
-
-          recaudoDia={rutaStats.recaudo}
-
-          gastosDia={rutaStats.gastos}
 
         />
 
