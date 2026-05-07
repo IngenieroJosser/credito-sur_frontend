@@ -82,7 +82,11 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
 
   useEffect(() => {
     if (esEdicion && cliente?.id) {
-      // Fetch full client details to get archives
+      // Evitar recargas si ya tenemos los datos y el ID no ha cambiado
+      if (archivosOriginales.fotoPerfil || archivosOriginales.documentoFrente) {
+         // Ya cargado, opcionalmente podrías comparar IDs
+      }
+
       clientesService.obtenerPorId(cliente.id).then((fullClient: any) => {
         if (fullClient.archivos) {
           const newExisting = { ...existingFiles };
@@ -93,10 +97,13 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
             comprobanteDomicilio: null,
           };
 
+          let changed = false;
           fullClient.archivos.forEach((file: any) => {
              const url = file.url || file.path || file.ruta;
+             if (!url) return;
              const fullUrl = resolveMediaUrl(url);
              
+             changed = true;
              if (file.tipoContenido === 'FOTO_PERFIL') {
                newExisting.fotoPerfil = fullUrl;
                newOriginales.fotoPerfil = file;
@@ -114,12 +121,15 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
                newOriginales.comprobanteDomicilio = file;
              }
           });
-          setExistingFiles(newExisting);
-          setArchivosOriginales(newOriginales);
+          
+          if (changed) {
+            setExistingFiles(newExisting);
+            setArchivosOriginales(newOriginales);
+          }
         }
-      });
+      }).catch(err => console.error('Error fetching full client details:', err));
     }
-  }, [esEdicion, cliente]);
+  }, [esEdicion, cliente?.id]); // Usar ID como dependencia para mayor estabilidad
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -145,6 +155,7 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
           nombreOriginal: (upload as any).originalName || upload.filename,
           nombreAlmacenamiento: (upload as any).publicId || upload.filename,
           ruta: (upload as any).publicId || upload.filename,
+          url: (upload as any).path || (upload as any).url,
           tamanoBytes: upload.size,
         });
       } else if (esEdicion && archivosOriginales[map.key as keyof typeof archivosOriginales]) {

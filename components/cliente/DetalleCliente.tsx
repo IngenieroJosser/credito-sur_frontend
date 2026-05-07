@@ -944,6 +944,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
                           <img
                             src={src}
                             alt={`Foto ${idx + 1}`}
+                            crossOrigin="anonymous"
                             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
                           />
                         )}
@@ -1075,6 +1076,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
                           <img
                             src={resolveMediaUrl(lightboxItem)}
                             alt="Vista completa"
+                            crossOrigin="anonymous"
                             onClick={() => setIsZoomed((z) => !z)}
                             className={`max-w-full max-h-[78vh] w-auto h-auto object-contain ${isZoomed ? "cursor-zoom-out" : "cursor-zoom-in"}`}
                             style={

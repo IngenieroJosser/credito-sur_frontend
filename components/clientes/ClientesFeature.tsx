@@ -320,7 +320,7 @@ export default function ClientesFeature({
 
     run()
     return () => { cancelled = true }
-  }, [currentItems])
+  }, [currentItems.map(c => c.id).join(',')])
 
   if (!permitido) {
     return (
