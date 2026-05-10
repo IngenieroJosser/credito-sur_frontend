@@ -34,6 +34,14 @@ export const parseCOPInputToNumber = (raw: string) => {
   return Number(digits || '0')
 }
 
+export const getDisplayedCOPInteger = (amount: number) => {
+  return parseCOPInputToNumber(formatMilesCOP(amount))
+}
+
+export const isSameDisplayedCOPAmount = (received: number, expected: number) => {
+  return Number(received || 0) === getDisplayedCOPInteger(expected)
+}
+
 export const formatMilesCOPDecimal = (amount: number) => {
   const safe = Number.isFinite(amount) ? Math.trunc(amount * 100) / 100 : 0
   return new Intl.NumberFormat('es-CO', {

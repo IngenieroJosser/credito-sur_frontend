@@ -443,9 +443,9 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
           </div>
 
           {/* Frecuencia (now Row 2) */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-center gap-1 h-24">
+          <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between h-28">
              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+                <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
                    <TrendingUp className="w-4 h-4" />
                 </div>
                 <div>
@@ -456,9 +456,9 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
           </div>
 
           {/* Fecha Inicio */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-center gap-1 h-24">
+          <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between h-28">
              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center text-purple-600">
+                <div className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center text-purple-600 shrink-0">
                    <Calendar className="w-4 h-4" />
                 </div>
                 <div>
@@ -470,9 +470,9 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
 
           {/* Cuota vencida / Próximo pago programado */}
           {cuotaVencidaDesdeKey ? (
-            <div className="bg-rose-50/60 p-5 rounded-2xl border border-rose-200 shadow-sm flex flex-col justify-center gap-1 h-24">
+            <div className="bg-rose-50/60 p-5 rounded-2xl border border-rose-200 shadow-sm flex flex-col justify-between h-28">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-rose-100 flex items-center justify-center text-rose-600">
+                <div className="w-8 h-8 rounded-full bg-rose-100 flex items-center justify-center text-rose-600 shrink-0">
                   <Clock className="w-4 h-4" />
                 </div>
                 <div>
@@ -488,9 +488,9 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
           ) : null}
 
           {proximoPagoProgramadoKey ? (
-            <div className="bg-blue-50/50 p-5 rounded-2xl border border-blue-100 shadow-sm flex flex-col justify-center gap-1 h-24">
+            <div className="bg-blue-50/50 p-5 rounded-2xl border border-blue-100 shadow-sm flex flex-col justify-between h-28">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 shrink-0">
                   <Clock className="w-4 h-4" />
                 </div>
                 <div>
@@ -504,9 +504,9 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
               </div>
             </div>
           ) : (prestamo.fechaPrimerCobro ? (
-            <div className="bg-blue-50/50 p-5 rounded-2xl border border-blue-100 shadow-sm flex flex-col justify-center gap-1 h-24">
+            <div className="bg-blue-50/50 p-5 rounded-2xl border border-blue-100 shadow-sm flex flex-col justify-between h-28">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 shrink-0">
                   <Clock className="w-4 h-4" />
                 </div>
                 <div>
@@ -522,9 +522,9 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
           ) : null)}
 
           {/* Fecha Vencimiento */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-center gap-1 h-24">
+          <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between h-28">
              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-orange-50 flex items-center justify-center text-orange-600">
+                <div className="w-8 h-8 rounded-full bg-orange-50 flex items-center justify-center text-orange-600 shrink-0">
                    <Calendar className="w-4 h-4" />
                 </div>
                 <div>
@@ -536,20 +536,22 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
 
           {/* Cuota Inicial (Only for Articles) */}
           {isArticle && (
-          <div className="bg-orange-50/70 p-5 rounded-2xl border border-orange-200 shadow-sm flex flex-col justify-between h-24">
+          <div className="bg-orange-50/70 p-5 rounded-2xl border border-orange-200 shadow-sm flex flex-col justify-between h-28">
              <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest">Cuota Inicial</span>
-             <p className="text-lg font-bold text-orange-700 tracking-tight">{formatCurrency(prestamo.cuotaInicial || 0)}</p>
+             <p className="text-2xl font-bold text-orange-700 tracking-tight">{formatCurrency(prestamo.cuotaInicial || 0)}</p>
           </div>
           )}
           
-          <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-2 min-h-[7rem]">
+          <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between h-28">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Interés por Mora</span>
               <AlertTriangle className="w-4 h-4 text-amber-600" />
             </div>
-            <p className="text-xl font-black text-rose-600 tracking-tight">—</p>
-            <span className="text-[10px] font-bold text-slate-500">Días en mora: {diasMora}</span>
-            <span className="text-[10px] font-medium text-slate-400 mt-1">Asignación manual de mora se gestiona en Cuentas en Mora</span>
+            <p className="text-2xl font-black text-rose-600 tracking-tight">—</p>
+            <div>
+              <span className="text-[10px] font-bold text-slate-500 block">Días en mora: {diasMora}</span>
+              <span className="text-[10px] font-medium text-slate-400">Gestionar en Cuentas en Mora</span>
+            </div>
           </div>
         </div>
       </div>

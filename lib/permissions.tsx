@@ -85,7 +85,6 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
     {
       id: 'administracion', nombre: 'Administración', icono: 'Shield', path: '#', roles: ['SUPER_ADMINISTRADOR'],
       submodulos: [
-        T.USUARIOS('SUPER_ADMINISTRADOR', '/admin/users'),
         T.AUDITORIA('SUPER_ADMINISTRADOR', '/admin/auditoria'),
         T.INVENTARIO('SUPER_ADMINISTRADOR', '/admin/articulos'),
       ]
@@ -93,12 +92,12 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
     {
       id: 'sistema', nombre: 'Sistema', icono: 'Settings', path: '#', roles: ['SUPER_ADMINISTRADOR'],
       submodulos: [
+        T.USUARIOS('SUPER_ADMINISTRADOR', '/admin/users'),
         T.CONFIG('SUPER_ADMINISTRADOR', '/admin/sistema/configuracion'),
         T.SYNC('SUPER_ADMINISTRADOR', '/admin/sistema/sincronizacion'),
         T.BACKUP('SUPER_ADMINISTRADOR', '/admin/sistema/backups'),
       ]
     },
-    T.REP_OPER('SUPER_ADMINISTRADOR', '/admin/reportes/operativos'),
   ],
   ADMIN: [
     T.DASHBOARD('ADMIN', '/admin'),
@@ -132,7 +131,6 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
     {
       id: 'administracion', nombre: 'Administración', icono: 'Shield', path: '#', roles: ['ADMIN'],
       submodulos: [
-        T.USUARIOS('ADMIN', '/admin/users'),
         T.INVENTARIO('ADMIN', '/admin/articulos'),
       ]
     },
@@ -142,7 +140,6 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
         T.SYNC('ADMIN', '/sistema/sincronizacion'),
       ]
     },
-    T.REP_OPER('ADMIN', '/admin/reportes/operativos'),
   ],
   COORDINADOR: [
     T.DASHBOARD('COORDINADOR', '/coordinador'),
@@ -172,7 +169,6 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       id: 'sistema', nombre: 'Sistema', icono: 'Settings', path: '#', roles: ['COORDINADOR'],
       submodulos: [ T.SYNC('COORDINADOR', '/coordinador/sistema/sincronizacion') ]
     },
-    T.REP_OPER('COORDINADOR', '/coordinador/reportes'),
   ],
   SUPERVISOR: [
     T.DASHBOARD('SUPERVISOR', '/supervisor'),
@@ -198,7 +194,6 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
     T.SOLICITUDES('COBRADOR', '/cobranzas/solicitudes'),
   ],
   CONTADOR: [
-    T.DASHBOARD('CONTADOR', '/contador'),
     {
       id: 'gestion-clientes', nombre: 'Gestión Clientes', icono: 'Users', path: '#', roles: ['CONTADOR'],
       submodulos: [
@@ -322,6 +317,7 @@ const inferIconName = (id: string, iconFromApi?: string | null) => {
 export const buildSidebarFromApi = (sidebarData: SidebarModulo[]): ModuloPermiso[] => {
   if (!sidebarData || sidebarData.length === 0) return [];
   const EXCLUDED_SIDEBAR_ROUTES = new Set(['/cobranzas/notificaciones', '/cobranzas/solicitudes', '/creditos-articulos']);
+  const EXCLUDED_SIDEBAR_IDS = new Set(['reportes-operativos']);
   const EXCLUDED_SIDEBAR_ROUTE_PREFIXES = ['/cobranzas'];
 
   const GROUP_META: Record<string, { id: string; nombre: string; icono: string }> = {
@@ -339,8 +335,8 @@ export const buildSidebarFromApi = (sidebarData: SidebarModulo[]): ModuloPermiso
   sidebarData.forEach(grupo => {
     const groupKey = ((m: string) => {
       const ml = m.toLowerCase();
-      if (ml.includes('sistema') || ml.includes('config')) return 'sistema';
-      if (ml.includes('admin') || ml.includes('usuario')) return 'administracion';
+      if (ml.includes('sistema') || ml.includes('config') || ml.includes('usuario')) return 'sistema';
+      if (ml.includes('admin')) return 'administracion';
       if (ml.includes('finan') || ml.includes('contab')) return 'finanzas';
       if (ml.includes('report')) return 'reportes';
       if (ml.includes('cliente') || ml.includes('mora')) return 'gestion-clientes';
@@ -358,10 +354,27 @@ export const buildSidebarFromApi = (sidebarData: SidebarModulo[]): ModuloPermiso
     const current = grouped.get(meta.id) || { ...meta, path: '#', roles: [], submodulos: [] };
     items.forEach(item => {
       const ruta = item.ruta?.trim();
-      if (!ruta || ruta === '#' || EXCLUDED_SIDEBAR_ROUTE_PREFIXES.some(p => ruta.startsWith(`${p}/`)) || EXCLUDED_SIDEBAR_ROUTES.has(ruta)) return;
-      if (!current.submodulos!.some(s => s.path === ruta)) {
-        current.submodulos!.push({ id: item.id, nombre: item.nombre, icono: inferIconName(item.id, item.icono), path: ruta, roles: [] });
+      const itemKey = normalizePermissionId(item.id);
+      if (
+        EXCLUDED_SIDEBAR_IDS.has(itemKey) ||
+        !ruta ||
+        ruta === '#' ||
+        EXCLUDED_SIDEBAR_ROUTE_PREFIXES.some(p => ruta.startsWith(`${p}/`)) ||
+        EXCLUDED_SIDEBAR_ROUTES.has(ruta)
+      ) return;
+      
+      let targetMeta = meta;
+      if (itemKey === 'articulos' || itemKey === 'inventario') {
+        targetMeta = GROUP_META.administracion;
+      } else if (itemKey === 'usuarios' || itemKey === 'usuario') {
+        targetMeta = GROUP_META.sistema;
       }
+
+      const target = grouped.get(targetMeta.id) || { ...targetMeta, path: '#', roles: [], submodulos: [] };
+      if (!target.submodulos!.some(s => s.path === ruta)) {
+        target.submodulos!.push({ id: item.id, nombre: item.nombre, icono: inferIconName(item.id, item.icono), path: ruta, roles: [] });
+      }
+      if (target.submodulos!.length > 0) grouped.set(targetMeta.id, target);
     });
     if (current.submodulos!.length > 0) grouped.set(meta.id, current);
   });
@@ -410,7 +423,13 @@ export const obtenerModulos = (rol: Rol, sidebarData?: SidebarModulo[]): ModuloP
   };
 
   const base = sidebarData?.length ? buildSidebarFromApi(sidebarData) : (ROLES_CONOCIDOS.includes(rol) ? obtenerModulosPorRol(rol) : []);
-  return ensureCurated(applyAliases(base));
+  const modulos = ensureCurated(applyAliases(base));
+
+  if (rol === 'CONTADOR') {
+    return modulos.filter((modulo) => modulo.id !== 'dashboard');
+  }
+
+  return modulos;
 };
 
 export const tieneAcceso = (rol: Rol, path: string, permisos?: string[]): boolean => {

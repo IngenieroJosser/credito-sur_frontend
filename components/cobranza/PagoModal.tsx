@@ -8,7 +8,7 @@ import {
   Loader2
 } from 'lucide-react'
 import { VisitaRuta } from '@/lib/types/cobranza'
-import { formatCOPInputValue, parseCOPInputToNumber, formatMilesCOP } from '@/lib/utils'
+import { formatCOPInputValue, parseCOPInputToNumber, formatMilesCOP, getDisplayedCOPInteger, isSameDisplayedCOPAmount } from '@/lib/utils'
 import Portal, { MODAL_Z_INDEX } from '@/components/ui/Portal'
 
 interface PagoModalProps {
@@ -57,8 +57,9 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm }: PagoModa
     const montoNum = parseCOPInputToNumber(montoPagoInput)
     if (tipo === 'PAGO') {
       const cuota = Number(visita?.montoCuota || 0)
-      if (cuota > 0 && Math.abs(montoNum - cuota) > 0.01) {
-        setErrorMsg(`Para un PAGO, el monto debe ser exactamente $${formatMilesCOP(cuota)}. Para otros valores use ABONO.`)
+      const cuotaMostrada = getDisplayedCOPInteger(cuota)
+      if (cuotaMostrada > 0 && !isSameDisplayedCOPAmount(montoNum, cuota)) {
+        setErrorMsg(`Para un PAGO, el monto debe ser exactamente $${formatMilesCOP(cuotaMostrada)}. Para otros valores use ABONO.`)
         return
       }
     }

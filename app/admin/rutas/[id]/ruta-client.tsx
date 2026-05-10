@@ -94,7 +94,7 @@ import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { useRutaHistorial } from '@/hooks/useRutaHistorial'
 import ClienteInfoModal from '@/components/cobranza/ClienteInfoModal'
 import { formatShortDate } from '@/lib/utils/format'
-import { computeMontoExigibleHastaHoyFromCuotas, computeMontoNominalHastaHoyFromCuotas, computeMetaHoyFromVisitas, getBogotaDateKey, getBogotaRangeByPeriod, getPagoBogotaDateKey, isCuotaNoPagada, isTodayOrPastBogota, isVisitaExigibleHoy, normalizeDateKey, resolveFechaEfectivaCuota, shouldMarkVisitaAsPagado, toBogotaDateTimeOffsetIso, resolveProximaCuotaFromPrestamo } from '@/lib/rutas-core'
+import { computeMontoExigibleHastaHoyFromCuotas, computeMontoNominalHastaHoyFromCuotas, computeMetaHoyFromVisitas, getBogotaDateKey, getBogotaRangeByPeriod, getPagoBogotaDateKey, isCuotaNoPagada, isTodayOrPastBogota, isVisitaExigibleHoy, normalizeDateKey, resolveFechaEfectivaCuota, shouldMarkVisitaAsPagado, shouldShowVisitaEnRutaHoy, toBogotaDateTimeOffsetIso, resolveProximaCuotaFromPrestamo } from '@/lib/rutas-core'
 
 import { mapAsignacionesToVisitasLite } from '@/lib/ruta-visitas-mapper'
 import { buildRecaudosHoyMapByPrestamoId, indexPagosByPrestamoId, sumMontoTotalPagosByBogotaDateKey } from '@/lib/ruta-recaudos'
@@ -641,12 +641,7 @@ const RutaClientLoaded = ({
 
       if (!matchesSearch) return false
 
-      if (searchQuery || showMisClientes) return true
-
-      // Solo desaparece cuando la cuota quedó completa (estado pagado)
-      if (v.estado === 'pagado' && Number((v as any)?.saldoTotal || 0) <= 0) return false;
-
-      return isVisitaExigibleHoy(v as any, hoyBogota);
+      return shouldShowVisitaEnRutaHoy(v as any, hoyBogota);
     });
 
     if (periodoRutaFiltro !== 'TODOS') {
@@ -1885,11 +1880,11 @@ const RutaClientLoaded = ({
                 ) : (() => {
 
                   const filtradas = misCreditos.filter((v) =>
-
-                    v.cliente.toLowerCase().includes(searchQuery.toLowerCase()) ||
-
-                    v.direccion.toLowerCase().includes(searchQuery.toLowerCase()),
-
+                    shouldShowVisitaEnRutaHoy(v as any, hoyBogotaKey) &&
+                    (
+                      v.cliente.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                      v.direccion.toLowerCase().includes(searchQuery.toLowerCase())
+                    ),
                   )
 
 
@@ -2536,6 +2531,7 @@ const RutaClientLoaded = ({
                 cuotas: data.cuotas || data.cantidadCuotas || (isArticulo ? data.numCuotas : 0),
                 frecuenciaPago: freq,
                 fechaInicio: data.fechaInicio || toBogotaDateTimeOffsetIso(new Date()),
+                fechaPrimerCobro: esContado ? undefined : data.fechaPrimerCobro,
                 creadoPorId: currentUser?.id || '',
                 cuotaInicial: data.cuotaInicialArticulo || 0,
                 notas: isArticulo
@@ -2830,6 +2826,4 @@ function formatDateUTC(dateStr: string) {
 
 
 export default RutaClient
-
-
 

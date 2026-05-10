@@ -50,13 +50,28 @@ export default function ArchivadosPage() {
         )
 
         const registros = await auditoriaService.obtenerRegistros()
+        const restauracionesPorEntidad = new Map<string, number>()
+        ;(Array.isArray(registros) ? registros : []).forEach((r: any) => {
+          const accion = String(r.accion || '').toUpperCase()
+          if (!accion.includes('RESTAURAR') && !accion.includes('RESTORE')) return
+          const key = `${String(r.entidad || '').toLowerCase()}::${String(r.entidadId || '')}`
+          const timestamp = new Date(r.creadoEn || 0).getTime()
+          restauracionesPorEntidad.set(key, Math.max(restauracionesPorEntidad.get(key) || 0, timestamp))
+        })
+
         const eliminaciones = registros
           .filter((r: any) => {
             const accion = (r.accion || '').toUpperCase();
-            return accion.includes('ELIMINAR') || 
+            const esArchivado = accion.includes('ELIMINAR') || 
                    accion.includes('DELETE') || 
                    accion.includes('ARCHIVAR') || 
                    accion.includes('RECHAZAR');
+            if (!esArchivado) return false
+
+            const key = `${String(r.entidad || '').toLowerCase()}::${String(r.entidadId || '')}`
+            const restauradoEn = restauracionesPorEntidad.get(key) || 0
+            const archivadoEn = new Date(r.creadoEn || 0).getTime()
+            return restauradoEn <= archivadoEn
           })
           .map((r: any) => ({
             id: r.id,
@@ -98,8 +113,8 @@ export default function ArchivadosPage() {
     fetchItems();
   }, [])
 
-  // Tiempo real: cuando se archive/elimine algo vía otro módulo, actualizar lista
-  useRealtimeData(['prestamos_actualizados', 'clientes_actualizados'], () => {
+  // Tiempo real: cuando se archive/elimine/restaure algo vía otro módulo, actualizar lista
+  useRealtimeData(['prestamos_actualizados', 'clientes_actualizados', 'inventario_actualizado', 'usuarios_actualizados', 'dashboards_actualizados'], () => {
     if ((window as any).refreshArchivados) (window as any).refreshArchivados()
   })
 
@@ -133,6 +148,7 @@ export default function ArchivadosPage() {
       }
       
       toast.success(`${selectedItem.tipo.charAt(0).toUpperCase() + selectedItem.tipo.slice(1)} restaurado correctamente`, { id: toastId })
+      setItems((prev) => prev.filter((item) => !(item.tipo === selectedItem.tipo && item.entidadId === selectedItem.entidadId)))
       
       // Recargar lista
       if ((window as any).refreshArchivados) {

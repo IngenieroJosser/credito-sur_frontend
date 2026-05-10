@@ -34,6 +34,7 @@ import { prestamosService } from '@/services/prestamos-service'
 import { MetodoPago } from '@/types/enums'
 import { toast } from 'sonner'
 import Image from 'next/image'
+import { resolveCobradorIdForRouteAction } from '@/lib/rutas-core'
 
 interface ResumenCuota {
   capital: number
@@ -154,15 +155,16 @@ const RegistroPagoPage = () => {
 
     setEstadoEnvio('enviando')
 
-    // Obtener el usuario activo para el cobradorId
-    let cobradorId = prestamo.cobradorId || ''
+    // El pago debe quedar asociado al cobrador dueño del crédito; el usuario activo es solo respaldo.
+    let sessionUserId = ''
     try {
       const userData = localStorage.getItem('user')
       if (userData) {
         const user = JSON.parse(userData)
-        cobradorId = user.id || cobradorId || ''
+        sessionUserId = user.id || ''
       }
     } catch { /* no-op */ }
+    const cobradorId = resolveCobradorIdForRouteAction(prestamo.cobradorId, sessionUserId)
 
     const dto: CrearPagoDto = {
       prestamoId: prestamo.id,

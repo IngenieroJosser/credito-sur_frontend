@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect } from 'react'
 import { X, Calendar, TrendingUp, TrendingDown, Eye, LineChart } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
-import { getTransacciones } from '@/services/contabilidad-service'
+import { getMovimientosLedger } from '@/services/contabilidad-service'
 import { buildBogotaOffsetIsoFromKey, getBogotaDateKey, normalizeDateKey } from '@/lib/rutas-core'
 
 interface DetalleReporteFinancieroModalProps {
@@ -22,10 +22,11 @@ type DetalleRow = {
 
 export default function DetalleReporteFinancieroModal({ id, onClose }: DetalleReporteFinancieroModalProps) {
   const [periodoLabel, setPeriodoLabel] = useState<string>('')
-  const [ingresos, setIngresos] = useState<number>(0)
-  const [egresos, setEgresos] = useState<number>(0)
-  const [utilidad, setUtilidad] = useState<number>(0)
-  const [margen, setMargen] = useState<number>(0)
+  const [ingresos, setIngresos] = useState<Record<string, number>>({})
+  const [gastos, setGastos] = useState<number>(0)
+  const [costos, setCostos] = useState<number>(0)
+  const [utilidadOperativa, setUtilidadOperativa] = useState<number>(0)
+  const [utilidadNeta, setUtilidadNeta] = useState<number>(0)
   const [rows, setRows] = useState<DetalleRow[]>([])
 
   useEffect(() => {
@@ -75,22 +76,41 @@ export default function DetalleReporteFinancieroModal({ id, onClose }: DetalleRe
         ? buildBogotaOffsetIsoFromKey(endKey, { hh: 23, mm: 59, ss: 59, ms: 999 })
         : ''
 
-      const [ingRes, egreRes] = await Promise.all([
-        getTransacciones({ tipo: 'INGRESO', fechaInicio, fechaFin, limit: 10000 }),
-        getTransacciones({ tipo: 'EGRESO', fechaInicio, fechaFin, limit: 10000 })
+      const [ingRes, egreRes, costoRes] = await Promise.all([
+        getMovimientosLedger({ accountPrefix: '3.', fechaInicio, fechaFin, limit: 10000 }),
+        getMovimientosLedger({ accountPrefix: '4.', fechaInicio, fechaFin, limit: 10000 }),
+        getMovimientosLedger({ accountPrefix: '5.', fechaInicio, fechaFin, limit: 10000 })
       ])
 
       if (cancelado) return
 
-      const ingresosTotal = ingRes.data.reduce((acc, t) => acc + (t.monto || 0), 0)
-      const egresosTotal = egreRes.data.reduce((acc, t) => acc + (t.monto || 0), 0)
-      const utilidadTotal = Math.max(0, ingresosTotal - egresosTotal)
-      const margenTotal = ingresosTotal > 0 ? (utilidadTotal / ingresosTotal) * 100 : 0
+      const ingMap: Record<string, number> = {
+        '3.1': 0, '3.2': 0, '3.3': 0, '3.4': 0
+      }
 
-      setIngresos(ingresosTotal)
-      setEgresos(egresosTotal)
-      setUtilidad(utilidadTotal)
-      setMargen(Number(margenTotal.toFixed(1)))
+      ingRes.data.forEach(t => {
+        t.lineas.forEach(l => {
+          if (String(l.accountCode).startsWith('3.')) {
+            const prefix = String(l.accountCode).substring(0, 3)
+            if (ingMap[prefix] !== undefined && l.creditAmount) {
+              ingMap[prefix] += Number(l.creditAmount)
+            }
+          }
+        })
+      })
+
+      const ingresosTotales = Object.values(ingMap).reduce((a, b) => a + b, 0)
+      const gastosTotales = egreRes.data.reduce((acc, t) => acc + Number(t.totalDebito || 0), 0)
+      const costosTotales = costoRes.data.reduce((acc, t) => acc + Number(t.totalDebito || 0), 0)
+
+      const utilOperativa = ingresosTotales - gastosTotales - costosTotales
+      const utilNeta = utilOperativa // Si hubiera impuestos o financieros irían acá
+
+      setIngresos(ingMap)
+      setGastos(gastosTotales)
+      setCostos(costosTotales)
+      setUtilidadOperativa(utilOperativa)
+      setUtilidadNeta(utilNeta)
 
       const formatFechaHora = (iso: string) => {
         const d = new Date(iso)
@@ -103,9 +123,9 @@ export default function DetalleReporteFinancieroModal({ id, onClose }: DetalleRe
         const { fecha, hora } = formatFechaHora(t.fecha)
         return {
           label: t.descripcion || 'Movimiento',
-          valor: t.monto || 0,
+          valor: Number(t.totalCredito || 0),
           tipo: 'INGRESO',
-          categoria: (t.categoria || 'INGRESO').replace(/\s+/g, '_'),
+          categoria: (t.lineas.find((linea) => String(linea.accountCode).startsWith('3.'))?.accountName || t.tipo || 'INGRESO').replace(/\s+/g, '_'),
           fecha,
           hora
         }
@@ -114,15 +134,26 @@ export default function DetalleReporteFinancieroModal({ id, onClose }: DetalleRe
         const { fecha, hora } = formatFechaHora(t.fecha)
         return {
           label: t.descripcion || 'Movimiento',
-          valor: t.monto || 0,
+          valor: Number(t.totalDebito || 0),
           tipo: 'EGRESO',
-          categoria: (t.categoria || 'EGRESO').replace(/\s+/g, '_'),
+          categoria: (t.lineas.find((linea) => String(linea.accountCode).startsWith('4.'))?.accountName || t.tipo || 'EGRESO').replace(/\s+/g, '_'),
+          fecha,
+          hora
+        }
+      })
+      const filasCos: DetalleRow[] = costoRes.data.map(t => {
+        const { fecha, hora } = formatFechaHora(t.fecha)
+        return {
+          label: t.descripcion || 'Movimiento',
+          valor: Number(t.totalDebito || 0),
+          tipo: 'EGRESO',
+          categoria: (t.lineas.find((linea) => String(linea.accountCode).startsWith('5.'))?.accountName || t.tipo || 'COSTO').replace(/\s+/g, '_'),
           fecha,
           hora
         }
       })
 
-      const todas = [...filasIng, ...filasEgr]
+      const todas = [...filasIng, ...filasEgr, ...filasCos]
       setRows(todas)
     }
     cargar()
@@ -147,7 +178,7 @@ export default function DetalleReporteFinancieroModal({ id, onClose }: DetalleRe
   const rowsPaginadas = rows.slice(start, end)
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200" onClick={onClose}>
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200" onClick={onClose}>
       <div className="bg-white rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200 flex flex-col" onClick={(e) => e.stopPropagation()}>
         
         {/* Header */}
@@ -177,41 +208,52 @@ export default function DetalleReporteFinancieroModal({ id, onClose }: DetalleRe
         <div className="p-8 space-y-8">
           
           {/* Summary Cards */}
-          <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Ingresos</p>
-                  <p className="mt-1 text-xl font-black text-slate-900">{formatCurrency(ingresos)}</p>
-                </div>
-                <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-600">
-                  <TrendingUp className="h-5 w-5" />
-                </div>
+          <section className="bg-slate-50 p-6 rounded-2xl border border-slate-200">
+            <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4">Desglose Oficial</h3>
+            
+            <div className="space-y-3 mb-6">
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-slate-600 font-medium">Ingresos por intereses</span>
+                <span className="font-bold text-slate-900">{formatCurrency(ingresos['3.1'] || 0)}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-slate-600 font-medium">Mora</span>
+                <span className="font-bold text-slate-900">{formatCurrency(ingresos['3.2'] || 0)}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-slate-600 font-medium">Otros ingresos</span>
+                <span className="font-bold text-slate-900">{formatCurrency(ingresos['3.3'] || 0)}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-slate-600 font-medium">Ingresos por artículos</span>
+                <span className="font-bold text-slate-900">{formatCurrency(ingresos['3.4'] || 0)}</span>
+              </div>
+              <div className="border-t border-slate-200 pt-3 flex justify-between items-center text-sm text-rose-600">
+                <span className="font-medium">Costos de artículos vendidos</span>
+                <span className="font-bold">-{formatCurrency(costos)}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm text-rose-600">
+                <span className="font-medium">Gastos operativos</span>
+                <span className="font-bold">-{formatCurrency(gastos)}</span>
               </div>
             </div>
 
-            <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Egresos</p>
-                  <p className="mt-1 text-xl font-black text-slate-900">{formatCurrency(egresos)}</p>
-                </div>
-                <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-100 text-rose-600">
-                  <TrendingDown className="h-5 w-5" />
-                </div>
+            <div className="bg-white p-4 rounded-xl border border-slate-200 mb-4 shadow-sm">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-bold text-slate-500 uppercase">Utilidad Operativa</span>
+                <span className={`text-xl font-black ${utilidadOperativa >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  {formatCurrency(utilidadOperativa)}
+                </span>
               </div>
+              <p className="text-xs text-slate-400 mt-1">Fórmula: Ingresos operativos - Gastos operativos - Costos</p>
             </div>
 
-            <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Utilidad Neta</p>
-                  <p className="mt-1 text-xl font-black text-slate-900">{formatCurrency(utilidad)}</p>
-                  <p className="text-xs font-bold text-slate-400 mt-0.5">Margen: {margen.toFixed(1)}%</p>
-                </div>
-                <div className="p-2.5 rounded-xl bg-blue-50 border border-blue-100 text-blue-600">
-                  <Eye className="h-5 w-5" />
-                </div>
+            <div className="bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-md">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-bold text-slate-300 uppercase">Utilidad Neta</span>
+                <span className={`text-xl font-black ${utilidadNeta >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                  {formatCurrency(utilidadNeta)}
+                </span>
               </div>
             </div>
           </section>

@@ -19,6 +19,7 @@ import { prestamosService } from '@/services/prestamos-service'
 import { pagosService, type DescomposicionPago } from '@/services/pagos-service'
 import { offlineStore } from '@/lib/offline/offlineDb'
 import { enqueuePago } from '@/lib/offline/offlineQueue'
+import { resolveCobradorIdForRouteAction } from '@/lib/rutas-core'
 
 type TipoProducto = 'PRESTAMO_EFECTIVO' | 'CREDITO_ARTICULO'
 
@@ -39,6 +40,7 @@ interface ProductoFinanciero {
   valorCuota: number
   diasMora: number
   imagen?: string // Para artículos
+  cobradorId?: string
 }
 
 const RegistrarPagoClientePage = () => {
@@ -83,6 +85,7 @@ const RegistrarPagoClientePage = () => {
             proximaCuota: prestamo.proximoPago || prestamo.fechaFin || '',
             valorCuota: prestamo.valorCuota || 0,
             diasMora: prestamo.diasMora || 0,
+            cobradorId: prestamo.cobradorId || undefined,
           })
         }
       } catch (err) {
@@ -110,6 +113,7 @@ const RegistrarPagoClientePage = () => {
               proximaCuota: offPrestamo.fechaFin || '',
               valorCuota: offPrestamo.saldoPendiente ? Math.round(offPrestamo.saldoPendiente / (offPrestamo.cantidadCuotas || 1)) : 0,
               diasMora: 0,
+              cobradorId: offPrestamo.cobradorId || undefined,
             })
           }
         } catch { /* ignore */ }
@@ -128,12 +132,13 @@ const RegistrarPagoClientePage = () => {
     setEstadoEnvio('enviando')
     const userStr = localStorage.getItem('user')
     const user = userStr ? JSON.parse(userStr) : null
+    const cobradorId = resolveCobradorIdForRouteAction(producto.cobradorId, user?.id)
 
     try {
       const resultado = await pagosService.registrarPago({
         clienteId: cliente.id,
         prestamoId: producto.id,
-        cobradorId: user?.id || '',
+        cobradorId,
         montoTotal: parseCOPInputToNumber(monto),
         metodoPago: 'EFECTIVO' as any,
         notas: comentarios || undefined,
@@ -148,7 +153,7 @@ const RegistrarPagoClientePage = () => {
           await enqueuePago({
             clienteId: cliente.id,
             prestamoId: producto.id,
-            cobradorId: user?.id || '',
+            cobradorId,
             montoTotal: parseCOPInputToNumber(monto),
             notas: comentarios || undefined,
             clienteNombre: cliente.nombre,

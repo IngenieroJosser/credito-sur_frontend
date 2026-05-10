@@ -2405,6 +2405,7 @@ const LegacyDetalleRutaPage = () => {
                 frecuenciaPago: esContado ? 'MENSUAL' : (data.frecuenciaPago || 'DIARIO'),
 
                 fechaInicio: data.fechaInicio || toBogotaDateTimeOffsetIso(new Date()),
+                fechaPrimerCobro: esContado ? undefined : data.fechaPrimerCobro,
 
                 creadoPorId: currentUser?.id,
 

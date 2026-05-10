@@ -11,7 +11,7 @@ import {
   RefreshCw,
 } from 'lucide-react'
 import Image from 'next/image'
-import { formatCOPInputValue, formatMilesCOP, parseCOPInputToNumber } from '@/lib/utils'
+import { formatCOPInputValue, formatMilesCOP, getDisplayedCOPInteger, isSameDisplayedCOPAmount, parseCOPInputToNumber } from '@/lib/utils'
 import { Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
 import { clientesService, Cliente } from '@/services/clientes-service'
 import { offlineStore } from '@/lib/offline/offlineDb'
@@ -53,6 +53,7 @@ export default function PagoModal({
   const [comprobanteTransferencia, setComprobanteTransferencia] = useState<File | null>(null)
   const [comprobanteTransferenciaPreviewUrl, setComprobanteTransferenciaPreviewUrl] = useState<string | null>(null)
   const [isAbono, setIsAbono] = useState(initialIsAbono)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
   const [prevIsOpen, setPrevIsOpen] = useState(false)
 
@@ -68,6 +69,7 @@ export default function PagoModal({
     }
     setMetodoPago('EFECTIVO')
     setComprobanteTransferencia(null)
+    setErrorMsg(null)
   } else if (!isOpen && prevIsOpen) {
     setPrevIsOpen(false)
   }
@@ -114,6 +116,7 @@ export default function PagoModal({
     }
     setMetodoPago('EFECTIVO')
     setComprobanteTransferencia(null)
+    setErrorMsg(null)
   }
 
   return (
@@ -151,6 +154,7 @@ export default function PagoModal({
                       if (v) {
                         setVisitaSeleccionada(v)
                         setMontoPagoInput(formatMilesCOP(v.montoCuota))
+                        setErrorMsg(null)
                       } else {
                          const c = todosLosClientes.find(x => x.id === e.target.value);
                          if(c) {
@@ -162,6 +166,7 @@ export default function PagoModal({
                                saldoTotal: 0
                             });
                             setMontoPagoInput('');
+                            setErrorMsg(null)
                          }
                       }
                     }}
@@ -184,6 +189,7 @@ export default function PagoModal({
                       onClick={() => {
                         setVisitaSeleccionada(null)
                         setMontoPagoInput('')
+                        setErrorMsg(null)
                       }}
                       className="absolute top-4 right-4 p-2 bg-white text-slate-400 rounded-xl hover:text-slate-700 shadow-sm border border-slate-100 transition-all z-10"
                       title="Cambiar cliente"
@@ -252,7 +258,10 @@ export default function PagoModal({
                   <div className="flex items-center justify-between mb-2">
                     <label className="block text-sm font-bold text-slate-700">Monto Recibido</label>
                     <button
-                      onClick={() => setIsAbono(!isAbono)}
+                      onClick={() => {
+                        setIsAbono(!isAbono)
+                        setErrorMsg(null)
+                      }}
                       className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-md transition-all ${
                         isAbono ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'
                       }`}
@@ -266,7 +275,10 @@ export default function PagoModal({
                       type="text"
                       inputMode="numeric"
                       value={montoPagoInput}
-                      onChange={(e) => setMontoPagoInput(formatCOPInputValue(e.target.value))}
+                      onChange={(e) => {
+                        setMontoPagoInput(formatCOPInputValue(e.target.value))
+                        setErrorMsg(null)
+                      }}
                       className="w-full pl-10 pr-4 py-4 bg-white border-2 border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-bold text-2xl text-slate-900 placeholder:text-slate-300"
                       placeholder="0"
                       autoFocus
@@ -332,13 +344,26 @@ export default function PagoModal({
                   </div>
                 )}
 
+                {errorMsg && (
+                  <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">
+                    {errorMsg}
+                  </div>
+                )}
+
                 <button
                   type="button"
                   onClick={() => {
                     if (visitaSeleccionada) {
+                      const monto = parseCOPInputToNumber(montoPagoInput)
+                      const cuota = Number(visitaSeleccionada.montoCuota || 0)
+                      const cuotaMostrada = getDisplayedCOPInteger(cuota)
+                      if (!isAbono && cuotaMostrada > 0 && !isSameDisplayedCOPAmount(monto, cuota)) {
+                        setErrorMsg(`Para un PAGO, el monto debe ser exactamente $${formatMilesCOP(cuotaMostrada)}. Para otros valores use ABONO.`)
+                        return
+                      }
                       onConfirm({
                         clienteId: visitaSeleccionada.id,
-                        monto: parseCOPInputToNumber(montoPagoInput),
+                        monto,
                         metodoPago,
                         comprobante: comprobanteTransferencia,
                         isAbono,

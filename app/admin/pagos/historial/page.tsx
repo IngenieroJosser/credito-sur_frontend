@@ -11,10 +11,7 @@ import {
   Wallet,
   ChevronLeft,
   ChevronRight,
-  Download,
-  AlertCircle,
-  LayoutGrid,
-  List
+  AlertCircle
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
@@ -38,6 +35,9 @@ interface Pago {
   cobrador: string
   ruta: string
   monto: number
+  capital: number
+  interes: number
+  mora: number
   metodo: string
   estado: EstadoPago
 }
@@ -64,7 +64,6 @@ const HistorialPagosPage = () => {
 
   const [busqueda, setBusqueda] = useState('')
   const [paginaActual, setPaginaActual] = useState(1)
-  const [vista, setVista] = useState<'grid' | 'list'>('list')
   const [isLoading, setIsLoading] = useState(true)
   const [pagos, setPagos] = useState<Pago[]>([])
   const [showDetallePago, setShowDetallePago] = useState(false)
@@ -93,27 +92,39 @@ const HistorialPagosPage = () => {
       try {
         const resp = await pagosService.obtenerPagos()
         const data = resp?.pagos || resp || []
-        const mapped: Pago[] = (Array.isArray(data) ? data : []).map((p: any) => ({
-          pagoId: p.id,
-          id: p.numeroPago || p.id,
-          fecha: p.fechaPago || p.creadoEn || '',
-          cliente: p.cliente ? `${p.cliente.nombres} ${p.cliente.apellidos}` : (p.clienteId || ''),
-          cobrador: p.cobrador ? `${p.cobrador.nombres} ${p.cobrador.apellidos}` : (p.cobradorId || ''),
-          ruta: p.ruta || '',
-          monto: (() => {
-            const montoTotal = Number(p?.montoTotal ?? 0)
-            if (Number.isFinite(montoTotal) && montoTotal > 0) return montoTotal
-            const sumCampos = Number(p?.montoCapital ?? 0) + Number(p?.montoInteres ?? 0) + Number(p?.montoMora ?? 0)
-            if (Number.isFinite(sumCampos) && sumCampos > 0) return sumCampos
-            const detalles = Array.isArray(p?.detalles) ? p.detalles : []
-            const sumDetalles = detalles.reduce((acc: number, d: any) => {
-              return acc + Number(d?.montoCapital || 0) + Number(d?.montoInteres || 0) + Number(d?.montoInteresMora || 0)
-            }, 0)
-            return Number.isFinite(sumDetalles) ? sumDetalles : 0
-          })(),
-          metodo: p.metodoPago || 'Efectivo',
-          estado: (p.estado || 'completado').toLowerCase() as EstadoPago,
-        }))
+        const mapped: Pago[] = (Array.isArray(data) ? data : []).map((p: any) => {
+          const montoTotal = Number(p?.montoTotal ?? 0)
+          const sumCampos = Number(p?.montoCapital ?? 0) + Number(p?.montoInteres ?? 0) + Number(p?.montoMora ?? 0)
+          
+          let capital = Number(p?.montoCapital ?? 0)
+          let interes = Number(p?.montoInteres ?? 0)
+          let mora = Number(p?.montoMora ?? 0)
+          
+          const detalles = Array.isArray(p?.detalles) ? p.detalles : []
+          if (capital === 0 && interes === 0 && mora === 0) {
+            capital = detalles.reduce((acc: number, d: any) => acc + Number(d?.montoCapital || 0), 0)
+            interes = detalles.reduce((acc: number, d: any) => acc + Number(d?.montoInteres || 0), 0)
+            mora = detalles.reduce((acc: number, d: any) => acc + Number(d?.montoInteresMora || 0), 0)
+          }
+
+          let monto = montoTotal > 0 ? montoTotal : (sumCampos > 0 ? sumCampos : (capital + interes + mora))
+          if (monto === 0) monto = capital + interes + mora
+
+          return {
+            pagoId: p.id,
+            id: p.numeroPago || p.id,
+            fecha: p.fechaPago || p.creadoEn || '',
+            cliente: p.cliente ? `${p.cliente.nombres} ${p.cliente.apellidos}` : (p.clienteId || ''),
+            cobrador: p.cobrador ? `${p.cobrador.nombres} ${p.cobrador.apellidos}` : (p.cobradorId || ''),
+            ruta: p.ruta || '',
+            monto,
+            capital,
+            interes,
+            mora,
+            metodo: p.metodoPago || 'Efectivo',
+            estado: (p.estado || 'completado').toLowerCase() as EstadoPago,
+          }
+        })
         setPagos(mapped)
       } catch (err) {
         console.error('Error cargando historial de pagos:', err)
@@ -130,6 +141,9 @@ const HistorialPagosPage = () => {
               cobrador: '',
               ruta: '',
               monto: q.data?.montoTotal || 0,
+              capital: q.data?.montoCapital || 0,
+              interes: q.data?.montoInteres || 0,
+              mora: q.data?.montoMora || 0,
               metodo: 'Efectivo',
               estado: (q.status === 'completed' ? 'completado' : 'pendiente') as EstadoPago,
             }));
@@ -203,7 +217,7 @@ const HistorialPagosPage = () => {
     return true
   })
 
-  const ITEMS_PER_PAGE = 10
+  const ITEMS_PER_PAGE = 20 // Mostrar más ítems ya que es tabla densa
   const totalPages = Math.max(1, Math.ceil(pagosFiltrados.length / ITEMS_PER_PAGE))
   const paginaSegura = Math.min(Math.max(1, paginaActual), totalPages)
   const startIdx = (paginaSegura - 1) * ITEMS_PER_PAGE
@@ -230,7 +244,7 @@ const HistorialPagosPage = () => {
   }
 
   const Paginador = () => (
-    <div className="flex items-center justify-between border-t border-slate-100 px-6 py-4 bg-slate-50/50">
+    <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3 bg-white">
       <div className="text-xs font-medium text-slate-500">
         Mostrando <span className="font-bold text-slate-900">{pagosPaginados.length}</span> de{' '}
         <span className="font-bold text-slate-900">{pagosFiltrados.length}</span>
@@ -239,7 +253,7 @@ const HistorialPagosPage = () => {
         <button
           onClick={() => setPaginaActual((prev) => Math.max(1, prev - 1))}
           disabled={paginaSegura === 1}
-          className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 transition-all"
+          className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 transition-all"
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
@@ -249,7 +263,7 @@ const HistorialPagosPage = () => {
         <button
           onClick={() => setPaginaActual((prev) => Math.min(totalPages, prev + 1))}
           disabled={paginaSegura >= totalPages}
-          className="p-2 rounded-xl border border-slate-200 bg-white text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 transition-all"
+          className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 transition-all"
         >
           <ChevronRight className="h-4 w-4" />
         </button>
@@ -259,24 +273,14 @@ const HistorialPagosPage = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 relative">
-      {/* Fondo arquitectónico */}
-      <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
-        <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-primary opacity-20 blur-[100px]"></div>
-      </div>
-
       <div className="relative z-10 w-full p-4 md:p-8 space-y-6 md:space-y-8">
         <header className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between mb-8">
           <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600 ring-1 ring-slate-200">
-              <Wallet className="h-3.5 w-3.5" />
-              <span>Historial de pagos</span>
-            </div>
-            <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
-              <span className="text-blue-600">Historial </span><span className="text-orange-500">de Pagos</span>
+            <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900">
+              Historial de Pagos
             </h1>
-            <p className="text-base text-slate-500 max-w-xl font-medium">
-              Visualiza pagos registrados por cliente, cobrador y ruta.
+            <p className="text-sm text-slate-500 font-medium">
+              Consulta densa de recaudos con desglose de capital, interés y mora.
             </p>
           </div>
 
@@ -290,39 +294,7 @@ const HistorialPagosPage = () => {
           </div>
         </header>
 
-        <section className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
-              <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Recaudado</div>
-              <div className="mt-2 text-2xl font-black tracking-tight text-slate-900 tabular-nums">{formatCurrency(kpis.total)}</div>
-              <div className="mt-2 text-xs font-medium text-slate-500">Según el período seleccionado</div>
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
-              <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Pagos Registrados</div>
-              <div className="mt-2 text-2xl font-black tracking-tight text-slate-900 tabular-nums">{kpis.count}</div>
-              <div className="mt-2 text-xs font-medium text-slate-500">Total de operaciones</div>
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
-              <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ticket Promedio</div>
-              <div className="mt-2 text-2xl font-black tracking-tight text-slate-900 tabular-nums">{formatCurrency(kpis.promedio)}</div>
-              <div className="mt-2 text-xs font-medium text-slate-500">Promedio por pago</div>
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
-              <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Métodos</div>
-              <div className="mt-2 space-y-1">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="font-bold text-slate-600">Efectivo</span>
-                  <span className="font-black text-slate-900 tabular-nums">{formatCurrency(kpis.efectivo)}</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="font-bold text-slate-600">Transferencia</span>
-                  <span className="font-black text-slate-900 tabular-nums">{formatCurrency(kpis.transferencia)}</span>
-                </div>
-              </div>
-              <div className="mt-2 text-xs font-medium text-slate-500">Desglose por método</div>
-            </div>
-          </div>
-
+        <section className="space-y-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div className="flex flex-1 gap-3">
               <div className="relative flex-1 max-w-md">
@@ -332,254 +304,170 @@ const HistorialPagosPage = () => {
                 <input
                   value={busqueda}
                   onChange={(e) => setBusqueda(e.target.value)}
-                  placeholder="Buscar por cliente, cobrador o ruta"
-                  className="w-full rounded-xl border-slate-200 bg-white pl-10 pr-4 py-2.5 text-sm font-medium text-slate-700 outline-none focus:border-primary focus:ring-2 focus:ring-primary/5 transition-all placeholder:text-slate-400 hover:border-slate-300 shadow-sm"
+                  placeholder="Buscar recibo, cliente, cobrador..."
+                  className="w-full rounded-xl border border-slate-200 bg-white pl-9 pr-4 py-2 text-sm font-medium text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all shadow-sm"
                 />
               </div>
               <button className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:border-slate-300 hover:bg-slate-50 transition-all shadow-sm">
                 <Filter className="h-4 w-4 text-slate-400" />
                 <span>Filtros</span>
               </button>
-
-              <div className="flex bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
-                <button
-                  onClick={() => setVista('grid')}
-                  className={cn(
-                    "p-2 rounded-lg transition-all",
-                    vista === 'grid'
-                      ? 'bg-slate-100 text-primary shadow-sm'
-                      : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
-                  )}
-                >
-                  <LayoutGrid className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => setVista('list')}
-                  className={cn(
-                    "p-2 rounded-lg transition-all",
-                    vista === 'list'
-                      ? 'bg-slate-100 text-primary shadow-sm'
-                      : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
-                  )}
-                >
-                  <List className="h-4 w-4" />
-                </button>
-              </div>
             </div>
           </div>
 
-          {vista === 'list' ? (
-            <div className="bg-white border border-slate-200 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
-              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
-                <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
-                  <Calendar className="h-4 w-4 text-slate-400" />
-                  <span>
-                    Hoy se han registrado{' '}
-                    <span className="font-bold text-slate-900">{pagosFiltrados.length}</span> pagos
+          {/* TABLA DENSA (DESKTOP) */}
+          <div className="hidden md:block bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50 text-[11px] text-slate-500 uppercase tracking-wider font-bold">
+                    <th className="px-4 py-2.5 text-left">Recibo / Fecha</th>
+                    <th className="px-4 py-2.5 text-left">Cliente</th>
+                    <th className="px-4 py-2.5 text-left">Cobrador / Ruta</th>
+                    <th className="px-4 py-2.5 text-right">Capital</th>
+                    <th className="px-4 py-2.5 text-right">Interés</th>
+                    <th className="px-4 py-2.5 text-right">Mora</th>
+                    <th className="px-4 py-2.5 text-right bg-blue-50/50">Total Pagado</th>
+                    <th className="px-4 py-2.5 text-center">Método</th>
+                    <th className="px-4 py-2.5 text-center">Estado</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {pagosPaginados.map((pago) => (
+                    <tr
+                      key={pago.pagoId}
+                      className="hover:bg-slate-50/80 transition-colors cursor-pointer group"
+                      onClick={() => openDetallePago(pago.pagoId)}
+                    >
+                      <td className="px-4 py-2 align-middle">
+                        <div className="flex flex-col">
+                          <span className="text-xs font-bold text-blue-600">
+                            {pago.id}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-medium">
+                            {formatFechaPago(pago.fecha)}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-2 align-middle">
+                        <span className="text-xs font-bold text-slate-700 truncate block max-w-[150px]">{pago.cliente}</span>
+                      </td>
+                      <td className="px-4 py-2 align-middle">
+                        <div className="flex flex-col">
+                          <span className="text-xs font-medium text-slate-700 truncate max-w-[120px]">
+                            {pago.cobrador}
+                          </span>
+                          <span className="text-[10px] text-slate-400">
+                            {pago.ruta}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-2 align-middle text-right">
+                        <span className="text-xs font-medium text-slate-600">
+                          {formatCurrency(pago.capital)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 align-middle text-right">
+                        <span className="text-xs font-medium text-slate-600">
+                          {formatCurrency(pago.interes)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 align-middle text-right">
+                        <span className="text-xs font-medium text-slate-600">
+                          {pago.mora > 0 ? formatCurrency(pago.mora) : '-'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 align-middle text-right bg-blue-50/20">
+                        <span className="text-xs font-black text-slate-900">
+                          {formatCurrency(pago.monto)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 align-middle text-center">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase">
+                          {pago.metodo}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 align-middle text-center">
+                        <span
+                          className={`inline-flex items-center rounded-sm px-1.5 py-0.5 text-[10px] font-bold ${getEstadoChipClasses(
+                            pago.estado
+                          )}`}
+                        >
+                          {pago.estado === 'completado' && 'Completado'}
+                          {pago.estado === 'pendiente' && 'Pendiente'}
+                          {pago.estado === 'fallido' && 'Fallido'}
+                          {pago.estado === 'en_revision' && 'En revisión'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                  {pagosFiltrados.length === 0 && (
+                    <tr>
+                      <td colSpan={9} className="px-4 py-8 text-center text-sm font-medium text-slate-500">
+                        No se encontraron resultados
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            {pagosFiltrados.length > 0 && <Paginador />}
+          </div>
+
+          {/* VISTA CARDS (MOBILE ONLY) */}
+          <div className="md:hidden space-y-3">
+            {pagosPaginados.map((pago) => (
+              <div 
+                key={pago.pagoId} 
+                className="bg-white border border-slate-200 rounded-xl p-4 active:scale-[0.98] transition-transform"
+                onClick={() => openDetallePago(pago.pagoId)}
+              >
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <h3 className="font-bold text-sm text-slate-900 line-clamp-1">{pago.cliente}</h3>
+                    <p className="text-[11px] text-slate-500">{pago.id} • {formatFechaPago(pago.fecha)}</p>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${getEstadoChipClasses(pago.estado)}`}>
+                    {pago.estado}
                   </span>
                 </div>
-                <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 bg-white px-2 py-1 rounded border border-slate-200">
-                  <AlertCircle className="h-3 w-3" />
-                  <span>{pagosFiltrados.length} registros</span>
-                </div>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-100 text-xs text-slate-400 uppercase tracking-wider font-bold">
-                      <th className="px-6 py-4 text-left bg-slate-50/30">Pago</th>
-                      <th className="px-6 py-4 text-left bg-slate-50/30">Cliente</th>
-                      <th className="px-6 py-4 text-left bg-slate-50/30">Cobrador / Ruta</th>
-                      <th className="px-6 py-4 text-left bg-slate-50/30">Monto</th>
-                      <th className="px-6 py-4 text-left bg-slate-50/30">Método</th>
-                      <th className="px-6 py-4 text-left bg-slate-50/30">Estado</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {pagosPaginados.map((pago) => (
-                      <tr
-                        key={pago.pagoId}
-                        className="hover:bg-slate-50/80 transition-colors group"
-                        onClick={() => openDetallePago(pago.pagoId)}
-                        role="button"
-                        tabIndex={0}
-                      >
-                        <td className="px-6 py-4 align-middle">
-                          <div className="flex flex-col">
-                            <span className="text-xs font-bold text-primary group-hover:text-primary-dark transition-colors">
-                              {pago.id}
-                            </span>
-                            <span className="text-[11px] text-slate-400 font-medium">
-                              {formatFechaPago(pago.fecha)}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 align-middle">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center group-hover:border-slate-300 group-hover:bg-white transition-colors">
-                              <User className="h-3.5 w-3.5 text-slate-400 group-hover:text-slate-600 transition-colors" />
-                            </div>
-                            <div className="flex flex-col">
-                              <span className="text-sm font-bold text-slate-700 group-hover:text-slate-900 transition-colors">{pago.cliente}</span>
-                              <span className="text-[10px] text-slate-400 uppercase tracking-wide font-medium">
-                                Cliente activo
-                              </span>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 align-middle">
-                          <div className="flex flex-col gap-0.5">
-                            <span className="text-sm text-slate-700">
-                              {pago.cobrador}
-                            </span>
-                            <span className="text-[11px] text-slate-400 flex items-center gap-1">
-                              <span className="w-1 h-1 rounded-full bg-slate-300" />
-                              {pago.ruta}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 align-middle">
-                          <span className="text-sm font-black tracking-tight text-slate-900">
-                            {formatCurrency(pago.monto)}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 align-middle">
-                          <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded border border-slate-200">
-                            {pago.metodo}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 align-middle">
-                          <span
-                            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold ${getEstadoChipClasses(
-                              pago.estado
-                            )}`}
-                          >
-                            <span className="w-1.5 h-1.5 rounded-full bg-current opacity-60" />
-                            <span>
-                              {pago.estado === 'completado' && 'Completado'}
-                              {pago.estado === 'pendiente' && 'Pendiente'}
-                              {pago.estado === 'fallido' && 'Fallido'}
-                              {pago.estado === 'en_revision' && 'En revisión'}
-                            </span>
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                    {pagosFiltrados.length === 0 && (
-                      <tr>
-                        <td
-                          colSpan={6}
-                          className="px-6 py-12 text-center"
-                        >
-                          <div className="flex flex-col items-center gap-2">
-                            <div className="p-3 rounded-full bg-slate-50">
-                              <Search className="h-5 w-5 text-slate-300" />
-                            </div>
-                            <p className="text-sm font-bold text-slate-900">No se encontraron resultados</p>
-                            <p className="text-xs text-slate-500 font-medium">Intenta ajustar los filtros de búsqueda</p>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              <Paginador />
-            </div>
-          ) : (
-            <div className="bg-white/0">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {pagosPaginados.map((pago) => (
-                  <div 
-                    key={pago.pagoId} 
-                    className="bg-white border border-slate-200 rounded-2xl p-5 hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:border-slate-300 transition-all group relative overflow-hidden cursor-pointer"
-                    onClick={() => openDetallePago(pago.pagoId)}
-                  >
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-slate-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110" />
-                  
-                  <div className="relative flex justify-between items-start mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center group-hover:border-slate-300 group-hover:bg-white transition-colors">
-                        <User className="h-5 w-5 text-slate-400 group-hover:text-slate-600 transition-colors" />
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-primary group-hover:text-primary-dark transition-colors">
-                          {pago.cliente}
-                        </h3>
-                        <p className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
-                          <Wallet className="h-3 w-3" />
-                          {pago.id}
-                        </p>
-                      </div>
-                    </div>
-                    <span
-                      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${getEstadoChipClasses(
-                        pago.estado
-                      )}`}
-                    >
-                      {pago.estado === 'completado' && 'Completado'}
-                      {pago.estado === 'pendiente' && 'Pendiente'}
-                      {pago.estado === 'fallido' && 'Fallido'}
-                      {pago.estado === 'en_revision' && 'Revisión'}
-                    </span>
-                  </div>
-
-                  <div className="relative space-y-3 mb-5">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-slate-500 font-medium">Fecha</span>
-                      <span className="font-bold text-slate-900">{formatFechaPago(pago.fecha)}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-slate-500 font-medium">Cobrador</span>
-                      <span className="font-bold text-slate-900">{pago.cobrador}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-slate-500 font-medium">Ruta</span>
-                      <span className="font-bold text-slate-900">{pago.ruta}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-slate-500 font-medium">Método</span>
-                      <span className="font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                        {pago.metodo}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="relative pt-4 border-t border-slate-100 flex items-center justify-between">
-                    <div>
-                      <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Monto</p>
-                      <p className="text-lg font-black tracking-tight text-slate-900">
-                        {formatCurrency(pago.monto)}
-                      </p>
-                    </div>
-                    <div className="p-2 rounded-lg text-slate-300 border border-transparent">
-                      <ChevronRight className="h-5 w-5" />
-                    </div>
-                  </div>
-                  </div>
-                ))}
                 
-                {pagosFiltrados.length === 0 && (
-                  <div className="col-span-full flex flex-col items-center justify-center py-12 text-center bg-white rounded-2xl border border-slate-200 border-dashed">
-                    <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center mb-3">
-                      <Search className="h-6 w-6 text-slate-300" />
-                    </div>
-                    <p className="text-sm text-slate-500 font-bold">
-                      No se encontraron pagos con estos filtros
-                    </p>
+                <div className="grid grid-cols-2 gap-2 mb-3">
+                  <div className="bg-slate-50 p-2 rounded-lg">
+                    <p className="text-[10px] text-slate-400 font-bold uppercase">Capital</p>
+                    <p className="text-xs font-bold text-slate-700">{formatCurrency(pago.capital)}</p>
                   </div>
-                )}
-              </div>
-
-              {pagosFiltrados.length > 0 && (
-                <div className="mt-4 bg-white border border-slate-200 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
-                  <Paginador />
+                  <div className="bg-slate-50 p-2 rounded-lg">
+                    <p className="text-[10px] text-slate-400 font-bold uppercase">Interés + Mora</p>
+                    <p className="text-xs font-bold text-slate-700">{formatCurrency(pago.interes + pago.mora)}</p>
+                  </div>
                 </div>
-              )}
-            </div>
-          )}
+
+                <div className="flex items-center justify-between border-t border-slate-100 pt-3">
+                  <div className="text-[11px] text-slate-500">
+                    <span className="font-bold text-slate-700">{pago.metodo}</span> • {pago.cobrador}
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] text-blue-600 font-bold uppercase">Total Pagado</p>
+                    <p className="text-lg font-black text-slate-900 -mt-1">{formatCurrency(pago.monto)}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+            
+            {pagosFiltrados.length === 0 && (
+              <div className="py-8 text-center bg-white rounded-xl border border-slate-200">
+                <p className="text-sm text-slate-500 font-bold">No hay pagos para mostrar</p>
+              </div>
+            )}
+            
+            {pagosFiltrados.length > 0 && (
+              <div className="mt-2 rounded-xl overflow-hidden border border-slate-200">
+                <Paginador />
+              </div>
+            )}
+          </div>
+
         </section>
 
         <PagoDetalleModal

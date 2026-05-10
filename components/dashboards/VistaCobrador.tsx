@@ -100,6 +100,7 @@ import {
   Info,
 
   FileDown,
+  ShieldAlert,
 
 } from 'lucide-react'
 
@@ -148,7 +149,7 @@ import { RolUsuario } from '@/lib/types/autenticacion-type'
 import { obtenerPerfil } from '@/services/autenticacion-service'
 
 
-import { formatCurrency, formatMilesCOP, resolveMediaUrl } from '@/lib/utils'
+import { formatCurrency, formatMilesCOP, getDisplayedCOPInteger, isSameDisplayedCOPAmount, resolveMediaUrl } from '@/lib/utils'
 
 import { rutasService, Ruta } from '@/services/rutas-service'
 
@@ -209,6 +210,7 @@ import {
   resolveNextPagoFromPrestamo,
   resolveProximaCuotaFromPrestamo,
   shouldMarkVisitaAsPagado,
+  shouldShowVisitaEnRutaHoy,
   toBogotaDateTimeOffsetIso,
 } from '@/lib/rutas-core'
 import { mapAsignacionesToVisitasLite } from '@/lib/ruta-visitas-mapper'
@@ -459,6 +461,7 @@ const VistaCobrador = () => {
   const [coordinadorToast, setCoordinadorToast] = useState<string | null>(null)
 
   const [showConfirmCompleteModal, setShowConfirmCompleteModal] = useState(false)
+  const [showDoubleConfirmComplete, setShowDoubleConfirmComplete] = useState(false)
 
   const [modalAlerta, setModalAlerta] = useState<{titulo: string, mensaje: string, tipo: 'exito' | 'error' | 'info'} | null>(null)
 
@@ -2162,9 +2165,9 @@ const VistaCobrador = () => {
 
 
     // Si no estás en modos especiales, ocultar lo ya pagado para que desaparezca de la ruta del día.
-    const visibles = (searchQuery || showMisClientes || showHistory)
-      ? buscadas
-      : buscadas.filter((v: any) => String(v?.estado || '').toLowerCase() !== 'pagado')
+    const visibles = buscadas.filter((v: any) =>
+      showHistory ? String(v?.estado || '').toLowerCase() !== 'pagado' : shouldShowVisitaEnRutaHoy(v, hoyBogotaKey),
+    )
 
     // Ordenar consistente con Supervisor/Admin
 
@@ -2210,7 +2213,7 @@ const VistaCobrador = () => {
 
     return sorted;
 
-  }, [visitasBase, searchQuery, userSession?.id, showHistory, showMisClientes, ajustarEstadoConPago])
+  }, [visitasBase, searchQuery, userSession?.id, showHistory, showMisClientes, ajustarEstadoConPago, hoyBogotaKey])
 
 
 
@@ -2629,6 +2632,7 @@ const VistaCobrador = () => {
         frecuenciaPago: freq,
 
         fechaInicio: data.fechaInicio || toBogotaDateTimeOffsetIso(new Date()),
+        fechaPrimerCobro: esContado ? undefined : data.fechaPrimerCobro,
 
         creadoPorId: userSession?.id,
 
@@ -2773,11 +2777,12 @@ const VistaCobrador = () => {
 
     if (!esAbonoSnapshot) {
       const cuota = Number(visitaSnapshot?.montoCuota || 0)
+      const cuotaMostrada = getDisplayedCOPInteger(cuota)
       const montoNum = Number(monto || 0)
-      if (cuota > 0 && Math.abs(montoNum - cuota) > 0.01) {
+      if (cuotaMostrada > 0 && !isSameDisplayedCOPAmount(montoNum, cuota)) {
         setModalAlerta({
           titulo: 'Monto no coincide',
-          mensaje: `Para registrar un PAGO el monto debe ser exactamente $${formatMilesCOP(cuota)}. Si el valor es diferente, use la opción ABONO.`,
+          mensaje: `Para registrar un PAGO el monto debe ser exactamente $${formatMilesCOP(cuotaMostrada)}. Si el valor es diferente, use la opción ABONO.`,
           tipo: 'error',
         })
         return
@@ -4343,11 +4348,11 @@ const VistaCobrador = () => {
 
 
                         const filtradas = misCreditos.filter((v) =>
-
-                          v.cliente.toLowerCase().includes(searchQuery.toLowerCase()) ||
-
-                          v.direccion.toLowerCase().includes(searchQuery.toLowerCase()),
-
+                          shouldShowVisitaEnRutaHoy(v as any, hoyBogotaKey) &&
+                          (
+                            v.cliente.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            v.direccion.toLowerCase().includes(searchQuery.toLowerCase())
+                          ),
                         )
 
 
@@ -5208,185 +5213,135 @@ const VistaCobrador = () => {
             <div
               className="fixed inset-0 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
               style={{ zIndex: MODAL_Z_INDEX }}
-              onClick={() => setShowConfirmCompleteModal(false)}
+              onClick={() => { setShowConfirmCompleteModal(false); setShowDoubleConfirmComplete(false); }}
             >
              <div 
                className="bg-white rounded-3xl p-6 shadow-2xl w-full max-w-sm border border-slate-100 animate-in zoom-in-95 duration-200"
                onClick={(e) => e.stopPropagation()}
              >
-
                 <div className="flex flex-col items-center text-center gap-4">
+                    {!showDoubleConfirmComplete ? (
+                      <>
+                        <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-2 border ${alCien ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-orange-50 text-orange-500 border-orange-100'}`}>
+                           {alCien ? <CheckCircle2 className="h-8 w-8" /> : <AlertTriangle className="h-8 w-8" />}
+                        </div>
 
-                   <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-2 border ${alCien ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-orange-50 text-orange-500 border-orange-100'}`}>
+                        <div>
+                          <h3 className="text-xl font-black text-slate-900 tracking-tight mb-2">¿Finalizar Ruta del Día?</h3>
+                          <p className="text-slate-500 text-sm font-medium leading-relaxed">
+                             Al marcar la ruta como completada se reportará tu rendimiento a la oficina.
+                          </p>
+                        </div>
 
-                      {alCien ? <CheckCircle2 className="h-8 w-8" /> : <AlertTriangle className="h-8 w-8" />}
+                        {descuadre && (
+                          <div className="w-full flex items-start gap-2 p-3 bg-red-50 border border-red-100 rounded-2xl text-left">
+                            <XCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
+                            <div>
+                              <p className="text-xs font-black text-red-700 uppercase tracking-wide">Posible Descuadre</p>
+                              <p className="text-[11px] text-red-600 font-medium mt-0.5">
+                                Recaudaste {formatCurrency(recaudoV)} de {formatCurrency(metaV)} esperados. Asegúrate que el superadmin haya recolectado el dinero antes de cerrar.
+                              </p>
+                            </div>
+                          </div>
+                        )}
 
-                   </div>
+                        {clientesFaltantesHoy > 0 && (
+                          <div className={`w-full flex items-start gap-2 p-3 rounded-2xl text-left border ${todosPendientes ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-100'}`}>
+                            {todosPendientes
+                              ? <XCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
+                              : <Info className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />}
+                            <p className={`text-[11px] font-bold ${todosPendientes ? 'text-red-700' : 'text-amber-700'}`}>
+                              {todosPendientes
+                                ? <><span className="text-red-900 text-sm font-black">Ningún</span> cliente fue cobrado hoy. Sin recaudo en la jornada.</>  
+                                : <>Faltaron <span className="text-amber-900 text-sm font-black">{clientesFaltantesHoy}</span> cliente{clientesFaltantesHoy > 1 ? 's' : ''} por cobrar hoy.</>}
+                            </p>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-2 border border-red-200 animate-pulse">
+                           <ShieldAlert className="h-8 w-8 text-red-600" />
+                        </div>
 
-                   <div>
+                        <div>
+                          <h3 className="text-xl font-black text-red-900 tracking-tight mb-2">¡Doble Confirmación!</h3>
+                          <p className="text-red-700 text-sm font-bold leading-relaxed px-2">
+                             Hay un descuadre de <span className="text-lg underline underline-offset-4 decoration-2">{formatCurrency(metaV - recaudoV)}</span>. 
+                          </p>
+                          <p className="mt-3 text-slate-500 text-[11px] font-medium leading-relaxed px-4">
+                             Al cerrar con descuadre, esta diferencia quedará registrada en tu histórico de deudas. ¿Estás seguro de continuar?
+                          </p>
+                        </div>
+                      </>
+                    )}
 
-                     <h3 className="text-xl font-black text-slate-900 tracking-tight mb-2">¿Finalizar Ruta del Día?</h3>
-
-                     <p className="text-slate-500 text-sm font-medium leading-relaxed">
-
-                        Al marcar la ruta como completada se reportará tu rendimiento a la oficina.
-
-                     </p>
-
-                   </div>
-
-
-
-                   {/* Descuadre warning */}
-
-                   {descuadre && (
-
-                     <div className="w-full flex items-start gap-2 p-3 bg-red-50 border border-red-100 rounded-2xl text-left">
-
-                       <XCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
-
-                       <div>
-
-                         <p className="text-xs font-black text-red-700 uppercase tracking-wide">Posible Descuadre</p>
-
-                         <p className="text-[11px] text-red-600 font-medium mt-0.5">
-
-                           Recaudaste {formatCurrency(recaudoV)} de {formatCurrency(metaV)} esperados. Asegúrate que el superadmin haya recolectado el dinero antes de cerrar.
-
-                         </p>
-
-                       </div>
-
-                     </div>
-
-                   )}
-
-
-
-                   {clientesFaltantesHoy > 0 && (
-
-                     <div className={`w-full flex items-start gap-2 p-3 rounded-2xl text-left border ${todosPendientes ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-100'}`}>
-
-                       {todosPendientes
-
-                         ? <XCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
-
-                         : <Info className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />}
-
-                       <p className={`text-[11px] font-bold ${todosPendientes ? 'text-red-700' : 'text-amber-700'}`}>
-
-                         {todosPendientes
-
-                           ? <><span className="text-red-900 text-sm font-black">Ningún</span> cliente fue cobrado hoy. Sin recaudo en la jornada.</>  
-
-                           : <>Faltaron <span className="text-amber-900 text-sm font-black">{clientesFaltantesHoy}</span> cliente{clientesFaltantesHoy > 1 ? 's' : ''} por cobrar hoy.</>}
-
-                       </p>
-
-                     </div>
-
-                   )}
-
-
-
-                   <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 text-left grid grid-cols-2 gap-3 w-full">
-
+                   <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 text-left grid grid-cols-2 gap-y-4 gap-x-3 w-full">
                       <div>
-
-                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Meta</p>
-
-                        <p className="text-sm font-black text-slate-900">{formatCurrency(metaV)}</p>
-
+                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Saldo Disponible</p>
+                        <p className="text-sm font-black text-blue-600">{formatCurrency((rutaStatsUI as any)?.base || 0)}</p>
                       </div>
-
                       <div>
-
-                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Recaudado</p>
-
+                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Recaudado Hoy</p>
                         <p className={`text-sm font-black ${alCien ? 'text-emerald-600' : 'text-orange-600'}`}>{formatCurrency(recaudoV)}</p>
-
                       </div>
-
                       <div>
-
-                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Efectividad</p>
-
-                        <p className={`text-sm font-black ${alCien ? 'text-emerald-600' : 'text-orange-600'}`}>{porcentaje}%</p>
-
+                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Gastos del Día</p>
+                        <p className="text-sm font-black text-rose-600">{formatCurrency((rutaStatsUI as any)?.gastos || 0)}</p>
                       </div>
-
                       <div>
-
-                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Pendientes Hoy</p>
-
-                        <p className={`text-sm font-black ${
-
-                          clientesFaltantesHoy === 0
-
-                            ? 'text-emerald-600'
-
-                            : todosPendientes
-
-                              ? 'text-red-600'
-
-                              : 'text-amber-600'
-
-                        }`}>
-
-                          {clientesFaltantesHoy === 0
-
-                            ? 'Ninguno'
-
-                            : todosPendientes
-
-                              ? `✗ ${clientesFaltantesHoy} sin cobrar`
-
-                              : `${clientesFaltantesHoy} clientes`}
-
-                        </p>
-
+                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Meta Cobro</p>
+                        <p className="text-sm font-black text-slate-900">{formatCurrency(metaV)}</p>
                       </div>
 
+                      {descuadre && (
+                        <div className="col-span-2 p-3 bg-red-50 rounded-xl border border-red-100">
+                          <p className="text-[10px] text-red-500 font-bold uppercase tracking-widest">Diferencia (Descuadre)</p>
+                          <p className="text-lg font-black text-red-600">{formatCurrency(metaV - recaudoV)}</p>
+                        </div>
+                      )}
+
+                      <div className="col-span-2 flex justify-between items-center border-t border-slate-200 pt-3">
+                        <div>
+                           <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Efectividad</p>
+                           <p className={`text-sm font-black ${alCien ? 'text-emerald-600' : 'text-orange-600'}`}>{porcentaje}%</p>
+                        </div>
+                        <div className="text-right">
+                           <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Pendientes</p>
+                           <p className={`text-sm font-black ${clientesFaltantesHoy > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                             {clientesFaltantesHoy === 0 ? 'Ninguno' : `${clientesFaltantesHoy} clientes`}
+                           </p>
+                        </div>
+                      </div>
                    </div>
 
                    <div className="flex gap-3 w-full mt-2">
-
                       <button
-
-                        onClick={() => setShowConfirmCompleteModal(false)}
-
+                        onClick={() => { setShowConfirmCompleteModal(false); setShowDoubleConfirmComplete(false); }}
                         className="flex-1 py-3.5 text-slate-600 font-bold bg-slate-50 hover:bg-slate-100 rounded-2xl transition-all active:scale-95 border border-slate-200"
-
                       >
-
                         Cancelar
-
                       </button>
 
                       <button
-
-                        onClick={confirmarFinalizarRuta}
-
-                        className="flex-1 py-3.5 text-white font-bold bg-slate-900 hover:bg-slate-800 rounded-2xl transition-all shadow-xl shadow-slate-900/20 active:scale-95"
-
+                        onClick={() => {
+                          if (descuadre && !showDoubleConfirmComplete) {
+                            setShowDoubleConfirmComplete(true)
+                          } else {
+                            confirmarFinalizarRuta()
+                            setShowDoubleConfirmComplete(false)
+                          }
+                        }}
+                        className={`flex-1 py-3.5 text-white font-bold rounded-2xl transition-all shadow-xl active:scale-95 ${showDoubleConfirmComplete ? 'bg-red-600 hover:bg-red-700 shadow-red-600/20' : 'bg-slate-900 hover:bg-slate-800 shadow-slate-900/20'}`}
                       >
-
-                        Confirmar
-
+                        {showDoubleConfirmComplete ? 'Sí, Finalizar' : 'Confirmar'}
                       </button>
-
                    </div>
-
                 </div>
-
              </div>
-
           </div>
-
           </Portal>
-
         );
-
       })()}
 
 

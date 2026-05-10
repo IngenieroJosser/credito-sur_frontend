@@ -414,6 +414,24 @@ export const shouldMarkVisitaAsPagado = (params: {
   return recaudadoHoy > 0 && recaudadoHoy >= cuota;
 };
 
+export const shouldShowVisitaEnRutaHoy = (visita: any, hoyBogotaKey: string): boolean => {
+  // Regla unica para las vistas de ruta: no mostrar cobros futuros ni cuotas ya cubiertas.
+  if (!visita) return false;
+  const estado = String(visita?.estado || '').toLowerCase().replace(/\s+/g, '_');
+  if (estado === 'pagado') return false;
+
+  if (shouldMarkVisitaAsPagado({
+    saldoTotal: visita?.saldoTotal,
+    recaudadoHoy: visita?.recaudadoDelDia,
+    montoCuotaExigible: visita?.montoCuotaPendiente ?? visita?.montoCuota,
+    estadoActual: visita?.estado,
+  })) {
+    return false;
+  }
+
+  return isVisitaExigibleHoy(visita, hoyBogotaKey);
+};
+
 export const computeMetaHoyFromVisitas = (visitas: any[], hoyBogotaKey: string): number => {
   // Calcula la "meta" del día: suma de montoCuota de las visitas exigibles hoy
   // excluyendo las que ya están pagadas.
@@ -518,4 +536,13 @@ export const computeMontoNominalHastaHoyFromCuotas = (cuotas: any[], hoyBogotaKe
     const monto = Number(montoDirecto ?? montoFallback ?? 0);
     return sum + (monto > 0 ? monto : 0);
   }, 0);
+};
+
+export const resolveCobradorIdForRouteAction = (
+  rutaCobradorId?: string | null,
+  sessionUserId?: string | null,
+): string => {
+  const fromRoute = String(rutaCobradorId || '').trim();
+  if (fromRoute) return fromRoute;
+  return String(sessionUserId || '').trim();
 };

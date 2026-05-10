@@ -38,12 +38,56 @@ export interface Transaccion {
   cajaId: string;
   cajaOrigenId?: string;
   cajaSaldo?: number;
+  direction?: 'IN' | 'OUT';
+  impactoCaja?: number;
+  impactoResultado?: number;
+  accountCode?: string;
+  accountName?: string;
+}
+
+export interface MovimientoLedger {
+  id: string;
+  fecha: string;
+  tipo: string;
+  referenciaId: string;
+  descripcion?: string;
+  creadoPorId: string;
+  totalDebito: number;
+  totalCredito: number;
+  direction?: 'IN' | 'OUT';
+  impactoCaja?: number;
+  impactoResultado?: number;
+  accountCode?: string | null;
+  accountName?: string | null;
+  caja?: string | null;
+  cajaId?: string | null;
+  cuadrado: boolean;
+  lineas: Array<{
+    id: string;
+    accountCode: string;
+    accountName: string;
+    debitAmount: number;
+    creditAmount: number;
+    cajaId?: string;
+    caja?: string | null;
+    direction?: 'IN' | 'OUT' | null;
+  }>;
 }
 
 export interface ResumenFinanciero {
   ingresosHoy: number;
+  entradasCajaHoy?: number;
+  ingresosDevengadosHoy?: number;
   egresosHoy: number;
+  costosVentasHoy?: number;
+  ingresosArticulosHoy?: number;
+  margenArticulosHoy?: number;
+  interesHoy?: number;
+  moraHoy?: number;
+  otrosIngresosHoy?: number;
+  cobranzaHoy?: number;
   gananciaNeta: number;
+  utilidadReal?: number;
   capitalEnCalle: number;
   saldoCajas: number;
   cajasAbiertasCount: number;
@@ -198,7 +242,6 @@ export async function updateCaja(id: string, data: {
   nombre?: string;
   responsableId?: string;
   activa?: boolean;
-  saldoActual?: number;
 }): Promise<Caja | null> {
   try {
     return await apiRequest<Caja>('PATCH', `/accounting/cajas/${id}`, data);
@@ -317,14 +360,47 @@ export async function getTransacciones(filtros?: {
   }
 }
 
+export async function getMovimientosLedger(filtros?: {
+  tipo?: string;
+  cajaId?: string;
+  accountCode?: string;
+  accountPrefix?: string;
+  fechaInicio?: string;
+  fechaFin?: string;
+  page?: number;
+  limit?: number;
+}): Promise<PaginatedResponse<MovimientoLedger>> {
+  try {
+    const params = new URLSearchParams();
+    if (filtros?.tipo) params.append('tipo', filtros.tipo);
+    if (filtros?.cajaId) params.append('cajaId', filtros.cajaId);
+    if (filtros?.accountCode) params.append('accountCode', filtros.accountCode);
+    if (filtros?.accountPrefix) params.append('accountPrefix', filtros.accountPrefix);
+    if (filtros?.fechaInicio) params.append('fechaInicio', filtros.fechaInicio);
+    if (filtros?.fechaFin) params.append('fechaFin', filtros.fechaFin);
+    if (filtros?.page) params.append('page', filtros.page.toString());
+    if (filtros?.limit) params.append('limit', filtros.limit.toString());
+
+    const queryString = params.toString();
+    return await apiRequest<PaginatedResponse<MovimientoLedger>>(
+      'GET',
+      `/accounting/ledger/movimientos${queryString ? `?${queryString}` : ''}`,
+    );
+  } catch (error) {
+    console.error('Error fetching ledger movimientos:', error);
+    return { data: [], meta: { total: 0, page: 1, limit: 50, totalPages: 0 } };
+  }
+}
+
 export async function createTransaccion(data: {
   cajaId: string;
-  tipo: 'INGRESO' | 'EGRESO';
+  tipo: 'INGRESO' | 'EGRESO' | 'TRANSFERENCIA';
   monto: number;
   descripcion: string;
   tipoReferencia?: string;
   referenciaId?: string;
   cajaOrigenId?: string;
+  accountCode?: string;
 }): Promise<Transaccion | null> {
   try {
     return await apiRequest<Transaccion>('POST', '/accounting/transacciones', data);
@@ -522,15 +598,21 @@ export async function registrarGasto(data: {
   descripcion: string
   valor: number
   comprobante?: File | null
+  comprobanteUrl?: string
+  fotoRecibo?: string
   rutaId: string
   cobradorId: string
+  esPersonal?: boolean
 }): Promise<any> {
   try {
     const payload: any = {
       descripcion: data.descripcion,
       valor: data.valor,
       rutaId: data.rutaId,
-      cobradorId: data.cobradorId
+      cobradorId: data.cobradorId,
+      comprobanteUrl: data.comprobanteUrl,
+      fotoRecibo: data.fotoRecibo,
+      esPersonal: data.esPersonal,
     };
 
     return await apiRequest('POST', '/accounting/gastos', payload);
@@ -547,7 +629,10 @@ export async function registrarGasto(data: {
         descripcion: data.descripcion,
         valor: data.valor,
         rutaId: data.rutaId,
-        cobradorId: data.cobradorId
+        cobradorId: data.cobradorId,
+        comprobanteUrl: data.comprobanteUrl,
+        fotoRecibo: data.fotoRecibo,
+        esPersonal: data.esPersonal,
       };
 
       await syncService.enqueueOperation(
@@ -563,6 +648,14 @@ export async function registrarGasto(data: {
     }
     throw error;
   }
+}
+
+export async function dryRunMigracionLedger(): Promise<any> {
+  return apiRequest('POST', '/accounting/migration-ledger/dry-run');
+}
+
+export async function aplicarMigracionLedger(): Promise<any> {
+  return apiRequest('POST', '/accounting/migration-ledger/apply');
 }
 
 export async function solicitarBase(data: { 
@@ -598,6 +691,16 @@ export async function solicitarBase(data: {
 // DEUDAS DE COBRADORES
 // =====================================================
 
+export type DeudaEvento = {
+  id: string;
+  tipoReferencia: string;
+  monto: number;
+  fecha: string;
+  cajaId: string;
+  referenciaId?: string;
+  descripcion?: string;
+};
+
 export type DeudaCobrador = {
   cobradorId: string;
   nombreCobrador: string;
@@ -606,6 +709,7 @@ export type DeudaCobrador = {
   gastosPersonales: number;
   descuadres: number;
   totalEventos: number;
+  eventos?: DeudaEvento[];
 };
 
 export async function getDeudoresCobrador(): Promise<DeudaCobrador[]> {
