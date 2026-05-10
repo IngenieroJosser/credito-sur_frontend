@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, ChangeEvent, FormEvent, useEffect, useCallback, useMemo } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
@@ -319,9 +319,15 @@ export const RutasPageView = ({
 
               const metaDelDiaPendiente = computeMetaHoyFromVisitas(visitasConRecaudoHoy as any, hoyBogota)
 
+              const cobranzaDelDia = (Array.isArray(visitasConRecaudoHoy) ? visitasConRecaudoHoy : []).reduce(
+                (sum: number, v: any) => sum + Number(v?.recaudadoDelDia || 0),
+                0,
+              )
+
               return {
                 ...r,
-                metaDelDia: Number((metaDelDiaPendiente ?? metaDelDia) ?? 0),
+                metaDelDia: metaDelDiaPendiente > 0 ? metaDelDiaPendiente : (metaDelDia > 0 ? metaDelDia : Number(r.metaDelDia || 0)),
+                cobranzaDelDia,
               };
             } catch {
               return r;
@@ -1973,3 +1979,5 @@ export const RutasPageView = ({
     </div>
   )
 }
+
+
