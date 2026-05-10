@@ -47,6 +47,77 @@ interface CrearCreditoModalProps {
   hideTypeSelector?: boolean
 }
 
+const dateTimeLocalToBogotaOffsetIso = (value: string) => {
+  const clean = String(value || '').trim()
+  if (!clean) return ''
+  if (!clean.includes('T')) return `${clean}T00:00:00.000-05:00`
+  const [datePart, timePartRaw = '00:00'] = clean.split('T')
+  const timeParts = timePartRaw.split(':')
+  const hh = timeParts[0]?.padStart(2, '0') || '00'
+  const mm = timeParts[1]?.padStart(2, '0') || '00'
+  const ss = timeParts[2]?.padStart(2, '0') || '00'
+  return `${datePart}T${hh}:${mm}:${ss}.000-05:00`
+}
+
+const addDaysSkippingSunday = (date: Date, days: number) => {
+  const target = new Date(date)
+  target.setDate(target.getDate() + days)
+  if (target.getDay() === 0) target.setDate(target.getDate() + 1)
+  return target
+}
+
+const nextQuincenalDate = (base: Date) => {
+  const baseKey = getBogotaDateKey(base)
+  const [yearStr, monthStr] = baseKey.split('-')
+  const baseYear = Number(yearStr)
+  const baseMonth = Number(monthStr)
+
+  for (let monthOffset = 0; monthOffset < 14; monthOffset++) {
+    const monthCursor = new Date(baseYear, baseMonth - 1 + monthOffset, 1, 12, 0, 0, 0)
+    const year = monthCursor.getFullYear()
+    const monthIndex = monthCursor.getMonth()
+
+    for (const day of [15, 30]) {
+      const candidate = new Date(year, monthIndex, day, 12, 0, 0, 0)
+      const isRealDay = candidate.getFullYear() === year
+        && candidate.getMonth() === monthIndex
+        && candidate.getDate() === day
+      if (!isRealDay || candidate.getDay() === 0) continue
+
+      const candidateKey = getBogotaDateKey(candidate)
+      if (candidateKey >= baseKey) return candidate
+    }
+  }
+
+  return addDaysSkippingSunday(base, 15)
+}
+
+const addOneMonthClamped = (base: Date) => {
+  const baseKey = getBogotaDateKey(base)
+  const [yearStr, monthStr, dayStr] = baseKey.split('-')
+  const year = Number(yearStr)
+  const month = Number(monthStr)
+  const day = Number(dayStr)
+  const targetMonthIndex = month
+  const lastDayOfTargetMonth = new Date(year, targetMonthIndex + 1, 0, 12, 0, 0, 0).getDate()
+  return new Date(year, targetMonthIndex, Math.min(day, lastDayOfTargetMonth), 12, 0, 0, 0)
+}
+
+const getDefaultFirstCollectionDate = (frecuencia: string, base: Date = new Date()) => {
+  switch (frecuencia) {
+    case 'DIARIO':
+      return getBogotaDateKey(addDaysSkippingSunday(base, 1))
+    case 'SEMANAL':
+      return getBogotaDateKey(addDaysSkippingSunday(base, 7))
+    case 'QUINCENAL':
+      return getBogotaDateKey(nextQuincenalDate(base))
+    case 'MENSUAL':
+      return getBogotaDateKey(addDaysSkippingSunday(addOneMonthClamped(base), 0))
+    default:
+      return getBogotaDateKey(base)
+  }
+}
+
 export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultClienteId, defaultCreditType, hideTypeSelector }: CrearCreditoModalProps) {
   const [creditType, setCreditType] = useState<'prestamo' | 'articulo'>(defaultCreditType || 'prestamo')
   const [clienteCreditoId, setClienteCreditoId] = useState('')
@@ -73,14 +144,9 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
 
   useEffect(() => {
     if (isOpen) {
+        setFechaCreditoInput(toBogotaDateTimeLocalInputValue(new Date()))
         if (defaultClienteId) setClienteCreditoId(defaultClienteId)
-          const now = new Date()
-          let fechaBase = new Date(now)
-          // Sugerir siempre el día siguiente
-          fechaBase.setDate(fechaBase.getDate() + 1)
-          // Si cae domingo y es diario, saltar al lunes
-          if (fechaBase.getDay() === 0) fechaBase.setDate(fechaBase.getDate() + 1)
-          setFechaPrimerCobro(getBogotaDateKey(fechaBase))
+          setFechaPrimerCobro(getDefaultFirstCollectionDate(frecuenciaPago))
         Promise.all([
           clientesService.obtenerTodos(),
           articulosService.obtenerArticulos()
@@ -326,30 +392,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                          onChange={(e) => {
                            const val = e.target.value;
                            setFrecuenciaPago(val);
-                           if (val === 'QUINCENAL') {
-                            const nowKey = getBogotaDateKey(new Date());
-                            const [yyStr, mmStr, ddStr] = nowKey.split('-');
-                            const yy = Number(yyStr);
-                            const mmNow = Number(mmStr);
-                            const ddNow = Number(ddStr);
-                            const monthIndex = ddNow <= 15 ? mmNow - 1 : mmNow; // si ya pasó el 15, ir al siguiente mes
-                            const target = new Date(yy, monthIndex, 15, 12, 0, 0, 0);
-                            setFechaPrimerCobro(getBogotaDateKey(target));
-                          } else if (val === 'DIARIO') {
-                            // Ajustar fecha si ya seleccionada es domingo
-                            const fechaActual = new Date(fechaPrimerCobro + 'T12:00:00')
-                            if (fechaActual.getDay() === 0) {
-                              fechaActual.setDate(fechaActual.getDate() + 1)
-                              setFechaPrimerCobro(getBogotaDateKey(fechaActual))
-                            }
-                          } else if (val === 'SEMANAL') {
-                            const target = new Date()
-                            target.setDate(target.getDate() + 7)
-                            if (target.getDay() === 0) target.setDate(target.getDate() + 1)
-                            setFechaPrimerCobro(getBogotaDateKey(target))
-                          } else {
-                            setFechaPrimerCobro(getBogotaDateKey(new Date()))
-                          }
+                           setFechaPrimerCobro(getDefaultFirstCollectionDate(val));
                          }}
                          className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
                       >
@@ -496,7 +539,11 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                         <label className="block text-sm font-bold text-slate-700 mb-2">Frecuencia de Pago</label>
                         <select 
                            value={frecuenciaPago}
-                           onChange={(e) => setFrecuenciaPago(e.target.value)}
+                           onChange={(e) => {
+                             const val = e.target.value
+                             setFrecuenciaPago(val)
+                             setFechaPrimerCobro(getDefaultFirstCollectionDate(val))
+                           }}
                            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-bold text-slate-900"
                         >
                            <option value="DIARIO">Diaria</option>
@@ -576,7 +623,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                       ? new Date(fechaPrimerCobro + 'T12:00:00').getDate()
                       : 0
                     const esQuincenaInvalida = frecuenciaPago === 'QUINCENAL' && !!fechaPrimerCobro && diaSeleccionado !== 15 && diaSeleccionado !== 30
-                    const esDomingoInvalido = frecuenciaPago === 'DIARIO' && !!fechaPrimerCobro
+                    const esDomingoInvalido = !!fechaPrimerCobro
                       ? new Date(fechaPrimerCobro + 'T12:00:00').getDay() === 0
                       : false
                     const inputInvalido = esQuincenaInvalida || esDomingoInvalido
@@ -599,7 +646,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                         )}
                         {esDomingoInvalido && (
                           <p className="text-xs text-red-600 font-semibold flex items-center gap-1">
-                            <span>⚠</span> Los créditos diarios no se cobran los domingos. Elige otro día.
+                            <span>⚠</span> No se realizan cobros los domingos. Elige otro día.
                           </p>
                         )}
                         {fechaPrimerCobro && !inputInvalido && frecuenciaPago === 'QUINCENAL' && (
@@ -652,6 +699,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                     if (isSubmitting) return;
                     setIsSubmitting(true);
                     try {
+                       const fechaInicioPayload = dateTimeLocalToBogotaOffsetIso(fechaCreditoInput)
                        const payload = creditType === 'prestamo' 
                         ? {
                             creditType,
@@ -664,7 +712,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                              cuotasTotales: Number(cuotasPrestamoInput),
                              plazoMeses: (calculoPrestamo?.meses && calculoPrestamo.meses > 0) ? calculoPrestamo.meses : 1,
                             frecuenciaPago,
-                            fechaInicio: fechaCreditoInput.split('T')[0], // Extraer solo YYYY-MM-DD para evitar desfase de zona horaria
+                            fechaInicio: fechaInicioPayload,
                             fechaPrimerCobro,
                             notas: notasInput.trim() || undefined,
                           }
@@ -685,7 +733,8 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                             monto: calculoCreditoArticulo?.precioTotal || 0,
                             cuotaInicialArticulo: parseCOPInputToNumber(cuotaInicialArticuloInput),
                             frecuenciaPago: esContado ? 'MENSUAL' : frecuenciaPago,
-                            fechaInicio: fechaCreditoInput.split('T')[0], // Extraer solo YYYY-MM-DD para evitar desfase de zona horaria
+                            fechaInicio: fechaInicioPayload,
+                            fechaPrimerCobro: esContado ? undefined : fechaPrimerCobro,
                             plazoMeses: esContado ? 1 : mesesPlan,
                             cantidadCuotas: esContado ? 1 : (calculoCreditoArticulo?.numCuotas || 0),
                             ventaContado: esContado ? true : undefined,
@@ -703,7 +752,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                     isSubmitting ||
                     !clienteCreditoId ||
                     (creditType === 'prestamo' ? !montoPrestamoInput : !calculoCreditoArticulo) ||
-                    (frecuenciaPago === 'DIARIO' && fechaPrimerCobro ? new Date(fechaPrimerCobro + 'T12:00:00').getDay() === 0 : false) ||
+                    (fechaPrimerCobro ? new Date(fechaPrimerCobro + 'T12:00:00').getDay() === 0 : false) ||
                     (frecuenciaPago === 'QUINCENAL' && fechaPrimerCobro ? (() => { const d = new Date(fechaPrimerCobro + 'T12:00:00').getDate(); return d !== 15 && d !== 30 })() : false)
                   }
                   className="flex-1 bg-slate-900 text-white font-bold py-4 rounded-2xl shadow-xl shadow-slate-200 hover:bg-slate-800 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-widest text-xs"

@@ -62,6 +62,7 @@ import {
   XCircle,
   Info,
   FileDown,
+  ShieldAlert,
 } from 'lucide-react'
 
 import { RolUsuario } from '@/types/enums'
@@ -72,7 +73,7 @@ import { rutasService, Ruta } from '@/services/rutas-service'
 
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal'
 import ClienteInfoModal from '@/components/cobranza/ClienteInfoModal'
-import { StaticVisitaItem, SortableVisita, SeleccionClienteModal } from '@/components/dashboards/shared/CobradorElements'
+import { StaticVisitaItem, SortableVisita, SeleccionClienteModal, Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
 import EstadoCuentaModal from '@/components/cobranza/EstadoCuentaModal'
 import PagoModal from '@/components/cobranza/PagoModal'
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
@@ -128,7 +129,9 @@ import {
   resolveFechaEfectivaCuota,
   resolveProximaCuotaFromPrestamo,
   resolveCuotaProgressFromPrestamo,
+  resolveCobradorIdForRouteAction,
   shouldMarkVisitaAsPagado,
+  shouldShowVisitaEnRutaHoy,
   toBogotaDateTimeOffsetIso,
 } from '@/lib/rutas-core'
 
@@ -404,6 +407,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
 
   const [showConfirmCompleteModal, setShowConfirmCompleteModal] = useState(false)
+  const [showDoubleConfirmComplete, setShowDoubleConfirmComplete] = useState(false)
 
 
   const [rutaCompletada, setRutaCompletada] = useState(false)
@@ -1349,36 +1353,8 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     )
 
 
-    const DIAS_PERIODO: Record<string, number> = { DIA: 1, SEMANA: 7, QUINCENA: 15, MES: 30 }
     const filtered = searched.filter((v: any) => {
-      // Supervisor operativo: solo ver
-      // - en mora
-      // - vencidas (por fecha) aunque el backend no haya actualizado estados
-      // - en prórroga
-      // - "duritos" (solo no-diarios)
-      if (v.estado === 'pagado' && Number((v as any)?.saldoTotal || 0) <= 0) return false
-
-      // Si es exigible hoy (misma regla que Cobrador/Admin), debe aparecer.
-      if (isVisitaExigibleHoy(v, hoyBogotaKey)) return true
-
-      // 1) En mora siempre aparece
-      if (v.estado === 'en_mora') return true
-
-      // 2) En prórroga siempre aparece
-      if (v.enProrroga) return true
-
-      // 3) Vencida por fecha: próxima visita (fecha efectiva) ya quedó atrás
-      const proxKey = v?.proximaVisita ? normalizeDateKey(String(v.proximaVisita)) : ''
-      if (proxKey && hoyBogotaKey && proxKey < hoyBogotaKey) return true
-
-      // 4) Duritos
-      const periodo = String(v.periodoRuta || 'DIA').toUpperCase()
-      const dias = DIAS_PERIODO[periodo] ?? 1
-      const umbral = dias * 1.5 * 24 * 60 * 60 * 1000
-      const lastPago = Number((v as any).fechaUltimoPago || 0)
-      if (!(lastPago > 0)) return false
-      const msDesde = Date.now() - lastPago
-      return msDesde > umbral
+      return shouldShowVisitaEnRutaHoy(v, hoyBogotaKey)
     })
 
 
@@ -1918,7 +1894,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
         esAbono: pagoInitialIsAbono,
 
-        cobradorId: userSession.id,
+        cobradorId: resolveCobradorIdForRouteAction(rutaInfo?.cobradorId, userSession.id),
 
       })
 
@@ -2017,6 +1993,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         frecuenciaPago: freq,
 
         fechaInicio: data.fechaInicio || toBogotaDateTimeOffsetIso(new Date()),
+        fechaPrimerCobro: esContado ? undefined : data.fechaPrimerCobro,
 
         creadoPorId: userSession?.id,
 
@@ -3148,11 +3125,11 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
 
                         const filtradas = misCreditos.filter((v) =>
-
-                          v.cliente.toLowerCase().includes(searchQuery.toLowerCase()) ||
-
-                          v.direccion.toLowerCase().includes(searchQuery.toLowerCase()),
-
+                          shouldShowVisitaEnRutaHoy(v as any, hoyBogotaKey) &&
+                          (
+                            v.cliente.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            v.direccion.toLowerCase().includes(searchQuery.toLowerCase())
+                          ),
                         )
 
 
@@ -3956,29 +3933,144 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
 
 
-        {showConfirmCompleteModal && (
+        {showConfirmCompleteModal && (() => {
+          const recaudoV = rutaStats.recaudo || 0
+          const metaV = rutaStats.meta || 0
+          const porcentaje = rutaStats.eficiencia || (metaV > 0 ? Math.round((recaudoV / metaV) * 100) : 0)
+          const alCien = porcentaje >= 100
+          const descuadre = recaudoV < metaV
 
-          <ConfirmModal
+          // Contar clientes pendientes hoy
+          const hoyStr = getBogotaDateKey(new Date())
+          const visitasHoy = (visitasBase || []).filter((v: any) => {
+             const prox = v.proximaVisita ? (String(v.proximaVisita).includes('T') ? String(v.proximaVisita).split('T')[0] : String(v.proximaVisita)) : ''
+             return prox === hoyStr || v.estado === 'en_mora'
+          })
+          const clientesFaltantesHoy = visitasHoy.filter((v: any) => v.estado === 'pendiente' || v.estado === 'en_mora').length
+          const todosPendientes = clientesFaltantesHoy > 0 && clientesFaltantesHoy === visitasHoy.length
 
-            isOpen={showConfirmCompleteModal}
+          return (
+            <Portal>
+              <div
+                className="fixed inset-0 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
+                style={{ zIndex: MODAL_Z_INDEX }}
+                onClick={() => { setShowConfirmCompleteModal(false); setShowDoubleConfirmComplete(false); }}
+              >
+                <div 
+                  className="bg-white rounded-3xl p-6 shadow-2xl w-full max-w-sm border border-slate-100 animate-in zoom-in-95 duration-200"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex flex-col items-center text-center gap-4">
+                    {!showDoubleConfirmComplete ? (
+                      <>
+                        <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-2 border ${alCien ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-orange-50 text-orange-500 border-orange-100'}`}>
+                           {alCien ? <CheckCircle2 className="h-8 w-8" /> : <AlertTriangle className="h-8 w-8" />}
+                        </div>
 
-            onClose={() => setShowConfirmCompleteModal(false)}
+                        <div>
+                          <h3 className="text-xl font-black text-slate-900 tracking-tight mb-2">¿Finalizar Ruta Supervisada?</h3>
+                          <p className="text-slate-500 text-sm font-medium leading-relaxed">
+                             Al cerrar como supervisor se enviará el reporte consolidado a la oficina central.
+                          </p>
+                        </div>
 
-            onConfirm={handleCompletarRuta}
+                        {descuadre && (
+                          <div className="w-full flex items-start gap-2 p-3 bg-red-50 border border-red-100 rounded-2xl text-left">
+                            <XCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
+                            <div>
+                              <p className="text-xs font-black text-red-700 uppercase tracking-wide">Descuadre Detectado</p>
+                              <p className="text-[11px] text-red-600 font-medium mt-0.5">
+                                Se recaudaron {formatMilesCOP(recaudoV)} de {formatMilesCOP(metaV)} esperados. Esta diferencia se registrará en la deuda del cobrador.
+                              </p>
+                            </div>
+                          </div>
+                        )}
 
-            title="¿Finalizar ruta supervisada?"
+                        {clientesFaltantesHoy > 0 && (
+                          <div className={`w-full flex items-start gap-2 p-3 rounded-2xl text-left border ${todosPendientes ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-100'}`}>
+                            {todosPendientes
+                              ? <XCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
+                              : <Info className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />}
+                            <p className={`text-[11px] font-bold ${todosPendientes ? 'text-red-700' : 'text-amber-700'}`}>
+                              {todosPendientes
+                                ? <><span className="text-red-900 text-sm font-black">Ningún</span> cliente fue cobrado hoy. Sin recaudo reportado.</>  
+                                : <>Faltaron <span className="text-amber-900 text-sm font-black">{clientesFaltantesHoy}</span> cliente{clientesFaltantesHoy > 1 ? 's' : ''} por cobrar.</>}
+                            </p>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-2 border border-red-200 animate-pulse">
+                           <ShieldAlert className="h-8 w-8 text-red-600" />
+                        </div>
 
-            message="Al confirmar, se enviará el reporte de rendimiento y clientes pendientes a la oficina central. Esta acción bloqueará la modificación de créditos y pagos por el resto del día."
+                        <div>
+                          <h3 className="text-xl font-black text-red-900 tracking-tight mb-2">¡Doble Confirmación!</h3>
+                          <p className="text-red-700 text-sm font-bold leading-relaxed px-2">
+                             Confirmas un descuadre de <span className="text-lg underline underline-offset-4 decoration-2">{formatMilesCOP(metaV - recaudoV)}</span>. 
+                          </p>
+                          <p className="mt-3 text-slate-500 text-[11px] font-medium leading-relaxed px-4">
+                             Esta acción es irreversible y afectará el balance contable del cobrador. ¿Deseas proceder con el cierre supervisado?
+                          </p>
+                        </div>
+                      </>
+                    )}
 
-            confirmText="Sí, Finalizar Ruta"
+                    <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 text-left grid grid-cols-2 gap-y-4 gap-x-3 w-full">
+                       <div>
+                         <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Base/Saldo</p>
+                         <p className="text-sm font-black text-blue-600">{formatMilesCOP(rutaStats.base || 0)}</p>
+                       </div>
+                       <div>
+                         <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Recaudado</p>
+                         <p className={`text-sm font-black ${alCien ? 'text-emerald-600' : 'text-orange-600'}`}>{formatMilesCOP(recaudoV)}</p>
+                       </div>
+                       <div>
+                         <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Gastos</p>
+                         <p className="text-sm font-black text-rose-600">{formatMilesCOP(rutaStats.gastos || 0)}</p>
+                       </div>
+                       <div>
+                         <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Meta</p>
+                         <p className="text-sm font-black text-slate-900">{formatMilesCOP(metaV)}</p>
+                       </div>
 
-            cancelText="No, Volver"
+                       {descuadre && (
+                         <div className="col-span-2 p-3 bg-red-50 rounded-xl border border-red-100">
+                           <p className="text-[10px] text-red-500 font-bold uppercase tracking-widest">Diferencia Final</p>
+                           <p className="text-lg font-black text-red-600">{formatMilesCOP(metaV - recaudoV)}</p>
+                         </div>
+                       )}
+                    </div>
 
-            variant="danger"
+                    <div className="flex gap-3 w-full mt-2">
+                       <button
+                         onClick={() => { setShowConfirmCompleteModal(false); setShowDoubleConfirmComplete(false); }}
+                         className="flex-1 py-3.5 text-slate-600 font-bold bg-slate-50 hover:bg-slate-100 rounded-2xl transition-all active:scale-95 border border-slate-200"
+                       >
+                         Cancelar
+                       </button>
 
-          />
-
-        )}
+                       <button
+                         onClick={() => {
+                           if (descuadre && !showDoubleConfirmComplete) {
+                             setShowDoubleConfirmComplete(true)
+                           } else {
+                             handleCompletarRuta()
+                             setShowDoubleConfirmComplete(false)
+                           }
+                         }}
+                         className={`flex-1 py-3.5 text-white font-bold rounded-2xl transition-all shadow-xl active:scale-95 ${showDoubleConfirmComplete ? 'bg-red-600 hover:bg-red-700 shadow-red-600/20' : 'bg-slate-900 hover:bg-slate-800 shadow-slate-900/20'}`}
+                       >
+                         {showDoubleConfirmComplete ? 'Sí, Finalizar' : 'Confirmar'}
+                       </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Portal>
+          );
+        })()}
 
 
 

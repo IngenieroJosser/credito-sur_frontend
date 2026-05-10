@@ -94,6 +94,36 @@ interface RutasPageViewProps {
   supervisores?: { id: string; nombre: string }[];
 }
 
+const mapAsignacionesToClientesRuta = (asignaciones: any[] = []): ClienteSelection[] => {
+  const uniqueByClienteId = new Map<string, ClienteSelection>();
+
+  asignaciones.forEach((a: any) => {
+    const clienteId = a?.cliente?.id;
+    if (!clienteId || uniqueByClienteId.has(clienteId)) return;
+
+    uniqueByClienteId.set(clienteId, {
+      id: clienteId,
+      nombre: `${a.cliente.nombres} ${a.cliente.apellidos}`,
+      codigo: a.cliente.dni,
+      direccion: a.cliente.telefono,
+      prestamos: (a.cliente.prestamos || [])
+        .filter((p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA')
+        .map((p: any) => ({
+          id: p.id,
+          tipo:
+            p.tipo === 'ARTICULO' || p.tipoPrestamo === 'ARTICULO'
+              ? 'ARTICULO'
+              : 'EFECTIVO',
+          articulo: p.articulo || p.descripcionArticulo || undefined,
+          frecuencia: p.frecuenciaPago || 'DIARIO',
+          saldoPendiente: Number(p.saldoPendiente || 0),
+        })) as PrestamoResumen[],
+    });
+  });
+
+  return Array.from(uniqueByClienteId.values());
+};
+
 export const RutasPageView = ({ 
   readOnly = false, 
   rutasBasePath = '/admin/rutas', 
@@ -347,6 +377,11 @@ export const RutasPageView = ({
   // Mapa de prestamoId -> rutaId destino para mover créditos individualmente
   const [rutaDestinoMap, setRutaDestinoMap] = useState<Record<string, string>>({})
 
+  const loadClientesRuta = useCallback(async (rutaId: string) => {
+    const rutaDetalle = await routesService.getById(rutaId);
+    setClientesRuta(mapAsignacionesToClientesRuta(rutaDetalle.asignaciones || []));
+  }, [])
+
   // Efecto para buscar clientes disponibles
   useEffect(() => {
     if (!isAddingCliente) {
@@ -411,36 +446,7 @@ export const RutasPageView = ({
     
     // Cargar clientes de la ruta
     try {
-      const rutaDetalle = await routesService.getById(ruta.id);
-      if (rutaDetalle.asignaciones) {
-        const uniqueByClienteId = new Map<string, ClienteSelection>();
-        rutaDetalle.asignaciones.forEach((a: any) => {
-          const clienteId = a?.cliente?.id;
-          if (!clienteId) return;
-          if (uniqueByClienteId.has(clienteId)) return;
-
-          uniqueByClienteId.set(clienteId, {
-            id: clienteId,
-            nombre: `${a.cliente.nombres} ${a.cliente.apellidos}`,
-            codigo: a.cliente.dni,
-            direccion: a.cliente.telefono,
-            prestamos: (a.cliente.prestamos || [])
-              .filter((p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA')
-              .map((p: any) => ({
-                id: p.id,
-                tipo:
-                  p.tipo === 'ARTICULO' || p.tipoPrestamo === 'ARTICULO'
-                    ? 'ARTICULO'
-                    : 'EFECTIVO',
-                articulo: p.articulo || p.descripcionArticulo || undefined,
-                frecuencia: p.frecuenciaPago || 'DIARIO',
-                saldoPendiente: Number(p.saldoPendiente || 0),
-              })) as PrestamoResumen[],
-          });
-        });
-
-        setClientesRuta(Array.from(uniqueByClienteId.values()));
-      }
+      await loadClientesRuta(ruta.id);
     } catch (error) {
       console.error('Error cargando clientes de la ruta:', error);
       setClientesRuta([]);
@@ -598,6 +604,10 @@ export const RutasPageView = ({
       await routesService.moveLoan(prestamoId, toRutaId);
       showNotification('success', 'Crédito asignado a la ruta correctamente', 'Éxito');
       setRutaDestinoMap(prev => { const n = { ...prev }; delete n[prestamoId]; return n; });
+      if (editingId) {
+        await loadClientesRuta(editingId);
+      }
+      await fetchRutas();
     } catch (error) {
       showNotification('error', 'No se pudo mover el crédito', 'Error');
     }
@@ -613,11 +623,7 @@ export const RutasPageView = ({
       await routesService.assignClient(editingId, cliente.id, formData.cobradorId);
       showNotification('success', `Cliente ${cliente.nombre} asignado a la ruta`, 'Éxito');
       
-      // Actualizar lista local
-      setClientesRuta(prev => {
-        if (prev.some((c) => c.id === cliente.id)) return prev;
-        return [...prev, cliente];
-      });
+      await loadClientesRuta(editingId);
       setIsAddingCliente(false);
       setClienteSearch('');
       

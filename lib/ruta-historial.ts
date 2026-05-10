@@ -182,31 +182,49 @@ export const buildHistorialDiaFromBackend = (params: {
   // 4) Visitas sintéticas:
   // Si hubo un pago en el día para un cliente que no aparece en `visitasResp.visitas`,
   // lo agregamos al historial para que el recaudo y el "visitados" cuadre con la realidad.
-  const sinteticos: VisitaRuta[] = (pagosDelDia || []).flatMap((p: any, i: number) => {
+  const pagosSinteticosPorKey = new Map<string, { pago: any; total: number; index: number }>()
+  for (const [i, p] of (pagosDelDia || []).entries()) {
     const cid = p?.clienteId || p?.cliente?.id
     const pid = String(p?.prestamoId || p?.prestamo?.id || '')
     const keyExist = pid ? `loan-${pid}` : (cid ? `client-${cid}` : '')
-    if (!cid || (keyExist && existentes.has(keyExist))) return []
-    return [
-      {
-        id: `pago-${p?.id || i}-${fechaClave}`,
-        cliente: p?.cliente ? `${p.cliente.nombres || ''} ${p.cliente.apellidos || ''}`.trim() : 'Cliente',
-        direccion: p?.cliente?.direccion || '',
-        telefono: p?.cliente?.telefono || '',
-        horaSugerida: '08:00 AM',
-        montoCuota: 0,
-        saldoTotal: 0,
-        estado: 'pagado',
-        proximaVisita: fechaClave,
-        ordenVisita: visitas.length + i + 1,
-        prioridad: 'media',
-        cobradorId: '',
-        periodoRuta: 'DIA',
-        clienteId: cid,
-        prestamoId: pid,
-        recaudadoDelDia: Number(p?.montoTotal || 0),
-      } as any,
-    ]
+    if (!cid || !keyExist || existentes.has(keyExist)) continue
+
+    const actual = pagosSinteticosPorKey.get(keyExist)
+    if (actual) {
+      actual.total += Number(p?.montoTotal || 0)
+    } else {
+      pagosSinteticosPorKey.set(keyExist, {
+        pago: p,
+        total: Number(p?.montoTotal || 0),
+        index: i,
+      })
+    }
+  }
+
+  const sinteticos: VisitaRuta[] = Array.from(pagosSinteticosPorKey.entries()).map(([keyExist, item], offset) => {
+    const p = item.pago
+    const cid = p?.clienteId || p?.cliente?.id
+    const pid = String(p?.prestamoId || p?.prestamo?.id || '')
+    existentes.add(keyExist)
+
+    return {
+      id: `pago-${p?.id || item.index}-${fechaClave}`,
+      cliente: p?.cliente ? `${p.cliente.nombres || ''} ${p.cliente.apellidos || ''}`.trim() : 'Cliente',
+      direccion: p?.cliente?.direccion || '',
+      telefono: p?.cliente?.telefono || '',
+      horaSugerida: '08:00 AM',
+      montoCuota: 0,
+      saldoTotal: 0,
+      estado: 'pagado',
+      proximaVisita: fechaClave,
+      ordenVisita: visitas.length + offset + 1,
+      prioridad: 'media',
+      cobradorId: '',
+      periodoRuta: 'DIA',
+      clienteId: cid,
+      prestamoId: pid,
+      recaudadoDelDia: item.total,
+    } as any
   })
 
   const todasVisitas = [...visitas, ...sinteticos]

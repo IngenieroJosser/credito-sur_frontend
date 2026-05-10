@@ -381,6 +381,38 @@ export default function DeudorasCobradorCard() {
                             <Minus className="h-3 w-3 stroke-[3]" />{formatCurrency(d.totalDeuda)}
                           </span>
                         </div>
+
+                        {/* Detalle de Eventos */}
+                        {d.eventos && d.eventos.length > 0 && (
+                          <div className="col-span-2 mt-2 pt-2 border-t border-slate-100">
+                            <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-2 px-1">Detalle Reciente</p>
+                            <div className="space-y-1.5">
+                              {d.eventos.map((ev) => (
+                                <div key={ev.id} className="flex items-center justify-between px-2 py-1.5 rounded-lg bg-slate-50/50 hover:bg-slate-50 transition-colors group">
+                                  <div className="min-w-0">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className={cn(
+                                        "text-[8px] font-black uppercase px-1 rounded",
+                                        ev.tipoReferencia === 'SALDO_CAJA_RUTA' ? "bg-blue-100 text-blue-600" : "bg-rose-100 text-rose-600"
+                                      )}>
+                                        {ev.tipoReferencia.replace('_', ' ')}
+                                      </span>
+                                      <span className="text-[10px] font-bold text-slate-600 truncate max-w-[200px]">
+                                        {ev.descripcion || 'Sin descripción'}
+                                      </span>
+                                    </div>
+                                    <p className="text-[8px] text-slate-400 mt-0.5 font-medium">
+                                      {new Date(ev.fecha).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                    </p>
+                                  </div>
+                                  <span className="text-[10px] font-black text-slate-700 shrink-0">
+                                    {formatCurrency(ev.monto)}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

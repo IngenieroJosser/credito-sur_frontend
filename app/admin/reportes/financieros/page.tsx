@@ -17,7 +17,7 @@ import { ExportButton } from '@/components/ui/ExportButton'
 import { TransactionalHighDetailChart } from '@/components/ui/TransactionalHighDetailChart'
 import AnimacionCarga from '@/components/ui/AnimacionCarga'
 import { getMonthlyEvolution, getFinancialTargets } from '@/services/reportes-service'
-import { getResumenFinanciero, getTransacciones } from '@/services/contabilidad-service'
+import { getResumenFinanciero, getMovimientosLedger } from '@/services/contabilidad-service'
 import { exportService } from '@/services/export-service'
 import { toast } from 'sonner'
 import {
@@ -30,37 +30,49 @@ import {
 
 // Interfaces
 interface FinancialSummary {
+  entradasCaja: number;
   ingresos: number;
+  ingresosDevengados: number;
+  cobros: number;
   egresos: number;
   utilidad: number;
   margen: number;
+  interes: number;
+  mora: number;
+  margenArticulos: number;
+  otrosIngresos: number;
+  gastosOperativos: number;
 }
 
 interface MonthlyEvolution {
   mes: string;
   ingresos: number;
+  cobros: number;
   egresos: number;
   utilidad: number;
   fecha?: string;
   yearMonth?: string;
 }
 
-const isIngresoOperativo = (t: any): boolean => {
-  const est = String(t?.estado || '').toUpperCase()
-  if (est === 'ANULADO' || est === 'RECHAZADO') return false
-  const ref = String((t as any)?.tipoReferencia || t?.categoria || '').toUpperCase()
-  const desc = String((t as any)?.descripcion || '').toUpperCase()
-  const esRecoleccion = ref === 'RECOLECCION' && desc.includes('RECIBIDA')
-  const esTransferenciaInterna = ref === 'TRANSFERENCIA_INTERNA' && desc.includes('RECIBIDA')
-  return esRecoleccion || esTransferenciaInterna
+const getIngresoOperativoMovimiento = (movimiento: { lineas?: Array<{ accountCode?: string; creditAmount?: number; debitAmount?: number }> }) => {
+  return (movimiento.lineas || [])
+    .filter((linea) => {
+      const accountCode = String(linea.accountCode || '')
+      return accountCode.startsWith('3.') && !accountCode.startsWith('3.4')
+    })
+    .reduce((acc, linea) => acc + Number(linea.creditAmount || 0) - Number(linea.debitAmount || 0), 0)
 }
 
-const isEgresoOperativo = (t: any): boolean => {
-  const est = String(t?.estado || '').toUpperCase()
-  if (est === 'ANULADO' || est === 'RECHAZADO') return false
-  const cat = String(t?.categoria || '').toUpperCase()
-  const ref = String((t as any)?.tipoReferencia || '').toUpperCase()
-  return cat !== 'DEUDA_COBRADOR' && ref !== 'DEUDA_COBRADOR'
+const isIngresoOperativoMovimiento = (movimiento: { tipo?: string; lineas?: Array<{ accountCode?: string; creditAmount?: number; debitAmount?: number }> }) => {
+  const tipo = String(movimiento.tipo || '').toUpperCase()
+  if (tipo === 'VENTA_ARTICULO' || tipo === 'DESEMBOLSO') return false
+  return getIngresoOperativoMovimiento(movimiento) > 0
+}
+
+const getCobroMovimiento = (movimiento: { impactoCaja?: number; totalDebito?: number }) => {
+  const impactoCaja = Number(movimiento.impactoCaja || 0)
+  if (impactoCaja > 0) return impactoCaja
+  return Number(movimiento.totalDebito || 0)
 }
 
 const ReportesFinancierosPage = () => {
@@ -71,14 +83,23 @@ const ReportesFinancierosPage = () => {
   const [mounted, setMounted] = useState(false)
   
   const [summary, setSummary] = useState<FinancialSummary>({
+    entradasCaja: 0,
     ingresos: 0,
+    ingresosDevengados: 0,
+    cobros: 0,
     egresos: 0,
     utilidad: 0,
-    margen: 0
+    margen: 0,
+    interes: 0,
+    mora: 0,
+    margenArticulos: 0,
+    otrosIngresos: 0,
+    gastosOperativos: 0,
   })
   
   const [monthlyData, setMonthlyData] = useState<MonthlyEvolution[]>([])
   const [trendIngresos, setTrendIngresos] = useState<number | null>(null)
+  const [trendCobros, setTrendCobros] = useState<number | null>(null)
   const [trendEgresos, setTrendEgresos] = useState<number | null>(null)
   const [metaMargen, setMetaMargen] = useState<number | null>(null)
 
@@ -124,30 +145,33 @@ const ReportesFinancierosPage = () => {
         ? null
         : await getMonthlyEvolution(ahora.getFullYear())
 
-      const [ingRes, egreRes] = await Promise.all([
-        getTransacciones({ tipo: 'TRANSFERENCIA', fechaInicio: startDate, fechaFin: endDate, limit: 10000 }),
-        getTransacciones({ tipo: 'EGRESO', fechaInicio: startDate, fechaFin: endDate, limit: 10000 }),
-      ])
-
-      const totalIngresosPeriodo = ingRes.data
-        .filter(isIngresoOperativo)
-        .reduce((acc, t) => acc + (t.monto || 0), 0)
-      const totalEgresosPeriodo = egreRes.data
-        .filter(isEgresoOperativo)
-        .reduce((acc, t) => acc + (t.monto || 0), 0)
-
       const startKey = getBogotaDateKey(new Date(startDate))
       const endKey = getBogotaDateKey(new Date(endDate))
       const resumenPeriodo = await getResumenFinanciero(startKey, endKey)
+      const movimientosPeriodo = await getMovimientosLedger({ fechaInicio: startDate, fechaFin: endDate, limit: 10000 })
+      const totalIngresosPeriodo = Number(resumenPeriodo?.ingresosHoy || 0)
+      const totalEntradasCajaPeriodo = (Array.isArray(movimientosPeriodo?.data) ? movimientosPeriodo.data : [])
+        .reduce((acc, movimiento: any) => acc + Number(movimiento?.impactoCaja || 0), 0)
+      const totalIngresosDevengadosPeriodo = Number((resumenPeriodo as any)?.ingresosDevengadosHoy ?? totalIngresosPeriodo)
+      const totalCobrosPeriodo = Number((resumenPeriodo as any)?.cobranzaHoy || 0)
+      const totalEgresosPeriodo = Number(resumenPeriodo?.egresosHoy || 0)
       const utilidadPeriodo = Number((resumenPeriodo as any)?.utilidadReal ?? (resumenPeriodo as any)?.gananciaNeta ?? (totalIngresosPeriodo - totalEgresosPeriodo))
 
-      const margenPeriodo = totalIngresosPeriodo > 0 ? (utilidadPeriodo / totalIngresosPeriodo) * 100 : 0
+      const margenPeriodo = totalIngresosDevengadosPeriodo > 0 ? (utilidadPeriodo / totalIngresosDevengadosPeriodo) * 100 : 0
 
       setSummary({
+        entradasCaja: totalEntradasCajaPeriodo,
         ingresos: totalIngresosPeriodo,
+        ingresosDevengados: totalIngresosDevengadosPeriodo,
+        cobros: totalCobrosPeriodo,
         egresos: totalEgresosPeriodo,
         utilidad: utilidadPeriodo,
         margen: Number(margenPeriodo.toFixed(1)),
+        interes: Number((resumenPeriodo as any)?.interesHoy || 0),
+        mora: Number((resumenPeriodo as any)?.moraHoy || 0),
+        margenArticulos: Number((resumenPeriodo as any)?.margenArticulosHoy || 0),
+        otrosIngresos: Number((resumenPeriodo as any)?.otrosIngresosHoy || 0),
+        gastosOperativos: totalEgresosPeriodo,
       })
 
       const nowKey = getBogotaDateKey(ahora)
@@ -198,22 +222,27 @@ const ReportesFinancierosPage = () => {
 
       const prevRange = getPrevRange()
       try {
-        const [prevIngRes, prevEgrRes] = await Promise.all([
-          getTransacciones({ tipo: 'TRANSFERENCIA', fechaInicio: prevRange.inicio, fechaFin: prevRange.fin, limit: 10000 }),
-          getTransacciones({ tipo: 'EGRESO', fechaInicio: prevRange.inicio, fechaFin: prevRange.fin, limit: 10000 }),
-        ])
-        const prevIngresos = prevIngRes.data.filter(isIngresoOperativo).reduce((acc, t) => acc + (t.monto || 0), 0)
-        const prevEgresos = prevEgrRes.data.filter(isEgresoOperativo).reduce((acc, t) => acc + (t.monto || 0), 0)
+        const prevStartKey = getBogotaDateKey(new Date(prevRange.inicio))
+        const prevEndKey = getBogotaDateKey(new Date(prevRange.fin))
+        const prevResumen = await getResumenFinanciero(prevStartKey, prevEndKey)
+        const prevIngresos = Number(prevResumen?.ingresosHoy || 0)
+        const prevCobros = Number((prevResumen as any)?.cobranzaHoy || 0)
+        const prevEgresos = Number(prevResumen?.egresosHoy || 0)
         const ingresosPerc = prevIngresos > 0
           ? ((totalIngresosPeriodo - prevIngresos) / prevIngresos) * 100
           : (totalIngresosPeriodo > 0 ? 100 : 0)
+        const cobrosPerc = prevCobros > 0
+          ? ((totalCobrosPeriodo - prevCobros) / prevCobros) * 100
+          : (totalCobrosPeriodo > 0 ? 100 : 0)
         const egresosPerc = prevEgresos > 0
           ? ((totalEgresosPeriodo - prevEgresos) / prevEgresos) * 100
           : (totalEgresosPeriodo > 0 ? 100 : 0)
         setTrendIngresos(Number(ingresosPerc.toFixed(1)))
+        setTrendCobros(Number(cobrosPerc.toFixed(1)))
         setTrendEgresos(Number(egresosPerc.toFixed(1)))
       } catch {
         setTrendIngresos(null)
+        setTrendCobros(null)
         setTrendEgresos(null)
       }
 
@@ -223,27 +252,33 @@ const ReportesFinancierosPage = () => {
         const fechaInicio = buildBogotaOffsetIsoFromKey(desde7Key, { hh: 0, mm: 0, ss: 0, ms: 0 })
         const fechaFin = toBogotaDateTimeOffsetIso(ahora)
 
-        const [ingRes, egreRes] = await Promise.all([
-          getTransacciones({ tipo: 'TRANSFERENCIA', fechaInicio, fechaFin, limit: 1000 }),
-          getTransacciones({ tipo: 'EGRESO', fechaInicio, fechaFin, limit: 1000 })
+        const [ingRes, cobroRes, egreRes, movimientos7Res] = await Promise.all([
+          getMovimientosLedger({ accountPrefix: '3.', fechaInicio, fechaFin, limit: 1000 }),
+          getMovimientosLedger({ tipo: 'PAGO', accountPrefix: '1.', fechaInicio, fechaFin, limit: 1000 }),
+          getMovimientosLedger({ accountPrefix: '4.', fechaInicio, fechaFin, limit: 1000 }),
+          getMovimientosLedger({ fechaInicio, fechaFin, limit: 10000 })
         ])
 
-        const dias: { [key: string]: { ingresos: number; egresos: number } } = {}
+        const dias: { [key: string]: { ingresos: number; cobros: number; egresos: number } } = {}
         const range: Date[] = []
         for (let i = 0; i < 7; i++) {
           const dd = new Date(desde7Noon)
           dd.setDate(desde7Noon.getDate() + i)
           const key = getBogotaDateKey(dd)
-          dias[key] = { ingresos: 0, egresos: 0 }
+          dias[key] = { ingresos: 0, cobros: 0, egresos: 0 }
           range.push(dd)
         }
-        ingRes.data.filter(isIngresoOperativo).forEach(t => {
+        ingRes.data.filter(isIngresoOperativoMovimiento).forEach(t => {
           const key = normalizeDateKey(t.fecha)
-          if (dias[key]) dias[key].ingresos += t.monto || 0
+          if (dias[key]) dias[key].ingresos += getIngresoOperativoMovimiento(t)
         })
-        egreRes.data.filter(isEgresoOperativo).forEach(t => {
+        cobroRes.data.forEach(t => {
           const key = normalizeDateKey(t.fecha)
-          if (dias[key]) dias[key].egresos += t.monto || 0
+          if (dias[key]) dias[key].cobros += getCobroMovimiento(t)
+        })
+        egreRes.data.forEach(t => {
+          const key = normalizeDateKey(t.fecha)
+          if (dias[key]) dias[key].egresos += Number(t.totalDebito || 0)
         })
 
         const labels = range.map(d => {
@@ -261,6 +296,7 @@ const ReportesFinancierosPage = () => {
           return {
             mes: labels[idx],
             ingresos: v.ingresos,
+            cobros: v.cobros,
             egresos: v.egresos,
             utilidad: v.ingresos - v.egresos,
             fecha: toBogotaDateTimeOffsetIso(d)
@@ -269,17 +305,29 @@ const ReportesFinancierosPage = () => {
         setMonthlyData(series)
 
         const totalIngresos7 = Object.values(dias).reduce((acc, v) => acc + v.ingresos, 0)
+        const totalCobros7 = Object.values(dias).reduce((acc, v) => acc + v.cobros, 0)
         const totalEgresos7 = Object.values(dias).reduce((acc, v) => acc + v.egresos, 0)
 
         const nowKey7 = getBogotaDateKey(ahora)
         const resumen7 = await getResumenFinanciero(desde7Key, nowKey7)
+        const ingresosDevengados7 = Number((resumen7 as any)?.ingresosDevengadosHoy ?? totalIngresos7)
+        const entradasCaja7 = (Array.isArray(movimientos7Res?.data) ? movimientos7Res.data : [])
+          .reduce((acc, movimiento: any) => acc + Number(movimiento?.impactoCaja || 0), 0)
         const utilidad7 = Number((resumen7 as any)?.utilidadReal ?? (resumen7 as any)?.gananciaNeta ?? (totalIngresos7 - totalEgresos7))
-        const margen7 = totalIngresos7 > 0 ? (utilidad7 / totalIngresos7) * 100 : 0
+        const margen7 = ingresosDevengados7 > 0 ? (utilidad7 / ingresosDevengados7) * 100 : 0
         setSummary({
+          entradasCaja: entradasCaja7,
           ingresos: totalIngresos7,
+          ingresosDevengados: ingresosDevengados7,
+          cobros: totalCobros7,
           egresos: totalEgresos7,
           utilidad: utilidad7,
-          margen: Number(margen7.toFixed(1))
+          margen: Number(margen7.toFixed(1)),
+          interes: Number((resumen7 as any)?.interesHoy || 0),
+          mora: Number((resumen7 as any)?.moraHoy || 0),
+          margenArticulos: Number((resumen7 as any)?.margenArticulosHoy || 0),
+          otrosIngresos: Number((resumen7 as any)?.otrosIngresosHoy || 0),
+          gastosOperativos: totalEgresos7,
         })
 
         const prevDesde7Noon = new Date(y, m, d - 13, 12, 0, 0, 0)
@@ -287,53 +335,69 @@ const ReportesFinancierosPage = () => {
         const prevDesde7Key = getBogotaDateKey(prevDesde7Noon)
         const prevFin7Key = getBogotaDateKey(prevFin7Noon)
         try {
-          const [prevIng7Res, prevEgre7Res] = await Promise.all([
-            getTransacciones({
-              tipo: 'TRANSFERENCIA',
+          const [prevIng7Res, prevCobro7Res, prevEgre7Res] = await Promise.all([
+            getMovimientosLedger({
+              accountPrefix: '3.',
               fechaInicio: buildBogotaOffsetIsoFromKey(prevDesde7Key, { hh: 0, mm: 0, ss: 0, ms: 0 }),
               fechaFin: buildBogotaOffsetIsoFromKey(prevFin7Key, { hh: 23, mm: 59, ss: 59, ms: 999 }),
               limit: 1000,
             }),
-            getTransacciones({
-              tipo: 'EGRESO',
+            getMovimientosLedger({
+              tipo: 'PAGO',
+              accountPrefix: '1.',
+              fechaInicio: buildBogotaOffsetIsoFromKey(prevDesde7Key, { hh: 0, mm: 0, ss: 0, ms: 0 }),
+              fechaFin: buildBogotaOffsetIsoFromKey(prevFin7Key, { hh: 23, mm: 59, ss: 59, ms: 999 }),
+              limit: 1000,
+            }),
+            getMovimientosLedger({
+              accountPrefix: '4.',
               fechaInicio: buildBogotaOffsetIsoFromKey(prevDesde7Key, { hh: 0, mm: 0, ss: 0, ms: 0 }),
               fechaFin: buildBogotaOffsetIsoFromKey(prevFin7Key, { hh: 23, mm: 59, ss: 59, ms: 999 }),
               limit: 1000,
             }),
           ])
-          const prevIng7 = prevIng7Res.data.filter(isIngresoOperativo).reduce((acc, t) => acc + (t.monto || 0), 0)
-          const prevEgr7 = prevEgre7Res.data.filter(isEgresoOperativo).reduce((acc, t) => acc + (t.monto || 0), 0)
+          const prevIng7 = prevIng7Res.data.filter(isIngresoOperativoMovimiento).reduce((acc, t) => acc + getIngresoOperativoMovimiento(t), 0)
+          const prevCobro7 = prevCobro7Res.data.reduce((acc, t) => acc + getCobroMovimiento(t), 0)
+          const prevEgr7 = prevEgre7Res.data.reduce((acc, t) => acc + Number(t.totalDebito || 0), 0)
           const ingresosPerc7 = prevIng7 > 0 ? ((totalIngresos7 - prevIng7) / prevIng7) * 100 : (totalIngresos7 > 0 ? 100 : 0)
+          const cobrosPerc7 = prevCobro7 > 0 ? ((totalCobros7 - prevCobro7) / prevCobro7) * 100 : (totalCobros7 > 0 ? 100 : 0)
           const egresosPerc7 = prevEgr7 > 0 ? ((totalEgresos7 - prevEgr7) / prevEgr7) * 100 : (totalEgresos7 > 0 ? 100 : 0)
           setTrendIngresos(Number(ingresosPerc7.toFixed(1)))
+          setTrendCobros(Number(cobrosPerc7.toFixed(1)))
           setTrendEgresos(Number(egresosPerc7.toFixed(1)))
         } catch {
           setTrendIngresos(null)
+          setTrendCobros(null)
           setTrendEgresos(null)
         }
       } else {
-        const ingResAll = await getTransacciones({ tipo: 'TRANSFERENCIA', fechaInicio: startDate, fechaFin: endDate, limit: 10000 })
-        const egreResAll = await getTransacciones({ tipo: 'EGRESO', fechaInicio: startDate, fechaFin: endDate, limit: 10000 })
+        const ingResAll = await getMovimientosLedger({ accountPrefix: '3.', fechaInicio: startDate, fechaFin: endDate, limit: 10000 })
+        const cobroResAll = await getMovimientosLedger({ tipo: 'PAGO', accountPrefix: '1.', fechaInicio: startDate, fechaFin: endDate, limit: 10000 })
+        const egreResAll = await getMovimientosLedger({ accountPrefix: '4.', fechaInicio: startDate, fechaFin: endDate, limit: 10000 })
 
         if (periodo === 'MENSUAL') {
           const startD = new Date(startDate)
           const endD = new Date(endDate)
           const days: Date[] = []
-          const dayMap: Record<string, { ingresos: number; egresos: number; fecha: string }> = {}
+          const dayMap: Record<string, { ingresos: number; cobros: number; egresos: number; fecha: string }> = {}
           const iter = new Date(startD)
           while (iter <= endD) {
             const key = getBogotaDateKey(iter)
-            dayMap[key] = { ingresos: 0, egresos: 0, fecha: toBogotaDateTimeOffsetIso(iter) }
+            dayMap[key] = { ingresos: 0, cobros: 0, egresos: 0, fecha: toBogotaDateTimeOffsetIso(iter) }
             days.push(new Date(iter))
             iter.setDate(iter.getDate() + 1)
           }
-          ingResAll.data.filter(isIngresoOperativo).forEach(t => {
+          ingResAll.data.filter(isIngresoOperativoMovimiento).forEach(t => {
             const key = normalizeDateKey(t.fecha)
-            if (dayMap[key]) dayMap[key].ingresos += t.monto || 0
+            if (dayMap[key]) dayMap[key].ingresos += getIngresoOperativoMovimiento(t)
           })
-          egreResAll.data.filter(isEgresoOperativo).forEach(t => {
+          cobroResAll.data.forEach(t => {
             const key = normalizeDateKey(t.fecha)
-            if (dayMap[key]) dayMap[key].egresos += t.monto || 0
+            if (dayMap[key]) dayMap[key].cobros += getCobroMovimiento(t)
+          })
+          egreResAll.data.forEach(t => {
+            const key = normalizeDateKey(t.fecha)
+            if (dayMap[key]) dayMap[key].egresos += Number(t.totalDebito || 0)
           })
           const series: MonthlyEvolution[] = days.map(d => {
             const key = getBogotaDateKey(d)
@@ -342,6 +406,7 @@ const ReportesFinancierosPage = () => {
             return {
               mes: label,
               ingresos: v?.ingresos || 0,
+              cobros: v?.cobros || 0,
               egresos: v?.egresos || 0,
               utilidad: (v?.ingresos || 0) - (v?.egresos || 0),
               fecha: v?.fecha || toBogotaDateTimeOffsetIso(d)
@@ -352,31 +417,37 @@ const ReportesFinancierosPage = () => {
           const startKey = getBogotaDateKey(new Date(`${startDate}`))
           const startM = new Date(`${startKey}T12:00:00-05:00`)
           const endM = new Date(ahora)
-          const monthMap: Record<string, { ingresos: number; egresos: number }> = {}
+          const monthMap: Record<string, { ingresos: number; cobros: number; egresos: number }> = {}
           const months: { key: string; label: string }[] = []
           const iter = new Date(startM.getFullYear(), startM.getMonth(), 1)
           while (iter <= endM) {
             const key = `${iter.getFullYear()}-${String(iter.getMonth()+1).padStart(2,'0')}`
             const label = iter.toLocaleString('es-CO', { month: 'short' })
-            monthMap[key] = { ingresos: 0, egresos: 0 }
+            monthMap[key] = { ingresos: 0, cobros: 0, egresos: 0 }
             months.push({ key, label })
             iter.setMonth(iter.getMonth() + 1, 1)
           }
-          ingResAll.data.filter(isIngresoOperativo).forEach(t => {
+          ingResAll.data.filter(isIngresoOperativoMovimiento).forEach(t => {
             const d = new Date(t.fecha)
             const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`
-            if (monthMap[key]) monthMap[key].ingresos += t.monto || 0
+            if (monthMap[key]) monthMap[key].ingresos += getIngresoOperativoMovimiento(t)
           })
-          egreResAll.data.filter(isEgresoOperativo).forEach(t => {
+          cobroResAll.data.forEach(t => {
             const d = new Date(t.fecha)
             const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`
-            if (monthMap[key]) monthMap[key].egresos += t.monto || 0
+            if (monthMap[key]) monthMap[key].cobros += getCobroMovimiento(t)
+          })
+          egreResAll.data.forEach(t => {
+            const d = new Date(t.fecha)
+            const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`
+            if (monthMap[key]) monthMap[key].egresos += Number(t.totalDebito || 0)
           })
           const series: MonthlyEvolution[] = months.map(m => {
             const v = monthMap[m.key]
             return {
               mes: m.label,
               ingresos: v.ingresos,
+              cobros: v.cobros,
               egresos: v.egresos,
               utilidad: v.ingresos - v.egresos,
               yearMonth: m.key
@@ -461,15 +532,28 @@ const ReportesFinancierosPage = () => {
         </header>
 
         {/* KPI Cards - Estilo Ultra Clean */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-6">
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
             <div className="flex justify-between items-start mb-4">
               <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Ingresos Totales</p>
-                <h3 className="text-2xl font-bold text-slate-900 mt-2">{formatCurrency(summary.ingresos)}</h3>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Flujo Neto de Caja</p>
+                <h3 className="text-2xl font-bold text-slate-900 mt-2">{formatCurrency(summary.entradasCaja)}</h3>
               </div>
               <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100">
                 <TrendingUp className="h-5 w-5 text-emerald-600" />
+              </div>
+            </div>
+            <p className="text-xs font-semibold text-slate-400">Entradas menos salidas/reversos de caja del periodo</p>
+          </div>
+
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Ingresos Operativos</p>
+                <h3 className="text-2xl font-bold text-slate-900 mt-2">{formatCurrency(summary.ingresos)}</h3>
+              </div>
+              <div className="p-3 bg-teal-50 rounded-xl border border-teal-100">
+                <DollarSign className="h-5 w-5 text-teal-600" />
               </div>
             </div>
             {trendIngresos !== null && (
@@ -478,12 +562,31 @@ const ReportesFinancierosPage = () => {
                 <span>{trendIngresos >= 0 ? `+${trendIngresos}%` : `${trendIngresos}%`} vs periodo anterior</span>
               </div>
             )}
+            <p className="mt-2 text-xs font-semibold text-slate-400">No incluye cartera ni cuota inicial de artículos</p>
           </div>
 
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
             <div className="flex justify-between items-start mb-4">
               <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Egresos Totales</p>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Cobros de Cuotas</p>
+                <h3 className="text-2xl font-bold text-slate-900 mt-2">{formatCurrency(summary.cobros)}</h3>
+              </div>
+              <div className="p-3 bg-blue-50 rounded-xl border border-blue-100">
+                <DollarSign className="h-5 w-5 text-blue-600" />
+              </div>
+            </div>
+            {trendCobros !== null && (
+              <div className={`flex items-center text-xs font-bold w-fit px-2 py-1 rounded-full border ${trendCobros >= 0 ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-rose-600 bg-rose-50 border-rose-100'}`}>
+                <ArrowUpRight className="h-3 w-3 mr-1" />
+                <span>{trendCobros >= 0 ? `+${trendCobros}%` : `${trendCobros}%`} vs periodo anterior</span>
+              </div>
+            )}
+          </div>
+
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Gastos Operativos</p>
                 <h3 className="text-2xl font-bold text-slate-900 mt-2">{formatCurrency(summary.egresos)}</h3>
               </div>
               <div className="p-3 bg-rose-50 rounded-xl border border-rose-100">
@@ -501,7 +604,7 @@ const ReportesFinancierosPage = () => {
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
             <div className="flex justify-between items-start mb-4">
               <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Utilidad Neta</p>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Utilidad Devengada</p>
                 <h3 className="text-2xl font-bold text-slate-900 mt-2">{formatCurrency(summary.utilidad)}</h3>
               </div>
               <div className="p-3 bg-blue-50 rounded-xl border border-blue-100">
@@ -512,6 +615,7 @@ const ReportesFinancierosPage = () => {
               <ArrowUpRight className="h-3 w-3 mr-1" />
               <span>{summary.utilidad >= 0 ? 'Rentable' : 'No rentable'}</span>
             </div>
+            <p className="mt-2 text-xs font-semibold text-slate-400">Incluye margen de artículos aunque no esté cobrado completo</p>
           </div>
 
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
@@ -524,22 +628,78 @@ const ReportesFinancierosPage = () => {
                 <PieChart className="h-5 w-5 text-purple-600" />
               </div>
             </div>
+            {metaMargen !== null && (
+              <div className={`flex items-center text-xs font-bold w-fit px-2 py-1 rounded-full border ${summary.margen >= metaMargen ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-amber-700 bg-amber-50 border-amber-100'}`}>
+                <Target className="h-3 w-3 mr-1" />
+                <span>Meta {metaMargen.toFixed(1)}%</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+          <div className="flex flex-col gap-1 mb-5">
+            <h3 className="text-base font-bold text-slate-900">Desglose de Utilidad Devengada</h3>
+            <p className="text-xs text-slate-400 font-medium">Resultado contable del periodo: intereses, mora y margen de artículos menos gastos operativos. No incluye inyecciones de capital.</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+              <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Interés</p>
+              <p className="mt-2 text-lg font-black text-slate-900">{formatCurrency(summary.interes)}</p>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+              <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Mora</p>
+              <p className="mt-2 text-lg font-black text-slate-900">{formatCurrency(summary.mora)}</p>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+              <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Margen Artículos Devengado</p>
+              <p className="mt-2 text-lg font-black text-slate-900">{formatCurrency(summary.margenArticulos)}</p>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+              <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Otros Ingresos Externos</p>
+              <p className="mt-2 text-lg font-black text-slate-900">{formatCurrency(summary.otrosIngresos)}</p>
+            </div>
+            <div className="rounded-xl border border-rose-100 bg-rose-50/60 p-4">
+              <p className="text-[10px] font-black uppercase tracking-wider text-rose-600">Gastos Operativos</p>
+              <p className="mt-2 text-lg font-black text-rose-700">{formatCurrency(summary.gastosOperativos)}</p>
+            </div>
           </div>
         </div>
 
         {/* Charts Section */}
         <div className="grid grid-cols-1 gap-8">
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 md:p-8">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6 md:mb-8">
+              <div>
+                <h3 className="text-base md:text-lg font-bold text-slate-900">Tendencia de Cobros</h3>
+                <p className="text-xs md:text-sm text-slate-400 font-medium">Cobranza contable registrada en ledger como PAGO</p>
+              </div>
+              <div className="flex items-center gap-2 text-xs font-bold">
+                <div className="w-3 h-3 rounded-full bg-blue-600"></div>
+                <span className="text-slate-600">Cobros</span>
+              </div>
+            </div>
+
+            <TransactionalHighDetailChart
+              data={monthlyData.map(d => ({
+                label: d.mes,
+                value: d.cobros,
+                date: d.fecha,
+              }))}
+            />
+          </div>
+
           {/* Main Chart: Monthly Trends */}
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 md:p-8">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6 md:mb-8">
               <div>
                 <h3 className="text-base md:text-lg font-bold text-slate-900">Evolución Financiera</h3>
-                <p className="text-xs md:text-sm text-slate-400 font-medium">Comportamiento por periodo seleccionado de ingresos y egresos</p>
+                <p className="text-xs md:text-sm text-slate-400 font-medium">Comportamiento por periodo seleccionado de ingresos operativos y gastos operativos</p>
               </div>
               <div className="flex items-center gap-3 md:gap-4 text-xs font-bold">
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-blue-600"></div>
-                  <span className="text-slate-600">Ingresos</span>
+                  <span className="text-slate-600">Ingresos operativos</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-rose-500"></div>

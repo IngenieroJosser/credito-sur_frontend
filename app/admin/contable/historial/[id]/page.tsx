@@ -117,7 +117,7 @@ export default function DetalleCierrePage({ params }: { params: Promise<{ id: st
         {/* Financial Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                <div className="text-xs font-bold text-slate-500 uppercase mb-2">Saldo Sistema</div>
+                <div className="text-xs font-bold text-slate-500 uppercase mb-2">Saldo de la Caja</div>
                 <div className="text-2xl font-bold text-black">
                   <MoneyAmount value={cierre.saldoSistema} amountClassName="text-2xl font-bold text-black" />
                 </div>

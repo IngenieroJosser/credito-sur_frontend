@@ -863,7 +863,6 @@ export default function NotificacionDetalleModal({
                             const key = normalizeDateKey(String(dateStr))
                             if (key) {
                               const base = new Date(`${key}T12:00:00-05:00`)
-                              base.setDate(base.getDate() + 1)
                               return base.toLocaleDateString('es-CO')
                             }
                           } catch (e) {
@@ -1156,10 +1155,11 @@ export default function NotificacionDetalleModal({
                   Rechazar
                 </button>
                 <button 
-                  onClick={() => setShowApproveModal(true)}
-                  className="flex-1 py-4 bg-emerald-600 text-white font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-emerald-700 shadow-xl shadow-emerald-600/20 transition-all border border-emerald-500"
+                  onClick={() => approveNow()}
+                  disabled={isProcessing}
+                  className="flex-1 py-4 bg-emerald-600 text-white font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-emerald-700 shadow-xl shadow-emerald-600/20 transition-all border border-emerald-500 disabled:opacity-50"
                 >
-                  Aprobar Ahora
+                  {isProcessing ? 'Procesando...' : 'Aprobar Ahora'}
                 </button>
               </>
             )}
@@ -1178,11 +1178,7 @@ export default function NotificacionDetalleModal({
             onClose={() => setShowRejectModal(false)}
             onConfirm={(motivo) => rejectNow(motivo)}
           />
-          <ConfirmApproveModal
-            isOpen={showApproveModal}
-            onClose={() => setShowApproveModal(false)}
-            onConfirm={() => approveNow()}
-          />
+
 
           {/* Modal de detalle del pago (archivo separado, sin deuda técnica) */}
           <PagoDetalleModal

@@ -155,7 +155,7 @@ const UserManagementPage = () => {
   const puedeCrear = can("USUARIOS_CREATE") || canForPath("/users");
   const puedeEditar = can("USUARIOS_EDIT") || canForPath("/users");
   const puedeEliminar = can("USUARIOS_DELETE") || canForPath("/users");
-  const puedeGestionarPermisos = can("USUARIOS_MANAGE") || canForPath("/users");
+  const puedeGestionarPermisos = currentUserRole === RolUsuario.SUPER_ADMINISTRADOR;
 
   // --- ESTADO DE USUARIOS ---
   const [users, setUsers] = useState<User[]>([]);
@@ -201,6 +201,9 @@ const UserManagementPage = () => {
       fetchUsers();
     }
   }, [authLoading, currentUser]);
+
+  // Acceso solo para SUPER_ADMINISTRADOR — flag evaluado después de todos los hooks
+  const accesoRestringido = !authLoading && currentUser && currentUserRole !== RolUsuario.SUPER_ADMINISTRADOR;
 
   useRealtimeData(['usuarios_actualizados'], fetchUsers)
   const [searchTerm, setSearchTerm] = useState("");
@@ -1130,7 +1133,21 @@ const UserManagementPage = () => {
 
   return (
     <>
-      <div className="min-h-screen bg-slate-50 relative">
+      {accesoRestringido ? (
+        <div className="flex flex-col items-center justify-center min-h-[70vh] gap-4 text-center px-6">
+          <div className="w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center">
+            <Shield className="w-8 h-8 text-rose-500" />
+          </div>
+          <h2 className="text-xl font-black text-slate-900">Acceso Restringido</h2>
+          <p className="text-sm text-slate-500 max-w-sm font-medium">
+            La gestión de usuarios y permisos está reservada exclusivamente para el{' '}
+            <span className="font-bold text-slate-700">Super Administrador</span>.
+            Contacta al administrador del sistema si necesitas realizar cambios.
+          </p>
+        </div>
+      ) : (
+        <>
+        <div className="min-h-screen bg-slate-50 relative">
         {/* Fondo arquitectónico standard */}
         <div className="fixed inset-0 pointer-events-none">
           <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
@@ -3035,9 +3052,10 @@ const UserManagementPage = () => {
           </>,
           document.body,
         )}
+        </>
+      )}
     </>
   );
 };
 
 export default UserManagementPage;
-

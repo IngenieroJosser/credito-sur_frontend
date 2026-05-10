@@ -4,7 +4,7 @@ import { useMemo, useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { ArrowLeft, Calendar, Eye, LineChart, TrendingDown, TrendingUp } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
-import { getTransacciones } from '@/services/contabilidad-service'
+import { getMovimientosLedger, getResumenFinanciero } from '@/services/contabilidad-service'
 import { buildBogotaOffsetIsoFromKey, getBogotaDateKey } from '@/lib/rutas-core'
 
 type DetalleRow = {
@@ -58,21 +58,28 @@ export default function DetalleReporteFinancieroPage() {
           ? buildBogotaOffsetIsoFromKey(finKey, { hh: 23, mm: 59, ss: 59, ms: 999 })
           : ''
 
-        const [ingRes, egreRes] = await Promise.all([
-          getTransacciones({ tipo: 'INGRESO', fechaInicio, fechaFin, limit: 2000 }),
-          getTransacciones({ tipo: 'EGRESO', fechaInicio, fechaFin, limit: 2000 })
+        const [ingRes, egreRes, costosRes, resumen] = await Promise.all([
+          getMovimientosLedger({ accountPrefix: '3.', fechaInicio, fechaFin, limit: 2000 }),
+          getMovimientosLedger({ accountPrefix: '4.', fechaInicio, fechaFin, limit: 2000 }),
+          getMovimientosLedger({ accountPrefix: '5.', fechaInicio, fechaFin, limit: 2000 }),
+          getResumenFinanciero(fechaInicio, fechaFin),
         ])
 
-        const totalIngresos = ingRes.data
-          .filter((t: any) => {
-            const cat = String(t?.categoria || '').toUpperCase()
-            return cat === 'PAGO' || cat === 'ABONO'
-          })
-          .reduce((acc, t) => acc + (t.monto || 0), 0)
-        const totalEgresos = egreRes.data
-          .filter((t: any) => String(t?.categoria || '').toUpperCase() !== 'DEUDA_COBRADOR')
-          .reduce((acc, t) => acc + (t.monto || 0), 0)
-        const utilidadCalc = Math.max(0, totalIngresos - totalEgresos)
+        const sumLineas = (
+          entries: typeof ingRes.data,
+          prefix: string,
+          side: 'debitAmount' | 'creditAmount',
+        ) => entries.reduce((acc, t) => {
+          return acc + t.lineas
+            .filter((linea) => String(linea.accountCode).startsWith(prefix))
+            .reduce((lineAcc, linea) => lineAcc + Number(linea[side] || 0), 0)
+        }, 0)
+
+        const totalIngresos = Number((resumen as any)?.ingresosHoy ?? sumLineas(ingRes.data, '3.', 'creditAmount'))
+        const totalGastos = Number((resumen as any)?.egresosHoy ?? sumLineas(egreRes.data, '4.', 'debitAmount'))
+        const totalCostos = Number((resumen as any)?.costosVentasHoy ?? sumLineas(costosRes.data, '5.', 'debitAmount'))
+        const totalEgresos = totalGastos + totalCostos
+        const utilidadCalc = Number((resumen as any)?.utilidadReal ?? (resumen as any)?.gananciaNeta ?? (totalIngresos - totalEgresos))
         const margenCalc = totalIngresos > 0 ? (utilidadCalc / totalIngresos) * 100 : 0
 
         setIngresos(totalIngresos)
@@ -81,22 +88,26 @@ export default function DetalleReporteFinancieroPage() {
         setMargen(margenCalc)
 
         const agrupados: Record<string, { label: string; valor: number; tipo: 'INGRESO' | 'EGRESO' }> = {}
-        ingRes.data
-          .filter((t: any) => {
-            const cat = String(t?.categoria || '').toUpperCase()
-            return cat === 'PAGO' || cat === 'ABONO'
-          })
-          .forEach(t => {
-          const cat = t.categoria || 'OTROS_INGRESOS'
+        ingRes.data.forEach(t => {
+          const cat = t.lineas.find((linea) => String(linea.accountCode).startsWith('3.'))?.accountName || t.tipo || 'OTROS_INGRESOS'
           if (!agrupados[cat]) agrupados[cat] = { label: cat.replace(/_/g, ' '), valor: 0, tipo: 'INGRESO' }
-          agrupados[cat].valor += t.monto || 0
+          agrupados[cat].valor += t.lineas
+            .filter((linea) => String(linea.accountCode).startsWith('3.'))
+            .reduce((acc, linea) => acc + Number(linea.creditAmount || 0), 0)
         })
-        egreRes.data
-          .filter((t: any) => String(t?.categoria || '').toUpperCase() !== 'DEUDA_COBRADOR')
-          .forEach(t => {
-          const cat = t.categoria || 'OTROS_EGRESOS'
+        egreRes.data.forEach(t => {
+          const cat = t.lineas.find((linea) => String(linea.accountCode).startsWith('4.'))?.accountName || t.tipo || 'OTROS_EGRESOS'
           if (!agrupados[cat]) agrupados[cat] = { label: cat.replace(/_/g, ' '), valor: 0, tipo: 'EGRESO' }
-          agrupados[cat].valor += t.monto || 0
+          agrupados[cat].valor += t.lineas
+            .filter((linea) => String(linea.accountCode).startsWith('4.'))
+            .reduce((acc, linea) => acc + Number(linea.debitAmount || 0), 0)
+        })
+        costosRes.data.forEach(t => {
+          const cat = t.lineas.find((linea) => String(linea.accountCode).startsWith('5.'))?.accountName || t.tipo || 'COSTOS'
+          if (!agrupados[cat]) agrupados[cat] = { label: cat.replace(/_/g, ' '), valor: 0, tipo: 'EGRESO' }
+          agrupados[cat].valor += t.lineas
+            .filter((linea) => String(linea.accountCode).startsWith('5.'))
+            .reduce((acc, linea) => acc + Number(linea.debitAmount || 0), 0)
         })
         const lista: DetalleRow[] = Object.entries(agrupados)
           .map(([categoria, info]) => ({ categoria, label: info.label, valor: info.valor, tipo: info.tipo }))

@@ -3,7 +3,6 @@
 import { use, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Save, Wallet } from 'lucide-react'
-import { formatCOPInputValue } from '@/lib/utils'
 import { getCajaById, updateCaja } from '@/services/contabilidad-service'
 import { usuariosService } from '@/services/usuarios-service'
 
@@ -33,11 +32,11 @@ export default function EditarCajaPage({ params }: { params: Promise<{ id: strin
         ])
         if (cajaData) {
           setFormData({
-            nombre: cajaData.nombre || '',
-            responsable: cajaData.responsable || '',
-            responsableId: cajaData.responsableId || '',
-            montoBase: String(cajaData.saldo || 0),
-            descripcion: ''
+        nombre: cajaData.nombre || '',
+        responsable: cajaData.responsable || '',
+        responsableId: cajaData.responsableId || '',
+        montoBase: String(cajaData.saldo || 0),
+        descripcion: ''
           })
         }
         setUsuariosAutorizados((users as any[]).map((u: any) => ({
@@ -61,7 +60,6 @@ export default function EditarCajaPage({ params }: { params: Promise<{ id: strin
       await updateCaja(id, {
         nombre: formData.nombre,
         responsableId: formData.responsableId || undefined,
-        saldoActual: Number(formData.montoBase) || undefined,
       })
       router.push(`/contable/cajas/${id}`)
     } catch (err) {
@@ -133,13 +131,20 @@ export default function EditarCajaPage({ params }: { params: Promise<{ id: strin
               <div className="space-y-2">
                 <label className="block text-sm font-bold text-slate-700">Responsable Principal</label>
                 <select
-                  value={formData.responsable}
-                  onChange={(e) => setFormData({...formData, responsable: e.target.value})}
+                  value={formData.responsableId}
+                  onChange={(e) => {
+                    const user = usuariosAutorizados.find((u) => u.id === e.target.value)
+                    setFormData({
+                      ...formData,
+                      responsableId: e.target.value,
+                      responsable: user?.nombre || '',
+                    })
+                  }}
                   className="w-full rounded-xl border-slate-300 py-3 text-sm text-slate-900 focus:ring-2 focus:ring-blue-600 focus:border-transparent"
                 >
                   <option value="">Seleccionar responsable...</option>
                   {usuariosAutorizados.map((u) => (
-                    <option key={u.id} value={u.nombre}>
+                    <option key={u.id} value={u.id}>
                       {u.nombre} ({u.rol})
                     </option>
                   ))}
@@ -148,18 +153,18 @@ export default function EditarCajaPage({ params }: { params: Promise<{ id: strin
               </div>
 
               <div className="space-y-2">
-                <label className="block text-sm font-bold text-slate-700">Monto Base Sugerido</label>
+                <label className="block text-sm font-bold text-slate-700">Saldo actual</label>
                 <div className="relative">
                   <span className="absolute left-4 top-3 text-slate-400 font-bold">$</span>
                   <input
                     type="text"
-                    inputMode="numeric"
                     value={formData.montoBase}
-                    onChange={(e) => setFormData({ ...formData, montoBase: formatCOPInputValue(e.target.value) })}
-                    className="w-full pl-8 rounded-xl border-slate-300 py-3 text-sm text-slate-900 focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+                    readOnly
+                    disabled
+                    className="w-full pl-8 rounded-xl border-slate-300 bg-slate-50 py-3 text-sm text-slate-500 cursor-not-allowed"
                   />
                 </div>
-                <p className="text-xs text-slate-500">Monto con el que debería iniciar la caja diariamente.</p>
+                <p className="text-xs text-slate-500">El saldo solo cambia mediante asientos de ledger o ajustes contables.</p>
               </div>
 
               <div className="lg:col-span-2 space-y-2">

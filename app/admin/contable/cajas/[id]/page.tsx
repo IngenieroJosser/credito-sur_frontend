@@ -1,14 +1,15 @@
 'use client'
 
 import { createPortal } from 'react-dom'
-import { use, useMemo, useState, useEffect } from 'react'
+import { use, useCallback, useMemo, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Wallet, TrendingUp, TrendingDown, Calendar, User, DollarSign, CheckCircle, AlertCircle, XCircle, ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight, CheckCircle2, X } from 'lucide-react'
 import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber } from '@/lib/utils'
 import MoneyAmount from '@/components/contable/MoneyAmount'
 import { useNotification } from '@/components/providers/NotificationProvider'
-import { createTransaccion, getCajaById, getTransacciones } from '@/services/contabilidad-service'
+import { createTransaccion, getCajaById, getMovimientosLedger, type MovimientoLedger } from '@/services/contabilidad-service'
 import { usuariosService } from '@/services/usuarios-service'
+import { useRealtimeData } from '@/hooks/useRealtimeData'
 
 interface CajaDetalle {
   id: string
@@ -28,6 +29,20 @@ interface CajaDetalle {
   movimientos: Array<{ id: string | number; tipo: string; concepto: string; monto: number; hora: string; usuario: string }>
 }
 
+const mapLedgerCajaMovimiento = (entry: MovimientoLedger, cajaId: string) => {
+  const lineasCaja = entry.lineas.filter((linea) => linea.cajaId === cajaId)
+  const debitoCaja = lineasCaja.reduce((acc, linea) => acc + Number(linea.debitAmount || 0), 0)
+  const creditoCaja = lineasCaja.reduce((acc, linea) => acc + Number(linea.creditAmount || 0), 0)
+  return {
+    id: entry.id,
+    tipo: debitoCaja >= creditoCaja ? 'INGRESO' : 'EGRESO',
+    concepto: entry.descripcion || entry.tipo,
+    monto: Math.max(debitoCaja, creditoCaja),
+    hora: new Date(entry.fecha).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }),
+    usuario: entry.creadoPorId || 'Sistema',
+  }
+}
+
 export default function DetalleCajaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
@@ -36,23 +51,19 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
   const [usuariosAutorizados, setUsuariosAutorizados] = useState<Array<{id: string; nombre: string; rol: string}>>([])
   const [showEditarCajaModal, setShowEditarCajaModal] = useState(false)
   const [showRegistrarMovimientoModal, setShowRegistrarMovimientoModal] = useState(false)
-  const [editForm, setEditForm] = useState({
-    nombre: '',
-    responsable: '',
-    saldoInicialInput: '',
-  })
-
+  const [editForm, setEditForm] = useState({ nombre: '', responsable: '', saldoInicialInput: '' })
   const [movimientoForm, setMovimientoForm] = useState({
     tipo: 'INGRESO' as 'INGRESO' | 'EGRESO',
     categoria: '',
     montoInput: '',
     concepto: '',
     referencia: '',
+    accountCode: '',
   })
 
   const { showNotification } = useNotification()
 
-  const fetchCaja = async () => {
+  const fetchCaja = useCallback(async () => {
     setLoadingCaja(true)
     try {
       const getBogotaDateKey = (d: Date) => d.toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
@@ -63,55 +74,40 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
       const ayerKey = getBogotaDateKey(ayerTmp)
 
       const cajaData = await getCajaById(id)
-      const txRes = await getTransacciones({ cajaId: id, limit: 500 })
-
-      const esTransferOut = (t: any) => {
-        const num = String(t?.numero || (t as any)?.numeroTransaccion || '')
-        if (num.toUpperCase().startsWith('TRX-OUT')) return true
-        return String(t?.cajaOrigenId || '') === id && t.tipo === 'TRANSFERENCIA'
-      }
+      const ledgerRes = await getMovimientosLedger({ cajaId: id, limit: 500 })
 
       const txEnRango = (t: any) => {
         const key = new Date(t.fecha).toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
         return key >= ayerKey && key <= hoyKey
       }
 
-      const totalRegistradoRango = (txRes.data || [])
-        .filter((t: any) => {
-          const est = String(t?.estado || '').toUpperCase()
-          if (est === 'ANULADO' || est === 'RECHAZADO') return false
-          return txEnRango(t)
-        })
-        .reduce((s: number, t: any) => {
-          const monto = Number(t.monto || 0)
-          if (t.tipo === 'INGRESO') return s + monto
-          if (t.tipo === 'EGRESO') return s - monto
-          if (t.tipo === 'TRANSFERENCIA') return s + (esTransferOut(t) ? -monto : monto)
-          return s
+      const totalRegistradoRango = (ledgerRes.data || [])
+        .filter((entry: any) => txEnRango(entry))
+        .reduce((s: number, entry: MovimientoLedger) => {
+          const lineasCaja = entry.lineas.filter((linea) => linea.cajaId === id)
+          const debitos = lineasCaja.reduce((acc, linea) => acc + Number(linea.debitAmount || 0), 0)
+          const creditos = lineasCaja.reduce((acc, linea) => acc + Number(linea.creditAmount || 0), 0)
+          return s + debitos - creditos
         }, 0)
 
       const saldoActual = cajaData?.saldo || 0
       const saldoPrevioRango = saldoActual - totalRegistradoRango
 
-      const ingresos = txRes.data
-        .filter((t: any) => {
-          const est = String(t?.estado || '').toUpperCase()
-          if (est === 'ANULADO' || est === 'RECHAZADO') return false
-          if (t.tipo === 'INGRESO') return true
-          if (t.tipo === 'TRANSFERENCIA') return !esTransferOut(t)
-          return false
-        })
-        .reduce((s, t: any) => s + Number(t.monto || 0), 0)
+      const ingresos = ledgerRes.data
+        .reduce((s, entry: MovimientoLedger) => {
+          const debitos = entry.lineas
+            .filter((linea) => linea.cajaId === id)
+            .reduce((acc, linea) => acc + Number(linea.debitAmount || 0), 0)
+          return s + debitos
+        }, 0)
 
-      const egresos = txRes.data
-        .filter((t: any) => {
-          const est = String(t?.estado || '').toUpperCase()
-          if (est === 'ANULADO' || est === 'RECHAZADO') return false
-          if (t.tipo === 'EGRESO') return true
-          if (t.tipo === 'TRANSFERENCIA') return esTransferOut(t)
-          return false
-        })
-        .reduce((s, t: any) => s + Number(t.monto || 0), 0)
+      const egresos = ledgerRes.data
+        .reduce((s, entry: MovimientoLedger) => {
+          const creditos = entry.lineas
+            .filter((linea) => linea.cajaId === id)
+            .reduce((acc, linea) => acc + Number(linea.creditAmount || 0), 0)
+          return s + creditos
+        }, 0)
 
       setCaja({
         id: cajaData?.id || id,
@@ -128,20 +124,7 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
         ingresosDia: ingresos,
         egresosDia: egresos,
         fechaApertura: cajaData?.ultimaActualizacion || '',
-        movimientos: txRes.data.map(t => {
-          const esTransferSalida = esTransferOut(t)
-          const tipoMostrar =
-            t.tipo === 'TRANSFERENCIA' ? (esTransferSalida ? 'EGRESO' : 'INGRESO') : t.tipo
-
-          return {
-            id: t.id,
-            tipo: tipoMostrar,
-            concepto: t.descripcion,
-            monto: t.monto,
-            hora: new Date(t.fecha).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }),
-            usuario: t.responsable,
-          }
-        }),
+        movimientos: ledgerRes.data.map((entry) => mapLedgerCajaMovimiento(entry, id)),
       })
       setEditForm({ nombre: cajaData?.nombre || '', responsable: cajaData?.responsable || '', saldoInicialInput: '' })
       try {
@@ -154,11 +137,13 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
     } finally {
       setLoadingCaja(false)
     }
-  }
+  }, [id])
 
   useEffect(() => {
     fetchCaja()
-  }, [id])
+  }, [fetchCaja])
+
+  useRealtimeData(['dashboards_actualizados', 'pagos_actualizados', 'prestamos_actualizados', 'rutas_actualizadas'], fetchCaja)
 
   const handleRegistrarMovimiento = async () => {
     const monto = parseCOPInputToNumber(movimientoForm.montoInput)
@@ -187,7 +172,7 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
 
       showNotification('success', 'Movimiento registrado correctamente', 'Éxito')
       setShowRegistrarMovimientoModal(false)
-      setMovimientoForm({ tipo: 'INGRESO', categoria: '', montoInput: '', concepto: '', referencia: '' })
+      setMovimientoForm({ tipo: 'INGRESO', categoria: '', montoInput: '', concepto: '', referencia: '', accountCode: '' })
       await fetchCaja()
     } catch (error: any) {
       console.error('Error registrando movimiento:', error)
@@ -275,6 +260,7 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
       montoInput: '',
       concepto: '',
       referencia: '',
+      accountCode: '',
     })
     setShowRegistrarMovimientoModal(true)
   }

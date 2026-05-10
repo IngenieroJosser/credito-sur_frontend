@@ -25,6 +25,12 @@ import { useNotification } from '@/components/providers/NotificationProvider'
 import { Rol } from '@/lib/permissions'
 import { usuariosService, type Usuario } from '@/services/usuarios-service';
 import { getBogotaDateKey, normalizeDateKey } from '@/lib/rutas-core'
+import {
+  esCuotaInicialContable,
+  esEgresoOperativoContable,
+  esIngresoOperativoContable,
+  getEtiquetaMovimientoContable,
+} from '@/lib/contabilidad-clasificacion'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 
 import {
@@ -65,8 +71,10 @@ import {
   createCaja as apiCreateCaja,
   updateCaja,
   createTransaccion as apiCreateTransaccion,
+  getMovimientosLedger,
   type Caja as ApiCaja,
   type Transaccion as ApiTransaccion,
+  type MovimientoLedger as ApiMovimientoLedger,
   type ResumenFinanciero as ApiResumen,
   getHistorialCierres,
   consolidarCaja,
@@ -117,7 +125,7 @@ interface MovimientoContable {
   numero?: string // TRX-IN... TRX-OUT...
   fecha: string
   concepto: string
-  tipo: 'INGRESO' | 'EGRESO' | 'TRANSFERENCIA'
+  tipo: 'INGRESO' | 'EGRESO' | 'TRANSFERENCIA' | 'DEUDA_COBRADOR'
   monto: number
   categoria: string // Ej: 'Transporte', 'Papelería', 'Aporte Capital'
   responsable: string
@@ -129,6 +137,11 @@ interface MovimientoContable {
   cajaOrigenId?: string
   tipoReferencia?: string
   referenciaId?: string
+  caja?: string
+  accountCode?: string
+  accountName?: string
+  direction?: 'IN' | 'OUT'
+  impactoCaja?: number
 }
 
 // Resumen general para los indicadores de arriba (KPIs)
@@ -171,7 +184,7 @@ const mapTransaccion = (t: ApiTransaccion): MovimientoContable => {
     if (tipoRefRaw.includes('ABONO_DEUDA')) return 'COBRADOR'
 
     // Pagos de clientes: el origen real es el CLIENTE.
-    if (['PAGO', 'ABONO', 'CUOTA_INICIAL'].includes(tipoRefRaw)) return 'CLIENTE'
+    if (['PAGO', 'ABONO', 'CUOTA_INICIAL', 'RESTAURACION_CUOTA_INICIAL'].includes(tipoRefRaw)) return 'CLIENTE'
 
     // Si el backend manda origen explícito (y no es un fallback genérico), respetarlo.
     if (origenBackend && String(origenBackend).toUpperCase() !== 'EMPRESA') return origenBackend
@@ -195,7 +208,79 @@ const mapTransaccion = (t: ApiTransaccion): MovimientoContable => {
     cajaOrigenId: (t as any).cajaOrigenId,
     tipoReferencia: (t as any).tipoReferencia,
     referenciaId: (t as any).referenciaId,
+    caja: (t as any).caja,
+    accountCode: (t as any).accountCode,
+    accountName: (t as any).accountName,
+    direction: (t as any).direction,
+    impactoCaja: (t as any).impactoCaja,
   }
+}
+
+const mapMovimientoLedger = (m: ApiMovimientoLedger): MovimientoContable => {
+  const impactoCaja = Number(m.impactoCaja || 0)
+  const tipoLedger = String(m.tipo || '').toUpperCase()
+  const tipo: MovimientoContable['tipo'] =
+    tipoLedger === 'CONSOLIDACION' || tipoLedger === 'TRANSFERENCIA'
+      ? 'TRANSFERENCIA'
+      : impactoCaja < 0
+        ? 'EGRESO'
+        : 'INGRESO'
+
+  return {
+    id: m.id,
+    numero: m.referenciaId,
+    fecha: m.fecha,
+    concepto: m.descripcion || m.tipo,
+    tipo,
+    monto: Math.abs(impactoCaja || Number(m.totalDebito || m.totalCredito || 0)),
+    categoria: m.accountName || m.tipo || 'GENERAL',
+    responsable: m.creadoPorId || 'Sistema',
+    origen: tipoLedger === 'PAGO' || tipoLedger === 'VENTA_ARTICULO' ? 'COBRADOR' : 'EMPRESA',
+    estado: 'APROBADO',
+    referenciaId: m.referenciaId,
+    tipoReferencia: m.tipo,
+    cajaId: m.cajaId || m.lineas.find((linea) => linea.cajaId)?.cajaId || '',
+    caja: m.caja || m.lineas.find((linea) => linea.caja)?.caja || undefined,
+    accountCode: m.accountCode || undefined,
+    accountName: m.accountName || undefined,
+    direction: m.direction,
+    impactoCaja,
+  }
+}
+
+const mapMovimientoLedgerResultado = (m: ApiMovimientoLedger, tipoResultado: 'INGRESO' | 'EGRESO'): MovimientoContable => {
+  const prefix = tipoResultado === 'INGRESO' ? '3.' : '4.'
+  const montoResultado = (m.lineas || [])
+    .filter((linea) => {
+      const accountCode = String(linea.accountCode || '')
+      if (!accountCode.startsWith(prefix)) return false
+      if (tipoResultado === 'INGRESO' && accountCode.startsWith('3.4')) return false
+      return true
+    })
+    .reduce((acc, linea) => {
+      const debito = Number(linea.debitAmount || 0)
+      const credito = Number(linea.creditAmount || 0)
+      return acc + (tipoResultado === 'INGRESO' ? credito - debito : debito - credito)
+    }, 0)
+  const base = mapMovimientoLedger(m)
+
+  return {
+    ...base,
+    tipo: tipoResultado,
+    monto: Math.max(0, montoResultado),
+    categoria: base.accountName || base.categoria,
+    tipoReferencia: m.tipo,
+  }
+}
+
+const esPagoClienteEnPanelContable = (m: Pick<MovimientoContable, 'tipoReferencia'> | ApiMovimientoLedger) => {
+  const tipo = String((m as any).tipo || '').toUpperCase()
+  const tipoReferencia = String((m as any).tipoReferencia || '').toUpperCase()
+  return tipo === 'PAGO' || tipoReferencia === 'PAGO'
+}
+
+const ocultarPagosClientePanelContable = <T extends Pick<MovimientoContable, 'tipoReferencia'> | ApiMovimientoLedger>(movimientos: T[]) => {
+  return movimientos.filter((m) => !esPagoClienteEnPanelContable(m))
 }
 
 const ModuloContableContent = () => {
@@ -221,7 +306,7 @@ const ModuloContableContent = () => {
   
   // Filtros para la tabla de movimientos
   const [busqueda, setBusqueda] = useState('') // Buscará por concepto, responsable o categoría
-  const [filtroTipo, setFiltroTipo] = useState<'TODOS' | 'INGRESO' | 'EGRESO' | 'TRANSFERENCIA'>('TRANSFERENCIA')
+  const [filtroTipo, setFiltroTipo] = useState<'TODOS' | 'INGRESO' | 'EGRESO' | 'TRANSFERENCIA'>('TODOS')
   const [filtroOrigen, setFiltroOrigen] = useState<'TODOS' | MovimientoContable['origen']>('TODOS')
   const [filtroEstado, setFiltroEstado] = useState<'TODOS' | MovimientoContable['estado']>('TODOS')
   const [filtroRuta, setFiltroRuta] = useState<string>('TODOS')
@@ -241,6 +326,7 @@ const ModuloContableContent = () => {
     fin: string
   } | null>(null)
   const [saldoRutaSeleccionada, setSaldoRutaSeleccionada] = useState<SaldoDisponibleRuta | null>(null)
+  const [cajaHoyStats, setCajaHoyStats] = useState<{ ingresos: number; egresos: number } | null>(null)
   const [movimientoSeleccionado, setMovimientoSeleccionado] = useState<MovimientoContable | null>(null)
 
   const [showDetalleModal, setShowDetalleModal] = useState(false)
@@ -249,16 +335,24 @@ const ModuloContableContent = () => {
 
   const [resumenUtilidadModal, setResumenUtilidadModal] = useState<{
     totalUtilidad: number
+    utilidadOperativa: number
     interes: number
     mora: number
     margen: number
     egresosOperativos: number
     utilidadFinanciera: number
+    provisionTotal: number
+    provisionEnMora: number
+    provisionIncumplida: number
+    provisionPerdida: number
+    saldoEnMora: number
+    saldoIncumplido: number
+    saldoPerdida: number
   } | null>(null)
 
   const esReferenciaCobranza = (m: any) => {
     const ref = String(m?.tipoReferencia || '').toUpperCase()
-    return ref === 'PAGO' || ref === 'ABONO' || ref === 'CUOTA_INICIAL'
+    return ref === 'PAGO' || ref === 'ABONO' || ref === 'CUOTA_INICIAL' || ref === 'RESTAURACION_CUOTA_INICIAL'
   }
 
   const esTransferenciaSalida = (m: any) => {
@@ -271,6 +365,14 @@ const ModuloContableContent = () => {
     if (String(m?.tipo || '').toUpperCase() !== 'TRANSFERENCIA') return false
     const numero = String((m as any)?.numero || (m as any)?.numeroTransaccion || '')
     return numero.toUpperCase().startsWith('TRX-IN')
+  }
+
+  const esIngresoOperativo = (m: any) => {
+    return esIngresoOperativoContable(m)
+  }
+
+  const esEgresoOperativo = (m: any) => {
+    return esEgresoOperativoContable(m)
   }
 
   // Estados para Paginación de Listas Locales (Máximo 3 por vista)
@@ -358,7 +460,7 @@ const ModuloContableContent = () => {
           return desc.includes('RECIBIDA')
         }
 
-        return m.tipo === 'EGRESO'
+        return esEgresoOperativo(m)
       })
       .filter((m) => {
         const est = String(m.estado || '').toUpperCase()
@@ -390,15 +492,15 @@ const ModuloContableContent = () => {
       const fin = opts?.fechaFin ?? fechaFinModal
       if (inicio) params.fechaInicio = inicio
       if (fin) params.fechaFin = fin
-      const resp = await getTransacciones(params)
+      const resp = await getMovimientosLedger(params)
       if (resp && Array.isArray(resp.data)) {
-        let next = resp.data.map(mapTransaccion)
+        let next = ocultarPagosClientePanelContable(resp.data.map(mapMovimientoLedger))
 
         const codigoCaja = String((cajaSeleccionada as any)?.codigo || '').toUpperCase()
         if (codigoCaja === 'CAJA-PRINCIPAL' || codigoCaja === 'CAJA-BANCO') {
           next = next.filter((m: any) => {
             const ref = String(m?.tipoReferencia || '').toUpperCase()
-            return ref !== 'CUOTA_INICIAL' && ref !== 'ABONO_DEUDA'
+            return ref !== 'CUOTA_INICIAL' && ref !== 'RESTAURACION_CUOTA_INICIAL' && ref !== 'ABONO_DEUDA'
           })
         }
 
@@ -414,6 +516,21 @@ const ModuloContableContent = () => {
   // Carga movimientos globales filtrados por tipo para el historial sin filtro de caja
   const loadMovimientosGlobalPorTipo = async (tipo: 'INGRESO' | 'EGRESO' | 'TRANSFERENCIA', fechaInicio?: string, fechaFin?: string) => {
     try {
+      if (tipo === 'INGRESO' || tipo === 'EGRESO') {
+        const resp = await getMovimientosLedger({
+          accountPrefix: tipo === 'INGRESO' ? '3.' : '4.',
+          fechaInicio,
+          fechaFin,
+          limit: 500,
+        })
+        setMovimientosModalGlobal(
+          Array.isArray(resp?.data)
+            ? ocultarPagosClientePanelContable(resp.data).map((m) => mapMovimientoLedgerResultado(m, tipo))
+            : [],
+        )
+        return
+      }
+
       const params: any = { tipo, limit: 500 }
       if (fechaInicio) params.fechaInicio = fechaInicio
       if (fechaFin) params.fechaFin = fechaFin
@@ -423,6 +540,40 @@ const ModuloContableContent = () => {
       } else {
         setMovimientosModalGlobal([])
       }
+    } catch {
+      setMovimientosModalGlobal([])
+    }
+  }
+
+  const loadCuotasInicialesGlobal = async (fechaInicio?: string, fechaFin?: string) => {
+    try {
+      const [ingresosResp, egresosResp] = await Promise.all([
+        getTransacciones({
+          tipo: 'INGRESO',
+          fechaInicio,
+          fechaFin,
+          limit: 500,
+        }),
+        getTransacciones({
+          tipo: 'EGRESO',
+          fechaInicio,
+          fechaFin,
+          limit: 500,
+        }),
+      ])
+      const transacciones = ([] as any[])
+        .concat(Array.isArray(ingresosResp?.data) ? ingresosResp.data : [])
+        .concat(Array.isArray(egresosResp?.data) ? egresosResp.data : [])
+
+      setMovimientosModalGlobal(
+        transacciones
+          .map(mapTransaccion)
+          .filter((m) => {
+              const tipoReferencia = String(m.tipoReferencia || '').toUpperCase()
+              return ['CUOTA_INICIAL', 'RESTAURACION_CUOTA_INICIAL', 'REVERSO_CUOTA_INICIAL'].includes(tipoReferencia)
+            })
+          .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()),
+      )
     } catch {
       setMovimientosModalGlobal([])
     }
@@ -536,54 +687,20 @@ const ModuloContableContent = () => {
       // 3. Traemos los números del día (KPIs HOY)
       const fechaHoy = getBogotaDateKey(new Date());
       const resumen = await getResumenFinanciero(fechaHoy, fechaHoy);
+      const ingresosPanelResp = await getMovimientosLedger({
+        accountPrefix: '3.',
+        fechaInicio: fechaHoy,
+        fechaFin: fechaHoy,
+        limit: 1000,
+      }).catch(() => null)
+      const ingresosPanelContable = Array.isArray(ingresosPanelResp?.data)
+        ? ocultarPagosClientePanelContable(ingresosPanelResp.data)
+            .map((m) => mapMovimientoLedgerResultado(m, 'INGRESO'))
+            .reduce((sum, m) => sum + Number(m.monto || 0), 0)
+        : Number(resumen?.ingresosHoy || 0)
       if (resumen) {
-        const fechaAyer = getBogotaDateKey(new Date(Date.now() - 24 * 60 * 60 * 1000));
-
-        const ingresosRecoleccionHoy = await (async () => {
-          const trans = await fetchTransaccionesAll({
-            tipo: 'TRANSFERENCIA',
-            fechaInicio: fechaHoy,
-            fechaFin: fechaHoy,
-            limit: 500,
-          })
-
-          return trans
-            .filter((t: any) => {
-              const est = String(t?.estado || '').toUpperCase()
-              return est !== 'ANULADO' && est !== 'RECHAZADO'
-            })
-            .filter((t: any) => String(t?.tipoReferencia || '').toUpperCase() === 'RECOLECCION')
-            .filter((t: any) => String(t?.descripcion || '').toUpperCase().includes('RECIBIDA'))
-            .reduce((acc: number, t: any) => acc + Number(t?.monto || 0), 0)
-        })()
-
-        const ingresosRecoleccionAyer = await (async () => {
-          const trans = await fetchTransaccionesAll({
-            tipo: 'TRANSFERENCIA',
-            fechaInicio: fechaAyer,
-            fechaFin: fechaAyer,
-            limit: 500,
-          })
-
-          return trans
-            .filter((t: any) => {
-              const est = String(t?.estado || '').toUpperCase()
-              return est !== 'ANULADO' && est !== 'RECHAZADO'
-            })
-            .filter((t: any) => String(t?.tipoReferencia || '').toUpperCase() === 'RECOLECCION')
-            .filter((t: any) => String(t?.descripcion || '').toUpperCase().includes('RECIBIDA'))
-            .reduce((acc: number, t: any) => acc + Number(t?.monto || 0), 0)
-        })()
-
-        const ingresosHoyVal = Number(ingresosRecoleccionHoy || 0);
-        const ingresosAyerVal = Number(ingresosRecoleccionAyer || 0);
-        const porcentajeIngresosVsAyer = (() => {
-          if (ingresosAyerVal === 0) return ingresosHoyVal > 0 ? 100 : 0;
-          return Number((((ingresosHoyVal - ingresosAyerVal) / ingresosAyerVal) * 100).toFixed(2));
-        })();
-
         setResumenData({
-          ingresosHoy: ingresosHoyVal,
+          ingresosHoy: ingresosPanelContable,
           egresosHoy: resumen.egresosHoy,
           cuotaInicialHoy: Number((resumen as any).cuotaInicialHoy || 0),
           utilidadNeta: Number((resumen as any).utilidadReal ?? resumen.gananciaNeta ?? 0),
@@ -591,10 +708,10 @@ const ModuloContableContent = () => {
           deudaCobradorHoy: Number((resumen as any).deudaCobradorHoy ?? 0),
           capitalEnCalle: resumen.capitalEnCalle,
           cajaActual: resumen.saldoCajas,
-          porcentajeIngresosVsAyer,
+          porcentajeIngresosVsAyer: resumen.porcentajeIngresosVsAyer ?? null,
           porcentajeEgresosVsAyer: resumen.porcentajeEgresosVsAyer ?? null,
           porcentajeCuotaInicialVsAyer: (resumen as any).porcentajeCuotaInicialVsAyer ?? null,
-          esIngresoPositivo: porcentajeIngresosVsAyer >= 0,
+          esIngresoPositivo: resumen.esIngresoPositivo ?? true,
           esEgresoPositivo: resumen.esEgresoPositivo ?? true,
           rutasTotales: resumen.rutasTotales || 0,
           rutasAbiertas: resumen.rutasAbiertas || 0,
@@ -605,9 +722,9 @@ const ModuloContableContent = () => {
       }
 
       // 4. Traemos la lista de movimientos recientes
-      const transaccionesResp = await getTransacciones({ limit: 50 });
+      const transaccionesResp = await getMovimientosLedger({ limit: 50 });
       if (transaccionesResp && transaccionesResp.data) {
-        setMovimientos(transaccionesResp.data.map(mapTransaccion));
+        setMovimientos(ocultarPagosClientePanelContable(transaccionesResp.data.map(mapMovimientoLedger)));
       }
 
       // 5. Historial de Cierres (Real)
@@ -641,18 +758,18 @@ const ModuloContableContent = () => {
     fetchData();
   }, []);
 
-  // Tiempo real: refrescar módulo contable cuando haya nuevos pagos
-  useRealtimeData(['pagos_actualizados', 'prestamos_actualizados'], fetchData)
+  // Tiempo real: refrescar módulo contable cuando cambien pagos, créditos, cajas o rutas
+  useRealtimeData(['pagos_actualizados', 'prestamos_actualizados', 'dashboards_actualizados', 'rutas_actualizadas'], fetchData)
 
   // Cargar movimientos globales por tipo cuando se abre el modal de historial
   useEffect(() => {
     if (showDetalleModal && !cajaSeleccionada) {
       if (detalleTipo === 'INGRESOS') {
-        loadMovimientosGlobalPorTipo('TRANSFERENCIA', fechaInicioModal || undefined, fechaFinModal || undefined)
+        loadMovimientosGlobalPorTipo('INGRESO', fechaInicioModal || undefined, fechaFinModal || undefined)
       } else if (detalleTipo === 'EGRESOS') {
         loadMovimientosGlobalPorTipo('EGRESO', fechaInicioModal || undefined, fechaFinModal || undefined)
       } else if (detalleTipo === 'CUOTAS_INICIALES') {
-        loadMovimientosGlobalPorTipo('INGRESO', fechaInicioModal || undefined, fechaFinModal || undefined)
+        loadCuotasInicialesGlobal(fechaInicioModal || undefined, fechaFinModal || undefined)
       } else if (detalleTipo === 'UTILIDAD') {
         loadMovimientosGlobalUtilidad(fechaInicioModal || undefined, fechaFinModal || undefined)
       }
@@ -704,20 +821,36 @@ const ModuloContableContent = () => {
         const resumen = await getResumenFinanciero(fechaInicioModal, fechaFinModal)
         if (cancelled) return
 
-        const totalUtilidad = Number((resumen as any).utilidadReal ?? (resumen as any).gananciaNeta ?? 0)
-        const margen = Number((resumen as any).margenArticulosHoy ?? 0)
-        const egresosOperativos = Number((resumen as any).egresosHoy ?? 0)
-        const interes = Number((resumen as any).interesHoy ?? 0)
-        const mora = Number((resumen as any).moraHoy ?? 0)
+        const totalUtilidad     = Number((resumen as any).utilidadReal ?? (resumen as any).gananciaNeta ?? 0)
+        const utilidadOperativa  = Number((resumen as any).utilidadOperativa ?? 0)
+        const margen             = Number((resumen as any).margenArticulosHoy ?? 0)
+        const egresosOperativos  = Number((resumen as any).egresosHoy ?? 0)
+        const interes            = Number((resumen as any).interesHoy ?? 0)
+        const mora               = Number((resumen as any).moraHoy ?? 0)
         const utilidadFinanciera = interes + mora
+        const provisionTotal     = Number((resumen as any).provisionCarteraTotal ?? 0)
+        const provisionEnMora    = Number((resumen as any).provisionCarteraEnMora ?? 0)
+        const provisionIncumplida= Number((resumen as any).provisionCarteraIncumplida ?? 0)
+        const provisionPerdida   = Number((resumen as any).provisionCarteraPerdida ?? 0)
+        const saldoEnMora        = Number((resumen as any).saldoCarteraEnMora ?? 0)
+        const saldoIncumplido    = Number((resumen as any).saldoCarteraIncumplida ?? 0)
+        const saldoPerdida       = Number((resumen as any).saldoCarteraPerdida ?? 0)
 
         setResumenUtilidadModal({
           totalUtilidad,
+          utilidadOperativa,
           interes,
           mora,
           margen,
           egresosOperativos,
           utilidadFinanciera,
+          provisionTotal,
+          provisionEnMora,
+          provisionIncumplida,
+          provisionPerdida,
+          saldoEnMora,
+          saldoIncumplido,
+          saldoPerdida,
         })
       } catch {
         if (cancelled) return
@@ -752,6 +885,7 @@ const ModuloContableContent = () => {
     estado: 'PENDIENTE' as MovimientoContable['estado'],
     responsableId: '', // Debe seleccionarse un usuario válido
     cajaOrigenId: '', // Para cuando origen es COBRADOR
+    accountCode: '', // Cuenta contable contrapartida
   })
 
   // Filtrado de movimientos
@@ -865,7 +999,7 @@ const ModuloContableContent = () => {
       await updateCaja(cajaSeleccionada.id, {
         nombre: editarCajaForm.nombre,
         responsableId: respId,
-        saldoActual: saldo
+        
       })
 
       fetchData()
@@ -898,6 +1032,7 @@ const ModuloContableContent = () => {
       estado: 'PENDIENTE',
       responsableId: '',
       cajaOrigenId: '',
+      accountCode: '',
     })
     setShowRegistrarMovimientoModal(true)
   }
@@ -922,6 +1057,7 @@ const ModuloContableContent = () => {
       estado: 'PENDIENTE',
       responsableId: '',
       cajaOrigenId: '',
+      accountCode: '',
     })
     setShowRegistrarMovimientoModal(true)
   }
@@ -962,7 +1098,8 @@ const ModuloContableContent = () => {
         descripcion: movimientoForm.concepto || (movimientoForm.origen === 'COBRADOR' ? (movimientoForm.tipo === 'INGRESO' ? 'Consolidación de Ruta (Entrada)' : 'Entrega de Base a Ruta (Salida)') : 'Movimiento de Caja'),
         tipoReferencia,
         referenciaId,
-        cajaOrigenId: isEgresoConsolidacion ? movimientoForm.cajaId : (movimientoForm.origen === 'COBRADOR' ? movimientoForm.cajaOrigenId : undefined)
+        cajaOrigenId: isEgresoConsolidacion ? movimientoForm.cajaId : (movimientoForm.origen === 'COBRADOR' ? movimientoForm.cajaOrigenId : undefined),
+        accountCode: movimientoForm.accountCode || undefined
       })
       
       fetchData()
@@ -1047,46 +1184,42 @@ const ModuloContableContent = () => {
           </div>
         </header>
 
-        {/* Tarjetas de Resumen Minimalistas */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-6">
-          {/* Ingresos */}
-          {/* Ingresos */}
-          <div 
-            onClick={() => { 
-                const hoy = getBogotaDateKey(new Date());
-                setCajaSeleccionada(null)
-                setSaldoRutaSeleccionada(null)
-                setMovimientosDetalle([])
-                setFechaInicioModal(hoy);
-                setFechaFinModal(hoy);
-                setDetalleTipo('INGRESOS'); 
-                setShowDetalleModal(true); 
+        {/* Tarjetas de Resumen — Fila financiera + Fila operativa */}
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+
+          {/* 1 · Total Ingresos */}
+          <div
+            onClick={() => {
+              const hoy = getBogotaDateKey(new Date())
+              setCajaSeleccionada(null)
+              setSaldoRutaSeleccionada(null)
+              setMovimientosDetalle([])
+              setFechaInicioModal(hoy)
+              setFechaFinModal(hoy)
+              setDetalleTipo('INGRESOS')
+              setShowDetalleModal(true)
             }}
-            className="cursor-pointer group relative overflow-hidden rounded-2xl bg-white/80 backdrop-blur-sm p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all"
+            className="cursor-pointer group relative overflow-hidden rounded-2xl bg-white/80 backdrop-blur-sm p-5 border border-slate-200 shadow-[0_4px_20px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:-translate-y-0.5 transition-all"
           >
-            <div className="flex items-center justify-between mb-4">
-              <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                Total Ingresos
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border bg-slate-50 text-slate-600 border-slate-200">
-                  Hoy
-                </span>
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">
-                  <TrendingUp className="h-4 w-4" />
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Total Ingresos</div>
+              <div className="flex items-center gap-1.5">
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest border bg-slate-50 text-slate-500 border-slate-200">Hoy</span>
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">
+                  <TrendingUp className="h-3.5 w-3.5" />
                 </div>
               </div>
             </div>
-            <div className="text-2xl font-bold text-slate-900 tracking-tight min-w-0 w-full">
+            <div className="min-w-0 w-full">
               <MoneyAmount
                 value={resumenData.ingresosHoy}
-                amountClassName="text-[clamp(0.95rem,2vw,1.4rem)] font-bold text-slate-900 tracking-tight leading-none"
+                amountClassName="text-[clamp(1rem,2vw,1.5rem)] font-black text-slate-900 leading-none"
               />
             </div>
             {resumenData.porcentajeIngresosVsAyer != null && resumenData.porcentajeIngresosVsAyer !== 0 && (
               <div className={cn(
-                  "mt-2 flex items-center text-xs font-bold w-fit px-2 py-1 rounded-full",
-                  resumenData.esIngresoPositivo ? "text-emerald-600 bg-emerald-50" : "text-rose-600 bg-rose-50"
+                "mt-2 flex items-center text-[11px] font-bold w-fit px-2 py-0.5 rounded-full",
+                resumenData.esIngresoPositivo ? "text-emerald-600 bg-emerald-50" : "text-rose-600 bg-rose-50"
               )}>
                 {resumenData.esIngresoPositivo ? <ArrowUpRight className="mr-1 h-3 w-3" /> : <TrendingDown className="mr-1 h-3 w-3" />}
                 {resumenData.porcentajeIngresosVsAyer > 0 ? '+' : ''}{resumenData.porcentajeIngresosVsAyer}% vs Ayer
@@ -1094,43 +1227,39 @@ const ModuloContableContent = () => {
             )}
           </div>
 
-          {/* Egresos */}
-          <div 
-            onClick={() => { 
-                const hoy = getBogotaDateKey(new Date());
-                setCajaSeleccionada(null)
-                setSaldoRutaSeleccionada(null)
-                setMovimientosDetalle([])
-                setFechaInicioModal(hoy);
-                setFechaFinModal(hoy);
-                setDetalleTipo('EGRESOS'); 
-                setShowDetalleModal(true); 
+          {/* 2 · Total Gastos */}
+          <div
+            onClick={() => {
+              const hoy = getBogotaDateKey(new Date())
+              setCajaSeleccionada(null)
+              setSaldoRutaSeleccionada(null)
+              setMovimientosDetalle([])
+              setFechaInicioModal(hoy)
+              setFechaFinModal(hoy)
+              setDetalleTipo('EGRESOS')
+              setShowDetalleModal(true)
             }}
-            className="cursor-pointer group relative overflow-hidden rounded-2xl bg-white/80 backdrop-blur-sm p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all"
+            className="cursor-pointer group relative overflow-hidden rounded-2xl bg-white/80 backdrop-blur-sm p-5 border border-slate-200 shadow-[0_4px_20px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:-translate-y-0.5 transition-all"
           >
-            <div className="flex items-center justify-between mb-4">
-              <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                Total Gastos
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border bg-slate-50 text-slate-600 border-slate-200">
-                  Hoy
-                </span>
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-rose-50 text-rose-600 border border-rose-100">
-                  <TrendingDown className="h-4 w-4" />
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Total Gastos</div>
+              <div className="flex items-center gap-1.5">
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest border bg-slate-50 text-slate-500 border-slate-200">Hoy</span>
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-rose-50 text-rose-600 border border-rose-100">
+                  <TrendingDown className="h-3.5 w-3.5" />
                 </div>
               </div>
             </div>
-            <div className="text-2xl font-bold text-slate-900 tracking-tight min-w-0 w-full">
+            <div className="min-w-0 w-full">
               <MoneyAmount
                 value={resumenData.egresosHoy}
                 meaning="expense"
-                amountClassName="text-[clamp(0.95rem,2vw,1.4rem)] font-bold text-slate-900 tracking-tight leading-none"
+                amountClassName="text-[clamp(1rem,2vw,1.5rem)] font-black text-slate-900 leading-none"
               />
             </div>
             {resumenData.porcentajeEgresosVsAyer != null && resumenData.porcentajeEgresosVsAyer !== 0 && (
               <div className={cn(
-                "mt-2 text-xs font-bold w-fit px-2 py-1 rounded-full flex items-center",
+                "mt-2 text-[11px] font-bold w-fit px-2 py-0.5 rounded-full flex items-center",
                 resumenData.esEgresoPositivo ? "text-emerald-600 bg-emerald-50" : "text-rose-600 bg-rose-50",
               )}>
                 {resumenData.esEgresoPositivo ? <ArrowDownLeft className="mr-1 h-3 w-3" /> : <ArrowUpRight className="mr-1 h-3 w-3" />}
@@ -1138,127 +1267,73 @@ const ModuloContableContent = () => {
               </div>
             )}
           </div>
+
+          {/* 3 · Cuotas Iniciales */}
           <div
             onClick={() => {
               const hoy = getBogotaDateKey(new Date())
-              setDetalleTipo('UTILIDAD')
+              setCajaSeleccionada(null)
               setSaldoRutaSeleccionada(null)
               setMovimientosDetalle([])
-              setFechaInicioModal(hoy)
-              setFechaFinModal(hoy)
-              setDetalleTipo('UTILIDAD')
-              setShowDetalleModal(true)
-            }}
-            className="cursor-pointer group relative overflow-hidden rounded-2xl bg-white/80 backdrop-blur-sm p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                Utilidad Operativa
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border bg-slate-50 text-slate-600 border-slate-200">
-                  Hoy
-                </span>
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100">
-                  <Zap className="h-4 w-4" />
-                </div>
-              </div>
-            </div>
-            <div className="text-2xl font-bold text-slate-900 tracking-tight min-w-0 w-full">
-              <MoneyAmount
-                value={resumenData.utilidadNeta}
-                amountClassName="text-[clamp(0.95rem,2vw,1.4rem)] font-bold text-slate-900 leading-none"
-              />
-            </div>
-            <div className="mt-2 text-xs text-slate-500 font-medium">
-              Utilidad operativa
-            </div>
-          </div>
-
-          {/* Cuota Inicial (NO es ingreso) */}
-          <div
-            onClick={() => {
-              const hoy = getBogotaDateKey(new Date())
               setFechaInicioModal(hoy)
               setFechaFinModal(hoy)
               setDetalleTipo('CUOTAS_INICIALES')
               setShowDetalleModal(true)
             }}
-            className="cursor-pointer group relative overflow-hidden rounded-2xl bg-white/80 backdrop-blur-sm p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all"
+            className="cursor-pointer group relative overflow-hidden rounded-2xl bg-white/80 backdrop-blur-sm p-5 border border-slate-200 shadow-[0_4px_20px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:-translate-y-0.5 transition-all"
           >
-            <div className="flex items-center justify-between mb-4">
-              <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                Cuotas Iniciales
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border bg-slate-50 text-slate-600 border-slate-200">
-                  Hoy
-                </span>
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-50 text-amber-700 border border-amber-100">
-                  <CreditCard className="h-4 w-4" />
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Cuotas Iniciales</div>
+              <div className="flex items-center gap-1.5">
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest border bg-slate-50 text-slate-500 border-slate-200">Hoy</span>
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-50 text-amber-700 border border-amber-100">
+                  <CreditCard className="h-3.5 w-3.5" />
                 </div>
               </div>
             </div>
-            <div className="text-2xl font-bold text-slate-900 tracking-tight min-w-0 w-full">
+            <div className="min-w-0 w-full">
               <MoneyAmount
                 value={resumenData.cuotaInicialHoy || 0}
-                amountClassName="text-[clamp(0.95rem,2vw,1.4rem)] font-bold text-slate-900 tracking-tight leading-none"
+                amountClassName="text-[clamp(1rem,2vw,1.5rem)] font-black text-slate-900 leading-none"
               />
             </div>
-            {resumenData.porcentajeCuotaInicialVsAyer != null && resumenData.porcentajeCuotaInicialVsAyer !== 0 && (
-              <div className={cn(
-                "mt-2 flex items-center text-xs font-bold w-fit px-2 py-1 rounded-full",
-                resumenData.porcentajeCuotaInicialVsAyer > 0 ? "text-emerald-600 bg-emerald-50" : "text-rose-600 bg-rose-50",
-              )}>
-                {resumenData.porcentajeCuotaInicialVsAyer > 0 ? <ArrowUpRight className="mr-1 h-3 w-3" /> : <TrendingDown className="mr-1 h-3 w-3" />}
-                {resumenData.porcentajeCuotaInicialVsAyer > 0 ? '+' : ''}{resumenData.porcentajeCuotaInicialVsAyer}% vs Ayer
-              </div>
-            )}
-            <div className="mt-2 text-xs text-slate-500 font-medium">
-              Abono a capital (no ingreso)
-            </div>
+            <div className="mt-2 text-[11px] text-slate-400 font-medium">Abono a capital (no ingreso)</div>
           </div>
 
-          {/* Prestado */}
-          <div className="group relative overflow-hidden rounded-2xl bg-white/80 backdrop-blur-sm p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all">
-            <div className="flex items-center justify-between mb-4">
-              <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                Capital Prestado
-              </div>
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-50 text-blue-600 border border-blue-100">
-                <CreditCard className="h-4 w-4" />
+          {/* 4 · Capital Prestado */}
+          <div className="group relative overflow-hidden rounded-2xl bg-white/80 backdrop-blur-sm p-5 border border-slate-200 shadow-[0_4px_20px_rgb(0,0,0,0.04)] transition-all">
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Capital Prestado</div>
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-50 text-blue-600 border border-blue-100">
+                <CreditCard className="h-3.5 w-3.5" />
               </div>
             </div>
-            <div className="text-2xl font-bold text-slate-900 tracking-tight min-w-0 w-full">
+            <div className="min-w-0 w-full">
               <MoneyAmount
                 value={resumenData.capitalEnCalle}
-                amountClassName="text-[clamp(0.95rem,2vw,1.4rem)] font-bold text-slate-900 tracking-tight leading-none"
+                amountClassName="text-[clamp(1rem,2vw,1.5rem)] font-black text-slate-900 leading-none"
               />
             </div>
+            <div className="mt-2 text-[11px] text-slate-400 font-medium">En cartera activa</div>
           </div>
 
-          {/* Cajas Abiertas */}
-          <div className="group relative overflow-hidden rounded-2xl bg-white/80 backdrop-blur-sm p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all">
-            <div className="flex items-center justify-between mb-4">
-              <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                Cajas Abiertas
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border bg-slate-50 text-slate-600 border-slate-200">
-                  Hoy
-                </span>
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-50 text-blue-600 border border-blue-100">
-                  <Briefcase className="h-4 w-4" />
+          {/* 5 · Cajas Abiertas */}
+          <div className="group relative overflow-hidden rounded-2xl bg-white/80 backdrop-blur-sm p-5 border border-slate-200 shadow-[0_4px_20px_rgb(0,0,0,0.04)] transition-all">
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Cajas Abiertas</div>
+              <div className="flex items-center gap-1.5">
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest border bg-slate-50 text-slate-500 border-slate-200">Hoy</span>
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-violet-50 text-violet-600 border border-violet-100">
+                  <Briefcase className="h-3.5 w-3.5" />
                 </div>
               </div>
             </div>
-            <div className="text-2xl font-bold text-slate-900 tracking-tight min-w-0 overflow-hidden">
+            <div className="text-[clamp(1rem,2vw,1.5rem)] font-black text-slate-900 leading-none">
               {cajas.filter((c) => c.estado === 'ABIERTA').length}
             </div>
-            <div className="mt-2 text-xs text-slate-500 font-medium">
-              Operativas hoy
-            </div>
+            <div className="mt-2 text-[11px] text-slate-400 font-medium">Operativas hoy</div>
           </div>
+
         </section>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -1320,98 +1395,139 @@ const ModuloContableContent = () => {
               </div>
             </div>
 
-            <div className="divide-y divide-slate-100 max-h-[520px] overflow-y-scroll custom-scrollbar pr-1">
-              {movimientosFiltrados.map((m) => {
-                // Determinar si es un movimiento positivo (Ingreso/Entrada) o negativo (Egreso/Salida)
-                // Nos guiamos PRINCIPALMENTE por la categoría base que se asignó al crear el movimiento
-                // Si la categoría contiene "INGRESO" o "ENTRADA", es positivo. Si es "EGRESO", "GASTO" o "SALIDA", es negativo.
-                // Esto simplifica la lógica y respeta la intención original del registro.
-                
-                const categoriaUpper = m.categoria.toUpperCase();
-                let isIngreso = false;
+            <div className="overflow-x-auto w-full custom-scrollbar max-h-[520px]">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50 text-[11px] text-slate-500 uppercase tracking-wider font-bold">
+                    <th className="px-4 py-2.5 text-left">Tipo</th>
+                    <th className="px-4 py-2.5 text-left">Fecha</th>
+                    <th className="px-4 py-2.5 text-left">Referencia / Concepto</th>
+                    <th className="px-4 py-2.5 text-left">Caja</th>
+                    <th className="px-4 py-2.5 text-left">Cuenta Contable</th>
+                    <th className="px-4 py-2.5 text-left">Usuario</th>
+                    <th className="px-4 py-2.5 text-right">Monto</th>
+                    <th className="px-4 py-2.5 text-center">Detalle</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {movimientosFiltrados.map((m) => {
+                    const etiqueta = getEtiquetaMovimientoContable(m)
+                    let montoMostrar = m.monto
+                    if (m.tipo === 'TRANSFERENCIA' && m.impactoCaja) montoMostrar = Math.abs(m.impactoCaja)
+                    const cajaName = m.caja || 'Caja Central'
+                    let conceptoLimpio = m.concepto
+                        .replace(/^Entrada desde .*?: |^Salida hacia .*?: |^Consolidación .*?: /i, '')
+                        .replace(/^Transferencia enviada a .*?: |^Transferencia recibida de .*?: /i, '')
+                        .replace(/\(Entrada\)|\(Salida\)/gi, '')
+                        .trim();
 
-                if (m.tipo === 'INGRESO') {
-                    isIngreso = true;
-                } else if (m.tipo === 'EGRESO') {
-                    isIngreso = false;
-                } else if (m.tipo === 'TRANSFERENCIA') {
-                    // Para transferencias, intentamos deducir por el concepto o categoría
-                    if (categoriaUpper.includes('INGRESO') || categoriaUpper.includes('ENTRADA')) {
-                        isIngreso = true;
-                    } else if (m.concepto.toUpperCase().includes('ENTRADA') || m.concepto.toUpperCase().includes('RECIBIDA')) {
-                        isIngreso = true;
-                    } else {
-                        // Por defecto transferencia es salida si no se demuestra lo contrario (o si es 'SALIDA' explícita)
-                        isIngreso = false;
+                    if (m.tipo === 'DEUDA_COBRADOR') {
+                      if (m.tipoReferencia === 'DESCUADRE_CAJA') conceptoLimpio = 'Descuadre de Caja'
+                      if (m.tipoReferencia === 'GASTO_PERSONAL') conceptoLimpio = 'Gasto Personal'
+                      const matches = m.concepto.match(/\$?([\d.,]+)/);
+                      if (matches && matches[1]) {
+                        montoMostrar = parseFloat(matches[1].replace(/\./g, '').replace(',', '.'));
+                      }
                     }
-                }
 
-                // Limpiar concepto para visualización
-                const conceptoLimpio = m.concepto
-                    .replace(/^Entrada desde .*?: |^Salida hacia .*?: |^Consolidación .*?: /i, '')
-                    .replace(/^Transferencia enviada a .*?: |^Transferencia recibida de .*?: /i, '')
-                    .replace(/\(Entrada\)|\(Salida\)/gi, '')
-                    .trim();
-                
-                let montoMostrar = Number(m.monto || 0);
-                if (m.tipoReferencia === 'DEUDA_COBRADOR') {
-                  const matches = m.concepto.match(/\$?([\d.,]+)/);
-                  if (matches && matches[1]) {
-                    montoMostrar = parseFloat(matches[1].replace(/\./g, '').replace(',', '.'));
-                  }
-                  isIngreso = false;
-                }
+                    const tipoBadge = etiqueta.label;
 
-                return (
-                <div key={m.id} className="w-full text-left p-4 hover:bg-slate-50 transition-colors flex items-center justify-between group">
-                  <div className="flex items-center gap-3 overflow-hidden">
-                     <div className={cn(
-                        "p-2.5 rounded-full shrink-0 flex items-center justify-center border",
-                        isIngreso ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-rose-50 text-rose-600 border-rose-100"
-                     )}>
-                        {isIngreso ? <ArrowDownLeft className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4" />}
-                     </div>
-                     <div className="min-w-0">
-                        <div className="text-sm font-bold text-slate-900 truncate" title={m.concepto}>
-                            {conceptoLimpio || m.concepto}
-                        </div>
-                        <div className="flex items-center gap-2 text-[10px] font-medium text-slate-500 mt-0.5">
-                           <span>{new Date(m.fecha).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })}</span>
-                           <span className="text-slate-300">•</span>
-                           <span>{new Date(m.fecha).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })}</span>
-                           {m.referencia && (
-                               <>
-                                <span className="text-slate-300">•</span>
-                                <span className="bg-slate-100 px-1 rounded text-slate-600">Ref: {m.referencia}</span>
-                               </>
-                           )}
-                        </div>
-                     </div>
-                  </div>
-                  <div className="flex items-center gap-3 pl-4 shrink-0">
-                     <div className="text-right">
-                        <MoneyAmount
-                          value={montoMostrar}
-                          meaning={isIngreso ? 'signed' : 'expense'}
-                          amountClassName={cn(
-                            'text-sm font-black tracking-tight',
-                            isIngreso ? 'text-emerald-700' : 'text-rose-700',
+                    return (
+                      <tr key={m.id} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="px-4 py-2 align-middle">
+                          <span className={cn(
+                            "text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-wider",
+                            etiqueta.className
+                          )}>
+                            {tipoBadge}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2 align-middle whitespace-nowrap">
+                          <div className="flex flex-col">
+                            <span className="text-xs font-bold text-slate-700">
+                              {new Date(m.fecha).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-medium">
+                              {new Date(m.fecha).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-2 align-middle">
+                          <div className="flex flex-col">
+                            <span className="text-xs font-bold text-slate-900 truncate max-w-[200px]" title={conceptoLimpio || m.concepto}>
+                              {String(conceptoLimpio || m.concepto).replace(/\$(\d+)/g, (match, p1) => formatCurrency(Number(p1)))}
+                            </span>
+                            {(m.referencia || m.referenciaId) && (
+                              <span className="text-[10px] text-slate-400 font-medium">
+                                Ref: {m.referencia || m.referenciaId}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-2 align-middle">
+                          <span className="text-xs font-medium text-slate-600 truncate max-w-[150px] block">
+                            {cajaName}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2 align-middle">
+                          {m.accountCode ? (
+                            <div className="flex flex-col">
+                              <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded w-fit">
+                                {m.accountCode}
+                              </span>
+                              <span className="text-[10px] text-slate-500 truncate max-w-[150px]" title={m.accountName}>
+                                {m.accountName}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-[10px] text-slate-400 italic">No asignada</span>
                           )}
-                        />
-                     </div>
-                     <button
-                       onClick={() => {
-                         setMovimientoSeleccionado(m)
-                         setShowVerMovimientoModal(true)
-                       }}
-                       className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
-                       title="Ver Detalle"
-                     >
-                       <Eye className="h-4 w-4" />
-                     </button>
-                  </div>
-                </div>
-              )})}
+                        </td>
+                        <td className="px-4 py-2 align-middle">
+                          <span className="text-xs font-medium text-slate-700 truncate max-w-[120px] block" title={m.responsable}>
+                            {(() => {
+                              const r = m.responsable || '';
+                              if (r === 'Sistema') return r;
+                              if (!r.includes('-')) return r;
+                              const user = usuariosList.find(u => u.id === r);
+                              return user ? `${user.nombres} ${user.apellidos}` : r;
+                            })()}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2 align-middle text-right">
+                          <MoneyAmount
+                            value={montoMostrar}
+                            meaning={etiqueta.positivo ? 'signed' : 'expense'}
+                            amountClassName={cn(
+                              'text-sm font-black tracking-tight',
+                              etiqueta.positivo ? 'text-emerald-700' : 'text-rose-700',
+                            )}
+                          />
+                        </td>
+                        <td className="px-4 py-2 align-middle text-center">
+                          <button
+                            onClick={() => {
+                              setMovimientoSeleccionado(m)
+                              setShowVerMovimientoModal(true)
+                            }}
+                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors inline-flex"
+                            title="Ver Asiento Contable"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                  {movimientosFiltrados.length === 0 && (
+                    <tr>
+                      <td colSpan={8} className="px-4 py-8 text-center text-sm font-medium text-slate-500">
+                        No se encontraron movimientos registrados
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
 
           </div>
@@ -1498,7 +1614,7 @@ const ModuloContableContent = () => {
                               if (codigoCaja === 'CAJA-PRINCIPAL' || codigoCaja === 'CAJA-BANCO') {
                                 filtered = filtered.filter((m: any) => {
                                   const ref = String(m?.tipoReferencia || '').toUpperCase()
-                                  return ref !== 'CUOTA_INICIAL' && ref !== 'ABONO_DEUDA'
+                                  return ref !== 'CUOTA_INICIAL' && ref !== 'RESTAURACION_CUOTA_INICIAL' && ref !== 'ABONO_DEUDA'
                                 })
                               }
 
@@ -1563,6 +1679,7 @@ const ModuloContableContent = () => {
                               }
                             } else {
                               setSaldoRutaSeleccionada(null)
+                              setCajaHoyStats(null)
                               try {
                                 const hoyClave = getBogotaDateKey(new Date())
 
@@ -1575,15 +1692,15 @@ const ModuloContableContent = () => {
                                   const base = resp.data.filter((m: any) => {
                                     if (!omitRefs) return true
                                     const ref = String(m?.tipoReferencia || '').toUpperCase()
-                                    return ref !== 'CUOTA_INICIAL' && ref !== 'ABONO_DEUDA'
+                                    return ref !== 'CUOTA_INICIAL' && ref !== 'RESTAURACION_CUOTA_INICIAL' && ref !== 'ABONO_DEUDA'
                                   })
 
                                   const ingresos = base
                                     .filter((m: any) => m.tipo === 'INGRESO' || m.tipo === 'TRANSFERENCIA')
                                     .filter((m: any) => {
                                       if (m.tipo === 'TRANSFERENCIA') {
-                                        const concepto = String(m.descripcion || '').toUpperCase()
-                                        return !(concepto.includes('SALIDA') || concepto.includes('ENVIADA A') || concepto.includes('EGRESO'))
+                                        const num = String(m.numeroTransaccion || '').toUpperCase()
+                                        return num.startsWith('TRX-IN')
                                       }
                                       return true
                                     })
@@ -1593,24 +1710,19 @@ const ModuloContableContent = () => {
                                     .filter((m: any) => m.tipo === 'EGRESO' || m.tipo === 'TRANSFERENCIA')
                                     .filter((m: any) => {
                                       if (m.tipo === 'TRANSFERENCIA') {
-                                        const concepto = String(m.descripcion || '').toUpperCase()
-                                        return concepto.includes('SALIDA') || concepto.includes('ENVIADA A') || concepto.includes('EGRESO')
+                                        const num = String(m.numeroTransaccion || '').toUpperCase()
+                                        return num.startsWith('TRX-OUT')
                                       }
                                       return true
                                     })
                                     .reduce((acc: number, m: any) => acc + Number(m.monto), 0)
 
-                                  setSaldoRutaSeleccionada({
-                                    recaudoDelDia: ingresos,
-                                    gastosDelDia: egresos,
-                                    desembolsos: 0,
-                                    saldoCaja: Number(c.saldo) || 0,
-                                  } as any)
+                                  setCajaHoyStats({ ingresos, egresos })
                                 } else {
-                                  setSaldoRutaSeleccionada(null)
+                                  setCajaHoyStats(null)
                                 }
                               } catch {
-                                setSaldoRutaSeleccionada(null)
+                                setCajaHoyStats(null)
                               }
                             }
 
@@ -2040,7 +2152,9 @@ const ModuloContableContent = () => {
                   </div>
                 </div>
 
-
+                <div className="rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-xs font-semibold text-blue-800">
+                  La cuenta contable se asigna automáticamente por el sistema según el tipo de movimiento, caja y categoría.
+                </div>
 
                 {/* Alerta de fondos insuficientes */}
                 {(() => {
@@ -2186,9 +2300,21 @@ const ModuloContableContent = () => {
                   <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Responsable</div>
                   <div className="font-bold text-slate-900 flex items-center gap-2">
                     <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-[10px] text-slate-600">
-                      {movimientoSeleccionado.responsable.charAt(0)}
+                      {(() => {
+                        const r = movimientoSeleccionado.responsable || '';
+                        if (r === 'Sistema') return 'S';
+                        if (!r.includes('-')) return r.charAt(0);
+                        const user = usuariosList.find(u => u.id === r);
+                        return user ? user.nombres.charAt(0) : r.charAt(0);
+                      })()}
                     </div>
-                    {movimientoSeleccionado.responsable}
+                    {(() => {
+                        const r = movimientoSeleccionado.responsable || '';
+                        if (r === 'Sistema') return r;
+                        if (!r.includes('-')) return r;
+                        const user = usuariosList.find(u => u.id === r);
+                        return user ? `${user.nombres} ${user.apellidos}` : r;
+                    })()}
                   </div>
                 </div>
 
@@ -2233,7 +2359,7 @@ const ModuloContableContent = () => {
                           .trim()
                       }
 
-                      return conceptoMostrar
+                      return conceptoMostrar.replace(/\$(\d+)/g, (match, p1) => formatCurrency(Number(p1)))
                     })()}
                   </div>
                 </div>
@@ -2362,18 +2488,14 @@ const ModuloContableContent = () => {
                          <div className="text-[10px] font-bold text-emerald-600 uppercase mb-1 flex items-center gap-1 justify-between">
                              <div className="flex items-center gap-1">
                                 <TrendingUp className="w-3 h-3" />
-                                Recaudado
+                                {cajaSeleccionada.tipo === 'RUTA' ? 'Recaudado' : 'Entradas'}
                              </div>
                              <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                          </div>
                          <div className="font-extrabold text-emerald-800 text-lg">
                            {(() => {
                              if (saldoRutaSeleccionada) {
-                               const valor =
-                                 (saldoRutaSeleccionada.recaudoDelDia ??
-                                   saldoRutaSeleccionada.saldoCaja ??
-                                   cajaSeleccionada?.saldo ??
-                                   0)
+                               const valor = saldoRutaSeleccionada.recaudoDelDia ?? saldoRutaSeleccionada.saldoCaja ?? cajaSeleccionada?.saldo ?? 0
                                return (
                                  <MoneyAmount
                                    value={valor}
@@ -2382,18 +2504,17 @@ const ModuloContableContent = () => {
                                )
                              }
 
-                             if (cajaSeleccionada?.saldo != null) {
-                               const valor = Number(cajaSeleccionada.saldo || 0)
+                             if (cajaHoyStats != null) {
                                return (
                                  <MoneyAmount
-                                   value={valor}
+                                   value={cajaHoyStats.ingresos}
                                    amountClassName="font-extrabold text-emerald-800 text-lg"
                                  />
                                )
                              }
 
                              return (
-                               <div className="text-emerald-700 font-semibold text-xs mt-1">Ver Historial ➔</div>
+                               <div className="text-emerald-700 font-semibold text-xs mt-1">Cargando…</div>
                              )
                            })()}
                          </div>
@@ -2415,26 +2536,34 @@ const ModuloContableContent = () => {
                        <div className="text-[10px] font-bold text-rose-600 uppercase mb-1 flex items-center gap-1 justify-between">
                            <div className="flex items-center gap-1">
                               <TrendingDown className="w-3 h-3" />
-                              Egresos
+                              {cajaSeleccionada.tipo === 'RUTA' ? 'Egresos' : 'Salidas'}
                            </div>
                            <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                        </div>
                        <div className="font-extrabold text-rose-800 text-lg">
-                           {(() => {
-                              if (saldoRutaSeleccionada) {
-                                const valor = saldoRutaSeleccionada.gastosDelDia
-                                return (
-                                  <MoneyAmount
-                                    value={valor}
-                                    meaning="expense"
-                                    amountClassName="text-lg font-extrabold text-rose-800"
-                                  />
-                                )
-                              }
-                              return (
-                                <div className="text-rose-700 font-semibold text-xs mt-1">Ver Historial ➔</div>
-                              )
-                             })()}
+                            {(() => {
+                               if (saldoRutaSeleccionada) {
+                                 return (
+                                   <MoneyAmount
+                                     value={saldoRutaSeleccionada.gastosDelDia}
+                                     meaning="expense"
+                                     amountClassName="text-lg font-extrabold text-rose-800"
+                                   />
+                                 )
+                               }
+                               if (cajaHoyStats != null) {
+                                 return (
+                                   <MoneyAmount
+                                     value={cajaHoyStats.egresos}
+                                     meaning="expense"
+                                     amountClassName="text-lg font-extrabold text-rose-800"
+                                   />
+                                 )
+                               }
+                               return (
+                                 <div className="text-rose-700 font-semibold text-xs mt-1">Cargando...</div>
+                               )
+                              })()}
                          </div>
                       </div>
                  </div>
@@ -2592,9 +2721,7 @@ const ModuloContableContent = () => {
                                )}>
                                  {(() => {
                                     const hoyKey = getBogotaDateKey(new Date())
-                                    const source = cajaSeleccionada
-                                      ? movimientosDetalle
-                                      : (movimientosModalGlobal.length ? movimientosModalGlobal : movimientos)
+                                    const source = cajaSeleccionada ? movimientosDetalle : movimientosModalGlobal
                                     const filtered = source
                                         .filter(m => {
                                             if (!cajaSeleccionada && m.categoria === 'CONSOLIDACION') return false;
@@ -2604,40 +2731,17 @@ const ModuloContableContent = () => {
                                             if (detalleTipo === 'CAJA_TODOS') {
                                               return true
                                             } else if (detalleTipo === 'INGRESOS') {
-                                              if (m.tipo !== 'TRANSFERENCIA') return false;
-                                              const conc = String((m as any).descripcion || m.concepto || '').toUpperCase();
-                                              const ref = String(m.tipoReferencia || '').toUpperCase();
-                                              const esRecoleccion = ref === 'RECOLECCION' && conc.includes('RECIBIDA');
-                                              const esTransferenciaInterna = ref === 'TRANSFERENCIA_INTERNA' && conc.includes('RECIBIDA');
-                                              return esRecoleccion || esTransferenciaInterna;
+                                              return esIngresoOperativo(m);
                                             } else if (detalleTipo === 'CUOTAS_INICIALES') {
-                                              if (m.tipo !== 'INGRESO') return false;
-                                              if (String(m.tipoReferencia || '').toUpperCase() !== 'CUOTA_INICIAL') return false;
-                                              return true;
+                                              return esCuotaInicialContable(m)
                                             } else if (detalleTipo === 'UTILIDAD') {
                                               const esIngresoRecoleccion =
                                                 m.tipo === 'TRANSFERENCIA' &&
                                                 String(m.tipoReferencia || '').toUpperCase() === 'RECOLECCION' &&
                                                 String((m as any).descripcion || m.concepto || '').toUpperCase().includes('RECIBIDA')
-                                              const esEgreso =
-                                                m.tipo === 'EGRESO' &&
-                                                String(m.tipoReferencia || '').toUpperCase() !== 'DEUDA_COBRADOR'
-                                              return esIngresoRecoleccion || esEgreso
+                                              return esIngresoRecoleccion || esEgresoOperativo(m)
                                             } else {
-                                              if (m.tipo === 'EGRESO') {
-                                                if (String(m.tipoReferencia || '').toUpperCase() === 'DEUDA_COBRADOR') return false
-                                                return true
-                                              }
-                                              if (m.tipo === 'TRANSFERENCIA') {
-                                                if (String(m.tipoReferencia || '').toUpperCase() === 'DEUDA_COBRADOR') return false
-                                                const conc = String((m as any).descripcion || m.concepto || '').toUpperCase();
-                                                const ref = String(m.tipoReferencia || '').toUpperCase()
-                                                if (ref === 'TRANSFERENCIA_INTERNA') {
-                                                  return conc.includes('ENVIADA A') || conc.includes('SALIDA')
-                                                }
-                                                return conc.includes('SALIDA') || conc.includes('ENVIADA A') || conc.includes('EGRESO');
-                                              }
-                                              return false;
+                                              return esEgresoOperativo(m);
                                             }
                                         })
                                         .filter(m => {
@@ -2684,10 +2788,7 @@ const ModuloContableContent = () => {
                                         )
                                         .reduce((acc, m) => acc + m.monto, 0)
                                       const egresos = filtered
-                                        .filter((m) => {
-                                          if (m.tipo === 'EGRESO') return true
-                                          return false
-                                        })
+                                        .filter((m) => esEgresoOperativo(m))
                                         .reduce((acc, m) => acc + m.monto, 0)
                                       return ingresos - egresos
                                     })()
@@ -2730,41 +2831,74 @@ const ModuloContableContent = () => {
                     )}
 
                     {detalleTipo === 'UTILIDAD' && resumenUtilidadModal && (
-                      <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-4">
-                        <div className="text-xs font-black uppercase tracking-widest text-indigo-700 mb-3">
-                          Desglose
+                      <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-4 space-y-3">
+                        <div className="text-xs font-black uppercase tracking-widest text-indigo-700">
+                          Estado de Resultados
                         </div>
-                        <div className="space-y-2">
+
+                        {/* Ingresos */}
+                        <div className="space-y-1.5">
+                          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Ingresos Operativos</div>
+                          {[
+                            { label: 'Intereses cobrados', val: resumenUtilidadModal.interes },
+                            { label: 'Intereses por mora', val: resumenUtilidadModal.mora },
+                            { label: 'Margen artículos', val: resumenUtilidadModal.margen },
+                          ].map(({ label, val }) => (
+                            <div key={label} className="flex items-center justify-between">
+                              <div className="text-xs text-slate-600">{label}</div>
+                              <MoneyAmount value={val} amountClassName="text-xs font-bold text-emerald-700" />
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Gastos */}
+                        <div className="space-y-1.5 pt-2 border-t border-indigo-100">
+                          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Gastos Operativos</div>
                           <div className="flex items-center justify-between">
-                            <div className="text-xs font-bold text-slate-700">Interés</div>
-                            <div className="text-xs font-black text-slate-900">
-                              <MoneyAmount value={resumenUtilidadModal.interes} amountClassName="text-xs font-black text-slate-900" />
-                            </div>
+                            <div className="text-xs text-slate-600">Gastos y costos (4.x / 5.x)</div>
+                            <MoneyAmount value={resumenUtilidadModal.egresosOperativos} meaning="expense" amountClassName="text-xs font-bold text-rose-700" />
                           </div>
-                          <div className="flex items-center justify-between">
-                            <div className="text-xs font-bold text-slate-700">Mora</div>
-                            <div className="text-xs font-black text-slate-900">
-                              <MoneyAmount value={resumenUtilidadModal.mora} amountClassName="text-xs font-black text-slate-900" />
-                            </div>
+                        </div>
+
+                        {/* UAII */}
+                        <div className="pt-2 border-t border-indigo-200 flex items-center justify-between">
+                          <div className="text-xs font-black text-indigo-800">Utilidad Operativa (UAII)</div>
+                          <MoneyAmount value={resumenUtilidadModal.utilidadOperativa} amountClassName="text-xs font-black text-indigo-800" />
+                        </div>
+
+                        {/* Provisión */}
+                        <div className="space-y-1.5 pt-2 border-t border-amber-100">
+                          <div className="text-[10px] font-bold text-amber-600 uppercase tracking-widest flex items-center gap-1">
+                            <span>Provisión de Cartera</span>
+                            <span className="ml-auto text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">Reserva estimada</span>
                           </div>
-                          <div className="flex items-center justify-between">
-                            <div className="text-xs font-bold text-slate-700">Margen artículos</div>
-                            <div className="text-xs font-black text-slate-900">
-                              <MoneyAmount value={resumenUtilidadModal.margen} amountClassName="text-xs font-black text-slate-900" />
+                          {resumenUtilidadModal.saldoEnMora > 0 && (
+                            <div className="flex items-center justify-between">
+                              <div className="text-xs text-slate-600">En Mora (20% de <span className="font-medium">{resumenUtilidadModal.saldoEnMora.toLocaleString('es-CO', {style:'currency',currency:'COP',maximumFractionDigits:0})}</span>)</div>
+                              <MoneyAmount value={resumenUtilidadModal.provisionEnMora} meaning="expense" amountClassName="text-xs font-bold text-amber-700" />
                             </div>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <div className="text-xs font-bold text-slate-700">Gastos operativos</div>
-                            <div className="text-xs font-black text-slate-900">
-                              <MoneyAmount value={resumenUtilidadModal.egresosOperativos} meaning="expense" amountClassName="text-xs font-black text-slate-900" />
+                          )}
+                          {resumenUtilidadModal.saldoIncumplido > 0 && (
+                            <div className="flex items-center justify-between">
+                              <div className="text-xs text-slate-600">Incumplido (60% de <span className="font-medium">{resumenUtilidadModal.saldoIncumplido.toLocaleString('es-CO', {style:'currency',currency:'COP',maximumFractionDigits:0})}</span>)</div>
+                              <MoneyAmount value={resumenUtilidadModal.provisionIncumplida} meaning="expense" amountClassName="text-xs font-bold text-orange-700" />
                             </div>
-                          </div>
-                          <div className="pt-2 mt-2 border-t border-indigo-100 flex items-center justify-between">
-                            <div className="text-xs font-black text-indigo-900">Total utilidad operativa</div>
-                            <div className="text-xs font-black text-indigo-900">
-                              <MoneyAmount value={resumenUtilidadModal.totalUtilidad} amountClassName="text-xs font-black text-indigo-900" />
+                          )}
+                          {resumenUtilidadModal.saldoPerdida > 0 && (
+                            <div className="flex items-center justify-between">
+                              <div className="text-xs text-slate-600">Pérdida (100% de <span className="font-medium">{resumenUtilidadModal.saldoPerdida.toLocaleString('es-CO', {style:'currency',currency:'COP',maximumFractionDigits:0})}</span>)</div>
+                              <MoneyAmount value={resumenUtilidadModal.provisionPerdida} meaning="expense" amountClassName="text-xs font-bold text-red-700" />
                             </div>
-                          </div>
+                          )}
+                          {resumenUtilidadModal.provisionTotal === 0 && (
+                            <div className="text-xs text-slate-400 italic">Sin cartera en mora — provisión $0</div>
+                          )}
+                        </div>
+
+                        {/* Utilidad Neta */}
+                        <div className="pt-2 border-t-2 border-indigo-300 flex items-center justify-between">
+                          <div className="text-sm font-black text-indigo-900">UTILIDAD NETA</div>
+                          <MoneyAmount value={resumenUtilidadModal.totalUtilidad} amountClassName="text-sm font-black text-indigo-900" />
                         </div>
                       </div>
                     )}
@@ -2812,9 +2946,7 @@ const ModuloContableContent = () => {
                                         return historialCierres.filter((c: any) => c.tipo === 'CIERRE_RUTA' && c.cajaId === cajaId).length
                                       })()
                                   : (() => {
-                                      const base = cajaSeleccionada
-                                       ? movimientosDetalle
-                                       : (movimientosModalGlobal.length ? movimientosModalGlobal : movimientos);
+                                      const base = cajaSeleccionada ? movimientosDetalle : movimientosModalGlobal;
                                      const filtrados = base
                                        .filter(m => {
                                          if (!cajaSeleccionada && m.categoria === 'CONSOLIDACION') return false;
@@ -2852,41 +2984,17 @@ const ModuloContableContent = () => {
                                           return true
                                         }
                                         if (detalleTipo === 'INGRESOS') {
-                                          if (m.tipo !== 'TRANSFERENCIA') return false;
-                                           const conc = String((m as any).descripcion || m.concepto || '').toUpperCase();
-                                           const ref = String(m.tipoReferencia || '').toUpperCase();
-                                           const esRecoleccion = ref === 'RECOLECCION' && conc.includes('RECIBIDA');
-                                           const esTransferenciaInterna = ref === 'TRANSFERENCIA_INTERNA' && conc.includes('RECIBIDA');
-                                           return esRecoleccion || esTransferenciaInterna;
+                                          return esIngresoOperativo(m);
                                         } else if (detalleTipo === 'CUOTAS_INICIALES') {
-                                          if (m.tipo !== 'INGRESO') return false;
-                                          if (String(m.tipoReferencia || '').toUpperCase() !== 'CUOTA_INICIAL') return false;
-                                          return true;
+                                          return esCuotaInicialContable(m)
                                         } else if (detalleTipo === 'UTILIDAD') {
                                           const esIngresoRecoleccion =
                                             m.tipo === 'TRANSFERENCIA' &&
                                             String(m.tipoReferencia || '').toUpperCase() === 'RECOLECCION' &&
                                             String((m as any).descripcion || m.concepto || '').toUpperCase().includes('RECIBIDA')
-                                          const esEgreso =
-                                            (m.tipo === 'EGRESO' &&
-                                              String(m.tipoReferencia || '').toUpperCase() !== 'DEUDA_COBRADOR') ||
-                                            (m.tipo === 'TRANSFERENCIA' &&
-                                              (() => {
-                                                const conc = String((m as any).descripcion || m.concepto || '').toUpperCase()
-                                                return conc.includes('SALIDA') || conc.includes('ENVIADA A') || conc.includes('EGRESO')
-                                              })())
-                                           return esIngresoRecoleccion || esEgreso
+                                           return esIngresoRecoleccion || esEgresoOperativo(m)
                                          } else {
-                                           if (m.tipo === 'EGRESO') {
-                                             if (String(m.tipoReferencia || '').toUpperCase() === 'DEUDA_COBRADOR') return false
-                                             return true
-                                           }
-                                           if (m.tipo === 'TRANSFERENCIA') {
-                                             if (String(m.tipoReferencia || '').toUpperCase() === 'DEUDA_COBRADOR') return false
-                                             const conc = String((m as any).descripcion || m.concepto || '').toUpperCase();
-                                             return conc.includes('SALIDA') || conc.includes('ENVIADA A') || conc.includes('EGRESO');
-                                           }
-                                           return false;
+                                           return esEgresoOperativo(m);
                                          }
                                        })
                                        .filter(m => {
@@ -3020,7 +3128,7 @@ const ModuloContableContent = () => {
                          </div>
                        ) : (
                          <>
-                          {(cajaSeleccionada ? movimientosDetalle : (movimientosModalGlobal.length ? movimientosModalGlobal : movimientos))
+                          {(cajaSeleccionada ? movimientosDetalle : movimientosModalGlobal)
                             .filter(m => {
                               if (!cajaSeleccionada && m.categoria === 'CONSOLIDACION') return false;
                               if (cajaSeleccionada && detalleCajaFocus) {
@@ -3049,49 +3157,21 @@ const ModuloContableContent = () => {
                                   return esEgreso || esTransferenciaSalida
                                 }
                               }
-                              if (detalleTipo === 'CAJA_TODOS') {
-                                return true
-                              }
+                             if (detalleTipo === 'CAJA_TODOS') {
+                               return true
+                             }
                              if (detalleTipo === 'INGRESOS') {
-                                if (m.tipo !== 'TRANSFERENCIA') return false;
-                                const conc = String((m as any).descripcion || m.concepto || '').toUpperCase();
-                                const ref = String(m.tipoReferencia || '').toUpperCase();
-                                const esRecoleccion = ref === 'RECOLECCION' && conc.includes('RECIBIDA');
-                                const esTransferenciaInterna = ref === 'TRANSFERENCIA_INTERNA' && conc.includes('RECIBIDA');
-                                return esRecoleccion || esTransferenciaInterna;
+                                return esIngresoOperativo(m);
                               } else if (detalleTipo === 'CUOTAS_INICIALES') {
-                                if (m.tipo !== 'INGRESO') return false;
-                                if (String(m.tipoReferencia || '').toUpperCase() !== 'CUOTA_INICIAL') return false;
-                                return true;
+                                return esCuotaInicialContable(m)
                               } else if (detalleTipo === 'UTILIDAD') {
                                 const esIngresoRecoleccion =
                                   m.tipo === 'TRANSFERENCIA' &&
                                   String(m.tipoReferencia || '').toUpperCase() === 'RECOLECCION' &&
                                   String((m as any).descripcion || m.concepto || '').toUpperCase().includes('RECIBIDA')
-                                const esEgreso =
-                                  (m.tipo === 'EGRESO' &&
-                                    String(m.tipoReferencia || '').toUpperCase() !== 'DEUDA_COBRADOR') ||
-                                  (m.tipo === 'TRANSFERENCIA' &&
-                                    (() => {
-                                      const conc = String((m as any).descripcion || m.concepto || '').toUpperCase()
-                                      return conc.includes('SALIDA') || conc.includes('ENVIADA A') || conc.includes('EGRESO')
-                                    })())
-                                return esIngresoRecoleccion || esEgreso
+                                return esIngresoRecoleccion || esEgresoOperativo(m)
                               } else {
-                                if (m.tipo === 'EGRESO') {
-                                  if (String(m.tipoReferencia || '').toUpperCase() === 'DEUDA_COBRADOR') return false
-                                  return true
-                                }
-                                if (m.tipo === 'TRANSFERENCIA') {
-                                  if (String(m.tipoReferencia || '').toUpperCase() === 'DEUDA_COBRADOR') return false
-                                  const conc = String((m as any).descripcion || m.concepto || '').toUpperCase();
-                                  const ref = String(m.tipoReferencia || '').toUpperCase()
-                                  if (ref === 'TRANSFERENCIA_INTERNA') {
-                                    return conc.includes('ENVIADA A') || conc.includes('SALIDA')
-                                  }
-                                  return conc.includes('SALIDA') || conc.includes('ENVIADA A') || conc.includes('EGRESO');
-                                }
-                                return false;
+                                return esEgresoOperativo(m);
                               }
                             })
                             .filter(m => {
@@ -3141,7 +3221,9 @@ const ModuloContableContent = () => {
 
                               const isPositivo = (() => {
                                 if (detalleTipo === 'INGRESOS') return true
-                                if (detalleTipo === 'CUOTAS_INICIALES') return true
+                                if (detalleTipo === 'CUOTAS_INICIALES') {
+                                  return String(m.tipoReferencia || '').toUpperCase() !== 'REVERSO_CUOTA_INICIAL'
+                                }
                                 if (detalleTipo === 'EGRESOS') return false
                                 if (detalleTipo === 'UTILIDAD') return esIngresoRecoleccion
                                 if (detalleTipo === 'CAJA_TODOS') {
@@ -3184,7 +3266,7 @@ const ModuloContableContent = () => {
                                       )} />
                                       <div>
                                         <div className="font-bold text-slate-900 text-base leading-snug">
-                                          {conceptoMostrar}
+                                          {conceptoMostrar.replace(/\$(\d+)/g, (match, p1) => formatCurrency(Number(p1)))}
                                         </div>
                                       </div>
                                     </div>
@@ -3223,10 +3305,22 @@ const ModuloContableContent = () => {
                                       <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Responsable</span>
                                       <div className="flex items-center gap-1.5">
                                         <div className="w-5 h-5 rounded-full bg-indigo-50 flex items-center justify-center text-[9px] font-bold text-indigo-700 border border-indigo-100 shrink-0">
-                                          {(cajaSeleccionada ? cajaSeleccionada.responsable : (m.responsable || 'A')).charAt(0)}
+                                          {(() => {
+                                            const raw = cajaSeleccionada ? cajaSeleccionada.responsable : (m.responsable || 'A');
+                                            if (raw === 'Sistema') return 'S';
+                                            if (!raw.includes('-')) return raw.charAt(0);
+                                            const user = usuariosList.find(u => u.id === raw);
+                                            return user ? user.nombres.charAt(0) : raw.charAt(0);
+                                          })()}
                                         </div>
                                         <span className="text-xs font-medium text-slate-700 truncate">
-                                          {cajaSeleccionada ? cajaSeleccionada.responsable : (m.responsable || 'Admin')}
+                                          {(() => {
+                                            const raw = cajaSeleccionada ? cajaSeleccionada.responsable : (m.responsable || 'Admin');
+                                            if (raw === 'Sistema') return raw;
+                                            if (!raw.includes('-')) return raw;
+                                            const user = usuariosList.find(u => u.id === raw);
+                                            return user ? `${user.nombres} ${user.apellidos}` : raw;
+                                          })()}
                                         </span>
                                       </div>
                                     </div>
@@ -3234,7 +3328,8 @@ const ModuloContableContent = () => {
                                     <div>
                                       <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Origen</span>
                                       {(() => {
-                                        const isCuotaInicial = String(m.tipoReferencia || '').toUpperCase() === 'CUOTA_INICIAL'
+                                        const refCuota = String(m.tipoReferencia || '').toUpperCase()
+                                        const isCuotaInicial = refCuota === 'CUOTA_INICIAL' || refCuota === 'RESTAURACION_CUOTA_INICIAL'
                                         const label = (detalleTipo === 'CUOTAS_INICIALES' && isCuotaInicial) ? 'CLIENTE' : m.origen
                                         const color = (detalleTipo === 'CUOTAS_INICIALES' && isCuotaInicial)
                                           ? "bg-orange-50 text-orange-700 border-orange-100"
