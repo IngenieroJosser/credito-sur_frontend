@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useState, ChangeEvent, FormEvent, useEffect, useCallback, useMemo } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
@@ -217,13 +217,13 @@ export const RutasPageView = ({
 
       if (Array.isArray(data) && data.length > 0) {
         const hoyBogota = getBogotaDateKey(new Date())
-        let recaudosHoyMap: Record<string, number> = {}
+        let recaudosHoyMap: Record<string, number> | null = null
         try {
           const pagosResp: any = await apiRequest<any>('GET', '/payments?limit=5000', undefined, { cacheTTL: 0 } as any)
           const pagosData = (pagosResp as any)?.pagos || (pagosResp as any)?.data?.pagos || pagosResp || []
           recaudosHoyMap = buildRecaudosHoyMapByPrestamoId((Array.isArray(pagosData) ? pagosData : []) as any, hoyBogota)
         } catch {
-          recaudosHoyMap = {}
+          recaudosHoyMap = null
         }
 
         const enriched = await Promise.all(
@@ -319,10 +319,10 @@ export const RutasPageView = ({
 
               const metaDelDiaPendiente = computeMetaHoyFromVisitas(visitasConRecaudoHoy as any, hoyBogota)
 
-              const cobranzaDelDia = (Array.isArray(visitasConRecaudoHoy) ? visitasConRecaudoHoy : []).reduce(
+              const cobranzaDelDia = recaudosHoyMap !== null ? (Array.isArray(visitasConRecaudoHoy) ? visitasConRecaudoHoy : []).reduce(
                 (sum: number, v: any) => sum + Number(v?.recaudadoDelDia || 0),
                 0,
-              )
+              ) : Number(r.cobranzaDelDia || 0)
 
               return {
                 ...r,
@@ -1979,5 +1979,6 @@ export const RutasPageView = ({
     </div>
   )
 }
+
 
 

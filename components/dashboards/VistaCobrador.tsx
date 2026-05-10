@@ -2241,8 +2241,9 @@ const VistaCobrador = () => {
       return sum + Number(cuotaUI || 0)
     }, 0)
 
-    const meta = Number(metaPendiente || 0)
-    const eficienciaRaw = meta > 0 ? Number(((recaudo / meta) * 100).toFixed(1)) : 0
+    const metaFallback = recaudo > 0 ? Math.max(recaudo, Number((rutaStats as any)?.meta || 0)) : Number((rutaStats as any)?.meta || 0)
+    const meta = metaPendiente > 0 ? metaPendiente : metaFallback
+    const eficienciaRaw = meta > 0 ? Number(((recaudo / meta) * 100).toFixed(1)) : (recaudo > 0 ? 100 : 0)
     const eficiencia = Math.min(100, Math.max(0, eficienciaRaw))
 
     return {
@@ -2250,7 +2251,7 @@ const VistaCobrador = () => {
       recaudo,
       meta,
       eficiencia,
-      pendiente: meta,
+      pendiente: metaPendiente,
     }
   }, [periodoCards, rutaStats, visitasCobrador])
 
@@ -5383,4 +5384,5 @@ const VistaCobrador = () => {
 
 
 export default VistaCobrador
+
 

@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 
 /**
@@ -491,11 +491,12 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
       setRutaStats((prev: any) => {
         // Para HOY: meta coherente con recaudo real (incluye mora) usando visitas visibles.
-        const meta = Number(prev.meta ?? 0)
+        const metaBackend = Number(saldo?.metaDelDia || 0)
+        const meta = metaBackend > 0 ? metaBackend : (Number(prev.meta || 0) > 0 ? Number(prev.meta) : (recaudoBackend > 0 ? recaudoBackend : 0))
         const recaudo = recaudoBackend > 0 ? recaudoBackend : Number(prev.recaudo ?? 0)
         const eficiencia = meta > 0
           ? Number(((recaudo / meta) * 100).toFixed(1))
-          : Number(prev.eficiencia ?? 0)
+          : (recaudo > 0 ? 100 : Number(prev.eficiencia ?? 0))
         return {
           ...prev,
           recaudo,
@@ -1071,7 +1072,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
         setRutaStats((prev: any) => ({
           ...prev,
-          meta: periodoCards === 'HOY' ? metaHoy : prev.meta,
+          meta: periodoCards === 'HOY' ? (Number(prev.meta) > 0 ? prev.meta : metaHoy) : prev.meta,
           pendiente: periodoCards === 'HOY' ? metaHoy : prev.pendiente,
         }));
 
@@ -4111,4 +4112,6 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
 
 export default SupervisorCobroView
+
+
 
