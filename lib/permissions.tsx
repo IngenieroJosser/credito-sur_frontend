@@ -158,7 +158,6 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
         T.MORA('COORDINADOR', '/coordinador/cuentas-mora'),
         T.VENCIDAS('COORDINADOR', '/coordinador/cuentas-vencidas'),
         T.ARCHIVADOS('COORDINADOR', '/coordinador/archivados'),
-        T.INVENTARIO('COORDINADOR', '/coordinador/articulos'),
       ]
     },
     {
@@ -166,8 +165,8 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       submodulos: [ T.PAGOS_HIST('COORDINADOR', '/coordinador/pagos/historial') ]
     },
     {
-      id: 'sistema', nombre: 'Sistema', icono: 'Settings', path: '#', roles: ['COORDINADOR'],
-      submodulos: [ T.SYNC('COORDINADOR', '/coordinador/sistema/sincronizacion') ]
+      id: 'administracion', nombre: 'Administración', icono: 'Shield', path: '#', roles: ['COORDINADOR'],
+      submodulos: [ T.INVENTARIO('COORDINADOR', '/coordinador/articulos') ]
     },
   ],
   SUPERVISOR: [

@@ -5,7 +5,7 @@ import AdminHistorialPagosPage from '@/app/admin/pagos/historial/page'
 
 export default function PagosHistorialPage() {
   return (
-    <ProtectedPage permiso="CONTABLE_VIEW">
+    <ProtectedPage permiso="CONTABLE_VIEW" roles={['COORDINADOR', 'ADMIN', 'SUPER_ADMINISTRADOR', 'CONTADOR']}>
       <AdminHistorialPagosPage />
     </ProtectedPage>
   )

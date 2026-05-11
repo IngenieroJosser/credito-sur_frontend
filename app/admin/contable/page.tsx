@@ -1216,7 +1216,7 @@ const ModuloContableContent = () => {
                 amountClassName="text-[clamp(1rem,2vw,1.5rem)] font-black text-slate-900 leading-none"
               />
             </div>
-            {resumenData.porcentajeIngresosVsAyer != null && resumenData.porcentajeIngresosVsAyer !== 0 && (
+            {resumenData.porcentajeIngresosVsAyer != null && resumenData.porcentajeIngresosVsAyer !== 0 && resumenData.ingresosHoy > 0 && (
               <div className={cn(
                 "mt-2 flex items-center text-[11px] font-bold w-fit px-2 py-0.5 rounded-full",
                 resumenData.esIngresoPositivo ? "text-emerald-600 bg-emerald-50" : "text-rose-600 bg-rose-50"
@@ -1257,7 +1257,7 @@ const ModuloContableContent = () => {
                 amountClassName="text-[clamp(1rem,2vw,1.5rem)] font-black text-slate-900 leading-none"
               />
             </div>
-            {resumenData.porcentajeEgresosVsAyer != null && resumenData.porcentajeEgresosVsAyer !== 0 && (
+            {resumenData.porcentajeEgresosVsAyer != null && resumenData.porcentajeEgresosVsAyer !== 0 && resumenData.egresosHoy > 0 && (
               <div className={cn(
                 "mt-2 text-[11px] font-bold w-fit px-2 py-0.5 rounded-full flex items-center",
                 resumenData.esEgresoPositivo ? "text-emerald-600 bg-emerald-50" : "text-rose-600 bg-rose-50",

@@ -137,11 +137,7 @@ export default function NotificacionDetalleModal({
         // Fecha: del backend directamente
         fechaInicio: combined.fechaInicio || combined.fecha || getBogotaDateKey(new Date()),
         tipoAmortizacion: combined.tipoAmortizacion || 'INTERES_SIMPLE',
-        articulo: combined.articulo || combined.articuloNombre || articuloFromMsg || (
-          (notificacion.titulo + notificacion.mensaje).toLowerCase().includes('artículo') ||
-          (notificacion.titulo + notificacion.mensaje).toLowerCase().includes('articulo')
-            ? 'Artículo por definir' : 'N/A'
-        ),
+        articulo: combined.articulo || combined.articuloNombre || articuloFromMsg || 'N/A',
         cedula: String(combined.cedula || combined.dni || cedulaFromMsg || ''),
         telefono: String(combined.telefono || combined.phone || ''),
         notas: (() => {
@@ -164,11 +160,7 @@ export default function NotificacionDetalleModal({
       const mensajeEff = (notificacion?.mensaje || '').toLowerCase()
       const isArticleEff = isPrestamoEff && (
         combined.tipo === 'ARTICULO' ||
-        combined.tipoPrestamo === 'ARTICULO' ||
-        tituloEff.includes('artículo') ||
-        tituloEff.includes('articulo') ||
-        mensajeEff.includes('artículo') ||
-        mensajeEff.includes('articulo')
+        combined.tipoPrestamo === 'ARTICULO'
       )
 
       let initialEsContado = false
@@ -243,11 +235,7 @@ export default function NotificacionDetalleModal({
     const mensajeEff = (notificacion?.mensaje || '').toLowerCase()
     const isArticleEff = isPrestamoEff && (
       dets?.tipo === 'ARTICULO' ||
-      meta?.tipo === 'ARTICULO' ||
-      tituloEff.includes('artículo') ||
-      tituloEff.includes('articulo') ||
-      mensajeEff.includes('artículo') ||
-      mensajeEff.includes('articulo')
+      meta?.tipo === 'ARTICULO'
     )
     if (!isArticleEff) return
     const nombre = dets?.articulo || meta?.articulo || ''
@@ -282,11 +270,7 @@ export default function NotificacionDetalleModal({
     const mensajeEff = (notificacion?.mensaje || '').toLowerCase()
     const isArticleEff = isPrestamoEff && (
       dets?.tipo === 'ARTICULO' ||
-      meta?.tipo === 'ARTICULO' ||
-      tituloEff.includes('artículo') ||
-      tituloEff.includes('articulo') ||
-      mensajeEff.includes('artículo') ||
-      mensajeEff.includes('articulo')
+      meta?.tipo === 'ARTICULO'
     )
     if (!isArticleEff) return
     if (!articuloData) return
@@ -323,11 +307,7 @@ export default function NotificacionDetalleModal({
     const mensajeEff = (notificacion?.mensaje || '').toLowerCase()
     const isArticleEff = isPrestamoEff && (
       dets?.tipo === 'ARTICULO' ||
-      meta?.tipo === 'ARTICULO' ||
-      tituloEff.includes('artículo') ||
-      tituloEff.includes('articulo') ||
-      mensajeEff.includes('artículo') ||
-      mensajeEff.includes('articulo')
+      meta?.tipo === 'ARTICULO'
     )
     if (!isArticleEff) return
     const meses = Number(editedDetails?.plazoMeses || 0)
@@ -374,7 +354,7 @@ export default function NotificacionDetalleModal({
   const isPrestamo = tipo === 'PRESTAMO' || approvalType === 'NUEVO_PRESTAMO'
   const isGasto = tipo === 'GASTO' || approvalType === 'GASTO'
   const isSolicitudBase = tipo === 'SOLICITUD_DINERO' || approvalType === 'SOLICITUD_BASE_EFECTIVO'
-  const isArticle = isPrestamo && (editedDetails?.tipo === 'ARTICULO' || safeMeta?.tipo === 'ARTICULO' || titulo.toLowerCase().includes('artículo') || titulo.toLowerCase().includes('articulo') || mensaje.toLowerCase().includes('artículo') || mensaje.toLowerCase().includes('articulo'))
+  const isArticle = isPrestamo && (editedDetails?.tipo === 'ARTICULO' || editedDetails?.tipoPrestamo === 'ARTICULO' || safeMeta?.tipo === 'ARTICULO' || safeMeta?.tipoPrestamo === 'ARTICULO')
   const isApprovalNotification = Boolean(approvalType)
   const isNuevoCliente = approvalType === 'NUEVO_CLIENTE'
   const mediaArchivos = (() => {
@@ -579,7 +559,7 @@ export default function NotificacionDetalleModal({
             </p>
           </div>
           <div className="space-y-4">
-            {(editedDetails?.articulo || safeMeta?.articulo) && (
+            {isArticle && (editedDetails?.articulo || safeMeta?.articulo) && editedDetails?.articulo !== 'N/A' && (
               <div className="bg-white/50 p-3 rounded-xl border border-blue-100">
                 <label className="text-[9px] text-blue-600 uppercase font-black block mb-1">Artículo a Financiar</label>
                 <p className="text-sm font-black text-blue-900 italic">{editedDetails?.articulo || safeMeta?.articulo}</p>
@@ -799,7 +779,7 @@ export default function NotificacionDetalleModal({
                           })()}
                         </p>
                       </div>
-                    ) : (
+                    ) : isArticle ? (
                       <>
                         <div>
                           <label className="text-[9px] text-blue-500 uppercase font-black block mb-0.5">Cuota Inicial</label>
@@ -831,7 +811,7 @@ export default function NotificacionDetalleModal({
                           </p>
                         </div>
                       </>
-                    )}
+                    ) : null}
                     {!isArticle && (
                       <div>
                         <label className="text-[9px] text-blue-500 uppercase font-black block mb-0.5">Interés (%)</label>

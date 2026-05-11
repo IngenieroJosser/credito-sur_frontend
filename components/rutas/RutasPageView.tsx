@@ -319,10 +319,21 @@ export const RutasPageView = ({
 
               const metaDelDiaPendiente = computeMetaHoyFromVisitas(visitasConRecaudoHoy as any, hoyBogota)
 
-              const cobranzaDelDia = recaudosHoyMap !== null ? (Array.isArray(visitasConRecaudoHoy) ? visitasConRecaudoHoy : []).reduce(
+              const cobranzaFromPagos = recaudosHoyMap !== null ? (Array.isArray(visitasConRecaudoHoy) ? visitasConRecaudoHoy : []).reduce(
                 (sum: number, v: any) => sum + Number(v?.recaudadoDelDia || 0),
                 0,
-              ) : Number(r.cobranzaDelDia || 0)
+              ) : 0
+
+              // Fuente autoritativa: saldo del backend (igual que VistaCobrador)
+              let cobranzaFromSaldo = 0
+              try {
+                const saldoResp = await obtenerSaldoDisponibleRuta(r.id, hoyBogota)
+                cobranzaFromSaldo = Number(saldoResp?.cobranzaDelDia ?? saldoResp?.recaudoDelDia ?? 0)
+              } catch { /* fallback below */ }
+
+              const cobranzaBackend = Number(r.cobranzaDelDia || 0)
+              // Prioridad: saldo backend > pagos mapeados > valor del listado
+              const cobranzaDelDia = cobranzaFromSaldo > 0 ? cobranzaFromSaldo : (cobranzaFromPagos > 0 ? cobranzaFromPagos : cobranzaBackend)
 
               return {
                 ...r,

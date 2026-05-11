@@ -213,7 +213,7 @@ export const buildHistorialDiaFromBackend = (params: {
       direccion: p?.cliente?.direccion || '',
       telefono: p?.cliente?.telefono || '',
       horaSugerida: '08:00 AM',
-      montoCuota: 0,
+      montoCuota: item.total,
       saldoTotal: 0,
       estado: 'pagado',
       proximaVisita: fechaClave,
@@ -246,7 +246,7 @@ export const buildHistorialDiaFromBackend = (params: {
   // - o visitas en estado pagado
   const visitados = todasVisitas.filter((v: any) => Number(v?.recaudadoDelDia || 0) > 0 || v?.estado === 'pagado').length
   const objetivoShown = Math.max(esperado, recaudoDia)
-  const efectividadRaw = objetivoShown > 0 ? Math.round((recaudoDia / objetivoShown) * 100) : 0
+  const efectividadRaw = objetivoShown > 0 ? Math.round((recaudoDia / objetivoShown) * 100) : (recaudoDia > 0 ? 100 : 0)
   const efectividad = Math.min(100, Math.max(0, efectividadRaw))
 
   const resumen: Resumen = {

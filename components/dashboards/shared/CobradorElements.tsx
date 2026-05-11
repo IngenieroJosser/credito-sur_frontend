@@ -202,8 +202,9 @@ function VisitaCardContent({
   const saldo = Number((visita as any)?.saldoTotal || 0)
   const cuotaPendiente = tieneCuotaPendiente ? cuotaBase : Math.max(0, cuotaBase - recHoy)
   const cuotaUI = estadoLower === 'pagado'
-    ? cuotaBase
+    ? (cuotaBase > 0 ? cuotaBase : recHoy)
     : Math.min(cuotaPendiente, saldo > 0 ? saldo : cuotaPendiente)
+  const saldado = estadoLower === 'pagado' && cuotaUI === 0 && saldo === 0
 
   const nivelRiesgoUI = resolveNivelRiesgoForVisita(visita)
   return (
@@ -275,17 +276,25 @@ function VisitaCardContent({
 
         {/* KPIs: cuota · saldo · período */}
         <div className="flex items-center gap-1.5 shrink-0 md:ml-auto">
-          <div className="text-center">
-            <div className="text-[8px] font-bold text-slate-400 uppercase leading-none mb-0.5">Cuota</div>
-            <div className="text-[11px] font-black text-slate-800 tabular-nums">{formatMontoCorto(cuotaUI)}</div>
-          </div>
-          <div className="w-px h-5 bg-slate-200" />
-          <div className="text-center">
-            <div className="text-[8px] font-bold text-slate-400 uppercase leading-none mb-0.5">Saldo</div>
-            <div className={`text-[11px] font-black tabular-nums ${visita.saldoTotal > 0 ? 'text-slate-700' : 'text-emerald-600'}`}>
-              {formatMontoCorto(visita.saldoTotal)}
-            </div>
-          </div>
+          {saldado ? (
+            <span className="text-[9px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-md uppercase tracking-wide">
+              Saldado
+            </span>
+          ) : (
+            <>
+              <div className="text-center">
+                <div className="text-[8px] font-bold text-slate-400 uppercase leading-none mb-0.5">Cuota</div>
+                <div className="text-[11px] font-black text-slate-800 tabular-nums">{formatMontoCorto(cuotaUI)}</div>
+              </div>
+              <div className="w-px h-5 bg-slate-200" />
+              <div className="text-center">
+                <div className="text-[8px] font-bold text-slate-400 uppercase leading-none mb-0.5">Saldo</div>
+                <div className={`text-[11px] font-black tabular-nums ${visita.saldoTotal > 0 ? 'text-slate-700' : 'text-emerald-600'}`}>
+                  {formatMontoCorto(visita.saldoTotal)}
+                </div>
+              </div>
+            </>
+          )}
           <div className="w-px h-5 bg-slate-200" />
           <span className="text-[9px] font-bold bg-[#08557f]/5 text-[#08557f] border border-[#08557f]/10 px-1.5 py-0.5 rounded-md uppercase">
             {periodoLabel(visita.periodoRuta)}

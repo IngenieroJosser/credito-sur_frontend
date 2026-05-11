@@ -740,6 +740,8 @@ const VistaCobrador = () => {
 
       const resp = await rutasService.obtenerCreditosAsignadosACobrador(cobradorId)
 
+      console.log('[Mis clientes] cobradorId:', cobradorId, 'resp:', JSON.stringify(resp)?.substring(0, 500))
+
       const raw = (resp as any)?.data
 
       const filas = Array.isArray(raw) ? raw : []
@@ -747,6 +749,10 @@ const VistaCobrador = () => {
       if (!Array.isArray(raw)) {
 
         console.warn('Mis clientes: respuesta inesperada en obtenerCreditosAsignadosACobrador', resp)
+
+      } else if (filas.length === 0) {
+
+        console.warn('[Mis clientes] Backend devolvió 0 filas para cobradorId:', cobradorId, '- ¿hay asignaciones activas con préstamos?')
 
       }
 
@@ -4379,7 +4385,6 @@ const VistaCobrador = () => {
 
 
                         const filtradas = misCreditos.filter((v) =>
-                          shouldShowVisitaEnRutaHoy(v as any, hoyBogotaKey) &&
                           (
                             v.cliente.toLowerCase().includes(searchQuery.toLowerCase()) ||
                             v.direccion.toLowerCase().includes(searchQuery.toLowerCase())
@@ -5231,7 +5236,9 @@ const VistaCobrador = () => {
 
           const alCien = porcentaje >= 100;
 
-          const descuadre = recaudoV < metaV;
+          const saldoDisponibleV = Number((rutaStatsUI as any)?.base || 0)
+          // Descuadre = el cobrador tiene dinero en mano (saldo disponible) que aún no ha entregado
+          const descuadre = saldoDisponibleV > 0 && recaudoV > 0;
 
           // Todos pendientes = ningún cliente de la ruta fue cobrado
 
@@ -5268,9 +5275,9 @@ const VistaCobrador = () => {
                           <div className="w-full flex items-start gap-2 p-3 bg-red-50 border border-red-100 rounded-2xl text-left">
                             <XCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
                             <div>
-                              <p className="text-xs font-black text-red-700 uppercase tracking-wide">Posible Descuadre</p>
+                              <p className="text-xs font-black text-red-700 uppercase tracking-wide">Dinero sin entregar</p>
                               <p className="text-[11px] text-red-600 font-medium mt-0.5">
-                                Recaudaste {formatCurrency(recaudoV)} de {formatCurrency(metaV)} esperados. Asegúrate que el superadmin haya recolectado el dinero antes de cerrar.
+                                Tienes <span className="font-black">{formatCurrency(saldoDisponibleV)}</span> en mano que aún no han recolectado. Asegúrate que ya hayan recolectado el dinero antes de cerrar.
                               </p>
                             </div>
                           </div>
@@ -5298,10 +5305,10 @@ const VistaCobrador = () => {
                         <div>
                           <h3 className="text-xl font-black text-red-900 tracking-tight mb-2">¡Doble Confirmación!</h3>
                           <p className="text-red-700 text-sm font-bold leading-relaxed px-2">
-                             Hay un descuadre de <span className="text-lg underline underline-offset-4 decoration-2">{formatCurrency(metaV - recaudoV)}</span>. 
+                             Tienes <span className="text-lg underline underline-offset-4 decoration-2">{formatCurrency(saldoDisponibleV)}</span> sin entregar.
                           </p>
                           <p className="mt-3 text-slate-500 text-[11px] font-medium leading-relaxed px-4">
-                             Al cerrar con descuadre, esta diferencia quedará registrada en tu histórico de deudas. ¿Estás seguro de continuar?
+                             Al cerrar sin entregar el dinero, quedará registrado como deuda pendiente. ¿Estás seguro de continuar?
                           </p>
                         </div>
                       </>
@@ -5327,8 +5334,8 @@ const VistaCobrador = () => {
 
                       {descuadre && (
                         <div className="col-span-2 p-3 bg-red-50 rounded-xl border border-red-100">
-                          <p className="text-[10px] text-red-500 font-bold uppercase tracking-widest">Diferencia (Descuadre)</p>
-                          <p className="text-lg font-black text-red-600">{formatCurrency(metaV - recaudoV)}</p>
+                          <p className="text-[10px] text-red-500 font-bold uppercase tracking-widest">Dinero sin entregar</p>
+                          <p className="text-lg font-black text-red-600">{formatCurrency(saldoDisponibleV)}</p>
                         </div>
                       )}
 
