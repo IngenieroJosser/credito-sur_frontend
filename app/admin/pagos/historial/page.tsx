@@ -9,6 +9,7 @@ import {
   Calendar,
   User,
   Wallet,
+  Banknote,
   ChevronLeft,
   ChevronRight,
   AlertCircle,
@@ -20,7 +21,6 @@ import {
 import { formatCurrency, cn } from '@/lib/utils'
 import { Portal } from '@/components/dashboards/shared/CobradorElements'
 import { ExportButton } from '@/components/ui/ExportButton'
-import FiltroRuta from '@/components/filtros/FiltroRuta'
 import { pagosService } from '@/services/pagos-service'
 import { exportService } from '@/services/export-service'
 import { getGastos, type Gasto } from '@/services/contabilidad-service'
@@ -368,8 +368,12 @@ const HistorialPagosPage = () => {
       <div className="relative z-10 w-full p-4 md:p-8 space-y-6 md:space-y-8">
         <header className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between mb-8">
           <div className="space-y-2">
-            <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900">
-              Historial de Pagos y Gastos
+            <div className="inline-flex items-center gap-2 self-start rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600 tracking-wide font-bold border border-slate-200">
+              <Banknote className="h-3.5 w-3.5" />
+              <span>Historial de Pagos y Gastos</span>
+            </div>
+            <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
+              <span className="text-blue-600">Historial </span><span className="text-orange-500">de Pagos y Gastos</span>
             </h1>
             <p className="text-sm text-slate-500 font-medium">
               Consulta de recaudos con desglose y gastos por cobrador.
