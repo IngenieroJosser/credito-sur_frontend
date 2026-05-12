@@ -20,6 +20,7 @@ import {
 import { formatCurrency, cn } from '@/lib/utils'
 import { Portal } from '@/components/dashboards/shared/CobradorElements'
 import { ExportButton } from '@/components/ui/ExportButton'
+import FiltroRuta from '@/components/filtros/FiltroRuta'
 import { pagosService } from '@/services/pagos-service'
 import { exportService } from '@/services/export-service'
 import { getGastos, type Gasto } from '@/services/contabilidad-service'
@@ -102,7 +103,7 @@ const HistorialPagosPage = () => {
 
   const handleExportGastosExcel = async () => {
     try {
-      await exportService.downloadFile('/accounting/gastos/export', { format: 'excel' }, 'gastos.xlsx')
+      await exportService.downloadFile('accounting/gastos/export', { format: 'excel' }, 'gastos.xlsx')
       toast.success('Gastos Excel descargado')
     } catch {
       toast.error('Error al exportar gastos')
@@ -111,7 +112,7 @@ const HistorialPagosPage = () => {
 
   const handleExportGastosPDF = async () => {
     try {
-      await exportService.downloadFile('/accounting/gastos/export', { format: 'pdf' }, 'gastos.pdf')
+      await exportService.downloadFile('accounting/gastos/export', { format: 'pdf' }, 'gastos.pdf')
       toast.success('Gastos PDF descargado')
     } catch {
       toast.error('Error al exportar gastos PDF')
@@ -357,7 +358,13 @@ const HistorialPagosPage = () => {
   )
 
   return (
-    <div className="min-h-screen bg-slate-50 relative" style={{ backgroundImage: 'radial-gradient(circle, #e2e8f0 1px, transparent 1px)', backgroundSize: '24px 24px' }}>
+    <div className="min-h-screen bg-slate-50 relative" style={{
+      backgroundImage: `
+        linear-gradient(to right, #e2e8f0 1px, transparent 1px),
+        linear-gradient(to bottom, #e2e8f0 1px, transparent 1px)
+      `,
+      backgroundSize: '24px 24px'
+    }}>
       <div className="relative z-10 w-full p-4 md:p-8 space-y-6 md:space-y-8">
         <header className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between mb-8">
           <div className="space-y-2">
