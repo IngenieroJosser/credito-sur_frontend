@@ -80,12 +80,12 @@ export const syncManager = {
         const status = err?.response?.status;
         const errorMsg = err?.response?.data?.message || err?.message || 'Error desconocido';
 
+        const newRetries = (item.retries || 0) + 1;
+
         // Si es 401, no reintentar (token expirado) pero no lo borramos (esperamos login)
         if (status === 401) {
-          await offlineQueue.updateStatus(item.id, 'failed', 'Token expirado. Inicie sesión nuevamente.');
+          await offlineQueue.updateStatus(item.id, 'failed', 'Token expirado. Inicie sesión nuevamente.', newRetries);
         } else {
-          // Si es un status distinto de 401, incrementamos el contador de reintentos
-          const newRetries = (item.retries || 0) + 1;
           const isFatal = status === 409 || status === 400 || status === 403 || status === 404 || newRetries >= MAX_RETRIES;
           
           if (isFatal) {
@@ -114,12 +114,11 @@ export const syncManager = {
               await offlineQueue.remove(item.id);
             } catch (reportErr) {
               // Si falla el reporte (ej. no hay internet), actualizamos su estado y reintentos para que intente reportarlo después
-              await offlineQueue.updateStatus(item.id, 'failed', `Fallo definitivo. Pendiente de reporte al servidor. Error: ${errorMsg}`);
+              await offlineQueue.updateStatus(item.id, 'failed', `Fallo definitivo. Pendiente de reporte al servidor. Error: ${errorMsg}`, newRetries);
             }
           } else {
-            // Aún le quedan reintentos, solo actualizamos el error
-            // (La función de actualizar debería también incrementar el retries en offlineQueue)
-            await offlineQueue.updateStatus(item.id, 'failed', errorMsg);
+            // Aún le quedan reintentos, solo actualizamos el error con el contador correcto
+            await offlineQueue.updateStatus(item.id, 'failed', errorMsg, newRetries);
           }
         }
 

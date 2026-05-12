@@ -288,11 +288,14 @@ export default function CoordinadorPage() {
             shouldRedirect: null,
           });
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error cargando dashboard coordinador:', error);
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        router.replace('/login');
+        // Solo hacer logout en error de autenticación (401), no en errores de red
+        if (error?.response?.status === 401 || error?.statusCode === 401) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          router.replace('/login');
+        }
       }
       isMounted = false;
   }, [router, period])
