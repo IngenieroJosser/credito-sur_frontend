@@ -110,9 +110,11 @@ export interface Gasto {
   tipo: string;
   monto: number;
   descripcion: string;
+  cobradorId: string;
   cobrador: string;
   ruta: string;
   caja: string;
+  categoria: string | null;
   estado: string;
 }
 
