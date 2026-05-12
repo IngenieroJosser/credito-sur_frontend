@@ -224,7 +224,7 @@ import { formatShortDate } from '@/lib/utils/format'
 
 import { pagosService } from '@/services/pagos-service'
 
-import { TipoAmortizacion } from '@/types/enums'
+import { TipoAmortizacion, MetodoPago } from '@/types/enums'
 
 import { toast } from 'sonner'
 
@@ -411,6 +411,11 @@ const VistaCobrador = () => {
   const [historyViewMode, setHistoryViewMode] = useState<'DAYS' | 'MONTHS'>('DAYS')
 
   const [periodoCards, setPeriodoCards] = useState<'HOY' | 'SEM' | 'MES' | 'AÑO'>('HOY')
+  // Ref para evitar stale closures en useCallback que no tienen periodoCards en sus deps
+  const periodoCardsRef = useRef<'HOY' | 'SEM' | 'MES' | 'AÑO'>('HOY')
+  useEffect(() => {
+    periodoCardsRef.current = periodoCards
+  }, [periodoCards])
 
 
 
@@ -504,6 +509,9 @@ const VistaCobrador = () => {
   // Historial dinámico (pendiente de integración real)
 
   const [historialRutas, setHistorialRutas] = useState<Record<string, HistorialDia> | null>(null);
+  // DEFECTO-B FIX: ref que espeja historialRutas para leer el valor actual en effectos
+  // sin necesitar historialRutas como dependencia (evita ciclos de re-render).
+  const historialRutasRef = useRef<Record<string, HistorialDia> | null>(null);
   const cuotasHistorialCacheRef = useRef<Map<string, any[]>>(new Map())
 
   const [monthlyReport, setMonthlyReport] = useState<RouteDetailResponse | null>(null);
@@ -732,6 +740,8 @@ const VistaCobrador = () => {
 
       const resp = await rutasService.obtenerCreditosAsignadosACobrador(cobradorId)
 
+      console.log('[Mis clientes] cobradorId:', cobradorId, 'resp:', JSON.stringify(resp)?.substring(0, 500))
+
       const raw = (resp as any)?.data
 
       const filas = Array.isArray(raw) ? raw : []
@@ -739,6 +749,10 @@ const VistaCobrador = () => {
       if (!Array.isArray(raw)) {
 
         console.warn('Mis clientes: respuesta inesperada en obtenerCreditosAsignadosACobrador', resp)
+
+      } else if (filas.length === 0) {
+
+        console.warn('[Mis clientes] Backend devolvió 0 filas para cobradorId:', cobradorId, '- ¿hay asignaciones activas con préstamos?')
 
       }
 
@@ -887,7 +901,8 @@ const VistaCobrador = () => {
 
     }
 
-  }, [])
+  // BUG-03 FIX: agregar hoyBogotaKey a deps para evitar stale closure al cambio de día.
+  }, [hoyBogotaKey])
 
 
 
@@ -978,7 +993,9 @@ const VistaCobrador = () => {
     visitasBaseRef.current = Array.isArray(visitasBase) ? (visitasBase as any[]) : []
   }, [visitasBase])
 
-  const pagosInFlightRef = useRef<Set<string>>(new Set())
+  // BUG-09 FIX: Map<string, number> con timestamp para evitar locks indefinidos.
+  // El lock caduca después de 3s automáticamente sin necesidad de timeout externo.
+  const pagosInFlightRef = useRef<Map<string, number>>(new Map())
 
   const mergeVisitasPreservingLocal = useCallback((prevList: any[], nextList: any[]) => {
     const prev = Array.isArray(prevList) ? prevList : []
@@ -1104,7 +1121,9 @@ const VistaCobrador = () => {
 
         // 3. Actualizar estadísticas con datos reales del backend
         const est = (rutaCompleta as any).estadisticas || {};
-        const { inicio: cardInicio, fin: cardFin } = getDatesByPeriod(periodoCards);
+        // DEFECTO-D FIX: Usar periodoCardsRef en lugar de periodoCards para evitar stale closures
+        // dado que cargarDatosRuta no tiene a periodoCards en sus deps.
+        const { inicio: cardInicio, fin: cardFin } = getDatesByPeriod(periodoCardsRef.current);
         let saldo: any = null;
 
         try {
@@ -1442,7 +1461,10 @@ const VistaCobrador = () => {
         if (!silent) setIsLoading(false)
       }
 
-  }, [userSession?.id, periodoCards, getDatesByPeriod, hoyBogotaKey, mergeVisitasPreservingLocal])
+  // BUG-05 FIX: cargarDatosRuta NO depende de periodoCards — las visitas son independientes
+  // del período. Las estadísticas por período se actualizan via cargarEstadisticasRuta (useEffect L681).
+  // Eliminando periodoCards/getDatesByPeriod se evitan 60+ requests paralelos en cada cambio de filtro.
+  }, [userSession?.id, hoyBogotaKey, mergeVisitasPreservingLocal])
 
 
   useEffect(() => {
@@ -1466,9 +1488,13 @@ const VistaCobrador = () => {
     const prestamoId = payload?.prestamoId || payload?.metadata?.prestamoId;
     const clienteId = payload?.clienteId || payload?.metadata?.clienteId;
 
-    if (prestamoId && pagosInFlightRef.current.has(String(prestamoId))) {
+    // BUG-09 FIX: el lock caduca si tiene más de 3s — evita bloquear WS updates por locks antiguos.
+    const inFlightTs = prestamoId ? pagosInFlightRef.current.get(String(prestamoId)) : undefined;
+    if (inFlightTs !== undefined && Date.now() - inFlightTs < 3000) {
       return
     }
+    // Limpiar lock caducado si existía
+    if (prestamoId && inFlightTs !== undefined) pagosInFlightRef.current.delete(String(prestamoId))
     
     if (prestamoId) {
       const existeEnVisitas = visitasBaseRef.current.some((v: any) => v?.prestamoId === prestamoId);
@@ -1608,15 +1634,14 @@ const VistaCobrador = () => {
 
       try {
 
-        const filtros: { ruta?: string } = {};
-
-        if (rutaActual?.id) {
-
-          filtros.ruta = rutaActual.id;
-
+        // BUG-19 FIX: sin ruta activa no hay contexto para filtrar — evitar fetch masivo de BD.
+        // La búsqueda sin ruta devolvería TODOS los clientes del sistema, lo cual es ineficiente.
+        if (!rutaActual?.id) {
+          setVisitasSelectorFallback([]);
+          return;
         }
 
-        const clientes: Cliente[] = await clientesService.obtenerTodos(filtros);
+        const clientes: Cliente[] = await clientesService.obtenerTodos({ ruta: rutaActual.id });
 
         const clientesConPrestamo = clientes.filter(
 
@@ -1690,7 +1715,12 @@ const VistaCobrador = () => {
 
         });
 
-        setVisitasSelectorFallback(visitas);
+        // DEFECTO-C FIX: clientesService.obtenerTodos() construye visitas con prestamoId:undefined
+        // siempre (ver L1696). El filtro Boolean(prestamoId) SIEMPRE da 0 resultados.
+        // El fallback anterior devolvía 'visitas' (todas sin prestamoId) — idéntico al original.
+        // Fix correcto: si no podemos obtener visitas con prestamoId, no mostrar nada.
+        // Es mejor un selector vacío que uno con clientes que generan error al pagar.
+        setVisitasSelectorFallback([]);
 
       } catch {
 
@@ -1948,6 +1978,11 @@ const VistaCobrador = () => {
     },
   })
 
+  // DEFECTO-B FIX: mantener historialRutasRef sincronizado con el estado.
+  useEffect(() => {
+    historialRutasRef.current = historialRutas;
+  }, [historialRutas]);
+
   useEffect(() => {
     if (!historial.historialRutas) return
     setHistorialRutas(historial.historialRutas)
@@ -2038,6 +2073,10 @@ const VistaCobrador = () => {
       6,
     )
 
+    // BUG-17 FIX: enriquecerHistorialDiaConCuotas ya NO tiene historialRutas en deps.
+    // Leer el historial del día directamente dentro del setter funcional de setHistorialRutas
+    // evita que se recree el callback cada vez que se carga un nuevo día del historial,
+    // rompiendo el ciclo de re-renders en cascada.
     setHistorialRutas((prev: any) => {
       const prevDia = (prev || {})[fechaClave]
       if (!prevDia) return prev
@@ -2049,36 +2088,33 @@ const VistaCobrador = () => {
         },
       }
     })
-  }, [historialRutas])
+  // BUG-17 FIX: sin historialRutas en deps — se accede vía setter funcional
+  }, [])
 
+  // DEFECTO-B FIX (completo): usar historialRutasRef para leer el historial actual sin
+  // necesitar historialRutas como dep. Elimina el anti-patrón de side-effect en setState.
   useEffect(() => {
     if (!showHistory) return
     const hoy = new Date()
     const hoyKey = getBogotaDateKey(hoy)
       || `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`
-    const dayData = (historialRutas || {})[hoyKey]
-    if (!dayData?.loaded) return
-    void enriquecerHistorialDiaConCuotas(hoyKey)
-  }, [showHistory, historialRutas, enriquecerHistorialDiaConCuotas])
+    const dayData = (historialRutasRef.current || {})[hoyKey]
+    if (dayData?.loaded) {
+      void enriquecerHistorialDiaConCuotas(hoyKey)
+    }
+  }, [showHistory, enriquecerHistorialDiaConCuotas])
 
+  // DEFECTO-B FIX (completo): usar historialRutasRef en lugar de setter como lector.
   useEffect(() => {
-
     if (!showHistory || !rutaActual?.id) return;
-
     const hoy = new Date();
-
     const key = getBogotaDateKey(hoy)
       || `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
-
-    const existing = (historialRutas || {})[key];
-
+    const existing = (historialRutasRef.current || {})[key];
     if (!existing || !existing.loaded) {
-
-      cargarHistorialFecha(key);
-
+      void cargarHistorialFecha(key);
     }
-
-  }, [showHistory, rutaActual?.id, historialRutas, cargarHistorialFecha]);
+  }, [showHistory, rutaActual?.id, cargarHistorialFecha]);
 
   useEffect(() => {
     if (!showHistory) return
@@ -2164,9 +2200,10 @@ const VistaCobrador = () => {
 
 
 
-    // Si no estás en modos especiales, ocultar lo ya pagado para que desaparezca de la ruta del día.
+    // BUG-12 FIX: en modo historial mostrar TODAS las visitas (incluyendo pagadas) para ver
+    // el resumen completo del día. En modo normal ocultar las ya cobradas (shouldShowVisitaEnRutaHoy).
     const visibles = buscadas.filter((v: any) =>
-      showHistory ? String(v?.estado || '').toLowerCase() !== 'pagado' : shouldShowVisitaEnRutaHoy(v, hoyBogotaKey),
+      showHistory ? true : shouldShowVisitaEnRutaHoy(v, hoyBogotaKey),
     )
 
     // Ordenar consistente con Supervisor/Admin
@@ -2223,34 +2260,33 @@ const VistaCobrador = () => {
     if (periodoCards !== 'HOY') return rutaStats
 
     const recaudo = Number((rutaStats as any)?.recaudo || 0)
-
-    // Para HOY, la "Meta" mostrada en las tarjetas debe reflejar lo que falta por cobrar
-    // (lo mismo que se muestra como cuota restante en las tarjetas de clientes).
+    // BUG-14 FIX: la 'meta' es la meta fija del día que viene del backend (invariable).
+    // Lo que decrece con cada cobro es el 'pendiente', que se muestra como campo separado.
+    // Esto evita que el cobrador vea una meta que baja en lugar de un indicador de progreso.
+    const metaFija = Number((rutaStats as any)?.meta || 0)
     const metaPendiente = (Array.isArray(visitasCobrador) ? visitasCobrador : []).reduce((sum: number, v: any) => {
       if (!v) return sum
       const estadoLower = String(v?.estado || '').toLowerCase().replace(/\s+/g, '_')
       if (estadoLower === 'pagado') return sum
-
       const tieneCuotaPendiente = (v as any)?.montoCuotaPendiente != null
       const cuotaBase = Number(((v as any)?.montoCuotaPendiente ?? v?.montoCuota) || 0)
       const recHoy = Number((v as any)?.recaudadoDelDia || 0)
       const saldo = Number((v as any)?.saldoTotal || 0)
-
       const cuotaPendiente = tieneCuotaPendiente ? cuotaBase : Math.max(0, cuotaBase - recHoy)
       const cuotaUI = Math.min(cuotaPendiente, saldo > 0 ? saldo : cuotaPendiente)
       return sum + Number(cuotaUI || 0)
     }, 0)
-
-    const meta = Number(metaPendiente || 0)
-    const eficienciaRaw = meta > 0 ? Number(((recaudo / meta) * 100).toFixed(1)) : 0
+    // Si el backend aún no tiene meta, usar el pendiente como fallback inicial
+    const meta = metaFija > 0 ? metaFija : metaPendiente
+    const eficienciaRaw = meta > 0 ? Number(((recaudo / meta) * 100).toFixed(1)) : (recaudo > 0 ? 100 : 0)
     const eficiencia = Math.min(100, Math.max(0, eficienciaRaw))
 
     return {
       ...rutaStats,
       recaudo,
-      meta,
+      meta,       // meta fija del día — no decrece al cobrar
       eficiencia,
-      pendiente: meta,
+      pendiente: metaPendiente, // lo que falta por cobrar — sí decrece
     }
   }, [periodoCards, rutaStats, visitasCobrador])
 
@@ -2288,11 +2324,12 @@ const VistaCobrador = () => {
 
 
 
-  const operacionesCobrador = useMemo(() => 
-
-    operacionesCaja.filter(op => op.cobradorId === 'CB-001'), // Temporal
-
-    [operacionesCaja]
+  // BUG-08 FIX: filtrar por el ID real del cobrador en sesión, no por 'CB-001' hardcodeado.
+  const operacionesCobrador = useMemo(() =>
+    userSession?.id
+      ? operacionesCaja.filter(op => op.cobradorId === userSession.id)
+      : operacionesCaja,
+    [operacionesCaja, userSession?.id]
 
   )
 
@@ -2825,25 +2862,23 @@ const VistaCobrador = () => {
 
       }
 
-      pagosInFlightRef.current.add(String(visitaSnapshot.prestamoId))
+      pagosInFlightRef.current.set(String(visitaSnapshot.prestamoId), Date.now())
 
 
 
-      const resultado = await prestamosService.registrarPago({
+      const resultado = await pagosService.registrarPago({
 
         prestamoId: visitaSnapshot.prestamoId,
 
         clienteId: visitaSnapshot.clienteId,
 
-        monto,
+        montoTotal: monto,
 
-        metodoPago: metodo,
+        metodoPago: metodo as MetodoPago,
 
         comprobante,
 
-        esAbono: esAbonoSnapshot,
-
-        cobradorId: userSession?.id
+        cobradorId: userSession?.id || '',
 
       })
 
@@ -4348,7 +4383,6 @@ const VistaCobrador = () => {
 
 
                         const filtradas = misCreditos.filter((v) =>
-                          shouldShowVisitaEnRutaHoy(v as any, hoyBogotaKey) &&
                           (
                             v.cliente.toLowerCase().includes(searchQuery.toLowerCase()) ||
                             v.direccion.toLowerCase().includes(searchQuery.toLowerCase())
@@ -5200,7 +5234,9 @@ const VistaCobrador = () => {
 
           const alCien = porcentaje >= 100;
 
-          const descuadre = recaudoV < metaV;
+          const saldoDisponibleV = Number((rutaStatsUI as any)?.base || 0)
+          // Descuadre = el cobrador tiene dinero en mano (saldo disponible) que aún no ha entregado
+          const descuadre = saldoDisponibleV > 0 && recaudoV > 0;
 
           // Todos pendientes = ningún cliente de la ruta fue cobrado
 
@@ -5237,9 +5273,9 @@ const VistaCobrador = () => {
                           <div className="w-full flex items-start gap-2 p-3 bg-red-50 border border-red-100 rounded-2xl text-left">
                             <XCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
                             <div>
-                              <p className="text-xs font-black text-red-700 uppercase tracking-wide">Posible Descuadre</p>
+                              <p className="text-xs font-black text-red-700 uppercase tracking-wide">Dinero sin entregar</p>
                               <p className="text-[11px] text-red-600 font-medium mt-0.5">
-                                Recaudaste {formatCurrency(recaudoV)} de {formatCurrency(metaV)} esperados. Asegúrate que el superadmin haya recolectado el dinero antes de cerrar.
+                                Tienes <span className="font-black">{formatCurrency(saldoDisponibleV)}</span> en mano que aún no han recolectado. Asegúrate que ya hayan recolectado el dinero antes de cerrar.
                               </p>
                             </div>
                           </div>
@@ -5267,10 +5303,10 @@ const VistaCobrador = () => {
                         <div>
                           <h3 className="text-xl font-black text-red-900 tracking-tight mb-2">¡Doble Confirmación!</h3>
                           <p className="text-red-700 text-sm font-bold leading-relaxed px-2">
-                             Hay un descuadre de <span className="text-lg underline underline-offset-4 decoration-2">{formatCurrency(metaV - recaudoV)}</span>. 
+                             Tienes <span className="text-lg underline underline-offset-4 decoration-2">{formatCurrency(saldoDisponibleV)}</span> sin entregar.
                           </p>
                           <p className="mt-3 text-slate-500 text-[11px] font-medium leading-relaxed px-4">
-                             Al cerrar con descuadre, esta diferencia quedará registrada en tu histórico de deudas. ¿Estás seguro de continuar?
+                             Al cerrar sin entregar el dinero, quedará registrado como deuda pendiente. ¿Estás seguro de continuar?
                           </p>
                         </div>
                       </>
@@ -5296,8 +5332,8 @@ const VistaCobrador = () => {
 
                       {descuadre && (
                         <div className="col-span-2 p-3 bg-red-50 rounded-xl border border-red-100">
-                          <p className="text-[10px] text-red-500 font-bold uppercase tracking-widest">Diferencia (Descuadre)</p>
-                          <p className="text-lg font-black text-red-600">{formatCurrency(metaV - recaudoV)}</p>
+                          <p className="text-[10px] text-red-500 font-bold uppercase tracking-widest">Dinero sin entregar</p>
+                          <p className="text-lg font-black text-red-600">{formatCurrency(saldoDisponibleV)}</p>
                         </div>
                       )}
 
@@ -5383,4 +5419,5 @@ const VistaCobrador = () => {
 
 
 export default VistaCobrador
+
 

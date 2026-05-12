@@ -110,9 +110,11 @@ export interface Gasto {
   tipo: string;
   monto: number;
   descripcion: string;
+  cobradorId: string;
   cobrador: string;
   ruta: string;
   caja: string;
+  categoria: string | null;
   estado: string;
 }
 
@@ -602,6 +604,7 @@ export async function registrarGasto(data: {
   fotoRecibo?: string
   rutaId: string
   cobradorId: string
+  categoriaId?: string
   esPersonal?: boolean
 }): Promise<any> {
   try {
@@ -613,6 +616,7 @@ export async function registrarGasto(data: {
       comprobanteUrl: data.comprobanteUrl,
       fotoRecibo: data.fotoRecibo,
       esPersonal: data.esPersonal,
+      ...(data.categoriaId ? { categoriaId: data.categoriaId } : {}),
     };
 
     return await apiRequest('POST', '/accounting/gastos', payload);
@@ -633,6 +637,7 @@ export async function registrarGasto(data: {
         comprobanteUrl: data.comprobanteUrl,
         fotoRecibo: data.fotoRecibo,
         esPersonal: data.esPersonal,
+        ...(data.categoriaId ? { categoriaId: data.categoriaId } : {}),
       };
 
       await syncService.enqueueOperation(

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X, Receipt, Save, Banknote, Camera, AlertCircle, Loader2 } from 'lucide-react'
+import { X, Receipt, Save, Banknote, Camera, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react'
 import { formatCOPInputValue, formatMilesCOP } from '@/lib/utils'
 import SelectCategoria from '@/components/ui/SelectCategoria'
 import { Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
@@ -24,6 +24,7 @@ export default function GastoModal({ isOpen, onClose, onConfirm, cobradorId, rut
   const [descripcion, setDescripcion] = useState('')
   const [valorInput, setValorInput] = useState('')
   const [comprobante, setComprobante] = useState<File | null>(null)
+  const [comprobantePreviewUrl, setComprobantePreviewUrl] = useState<string | null>(null)
   const [categoriaId, setCategoriaId] = useState('')
   const [saldoInfo, setSaldoInfo] = useState<SaldoDisponibleRuta | null>(null)
   const [loadingSaldo, setLoadingSaldo] = useState(false)
@@ -79,6 +80,13 @@ export default function GastoModal({ isOpen, onClose, onConfirm, cobradorId, rut
     cargarSaldo()
   }, [isOpen, cobradorId, rutaId])
 
+  // Cleanup preview URL on unmount
+  useEffect(() => {
+    return () => {
+      if (comprobantePreviewUrl) URL.revokeObjectURL(comprobantePreviewUrl)
+    }
+  }, [comprobantePreviewUrl])
+
   if (!isOpen) return null
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -116,6 +124,8 @@ export default function GastoModal({ isOpen, onClose, onConfirm, cobradorId, rut
     setDescripcion('')
     setValorInput('')
     setComprobante(null)
+    if (comprobantePreviewUrl) URL.revokeObjectURL(comprobantePreviewUrl)
+    setComprobantePreviewUrl(null)
     setCategoriaId('')
     setEsPersonal(false)
     onClose()
@@ -193,14 +203,14 @@ export default function GastoModal({ isOpen, onClose, onConfirm, cobradorId, rut
                <SelectCategoria 
                  value={categoriaId} 
                  onChange={setCategoriaId}
-                 tipo="GASTO"
+                 tipo="GASTO_RUTA"
                  label="Categoría de Gasto"
                  placeholder="Seleccionar..."
                />
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-700">Descripción</label>
+              <label className="text-sm font-bold text-slate-700">Descripción</label>|
               <textarea
                 required
                 rows={2}
@@ -229,22 +239,56 @@ export default function GastoModal({ isOpen, onClose, onConfirm, cobradorId, rut
 
             <div className="space-y-2">
                <label className="text-sm font-bold text-slate-700">Comprobante (Opcional)</label>
-               <div className="flex items-center justify-center w-full">
-                  <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-slate-200 border-dashed rounded-2xl cursor-pointer bg-slate-50 hover:bg-slate-100 transition-all">
-                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                      <Camera className="w-6 h-6 text-slate-400 mb-1" />
-                      <p className="text-xs text-slate-500 font-bold">
-                        {comprobante ? comprobante.name : 'Capturar o subir foto'}
-                      </p>
-                    </div>
-                    <input 
-                      type="file" 
-                      className="hidden" 
-                      accept="image/*" 
-                      onChange={(e) => setComprobante(e.target.files?.[0] || null)}
-                    />
-                  </label>
-               </div>
+               {comprobantePreviewUrl ? (
+                 <div className="relative rounded-2xl overflow-hidden border border-slate-200 bg-white">
+                   <img
+                     src={comprobantePreviewUrl}
+                     alt="Comprobante"
+                     className="w-full h-40 object-cover"
+                   />
+                   <div className="absolute top-2 right-2 flex items-center gap-1.5">
+                     <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 uppercase tracking-widest flex items-center gap-1">
+                       <CheckCircle2 className="w-3 h-3" />
+                       Adjunto
+                     </span>
+                     <button
+                       type="button"
+                       onClick={() => {
+                         setComprobante(null)
+                         setComprobantePreviewUrl(null)
+                       }}
+                       className="p-1.5 bg-white/90 rounded-lg border border-slate-200 text-slate-500 hover:text-rose-600 hover:border-rose-200 transition-all shadow-sm"
+                       title="Quitar comprobante"
+                     >
+                       <X className="w-3.5 h-3.5" />
+                     </button>
+                   </div>
+                 </div>
+               ) : (
+                 <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-slate-200 border-dashed rounded-2xl cursor-pointer bg-slate-50 hover:bg-slate-100 transition-all">
+                   <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                     <Camera className="w-6 h-6 text-slate-400 mb-1" />
+                     <p className="text-xs text-slate-500 font-bold">
+                       Capturar o subir foto
+                     </p>
+                   </div>
+                   <input
+                     type="file"
+                     className="hidden"
+                     accept="image/*"
+                     onChange={(e) => {
+                       const file = e.target.files?.[0] || null
+                       setComprobante(file)
+                       if (file) {
+                         const url = URL.createObjectURL(file)
+                         setComprobantePreviewUrl(url)
+                       } else {
+                         setComprobantePreviewUrl(null)
+                       }
+                     }}
+                   />
+                 </label>
+               )}
             </div>
 
             <div className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl mt-4">

@@ -217,13 +217,13 @@ export const RutasPageView = ({
 
       if (Array.isArray(data) && data.length > 0) {
         const hoyBogota = getBogotaDateKey(new Date())
-        let recaudosHoyMap: Record<string, number> = {}
+        let recaudosHoyMap: Record<string, number> | null = null
         try {
           const pagosResp: any = await apiRequest<any>('GET', '/payments?limit=5000', undefined, { cacheTTL: 0 } as any)
           const pagosData = (pagosResp as any)?.pagos || (pagosResp as any)?.data?.pagos || pagosResp || []
           recaudosHoyMap = buildRecaudosHoyMapByPrestamoId((Array.isArray(pagosData) ? pagosData : []) as any, hoyBogota)
         } catch {
-          recaudosHoyMap = {}
+          recaudosHoyMap = null
         }
 
         const enriched = await Promise.all(
@@ -319,9 +319,26 @@ export const RutasPageView = ({
 
               const metaDelDiaPendiente = computeMetaHoyFromVisitas(visitasConRecaudoHoy as any, hoyBogota)
 
+              const cobranzaFromPagos = recaudosHoyMap !== null ? (Array.isArray(visitasConRecaudoHoy) ? visitasConRecaudoHoy : []).reduce(
+                (sum: number, v: any) => sum + Number(v?.recaudadoDelDia || 0),
+                0,
+              ) : 0
+
+              // Fuente autoritativa: saldo del backend (igual que VistaCobrador)
+              let cobranzaFromSaldo = 0
+              try {
+                const saldoResp = await obtenerSaldoDisponibleRuta(r.id, hoyBogota)
+                cobranzaFromSaldo = Number(saldoResp?.cobranzaDelDia ?? saldoResp?.recaudoDelDia ?? 0)
+              } catch { /* fallback below */ }
+
+              const cobranzaBackend = Number(r.cobranzaDelDia || 0)
+              // Prioridad: saldo backend > pagos mapeados > valor del listado
+              const cobranzaDelDia = cobranzaFromSaldo > 0 ? cobranzaFromSaldo : (cobranzaFromPagos > 0 ? cobranzaFromPagos : cobranzaBackend)
+
               return {
                 ...r,
-                metaDelDia: Number((metaDelDiaPendiente ?? metaDelDia) ?? 0),
+                metaDelDia: metaDelDiaPendiente > 0 ? metaDelDiaPendiente : (metaDelDia > 0 ? metaDelDia : Number(r.metaDelDia || 0)),
+                cobranzaDelDia,
               };
             } catch {
               return r;
@@ -1973,3 +1990,6 @@ export const RutasPageView = ({
     </div>
   )
 }
+
+
+

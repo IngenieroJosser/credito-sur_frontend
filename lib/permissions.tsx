@@ -30,8 +30,8 @@ const T = {
   
   // Finanzas
   MOVIMIENTOS: (role: Rol, path: string) => ({ id: 'contable', nombre: 'Movimientos', icono: 'Calculator', path, roles: [role] }),
-  PAGOS_HIST: (role: Rol, path: string) => ({ id: 'pagos-historial', nombre: 'Historial de pagos', icono: 'Banknote', path, roles: [role], isNew: true }),
-  ARQUEO: (role: Rol, path: string) => ({ id: 'arqueo', nombre: 'Arqueo de Caja', icono: 'History', path, roles: [role], isNew: true }),
+  PAGOS_HIST: (role: Rol, path: string) => ({ id: 'pagos-historial', nombre: 'Historial de Pagos y Gastos', icono: 'Banknote', path, roles: [role] }),
+  ARQUEO: (role: Rol, path: string) => ({ id: 'arqueo', nombre: 'Arqueo de Caja', icono: 'Landmark', path, roles: [role], isNew: true }),
   REP_FINAN: (role: Rol, path: string) => ({ id: 'reportes-financieros', nombre: 'Reportes financieros', icono: 'BarChart3', path, roles: [role] }),
   
   // Administración
@@ -158,7 +158,6 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
         T.MORA('COORDINADOR', '/coordinador/cuentas-mora'),
         T.VENCIDAS('COORDINADOR', '/coordinador/cuentas-vencidas'),
         T.ARCHIVADOS('COORDINADOR', '/coordinador/archivados'),
-        T.INVENTARIO('COORDINADOR', '/coordinador/articulos'),
       ]
     },
     {
@@ -166,8 +165,8 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       submodulos: [ T.PAGOS_HIST('COORDINADOR', '/coordinador/pagos/historial') ]
     },
     {
-      id: 'sistema', nombre: 'Sistema', icono: 'Settings', path: '#', roles: ['COORDINADOR'],
-      submodulos: [ T.SYNC('COORDINADOR', '/coordinador/sistema/sincronizacion') ]
+      id: 'administracion', nombre: 'Administración', icono: 'Shield', path: '#', roles: ['COORDINADOR'],
+      submodulos: [ T.INVENTARIO('COORDINADOR', '/coordinador/articulos') ]
     },
   ],
   SUPERVISOR: [

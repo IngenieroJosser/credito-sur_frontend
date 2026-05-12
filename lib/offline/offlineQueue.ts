@@ -52,14 +52,14 @@ export const offlineQueue = {
   },
 
   // Actualizar estado de una operación
-  async updateStatus(id: string, status: OfflineQueueItem['status'], lastError?: string): Promise<void> {
+  async updateStatus(id: string, status: OfflineQueueItem['status'], lastError?: string, retries?: number): Promise<void> {
     const db = await getOfflineDb();
     const item = await db.get('offline-queue', id);
     if (!item) return;
 
     item.status = status;
     if (status === 'failed') {
-      item.retries += 1;
+      item.retries = retries != null ? retries : item.retries + 1;
       item.lastError = lastError;
     }
     await db.put('offline-queue', item);

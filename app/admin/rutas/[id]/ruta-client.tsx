@@ -867,6 +867,9 @@ const RutaClientLoaded = ({
 
         const recaudo = Number(saldo?.cobranzaDelDia ?? saldo?.recaudoDelDia ?? estadisticas?.cobranzaDelDia ?? 0)
 
+        // Permitir que calcule con o sin enriquecimiento total (se actualizará reactivamente cuando se enriquezca)
+        const visitasTotalmenteEnriquecidas = (visitasCobrador || []).every((v: any) => v.recaudadoTotalClient !== undefined)
+
         const hoyKey = getBogotaDateKey(new Date())
         const visitasExigiblesHoy = (visitasCobrador || []).filter((v: any) => isVisitaExigibleHoy(v, hoyKey))
         const metaHoyExigible = computeMetaHoyFromVisitas(visitasExigiblesHoy as any, hoyKey)

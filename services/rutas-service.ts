@@ -334,6 +334,10 @@ export const rutasService = {
 
       `/routes/cobradores/${cobradorId}/creditos-asignados`,
 
+      undefined,
+
+      { cacheTTL: 0 } as any,
+
     );
 
   },

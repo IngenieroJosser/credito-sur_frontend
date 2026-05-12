@@ -65,7 +65,7 @@ import {
   ShieldAlert,
 } from 'lucide-react'
 
-import { RolUsuario } from '@/types/enums'
+import { RolUsuario, MetodoPago } from '@/types/enums'
 import { EstadoVisita, PeriodoRuta, VisitaRuta } from '@/lib/types/cobranza'
 
 import { obtenerPerfil } from '@/services/autenticacion-service'
@@ -491,11 +491,12 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
       setRutaStats((prev: any) => {
         // Para HOY: meta coherente con recaudo real (incluye mora) usando visitas visibles.
-        const meta = Number(prev.meta ?? 0)
+        const metaBackend = Number(saldo?.metaDelDia || 0)
+        const meta = metaBackend > 0 ? metaBackend : (Number(prev.meta || 0) > 0 ? Number(prev.meta) : (recaudoBackend > 0 ? recaudoBackend : 0))
         const recaudo = recaudoBackend > 0 ? recaudoBackend : Number(prev.recaudo ?? 0)
         const eficiencia = meta > 0
           ? Number(((recaudo / meta) * 100).toFixed(1))
-          : Number(prev.eficiencia ?? 0)
+          : (recaudo > 0 ? 100 : Number(prev.eficiencia ?? 0))
         return {
           ...prev,
           recaudo,
@@ -672,7 +673,8 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     visitasBaseRef.current = Array.isArray(visitasBase) ? (visitasBase as any[]) : []
   }, [visitasBase])
 
-  const pagosInFlightRef = useRef<Set<string>>(new Set())
+  // BUG-09 FIX: Map<string, number> con timestamp para evitar locks indefinidos.
+  const pagosInFlightRef = useRef<Map<string, number>>(new Map())
 
 
 
@@ -1049,10 +1051,10 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
         const visitasExigiblesHoy = (finales || []).filter((v: any) => isVisitaExigibleHoy(v, hoyBogotaPrincipal))
 
-        const finalesFiltrados = finales.filter((v: any) => {
-          if (v?.estado === 'pagado') return false;
-          return Number(v?.saldoTotal || 0) > 0;
-        });
+        // BUG-04 FIX FINAL: sin filtro en visitasBase — la visibilidad se delega
+        // completamente al useMemo de renderizado (shouldShowVisitaEnRutaHoy).
+        // Filtrar aquí descartaba clientes válidos con saldoTotal=0 que aún están pendientes.
+        const finalesFiltrados = finales;
 
         const metaHoy = (Array.isArray(finalesFiltrados) ? finalesFiltrados : []).reduce((sum: number, v: any) => {
           if (!v) return sum
@@ -1071,7 +1073,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
         setRutaStats((prev: any) => ({
           ...prev,
-          meta: periodoCards === 'HOY' ? metaHoy : prev.meta,
+          meta: periodoCards === 'HOY' ? (Number(prev.meta) > 0 ? prev.meta : metaHoy) : prev.meta,
           pendiente: periodoCards === 'HOY' ? metaHoy : prev.pendiente,
         }));
 
@@ -1116,7 +1118,8 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     } catch (error) {
       console.error('Error al cargar visitas de ruta (supervisor):', error);
     }
-  }, [rutaId, cargarEstadisticasRuta]);
+  // BUG-06 FIX: agregar hoyBogotaKey a deps para evitar stale closure al cambio de día.
+  }, [rutaId, hoyBogotaKey, cargarEstadisticasRuta]);
 
 
 
@@ -1135,9 +1138,12 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     const prestamoId = payload?.prestamoId || payload?.metadata?.prestamoId;
     const clienteId = payload?.clienteId || payload?.metadata?.clienteId;
 
-    if (prestamoId && pagosInFlightRef.current.has(String(prestamoId))) {
+    // BUG-09 FIX: el lock caduca si tiene más de 3s — evita bloquear WS updates por locks antiguos.
+    const inFlightTs = prestamoId ? pagosInFlightRef.current.get(String(prestamoId)) : undefined;
+    if (inFlightTs !== undefined && Date.now() - inFlightTs < 3000) {
       return
     }
+    if (prestamoId && inFlightTs !== undefined) pagosInFlightRef.current.delete(String(prestamoId))
 
     if (prestamoId) {
       const existeEnVisitas = visitasBaseRef.current.some((v: any) => v?.prestamoId === prestamoId);
@@ -1305,11 +1311,9 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
 
 
-  useEffect(() => {
-
-    cargarEstadisticasRuta()
-
-  }, [cargarEstadisticasRuta])
+  // BUG-11 FIX: Este useEffect duplicaba la carga de estadísticas que ya hace el useEffect
+  // de cargarDatos (línea ~1253) al montar. Eliminado para evitar doble fetch y parpadeo en KPIs.
+  // cargarEstadisticasRuta se invoca cuando cambia periodoCards o cuando el WebSocket lo dispara.
 
 
 
@@ -1852,7 +1856,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
 
 
-  const handleRegistrarPago = useCallback(async (visitaId: string, montoPagado: number, metodo: 'EFECTIVO' | 'TRANSFERENCIA', comprobante: File | null) => {
+  const handleRegistrarPago = useCallback(async (visitaId: string, montoPagado: number, metodo: 'EFECTIVO' | 'TRANSFERENCIA', comprobante: File | null, esAbono: boolean) => {
 
     const visita = visitasBase.find(v => v.id === visitaId)
 
@@ -1878,21 +1882,19 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
       setIsLoading(true)
 
-      pagosInFlightRef.current.add(String(visita.prestamoId))
+      pagosInFlightRef.current.set(String(visita.prestamoId), Date.now())
 
-      await prestamosService.registrarPago({
+      await pagosService.registrarPago({
 
         prestamoId: visita.prestamoId,
 
         clienteId: visita.clienteId,
 
-        monto: montoPagado,
+        montoTotal: montoPagado,
 
-        metodoPago: metodo,
+        metodoPago: metodo as MetodoPago,
 
         comprobante,
-
-        esAbono: pagoInitialIsAbono,
 
         cobradorId: resolveCobradorIdForRouteAction(rutaInfo?.cobradorId, userSession.id),
 
@@ -3662,7 +3664,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
           <PagoModal
 
-            visita={visitasCobrador.find((v: any) => v.id === visitaPagoSeleccionadaId) || ({} as any)}
+            visita={visitasCobrador.find((v: any) => v.id === visitaPagoSeleccionadaId)!}
 
             tipo={pagoInitialIsAbono ? 'ABONO' : 'PAGO'}
 
@@ -3683,7 +3685,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
               setVisitaPagoSeleccionadaId(null)
 
               // Registrar en background (y actualizar optimista)
-              void handleRegistrarPago(visitaId, Number(monto || 0), metodo, comprobante)
+              void handleRegistrarPago(visitaId, Number(monto || 0), metodo, comprobante, pagoInitialIsAbono)
 
             }}
 
@@ -4111,4 +4113,6 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
 
 export default SupervisorCobroView
+
+
 

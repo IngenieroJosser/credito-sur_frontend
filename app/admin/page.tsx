@@ -293,8 +293,8 @@ export default function DashboardPage() {
             value: gastosPeriodo,
             subValue: `Utilidad: ${formatCurrency(utilidadPeriodo)}`,
             isCurrency: true,
-            // Solo disponible cuando period=today y el backend devuelve un porcentaje != 0
-            change: requestedPeriod === 'today' ? (resumen?.porcentajeEgresosVsAyer || null) : null,
+            // Solo mostrar variación si hay gastos hoy y el backend provee un porcentaje significativo
+            change: (requestedPeriod === 'today' && gastosPeriodo > 0 && resumen?.porcentajeEgresosVsAyer) ? resumen.porcentajeEgresosVsAyer : null,
             icon: <Banknote className="h-4 w-4" />,
             color: '#f59e0b'
           }
@@ -466,7 +466,7 @@ export default function DashboardPage() {
         { title: `Capital Prestado (${PERIOD_LABEL[period]})`, value: capitalPrestado, isCurrency: true, change: null, icon: <CreditCard className="h-4 w-4" />, color: '#3b82f6' },
         { title: `Recaudo (${PERIOD_LABEL[period]})`, value: recaudo, subValue: recaudo > 0 ? `${formatCurrency(recaudo)} cobrado` : 'Sin pagos en el período', isCurrency: true, change: null, icon: <Target className="h-4 w-4" />, color: '#8b5cf6' },
         { title: 'Cartera en Mora', value: moraMonto, subValue: `${moraPercent}% del capital · ${moraCount} cuentas en mora`, isCurrency: true, change: null, icon: <AlertCircle className="h-4 w-4" />, color: '#f43f5e' },
-        { title: `Gastos (${PERIOD_LABEL[period]})`, value: gastosPeriodo, subValue: `Utilidad: ${formatCurrency(utilidadPeriodo)}`, isCurrency: true, change: period === 'today' ? (resumen?.porcentajeEgresosVsAyer || null) : null, icon: <Banknote className="h-4 w-4" />, color: '#f59e0b' },
+        { title: `Gastos (${PERIOD_LABEL[period]})`, value: gastosPeriodo, subValue: `Utilidad: ${formatCurrency(utilidadPeriodo)}`, isCurrency: true, change: (period === 'today' && gastosPeriodo > 0 && resumen?.porcentajeEgresosVsAyer) ? resumen.porcentajeEgresosVsAyer : null, icon: <Banknote className="h-4 w-4" />, color: '#f59e0b' },
       ]
       const chartData = (dashboard?.trend || []).map((t) => ({ label: t.label, value: t.value }))
       const topCollectors = (dashboard?.topCollectors || []).map(c => ({ name: c.name, collected: c.collected, efficiency: c.efficiency, trend: c.trend }))

@@ -550,7 +550,7 @@ export default function VistaPuntoDeVenta() {
                   <div className="bg-white rounded-xl border border-slate-200 p-3">
                     <div className="flex items-center gap-2 mb-1">
                       <TrendingUp className="h-3.5 w-3.5 text-blue-500" />
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Vendido</span>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Valor Financiado</span>
                     </div>
                     <p className="text-sm font-black text-slate-900">{formatCurrency(ventasFiltradas.reduce((s, v) => s + v.monto, 0))}</p>
                   </div>

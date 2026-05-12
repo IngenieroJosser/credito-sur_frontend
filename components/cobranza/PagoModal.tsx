@@ -145,13 +145,14 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm }: PagoModa
                     type="text"
                     inputMode="numeric"
                     value={montoPagoInput}
-                    onChange={(e) => {
+                    onChange={tipo === 'ABONO' ? (e) => {
                       setMontoPagoInput(formatCOPInputValue(e.target.value))
                       setErrorMsg(null)
-                    }}
-                    className="w-full pl-10 pr-4 py-4 bg-white border-2 border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-bold text-2xl text-slate-900 placeholder:text-slate-300"
+                    } : undefined}
+                    readOnly={tipo === 'PAGO'}
+                    className={`w-full pl-10 pr-4 py-4 border-2 rounded-xl focus:ring-0 font-bold text-2xl text-slate-900 placeholder:text-slate-300 ${tipo === 'PAGO' ? 'bg-slate-50 border-slate-100 cursor-not-allowed' : 'bg-white border-slate-200 focus:border-[#08557f]'}`}
                     placeholder="0"
-                    autoFocus
+                    autoFocus={tipo === 'ABONO'}
                   />
                 </div>
               </div>

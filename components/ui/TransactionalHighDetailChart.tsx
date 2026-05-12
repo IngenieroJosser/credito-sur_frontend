@@ -155,8 +155,41 @@ export const TransactionalHighDetailChart = ({
   // ─── Configuración de dimensiones ─────────────────────────────────────────
   const isHighDensity = data.length > 12;
   const barSize = isHighDensity ? 28 : 42;
-  const barGapValue = type === 'double' ? 6 : (hasTarget ? -barSize : undefined);
+  const barGapValue = type === 'double' ? 6 : undefined;
   const barCategoryGapValue = type === 'double' ? '20%' : undefined;
+
+  // Fondo de meta: renderiza un rectángulo semi-transparent detrás de cada barra
+  // cuando hay target, evitando la superposición de dos <Bar> que causa claves duplicadas.
+  // Recharts pasa al callback: { x, y, width, height, payload, ... } donde payload es el dato.
+  const targetBackground = hasTarget
+    ? (props: any) => {
+        const { x, width, payload } = props;
+        const target = payload?.target;
+        if (typeof target !== 'number' || target <= 0) {
+          return <rect key={`target-bg-empty`} x={0} y={0} width={0} height={0} fill="none" />;
+        }
+        // Calcular la altura proporcional del target vs el valor máximo del eje Y
+        const maxVal = Math.max(...data.map((d) => Math.max(d.value, d.target || 0, d.secondaryValue || 0)));
+        const chartHeight = height - 60; // margen top+bottom
+        const targetH = (target / maxVal) * chartHeight;
+        return (
+          <rect
+            key={`target-bg-${x}`}
+            x={x}
+            y={chartHeight - targetH}
+            width={width}
+            height={targetH}
+            fill="#f59e0b"
+            fillOpacity={0.08}
+            stroke="#f59e0b"
+            strokeOpacity={0.35}
+            strokeWidth={1.5}
+            rx={6}
+            ry={6}
+          />
+        );
+      }
+    : undefined;
 
   return (
     <div className="w-full relative bg-white overflow-hidden rounded-2xl border border-slate-50">
@@ -223,25 +256,10 @@ export const TransactionalHighDetailChart = ({
                 allowEscapeViewBox={{ x: false, y: true }}
               />
 
-              {/* META DEL DÍA (fondo) */}
-              {hasTarget && (
-                <Bar
-                  dataKey="target"
-                  radius={[6, 6, 0, 0]}
-                  fill="#f59e0b"
-                  fillOpacity={0.08}
-                  stroke="#f59e0b"
-                  strokeOpacity={0.35}
-                  strokeWidth={1.5}
-                  barSize={barSize}
-                  name="Meta del día"
-                  animationDuration={1500}
-                />
-              )}
-
               {/* VALOR SECUNDARIO */}
               {type === 'double' && (
                 <Bar
+                  key="bar-secondary"
                   dataKey="secondaryValue"
                   radius={[6, 6, 0, 0]}
                   fill="url(#failGradient)"
@@ -253,11 +271,13 @@ export const TransactionalHighDetailChart = ({
 
               {/* VALOR PRINCIPAL / RECAUDADO (frente) */}
               <Bar
+                key="bar-value"
                 dataKey="value"
                 radius={[6, 6, 0, 0]}
                 name={type === 'double' ? 'Ingresos / Utilidad' : 'Recaudado'}
                 barSize={barSize}
                 animationDuration={1500}
+                background={targetBackground}
               >
                 {data.map((entry, index) => {
                   let color = 'url(#barGradient)';
