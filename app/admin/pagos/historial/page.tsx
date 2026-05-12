@@ -14,9 +14,11 @@ import {
   AlertCircle,
   Receipt,
   ReceiptText,
+  Route,
   X
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
+import { Portal } from '@/components/dashboards/shared/CobradorElements'
 import { ExportButton } from '@/components/ui/ExportButton'
 import { pagosService } from '@/services/pagos-service'
 import { exportService } from '@/services/export-service'
@@ -78,6 +80,7 @@ const HistorialPagosPage = () => {
   const [gastos, setGastos] = useState<Gasto[]>([])
   const [isLoadingGastos, setIsLoadingGastos] = useState(true)
   const [gastoDetalle, setGastoDetalle] = useState<Gasto | null>(null)
+  const [filtroRuta, setFiltroRuta] = useState('')
 
   const handleExportExcel = async () => {
     try {
@@ -94,6 +97,24 @@ const HistorialPagosPage = () => {
       toast.success('Historial de pagos PDF descargado')
     } catch (e) {
       toast.error('Error al exportar historial de pagos')
+    }
+  }
+
+  const handleExportGastosExcel = async () => {
+    try {
+      await exportService.downloadFile('/accounting/gastos/export', { format: 'excel' }, 'gastos.xlsx')
+      toast.success('Gastos Excel descargado')
+    } catch {
+      toast.error('Error al exportar gastos')
+    }
+  }
+
+  const handleExportGastosPDF = async () => {
+    try {
+      await exportService.downloadFile('/accounting/gastos/export', { format: 'pdf' }, 'gastos.pdf')
+      toast.success('Gastos PDF descargado')
+    } catch {
+      toast.error('Error al exportar gastos PDF')
     }
   }
 
@@ -190,53 +211,6 @@ const HistorialPagosPage = () => {
   useRealtimeData(['pagos_actualizados', 'prestamos_actualizados'], loadPagos)
   usePageFocusRefresh(loadPagos)
 
-  if (isLoading) {
-    return <AnimacionCarga texto="Cargando historial de pagos..." />
-  }
-
-  // Gastos agrupados por cobrador
-  const gastosPorCobrador = useMemo(() => {
-    const map = new Map<string, { cobradorId: string; cobrador: string; ruta: string; total: number; count: number; gastos: Gasto[] }>()
-    for (const g of gastos) {
-      const key = g.cobradorId
-      const prev = map.get(key) || { cobradorId: g.cobradorId, cobrador: g.cobrador, ruta: g.ruta, total: 0, count: 0, gastos: [] as Gasto[] }
-      prev.total += Number(g.monto || 0)
-      prev.count += 1
-      prev.gastos.push(g)
-      map.set(key, prev)
-    }
-    return Array.from(map.values()).sort((a, b) => b.total - a.total)
-  }, [gastos])
-
-  const gastosFiltrados = gastos.filter((g) => {
-    if (busqueda && !`${g.cobrador} ${g.ruta} ${g.descripcion} ${g.tipo} ${g.categoria || ''}`
-      .toLowerCase().includes(busqueda.toLowerCase())) return false
-    if (g.fecha) {
-      const f = new Date(g.fecha)
-      if (!Number.isNaN(f.getTime()) && (f < start || f > end)) return false
-    }
-    return true
-  })
-
-  const gastosPorCobradorFiltrado = useMemo(() => {
-    const ids = new Set(gastosFiltrados.map(g => g.cobradorId))
-    return gastosPorCobrador.filter(c => ids.has(c.cobradorId)).map(c => ({
-      ...c,
-      gastos: c.gastos.filter(g => ids.has(g.cobradorId)),
-      total: c.gastos.filter(g => gastosFiltrados.some(f => f.id === g.id)).reduce((s, g) => s + Number(g.monto || 0), 0),
-      count: c.gastos.filter(g => gastosFiltrados.some(f => f.id === g.id)).length,
-    }))
-  }, [gastosPorCobrador, gastosFiltrados])
-
-  const totalGastos = gastosFiltrados.reduce((s, g) => s + Number(g.monto || 0), 0)
-
-  const getEstadoChipClasses = (estado: EstadoPago) => {
-    if (estado === 'completado') return 'bg-emerald-50 text-emerald-700 border-emerald-100'
-    if (estado === 'pendiente') return 'bg-amber-50 text-amber-700 border-amber-100'
-    if (estado === 'fallido') return 'bg-rose-50 text-rose-600 border-rose-100';
-    return 'bg-sky-50 text-sky-700 border-sky-100'
-  }
-
   const getDateRangeForPeriod = (p: TimeFilterPeriod) => {
     const ahora = new Date()
     let inicio = new Date(ahora)
@@ -258,6 +232,56 @@ const HistorialPagosPage = () => {
   }
 
   const { start, end } = getDateRangeForPeriod(period)
+
+  // Gastos agrupados por cobrador (hooks antes de early return)
+  const gastosPorCobrador = useMemo(() => {
+    const map = new Map<string, { cobradorId: string; cobrador: string; ruta: string; total: number; count: number; gastos: Gasto[] }>()
+    for (const g of gastos) {
+      const key = g.cobradorId
+      const prev = map.get(key) || { cobradorId: g.cobradorId, cobrador: g.cobrador, ruta: g.ruta, total: 0, count: 0, gastos: [] as Gasto[] }
+      prev.total += Number(g.monto || 0)
+      prev.count += 1
+      prev.gastos.push(g)
+      map.set(key, prev)
+    }
+    return Array.from(map.values()).sort((a, b) => b.total - a.total)
+  }, [gastos])
+
+  const gastosFiltrados = useMemo(() => gastos.filter((g) => {
+    if (filtroRuta && g.ruta !== filtroRuta) return false
+    if (busqueda && !`${g.cobrador} ${g.ruta} ${g.descripcion} ${g.tipo} ${g.categoria || ''}`
+      .toLowerCase().includes(busqueda.toLowerCase())) return false
+    if (g.fecha) {
+      const f = new Date(g.fecha)
+      if (!Number.isNaN(f.getTime()) && (f < start || f > end)) return false
+    }
+    return true
+  }), [gastos, busqueda, start, end, filtroRuta])
+
+  const rutasUnicas = useMemo(() => [...new Set(gastos.map(g => g.ruta))].sort(), [gastos])
+
+  const gastosPorCobradorFiltrado = useMemo(() => {
+    const ids = new Set(gastosFiltrados.map(g => g.cobradorId))
+    return gastosPorCobrador.filter(c => ids.has(c.cobradorId)).map(c => ({
+      ...c,
+      gastos: c.gastos.filter(g => ids.has(g.cobradorId)),
+      total: c.gastos.filter(g => gastosFiltrados.some(f => f.id === g.id)).reduce((s, g) => s + Number(g.monto || 0), 0),
+      count: c.gastos.filter(g => gastosFiltrados.some(f => f.id === g.id)).length,
+    }))
+  }, [gastosPorCobrador, gastosFiltrados])
+
+  const totalGastos = useMemo(() => gastosFiltrados.reduce((s, g) => s + Number(g.monto || 0), 0), [gastosFiltrados])
+
+  if (isLoading) {
+    return <AnimacionCarga texto="Cargando historial de pagos..." />
+  }
+
+  const getEstadoChipClasses = (estado: EstadoPago) => {
+    if (estado === 'completado') return 'bg-emerald-50 text-emerald-700 border-emerald-100'
+    if (estado === 'pendiente') return 'bg-amber-50 text-amber-700 border-amber-100'
+    if (estado === 'fallido') return 'bg-rose-50 text-rose-600 border-rose-100';
+    return 'bg-sky-50 text-sky-700 border-sky-100'
+  }
 
   const pagosFiltrados = pagos.filter((pago) => {
     if (pago.fecha) {
@@ -333,7 +357,7 @@ const HistorialPagosPage = () => {
   )
 
   return (
-    <div className="min-h-screen bg-slate-50 relative">
+    <div className="min-h-screen bg-slate-50 relative" style={{ backgroundImage: 'radial-gradient(circle, #e2e8f0 1px, transparent 1px)', backgroundSize: '24px 24px' }}>
       <div className="relative z-10 w-full p-4 md:p-8 space-y-6 md:space-y-8">
         <header className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between mb-8">
           <div className="space-y-2">
@@ -347,11 +371,19 @@ const HistorialPagosPage = () => {
 
           <div className="flex items-start gap-3">
             <TimeFilter activePeriod={period} onPeriodChange={handlePeriodChange} />
-            <ExportButton 
-              label="Exportar" 
-              onExportExcel={handleExportExcel} 
-              onExportPDF={handleExportPDF} 
-            />
+            {tab === 'pagos' ? (
+              <ExportButton 
+                label="Exportar" 
+                onExportExcel={handleExportExcel} 
+                onExportPDF={handleExportPDF} 
+              />
+            ) : (
+              <ExportButton 
+                label="Exportar" 
+                onExportExcel={handleExportGastosExcel} 
+                onExportPDF={handleExportGastosPDF} 
+              />
+            )}
           </div>
         </header>
 
@@ -564,6 +596,34 @@ const HistorialPagosPage = () => {
           {/* ==================== PESTAÑA GASTOS ==================== */}
           {tab === 'gastos' && (
           <>
+            {/* Filtro por ruta */}
+            {rutasUnicas.length > 1 && (
+              <div className="flex items-center gap-2 flex-wrap">
+                <Route className="h-4 w-4 text-slate-400" />
+                <button
+                  onClick={() => setFiltroRuta('')}
+                  className={cn(
+                    'px-3 py-1.5 rounded-lg text-xs font-bold transition-all border',
+                    !filtroRuta ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                  )}
+                >
+                  Todas
+                </button>
+                {rutasUnicas.map(ruta => (
+                  <button
+                    key={ruta}
+                    onClick={() => setFiltroRuta(filtroRuta === ruta ? '' : ruta)}
+                    className={cn(
+                      'px-3 py-1.5 rounded-lg text-xs font-bold transition-all border',
+                      filtroRuta === ruta ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                    )}
+                  >
+                    {ruta}
+                  </button>
+                ))}
+              </div>
+            )}
+
             {/* KPI Gastos */}
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               <div className="bg-white border border-slate-200 rounded-xl p-4">
@@ -670,7 +730,8 @@ const HistorialPagosPage = () => {
 
         {/* Modal Detalle Gasto */}
         {gastoDetalle && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4" onClick={() => setGastoDetalle(null)}>
+          <Portal>
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4" onClick={() => setGastoDetalle(null)}>
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md border border-slate-100 overflow-hidden" onClick={(e) => e.stopPropagation()}>
               <div className="px-6 pt-6 pb-4 flex items-center justify-between border-b border-slate-100">
                 <div className="flex items-center gap-3">
@@ -745,6 +806,7 @@ const HistorialPagosPage = () => {
               </div>
             </div>
           </div>
+          </Portal>
         )}
       </div>
     </div>

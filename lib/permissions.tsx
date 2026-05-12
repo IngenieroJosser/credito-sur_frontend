@@ -30,7 +30,7 @@ const T = {
   
   // Finanzas
   MOVIMIENTOS: (role: Rol, path: string) => ({ id: 'contable', nombre: 'Movimientos', icono: 'Calculator', path, roles: [role] }),
-  PAGOS_HIST: (role: Rol, path: string) => ({ id: 'pagos-historial', nombre: 'Historial de pagos', icono: 'Banknote', path, roles: [role], isNew: true }),
+  PAGOS_HIST: (role: Rol, path: string) => ({ id: 'pagos-historial', nombre: 'Historial de Pagos y Gastos', icono: 'Banknote', path, roles: [role], isNew: true }),
   ARQUEO: (role: Rol, path: string) => ({ id: 'arqueo', nombre: 'Arqueo de Caja', icono: 'History', path, roles: [role], isNew: true }),
   REP_FINAN: (role: Rol, path: string) => ({ id: 'reportes-financieros', nombre: 'Reportes financieros', icono: 'BarChart3', path, roles: [role] }),
   
