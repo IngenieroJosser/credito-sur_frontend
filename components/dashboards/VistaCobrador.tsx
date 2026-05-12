@@ -224,7 +224,7 @@ import { formatShortDate } from '@/lib/utils/format'
 
 import { pagosService } from '@/services/pagos-service'
 
-import { TipoAmortizacion } from '@/types/enums'
+import { TipoAmortizacion, MetodoPago } from '@/types/enums'
 
 import { toast } from 'sonner'
 
@@ -2866,21 +2866,19 @@ const VistaCobrador = () => {
 
 
 
-      const resultado = await prestamosService.registrarPago({
+      const resultado = await pagosService.registrarPago({
 
         prestamoId: visitaSnapshot.prestamoId,
 
         clienteId: visitaSnapshot.clienteId,
 
-        monto,
+        montoTotal: monto,
 
-        metodoPago: metodo,
+        metodoPago: metodo as MetodoPago,
 
         comprobante,
 
-        esAbono: esAbonoSnapshot,
-
-        cobradorId: userSession?.id
+        cobradorId: userSession?.id || '',
 
       })
 

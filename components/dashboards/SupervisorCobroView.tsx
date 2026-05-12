@@ -65,7 +65,7 @@ import {
   ShieldAlert,
 } from 'lucide-react'
 
-import { RolUsuario } from '@/types/enums'
+import { RolUsuario, MetodoPago } from '@/types/enums'
 import { EstadoVisita, PeriodoRuta, VisitaRuta } from '@/lib/types/cobranza'
 
 import { obtenerPerfil } from '@/services/autenticacion-service'
@@ -1856,7 +1856,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
 
 
-  const handleRegistrarPago = useCallback(async (visitaId: string, montoPagado: number, metodo: 'EFECTIVO' | 'TRANSFERENCIA', comprobante: File | null) => {
+  const handleRegistrarPago = useCallback(async (visitaId: string, montoPagado: number, metodo: 'EFECTIVO' | 'TRANSFERENCIA', comprobante: File | null, esAbono: boolean) => {
 
     const visita = visitasBase.find(v => v.id === visitaId)
 
@@ -1884,19 +1884,17 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
       pagosInFlightRef.current.set(String(visita.prestamoId), Date.now())
 
-      await prestamosService.registrarPago({
+      await pagosService.registrarPago({
 
         prestamoId: visita.prestamoId,
 
         clienteId: visita.clienteId,
 
-        monto: montoPagado,
+        montoTotal: montoPagado,
 
-        metodoPago: metodo,
+        metodoPago: metodo as MetodoPago,
 
         comprobante,
-
-        esAbono: pagoInitialIsAbono,
 
         cobradorId: resolveCobradorIdForRouteAction(rutaInfo?.cobradorId, userSession.id),
 
@@ -3666,7 +3664,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
           <PagoModal
 
-            visita={visitasCobrador.find((v: any) => v.id === visitaPagoSeleccionadaId) || ({} as any)}
+            visita={visitasCobrador.find((v: any) => v.id === visitaPagoSeleccionadaId)!}
 
             tipo={pagoInitialIsAbono ? 'ABONO' : 'PAGO'}
 
@@ -3687,7 +3685,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
               setVisitaPagoSeleccionadaId(null)
 
               // Registrar en background (y actualizar optimista)
-              void handleRegistrarPago(visitaId, Number(monto || 0), metodo, comprobante)
+              void handleRegistrarPago(visitaId, Number(monto || 0), metodo, comprobante, pagoInitialIsAbono)
 
             }}
 
