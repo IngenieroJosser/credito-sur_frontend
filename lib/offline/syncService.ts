@@ -39,12 +39,33 @@ export const syncService = {
     description: string,
     file?: Blob
   ) {
+    const idempotentTypes = new Set([
+      'pago',
+      'gasto_registrar',
+      'transaccion_crear',
+      'cliente_create',
+      'cliente_crear',
+      'cliente_update',
+      'cliente_actualizar',
+      'prestamo_create',
+      'prestamo_crear',
+    ]);
+    const data =
+      idempotentTypes.has(type) && payload && typeof payload === 'object' && !(payload instanceof FormData)
+        ? {
+            ...(payload as Record<string, unknown>),
+            idempotencyKey:
+              (payload as Record<string, unknown>).idempotencyKey ||
+              `offline-${type}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+          }
+        : payload;
+
     // Encolar en IndexedDB
     const item = await offlineQueue.enqueue({
       type,
       endpoint,
       method,
-      data: payload,
+      data,
       file,
       fileName: file ? `upload_${Date.now()}` : undefined,
       description,

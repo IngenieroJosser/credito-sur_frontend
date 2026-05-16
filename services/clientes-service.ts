@@ -4,6 +4,14 @@ import { syncService } from '@/lib/offline/syncService';
 import { NivelRiesgo, EstadoAprobacion } from '@/types/enums';
 import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 
+const generarIdempotencyKey = (prefix: string) => {
+  const random =
+    typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : Math.random().toString(36).slice(2, 12);
+  return `${prefix}-${Date.now()}-${random}`;
+};
+
 export type { NivelRiesgo, EstadoAprobacion };
 
 export interface Cliente {
@@ -135,12 +143,17 @@ export const clientesService = {
    * Crear un nuevo cliente (con soporte Offline)
    */
   async crear(data: CrearClienteDto): Promise<Cliente> {
+    const payload = {
+      ...data,
+      idempotencyKey: (data as any).idempotencyKey || generarIdempotencyKey('cliente'),
+    };
+
     try {
-      const result = await apiRequest<Cliente>('POST', '/clients', data);
+      const result = await apiRequest<Cliente>('POST', '/clients', payload);
       
       // Feedback visual inmediato en la cola de sync
       const { logSyncActivity } = await import('@/lib/offline/offlineQueue');
-      logSyncActivity(`Crear cliente: ${data.nombres} ${data.apellidos}`);
+      logSyncActivity(`Crear cliente: ${payload.nombres} ${payload.apellidos}`);
       
       return result;
     } catch (error: any) {
@@ -158,23 +171,23 @@ export const clientesService = {
            'cliente_create',
            '/clients',
            'POST',
-           data,
-           `Crear cliente: ${data.nombres} ${data.apellidos}`
+           payload,
+           `Crear cliente: ${payload.nombres} ${payload.apellidos}`
          );
 
          // Retornar objeto temporal para UI optimista
          return {
            id: tempId,
            codigo: 'OFFLINE',
-           dni: data.dni,
-           nombres: data.nombres,
-           apellidos: data.apellidos,
-           telefono: data.telefono,
-           direccion: data.direccion || null,
-           referencia: data.referencia || null,
-           correo: data.correo || null,
-           nivelRiesgo: data.nivelRiesgo || NivelRiesgo.VERDE,
-           puntaje: data.puntaje || 0,
+           dni: payload.dni,
+           nombres: payload.nombres,
+           apellidos: payload.apellidos,
+           telefono: payload.telefono,
+           direccion: payload.direccion || null,
+           referencia: payload.referencia || null,
+           correo: payload.correo || null,
+           nivelRiesgo: payload.nivelRiesgo || NivelRiesgo.VERDE,
+           puntaje: payload.puntaje || 0,
            enListaNegra: false,
            estadoAprobacion: EstadoAprobacion.PENDIENTE,
            creadoEn: toBogotaDateTimeOffsetIso(new Date()),

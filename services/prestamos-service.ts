@@ -5,6 +5,14 @@ import { EstadoPrestamo, FrecuenciaPago, EstadoCuota } from '@/types/enums';
 import type { Prestamo } from '@/types/domain';
 import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 
+const generarIdempotencyKey = (prefix: string) => {
+  const random =
+    typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : Math.random().toString(36).slice(2, 12);
+  return `${prefix}-${Date.now()}-${random}`;
+};
+
 export type { EstadoPrestamo, FrecuenciaPago, EstadoCuota, Prestamo };
 
 export interface Cuota {
@@ -148,8 +156,13 @@ export const prestamosService = {
    * Crear un nuevo préstamo (con soporte Offline)
    */
   async crearPrestamo(data: CrearPrestamoDto): Promise<any> {
+    const payload = {
+      ...data,
+      idempotencyKey: (data as any).idempotencyKey || generarIdempotencyKey('prestamo'),
+    };
+
     try {
-      return await apiRequest('POST', '/loans', data);
+      return await apiRequest('POST', '/loans', payload);
     } catch (error: any) {
       if (
         (typeof navigator !== 'undefined' && !navigator.onLine) ||
@@ -164,19 +177,19 @@ export const prestamosService = {
            'prestamo_create',
            '/loans',
            'POST',
-           data,
-           `Nuevo Préstamo (Offline): $${data.monto}`
+           payload,
+           `Nuevo Préstamo (Offline): $${payload.monto}`
          );
 
          // Retornar objeto temporal
          return {
            id: tempId,
            numeroPrestamo: 'OFFLINE',
-           clienteId: data.clienteId,
-           monto: data.monto,
-           tasaInteres: data.tasaInteres,
-           plazoMeses: data.plazoMeses,
-           fechaInicio: data.fechaInicio,
+           clienteId: payload.clienteId,
+           monto: payload.monto,
+           tasaInteres: payload.tasaInteres,
+           plazoMeses: payload.plazoMeses,
+           fechaInicio: payload.fechaInicio,
            estado: 'PENDIENTE', // Siempre inicia en PENDIENTE o EN_REVISION
            esOffline: true
          };
