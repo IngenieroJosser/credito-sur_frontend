@@ -23,6 +23,28 @@ export interface ApiError {
 
 const CONFLICT_ERROR_MESSAGE =
   "Este registro fue actualizado por otra persona. Recarga la información antes de guardar.";
+const FORBIDDEN_ERROR_MESSAGE = "No tienes permisos para realizar esta acción.";
+const RATE_LIMIT_ERROR_MESSAGE = "Demasiadas solicitudes. Espera un momento e intenta de nuevo.";
+
+export const normalizeApiErrorMessage = (message: unknown, fallback = "No se pudo completar la solicitud."): string => {
+  if (Array.isArray(message)) {
+    return message
+      .map((item) => normalizeApiErrorMessage(item, ""))
+      .filter(Boolean)
+      .join(". ");
+  }
+
+  if (typeof message === "string" && message.trim()) {
+    return message.trim();
+  }
+
+  if (message && typeof message === "object") {
+    const nestedMessage = (message as { message?: unknown }).message;
+    if (nestedMessage) return normalizeApiErrorMessage(nestedMessage, fallback);
+  }
+
+  return fallback;
+};
 
 export const apiRequest = async <T>(
   method: Method,
@@ -153,11 +175,11 @@ export const apiRequest = async <T>(
     const status = err.response.status;
     
     // Extraer mensaje del error
-    let errorMessage = err.response.data?.message || `Error ${status}`;
+    let errorMessage = normalizeApiErrorMessage(err.response.data?.message, `Error ${status}`);
     
     // Mensajes específicos por código de error
     if (status === 400) {
-      errorMessage = err.response.data?.message || "Error de validación en la solicitud";
+      errorMessage = normalizeApiErrorMessage(err.response.data?.message, "Error de validación en la solicitud");
     } else if (status === 401) {
       // Verificar si es por token expirado o por falta de permisos
       if (typeof window !== 'undefined') {
@@ -174,11 +196,15 @@ export const apiRequest = async <T>(
         // Token válido pero sin permisos (403-like via 401): no redirigir
         logger.warn('[API] 401 por permisos insuficientes — token vigente, no se redirige.');
       }
-      errorMessage = 'No tienes permisos para realizar esta acción.';
+      errorMessage = FORBIDDEN_ERROR_MESSAGE;
+    } else if (status === 403) {
+      errorMessage = FORBIDDEN_ERROR_MESSAGE;
     } else if (status === 409) {
-      errorMessage = err.response.data?.message || CONFLICT_ERROR_MESSAGE;
+      errorMessage = normalizeApiErrorMessage(err.response.data?.message, CONFLICT_ERROR_MESSAGE);
+    } else if (status === 429) {
+      errorMessage = normalizeApiErrorMessage(err.response.data?.message, RATE_LIMIT_ERROR_MESSAGE);
     } else if (status === 404) {
-      errorMessage = err.response.data?.message || "Recurso no encontrado";
+      errorMessage = normalizeApiErrorMessage(err.response.data?.message, "Recurso no encontrado");
     } else if (status === 500) {
       errorMessage = "Error interno del servidor";
     }
@@ -205,13 +231,17 @@ export const formatErrorForComponent = (error: any): string => {
   if (error?.statusCode) {
     switch (error.statusCode) {
       case 400:
-        return "Error de validación en la solicitud. Por favor, contacte al administrador.";
+        return normalizeApiErrorMessage(error.message, "Error de validación en la solicitud. Por favor, revise los datos.");
+      case 403:
+        return error.message || FORBIDDEN_ERROR_MESSAGE;
       case 404:
         return "Endpoint no encontrado. Verifique la URL de la API.";
       case 408:
         return "La solicitud está tardando demasiado. Por favor, verifique su conexión.";
       case 409:
         return error.message || CONFLICT_ERROR_MESSAGE;
+      case 429:
+        return error.message || RATE_LIMIT_ERROR_MESSAGE;
       case 500:
         return "Error interno del servidor. Por favor, intente más tarde.";
       default:

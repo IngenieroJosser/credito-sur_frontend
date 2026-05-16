@@ -15,11 +15,9 @@ const ADMIN_CLEAN_ROUTES = [
   '/admin/aprobaciones',
 ];
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Only redirect /admin/* sub-routes to clean URLs
-  // Do NOT redirect /admin itself (that's the dashboard)
   for (const route of ADMIN_CLEAN_ROUTES) {
     if (pathname === route || pathname.startsWith(`${route}/`)) {
       const cleanPath = pathname.replace(/^\/admin/, '');
