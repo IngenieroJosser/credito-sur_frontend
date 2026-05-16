@@ -39,12 +39,22 @@ export const syncService = {
     description: string,
     file?: Blob
   ) {
+    const data =
+      type === 'pago' && payload && typeof payload === 'object' && !(payload instanceof FormData)
+        ? {
+            ...(payload as Record<string, unknown>),
+            idempotencyKey:
+              (payload as Record<string, unknown>).idempotencyKey ||
+              `offline-payment-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+          }
+        : payload;
+
     // Encolar en IndexedDB
     const item = await offlineQueue.enqueue({
       type,
       endpoint,
       method,
-      data: payload,
+      data,
       file,
       fileName: file ? `upload_${Date.now()}` : undefined,
       description,

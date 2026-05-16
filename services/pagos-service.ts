@@ -31,6 +31,7 @@ export interface ArchivoMultimediaPago {
 export interface Pago {
   id: string;
   numeroPago: string;
+  idempotencyKey?: string | null;
   clienteId: string;
   prestamoId: string;
   cobradorId: string;
@@ -83,9 +84,18 @@ export interface CrearPagoDto {
   numeroReferencia?: string;
   notas?: string;
   comprobante?: File | null;
+  idempotencyKey?: string;
 }
 
 export const pagosService = {
+  generarIdempotencyKey(prefix = 'pay') {
+    const random =
+      typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? crypto.randomUUID()
+        : Math.random().toString(36).slice(2, 12);
+    return `${prefix}-${Date.now()}-${random}`;
+  },
+
   /**
    * Obtener todos los pagos (con paginación y filtros)
    */
@@ -116,35 +126,41 @@ export const pagosService = {
    * Retorna el pago creado + descomposición capital/interés
    */
   async registrarPago(data: CrearPagoDto): Promise<ResultadoPago> {
+    const payload: CrearPagoDto = {
+      ...data,
+      idempotencyKey: data.idempotencyKey || this.generarIdempotencyKey(),
+    };
+
     try {
       // Si hay un comprobante, debemos usar FormData para el envío de archivos
-      if (data.comprobante || data.metodoPago === MetodoPago.TRANSFERENCIA) {
+      if (payload.comprobante || payload.metodoPago === MetodoPago.TRANSFERENCIA) {
         const formData = new FormData();
-        formData.append('prestamoId', data.prestamoId);
-        formData.append('clienteId', data.clienteId);
-        formData.append('cobradorId', data.cobradorId);
-        formData.append('montoTotal', data.montoTotal.toString());
-        formData.append('metodoPago', data.metodoPago || '');
-        if (data.numeroReferencia) formData.append('numeroReferencia', data.numeroReferencia);
-        if (data.notas) formData.append('notas', data.notas);
-        if (data.fechaPago) formData.append('fechaPago', data.fechaPago);
+        formData.append('prestamoId', payload.prestamoId);
+        formData.append('clienteId', payload.clienteId);
+        formData.append('cobradorId', payload.cobradorId);
+        formData.append('montoTotal', payload.montoTotal.toString());
+        formData.append('metodoPago', payload.metodoPago || '');
+        formData.append('idempotencyKey', payload.idempotencyKey!);
+        if (payload.numeroReferencia) formData.append('numeroReferencia', payload.numeroReferencia);
+        if (payload.notas) formData.append('notas', payload.notas);
+        if (payload.fechaPago) formData.append('fechaPago', payload.fechaPago);
         
-        if (data.comprobante) {
-          formData.append('comprobante', data.comprobante);
+        if (payload.comprobante) {
+          formData.append('comprobante', payload.comprobante);
         }
         
         console.log('[pagosService.registrarPago] FormData keys:', Array.from((formData as any).keys()));
-        console.log('[pagosService.registrarPago] Comprobante:', data.comprobante ? {
-          name: data.comprobante.name,
-          size: data.comprobante.size,
-          type: data.comprobante.type
+        console.log('[pagosService.registrarPago] Comprobante:', payload.comprobante ? {
+          name: payload.comprobante.name,
+          size: payload.comprobante.size,
+          type: payload.comprobante.type
         } : 'No hay comprobante');
 
         return await apiRequest<ResultadoPago>('POST', '/payments', formData);
       }
 
       // Si es efectivo sin archivos, envío JSON normal
-      return await apiRequest<ResultadoPago>('POST', '/payments', data);
+      return await apiRequest<ResultadoPago>('POST', '/payments', payload);
     } catch (error: any) {
        if (
         (typeof navigator !== 'undefined' && !navigator.onLine) ||
@@ -159,8 +175,8 @@ export const pagosService = {
            'pago',
            '/payments',
            'POST',
-           data,
-           `Pago Offline $${data.montoTotal}`
+           payload,
+           `Pago Offline $${payload.montoTotal}`
          );
 
          // Retornar objeto temporal con estimaciones
@@ -168,19 +184,20 @@ export const pagosService = {
             pago: {
                 id: tempId,
                 numeroPago: 'OFFLINE',
-                clienteId: data.clienteId,
-                prestamoId: data.prestamoId,
-                cobradorId: data.cobradorId,
+                clienteId: payload.clienteId,
+                prestamoId: payload.prestamoId,
+                cobradorId: payload.cobradorId,
                 fechaPago: toBogotaDateTimeOffsetIso(new Date()),
-                montoTotal: data.montoTotal,
-                metodoPago: data.metodoPago || MetodoPago.EFECTIVO,
-                numeroReferencia: data.numeroReferencia || null,
-                notas: data.notas || 'Pago registrado offline',
+                montoTotal: payload.montoTotal,
+                metodoPago: payload.metodoPago || MetodoPago.EFECTIVO,
+                numeroReferencia: payload.numeroReferencia || null,
+                notas: payload.notas || 'Pago registrado offline',
+                idempotencyKey: payload.idempotencyKey,
                 creadoEn: toBogotaDateTimeOffsetIso(new Date()),
                 actualizadoEn: toBogotaDateTimeOffsetIso(new Date()),
             } as any,
             descomposicion: {
-                montoTotal: data.montoTotal,
+                montoTotal: payload.montoTotal,
                 capitalRecuperado: 0, // No se puede calcular offline
                 interesRecuperado: 0,
                 saldoAnterior: 0,

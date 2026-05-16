@@ -130,7 +130,12 @@ export const enqueuePago = async (pagoData: {
   metodoPago?: string;
   notas?: string;
   clienteNombre?: string;
+  idempotencyKey?: string;
 }) => {
+  const idempotencyKey =
+    pagoData.idempotencyKey ||
+    `offline-payment-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
   return offlineQueue.enqueue({
     type: 'pago',
     endpoint: '/payments',
@@ -143,6 +148,7 @@ export const enqueuePago = async (pagoData: {
       metodoPago: pagoData.metodoPago || 'EFECTIVO',
       notas: pagoData.notas || `[Offline] Pago registrado sin conexión`,
       fechaPago: toBogotaDateTimeOffsetIso(new Date()),
+      idempotencyKey,
     },
     description: `Pago $${pagoData.montoTotal.toLocaleString()} - ${pagoData.clienteNombre || 'Cliente'}`,
     amount: pagoData.montoTotal,
