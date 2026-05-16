@@ -4,6 +4,14 @@ import { syncService } from '@/lib/offline/syncService';
 import { offlineStore } from '@/lib/offline/offlineDb';
 import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 
+const generarIdempotencyKey = (prefix: string) => {
+  const random =
+    typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : Math.random().toString(36).slice(2, 12);
+  return `${prefix}-${Date.now()}-${random}`;
+};
+
 // Interfaces
 export interface Caja {
   id: string;
@@ -403,9 +411,15 @@ export async function createTransaccion(data: {
   referenciaId?: string;
   cajaOrigenId?: string;
   accountCode?: string;
+  idempotencyKey?: string;
 }): Promise<Transaccion | null> {
+  const payload = {
+    ...data,
+    idempotencyKey: data.idempotencyKey || generarIdempotencyKey('trx'),
+  };
+
   try {
-    return await apiRequest<Transaccion>('POST', '/accounting/transacciones', data);
+    return await apiRequest<Transaccion>('POST', '/accounting/transacciones', payload);
   } catch (error: any) {
     if (
       (typeof navigator !== 'undefined' && !navigator.onLine) ||
@@ -418,17 +432,17 @@ export async function createTransaccion(data: {
         'transaccion_crear', // Tipo más descriptivo
         '/accounting/transacciones',
         'POST',
-        data,
-        `Transacción: ${data.descripcion} ($${data.monto})`
+        payload,
+        `Transacción: ${payload.descripcion} ($${payload.monto})`
       );
       return {
         id: `temp-trx-${Date.now()}`,
         numero: 'OFFLINE',
         fecha: toBogotaDateTimeOffsetIso(new Date()),
-        tipo: data.tipo,
-        monto: data.monto,
-        descripcion: data.descripcion,
-        cajaId: data.cajaId,
+        tipo: payload.tipo,
+        monto: payload.monto,
+        descripcion: payload.descripcion,
+        cajaId: payload.cajaId,
         estado: 'PENDIENTE',
         caja: 'Caja Local'
       } as any;
@@ -606,7 +620,10 @@ export async function registrarGasto(data: {
   cobradorId: string
   categoriaId?: string
   esPersonal?: boolean
+  idempotencyKey?: string
 }): Promise<any> {
+  const idempotencyKey = data.idempotencyKey || generarIdempotencyKey('gasto');
+
   try {
     const payload: any = {
       descripcion: data.descripcion,
@@ -616,6 +633,7 @@ export async function registrarGasto(data: {
       comprobanteUrl: data.comprobanteUrl,
       fotoRecibo: data.fotoRecibo,
       esPersonal: data.esPersonal,
+      idempotencyKey,
       ...(data.categoriaId ? { categoriaId: data.categoriaId } : {}),
     };
 
@@ -637,6 +655,7 @@ export async function registrarGasto(data: {
         comprobanteUrl: data.comprobanteUrl,
         fotoRecibo: data.fotoRecibo,
         esPersonal: data.esPersonal,
+        idempotencyKey,
         ...(data.categoriaId ? { categoriaId: data.categoriaId } : {}),
       };
 
