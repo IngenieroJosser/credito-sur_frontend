@@ -18,7 +18,11 @@ export interface ApiError {
   statusCode: number;
   message: string;
   error?: unknown;
+  isConflict?: boolean;
 }
+
+const CONFLICT_ERROR_MESSAGE =
+  "Este registro fue actualizado por otra persona. Recarga la información antes de guardar.";
 
 export const apiRequest = async <T>(
   method: Method,
@@ -171,6 +175,8 @@ export const apiRequest = async <T>(
         logger.warn('[API] 401 por permisos insuficientes — token vigente, no se redirige.');
       }
       errorMessage = 'No tienes permisos para realizar esta acción.';
+    } else if (status === 409) {
+      errorMessage = err.response.data?.message || CONFLICT_ERROR_MESSAGE;
     } else if (status === 404) {
       errorMessage = err.response.data?.message || "Recurso no encontrado";
     } else if (status === 500) {
@@ -180,7 +186,8 @@ export const apiRequest = async <T>(
     const apiError: ApiError = {
       statusCode: status,
       message: errorMessage,
-      error: err.response.data
+      error: err.response.data,
+      isConflict: status === 409,
     };
 
     throw apiError;
@@ -203,6 +210,8 @@ export const formatErrorForComponent = (error: any): string => {
         return "Endpoint no encontrado. Verifique la URL de la API.";
       case 408:
         return "La solicitud está tardando demasiado. Por favor, verifique su conexión.";
+      case 409:
+        return error.message || CONFLICT_ERROR_MESSAGE;
       case 500:
         return "Error interno del servidor. Por favor, intente más tarde.";
       default:
