@@ -43,8 +43,11 @@ export const syncService = {
       'pago',
       'gasto_registrar',
       'transaccion_crear',
+      'cliente_create',
       'cliente_crear',
+      'cliente_update',
       'cliente_actualizar',
+      'prestamo_create',
       'prestamo_crear',
     ]);
     const data =
