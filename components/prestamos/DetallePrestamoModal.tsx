@@ -8,6 +8,7 @@ import { prestamosService } from '@/services/prestamos-service';
 import { getLoanAmounts } from '@/lib/loan-calculations';
 import { offlineStore } from '@/lib/offline/offlineDb';
 import { normalizeDateKey } from '@/lib/rutas-core';
+import { formatLoanTerm } from '@/lib/utils';
 
 interface DetallePrestamoModalProps {
   id: string;
@@ -119,7 +120,11 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
           interesTotal: interesTotal,
           capitalPagado: data.capitalPagado != null ? Number(data.capitalPagado) : undefined,
           interesPagado: data.interesPagado != null ? Number(data.interesPagado) : undefined,
-          duracion: meses ? `${meses} Meses` : (data.duracion || ''),
+          duracion: meses ? formatLoanTerm({
+            plazoMeses: meses,
+            cantidadCuotas: data.cantidadCuotas,
+            frecuenciaPago: data.frecuenciaPago || data.frecuencia,
+          }) : (data.duracion || ''),
           frecuencia: data.frecuenciaPago || data.frecuencia || 'SEMANAL',
           fechaInicio: data.fechaInicio || '',
           fechaPrimerCobro: data.fechaPrimerCobro || undefined,
@@ -171,7 +176,11 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
               interesTotal: offP.interesTotal,
               capitalPagado: offP.capitalPagado,
               interesPagado: offP.interesPagado,
-              duracion: offP.plazoMeses ? `${offP.plazoMeses} Meses` : '',
+              duracion: offP.plazoMeses ? formatLoanTerm({
+                plazoMeses: offP.plazoMeses,
+                cantidadCuotas: offP.cantidadCuotas,
+                frecuenciaPago: offP.frecuenciaPago,
+              }) : '',
               frecuencia: offP.frecuenciaPago || 'mensual',
               fechaInicio: offP.fechaInicio || '',
               fechaVencimiento: offP.fechaFin || '',

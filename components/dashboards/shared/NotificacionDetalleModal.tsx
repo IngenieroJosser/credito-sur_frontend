@@ -18,7 +18,7 @@ import {
   FileText,
 } from 'lucide-react'
 import { Portal } from '@/components/dashboards/shared/CobradorElements'
-import { formatCOPInputValue, formatCurrency, formatMilesCOP, parseCOPInputToNumber, resolveMediaUrl } from '@/lib/utils'
+import { formatCOPInputValue, formatCurrency, formatLoanTerm, formatMilesCOP, parseCOPInputToNumber, resolveMediaUrl } from '@/lib/utils'
 import { getBogotaDateKey, normalizeDateKey } from '@/lib/rutas-core'
 import { notificacionesService } from '@/services/notificaciones-service'
 import { prestamosService } from '@/services/prestamos-service'
@@ -713,7 +713,13 @@ export default function NotificacionDetalleModal({
                         />
                       )
                     ) : (
-                      <p className="text-base font-black text-slate-900">{editedDetails?.plazoMeses || 1} MESES</p>
+                      <p className="text-base font-black text-slate-900">
+                        {formatLoanTerm({
+                          plazoMeses: editedDetails?.plazoMeses || safeMeta?.plazoMeses || 1,
+                          cantidadCuotas: editedDetails?.cantidadCuotas || editedDetails?.cuotas || editedDetails?.numCuotas || safeMeta?.cantidadCuotas || safeMeta?.cuotas || safeMeta?.numCuotas,
+                          frecuenciaPago: editedDetails?.frecuenciaPago || safeMeta?.frecuenciaPago || editedDetails?.frecuencia || safeMeta?.frecuencia || 'DIARIO',
+                        })}
+                      </p>
                     )}
                   </div>
                 ) : null}

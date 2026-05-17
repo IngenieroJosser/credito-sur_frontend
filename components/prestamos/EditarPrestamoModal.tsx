@@ -5,7 +5,7 @@ import { X, Save, Clock, Edit3, Lock, User, Loader2, Package } from 'lucide-reac
 import { createPortal } from 'react-dom';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { useNotificaciones } from '@/components/providers/NotificacionesProvider';
-import { formatCurrency, formatMilesCOP } from '@/lib/utils';
+import { formatCurrency, formatLoanTerm, formatMilesCOP } from '@/lib/utils';
 import { prestamosService } from '@/services/prestamos-service';
 import { formatErrorForComponent } from '@/lib/api/api';
 import { offlineStore } from '@/lib/offline/offlineDb';
@@ -565,7 +565,13 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
                         />
                       )
                     ) : (
-                      <p className="text-lg font-black text-slate-900">{plazoMeses} <span className="text-[10px] text-slate-400 font-bold">MESES</span></p>
+                      <p className="text-lg font-black text-slate-900">
+                        {formatLoanTerm({
+                          plazoMeses,
+                          cantidadCuotas: cuotas,
+                          frecuenciaPago: frecuencia,
+                        })}
+                      </p>
                     )}
                   </div>
 

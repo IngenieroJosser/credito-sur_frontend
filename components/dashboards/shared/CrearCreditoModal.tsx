@@ -11,7 +11,7 @@ import {
   Package,
   Loader2
 } from 'lucide-react'
-import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber } from '@/lib/utils'
+import { formatCOPInputValue, formatCurrency, formatLoanTerm, parseCOPInputToNumber } from '@/lib/utils'
 import { Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
 import { clientesService, Cliente } from '@/services/clientes-service'
 import { articulosService, Articulo } from '@/services/articulos-service'
@@ -445,7 +445,11 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                            </div>
                         </div>
                         <div className="text-[11px] text-blue-600 font-medium italic text-center">
-                          Equivale a {calculoPrestamo.meses.toFixed(2)} meses de crédito.
+                          Duración: {formatLoanTerm({
+                            plazoMeses: calculoPrestamo.meses,
+                            cantidadCuotas: calculoPrestamo.numCuotas,
+                            frecuenciaPago,
+                          })} de crédito.
                         </div>
                      </div>
                   )}

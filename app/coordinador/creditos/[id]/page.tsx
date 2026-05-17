@@ -8,6 +8,7 @@ import DetallePrestamo, { PrestamoDetalle } from '@/components/prestamos/Detalle
 import EditarPrestamoModal from '@/components/prestamos/EditarPrestamoModal';
 import ModificarInteresModal from '@/components/prestamos/ModificarInteresModal';
 import { prestamosService } from '@/services/prestamos-service';
+import { formatLoanTerm } from '@/lib/utils';
 
 export default function PrestamoDetallePage({ 
   params 
@@ -40,7 +41,11 @@ export default function PrestamoDetallePage({
           interesTotal: data.interesTotal != null ? Number(data.interesTotal) : undefined,
           capitalPagado: data.capitalPagado != null ? Number(data.capitalPagado) : undefined,
           interesPagado: data.interesPagado != null ? Number(data.interesPagado) : undefined,
-          duracion: data.plazoMeses ? `${data.plazoMeses} Meses` : '',
+          duracion: data.plazoMeses ? formatLoanTerm({
+            plazoMeses: data.plazoMeses,
+            cantidadCuotas: data.cantidadCuotas,
+            frecuenciaPago: data.frecuenciaPago,
+          }) : '',
           frecuencia: data.frecuenciaPago || 'mensual',
           fechaInicio: data.fechaInicio || '',
           fechaVencimiento: data.fechaFin || '',

@@ -1,4 +1,5 @@
 import {
+  formatLoanTerm,
   formatMilesCOP,
   getDisplayedCOPInteger,
   isSameDisplayedCOPAmount,
@@ -20,5 +21,37 @@ describe('utilidades COP', () => {
 
     expect(isSameDisplayedCOPAmount(63334, cuotaInterna)).toBe(false)
     expect(isSameDisplayedCOPAmount(63332, cuotaInterna)).toBe(false)
+  })
+})
+
+describe('formatLoanTerm', () => {
+  it('muestra cuotas diarias como días, no como meses decimales', () => {
+    expect(formatLoanTerm({
+      plazoMeses: 0.4,
+      cantidadCuotas: 12,
+      frecuenciaPago: 'DIARIO',
+    })).toBe('12 días')
+  })
+
+  it('muestra cuotas semanales y quincenales con su unidad natural', () => {
+    expect(formatLoanTerm({
+      plazoMeses: 0.75,
+      cantidadCuotas: 3,
+      frecuenciaPago: 'SEMANAL',
+    })).toBe('3 semanas')
+
+    expect(formatLoanTerm({
+      plazoMeses: 1,
+      cantidadCuotas: 2,
+      frecuenciaPago: 'QUINCENAL',
+    })).toBe('2 quincenas')
+  })
+
+  it('mantiene meses cuando la frecuencia es mensual', () => {
+    expect(formatLoanTerm({
+      plazoMeses: 6,
+      cantidadCuotas: 6,
+      frecuenciaPago: 'MENSUAL',
+    })).toBe('6 meses')
   })
 })
