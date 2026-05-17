@@ -42,6 +42,42 @@ export const isSameDisplayedCOPAmount = (received: number, expected: number) => 
   return Number(received || 0) === getDisplayedCOPInteger(expected)
 }
 
+type LoanTermFormatInput = {
+  plazoMeses?: number | string | null
+  cantidadCuotas?: number | string | null
+  frecuenciaPago?: string | null
+}
+
+const pluralizeEs = (value: number, singular: string, plural: string) => {
+  return `${value} ${value === 1 ? singular : plural}`
+}
+
+export const formatLoanTerm = ({
+  plazoMeses,
+  cantidadCuotas,
+  frecuenciaPago,
+}: LoanTermFormatInput) => {
+  const frecuencia = String(frecuenciaPago || '').toUpperCase()
+  const cuotas = Number(cantidadCuotas || 0)
+  const meses = Number(plazoMeses || 0)
+
+  if (Number.isFinite(cuotas) && cuotas > 0) {
+    const value = Math.round(cuotas)
+    if (frecuencia === 'DIARIO') return pluralizeEs(value, 'día', 'días')
+    if (frecuencia === 'SEMANAL') return pluralizeEs(value, 'semana', 'semanas')
+    if (frecuencia === 'QUINCENAL') return pluralizeEs(value, 'quincena', 'quincenas')
+    if (frecuencia === 'MENSUAL') return pluralizeEs(value, 'mes', 'meses')
+  }
+
+  if (!Number.isFinite(meses) || meses <= 0) return 'Sin plazo'
+  if (frecuencia === 'DIARIO') return pluralizeEs(Math.max(1, Math.round(meses * 30)), 'día', 'días')
+  if (frecuencia === 'SEMANAL') return pluralizeEs(Math.max(1, Math.round(meses * 4)), 'semana', 'semanas')
+  if (frecuencia === 'QUINCENAL') return pluralizeEs(Math.max(1, Math.round(meses * 2)), 'quincena', 'quincenas')
+
+  const mesesMostrados = Number.isInteger(meses) ? meses : Math.round(meses * 10) / 10
+  return pluralizeEs(mesesMostrados, 'mes', 'meses')
+}
+
 export const formatMilesCOPDecimal = (amount: number) => {
   const safe = Number.isFinite(amount) ? Math.trunc(amount * 100) / 100 : 0
   return new Intl.NumberFormat('es-CO', {

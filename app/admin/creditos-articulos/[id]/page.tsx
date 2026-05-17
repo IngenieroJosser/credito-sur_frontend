@@ -8,6 +8,7 @@ import DetallePrestamo, { PrestamoDetalle } from '@/components/prestamos/Detalle
 import { prestamosService } from '@/services/prestamos-service';
 import { exportService } from '@/services/export-service';
 import { toast } from 'sonner';
+import { formatLoanTerm } from '@/lib/utils';
 
 export default function CreditoDetallePage() {
   const params = useParams();
@@ -37,7 +38,11 @@ export default function CreditoDetallePage() {
           interesTotal: data.interesTotal != null ? Number(data.interesTotal) : undefined,
           capitalPagado: data.capitalPagado != null ? Number(data.capitalPagado) : undefined,
           interesPagado: data.interesPagado != null ? Number(data.interesPagado) : undefined,
-          duracion: data.plazoMeses ? `${data.plazoMeses} Meses` : '',
+          duracion: data.plazoMeses ? formatLoanTerm({
+            plazoMeses: data.plazoMeses,
+            cantidadCuotas: data.cantidadCuotas,
+            frecuenciaPago: data.frecuenciaPago,
+          }) : '',
           frecuencia: data.frecuenciaPago || 'mensual',
           fechaInicio: data.fechaInicio || '',
           fechaVencimiento: data.fechaFin || '',
