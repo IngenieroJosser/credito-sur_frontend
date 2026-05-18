@@ -6,7 +6,7 @@ import { MapPin, Eye, Phone, GripVertical, XCircle, ChevronDown, Timer, CheckCir
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { VisitaRuta, EstadoVisita } from '@/lib/types/cobranza'
-import { formatMilesCOP } from '@/lib/utils'
+import { formatCurrency } from '@/lib/utils'
 
 export const MODAL_Z_INDEX = 2147483600
 
@@ -17,23 +17,7 @@ export function Portal({ children }: { children: ReactNode }) {
   return createPortal(children, document.body)
 }
 
-// ── Formato abreviado de montos (COP) ────────────────────────────────────────
-// Ejemplos: $401,5M · $13,4M · $458.333 · $1,2B
-
-function formatMontoCorto(amount: number): string {
-  const abs = Math.abs(amount)
-  if (abs >= 1_000_000_000) {
-    const scaled = amount / 1_000_000_000
-    const safe = Math.trunc(scaled * 100) / 100
-    return `$${new Intl.NumberFormat('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(safe)}B`
-  }
-  if (abs >= 1_000_000) {
-    const scaled = amount / 1_000_000
-    const safe = Math.trunc(scaled * 100) / 100
-    return `$${new Intl.NumberFormat('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(safe)}M`
-  }
-  return `$${formatMilesCOP(amount)}`
-}
+const formatMontoCompleto = (amount: number): string => formatCurrency(amount)
 
 // ── Helpers de color de semáforo ─────────────────────────────────────────────
 
@@ -284,13 +268,13 @@ function VisitaCardContent({
             <>
               <div className="text-center">
                 <div className="text-[8px] font-bold text-slate-400 uppercase leading-none mb-0.5">Cuota</div>
-                <div className="text-[11px] font-black text-slate-800 tabular-nums">{formatMontoCorto(cuotaUI)}</div>
+                <div className="text-[11px] font-black text-slate-800 tabular-nums">{formatMontoCompleto(cuotaUI)}</div>
               </div>
               <div className="w-px h-5 bg-slate-200" />
               <div className="text-center">
                 <div className="text-[8px] font-bold text-slate-400 uppercase leading-none mb-0.5">Saldo</div>
                 <div className={`text-[11px] font-black tabular-nums ${visita.saldoTotal > 0 ? 'text-slate-700' : 'text-emerald-600'}`}>
-                  {formatMontoCorto(visita.saldoTotal)}
+                  {formatMontoCompleto(visita.saldoTotal)}
                 </div>
               </div>
             </>
@@ -362,7 +346,7 @@ function VisitaCardContent({
         <div className="mt-1 flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-50 border border-emerald-100 w-fit">
           <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" />
           <span className="text-[9px] font-black text-emerald-700 uppercase tracking-wide">
-            Pagó hoy: {formatMontoCorto((visita as any).recaudadoDelDia)}
+            Pagó hoy: {formatMontoCompleto((visita as any).recaudadoDelDia)}
           </span>
         </div>
       )}

@@ -96,7 +96,7 @@ import { prestamosService } from '@/services/prestamos-service'
 
 import { pagosService } from '@/services/pagos-service'
 
-import { getBogotaDateKey, isVisitaExigibleHoy, normalizeDateKey, toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
+import { computeRutaHoyUiStatsFromVisitas, getBogotaDateKey, isVisitaExigibleHoy, normalizeDateKey, toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 
 import { exportService } from '@/services/export-service'
 
@@ -796,10 +796,11 @@ const LegacyDetalleRutaPage = () => {
 
 
             const cobranzaDia = finales.reduce((acc: number, curr: any) => acc + (curr.recaudadoDelDia || 0), 0)
-
-            const metaDia = finales.reduce((acc: number, curr: any) => acc + (curr.montoCuota || 0), 0)
-
-            const progresoAvance = metaDia > 0 ? (cobranzaDia / metaDia) * 100 : 0
+            const hoyBogota = getBogotaDateKey(new Date());
+            const finalesKpiHoy = finales.filter(v => isVisitaExigibleHoy(v, hoyBogota));
+            const statsHoy = computeRutaHoyUiStatsFromVisitas(finalesKpiHoy as any[], cobranzaDia);
+            const metaDia = statsHoy.meta;
+            const progresoAvance = metaDia > 0 ? (statsHoy.recaudo / metaDia) * 100 : 0
 
 
 
@@ -821,11 +822,14 @@ const LegacyDetalleRutaPage = () => {
 
               nivelRiesgo: rExtra.nivelRiesgo || 'VERDE',
 
-              estadisticas: rExtra.estadisticas || {
+              estadisticas: {
+                ...(rExtra.estadisticas || {}),
 
-                cobranzaDelDia: cobranzaDia,
+                cobranzaDelDia: statsHoy.recaudo,
 
                 metaDelDia: metaDia,
+
+                pendienteDelDia: statsHoy.pendiente,
 
                 avanceDiario: progresoAvance > 100 ? 100 : progresoAvance,
 
@@ -835,7 +839,6 @@ const LegacyDetalleRutaPage = () => {
 
 
 
-            const hoyBogota = getBogotaDateKey(new Date());
             const finalesFiltradas = finales.filter(v => {
               if (searchQuery || showMisClientes || showHistory) return true;
               return isVisitaExigibleHoy(v, hoyBogota);

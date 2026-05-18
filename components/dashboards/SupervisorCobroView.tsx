@@ -493,11 +493,11 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
       setRutaStats((prev: any) => {
         // Para HOY: meta coherente con recaudo real (incluye mora) usando visitas visibles.
         const metaBackend = Number(saldo?.metaDelDia || 0)
-        const meta = metaBackend > 0 ? metaBackend : (Number(prev.meta || 0) > 0 ? Number(prev.meta) : (recaudoBackend > 0 ? recaudoBackend : 0))
+        const meta = metaBackend > 0 ? metaBackend : Number(prev.meta || 0)
         const recaudo = recaudoBackend > 0 ? recaudoBackend : Number(prev.recaudo ?? 0)
         const eficiencia = meta > 0
           ? Number(((recaudo / meta) * 100).toFixed(1))
-          : (recaudo > 0 ? 100 : Number(prev.eficiencia ?? 0))
+          : Number(prev.eficiencia ?? 0)
         return {
           ...prev,
           recaudo,
