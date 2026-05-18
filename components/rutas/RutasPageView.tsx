@@ -567,7 +567,7 @@ export const RutasPageView = ({
   const totalClientes = displayRutas.reduce((acc, curr) => acc + curr.clientesAsignados, 0)
 
   const { objetivoTotalShown, cobranzaTotal, porcentajeAvance } = useMemo(() => {
-    const rutasOperativas = (Array.isArray(displayRutas) ? displayRutas : []).filter((r: any) => r && r.estado === 'ACTIVA')
+    const rutasOperativas = (Array.isArray(displayRutas) ? displayRutas : []).filter((r: any) => r && r.estado === 'ACTIVA' && r.clientesAsignados > 0)
 
     const objetivoTotal = rutasOperativas.reduce((acc, curr) => {
       const meta = Number(curr?.metaDelDia ?? 0)
