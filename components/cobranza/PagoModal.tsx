@@ -15,13 +15,26 @@ interface PagoModalProps {
   visita: VisitaRuta
   tipo: 'PAGO' | 'ABONO'
   onClose: () => void
-  onConfirm: (monto: number, metodo: 'EFECTIVO' | 'TRANSFERENCIA', comprobante: File | null) => void | Promise<void>
+  onConfirm: (
+    monto: number,
+    metodo: 'EFECTIVO' | 'TRANSFERENCIA',
+    comprobante: File | null,
+    contexto: { tipoRegistro: 'PAGO' | 'ABONO'; cuotaNumeroEsperada?: number; montoCuotaEsperado: number },
+  ) => void | Promise<void>
 }
 
 export default function PagoModal({ visita, tipo, onClose, onConfirm }: PagoModalProps) {
+  const montoCuotaEsperado = (() => {
+    const tieneCuotaPendiente = (visita as any)?.montoCuotaPendiente != null
+    const cuotaBase = Number(((visita as any)?.montoCuotaPendiente ?? visita?.montoCuota) || 0)
+    const recHoy = Number((visita as any)?.recaudadoDelDia || 0)
+    const saldo = Number((visita as any)?.saldoTotal || 0)
+    const pendiente = tieneCuotaPendiente ? cuotaBase : Math.max(0, cuotaBase - recHoy)
+    return Math.max(0, Math.min(pendiente, saldo > 0 ? saldo : pendiente))
+  })()
   const [metodoPago, setMetodoPago] = useState<'EFECTIVO' | 'TRANSFERENCIA'>('EFECTIVO')
   const [montoPagoInput, setMontoPagoInput] = useState(
-    tipo === 'PAGO' ? formatMilesCOP(visita.montoCuota) : ''
+    tipo === 'PAGO' ? formatMilesCOP(montoCuotaEsperado) : ''
   )
   const [comprobanteTransferencia, setComprobanteTransferencia] = useState<File | null>(null)
   const [comprobanteTransferenciaPreviewUrl, setComprobanteTransferenciaPreviewUrl] = useState<string | null>(null)
@@ -56,7 +69,7 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm }: PagoModa
     if (isSubmitting) return
     const montoNum = parseCOPInputToNumber(montoPagoInput)
     if (tipo === 'PAGO') {
-      const cuota = Number(visita?.montoCuota || 0)
+      const cuota = Number(montoCuotaEsperado || 0)
       const cuotaMostrada = getDisplayedCOPInteger(cuota)
       if (cuotaMostrada > 0 && !isSameDisplayedCOPAmount(montoNum, cuota)) {
         setErrorMsg(`Para un PAGO, el monto debe ser exactamente $${formatMilesCOP(cuotaMostrada)}. Para otros valores use ABONO.`)
@@ -71,7 +84,11 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm }: PagoModa
     }
     setIsSubmitting(true)
     try {
-      await onConfirm(montoNum, metodoPago, comprobanteTransferencia)
+      await onConfirm(montoNum, metodoPago, comprobanteTransferencia, {
+        tipoRegistro: tipo,
+        cuotaNumeroEsperada: Number((visita as any)?.cuotaActual || 0) || undefined,
+        montoCuotaEsperado,
+      })
     } catch (error) {
       console.error('Error al confirmar pago:', error)
       setIsSubmitting(false)
@@ -106,7 +123,7 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm }: PagoModa
                 <p className="text-sm text-slate-500">Cliente</p>
                 <p className="font-bold text-slate-900 text-lg">{visita.cliente}</p>
                 <p className="text-xs text-slate-500">{visita.direccion}</p>
-                <p className="text-xs text-slate-400">Cuota esperada: ${formatMilesCOP(visita.montoCuota)}</p>
+                <p className="text-xs text-slate-400">Cuota esperada: ${formatMilesCOP(montoCuotaEsperado)}</p>
               </div>
 
               <div>
