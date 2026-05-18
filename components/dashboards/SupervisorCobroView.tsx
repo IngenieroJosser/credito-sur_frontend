@@ -1954,8 +1954,19 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     } catch (e) {
 
       console.error('Error registrando pago (SupervisorCobroView):', e)
+      const error = e as any
+      const isConflict = error?.isConflict || error?.statusCode === 409 || error?.error?.statusCode === 409
+      const mensaje = error?.message || error?.error?.message || 'No se pudo registrar el pago'
 
-      toast.error('No se pudo registrar el pago')
+      if (isConflict) {
+        try {
+          await cargarVisitasRuta()
+          await cargarEstadisticasRuta()
+          if (showMisClientes) await cargarMisCreditos()
+        } catch {}
+      }
+
+      toast.error(mensaje)
 
     } finally {
 

@@ -2963,12 +2963,23 @@ const VistaCobrador = () => {
     } catch (error: any) {
 
       console.error('Error al registrar pago', error)
+      const isConflict = error?.isConflict || error?.statusCode === 409 || error?.error?.statusCode === 409
+      const mensaje = error?.message || error?.error?.message || 'Ocurrió un error al registrar el pago. Intente de nuevo.'
+
+      if (isConflict) {
+        try {
+          await cargarDatosRuta(true)
+          if (showMisClientes && userSession?.id) {
+            await cargarMisCreditosAsignados(userSession.id)
+          }
+        } catch {}
+      }
 
       setModalAlerta({
 
-        titulo: 'Error',
+        titulo: isConflict ? 'La cuota cambió' : 'Error',
 
-        mensaje: error.message || 'Ocurrió un error al registrar el pago. Intente de nuevo.',
+        mensaje,
 
         tipo: 'error'
 
