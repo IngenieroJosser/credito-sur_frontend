@@ -494,7 +494,7 @@ const ModuloContableContent = () => {
       if (fin) params.fechaFin = fin
       const resp = await getMovimientosLedger(params)
       if (resp && Array.isArray(resp.data)) {
-        let next = ocultarPagosClientePanelContable(resp.data.map(mapMovimientoLedger))
+        let next = resp.data.map(mapMovimientoLedger)
 
         const codigoCaja = String((cajaSeleccionada as any)?.codigo || '').toUpperCase()
         if (codigoCaja === 'CAJA-PRINCIPAL' || codigoCaja === 'CAJA-BANCO') {

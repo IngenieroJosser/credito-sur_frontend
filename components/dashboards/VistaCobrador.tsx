@@ -1310,17 +1310,6 @@ const VistaCobrador = () => {
           // silencioso
         }
 
-        if (periodoCardsRef.current === 'HOY') {
-          const metaHoy = computeMetaHoyFromVisitas(visitasEnriquecidas as any, hoyKey)
-          if (metaHoy > 0) {
-            setRutaStats(prev => ({
-              ...prev,
-              meta: metaHoy,
-              eficiencia: metaHoy > 0 ? Math.round((Number(prev?.recaudo || 0) / metaHoy) * 100) : Number(prev?.eficiencia || 0),
-            }))
-          }
-        }
-
         const merged = mergeVisitasPreservingLocal(visitasBaseRef.current, visitasEnriquecidas as any)
         setVisitasBase(merged as any)
         setVisitasSelectorFallback(merged as any)
