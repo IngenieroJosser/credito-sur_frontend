@@ -5,8 +5,35 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export const formatCurrency = (amount: number) => {
-  const safe = Number.isFinite(amount) ? Math.trunc(amount) : 0
+const parseCurrencyLikeValue = (amount: number | string | null | undefined) => {
+  if (typeof amount !== 'string') return Number(amount)
+  const cleaned = amount.trim().replace(/[^\d.,-]/g, '')
+  if (!cleaned) return 0
+
+  const dotCount = (cleaned.match(/\./g) || []).length
+  const commaCount = (cleaned.match(/,/g) || []).length
+
+  if (commaCount > 0) {
+    return Number(cleaned.replace(/\./g, '').replace(',', '.'))
+  }
+
+  if (dotCount > 1) {
+    const parts = cleaned.split('.')
+    const last = parts[parts.length - 1] || ''
+    const normalizedLast = last.length > 3 ? last.slice(0, 3) : last
+    return Number([...parts.slice(0, -1), normalizedLast].join(''))
+  }
+
+  if (/^-?\d+\.\d{1,2}$/.test(cleaned)) {
+    return Number(cleaned)
+  }
+
+  return Number(cleaned.replace(/\./g, ''))
+}
+
+export const formatCurrency = (amount: number | string | null | undefined) => {
+  const numeric = parseCurrencyLikeValue(amount)
+  const safe = Number.isFinite(numeric) ? Math.trunc(numeric) : 0
   return new Intl.NumberFormat('es-CO', {
     style: 'currency',
     currency: 'COP',

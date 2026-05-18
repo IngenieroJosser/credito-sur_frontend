@@ -1,4 +1,5 @@
 import {
+  formatCurrency,
   formatLoanTerm,
   formatMilesCOP,
   getDisplayedCOPInteger,
@@ -7,6 +8,11 @@ import {
 } from '@/lib/utils'
 
 describe('utilidades COP', () => {
+  it('formatea strings decimales de backend como pesos enteros', () => {
+    expect(formatCurrency('1180000.00')).toBe('$\u00a01.180.000')
+    expect(formatCurrency('1.180.0000')).toBe('$\u00a01.180.000')
+  })
+
   it('compara pagos contra el mismo entero COP mostrado al usuario', () => {
     const cuotaInterna = 63333.333333333336
 
