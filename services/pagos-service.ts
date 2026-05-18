@@ -85,6 +85,9 @@ export interface CrearPagoDto {
   notas?: string;
   comprobante?: File | null;
   idempotencyKey?: string;
+  tipoRegistro?: 'PAGO' | 'ABONO';
+  cuotaNumeroEsperada?: number;
+  montoCuotaEsperado?: number;
 }
 
 export const pagosService = {
@@ -141,6 +144,9 @@ export const pagosService = {
         formData.append('montoTotal', payload.montoTotal.toString());
         formData.append('metodoPago', payload.metodoPago || '');
         formData.append('idempotencyKey', payload.idempotencyKey!);
+        if (payload.tipoRegistro) formData.append('tipoRegistro', payload.tipoRegistro);
+        if (payload.cuotaNumeroEsperada != null) formData.append('cuotaNumeroEsperada', String(payload.cuotaNumeroEsperada));
+        if (payload.montoCuotaEsperado != null) formData.append('montoCuotaEsperado', String(payload.montoCuotaEsperado));
         if (payload.numeroReferencia) formData.append('numeroReferencia', payload.numeroReferencia);
         if (payload.notas) formData.append('notas', payload.notas);
         if (payload.fechaPago) formData.append('fechaPago', payload.fechaPago);

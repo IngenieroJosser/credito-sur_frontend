@@ -2800,7 +2800,12 @@ const VistaCobrador = () => {
 
 
 
-  const handleRegistrarPago = useCallback(async (monto: number, metodo: 'EFECTIVO' | 'TRANSFERENCIA', comprobante: File | null) => {
+  const handleRegistrarPago = useCallback(async (
+    monto: number,
+    metodo: 'EFECTIVO' | 'TRANSFERENCIA',
+    comprobante: File | null,
+    contexto?: { tipoRegistro: 'PAGO' | 'ABONO'; cuotaNumeroEsperada?: number; montoCuotaEsperado: number },
+  ) => {
 
     const visitaSnapshot = visitaPagoSeleccionada
     const esAbonoSnapshot = pagoInitialIsAbono
@@ -2808,7 +2813,7 @@ const VistaCobrador = () => {
     if (!visitaSnapshot) return
 
     if (!esAbonoSnapshot) {
-      const cuota = Number(visitaSnapshot?.montoCuota || 0)
+      const cuota = Number(contexto?.montoCuotaEsperado || visitaSnapshot?.montoCuota || 0)
       const cuotaMostrada = getDisplayedCOPInteger(cuota)
       const montoNum = Number(monto || 0)
       if (cuotaMostrada > 0 && !isSameDisplayedCOPAmount(montoNum, cuota)) {
@@ -2874,6 +2879,12 @@ const VistaCobrador = () => {
         comprobante,
 
         cobradorId: (rutaActual as any)?.cobradorId || (visitaSnapshot as any)?.cobradorId || userSession?.id || '',
+
+        tipoRegistro: contexto?.tipoRegistro || (esAbonoSnapshot ? 'ABONO' : 'PAGO'),
+
+        cuotaNumeroEsperada: contexto?.cuotaNumeroEsperada,
+
+        montoCuotaEsperado: contexto?.montoCuotaEsperado,
 
       })
 

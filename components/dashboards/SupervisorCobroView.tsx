@@ -1854,7 +1854,14 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
 
 
-  const handleRegistrarPago = useCallback(async (visitaId: string, montoPagado: number, metodo: 'EFECTIVO' | 'TRANSFERENCIA', comprobante: File | null, esAbono: boolean) => {
+  const handleRegistrarPago = useCallback(async (
+    visitaId: string,
+    montoPagado: number,
+    metodo: 'EFECTIVO' | 'TRANSFERENCIA',
+    comprobante: File | null,
+    esAbono: boolean,
+    contexto?: { tipoRegistro: 'PAGO' | 'ABONO'; cuotaNumeroEsperada?: number; montoCuotaEsperado: number },
+  ) => {
 
     const visita = visitasBase.find(v => v.id === visitaId)
 
@@ -1895,6 +1902,12 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         comprobante,
 
         cobradorId: resolveCobradorIdForRouteAction(rutaInfo?.cobradorId, userSession.id),
+
+        tipoRegistro: contexto?.tipoRegistro || (esAbono ? 'ABONO' : 'PAGO'),
+
+        cuotaNumeroEsperada: contexto?.cuotaNumeroEsperada,
+
+        montoCuotaEsperado: contexto?.montoCuotaEsperado,
 
       })
 
@@ -3674,7 +3687,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
             }}
 
-            onConfirm={async (monto: number, metodo: 'EFECTIVO' | 'TRANSFERENCIA', comprobante: File | null) => {
+            onConfirm={async (monto: number, metodo: 'EFECTIVO' | 'TRANSFERENCIA', comprobante: File | null, contexto) => {
 
               const visitaId = visitaPagoSeleccionadaId
 
@@ -3683,7 +3696,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
               setVisitaPagoSeleccionadaId(null)
 
               // Registrar en background (y actualizar optimista)
-              void handleRegistrarPago(visitaId, Number(monto || 0), metodo, comprobante, pagoInitialIsAbono)
+              void handleRegistrarPago(visitaId, Number(monto || 0), metodo, comprobante, pagoInitialIsAbono, contexto)
 
             }}
 

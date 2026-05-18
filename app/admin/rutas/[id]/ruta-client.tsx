@@ -2212,7 +2212,7 @@ const RutaClientLoaded = ({
           visita={pagoVisita.visita}
           tipo={pagoVisita.tipo}
           onClose={() => setPagoVisita(null)}
-          onConfirm={async (monto, metodo, comprobante) => {
+          onConfirm={async (monto, metodo, comprobante, contexto) => {
             try {
               const pagoActual = pagoVisita
 
@@ -2231,6 +2231,9 @@ const RutaClientLoaded = ({
                 montoTotal: monto,
                 metodoPago: metodo,
                 comprobante: comprobante,
+                tipoRegistro: contexto?.tipoRegistro || pagoActual.tipo,
+                cuotaNumeroEsperada: contexto?.cuotaNumeroEsperada,
+                montoCuotaEsperado: contexto?.montoCuotaEsperado,
               } as any);
 
               showNotification('success', `${pagoActual.tipo === 'ABONO' ? 'Abono' : 'Pago'} registrado correctamente`, 'Éxito');
