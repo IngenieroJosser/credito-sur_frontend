@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { getBogotaDateKey, getPagoBogotaDateKey, getLocalDateKey } from '@/lib/rutas-core'
 import { sumMontoTotalPagosByBogotaDateKey } from '@/lib/ruta-recaudos'
+import { applyPagosDelDiaToHistorialVisitas } from '@/lib/ruta-historial'
 
 import type { HistorialDia, VisitaRuta } from '@/lib/types/cobranza'
 
@@ -152,20 +153,47 @@ export const useRutaHistorial = (params: UseRutaHistorialParams) => {
     if (fechaClave === hoyKey && typeof getVisitasHoy === 'function') {
       const visitasHoy = getVisitasHoy() || []
       if (Array.isArray(visitasHoy) && visitasHoy.length > 0) {
+        let pagosDelDia: any[] = []
+        try {
+          const pagosResp = await fetchPagosRef.current()
+          const pagosData = (pagosResp as any)?.pagos || pagosResp || []
+          const cobradorIdActual = cobradorIdRef.current
+          pagosDelDia = (Array.isArray(pagosData) ? pagosData : []).filter((p: any) => {
+            const raw = p?.fechaPago || p?.creadoEn
+            if (!raw) return false
+            const pk = getPagoBogotaDateKey(raw)
+            if (pk !== fechaClave) return false
+            return cobradorIdActual ? p?.cobradorId === cobradorIdActual : true
+          })
+        } catch {
+          pagosDelDia = []
+        }
+
+        const aplicado = applyPagosDelDiaToHistorialVisitas({
+          fechaClave,
+          visitas: visitasHoy,
+          pagosDelDia,
+        })
+
         setHistorialRutas((prev: any) => {
           const prevDia = (prev || {})[fechaClave] || {}
-          const total = visitasHoy.length
-          const visitados = deriveVisitadosFromVisitas(visitasHoy)
+          const total = aplicado.visitas.length
+          const visitados = Math.max(deriveVisitadosFromVisitas(aplicado.visitas), aplicado.visitados)
+          const recaudo = Math.max(
+            Number((prevDia.resumen || {})?.recaudo || 0),
+            aplicado.recaudo,
+          )
           return {
             ...(prev || {}),
             [fechaClave]: {
               resumen: {
                 ...(prevDia.resumen || { recaudo: 0, gastos: 0, efectividad: 0, visitados: 0, total: 0 }),
+                recaudo,
                 total,
                 visitados,
                 efectividad: deriveEfectividad(visitados, total),
               },
-              visitas: visitasHoy,
+              visitas: aplicado.visitas,
               loaded: true,
             },
           }

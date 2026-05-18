@@ -496,6 +496,11 @@ const ModuloContableContent = () => {
       if (resp && Array.isArray(resp.data)) {
         let next = resp.data.map(mapMovimientoLedger)
 
+        if (next.length === 0) {
+          const legacyResp = await getTransacciones(params)
+          next = Array.isArray(legacyResp?.data) ? legacyResp.data.map(mapTransaccion) : []
+        }
+
         const codigoCaja = String((cajaSeleccionada as any)?.codigo || '').toUpperCase()
         if (codigoCaja === 'CAJA-PRINCIPAL' || codigoCaja === 'CAJA-BANCO') {
           next = next.filter((m: any) => {

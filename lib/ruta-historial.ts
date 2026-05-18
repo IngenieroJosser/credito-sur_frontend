@@ -8,6 +8,92 @@ type Resumen = {
   total: number
 }
 
+export const applyPagosDelDiaToHistorialVisitas = (params: {
+  fechaClave: string
+  visitas: VisitaRuta[]
+  pagosDelDia: any[]
+}) => {
+  const { fechaClave, visitas, pagosDelDia } = params
+  const recaudadoPorPrestamo: Record<string, number> = {}
+  const recaudadoPorCliente: Record<string, number> = {}
+  const pagosPorKey = new Map<string, { pago: any; total: number; index: number }>()
+
+  ;(Array.isArray(pagosDelDia) ? pagosDelDia : []).forEach((p: any, index: number) => {
+    const monto = Number(p?.montoTotal ?? p?.monto ?? p?.valor ?? 0)
+    if (!(monto > 0)) return
+
+    const pid = String(p?.prestamoId || p?.prestamo?.id || '')
+    const cid = String(p?.clienteId || p?.cliente?.id || '')
+    if (pid) recaudadoPorPrestamo[pid] = (recaudadoPorPrestamo[pid] || 0) + monto
+    if (cid) recaudadoPorCliente[cid] = (recaudadoPorCliente[cid] || 0) + monto
+
+    const key = pid ? `loan-${pid}` : (cid ? `client-${cid}` : '')
+    if (!key) return
+    const prev = pagosPorKey.get(key)
+    if (prev) {
+      prev.total += monto
+    } else {
+      pagosPorKey.set(key, { pago: p, total: monto, index })
+    }
+  })
+
+  const existentes = new Set<string>()
+  const visitasActualizadas = (Array.isArray(visitas) ? visitas : []).map((v: any) => {
+    const pid = String(v?.prestamoId || '')
+    const cid = String(v?.clienteId || '')
+    if (pid) existentes.add(`loan-${pid}`)
+    else if (cid) existentes.add(`client-${cid}`)
+
+    const recPago = pid
+      ? Number(recaudadoPorPrestamo[pid] || 0)
+      : (cid ? Number(recaudadoPorCliente[cid] || 0) : 0)
+    const recActual = Number(v?.recaudadoDelDia || 0)
+    const recaudadoDelDia = Math.max(recActual, recPago)
+
+    return {
+      ...v,
+      recaudadoDelDia,
+      estado: recaudadoDelDia > 0 && String(v?.estado || '').toLowerCase() !== 'en_mora'
+        ? 'pagado'
+        : v?.estado,
+    } as VisitaRuta
+  })
+
+  const sinteticos: VisitaRuta[] = Array.from(pagosPorKey.entries()).flatMap(([key, item]) => {
+    if (existentes.has(key)) return []
+    const p = item.pago
+    const cid = p?.clienteId || p?.cliente?.id
+    const pid = String(p?.prestamoId || p?.prestamo?.id || '')
+    return [{
+      id: `pago-${p?.id || item.index}-${fechaClave}`,
+      cliente: p?.cliente ? `${p.cliente.nombres || ''} ${p.cliente.apellidos || ''}`.trim() : 'Cliente',
+      direccion: p?.cliente?.direccion || '',
+      telefono: p?.cliente?.telefono || '',
+      horaSugerida: '08:00 AM',
+      montoCuota: item.total,
+      saldoTotal: 0,
+      estado: 'pagado',
+      proximaVisita: fechaClave,
+      ordenVisita: visitasActualizadas.length + item.index + 1,
+      prioridad: 'media',
+      cobradorId: p?.cobradorId || '',
+      periodoRuta: 'DIA',
+      clienteId: cid,
+      prestamoId: pid,
+      recaudadoDelDia: item.total,
+    } as any]
+  })
+
+  const finalVisitas = [...visitasActualizadas, ...sinteticos]
+  const recaudo = finalVisitas.reduce((sum: number, v: any) => sum + Number(v?.recaudadoDelDia || 0), 0)
+  const visitados = finalVisitas.filter((v: any) => {
+    const estado = String(v?.estado || '').toLowerCase()
+    return Number(v?.recaudadoDelDia || 0) > 0 || estado === 'pagado'
+  }).length
+
+  return { visitas: finalVisitas, recaudo, visitados }
+}
+
 // Construye la información de un día del historial (visitas + resumen) a partir de:
 // - `visitasResp`: respuesta del backend de `rutasService.obtenerVisitasDelDia(rutaId, fechaClave)`
 // - `saldo`: respuesta del backend de `obtenerSaldoDisponibleRuta(rutaId, fechaClave)`
