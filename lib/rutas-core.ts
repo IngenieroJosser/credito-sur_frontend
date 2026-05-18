@@ -423,7 +423,7 @@ export const shouldShowVisitaEnRutaHoy = (visita: any, hoyBogotaKey: string): bo
   if (shouldMarkVisitaAsPagado({
     saldoTotal: visita?.saldoTotal,
     recaudadoHoy: visita?.recaudadoDelDia,
-    montoCuotaExigible: visita?.montoCuotaPendiente ?? visita?.montoCuota,
+    montoCuotaExigible: visita?.montoCuota,
     estadoActual: visita?.estado,
   })) {
     return false;

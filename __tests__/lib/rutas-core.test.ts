@@ -50,6 +50,23 @@ describe('shouldShowVisitaEnRutaHoy', () => {
       ),
     ).toBe(true)
   })
+
+  it('mantiene visible una cuota parcialmente pagada si aun falta saldo de la cuota', () => {
+    expect(
+      shouldShowVisitaEnRutaHoy(
+        {
+          estado: 'en_mora',
+          periodoRuta: 'DIA',
+          proximaVisita: '2026-05-09',
+          saldoTotal: 282000,
+          montoCuota: 92000,
+          montoCuotaPendiente: 2000,
+          recaudadoDelDia: 90000,
+        },
+        '2026-05-09',
+      ),
+    ).toBe(true)
+  })
 })
 
 describe('resolveCobradorIdForRouteAction', () => {

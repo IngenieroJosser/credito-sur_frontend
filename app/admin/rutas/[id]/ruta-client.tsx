@@ -356,7 +356,7 @@ const RutaClientLoaded = ({
         })
         return {
           ...v,
-          montoCuota: (exigible > Number(v?.montoCuota || 0)) ? exigible : v?.montoCuota,
+          montoCuotaPendiente: exigible > 0 ? exigible : (v as any)?.montoCuotaPendiente,
           enMoraHistorico: tieneMora,
           enProrrogaHistorico,
         }
@@ -549,6 +549,7 @@ const RutaClientLoaded = ({
 
             // 2. Obtener Cuotas para actualizar fecha y monto real
             let montoCuotaReal = v.montoCuota;
+            let montoCuotaPendienteReal = Number((v as any)?.montoCuotaPendiente ?? v.montoCuota ?? 0);
             let fechaReal = v.proximaVisita;
             let cuotaActual = v.cuotaActual
             let cuotasTotales = v.cuotasTotales
@@ -557,14 +558,14 @@ const RutaClientLoaded = ({
             const pendiente = (Array.isArray(cuotas) ? cuotas : []).find((c: any) => isCuotaNoPagada(c));
 
             if (pendiente) {
-              const tipoPrestamoUpper = String((v as any)?.tipoPrestamo || '').toUpperCase()
-              const esArticulo = tipoPrestamoUpper === 'ARTICULO'
               const exigiblePendiente = computeMontoExigibleHastaHoyFromCuotas(cuotas as any, hoyBogota)
-              const exigibleNominal = esArticulo ? computeMontoNominalHastaHoyFromCuotas(cuotas as any, hoyBogota) : 0
+              const exigibleNominal = computeMontoNominalHastaHoyFromCuotas(cuotas as any, hoyBogota)
+              const montoPendiente = Number(pendiente.monto || (Number(pendiente.montoCapital || 0) + Number(pendiente.montoInteres || 0)) || 0)
+              const pagadoPendiente = Number(pendiente.montoPagado || 0)
+              const pendienteReal = Math.max(0, montoPendiente - pagadoPendiente)
 
-              montoCuotaReal = esArticulo
-                ? (exigibleNominal > 0 ? exigibleNominal : montoCuotaReal)
-                : (exigiblePendiente > 0 ? exigiblePendiente : montoCuotaReal)
+              montoCuotaReal = exigibleNominal > 0 ? exigibleNominal : (montoPendiente > 0 ? montoPendiente : montoCuotaReal)
+              montoCuotaPendienteReal = exigiblePendiente > 0 ? exigiblePendiente : pendienteReal
 
               fechaReal = resolveFechaEfectivaCuota(pendiente) || (pendiente.fechaVencimiento || v.proximaVisita);
               
@@ -607,9 +608,7 @@ const RutaClientLoaded = ({
               recaudadoTotalClient: totalHistorico, 
               fechaUltimoPago: ultimoPagoDate,
               montoCuota: cuotaComparar,
-              montoCuotaPendiente: String((v as any)?.tipoPrestamo || '').toUpperCase() === 'ARTICULO'
-                ? computeMontoExigibleHastaHoyFromCuotas(cuotas as any, hoyBogota)
-                : undefined,
+              montoCuotaPendiente: montoCuotaPendienteReal,
               proximaVisita: fechaReal,
               cuotaActual,
               cuotasTotales,
@@ -2370,7 +2369,7 @@ const RutaClientLoaded = ({
             <ClienteInfoModal
               visita={detalleActual}
               onClose={() => setDetalleVisita(null)}
-              nextPagoMonto={detalleActual.montoCuota}
+              nextPagoMonto={Number((detalleActual as any)?.montoCuotaPendiente ?? detalleActual.montoCuota ?? 0)}
               nextPagoFecha={detalleActual.proximaVisita}
               recaudadoHoy={0} // Valor estático en modo auditoría admin
               formatFechaLargaUTC={formatShortDate}

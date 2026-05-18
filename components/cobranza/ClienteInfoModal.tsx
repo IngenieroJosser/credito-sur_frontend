@@ -115,10 +115,10 @@ export default function ClienteInfoModal({
     visita.nivelRiesgo === 'critico'   ? 'bg-red-100 text-red-700' :
     'bg-slate-100 text-slate-600'
 
-  const cuotaProyectada =
-    visita.estado === 'en_mora'
-      ? (visita.montoCuota ?? 0)
-      : (nextPagoMonto ?? visita.montoCuota ?? 0)
+  const cuotaPendienteActual = Number((visita as any)?.montoCuotaPendiente ?? 0)
+  const cuotaProyectada = cuotaPendienteActual > 0
+    ? cuotaPendienteActual
+    : (nextPagoMonto ?? visita.montoCuota ?? 0)
 
   // ── Render ───────────────────────────────────────────────────────────────────
 

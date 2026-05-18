@@ -173,23 +173,21 @@ export const mapAsignacionesToVisitasLite = (params: {
       const esArticulo = prestamo?.tipo === 'ARTICULO' || prestamo?.tipoPrestamo === 'ARTICULO'
 
       const montoNominalProxima = Number((proxima as any)?.montoNominal ?? (proxima as any)?.monto ?? 0)
+      const montoPagadoProxima = Number((proxima as any)?.montoPagado ?? 0)
+      const montoPendienteProxima = Math.max(0, montoNominalProxima - montoPagadoProxima)
       const montoNominalPrestamo = Number((prestamo as any)?.valorCuota ?? (prestamo as any)?.montoCuota ?? 0)
       const montoCuotaBase = esArticulo
         ? Math.max(montoNominalProxima, montoNominalPrestamo)
         : (montoNominalPrestamo > 0 ? montoNominalPrestamo : montoNominalProxima)
-      const montoCuota = esArticulo
-        ? (() => {
-          const montoNominal = computeMontoNominalHastaHoyFromCuotas(cuotasOrdenadas as any, hoyKey)
-          return montoNominal > 0 ? Math.max(montoNominal, montoCuotaBase) : montoCuotaBase
-        })()
+      const montoNominalHastaHoy = computeMontoNominalHastaHoyFromCuotas(cuotasOrdenadas as any, hoyKey)
+      const montoPendienteHastaHoy = computeMontoExigibleHastaHoyFromCuotas(cuotasOrdenadas as any, hoyKey)
+      const montoCuota = montoNominalHastaHoy > 0
+        ? Math.max(montoNominalHastaHoy, montoCuotaBase)
         : montoCuotaBase
 
-      const montoCuotaPendiente = esArticulo
-        ? (() => {
-          const montoExigible = computeMontoExigibleHastaHoyFromCuotas(cuotasOrdenadas as any, hoyKey)
-          return montoExigible > 0 ? montoExigible : 0
-        })()
-        : undefined
+      const montoCuotaPendiente = montoPendienteHastaHoy > 0
+        ? montoPendienteHastaHoy
+        : montoPendienteProxima
 
       // Regla de montoCuota:
       // - Si hay cuotas vencidas/no pagadas hasta hoy, se acumulan (mora) y se cobra ese total.

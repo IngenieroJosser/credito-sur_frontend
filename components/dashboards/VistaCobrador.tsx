@@ -815,6 +815,10 @@ const VistaCobrador = () => {
         const montoCuota = montoExigible > 0
           ? montoExigible
           : pendienteProx
+        const montoCuotaNominal = computeMontoNominalHastaHoyFromCuotas(cuotasForMonto as any, hoyBogotaKey)
+        const montoCuotaTotal = montoCuotaNominal > 0
+          ? Math.max(montoCuotaNominal, Number((prox as any)?.monto ?? 0))
+          : Number((prox as any)?.monto ?? montoCuota)
         const proximaVisitaV = fechaEfectiva || (prox as any)?.fechaVencimiento || row?.prestamo?.fechaEfectiva || hoyBogotaKey
 
         const hoyBogota = hoyBogotaKey
@@ -849,7 +853,8 @@ const VistaCobrador = () => {
           direccion: c?.direccion || 'Sin dirección registrada',
           telefono: c?.telefono || '',
           horaSugerida: '08:00 AM',
-          montoCuota,
+          montoCuota: montoCuotaTotal,
+          montoCuotaPendiente: montoCuota,
           saldoTotal: Number(p?.saldoPendiente || 0),
           estado: estadoCalculado,
           proximaVisita: proximaVisitaV,
@@ -1236,9 +1241,11 @@ const VistaCobrador = () => {
 
               if (tipoPrestamo !== 'ARTICULO') {
                 const exigiblePendiente = computeMontoExigibleHastaHoyFromCuotas(cuotas as any, hoyKey)
+                const exigibleNominal = computeMontoNominalHastaHoyFromCuotas(cuotas as any, hoyKey)
                 return {
                   ...v,
-                  montoCuota: exigiblePendiente > 0 ? exigiblePendiente : baseCuota,
+                  montoCuota: exigibleNominal > 0 ? Math.max(exigibleNominal, baseCuota) : baseCuota,
+                  montoCuotaPendiente: exigiblePendiente > 0 ? exigiblePendiente : (v as any)?.montoCuotaPendiente,
                   estado: (saldoPendiente <= 0 ? 'pagado' : (tieneMora ? 'en_mora' : v.estado)) as any,
                 }
               }
@@ -2070,7 +2077,7 @@ const VistaCobrador = () => {
         })
         return {
           ...v,
-          montoCuota: (exigible > Number(v?.montoCuota || 0)) ? exigible : v?.montoCuota,
+          montoCuotaPendiente: exigible > 0 ? exigible : (v as any)?.montoCuotaPendiente,
           enMoraHistorico: tieneMora,
           enProrrogaHistorico,
         }
@@ -4864,7 +4871,7 @@ const VistaCobrador = () => {
 
             visita={visitaClienteSeleccionada}
 
-            nextPagoMonto={nextPagoMonto ?? (visitaClienteSeleccionada.montoCuota || 0)}
+            nextPagoMonto={nextPagoMonto ?? Number((visitaClienteSeleccionada as any)?.montoCuotaPendiente ?? visitaClienteSeleccionada.montoCuota ?? 0)}
 
             nextPagoFecha={nextPagoFecha ?? (visitaClienteSeleccionada.proximaVisita || '')}
 
