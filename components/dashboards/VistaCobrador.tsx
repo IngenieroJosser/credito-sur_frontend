@@ -670,7 +670,16 @@ const VistaCobrador = () => {
 
         base: Number((saldo as any)?.saldoCaja ?? (saldo as any)?.baseEfectivo ?? prev.base ?? 0),
 
-        eficiencia: prev.meta > 0 ? Math.round((Number(saldo?.recaudoDelDia ?? 0) / prev.meta) * 100) : prev.eficiencia
+        meta: periodoCards === 'HOY'
+          ? Number((rutaActual as any)?.estadisticas?.metaDelDia ?? prev.meta ?? 0)
+          : prev.meta,
+
+        eficiencia: (() => {
+          const meta = periodoCards === 'HOY'
+            ? Number((rutaActual as any)?.estadisticas?.metaDelDia ?? prev.meta ?? 0)
+            : Number(prev.meta || 0)
+          return meta > 0 ? Math.round((Number(saldo?.recaudoDelDia ?? 0) / meta) * 100) : prev.eficiencia
+        })()
 
       }));
 
@@ -680,7 +689,7 @@ const VistaCobrador = () => {
 
     }
 
-  }, [periodoCards]);
+  }, [periodoCards, rutaActual]);
 
 
 
@@ -1132,7 +1141,7 @@ const VistaCobrador = () => {
           setRutaStats(prev => ({
             ...prev,
             recaudo: Number(saldo?.cobranzaDelDia ?? saldo?.recaudoDelDia ?? est.cobranzaDelDia ?? 0),
-            meta: (periodoCards === 'HOY' && Number(prev?.meta || 0) > 0) ? Number(prev.meta || 0) : Number(est.metaDelDia ?? 0),
+            meta: Number(est.metaDelDia ?? 0) > 0 ? Number(est.metaDelDia ?? 0) : Number(prev?.meta || 0),
             eficiencia: (est.metaDelDia > 0) ? Math.round((Number(saldo?.cobranzaDelDia ?? saldo?.recaudoDelDia ?? 0) / est.metaDelDia) * 100) : Number(est.avanceDiario ?? 0),
             gastos: Number(saldo?.gastosDelDia ?? 0),
             base: Number(saldo?.saldoCaja ?? saldo?.baseEfectivo ?? 0)
@@ -1142,7 +1151,7 @@ const VistaCobrador = () => {
           setRutaStats(prev => ({
             ...prev,
             recaudo: Number(est.cobranzaDelDia ?? 0),
-            meta: (periodoCards === 'HOY' && Number(prev?.meta || 0) > 0) ? Number(prev.meta || 0) : Number(est.metaDelDia ?? 0),
+            meta: Number(est.metaDelDia ?? 0) > 0 ? Number(est.metaDelDia ?? 0) : Number(prev?.meta || 0),
             eficiencia: Number(est.avanceDiario ?? 0),
             gastos: 0,
             base: 0
