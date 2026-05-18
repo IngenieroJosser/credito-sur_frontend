@@ -450,6 +450,36 @@ export const computeMetaHoyFromVisitas = (visitas: any[], hoyBogotaKey: string):
   }, 0);
 };
 
+export const computeRutaHoyUiStatsFromVisitas = (
+  visitas: any[],
+  recaudoFallback = 0,
+): { meta: number; pendiente: number; recaudo: number } => {
+  const visitasSeguras = Array.isArray(visitas) ? visitas : [];
+  const pendiente = visitasSeguras.reduce((sum: number, v: any) => {
+    if (!v) return sum;
+    const estadoLower = String(v?.estado || '').toLowerCase().replace(/\s+/g, '_');
+    if (estadoLower === 'pagado') return sum;
+
+    const tieneCuotaPendiente = (v as any)?.montoCuotaPendiente != null;
+    const cuotaBase = Number(((v as any)?.montoCuotaPendiente ?? v?.montoCuota) || 0);
+    const recHoy = Number((v as any)?.recaudadoDelDia || 0);
+    const saldo = Number((v as any)?.saldoTotal || 0);
+
+    const cuotaPendiente = tieneCuotaPendiente ? cuotaBase : Math.max(0, cuotaBase - recHoy);
+    const cuotaUI = Math.min(cuotaPendiente, saldo > 0 ? saldo : cuotaPendiente);
+    return sum + Number(cuotaUI || 0);
+  }, 0);
+
+  const recaudoDeVisitas = visitasSeguras.reduce(
+    (sum: number, v: any) => sum + Number((v as any)?.recaudadoDelDia || 0),
+    0,
+  );
+  const recaudo = Math.max(Number(recaudoFallback || 0), recaudoDeVisitas);
+  const meta = pendiente > 0 || recaudo > 0 ? pendiente + recaudo : 0;
+
+  return { meta, pendiente, recaudo };
+};
+
 export const isCuotaNoPagada = (cuota: any): boolean => {
   // Predicado normalizado de "cuota no pagada" (incluye pendientes, vencidas, prorrogadas, etc.).
   const st = String(cuota?.estado || '').toUpperCase();
