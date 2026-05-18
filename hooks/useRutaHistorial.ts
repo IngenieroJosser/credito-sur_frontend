@@ -103,13 +103,18 @@ export const useRutaHistorial = (params: UseRutaHistorialParams) => {
           if (next[k]?.loaded) continue
 
           const recaudo = sumMontoTotalPagosByBogotaDateKey(pagosFiltrados as any, k)
-          const visitados = (Array.isArray(pagosFiltrados) ? pagosFiltrados : []).reduce((count: number, p: any) => {
+          const visitadosKeys = new Set<string>()
+          ;(Array.isArray(pagosFiltrados) ? pagosFiltrados : []).forEach((p: any) => {
             const raw = p?.fechaPago || p?.creadoEn
-            if (!raw) return count
+            if (!raw) return
             const pk = getPagoBogotaDateKey(raw)
-            if (!pk) return count
-            return pk === k ? (count + 1) : count
-          }, 0)
+            if (pk !== k) return
+            const pid = String(p?.prestamoId || p?.prestamo?.id || '')
+            const cid = String(p?.clienteId || p?.cliente?.id || '')
+            const key = pid ? `loan-${pid}` : (cid ? `client-${cid}` : String(p?.id || ''))
+            if (key) visitadosKeys.add(key)
+          })
+          const visitados = visitadosKeys.size
 
           if (next[k].resumen.recaudo !== recaudo || next[k].resumen.visitados !== visitados) {
             next[k].resumen.recaudo = recaudo

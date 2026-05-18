@@ -684,6 +684,11 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
 
   const [historialRutas, setHistorialRutas] = useState<any>({});
+  const historialRutasRef = useRef<any>({})
+
+  useEffect(() => {
+    historialRutasRef.current = historialRutas
+  }, [historialRutas])
 
   const historyDates = useMemo(() => {
     return Object.keys(historialRutas || {}).sort().reverse()
@@ -764,7 +769,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
   const cuotasHistorialCacheRef = useRef<Map<string, any[]>>(new Map())
 
   const enriquecerHistorialDiaConCuotas = useCallback(async (fechaClave: string) => {
-    const dayData = (historialRutas || {})[fechaClave]
+    const dayData = (historialRutasRef.current || {})[fechaClave]
     if (!dayData?.loaded) return
     const visitasRaw = Array.isArray(dayData?.visitas) ? dayData.visitas : []
 
@@ -833,15 +838,15 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         },
       }
     })
-  }, [historialRutas])
+  }, [])
 
   useEffect(() => {
     if (!showHistory) return
     const hoy = hoyBogotaKey
-    const dayData = (historialRutas || {})[hoy]
+    const dayData = (historialRutasRef.current || {})[hoy]
     if (!dayData?.loaded) return
     void enriquecerHistorialDiaConCuotas(hoy)
-  }, [showHistory, historialRutas, hoyBogotaKey, enriquecerHistorialDiaConCuotas])
+  }, [showHistory, hoyBogotaKey, enriquecerHistorialDiaConCuotas])
 
   useEffect(() => {
     if (!showHistory) return
