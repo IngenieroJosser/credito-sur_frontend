@@ -328,13 +328,17 @@ export const RutasPageView = ({
               const cobranzaBackend = Number(r.cobranzaDelDia || 0)
               // Prioridad: saldo backend > pagos mapeados > valor del listado
               const cobranzaDelDia = cobranzaFromSaldo > 0 ? cobranzaFromSaldo : (cobranzaFromPagos > 0 ? cobranzaFromPagos : cobranzaBackend)
-              const statsHoy = computeRutaHoyUiStatsFromVisitas(visitasConRecaudoHoy as any, cobranzaDelDia)
+              // Excluir visitas ya pagadas antes de calcular la meta, igual que en la vista de detalle de ruta
+              const visitasParaMeta = (Array.isArray(visitasConRecaudoHoy) ? visitasConRecaudoHoy : []).filter(
+                (v: any) => String(v?.estado || '').toLowerCase() !== 'pagado'
+              )
+              const statsHoy = computeRutaHoyUiStatsFromVisitas(visitasParaMeta as any, cobranzaDelDia)
               const metaDelDia = statsHoy.meta > 0 ? statsHoy.meta : Number(r.metaDelDia || 0)
 
               return {
                 ...r,
                 metaDelDia,
-                cobranzaDelDia: statsHoy.recaudo > 0 ? statsHoy.recaudo : cobranzaDelDia,
+                cobranzaDelDia: cobranzaDelDia > 0 ? cobranzaDelDia : (statsHoy.recaudo > 0 ? statsHoy.recaudo : 0),
               };
             } catch {
               return r;
