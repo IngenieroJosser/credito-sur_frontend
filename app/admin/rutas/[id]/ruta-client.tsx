@@ -205,8 +205,14 @@ const RutaClientLoaded = ({
 
   const [showHistory, setShowHistory] = useState(false)
   const [showMisClientes, setShowMisClientes] = useState(false)
+  const [enrichNonce, setEnrichNonce] = useState(0)
 
   const [historialRutas, setHistorialRutas] = useState<Record<string, HistorialDia>>({} as any)
+  const historialRutasRef = useRef<Record<string, HistorialDia>>({} as any)
+
+  useEffect(() => {
+    historialRutasRef.current = historialRutas
+  }, [historialRutas])
 
   const [periodoRutaFiltro, setPeriodoRutaFiltro] = useState<'TODOS' | 'DIA' | 'SEMANA' | 'QUINCENA' | 'MES'>('TODOS')
 
@@ -224,6 +230,7 @@ const RutaClientLoaded = ({
   }, [])
 
   const visitasCobradorRef = useRef<VisitaRuta[]>([])
+  const lastEnrichKeyRef = useRef('')
 
   const historial = useRutaHistorial({
     rutaId,
@@ -300,7 +307,7 @@ const RutaClientLoaded = ({
   const cuotasHistorialCacheRef = useRef<Map<string, any[]>>(new Map())
 
   const enriquecerHistorialDiaConCuotas = useCallback(async (fechaClave: string) => {
-    const dayData = (historialRutas as any)?.[fechaClave]
+    const dayData = (historialRutasRef.current as any)?.[fechaClave]
     if (!dayData?.loaded) return
     const visitasRaw = Array.isArray(dayData?.visitas) ? dayData.visitas : []
 
@@ -368,15 +375,15 @@ const RutaClientLoaded = ({
         },
       }
     })
-  }, [historialRutas])
+  }, [])
 
   useEffect(() => {
     if (!showHistory) return
     const hoy = hoyBogotaKey
-    const dayData = (historialRutas as any)?.[hoy]
+    const dayData = (historialRutasRef.current as any)?.[hoy]
     if (!dayData?.loaded) return
     void enriquecerHistorialDiaConCuotas(hoy)
-  }, [showHistory, historialRutas, hoyBogotaKey, enriquecerHistorialDiaConCuotas])
+  }, [showHistory, hoyBogotaKey, enriquecerHistorialDiaConCuotas])
 
   useEffect(() => {
     if (!showHistory) return
@@ -496,11 +503,20 @@ const RutaClientLoaded = ({
 
     if (visitasCobrador.length === 0) return;
 
-    
+    const enrichKey = JSON.stringify({
+      nonce: enrichNonce,
+      items: visitasCobrador.map((v: any) => ({
+        id: v?.id,
+        prestamoId: v?.prestamoId,
+        recaudo: v?.recaudadoDelDia,
+        cuota: v?.montoCuota,
+        saldo: v?.saldoTotal,
+        proxima: v?.proximaVisita,
+      })),
+    })
 
-    // Verificamos si ya fueron enriquecidas (usando recaudadoTotalClient como flag)
-
-    if (visitasCobrador.some(v => v.recaudadoTotalClient !== undefined)) return;
+    if (lastEnrichKeyRef.current === enrichKey) return;
+    lastEnrichKeyRef.current = enrichKey;
 
 
 
@@ -614,7 +630,7 @@ const RutaClientLoaded = ({
 
     enriquecerConPagos();
 
-  }, [visitasCobrador]);
+  }, [enrichNonce, visitasCobrador]);
 
 
 
@@ -2217,30 +2233,10 @@ const RutaClientLoaded = ({
                 comprobante: comprobante,
               } as any);
 
-              // Update optimista: sumar recaudo del día y remover si completó cuota
-              const visitaId = pagoActual.visita.id
-              const montoNum = Number(monto || 0)
-              const montoCuotaPrev = Number(pagoActual.visita.montoCuota || 0)
-              const recPrev = Number(pagoActual.visita.recaudadoDelDia || 0)
-              const recNuevo = recPrev + montoNum
-              const cuotaCompletada = montoCuotaPrev > 0 && recNuevo >= (montoCuotaPrev - 1)
-
-              setVisitasCobrador((prev) => {
-                const next = prev.map((v) => {
-                  if (v.id !== visitaId) return v
-                  return {
-                    ...v,
-                    recaudadoDelDia: Number(v.recaudadoDelDia || 0) + montoNum,
-                    estado: cuotaCompletada ? ('pagado' as any) : v.estado,
-                  }
-                })
-
-                return next
-              })
-
               showNotification('success', `${pagoActual.tipo === 'ABONO' ? 'Abono' : 'Pago'} registrado correctamente`, 'Éxito');
 
-              // Refrescar estadísticas
+              // Refrescar desde cuotas/pagos reales para no mostrar una ruta parcialmente parcheada.
+              setEnrichNonce((n) => n + 1)
               try {
                 await onRutaRefresh?.(pagoActual.visita.prestamoId);
               } catch {}
