@@ -172,7 +172,7 @@ export default function CoordinadorPage() {
           {
             title: 'Cartera en Mora',
             value: stats?.moraTotal || 0,
-            subValue: `${moraPercent}% del total · ${stats?.morosos || 0} cuentas`,
+            subValue: `${moraPercent}% del total · ${stats?.atrasados || 0} cuentas`,
             isCurrency: true,
             change: 0,
             icon: <AlertCircle className="h-4 w-4" />,

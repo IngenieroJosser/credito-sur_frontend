@@ -187,7 +187,7 @@ const ListadoPrestamosElegante = () => {
 
       setPrestamos(nextPrestamos);
 
-      // Recalcular 'en mora' basado en `diasMora` para que la tarjeta sea consistente con el listado.
+      // Respaldo local si el backend no envía estadísticas de mora.
       const moraCount = nextPrestamos.filter((p: any) => {
         const diasMora = Number(p?.diasMora || 0)
         const cuotasVencidas = Number(p?.cuotasVencidas || 0)
@@ -195,9 +195,10 @@ const ListadoPrestamosElegante = () => {
         return diasMora > 0 || cuotasVencidas > 0 || estado === 'EN_MORA'
       }).length
 
+      const stats = (response.estadisticas || {}) as any
       setEstadisticas({
-        ...(response.estadisticas as any),
-        atrasados: moraCount,
+        ...stats,
+        atrasados: Number(stats.atrasados ?? moraCount),
       });
       setTotalPrestamos(response.paginacion.total);
       setDataSource('online');
@@ -514,7 +515,7 @@ const ListadoPrestamosElegante = () => {
           </div>
           
           <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-            <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Cuentas Vencidas</p>
+            <p className="text-xs font-bold text-rose-600 uppercase tracking-wider mb-2">Saldo en Mora</p>
             <p className="text-lg font-bold text-slate-900 tracking-tight truncate" title={formatCurrency(estadisticas.moraTotal)}>
               {formatCurrency(estadisticas.moraTotal)}
             </p>
