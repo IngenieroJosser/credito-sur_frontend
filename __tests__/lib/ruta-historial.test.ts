@@ -18,7 +18,15 @@ describe('buildHistorialDiaFromBackend', () => {
             apellidos: 'Diaz',
             direccion: 'Calle 1',
             telefono: '123',
+            nivelRiesgo: 'ROJO',
           },
+          prestamo: {
+            id: 'prestamo-1',
+            cantidadCuotas: 30,
+            frecuenciaPago: 'DIARIO',
+            saldoPendiente: 900000,
+          },
+          detalles: [{ cuota: { numeroCuota: 2, monto: 30000 } }],
         },
         {
           id: 'pago-2',
@@ -31,6 +39,13 @@ describe('buildHistorialDiaFromBackend', () => {
             apellidos: 'Diaz',
             direccion: 'Calle 1',
             telefono: '123',
+            nivelRiesgo: 'ROJO',
+          },
+          prestamo: {
+            id: 'prestamo-1',
+            cantidadCuotas: 30,
+            frecuenciaPago: 'DIARIO',
+            saldoPendiente: 900000,
           },
         },
       ],
@@ -43,6 +58,10 @@ describe('buildHistorialDiaFromBackend', () => {
       cliente: 'Ana Diaz',
       estado: 'pagado',
       recaudadoDelDia: 50000,
+      nivelRiesgo: 'moderado',
+      cuotaActual: 2,
+      cuotasTotales: 30,
+      saldoTotal: 900000,
     })
     expect(result.resumen.recaudo).toBe(50000)
     expect(result.resumen.visitados).toBe(1)

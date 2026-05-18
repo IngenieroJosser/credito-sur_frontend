@@ -8,6 +8,15 @@ type Resumen = {
   total: number
 }
 
+const normalizeNivelRiesgo = (raw: any): any => {
+  const r = String(raw || '').toUpperCase()
+  if (r === 'VERDE') return 'bajo'
+  if (r === 'AMARILLO') return 'leve'
+  if (r === 'ROJO') return 'moderado'
+  if (r === 'LISTA_NEGRA') return 'critico'
+  return 'bajo'
+}
+
 export const applyPagosDelDiaToHistorialVisitas = (params: {
   fechaClave: string
   visitas: VisitaRuta[]
@@ -76,10 +85,13 @@ export const applyPagosDelDiaToHistorialVisitas = (params: {
       proximaVisita: fechaClave,
       ordenVisita: visitasActualizadas.length + item.index + 1,
       prioridad: 'media',
+      nivelRiesgo: normalizeNivelRiesgo(p?.cliente?.nivelRiesgo),
       cobradorId: p?.cobradorId || '',
       periodoRuta: 'DIA',
       clienteId: cid,
       prestamoId: pid,
+      cuotaActual: p?.detalle?.cuota?.numeroCuota || p?.detalles?.[0]?.cuota?.numeroCuota,
+      cuotasTotales: p?.prestamo?.cantidadCuotas,
       recaudadoDelDia: item.total,
     } as any]
   })
@@ -177,14 +189,7 @@ export const buildHistorialDiaFromBackend = (params: {
           proximaVisita: item?.proximaVisita || fechaClave,
           ordenVisita: item?.ordenVisita || index + 1,
           prioridad: cliente?.nivelRiesgo === 'ROJO' ? 'alta' : 'media',
-          nivelRiesgo: (() => {
-            const r = cliente?.nivelRiesgo || 'VERDE'
-            if (r === 'VERDE') return 'bajo'
-            if (r === 'AMARILLO') return 'leve'
-            if (r === 'ROJO') return 'moderado'
-            if (r === 'LISTA_NEGRA') return 'critico'
-            return 'bajo'
-          })(),
+          nivelRiesgo: normalizeNivelRiesgo(cliente?.nivelRiesgo),
           cobradorId: '',
           periodoRuta: 'DIA',
           clienteId: cliente?.id,
@@ -248,14 +253,7 @@ export const buildHistorialDiaFromBackend = (params: {
         proximaVisita: item?.proximaVisita || proximaCuota?.fechaVencimiento || fechaClave,
         ordenVisita: (item?.ordenVisita ? Number(item.ordenVisita) : (index + 1)) + loanIdx,
         prioridad: cliente?.nivelRiesgo === 'ROJO' ? 'alta' : 'media',
-        nivelRiesgo: (() => {
-          const r = cliente?.nivelRiesgo || 'VERDE'
-          if (r === 'VERDE') return 'bajo'
-          if (r === 'AMARILLO') return 'leve'
-          if (r === 'ROJO') return 'moderado'
-          if (r === 'LISTA_NEGRA') return 'critico'
-          return 'bajo'
-        })(),
+        nivelRiesgo: normalizeNivelRiesgo(cliente?.nivelRiesgo),
         cobradorId: '',
         periodoRuta,
         clienteId: cliente?.id,
@@ -291,24 +289,40 @@ export const buildHistorialDiaFromBackend = (params: {
     const p = item.pago
     const cid = p?.clienteId || p?.cliente?.id
     const pid = String(p?.prestamoId || p?.prestamo?.id || '')
+    const primerDetalle = Array.isArray(p?.detalles) ? p.detalles[0] : undefined
+    const cuotaDetalle = primerDetalle?.cuota || p?.cuota || undefined
+    const prestamo = p?.prestamo || {}
+    const cliente = p?.cliente || {}
+    const nombreCliente = cliente
+      ? `${cliente.nombres || ''} ${cliente.apellidos || ''}`.trim()
+      : ''
+    const saldoPendiente = Number(prestamo?.saldoPendiente ?? 0)
+    const cuotaMonto = Number(cuotaDetalle?.monto ?? primerDetalle?.monto ?? item.total ?? 0)
     existentes.add(keyExist)
 
     return {
       id: `pago-${p?.id || item.index}-${fechaClave}`,
-      cliente: p?.cliente ? `${p.cliente.nombres || ''} ${p.cliente.apellidos || ''}`.trim() : 'Cliente',
-      direccion: p?.cliente?.direccion || '',
-      telefono: p?.cliente?.telefono || '',
+      cliente: nombreCliente || 'Cliente',
+      direccion: cliente?.direccion || '',
+      telefono: cliente?.telefono || '',
       horaSugerida: '08:00 AM',
-      montoCuota: item.total,
-      saldoTotal: 0,
+      montoCuota: cuotaMonto > 0 ? cuotaMonto : item.total,
+      saldoTotal: saldoPendiente,
       estado: 'pagado',
       proximaVisita: fechaClave,
       ordenVisita: visitas.length + offset + 1,
-      prioridad: 'media',
+      prioridad: cliente?.nivelRiesgo === 'ROJO' ? 'alta' : 'media',
+      nivelRiesgo: normalizeNivelRiesgo(cliente?.nivelRiesgo),
       cobradorId: '',
-      periodoRuta: 'DIA',
+      periodoRuta: normalizePeriodoRuta(prestamo?.frecuenciaRuta || prestamo?.frecuenciaPago || prestamo?.frecuencia || 'DIA'),
       clienteId: cid,
       prestamoId: pid,
+      cuotaActual: cuotaDetalle?.numeroCuota,
+      cuotasTotales: prestamo?.cantidadCuotas,
+      tipoPrestamo: String(prestamo?.tipoPrestamo || prestamo?.tipo || '').toUpperCase() === 'ARTICULO' ? 'ARTICULO' : 'EFECTIVO',
+      articuloNombre: String(prestamo?.tipoPrestamo || prestamo?.tipo || '').toUpperCase() === 'ARTICULO'
+        ? (prestamo?.articulo || prestamo?.descripcionArticulo || 'Artículo')
+        : 'Préstamo',
       recaudadoDelDia: item.total,
     } as any
   })
