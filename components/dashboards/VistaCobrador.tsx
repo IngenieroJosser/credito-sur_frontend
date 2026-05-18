@@ -197,6 +197,7 @@ import {
   computeMontoExigibleHastaHoyFromCuotas,
   computeMontoNominalHastaHoyFromCuotas,
   computeMetaHoyFromVisitas,
+  computeRutaHoyUiStatsFromVisitas,
   getBogotaDateKey,
   getBogotaRangeByPeriod,
   getLocalDateKey,
@@ -2264,34 +2265,23 @@ const VistaCobrador = () => {
     if (periodoCards !== 'HOY') return rutaStats
 
     const recaudo = Number((rutaStats as any)?.recaudo || 0)
-    // BUG-14 FIX: la 'meta' es la meta fija del día que viene del backend (invariable).
-    // Lo que decrece con cada cobro es el 'pendiente', que se muestra como campo separado.
-    // Esto evita que el cobrador vea una meta que baja en lugar de un indicador de progreso.
     const metaFija = Number((rutaStats as any)?.meta || 0)
-    const metaPendientePorVisitas = (Array.isArray(visitasCobrador) ? visitasCobrador : []).reduce((sum: number, v: any) => {
-      if (!v) return sum
-      const estadoLower = String(v?.estado || '').toLowerCase().replace(/\s+/g, '_')
-      if (estadoLower === 'pagado') return sum
-      const tieneCuotaPendiente = (v as any)?.montoCuotaPendiente != null
-      const cuotaBase = Number(((v as any)?.montoCuotaPendiente ?? v?.montoCuota) || 0)
-      const recHoy = Number((v as any)?.recaudadoDelDia || 0)
-      const saldo = Number((v as any)?.saldoTotal || 0)
-      const cuotaPendiente = tieneCuotaPendiente ? cuotaBase : Math.max(0, cuotaBase - recHoy)
-      const cuotaUI = Math.min(cuotaPendiente, saldo > 0 ? saldo : cuotaPendiente)
-      return sum + Number(cuotaUI || 0)
-    }, 0)
-    // Si el backend aún no tiene meta, usar el pendiente como fallback inicial
-    const meta = metaFija > 0 ? metaFija : metaPendientePorVisitas
-    const pendiente = Math.max(0, meta - recaudo)
-    const eficienciaRaw = meta > 0 ? Number(((recaudo / meta) * 100).toFixed(1)) : (recaudo > 0 ? 100 : 0)
+    const visitasParaMeta = Array.isArray(visitasCobrador) ? visitasCobrador : []
+    const statsPorVisitas = computeRutaHoyUiStatsFromVisitas(visitasParaMeta, recaudo)
+    const recaudoFinal = statsPorVisitas.recaudo
+    const meta = visitasParaMeta.length > 0 && statsPorVisitas.meta > 0 ? statsPorVisitas.meta : metaFija
+    const pendiente = visitasParaMeta.length > 0
+      ? Math.max(0, statsPorVisitas.pendiente)
+      : Math.max(0, meta - recaudo)
+    const eficienciaRaw = meta > 0 ? Number(((recaudoFinal / meta) * 100).toFixed(1)) : (recaudoFinal > 0 ? 100 : 0)
     const eficiencia = Math.min(100, Math.max(0, eficienciaRaw))
 
     return {
       ...rutaStats,
-      recaudo,
-      meta,       // meta fija del día — no decrece al cobrar
+      recaudo: recaudoFinal,
+      meta,
       eficiencia,
-      pendiente, // mismo criterio que admin/supervisor/coordinador: meta - recaudado
+      pendiente,
     }
   }, [periodoCards, rutaStats, visitasCobrador])
 

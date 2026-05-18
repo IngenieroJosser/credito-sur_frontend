@@ -119,6 +119,7 @@ import {
   computeMontoExigibleHastaHoyFromCuotas,
   computeMontoNominalHastaHoyFromCuotas,
   computeMetaHoyFromVisitas,
+  computeRutaHoyUiStatsFromVisitas,
   getBogotaDateKey,
   getBogotaRangeByPeriod,
   getPagoBogotaDateKey,
@@ -1056,26 +1057,18 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         // Filtrar aquí descartaba clientes válidos con saldoTotal=0 que aún están pendientes.
         const finalesFiltrados = finales;
 
-        const metaHoy = (Array.isArray(finalesFiltrados) ? finalesFiltrados : []).reduce((sum: number, v: any) => {
-          if (!v) return sum
-          const estadoLower = String(v?.estado || '').toLowerCase().replace(/\s+/g, '_')
-          if (estadoLower === 'pagado') return sum
+        const statsHoy = computeRutaHoyUiStatsFromVisitas(finalesFiltrados as any[], 0)
 
-          const tieneCuotaPendiente = (v as any)?.montoCuotaPendiente != null
-          const cuotaBase = Number(((v as any)?.montoCuotaPendiente ?? v?.montoCuota) || 0)
-          const recHoy = Number((v as any)?.recaudadoDelDia || 0)
-          const saldo = Number((v as any)?.saldoTotal || 0)
-
-          const cuotaPendiente = tieneCuotaPendiente ? cuotaBase : Math.max(0, cuotaBase - recHoy)
-          const cuotaUI = Math.min(cuotaPendiente, saldo > 0 ? saldo : cuotaPendiente)
-          return sum + Number(cuotaUI || 0)
-        }, 0)
-
-        setRutaStats((prev: any) => ({
-          ...prev,
-          meta: periodoCards === 'HOY' ? (Number(prev.meta) > 0 ? prev.meta : metaHoy) : prev.meta,
-          pendiente: periodoCards === 'HOY' ? metaHoy : prev.pendiente,
-        }));
+        setRutaStats((prev: any) => {
+          if (periodoCards !== 'HOY') return prev
+          const recaudo = Math.max(Number(prev.recaudo || 0), statsHoy.recaudo)
+          return {
+            ...prev,
+            meta: statsHoy.pendiente > 0 || recaudo > 0 ? statsHoy.pendiente + recaudo : 0,
+            recaudo,
+            pendiente: statsHoy.pendiente,
+          }
+        });
 
         const prevList = visitasBaseRef.current
         const prevById = new Map<string, any>((Array.isArray(prevList) ? prevList : []).map((v: any) => [String(v?.id || ''), v]))
