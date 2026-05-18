@@ -59,16 +59,23 @@ const StatCard = ({ children }: StatCardProps) => (
 // Componente principal exportado
 // ─────────────────────────────────────────────────
 export function RutaStatsCards({ rutaStats, periodo = 'HOY' }: RutaStatsCardsProps) {
-  const ef = eficienciaLabel(rutaStats.eficiencia)
-  const eficienciaShown = Number.isFinite(Number(rutaStats.eficiencia))
-    ? Number(rutaStats.eficiencia).toFixed(1)
-    : '0.0'
-  const porcentajeRecaudo = rutaStats.meta > 0
-    ? `${eficienciaShown}%`
-    : '---'
+  const recaudo = Number(rutaStats?.recaudo || 0)
   const pendiente = rutaStats.pendiente != null
     ? Math.max(0, Number(rutaStats.pendiente || 0))
-    : Math.max(0, Number(rutaStats?.meta || 0) - Number(rutaStats?.recaudo || 0))
+    : Math.max(0, Number(rutaStats?.meta || 0) - recaudo)
+  const meta = periodo === 'HOY' && rutaStats.pendiente != null
+    ? recaudo + pendiente
+    : Number(rutaStats?.meta || 0)
+  const eficiencia = meta > 0
+    ? Math.min(100, Math.max(0, Number(((recaudo / meta) * 100).toFixed(1))))
+    : 0
+  const ef = eficienciaLabel(eficiencia)
+  const eficienciaShown = Number.isFinite(eficiencia)
+    ? eficiencia.toFixed(1)
+    : '0.0'
+  const porcentajeRecaudo = meta > 0
+    ? `${eficienciaShown}%`
+    : '---'
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -82,7 +89,7 @@ export function RutaStatsCards({ rutaStats, periodo = 'HOY' }: RutaStatsCardsPro
             </p>
             <div className="flex items-baseline gap-2 mt-2">
               <h3 className="text-2xl font-bold text-slate-900">
-                {formatCurrency(rutaStats.recaudo)}
+                {formatCurrency(recaudo)}
               </h3>
               <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
                 {porcentajeRecaudo}
@@ -94,7 +101,7 @@ export function RutaStatsCards({ rutaStats, periodo = 'HOY' }: RutaStatsCardsPro
           </div>
         </div>
         <p className="text-xs text-slate-400 font-medium">
-          Meta: {formatCurrency(rutaStats.meta)}
+          Meta: {formatCurrency(meta)}
         </p>
       </StatCard>
 
@@ -121,7 +128,7 @@ export function RutaStatsCards({ rutaStats, periodo = 'HOY' }: RutaStatsCardsPro
         <div className="w-full bg-slate-100 rounded-full h-1.5 mt-1 overflow-hidden">
           <div
             className="bg-emerald-500 h-1.5 rounded-full transition-all duration-1000"
-            style={{ width: `${Math.min(rutaStats.eficiencia, 100)}%` }}
+            style={{ width: `${eficiencia}%` }}
           />
         </div>
         <p className="text-xs text-slate-400 font-medium mt-2">

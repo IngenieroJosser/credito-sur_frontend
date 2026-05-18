@@ -94,7 +94,7 @@ import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { useRutaHistorial } from '@/hooks/useRutaHistorial'
 import ClienteInfoModal from '@/components/cobranza/ClienteInfoModal'
 import { formatShortDate } from '@/lib/utils/format'
-import { computeMontoExigibleHastaHoyFromCuotas, computeMontoNominalHastaHoyFromCuotas, getBogotaDateKey, getBogotaRangeByPeriod, getPagoBogotaDateKey, isCuotaNoPagada, isTodayOrPastBogota, isVisitaExigibleHoy, normalizeDateKey, resolveFechaEfectivaCuota, shouldMarkVisitaAsPagado, shouldShowVisitaEnRutaHoy, toBogotaDateTimeOffsetIso, resolveProximaCuotaFromPrestamo } from '@/lib/rutas-core'
+import { computeMontoExigibleHastaHoyFromCuotas, computeMontoNominalHastaHoyFromCuotas, computeRutaHoyUiStatsFromVisitas, getBogotaDateKey, getBogotaRangeByPeriod, getPagoBogotaDateKey, isCuotaNoPagada, isTodayOrPastBogota, isVisitaExigibleHoy, normalizeDateKey, resolveFechaEfectivaCuota, shouldMarkVisitaAsPagado, shouldShowVisitaEnRutaHoy, toBogotaDateTimeOffsetIso, resolveProximaCuotaFromPrestamo } from '@/lib/rutas-core'
 
 import { mapAsignacionesToVisitasLite } from '@/lib/ruta-visitas-mapper'
 import { buildRecaudosHoyMapByPrestamoId, indexPagosByPrestamoId, sumMontoTotalPagosByBogotaDateKey } from '@/lib/ruta-recaudos'
@@ -867,34 +867,14 @@ const RutaClientLoaded = ({
 
         const recaudo = Number(saldo?.cobranzaDelDia ?? saldo?.recaudoDelDia ?? estadisticas?.cobranzaDelDia ?? 0)
 
-        // Permitir que calcule con o sin enriquecimiento total (se actualizará reactivamente cuando se enriquezca)
-        const visitasTotalmenteEnriquecidas = (visitasCobrador || []).every((v: any) => v.recaudadoTotalClient !== undefined)
-
-        const hoyKey = getBogotaDateKey(new Date())
-        const metaPendienteHoy = (() => {
-          if (periodoCards !== 'HOY') return 0
-          return (Array.isArray(visitasCobrador) ? visitasCobrador : []).reduce((s: number, v: any) => {
-            if (!v) return s
-            const estadoLower = String(v?.estado || '').toLowerCase().replace(/\s+/g, '_')
-            if (estadoLower === 'pagado') return s
-
-            const tieneCuotaPendiente = (v as any)?.montoCuotaPendiente != null
-            const cuotaBase = Number(((v as any)?.montoCuotaPendiente ?? v?.montoCuota) || 0)
-            const recHoy = Number((v as any)?.recaudadoDelDia || 0)
-            const saldo = Number((v as any)?.saldoTotal || 0)
-
-            const cuotaPendiente = tieneCuotaPendiente ? cuotaBase : Math.max(0, cuotaBase - recHoy)
-            const cuotaUI = Math.min(cuotaPendiente, saldo > 0 ? saldo : cuotaPendiente)
-            return s + Number(cuotaUI || 0)
-          }, 0)
-        })()
-
-        const meta = (() => {
-          if (periodoCards !== 'HOY') return Number(estadisticas?.metaDelDia ?? 0)
-          const metaBackend = Number(estadisticas?.metaDelDia ?? 0)
-          if (metaBackend > 0) return metaBackend
-          return Math.max(metaPendienteHoy + recaudo, metaPendienteHoy)
-        })()
+        const visitasParaMeta = Array.isArray(visitasCobrador) ? visitasCobrador : []
+        const statsHoy = computeRutaHoyUiStatsFromVisitas(visitasParaMeta, recaudo)
+        const meta = periodoCards === 'HOY'
+          ? (visitasParaMeta.length > 0 && statsHoy.meta > 0 ? statsHoy.meta : Number(estadisticas?.metaDelDia ?? 0))
+          : Number(estadisticas?.metaDelDia ?? 0)
+        const pendienteHoy = periodoCards === 'HOY'
+          ? (visitasParaMeta.length > 0 ? statsHoy.pendiente : Math.max(0, meta - recaudo))
+          : undefined
 
         const eficiencia = meta > 0
           ? Math.min(100, Math.max(0, Number(((recaudo / meta) * 100).toFixed(1))))
@@ -904,38 +884,21 @@ const RutaClientLoaded = ({
           recaudo,
           meta,
           eficiencia,
-          pendiente: periodoCards === 'HOY' ? Math.max(0, metaPendienteHoy || (meta - recaudo)) : undefined,
+          pendiente: pendienteHoy,
           gastos: Number(saldo?.gastosDelDia ?? 0),
           base: Number(saldo?.saldoCaja ?? saldo?.baseEfectivo ?? 0)
         } as any)
       } catch {
         const recaudo = Number(estadisticas?.cobranzaDelDia ?? 0)
 
-        const hoyKey = getBogotaDateKey(new Date())
-        const metaPendienteHoy = (() => {
-          if (periodoCards !== 'HOY') return 0
-          return (Array.isArray(visitasCobrador) ? visitasCobrador : []).reduce((s: number, v: any) => {
-            if (!v) return s
-            const estadoLower = String(v?.estado || '').toLowerCase().replace(/\s+/g, '_')
-            if (estadoLower === 'pagado') return s
-
-            const tieneCuotaPendiente = (v as any)?.montoCuotaPendiente != null
-            const cuotaBase = Number(((v as any)?.montoCuotaPendiente ?? v?.montoCuota) || 0)
-            const recHoy = Number((v as any)?.recaudadoDelDia || 0)
-            const saldo = Number((v as any)?.saldoTotal || 0)
-
-            const cuotaPendiente = tieneCuotaPendiente ? cuotaBase : Math.max(0, cuotaBase - recHoy)
-            const cuotaUI = Math.min(cuotaPendiente, saldo > 0 ? saldo : cuotaPendiente)
-            return s + Number(cuotaUI || 0)
-          }, 0)
-        })()
-
-        const meta = (() => {
-          if (periodoCards !== 'HOY') return Number(estadisticas?.metaDelDia ?? 0)
-          const metaBackend = Number(estadisticas?.metaDelDia ?? 0)
-          if (metaBackend > 0) return metaBackend
-          return Math.max(metaPendienteHoy + recaudo, metaPendienteHoy)
-        })()
+        const visitasParaMeta = Array.isArray(visitasCobrador) ? visitasCobrador : []
+        const statsHoy = computeRutaHoyUiStatsFromVisitas(visitasParaMeta, recaudo)
+        const meta = periodoCards === 'HOY'
+          ? (visitasParaMeta.length > 0 && statsHoy.meta > 0 ? statsHoy.meta : Number(estadisticas?.metaDelDia ?? 0))
+          : Number(estadisticas?.metaDelDia ?? 0)
+        const pendienteHoy = periodoCards === 'HOY'
+          ? (visitasParaMeta.length > 0 ? statsHoy.pendiente : Math.max(0, meta - recaudo))
+          : undefined
 
         const eficiencia = meta > 0
           ? Math.min(100, Math.max(0, Number(((recaudo / meta) * 100).toFixed(1))))
@@ -945,7 +908,7 @@ const RutaClientLoaded = ({
           recaudo,
           meta,
           eficiencia,
-          pendiente: periodoCards === 'HOY' ? Math.max(0, metaPendienteHoy || (meta - recaudo)) : prev.pendiente,
+          pendiente: periodoCards === 'HOY' ? pendienteHoy : prev.pendiente,
         }))
       }
     }
