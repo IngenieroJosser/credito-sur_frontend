@@ -2264,7 +2264,7 @@ const VistaCobrador = () => {
     // Lo que decrece con cada cobro es el 'pendiente', que se muestra como campo separado.
     // Esto evita que el cobrador vea una meta que baja en lugar de un indicador de progreso.
     const metaFija = Number((rutaStats as any)?.meta || 0)
-    const metaPendiente = (Array.isArray(visitasCobrador) ? visitasCobrador : []).reduce((sum: number, v: any) => {
+    const metaPendientePorVisitas = (Array.isArray(visitasCobrador) ? visitasCobrador : []).reduce((sum: number, v: any) => {
       if (!v) return sum
       const estadoLower = String(v?.estado || '').toLowerCase().replace(/\s+/g, '_')
       if (estadoLower === 'pagado') return sum
@@ -2277,7 +2277,8 @@ const VistaCobrador = () => {
       return sum + Number(cuotaUI || 0)
     }, 0)
     // Si el backend aún no tiene meta, usar el pendiente como fallback inicial
-    const meta = metaFija > 0 ? metaFija : metaPendiente
+    const meta = metaFija > 0 ? metaFija : metaPendientePorVisitas
+    const pendiente = Math.max(0, meta - recaudo)
     const eficienciaRaw = meta > 0 ? Number(((recaudo / meta) * 100).toFixed(1)) : (recaudo > 0 ? 100 : 0)
     const eficiencia = Math.min(100, Math.max(0, eficienciaRaw))
 
@@ -2286,7 +2287,7 @@ const VistaCobrador = () => {
       recaudo,
       meta,       // meta fija del día — no decrece al cobrar
       eficiencia,
-      pendiente: metaPendiente, // lo que falta por cobrar — sí decrece
+      pendiente, // mismo criterio que admin/supervisor/coordinador: meta - recaudado
     }
   }, [periodoCards, rutaStats, visitasCobrador])
 
@@ -2878,7 +2879,7 @@ const VistaCobrador = () => {
 
         comprobante,
 
-        cobradorId: userSession?.id || '',
+        cobradorId: (rutaActual as any)?.cobradorId || (visitaSnapshot as any)?.cobradorId || userSession?.id || '',
 
       })
 
