@@ -33,9 +33,9 @@ import { useAuth } from '@/hooks/useAuth'
 import { routesService } from '@/services/routes-service';
 import { rutasService } from '@/services/rutas-service';
 import {
-  computeMetaHoyFromVisitas,
   computeMontoExigibleHastaHoyFromCuotas,
   computeMontoNominalHastaHoyFromCuotas,
+  computeRutaHoyUiStatsFromVisitas,
   getBogotaDateKey,
 } from '@/lib/rutas-core'
 import { mapAsignacionesToVisitasLite } from '@/lib/ruta-visitas-mapper'
@@ -298,19 +298,15 @@ export const RutasPageView = ({
                 if (!pid) return v
                 const cuotas = cuotasMap.get(pid)
                 if (!cuotas || cuotas.length === 0) return v
-                const esArticulo = String((v as any)?.tipoPrestamo || '').toUpperCase() === 'ARTICULO'
-                const exigible = esArticulo
-                  ? computeMontoNominalHastaHoyFromCuotas(cuotas, hoyBogota)
-                  : computeMontoExigibleHastaHoyFromCuotas(cuotas, hoyBogota)
-                if (exigible <= 0) return v
+                const nominal = computeMontoNominalHastaHoyFromCuotas(cuotas, hoyBogota)
+                const pendiente = computeMontoExigibleHastaHoyFromCuotas(cuotas, hoyBogota)
+                if (nominal <= 0 && pendiente <= 0) return v
                 return {
                   ...v,
-                  montoCuota: exigible,
-                  ...(esArticulo ? { montoCuotaPendiente: computeMontoExigibleHastaHoyFromCuotas(cuotas, hoyBogota) } : {}),
+                  montoCuota: nominal > 0 ? Math.max(nominal, Number(v?.montoCuota || 0)) : v?.montoCuota,
+                  montoCuotaPendiente: pendiente > 0 ? pendiente : (v as any)?.montoCuotaPendiente,
                 }
               })
-
-              const metaDelDia = computeMetaHoyFromVisitas(visitasConMontoCorrecto as any, hoyBogota)
 
               const visitasConRecaudoHoy = applyRecaudoHoyToVisitas(visitasConMontoCorrecto as any, {
                 hoyBogotaKey: hoyBogota,
@@ -332,11 +328,13 @@ export const RutasPageView = ({
               const cobranzaBackend = Number(r.cobranzaDelDia || 0)
               // Prioridad: saldo backend > pagos mapeados > valor del listado
               const cobranzaDelDia = cobranzaFromSaldo > 0 ? cobranzaFromSaldo : (cobranzaFromPagos > 0 ? cobranzaFromPagos : cobranzaBackend)
+              const statsHoy = computeRutaHoyUiStatsFromVisitas(visitasConRecaudoHoy as any, cobranzaDelDia)
+              const metaDelDia = statsHoy.meta > 0 ? statsHoy.meta : Number(r.metaDelDia || 0)
 
               return {
                 ...r,
-                metaDelDia: metaDelDia > 0 ? metaDelDia : Number(r.metaDelDia || 0),
-                cobranzaDelDia,
+                metaDelDia,
+                cobranzaDelDia: statsHoy.recaudo > 0 ? statsHoy.recaudo : cobranzaDelDia,
               };
             } catch {
               return r;
