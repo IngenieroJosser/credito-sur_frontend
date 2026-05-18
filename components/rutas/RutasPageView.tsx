@@ -33,12 +33,8 @@ import { useAuth } from '@/hooks/useAuth'
 import { routesService } from '@/services/routes-service';
 import { rutasService } from '@/services/rutas-service';
 import {
-  computeMontoExigibleHastaHoyFromCuotas,
-  computeMontoNominalHastaHoyFromCuotas,
-  computeRutaHoyUiStatsFromVisitas,
   getBogotaDateKey,
 } from '@/lib/rutas-core'
-import { mapAsignacionesToVisitasLite } from '@/lib/ruta-visitas-mapper'
 import { clientesService, Cliente } from '@/services/clientes-service';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { usePermission } from '@/hooks/usePermission';
@@ -48,8 +44,6 @@ import { getCajas, consolidarCaja, obtenerSaldoDisponibleRuta, Caja } from '@/se
 import { prestamosService } from '@/services/prestamos-service';
 import { creditosService } from '@/services/creditos-service';
 import ConfirmModal from '@/components/ui/ConfirmModal';
-import { buildRecaudosHoyMapByPrestamoId, applyRecaudoHoyToVisitas } from '@/lib/ruta-recaudos'
-import { apiRequest } from '@/lib/api/api'
 
 interface Ruta {
   id: string;
@@ -217,133 +211,21 @@ export const RutasPageView = ({
 
       if (Array.isArray(data) && data.length > 0) {
         const hoyBogota = getBogotaDateKey(new Date())
-        let recaudosHoyMap: Record<string, number> | null = null
-        try {
-          const pagosResp: any = await apiRequest<any>('GET', '/payments?limit=5000', undefined, { cacheTTL: 0 } as any)
-          const pagosData = (pagosResp as any)?.pagos || (pagosResp as any)?.data?.pagos || pagosResp || []
-          recaudosHoyMap = buildRecaudosHoyMapByPrestamoId((Array.isArray(pagosData) ? pagosData : []) as any, hoyBogota)
-        } catch {
-          recaudosHoyMap = null
-        }
-
+        // metaDelDia ya viene calculada correctamente por el backend en findAll.
+        // Solo enriquecemos cobranzaDelDia con datos frescos del saldo de caja
+        // para reflejar pagos procesados después del último TTL de caché.
         const enriched = await Promise.all(
           (data as Ruta[]).map(async (r: Ruta) => {
             if (r?.estado !== 'ACTIVA') return r;
             try {
-              const rutaCompleta: any = await rutasService.obtenerRutaPorId(r.id);
-              const asignaciones = Array.isArray(rutaCompleta?.asignaciones) ? rutaCompleta.asignaciones : [];
-
-              // Normalizar cuotas (incluyendo montoPagado) para que el cálculo de exigible/meta
-              // sea consistente con cobrador/admin ruta.
-              const asigsConCuotas = await Promise.all(asignaciones.map(async (asig: any) => {
-                const cliente = asig?.cliente || null
-                if (!cliente) return asig
-
-                const prestamosRaw = Array.isArray(cliente?.prestamos) ? cliente.prestamos : []
-                const seenPrestamos = new Set<string>()
-                const prestamosValidos = prestamosRaw
-                  .filter((p: any) => p && (p.estado === 'ACTIVO' || p.estado === 'EN_MORA'))
-                  .filter((p: any) => {
-                    const id = String(p?.id || '')
-                    if (!id) return true
-                    if (seenPrestamos.has(id)) return false
-                    seenPrestamos.add(id)
-                    return true
-                  })
-
-                const prestamos = await Promise.all(prestamosValidos.map(async (p: any) => {
-                  if (!p?.id) return p
-                  const cuotasEmbebidas = Array.isArray(p?.cuotas) ? p.cuotas : []
-                  const cuotas = await prestamosService.obtenerCuotas(p.id).catch(() => cuotasEmbebidas)
-                  return { ...p, cuotas }
-                }))
-
-                return { ...asig, cliente: { ...cliente, prestamos } }
-              }))
-
-              const visitasLite = mapAsignacionesToVisitasLite({
-                asignaciones: asigsConCuotas as any,
-                hoyKey: hoyBogota,
-                cobradorId: String(rutaCompleta?.cobradorId || r?.cobradorId || ''),
-              })
-
-              // Dedupe igual que en admin ruta-client para evitar doble conteo.
-              const idsProcesados = new Set<string>()
-              const firstPass = (Array.isArray(visitasLite) ? visitasLite : []).flatMap((v: any) => {
-                const uniqueKey = v?.prestamoId ? `loan-${v.prestamoId}` : `client-${v.clienteId}`
-                if (idsProcesados.has(uniqueKey)) return []
-                idsProcesados.add(uniqueKey)
-                return [v]
-              })
-
-              const clientesConPrestamo = new Set(firstPass.filter((v: any) => v?.prestamoId).map((v: any) => v?.clienteId))
-              const visitasDedupe = firstPass.filter((v: any) => {
-                if (!v?.prestamoId && clientesConPrestamo.has(v?.clienteId)) return false
-                return true
-              })
-
-              // Construir mapa prestamoId → cuotas para recalcular montoCuota real
-              const cuotasMap = new Map<string, any[]>()
-              for (const asig of asigsConCuotas as any[]) {
-                for (const p of (asig?.cliente?.prestamos || [])) {
-                  if (p?.id && Array.isArray(p?.cuotas)) {
-                    cuotasMap.set(String(p.id), p.cuotas)
-                  }
-                }
-              }
-
-              // Corregir montoCuota descontando montoPagado histórico de cada cuota
-              const visitasConMontoCorrecto = (Array.isArray(visitasDedupe) ? visitasDedupe : []).map((v: any) => {
-                const pid = String(v?.prestamoId || '')
-                if (!pid) return v
-                const cuotas = cuotasMap.get(pid)
-                if (!cuotas || cuotas.length === 0) return v
-                const nominal = computeMontoNominalHastaHoyFromCuotas(cuotas, hoyBogota)
-                const pendiente = computeMontoExigibleHastaHoyFromCuotas(cuotas, hoyBogota)
-                if (nominal <= 0 && pendiente <= 0) return v
-                return {
-                  ...v,
-                  montoCuota: nominal > 0 ? Math.max(nominal, Number(v?.montoCuota || 0)) : v?.montoCuota,
-                  montoCuotaPendiente: pendiente > 0 ? pendiente : (v as any)?.montoCuotaPendiente,
-                }
-              })
-
-              const visitasConRecaudoHoy = applyRecaudoHoyToVisitas(visitasConMontoCorrecto as any, {
-                hoyBogotaKey: hoyBogota,
-                recaudosHoyMap: recaudosHoyMap || {},
-              }) as any
-
-              const cobranzaFromPagos = recaudosHoyMap !== null ? (Array.isArray(visitasConRecaudoHoy) ? visitasConRecaudoHoy : []).reduce(
-                (sum: number, v: any) => sum + Number(v?.recaudadoDelDia || 0),
-                0,
-              ) : 0
-
-              // Fuente autoritativa: saldo del backend (igual que VistaCobrador)
-              let cobranzaFromSaldo = 0
-              try {
-                const saldoResp = await obtenerSaldoDisponibleRuta(r.id, hoyBogota)
-                cobranzaFromSaldo = Number(saldoResp?.cobranzaDelDia ?? saldoResp?.recaudoDelDia ?? 0)
-              } catch { /* fallback below */ }
-
-              const cobranzaBackend = Number(r.cobranzaDelDia || 0)
-              // Prioridad: saldo backend > pagos mapeados > valor del listado
-              const cobranzaDelDia = cobranzaFromSaldo > 0 ? cobranzaFromSaldo : (cobranzaFromPagos > 0 ? cobranzaFromPagos : cobranzaBackend)
-              // Excluir visitas ya pagadas antes de calcular la meta, igual que en la vista de detalle de ruta
-              const visitasParaMeta = (Array.isArray(visitasConRecaudoHoy) ? visitasConRecaudoHoy : []).filter(
-                (v: any) => String(v?.estado || '').toLowerCase() !== 'pagado'
-              )
-              const statsHoy = computeRutaHoyUiStatsFromVisitas(visitasParaMeta as any, cobranzaDelDia)
-              const metaDelDia = statsHoy.meta > 0 ? statsHoy.meta : Number(r.metaDelDia || 0)
-
-              return {
-                ...r,
-                metaDelDia,
-                cobranzaDelDia: cobranzaDelDia > 0 ? cobranzaDelDia : (statsHoy.recaudo > 0 ? statsHoy.recaudo : 0),
-              };
+              const saldoResp = await obtenerSaldoDisponibleRuta(r.id, hoyBogota)
+              const cobranzaFromSaldo = Number(saldoResp?.cobranzaDelDia ?? saldoResp?.recaudoDelDia ?? 0)
+              const cobranzaDelDia = cobranzaFromSaldo > 0 ? cobranzaFromSaldo : Number(r.cobranzaDelDia || 0)
+              return { ...r, cobranzaDelDia }
             } catch {
               return r;
             }
-          }),
+          })
         );
 
         setRutasList(enriched as unknown as Ruta[]);

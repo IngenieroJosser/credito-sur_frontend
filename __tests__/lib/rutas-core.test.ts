@@ -106,4 +106,45 @@ describe('computeRutaHoyUiStatsFromVisitas', () => {
     expect(stats.recaudo).toBe(100000)
     expect(stats.meta).toBe(180000)
   })
+
+  /**
+   * Regresión: bug de objetivo inflado en el listado de rutas (2026-05-18).
+   *
+   * Causa raíz: el listado recalculaba metaDelDia desde visitas usando esta
+   * función. Pero cuando cuota.montoPagado en BD aún no refleja el pago del día
+   * (el backend lo actualiza de forma asíncrona), montoCuotaPendiente devuelto por
+   * computeMontoExigibleHastaHoyFromCuotas incluye el monto ya cobrado, inflando la meta.
+   *
+   * Ejemplo real: pago de $822.000 procesado pero montoCuotaPendiente = $5.603.666
+   * (sin descontar) → meta = $5.603.666 + $822.000 = $6.425.666 (incorrecto).
+   * El backend en findAll usaba $5.603.666 (correcto).
+   *
+   * Solución: el listado usa r.metaDelDia del backend como fuente de verdad
+   * y NO recalcula la meta desde visitas. Este test documenta la divergencia
+   * para prevenir que se vuelva a agregar esa lógica.
+   */
+  it('produce meta inflada cuando montoCuotaPendiente incluye el pago del dia sin descontar', () => {
+    const recaudadoDelDia = 822_000
+    // montoCuotaPendiente NO descuenta aún el pago porque cuota.montoPagado no se actualizó
+    const montoCuotaPendienteInflado = 5_603_666
+    const saldoTotal = 5_240_000
+    // La función limita cuotaUI = min(cuotaPendiente, saldoTotal)
+    const pendienteEsperado = Math.min(montoCuotaPendienteInflado, saldoTotal) // 5.240.000
+    const metaEsperada = pendienteEsperado + recaudadoDelDia // 6.062.000
+
+    const stats = computeRutaHoyUiStatsFromVisitas([
+      {
+        estado: 'en_mora',
+        montoCuota: montoCuotaPendienteInflado,
+        montoCuotaPendiente: montoCuotaPendienteInflado,
+        saldoTotal,
+        recaudadoDelDia,
+      },
+    ])
+
+    // La función produce 6.062.000 que DIFIERE del metaDelDia correcto del backend (5.603.666).
+    // Por eso el listado de rutas usa r.metaDelDia del backend, no este resultado.
+    expect(stats.meta).toBe(metaEsperada)
+    expect(stats.meta).not.toBe(5_603_666) // no igual al valor correcto del backend
+  })
 })
