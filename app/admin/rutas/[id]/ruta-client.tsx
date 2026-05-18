@@ -2371,7 +2371,7 @@ const RutaClientLoaded = ({
               onClose={() => setDetalleVisita(null)}
               nextPagoMonto={Number((detalleActual as any)?.montoCuotaPendiente ?? detalleActual.montoCuota ?? 0)}
               nextPagoFecha={detalleActual.proximaVisita}
-              recaudadoHoy={0} // Valor estático en modo auditoría admin
+              recaudadoHoy={Number((detalleActual as any)?.recaudadoDelDia || 0)}
               formatFechaLargaUTC={formatShortDate}
             />
           )
