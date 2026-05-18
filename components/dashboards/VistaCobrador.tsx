@@ -1234,15 +1234,10 @@ const VistaCobrador = () => {
               })
 
               if (tipoPrestamo !== 'ARTICULO') {
-                const nextNoPagada = (Array.isArray(cuotas) ? cuotas : []).find((c: any) => c && isCuotaNoPagada(c))
-                const nextMonto = Number((nextNoPagada as any)?.montoNominal ?? (nextNoPagada as any)?.monto ?? 0)
-                const nextPagado = Number((nextNoPagada as any)?.montoPagado ?? 0)
-                const nextPendiente = Math.max(0, nextMonto - nextPagado)
-                const cuotaNominal = nextPendiente > 0 ? nextPendiente : nextMonto
-
+                const exigiblePendiente = computeMontoExigibleHastaHoyFromCuotas(cuotas as any, hoyKey)
                 return {
                   ...v,
-                  montoCuota: cuotaNominal > 0 ? cuotaNominal : baseCuota,
+                  montoCuota: exigiblePendiente > 0 ? exigiblePendiente : baseCuota,
                   estado: (saldoPendiente <= 0 ? 'pagado' : (tieneMora ? 'en_mora' : v.estado)) as any,
                 }
               }
@@ -1313,6 +1308,17 @@ const VistaCobrador = () => {
           }) as any
         } catch {
           // silencioso
+        }
+
+        if (periodoCardsRef.current === 'HOY') {
+          const metaHoy = computeMetaHoyFromVisitas(visitasEnriquecidas as any, hoyKey)
+          if (metaHoy > 0) {
+            setRutaStats(prev => ({
+              ...prev,
+              meta: metaHoy,
+              eficiencia: metaHoy > 0 ? Math.round((Number(prev?.recaudo || 0) / metaHoy) * 100) : Number(prev?.eficiencia || 0),
+            }))
+          }
         }
 
         const merged = mergeVisitasPreservingLocal(visitasBaseRef.current, visitasEnriquecidas as any)
