@@ -484,7 +484,7 @@ const ListadoPrestamosElegante = () => {
         )}
 
         {/* Estadísticas */}
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Total</p>
             <p className="text-2xl font-bold text-slate-900 tracking-tight">{estadisticas.total}</p>
@@ -501,23 +501,16 @@ const ListadoPrestamosElegante = () => {
           </div>
           
           <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Cartera</p>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Capital a recibir</p>
             <p className="text-lg font-bold text-slate-900 tracking-tight truncate" title={formatCurrency(estadisticas.montoTotal)}>
               {formatCurrency(estadisticas.montoTotal)}
             </p>
           </div>
           
           <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Pendiente</p>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Capital prestado</p>
             <p className="text-lg font-bold text-slate-900 tracking-tight truncate" title={formatCurrency(estadisticas.montoPendiente)}>
               {formatCurrency(estadisticas.montoPendiente)}
-            </p>
-          </div>
-          
-          <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-            <p className="text-xs font-bold text-rose-600 uppercase tracking-wider mb-2">Saldo en Mora</p>
-            <p className="text-lg font-bold text-slate-900 tracking-tight truncate" title={formatCurrency(estadisticas.moraTotal)}>
-              {formatCurrency(estadisticas.moraTotal)}
             </p>
           </div>
         </div>
