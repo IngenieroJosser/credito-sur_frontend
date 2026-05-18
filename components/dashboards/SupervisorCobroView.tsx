@@ -577,6 +577,10 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         const montoPagadoProx = Number((prox as any)?.montoPagado ?? 0)
         const pendienteProx = Math.max(0, montoNominalProx - montoPagadoProx)
         const montoCuota = montoExigible > 0 ? montoExigible : pendienteProx
+        const montoCuotaNominal = computeMontoNominalHastaHoyFromCuotas(cuotasForMonto as any, hoyKey)
+        const montoCuotaTotal = montoCuotaNominal > 0
+          ? Math.max(montoCuotaNominal, Number((prox as any)?.monto ?? 0))
+          : Number((prox as any)?.monto ?? montoCuota)
         const proximaVisitaV = fechaEfectiva || (prox as any)?.fechaVencimiento || row?.prestamo?.fechaEfectiva || getBogotaDateKey(new Date())
 
         const hoyBogota = getBogotaDateKey(new Date())
@@ -602,7 +606,8 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
           direccion: c?.direccion || 'Sin dirección registrada',
           telefono: c?.telefono || '',
           horaSugerida: '08:00 AM',
-          montoCuota,
+          montoCuota: montoCuotaTotal,
+          montoCuotaPendiente: montoCuota,
           saldoTotal: Number(p?.saldoPendiente || 0),
           estado: estadoCalculado,
           proximaVisita: proximaVisitaV,
@@ -819,7 +824,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         return {
           ...v,
           periodoRuta: normalizePeriodoRuta((v as any)?.periodoRuta) as any,
-          montoCuota: (exigible > Number(v?.montoCuota || 0)) ? exigible : v?.montoCuota,
+          montoCuotaPendiente: exigible > 0 ? exigible : (v as any)?.montoCuotaPendiente,
           enMoraHistorico: tieneMora,
           enProrrogaHistorico,
         }
@@ -967,12 +972,8 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                   return vtoKey && vtoKey <= hoyBogota;
                 });
 
-                const tipoPrestamoUpper = String((v as any)?.tipoPrestamo || '').toUpperCase()
-                const esArticulo = tipoPrestamoUpper === 'ARTICULO'
                 const totalExigible = computeMontoExigibleHastaHoyFromCuotas(cuotasExigibles, hoyBogota);
-                const totalNominal = esArticulo
-                  ? computeMontoNominalHastaHoyFromCuotas(cuotasExigibles, hoyBogota)
-                  : 0
+                const totalNominal = computeMontoNominalHastaHoyFromCuotas(cuotasExigibles, hoyBogota)
                 const esMora = cuotasExigibles.some((c: any) => {
                   const vtoKey = getCuotaVtoKey(c)
                   return vtoKey && vtoKey < hoyBogota
@@ -987,6 +988,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
                 const pendKey = getCuotaVtoKey(pendiente);
                 const montoReal = Number(pendiente.monto || (Number(pendiente.montoCapital || 0) + Number(pendiente.montoInteres || 0)) || v.montoCuota || 0);
+                const pendienteReal = Math.max(0, montoReal - Number(pendiente.montoPagado || 0));
                 const yaPagadoHoy = cuotas.some((c: any) => {
                   const s = String(c?.estado || '').toUpperCase();
                   if (s !== 'PAGADA' && s !== 'PAGADO') return false;
@@ -996,10 +998,8 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                 
                 return {
                   ...v,
-                  montoCuota: esArticulo
-                    ? ((totalNominal > 0 ? totalNominal : (montoReal > 0 ? montoReal : v.montoCuota)))
-                    : (totalExigible > 0 ? totalExigible : (montoReal > 0 ? montoReal : v.montoCuota)),
-                  montoCuotaPendiente: esArticulo ? totalExigible : undefined,
+                  montoCuota: totalNominal > 0 ? totalNominal : (montoReal > 0 ? montoReal : v.montoCuota),
+                  montoCuotaPendiente: totalExigible > 0 ? totalExigible : pendienteReal,
                   proximaVisita: (pendiente.estado === 'PRORROGADA' && pendiente.fechaVencimientoProrroga)
                     ? pendiente.fechaVencimientoProrroga
                     : (pendiente.fechaVencimiento || v.proximaVisita),
@@ -3611,7 +3611,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
             visita={visitaClienteSeleccionada}
 
-            nextPagoMonto={nextPagoMonto ?? (visitaClienteSeleccionada.montoCuota || 0)}
+            nextPagoMonto={nextPagoMonto ?? Number((visitaClienteSeleccionada as any)?.montoCuotaPendiente ?? visitaClienteSeleccionada.montoCuota ?? 0)}
 
             nextPagoFecha={nextPagoFecha ?? (visitaClienteSeleccionada.proximaVisita || '')}
 
