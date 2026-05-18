@@ -2245,7 +2245,16 @@ const RutaClientLoaded = ({
               } catch {}
             } catch (error) {
               console.error('Error registrando pago/abono:', error);
-              showNotification('error', 'No se pudo registrar el pago/abono', 'Error');
+              const apiError = error as any;
+              const isConflict = apiError?.isConflict || apiError?.statusCode === 409 || apiError?.error?.statusCode === 409;
+              const mensaje = apiError?.message || apiError?.error?.message || 'No se pudo registrar el pago/abono';
+              if (isConflict) {
+                setEnrichNonce((n) => n + 1);
+                try {
+                  await onRutaRefresh?.(pagoVisita?.visita?.prestamoId);
+                } catch {}
+              }
+              showNotification('error', mensaje, isConflict ? 'La cuota cambió' : 'Error');
             }
           }}
         />
