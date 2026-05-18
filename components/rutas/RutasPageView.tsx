@@ -317,8 +317,6 @@ export const RutasPageView = ({
                 recaudosHoyMap: recaudosHoyMap || {},
               }) as any
 
-              const metaDelDiaPendiente = computeMetaHoyFromVisitas(visitasConRecaudoHoy as any, hoyBogota)
-
               const cobranzaFromPagos = recaudosHoyMap !== null ? (Array.isArray(visitasConRecaudoHoy) ? visitasConRecaudoHoy : []).reduce(
                 (sum: number, v: any) => sum + Number(v?.recaudadoDelDia || 0),
                 0,
@@ -337,7 +335,7 @@ export const RutasPageView = ({
 
               return {
                 ...r,
-                metaDelDia: metaDelDiaPendiente > 0 ? metaDelDiaPendiente : (metaDelDia > 0 ? metaDelDia : Number(r.metaDelDia || 0)),
+                metaDelDia: metaDelDia > 0 ? metaDelDia : Number(r.metaDelDia || 0),
                 cobranzaDelDia,
               };
             } catch {
