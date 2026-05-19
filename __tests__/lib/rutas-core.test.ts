@@ -123,6 +123,44 @@ describe('computeRutaHoyUiStatsFromVisitas', () => {
    * y NO recalcula la meta desde visitas. Este test documenta la divergencia
    * para prevenir que se vuelva a agregar esa lógica.
    */
+  /**
+   * Regresión: Ruta Josser (2026-05-18).
+   *
+   * Escenario real:
+   * - 2 préstamos DIARIO en mora con deuda acumulada ($4.781.666 + $270.000)
+   * - 4 préstamos pagados hoy (NO deben contribuir a pendiente)
+   * - Recaudo total: $552.000
+   *
+   * Meta esperada = pendiente ($5.051.666) + recaudo ($552.000) = $5.603.666
+   * Este valor debe coincidir con metaDelDia del backend (findAll/findOne).
+   */
+  it('Ruta Josser: meta = pendiente acumulado DIARIO + recaudo, excluyendo pagados', () => {
+    const stats = computeRutaHoyUiStatsFromVisitas(
+      [
+        // Glenfor Loan 1 - DIARIO en mora, deuda acumulada
+        { estado: 'en_mora', montoCuota: 4781666, saldoTotal: 5240000 },
+        // Glenfor Loan 2 - DIARIO en mora, 9 cuotas vencidas acumuladas
+        { estado: 'en_mora', montoCuota: 270000, saldoTotal: 1170000 },
+        // Glenfor Loan 3 - pagado hoy
+        { estado: 'pagado', montoCuota: 92000, saldoTotal: 0, recaudadoDelDia: 92000 },
+        // jhon pastrana - pagado hoy
+        { estado: 'pagado', montoCuota: 180000, saldoTotal: 0, recaudadoDelDia: 180000 },
+        // lewis Loan 1 - pagado hoy
+        { estado: 'pagado', montoCuota: 180000, saldoTotal: 0, recaudadoDelDia: 180000 },
+        // lewis Loan 2 - pagado hoy
+        { estado: 'pagado', montoCuota: 100000, saldoTotal: 0, recaudadoDelDia: 100000 },
+      ],
+      552000,
+    )
+
+    // Solo los 2 en mora contribuyen a pendiente
+    expect(stats.pendiente).toBe(5051666)
+    // Recaudo = fallback (552000) porque es mayor que la suma de recaudadoDelDia
+    expect(stats.recaudo).toBe(552000)
+    // Meta = pendiente + recaudo
+    expect(stats.meta).toBe(5603666)
+  })
+
   it('produce meta inflada cuando montoCuotaPendiente incluye el pago del dia sin descontar', () => {
     const recaudadoDelDia = 822_000
     // montoCuotaPendiente NO descuenta aún el pago porque cuota.montoPagado no se actualizó
