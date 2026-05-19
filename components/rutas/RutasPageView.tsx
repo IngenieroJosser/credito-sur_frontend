@@ -220,8 +220,14 @@ export const RutasPageView = ({
             try {
               const saldoResp = await obtenerSaldoDisponibleRuta(r.id, hoyBogota)
               const cobranzaFromSaldo = Number(saldoResp?.cobranzaDelDia ?? saldoResp?.recaudoDelDia ?? 0)
-              const cobranzaDelDia = cobranzaFromSaldo > 0 ? cobranzaFromSaldo : Number(r.cobranzaDelDia || 0)
-              return { ...r, cobranzaDelDia }
+              const cobranzaDelDia = Math.max(cobranzaFromSaldo, Number(r.cobranzaDelDia || 0))
+              const backendMeta = Number(r.metaDelDia || 0)
+              const backendCobranza = Number(r.cobranzaDelDia || 0)
+              const pendienteNominal = Math.max(0, backendMeta - backendCobranza)
+              const metaDelDia = pendienteNominal > 0
+                ? pendienteNominal + cobranzaDelDia
+                : Math.max(backendMeta, cobranzaDelDia)
+              return { ...r, cobranzaDelDia, metaDelDia }
             } catch {
               return r;
             }
