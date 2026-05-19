@@ -152,7 +152,7 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
       articleValue: amounts.totalContrato,
       installmentsPaid: pagadas.length,
       installmentsTotal: cuotas.length,
-      saldoRestante: Number(loanData.saldoPendiente || 0)
+      saldoRestante: pagadas.length === cuotas.length ? 0 : Number(loanData.saldoPendiente || 0)
     };
   }, [loanData]);
 
