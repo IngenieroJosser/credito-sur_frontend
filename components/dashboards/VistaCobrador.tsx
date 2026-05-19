@@ -855,7 +855,7 @@ const VistaCobrador = () => {
           horaSugerida: '08:00 AM',
           montoCuota: montoCuotaTotal,
           montoCuotaPendiente: montoCuota,
-          saldoTotal: Number(p?.saldoPendiente || 0),
+          saldoTotal: estadoCalculado === 'pagado' ? 0 : montoCuota,
           estado: estadoCalculado,
           proximaVisita: proximaVisitaV,
           ordenVisita: Number(row?.ordenVisita || idx + 1),
@@ -1399,9 +1399,9 @@ const VistaCobrador = () => {
 
                      montoCuota: Number(proximaCuota?.monto || p?.montoCuota || 0),
 
-                     saldoTotal: Number(p?.saldoPendiente || 0),
+                     saldoTotal: proximaCuota?.estado === 'PAGADA' || proximaCuota?.estado === 'PAGADO' ? 0 : Number(p?.saldoPendiente || 0),
 
-                     estado: proximaCuota?.estado === 'VENCIDA' ? 'en_mora' : 'pendiente',
+                     estado: proximaCuota?.estado === 'VENCIDA' ? 'en_mora' : (proximaCuota?.estado === 'PAGADA' || proximaCuota?.estado === 'PAGADO' ? 'pagado' : 'pendiente'),
 
                      proximaVisita: proximaCuota?.fechaVencimiento || 'Offline',
 
@@ -1562,7 +1562,7 @@ const VistaCobrador = () => {
                 montoCuota: metaEstableRealtime,
                 proximaVisita: prox?.fechaVencimiento || v.proximaVisita,
                 cuotaActual: prox?.numeroCuota || v.cuotaActual,
-                saldoTotal: Number(p.saldoPendiente || 0),
+                saldoTotal: nuevoEstado === 'pagado' ? 0 : Number(p.saldoPendiente || 0),
                 recaudadoDelDia: totalHoy,
               };
 

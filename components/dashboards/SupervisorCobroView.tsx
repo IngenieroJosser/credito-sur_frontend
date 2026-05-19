@@ -608,7 +608,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
           horaSugerida: '08:00 AM',
           montoCuota: montoCuotaTotal,
           montoCuotaPendiente: montoCuota,
-          saldoTotal: Number(p?.saldoPendiente || 0),
+          saldoTotal: estadoCalculado === 'pagado' ? 0 : montoCuota,
           estado: estadoCalculado,
           proximaVisita: proximaVisitaV,
           ordenVisita: Number(row?.ordenVisita || idx + 1),
@@ -1193,7 +1193,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
               montoCuota: montoMetaActualizado,
               proximaVisita: prox?.fechaVencimiento || v.proximaVisita,
               cuotaActual: prox?.numeroCuota || v.cuotaActual,
-              saldoTotal: Number(p?.saldoPendiente || 0),
+              saldoTotal: nuevoEstado === 'pagado' ? 0 : Number(p?.saldoPendiente || 0),
               recaudadoDelDia: totalHoy,
             };
 
