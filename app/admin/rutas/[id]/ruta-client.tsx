@@ -941,10 +941,11 @@ const RutaClientLoaded = ({
 
 
   const cargarMisCreditos = useCallback(async () => {
-    if (!initialRuta?.cobradorId) return
+    const cobradorId = rutaData?.cobradorId || initialRuta?.cobradorId
+    if (!cobradorId) return
     try {
       setLoadingMisCreditos(true)
-      const resp = await rutasService.obtenerCreditosAsignadosACobrador(initialRuta.cobradorId)
+      const resp = await rutasService.obtenerCreditosAsignadosACobrador(cobradorId)
       const raw = (resp as any)?.data
       const filas = Array.isArray(raw) ? raw : []
       if (!Array.isArray(raw)) {
@@ -1032,7 +1033,7 @@ const RutaClientLoaded = ({
           ordenVisita: Number(row?.ordenVisita || idx + 1),
           prioridad: 'media' as any,
           nivelRiesgo: toNivel(c?.nivelRiesgo || 'VERDE') as any,
-          cobradorId: initialRuta.cobradorId,
+          cobradorId: rutaData?.cobradorId || initialRuta.cobradorId,
           periodoRuta: (() => {
             const f = p?.frecuenciaPago || 'DIARIO'
             if (f === 'DIARIO') return 'DIA'
@@ -1860,7 +1861,6 @@ const RutaClientLoaded = ({
                 ) : (() => {
 
                   const filtradas = misCreditos.filter((v) =>
-                    shouldShowVisitaEnRutaHoy(v as any, hoyBogotaKey) &&
                     (
                       v.cliente.toLowerCase().includes(searchQuery.toLowerCase()) ||
                       v.direccion.toLowerCase().includes(searchQuery.toLowerCase())
