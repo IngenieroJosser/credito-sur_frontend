@@ -139,7 +139,8 @@ const VistaCoordinador = () => {
             ...(data as any),
             trend: (Array.isArray((data as any)?.trend) ? (data as any).trend : []).map((t: any) => ({
               ...t,
-              target: meta,
+              value: Math.round(t.value),
+              target: Math.round(meta),
             })),
           } as any)
         : data
