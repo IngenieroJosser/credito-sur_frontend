@@ -365,8 +365,8 @@ export default function DashboardPage() {
 
         const chartData = (dashboard?.trend || []).map((t) => ({
           label: t.label,
-          value: Math.round(t.value),
-          target: Math.round(metaOperativaTotal > 0 ? metaOperativaTotal : t.target),
+          value: t.value,
+          target: metaOperativaTotal > 0 ? metaOperativaTotal : t.target,
         }));
 
         // Build top collectors from real backend data
@@ -468,7 +468,7 @@ export default function DashboardPage() {
         { title: 'Cartera en Mora', value: moraMonto, subValue: `${moraPercent}% del capital · ${moraCount} cuentas en mora`, isCurrency: true, change: null, icon: <AlertCircle className="h-4 w-4" />, color: '#f43f5e' },
         { title: `Gastos (${PERIOD_LABEL[period]})`, value: gastosPeriodo, subValue: `Utilidad: ${formatCurrency(utilidadPeriodo)}`, isCurrency: true, change: (period === 'today' && gastosPeriodo > 0 && resumen?.porcentajeEgresosVsAyer) ? resumen.porcentajeEgresosVsAyer : null, icon: <Banknote className="h-4 w-4" />, color: '#f59e0b' },
       ]
-      const chartData = (dashboard?.trend || []).map((t) => ({ label: t.label, value: Math.round(t.value) }))
+      const chartData = (dashboard?.trend || []).map((t) => ({ label: t.label, value: t.value }))
       const topCollectors = (dashboard?.topCollectors || []).map(c => ({ name: c.name, collected: c.collected, efficiency: c.efficiency, trend: c.trend }))
       setState(prev => prev.dashboardData ? ({
         ...prev,

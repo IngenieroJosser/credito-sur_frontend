@@ -1027,7 +1027,7 @@ const RutaClientLoaded = ({
           telefono: c?.telefono || '',
           horaSugerida: '08:00 AM',
           montoCuota,
-          saldoTotal: Number(p?.saldoPendiente || 0),
+          saldoTotal: estadoCalculado === 'pagado' ? 0 : montoCuota,
           estado: estadoCalculado,
           proximaVisita: proximaVisitaV,
           ordenVisita: Number(row?.ordenVisita || idx + 1),

@@ -88,8 +88,7 @@ const VistaSupervisor = () => {
             ...(data as any),
             trend: (Array.isArray((data as any)?.trend) ? (data as any).trend : []).map((t: any) => ({
               ...t,
-              value: Math.round(t.value),
-              target: Math.round(meta),
+              target: meta,
             })),
           } as any)
         : data
