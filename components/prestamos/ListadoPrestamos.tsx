@@ -125,6 +125,8 @@ const ListadoPrestamosElegante = () => {
       const wantsClientSideMoraFilter = filtros.estado === 'EN_MORA'
       const wantsClientSideActivoFilter = filtros.estado === 'ACTIVO'
 
+      // Los créditos PAGADOS solo se cargan cuando el usuario filtra explícitamente por "Pagados".
+      // En la vista "Todos" o cualquier otro filtro se excluyen para mantener la lista limpia.
       const filters: LoansFilters = {
         // Si el backend no está marcando EN_MORA en `estado`, no podemos confiar en ese filtro.
         // Filtramos en cliente por `diasMora` (ver `prestamosFiltrados` más abajo).
@@ -132,6 +134,8 @@ const ListadoPrestamosElegante = () => {
           wantsClientSideMoraFilter || wantsClientSideActivoFilter
             ? undefined
             : (filtros.estado !== 'todos' ? filtros.estado : undefined),
+        // Cuando no se filtra por PAGADO explícitamente, pedimos al backend que los excluya.
+        excluirEstados: filtros.estado !== 'PAGADO' ? ['PAGADO'] : undefined,
         ruta: filtros.ruta !== 'todas' ? filtros.ruta : undefined,
         search: filtros.busqueda || undefined,
         page: paginaActual,
@@ -326,6 +330,8 @@ const ListadoPrestamosElegante = () => {
 
     if (filtros.estado === 'EN_MORA') return estadoUI === 'EN_MORA'
     if (filtros.estado === 'ACTIVO') return estadoUI === 'ACTIVO'
+    // Ocultar créditos PAGADOS de la vista por defecto — solo mostrar si el filtro es explícito.
+    if (filtros.estado !== 'PAGADO' && estadoRaw === 'PAGADO') return false;
     return true;
   });
 

@@ -59,6 +59,8 @@ export interface FiltrosPrestamos {
   tipo?: string;
   page?: number;
   limit?: number;
+  /** Estados a excluir de los resultados */
+  excluirEstados?: string[];
 }
 
 export interface EstadisticasPrestamos {
@@ -97,6 +99,10 @@ export const prestamosService = {
     if (filtros?.tipo) params.append('tipo', filtros.tipo);
     if (filtros?.page) params.append('page', filtros.page.toString());
     if (filtros?.limit) params.append('limit', filtros.limit.toString());
+    // Exclusiones: cada estado se envía como parámetro repetido al backend
+    if (filtros?.excluirEstados?.length) {
+      filtros.excluirEstados.forEach(e => params.append('excluirEstado', e));
+    }
     
     const query = params.toString();
     const endpoint = query ? `/loans?${query}` : '/loans';
@@ -150,9 +156,6 @@ export const prestamosService = {
   },
 
   /**
-   * Crear un nuevo préstamo
-   */
-  /**
    * Crear un nuevo préstamo (con soporte Offline)
    */
   async crearPrestamo(data: CrearPrestamoDto): Promise<any> {
@@ -190,7 +193,7 @@ export const prestamosService = {
            tasaInteres: payload.tasaInteres,
            plazoMeses: payload.plazoMeses,
            fechaInicio: payload.fechaInicio,
-           estado: 'PENDIENTE', // Siempre inicia en PENDIENTE o EN_REVISION
+           estado: 'PENDIENTE',
            esOffline: true
          };
       }
@@ -329,8 +332,6 @@ export const prestamosService = {
       ) {
         logger.log('[Offline Mode] Guardando pago en cola...');
         
-        // El payload para la cola no debe ser FormData, sino el objeto plano
-        // El syncManager se encargará de convertirlo si hay file
         const payload = {
           prestamoId: data.prestamoId,
           clienteId: data.clienteId,
@@ -433,7 +434,6 @@ export const prestamosService = {
 
   /**
    * Solicitar reprogramación de cuota al supervisor/admin para aprobación.
-   * Valida límites de días: semanal ≤6 días, quincenal ≤14 días.
    */
   async solicitarReprogramacionCuota(data: {
     prestamoId: string;
@@ -473,6 +473,3 @@ export const prestamosService = {
     return apiRequest('PATCH', `/loans/reprogramaciones/${aprobacionId}/rechazar`, { comentarios });
   },
 };
-
-
-
