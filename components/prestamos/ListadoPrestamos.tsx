@@ -641,7 +641,7 @@ const ListadoPrestamosElegante = () => {
                         )}>
                           {formatCurrency(Number(prestamo.montoPendiente) || 0)}
                         </span>
-                        {prestamo.moraAcumulada && prestamo.moraAcumulada > 0 && (
+                        {(prestamo.moraAcumulada ?? 0) > 0 && (
                           <div className="text-[10px] text-rose-500 font-bold mt-0.5">
                             + {formatCurrency(prestamo.moraAcumulada)} mora
                           </div>
@@ -801,7 +801,7 @@ const ListadoPrestamosElegante = () => {
                     )}>
                       {formatCurrency(Number(prestamo.montoPendiente) || 0)}
                     </div>
-                    {prestamo.moraAcumulada && prestamo.moraAcumulada > 0 && (
+                    {(prestamo.moraAcumulada ?? 0) > 0 && (
                       <div className="text-[10px] text-rose-500 font-bold mt-0.5">
                         + {formatCurrency(prestamo.moraAcumulada)} mora
                       </div>
