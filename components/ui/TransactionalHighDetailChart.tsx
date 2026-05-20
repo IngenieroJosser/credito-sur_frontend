@@ -158,39 +158,6 @@ export const TransactionalHighDetailChart = ({
   const barGapValue = type === 'double' ? 6 : undefined;
   const barCategoryGapValue = type === 'double' ? '20%' : undefined;
 
-  // Fondo de meta: renderiza un rectángulo semi-transparent detrás de cada barra
-  // cuando hay target, evitando la superposición de dos <Bar> que causa claves duplicadas.
-  // Recharts pasa al callback: { x, y, width, height, payload, ... } donde payload es el dato.
-  const targetBackground = hasTarget
-    ? (props: any) => {
-        const { x, width, payload } = props;
-        const target = payload?.target;
-        if (typeof target !== 'number' || target <= 0) {
-          return <rect key={`target-bg-empty`} x={0} y={0} width={0} height={0} fill="none" />;
-        }
-        // Calcular la altura proporcional del target vs el valor máximo del eje Y
-        const maxVal = Math.max(...data.map((d) => Math.max(d.value, d.target || 0, d.secondaryValue || 0)));
-        const chartHeight = height - 60; // margen top+bottom
-        const targetH = (target / maxVal) * chartHeight;
-        return (
-          <rect
-            key={`target-bg-${x}`}
-            x={x}
-            y={chartHeight - targetH}
-            width={width}
-            height={targetH}
-            fill="#f59e0b"
-            fillOpacity={0.08}
-            stroke="#f59e0b"
-            strokeOpacity={0.35}
-            strokeWidth={1.5}
-            rx={6}
-            ry={6}
-          />
-        );
-      }
-    : undefined;
-
   return (
     <div className="w-full relative bg-white overflow-hidden rounded-2xl border border-slate-50">
       <div className="w-full overflow-x-auto overflow-y-hidden select-none pb-4 custom-scrollbar-premium">
@@ -213,7 +180,7 @@ export const TransactionalHighDetailChart = ({
             <BarChart
               data={data}
               margin={{ top: 10, right: 40, left: 10, bottom: 20 }}
-              barGap={barGapValue}
+              barGap={type === 'single' && hasTarget ? -barSize : barGapValue}
               barCategoryGap={barCategoryGapValue as any}
             >
               <defs>
@@ -256,6 +223,22 @@ export const TransactionalHighDetailChart = ({
                 allowEscapeViewBox={{ x: false, y: true }}
               />
 
+              {/* TARGET BACKGROUND BAR (detrás) */}
+              {type === 'single' && hasTarget && (
+                <Bar
+                  key="bar-target"
+                  dataKey="target"
+                  radius={[6, 6, 0, 0]}
+                  fill="#f59e0b"
+                  fillOpacity={0.08}
+                  stroke="#f59e0b"
+                  strokeOpacity={0.35}
+                  strokeWidth={1.5}
+                  barSize={barSize}
+                  animationDuration={1500}
+                />
+              )}
+
               {/* VALOR SECUNDARIO */}
               {type === 'double' && (
                 <Bar
@@ -277,7 +260,6 @@ export const TransactionalHighDetailChart = ({
                 name={type === 'double' ? 'Ingresos / Utilidad' : 'Recaudado'}
                 barSize={barSize}
                 animationDuration={1500}
-                background={targetBackground}
               >
                 {data.map((entry, index) => {
                   let color = 'url(#barGradient)';
