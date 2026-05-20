@@ -502,15 +502,15 @@ const ListadoPrestamosElegante = () => {
           
           <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Capital a recibir</p>
-            <p className="text-lg font-bold text-slate-900 tracking-tight truncate" title={formatCurrency(estadisticas.montoTotal)}>
-              {formatCurrency(estadisticas.montoTotal)}
+            <p className="text-lg font-bold text-slate-900 tracking-tight truncate" title={formatCurrency(estadisticas.montoPendiente)}>
+              {formatCurrency(estadisticas.montoPendiente)}
             </p>
           </div>
           
           <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Capital prestado</p>
-            <p className="text-lg font-bold text-slate-900 tracking-tight truncate" title={formatCurrency(estadisticas.montoPendiente)}>
-              {formatCurrency(estadisticas.montoPendiente)}
+            <p className="text-lg font-bold text-slate-900 tracking-tight truncate" title={formatCurrency(estadisticas.montoTotal)}>
+              {formatCurrency(estadisticas.montoTotal)}
             </p>
           </div>
         </div>
