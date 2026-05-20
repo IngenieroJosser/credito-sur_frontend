@@ -186,7 +186,7 @@ export const resolveMediaUrl = (rawUrl: unknown) => {
   }
 
   // 3. Detectar si es un Public ID de Cloudinary
-  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
+  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME?.replace(/\s/g, '') || 'ds8zlwm97';
   const looksLikeCloudinary = 
     url.length > 10 && 
     !url.includes('.') && 

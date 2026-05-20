@@ -236,7 +236,15 @@ export const TransactionalHighDetailChart = ({
                   strokeWidth={1.5}
                   barSize={barSize}
                   animationDuration={1500}
-                />
+                >
+                  {data.map((entry, index) => (
+                    <Cell 
+                      key={`target-cell-${index}`} 
+                      strokeWidth={entry.value >= (entry.target || 0) ? 0 : 1.5} 
+                      fillOpacity={entry.value >= (entry.target || 0) ? 0 : 0.08}
+                    />
+                  ))}
+                </Bar>
               )}
 
               {/* VALOR SECUNDARIO */}
