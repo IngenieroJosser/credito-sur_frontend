@@ -137,7 +137,7 @@ export default function GestionarMoraModal({ cuenta, onClose, onConfirm }: Gesti
           </div>
 
           {/* Si ya tiene mora asignada */}
-          {cuenta.interesActual && cuenta.interesActual > 0 && (
+          {(cuenta.interesActual ?? 0) > 0 && (
             <div className="flex items-center gap-3 p-3 bg-rose-50 rounded-2xl border border-rose-100">
               <Info className="h-4 w-4 text-rose-500 shrink-0" />
               <div className="text-xs text-rose-700 font-medium">
