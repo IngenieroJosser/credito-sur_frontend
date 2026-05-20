@@ -1308,7 +1308,7 @@ const ModuloContableContent = () => {
           {/* 4 · Capital Prestado */}
           <div className="group relative overflow-hidden rounded-2xl bg-white/80 backdrop-blur-sm p-5 border border-slate-200 shadow-[0_4px_20px_rgb(0,0,0,0.04)] transition-all">
             <div className="flex items-center justify-between mb-3">
-              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Capital Prestado</div>
+              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Cartera Activa</div>
               <div className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-50 text-blue-600 border border-blue-100">
                 <CreditCard className="h-3.5 w-3.5" />
               </div>

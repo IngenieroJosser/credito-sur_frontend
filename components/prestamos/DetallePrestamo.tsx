@@ -150,9 +150,10 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
   const cuotasConSaldo = useMemo(() => {
     return prestamo.cuotas.reduce((acc: any[], c) => {
       const prevSaldo: number = acc.length === 0 ? prestamo.montoPrestamo : acc[acc.length - 1].saldoRestante;
-      const capital = c.montoCapital ?? 0;
-      const esPagada = c.estado === 'PAGADO' || c.estado === 'PAGADA';
-      const newSaldo = esPagada ? Math.max(0, prevSaldo - capital) : prevSaldo;
+      const capital = Number(c.montoCapital ?? 0);
+      // El saldo siempre decrece cuota a cuota (tanto pagadas como pendientes),
+      // para mostrar el saldo proyectado correcto en la tabla de amortización.
+      const newSaldo = Math.max(0, prevSaldo - capital);
       acc.push({ ...c, saldoRestante: Math.round(newSaldo * 100) / 100 });
       return acc;
     }, []);
