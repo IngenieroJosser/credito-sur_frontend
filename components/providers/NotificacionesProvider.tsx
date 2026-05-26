@@ -85,7 +85,10 @@ export function NotificacionesProvider({ children }: { children: React.ReactNode
     try {
       if (token) {
         // Decodificación rápida del JWT para obtener el ID de usuario sin librerías pesadas
-        const payload = JSON.parse(atob(token.split('.')[1]))
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const padding = '='.repeat((4 - (base64.length % 4)) % 4);
+        const payload = JSON.parse(atob(base64 + padding));
         currentUserId = payload.sub || payload.id
       }
     } catch(e) {}

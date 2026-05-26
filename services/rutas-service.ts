@@ -810,6 +810,33 @@ export const rutasService = {
 
   },
 
+  /**
+   * Marcar visita como ausente (o cualquier otro estado) con notas
+   */
+  async marcarVisitaAusente(rutaId: string, clienteId: string, payload: { estadoVisita: string, notas: string }): Promise<void> {
+    try {
+      await apiRequest<void>('POST', `/routes/${rutaId}/clientes/${clienteId}/visita`, payload);
+    } catch (error: any) {
+      if (
+        (typeof navigator !== 'undefined' && !navigator.onLine) ||
+        error?.statusCode === 0 || 
+        error?.message?.includes('network') ||
+        error?.code === 'ERR_NETWORK'
+      ) {
+        logger.log('[Offline Mode] Guardando registro de visita en cola...');
+        await syncService.enqueueOperation(
+          'ruta_registrar_visita',
+          `/routes/${rutaId}/clientes/${clienteId}/visita`,
+          'POST',
+          payload,
+          `Registrar visita ${payload.estadoVisita} para cliente: ${clienteId}`
+        );
+        return;
+      }
+      throw error;
+    }
+  },
+
 };
 
 

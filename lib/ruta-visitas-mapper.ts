@@ -38,6 +38,7 @@ export type VisitaRutaLite = {
   montoCuotaPendiente?: number
   saldoTotal: number
   estado: EstadoVisita
+  estadoVisita?: string       // estado de visita del día (ej: 'ausente')
   proximaVisita: any
   targetVencimiento?: any
   ordenVisita: number
@@ -210,6 +211,10 @@ export const mapAsignacionesToVisitasLite = (params: {
       const fechaProrroga = (proxima as any)?.fechaVencimientoProrroga
       const fechaOriginalVencimiento = (proxima as any)?.fechaVencimiento
 
+      // El campo estadoVisita puede venir del objeto de asignación cuando el backend
+      // lo enriquece (ej: llamada a daily-visits). Se preserva para que la UI lo muestre.
+      const estadoVisitaRaw = String(asig?.estadoVisita || '')
+
       return [{
         id: prestamo?.id ? `${asig.id || `asig-${hoyKey}-${index}`}-${prestamo.id}` : (asig.id || `asig-${hoyKey}-${index}-${subIdx}`),
         cliente: `${cliente.nombres || ''} ${cliente.apellidos || ''}`.trim() || 'Cliente',
@@ -220,6 +225,7 @@ export const mapAsignacionesToVisitasLite = (params: {
         montoCuotaPendiente,
         saldoTotal: saldoTotalToken,
         estado,
+        estadoVisita: estadoVisitaRaw || undefined,
         proximaVisita: fechaEfectiva || (proxima as any)?.fechaVencimiento || hoyKey,
         targetVencimiento: (proxima as any)?.fechaVencimiento,
         ordenVisita: asig.ordenVisita || index + 1,
