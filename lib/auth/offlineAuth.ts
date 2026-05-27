@@ -118,7 +118,11 @@ export function isTokenExpired(token: string): boolean {
     const parts = token.split('.');
     if (parts.length !== 3) return true;
 
-    const payload = JSON.parse(atob(parts[1]));
+    // Decodificar base64url de forma segura
+    const base64Url = parts[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const padding = '='.repeat((4 - (base64.length % 4)) % 4);
+    const payload = JSON.parse(atob(base64 + padding));
     
     // Verificar si tiene campo 'exp' (expiration)
     if (!payload.exp) return false; // Si no tiene exp, asumimos que no expira
@@ -140,7 +144,10 @@ export function decodeToken(token: string): any {
     const parts = token.split('.');
     if (parts.length !== 3) return null;
 
-    return JSON.parse(atob(parts[1]));
+    const base64Url = parts[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const padding = '='.repeat((4 - (base64.length % 4)) % 4);
+    return JSON.parse(atob(base64 + padding));
   } catch (error) {
     console.error('[Offline Auth] Error decodificando token:', error);
     return null;

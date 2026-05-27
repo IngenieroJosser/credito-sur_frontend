@@ -428,11 +428,15 @@ export default function DashboardPage() {
           },
           shouldRedirect: null
         });
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error cargando dashboard:', error);
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        router.replace('/');
+        if (error?.response?.status === 401 || error?.statusCode === 401) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          router.replace('/');
+        } else {
+          setState(prev => ({ ...prev, isLoading: false }));
+        }
       }
     };
 

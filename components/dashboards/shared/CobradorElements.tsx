@@ -236,7 +236,13 @@ function VisitaCardContent({
             {visita.estado.replace('_', ' ')}
           </span>
 
-          {(((visita as any)?.enMoraHistorico) || String(visita.estado || '').toLowerCase() === 'en_mora') && (
+          {(visita.estadoVisita === 'ausente' && visita.estado !== 'ausente') && (
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md border uppercase bg-amber-100 text-amber-700 border-amber-300">
+              ausente
+            </span>
+          )}
+
+          {((visita as any)?.enMoraHistorico && String(visita.estado || '').toLowerCase() !== 'en_mora') && (
             <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md border uppercase bg-rose-50 text-rose-700 border-rose-200">
               en mora
             </span>

@@ -13,6 +13,7 @@ export interface VisitaRuta {
   recaudadoTotalClient?: number
   recaudadoPeriodo?: number  // Total pagado en el período actual (semana/quincena/mes/día)
   estado: EstadoVisita
+  estadoVisita?: string      // Estado de la visita del día registrado (ej: 'ausente')
   proximaVisita: string
   targetVencimiento?: string
   ordenVisita: number
@@ -35,6 +36,7 @@ export interface VisitaRuta {
   // Crédito pendiente de aprobación: el cliente aparece en la ruta pero aún no se puede cobrar
   pendienteAprobacion?: boolean
   fechaUltimoPago?: number      // Timestamp del último pago realizado para ordenamiento rápido
+  montoCuotaPendiente?: number  // Monto pendiente real (puede diferir de montoCuota si hay mora parcial)
 }
 
 export interface HistorialDia {

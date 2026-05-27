@@ -60,6 +60,8 @@ import EstadoCuentaModal from '@/components/cobranza/EstadoCuentaModal'
 
 import ReprogramarModal from '@/components/cobranza/ReprogramarModal'
 
+import AusenteModal from '@/components/cobranza/AusenteModal'
+
 import { VisitaRuta, EstadoVisita } from '@/lib/types/cobranza'
 
 import { StaticVisitaItem, SeleccionClienteModal, Portal } from '@/components/dashboards/shared/CobradorElements'
@@ -94,7 +96,7 @@ import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { useRutaHistorial } from '@/hooks/useRutaHistorial'
 import ClienteInfoModal from '@/components/cobranza/ClienteInfoModal'
 import { formatShortDate } from '@/lib/utils/format'
-import { computeMontoExigibleHastaHoyFromCuotas, computeMontoNominalHastaHoyFromCuotas, computeRutaHoyUiStatsFromVisitas, getBogotaDateKey, getBogotaRangeByPeriod, getPagoBogotaDateKey, isCuotaNoPagada, isTodayOrPastBogota, isVisitaExigibleHoy, normalizeDateKey, resolveFechaEfectivaCuota, shouldMarkVisitaAsPagado, shouldShowVisitaEnRutaHoy, toBogotaDateTimeOffsetIso, resolveProximaCuotaFromPrestamo } from '@/lib/rutas-core'
+import { computeMontoExigibleHastaHoyFromCuotas, computeMontoNominalHastaHoyFromCuotas, computeRutaHoyUiStatsFromVisitas, getBogotaDateKey, getBogotaRangeByPeriod, getPagoBogotaDateKey, isCuotaNoPagada, isTodayOrPastBogota, isVisitaExigibleHoy, normalizeDateKey, resolveFechaEfectivaCuota, shouldMarkVisitaAsPagado, shouldShowVisitaEnRutaHoy, toBogotaDateTimeOffsetIso, resolveProximaCuotaFromPrestamo, computeDiasMoraFromCuotas } from '@/lib/rutas-core'
 
 import { mapAsignacionesToVisitasLite } from '@/lib/ruta-visitas-mapper'
 import { buildRecaudosHoyMapByPrestamoId, indexPagosByPrestamoId, sumMontoTotalPagosByBogotaDateKey } from '@/lib/ruta-recaudos'
@@ -206,6 +208,8 @@ const RutaClientLoaded = ({
   const [showHistory, setShowHistory] = useState(false)
   const [showMisClientes, setShowMisClientes] = useState(false)
   const [enrichNonce, setEnrichNonce] = useState(0)
+  
+  const [visitaAusente, setVisitaAusente] = useState<VisitaRuta | null>(null)
 
   const [historialRutas, setHistorialRutas] = useState<Record<string, HistorialDia>>({} as any)
   const historialRutasRef = useRef<Record<string, HistorialDia>>({} as any)
@@ -477,15 +481,31 @@ const RutaClientLoaded = ({
         const proxLocal = String(local?.proximaVisita || '')
         const esNuevaCuota = !!proxBackend && !!proxLocal && proxBackend !== proxLocal
 
-        const estado = (estadoLocal === 'pagado' && !esNuevaCuota && saldoBackend > 0)
-          ? 'pagado'
+        const localTienePagoHoy =
+          Number(local?.recaudadoDelDia || 0) > 0 ||
+          Number(v?.recaudadoDelDia || 0) > 0
+
+        // Preservar el estado local si es 'pagado' o 'ausente' (evitar que el backend lo sobreescriba
+        // antes de que el siguiente ciclo de enriquecimiento lo valide con pagos reales)
+        const estadoProtegidoLocalmente =
+          (estadoLocal === 'pagado' && !esNuevaCuota && saldoBackend > 0) ||
+          (estadoLocal === 'ausente' && !localTienePagoHoy)
+        const estado = estadoProtegidoLocalmente
+          ? estadoLocal
           : (estadoBackend as any)
+
+        // Si el estado quedó protegido como 'ausente', asegurar que estadoVisita también lo refleje
+        const estadoVisita =
+          estadoLocal === 'ausente' && !localTienePagoHoy
+            ? 'ausente'
+            : v?.estadoVisita
 
         return {
           ...v,
           recaudadoDelDia,
           recaudadoTotalClient,
           estado,
+          estadoVisita,
         }
       })
 
@@ -584,22 +604,31 @@ const RutaClientLoaded = ({
             let nuevoEstado = v.estado;
             const cuotaComparar = montoCuotaReal > 0 ? montoCuotaReal : v.montoCuota;
             const cobroSuficiente = totalHoy >= (cuotaComparar - 1);
-            
-            // Solo ocultar si realmente completó la cuota del día (o si el saldo ya quedó en 0)
-            if (Number(v.saldoTotal || 0) <= 0 || (totalHoy > 0 && cobroSuficiente) || v.estado === 'pagado') {
-              nuevoEstado = 'pagado';
-            }
 
-            const pagado = shouldMarkVisitaAsPagado({
-              saldoTotal: v.saldoTotal,
-              recaudadoHoy: totalHoy,
-              montoCuotaExigible: v.montoCuota,
-              estadoActual: v.estado,
-            })
-            if (pagado) nuevoEstado = 'pagado'
+            // Si el cliente ya fue marcado ausente localmente, respetar ese estado
+            // (un pago posterior lo sobreescribirá correctamente)
+            if (nuevoEstado === 'ausente') {
+              // Solo salir de 'ausente' si se registró un pago hoy
+              if (totalHoy > 0 && cobroSuficiente) {
+                nuevoEstado = 'pagado';
+              }
+            } else {
+              // Solo ocultar si realmente completó la cuota del día (o si el saldo ya quedó en 0)
+              if (Number(v.saldoTotal || 0) <= 0 || (totalHoy > 0 && cobroSuficiente) || v.estado === 'pagado') {
+                nuevoEstado = 'pagado';
+              }
 
-            if (nuevoEstado !== 'pagado' && Number(v?.saldoTotal || 0) > 0 && tieneMora) {
-              nuevoEstado = 'en_mora' as any
+              const pagado = shouldMarkVisitaAsPagado({
+                saldoTotal: v.saldoTotal,
+                recaudadoHoy: totalHoy,
+                montoCuotaExigible: v.montoCuota,
+                estadoActual: v.estado,
+              })
+              if (pagado) nuevoEstado = 'pagado'
+
+              if (nuevoEstado !== 'pagado' && Number(v?.saldoTotal || 0) > 0 && tieneMora) {
+                nuevoEstado = 'en_mora' as any
+              }
             }
 
             return { 
@@ -882,13 +911,29 @@ const RutaClientLoaded = ({
 
         const recaudo = Number(saldo?.cobranzaDelDia ?? saldo?.recaudoDelDia ?? estadisticas?.cobranzaDelDia ?? 0)
 
-        const visitasParaMeta = Array.isArray(visitasCobrador) ? visitasCobrador : []
+        const isAusente = (v: any) => {
+          const estadoVisita = String(v?.estadoVisita || '').toLowerCase()
+          const estado = String(v?.estado || '').toLowerCase()
+          return estadoVisita === 'ausente' || estado === 'ausente'
+        }
+
+        const visitasParaMeta = Array.isArray(visitasCobrador)
+          ? visitasCobrador.filter((v: any) => !isAusente(v))
+          : []
         const statsHoy = computeRutaHoyUiStatsFromVisitas(visitasParaMeta, recaudo)
+
+        const metaBackendRaw = estadisticas?.metaDelDia
+        const hasMetaBackend = metaBackendRaw !== null && metaBackendRaw !== undefined
+        const metaBackend = hasMetaBackend ? Number(metaBackendRaw) : null
+
         const meta = periodoCards === 'HOY'
-          ? (visitasParaMeta.length > 0 && statsHoy.meta > 0 ? statsHoy.meta : Number(estadisticas?.metaDelDia ?? 0))
-          : Number(estadisticas?.metaDelDia ?? 0)
+          ? (hasMetaBackend ? Number(metaBackend) : Number(statsHoy.meta || 0))
+          : Number(metaBackend ?? 0)
+
+        const recaudoFinal = Number(statsHoy.recaudo ?? recaudo ?? 0)
+
         const pendienteHoy = periodoCards === 'HOY'
-          ? (visitasParaMeta.length > 0 ? statsHoy.pendiente : Math.max(0, meta - recaudo))
+          ? Math.max(0, meta - recaudoFinal)
           : undefined
 
         const eficiencia = meta > 0
@@ -906,13 +951,29 @@ const RutaClientLoaded = ({
       } catch {
         const recaudo = Number(estadisticas?.cobranzaDelDia ?? 0)
 
-        const visitasParaMeta = Array.isArray(visitasCobrador) ? visitasCobrador : []
+        const isAusente = (v: any) => {
+          const estadoVisita = String(v?.estadoVisita || '').toLowerCase()
+          const estado = String(v?.estado || '').toLowerCase()
+          return estadoVisita === 'ausente' || estado === 'ausente'
+        }
+
+        const visitasParaMeta = Array.isArray(visitasCobrador)
+          ? visitasCobrador.filter((v: any) => !isAusente(v))
+          : []
         const statsHoy = computeRutaHoyUiStatsFromVisitas(visitasParaMeta, recaudo)
+
+        const metaBackendRaw = estadisticas?.metaDelDia
+        const hasMetaBackend = metaBackendRaw !== null && metaBackendRaw !== undefined
+        const metaBackend = hasMetaBackend ? Number(metaBackendRaw) : null
+
         const meta = periodoCards === 'HOY'
-          ? (visitasParaMeta.length > 0 && statsHoy.meta > 0 ? statsHoy.meta : Number(estadisticas?.metaDelDia ?? 0))
-          : Number(estadisticas?.metaDelDia ?? 0)
+          ? (hasMetaBackend ? Number(metaBackend) : Number(statsHoy.meta || 0))
+          : Number(metaBackend ?? 0)
+
+        const recaudoFinal = Number(statsHoy.recaudo ?? recaudo ?? 0)
+
         const pendienteHoy = periodoCards === 'HOY'
-          ? (visitasParaMeta.length > 0 ? statsHoy.pendiente : Math.max(0, meta - recaudo))
+          ? Math.max(0, meta - recaudoFinal)
           : undefined
 
         const eficiencia = meta > 0
@@ -964,6 +1025,7 @@ const RutaClientLoaded = ({
         let proximaVisitaV = p.fechaEfectiva || getBogotaDateKey(new Date());
         let estadoCalculado: EstadoVisita = 'pendiente';
         let ultimoPagoDate = 0;
+        let diasMora = 0;
 
         const toNivel = (nivel: string) => {
           if (nivel === 'VERDE') return 'bajo'
@@ -982,6 +1044,8 @@ const RutaClientLoaded = ({
             const cuotas = rawCuotas.sort((a, b) => 
                new Date(a.fechaVencimiento).getTime() - new Date(b.fechaVencimiento).getTime()
             );
+
+            diasMora = computeDiasMoraFromCuotas(cuotas as any, hoyBogotaKey, p?.frecuenciaPago || 'DIARIO');
 
             // 2. Consultar pagos para obtener fecha de último
             try {
@@ -1033,6 +1097,7 @@ const RutaClientLoaded = ({
           ordenVisita: Number(row?.ordenVisita || idx + 1),
           prioridad: 'media' as any,
           nivelRiesgo: toNivel(c?.nivelRiesgo || 'VERDE') as any,
+          diasMora,
           cobradorId: rutaData?.cobradorId || initialRuta.cobradorId,
           periodoRuta: (() => {
             const f = p?.frecuenciaPago || 'DIARIO'
@@ -1778,11 +1843,17 @@ const RutaClientLoaded = ({
 
                                            ) : (() => {
 
-                                             const filtradas = historyFrecuenciaFiltro === 'TODOS'
+                                             const filtradas = data.visitas.filter((v: any) => {
+                                               // Filtrar por frecuencia
+                                               if (historyFrecuenciaFiltro !== 'TODOS' && v.periodoRuta !== historyFrecuenciaFiltro) return false;
+                                               
+                                               // Ocultar saldados (pagado y saldo 0) que NO tuvieron actividad (pago o ausente) en este día
+                                               const isSaldado = String(v.estado || '').toLowerCase() === 'pagado' && Number(v.saldoTotal || 0) <= 0;
+                                               const tuvoActividad = Number(v.recaudadoDelDia || 0) > 0 || v.estadoVisita === 'ausente';
+                                               if (isSaldado && !tuvoActividad) return false;
 
-                                               ? data.visitas
-
-                                               : data.visitas.filter((v: any) => v.periodoRuta === historyFrecuenciaFiltro);
+                                               return true;
+                                             });
 
                                              if (filtradas.length === 0) return (
 
@@ -2113,6 +2184,19 @@ const RutaClientLoaded = ({
                                                   Estado
                                                 </button>
                                                 <button
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if (!rutaOperable) return;
+                                                    setVisitaAusente(visita);
+                                                  }}
+                                                  disabled={!rutaOperable || visita.estadoVisita === 'ausente' || visita.estado === 'ausente'}
+                                                  title={!rutaOperable ? (rutaCompletada ? 'Ruta completada' : 'Ruta pendiente de activación') : (visita.estadoVisita === 'ausente' || visita.estado === 'ausente' ? 'Cliente ya marcado como ausente' : 'Marcar como ausente')}
+                                                  className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border transition-all font-bold text-[11px] shadow-sm ${!rutaOperable || visita.estadoVisita === 'ausente' || visita.estado === 'ausente' ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-rose-700 border-rose-200 hover:bg-rose-50 active:scale-95'}`}
+                                                >
+                                                  <XCircle className="h-3.5 w-3.5" />
+                                                  Ausente
+                                                </button>
+                                                <button
                                                   onClick={(e) => { 
                                                     e.stopPropagation(); 
                                                     if (!rutaOperable) return;
@@ -2206,6 +2290,37 @@ const RutaClientLoaded = ({
       )}
 
       {/* Modal de Pago/Abono */}
+
+      {visitaAusente && (
+        <AusenteModal
+          visita={visitaAusente}
+          onClose={() => setVisitaAusente(null)}
+          onConfirm={async (notas) => {
+            if (!initialRuta?.id || !visitaAusente?.clienteId) return;
+            await rutasService.marcarVisitaAusente(initialRuta.id, visitaAusente.clienteId, {
+              estadoVisita: 'ausente',
+              notas,
+            });
+            // Actualización optimista: marcar el cliente como ausente en el estado local
+            // inmediatamente para que el UI refleje el cambio sin esperar al enrich.
+            const clienteIdAusente = visitaAusente.clienteId;
+            setVisitasCobrador((prev) =>
+              (prev || []).map((v) =>
+                v.clienteId === clienteIdAusente
+                  ? { ...v, estado: 'ausente' as any, estadoVisita: 'ausente' as any }
+                  : v
+              )
+            );
+            showNotification('success', 'Cliente marcado como ausente', 'Éxito');
+            setVisitaAusente(null);
+            setEnrichNonce((n) => n + 1);
+            try {
+              await onRutaRefresh?.();
+            } catch {}
+          }}
+        />
+      )}
+
       {pagoVisita && (
         <PagoModal
           visita={pagoVisita.visita}
@@ -2234,6 +2349,32 @@ const RutaClientLoaded = ({
                 cuotaNumeroEsperada: contexto?.cuotaNumeroEsperada,
                 montoCuotaEsperado: contexto?.montoCuotaEsperado,
               } as any);
+
+              // Actualización optimista: quitar estado de ausente si el cliente estaba marcado
+              const clienteIdPago = pagoActual.visita.clienteId;
+              setVisitasCobrador((prev) =>
+                (prev || []).map((v: any) => {
+                  if (v.clienteId !== clienteIdPago) return v
+
+                  const estadoActual = String(v?.estado || '').toLowerCase()
+
+                  const estadoSinAusente =
+                    estadoActual === 'ausente'
+                      ? (
+                          Number(v?.diasMora || 0) > 0 || Boolean(v?.enMoraHistorico)
+                            ? 'en_mora'
+                            : 'pendiente'
+                        )
+                      : v.estado
+
+                  return {
+                    ...v,
+                    estado: estadoSinAusente,
+                    estadoVisita: undefined as any,
+                    notasVisita: undefined as any,
+                  }
+                })
+              );
 
               showNotification('success', `${pagoActual.tipo === 'ABONO' ? 'Abono' : 'Pago'} registrado correctamente`, 'Éxito');
 

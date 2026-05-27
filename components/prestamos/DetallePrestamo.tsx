@@ -89,6 +89,15 @@ export interface PrestamoDetalle {
     montoInteres?: number;
     estado: string; // Permitir cualquier string para manejar variaciones de enum
     fechaPago?: string;
+    estadoVisita?: string | null;
+    notasVisita?: string | null;
+    fechaVisita?: string | null;
+    rutaVisita?: {
+      id: string;
+      nombre: string;
+      codigo?: string;
+    } | null;
+    cobradorVisita?: string | null;
   }[];
 }
 
@@ -688,6 +697,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                   <th scope="col" className="px-4 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Interés</th>
                   <th scope="col" className="px-4 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Saldo</th>
                   <th scope="col" className="px-4 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Estado</th>
+                  <th scope="col" className="px-4 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Gestión ruta</th>
                   <th scope="col" className="px-4 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest min-w-[110px]">Fecha Pago</th>
                 </tr>
               </thead>
@@ -735,6 +745,29 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                       <span className={cn("px-2.5 py-1 rounded-full text-[10px] font-black tracking-wide uppercase border", getCuotaEstadoColor(cuota.estadoUI))}>
                         {cuota.estadoUI}
                       </span>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      {String(cuota.estadoVisita || '').toLowerCase() === 'ausente' ? (
+                        <div className="flex flex-col gap-1">
+                          <span className="w-fit px-2.5 py-1 rounded-full text-[10px] font-black tracking-wide uppercase border text-rose-700 bg-rose-50 border-rose-100">
+                            Ausente
+                          </span>
+
+                          {cuota.notasVisita ? (
+                            <span className="text-[10px] font-semibold text-slate-500 max-w-[180px] truncate">
+                              {cuota.notasVisita}
+                            </span>
+                          ) : null}
+
+                          {cuota.cobradorVisita ? (
+                            <span className="text-[10px] text-slate-400">
+                              {cuota.cobradorVisita}
+                            </span>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <span className="text-xs font-bold text-slate-400">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-xs font-bold text-slate-500 min-w-[110px]">
                       {cuota.fechaPago ? formatFechaPagoBogota(cuota.fechaPago) : '—'}

@@ -97,13 +97,22 @@ export const applyPagosDelDiaToHistorialVisitas = (params: {
   })
 
   const finalVisitas = [...visitasActualizadas, ...sinteticos]
-  const recaudo = finalVisitas.reduce((sum: number, v: any) => sum + Number(v?.recaudadoDelDia || 0), 0)
-  const visitados = finalVisitas.filter((v: any) => {
+
+  // Ocultar saldados (pagado y saldo <= 0) que NO tuvieron actividad (pago o ausente) en este día
+  const filteredVisitas = finalVisitas.filter((v: any) => {
+    const isSaldado = String(v.estado || '').toLowerCase() === 'pagado' && Number(v.saldoTotal || 0) <= 0;
+    const tuvoActividad = Number(v.recaudadoDelDia || 0) > 0 || v.estadoVisita === 'ausente';
+    return !(isSaldado && !tuvoActividad);
+  });
+
+  const recaudo = filteredVisitas.reduce((sum: number, v: any) => sum + Number(v?.recaudadoDelDia || 0), 0)
+  // Los ausentes cuentan como visitados (se hizo la visita pero el cliente no estaba)
+  const visitados = filteredVisitas.filter((v: any) => {
     const estado = String(v?.estado || '').toLowerCase()
-    return Number(v?.recaudadoDelDia || 0) > 0 || estado === 'pagado'
+    return Number(v?.recaudadoDelDia || 0) > 0 || estado === 'pagado' || String(v?.estadoVisita || '') === 'ausente'
   }).length
 
-  return { visitas: finalVisitas, recaudo, visitados }
+  return { visitas: filteredVisitas, recaudo, visitados }
 }
 
 // Construye la información de un día del historial (visitas + resumen) a partir de:
@@ -186,6 +195,8 @@ export const buildHistorialDiaFromBackend = (params: {
           montoCuota: recDia > 0 ? recDia : 0,
           saldoTotal: Number(item?.saldoTotal ?? 0),
           estado: item?.estado || (recDia > 0 ? 'pagado' : 'pendiente'),
+          // Preservar estadoVisita del backend (ej: 'ausente') para mostrar el badge correcto
+          estadoVisita: item?.estadoVisita || undefined,
           proximaVisita: item?.proximaVisita || fechaClave,
           ordenVisita: item?.ordenVisita || index + 1,
           prioridad: cliente?.nivelRiesgo === 'ROJO' ? 'alta' : 'media',
@@ -250,6 +261,8 @@ export const buildHistorialDiaFromBackend = (params: {
         montoCuota: montoCuotaDisplay,
         saldoTotal,
         estado,
+        // Preservar estadoVisita del backend (ej: 'ausente') para mostrar el badge correcto
+        estadoVisita: item?.estadoVisita || undefined,
         proximaVisita: item?.proximaVisita || proximaCuota?.fechaVencimiento || fechaClave,
         ordenVisita: (item?.ordenVisita ? Number(item.ordenVisita) : (index + 1)) + loanIdx,
         prioridad: cliente?.nivelRiesgo === 'ROJO' ? 'alta' : 'media',
@@ -328,14 +341,22 @@ export const buildHistorialDiaFromBackend = (params: {
   })
 
   const todasVisitas = [...visitas, ...sinteticos]
-  const total = todasVisitas.length
+
+  // Ocultar saldados (pagado y saldo <= 0) que NO tuvieron actividad (pago o ausente) en este día
+  const filteredVisitas = todasVisitas.filter((v: any) => {
+    const isSaldado = String(v.estado || '').toLowerCase() === 'pagado' && Number(v.saldoTotal || 0) <= 0;
+    const tuvoActividad = Number(v.recaudadoDelDia || 0) > 0 || v.estadoVisita === 'ausente';
+    return !(isSaldado && !tuvoActividad);
+  });
+
+  const total = filteredVisitas.length
 
   // 5) Resumen:
   // - `recaudo`: preferimos el valor del backend (saldo del día); si no existe, sumamos pagos.
   // - `efectividad`: aproximación basada en (recaudo / esperado).
   //   Nota: este esperado usa montoCuota por visita (fallback); para historial profundo,
   //   la efectividad "exacta" depende de reglas de negocio del backend.
-  const esperado = todasVisitas.reduce((sum: number, v: any) => sum + Number(v?.montoCuota || 0), 0)
+  const esperado = filteredVisitas.reduce((sum: number, v: any) => sum + Number(v?.montoCuota || 0), 0)
   const recaudoDia =
     Number((saldo as any)?.recaudoDelDia ?? 0) > 0
       ? Number((saldo as any)?.recaudoDelDia ?? 0)
@@ -344,7 +365,12 @@ export const buildHistorialDiaFromBackend = (params: {
   // `visitados` se define como:
   // - visitas con recaudo del día > 0
   // - o visitas en estado pagado
-  const visitados = todasVisitas.filter((v: any) => Number(v?.recaudadoDelDia || 0) > 0 || v?.estado === 'pagado').length
+  // - o clientes marcados como ausentes (se hizo la visita aunque no estaban)
+  const visitados = filteredVisitas.filter((v: any) =>
+    Number(v?.recaudadoDelDia || 0) > 0 ||
+    v?.estado === 'pagado' ||
+    String(v?.estadoVisita || '') === 'ausente'
+  ).length
   const objetivoShown = Math.max(esperado, recaudoDia)
   const efectividadRaw = objetivoShown > 0 ? Math.round((recaudoDia / objetivoShown) * 100) : (recaudoDia > 0 ? 100 : 0)
   const efectividad = Math.min(100, Math.max(0, efectividadRaw))
@@ -357,5 +383,5 @@ export const buildHistorialDiaFromBackend = (params: {
     total,
   }
 
-  return { resumen, visitas: todasVisitas }
+  return { resumen, visitas: filteredVisitas }
 }

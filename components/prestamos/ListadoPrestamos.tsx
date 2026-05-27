@@ -937,10 +937,13 @@ const ListadoPrestamosElegante = () => {
             const token = localStorage.getItem('token');
             let userId = '';
             if (token) {
-            try {
-                const payload = JSON.parse(atob(token.split('.')[1]));
+              try {
+                const base64Url = token.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const padding = '='.repeat((4 - (base64.length % 4)) % 4);
+                const payload = JSON.parse(atob(base64 + padding));
                 userId = payload.sub || payload.id || '';
-            } catch { /* ignore */ }
+              } catch { /* ignore */ }
             }
 
             const isArticulo = String(data.creditType || '').toLowerCase() === 'articulo';

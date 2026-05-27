@@ -76,6 +76,7 @@ import ClienteInfoModal from '@/components/cobranza/ClienteInfoModal'
 import { StaticVisitaItem, SortableVisita, SeleccionClienteModal, Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
 import EstadoCuentaModal from '@/components/cobranza/EstadoCuentaModal'
 import PagoModal from '@/components/cobranza/PagoModal'
+import AusenteModal from '@/components/cobranza/AusenteModal'
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
 
 import ConfirmModal from '@/components/ui/ConfirmModal'
@@ -238,6 +239,8 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
 
   const [visitaEstadoCuentaSeleccionada, setVisitaEstadoCuentaSeleccionada] = useState<VisitaRuta | null>(null)
+
+  const [visitaAusente, setVisitaAusente] = useState<VisitaRuta | null>(null)
 
 
   
@@ -493,7 +496,8 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
       setRutaStats((prev: any) => {
         // Para HOY: meta coherente con recaudo real (incluye mora) usando visitas visibles.
         const metaBackend = Number(saldo?.metaDelDia || 0)
-        const meta = metaBackend > 0 ? metaBackend : Number(prev.meta || 0)
+        // Priorizar metaDelDia del backend (ya excluye ausentes) sobre valor anterior
+        const meta = metaBackend !== null && metaBackend !== undefined ? metaBackend : Number(prev.meta || 0)
         const recaudo = recaudoBackend > 0 ? recaudoBackend : Number(prev.recaudo ?? 0)
         const eficiencia = meta > 0
           ? Number(((recaudo / meta) * 100).toFixed(1))
@@ -1920,22 +1924,41 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
       const recNuevo = recPrev + Number(montoPagado || 0)
       const cuotaCompletadaLocal = montoCuotaPrev > 0 && recNuevo >= (montoCuotaPrev - 1)
 
-      setVisitasBase(prev => prev.map(v => {
+      const clienteIdPago = visita.clienteId
 
-        if (v.id !== visitaId) return v
+      setVisitasBase(prev => prev.map((v: any) => {
+        if (v.clienteId !== clienteIdPago) return v
 
-        const cuotaCompletada = cuotaCompletadaLocal
+        const esVisitaPagada = v.id === visitaId
+
+        const recPrevVisita = Number(v.recaudadoDelDia || 0)
+        const recNuevoVisita = esVisitaPagada
+          ? recPrevVisita + Number(montoPagado || 0)
+          : recPrevVisita
+
+        const estabaAusente =
+          String(v?.estadoVisita || '').toLowerCase() === 'ausente' ||
+          String(v?.estado || '').toLowerCase() === 'ausente'
+
+        const estadoSinAusente =
+          estabaAusente
+            ? (
+                Number(v?.diasMora || 0) > 0 || Boolean(v?.enMoraHistorico)
+                  ? 'en_mora'
+                  : 'pendiente'
+              )
+            : v.estado
+
+        const cuota = Number(v.montoCuota || 0)
+        const cuotaCompletada = esVisitaPagada && cuota > 0 && recNuevoVisita >= cuota - 1
 
         return {
-
           ...v,
-
-          recaudadoDelDia: recNuevo,
-
-          estado: cuotaCompletada ? 'pagado' : v.estado,
-
-        } as any
-
+          recaudadoDelDia: recNuevoVisita,
+          estado: cuotaCompletada ? 'pagado' : estadoSinAusente,
+          estadoVisita: undefined as any,
+          notasVisita: undefined as any,
+        }
       }))
 
 
@@ -2167,7 +2190,21 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
       .map((v: any) => ({ ...v, estado: ajustarEstadoConPago(v) }))
       .filter((v: any) => debeCobrarHoyOMora(v))
 
-    const clientesFaltantes = visitasHoy.filter((v: any) => v.estado === 'pendiente' || v.estado === 'en_mora').length
+    const isAusente = (v: any) => {
+      const estado = String(v?.estado || '').toLowerCase();
+      const estadoVisita = String(v?.estadoVisita || '').toLowerCase();
+      return estado === 'ausente' || estadoVisita === 'ausente';
+    };
+
+    const visitasAusentesHoy = visitasHoy.filter(isAusente);
+    const visitasOperativasHoy = visitasHoy.filter((v: any) => !isAusente(v));
+
+    const clientesFaltantes = visitasOperativasHoy.filter((v: any) => {
+      const estado = String(v?.estado || '').toLowerCase();
+      return estado === 'pendiente' || estado === 'en_mora';
+    }).length;
+
+    const clientesAusentes = visitasAusentesHoy.length;
 
 
 
@@ -2186,6 +2223,8 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
       efectividad,
 
       clientesFaltantes,
+
+      clientesAusentes,
 
       rutaId: rutaInfo?.id || rutaId || undefined,
 
@@ -3270,6 +3309,28 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
                                       </button>
 
+                                      <button
+
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          if (!rutaOperable) return;
+                                          setVisitaAusente(visita);
+                                        }}
+
+                                        disabled={!rutaOperable || visita.estadoVisita === 'ausente' || visita.estado === 'ausente'}
+
+                                        title={!rutaOperable ? (rutaCompletada ? 'Ruta completada' : 'Ruta pendiente de activación') : (visita.estadoVisita === 'ausente' || visita.estado === 'ausente' ? 'Cliente ya marcado como ausente' : 'Marcar como ausente')}
+
+                                        className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border transition-all font-bold text-[11px] shadow-sm ${!rutaOperable || visita.estadoVisita === 'ausente' || visita.estado === 'ausente' ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-rose-700 border-rose-200 hover:bg-rose-50 active:scale-95'}`}
+
+                                      >
+
+                                        <XCircle className="h-3.5 w-3.5" />
+
+                                        Ausente
+
+                                      </button>
+
                                     </>
 
                                   }
@@ -3457,6 +3518,28 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                                           <FileTextIcon className="h-3.5 w-3.5 text-slate-400" />
 
                                           Estado
+
+                                        </button>
+
+                                        <button
+
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (!rutaOperable) return;
+                                            setVisitaAusente(visita);
+                                          }}
+
+                                          disabled={!rutaOperable || visita.estadoVisita === 'ausente' || visita.estado === 'ausente'}
+
+                                          title={!rutaOperable ? (rutaCompletada ? 'Ruta completada' : 'Ruta pendiente de activación') : (visita.estadoVisita === 'ausente' || visita.estado === 'ausente' ? 'Cliente ya marcado como ausente' : 'Marcar como ausente')}
+
+                                          className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border transition-all font-bold text-[11px] shadow-sm ${!rutaOperable || visita.estadoVisita === 'ausente' || visita.estado === 'ausente' ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-rose-700 border-rose-200 hover:bg-rose-50 active:scale-95'}`}
+
+                                        >
+
+                                          <XCircle className="h-3.5 w-3.5" />
+
+                                          Ausente
 
                                         </button>
 
@@ -3767,7 +3850,30 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
         )}
 
-
+        {visitaAusente && (
+          <AusenteModal
+            visita={visitaAusente}
+            onClose={() => setVisitaAusente(null)}
+            onConfirm={async (notas) => {
+              if (!rutaInfo?.id || !visitaAusente?.clienteId) return;
+              await rutasService.marcarVisitaAusente(rutaInfo.id, visitaAusente.clienteId, {
+                estadoVisita: 'ausente',
+                notas,
+              });
+              const clienteIdAusente = visitaAusente.clienteId;
+              setVisitasBase((prev: VisitaRuta[]) =>
+                prev.map((v: VisitaRuta) =>
+                  v.clienteId === clienteIdAusente
+                    ? { ...v, estado: 'ausente' as any, estadoVisita: 'ausente' as any }
+                    : v
+                )
+              );
+              toast.success('Cliente marcado como ausente');
+              setVisitaAusente(null);
+              await cargarVisitasRuta();
+            }}
+          />
+        )}
 
         {showReprogramModal && visitaReprogramar && (
 
@@ -3970,7 +4076,11 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
              const prox = v.proximaVisita ? (String(v.proximaVisita).includes('T') ? String(v.proximaVisita).split('T')[0] : String(v.proximaVisita)) : ''
              return prox === hoyStr || v.estado === 'en_mora'
           })
-          const clientesFaltantesHoy = visitasHoy.filter((v: any) => v.estado === 'pendiente' || v.estado === 'en_mora').length
+          const clientesFaltantesHoy = visitasHoy.filter((v: any) => {
+            const estado = String(v?.estado || '').toLowerCase();
+            const estadoVisita = String(v?.estadoVisita || '').toLowerCase();
+            return (estado === 'pendiente' || estado === 'en_mora') && estadoVisita !== 'ausente';
+          }).length
           const todosPendientes = clientesFaltantesHoy > 0 && clientesFaltantesHoy === visitasHoy.length
 
           return (

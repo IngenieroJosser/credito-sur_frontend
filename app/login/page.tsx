@@ -101,8 +101,10 @@ const LoginPage = () => {
   // Ping the backend directly from the browser on mount to wake up Render instances
   // bypassing Vercel's 10-second timeout limits.
   useEffect(() => {
-    fetch('https://credito-sur-backend.onrender.com/api-credisur/auth', { method: 'GET' })
-      .catch((e) => logger.log('Ping para despertar el backend enviado.'));
+    if (process.env.NODE_ENV === 'production') {
+      fetch('https://credito-sur-backend.onrender.com/api-credisur', { method: 'GET' })
+        .catch((e) => logger.log('Ping para despertar el backend enviado.'));
+    }
   }, []);
 
   // Si ya hay sesión válida en localStorage, redirigir directo al dashboard

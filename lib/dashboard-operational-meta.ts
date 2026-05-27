@@ -124,6 +124,11 @@ export const computeOperationalMetaTotalForTimeFilter = async (
           const tieneCuotaPendiente = cuotas.some((c: any) => c && isCuotaNoPagada(c))
           if (!tieneCuotaPendiente) return sum
 
+          // Excluir clientes marcados como ausente
+          const estadoVisita = String(v?.estadoVisita || '').toLowerCase()
+          const estado = String(v?.estado || '').toLowerCase()
+          if (estadoVisita === 'ausente' || estado === 'ausente') return sum
+
           if (timeFilter === 'today' && !isVisitaExigibleHoy(v as any, endKey)) return sum
 
           const esArticulo = String((v as any)?.tipoPrestamo || '').toUpperCase() === 'ARTICULO'
@@ -260,6 +265,11 @@ export const computeOperationalMetaByRouteIdsForTimeFilter = async (
 
           const tieneCuotaPendiente = cuotas.some((c: any) => c && isCuotaNoPagada(c))
           if (!tieneCuotaPendiente) return sum
+
+          // Excluir clientes marcados como ausente
+          const estadoVisita = String(v?.estadoVisita || '').toLowerCase()
+          const estado = String(v?.estado || '').toLowerCase()
+          if (estadoVisita === 'ausente' || estado === 'ausente') return sum
 
           if (timeFilter === 'today' && !isVisitaExigibleHoy(v as any, endKey)) return sum
 
