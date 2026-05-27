@@ -674,14 +674,12 @@ const VistaCobrador = () => {
 
         base: Number((saldo as any)?.saldoCaja ?? (saldo as any)?.baseEfectivo ?? prev.base ?? 0),
 
-        meta: periodoCards === 'HOY'
-          ? Number((rutaActual as any)?.estadisticas?.metaDelDia ?? prev.meta ?? 0)
-          : prev.meta,
+        // Para HOY, no usar metaDelDia del backend (puede incluir ausentes)
+        // rutaStatsUI calculará la meta correcta excluyendo ausentes
+        meta: periodoCards === 'HOY' ? 0 : prev.meta,
 
-        eficiencia: (() => {
-          const meta = periodoCards === 'HOY'
-            ? Number((rutaActual as any)?.estadisticas?.metaDelDia ?? prev.meta ?? 0)
-            : Number(prev.meta || 0)
+        eficiencia: periodoCards === 'HOY' ? prev.eficiencia : (() => {
+          const meta = Number(prev.meta || 0)
           return meta > 0 ? Math.round((Number(saldo?.recaudoDelDia ?? 0) / meta) * 100) : prev.eficiencia
         })()
 
