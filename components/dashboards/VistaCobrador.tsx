@@ -99,6 +99,16 @@ import {
 
   Info,
 
+  Eye,
+
+  Pencil,
+
+  Trash2,
+
+  ChevronRight,
+
+  ChevronLeft,
+
   FileDown,
   ShieldAlert,
 
@@ -344,6 +354,12 @@ const VistaCobrador = () => {
   } | null>(null)
 
   const [showNewClientModal, setShowNewClientModal] = useState(false)
+
+  const [showEditClientModal, setShowEditClientModal] = useState(false)
+  const [clientToEdit, setClientToEdit] = useState<Cliente | null>(null)
+
+  const [showDeleteClientModal, setShowDeleteClientModal] = useState(false)
+  const [clientToDelete, setClientToDelete] = useState<Cliente | null>(null)
 
   const [showReprogramModal, setShowReprogramModal] = useState(false)
 
@@ -4649,6 +4665,53 @@ const VistaCobrador = () => {
 
                                     </button>
 
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleAbrirClienteInfo(visita);
+                                      }}
+                                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-all font-bold text-[11px] shadow-sm"
+                                      title="Ver expediente"
+                                    >
+                                      <Eye className="h-3.5 w-3.5" />
+                                    </button>
+
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        const cliente: Cliente = {
+                                          id: visita.clienteId,
+                                          nombres: visita.cliente.split(' ')[0] || '',
+                                          apellidos: visita.cliente.split(' ').slice(1).join(' ') || '',
+                                          telefono: visita.telefono || '',
+                                          direccion: visita.direccion || '',
+                                        } as any;
+                                        setClientToEdit(cliente);
+                                        setShowEditClientModal(true);
+                                      }}
+                                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-amber-600 hover:bg-amber-50 transition-all font-bold text-[11px] shadow-sm"
+                                      title="Editar cliente"
+                                    >
+                                      <Pencil className="h-3.5 w-3.5" />
+                                    </button>
+
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        const cliente: Cliente = {
+                                          id: visita.clienteId,
+                                          nombres: visita.cliente.split(' ')[0] || '',
+                                          apellidos: visita.cliente.split(' ').slice(1).join(' ') || '',
+                                        } as any;
+                                        setClientToDelete(cliente);
+                                        setShowDeleteClientModal(true);
+                                      }}
+                                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-rose-600 hover:bg-rose-50 transition-all font-bold text-[11px] shadow-sm"
+                                      title="Eliminar cliente"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </button>
+
                                   </>
 
                                 }
@@ -5131,6 +5194,53 @@ const VistaCobrador = () => {
 
           />
 
+        )}
+
+        {showEditClientModal && clientToEdit && (
+          <NuevoClienteModal
+            cliente={clientToEdit}
+            esEdicion={true}
+            onClose={() => {
+              setShowEditClientModal(false);
+              setClientToEdit(null);
+            }}
+            onClienteCreado={(updatedClient) => {
+              console.log('Cliente actualizado:', updatedClient);
+              setShowEditClientModal(false);
+              setClientToEdit(null);
+              // Recargar clientes asignados
+              if (userSession?.id) {
+                cargarMisCreditosAsignados(userSession.id);
+              }
+            }}
+          />
+        )}
+
+        {showDeleteClientModal && clientToDelete && (
+          <ConfirmModal
+            isOpen={showDeleteClientModal}
+            onClose={() => {
+              setShowDeleteClientModal(false);
+              setClientToDelete(null);
+            }}
+            onConfirm={async () => {
+              try {
+                await clientesService.eliminar(clientToDelete.id);
+                setShowDeleteClientModal(false);
+                setClientToDelete(null);
+                // Recargar clientes asignados
+                if (userSession?.id) {
+                  cargarMisCreditosAsignados(userSession.id);
+                }
+              } catch (error) {
+                console.error('Error eliminando cliente:', error);
+              }
+            }}
+            title="Eliminar cliente"
+            message={`¿Estás seguro de que deseas eliminar al cliente ${clientToDelete.nombres} ${clientToDelete.apellidos}? Esta acción no se puede deshacer.`}
+            confirmText="Eliminar"
+            cancelText="Cancelar"
+          />
         )}
 
 
