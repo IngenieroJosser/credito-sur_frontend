@@ -674,14 +674,12 @@ const VistaCobrador = () => {
 
         base: Number((saldo as any)?.saldoCaja ?? (saldo as any)?.baseEfectivo ?? prev.base ?? 0),
 
-        meta: periodoCards === 'HOY'
-          ? Number((rutaActual as any)?.estadisticas?.metaDelDia ?? prev.meta ?? 0)
-          : prev.meta,
+        // Para HOY, no usar metaDelDia del backend (puede incluir ausentes)
+        // rutaStatsUI calculará la meta correcta excluyendo ausentes
+        meta: periodoCards === 'HOY' ? 0 : prev.meta,
 
-        eficiencia: (() => {
-          const meta = periodoCards === 'HOY'
-            ? Number((rutaActual as any)?.estadisticas?.metaDelDia ?? prev.meta ?? 0)
-            : Number(prev.meta || 0)
+        eficiencia: periodoCards === 'HOY' ? prev.eficiencia : (() => {
+          const meta = Number(prev.meta || 0)
           return meta > 0 ? Math.round((Number(saldo?.recaudoDelDia ?? 0) / meta) * 100) : prev.eficiencia
         })()
 
@@ -1512,7 +1510,31 @@ const VistaCobrador = () => {
     }
     // Limpiar lock caducado si existía
     if (prestamoId && inFlightTs !== undefined) pagosInFlightRef.current.delete(String(prestamoId))
-    
+
+    // Manejo focalizado de visitas registradas (ausente, etc.)
+    const accionVisita = payload?.accion || payload?.metadata?.accion;
+    const clienteIdVisita = payload?.clienteId || payload?.metadata?.clienteId;
+    const estadoVisitaPayload = payload?.estadoVisita || payload?.metadata?.estadoVisita;
+
+    if (accionVisita === 'VISITA_REGISTRADA' && clienteIdVisita && estadoVisitaPayload) {
+      setVisitasBase((prev) =>
+        prev.map((v) =>
+          v.clienteId === clienteIdVisita
+            ? { ...v, estado: estadoVisitaPayload as any, estadoVisita: estadoVisitaPayload as any }
+            : v,
+        ),
+      )
+      // Limpiar historial de hoy para forzar re-fetch si está abierto
+      const hoyKey = hoyBogotaKey
+      setHistorialRutas((prev: any) => {
+        if (!prev || !prev[hoyKey]) return prev
+        const next = { ...prev }
+        delete next[hoyKey]
+        return next
+      })
+      return // No necesita recarga completa
+    }
+
     if (prestamoId) {
       const existeEnVisitas = visitasBaseRef.current.some((v: any) => v?.prestamoId === prestamoId);
       if (!existeEnVisitas) {
@@ -1619,7 +1641,7 @@ const VistaCobrador = () => {
 
   useRealtimeData(['pagos_actualizados', 'prestamos_actualizados'], handlerFull)
 
-  useRealtimeData(['rutas_actualizadas', 'dashboards_actualizados'], handlerKpi)
+  useRealtimeData(['rutas_actualizadas', 'dashboards_actualizados'], handlerFull)
 
 
 
@@ -2291,8 +2313,8 @@ const VistaCobrador = () => {
 
     const statsPorVisitas = computeRutaHoyUiStatsFromVisitas(visitasParaMetaFiltradas, recaudo)
     const recaudoFinal = statsPorVisitas.recaudo
-    // Priorizar metaDelDia del backend (ya excluye ausentes) sobre cálculo local
-    const meta = metaFija !== null && metaFija !== undefined ? metaFija : (visitasParaMetaFiltradas.length > 0 && statsPorVisitas.meta > 0 ? statsPorVisitas.meta : 0)
+    // Usar statsPorVisitas.meta (que excluye ausentes) en lugar de metaFija
+    const meta = statsPorVisitas.meta || 0
     const pendiente = Math.max(0, meta - recaudoFinal)
     const eficienciaRaw = meta > 0 ? Number(((recaudoFinal / meta) * 100).toFixed(1)) : (recaudoFinal > 0 ? 100 : 0)
     const eficiencia = Math.min(100, Math.max(0, eficienciaRaw))
@@ -2821,7 +2843,7 @@ const VistaCobrador = () => {
 
     if (estado === 'en_mora') return 'bg-rose-50 text-rose-700 border-rose-500/30'
 
-    if (estado === 'ausente') return 'bg-slate-50 text-slate-600 border-slate-300'
+    if (estado === 'ausente') return 'bg-orange-50 text-orange-700 border-orange-500/30'
 
     return 'bg-blue-50 text-blue-700 border-blue-500/30'
 

@@ -494,10 +494,17 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
       const recaudoBackend = Number(saldo?.cobranzaDelDia ?? saldo?.recaudoDelDia ?? 0)
 
       setRutaStats((prev: any) => {
-        // Para HOY: meta coherente con recaudo real (incluye mora) usando visitas visibles.
-        const metaBackend = Number(saldo?.metaDelDia || 0)
-        // Priorizar metaDelDia del backend (ya excluye ausentes) sobre valor anterior
-        const meta = metaBackend !== null && metaBackend !== undefined ? metaBackend : Number(prev.meta || 0)
+        // Para HOY: usar meta calculada desde visitas (excluye ausentes)
+        const isAusente = (v: any) => {
+          const estadoVisita = String(v?.estadoVisita || '').toLowerCase()
+          const estado = String(v?.estado || '').toLowerCase()
+          return estadoVisita === 'ausente' || estado === 'ausente'
+        }
+        const visitasParaMeta = Array.isArray(visitasBase)
+          ? visitasBase.filter((v: any) => !isAusente(v))
+          : []
+        const statsHoy = computeRutaHoyUiStatsFromVisitas(visitasParaMeta, recaudoBackend)
+        const meta = statsHoy.meta || 0
         const recaudo = recaudoBackend > 0 ? recaudoBackend : Number(prev.recaudo ?? 0)
         const eficiencia = meta > 0
           ? Number(((recaudo / meta) * 100).toFixed(1))
@@ -1066,7 +1073,14 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         // Filtrar aquí descartaba clientes válidos con saldoTotal=0 que aún están pendientes.
         const finalesFiltrados = finales;
 
-        const statsHoy = computeRutaHoyUiStatsFromVisitas(finalesFiltrados as any[], 0)
+        const isAusente = (v: any) => {
+          const estadoVisita = String(v?.estadoVisita || '').toLowerCase()
+          const estado = String(v?.estado || '').toLowerCase()
+          return estadoVisita === 'ausente' || estado === 'ausente'
+        }
+
+        const finalesSinAusentes = (finalesFiltrados || []).filter((v: any) => !isAusente(v))
+        const statsHoy = computeRutaHoyUiStatsFromVisitas(finalesSinAusentes as any[], 0)
 
         setRutaStats((prev: any) => {
           if (periodoCards !== 'HOY') return prev
@@ -1146,6 +1160,52 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
       return
     }
     if (prestamoId && inFlightTs !== undefined) pagosInFlightRef.current.delete(String(prestamoId))
+
+    // Manejo focalizado de visitas registradas (ausente, etc.)
+    const accionVisita = payload?.accion || payload?.metadata?.accion;
+    const clienteIdVisita = payload?.clienteId || payload?.metadata?.clienteId;
+    const estadoVisitaPayload = payload?.estadoVisita || payload?.metadata?.estadoVisita;
+
+    if (accionVisita === 'VISITA_REGISTRADA' && clienteIdVisita && estadoVisitaPayload) {
+      setVisitasBase((prev) =>
+        prev.map((v) =>
+          v.clienteId === clienteIdVisita
+            ? { ...v, estado: estadoVisitaPayload as any, estadoVisita: estadoVisitaPayload as any }
+            : v,
+        ),
+      )
+      const hoyKey = hoyBogotaKey
+      setHistorialRutas((prev: any) => {
+        if (!prev || !prev[hoyKey]) return prev
+        const next = { ...prev }
+        delete next[hoyKey]
+        return next
+      })
+      // Recalcular rutaStats para reflejar cambios en meta excluyendo ausentes
+      setRutaStats((prev: any) => {
+        if (periodoCards !== 'HOY') return prev
+        const isAusente = (v: any) => {
+          const estadoVisita = String(v?.estadoVisita || '').toLowerCase()
+          const estado = String(v?.estado || '').toLowerCase()
+          return estadoVisita === 'ausente' || estado === 'ausente'
+        }
+        const visitasActualizadas = (visitasBaseRef.current || []).map((v: any) =>
+          v.clienteId === clienteIdVisita
+            ? { ...v, estado: estadoVisitaPayload as any, estadoVisita: estadoVisitaPayload as any }
+            : v,
+        )
+        const visitasSinAusentes = visitasActualizadas.filter((v: any) => !isAusente(v))
+        const statsHoy = computeRutaHoyUiStatsFromVisitas(visitasSinAusentes, Number(prev.recaudo || 0))
+        const recaudo = Math.max(Number(prev.recaudo || 0), statsHoy.recaudo)
+        return {
+          ...prev,
+          meta: statsHoy.meta || 0,
+          recaudo,
+          pendiente: Math.max(0, (statsHoy.meta || 0) - recaudo),
+        }
+      })
+      return
+    }
 
     if (prestamoId) {
       const existeEnVisitas = visitasBaseRef.current.some((v: any) => v?.prestamoId === prestamoId);
@@ -1249,7 +1309,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
 
 
-  useRealtimeData(['pagos_actualizados', 'prestamos_actualizados'], handlerFull)
+  useRealtimeData(['pagos_actualizados', 'prestamos_actualizados', 'rutas_actualizadas'], handlerFull)
 
   useRealtimeData(['dashboards_actualizados'], handlerKpi)
 
@@ -1838,7 +1898,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
     if (estado === 'en_mora') return 'bg-rose-50 text-rose-700 border-rose-500/30'
 
-    if (estado === 'ausente') return 'bg-gray-50 text-gray-600 border-gray-100'
+    if (estado === 'ausente') return 'bg-orange-50 text-orange-700 border-orange-500/30'
 
     return 'bg-blue-50 text-blue-700 border-blue-100'
 
@@ -2158,14 +2218,8 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
     const recaudo = rutaStats.recaudo || 0
 
-    const meta = rutaStats.meta || 0
-
-    const efectividad = meta > 0 ? Math.round((recaudo / meta) * 100) : 0
-
-
-
-    // Contar clientes pendientes reales: solo los que se debían cobrar hoy (o están en mora)
-    // y ajustando estado según pagos del día.
+    // Calcular meta desde visitasOperativasHoy (excluye ausentes) en lugar de rutaStats.meta
+    // Esto evita emitir meta incorrecta en evento de cierre cuando rutaStats está stale
     const toLocalKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
     const hoyStr = toLocalKey(new Date())
 
@@ -2198,6 +2252,13 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
     const visitasAusentesHoy = visitasHoy.filter(isAusente);
     const visitasOperativasHoy = visitasHoy.filter((v: any) => !isAusente(v));
+
+    // Calcular meta real desde visitas operativas (excluye ausentes)
+    const meta = visitasOperativasHoy.reduce((sum: number, v: any) => {
+      return sum + Number(v?.montoCuota || 0)
+    }, 0)
+
+    const efectividad = meta > 0 ? Math.round((recaudo / meta) * 100) : (recaudo > 0 ? 100 : 0)
 
     const clientesFaltantes = visitasOperativasHoy.filter((v: any) => {
       const estado = String(v?.estado || '').toLowerCase();
@@ -4064,14 +4125,56 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
 
         {showConfirmCompleteModal && (() => {
-          const recaudoV = rutaStats.recaudo || 0
-          const metaV = rutaStats.meta || 0
-          const porcentaje = rutaStats.eficiencia || (metaV > 0 ? Math.round((recaudoV / metaV) * 100) : 0)
+          const recaudoV = Number(rutaStats.recaudo || 0)
+
+          const hoyStr = getBogotaDateKey(new Date())
+
+          const ajustarEstadoConPagoModal = (v: any) => {
+            if (Number(v.saldoTotal || 0) <= 0) return 'pagado'
+
+            const pagadoHoy = Number(v?.recaudadoDelDia || 0)
+            const cuota = Number(v?.montoCuota || 0)
+
+            if (cuota > 0 && pagadoHoy >= cuota - 1 && pagadoHoy > 0) return 'pagado'
+
+            return v.estado
+          }
+
+          const debeCobrarHoyOMoraModal = (v: any) => {
+            if (v.estado === 'en_mora') return true
+
+            const prox = v?.targetVencimiento || v?.proximaVisita
+            const proxKey = prox
+              ? normalizeDateKey(String(prox))
+              : ''
+
+            return proxKey === hoyStr
+          }
+
+          const isAusenteModal = (v: any) => {
+            const estado = String(v?.estado || '').toLowerCase()
+            const estadoVisita = String(v?.estadoVisita || '').toLowerCase()
+            return estado === 'ausente' || estadoVisita === 'ausente'
+          }
+
+          const visitasHoyModal = (visitasBase || [])
+            .map((v: any) => ({ ...v, estado: ajustarEstadoConPagoModal(v) }))
+            .filter((v: any) => debeCobrarHoyOMoraModal(v))
+
+          const visitasOperativasHoyModal = visitasHoyModal.filter((v: any) => !isAusenteModal(v))
+
+          const metaV = visitasOperativasHoyModal.reduce((sum: number, v: any) => {
+            return sum + Number(v?.montoCuota || 0)
+          }, 0)
+
+          const porcentaje = metaV > 0
+            ? Math.round((recaudoV / metaV) * 100)
+            : (recaudoV > 0 ? 100 : 0)
+
           const alCien = porcentaje >= 100
           const descuadre = recaudoV < metaV
 
-          // Contar clientes pendientes hoy
-          const hoyStr = getBogotaDateKey(new Date())
+          // Contar clientes pendientes hoy (reutilizar hoyStr ya declarado arriba)
           const visitasHoy = (visitasBase || []).filter((v: any) => {
              const prox = v.proximaVisita ? (String(v.proximaVisita).includes('T') ? String(v.proximaVisita).split('T')[0] : String(v.proximaVisita)) : ''
              return prox === hoyStr || v.estado === 'en_mora'
