@@ -46,6 +46,33 @@ export default function NotificacionDetalleModal({
   onReject,
   canApprove = true 
 }: NotificacionDetalleModalProps) {
+  // Helpers para normalizar datos de la notificación
+  const safeJsonParse = (value: any) => {
+    if (!value) return {}
+    if (typeof value === 'object') return value
+    try {
+      return JSON.parse(value)
+    } catch {
+      return {}
+    }
+  }
+
+  const pickNumber = (...values: any[]) => {
+    for (const value of values) {
+      const n = Number(value)
+      if (Number.isFinite(n) && n > 0) return n
+    }
+    return 0
+  }
+
+  const pickString = (...values: any[]) => {
+    for (const value of values) {
+      const str = String(value ?? '').trim()
+      if (str && str !== 'N/A' && str !== 'undefined' && str !== 'null') return str
+    }
+    return ''
+  }
+
   const [isEditingMode, setIsEditingMode] = useState(false)
   const [editedDetails, setEditedDetails] = useState<any>(notificacion?.detalles || {})
   const [actionComment, setActionComment] = useState('')
@@ -64,100 +91,133 @@ export default function NotificacionDetalleModal({
 
   React.useEffect(() => {
     if (notificacion) {
-      const meta = typeof notificacion.metadata === 'string'
-        ? JSON.parse(notificacion.metadata)
-        : (notificacion.metadata || {})
-      const metaDetalles = (meta && typeof meta === 'object') ? (meta.detalles || {}) : {}
-        
-      const dets = typeof notificacion.detalles === 'string' 
-        ? JSON.parse(notificacion.detalles) 
-        : (notificacion.detalles || {})
-        
-      // Combined: los datos de detalles (datosSolicitud del backend) tienen prioridad máxima
-      const combined = { ...meta, ...metaDetalles, ...dets }
+      const meta = safeJsonParse(notificacion.metadata)
+      const dets = safeJsonParse(notificacion.detalles)
 
-      // ── Valores financieros: tomar DIRECTAMENTE del backend, sin derivaciones ──
-      const cuotaInicialDirecta = Number(combined.cuotaInicial ?? 0);
-      const valorArticuloDirecto = Number(combined.valorArticulo ?? 0);
-      const montoDirecto = Number(combined.monto ?? 0);
+      const datosSolicitud = safeJsonParse(
+        notificacion.datosSolicitud ||
+        meta.datosSolicitud ||
+        dets.datosSolicitud ||
+        notificacion.aprobacion?.datosSolicitud
+      )
 
-      // Solo inferir si realmente faltan (registros muy antiguos)
-      const cuotaInicialFinal =
-        cuotaInicialDirecta > 0
-          ? cuotaInicialDirecta
-          : valorArticuloDirecto > 0 && montoDirecto > 0 && valorArticuloDirecto > montoDirecto
-          ? valorArticuloDirecto - montoDirecto
-          : 0;
+      const metaDetalles = safeJsonParse(meta.detalles)
+      const detsDetalles = safeJsonParse(dets.detalles)
 
-      const valorArticuloFinal =
-        valorArticuloDirecto > 0
-          ? valorArticuloDirecto
-          : montoDirecto > 0 && cuotaInicialFinal > 0
-          ? montoDirecto + cuotaInicialFinal
-          : montoDirecto;
-
-      // Extraer cédula del mensaje si no está en metadata (solo para cliente info)
-      const msg = notificacion.mensaje || ''
-      const cedulaFromMsg = msg.match(/(\d{7,10})/)?.[1]
-
-      // Extraer artículo del mensaje
-      let articuloFromMsg = ''
-      if (msg.toLowerCase().includes('artículo') || msg.toLowerCase().includes('articulo')) {
-        const artMatch = msg.match(/(?:artículo|articulo)\s+(?:["']?([^"']+)["']?|(\w+))/i)
-        if (artMatch) {
-           const rawArt = (artMatch[1] || artMatch[2] || '').trim()
-           articuloFromMsg = rawArt.split(/\s+para\s+/i)[0].split(/\s+por\s+valor/i)[0].trim()
-           if (articuloFromMsg.toLowerCase() === 'para' || articuloFromMsg.length < 2) articuloFromMsg = ''
-        }
+      const combined = {
+        ...meta,
+        ...metaDetalles,
+        ...dets,
+        ...detsDetalles,
+        ...datosSolicitud,
       }
+
+      const tipoPrestamo = String(
+        combined.tipoPrestamo ||
+        combined.tipo ||
+        ''
+      ).toUpperCase()
+
+      const isArticuloSolicitud = tipoPrestamo === 'ARTICULO'
+
+      const montoBase = pickNumber(
+        combined.monto,
+        combined.montoSolicitud,
+        !isArticuloSolicitud ? combined.valorArticulo : 0,
+        combined.capitalSolicitado,
+      )
+
+      const valorArticuloBase = pickNumber(
+        combined.valorArticulo,
+        combined.precioArticuloTotal,
+        combined.montoSolicitud,
+        combined.monto,
+      )
+
+      const cuotaInicialBase = pickNumber(combined.cuotaInicial)
+
+      const montoFinanciado = isArticuloSolicitud
+        ? Math.max(0, valorArticuloBase - cuotaInicialBase)
+        : montoBase
+
+      const tasaBase = Number(
+        combined.tasaInteres ??
+        combined.porcentaje ??
+        0
+      )
+
+      const cuotasBase = pickNumber(
+        combined.cantidadCuotas,
+        combined.cuotas,
+        combined.numCuotas,
+        combined.totalCuotas,
+      )
+
+      const plazoBase = Number(
+        combined.plazoMeses ??
+        combined.plazo ??
+        1
+      )
+
+      const interesTotalBase = pickNumber(combined.interesTotal)
+
+      const montoTotalBase = pickNumber(
+        combined.montoTotal,
+        combined.totalPagar,
+        combined.totalAPagar,
+        isArticuloSolicitud
+          ? valorArticuloBase
+          : montoFinanciado + (interesTotalBase > 0
+              ? interesTotalBase
+              : (montoFinanciado * tasaBase * Math.max(1, plazoBase)) / 100
+            ),
+      )
 
       const initialVal = {
         ...combined,
-        // Financiero: siempre del backend
-        monto: montoDirecto,
-        valorArticulo: valorArticuloFinal,
-        cuotaInicial: cuotaInicialFinal,
-        // Plazo y cuotas: del backend, sin recalcular
-        plazoMeses: Number(combined.plazoMeses || combined.plajeMeses || 1),
-        cuotas: (() => {
-           const val = Number(combined.cantidadCuotas || combined.cuotas || combined.numCuotas || 0);
-           if (val > 0) return val;
-           // Solo calcular si no hay ningún valor explícito del backend
-           const meses = Number(combined.plazoMeses || combined.plajeMeses || 0);
-           if (meses === 0) return 0;
-           const freq = combined.frecuenciaPago || combined.frecuencia || 'DIARIO';
-           if (freq === 'DIARIO') return Math.ceil(meses * 30);
-           if (freq === 'SEMANAL') return Math.ceil(meses * 4);
-           if (freq === 'QUINCENAL') return Math.ceil(meses * 2);
-           if (freq === 'MENSUAL') return Math.ceil(meses);
-           return Math.ceil(meses * 4);
-        })(),
-        // Frecuencia: del backend directamente
+
+        cliente: pickString(
+          combined.cliente,
+          combined.nombreCliente,
+          combined.clienteNombre,
+          combined.nombreCompleto,
+        ),
+
+        cedula: pickString(
+          combined.cedula,
+          combined.dni,
+          combined.documento,
+          combined.clienteDni,
+        ),
+
+        telefono: pickString(
+          combined.telefono,
+          combined.phone,
+          combined.celular,
+          combined.clienteTelefono,
+        ),
+
+        tipoPrestamo,
+        monto: montoFinanciado,
+        valorArticulo: valorArticuloBase || montoFinanciado,
+        cuotaInicial: cuotaInicialBase,
+        montoTotal: montoTotalBase,
+        interesTotal: interesTotalBase,
+        tasaInteres: tasaBase,
+        porcentaje: tasaBase,
+        plazoMeses: plazoBase,
+        cuotas: cuotasBase,
+        cantidadCuotas: cuotasBase,
+        numCuotas: cuotasBase,
         frecuenciaPago: combined.frecuenciaPago || combined.frecuencia || 'DIARIO',
-        // Fecha: del backend directamente
-        fechaInicio: combined.fechaInicio || combined.fecha || getBogotaDateKey(new Date()),
+        fechaInicio: combined.fechaInicio || combined.fecha || '',
         tipoAmortizacion: combined.tipoAmortizacion || 'INTERES_SIMPLE',
-        articulo: combined.articulo || combined.articuloNombre || articuloFromMsg || 'N/A',
-        cedula: String(combined.cedula || combined.dni || cedulaFromMsg || ''),
-        telefono: String(combined.telefono || combined.phone || ''),
-        notas: (() => {
-          const rawNotas = String(combined.notas ?? combined.observaciones ?? combined.comentarios ?? combined.nota ?? '');
-          // Filtrar prefijos automáticos generados por el sistema
-          const prefijos = ['Crédito de artículo:', 'Venta de contado:', 'Venta de artículo de contado'];
-          for (const prefijo of prefijos) {
-            if (rawNotas.toLowerCase().startsWith(prefijo.toLowerCase())) {
-              const idx = rawNotas.indexOf('. ');
-              return idx !== -1 ? rawNotas.slice(idx + 2).trim() : '';
-            }
-          }
-          return rawNotas;
-        })(),
+        articulo: combined.articulo || combined.articuloNombre || '',
+        notas: combined.notas || combined.observaciones || combined.comentarios || '',
         garantia: String(combined.garantia ?? ''),
       }
       
       const isPrestamoEff = (notificacion?.tipo === 'PRESTAMO' || (notificacion as any)?.approvalType === 'NUEVO_PRESTAMO')
-      const tituloEff = (notificacion?.titulo || '').toLowerCase()
-      const mensajeEff = (notificacion?.mensaje || '').toLowerCase()
       const isArticleEff = isPrestamoEff && (
         combined.tipo === 'ARTICULO' ||
         combined.tipoPrestamo === 'ARTICULO'
@@ -757,19 +817,23 @@ export default function NotificacionDetalleModal({
                       <p className="text-lg font-black text-blue-900">
                         {(() => {
                           const total = (() => {
-                            const va = Number(editedDetails?.valorArticulo ?? safeMeta?.valorArticulo ?? 0)
-                            const m = Number(editedDetails?.monto ?? safeMeta?.monto ?? 0)
-                            const ci = Number(editedDetails?.cuotaInicial ?? safeMeta?.cuotaInicial ?? 0)
-                            if (isArticle) return va > 0 ? va : (m + ci)
+                            const monto = Number(editedDetails?.monto || 0)
+                            const valorArticulo = Number(editedDetails?.valorArticulo || 0)
+                            const cuotaInicial = Number(editedDetails?.cuotaInicial || 0)
+                            const montoTotal = Number(editedDetails?.montoTotal || 0)
+                            const interesTotal = Number(editedDetails?.interesTotal || 0)
+                            const tasa = Number(editedDetails?.tasaInteres ?? editedDetails?.porcentaje ?? 0)
+                            const meses = Math.max(1, Number(editedDetails?.plazoMeses || 1))
 
-                            const mt = Number(editedDetails?.montoTotal || safeMeta?.montoTotal || 0)
-                            if (mt > 0) return mt
-                            const it = Number(editedDetails?.interesTotal || safeMeta?.interesTotal || 0)
-                            if (it > 0) return m + it
-                            const tasa = Number(editedDetails?.tasaInteres || safeMeta?.tasaInteres || Number(editedDetails?.porcentaje || safeMeta?.porcentaje || 0))
-                            const meses = Number(editedDetails?.plazoMeses || safeMeta?.plazoMeses || 1)
-                            const mesesInteres = Math.max(1, meses)
-                            return m + ((m * tasa * mesesInteres) / 100)
+                            if (montoTotal > 0) return montoTotal
+
+                            if (isArticle) {
+                              return valorArticulo > 0 ? valorArticulo : monto + cuotaInicial
+                            }
+
+                            if (interesTotal > 0) return monto + interesTotal
+
+                            return monto + ((monto * tasa * meses) / 100)
                           })()
                           return formatCurrency(isNaN(total) ? 0 : total)
                         })()}
@@ -887,17 +951,10 @@ export default function NotificacionDetalleModal({
                         <label className="text-[9px] text-emerald-500 uppercase font-black block mb-0.5">Valor Cuota (Est.)</label>
                         <p className="text-lg font-black text-emerald-900">
                           {(() => {
-                            const m = Number(editedDetails?.monto || safeMeta?.monto || 0);
-                            const cBase = Number(editedDetails?.cuotas || safeMeta?.cuotas || editedDetails?.numCuotas || safeMeta?.numCuotas || 1);
-                            const c = Math.max(1, isArticle && esContado ? 1 : cBase);
-                            const mt = Number(editedDetails?.montoTotal || safeMeta?.montoTotal || 0);
-                            const it = Number(editedDetails?.interesTotal || safeMeta?.interesTotal || 0);
-                            const tasa = Number(editedDetails?.tasaInteres || safeMeta?.tasaInteres || Number(editedDetails?.porcentaje || safeMeta?.porcentaje || 0));
-                            const meses = Number(editedDetails?.plazoMeses || safeMeta?.plazoMeses || 1);
-                            const mesesInteres = Math.max(1, meses);
-                            const total = isArticle ? m : (mt > 0 ? mt : (it > 0 ? m + it : m + ((m * tasa * mesesInteres) / 100)));
-                            const val = Math.ceil(total / c);
-                            return formatCurrency(isNaN(val) ? 0 : val);
+                            const total = Number(editedDetails?.montoTotal || 0)
+                            const cuotas = Math.max(1, Number(editedDetails?.cuotas || editedDetails?.cantidadCuotas || 1))
+                            const valorCuota = Math.ceil(total / cuotas)
+                            return formatCurrency(isNaN(valorCuota) ? 0 : valorCuota)
                           })()}
                         </p>
                       </div>
@@ -905,17 +962,8 @@ export default function NotificacionDetalleModal({
                         <label className="text-[9px] text-emerald-500 uppercase font-black block mb-0.5">Total a Cobrar</label>
                         <p className="text-lg font-black text-emerald-900">
                           {(() => {
-                            const m = Number(editedDetails?.monto || safeMeta?.monto || 0);
-                            const mt = Number(editedDetails?.montoTotal || safeMeta?.montoTotal || 0);
-                            const it = Number(editedDetails?.interesTotal || safeMeta?.interesTotal || 0);
-                            const tasa = Number(editedDetails?.tasaInteres || safeMeta?.tasaInteres || Number(editedDetails?.porcentaje || safeMeta?.porcentaje || 0));
-                            const meses = Number(editedDetails?.plazoMeses || safeMeta?.plazoMeses || 1);
-                            const mesesInteres = Math.max(1, meses);
-                            const va = Number(editedDetails?.valorArticulo ?? safeMeta?.valorArticulo ?? 0);
-                            const ci = Number(editedDetails?.cuotaInicial ?? safeMeta?.cuotaInicial ?? 0);
-                            const totalArticulo = va > 0 ? va : (m + ci);
-                            const val = isArticle ? totalArticulo : (mt > 0 ? mt : (it > 0 ? m + it : m + ((m * tasa * mesesInteres) / 100)));
-                            return formatCurrency(isNaN(val) ? 0 : val);
+                            const totalCobrar = Number(editedDetails?.montoTotal || 0)
+                            return formatCurrency(isNaN(totalCobrar) ? 0 : totalCobrar)
                           })()}
                         </p>
                       </div>
