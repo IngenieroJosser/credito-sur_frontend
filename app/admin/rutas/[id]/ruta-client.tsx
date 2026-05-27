@@ -927,7 +927,7 @@ const RutaClientLoaded = ({
         const metaBackend = hasMetaBackend ? Number(metaBackendRaw) : null
 
         const meta = periodoCards === 'HOY'
-          ? (hasMetaBackend ? Number(metaBackend) : Number(statsHoy.meta || 0))
+          ? Number(statsHoy.meta || 0)
           : Number(metaBackend ?? 0)
 
         const recaudoFinal = Number(statsHoy.recaudo ?? recaudo ?? 0)
@@ -967,7 +967,7 @@ const RutaClientLoaded = ({
         const metaBackend = hasMetaBackend ? Number(metaBackendRaw) : null
 
         const meta = periodoCards === 'HOY'
-          ? (hasMetaBackend ? Number(metaBackend) : Number(statsHoy.meta || 0))
+          ? Number(statsHoy.meta || 0)
           : Number(metaBackend ?? 0)
 
         const recaudoFinal = Number(statsHoy.recaudo ?? recaudo ?? 0)

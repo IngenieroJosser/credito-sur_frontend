@@ -584,7 +584,9 @@ export const RutasPageView = ({
 
     const objetivoTotal = rutasOperativas.reduce((acc, curr) => {
       const meta = Number(curr?.metaDelDia ?? 0)
-      return acc + Math.max(0, meta)
+      // Si la meta del backend es 0 o no existe, no sumarla (evita metas incorrectas)
+      if (meta <= 0) return acc
+      return acc + meta
     }, 0)
 
     const recTotal = rutasOperativas.reduce((acc, curr) => {

@@ -2315,8 +2315,8 @@ const VistaCobrador = () => {
 
     const statsPorVisitas = computeRutaHoyUiStatsFromVisitas(visitasParaMetaFiltradas, recaudo)
     const recaudoFinal = statsPorVisitas.recaudo
-    // Priorizar metaDelDia del backend (ya excluye ausentes) sobre cálculo local
-    const meta = metaFija !== null && metaFija !== undefined ? metaFija : (visitasParaMetaFiltradas.length > 0 && statsPorVisitas.meta > 0 ? statsPorVisitas.meta : 0)
+    // Usar statsPorVisitas.meta (que excluye ausentes) en lugar de metaFija
+    const meta = statsPorVisitas.meta || 0
     const pendiente = Math.max(0, meta - recaudoFinal)
     const eficienciaRaw = meta > 0 ? Number(((recaudoFinal / meta) * 100).toFixed(1)) : (recaudoFinal > 0 ? 100 : 0)
     const eficiencia = Math.min(100, Math.max(0, eficienciaRaw))

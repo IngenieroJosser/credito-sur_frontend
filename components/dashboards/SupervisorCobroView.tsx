@@ -494,10 +494,17 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
       const recaudoBackend = Number(saldo?.cobranzaDelDia ?? saldo?.recaudoDelDia ?? 0)
 
       setRutaStats((prev: any) => {
-        // Para HOY: meta coherente con recaudo real (incluye mora) usando visitas visibles.
-        const metaBackend = Number(saldo?.metaDelDia || 0)
-        // Priorizar metaDelDia del backend (ya excluye ausentes) sobre valor anterior
-        const meta = metaBackend !== null && metaBackend !== undefined ? metaBackend : Number(prev.meta || 0)
+        // Para HOY: usar meta calculada desde visitas (excluye ausentes)
+        const isAusente = (v: any) => {
+          const estadoVisita = String(v?.estadoVisita || '').toLowerCase()
+          const estado = String(v?.estado || '').toLowerCase()
+          return estadoVisita === 'ausente' || estado === 'ausente'
+        }
+        const visitasParaMeta = Array.isArray(visitasBase)
+          ? visitasBase.filter((v: any) => !isAusente(v))
+          : []
+        const statsHoy = computeRutaHoyUiStatsFromVisitas(visitasParaMeta, recaudoBackend)
+        const meta = statsHoy.meta || 0
         const recaudo = recaudoBackend > 0 ? recaudoBackend : Number(prev.recaudo ?? 0)
         const eficiencia = meta > 0
           ? Number(((recaudo / meta) * 100).toFixed(1))
