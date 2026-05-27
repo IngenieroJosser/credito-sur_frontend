@@ -853,9 +853,30 @@ const RutaClientLoaded = ({
       const resp = await routesService.activarHoy(initialRuta.id)
       setRutaActivadaHoy(Boolean(resp?.activadaHoy))
       showNotification('success', resp?.message || 'Ruta activada para hoy correctamente', 'Éxito')
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error activando ruta del día:', error)
-      showNotification('error', 'No se pudo activar la ruta para hoy', 'Error')
+      
+      const status =
+        error?.statusCode ??
+        error?.status ??
+        error?.response?.status ??
+        error?.error?.statusCode ??
+        error?.response?.data?.statusCode;
+
+      const message =
+        error?.message ??
+        error?.response?.data?.message ??
+        error?.error?.message ??
+        'La ruta ya tiene movimiento de caja hoy y se considera operativa.';
+
+      // Tratar 409 como caso de negocio (conflicto por restricción de BD)
+      if (status === 409) {
+        showNotification('info', message, 'Información');
+        setRutaActivadaHoy(true);
+        await refreshActivacionHoy();
+      } else {
+        showNotification('error', 'No se pudo activar la ruta para hoy', 'Error');
+      }
     } finally {
       setLoadingActivacionHoy(false)
     }
