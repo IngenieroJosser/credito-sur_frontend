@@ -1147,6 +1147,29 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     }
     if (prestamoId && inFlightTs !== undefined) pagosInFlightRef.current.delete(String(prestamoId))
 
+    // Manejo focalizado de visitas registradas (ausente, etc.)
+    const accionVisita = payload?.accion || payload?.metadata?.accion;
+    const clienteIdVisita = payload?.clienteId || payload?.metadata?.clienteId;
+    const estadoVisitaPayload = payload?.estadoVisita || payload?.metadata?.estadoVisita;
+
+    if (accionVisita === 'VISITA_REGISTRADA' && clienteIdVisita && estadoVisitaPayload) {
+      setVisitasBase((prev) =>
+        prev.map((v) =>
+          v.clienteId === clienteIdVisita
+            ? { ...v, estado: estadoVisitaPayload as any, estadoVisita: estadoVisitaPayload as any }
+            : v,
+        ),
+      )
+      const hoyKey = hoyBogotaKey
+      setHistorialRutas((prev: any) => {
+        if (!prev || !prev[hoyKey]) return prev
+        const next = { ...prev }
+        delete next[hoyKey]
+        return next
+      })
+      return
+    }
+
     if (prestamoId) {
       const existeEnVisitas = visitasBaseRef.current.some((v: any) => v?.prestamoId === prestamoId);
       if (existeEnVisitas) {
@@ -1249,7 +1272,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
 
 
-  useRealtimeData(['pagos_actualizados', 'prestamos_actualizados'], handlerFull)
+  useRealtimeData(['pagos_actualizados', 'prestamos_actualizados', 'rutas_actualizadas'], handlerFull)
 
   useRealtimeData(['dashboards_actualizados'], handlerKpi)
 
@@ -1838,7 +1861,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
     if (estado === 'en_mora') return 'bg-rose-50 text-rose-700 border-rose-500/30'
 
-    if (estado === 'ausente') return 'bg-gray-50 text-gray-600 border-gray-100'
+    if (estado === 'ausente') return 'bg-orange-50 text-orange-700 border-orange-500/30'
 
     return 'bg-blue-50 text-blue-700 border-blue-100'
 

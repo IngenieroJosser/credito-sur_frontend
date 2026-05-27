@@ -780,7 +780,7 @@ const RutaClientLoaded = ({
 
       case 'en_mora': return 'bg-rose-50 text-rose-700 border-rose-500/30'
 
-      case 'ausente': return 'bg-slate-50 text-slate-600 border-slate-300'
+      case 'ausente': return 'bg-orange-50 text-orange-700 border-orange-500/30'
 
       case 'reprogramado': return 'bg-blue-50 text-blue-700 border-blue-500/30'
 
@@ -1155,6 +1155,37 @@ const RutaClientLoaded = ({
     cargarMisCreditos()
 
   }, [showMisClientes, cargarMisCreditos])
+
+  // Tiempo real: actualización optimista para visitas registradas
+  useRealtimeData(['pagos_actualizados', 'rutas_actualizadas', 'prestamos_actualizados'], async (payload?: any) => {
+    // Manejo focalizado de visitas registradas (ausente, etc.)
+    const accionVisita = payload?.accion || payload?.metadata?.accion;
+    const clienteIdVisita = payload?.clienteId || payload?.metadata?.clienteId;
+    const estadoVisitaPayload = payload?.estadoVisita || payload?.metadata?.estadoVisita;
+
+    if (accionVisita === 'VISITA_REGISTRADA' && clienteIdVisita && estadoVisitaPayload) {
+      setVisitasCobrador((prev: VisitaRuta[]) =>
+        prev.map((v) =>
+          v.clienteId === clienteIdVisita
+            ? { ...v, estado: estadoVisitaPayload as any, estadoVisita: estadoVisitaPayload as any }
+            : v,
+        ),
+      )
+      const hoyKey = hoyBogotaKey
+      setHistorialRutas((prev: any) => {
+        if (!prev || !prev[hoyKey]) return prev
+        const next = { ...prev }
+        delete next[hoyKey]
+        return next
+      })
+      return
+    }
+
+    // Para otros eventos, delegar a onRutaRefresh si existe
+    if (onRutaRefresh) {
+      await onRutaRefresh()
+    }
+  })
 
 
 
