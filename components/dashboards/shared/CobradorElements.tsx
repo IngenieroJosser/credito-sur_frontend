@@ -205,7 +205,8 @@ function VisitaCardContent({
         {/* Botón ver detalles */}
         <button
           onClick={(e) => { e.stopPropagation(); onVerCliente(visita) }}
-          className="p-2 bg-slate-100/60 rounded-lg hover:bg-white text-slate-400 hover:text-[#08557f] transition-all border border-transparent hover:border-slate-200 shrink-0 active:scale-95"
+          onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); onVerCliente(visita) }}
+          className="p-2.5 sm:p-2 bg-slate-100/60 rounded-lg hover:bg-white text-slate-400 hover:text-[#08557f] transition-all border border-transparent hover:border-slate-200 shrink-0 active:scale-95 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center cursor-pointer"
           title="Ver expediente del cliente"
         >
           <Eye className="w-5 h-5" />
@@ -302,7 +303,7 @@ function VisitaCardContent({
 
       {/* Fila 3: dirección + teléfono */}
       {(visita.direccion || visita.telefono) && (
-        <div className="mt-1 flex items-center gap-1 text-[10px] text-slate-400 font-medium leading-none flex-wrap">
+        <div className="mt-1 flex items-center gap-1 text-[10px] text-slate-600 font-medium leading-none flex-wrap">
           {visita.direccion && (
             <>
               <MapPin className="w-3 h-3 shrink-0" />
