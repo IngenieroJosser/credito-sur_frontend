@@ -379,7 +379,8 @@ const VistaCobrador = () => {
 
   const [refreshTrigger, setRefreshTrigger] = useState(0)
 
-
+  // Ref para guardar la posición del scroll
+  const scrollPositionRef = useRef<number>(0)
 
   // Nuevos estados para la refactorización
 
@@ -5273,6 +5274,10 @@ const VistaCobrador = () => {
             onClose={() => setVisitaAusente(null)}
             onConfirm={async (notas) => {
               if (!rutaActual?.id || !visitaAusente?.clienteId) return;
+              
+              // Guardar posición del scroll antes de recargar
+              scrollPositionRef.current = window.scrollY;
+              
               await rutasService.marcarVisitaAusente(rutaActual.id, visitaAusente.clienteId, {
                 estadoVisita: 'ausente',
                 notas,
@@ -5285,9 +5290,22 @@ const VistaCobrador = () => {
                     : v
                 )
               );
+              // También actualizar misCreditos para que se refleje en la sección "mis clientes"
+              setMisCreditos((prev: VisitaRuta[]) =>
+                prev.map((v: VisitaRuta) =>
+                  v.clienteId === clienteIdAusente
+                    ? { ...v, estado: 'ausente' as any, estadoVisita: 'ausente' as any }
+                    : v
+                )
+              );
               toast.success('Cliente marcado como ausente');
               setVisitaAusente(null);
               await cargarDatosRuta();
+              
+              // Restaurar posición del scroll después de recargar
+              setTimeout(() => {
+                window.scrollTo(0, scrollPositionRef.current);
+              }, 100);
             }}
           />
         )}
