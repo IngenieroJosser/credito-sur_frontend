@@ -13,6 +13,7 @@ import { useRouter } from 'next/navigation'
 
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { useRutaHistorial } from '@/hooks/useRutaHistorial'
+import { useCierrePendienteRuta } from '@/hooks/useCierrePendienteRuta'
 
 import { buildHistorialDiaFromBackend } from '@/lib/ruta-historial'
 import { mapWithConcurrency, memoizePromiseByKey } from '@/lib/async-utils'
@@ -78,6 +79,7 @@ import EstadoCuentaModal from '@/components/cobranza/EstadoCuentaModal'
 import PagoModal from '@/components/cobranza/PagoModal'
 import AusenteModal from '@/components/cobranza/AusenteModal'
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
+import { CierrePendienteBanner } from '@/components/rutas/CierrePendienteBanner'
 
 import ConfirmModal from '@/components/ui/ConfirmModal'
 
@@ -241,6 +243,10 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
   const [visitaEstadoCuentaSeleccionada, setVisitaEstadoCuentaSeleccionada] = useState<VisitaRuta | null>(null)
 
   const [visitaAusente, setVisitaAusente] = useState<VisitaRuta | null>(null)
+
+  const { cierrePendiente, hasCierrePendiente, refreshCierrePendiente } = useCierrePendienteRuta(rutaId)
+
+  const [showCierrePendienteModal, setShowCierrePendienteModal] = useState(false)
 
 
   
@@ -2215,6 +2221,11 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
 
   const handleCompletarRuta = useCallback(() => {
+    // Advertir si hay cierre pendiente anterior (supervisor puede regularizar)
+    if (hasCierrePendiente) {
+      setShowCierrePendienteModal(true)
+      return
+    }
 
     const recaudo = rutaStats.recaudo || 0
 
@@ -2289,13 +2300,20 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
       rutaId: rutaInfo?.id || rutaId || undefined,
 
+      actorId: userSession?.id,
+
+      actorRol: userSession?.rol,
+
+    }, (response: any) => {
+      if (!response?.success) {
+        toast.error(response?.message || 'No se pudo cerrar la ruta.')
+        return
+      }
+
+      setRutaCompletada(true)
+      setShowConfirmCompleteModal(false)
+      toast.success('Ruta cerrada correctamente.')
     })
-
-
-
-    setRutaCompletada(true)
-
-    setShowConfirmCompleteModal(false)
 
 
 
@@ -2506,6 +2524,9 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
 
         <RutaKpiSection periodo={periodoCards} onPeriodoChange={setPeriodoCards} rutaStats={rutaStats as any} />
+
+        {/* Banner de cierre pendiente */}
+        <CierrePendienteBanner cierrePendiente={cierrePendiente} />
 
 
 
@@ -4335,6 +4356,90 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
           />
 
+        )}
+
+        {/* Modal de confirmación de cierre pendiente */}
+        {showCierrePendienteModal && (
+          <ConfirmModal
+            isOpen={showCierrePendienteModal}
+            onClose={() => setShowCierrePendienteModal(false)}
+            onConfirm={() => {
+              setShowCierrePendienteModal(false)
+              // Continuar con el cierre de ruta
+              const recaudo = rutaStats.recaudo || 0
+              const toLocalKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+              const hoyStr = toLocalKey(new Date())
+
+              const ajustarEstadoConPago = (v: any) => {
+                if (Number(v.saldoTotal || 0) <= 0) return 'pagado'
+                const pagadoHoy = Number((v as any).recaudadoDelDia || 0)
+                const cuota = Number(v.montoCuota || 0)
+                if (pagadoHoy >= cuota - 1 && pagadoHoy > 0) return 'pagado'
+                const prox = v.proximaVisita ? (String(v.proximaVisita).includes('T') ? String(v.proximaVisita).split('T')[0] : String(v.proximaVisita)) : ''
+                if (prox === hoyStr && pagadoHoy >= cuota - 1) return 'pagado'
+                return v.estado
+              }
+
+              const debeCobrarHoyOMora = (v: any) => {
+                if (v.estado === 'en_mora') return true
+                const prox = (v as any).targetVencimiento || v.proximaVisita
+                const proxKey = prox ? (String(prox).includes('T') ? String(prox).split('T')[0] : String(prox)) : ''
+                return proxKey === hoyStr
+              }
+
+              const visitasHoy = (visitasBase || [])
+                .map((v: any) => ({ ...v, estado: ajustarEstadoConPago(v) }))
+                .filter((v: any) => debeCobrarHoyOMora(v))
+
+              const isAusente = (v: any) => {
+                const estado = String(v?.estado || '').toLowerCase();
+                const estadoVisita = String(v?.estadoVisita || '').toLowerCase();
+                return estado === 'ausente' || estadoVisita === 'ausente';
+              };
+
+              const visitasAusentesHoy = visitasHoy.filter(isAusente);
+              const visitasOperativasHoy = visitasHoy.filter((v: any) => !isAusente(v));
+
+              const meta = visitasOperativasHoy.reduce((sum: number, v: any) => {
+                return sum + Number(v?.montoCuota || 0)
+              }, 0)
+
+              const clientesFaltantes = visitasHoy.filter((v: any) => !isAusente(v) && v.estado !== 'pagado').length
+              const clientesAusentes = visitasAusentesHoy.length
+
+              const efectividad = meta > 0 ? Math.round((recaudo / meta) * 100) : 0
+
+              socket?.emit('ruta_completada_emit', {
+                rutaNombre: userSession?.rutaAsignada || rutaId || 'Mi Ruta',
+                cobradorNombre: userSession?.nombres || 'Cobrador',
+                recaudo,
+                meta,
+                efectividad,
+                clientesFaltantes,
+                rutaId,
+                actorId: userSession?.id,
+                actorRol: userSession?.rol,
+              }, (response: any) => {
+                if (!response?.success) {
+                  toast.error(response?.message || 'No se pudo cerrar la ruta.')
+                  return
+                }
+
+                const mensajeCierre = clientesFaltantes > 0
+                  ? `Ruta cerrada. Faltaron ${clientesFaltantes} cliente${clientesFaltantes > 1 ? 's' : ''} por cobrar hoy. Se alertó a la oficina.`
+                  : 'Se ha cerrado el día de manera exitosa y se alertó a la oficina.';
+
+                setCoordinadorToast(mensajeCierre);
+                window.setTimeout(() => setCoordinadorToast(null), 5000);
+                toast.success('Ruta cerrada correctamente.')
+              })
+            }}
+            title="Jornada Pendiente de Cierre"
+            message="Esta ruta tiene una jornada anterior pendiente de cierre. No se recomienda cerrar la jornada actual hasta regularizar la anterior. ¿Desea continuar con el cierre de la jornada actual?"
+            confirmText="Continuar con cierre"
+            cancelText="Cancelar"
+            variant="warning"
+          />
         )}
 
       </div>

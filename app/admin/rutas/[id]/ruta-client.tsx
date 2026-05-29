@@ -86,6 +86,8 @@ import RutaHeader from '@/components/rutas/RutaHeader'
 
 import RutaKpiSection from '@/components/dashboards/shared/RutaKpiSection'
 
+import { CierrePendienteBanner } from '@/components/rutas/CierrePendienteBanner'
+
 import { HistorialDia, mapNivelRiesgo, mapFrecuenciaToPeriodo } from '@/lib/types/cobranza'
 
 import { exportService } from '@/services/export-service'
@@ -94,6 +96,7 @@ import { toast } from 'sonner'
 
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { useRutaHistorial } from '@/hooks/useRutaHistorial'
+import { useCierrePendienteRuta } from '@/hooks/useCierrePendienteRuta'
 import ClienteInfoModal from '@/components/cobranza/ClienteInfoModal'
 import { formatShortDate } from '@/lib/utils/format'
 import { computeMontoExigibleHastaHoyFromCuotas, computeMontoNominalHastaHoyFromCuotas, computeRutaHoyUiStatsFromVisitas, getBogotaDateKey, getBogotaRangeByPeriod, getPagoBogotaDateKey, isCuotaNoPagada, isTodayOrPastBogota, isVisitaExigibleHoy, normalizeDateKey, resolveFechaEfectivaCuota, shouldMarkVisitaAsPagado, shouldShowVisitaEnRutaHoy, toBogotaDateTimeOffsetIso, resolveProximaCuotaFromPrestamo, computeDiasMoraFromCuotas } from '@/lib/rutas-core'
@@ -146,6 +149,8 @@ const RutaClientLoaded = ({
   const [searchQuery, setSearchQuery] = useState('')
   const [showFilters, setShowFilters] = useState(false)
   const [periodoCards, setPeriodoCards] = useState<'HOY' | 'SEM' | 'MES' | 'AÑO'>('HOY')
+
+  const { cierrePendiente, hasCierrePendiente } = useCierrePendienteRuta(rutaId)
 
   const computeHoyBogotaKey = useCallback(() => {
     const d = new Date()
@@ -1253,6 +1258,9 @@ const RutaClientLoaded = ({
 
         <RutaKpiSection periodo={periodoCards} onPeriodoChange={setPeriodoCards} rutaStats={rutaStatsCards as any} />
 
+        {/* Banner de cierre pendiente */}
+        <CierrePendienteBanner cierrePendiente={cierrePendiente} />
+
         {(currentUser?.rol === 'SUPER_ADMINISTRADOR' || currentUser?.rol === 'ADMIN') && (
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2036,6 +2044,7 @@ const RutaClientLoaded = ({
                                 disabled={visita.pendienteAprobacion || !rutaOperable}
                                 title={visita.pendienteAprobacion ? 'Crédito pendiente de aprobación' : !rutaOperable ? (rutaCompletada ? 'Ruta completada' : 'Ruta pendiente de activación') : 'Registrar Abono'}
                                 className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] shadow-sm ${visita.pendienteAprobacion || !rutaOperable ? 'bg-slate-50 text-slate-300 border border-slate-100 opacity-50 cursor-not-allowed' : 'bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95'}`}
+                                style={{ backgroundColor: !rutaOperable && !rutaCompletada ? '#f97316' : undefined }}
                               >
                                 <Wallet className="h-3.5 w-3.5" />
                                 Abono
@@ -2223,6 +2232,7 @@ const RutaClientLoaded = ({
                                                   disabled={visita.pendienteAprobacion || !rutaOperable}
                                                   title={visita.pendienteAprobacion ? 'Crédito pendiente de aprobación' : !rutaOperable ? (rutaCompletada ? 'Ruta completada' : 'Ruta pendiente de activación') : 'Registrar Abono'}
                                                   className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] shadow-sm ${visita.pendienteAprobacion || !rutaOperable ? 'bg-slate-50 text-slate-300 border border-slate-100 opacity-50 cursor-not-allowed' : 'bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95'}`}
+                                                  style={{ backgroundColor: !rutaOperable && !rutaCompletada ? '#f97316' : undefined }}
                                                 >
                                                   <Wallet className="h-3.5 w-3.5" />
                                                   Abono
