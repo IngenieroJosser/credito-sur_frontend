@@ -762,6 +762,20 @@ export const rutasService = {
 
   /**
 
+   * Consultar si la ruta tiene una jornada anterior pendiente de cierre
+
+   */
+
+  async getCierrePendiente(rutaId: string): Promise<any> {
+
+    return apiRequest('GET', `/routes/${rutaId}/cierre-pendiente`);
+
+  },
+
+
+
+  /**
+
    * Actualizar orden de clientes en una ruta (drag & drop)
 
    */

@@ -31,11 +31,10 @@ import {
 import { formatCurrency, cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 import { routesService } from '@/services/routes-service';
-import { rutasService } from '@/services/rutas-service';
 import {
   getBogotaDateKey,
 } from '@/lib/rutas-core'
-import { clientesService, Cliente } from '@/services/clientes-service';
+import { clientesService } from '@/services/clientes-service';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { usePermission } from '@/hooks/usePermission';
 import { offlineStore } from '@/lib/offline/offlineDb';
@@ -43,7 +42,6 @@ import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
 import { getCajas, consolidarCaja, obtenerSaldoDisponibleRuta, Caja } from '@/services/contabilidad-service';
 import { prestamosService } from '@/services/prestamos-service';
 import { creditosService } from '@/services/creditos-service';
-import ConfirmModal from '@/components/ui/ConfirmModal';
 
 interface Ruta {
   id: string;
@@ -61,6 +59,8 @@ interface Ruta {
   descripcion?: string;
   nivelRiesgo?: string;
   frecuenciaVisita?: string;
+  cierrePendienteAnterior?: any;
+  tieneCierrePendiente?: boolean;
 }
 
 interface PrestamoResumen {
@@ -564,9 +564,23 @@ export const RutasPageView = ({
   const totalPages = Math.ceil(rutasFiltradas.length / itemsPerPage);
 
   // Reset página al filtrar
-  if (currentPage > totalPages && totalPages > 0) {
-    setCurrentPage(1);
-  }
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(1)
+    }
+  }, [currentPage, totalPages])
+
+  // Force list view for Coordinador, Admin and Supervisor
+  useEffect(() => {
+    const shouldForceList =
+      rutasBasePath.includes('/coordinador') ||
+      rutasBasePath.includes('/admin') ||
+      rutasBasePath.includes('/supervisor')
+
+    if (shouldForceList && vista !== 'list') {
+      setVista('list')
+    }
+  }, [rutasBasePath, vista])
 
   const rutasActivas = displayRutas.filter((ruta) => ruta.estado === 'ACTIVA').length
   const rutasPendientes = displayRutas.filter((ruta) => ruta.estado === 'PENDIENTE_ACTIVACION').length
@@ -575,12 +589,14 @@ export const RutasPageView = ({
   const { objetivoTotalShown, cobranzaTotal, porcentajeAvance } = useMemo(() => {
     const rutasOperativas = (Array.isArray(displayRutas) ? displayRutas : []).filter((r: any) => r && r.estado === 'ACTIVA' && r.clientesAsignados > 0)
 
-    console.log('🔍 rutasOperativas:', rutasOperativas.map((r: any) => ({
-      nombre: r.nombre,
-      clientesAsignados: r.clientesAsignados,
-      metaDelDia: r.metaDelDia,
-      cobranzaDelDia: r.cobranzaDelDia,
-    })))
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('🔍 rutasOperativas:', rutasOperativas.map((r: any) => ({
+        nombre: r.nombre,
+        clientesAsignados: r.clientesAsignados,
+        metaDelDia: r.metaDelDia,
+        cobranzaDelDia: r.cobranzaDelDia,
+      })))
+    }
 
     const objetivoTotal = rutasOperativas.reduce((acc, curr) => {
       const meta = Number(curr?.metaDelDia ?? 0)
@@ -600,11 +616,6 @@ export const RutasPageView = ({
       porcentajeAvance: objetivoTotal > 0 ? Math.min(100, (recTotal / objetivoTotal) * 100) : 0,
     }
   }, [displayRutas])
-
-  // Force list view for Coordinador, Admin and Supervisor
-  if ((rutasBasePath.includes('/coordinador') || rutasBasePath.includes('/admin') || rutasBasePath.includes('/supervisor')) && vista !== 'list') {
-    setVista('list')
-  }
 
   // Determine risk color classes
   const getRiesgoColor = (riesgo: string) => {
@@ -663,7 +674,7 @@ export const RutasPageView = ({
             </p>
           </div>
           <div className="flex gap-4">
-            {!readOnly && currentUser?.role !== 'COBRADOR' && puedeCrear && (
+            {!readOnly && currentUser?.rol !== 'COBRADOR' && puedeCrear && (
               <button
                 onClick={handleCreateClick}
                 className="inline-flex items-center gap-2 px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-xl hover:border-slate-400 hover:bg-slate-50 transition-all duration-200 shadow-sm font-bold text-sm group"
@@ -672,7 +683,7 @@ export const RutasPageView = ({
                 <span>Nueva Ruta</span>
               </button>
             )}
-            {!readOnly && currentUser?.role !== 'COBRADOR' && (
+            {!readOnly && currentUser?.rol !== 'COBRADOR' && (
               <button
                 onClick={() => setShowCrearCreditoModal(true)}
                 className="inline-flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 shadow-sm font-bold text-sm group"
@@ -849,9 +860,16 @@ export const RutasPageView = ({
                             </span>
                           )}
                         </div>
-                        <h3 className="text-xl font-bold text-slate-900 mt-3 group-hover:text-blue-700 transition-colors">
-                          {ruta.nombre}
-                        </h3>
+                        <div className="flex items-center gap-2 mt-3">
+                          <h3 className="text-xl font-bold text-slate-900 group-hover:text-blue-700 transition-colors">
+                            {ruta.nombre}
+                          </h3>
+                          {ruta.tieneCierrePendiente && (
+                            <span className="inline-flex items-center rounded-full border border-red-200 bg-red-50 px-2 py-1 text-xs font-bold text-red-700">
+                              Pendiente de cierre
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <div
                         className={cn(
@@ -1047,7 +1065,14 @@ export const RutasPageView = ({
                               <Route className="w-5 h-5" />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <div className="font-bold text-slate-900">{String(ruta.nombre || 'Ruta sin nombre')}</div>
+                              <div className="flex items-center gap-2">
+                                <div className="font-bold text-slate-900">{String(ruta.nombre || 'Ruta sin nombre')}</div>
+                                {ruta.tieneCierrePendiente && (
+                                  <span className="inline-flex items-center rounded-full border border-red-200 bg-red-50 px-2 py-1 text-xs font-bold text-red-700">
+                                    Pendiente de cierre
+                                  </span>
+                                )}
+                              </div>
                               <div className="text-xs text-slate-500">{String(ruta.codigo || 'S/C')}</div>
                             </div>
                           </div>
@@ -1188,6 +1213,11 @@ export const RutasPageView = ({
                       <div className="flex-1 min-w-0">
                         <div className="font-bold text-slate-900 truncate">{ruta.nombre}</div>
                         <div className="text-xs text-slate-500">{ruta.codigo}</div>
+                        {ruta.tieneCierrePendiente && (
+                          <span className="mt-1 inline-flex w-fit items-center rounded-full border border-red-200 bg-red-50 px-2 py-1 text-[10px] font-bold text-red-700">
+                            Pendiente de cierre
+                          </span>
+                        )}
                       </div>
                     </div>
                     <span

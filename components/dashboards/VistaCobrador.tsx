@@ -48,6 +48,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { useRutaHistorial } from '@/hooks/useRutaHistorial'
+import { useCierrePendienteRuta } from '@/hooks/useCierrePendienteRuta'
 
 import {
 
@@ -186,6 +187,8 @@ import PagoModal from '@/components/cobranza/PagoModal'
 import AusenteModal from '@/components/cobranza/AusenteModal'
 
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
+
+import { CierrePendienteBanner } from '@/components/rutas/CierrePendienteBanner'
 import ReprogramarModal from '@/components/cobranza/ReprogramarModal'
 
 import GastoModal from '@/components/dashboards/shared/GastoModal'
@@ -479,6 +482,8 @@ const VistaCobrador = () => {
 
 
   const [rutaActual, setRutaActual] = useState<Ruta | null>(null)
+
+  const { cierrePendiente, hasCierrePendiente, refreshCierrePendiente } = useCierrePendienteRuta(rutaActual?.id)
 
   const [rutaCompletada, setRutaCompletada] = useState(false)
 
@@ -1149,8 +1154,6 @@ const VistaCobrador = () => {
         const rutaCompleta = await rutasService.obtenerRutaPorId(rutaResumen.id);
 
         setRutaActual(rutaCompleta);
-
-
 
         // 3. Actualizar estadísticas con datos reales del backend
 
@@ -3135,35 +3138,40 @@ const VistaCobrador = () => {
 
       rutaId: rutaActual?.id || undefined,
 
+      actorId: userSession?.id,
+
+      actorRol: userSession?.rol,
+
+    }, (response: any) => {
+      if (!response?.success) {
+        toast.error(response?.message || 'No se pudo cerrar la ruta.')
+        return
+      }
+
+      setRutaCompletada(true);
+      setShowConfirmCompleteModal(false);
+
+      const mensajeCierre = clientesFaltantes > 0
+        ? `Ruta cerrada. Faltaron ${clientesFaltantes} cliente${clientesFaltantes > 1 ? 's' : ''} por cobrar hoy. Se alertó a la oficina.`
+        : 'Se ha cerrado el día de manera exitosa y se alertó a la oficina.';
+
+      setCoordinadorToast(mensajeCierre);
+      window.setTimeout(() => setCoordinadorToast(null), 5000);
+      toast.success('Ruta cerrada correctamente.')
     });
-
-
-
-    setRutaCompletada(true);
-
-    setShowConfirmCompleteModal(false);
-
-
-
-    const mensajeCierre = clientesFaltantes > 0
-
-      ? `Ruta cerrada. Faltaron ${clientesFaltantes} cliente${clientesFaltantes > 1 ? 's' : ''} por cobrar hoy. Se alertó a la oficina.`
-
-      : 'Se ha cerrado el día de manera exitosa y se alertó a la oficina.';
-
-    setCoordinadorToast(mensajeCierre);
-
-    window.setTimeout(() => setCoordinadorToast(null), 5000);
 
   }, [socket, rutaActual, userSession, rutaStats, kpisHoy])
 
 
 
   const handleCompletarRuta = useCallback(() => {
-
+    // Bloquear cierre si hay jornada anterior pendiente de cierre
+    if (hasCierrePendiente) {
+      toast.error('No puedes cerrar la jornada actual porque existe una jornada anterior pendiente de cierre.');
+      return;
+    }
     setShowConfirmCompleteModal(true);
-
-  }, [])
+  }, [hasCierrePendiente])
 
 
 
@@ -3686,7 +3694,8 @@ const VistaCobrador = () => {
 
         <RutaKpiSection periodo={periodoCards} onPeriodoChange={setPeriodoCards} rutaStats={rutaStatsUI as any} />
 
-
+        {/* Banner de cierre pendiente */}
+        <CierrePendienteBanner cierrePendiente={cierrePendiente} />
 
         <div className="space-y-6">
 
