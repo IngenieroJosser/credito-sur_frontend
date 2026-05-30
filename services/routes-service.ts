@@ -218,4 +218,17 @@ export const routesService = {
   async moveLoan(prestamoId: string, toRutaId: string) {
     return apiRequest<any>('POST', '/routes/move-loan', { prestamoId, toRutaId });
   },
+
+  // Cerrar una jornada regularizada (cierre pendiente)
+  async cerrarJornadaRegularizada(
+    rutaId: string,
+    fechaOperativa: string,
+    payload: { observaciones?: string },
+  ) {
+    return apiRequest<any>(
+      'POST',
+      `/routes/${rutaId}/cierre-pendiente/${fechaOperativa}/cerrar`,
+      payload,
+    );
+  },
 };

@@ -827,13 +827,13 @@ export const rutasService = {
   /**
    * Marcar visita como ausente (o cualquier otro estado) con notas
    */
-  async marcarVisitaAusente(rutaId: string, clienteId: string, payload: { estadoVisita: string, notas: string }): Promise<void> {
+  async marcarVisitaAusente(rutaId: string, clienteId: string, payload: { estadoVisita: string, notas: string, fechaOperativa?: string, origenGestion?: string }): Promise<void> {
     try {
       await apiRequest<void>('POST', `/routes/${rutaId}/clientes/${clienteId}/visita`, payload);
     } catch (error: any) {
       if (
         (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
+        error?.statusCode === 0 ||
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
@@ -849,6 +849,10 @@ export const rutasService = {
       }
       throw error;
     }
+  },
+
+  async getCierrePendienteDetalle(rutaId: string) {
+    return apiRequest('GET', `/routes/${rutaId}/cierre-pendiente/detalle`);
   },
 
 };

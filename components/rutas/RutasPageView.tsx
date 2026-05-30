@@ -61,6 +61,8 @@ interface Ruta {
   frecuenciaVisita?: string;
   cierrePendienteAnterior?: any;
   tieneCierrePendiente?: boolean;
+  totalCierresPendientes?: number;
+  cierresPendientes?: any[];
 }
 
 interface PrestamoResumen {
@@ -866,7 +868,9 @@ export const RutasPageView = ({
                           </h3>
                           {ruta.tieneCierrePendiente && (
                             <span className="inline-flex items-center rounded-full border border-red-200 bg-red-50 px-2 py-1 text-xs font-bold text-red-700">
-                              Pendiente de cierre
+                              {ruta.totalCierresPendientes === 1
+                                ? 'Pendiente de cierre'
+                                : `${ruta.totalCierresPendientes} jornadas pendientes`}
                             </span>
                           )}
                         </div>
@@ -1069,7 +1073,9 @@ export const RutasPageView = ({
                                 <div className="font-bold text-slate-900">{String(ruta.nombre || 'Ruta sin nombre')}</div>
                                 {ruta.tieneCierrePendiente && (
                                   <span className="inline-flex items-center rounded-full border border-red-200 bg-red-50 px-2 py-1 text-xs font-bold text-red-700">
-                                    Pendiente de cierre
+                                    {ruta.totalCierresPendientes === 1
+                                      ? 'Pendiente de cierre'
+                                      : `${ruta.totalCierresPendientes} jornadas pendientes`}
                                   </span>
                                 )}
                               </div>
@@ -1215,7 +1221,9 @@ export const RutasPageView = ({
                         <div className="text-xs text-slate-500">{ruta.codigo}</div>
                         {ruta.tieneCierrePendiente && (
                           <span className="mt-1 inline-flex w-fit items-center rounded-full border border-red-200 bg-red-50 px-2 py-1 text-[10px] font-bold text-red-700">
-                            Pendiente de cierre
+                            {ruta.totalCierresPendientes === 1
+                              ? 'Pendiente de cierre'
+                              : `${ruta.totalCierresPendientes} jornadas pendientes`}
                           </span>
                         )}
                       </div>
