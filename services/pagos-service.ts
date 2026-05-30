@@ -88,6 +88,8 @@ export interface CrearPagoDto {
   tipoRegistro?: 'PAGO' | 'ABONO';
   cuotaNumeroEsperada?: number;
   montoCuotaEsperado?: number;
+  fechaOperativaRuta?: string;
+  origenGestion?: string;
 }
 
 export const pagosService = {
@@ -150,17 +152,21 @@ export const pagosService = {
         if (payload.numeroReferencia) formData.append('numeroReferencia', payload.numeroReferencia);
         if (payload.notas) formData.append('notas', payload.notas);
         if (payload.fechaPago) formData.append('fechaPago', payload.fechaPago);
+        if (payload.fechaOperativaRuta) formData.append('fechaOperativaRuta', payload.fechaOperativaRuta);
+        if (payload.origenGestion) formData.append('origenGestion', payload.origenGestion);
         
         if (payload.comprobante) {
           formData.append('comprobante', payload.comprobante);
         }
         
-        console.log('[pagosService.registrarPago] FormData keys:', Array.from((formData as any).keys()));
-        console.log('[pagosService.registrarPago] Comprobante:', payload.comprobante ? {
-          name: payload.comprobante.name,
-          size: payload.comprobante.size,
-          type: payload.comprobante.type
-        } : 'No hay comprobante');
+        if (process.env.NODE_ENV !== 'production') {
+          console.log('[pagosService.registrarPago] FormData keys:', Array.from((formData as any).keys()));
+          console.log('[pagosService.registrarPago] Comprobante:', payload.comprobante ? {
+            name: payload.comprobante.name,
+            size: payload.comprobante.size,
+            type: payload.comprobante.type
+          } : 'No hay comprobante');
+        }
 
         return await apiRequest<ResultadoPago>('POST', '/payments', formData);
       }

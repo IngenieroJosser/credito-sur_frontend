@@ -87,6 +87,9 @@ import RutaHeader from '@/components/rutas/RutaHeader'
 import RutaKpiSection from '@/components/dashboards/shared/RutaKpiSection'
 
 import { CierrePendienteBanner } from '@/components/rutas/CierrePendienteBanner'
+import { CierrePendienteDetalleModal } from '@/components/rutas/CierrePendienteDetalleModal'
+import { useCierrePendienteDetalle } from '@/hooks/useCierrePendienteDetalle'
+import type { CierrePendienteDetalle } from '@/types/rutas/cierre-pendiente'
 
 import { HistorialDia, mapNivelRiesgo, mapFrecuenciaToPeriodo } from '@/lib/types/cobranza'
 
@@ -152,6 +155,13 @@ const RutaClientLoaded = ({
 
   const { cierrePendiente, hasCierrePendiente } = useCierrePendienteRuta(rutaId)
 
+  const [showDetalleCierre, setShowDetalleCierre] = useState(false)
+  const {
+    detalle,
+    loading: loadingDetalleCierre,
+    cargarDetalle,
+  } = useCierrePendienteDetalle(rutaId)
+
   const computeHoyBogotaKey = useCallback(() => {
     const d = new Date()
     return getBogotaDateKey(d)
@@ -215,6 +225,7 @@ const RutaClientLoaded = ({
   const [enrichNonce, setEnrichNonce] = useState(0)
   
   const [visitaAusente, setVisitaAusente] = useState<VisitaRuta | null>(null)
+  const [contextoRegularizacion, setContextoRegularizacion] = useState<any>(null)
 
   const [historialRutas, setHistorialRutas] = useState<Record<string, HistorialDia>>({} as any)
   const historialRutasRef = useRef<Record<string, HistorialDia>>({} as any)
@@ -1259,7 +1270,13 @@ const RutaClientLoaded = ({
         <RutaKpiSection periodo={periodoCards} onPeriodoChange={setPeriodoCards} rutaStats={rutaStatsCards as any} />
 
         {/* Banner de cierre pendiente */}
-        <CierrePendienteBanner cierrePendiente={cierrePendiente} />
+        <CierrePendienteBanner
+          cierrePendiente={cierrePendiente}
+          onVerDetalles={async () => {
+            setShowDetalleCierre(true)
+            await cargarDetalle()
+          }}
+        />
 
         {(currentUser?.rol === 'SUPER_ADMINISTRADOR' || currentUser?.rol === 'ADMIN') && (
 
@@ -2362,6 +2379,8 @@ const RutaClientLoaded = ({
             await rutasService.marcarVisitaAusente(initialRuta.id, visitaAusente.clienteId, {
               estadoVisita: 'ausente',
               notas,
+              fechaOperativa: contextoRegularizacion?.fechaOperativa,
+              origenGestion: contextoRegularizacion?.origenGestion,
             });
             // Actualización optimista: marcar el cliente como ausente en el estado local
             // inmediatamente para que el UI refleje el cambio sin esperar al enrich.
@@ -2375,6 +2394,7 @@ const RutaClientLoaded = ({
             );
             showNotification('success', 'Cliente marcado como ausente', 'Éxito');
             setVisitaAusente(null);
+            setContextoRegularizacion(null);
             setEnrichNonce((n) => n + 1);
             try {
               await onRutaRefresh?.();
@@ -2393,7 +2413,9 @@ const RutaClientLoaded = ({
               const pagoActual = pagoVisita
 
               // Cerrar inmediatamente para UX
+              const contextoRegularizacionSnapshot = contextoRegularizacion
               setPagoVisita(null)
+              setContextoRegularizacion(null)
 
               if (!pagoActual?.visita?.clienteId || !pagoActual?.visita?.prestamoId) {
                 showNotification('error', 'No se pudo registrar el pago: falta cliente o préstamo', 'Error');
@@ -2410,6 +2432,8 @@ const RutaClientLoaded = ({
                 tipoRegistro: contexto?.tipoRegistro || pagoActual.tipo,
                 cuotaNumeroEsperada: contexto?.cuotaNumeroEsperada,
                 montoCuotaEsperado: contexto?.montoCuotaEsperado,
+                fechaOperativaRuta: contextoRegularizacionSnapshot?.fechaOperativa,
+                origenGestion: contextoRegularizacionSnapshot?.origenGestion,
               } as any);
 
               // Actualización optimista: quitar estado de ausente si el cliente estaba marcado
@@ -2782,6 +2806,54 @@ const RutaClientLoaded = ({
         />
 
       )}
+
+      <CierrePendienteDetalleModal
+        open={showDetalleCierre}
+        onClose={() => setShowDetalleCierre(false)}
+        detalle={detalle}
+        loading={loadingDetalleCierre}
+        onVerEstadoCuenta={(cliente, contextoRegularizacion) => {
+          const visita = visitasCobrador.find((v: any) => v.clienteId === cliente.clienteId)
+          if (!visita) {
+            toast.error('No se encontró la visita del cliente.')
+            return
+          }
+
+          setShowDetalleCierre(false)
+
+          setTimeout(() => {
+            handleAbrirEstadoCuenta(visita)
+          }, 80)
+        }}
+        onRegistrarPago={(cliente, contextoRegularizacion) => {
+          const visita = visitasCobrador.find((v: any) => v.clienteId === cliente.clienteId)
+          if (!visita) {
+            toast.error('No se encontró la visita del cliente.')
+            return
+          }
+
+          setShowDetalleCierre(false)
+
+          setTimeout(() => {
+            setContextoRegularizacion(contextoRegularizacion)
+            handleAbrirPago(visita)
+          }, 80)
+        }}
+        onReprogramar={(cliente, contextoRegularizacion) => {
+          const visita = visitasCobrador.find((v: any) => v.clienteId === cliente.clienteId)
+          if (!visita) {
+            toast.error('No se encontró la visita del cliente.')
+            return
+          }
+
+          setShowDetalleCierre(false)
+
+          setTimeout(() => {
+            setVisitaReprogramar(visita)
+            setContextoRegularizacion(contextoRegularizacion)
+          }, 80)
+        }}
+      />
 
     </div>
 

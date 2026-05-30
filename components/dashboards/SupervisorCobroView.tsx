@@ -80,6 +80,9 @@ import PagoModal from '@/components/cobranza/PagoModal'
 import AusenteModal from '@/components/cobranza/AusenteModal'
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
 import { CierrePendienteBanner } from '@/components/rutas/CierrePendienteBanner'
+import { CierrePendienteDetalleModal } from '@/components/rutas/CierrePendienteDetalleModal'
+import { useCierrePendienteDetalle } from '@/hooks/useCierrePendienteDetalle'
+import type { CierrePendienteDetalle } from '@/types/rutas/cierre-pendiente'
 
 import ConfirmModal from '@/components/ui/ConfirmModal'
 
@@ -243,8 +246,16 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
   const [visitaEstadoCuentaSeleccionada, setVisitaEstadoCuentaSeleccionada] = useState<VisitaRuta | null>(null)
 
   const [visitaAusente, setVisitaAusente] = useState<VisitaRuta | null>(null)
+  const [contextoRegularizacion, setContextoRegularizacion] = useState<any>(null)
 
   const { cierrePendiente, hasCierrePendiente, refreshCierrePendiente } = useCierrePendienteRuta(rutaId)
+
+  const [showDetalleCierre, setShowDetalleCierre] = useState(false)
+  const {
+    detalle,
+    loading: loadingDetalleCierre,
+    cargarDetalle,
+  } = useCierrePendienteDetalle(rutaId)
 
   const [showCierrePendienteModal, setShowCierrePendienteModal] = useState(false)
 
@@ -2526,7 +2537,14 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         <RutaKpiSection periodo={periodoCards} onPeriodoChange={setPeriodoCards} rutaStats={rutaStats as any} />
 
         {/* Banner de cierre pendiente */}
-        <CierrePendienteBanner cierrePendiente={cierrePendiente} />
+        <CierrePendienteBanner
+          cierrePendiente={cierrePendiente}
+          onRefresh={refreshCierrePendiente}
+          onVerDetalles={async () => {
+            setShowDetalleCierre(true)
+            await cargarDetalle()
+          }}
+        />
 
 
 
@@ -3941,6 +3959,8 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
               await rutasService.marcarVisitaAusente(rutaInfo.id, visitaAusente.clienteId, {
                 estadoVisita: 'ausente',
                 notas,
+                fechaOperativa: contextoRegularizacion?.fechaOperativa,
+                origenGestion: contextoRegularizacion?.origenGestion,
               });
               const clienteIdAusente = visitaAusente.clienteId;
               setVisitasBase((prev: VisitaRuta[]) =>
@@ -3952,6 +3972,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
               );
               toast.success('Cliente marcado como ausente');
               setVisitaAusente(null);
+              setContextoRegularizacion(null);
               await cargarVisitasRuta();
             }}
           />
@@ -4441,6 +4462,71 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
             variant="warning"
           />
         )}
+
+        <CierrePendienteDetalleModal
+          open={showDetalleCierre}
+          onClose={() => setShowDetalleCierre(false)}
+          detalle={detalle}
+          loading={loadingDetalleCierre}
+          onVerEstadoCuenta={(cliente, contextoRegularizacion) => {
+            const visita = visitasBase.find((v: any) => v.clienteId === cliente.clienteId)
+            if (!visita) {
+              toast.error('No se encontró la visita del cliente.')
+              return
+            }
+
+            setShowDetalleCierre(false)
+
+            setTimeout(() => {
+              setVisitaEstadoCuentaSeleccionada(visita)
+              setShowEstadoCuentaModal(true)
+            }, 80)
+          }}
+          onRegistrarPago={(cliente, contextoRegularizacion) => {
+            const visita = visitasBase.find((v: any) => v.clienteId === cliente.clienteId)
+            if (!visita) {
+              toast.error('No se encontró la visita del cliente.')
+              return
+            }
+
+            setShowDetalleCierre(false)
+
+            setTimeout(() => {
+              setContextoRegularizacion(contextoRegularizacion)
+              setVisitaPagoSeleccionadaId(visita.id)
+              setPagoInitialIsAbono(false)
+              setShowPaymentModal(true)
+            }, 80)
+          }}
+          onMarcarAusente={(cliente, contextoRegularizacion) => {
+            const visita = visitasBase.find((v: any) => v.clienteId === cliente.clienteId)
+            if (!visita) {
+              toast.error('No se encontró la visita del cliente.')
+              return
+            }
+
+            setShowDetalleCierre(false)
+
+            setTimeout(() => {
+              setVisitaAusente(visita)
+              setContextoRegularizacion(contextoRegularizacion)
+            }, 80)
+          }}
+          onReprogramar={(cliente, contextoRegularizacion) => {
+            const visita = visitasBase.find((v: any) => v.clienteId === cliente.clienteId)
+            if (!visita) {
+              toast.error('No se encontró la visita del cliente.')
+              return
+            }
+
+            setShowDetalleCierre(false)
+
+            setTimeout(() => {
+              setVisitaReprogramar(visita)
+              setShowReprogramModal(true)
+            }, 80)
+          }}
+        />
 
       </div>
 
