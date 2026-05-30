@@ -443,6 +443,30 @@ export function CierrePendienteDetalleModal({
                             value={cliente.estadoVisita || 'Sin registro'}
                           />
                         </div>
+                        
+                        {cliente.cuotaObjetivo && (
+                          <div className="mt-3 rounded-xl bg-blue-50 p-3 border border-blue-100">
+                            <p className="text-[10px] font-bold uppercase text-blue-400 mb-1">Cuota objetivo</p>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <p className="text-[11px] font-black text-slate-900">
+                                  Cuota #{cliente.cuotaObjetivo.numeroCuota}
+                                </p>
+                                <p className="text-[11px] text-slate-600">
+                                  Vence: {formatFechaCortaBogota(cliente.cuotaObjetivo.fechaVencimiento)}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-[11px] font-black text-blue-700">
+                                  {formatCurrency(cliente.cuotaObjetivo.saldoCuota)}
+                                </p>
+                                <p className="text-[10px] text-blue-600">
+                                  Saldo exigible
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
 
                         {cliente.notasVisita && (
                           <div className="mt-3 rounded-xl bg-slate-50 p-3 text-xs text-slate-600">
@@ -461,7 +485,7 @@ export function CierrePendienteDetalleModal({
                             </button>
                           )}
 
-                          {cliente.estadoGestion === 'PENDIENTE' && permissions?.canRegistrarPago && onRegistrarPago && (() => {
+                          {cliente.estadoGestion === 'PENDIENTE' && permissions?.canRegistrarPago && onRegistrarPago && cliente.cuotaObjetivo?.puedePagar && (() => {
                             const clienteId = cliente.clienteId || cliente.asignacionId
                             if (!clienteId) return null
                             return (
@@ -505,7 +529,7 @@ export function CierrePendienteDetalleModal({
                             )
                           })()}
 
-                          {cliente.estadoGestion === 'PENDIENTE' && permissions?.canReprogramar && onReprogramar && (() => {
+                          {cliente.estadoGestion === 'PENDIENTE' && permissions?.canReprogramar && onReprogramar && cliente.cuotaObjetivo?.puedeReprogramar && (() => {
                             const clienteId = cliente.clienteId || cliente.asignacionId
                             if (!clienteId) return null
                             return (
@@ -549,7 +573,7 @@ export function CierrePendienteDetalleModal({
                             )
                           })()}
 
-                          {cliente.estadoGestion === 'AUSENTE' && permissions?.canRegistrarPago && onRegistrarPago && (() => {
+                          {cliente.estadoGestion === 'AUSENTE' && permissions?.canRegistrarPago && onRegistrarPago && cliente.cuotaObjetivo?.puedePagar && (() => {
                             const clienteId = cliente.clienteId || cliente.asignacionId
                             if (!clienteId) return null
                             return (
@@ -593,7 +617,7 @@ export function CierrePendienteDetalleModal({
                             )
                           })()}
 
-                          {cliente.estadoGestion === 'AUSENTE' && permissions?.canReprogramar && onReprogramar && (() => {
+                          {cliente.estadoGestion === 'AUSENTE' && permissions?.canReprogramar && onReprogramar && cliente.cuotaObjetivo?.puedeReprogramar && (() => {
                             const clienteId = cliente.clienteId || cliente.asignacionId
                             if (!clienteId) return null
                             return (
@@ -655,6 +679,24 @@ export function CierrePendienteDetalleModal({
                             >
                               Ver comprobante
                             </button>
+                          )}
+
+                          {!cliente.cuotaObjetivo && (
+                            <div className="w-full rounded-xl bg-slate-50 px-3 py-2 text-xs font-bold text-slate-500">
+                              No se encontró una cuota exigible para esta fecha operativa.
+                            </div>
+                          )}
+                          
+                          {cliente.cuotaObjetivo?.motivoBloqueoPago && (
+                            <div className="w-full rounded-xl bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700">
+                              {cliente.cuotaObjetivo.motivoBloqueoPago}
+                            </div>
+                          )}
+                          
+                          {cliente.cuotaObjetivo?.motivoBloqueoReprogramacion && !cliente.cuotaObjetivo?.motivoBloqueoPago && (
+                            <div className="w-full rounded-xl bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700">
+                              {cliente.cuotaObjetivo.motivoBloqueoReprogramacion}
+                            </div>
                           )}
                         </div>
                       </div>
