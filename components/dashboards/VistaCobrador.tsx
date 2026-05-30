@@ -167,7 +167,10 @@ import { rutasService, Ruta } from '@/services/rutas-service'
 import { registrarGasto, solicitarBase, obtenerSaldoDisponibleRuta, getRutaCierreHoy } from '@/services/contabilidad-service'
 import { routesService as routesApi } from '@/services/routes-service'
 
-import { prestamosService } from '@/services/prestamos-service'
+import {
+  buildReprogramacionCierrePendienteKey,
+  prestamosService,
+} from '@/services/prestamos-service'
 
 import { reportesCoordinadorService } from '@/services/reportes-coordinador-service'
 import type { RouteDetailResponse } from '@/services/reportes-coordinador-service'
@@ -331,6 +334,17 @@ const VistaCobrador = () => {
 
   const [visitaAusente, setVisitaAusente] = useState<VisitaRuta | null>(null)
   const [contextoRegularizacion, setContextoRegularizacion] = useState<any>(null)
+  const contextoRegularizacionRef = useRef<any>(null)
+
+  const setRegularizacionContext = useCallback((ctx: any) => {
+    contextoRegularizacionRef.current = ctx
+    setContextoRegularizacion(ctx)
+  }, [])
+
+  const clearRegularizacionContext = useCallback(() => {
+    contextoRegularizacionRef.current = null
+    setContextoRegularizacion(null)
+  }, [])
 
   const [showMoraModal, setShowMoraModal] = useState(false)
 
@@ -1672,9 +1686,15 @@ const VistaCobrador = () => {
 
 
 
-  useRealtimeData(['pagos_actualizados', 'prestamos_actualizados'], handlerFull)
+  useRealtimeData(
+    ['pagos_actualizados', 'prestamos_actualizados', 'jornadas_actualizadas'],
+    handlerFull,
+  )
 
-  useRealtimeData(['rutas_actualizadas', 'dashboards_actualizados'], handlerFull)
+  useRealtimeData(
+    ['rutas_actualizadas', 'dashboards_actualizados', 'jornadas_actualizadas'],
+    handlerFull,
+  )
 
 
 
@@ -2623,6 +2643,21 @@ const VistaCobrador = () => {
 
       }
 
+      const contextoRegularizacionSnapshot =
+        contextoRegularizacionRef.current
+      const payloadBase = {
+        fechaOperativaRuta:
+          contextoRegularizacionSnapshot?.origenGestion ===
+          'CIERRE_PENDIENTE'
+            ? contextoRegularizacionSnapshot?.fechaOperativa
+            : undefined,
+        origenGestion:
+          contextoRegularizacionSnapshot?.origenGestion ===
+          'CIERRE_PENDIENTE'
+            ? 'CIERRE_PENDIENTE'
+            : undefined,
+      } as const
+
 
 
       // Usar el nuevo flujo con revisión del supervisor
@@ -2638,7 +2673,20 @@ const VistaCobrador = () => {
           nuevaFecha: fecha,
 
           motivo,
-
+          fechaOperativaRuta: payloadBase.fechaOperativaRuta,
+          origenGestion: payloadBase.origenGestion,
+          idempotencyKey:
+            payloadBase.origenGestion === 'CIERRE_PENDIENTE'
+              ? buildReprogramacionCierrePendienteKey({
+                  rutaId: contextoRegularizacionSnapshot?.rutaId,
+                  fechaOperativa:
+                    contextoRegularizacionSnapshot?.fechaOperativa,
+                  clienteId: visitaReprogramar.clienteId,
+                  prestamoId: visitaReprogramar.prestamoId,
+                  cuotaId,
+                  nuevaFecha: fecha,
+                })
+              : undefined,
         })
 
       } else {
@@ -2651,7 +2699,21 @@ const VistaCobrador = () => {
 
           motivo,
 
-          cobradorId: userSession?.id || ''
+          cobradorId: userSession?.id || '',
+          fechaOperativaRuta: payloadBase.fechaOperativaRuta,
+          origenGestion: payloadBase.origenGestion,
+          idempotencyKey:
+            payloadBase.origenGestion === 'CIERRE_PENDIENTE'
+              ? buildReprogramacionCierrePendienteKey({
+                  rutaId: contextoRegularizacionSnapshot?.rutaId,
+                  fechaOperativa:
+                    contextoRegularizacionSnapshot?.fechaOperativa,
+                  clienteId: visitaReprogramar.clienteId,
+                  prestamoId: visitaReprogramar.prestamoId,
+                  cuotaId: 'SIN_CUOTA',
+                  nuevaFecha: fecha,
+                })
+              : undefined,
 
         })
 
@@ -2692,6 +2754,8 @@ const VistaCobrador = () => {
       setShowReprogramModal(false)
 
       setVisitaReprogramar(null)
+
+      clearRegularizacionContext()
 
     } catch (error: any) {
 
@@ -2933,10 +2997,10 @@ const VistaCobrador = () => {
     }
 
     // Cerrar el modal lo más rápido posible para mejorar UX (no esperar request)
-    const contextoRegularizacionSnapshot = contextoRegularizacion
+    const contextoRegularizacionSnapshot = contextoRegularizacionRef.current
     setShowPaymentModal(false)
     setVisitaPagoSeleccionada(null)
-    setContextoRegularizacion(null)
+    clearRegularizacionContext()
 
 
 
@@ -2987,6 +3051,19 @@ const VistaCobrador = () => {
         fechaOperativaRuta: contextoRegularizacionSnapshot?.fechaOperativa,
 
         origenGestion: contextoRegularizacionSnapshot?.origenGestion,
+
+        idempotencyKey: contextoRegularizacionSnapshot?.origenGestion === 'CIERRE_PENDIENTE'
+          ? [
+              'CIERRE_PENDIENTE',
+              contextoRegularizacionSnapshot?.rutaId,
+              contextoRegularizacionSnapshot?.fechaOperativa,
+              visitaSnapshot.clienteId,
+              visitaSnapshot.prestamoId,
+              contexto?.cuotaNumeroEsperada ?? 'SIN_CUOTA',
+              contexto?.tipoRegistro || (esAbonoSnapshot ? 'ABONO' : 'PAGO'),
+              Number(monto || 0),
+            ].join(':')
+          : undefined,
 
       })
 
@@ -3121,6 +3198,7 @@ const VistaCobrador = () => {
         pagosInFlightRef.current.delete(String(visitaSnapshot.prestamoId))
       }
 
+      clearRegularizacionContext()
       setIsLoadingAction(false)
 
     }
@@ -4684,6 +4762,7 @@ const VistaCobrador = () => {
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         if (!rutaOperable) return;
+                                        clearRegularizacionContext()
                                         setVisitaAusente(visita);
                                       }}
 
@@ -4863,6 +4942,7 @@ const VistaCobrador = () => {
 
                                           if (!rutaOperable) return;
 
+                                          clearRegularizacionContext()
                                           setVisitaPagoSeleccionada(visita);
 
                                           setPagoInitialIsAbono(false);
@@ -4891,6 +4971,7 @@ const VistaCobrador = () => {
 
                                           if (!rutaOperable) return;
 
+                                          clearRegularizacionContext()
                                           setVisitaPagoSeleccionada(visita);
 
                                           setPagoInitialIsAbono(true);
@@ -4942,6 +5023,7 @@ const VistaCobrador = () => {
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           if (!rutaOperable) return;
+                                          clearRegularizacionContext()
                                           setVisitaAusente(visita);
                                         }}
 
@@ -4967,6 +5049,7 @@ const VistaCobrador = () => {
 
                                           if (!rutaOperable) return;
 
+                                          clearRegularizacionContext()
                                           setVisitaReprogramar(visita);
 
                                           setShowReprogramModal(true);
@@ -5170,6 +5253,8 @@ const VistaCobrador = () => {
 
               setVisitaPagoSeleccionada(null)
 
+              clearRegularizacionContext()
+
             }}
 
             onConfirm={handleRegistrarPago}
@@ -5306,7 +5391,10 @@ const VistaCobrador = () => {
         {visitaAusente && (
           <AusenteModal
             visita={visitaAusente}
-            onClose={() => setVisitaAusente(null)}
+            onClose={() => {
+              setVisitaAusente(null)
+              clearRegularizacionContext()
+            }}
             onConfirm={async (notas) => {
               if (!rutaActual?.id || !visitaAusente?.clienteId) return;
               
@@ -5337,7 +5425,7 @@ const VistaCobrador = () => {
               );
               toast.success('Cliente marcado como ausente');
               setVisitaAusente(null);
-              setContextoRegularizacion(null);
+              clearRegularizacionContext();
               await cargarDatosRuta();
               
               // Restaurar posición del scroll después de recargar
@@ -5364,6 +5452,7 @@ const VistaCobrador = () => {
 
             if (accionPendiente === 'PAGO') {
 
+                clearRegularizacionContext()
                 setVisitaPagoSeleccionada(visita)
 
                 setPagoInitialIsAbono(false)
@@ -5374,6 +5463,7 @@ const VistaCobrador = () => {
 
             else if (accionPendiente === 'ABONO') {
 
+                clearRegularizacionContext()
                 setVisitaPagoSeleccionada(visita)
 
                 setPagoInitialIsAbono(true)
@@ -5384,6 +5474,7 @@ const VistaCobrador = () => {
 
             else if (accionPendiente === 'REPROGRAMAR') {
 
+                clearRegularizacionContext()
                 setVisitaReprogramar(visita)
 
                 setShowReprogramModal(true)
@@ -5427,6 +5518,8 @@ const VistaCobrador = () => {
               setShowReprogramModal(false)
 
               setVisitaReprogramar(null)
+
+              clearRegularizacionContext()
 
             }}
 
@@ -5820,7 +5913,7 @@ const VistaCobrador = () => {
             setShowDetalleCierre(false)
 
             setTimeout(() => {
-              setContextoRegularizacion(contextoRegularizacion)
+              setRegularizacionContext(contextoRegularizacion)
               setVisitaPagoSeleccionada(visita)
               setPagoInitialIsAbono(false)
               setShowPaymentModal(true)
@@ -5837,7 +5930,7 @@ const VistaCobrador = () => {
 
             setTimeout(() => {
               setVisitaAusente(visita)
-              setContextoRegularizacion(contextoRegularizacion)
+              setRegularizacionContext(contextoRegularizacion)
             }, 80)
           }}
           onReprogramar={(cliente, contextoRegularizacion) => {
@@ -5850,9 +5943,28 @@ const VistaCobrador = () => {
             setShowDetalleCierre(false)
 
             setTimeout(() => {
+              setRegularizacionContext(contextoRegularizacion)
               setVisitaReprogramar(visita)
               setShowReprogramModal(true)
             }, 80)
+          }}
+          permissions={{
+            canExportarDetalle: false,
+            canSolicitarCorreccion: false,
+            canCerrarJornada: false,
+            canRegistrarPago: true,
+            canMarcarAusente: true,
+            canAnularAusencia: false,
+            canReprogramar: true,
+            canVerPago: false,
+            canVerComprobante: false,
+            canAgregarObservacion: false,
+          }}
+          handlers={{
+            onAnularAusencia: undefined,
+            onVerPago: undefined,
+            onVerComprobante: undefined,
+            onAgregarObservacion: undefined,
           }}
         />
 
