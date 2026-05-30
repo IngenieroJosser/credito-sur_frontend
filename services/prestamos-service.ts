@@ -86,6 +86,53 @@ export interface RespuestaPrestamos {
   };
 }
 
+export type OrigenGestionReprogramacion = 'CIERRE_PENDIENTE';
+
+export type ReprogramacionContextoPayload = {
+  fechaOperativaRuta?: string;
+  origenGestion?: OrigenGestionReprogramacion;
+  idempotencyKey?: string;
+};
+
+export type SolicitarReprogramacionCuotaPayload = {
+  prestamoId: string;
+  cuotaId: string;
+  nuevaFecha: string;
+  motivo: string;
+} & ReprogramacionContextoPayload;
+
+export type ReprogramarPrestamoPayload = {
+  fecha: string;
+  motivo: string;
+  cobradorId: string;
+} & ReprogramacionContextoPayload;
+
+export function buildReprogramacionCierrePendienteKey({
+  rutaId,
+  fechaOperativa,
+  clienteId,
+  prestamoId,
+  cuotaId,
+  nuevaFecha,
+}: {
+  rutaId?: string;
+  fechaOperativa?: string;
+  clienteId?: string;
+  prestamoId?: string;
+  cuotaId?: string;
+  nuevaFecha?: string;
+}) {
+  return [
+    'REPROGRAMACION_CIERRE_PENDIENTE',
+    rutaId || 'SIN_RUTA',
+    fechaOperativa || 'SIN_FECHA_OPERATIVA',
+    clienteId || 'SIN_CLIENTE',
+    prestamoId || 'SIN_PRESTAMO',
+    cuotaId || 'SIN_CUOTA',
+    nuevaFecha || 'SIN_NUEVA_FECHA',
+  ].join(':');
+}
+
 export const prestamosService = {
   /**
    * Obtener todos los préstamos con filtros
@@ -366,8 +413,18 @@ export const prestamosService = {
   /**
    * Reprogramar la próxima cuota de un préstamo
    */
-  async reprogramarPrestamo(prestamoId: string, data: { fecha: string; motivo: string; cobradorId: string }): Promise<any> {
-    const payload = { nuevaFecha: data.fecha, motivo: data.motivo, solicitadoPorId: data.cobradorId };
+  async reprogramarPrestamo(
+    prestamoId: string,
+    data: ReprogramarPrestamoPayload,
+  ): Promise<any> {
+    const payload = {
+      nuevaFecha: data.fecha,
+      motivo: data.motivo,
+      solicitadoPorId: data.cobradorId,
+      fechaOperativaRuta: data.fechaOperativaRuta,
+      origenGestion: data.origenGestion,
+      idempotencyKey: data.idempotencyKey,
+    };
     try {
       return await apiRequest('POST', `/loans/${prestamoId}/reprogramacion`, payload);
     } catch (error: any) {
@@ -435,16 +492,16 @@ export const prestamosService = {
   /**
    * Solicitar reprogramación de cuota al supervisor/admin para aprobación.
    */
-  async solicitarReprogramacionCuota(data: {
-    prestamoId: string;
-    cuotaId: string;
-    nuevaFecha: string;
-    motivo: string;
-  }): Promise<any> {
+  async solicitarReprogramacionCuota(
+    data: SolicitarReprogramacionCuotaPayload,
+  ): Promise<any> {
     const payload = { 
       cuotaId: data.cuotaId, 
       nuevaFecha: data.nuevaFecha, 
-      motivo: data.motivo 
+      motivo: data.motivo,
+      fechaOperativaRuta: data.fechaOperativaRuta,
+      origenGestion: data.origenGestion,
+      idempotencyKey: data.idempotencyKey,
     };
     return apiRequest('POST', `/loans/${data.prestamoId}/reprogramacion`, payload);
   },

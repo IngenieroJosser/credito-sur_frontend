@@ -74,7 +74,10 @@ import ConfirmModal from '@/components/ui/ConfirmModal'
 
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
 
-import { prestamosService } from '@/services/prestamos-service'
+import {
+  buildReprogramacionCierrePendienteKey,
+  prestamosService,
+} from '@/services/prestamos-service'
 
 import { pagosService } from '@/services/pagos-service'
 
@@ -226,6 +229,17 @@ const RutaClientLoaded = ({
   
   const [visitaAusente, setVisitaAusente] = useState<VisitaRuta | null>(null)
   const [contextoRegularizacion, setContextoRegularizacion] = useState<any>(null)
+  const contextoRegularizacionRef = useRef<any>(null)
+
+  const setRegularizacionContext = useCallback((ctx: any) => {
+    contextoRegularizacionRef.current = ctx
+    setContextoRegularizacion(ctx)
+  }, [])
+
+  const clearRegularizacionContext = useCallback(() => {
+    contextoRegularizacionRef.current = null
+    setContextoRegularizacion(null)
+  }, [])
 
   const [historialRutas, setHistorialRutas] = useState<Record<string, HistorialDia>>({} as any)
   const historialRutasRef = useRef<Record<string, HistorialDia>>({} as any)
@@ -1194,7 +1208,7 @@ const RutaClientLoaded = ({
   }, [showMisClientes, cargarMisCreditos])
 
   // Tiempo real: actualización optimista para visitas registradas
-  useRealtimeData(['pagos_actualizados', 'rutas_actualizadas', 'prestamos_actualizados'], async (payload?: any) => {
+  useRealtimeData(['pagos_actualizados', 'rutas_actualizadas', 'prestamos_actualizados', 'jornadas_actualizadas'], async (payload?: any) => {
     // Manejo focalizado de visitas registradas (ausente, etc.)
     const accionVisita = payload?.accion || payload?.metadata?.accion;
     const clienteIdVisita = payload?.clienteId || payload?.metadata?.clienteId;
@@ -2079,7 +2093,10 @@ const RutaClientLoaded = ({
                                   e.stopPropagation(); 
                                   if (!rutaOperable) return;
                                   const isProrrogaVencida = visita.enProrroga && visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now();
-                                  if (!visita.enProrroga || isProrrogaVencida) setVisitaReprogramar(visita); 
+                                  if (!visita.enProrroga || isProrrogaVencida) {
+                                    clearRegularizacionContext()
+                                    setVisitaReprogramar(visita)
+                                  }
                                 }}
                                 disabled={!rutaOperable || (!!visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now()))}
                                 title={!rutaOperable ? (rutaCompletada ? 'Ruta completada' : 'Ruta pendiente de activación') : (visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now()) ? 'No se puede reprogramar con prorroga activa' : 'Solicitar reprogramacion')}
@@ -2266,6 +2283,7 @@ const RutaClientLoaded = ({
                                                   onClick={(e) => {
                                                     e.stopPropagation();
                                                     if (!rutaOperable) return;
+                                                    clearRegularizacionContext()
                                                     setVisitaAusente(visita);
                                                   }}
                                                   disabled={!rutaOperable || visita.estadoVisita === 'ausente' || visita.estado === 'ausente'}
@@ -2280,7 +2298,10 @@ const RutaClientLoaded = ({
                                                     e.stopPropagation(); 
                                                     if (!rutaOperable) return;
                                                     const isProrrogaVencida = visita.enProrroga && visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now();
-                                                    if (!visita.enProrroga || isProrrogaVencida) setVisitaReprogramar(visita); 
+                                                    if (!visita.enProrroga || isProrrogaVencida) {
+                                                      clearRegularizacionContext()
+                                                      setVisitaReprogramar(visita)
+                                                    }
                                                   }}
                                                   disabled={!rutaOperable || (!!visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now()))}
                                                   title={!rutaOperable ? (rutaCompletada ? 'Ruta completada' : 'Ruta pendiente de activación') : (visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now()) ? 'No se puede reprogramar con prorroga activa' : 'Solicitar reprogramacion')}
@@ -2373,7 +2394,10 @@ const RutaClientLoaded = ({
       {visitaAusente && (
         <AusenteModal
           visita={visitaAusente}
-          onClose={() => setVisitaAusente(null)}
+          onClose={() => {
+            setVisitaAusente(null)
+            clearRegularizacionContext()
+          }}
           onConfirm={async (notas) => {
             if (!initialRuta?.id || !visitaAusente?.clienteId) return;
             await rutasService.marcarVisitaAusente(initialRuta.id, visitaAusente.clienteId, {
@@ -2394,7 +2418,7 @@ const RutaClientLoaded = ({
             );
             showNotification('success', 'Cliente marcado como ausente', 'Éxito');
             setVisitaAusente(null);
-            setContextoRegularizacion(null);
+            clearRegularizacionContext();
             setEnrichNonce((n) => n + 1);
             try {
               await onRutaRefresh?.();
@@ -2407,15 +2431,18 @@ const RutaClientLoaded = ({
         <PagoModal
           visita={pagoVisita.visita}
           tipo={pagoVisita.tipo}
-          onClose={() => setPagoVisita(null)}
+          onClose={() => {
+            setPagoVisita(null)
+            clearRegularizacionContext()
+          }}
           onConfirm={async (monto, metodo, comprobante, contexto) => {
             try {
               const pagoActual = pagoVisita
 
               // Cerrar inmediatamente para UX
-              const contextoRegularizacionSnapshot = contextoRegularizacion
+              const contextoRegularizacionSnapshot = contextoRegularizacionRef.current
               setPagoVisita(null)
-              setContextoRegularizacion(null)
+              clearRegularizacionContext()
 
               if (!pagoActual?.visita?.clienteId || !pagoActual?.visita?.prestamoId) {
                 showNotification('error', 'No se pudo registrar el pago: falta cliente o préstamo', 'Error');
@@ -2434,6 +2461,18 @@ const RutaClientLoaded = ({
                 montoCuotaEsperado: contexto?.montoCuotaEsperado,
                 fechaOperativaRuta: contextoRegularizacionSnapshot?.fechaOperativa,
                 origenGestion: contextoRegularizacionSnapshot?.origenGestion,
+                idempotencyKey: contextoRegularizacionSnapshot?.origenGestion === 'CIERRE_PENDIENTE'
+                  ? [
+                      'CIERRE_PENDIENTE',
+                      contextoRegularizacionSnapshot?.rutaId,
+                      contextoRegularizacionSnapshot?.fechaOperativa,
+                      pagoActual.visita.clienteId,
+                      pagoActual.visita.prestamoId,
+                      contexto?.cuotaNumeroEsperada ?? 'SIN_CUOTA',
+                      contexto?.tipoRegistro || pagoActual.tipo,
+                      Number(monto || 0),
+                    ].join(':')
+                  : undefined,
               } as any);
 
               // Actualización optimista: quitar estado de ausente si el cliente estaba marcado
@@ -2481,6 +2520,8 @@ const RutaClientLoaded = ({
                 } catch {}
               }
               showNotification('error', mensaje, isConflict ? 'La cuota cambió' : 'Error');
+            } finally {
+              clearRegularizacionContext()
             }
           }}
         />
@@ -2492,12 +2533,14 @@ const RutaClientLoaded = ({
 
             visita={visitaReprogramar}
 
-            onClose={() => setVisitaReprogramar(null)}
+            onClose={() => {
+              setVisitaReprogramar(null)
+              clearRegularizacionContext()
+            }}
 
             onConfirm={async (fecha, motivo, cuotaId) => {
 
               if (!visitaReprogramar) return;
-              if (!fecha || !motivo) return;
 
               const formatearFechaISO = (iso: string) => {
                 const [yyyy, mm, dd] = iso.split('-')
@@ -2511,19 +2554,62 @@ const RutaClientLoaded = ({
                   return;
                 }
 
+                const contextoRegularizacionSnapshot =
+                  contextoRegularizacionRef.current
+                const payloadBase = {
+                  fechaOperativaRuta:
+                    contextoRegularizacionSnapshot?.origenGestion ===
+                    'CIERRE_PENDIENTE'
+                      ? contextoRegularizacionSnapshot?.fechaOperativa
+                      : undefined,
+                  origenGestion:
+                    contextoRegularizacionSnapshot?.origenGestion ===
+                    'CIERRE_PENDIENTE'
+                      ? 'CIERRE_PENDIENTE'
+                      : undefined,
+                } as const
+
                 if (cuotaId) {
                   await prestamosService.solicitarReprogramacionCuota({
                     prestamoId: visitaReprogramar.prestamoId,
                     cuotaId,
                     nuevaFecha: fecha,
                     motivo,
-                  } as any)
+                    fechaOperativaRuta: payloadBase.fechaOperativaRuta,
+                    origenGestion: payloadBase.origenGestion,
+                    idempotencyKey:
+                      payloadBase.origenGestion === 'CIERRE_PENDIENTE'
+                        ? buildReprogramacionCierrePendienteKey({
+                            rutaId: contextoRegularizacionSnapshot?.rutaId,
+                            fechaOperativa:
+                              contextoRegularizacionSnapshot?.fechaOperativa,
+                            clienteId: visitaReprogramar.clienteId,
+                            prestamoId: visitaReprogramar.prestamoId,
+                            cuotaId,
+                            nuevaFecha: fecha,
+                          })
+                        : undefined,
+                  })
                 } else {
                   await prestamosService.reprogramarPrestamo(visitaReprogramar.prestamoId, {
                     fecha,
                     motivo,
                     cobradorId: currentUser?.id || '',
-                  } as any)
+                    fechaOperativaRuta: payloadBase.fechaOperativaRuta,
+                    origenGestion: payloadBase.origenGestion,
+                    idempotencyKey:
+                      payloadBase.origenGestion === 'CIERRE_PENDIENTE'
+                        ? buildReprogramacionCierrePendienteKey({
+                            rutaId: contextoRegularizacionSnapshot?.rutaId,
+                            fechaOperativa:
+                              contextoRegularizacionSnapshot?.fechaOperativa,
+                            clienteId: visitaReprogramar.clienteId,
+                            prestamoId: visitaReprogramar.prestamoId,
+                            cuotaId: 'SIN_CUOTA',
+                            nuevaFecha: fecha,
+                          })
+                        : undefined,
+                  })
                 }
 
                 setVisitasCobrador((prev) =>
@@ -2542,6 +2628,7 @@ const RutaClientLoaded = ({
                 })
 
                 setVisitaReprogramar(null)
+                clearRegularizacionContext()
 
                 try {
                   await onRutaRefresh?.();
@@ -2572,7 +2659,10 @@ const RutaClientLoaded = ({
 
             else if (accionPendiente === 'ABONO') handleAbrirAbono(visita)
 
-            else if (accionPendiente === 'REPROGRAMAR') setVisitaReprogramar(visita)
+            else if (accionPendiente === 'REPROGRAMAR') {
+              clearRegularizacionContext()
+              setVisitaReprogramar(visita)
+            }
 
             else handleAbrirEstadoCuenta(visita) 
 
@@ -2835,7 +2925,7 @@ const RutaClientLoaded = ({
           setShowDetalleCierre(false)
 
           setTimeout(() => {
-            setContextoRegularizacion(contextoRegularizacion)
+            setRegularizacionContext(contextoRegularizacion)
             handleAbrirPago(visita)
           }, 80)
         }}
@@ -2849,9 +2939,29 @@ const RutaClientLoaded = ({
           setShowDetalleCierre(false)
 
           setTimeout(() => {
+            setRegularizacionContext(contextoRegularizacion)
             setVisitaReprogramar(visita)
-            setContextoRegularizacion(contextoRegularizacion)
           }, 80)
+        }}
+        permissions={{
+          canExportarDetalle: false,
+          canSolicitarCorreccion: false,
+          canCerrarJornada: true,
+          canRegistrarPago: true,
+          canMarcarAusente: true,
+          canAnularAusencia: false,
+          canReprogramar: true,
+          canVerPago: false,
+          canVerComprobante: false,
+          canAgregarObservacion: false,
+        }}
+        handlers={{
+          onExportarDetalle: undefined,
+          onSolicitarCorreccion: undefined,
+          onAnularAusencia: undefined,
+          onVerPago: undefined,
+          onVerComprobante: undefined,
+          onAgregarObservacion: undefined,
         }}
       />
 
@@ -2912,7 +3022,7 @@ const RutaClient = ({ initialRuta: initialRutaProp, rutaId }: RutaClientProps) =
 
 
 
-  useRealtimeData(['pagos_actualizados', 'rutas_actualizadas', 'prestamos_actualizados'], async (payload?: any) => {
+  useRealtimeData(['pagos_actualizados', 'rutas_actualizadas', 'prestamos_actualizados', 'jornadas_actualizadas'], async (payload?: any) => {
 
     const prestamoId = payload?.prestamoId || payload?.metadata?.prestamoId
     if (prestamoId && pagosInFlightRef.current.has(String(prestamoId))) return

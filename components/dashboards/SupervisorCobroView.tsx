@@ -103,7 +103,10 @@ import { RutaStatsCards } from '@/components/dashboards/shared/RutaStatsCards'
 import RutaKpiSection from '@/components/dashboards/shared/RutaKpiSection'
 
 
-import { prestamosService } from '@/services/prestamos-service'
+import {
+  buildReprogramacionCierrePendienteKey,
+  prestamosService,
+} from '@/services/prestamos-service'
 import { pagosService } from '@/services/pagos-service'
 
 import { applyRecaudoHoyToVisitas, buildRecaudosHoyMapByPrestamoId, indexPagosByPrestamoId, sumMontoTotalPagosByBogotaDateKey } from '@/lib/ruta-recaudos'
@@ -247,6 +250,17 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
   const [visitaAusente, setVisitaAusente] = useState<VisitaRuta | null>(null)
   const [contextoRegularizacion, setContextoRegularizacion] = useState<any>(null)
+  const contextoRegularizacionRef = useRef<any>(null)
+
+  const setRegularizacionContext = useCallback((ctx: any) => {
+    contextoRegularizacionRef.current = ctx
+    setContextoRegularizacion(ctx)
+  }, [])
+
+  const clearRegularizacionContext = useCallback(() => {
+    contextoRegularizacionRef.current = null
+    setContextoRegularizacion(null)
+  }, [])
 
   const { cierrePendiente, hasCierrePendiente, refreshCierrePendiente } = useCierrePendienteRuta(rutaId)
 
@@ -1326,7 +1340,15 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
 
 
-  useRealtimeData(['pagos_actualizados', 'prestamos_actualizados', 'rutas_actualizadas'], handlerFull)
+  useRealtimeData(
+    [
+      'pagos_actualizados',
+      'prestamos_actualizados',
+      'rutas_actualizadas',
+      'jornadas_actualizadas',
+    ],
+    handlerFull,
+  )
 
   useRealtimeData(['dashboards_actualizados'], handlerKpi)
 
@@ -1495,6 +1517,20 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
       // Enviar solicitud al backend — queda pendiente de aprobación del supervisor/admin o se autoaprueba
 
       if (visitaReprogramar.prestamoId) {
+        const contextoRegularizacionSnapshot =
+          contextoRegularizacionRef.current
+        const payloadBase = {
+          fechaOperativaRuta:
+            contextoRegularizacionSnapshot?.origenGestion ===
+            'CIERRE_PENDIENTE'
+              ? contextoRegularizacionSnapshot?.fechaOperativa
+              : undefined,
+          origenGestion:
+            contextoRegularizacionSnapshot?.origenGestion ===
+            'CIERRE_PENDIENTE'
+              ? 'CIERRE_PENDIENTE'
+              : undefined,
+        } as const
 
         if (cuotaId) {
 
@@ -1507,6 +1543,20 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
             nuevaFecha: fecha,
 
             motivo,
+            fechaOperativaRuta: payloadBase.fechaOperativaRuta,
+            origenGestion: payloadBase.origenGestion,
+            idempotencyKey:
+              payloadBase.origenGestion === 'CIERRE_PENDIENTE'
+                ? buildReprogramacionCierrePendienteKey({
+                    rutaId: contextoRegularizacionSnapshot?.rutaId,
+                    fechaOperativa:
+                      contextoRegularizacionSnapshot?.fechaOperativa,
+                    clienteId: visitaReprogramar.clienteId,
+                    prestamoId: visitaReprogramar.prestamoId,
+                    cuotaId,
+                    nuevaFecha: fecha,
+                  })
+                : undefined,
 
           })
 
@@ -1520,7 +1570,21 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
             motivo,
 
-            cobradorId: userSession?.id || ''
+            cobradorId: userSession?.id || '',
+            fechaOperativaRuta: payloadBase.fechaOperativaRuta,
+            origenGestion: payloadBase.origenGestion,
+            idempotencyKey:
+              payloadBase.origenGestion === 'CIERRE_PENDIENTE'
+                ? buildReprogramacionCierrePendienteKey({
+                    rutaId: contextoRegularizacionSnapshot?.rutaId,
+                    fechaOperativa:
+                      contextoRegularizacionSnapshot?.fechaOperativa,
+                    clienteId: visitaReprogramar.clienteId,
+                    prestamoId: visitaReprogramar.prestamoId,
+                    cuotaId: 'SIN_CUOTA',
+                    nuevaFecha: fecha,
+                  })
+                : undefined,
 
           })
 
@@ -1556,7 +1620,9 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
       })
 
-
+      setShowReprogramModal(false)
+      setVisitaReprogramar(null)
+      clearRegularizacionContext()
 
     } catch (err: any) {
 
@@ -1572,13 +1638,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
     }
 
-
-
-    setShowReprogramModal(false)
-
-    setVisitaReprogramar(null)
-
-  }, [visitaReprogramar])
+  }, [visitaReprogramar, clearRegularizacionContext])
 
 
 
@@ -1968,6 +2028,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
       setIsLoading(true)
 
+      const contextoRegularizacionSnapshot = contextoRegularizacionRef.current
       pagosInFlightRef.current.set(String(visita.prestamoId), Date.now())
 
       await pagosService.registrarPago({
@@ -1989,6 +2050,23 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         cuotaNumeroEsperada: contexto?.cuotaNumeroEsperada,
 
         montoCuotaEsperado: contexto?.montoCuotaEsperado,
+
+        fechaOperativaRuta: (contextoRegularizacionSnapshot as any)?.fechaOperativa,
+
+        origenGestion: (contextoRegularizacionSnapshot as any)?.origenGestion,
+
+        idempotencyKey: (contextoRegularizacionSnapshot as any)?.origenGestion === 'CIERRE_PENDIENTE'
+          ? [
+              'CIERRE_PENDIENTE',
+              (contextoRegularizacionSnapshot as any)?.rutaId,
+              (contextoRegularizacionSnapshot as any)?.fechaOperativa,
+              visita.clienteId,
+              visita.prestamoId,
+              contexto?.cuotaNumeroEsperada ?? 'SIN_CUOTA',
+              contexto?.tipoRegistro || (esAbono ? 'ABONO' : 'PAGO'),
+              Number(montoPagado || 0),
+            ].join(':')
+          : undefined,
 
       })
 
@@ -2074,6 +2152,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         pagosInFlightRef.current.delete(String(visita.prestamoId))
       }
 
+      clearRegularizacionContext()
       setIsLoading(false)
 
     }
@@ -3363,6 +3442,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
                                           if (!rutaOperable) return
 
+                                          clearRegularizacionContext()
                                           setVisitaPagoSeleccionadaId(visita.id)
 
                                           setPagoInitialIsAbono(false)
@@ -3414,6 +3494,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           if (!rutaOperable) return;
+                                          clearRegularizacionContext()
                                           setVisitaAusente(visita);
                                         }}
 
@@ -3547,6 +3628,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
                                             if (!rutaOperable) return
 
+                                            clearRegularizacionContext()
                                             setVisitaPagoSeleccionadaId(visita.id)
 
                                             setPagoInitialIsAbono(false)
@@ -3575,6 +3657,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
                                             if (!rutaOperable) return
 
+                                            clearRegularizacionContext()
                                             setVisitaPagoSeleccionadaId(visita.id)
 
                                             setPagoInitialIsAbono(true)
@@ -3626,6 +3709,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                                           onClick={(e) => {
                                             e.stopPropagation();
                                             if (!rutaOperable) return;
+                                            clearRegularizacionContext()
                                             setVisitaAusente(visita);
                                           }}
 
@@ -3651,6 +3735,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
                                             if (!rutaOperable) return
 
+                                            clearRegularizacionContext()
                                             setVisitaReprogramar(visita)
 
                                             setShowReprogramModal(true)
@@ -3879,6 +3964,8 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
               setVisitaPagoSeleccionadaId(null)
 
+              clearRegularizacionContext()
+
             }}
 
             onConfirm={async (monto: number, metodo: 'EFECTIVO' | 'TRANSFERENCIA', comprobante: File | null, contexto) => {
@@ -3953,7 +4040,10 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         {visitaAusente && (
           <AusenteModal
             visita={visitaAusente}
-            onClose={() => setVisitaAusente(null)}
+            onClose={() => {
+              setVisitaAusente(null)
+              clearRegularizacionContext()
+            }}
             onConfirm={async (notas) => {
               if (!rutaInfo?.id || !visitaAusente?.clienteId) return;
               await rutasService.marcarVisitaAusente(rutaInfo.id, visitaAusente.clienteId, {
@@ -3972,7 +4062,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
               );
               toast.success('Cliente marcado como ausente');
               setVisitaAusente(null);
-              setContextoRegularizacion(null);
+              clearRegularizacionContext();
               await cargarVisitasRuta();
             }}
           />
@@ -3989,6 +4079,8 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
               setShowReprogramModal(false)
 
               setVisitaReprogramar(null)
+
+              clearRegularizacionContext()
 
             }}
 
@@ -4108,12 +4200,14 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
               } else if (pendingAction === 'AGENDAR') {
 
+                clearRegularizacionContext()
                 setVisitaReprogramar(visita)
 
                 setShowReprogramModal(true)
 
               } else if (pendingAction === 'PAGO') {
 
+                clearRegularizacionContext()
                 setVisitaPagoSeleccionadaId(visita.id)
 
                 setPagoInitialIsAbono(false)
@@ -4122,6 +4216,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
               } else if (pendingAction === 'ABONO') {
 
+                clearRegularizacionContext()
                 setVisitaPagoSeleccionadaId(visita.id)
 
                 setPagoInitialIsAbono(true)
@@ -4492,7 +4587,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
             setShowDetalleCierre(false)
 
             setTimeout(() => {
-              setContextoRegularizacion(contextoRegularizacion)
+              setRegularizacionContext(contextoRegularizacion)
               setVisitaPagoSeleccionadaId(visita.id)
               setPagoInitialIsAbono(false)
               setShowPaymentModal(true)
@@ -4509,7 +4604,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
             setTimeout(() => {
               setVisitaAusente(visita)
-              setContextoRegularizacion(contextoRegularizacion)
+              setRegularizacionContext(contextoRegularizacion)
             }, 80)
           }}
           onReprogramar={(cliente, contextoRegularizacion) => {
@@ -4522,9 +4617,30 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
             setShowDetalleCierre(false)
 
             setTimeout(() => {
+              setRegularizacionContext(contextoRegularizacion)
               setVisitaReprogramar(visita)
               setShowReprogramModal(true)
             }, 80)
+          }}
+          permissions={{
+            canExportarDetalle: false,
+            canSolicitarCorreccion: false,
+            canCerrarJornada: false,
+            canRegistrarPago: true,
+            canMarcarAusente: true,
+            canAnularAusencia: false,
+            canReprogramar: true,
+            canVerPago: false,
+            canVerComprobante: false,
+            canAgregarObservacion: false,
+          }}
+          handlers={{
+            onExportarDetalle: undefined,
+            onSolicitarCorreccion: undefined,
+            onAnularAusencia: undefined,
+            onVerPago: undefined,
+            onVerComprobante: undefined,
+            onAgregarObservacion: undefined,
           }}
         />
 
