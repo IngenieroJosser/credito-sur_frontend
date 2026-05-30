@@ -13,86 +13,114 @@ export type CierrePendienteRuta = {
   requiereRegularizacion?: boolean
 }
 
+export type CuotaObjetivoCierrePendiente = {
+  id: string
+  numeroCuota: number
+  estadoActual: string
+  fechaVencimiento: string
+  fechaVencimientoProrroga?: string | null
+  fechaEfectiva: string
+  montoCuota: number
+  montoPagado: number
+  saldoCuota: number
+  saldoExigibleEnFechaOperativa: number
+  enMoraEnFechaOperativa: boolean
+  puedePagar: boolean
+  puedeReprogramar: boolean
+  esCuotaFuturaEnFechaOperativa?: boolean
+  esCuotaPagadaHistorica?: boolean
+  motivoBloqueoPago?: string | null
+  motivoBloqueoReprogramacion?: string | null
+}
+
+export type ProximaCuotaCierrePendiente = {
+  id?: string
+  numeroCuota?: number
+  fechaVencimiento?: string | Date | null
+  monto?: number
+  montoTotalDeuda?: number
+  montoNominal?: number
+  estado?: string
+  enProrroga?: boolean
+  fechaOriginalVencimiento?: string | Date | null
+}
+
+export type PrestamoCierrePendiente = {
+  id: string
+  numeroPrestamo?: string | null
+  monto?: number
+  saldoPendiente?: number
+  frecuenciaPago?: string | null
+  cantidadCuotas?: number | null
+  estado?: string
+  proximaCuota?: ProximaCuotaCierrePendiente | null
+  cuotaObjetivo?: CuotaObjetivoCierrePendiente | null
+  registroSintetico?: boolean
+  origenGestion?: string
+}
+
+export type CierrePendienteResumen = {
+  fechaOperativa: string
+  fechaActivacion: string
+  diasPendiente: number
+  rutaId: string
+  rutaNombre: string
+  cobradorNombre: string | null
+  meta: number
+  recaudo: number
+  recaudoOperativo?: number
+  recaudoContable?: number
+  recaudoRegularizado?: number
+  pendiente: number
+  gastos: number
+  efectividad: number
+  totalClientes: number
+  clientesGestionados: number
+  clientesPagaron: number
+  clientesAusentes: number
+  clientesPendientes: number
+}
+
+export type ClienteCierrePendiente = {
+  asignacionId?: string | null
+  ordenVisita?: number
+  clienteId?: string
+  nombreCliente?: string
+  dni?: string
+  telefono?: string
+  direccion?: string
+  nivelRiesgo?: string
+  estadoGestion: 'PAGO_REGISTRADO' | 'AUSENTE' | 'PENDIENTE'
+  recaudadoDelDia: number
+  estadoVisita?: string | null
+  notasVisita?: string | null
+  prestamos?: PrestamoCierrePendiente[]
+  prestamoObjetivoId?: string | null
+  cuotaObjetivoId?: string | null
+
+  /**
+   * @deprecated Usar cuotaObjetivoId.
+   */
+  cuotaObjetivoPrestamoId?: string | null
+
+  cuotaObjetivo?: CuotaObjetivoCierrePendiente | null
+}
+
+export type CierrePendienteJornada = {
+  cierrePendiente?: CierrePendienteRuta
+  resumen?: CierrePendienteResumen
+  clientes?: ClienteCierrePendiente[]
+  accionesSugeridas?: string[]
+}
+
 export type CierrePendienteDetalle = {
   pendienteCierre: boolean
   totalPendientes?: number
-  jornadas?: Array<{
-    cierrePendiente?: CierrePendienteRuta
-    resumen?: {
-      fechaOperativa: string
-      fechaActivacion: string
-      diasPendiente: number
-      rutaId: string
-      rutaNombre: string
-      cobradorNombre: string | null
-      meta: number
-      recaudo: number
-      recaudoOperativo?: number
-      recaudoContable?: number
-      recaudoRegularizado?: number
-      pendiente: number
-      gastos: number
-      efectividad: number
-      totalClientes: number
-      clientesGestionados: number
-      clientesPagaron: number
-      clientesAusentes: number
-      clientesPendientes: number
-    }
-    clientes?: Array<{
-      asignacionId?: string
-      ordenVisita?: number
-      clienteId?: string
-      nombreCliente?: string
-      dni?: string
-      telefono?: string
-      direccion?: string
-      nivelRiesgo?: string
-      estadoGestion: 'PAGO_REGISTRADO' | 'AUSENTE' | 'PENDIENTE'
-      recaudadoDelDia: number
-      estadoVisita?: string | null
-      notasVisita?: string | null
-      prestamos?: any[]
-    }>
-    accionesSugeridas?: string[]
-  }>
-  // Mantener compatibilidad con estructura antigua
+  jornadas?: CierrePendienteJornada[]
+
+  // Compatibilidad legacy
   cierrePendiente?: CierrePendienteRuta
-  resumen?: {
-    fechaOperativa: string
-    fechaActivacion: string
-    diasPendiente: number
-    rutaId: string
-    rutaNombre: string
-    cobradorNombre: string | null
-    meta: number
-    recaudo: number
-    recaudoOperativo?: number
-    recaudoContable?: number
-    recaudoRegularizado?: number
-    pendiente: number
-    gastos: number
-    efectividad: number
-    totalClientes: number
-    clientesGestionados: number
-    clientesPagaron: number
-    clientesAusentes: number
-    clientesPendientes: number
-  }
-  clientes?: Array<{
-    asignacionId?: string
-    ordenVisita?: number
-    clienteId?: string
-    nombreCliente?: string
-    dni?: string
-    telefono?: string
-    direccion?: string
-    nivelRiesgo?: string
-    estadoGestion: 'PAGO_REGISTRADO' | 'AUSENTE' | 'PENDIENTE'
-    recaudadoDelDia: number
-    estadoVisita?: string | null
-    notasVisita?: string | null
-    prestamos?: any[]
-  }>
+  resumen?: CierrePendienteResumen
+  clientes?: ClienteCierrePendiente[]
   accionesSugeridas?: string[]
 }
