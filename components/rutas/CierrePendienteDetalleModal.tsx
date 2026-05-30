@@ -1,13 +1,108 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X, AlertTriangle, Users, CheckCircle2, Clock } from 'lucide-react'
+import { X, AlertTriangle } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import {
   formatFechaCortaBogota,
   formatFechaHumanaBogota,
 } from '@/lib/format-date'
 import type { CierrePendienteDetalle } from '@/types/rutas/cierre-pendiente'
+
+// Helper para formato de fecha compacto (ej: 18 may)
+function formatFechaDiaMes(value?: string | Date | null) {
+  if (!value) return 'N/A'
+
+  const date =
+    typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
+      ? new Date(`${value}T12:00:00-05:00`)
+      : new Date(value)
+
+  if (Number.isNaN(date.getTime())) return 'N/A'
+
+  return new Intl.DateTimeFormat('es-CO', {
+    timeZone: 'America/Bogota',
+    day: '2-digit',
+    month: 'short',
+  }).format(date)
+}
+
+// Helper para determinar severidad de jornada
+function getJornadaSeverity(diasPendiente: number) {
+  if (diasPendiente >= 7) {
+    return {
+      label: 'Crítica',
+      className: 'border-red-200 bg-red-50 text-red-700',
+    }
+  }
+
+  if (diasPendiente >= 3) {
+    return {
+      label: 'Alta',
+      className: 'border-amber-200 bg-amber-50 text-amber-700',
+    }
+  }
+
+  return {
+    label: 'Reciente',
+    className: 'border-blue-200 bg-blue-50 text-blue-700',
+  }
+}
+
+// Helper para calcular cumplimiento
+function getCumplimiento(meta: number, recaudo: number) {
+  if (meta <= 0) {
+    return {
+      porcentaje: recaudo > 0 ? 100 : 0,
+      label: recaudo > 0 ? 'Recaudo sin meta' : 'Sin meta',
+      excedente: 0,
+      pendiente: 0,
+      className: 'border-slate-200 bg-slate-50 text-slate-700',
+    }
+  }
+
+  const porcentaje = Math.round((recaudo / meta) * 100)
+  const excedente = Math.max(0, recaudo - meta)
+  const pendiente = Math.max(0, meta - recaudo)
+
+  if (porcentaje > 100) {
+    return {
+      porcentaje,
+      label: 'Sobre-meta',
+      excedente,
+      pendiente,
+      className: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    }
+  }
+
+  if (porcentaje === 100) {
+    return {
+      porcentaje,
+      label: 'Meta cumplida',
+      excedente,
+      pendiente,
+      className: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    }
+  }
+
+  if (porcentaje >= 80) {
+    return {
+      porcentaje,
+      label: 'En progreso',
+      excedente,
+      pendiente,
+      className: 'border-amber-200 bg-amber-50 text-amber-700',
+    }
+  }
+
+  return {
+    porcentaje,
+    label: 'Bajo cumplimiento',
+    excedente,
+    pendiente,
+    className: 'border-red-200 bg-red-50 text-red-700',
+  }
+}
 
 export function CierrePendienteDetalleModal({
   open,
@@ -39,8 +134,12 @@ export function CierrePendienteDetalleModal({
 
   // Resetear selección cuando cambia el detalle
   useEffect(() => {
-    setJornadaSeleccionada(0)
-  }, [detalle?.totalPendientes])
+    if (open) setJornadaSeleccionada(0)
+  }, [
+    open,
+    detalle?.totalPendientes,
+    detalle?.jornadas?.[0]?.resumen?.rutaId,
+  ])
 
   if (!open) return null
 
@@ -49,7 +148,7 @@ export function CierrePendienteDetalleModal({
   const tieneJornadas = jornadas.length > 0
 
   // Usar la jornada seleccionada o la estructura antigua
-  const jornadaActual = tieneJornadas ? jornadas[jornadaSeleccionada] : detalle
+  const jornadaActual = tieneJornadas ? (jornadas[jornadaSeleccionada] || jornadas[0]) : detalle
   const resumen = jornadaActual?.resumen
   const clientes = jornadaActual?.clientes || []
   const cierrePendiente = jornadaActual?.cierrePendiente || detalle?.cierrePendiente
@@ -94,28 +193,43 @@ export function CierrePendienteDetalleModal({
 
         {/* Selector de jornadas si hay múltiples jornadas pendientes */}
         {tieneJornadas && (
-          <div className="flex shrink-0 gap-2 border-b border-slate-200 bg-slate-50 px-4 py-3 overflow-x-auto scrollbar-hide">
-            {jornadas.map((jornada, index) => (
-              <button
-                key={index}
-                type="button"
-                onClick={() => setJornadaSeleccionada(index)}
-                className={cn(
-                  'shrink-0 rounded-full border px-4 py-2 text-xs font-bold transition-all whitespace-nowrap',
-                  jornadaSeleccionada === index
-                    ? 'border-slate-900 bg-slate-900 text-white'
-                    : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100',
-                )}
-              >
-                {formatFechaCortaBogota(jornada.resumen?.fechaOperativa || '')}
-                {jornada.resumen?.diasPendiente && (
-                  <span className="ml-2 text-[10px] opacity-75">
-                    ({jornada.resumen.diasPendiente} días)
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
+          <>
+            <div className="flex shrink-0 gap-2 border-b border-slate-200 bg-slate-50 px-4 py-3 overflow-x-auto scrollbar-hide">
+              {jornadas.map((jornada, index) => {
+                const diasPendiente = jornada.resumen?.diasPendiente || 0
+                const severity = getJornadaSeverity(diasPendiente)
+                const isSelected = jornadaSeleccionada === index
+
+                return (
+                  <button
+                    key={index}
+                    type="button"
+                    aria-selected={isSelected}
+                    onClick={() => setJornadaSeleccionada(index)}
+                    className={cn(
+                      'shrink-0 rounded-full border px-4 py-2 text-xs font-bold transition-all whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2',
+                      isSelected
+                        ? 'border-slate-900 bg-slate-900 text-white'
+                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100',
+                    )}
+                  >
+                    {formatFechaDiaMes(jornada.resumen?.fechaOperativa)}
+                    <span className="ml-2 text-[10px] opacity-75">
+                      {diasPendiente}d
+                    </span>
+                    {!isSelected && (
+                      <span className={`ml-2 rounded-full px-2 py-0.5 text-[10px] ${severity.className}`}>
+                        {severity.label}
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+            <p className="px-4 pt-2 text-[11px] font-medium text-slate-400 sm:hidden">
+              Desliza para ver más jornadas
+            </p>
+          </>
         )}
 
         {loading ? (
@@ -123,55 +237,134 @@ export function CierrePendienteDetalleModal({
             Cargando detalle operativo...
           </div>
         ) : (
-          <div className="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6">
+          <div className="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-6">
             {resumen && (
-              <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <>
+                {/* Grupo A - Header de jornada */}
                 <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                  <p className="text-xs font-bold uppercase text-slate-400">
-                    Fecha pendiente
-                  </p>
-                  <p className="mt-1 text-sm font-black text-slate-900">
-                    {formatFechaCortaBogota(resumen.fechaOperativa)}
-                  </p>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-xs font-bold uppercase text-slate-400">
+                        Jornada seleccionada
+                      </p>
+                      <h3 className="text-lg font-black text-slate-900">
+                        {formatFechaCortaBogota(resumen.fechaOperativa)}
+                      </h3>
+                      <p className="text-xs font-medium text-slate-500">
+                        Activada: {formatFechaHumanaBogota(resumen.fechaActivacion)}
+                      </p>
+                    </div>
+
+                    {(() => {
+                      const severity = getJornadaSeverity(resumen.diasPendiente || 0)
+                      return (
+                        <span className={`rounded-full border px-3 py-1 text-xs font-black ${severity.className}`}>
+                          {severity.label} · {resumen.diasPendiente} días pendiente
+                        </span>
+                      )
+                    })()}
+                  </div>
                 </div>
 
-                <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                  <p className="text-xs font-bold uppercase text-slate-400">
-                    Activada
-                  </p>
-                  <p className="mt-1 text-sm font-black text-slate-900">
-                    {formatFechaHumanaBogota(resumen.fechaActivacion)}
-                  </p>
+                {/* Resumen accionable */}
+                {(() => {
+                  const cumplimiento = getCumplimiento(
+                    Number(resumen.meta || 0),
+                    Number(resumen.recaudoOperativo ?? resumen.recaudo ?? 0),
+                  )
+                  const clientesPendientes = resumen.clientesPendientes ?? 0
+
+                  if (cumplimiento.excedente > 0) {
+                    return (
+                      <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-800">
+                        Esta jornada supera la meta por {formatCurrency(cumplimiento.excedente)}. Revisa los clientes y cierra la jornada si la información es correcta.
+                      </div>
+                    )
+                  }
+                  if (clientesPendientes > 0) {
+                    return (
+                      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-800">
+                        Esta jornada todavía tiene {clientesPendientes} cliente(s) sin gestión. Regulariza o registra una observación antes de cerrar.
+                      </div>
+                    )
+                  }
+                  return (
+                    <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm font-bold text-blue-800">
+                      La jornada no tiene clientes pendientes. Puede cerrarse como regularizada si la información es correcta.
+                    </div>
+                  )
+                })()}
+
+                {/* Grupo B - Recaudo */}
+                <div className="space-y-3">
+                  <p className="text-xs font-bold uppercase text-slate-400">Recaudo</p>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                      <p className="text-xs font-bold uppercase text-slate-400">Meta</p>
+                      <p className="mt-1 text-xl font-black text-slate-900">
+                        {formatCurrency(resumen.meta)}
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                      <p className="text-xs font-bold uppercase text-slate-400">
+                        Recaudo operativo
+                      </p>
+                      <p className="mt-1 text-xl font-black text-slate-900">
+                        {formatCurrency(resumen.recaudoOperativo ?? resumen.recaudo)}
+                      </p>
+                    </div>
+
+                    {(() => {
+                      const cumplimiento = getCumplimiento(
+                        Number(resumen.meta || 0),
+                        Number(resumen.recaudoOperativo ?? resumen.recaudo ?? 0),
+                      )
+                      return (
+                        <div className={`rounded-2xl border p-4 ${cumplimiento.className}`}>
+                          <p className="text-xs font-bold uppercase">Cumplimiento</p>
+                          <p className="mt-1 text-xl font-black">
+                            {cumplimiento.porcentaje}%
+                          </p>
+                          <p className="text-xs font-bold">
+                            {cumplimiento.label}
+                          </p>
+                        </div>
+                      )
+                    })()}
+                  </div>
                 </div>
 
-                <div className="rounded-2xl border border-red-200 bg-red-50 p-4">
-                  <p className="text-xs font-bold uppercase text-red-500">
-                    Días pendiente
-                  </p>
-                  <p className="mt-1 text-2xl font-black text-red-700">
-                    {resumen.diasPendiente}
-                  </p>
-                </div>
+                {/* Grupo C - Auditoría contable */}
+                <div className="space-y-3">
+                  <p className="text-xs font-bold uppercase text-slate-400">Auditoría contable</p>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="rounded-xl bg-slate-50 p-3">
+                      <p className="text-[10px] font-bold uppercase text-slate-400">
+                        Registrado ese día
+                      </p>
+                      <p className="text-sm font-black text-slate-700">
+                        {formatCurrency(resumen.recaudoContable ?? 0)}
+                      </p>
+                      <p className="text-[11px] text-slate-500">
+                        Dinero registrado en la fecha operativa consultada.
+                      </p>
+                    </div>
 
-                <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                  <p className="text-xs font-bold uppercase text-slate-400">
-                    Efectividad
-                  </p>
-                  <p className="mt-1 text-2xl font-black text-slate-900">
-                    {resumen.efectividad}%
-                  </p>
+                    <div className="rounded-xl bg-slate-50 p-3">
+                      <p className="text-[10px] font-bold uppercase text-slate-400">
+                        Regularizado después
+                      </p>
+                      <p className="text-sm font-black text-slate-700">
+                        {formatCurrency(resumen.recaudoRegularizado ?? 0)}
+                      </p>
+                      <p className="text-[11px] text-slate-500">
+                        Pagos asociados a esta jornada desde otra fecha.
+                      </p>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            )}
-
-            {resumen && (
-              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-                <Metric label="Meta" value={formatCurrency(resumen.meta)} />
-                <Metric label="Recaudo operativo" value={formatCurrency(resumen.recaudoOperativo ?? resumen.recaudo)} />
-                <Metric label="Recaudo contable" value={formatCurrency(resumen.recaudoContable ?? 0)} />
-                <Metric label="Regularizado" value={formatCurrency(resumen.recaudoRegularizado ?? 0)} />
-                <Metric label="Clientes" value={String(resumen.totalClientes)} />
-              </div>
+              </>
             )}
 
             <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_340px]">
@@ -186,82 +379,92 @@ export function CierrePendienteDetalleModal({
                 </div>
 
                 <div className="divide-y divide-slate-100 sm:max-h-[420px] sm:overflow-y-auto">
-                  {clientes.map((cliente) => (
-                    <div key={cliente.asignacionId || cliente.clienteId} className="p-4">
-                      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                        <div>
-                          <p className="font-black text-slate-900">
-                            {cliente.nombreCliente || 'Cliente sin nombre'}
-                          </p>
-                          <p className="text-xs text-slate-500">
-                            CC: {cliente.dni || 'N/A'} · Tel: {cliente.telefono || 'N/A'}
-                          </p>
-                          <p className="text-xs text-slate-400">
-                            {cliente.direccion || 'Sin dirección'}
-                          </p>
+                  {(() => {
+                    // Ordenar clientes por estado de gestión: pendientes, ausentes, pagos
+                    const clientesPendientes = clientes.filter(c => c.estadoGestion === 'PENDIENTE')
+                    const clientesAusentes = clientes.filter(c => c.estadoGestion === 'AUSENTE')
+                    const clientesPagaron = clientes.filter(c => c.estadoGestion === 'PAGO_REGISTRADO')
+                    const clientesOrdenados = [...clientesPendientes, ...clientesAusentes, ...clientesPagaron]
+
+                    return clientesOrdenados.map((cliente) => (
+                      <div key={cliente.asignacionId || cliente.clienteId} className="p-4">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-black text-slate-900">
+                              {cliente.nombreCliente || 'Cliente sin nombre'}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              CC: {cliente.dni || 'N/A'} · Tel: {cliente.telefono || 'N/A'}
+                            </p>
+                            <p className="line-clamp-2 text-xs text-slate-400">
+                              {cliente.direccion || 'Sin dirección'}
+                            </p>
+                          </div>
+
+                          <EstadoGestionBadge estado={cliente.estadoGestion} />
                         </div>
 
-                        <EstadoGestionBadge estado={cliente.estadoGestion} />
+                        <div className="mt-3 grid grid-cols-2 gap-2">
+                          <SmallInfo
+                            label="Recaudado"
+                            value={formatCurrency(cliente.recaudadoDelDia || 0)}
+                          />
+                          <SmallInfo
+                            label="Visita"
+                            value={cliente.estadoVisita || 'Sin registro'}
+                          />
+                        </div>
+
+                        {cliente.notasVisita && (
+                          <div className="mt-3 rounded-xl bg-slate-50 p-3 text-xs text-slate-600">
+                            {cliente.notasVisita}
+                          </div>
+                        )}
+
+                        <div className="mt-3 grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
+                          {onVerEstadoCuenta && (
+                            <button
+                              type="button"
+                              onClick={() => onVerEstadoCuenta(cliente, contextoRegularizacion)}
+                              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 sm:w-auto"
+                            >
+                              Estado de cuenta
+                            </button>
+                          )}
+
+                          {cliente.estadoGestion === 'PENDIENTE' && onRegistrarPago && (
+                            <button
+                              type="button"
+                              onClick={() => onRegistrarPago(cliente, contextoRegularizacion)}
+                              className="w-full rounded-xl bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700 sm:w-auto"
+                            >
+                              Registrar pago
+                            </button>
+                          )}
+
+                          {cliente.estadoGestion === 'PENDIENTE' && onMarcarAusente && (
+                            <button
+                              type="button"
+                              onClick={() => onMarcarAusente(cliente, contextoRegularizacion)}
+                              className="w-full rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800 hover:bg-amber-100 sm:w-auto"
+                            >
+                              Marcar ausente
+                            </button>
+                          )}
+
+                          {cliente.estadoGestion === 'AUSENTE' && onReprogramar && (
+                            <button
+                              type="button"
+                              onClick={() => onReprogramar(cliente, contextoRegularizacion)}
+                              className="w-full rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-100 sm:w-auto"
+                            >
+                              Reprogramar
+                            </button>
+                          )}
+                        </div>
                       </div>
-
-                      <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
-                        <SmallInfo
-                          label="Recaudado"
-                          value={formatCurrency(cliente.recaudadoDelDia || 0)}
-                        />
-                        <SmallInfo
-                          label="Estado visita"
-                          value={cliente.estadoVisita || 'Sin registro'}
-                        />
-                        <SmallInfo
-                          label="Notas"
-                          value={cliente.notasVisita || 'Sin notas'}
-                        />
-                      </div>
-
-                      <div className="mt-3 grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
-                        {onVerEstadoCuenta && (
-                          <button
-                            type="button"
-                            onClick={() => onVerEstadoCuenta(cliente, contextoRegularizacion)}
-                            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 sm:w-auto"
-                          >
-                            Estado de cuenta
-                          </button>
-                        )}
-
-                        {cliente.estadoGestion === 'PENDIENTE' && onRegistrarPago && (
-                          <button
-                            type="button"
-                            onClick={() => onRegistrarPago(cliente, contextoRegularizacion)}
-                            className="w-full rounded-xl bg-slate-900 px-3 py-2 text-xs font-bold text-white hover:bg-slate-800 sm:w-auto"
-                          >
-                            Registrar pago
-                          </button>
-                        )}
-
-                        {cliente.estadoGestion === 'PENDIENTE' && onMarcarAusente && (
-                          <button
-                            type="button"
-                            onClick={() => onMarcarAusente(cliente, contextoRegularizacion)}
-                            className="w-full rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800 hover:bg-amber-100 sm:w-auto"
-                          >
-                            Marcar ausente
-                          </button>
-                        )}
-
-                        {cliente.estadoGestion === 'AUSENTE' && onReprogramar && (
-                          <button
-                            type="button"
-                            onClick={() => onReprogramar(cliente, contextoRegularizacion)}
-                            className="w-full rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-100 sm:w-auto"
-                          >
-                            Reprogramar
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                    ))
+                  })()}
 
                   {clientes.length === 0 && (
                     <div className="p-8 text-center text-sm font-bold text-slate-400">
@@ -278,7 +481,7 @@ export function CierrePendienteDetalleModal({
                   </h3>
 
                   <div className="mt-3 space-y-2">
-                    {(detalle?.accionesSugeridas || []).map((accion, index) => (
+                    {(accionesSugeridas || []).map((accion, index) => (
                       <div
                         key={index}
                         className="rounded-xl border border-amber-200 bg-white px-3 py-2 text-xs font-bold text-amber-800"
@@ -291,33 +494,42 @@ export function CierrePendienteDetalleModal({
 
                 <div className="rounded-2xl border border-slate-200 bg-white p-5">
                   <h3 className="font-black text-slate-900">
-                    Acciones
+                    Acciones de la jornada
                   </h3>
 
-                  <div className="mt-4 space-y-2">
+                  <div className="mt-4 grid grid-cols-1 gap-2">
                     <button
                       type="button"
-                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50"
+                      disabled
+                      title="Función no disponible todavía"
+                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       Exportar detalle
                     </button>
 
                     <button
                       type="button"
-                      className="w-full rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm font-bold text-amber-800 hover:bg-amber-100"
+                      disabled
+                      title="Función no disponible todavía"
+                      className="w-full rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm font-bold text-amber-800 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       Solicitar corrección al cobrador
                     </button>
 
-                    {onRegularizar && (
-                      <button
-                        type="button"
-                        onClick={() => onRegularizar(contextoRegularizacion)}
-                        className="w-full rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white hover:bg-slate-800"
-                      >
-                        Regularizar jornada
-                      </button>
-                    )}
+                    {onRegularizar && (() => {
+                      const clientesPendientes = resumen?.clientesPendientes ?? 0
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => onRegularizar(contextoRegularizacion)}
+                          className="w-full rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-700"
+                        >
+                          {clientesPendientes > 0
+                            ? 'Cerrar con observación administrativa'
+                            : 'Cerrar jornada regularizada'}
+                        </button>
+                      )
+                    })()}
                   </div>
                 </div>
               </aside>
@@ -325,15 +537,6 @@ export function CierrePendienteDetalleModal({
           </div>
         )}
       </div>
-    </div>
-  )
-}
-
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4">
-      <p className="text-xs font-bold uppercase text-slate-400">{label}</p>
-      <p className="mt-1 text-lg font-black text-slate-900">{value}</p>
     </div>
   )
 }
