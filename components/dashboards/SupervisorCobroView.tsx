@@ -4622,18 +4622,61 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
               setShowReprogramModal(true)
             }, 80)
           }}
-          permissions={{
-            canExportarDetalle: false,
-            canSolicitarCorreccion: false,
-            canCerrarJornada: false,
-            canRegistrarPago: true,
-            canMarcarAusente: true,
-            canAnularAusencia: false,
-            canReprogramar: true,
-            canVerPago: false,
-            canVerComprobante: false,
-            canAgregarObservacion: false,
+          onRegularizar={async (contextoRegularizacion) => {
+            if (!rutaId) {
+              toast.error('No se encontró la ruta.')
+              return
+            }
+
+            const fechaOperativa = contextoRegularizacion?.fechaOperativa
+            if (!fechaOperativa) {
+              toast.error('No se encontró la fecha operativa de la jornada.')
+              return
+            }
+
+            try {
+              await routesApi.cerrarJornadaRegularizada(rutaId, fechaOperativa, {
+                observaciones: 'Jornada regularizada desde el módulo de cierre pendiente.',
+              })
+
+              toast.success('Jornada cerrada exitosamente.')
+
+              await cargarDetalle()
+              await refreshCierrePendiente?.()
+              await cargarVisitasRuta?.()
+              setShowDetalleCierre(false)
+            } catch (error: any) {
+              toast.error(
+                error?.message || 'No se pudo cerrar la jornada regularizada.',
+              )
+            }
           }}
+          permissions={((): any => {
+            const rolActual = String(userSession?.rol || '').toUpperCase()
+            const isSuperAdmin =
+              rolActual === 'SUPER_ADMIN' ||
+              rolActual === 'SUPER_ADMINISTRADOR'
+            const isAdmin = rolActual === 'ADMIN'
+            const isCoordinador = rolActual === 'COORDINADOR'
+            const isSupervisor = rolActual === 'SUPERVISOR'
+            const isCobrador = rolActual === 'COBRADOR'
+
+            const canAdministrarJornada = isSuperAdmin || isAdmin || isCoordinador
+            const canSupervisarJornada = isSuperAdmin || isAdmin || isCoordinador || isSupervisor
+
+            return {
+              canExportarDetalle: false,
+              canSolicitarCorreccion: false,
+              canCerrarJornada: canAdministrarJornada,
+              canRegistrarPago: canSupervisarJornada || isCobrador,
+              canMarcarAusente: canSupervisarJornada || isCobrador,
+              canAnularAusencia: false,
+              canReprogramar: canSupervisarJornada || isCobrador,
+              canVerPago: false,
+              canVerComprobante: false,
+              canAgregarObservacion: false,
+            }
+          })()}
           handlers={{
             onExportarDetalle: undefined,
             onSolicitarCorreccion: undefined,
