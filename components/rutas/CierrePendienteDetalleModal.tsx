@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { X, AlertTriangle } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
+import { toast } from 'sonner'
 import {
   formatFechaCortaBogota,
   formatFechaHumanaBogota,
@@ -54,7 +55,7 @@ function getCumplimiento(meta: number, recaudo: number) {
   if (meta <= 0) {
     return {
       porcentaje: recaudo > 0 ? 100 : 0,
-      label: recaudo > 0 ? 'Recaudo sin meta' : 'Sin meta',
+      label: recaudo > 0 ? 'Jornada ya pagada / sin saldo exigible' : 'Sin meta',
       excedente: 0,
       pendiente: 0,
       className: 'border-slate-200 bg-slate-50 text-slate-700',
@@ -126,7 +127,7 @@ export function CierrePendienteDetalleModal({
     fechaOperativa?: string
     activacionId?: string
     origenGestion: 'CIERRE_PENDIENTE'
-  }) => void
+  }, observaciones?: string) => void | Promise<void>
   onVerEstadoCuenta?: (cliente: any, contextoRegularizacion?: any) => void
   onRegistrarPago?: (cliente: any, contextoRegularizacion?: any) => void
   onMarcarAusente?: (cliente: any, contextoRegularizacion?: any) => void
@@ -154,6 +155,8 @@ export function CierrePendienteDetalleModal({
 }) {
   const [jornadaSeleccionada, setJornadaSeleccionada] = useState(0)
   const [processingCliente, setProcessingCliente] = useState<string | null>(null)
+  const [showObservacionCierre, setShowObservacionCierre] = useState(false)
+  const [observacionCierre, setObservacionCierre] = useState('')
 
   // Resetear selección cuando cambia el detalle
   useEffect(() => {
@@ -183,6 +186,13 @@ export function CierrePendienteDetalleModal({
     activacionId: cierrePendiente?.activacionId,
     origenGestion: 'CIERRE_PENDIENTE' as const,
   }
+
+  // Lógica para cierre de jornada
+  const clientesPendientesCount = Number(resumen?.clientesPendientes || 0)
+  const clientesAusentesCount = Number(resumen?.clientesAusentes || 0)
+  const requiereObservacionAdministrativa = clientesPendientesCount > 0 || clientesAusentesCount > 0
+  const puedeCerrarJornada = Boolean(permissions?.canCerrarJornada && onRegularizar)
+  const canShowAccionesJornada = puedeCerrarJornada || Boolean(permissions?.canExportarDetalle && handlers?.onExportarDetalle) || Boolean(permissions?.canSolicitarCorreccion && handlers?.onSolicitarCorreccion)
 
   return (
     <div
@@ -729,67 +739,130 @@ export function CierrePendienteDetalleModal({
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                  <h3 className="font-black text-slate-900">
-                    Acciones de la jornada
-                  </h3>
+                {canShowAccionesJornada && (
+                  <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                    <h3 className="font-black text-slate-900">
+                      Acciones de la jornada
+                    </h3>
 
-                  <div className="mt-4 grid grid-cols-1 gap-2">
-                    {permissions?.canExportarDetalle && handlers?.onExportarDetalle ? (
-                      <button
-                        type="button"
-                        onClick={() => handlers.onExportarDetalle?.(contextoRegularizacion)}
-                        className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50"
-                      >
-                        Exportar detalle
-                      </button>
-                    ) : permissions?.canExportarDetalle ? (
-                      <button
-                        type="button"
-                        disabled
-                        title="Función no disponible todavía"
-                        className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        Exportar detalle
-                      </button>
-                    ) : null}
-
-                    {permissions?.canSolicitarCorreccion && handlers?.onSolicitarCorreccion ? (
-                      <button
-                        type="button"
-                        onClick={() => handlers.onSolicitarCorreccion?.(contextoRegularizacion)}
-                        className="w-full rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm font-bold text-amber-800 hover:bg-amber-100"
-                      >
-                        Solicitar corrección al cobrador
-                      </button>
-                    ) : permissions?.canSolicitarCorreccion ? (
-                      <button
-                        type="button"
-                        disabled
-                        title="Función no disponible todavía"
-                        className="w-full rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm font-bold text-amber-800 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        Solicitar corrección al cobrador
-                      </button>
-                    ) : null}
-
-                    {permissions?.canCerrarJornada && onRegularizar && (() => {
-                      const clientesPendientes = resumen?.clientesPendientes ?? 0
-                      return (
+                    <div className="mt-4 grid grid-cols-1 gap-2">
+                      {permissions?.canExportarDetalle && handlers?.onExportarDetalle ? (
                         <button
                           type="button"
-                          onClick={() => onRegularizar(contextoRegularizacion)}
-                          className="w-full rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-700"
+                          onClick={() => handlers.onExportarDetalle?.(contextoRegularizacion)}
+                          className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50"
                         >
-                          {clientesPendientes > 0
+                          Exportar detalle
+                        </button>
+                      ) : permissions?.canExportarDetalle ? (
+                        <button
+                          type="button"
+                          disabled
+                          title="Función no disponible todavía"
+                          className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Exportar detalle
+                        </button>
+                      ) : null}
+
+                      {permissions?.canSolicitarCorreccion && handlers?.onSolicitarCorreccion ? (
+                        <button
+                          type="button"
+                          onClick={() => handlers.onSolicitarCorreccion?.(contextoRegularizacion)}
+                          className="w-full rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm font-bold text-amber-800 hover:bg-amber-100"
+                        >
+                          Solicitar corrección al cobrador
+                        </button>
+                      ) : permissions?.canSolicitarCorreccion ? (
+                        <button
+                          type="button"
+                          disabled
+                          title="Función no disponible todavía"
+                          className="w-full rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm font-bold text-amber-800 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Solicitar corrección al cobrador
+                        </button>
+                      ) : null}
+
+                      {puedeCerrarJornada && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (requiereObservacionAdministrativa) {
+                              setShowObservacionCierre(true)
+                              return
+                            }
+
+                            onRegularizar?.(contextoRegularizacion)
+                          }}
+                          className="w-full whitespace-normal rounded-xl bg-slate-900 px-4 py-2.5 text-center text-sm font-bold leading-snug text-white transition hover:bg-slate-800 active:scale-[0.99]"
+                        >
+                          {requiereObservacionAdministrativa
                             ? 'Cerrar con observación administrativa'
                             : 'Cerrar jornada regularizada'}
                         </button>
-                      )
-                    })()}
+                      )}
+                    </div>
+                  </div>
+                )}
+              </aside>
+
+              {/* Modal de observación obligatoria */}
+              {showObservacionCierre && (
+                <div
+                  className="fixed inset-0 z-[70] flex items-end bg-black/40 p-0 sm:items-center sm:p-4"
+                  onClick={() => setShowObservacionCierre(false)}
+                >
+                  <div
+                    className="w-full rounded-t-3xl bg-white p-5 shadow-xl sm:mx-auto sm:max-w-lg sm:rounded-3xl"
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <h3 className="text-base font-black text-slate-900">
+                      Cierre con observación administrativa
+                    </h3>
+
+                    <p className="mt-2 text-sm text-slate-600">
+                      Esta jornada tiene {clientesPendientesCount} cliente(s) sin gestión y {clientesAusentesCount} ausencia(s). Debes registrar una observación antes de cerrar.
+                    </p>
+
+                    <textarea
+                      value={observacionCierre}
+                      onChange={(event) => setObservacionCierre(event.target.value)}
+                      rows={4}
+                      className="mt-4 w-full rounded-2xl border border-slate-200 p-3 text-sm outline-none focus:ring-2 focus:ring-slate-900"
+                      placeholder="Ej: Se valida cierre administrativo porque el recaudo fue conciliado y los pendientes quedan soportados para seguimiento."
+                    />
+
+                    <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowObservacionCierre(false)}
+                        className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50"
+                      >
+                        Cancelar
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const obs = observacionCierre.trim()
+
+                          if (!obs) {
+                            toast.error('Debes escribir una observación administrativa.')
+                            return
+                          }
+
+                          onRegularizar?.(contextoRegularizacion, obs)
+                          setShowObservacionCierre(false)
+                        }}
+                        className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white hover:bg-slate-800"
+                      >
+                        Confirmar cierre
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </aside>
+              )}
             </div>
           </div>
         )}
