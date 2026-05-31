@@ -1,6 +1,7 @@
 import {
   buildRegularizedPaymentTarget,
   computeRutaHoyUiStatsFromVisitas,
+  esDomingoBogota,
   resolveCobradorIdForRouteAction,
   shouldShowVisitaEnRutaHoy,
 } from '@/lib/rutas-core'
@@ -139,6 +140,16 @@ describe('buildRegularizedPaymentTarget', () => {
       fechaOperativaRuta: '2026-05-27',
       origenGestion: 'CIERRE_PENDIENTE',
     })
+  })
+})
+
+describe('esDomingoBogota', () => {
+  it('detecta domingo en zona horaria de Bogota', () => {
+    expect(esDomingoBogota(new Date('2026-05-31T12:00:00.000Z'))).toBe(true)
+  })
+
+  it('no marca lunes como domingo', () => {
+    expect(esDomingoBogota(new Date('2026-06-01T12:00:00.000Z'))).toBe(false)
   })
 })
 
