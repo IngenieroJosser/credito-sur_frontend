@@ -440,7 +440,10 @@ export function CierrePendienteDetalleModal({
                             </p>
                           </div>
 
-                          <EstadoGestionBadge estado={cliente.estadoGestion} />
+                          <EstadoGestionBadge
+                            estado={cliente.estadoGestion}
+                            saldoExigible={cliente.cuotaObjetivo?.saldoExigibleEnFechaOperativa}
+                          />
                         </div>
 
                         <div className="mt-3 grid grid-cols-2 gap-2">
@@ -499,9 +502,9 @@ export function CierrePendienteDetalleModal({
                             const estado = cliente.estadoGestion
                             const cuota = cliente.cuotaObjetivo
                             const puedeRegistrarPagoRegularizado =
-                              estado !== 'PAGO_REGISTRADO' &&
                               Boolean(cuota?.puedePagar) &&
-                              Boolean(cliente.prestamoObjetivoId)
+                              Boolean(cliente.prestamoObjetivoId) &&
+                              Boolean(cliente.cuotaObjetivoId || cuota?.id || cliente.cuotaObjetivoPrestamoId)
                             const puedeMarcarAusente = estado === 'PENDIENTE'
 
                             const clienteId = cliente.clienteId || cliente.asignacionId
@@ -771,7 +774,7 @@ export function CierrePendienteDetalleModal({
                   onClick={() => setShowObservacionCierre(false)}
                 >
                   <div
-                    className="w-full rounded-t-3xl bg-white p-5 shadow-xl sm:mx-auto sm:max-w-lg sm:rounded-3xl"
+                    className="w-full rounded-t-3xl bg-white p-5 text-slate-900 shadow-xl sm:mx-auto sm:max-w-lg sm:rounded-3xl"
                     onClick={(event) => event.stopPropagation()}
                   >
                     <h3 className="text-base font-black text-slate-900">
@@ -786,7 +789,7 @@ export function CierrePendienteDetalleModal({
                       value={observacionCierre}
                       onChange={(event) => setObservacionCierre(event.target.value)}
                       rows={4}
-                      className="mt-4 w-full rounded-2xl border border-slate-200 p-3 text-sm outline-none focus:ring-2 focus:ring-slate-900"
+                      className="mt-4 w-full rounded-2xl border border-slate-200 bg-white p-3 text-sm text-slate-900 caret-slate-900 outline-none placeholder:text-slate-400 focus:border-slate-900 focus:ring-2 focus:ring-slate-900"
                       placeholder="Ej: Se valida cierre administrativo porque el recaudo fue conciliado y los pendientes quedan soportados para seguimiento."
                     />
 
@@ -839,17 +842,26 @@ function SmallInfo({ label, value }: { label: string; value: string }) {
 
 function EstadoGestionBadge({
   estado,
+  saldoExigible,
 }: {
   estado: 'PAGO_REGISTRADO' | 'AUSENTE' | 'PENDIENTE'
+  saldoExigible?: number | null
 }) {
+  const tieneSaldoPendiente =
+    estado === 'PAGO_REGISTRADO' && Number(saldoExigible || 0) > 0
+
   const map = {
-    PAGO_REGISTRADO: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    PAGO_REGISTRADO: tieneSaldoPendiente
+      ? 'border-amber-200 bg-amber-50 text-amber-700'
+      : 'border-emerald-200 bg-emerald-50 text-emerald-700',
     AUSENTE: 'border-amber-200 bg-amber-50 text-amber-700',
     PENDIENTE: 'border-red-200 bg-red-50 text-red-700',
   }
 
   const label = {
-    PAGO_REGISTRADO: 'Pago registrado',
+    PAGO_REGISTRADO: tieneSaldoPendiente
+      ? 'Pago registrado · saldo pendiente'
+      : 'Pago registrado',
     AUSENTE: 'Ausente',
     PENDIENTE: 'Sin gestión',
   }
