@@ -4635,9 +4635,11 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
             }
 
             try {
-              await routesApi.cerrarJornadaRegularizada(rutaId, fechaOperativa, {
-                observaciones: 'Jornada regularizada desde el módulo de cierre pendiente.',
-              })
+              await routesApi.cerrarJornadaRegularizada(
+                rutaId,
+                fechaOperativa,
+                'Jornada regularizada desde el módulo de cierre pendiente.',
+              )
 
               toast.success('Jornada cerrada exitosamente.')
 

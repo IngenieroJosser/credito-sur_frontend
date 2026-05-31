@@ -19,12 +19,19 @@ interface PagoModalProps {
     monto: number,
     metodo: 'EFECTIVO' | 'TRANSFERENCIA',
     comprobante: File | null,
-    contexto: { tipoRegistro: 'PAGO' | 'ABONO'; cuotaNumeroEsperada?: number; montoCuotaEsperado: number },
+    contexto: { tipoRegistro: 'PAGO' | 'ABONO'; cuotaNumeroEsperada?: number; montoCuotaEsperado: number; cuotaId?: string },
   ) => void | Promise<void>
+  // Optional props for cierre pendiente
+  montoCuotaEsperadoOverride?: number
+  cuotaNumeroEsperadaOverride?: number
 }
 
-export default function PagoModal({ visita, tipo, onClose, onConfirm }: PagoModalProps) {
+export default function PagoModal({ visita, tipo, onClose, onConfirm, montoCuotaEsperadoOverride, cuotaNumeroEsperadaOverride }: PagoModalProps) {
   const montoCuotaEsperado = (() => {
+    // Use override if provided (for cierre pendiente)
+    if (montoCuotaEsperadoOverride != null) {
+      return montoCuotaEsperadoOverride
+    }
     const tieneCuotaPendiente = (visita as any)?.montoCuotaPendiente != null
     const cuotaBase = Number(((visita as any)?.montoCuotaPendiente ?? visita?.montoCuota) || 0)
     const recHoy = Number((visita as any)?.recaudadoDelDia || 0)
@@ -86,7 +93,9 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm }: PagoModa
     try {
       await onConfirm(montoNum, metodoPago, comprobanteTransferencia, {
         tipoRegistro: tipo,
-        cuotaNumeroEsperada: Number((visita as any)?.cuotaActual || 0) || undefined,
+        cuotaNumeroEsperada:
+          cuotaNumeroEsperadaOverride ??
+          (Number((visita as any)?.cuotaActual || 0) || undefined),
         montoCuotaEsperado,
       })
     } catch (error) {

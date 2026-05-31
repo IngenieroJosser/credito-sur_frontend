@@ -1,4 +1,5 @@
 import {
+  buildRegularizedPaymentTarget,
   computeRutaHoyUiStatsFromVisitas,
   resolveCobradorIdForRouteAction,
   shouldShowVisitaEnRutaHoy,
@@ -76,6 +77,68 @@ describe('resolveCobradorIdForRouteAction', () => {
 
   it('usa la sesion como respaldo cuando la ruta no tiene cobrador cargado', () => {
     expect(resolveCobradorIdForRouteAction(undefined, 'cobrador-1')).toBe('cobrador-1')
+  })
+})
+
+describe('buildRegularizedPaymentTarget', () => {
+  it('abre el pago regularizado con la cuota objetivo historica en lugar de la cuota actual', () => {
+    const target = buildRegularizedPaymentTarget({
+      rutaId: 'ruta-3',
+      cliente: {
+        clienteId: 'cliente-1',
+        estadoGestion: 'PENDIENTE',
+        recaudadoDelDia: 0,
+        prestamoObjetivoId: 'prestamo-historico',
+        cuotaObjetivoId: 'cuota-16',
+        cuotaObjetivo: {
+          id: 'cuota-16',
+          numeroCuota: 16,
+          estadoActual: 'PENDIENTE',
+          fechaVencimiento: '2026-05-27',
+          fechaEfectiva: '2026-05-27',
+          montoCuota: 10000,
+          montoPagado: 0,
+          saldoCuota: 10000,
+          saldoExigibleEnFechaOperativa: 10000,
+          enMoraEnFechaOperativa: false,
+          puedePagar: true,
+          puedeReprogramar: false,
+        },
+      },
+      visitaBase: {
+        clienteId: 'cliente-1',
+        prestamoId: 'prestamo-actual',
+        cuotaActual: 20,
+        montoCuota: 70000,
+        montoCuotaPendiente: 70000,
+        saldoTotal: 70000,
+        proximaVisita: '2026-05-30',
+      },
+      contextoRegularizacion: {
+        fechaOperativa: '2026-05-27',
+        origenGestion: 'CIERRE_PENDIENTE',
+      },
+    })
+
+    expect(target.error).toBeUndefined()
+    expect(target.visitaRegularizada).toMatchObject({
+      prestamoId: 'prestamo-historico',
+      cuotaActual: 16,
+      montoCuota: 10000,
+      montoCuotaPendiente: 10000,
+      saldoTotal: 10000,
+      proximaVisita: '2026-05-27',
+    })
+    expect(target.contextoPagoRegularizado).toMatchObject({
+      rutaId: 'ruta-3',
+      clienteId: 'cliente-1',
+      prestamoId: 'prestamo-historico',
+      cuotaId: 'cuota-16',
+      cuotaNumeroEsperada: 16,
+      montoCuotaEsperado: 10000,
+      fechaOperativaRuta: '2026-05-27',
+      origenGestion: 'CIERRE_PENDIENTE',
+    })
   })
 })
 

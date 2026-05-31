@@ -223,12 +223,12 @@ export const routesService = {
   async cerrarJornadaRegularizada(
     rutaId: string,
     fechaOperativa: string,
-    payload: { observaciones?: string },
+    observaciones?: string,
   ) {
     return apiRequest<any>(
       'POST',
       `/routes/${rutaId}/cierre-pendiente/${fechaOperativa}/cerrar`,
-      payload,
+      { observaciones },
     );
   },
 };

@@ -5961,9 +5961,11 @@ const VistaCobrador = () => {
             }
 
             try {
-              await routesApi.cerrarJornadaRegularizada(rutaActual.id, fechaOperativa, {
-                observaciones: 'Jornada regularizada desde el módulo de cierre pendiente.',
-              })
+              await routesApi.cerrarJornadaRegularizada(
+                rutaActual.id,
+                fechaOperativa,
+                'Jornada regularizada desde el módulo de cierre pendiente.',
+              )
 
               toast.success('Jornada cerrada exitosamente.')
 

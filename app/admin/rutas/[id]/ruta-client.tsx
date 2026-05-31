@@ -105,7 +105,7 @@ import { useRutaHistorial } from '@/hooks/useRutaHistorial'
 import { useCierrePendienteRuta } from '@/hooks/useCierrePendienteRuta'
 import ClienteInfoModal from '@/components/cobranza/ClienteInfoModal'
 import { formatShortDate } from '@/lib/utils/format'
-import { computeMontoExigibleHastaHoyFromCuotas, computeMontoNominalHastaHoyFromCuotas, computeRutaHoyUiStatsFromVisitas, getBogotaDateKey, getBogotaRangeByPeriod, getPagoBogotaDateKey, isCuotaNoPagada, isTodayOrPastBogota, isVisitaExigibleHoy, normalizeDateKey, resolveFechaEfectivaCuota, shouldMarkVisitaAsPagado, shouldShowVisitaEnRutaHoy, toBogotaDateTimeOffsetIso, resolveProximaCuotaFromPrestamo, computeDiasMoraFromCuotas } from '@/lib/rutas-core'
+import { buildRegularizedPaymentTarget, computeMontoExigibleHastaHoyFromCuotas, computeMontoNominalHastaHoyFromCuotas, computeRutaHoyUiStatsFromVisitas, getBogotaDateKey, getBogotaRangeByPeriod, getPagoBogotaDateKey, isCuotaNoPagada, isTodayOrPastBogota, isVisitaExigibleHoy, normalizeDateKey, resolveFechaEfectivaCuota, shouldMarkVisitaAsPagado, shouldShowVisitaEnRutaHoy, toBogotaDateTimeOffsetIso, resolveProximaCuotaFromPrestamo, computeDiasMoraFromCuotas } from '@/lib/rutas-core'
 
 import { mapAsignacionesToVisitasLite } from '@/lib/ruta-visitas-mapper'
 import { buildRecaudosHoyMapByPrestamoId, indexPagosByPrestamoId, sumMontoTotalPagosByBogotaDateKey } from '@/lib/ruta-recaudos'
@@ -156,7 +156,7 @@ const RutaClientLoaded = ({
   const [showFilters, setShowFilters] = useState(false)
   const [periodoCards, setPeriodoCards] = useState<'HOY' | 'SEM' | 'MES' | 'AÑO'>('HOY')
 
-  const { cierrePendiente, hasCierrePendiente } = useCierrePendienteRuta(rutaId)
+  const { cierrePendiente, hasCierrePendiente, refreshCierrePendiente } = useCierrePendienteRuta(rutaId)
 
   const [showDetalleCierre, setShowDetalleCierre] = useState(false)
   const {
@@ -2435,6 +2435,8 @@ const RutaClientLoaded = ({
             setPagoVisita(null)
             clearRegularizacionContext()
           }}
+          montoCuotaEsperadoOverride={contextoRegularizacion?.montoCuotaEsperado}
+          cuotaNumeroEsperadaOverride={contextoRegularizacion?.cuotaNumeroEsperada}
           onConfirm={async (monto, metodo, comprobante, contexto) => {
             try {
               const pagoActual = pagoVisita
@@ -2449,26 +2451,54 @@ const RutaClientLoaded = ({
                 return;
               }
 
+              const esCierrePendiente =
+                contextoRegularizacionSnapshot?.origenGestion === 'CIERRE_PENDIENTE'
+
+              const prestamoIdFinal =
+                esCierrePendiente
+                  ? contextoRegularizacionSnapshot?.prestamoId
+                  : pagoActual.visita.prestamoId
+
+              const cuotaIdFinal =
+                esCierrePendiente
+                  ? contextoRegularizacionSnapshot?.cuotaId
+                  : contexto?.cuotaId
+
+              const cuotaNumeroFinal =
+                esCierrePendiente
+                  ? contextoRegularizacionSnapshot?.cuotaNumeroEsperada
+                  : contexto?.cuotaNumeroEsperada
+
+              const montoCuotaEsperadoFinal =
+                esCierrePendiente
+                  ? contextoRegularizacionSnapshot?.montoCuotaEsperado
+                  : contexto?.montoCuotaEsperado
+
               await pagosService.registrarPago({
                 clienteId: pagoActual.visita.clienteId,
-                prestamoId: pagoActual.visita.prestamoId,
+                prestamoId: prestamoIdFinal,
                 cobradorId: initialRuta.cobradorId,
                 montoTotal: monto,
                 metodoPago: metodo,
                 comprobante: comprobante,
                 tipoRegistro: contexto?.tipoRegistro || pagoActual.tipo,
-                cuotaNumeroEsperada: contexto?.cuotaNumeroEsperada,
-                montoCuotaEsperado: contexto?.montoCuotaEsperado,
-                fechaOperativaRuta: contextoRegularizacionSnapshot?.fechaOperativa,
-                origenGestion: contextoRegularizacionSnapshot?.origenGestion,
-                idempotencyKey: contextoRegularizacionSnapshot?.origenGestion === 'CIERRE_PENDIENTE'
+                rutaId: esCierrePendiente ? contextoRegularizacionSnapshot?.rutaId : undefined,
+                cuotaId: cuotaIdFinal,
+                cuotaNumeroEsperada: cuotaNumeroFinal,
+                montoCuotaEsperado: montoCuotaEsperadoFinal,
+                fechaOperativaRuta: esCierrePendiente
+                  ? (contextoRegularizacionSnapshot?.fechaOperativaRuta || contextoRegularizacionSnapshot?.fechaOperativa)
+                  : undefined,
+                origenGestion: esCierrePendiente ? 'CIERRE_PENDIENTE' : undefined,
+                idempotencyKey: esCierrePendiente
                   ? [
                       'CIERRE_PENDIENTE',
                       contextoRegularizacionSnapshot?.rutaId,
-                      contextoRegularizacionSnapshot?.fechaOperativa,
+                      contextoRegularizacionSnapshot?.fechaOperativaRuta || contextoRegularizacionSnapshot?.fechaOperativa,
                       pagoActual.visita.clienteId,
-                      pagoActual.visita.prestamoId,
-                      contexto?.cuotaNumeroEsperada ?? 'SIN_CUOTA',
+                      prestamoIdFinal,
+                      cuotaIdFinal ?? 'SIN_CUOTA_ID',
+                      cuotaNumeroFinal ?? 'SIN_CUOTA',
                       contexto?.tipoRegistro || pagoActual.tipo,
                       Number(monto || 0),
                     ].join(':')
@@ -2916,17 +2946,32 @@ const RutaClientLoaded = ({
           }, 80)
         }}
         onRegistrarPago={(cliente, contextoRegularizacion) => {
-          const visita = visitasCobrador.find((v: any) => v.clienteId === cliente.clienteId)
-          if (!visita) {
+          const visitaBase = visitasCobrador.find((v: any) => v.clienteId === cliente.clienteId)
+          if (!visitaBase) {
             toast.error('No se encontró la visita del cliente.')
+            return
+          }
+
+          const target = buildRegularizedPaymentTarget({
+            rutaId,
+            cliente,
+            visitaBase,
+            contextoRegularizacion,
+          })
+
+          if (target.error) {
+            toast.error(target.error)
             return
           }
 
           setShowDetalleCierre(false)
 
           setTimeout(() => {
-            setRegularizacionContext(contextoRegularizacion)
-            handleAbrirPago(visita)
+            setRegularizacionContext(target.contextoPagoRegularizado)
+            setPagoVisita({
+              visita: target.visitaRegularizada as any,
+              tipo: 'PAGO',
+            })
           }, 80)
         }}
         onMarcarAusente={(cliente, contextoRegularizacion) => {
@@ -2957,7 +3002,7 @@ const RutaClientLoaded = ({
             setVisitaReprogramar(visita)
           }, 80)
         }}
-        onRegularizar={async (contextoRegularizacion) => {
+        onRegularizar={async (contextoRegularizacion, observaciones) => {
           if (!rutaId) {
             toast.error('No se encontró la ruta.')
             return
@@ -2970,18 +3015,23 @@ const RutaClientLoaded = ({
           }
 
           try {
-            await routesService.cerrarJornadaRegularizada(rutaId, fechaOperativa, {
-              observaciones: 'Jornada regularizada desde el módulo de cierre pendiente.',
-            })
+            await routesService.cerrarJornadaRegularizada(
+              rutaId,
+              fechaOperativa,
+              observaciones || 'Jornada regularizada desde el módulo de cierre pendiente.',
+            )
 
             toast.success('Jornada cerrada exitosamente.')
 
-            await cargarDetalle()
-            await onRutaRefresh?.()
+            await Promise.allSettled([
+              refreshCierrePendiente(),
+              cargarDetalle(),
+              onRutaRefresh?.(),
+            ])
             setShowDetalleCierre(false)
           } catch (error: any) {
             toast.error(
-              error?.message || 'No se pudo cerrar la jornada regularizada.',
+              error?.response?.data?.message || error?.message || 'No se pudo cerrar la jornada regularizada.',
             )
           }
         }}
@@ -3005,7 +3055,7 @@ const RutaClientLoaded = ({
             canRegistrarPago: canSupervisarJornada || isCobrador,
             canMarcarAusente: canSupervisarJornada || isCobrador,
             canAnularAusencia: false,
-            canReprogramar: canSupervisarJornada || isCobrador,
+            canReprogramar: false,
             canVerPago: false,
             canVerComprobante: false,
             canAgregarObservacion: false,

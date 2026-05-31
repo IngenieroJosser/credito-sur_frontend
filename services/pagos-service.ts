@@ -90,6 +90,8 @@ export interface CrearPagoDto {
   montoCuotaEsperado?: number;
   fechaOperativaRuta?: string;
   origenGestion?: string;
+  cuotaId?: string;
+  rutaId?: string;
 }
 
 export const pagosService = {
@@ -149,6 +151,8 @@ export const pagosService = {
         if (payload.tipoRegistro) formData.append('tipoRegistro', payload.tipoRegistro);
         if (payload.cuotaNumeroEsperada != null) formData.append('cuotaNumeroEsperada', String(payload.cuotaNumeroEsperada));
         if (payload.montoCuotaEsperado != null) formData.append('montoCuotaEsperado', String(payload.montoCuotaEsperado));
+        if (payload.cuotaId) formData.append('cuotaId', payload.cuotaId);
+        if (payload.rutaId) formData.append('rutaId', payload.rutaId);
         if (payload.numeroReferencia) formData.append('numeroReferencia', payload.numeroReferencia);
         if (payload.notas) formData.append('notas', payload.notas);
         if (payload.fechaPago) formData.append('fechaPago', payload.fechaPago);

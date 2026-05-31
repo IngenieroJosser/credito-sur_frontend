@@ -495,201 +495,158 @@ export function CierrePendienteDetalleModal({
                             </button>
                           )}
 
-                          {cliente.estadoGestion === 'PENDIENTE' && permissions?.canRegistrarPago && onRegistrarPago && cliente.cuotaObjetivo?.puedePagar && (() => {
+                          {(() => {
+                            const estado = cliente.estadoGestion
+                            const cuota = cliente.cuotaObjetivo
+                            const puedeRegistrarPagoRegularizado =
+                              estado !== 'PAGO_REGISTRADO' &&
+                              Boolean(cuota?.puedePagar) &&
+                              Boolean(cliente.prestamoObjetivoId)
+                            const puedeMarcarAusente = estado === 'PENDIENTE'
+
                             const clienteId = cliente.clienteId || cliente.asignacionId
                             if (!clienteId) return null
+
                             return (
-                              <button
-                                type="button"
-                                onClick={async () => {
-                                  setProcessingCliente(clienteId)
-                                  try {
-                                    await onRegistrarPago(cliente, contextoRegularizacion)
-                                  } finally {
-                                    setProcessingCliente(null)
-                                  }
-                                }}
-                                disabled={processingCliente === clienteId}
-                                className="w-full rounded-xl bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
-                              >
-                                {processingCliente === clienteId ? 'Procesando...' : 'Registrar pago regularizado'}
-                              </button>
+                              <>
+                                {puedeRegistrarPagoRegularizado && permissions?.canRegistrarPago && onRegistrarPago && (
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      const cuota = cliente.cuotaObjetivo
+                                      const prestamoId = cliente.prestamoObjetivoId
+                                      const cuotaId =
+                                        cliente.cuotaObjetivoId ||
+                                        cuota?.id ||
+                                        cliente.cuotaObjetivoPrestamoId
+
+                                      if (!prestamoId || !cuota || !cuotaId) {
+                                        toast.error('No se encontró la cuota objetivo para este pago regularizado.')
+                                        return
+                                      }
+
+                                      if (!cuota.puedePagar) {
+                                        toast.error(
+                                          cuota.motivoBloqueoPago ||
+                                            'La cuota objetivo no está disponible para pago.',
+                                        )
+                                        return
+                                      }
+
+                                      setProcessingCliente(clienteId)
+                                      try {
+                                        await onRegistrarPago(cliente, {
+                                          ...contextoRegularizacion,
+                                          prestamoId,
+                                          cuotaId,
+                                          cuotaNumeroEsperada: cuota.numeroCuota,
+                                          montoCuotaEsperado: cuota.saldoExigibleEnFechaOperativa,
+                                        })
+                                      } finally {
+                                        setProcessingCliente(null)
+                                      }
+                                    }}
+                                    disabled={processingCliente === clienteId}
+                                    className="w-full rounded-xl bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                                  >
+                                    {processingCliente === clienteId ? 'Procesando...' : 'Registrar pago regularizado'}
+                                  </button>
+                                )}
+
+                                {puedeMarcarAusente && permissions?.canMarcarAusente && onMarcarAusente && (
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      setProcessingCliente(clienteId)
+                                      try {
+                                        await onMarcarAusente(cliente, contextoRegularizacion)
+                                      } finally {
+                                        setProcessingCliente(null)
+                                      }
+                                    }}
+                                    disabled={processingCliente === clienteId}
+                                    className="w-full rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                                  >
+                                    {processingCliente === clienteId ? 'Procesando...' : 'Marcar ausente'}
+                                  </button>
+                                )}
+
+                                {cliente.estadoGestion === 'PENDIENTE' && permissions?.canAgregarObservacion && handlers?.onAgregarObservacion && (
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      setProcessingCliente(clienteId)
+                                      try {
+                                        await handlers.onAgregarObservacion?.(cliente, contextoRegularizacion)
+                                      } finally {
+                                        setProcessingCliente(null)
+                                      }
+                                    }}
+                                    disabled={processingCliente === clienteId}
+                                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                                  >
+                                    {processingCliente === clienteId ? 'Procesando...' : 'Agregar observación'}
+                                  </button>
+                                )}
+
+                                {cliente.estadoGestion === 'AUSENTE' && permissions?.canAnularAusencia && handlers?.onAnularAusencia && (
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      setProcessingCliente(clienteId)
+                                      try {
+                                        await handlers.onAnularAusencia?.(cliente, contextoRegularizacion)
+                                      } finally {
+                                        setProcessingCliente(null)
+                                      }
+                                    }}
+                                    disabled={processingCliente === clienteId}
+                                    className="w-full rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                                  >
+                                    {processingCliente === clienteId ? 'Procesando...' : 'Anular ausencia'}
+                                  </button>
+                                )}
+
+                                {cliente.estadoGestion === 'AUSENTE' && permissions?.canAgregarObservacion && handlers?.onAgregarObservacion && (
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      setProcessingCliente(clienteId)
+                                      try {
+                                        await handlers.onAgregarObservacion?.(cliente, contextoRegularizacion)
+                                      } finally {
+                                        setProcessingCliente(null)
+                                      }
+                                    }}
+                                    disabled={processingCliente === clienteId}
+                                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                                  >
+                                    {processingCliente === clienteId ? 'Procesando...' : 'Editar observación'}
+                                  </button>
+                                )}
+
+                                {cliente.estadoGestion === 'PAGO_REGISTRADO' && permissions?.canVerPago && handlers?.onVerPago && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handlers.onVerPago?.(cliente, contextoRegularizacion)}
+                                    className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-100 sm:w-auto"
+                                  >
+                                    Ver pago
+                                  </button>
+                                )}
+
+                                {cliente.estadoGestion === 'PAGO_REGISTRADO' && permissions?.canVerComprobante && handlers?.onVerComprobante && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handlers.onVerComprobante?.(cliente, contextoRegularizacion)}
+                                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 sm:w-auto"
+                                  >
+                                    Ver comprobante
+                                  </button>
+                                )}
+                              </>
                             )
                           })()}
-
-                          {cliente.estadoGestion === 'PENDIENTE' && permissions?.canMarcarAusente && onMarcarAusente && (() => {
-                            const clienteId = cliente.clienteId || cliente.asignacionId
-                            if (!clienteId) return null
-                            return (
-                              <button
-                                type="button"
-                                onClick={async () => {
-                                  setProcessingCliente(clienteId)
-                                  try {
-                                    await onMarcarAusente(cliente, contextoRegularizacion)
-                                  } finally {
-                                    setProcessingCliente(null)
-                                  }
-                                }}
-                                disabled={processingCliente === clienteId}
-                                className="w-full rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
-                              >
-                                {processingCliente === clienteId ? 'Procesando...' : 'Marcar ausente'}
-                              </button>
-                            )
-                          })()}
-
-                          {cliente.estadoGestion === 'PENDIENTE' && permissions?.canReprogramar && onReprogramar && cliente.cuotaObjetivo?.puedeReprogramar && (() => {
-                            const clienteId = cliente.clienteId || cliente.asignacionId
-                            if (!clienteId) return null
-                            return (
-                              <button
-                                type="button"
-                                onClick={async () => {
-                                  setProcessingCliente(clienteId)
-                                  try {
-                                    await onReprogramar(cliente, contextoRegularizacion)
-                                  } finally {
-                                    setProcessingCliente(null)
-                                  }
-                                }}
-                                disabled={processingCliente === clienteId}
-                                className="w-full rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
-                              >
-                                {processingCliente === clienteId ? 'Procesando...' : 'Reprogramar'}
-                              </button>
-                            )
-                          })()}
-
-                          {cliente.estadoGestion === 'PENDIENTE' && permissions?.canAgregarObservacion && handlers?.onAgregarObservacion && (() => {
-                            const clienteId = cliente.clienteId || cliente.asignacionId
-                            if (!clienteId) return null
-                            return (
-                              <button
-                                type="button"
-                                onClick={async () => {
-                                  setProcessingCliente(clienteId)
-                                  try {
-                                    await handlers.onAgregarObservacion?.(cliente, contextoRegularizacion)
-                                  } finally {
-                                    setProcessingCliente(null)
-                                  }
-                                }}
-                                disabled={processingCliente === clienteId}
-                                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
-                              >
-                                {processingCliente === clienteId ? 'Procesando...' : 'Agregar observación'}
-                              </button>
-                            )
-                          })()}
-
-                          {cliente.estadoGestion === 'AUSENTE' && permissions?.canRegistrarPago && onRegistrarPago && cliente.cuotaObjetivo?.puedePagar && (() => {
-                            const clienteId = cliente.clienteId || cliente.asignacionId
-                            if (!clienteId) return null
-                            return (
-                              <button
-                                type="button"
-                                onClick={async () => {
-                                  setProcessingCliente(clienteId)
-                                  try {
-                                    await onRegistrarPago(cliente, contextoRegularizacion)
-                                  } finally {
-                                    setProcessingCliente(null)
-                                  }
-                                }}
-                                disabled={processingCliente === clienteId}
-                                className="w-full rounded-xl bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
-                              >
-                                {processingCliente === clienteId ? 'Procesando...' : 'Registrar pago regularizado'}
-                              </button>
-                            )
-                          })()}
-
-                          {cliente.estadoGestion === 'AUSENTE' && permissions?.canAnularAusencia && handlers?.onAnularAusencia && (() => {
-                            const clienteId = cliente.clienteId || cliente.asignacionId
-                            if (!clienteId) return null
-                            return (
-                              <button
-                                type="button"
-                                onClick={async () => {
-                                  setProcessingCliente(clienteId)
-                                  try {
-                                    await handlers.onAnularAusencia?.(cliente, contextoRegularizacion)
-                                  } finally {
-                                    setProcessingCliente(null)
-                                  }
-                                }}
-                                disabled={processingCliente === clienteId}
-                                className="w-full rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
-                              >
-                                {processingCliente === clienteId ? 'Procesando...' : 'Anular ausencia'}
-                              </button>
-                            )
-                          })()}
-
-                          {cliente.estadoGestion === 'AUSENTE' && permissions?.canReprogramar && onReprogramar && cliente.cuotaObjetivo?.puedeReprogramar && (() => {
-                            const clienteId = cliente.clienteId || cliente.asignacionId
-                            if (!clienteId) return null
-                            return (
-                              <button
-                                type="button"
-                                onClick={async () => {
-                                  setProcessingCliente(clienteId)
-                                  try {
-                                    await onReprogramar(cliente, contextoRegularizacion)
-                                  } finally {
-                                    setProcessingCliente(null)
-                                  }
-                                }}
-                                disabled={processingCliente === clienteId}
-                                className="w-full rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
-                              >
-                                {processingCliente === clienteId ? 'Procesando...' : 'Reprogramar'}
-                              </button>
-                            )
-                          })()}
-
-                          {cliente.estadoGestion === 'AUSENTE' && permissions?.canAgregarObservacion && handlers?.onAgregarObservacion && (() => {
-                            const clienteId = cliente.clienteId || cliente.asignacionId
-                            if (!clienteId) return null
-                            return (
-                              <button
-                                type="button"
-                                onClick={async () => {
-                                  setProcessingCliente(clienteId)
-                                  try {
-                                    await handlers.onAgregarObservacion?.(cliente, contextoRegularizacion)
-                                  } finally {
-                                    setProcessingCliente(null)
-                                  }
-                                }}
-                                disabled={processingCliente === clienteId}
-                                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
-                              >
-                                {processingCliente === clienteId ? 'Procesando...' : 'Editar observación'}
-                              </button>
-                            )
-                          })()}
-
-                          {cliente.estadoGestion === 'PAGO_REGISTRADO' && permissions?.canVerPago && handlers?.onVerPago && (
-                            <button
-                              type="button"
-                              onClick={() => handlers.onVerPago?.(cliente, contextoRegularizacion)}
-                              className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-100 sm:w-auto"
-                            >
-                              Ver pago
-                            </button>
-                          )}
-
-                          {cliente.estadoGestion === 'PAGO_REGISTRADO' && permissions?.canVerComprobante && handlers?.onVerComprobante && (
-                            <button
-                              type="button"
-                              onClick={() => handlers.onVerComprobante?.(cliente, contextoRegularizacion)}
-                              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 sm:w-auto"
-                            >
-                              Ver comprobante
-                            </button>
-                          )}
 
                           {!cliente.cuotaObjetivo && (
                             <div className="w-full rounded-xl bg-slate-50 px-3 py-2 text-xs font-bold text-slate-500">
