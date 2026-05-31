@@ -18,6 +18,15 @@ import type { ClienteCierrePendiente } from '@/types/rutas/cierre-pendiente';
 
 const BOGOTA_TZ = 'America/Bogota';
 
+export const esDomingoBogota = (date: Date = new Date()): boolean => {
+  const day = new Intl.DateTimeFormat('en-US', {
+    timeZone: BOGOTA_TZ,
+    weekday: 'short',
+  }).format(date);
+
+  return day === 'Sun';
+};
+
 type RegularizedPaymentTargetInput = {
   rutaId?: string;
   cliente: ClienteCierrePendiente;

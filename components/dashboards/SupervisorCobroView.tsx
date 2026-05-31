@@ -124,6 +124,7 @@ import { useNotificaciones } from '@/components/providers/NotificacionesProvider
 
 
 import {
+  buildRegularizedPaymentTarget,
   buildBogotaOffsetIsoFromKey,
   computeMontoExigibleHastaHoyFromCuotas,
   computeMontoNominalHastaHoyFromCuotas,
@@ -229,6 +230,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
 
   const [visitaPagoSeleccionadaId, setVisitaPagoSeleccionadaId] = useState<string | null>(null)
+  const [visitaPagoRegularizada, setVisitaPagoRegularizada] = useState<VisitaRuta | null>(null)
 
 
   
@@ -2001,10 +2003,13 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     metodo: 'EFECTIVO' | 'TRANSFERENCIA',
     comprobante: File | null,
     esAbono: boolean,
-    contexto?: { tipoRegistro: 'PAGO' | 'ABONO'; cuotaNumeroEsperada?: number; montoCuotaEsperado: number },
+    contexto?: { tipoRegistro: 'PAGO' | 'ABONO'; cuotaNumeroEsperada?: number; montoCuotaEsperado: number; cuotaId?: string },
   ) => {
 
-    const visita = visitasBase.find(v => v.id === visitaId)
+    const contextoRegularizacionSnapshot = contextoRegularizacionRef.current as any
+    const esCierrePendiente =
+      contextoRegularizacionSnapshot?.origenGestion === 'CIERRE_PENDIENTE'
+    const visita = visitaPagoRegularizada || visitasBase.find(v => v.id === visitaId)
 
     if (!visita?.prestamoId || !visita?.clienteId) {
 
@@ -2028,12 +2033,24 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
       setIsLoading(true)
 
-      const contextoRegularizacionSnapshot = contextoRegularizacionRef.current
       pagosInFlightRef.current.set(String(visita.prestamoId), Date.now())
+
+      const prestamoIdFinal = esCierrePendiente
+        ? contextoRegularizacionSnapshot?.prestamoId
+        : visita.prestamoId
+      const cuotaIdFinal = esCierrePendiente
+        ? contextoRegularizacionSnapshot?.cuotaId
+        : contexto?.cuotaId
+      const cuotaNumeroFinal = esCierrePendiente
+        ? contextoRegularizacionSnapshot?.cuotaNumeroEsperada
+        : contexto?.cuotaNumeroEsperada
+      const montoCuotaEsperadoFinal = esCierrePendiente
+        ? contextoRegularizacionSnapshot?.montoCuotaEsperado
+        : contexto?.montoCuotaEsperado
 
       await pagosService.registrarPago({
 
-        prestamoId: visita.prestamoId,
+        prestamoId: prestamoIdFinal,
 
         clienteId: visita.clienteId,
 
@@ -2047,22 +2064,29 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
         tipoRegistro: contexto?.tipoRegistro || (esAbono ? 'ABONO' : 'PAGO'),
 
-        cuotaNumeroEsperada: contexto?.cuotaNumeroEsperada,
+        rutaId: esCierrePendiente ? contextoRegularizacionSnapshot?.rutaId : undefined,
 
-        montoCuotaEsperado: contexto?.montoCuotaEsperado,
+        cuotaId: cuotaIdFinal,
 
-        fechaOperativaRuta: (contextoRegularizacionSnapshot as any)?.fechaOperativa,
+        cuotaNumeroEsperada: cuotaNumeroFinal,
 
-        origenGestion: (contextoRegularizacionSnapshot as any)?.origenGestion,
+        montoCuotaEsperado: montoCuotaEsperadoFinal,
 
-        idempotencyKey: (contextoRegularizacionSnapshot as any)?.origenGestion === 'CIERRE_PENDIENTE'
+        fechaOperativaRuta: esCierrePendiente
+          ? (contextoRegularizacionSnapshot?.fechaOperativaRuta || contextoRegularizacionSnapshot?.fechaOperativa)
+          : undefined,
+
+        origenGestion: esCierrePendiente ? 'CIERRE_PENDIENTE' : undefined,
+
+        idempotencyKey: esCierrePendiente
           ? [
               'CIERRE_PENDIENTE',
-              (contextoRegularizacionSnapshot as any)?.rutaId,
-              (contextoRegularizacionSnapshot as any)?.fechaOperativa,
+              contextoRegularizacionSnapshot?.rutaId,
+              contextoRegularizacionSnapshot?.fechaOperativaRuta || contextoRegularizacionSnapshot?.fechaOperativa,
               visita.clienteId,
-              visita.prestamoId,
-              contexto?.cuotaNumeroEsperada ?? 'SIN_CUOTA',
+              prestamoIdFinal,
+              cuotaIdFinal ?? 'SIN_CUOTA_ID',
+              cuotaNumeroFinal ?? 'SIN_CUOTA',
               contexto?.tipoRegistro || (esAbono ? 'ABONO' : 'PAGO'),
               Number(montoPagado || 0),
             ].join(':')
@@ -2153,11 +2177,12 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
       }
 
       clearRegularizacionContext()
+      setVisitaPagoRegularizada(null)
       setIsLoading(false)
 
     }
 
-  }, [visitasBase, userSession?.id, pagoInitialIsAbono, cargarVisitasRuta, showMisClientes, cargarMisCreditos, cargarEstadisticasRuta])
+  }, [visitasBase, visitaPagoRegularizada, userSession?.id, pagoInitialIsAbono, cargarVisitasRuta, showMisClientes, cargarMisCreditos, cargarEstadisticasRuta])
 
   const handleCrearCredito = useCallback(async (data: any) => {
 
@@ -3954,7 +3979,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
           <PagoModal
 
-            visita={visitasCobrador.find((v: any) => v.id === visitaPagoSeleccionadaId)!}
+            visita={visitaPagoRegularizada || visitasCobrador.find((v: any) => v.id === visitaPagoSeleccionadaId)!}
 
             tipo={pagoInitialIsAbono ? 'ABONO' : 'PAGO'}
 
@@ -3963,10 +3988,13 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
               setShowPaymentModal(false)
 
               setVisitaPagoSeleccionadaId(null)
+              setVisitaPagoRegularizada(null)
 
               clearRegularizacionContext()
 
             }}
+            montoCuotaEsperadoOverride={(contextoRegularizacion as any)?.montoCuotaEsperado}
+            cuotaNumeroEsperadaOverride={(contextoRegularizacion as any)?.cuotaNumeroEsperada}
 
             onConfirm={async (monto: number, metodo: 'EFECTIVO' | 'TRANSFERENCIA', comprobante: File | null, contexto) => {
 
@@ -3975,6 +4003,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
               // Cerrar inmediatamente para UX
               setShowPaymentModal(false)
               setVisitaPagoSeleccionadaId(null)
+              setVisitaPagoRegularizada(null)
 
               // Registrar en background (y actualizar optimista)
               void handleRegistrarPago(visitaId, Number(monto || 0), metodo, comprobante, pagoInitialIsAbono, contexto)
@@ -4578,17 +4607,30 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
             }, 80)
           }}
           onRegistrarPago={(cliente, contextoRegularizacion) => {
-            const visita = visitasBase.find((v: any) => v.clienteId === cliente.clienteId)
-            if (!visita) {
+            const visitaBase = visitasBase.find((v: any) => v.clienteId === cliente.clienteId)
+            if (!visitaBase) {
               toast.error('No se encontró la visita del cliente.')
+              return
+            }
+
+            const target = buildRegularizedPaymentTarget({
+              rutaId,
+              cliente,
+              visitaBase,
+              contextoRegularizacion,
+            })
+
+            if (target.error) {
+              toast.error(target.error)
               return
             }
 
             setShowDetalleCierre(false)
 
             setTimeout(() => {
-              setRegularizacionContext(contextoRegularizacion)
-              setVisitaPagoSeleccionadaId(visita.id)
+              setRegularizacionContext(target.contextoPagoRegularizado)
+              setVisitaPagoRegularizada(target.visitaRegularizada as any)
+              setVisitaPagoSeleccionadaId(visitaBase.id)
               setPagoInitialIsAbono(false)
               setShowPaymentModal(true)
             }, 80)
@@ -4673,7 +4715,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
               canRegistrarPago: canSupervisarJornada || isCobrador,
               canMarcarAusente: canSupervisarJornada || isCobrador,
               canAnularAusencia: false,
-              canReprogramar: canSupervisarJornada || isCobrador,
+              canReprogramar: false,
               canVerPago: false,
               canVerComprobante: false,
               canAgregarObservacion: false,

@@ -214,6 +214,7 @@ import SundayNoticeBanner from '@/components/rutas/SundayNoticeBanner'
 import { useNotificaciones } from '@/components/providers/NotificacionesProvider'
 
 import {
+  buildRegularizedPaymentTarget,
   buildBogotaOffsetIsoFromKey,
   computeMontoExigibleHastaHoyFromCuotas,
   computeMontoNominalHastaHoyFromCuotas,
@@ -2964,7 +2965,7 @@ const VistaCobrador = () => {
     monto: number,
     metodo: 'EFECTIVO' | 'TRANSFERENCIA',
     comprobante: File | null,
-    contexto?: { tipoRegistro: 'PAGO' | 'ABONO'; cuotaNumeroEsperada?: number; montoCuotaEsperado: number },
+    contexto?: { tipoRegistro: 'PAGO' | 'ABONO'; cuotaNumeroEsperada?: number; montoCuotaEsperado: number; cuotaId?: string },
   ) => {
 
     const visitaSnapshot = visitaPagoSeleccionada
@@ -3028,9 +3029,24 @@ const VistaCobrador = () => {
 
 
 
+      const esCierrePendiente =
+        contextoRegularizacionSnapshot?.origenGestion === 'CIERRE_PENDIENTE'
+      const prestamoIdFinal = esCierrePendiente
+        ? contextoRegularizacionSnapshot?.prestamoId
+        : visitaSnapshot.prestamoId
+      const cuotaIdFinal = esCierrePendiente
+        ? contextoRegularizacionSnapshot?.cuotaId
+        : contexto?.cuotaId
+      const cuotaNumeroFinal = esCierrePendiente
+        ? contextoRegularizacionSnapshot?.cuotaNumeroEsperada
+        : contexto?.cuotaNumeroEsperada
+      const montoCuotaEsperadoFinal = esCierrePendiente
+        ? contextoRegularizacionSnapshot?.montoCuotaEsperado
+        : contexto?.montoCuotaEsperado
+
       const resultado = await pagosService.registrarPago({
 
-        prestamoId: visitaSnapshot.prestamoId,
+        prestamoId: prestamoIdFinal,
 
         clienteId: visitaSnapshot.clienteId,
 
@@ -3044,22 +3060,29 @@ const VistaCobrador = () => {
 
         tipoRegistro: contexto?.tipoRegistro || (esAbonoSnapshot ? 'ABONO' : 'PAGO'),
 
-        cuotaNumeroEsperada: contexto?.cuotaNumeroEsperada,
+        rutaId: esCierrePendiente ? contextoRegularizacionSnapshot?.rutaId : undefined,
 
-        montoCuotaEsperado: contexto?.montoCuotaEsperado,
+        cuotaId: cuotaIdFinal,
 
-        fechaOperativaRuta: contextoRegularizacionSnapshot?.fechaOperativa,
+        cuotaNumeroEsperada: cuotaNumeroFinal,
 
-        origenGestion: contextoRegularizacionSnapshot?.origenGestion,
+        montoCuotaEsperado: montoCuotaEsperadoFinal,
 
-        idempotencyKey: contextoRegularizacionSnapshot?.origenGestion === 'CIERRE_PENDIENTE'
+        fechaOperativaRuta: esCierrePendiente
+          ? (contextoRegularizacionSnapshot?.fechaOperativaRuta || contextoRegularizacionSnapshot?.fechaOperativa)
+          : undefined,
+
+        origenGestion: esCierrePendiente ? 'CIERRE_PENDIENTE' : undefined,
+
+        idempotencyKey: esCierrePendiente
           ? [
               'CIERRE_PENDIENTE',
               contextoRegularizacionSnapshot?.rutaId,
-              contextoRegularizacionSnapshot?.fechaOperativa,
+              contextoRegularizacionSnapshot?.fechaOperativaRuta || contextoRegularizacionSnapshot?.fechaOperativa,
               visitaSnapshot.clienteId,
-              visitaSnapshot.prestamoId,
-              contexto?.cuotaNumeroEsperada ?? 'SIN_CUOTA',
+              prestamoIdFinal,
+              cuotaIdFinal ?? 'SIN_CUOTA_ID',
+              cuotaNumeroFinal ?? 'SIN_CUOTA',
               contexto?.tipoRegistro || (esAbonoSnapshot ? 'ABONO' : 'PAGO'),
               Number(monto || 0),
             ].join(':')
@@ -5256,6 +5279,8 @@ const VistaCobrador = () => {
               clearRegularizacionContext()
 
             }}
+            montoCuotaEsperadoOverride={contextoRegularizacion?.montoCuotaEsperado}
+            cuotaNumeroEsperadaOverride={contextoRegularizacion?.cuotaNumeroEsperada}
 
             onConfirm={handleRegistrarPago}
 
@@ -5904,17 +5929,29 @@ const VistaCobrador = () => {
             }, 80)
           }}
           onRegistrarPago={(cliente, contextoRegularizacion) => {
-            const visita = visitasBase.find((v: any) => v.clienteId === cliente.clienteId)
-            if (!visita) {
+            const visitaBase = visitasBase.find((v: any) => v.clienteId === cliente.clienteId)
+            if (!visitaBase) {
               toast.error('No se encontró la visita del cliente.')
+              return
+            }
+
+            const target = buildRegularizedPaymentTarget({
+              rutaId: rutaActual?.id,
+              cliente,
+              visitaBase,
+              contextoRegularizacion,
+            })
+
+            if (target.error) {
+              toast.error(target.error)
               return
             }
 
             setShowDetalleCierre(false)
 
             setTimeout(() => {
-              setRegularizacionContext(contextoRegularizacion)
-              setVisitaPagoSeleccionada(visita)
+              setRegularizacionContext(target.contextoPagoRegularizado)
+              setVisitaPagoSeleccionada(target.visitaRegularizada as any)
               setPagoInitialIsAbono(false)
               setShowPaymentModal(true)
             }, 80)
@@ -5999,7 +6036,7 @@ const VistaCobrador = () => {
               canRegistrarPago: canSupervisarJornada || isCobrador,
               canMarcarAusente: canSupervisarJornada || isCobrador,
               canAnularAusencia: false,
-              canReprogramar: canSupervisarJornada || isCobrador,
+              canReprogramar: false,
               canVerPago: false,
               canVerComprobante: false,
               canAgregarObservacion: false,
