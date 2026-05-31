@@ -982,18 +982,20 @@ const RutaClientLoaded = ({
           ? Number(statsHoy.meta || 0)
           : Number(metaBackend ?? 0)
 
-        const recaudoFinal = Number(statsHoy.recaudo ?? recaudo ?? 0)
+        const recaudoFinal = periodoCards === 'HOY'
+          ? Number(statsHoy.recaudo ?? 0)
+          : Number(recaudo ?? 0)
 
         const pendienteHoy = periodoCards === 'HOY'
           ? Math.max(0, meta - recaudoFinal)
           : undefined
 
         const eficiencia = meta > 0
-          ? Math.min(100, Math.max(0, Number(((recaudo / meta) * 100).toFixed(1))))
+          ? Math.min(100, Math.max(0, Number(((recaudoFinal / meta) * 100).toFixed(1))))
           : Number(estadisticas?.avanceDiario ?? 0)
 
         setRutaStatsCards({
-          recaudo,
+          recaudo: recaudoFinal,
           meta,
           eficiencia,
           pendiente: pendienteHoy,
@@ -1022,18 +1024,20 @@ const RutaClientLoaded = ({
           ? Number(statsHoy.meta || 0)
           : Number(metaBackend ?? 0)
 
-        const recaudoFinal = Number(statsHoy.recaudo ?? recaudo ?? 0)
+        const recaudoFinal = periodoCards === 'HOY'
+          ? Number(statsHoy.recaudo ?? 0)
+          : Number(recaudo ?? 0)
 
         const pendienteHoy = periodoCards === 'HOY'
           ? Math.max(0, meta - recaudoFinal)
           : undefined
 
         const eficiencia = meta > 0
-          ? Math.min(100, Math.max(0, Number(((recaudo / meta) * 100).toFixed(1))))
+          ? Math.min(100, Math.max(0, Number(((recaudoFinal / meta) * 100).toFixed(1))))
           : Number(estadisticas?.avanceDiario ?? 0)
         setRutaStatsCards((prev) => ({
           ...prev,
-          recaudo,
+          recaudo: recaudoFinal,
           meta,
           eficiencia,
           pendiente: periodoCards === 'HOY' ? pendienteHoy : prev.pendiente,
@@ -2506,31 +2510,33 @@ const RutaClientLoaded = ({
                   : undefined,
               } as any);
 
-              // Actualización optimista: quitar estado de ausente si el cliente estaba marcado
-              const clienteIdPago = pagoActual.visita.clienteId;
-              setVisitasCobrador((prev) =>
-                (prev || []).map((v: any) => {
-                  if (v.clienteId !== clienteIdPago) return v
+              // Actualizacion optimista solo para pagos operativos de hoy.
+              if (!esCierrePendiente) {
+                const clienteIdPago = pagoActual.visita.clienteId;
+                setVisitasCobrador((prev) =>
+                  (prev || []).map((v: any) => {
+                    if (v.clienteId !== clienteIdPago) return v
 
-                  const estadoActual = String(v?.estado || '').toLowerCase()
+                    const estadoActual = String(v?.estado || '').toLowerCase()
 
-                  const estadoSinAusente =
-                    estadoActual === 'ausente'
-                      ? (
-                          Number(v?.diasMora || 0) > 0 || Boolean(v?.enMoraHistorico)
-                            ? 'en_mora'
-                            : 'pendiente'
-                        )
-                      : v.estado
+                    const estadoSinAusente =
+                      estadoActual === 'ausente'
+                        ? (
+                            Number(v?.diasMora || 0) > 0 || Boolean(v?.enMoraHistorico)
+                              ? 'en_mora'
+                              : 'pendiente'
+                          )
+                        : v.estado
 
-                  return {
-                    ...v,
-                    estado: estadoSinAusente,
-                    estadoVisita: undefined as any,
-                    notasVisita: undefined as any,
-                  }
-                })
-              );
+                    return {
+                      ...v,
+                      estado: estadoSinAusente,
+                      estadoVisita: undefined as any,
+                      notasVisita: undefined as any,
+                    }
+                  })
+                );
+              }
 
               showNotification('success', `${pagoActual.tipo === 'ABONO' ? 'Abono' : 'Pago'} registrado correctamente`, 'Éxito');
 

@@ -536,9 +536,11 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         const visitasParaMeta = Array.isArray(visitasBase)
           ? visitasBase.filter((v: any) => !isAusente(v))
           : []
-        const statsHoy = computeRutaHoyUiStatsFromVisitas(visitasParaMeta, recaudoBackend)
+        const statsHoy = computeRutaHoyUiStatsFromVisitas(visitasParaMeta, 0)
         const meta = statsHoy.meta || 0
-        const recaudo = recaudoBackend > 0 ? recaudoBackend : Number(prev.recaudo ?? 0)
+        const recaudo = periodoCards === 'HOY'
+          ? Number(statsHoy.recaudo || 0)
+          : (recaudoBackend > 0 ? recaudoBackend : Number(prev.recaudo ?? 0))
         const eficiencia = meta > 0
           ? Number(((recaudo / meta) * 100).toFixed(1))
           : Number(prev.eficiencia ?? 0)
@@ -1117,7 +1119,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
         setRutaStats((prev: any) => {
           if (periodoCards !== 'HOY') return prev
-          const recaudo = Math.max(Number(prev.recaudo || 0), statsHoy.recaudo)
+          const recaudo = Number(statsHoy.recaudo || 0)
           return {
             ...prev,
             meta: statsHoy.pendiente > 0 || recaudo > 0 ? statsHoy.pendiente + recaudo : 0,
@@ -1228,8 +1230,8 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
             : v,
         )
         const visitasSinAusentes = visitasActualizadas.filter((v: any) => !isAusente(v))
-        const statsHoy = computeRutaHoyUiStatsFromVisitas(visitasSinAusentes, Number(prev.recaudo || 0))
-        const recaudo = Math.max(Number(prev.recaudo || 0), statsHoy.recaudo)
+        const statsHoy = computeRutaHoyUiStatsFromVisitas(visitasSinAusentes, 0)
+        const recaudo = Number(statsHoy.recaudo || 0)
         return {
           ...prev,
           meta: statsHoy.meta || 0,
@@ -2105,40 +2107,42 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
       const clienteIdPago = visita.clienteId
 
-      setVisitasBase(prev => prev.map((v: any) => {
-        if (v.clienteId !== clienteIdPago) return v
+      if (!esCierrePendiente) {
+        setVisitasBase(prev => prev.map((v: any) => {
+          if (v.clienteId !== clienteIdPago) return v
 
-        const esVisitaPagada = v.id === visitaId
+          const esVisitaPagada = v.id === visitaId
 
-        const recPrevVisita = Number(v.recaudadoDelDia || 0)
-        const recNuevoVisita = esVisitaPagada
-          ? recPrevVisita + Number(montoPagado || 0)
-          : recPrevVisita
+          const recPrevVisita = Number(v.recaudadoDelDia || 0)
+          const recNuevoVisita = esVisitaPagada
+            ? recPrevVisita + Number(montoPagado || 0)
+            : recPrevVisita
 
-        const estabaAusente =
-          String(v?.estadoVisita || '').toLowerCase() === 'ausente' ||
-          String(v?.estado || '').toLowerCase() === 'ausente'
+          const estabaAusente =
+            String(v?.estadoVisita || '').toLowerCase() === 'ausente' ||
+            String(v?.estado || '').toLowerCase() === 'ausente'
 
-        const estadoSinAusente =
-          estabaAusente
-            ? (
-                Number(v?.diasMora || 0) > 0 || Boolean(v?.enMoraHistorico)
-                  ? 'en_mora'
-                  : 'pendiente'
-              )
-            : v.estado
+          const estadoSinAusente =
+            estabaAusente
+              ? (
+                  Number(v?.diasMora || 0) > 0 || Boolean(v?.enMoraHistorico)
+                    ? 'en_mora'
+                    : 'pendiente'
+                )
+              : v.estado
 
-        const cuota = Number(v.montoCuota || 0)
-        const cuotaCompletada = esVisitaPagada && cuota > 0 && recNuevoVisita >= cuota - 1
+          const cuota = Number(v.montoCuota || 0)
+          const cuotaCompletada = esVisitaPagada && cuota > 0 && recNuevoVisita >= cuota - 1
 
-        return {
-          ...v,
-          recaudadoDelDia: recNuevoVisita,
-          estado: cuotaCompletada ? 'pagado' : estadoSinAusente,
-          estadoVisita: undefined as any,
-          notasVisita: undefined as any,
-        }
-      }))
+          return {
+            ...v,
+            recaudadoDelDia: recNuevoVisita,
+            estado: cuotaCompletada ? 'pagado' : estadoSinAusente,
+            estadoVisita: undefined as any,
+            notasVisita: undefined as any,
+          }
+        }))
+      }
 
 
 
