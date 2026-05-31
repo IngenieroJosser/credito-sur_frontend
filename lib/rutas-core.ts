@@ -1,4 +1,5 @@
 import { mapFrecuenciaToPeriodo, type PeriodoRuta } from '@/lib/types/cobranza';
+import type { ClienteCierrePendiente } from '@/types/rutas/cierre-pendiente';
 
 // -----------------------------------------------------------------------------
 // Núcleo compartido de lógica para Rutas (Cobrador / Supervisor / Admin)
@@ -16,6 +17,79 @@ import { mapFrecuenciaToPeriodo, type PeriodoRuta } from '@/lib/types/cobranza';
 //   de negocio entre roles.
 
 const BOGOTA_TZ = 'America/Bogota';
+
+type RegularizedPaymentTargetInput = {
+  rutaId?: string;
+  cliente: ClienteCierrePendiente;
+  visitaBase: Record<string, any>;
+  contextoRegularizacion?: Record<string, any> | null;
+};
+
+type RegularizedPaymentTarget =
+  | {
+      error: string;
+      contextoPagoRegularizado?: never;
+      visitaRegularizada?: never;
+    }
+  | {
+      error?: undefined;
+      contextoPagoRegularizado: Record<string, any>;
+      visitaRegularizada: Record<string, any>;
+    };
+
+export const buildRegularizedPaymentTarget = ({
+  rutaId,
+  cliente,
+  visitaBase,
+  contextoRegularizacion,
+}: RegularizedPaymentTargetInput): RegularizedPaymentTarget => {
+  const cuota = cliente.cuotaObjetivo;
+  const prestamoId = cliente.prestamoObjetivoId || visitaBase?.prestamoId;
+  const cuotaId =
+    cliente.cuotaObjetivoId ||
+    cuota?.id ||
+    cliente.cuotaObjetivoPrestamoId;
+
+  if (!cuota || !prestamoId || !cuotaId) {
+    return { error: 'No se encontró la cuota objetivo para este pago regularizado.' };
+  }
+
+  if (!cuota.puedePagar) {
+    return {
+      error:
+        cuota.motivoBloqueoPago ||
+        'La cuota objetivo no está disponible para pago.',
+    };
+  }
+
+  const montoEsperado = Number(cuota.saldoExigibleEnFechaOperativa || 0);
+  const fechaOperativaRuta =
+    contextoRegularizacion?.fechaOperativaRuta ||
+    contextoRegularizacion?.fechaOperativa;
+
+  return {
+    contextoPagoRegularizado: {
+      ...(contextoRegularizacion || {}),
+      rutaId,
+      clienteId: cliente.clienteId,
+      prestamoId,
+      cuotaId,
+      cuotaNumeroEsperada: cuota.numeroCuota,
+      montoCuotaEsperado: montoEsperado,
+      fechaOperativaRuta,
+      origenGestion: 'CIERRE_PENDIENTE',
+    },
+    visitaRegularizada: {
+      ...visitaBase,
+      prestamoId,
+      cuotaActual: cuota.numeroCuota,
+      montoCuota: montoEsperado,
+      montoCuotaPendiente: montoEsperado,
+      saldoTotal: montoEsperado,
+      proximaVisita: cuota.fechaEfectiva || cuota.fechaVencimiento,
+    },
+  };
+};
 
 type BogotaParts = {
   year: string;
