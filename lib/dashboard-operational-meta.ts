@@ -50,7 +50,11 @@ export const computeOperationalMetaTotalForTimeFilter = async (
     try {
       const pagosResp: any = await apiRequest<any>('GET', '/payments?limit=5000', undefined, { cacheTTL: 0 } as any)
       const pagosData = (pagosResp as any)?.pagos || (pagosResp as any)?.data?.pagos || pagosResp || []
-      recaudosHoyMap = buildRecaudosHoyMapByPrestamoId((Array.isArray(pagosData) ? pagosData : []) as any, endKey)
+      recaudosHoyMap = buildRecaudosHoyMapByPrestamoId(
+        (Array.isArray(pagosData) ? pagosData : []) as any,
+        endKey,
+        { includeCierrePendiente: false },
+      )
     } catch {
       recaudosHoyMap = {}
     }
@@ -200,7 +204,11 @@ export const computeOperationalMetaByRouteIdsForTimeFilter = async (
     try {
       const pagosResp: any = await apiRequest<any>('GET', '/payments?limit=5000', undefined, { cacheTTL: 0 } as any)
       const pagosData = (pagosResp as any)?.pagos || (pagosResp as any)?.data?.pagos || pagosResp || []
-      recaudosHoyMap = buildRecaudosHoyMapByPrestamoId((Array.isArray(pagosData) ? pagosData : []) as any, endKey)
+      recaudosHoyMap = buildRecaudosHoyMapByPrestamoId(
+        (Array.isArray(pagosData) ? pagosData : []) as any,
+        endKey,
+        { includeCierrePendiente: false },
+      )
     } catch {
       recaudosHoyMap = {}
     }

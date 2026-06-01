@@ -130,6 +130,7 @@ import {
   computeMontoNominalHastaHoyFromCuotas,
   computeMetaHoyFromVisitas,
   computeRutaHoyUiStatsFromVisitas,
+  esDomingoBogota,
   getBogotaDateKey,
   getBogotaRangeByPeriod,
   getPagoBogotaDateKey,
@@ -453,7 +454,8 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
   const [rutaActivadaHoy, setRutaActivadaHoy] = useState(false)
 
 
-  const rutaOperable = rutaActivadaHoy && !rutaCompletada
+  const esDiaNoLaboral = esDomingoBogota()
+  const rutaOperable = rutaActivadaHoy && !rutaCompletada && !esDiaNoLaboral
 
 
   const [coordinadorToast, setCoordinadorToast] = useState<string | null>(null)
@@ -1074,7 +1076,11 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         // 1. Obtener recaudos hoy de forma masiva para confiabilidad total
         const pagosRecientesResp = await pagosService.obtenerPagos({ limit: 1000 });
         const pagosRecientes = (pagosRecientesResp as any)?.pagos || pagosRecientesResp || [];
-        const recaudosHoyMap = buildRecaudosHoyMapByPrestamoId(pagosRecientes as any, hoyBogota)
+        const recaudosHoyMap = buildRecaudosHoyMapByPrestamoId(
+          pagosRecientes as any,
+          hoyBogota,
+          { includeCierrePendiente: false },
+        )
 
         const { totalHistoricoByPrestamoId, ultimoPagoDateByPrestamoId } = indexPagosByPrestamoId(pagosRecientes as any)
 
@@ -1259,12 +1265,11 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
               : await pagosService.obtenerPagos({ clienteId, limit: 1000 });
 
             const pagosCalc = (pagosResp?.pagos || []);
-            totalHoy = pagosCalc.reduce((sum: number, pg: any) => {
-              const raw = pg.fechaPago || pg.creadoEn;
-              if (!raw) return sum;
-              const pDateStr = typeof raw === 'string' ? normalizeDateKey(raw) : getBogotaDateKey(raw);
-              return pDateStr === hoyBogota ? sum + Number(pg.montoTotal || 0) : sum;
-            }, 0);
+            totalHoy = sumMontoTotalPagosByBogotaDateKey(
+              pagosCalc,
+              hoyBogota,
+              { includeCierrePendiente: false },
+            );
           }
 
           setVisitasBase((prev: any) => prev.map((v: any) => {
@@ -1943,7 +1948,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
         if (cancelled) return
 
-        setRutaActivadaHoy(Boolean(resp?.activadaHoy))
+        setRutaActivadaHoy(Boolean(resp?.operableHoy ?? resp?.activadaHoy))
 
       } catch {
 
@@ -4716,7 +4721,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
               canExportarDetalle: false,
               canSolicitarCorreccion: false,
               canCerrarJornada: canAdministrarJornada,
-              canRegistrarPago: canSupervisarJornada || isCobrador,
+              canRegistrarPago: (canSupervisarJornada || isCobrador) && !esDiaNoLaboral,
               canMarcarAusente: canSupervisarJornada || isCobrador,
               canAnularAusencia: false,
               canReprogramar: false,

@@ -1,6 +1,32 @@
 import { applyPagosDelDiaToHistorialVisitas, buildHistorialDiaFromBackend } from '@/lib/ruta-historial'
 
 describe('buildHistorialDiaFromBackend', () => {
+  it('preserva recaudo operativo, regularizado y contable enviados por el backend', () => {
+    const result = buildHistorialDiaFromBackend({
+      fechaClave: '2026-05-27',
+      visitasResp: {
+        resumen: {
+          recaudo: 190000,
+          recaudoOperativo: 190000,
+          recaudoRegularizado: 10000,
+          recaudoContable: 200000,
+          meta: 250000,
+        },
+        visitas: [],
+      },
+      saldo: { recaudoDelDia: 200000 },
+      pagosDelDia: [],
+    })
+
+    expect(result.resumen).toMatchObject({
+      recaudo: 190000,
+      recaudoOperativo: 190000,
+      recaudoRegularizado: 10000,
+      recaudoContable: 200000,
+      meta: 250000,
+    })
+  })
+
   it('agrupa pagos sinteticos del mismo prestamo en una sola tarjeta de historial', () => {
     const result = buildHistorialDiaFromBackend({
       fechaClave: '2026-05-09',
