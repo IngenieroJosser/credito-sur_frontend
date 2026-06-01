@@ -312,6 +312,8 @@ export function CierrePendienteDetalleModal({
                     Number(resumen.recaudoOperativo ?? resumen.recaudo ?? 0),
                   )
                   const clientesPendientes = resumen.clientesPendientes ?? 0
+                  const clientesAusentes = resumen.clientesAusentes ?? 0
+                  const recaudoInsuficiente = Number(resumen.recaudoOperativo ?? resumen.recaudo ?? 0) < Number(resumen.meta ?? 0)
 
                   if (cumplimiento.excedente > 0) {
                     return (
@@ -324,6 +326,13 @@ export function CierrePendienteDetalleModal({
                     return (
                       <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-800">
                         Esta jornada todavía tiene {clientesPendientes} cliente(s) sin gestión. Regulariza o registra una observación antes de cerrar.
+                      </div>
+                    )
+                  }
+                  if (clientesAusentes > 0 || recaudoInsuficiente) {
+                    return (
+                      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-800">
+                        La jornada no tiene clientes sin gestión, pero presenta ausencias o descuadre de recaudo. Debe cerrarse con observación administrativa.
                       </div>
                     )
                   }
@@ -456,6 +465,13 @@ export function CierrePendienteDetalleModal({
                             value={cliente.estadoVisita || 'Sin registro'}
                           />
                         </div>
+
+                        {cliente.estadoGestion === 'PAGO_REGISTRADO' &&
+                          Number(cliente.recaudadoDelDia || 0) === 0 && (
+                            <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-bold text-amber-800">
+                              Visita pagada sin pago financiero asociado.
+                            </div>
+                          )}
                         
                         {cliente.cuotaObjetivo && (
                           <div className="mt-3 rounded-xl bg-blue-50 p-3 border border-blue-100">
