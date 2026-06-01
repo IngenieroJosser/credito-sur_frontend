@@ -582,7 +582,11 @@ const RutaClientLoaded = ({
       const pagosRecientesResp = await pagosService.obtenerPagos({ limit: 1000 });
       const todosPagos = (pagosRecientesResp as any)?.pagos || pagosRecientesResp || [];
 
-      const recaudosHoyMap = buildRecaudosHoyMapByPrestamoId(todosPagos as any, hoyBogota)
+      const recaudosHoyMap = buildRecaudosHoyMapByPrestamoId(
+        todosPagos as any,
+        hoyBogota,
+        { includeCierrePendiente: false },
+      )
 
       const { totalHistoricoByPrestamoId, ultimoPagoDateByPrestamoId } = indexPagosByPrestamoId(todosPagos as any)
 
@@ -867,7 +871,7 @@ const RutaClientLoaded = ({
     if (!initialRuta?.id) return
     try {
       const resp = await routesService.getActivacionHoy(initialRuta.id)
-      setRutaActivadaHoy(Boolean(resp?.activadaHoy))
+      setRutaActivadaHoy(Boolean(resp?.operableHoy ?? resp?.activadaHoy))
     } catch (e) {
       // ignore
     }
@@ -882,7 +886,7 @@ const RutaClientLoaded = ({
     try {
       setLoadingActivacionHoy(true)
       const resp = await routesService.activarHoy(initialRuta.id)
-      setRutaActivadaHoy(Boolean(resp?.activadaHoy))
+      setRutaActivadaHoy(Boolean(resp?.operableHoy ?? resp?.activadaHoy))
       showNotification('success', resp?.message || 'Ruta activada para hoy correctamente', 'Éxito')
     } catch (error: any) {
       console.error('Error activando ruta del día:', error)
@@ -913,7 +917,7 @@ const RutaClientLoaded = ({
     }
   }
 
-  const rutaOperable = rutaActivadaHoy && !rutaCompletada
+  const rutaOperable = rutaActivadaHoy && !rutaCompletada && !esDiaNoLaboral
 
 
 
@@ -972,7 +976,10 @@ const RutaClientLoaded = ({
         const visitasParaMeta = Array.isArray(visitasCobrador)
           ? visitasCobrador.filter((v: any) => !isAusente(v))
           : []
-        const statsHoy = computeRutaHoyUiStatsFromVisitas(visitasParaMeta, recaudo)
+        const statsHoy = computeRutaHoyUiStatsFromVisitas(
+          visitasParaMeta,
+          periodoCards === 'HOY' ? 0 : recaudo,
+        )
 
         const metaBackendRaw = estadisticas?.metaDelDia
         const hasMetaBackend = metaBackendRaw !== null && metaBackendRaw !== undefined
@@ -982,18 +989,20 @@ const RutaClientLoaded = ({
           ? Number(statsHoy.meta || 0)
           : Number(metaBackend ?? 0)
 
-        const recaudoFinal = Number(statsHoy.recaudo ?? recaudo ?? 0)
+        const recaudoFinal = periodoCards === 'HOY'
+          ? Number(statsHoy.recaudo ?? 0)
+          : Number(recaudo ?? 0)
 
         const pendienteHoy = periodoCards === 'HOY'
           ? Math.max(0, meta - recaudoFinal)
           : undefined
 
         const eficiencia = meta > 0
-          ? Math.min(100, Math.max(0, Number(((recaudo / meta) * 100).toFixed(1))))
+          ? Math.min(100, Math.max(0, Number(((recaudoFinal / meta) * 100).toFixed(1))))
           : Number(estadisticas?.avanceDiario ?? 0)
 
         setRutaStatsCards({
-          recaudo,
+          recaudo: recaudoFinal,
           meta,
           eficiencia,
           pendiente: pendienteHoy,
@@ -1012,7 +1021,10 @@ const RutaClientLoaded = ({
         const visitasParaMeta = Array.isArray(visitasCobrador)
           ? visitasCobrador.filter((v: any) => !isAusente(v))
           : []
-        const statsHoy = computeRutaHoyUiStatsFromVisitas(visitasParaMeta, recaudo)
+        const statsHoy = computeRutaHoyUiStatsFromVisitas(
+          visitasParaMeta,
+          periodoCards === 'HOY' ? 0 : recaudo,
+        )
 
         const metaBackendRaw = estadisticas?.metaDelDia
         const hasMetaBackend = metaBackendRaw !== null && metaBackendRaw !== undefined
@@ -1022,18 +1034,20 @@ const RutaClientLoaded = ({
           ? Number(statsHoy.meta || 0)
           : Number(metaBackend ?? 0)
 
-        const recaudoFinal = Number(statsHoy.recaudo ?? recaudo ?? 0)
+        const recaudoFinal = periodoCards === 'HOY'
+          ? Number(statsHoy.recaudo ?? 0)
+          : Number(recaudo ?? 0)
 
         const pendienteHoy = periodoCards === 'HOY'
           ? Math.max(0, meta - recaudoFinal)
           : undefined
 
         const eficiencia = meta > 0
-          ? Math.min(100, Math.max(0, Number(((recaudo / meta) * 100).toFixed(1))))
+          ? Math.min(100, Math.max(0, Number(((recaudoFinal / meta) * 100).toFixed(1))))
           : Number(estadisticas?.avanceDiario ?? 0)
         setRutaStatsCards((prev) => ({
           ...prev,
-          recaudo,
+          recaudo: recaudoFinal,
           meta,
           eficiencia,
           pendiente: periodoCards === 'HOY' ? pendienteHoy : prev.pendiente,
@@ -2506,31 +2520,33 @@ const RutaClientLoaded = ({
                   : undefined,
               } as any);
 
-              // Actualización optimista: quitar estado de ausente si el cliente estaba marcado
-              const clienteIdPago = pagoActual.visita.clienteId;
-              setVisitasCobrador((prev) =>
-                (prev || []).map((v: any) => {
-                  if (v.clienteId !== clienteIdPago) return v
+              // Actualizacion optimista solo para pagos operativos de hoy.
+              if (!esCierrePendiente) {
+                const clienteIdPago = pagoActual.visita.clienteId;
+                setVisitasCobrador((prev) =>
+                  (prev || []).map((v: any) => {
+                    if (v.clienteId !== clienteIdPago) return v
 
-                  const estadoActual = String(v?.estado || '').toLowerCase()
+                    const estadoActual = String(v?.estado || '').toLowerCase()
 
-                  const estadoSinAusente =
-                    estadoActual === 'ausente'
-                      ? (
-                          Number(v?.diasMora || 0) > 0 || Boolean(v?.enMoraHistorico)
-                            ? 'en_mora'
-                            : 'pendiente'
-                        )
-                      : v.estado
+                    const estadoSinAusente =
+                      estadoActual === 'ausente'
+                        ? (
+                            Number(v?.diasMora || 0) > 0 || Boolean(v?.enMoraHistorico)
+                              ? 'en_mora'
+                              : 'pendiente'
+                          )
+                        : v.estado
 
-                  return {
-                    ...v,
-                    estado: estadoSinAusente,
-                    estadoVisita: undefined as any,
-                    notasVisita: undefined as any,
-                  }
-                })
-              );
+                    return {
+                      ...v,
+                      estado: estadoSinAusente,
+                      estadoVisita: undefined as any,
+                      notasVisita: undefined as any,
+                    }
+                  })
+                );
+              }
 
               showNotification('success', `${pagoActual.tipo === 'ABONO' ? 'Abono' : 'Pago'} registrado correctamente`, 'Éxito');
 
@@ -3053,7 +3069,7 @@ const RutaClientLoaded = ({
             canExportarDetalle: false,
             canSolicitarCorreccion: false,
             canCerrarJornada: canAdministrarJornada,
-            canRegistrarPago: canSupervisarJornada || isCobrador,
+            canRegistrarPago: (canSupervisarJornada || isCobrador) && !esDiaNoLaboral,
             canMarcarAusente: canSupervisarJornada || isCobrador,
             canAnularAusencia: false,
             canReprogramar: false,

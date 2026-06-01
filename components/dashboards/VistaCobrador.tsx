@@ -220,6 +220,7 @@ import {
   computeMontoNominalHastaHoyFromCuotas,
   computeMetaHoyFromVisitas,
   computeRutaHoyUiStatsFromVisitas,
+  esDomingoBogota,
   getBogotaDateKey,
   getBogotaRangeByPeriod,
   getLocalDateKey,
@@ -716,7 +717,9 @@ const VistaCobrador = () => {
 
         ...prev,
 
-        recaudo: Number(saldo?.recaudoDelDia ?? 0),
+        recaudo: periodoCards === 'HOY'
+          ? Number(prev.recaudo ?? 0)
+          : Number(saldo?.recaudoDelDia ?? 0),
 
         gastos: Number(saldo?.gastosDelDia ?? 0),
 
@@ -1032,7 +1035,7 @@ const VistaCobrador = () => {
 
         if (cancelled) return
 
-        setRutaActivadaHoy(Boolean(resp?.activadaHoy))
+        setRutaActivadaHoy(Boolean(resp?.operableHoy ?? resp?.activadaHoy))
 
       } catch {
 
@@ -1054,7 +1057,8 @@ const VistaCobrador = () => {
 
 
 
-  const rutaOperable = rutaActivadaHoy && !rutaCompletada
+  const esDiaNoLaboral = esDomingoBogota()
+  const rutaOperable = rutaActivadaHoy && !rutaCompletada && !esDiaNoLaboral
 
   const visitasBaseRef = useRef<any[]>([])
   useEffect(() => {
@@ -1197,9 +1201,13 @@ const VistaCobrador = () => {
           
           setRutaStats(prev => ({
             ...prev,
-            recaudo: Number(saldo?.cobranzaDelDia ?? saldo?.recaudoDelDia ?? est.cobranzaDelDia ?? 0),
+            recaudo: periodoCardsRef.current === 'HOY'
+              ? Number(prev?.recaudo || 0)
+              : Number(saldo?.cobranzaDelDia ?? saldo?.recaudoDelDia ?? est.cobranzaDelDia ?? 0),
             meta: est.metaDelDia != null ? Number(est.metaDelDia) : Number(prev?.meta || 0),
-            eficiencia: (est.metaDelDia > 0) ? Math.round((Number(saldo?.cobranzaDelDia ?? saldo?.recaudoDelDia ?? 0) / est.metaDelDia) * 100) : Number(est.avanceDiario ?? 0),
+            eficiencia: periodoCardsRef.current === 'HOY'
+              ? Number(prev?.eficiencia || 0)
+              : ((est.metaDelDia > 0) ? Math.round((Number(saldo?.cobranzaDelDia ?? saldo?.recaudoDelDia ?? 0) / est.metaDelDia) * 100) : Number(est.avanceDiario ?? 0)),
             gastos: Number(saldo?.gastosDelDia ?? 0),
             base: Number(saldo?.saldoCaja ?? saldo?.baseEfectivo ?? 0)
           }));
@@ -1207,7 +1215,9 @@ const VistaCobrador = () => {
           console.error("Error al obtener saldo de la ruta:", errSaldo);
           setRutaStats(prev => ({
             ...prev,
-            recaudo: Number(est.cobranzaDelDia ?? 0),
+            recaudo: periodoCardsRef.current === 'HOY'
+              ? Number(prev?.recaudo || 0)
+              : Number(est.cobranzaDelDia ?? 0),
             meta: est.metaDelDia != null ? Number(est.metaDelDia) : Number(prev?.meta || 0),
             eficiencia: Number(est.avanceDiario ?? 0),
             gastos: 0,
@@ -1360,7 +1370,11 @@ const VistaCobrador = () => {
         try {
           const pagosResp = await pagosService.obtenerPagos({ limit: 5000 })
           const pagosData = (pagosResp as any)?.pagos || pagosResp || []
-          const recaudosHoyMap = buildRecaudosHoyMapByPrestamoId(pagosData as any, hoyKey)
+          const recaudosHoyMap = buildRecaudosHoyMapByPrestamoId(
+            pagosData as any,
+            hoyKey,
+            { includeCierrePendiente: false },
+          )
           visitasEnriquecidas = applyRecaudoHoyToVisitas(visitasEnriquecidas as any, {
             hoyBogotaKey: hoyKey,
             recaudosHoyMap,
@@ -1607,7 +1621,11 @@ const VistaCobrador = () => {
              : await pagosService.obtenerPagos({ clienteId, limit: 1000 });
            const pagosCalc = (pagosResp?.pagos || []);
            const hoyBogota = hoyBogotaKey
-           const recaudosHoyMap = buildRecaudosHoyMapByPrestamoId(pagosCalc as any, hoyBogota)
+           const recaudosHoyMap = buildRecaudosHoyMapByPrestamoId(
+             pagosCalc as any,
+             hoyBogota,
+             { includeCierrePendiente: false },
+           )
            totalHoy = prestamoId ? Number(recaudosHoyMap[prestamoId] || 0) : 0
         }
 
@@ -2352,9 +2370,6 @@ const VistaCobrador = () => {
   const rutaStatsUI = useMemo(() => {
     if (periodoCards !== 'HOY') return rutaStats
 
-    const recaudo = Number((rutaStats as any)?.recaudo || 0)
-    const metaFija = Number((rutaStats as any)?.meta || 0)
-
     const isAusente = (v: any) => {
       const estadoVisita = String(v?.estadoVisita || '').toLowerCase()
       const estado = String(v?.estado || '').toLowerCase()
@@ -2365,7 +2380,7 @@ const VistaCobrador = () => {
       ? visitasCobrador.filter((v: any) => !isAusente(v))
       : []
 
-    const statsPorVisitas = computeRutaHoyUiStatsFromVisitas(visitasParaMetaFiltradas, recaudo)
+    const statsPorVisitas = computeRutaHoyUiStatsFromVisitas(visitasParaMetaFiltradas, 0)
     const recaudoFinal = statsPorVisitas.recaudo
     // Usar statsPorVisitas.meta (que excluye ausentes) en lugar de metaFija
     const meta = statsPorVisitas.meta || 0
@@ -3126,43 +3141,45 @@ const VistaCobrador = () => {
 
       const clienteIdPago = visitaSnapshot.clienteId
 
-      setVisitasBase((prev) =>
-        prev.map((v) => {
-          if (v.clienteId !== clienteIdPago) return v
+      if (!esCierrePendiente) {
+        setVisitasBase((prev) =>
+          prev.map((v) => {
+            if (v.clienteId !== clienteIdPago) return v
 
-          const esVisitaPagada = v.id === visitaSnapshot.id
+            const esVisitaPagada = v.id === visitaSnapshot.id
 
-          const recaudadoPrev = Number((v as any).recaudadoDelDia || 0)
-          const recaudadoNuevo = esVisitaPagada
-            ? recaudadoPrev + Number(monto || 0)
-            : recaudadoPrev
+            const recaudadoPrev = Number((v as any).recaudadoDelDia || 0)
+            const recaudadoNuevo = esVisitaPagada
+              ? recaudadoPrev + Number(monto || 0)
+              : recaudadoPrev
 
-          const estadoBase = isAusente(v)
-            ? resolveEstadoSinAusente(v)
-            : v.estado
+            const estadoBase = isAusente(v)
+              ? resolveEstadoSinAusente(v)
+              : v.estado
 
-          const nextEstado = esVisitaPagada
-            ? (
-                esAbonoSnapshot
-                  ? estadoBase
-                  : ajustarEstadoConPago({
-                      ...(v as any),
-                      estado: estadoBase,
-                      estadoVisita: undefined,
-                      recaudadoDelDia: recaudadoNuevo,
-                    } as any)
-              )
-            : estadoBase
+            const nextEstado = esVisitaPagada
+              ? (
+                  esAbonoSnapshot
+                    ? estadoBase
+                    : ajustarEstadoConPago({
+                        ...(v as any),
+                        estado: estadoBase,
+                        estadoVisita: undefined,
+                        recaudadoDelDia: recaudadoNuevo,
+                      } as any)
+                )
+              : estadoBase
 
-          return {
-            ...v,
-            recaudadoDelDia: recaudadoNuevo,
-            estado: nextEstado as any,
-            estadoVisita: undefined as any,
-            notasVisita: undefined as any,
-          }
-        }),
-      )
+            return {
+              ...v,
+              recaudadoDelDia: recaudadoNuevo,
+              estado: nextEstado as any,
+              estadoVisita: undefined as any,
+              notasVisita: undefined as any,
+            }
+          }),
+        )
+      }
 
       // Si completó lo exigible de HOY, NO eliminar del estado local.
       // Mantenerla como 'pagado' evita que un refresh/realtime la re-inserte con estado viejo;
@@ -3174,13 +3191,15 @@ const VistaCobrador = () => {
 
       const montoRegistrado = Number(resultado?.descomposicion?.montoTotal ?? monto);
 
-      setRutaStats(prev => {
+      if (!esCierrePendiente) {
+        setRutaStats(prev => {
 
-        const nuevoRecaudo = prev.recaudo + montoRegistrado;
-        const nuevaEficiencia = prev.meta > 0 ? parseFloat(((nuevoRecaudo / prev.meta) * 100).toFixed(1)) : prev.eficiencia;
+          const nuevoRecaudo = prev.recaudo + montoRegistrado;
+          const nuevaEficiencia = prev.meta > 0 ? parseFloat(((nuevoRecaudo / prev.meta) * 100).toFixed(1)) : prev.eficiencia;
 
-        return { ...prev, recaudo: nuevoRecaudo, eficiencia: nuevaEficiencia };
-      });
+          return { ...prev, recaudo: nuevoRecaudo, eficiencia: nuevaEficiencia };
+        });
+      }
 
       // Reconciliar una sola vez contra backend.
       try {
@@ -6033,7 +6052,7 @@ const VistaCobrador = () => {
               canExportarDetalle: false,
               canSolicitarCorreccion: false,
               canCerrarJornada: canAdministrarJornada,
-              canRegistrarPago: canSupervisarJornada || isCobrador,
+              canRegistrarPago: (canSupervisarJornada || isCobrador) && !esDiaNoLaboral,
               canMarcarAusente: canSupervisarJornada || isCobrador,
               canAnularAusencia: false,
               canReprogramar: false,

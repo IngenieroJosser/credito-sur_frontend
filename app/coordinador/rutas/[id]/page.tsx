@@ -97,6 +97,7 @@ import { prestamosService } from '@/services/prestamos-service'
 import { pagosService } from '@/services/pagos-service'
 
 import { computeRutaHoyUiStatsFromVisitas, getBogotaDateKey, isVisitaExigibleHoy, normalizeDateKey, toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
+import { sumMontoTotalPagosByBogotaDateKey } from '@/lib/ruta-recaudos'
 
 import { exportService } from '@/services/export-service'
 
@@ -735,15 +736,11 @@ const LegacyDetalleRutaPage = () => {
 
                 
 
-                const totalHoy = pagosCalc.reduce((sum: number, p: any) => {
-
-                  const raw = p.fechaPago || p.creadoEn;
-
-                  const f = raw ? (raw.includes('T') ? raw.split('T')[0] : raw) : '';
-
-                  return f === hoyStr ? sum + Number(p.montoTotal || 0) : sum;
-
-                }, 0);
+                const totalHoy = sumMontoTotalPagosByBogotaDateKey(
+                  pagosCalc,
+                  hoyStr,
+                  { includeCierrePendiente: false },
+                );
 
                 
 
@@ -798,7 +795,7 @@ const LegacyDetalleRutaPage = () => {
             const cobranzaDia = finales.reduce((acc: number, curr: any) => acc + (curr.recaudadoDelDia || 0), 0)
             const hoyBogota = getBogotaDateKey(new Date());
             const finalesKpiHoy = finales.filter(v => isVisitaExigibleHoy(v, hoyBogota));
-            const statsHoy = computeRutaHoyUiStatsFromVisitas(finalesKpiHoy as any[], cobranzaDia);
+            const statsHoy = computeRutaHoyUiStatsFromVisitas(finalesKpiHoy as any[], 0);
             const metaDia = statsHoy.meta;
             const progresoAvance = metaDia > 0 ? (statsHoy.recaudo / metaDia) * 100 : 0
 

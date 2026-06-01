@@ -2,6 +2,10 @@ import type { VisitaRuta } from '@/lib/types/cobranza'
 
 type Resumen = {
   recaudo: number
+  recaudoOperativo?: number
+  recaudoRegularizado?: number
+  recaudoContable?: number
+  meta?: number
   gastos: number
   efectividad: number
   visitados: number
@@ -357,10 +361,22 @@ export const buildHistorialDiaFromBackend = (params: {
   //   Nota: este esperado usa montoCuota por visita (fallback); para historial profundo,
   //   la efectividad "exacta" depende de reglas de negocio del backend.
   const esperado = filteredVisitas.reduce((sum: number, v: any) => sum + Number(v?.montoCuota || 0), 0)
+  const backendResumen = (visitasResp as any)?.resumen || {}
+  const pagos = Array.isArray(pagosDelDia) ? pagosDelDia : []
+  const isCierrePendiente = (p: any) =>
+    String(p?.origenGestion || '').toUpperCase() === 'CIERRE_PENDIENTE'
+  const fallbackRecaudoOperativo = pagos.reduce((s: number, p: any) => s + Number(p?.montoTotal || 0), 0)
+  const fallbackRecaudoRegularizado = pagos
+    .filter(isCierrePendiente)
+    .reduce((s: number, p: any) => s + Number(p?.montoTotal || 0), 0)
+  const fallbackRecaudoContable = fallbackRecaudoOperativo
+
   const recaudoDia =
-    Number((saldo as any)?.recaudoDelDia ?? 0) > 0
-      ? Number((saldo as any)?.recaudoDelDia ?? 0)
-      : (pagosDelDia || []).reduce((s: number, p: any) => s + Number(p?.montoTotal || 0), 0)
+    Number(backendResumen?.recaudo ?? 0) > 0
+      ? Number(backendResumen.recaudo)
+      : Number((saldo as any)?.recaudoDelDia ?? 0) > 0
+        ? Number((saldo as any)?.recaudoDelDia ?? 0)
+        : fallbackRecaudoOperativo
 
   // `visitados` se define como:
   // - visitas con recaudo del día > 0
@@ -377,6 +393,10 @@ export const buildHistorialDiaFromBackend = (params: {
 
   const resumen: Resumen = {
     recaudo: recaudoDia,
+    recaudoOperativo: Number(backendResumen?.recaudoOperativo ?? backendResumen?.recaudo ?? recaudoDia),
+    recaudoRegularizado: Number(backendResumen?.recaudoRegularizado ?? fallbackRecaudoRegularizado),
+    recaudoContable: Number(backendResumen?.recaudoContable ?? fallbackRecaudoContable),
+    meta: Number(backendResumen?.meta ?? esperado),
     gastos: Number((saldo as any)?.gastosDelDia ?? 0),
     efectividad,
     visitados,

@@ -14,9 +14,26 @@ import { getPagoBogotaDateKey, shouldMarkVisitaAsPagado } from '@/lib/rutas-core
 //   arrays vacíos, etc.), por eso se normaliza defensivamente.
 // ============================================================================
 
+type PagoFilterOptions = {
+  includeCierrePendiente?: boolean
+}
+
+export const isPagoCierrePendiente = (pago: any): boolean => {
+  return String(pago?.origenGestion || '').toUpperCase() === 'CIERRE_PENDIENTE'
+}
+
+const shouldIncludePagoForOperationalToday = (
+  pago: any,
+  options?: PagoFilterOptions,
+): boolean => {
+  if (options?.includeCierrePendiente) return true
+  return !isPagoCierrePendiente(pago)
+}
+
 export const buildRecaudosHoyMapByPrestamoId = (
   pagosRecientes: any[],
   hoyBogotaKey: string,
+  options?: PagoFilterOptions,
 ): Record<string, number> => {
   // Construye un diccionario { [prestamoId]: totalRecaudadoHoy }.
   //
@@ -26,6 +43,8 @@ export const buildRecaudosHoyMapByPrestamoId = (
   const recaudosHoyMap: Record<string, number> = {}
 
   ;(Array.isArray(pagosRecientes) ? pagosRecientes : []).forEach((p: any) => {
+    if (!shouldIncludePagoForOperationalToday(p, options)) return
+
     const rawDate = p?.fechaPago || p?.creadoEn
     if (!rawDate) return
 
@@ -45,10 +64,13 @@ export const buildRecaudosHoyMapByPrestamoId = (
 export const sumMontoTotalPagosByBogotaDateKey = (
   pagos: any[],
   targetBogotaKey: string,
+  options?: PagoFilterOptions,
 ): number => {
   // Suma el montoTotal de una lista de pagos que pertenezcan a un día específico
   // (comparación por llave Bogotá YYYY-MM-DD).
   return (Array.isArray(pagos) ? pagos : []).reduce((sum: number, p: any) => {
+    if (options && !shouldIncludePagoForOperationalToday(p, options)) return sum
+
     const rawDate = p?.fechaPago || p?.creadoEn
     if (!rawDate) return sum
 
