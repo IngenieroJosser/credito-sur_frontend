@@ -503,9 +503,13 @@ export function CierrePendienteDetalleModal({
                             const cuota = cliente.cuotaObjetivo
                             const puedeRegistrarPagoRegularizado =
                               Boolean(cuota?.puedePagar) &&
+                              Number(cuota?.saldoExigibleEnFechaOperativa || 0) > 0 &&
                               Boolean(cliente.prestamoObjetivoId) &&
                               Boolean(cliente.cuotaObjetivoId || cuota?.id || cliente.cuotaObjetivoPrestamoId)
-                            const puedeMarcarAusente = estado === 'PENDIENTE'
+                            const puedeMarcarAusente =
+                              estado === 'PENDIENTE' &&
+                              Number(cuota?.saldoExigibleEnFechaOperativa || 0) > 0 &&
+                              !cuota?.esCuotaPagadaHistorica
 
                             const clienteId = cliente.clienteId || cliente.asignacionId
                             if (!clienteId) return null
