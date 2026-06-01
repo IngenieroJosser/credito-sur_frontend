@@ -32,7 +32,7 @@ import { formatCurrency, cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 import { routesService } from '@/services/routes-service';
 import {
-  getBogotaDateKey,
+  esDomingoBogota,
 } from '@/lib/rutas-core'
 import { clientesService } from '@/services/clientes-service';
 import { useNotification } from '@/components/providers/NotificationProvider';
@@ -55,6 +55,8 @@ interface Ruta {
   clientesAsignados: number;
   clientesNuevos: number;
   cobranzaDelDia: number;
+  recaudoRegularizadoHoy?: number;
+  recaudoContableHoy?: number;
   metaDelDia: number;
   descripcion?: string;
   nivelRiesgo?: string;
@@ -212,31 +214,10 @@ export const RutasPageView = ({
         : (Array.isArray((payload as any)?.data) ? (payload as any).data : [])
 
       if (Array.isArray(data) && data.length > 0) {
-        const hoyBogota = getBogotaDateKey(new Date())
-        // metaDelDia ya viene calculada correctamente por el backend en findAll.
-        // Solo enriquecemos cobranzaDelDia con datos frescos del saldo de caja
-        // para reflejar pagos procesados después del último TTL de caché.
-        const enriched = await Promise.all(
-          (data as Ruta[]).map(async (r: Ruta) => {
-            if (r?.estado !== 'ACTIVA') return r;
-            try {
-              const saldoResp = await obtenerSaldoDisponibleRuta(r.id, hoyBogota)
-              const cobranzaFromSaldo = Number(saldoResp?.cobranzaDelDia ?? saldoResp?.recaudoDelDia ?? 0)
-              const cobranzaDelDia = Math.max(cobranzaFromSaldo, Number(r.cobranzaDelDia || 0))
-              const backendMeta = Number(r.metaDelDia || 0)
-              const backendCobranza = Number(r.cobranzaDelDia || 0)
-              const pendienteNominal = Math.max(0, backendMeta - backendCobranza)
-              const metaDelDia = pendienteNominal > 0
-                ? pendienteNominal + cobranzaDelDia
-                : Math.max(backendMeta, cobranzaDelDia)
-              return { ...r, cobranzaDelDia, metaDelDia }
-            } catch {
-              return r;
-            }
-          })
-        );
-
-        setRutasList(enriched as unknown as Ruta[]);
+        // La fuente de verdad del avance operativo es routesService.getAll.
+        // No se mezcla con saldo de caja porque ahí entran regularizaciones,
+        // bases y movimientos contables que no son productividad de HOY.
+        setRutasList(data as Ruta[]);
       }
     } catch {
       try {
@@ -584,11 +565,15 @@ export const RutasPageView = ({
     }
   }, [rutasBasePath, vista])
 
+  const esDiaNoLaboral = esDomingoBogota()
   const rutasActivas = displayRutas.filter((ruta) => ruta.estado === 'ACTIVA').length
+  const rutasOperativasHoy = esDiaNoLaboral
+    ? 0
+    : displayRutas.filter((ruta) => ruta.estado === 'ACTIVA' && ruta.clientesAsignados > 0).length
   const rutasPendientes = displayRutas.filter((ruta) => ruta.estado === 'PENDIENTE_ACTIVACION').length
   const totalClientes = displayRutas.reduce((acc, curr) => acc + curr.clientesAsignados, 0)
 
-  const { objetivoTotalShown, cobranzaTotal, porcentajeAvance } = useMemo(() => {
+  const { objetivoTotalShown, porcentajeAvance } = useMemo(() => {
     const rutasOperativas = (Array.isArray(displayRutas) ? displayRutas : []).filter((r: any) => r && r.estado === 'ACTIVA' && r.clientesAsignados > 0)
 
     if (process.env.NODE_ENV !== 'production') {
@@ -607,17 +592,30 @@ export const RutasPageView = ({
       return acc + meta
     }, 0)
 
-    const recTotal = rutasOperativas.reduce((acc, curr) => {
+    const recTotal = esDiaNoLaboral ? 0 : rutasOperativas.reduce((acc, curr) => {
       const recaudo = Number(curr?.cobranzaDelDia ?? 0)
       return acc + recaudo
     }, 0)
 
     return {
       objetivoTotalShown: objetivoTotal,
-      cobranzaTotal: recTotal,
       porcentajeAvance: objetivoTotal > 0 ? Math.min(100, (recTotal / objetivoTotal) * 100) : 0,
     }
-  }, [displayRutas])
+  }, [displayRutas, esDiaNoLaboral])
+
+  const getRecaudoOperativoRuta = useCallback(
+    (ruta: Ruta) => esDiaNoLaboral ? 0 : Number(ruta?.cobranzaDelDia || 0),
+    [esDiaNoLaboral],
+  )
+
+  const getAvanceOperativoRuta = useCallback(
+    (ruta: Ruta) => {
+      const meta = Number(ruta?.metaDelDia || 0)
+      if (meta <= 0) return 0
+      return Math.min(100, (getRecaudoOperativoRuta(ruta) / meta) * 100)
+    },
+    [getRecaudoOperativoRuta],
+  )
 
   // Determine risk color classes
   const getRiesgoColor = (riesgo: string) => {
@@ -688,7 +686,14 @@ export const RutasPageView = ({
             {!readOnly && currentUser?.rol !== 'COBRADOR' && (
               <button
                 onClick={() => setShowCrearCreditoModal(true)}
-                className="inline-flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 shadow-sm font-bold text-sm group"
+                disabled={esDiaNoLaboral}
+                title={esDiaNoLaboral ? 'Domingo no laborable: creación operativa deshabilitada' : 'Crear crédito'}
+                className={cn(
+                  'inline-flex items-center gap-2 px-6 py-2.5 rounded-xl transition-all duration-200 shadow-sm font-bold text-sm group',
+                  esDiaNoLaboral
+                    ? 'cursor-not-allowed bg-slate-200 text-slate-500'
+                    : 'bg-blue-600 text-white hover:bg-blue-700',
+                )}
               >
                 <Plus className="w-4 h-4" />
                 <span>Crear Crédito</span>
@@ -704,22 +709,22 @@ export const RutasPageView = ({
               {
                 label: 'Rutas Activas',
                 value: rutasActivas,
-                sub: 'Operativas hoy',
+                sub: 'Habilitadas en sistema',
                 icon: MapPin,
                 color: 'text-slate-900',
-                subColor: 'text-emerald-600',
+                subColor: 'text-slate-500',
                 iconColor: 'text-emerald-600',
                 bgIcon: 'bg-emerald-50',
               },
               {
-                label: 'Clientes Asignados',
-                value: totalClientes,
-                sub: `En ${rutasActivas} rutas`,
-                icon: Users,
+                label: 'Operativas hoy',
+                value: rutasOperativasHoy,
+                sub: esDiaNoLaboral ? 'Domingo no laborable' : `De ${rutasActivas} activas`,
+                icon: Clock,
                 color: 'text-slate-900',
-                subColor: 'text-slate-500',
-                iconColor: 'text-blue-600',
-                bgIcon: 'bg-blue-50',
+                subColor: esDiaNoLaboral ? 'text-amber-600' : 'text-emerald-600',
+                iconColor: esDiaNoLaboral ? 'text-amber-600' : 'text-blue-600',
+                bgIcon: esDiaNoLaboral ? 'bg-amber-50' : 'bg-blue-50',
               },
               {
                 label: 'Avance Cobranza',
@@ -732,10 +737,10 @@ export const RutasPageView = ({
                 bgIcon: 'bg-indigo-50',
               },
               {
-                label: 'Coordinadores',
-                value: '2',
-                sub: 'Supervisando rutas',
-                icon: User,
+                label: 'Clientes Asignados',
+                value: totalClientes,
+                sub: `En ${rutasActivas} rutas`,
+                icon: Users,
                 color: 'text-slate-900',
                 subColor: 'text-slate-500',
                 iconColor: 'text-blue-600',
@@ -937,17 +942,22 @@ export const RutasPageView = ({
                         <div className="flex justify-between items-end mb-2">
                           <div>
                             <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">Recaudo Diario</p>
-                            <p className="font-bold text-slate-900">{formatCurrency(ruta.cobranzaDelDia)}</p>
+                            <p className="font-bold text-slate-900">{formatCurrency(getRecaudoOperativoRuta(ruta))}</p>
+                            {Number(ruta.recaudoRegularizadoHoy || 0) > 0 && (
+                              <p className="mt-0.5 text-[10px] font-bold text-amber-600">
+                                Regularizado hoy: {formatCurrency(Number(ruta.recaudoRegularizadoHoy || 0))}
+                              </p>
+                            )}
                           </div>
                           <span className="text-sm font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
-                            {ruta.metaDelDia > 0 ? Math.min(100, (ruta.cobranzaDelDia / ruta.metaDelDia) * 100).toFixed(0) : 0}%
+                            {getAvanceOperativoRuta(ruta).toFixed(0)}%
                           </span>
                         </div>
                         <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden border border-slate-200">
                           <div
                             className="bg-slate-900 h-2 rounded-full transition-all duration-1000 ease-out"
                             style={{
-                              width: `${ruta.metaDelDia > 0 ? Math.min((ruta.cobranzaDelDia / ruta.metaDelDia) * 100, 100) : 0}%`,
+                              width: `${getAvanceOperativoRuta(ruta)}%`,
                             }}
                           ></div>
                         </div>
@@ -1123,13 +1133,18 @@ export const RutasPageView = ({
                           {ruta.estado === 'ACTIVA' ? (
                             <div className="w-32 space-y-1">
                               <div className="flex justify-between text-xs">
-                                <span className="font-bold text-primary">{ruta.metaDelDia > 0 ? Math.min(100, (ruta.cobranzaDelDia / ruta.metaDelDia) * 100).toFixed(0) : 0}%</span>
-                                <span className="text-slate-500 font-medium">{formatCurrency(ruta.cobranzaDelDia)}</span>
+                                <span className="font-bold text-primary">{getAvanceOperativoRuta(ruta).toFixed(0)}%</span>
+                                <span className="text-slate-500 font-medium">{formatCurrency(getRecaudoOperativoRuta(ruta))}</span>
                               </div>
+                              {Number(ruta.recaudoRegularizadoHoy || 0) > 0 && (
+                                <div className="text-[10px] font-bold text-amber-600">
+                                  Regularizado hoy: {formatCurrency(Number(ruta.recaudoRegularizadoHoy || 0))}
+                                </div>
+                              )}
                               <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden border border-slate-200">
                                 <div
                                   className="bg-slate-900 h-1.5 rounded-full"
-                                  style={{ width: `${ruta.metaDelDia > 0 ? Math.min((ruta.cobranzaDelDia / ruta.metaDelDia) * 100, 100) : 0}%` }}
+                                  style={{ width: `${getAvanceOperativoRuta(ruta)}%` }}
                                 ></div>
                               </div>
                             </div>
@@ -1266,13 +1281,18 @@ export const RutasPageView = ({
                       <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-2">Avance Diario</div>
                       <div className="space-y-2">
                         <div className="flex justify-between items-center">
-                          <span className="text-sm font-bold text-slate-900">{formatCurrency(ruta.cobranzaDelDia)}</span>
-                          <span className="text-sm font-bold text-primary">{ruta.metaDelDia > 0 ? Math.min(100, (ruta.cobranzaDelDia / ruta.metaDelDia) * 100).toFixed(0) : 0}%</span>
+                          <span className="text-sm font-bold text-slate-900">{formatCurrency(getRecaudoOperativoRuta(ruta))}</span>
+                          <span className="text-sm font-bold text-primary">{getAvanceOperativoRuta(ruta).toFixed(0)}%</span>
                         </div>
+                        {Number(ruta.recaudoRegularizadoHoy || 0) > 0 && (
+                          <div className="text-[10px] font-bold text-amber-600">
+                            Regularizado hoy: {formatCurrency(Number(ruta.recaudoRegularizadoHoy || 0))}
+                          </div>
+                        )}
                         <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden border border-slate-200">
                           <div
                             className="bg-slate-900 h-2 rounded-full"
-                            style={{ width: `${ruta.metaDelDia > 0 ? Math.min((ruta.cobranzaDelDia / ruta.metaDelDia) * 100, 100) : 0}%` }}
+                            style={{ width: `${getAvanceOperativoRuta(ruta)}%` }}
                           ></div>
                         </div>
                         <div className="text-xs text-slate-500">Objetivo: {formatCurrency(ruta.metaDelDia)}</div>
