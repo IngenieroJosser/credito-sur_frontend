@@ -122,6 +122,14 @@ const mapAsignacionesToClientesRuta = (asignaciones: any[] = []): ClienteSelecti
   return Array.from(uniqueByClienteId.values());
 };
 
+const getEstadoSistemaLabel = (estado: Ruta['estado']) => {
+  if (estado === 'ACTIVA') return 'Habilitada'
+  if (estado === 'INACTIVA') return 'Inhabilitada'
+  if (estado === 'PENDIENTE_ACTIVACION') return 'Pendiente'
+  if (estado === 'COMPLETADA') return 'Completada'
+  return estado
+}
+
 export const RutasPageView = ({ 
   readOnly = false, 
   rutasBasePath = '/admin/rutas', 
@@ -707,7 +715,7 @@ export const RutasPageView = ({
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             {[
               {
-                label: 'Rutas Activas',
+                label: 'Rutas habilitadas',
                 value: rutasActivas,
                 sub: 'Habilitadas en sistema',
                 icon: MapPin,
@@ -719,7 +727,7 @@ export const RutasPageView = ({
               {
                 label: 'Operativas hoy',
                 value: rutasOperativasHoy,
-                sub: esDiaNoLaboral ? 'Domingo no laborable' : `De ${rutasActivas} activas`,
+                sub: esDiaNoLaboral ? 'Domingo no laborable' : `De ${rutasActivas} habilitadas`,
                 icon: Clock,
                 color: 'text-slate-900',
                 subColor: esDiaNoLaboral ? 'text-amber-600' : 'text-emerald-600',
@@ -739,7 +747,7 @@ export const RutasPageView = ({
               {
                 label: 'Clientes Asignados',
                 value: totalClientes,
-                sub: `En ${rutasActivas} rutas`,
+                sub: `En ${rutasActivas} habilitadas`,
                 icon: Users,
                 color: 'text-slate-900',
                 subColor: 'text-slate-500',
@@ -785,7 +793,9 @@ export const RutasPageView = ({
                 const count = estado === 'PENDIENTE_ACTIVACION' ? rutasPendientes : null
                 const label = estado === 'TODAS' ? 'Todas'
                   : estado === 'PENDIENTE_ACTIVACION' ? 'Pendientes'
-                    : estado.charAt(0) + estado.slice(1).toLowerCase()
+                    : estado === 'ACTIVA' ? 'Habilitadas'
+                      : estado === 'INACTIVA' ? 'Inhabilitadas'
+                        : getEstadoSistemaLabel(estado)
 
                 return (
                   <button
@@ -892,7 +902,7 @@ export const RutasPageView = ({
                                 : 'bg-slate-50 text-slate-600 border-slate-200',
                         )}
                       >
-                        {ruta.estado === 'PENDIENTE_ACTIVACION' ? 'PENDIENTE' : ruta.estado}
+                        {getEstadoSistemaLabel(ruta.estado)}
                       </div>
                       {ruta.nivelRiesgo && (
                           <div className={cn(
@@ -997,7 +1007,7 @@ export const RutasPageView = ({
                                         ? "text-slate-400 hover:text-rose-600 hover:bg-rose-50" 
                                         : "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
                                 )}
-                                title={ruta.estado === 'ACTIVA' ? "Desactivar" : "Activar"}
+                                title={ruta.estado === 'ACTIVA' ? "Inhabilitar ruta" : "Habilitar ruta"}
                             >
                                 {ruta.estado === 'ACTIVA' ? <Trash2 className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
                             </button>
@@ -1102,7 +1112,7 @@ export const RutasPageView = ({
                                 : 'bg-slate-50 text-slate-600 border-slate-100',
                             )}
                           >
-                            {ruta.estado}
+                            {getEstadoSistemaLabel(ruta.estado)}
                           </span>
                           {ruta.nivelRiesgo && (
                               <span
@@ -1188,7 +1198,7 @@ export const RutasPageView = ({
                                         ? "text-slate-400 hover:text-rose-600 hover:bg-rose-50"
                                         : "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
                                 )}
-                                title={ruta.estado === 'ACTIVA' ? "Desactivar" : "Activar"}
+                                title={ruta.estado === 'ACTIVA' ? "Inhabilitar ruta" : "Habilitar ruta"}
                               >
                                 {ruta.estado === 'ACTIVA' ? <Trash2 className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
                               </button>
@@ -1251,7 +1261,7 @@ export const RutasPageView = ({
                           : 'bg-slate-50 text-slate-600 border-slate-100',
                       )}
                     >
-                      {ruta.estado}
+                      {getEstadoSistemaLabel(ruta.estado)}
                     </span>
                   </div>
 
@@ -1336,7 +1346,7 @@ export const RutasPageView = ({
                             ? "text-slate-400 hover:text-rose-600 hover:bg-rose-50" 
                             : "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
                         )}
-                        title={ruta.estado === 'ACTIVA' ? "Desactivar" : "Activar"}
+                        title={ruta.estado === 'ACTIVA' ? "Inhabilitar ruta" : "Habilitar ruta"}
                       >
                         {ruta.estado === 'ACTIVA' ? <Trash2 className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
                       </button>
@@ -1547,7 +1557,7 @@ export const RutasPageView = ({
                             )}
                           >
                             <CheckCircle2 className={cn("h-4 w-4", formData.estado === 'ACTIVA' ? "text-emerald-500" : "text-slate-400")} />
-                            Activa
+                            Habilitada
                           </button>
                           <button
                             type="button"
@@ -1560,7 +1570,7 @@ export const RutasPageView = ({
                             )}
                           >
                             <XCircle className="h-4 w-4" />
-                            Inactiva
+                            Inhabilitada
                           </button>
                         </div>
                       </div>

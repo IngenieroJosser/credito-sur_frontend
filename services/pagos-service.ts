@@ -109,12 +109,14 @@ export const pagosService = {
   async obtenerPagos(filtros?: {
     prestamoId?: string;
     clienteId?: string;
+    rutaId?: string;
     page?: number;
     limit?: number;
   }): Promise<PagosResponse> {
     const params = new URLSearchParams();
     if (filtros?.prestamoId) params.set('prestamoId', filtros.prestamoId);
     if (filtros?.clienteId) params.set('clienteId', filtros.clienteId);
+    if (filtros?.rutaId) params.set('rutaId', filtros.rutaId);
     if (filtros?.page) params.set('page', String(filtros.page));
     if (filtros?.limit) params.set('limit', String(filtros.limit));
     const qs = params.toString();

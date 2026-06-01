@@ -20,12 +20,7 @@ import {
   Eye,
   Pencil,
   AlertTriangle,
-  Ban,
-  DollarSign,
   Trash2,
-  TrendingUp,
-  TrendingDown,
-  Minus,
   Calendar,
   Clock,
   ChevronLeft,
@@ -118,7 +113,15 @@ export default function ClientesFeature({
   usePageFocusRefresh(refetch);
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterRiesgo, setFilterRiesgo] = useState<string>(defaultFilterRiesgo);
+  const [filterRiesgo, setFilterRiesgo] = useState<string>(
+    defaultFilterRiesgo === 'VERDE'
+      ? 'AL_DIA'
+      : defaultFilterRiesgo === 'AMARILLO'
+        ? 'PRECAUCION'
+        : defaultFilterRiesgo === 'ROJO'
+          ? 'CRITICO'
+          : defaultFilterRiesgo
+  );
   const [filterEstadoCuenta, setFilterEstadoCuenta] = useState<'GENERAL' | 'MORA' | 'VENCIDAS'>(defaultFilterEstado);
   const [filterRuta, setFilterRuta] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -136,6 +139,13 @@ export default function ClientesFeature({
   const [clientToEdit, setClientToEdit] = useState<ClienteAdmin | null>(null);
   const [diasMoraByClientId, setDiasMoraByClientId] = useState<Record<string, number>>({});
 
+  const normalizeEstadoFilter = (value: string) => {
+    if (value === 'VERDE') return 'AL_DIA'
+    if (value === 'AMARILLO') return 'PRECAUCION'
+    if (value === 'ROJO') return 'CRITICO'
+    return value
+  }
+
   const calcularNivelMora = (dias: number) => {
     if (dias >= 8) return 'critico'
     if (dias >= 5) return 'moderado'
@@ -151,13 +161,14 @@ export default function ClientesFeature({
       case 'precaucion': return 'text-amber-700 bg-amber-50 ring-amber-600/20'
       case 'moderado':   return 'text-orange-700 bg-orange-50 ring-orange-600/20'
       case 'critico':    return 'text-red-700 bg-red-50 ring-red-600/20'
+      case 'lista_negra': return 'text-slate-800 bg-slate-200 ring-slate-600/20'
       default:           return 'text-slate-600 bg-slate-50 ring-slate-600/20'
     }
   }
 
   const getEstadoMoraLabel = (nivel: string) => {
     switch (nivel) {
-      case 'bajo':       return 'Mínimo'
+      case 'bajo':       return 'Al día'
       case 'leve':       return 'Leve'
       case 'precaucion': return 'Precaución'
       case 'moderado':   return 'Moderado'
@@ -166,30 +177,21 @@ export default function ClientesFeature({
     }
   }
 
-  const RenderTendencia =({ t }: { t: string }) => {
-    if (t === 'SUBE') return <TrendingUp className="h-4 w-4 text-emerald-500" />;
-    if (t === 'BAJA') return <TrendingDown className="h-4 w-4 text-rose-500" />;
-    return <Minus className="h-4 w-4 text-slate-400" />;
-  };
+  const getDiasMoraCliente = (cliente: ClienteAdmin) =>
+    Number(diasMoraByClientId[String((cliente as any)?.id || '')] ?? (cliente as any)?.diasMora ?? 0)
 
-  const getRiesgoColor = (riesgo: NivelRiesgo) => {
-    switch (riesgo) {
-      case 'VERDE': return 'text-emerald-600 bg-emerald-50 ring-emerald-600/20';
-      case 'AMARILLO': return 'text-amber-600 bg-amber-50 ring-amber-600/20';
-      case 'ROJO': return 'text-rose-600 bg-rose-50 ring-rose-600/20';
-      case 'LISTA_NEGRA': return 'text-slate-800 bg-slate-200 ring-slate-600/20';
-      default: return 'text-slate-600 bg-slate-50 ring-slate-600/20';
-    }
-  };
+  const getEstadoCuentaFiltro = (cliente: ClienteAdmin) => {
+    if (cliente.nivelRiesgo === 'LISTA_NEGRA') return 'LISTA_NEGRA'
 
-  const getRiesgoIcon = (riesgo: NivelRiesgo) => {
-    switch (riesgo) {
-      case 'VERDE': return <CheckCircle className="h-4 w-4" />;
-      case 'AMARILLO': return <AlertTriangle className="h-4 w-4" />;
-      case 'ROJO': return <AlertCircle className="h-4 w-4" />;
-      case 'LISTA_NEGRA': return <Ban className="h-4 w-4" />;
+    switch (calcularNivelMora(getDiasMoraCliente(cliente))) {
+      case 'bajo': return 'AL_DIA'
+      case 'leve': return 'LEVE'
+      case 'precaucion': return 'PRECAUCION'
+      case 'moderado': return 'MODERADO'
+      case 'critico': return 'CRITICO'
+      default: return 'AL_DIA'
     }
-  };
+  }
 
   const handleDeleteClick = (cliente: Cliente) => {
     setClientToDelete(cliente);
@@ -231,7 +233,8 @@ export default function ClientesFeature({
       `${cliente.nombres || ''} ${cliente.apellidos || ''}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (cliente.dni || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (cliente.correo && cliente.correo.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesRiesgo = filterRiesgo === 'all' || cliente.nivelRiesgo === filterRiesgo;
+    const estadoFiltro = normalizeEstadoFilter(filterRiesgo)
+    const matchesRiesgo = estadoFiltro === 'all' || getEstadoCuentaFiltro(cliente) === estadoFiltro;
     const matchesRuta = !filterRuta || filterRuta === '' || cliente.rutaId === filterRuta;
     const matchesEstado = 
       filterEstadoCuenta === 'GENERAL' ? true :
@@ -366,14 +369,14 @@ export default function ClientesFeature({
           <ExportButton
             onExportExcel={() =>
               exportService.exportClientes('excel', {
-                nivelRiesgo: filterRiesgo !== 'all' ? filterRiesgo : undefined,
+                nivelRiesgo: filterRiesgo === 'LISTA_NEGRA' ? filterRiesgo : undefined,
                 ruta: filterRuta || undefined,
                 search: searchTerm || undefined,
               })
             }
             onExportPDF={() =>
               exportService.exportClientes('pdf', {
-                nivelRiesgo: filterRiesgo !== 'all' ? filterRiesgo : undefined,
+                nivelRiesgo: filterRiesgo === 'LISTA_NEGRA' ? filterRiesgo : undefined,
                 ruta: filterRuta || undefined,
                 search: searchTerm || undefined,
               })
@@ -429,10 +432,12 @@ export default function ClientesFeature({
               <Filter className="h-3.5 w-3.5 text-slate-400 shrink-0 mr-1" />
 
               {[
-                { id: 'all', label: 'Riesgo: Todos' },
-                { id: 'VERDE', label: 'Al Día' },
-                { id: 'AMARILLO', label: 'Riesgo' },
-                { id: 'ROJO', label: 'Rojo' },
+                { id: 'all', label: 'Estado: Todos' },
+                { id: 'AL_DIA', label: 'Al día' },
+                { id: 'LEVE', label: 'Leve' },
+                { id: 'PRECAUCION', label: 'Precaución' },
+                { id: 'MODERADO', label: 'Moderado' },
+                { id: 'CRITICO', label: 'Crítico' },
                 { id: 'LISTA_NEGRA', label: 'Lista Negra' },
               ].map((filtro) => (
                 <button
@@ -486,7 +491,7 @@ export default function ClientesFeature({
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Cliente</th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Estado</th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Finanzas</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Tendencia</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Última visita</th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Contacto</th>
                   <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider"></th>
                 </tr>
@@ -495,7 +500,8 @@ export default function ClientesFeature({
                 {currentItems.length > 0 ? (
                   currentItems.map((cliente, index) => {
                     const isPending = cliente.estadoAprobacion === 'PENDIENTE' || cliente.id?.includes('offline') || cliente.id?.includes('temp');
-                    const diasMoraUI = Number(diasMoraByClientId[String((cliente as any)?.id || '')] ?? (cliente as any)?.diasMora ?? 0)
+                    const diasMoraUI = getDiasMoraCliente(cliente)
+                    const estadoCuenta = getEstadoCuentaFiltro(cliente)
                     return (
                     <tr
                       key={cliente.id || `client-${index}`}
@@ -549,10 +555,10 @@ export default function ClientesFeature({
                         <div className="space-y-1">
                           <div
                             className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset ${getEstadoMoraColor(
-                              calcularNivelMora(diasMoraUI)
+                              estadoCuenta === 'LISTA_NEGRA' ? 'lista_negra' : calcularNivelMora(diasMoraUI)
                             )}`}
                           >
-                            {getEstadoMoraLabel(calcularNivelMora(diasMoraUI))}
+                            {estadoCuenta === 'LISTA_NEGRA' ? 'Lista Negra' : getEstadoMoraLabel(calcularNivelMora(diasMoraUI))}
                           </div>
                         </div>
                       </td>
@@ -571,17 +577,13 @@ export default function ClientesFeature({
                       </td>
 
                       <td className="px-6 py-4">
-                        {cliente.tendencia && (
-                          <div className="flex items-center gap-2 font-bold text-xs">
-                             <RenderTendencia t={cliente.tendencia} />
-                             <span className="text-slate-600">{cliente.tendencia}</span>
-                          </div>
-                        )}
-                        {cliente.ultimaVisita && (
-                          <div className="flex items-center gap-1.5 text-slate-400 text-[10px] font-medium mt-1">
+                        {cliente.ultimaVisita ? (
+                          <div className="flex items-center gap-1.5 text-slate-500 text-xs font-bold">
                             <Calendar className="h-3 w-3" />
                             {cliente.ultimaVisita}
                           </div>
+                        ) : (
+                          <span className="text-xs font-medium text-slate-400">Sin visitas</span>
                         )}
                       </td>
 
