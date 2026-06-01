@@ -270,7 +270,7 @@ const NuevaRutaPage = () => {
                             onChange={handleInputChange}
                             className="w-4 h-4 text-blue-600 focus:ring-blue-600"
                           />
-                          <span className="text-sm font-medium text-slate-700">Activa</span>
+                          <span className="text-sm font-medium text-slate-700">Habilitada</span>
                         </label>
                         <label className="flex items-center gap-2 cursor-pointer">
                           <input
@@ -281,7 +281,7 @@ const NuevaRutaPage = () => {
                             onChange={handleInputChange}
                             className="w-4 h-4 text-blue-600 focus:ring-blue-600"
                           />
-                          <span className="text-sm font-medium text-slate-700">Inactiva</span>
+                          <span className="text-sm font-medium text-slate-700">Inhabilitada</span>
                         </label>
                       </div>
                     </div>

@@ -2404,7 +2404,7 @@ const UserManagementPage = () => {
                                   <MapPin className="w-3.5 h-3.5" />
                                 </div>
                                 <span className="text-[10px] font-bold text-slate-400 uppercase">
-                                  Ruta Activa
+                                  Ruta habilitada
                                 </span>
                               </div>
                               <div className="font-bold text-slate-900 text-sm">
@@ -2720,7 +2720,7 @@ const UserManagementPage = () => {
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                               <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
                                 <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">
-                                  Rutas Activas
+                                  Rutas habilitadas
                                 </div>
                                 <div className="text-2xl font-black">
                                   {detalle.rutasActivas}
@@ -2731,7 +2731,7 @@ const UserManagementPage = () => {
                               </div>
                               <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
                                 <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">
-                                  Rutas Inactivas
+                                  Rutas inhabilitadas
                                 </div>
                                 <div className="text-2xl font-black">
                                   {detalle.rutasInactivas}
@@ -2759,7 +2759,7 @@ const UserManagementPage = () => {
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                               <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
                                 <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">
-                                  Rutas Activas
+                                  Rutas habilitadas
                                 </div>
                                 <div className="text-2xl font-black">
                                   {detalle.rutasActivas}
@@ -2770,7 +2770,7 @@ const UserManagementPage = () => {
                               </div>
                               <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
                                 <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">
-                                  Rutas Inactivas
+                                  Rutas inhabilitadas
                                 </div>
                                 <div className="text-2xl font-black">
                                   {detalle.rutasInactivas}

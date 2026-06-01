@@ -382,7 +382,7 @@ export default function SeguimientoPuntoVenta() {
             </div>
             <div>
               <h1 className="text-xl font-black text-slate-900 leading-tight">Seguimiento · Punto de Venta</h1>
-              <p className="text-xs text-slate-500 font-medium">Monitoreo en tiempo real de créditos artículo</p>
+              <p className="text-xs text-slate-500 font-medium">Monitoreo de créditos de artículos creados por usuarios Punto de Venta.</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -541,7 +541,7 @@ export default function SeguimientoPuntoVenta() {
             <div className="p-16 flex flex-col items-center justify-center text-slate-400">
               <ShoppingBag className="h-14 w-14 text-slate-200 mb-4" />
               <p className="text-base font-bold text-slate-700">Sin resultados</p>
-              <p className="text-sm font-medium mt-1">No hay créditos artículo que coincidan con los filtros.</p>
+              <p className="text-sm font-medium mt-1">No hay créditos artículo registrados por usuarios Punto de Venta.</p>
             </div>
           ) : (
             <>

@@ -4003,7 +4003,7 @@ const VistaCobrador = () => {
 
                     <CheckCircle2 className="h-4 w-4" />
 
-                    <span className="hidden md:inline">{rutaCompletada ? 'Ruta ya completada hoy' : (!rutaActivadaHoy ? 'Ruta pendiente de activación' : 'Completar ruta')}</span>
+                    <span className="hidden md:inline">{rutaCompletada ? 'Jornada completada hoy' : (!rutaActivadaHoy ? 'Jornada sin activar' : 'Completar jornada')}</span>
 
                   </button>
 
@@ -4810,7 +4810,7 @@ const VistaCobrador = () => {
 
                                       disabled={!rutaOperable || visita.estadoVisita === 'ausente' || visita.estado === 'ausente'}
 
-                                      title={!rutaOperable ? (rutaCompletada ? 'Ruta completada' : 'Ruta pendiente de activación') : (visita.estadoVisita === 'ausente' || visita.estado === 'ausente' ? 'Cliente ya marcado como ausente' : 'Marcar como ausente')}
+                                      title={!rutaOperable ? (rutaCompletada ? 'Jornada completada' : 'Jornada sin activar') : (visita.estadoVisita === 'ausente' || visita.estado === 'ausente' ? 'Cliente ya marcado como ausente' : 'Marcar como ausente')}
 
                                       className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border transition-all font-bold text-[11px] shadow-sm ${!rutaOperable || visita.estadoVisita === 'ausente' || visita.estado === 'ausente' ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-rose-700 border-rose-200 hover:bg-rose-50 active:scale-95'}`}
 
@@ -5071,7 +5071,7 @@ const VistaCobrador = () => {
 
                                         disabled={!rutaOperable || visita.estadoVisita === 'ausente' || visita.estado === 'ausente'}
 
-                                        title={!rutaOperable ? (rutaCompletada ? 'Ruta completada' : 'Ruta pendiente de activación') : (visita.estadoVisita === 'ausente' || visita.estado === 'ausente' ? 'Cliente ya marcado como ausente' : 'Marcar como ausente')}
+                                        title={!rutaOperable ? (rutaCompletada ? 'Jornada completada' : 'Jornada sin activar') : (visita.estadoVisita === 'ausente' || visita.estado === 'ausente' ? 'Cliente ya marcado como ausente' : 'Marcar como ausente')}
 
                                         className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border transition-all font-bold text-[11px] shadow-sm ${!rutaOperable || visita.estadoVisita === 'ausente' || visita.estado === 'ausente' ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-rose-700 border-rose-200 hover:bg-rose-50 active:scale-95'}`}
 

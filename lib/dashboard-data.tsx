@@ -163,7 +163,7 @@ function configurarDashboardPorRol(rol: Rol) {
         color: '#f43f5e'
       },
       {
-        title: 'Rutas Activas',
+        title: 'Rutas habilitadas',
         value: 12,
         isCurrency: false,
         change: 1.8,

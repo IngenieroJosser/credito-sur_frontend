@@ -6,7 +6,6 @@ import { usePageFocusRefresh } from '@/hooks/usePageFocusRefresh'
 import {
   Search,
   Filter,
-  Calendar,
   User,
   Wallet,
   Banknote,
@@ -15,7 +14,6 @@ import {
   AlertCircle,
   Receipt,
   ReceiptText,
-  Route,
   X
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
@@ -31,6 +29,7 @@ import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { TimeFilter, TimeFilterPeriod } from '@/components/ui/TimeFilter'
 import AnimacionCarga from '@/components/ui/AnimacionCarga'
 import PagoDetalleModal from '@/components/dashboards/shared/PagoDetalleModal'
+import FiltroRuta from '@/components/filtros/FiltroRuta'
 
 type EstadoPago = 'completado' | 'pendiente' | 'fallido' | 'en_revision'
 
@@ -41,6 +40,7 @@ interface Pago {
   cliente: string
   cobrador: string
   ruta: string
+  rutaId?: string
   monto: number
   capital: number
   interes: number
@@ -81,7 +81,7 @@ const HistorialPagosPage = () => {
   const [gastos, setGastos] = useState<Gasto[]>([])
   const [isLoadingGastos, setIsLoadingGastos] = useState(true)
   const [gastoDetalle, setGastoDetalle] = useState<Gasto | null>(null)
-  const [filtroRuta, setFiltroRuta] = useState('')
+  const [filtroRutaId, setFiltroRutaId] = useState<string | null>(null)
 
   const handleExportExcel = async () => {
     try {
@@ -122,7 +122,7 @@ const HistorialPagosPage = () => {
   const loadPagos = useCallback(async () => {
       setIsLoading(true)
       try {
-        const resp = await pagosService.obtenerPagos()
+        const resp = await pagosService.obtenerPagos({ limit: 500, rutaId: filtroRutaId || undefined })
         const data = resp?.pagos || resp || []
         const mapped: Pago[] = (Array.isArray(data) ? data : []).map((p: any) => {
           const montoTotal = Number(p?.montoTotal ?? 0)
@@ -148,7 +148,8 @@ const HistorialPagosPage = () => {
             fecha: p.fechaPago || p.creadoEn || '',
             cliente: p.cliente ? `${p.cliente.nombres} ${p.cliente.apellidos}` : (p.clienteId || ''),
             cobrador: p.cobrador ? `${p.cobrador.nombres} ${p.cobrador.apellidos}` : (p.cobradorId || ''),
-            ruta: p.ruta || '',
+            rutaId: p.rutaId || p.ruta?.id || undefined,
+            ruta: p.ruta?.nombre || p.ruta || '',
             monto,
             capital,
             interes,
@@ -184,21 +185,21 @@ const HistorialPagosPage = () => {
       } finally {
         setIsLoading(false)
       }
-    }, [])
+    }, [filtroRutaId])
 
   useEffect(() => { loadPagos() }, [loadPagos])
 
   const loadGastos = useCallback(async () => {
     setIsLoadingGastos(true)
     try {
-      const resp = await getGastos({ limit: 500 })
+      const resp = await getGastos({ limit: 500, rutaId: filtroRutaId || undefined })
       setGastos(resp.data || [])
     } catch {
       setGastos([])
     } finally {
       setIsLoadingGastos(false)
     }
-  }, [])
+  }, [filtroRutaId])
 
   useEffect(() => { loadGastos() }, [loadGastos])
   useRealtimeData(['gastos_actualizados'], loadGastos)
@@ -206,7 +207,7 @@ const HistorialPagosPage = () => {
   // Si cambian filtros/búsqueda, volvemos a la página 1 para evitar páginas vacías
   useEffect(() => {
     setPaginaActual(1)
-  }, [busqueda, period])
+  }, [busqueda, period, filtroRutaId, tab])
 
   // Tiempo real: escucha nuevos pagos registrados
   useRealtimeData(['pagos_actualizados', 'prestamos_actualizados'], loadPagos)
@@ -249,7 +250,6 @@ const HistorialPagosPage = () => {
   }, [gastos])
 
   const gastosFiltrados = useMemo(() => gastos.filter((g) => {
-    if (filtroRuta && g.ruta !== filtroRuta) return false
     if (busqueda && !`${g.cobrador} ${g.ruta} ${g.descripcion} ${g.tipo} ${g.categoria || ''}`
       .toLowerCase().includes(busqueda.toLowerCase())) return false
     if (g.fecha) {
@@ -257,17 +257,16 @@ const HistorialPagosPage = () => {
       if (!Number.isNaN(f.getTime()) && (f < start || f > end)) return false
     }
     return true
-  }), [gastos, busqueda, start, end, filtroRuta])
-
-  const rutasUnicas = useMemo(() => [...new Set(gastos.map(g => g.ruta))].sort(), [gastos])
+  }), [gastos, busqueda, start, end])
 
   const gastosPorCobradorFiltrado = useMemo(() => {
     const ids = new Set(gastosFiltrados.map(g => g.cobradorId))
+    const gastoIds = new Set(gastosFiltrados.map(g => g.id))
     return gastosPorCobrador.filter(c => ids.has(c.cobradorId)).map(c => ({
       ...c,
-      gastos: c.gastos.filter(g => ids.has(g.cobradorId)),
-      total: c.gastos.filter(g => gastosFiltrados.some(f => f.id === g.id)).reduce((s, g) => s + Number(g.monto || 0), 0),
-      count: c.gastos.filter(g => gastosFiltrados.some(f => f.id === g.id)).length,
+      gastos: c.gastos.filter(g => gastoIds.has(g.id)),
+      total: c.gastos.filter(g => gastoIds.has(g.id)).reduce((s, g) => s + Number(g.monto || 0), 0),
+      count: c.gastos.filter(g => gastoIds.has(g.id)).length,
     }))
   }, [gastosPorCobrador, gastosFiltrados])
 
@@ -300,6 +299,7 @@ const HistorialPagosPage = () => {
     ) {
       return false
     }
+    if (filtroRutaId && pago.rutaId !== filtroRutaId) return false
     return true
   })
 
@@ -440,11 +440,21 @@ const HistorialPagosPage = () => {
                   className="w-full rounded-xl border border-slate-200 bg-white pl-9 pr-4 py-2 text-sm font-medium text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all shadow-sm"
                 />
               </div>
-              <button className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:border-slate-300 hover:bg-slate-50 transition-all shadow-sm">
-                <Filter className="h-4 w-4 text-slate-400" />
-                <span>Filtros</span>
-              </button>
             </div>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="mb-3 flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-slate-400">
+              <Filter className="h-4 w-4" />
+              <span>Filtros</span>
+            </div>
+            <FiltroRuta
+              selectedRutaId={filtroRutaId}
+              onRutaChange={setFiltroRutaId}
+              showAllOption
+              layout="wrap"
+              hideLabel={false}
+            />
           </div>
 
           {/* TABLA DENSA (DESKTOP) - PAGOS */}
@@ -607,34 +617,6 @@ const HistorialPagosPage = () => {
           {/* ==================== PESTAÑA GASTOS ==================== */}
           {tab === 'gastos' && (
           <>
-            {/* Filtro por ruta */}
-            {rutasUnicas.length > 1 && (
-              <div className="flex items-center gap-2 flex-wrap">
-                <Route className="h-4 w-4 text-slate-400" />
-                <button
-                  onClick={() => setFiltroRuta('')}
-                  className={cn(
-                    'px-3 py-1.5 rounded-lg text-xs font-bold transition-all border',
-                    !filtroRuta ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
-                  )}
-                >
-                  Todas
-                </button>
-                {rutasUnicas.map(ruta => (
-                  <button
-                    key={ruta}
-                    onClick={() => setFiltroRuta(filtroRuta === ruta ? '' : ruta)}
-                    className={cn(
-                      'px-3 py-1.5 rounded-lg text-xs font-bold transition-all border',
-                      filtroRuta === ruta ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
-                    )}
-                  >
-                    {ruta}
-                  </button>
-                ))}
-              </div>
-            )}
-
             {/* KPI Gastos */}
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               <div className="bg-white border border-slate-200 rounded-xl p-4">

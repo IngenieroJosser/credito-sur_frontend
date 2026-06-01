@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Bell, BellOff, Check, X, Loader2, Sparkles, Zap, Shield } from 'lucide-react';
+import { Bell, BellOff, Check, X, Loader2, Zap, Shield } from 'lucide-react';
 import {
   isPushSupported,
   getNotificationPermission,
@@ -133,10 +133,10 @@ export default function PushNotificationManager() {
           ? 'border-emerald-200 bg-emerald-50/80' 
           : 'border-slate-200 bg-white/80'
       } backdrop-blur-sm p-6 shadow-sm transition-all duration-300`}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4 flex-1">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-start gap-4 sm:items-center sm:flex-1">
             {/* Icono */}
-            <div className={`p-4 rounded-xl transition-all duration-300 ${
+            <div className={`shrink-0 p-4 rounded-xl transition-all duration-300 ${
               isSubscribed 
                 ? 'bg-emerald-600 shadow-lg' 
                 : 'bg-slate-400 shadow-lg'
@@ -149,9 +149,9 @@ export default function PushNotificationManager() {
             </div>
 
             {/* Contenido */}
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-1">
-                <h4 className="text-lg font-bold text-slate-900">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2 mb-1">
+                <h4 className="text-base sm:text-lg font-bold text-slate-900">
                   {isSubscribed ? 'Notificaciones Activadas' : 'Notificaciones Desactivadas'}
                 </h4>
                 {isSubscribed && (
@@ -173,24 +173,24 @@ export default function PushNotificationManager() {
           <button
             onClick={isSubscribed ? handleUnsubscribe : handleSubscribe}
             disabled={loading}
-            className={`px-6 py-3 rounded-xl font-bold text-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm ${
+            className={`w-full sm:w-auto shrink-0 px-6 py-3 rounded-xl font-bold text-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm ${
               isSubscribed
                 ? 'bg-slate-600 text-white hover:bg-slate-700'
                 : 'bg-blue-600 text-white hover:bg-blue-700'
             }`}
           >
             {loading ? (
-              <span className="flex items-center gap-2">
+              <span className="flex items-center justify-center gap-2 whitespace-nowrap">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Procesando...
               </span>
             ) : isSubscribed ? (
-              <span className="flex items-center gap-2">
+              <span className="flex items-center justify-center gap-2 whitespace-nowrap">
                 <X className="h-4 w-4" />
                 Desactivar
               </span>
             ) : (
-              <span className="flex items-center gap-2">
+              <span className="flex items-center justify-center gap-2 whitespace-nowrap">
                 <Bell className="h-4 w-4" />
                 Activar
               </span>
