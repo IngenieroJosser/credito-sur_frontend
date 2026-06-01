@@ -725,9 +725,9 @@ const VistaCobrador = () => {
 
         base: Number((saldo as any)?.saldoCaja ?? (saldo as any)?.baseEfectivo ?? prev.base ?? 0),
 
-        // Para HOY, no usar metaDelDia del backend (puede incluir ausentes)
-        // rutaStatsUI calculará la meta correcta excluyendo ausentes
-        meta: periodoCards === 'HOY' ? 0 : prev.meta,
+        // Para HOY preservamos la meta operativa ya cargada desde rutas.
+        // No debe moverse por saldos vivos ni regularizaciones de jornadas pasadas.
+        meta: prev.meta,
 
         eficiencia: periodoCards === 'HOY' ? prev.eficiencia : (() => {
           const meta = Number(prev.meta || 0)
@@ -2382,8 +2382,8 @@ const VistaCobrador = () => {
 
     const statsPorVisitas = computeRutaHoyUiStatsFromVisitas(visitasParaMetaFiltradas, 0)
     const recaudoFinal = statsPorVisitas.recaudo
-    // Usar statsPorVisitas.meta (que excluye ausentes) en lugar de metaFija
-    const meta = statsPorVisitas.meta || 0
+    const metaProgramada = Number((rutaStats as any)?.meta || 0)
+    const meta = Math.max(statsPorVisitas.meta || 0, metaProgramada)
     const pendiente = Math.max(0, meta - recaudoFinal)
     const eficienciaRaw = meta > 0 ? Number(((recaudoFinal / meta) * 100).toFixed(1)) : (recaudoFinal > 0 ? 100 : 0)
     const eficiencia = Math.min(100, Math.max(0, eficienciaRaw))
