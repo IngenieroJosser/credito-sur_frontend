@@ -403,6 +403,159 @@ export default function NotificacionDetalleModal({
     )
   }
 
+  // ── Detección de notificaciones de Jornada Pendiente Cerrada (modal especializado) ──
+  const meta = safeJsonParse(notificacion.metadata)
+  const esJornadaPendienteCerrada =
+    meta.tipoEvento === 'JORNADA_PENDIENTE_CERRADA' ||
+    (notificacion.titulo || '').toLowerCase().includes('jornada cerrada')
+  if (esJornadaPendienteCerrada) {
+    if (!isOpen || !notificacion) return null
+    // Componentes auxiliares
+    const Metric = ({ label, value }: { label: string; value: any }) => (
+      <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+        <p className="text-[10px] font-black uppercase text-slate-500">{label}</p>
+        <p className="mt-1 text-lg font-black text-slate-900">{value ?? 0}</p>
+      </div>
+    )
+
+    const MetricMoney = ({ label, value }: { label: string; value: any }) => (
+      <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+        <p className="text-[10px] font-black uppercase text-slate-500">{label}</p>
+        <p className="mt-1 text-lg font-black text-slate-900">{formatCurrency(Number(value || 0))}</p>
+      </div>
+    )
+
+    return (
+      <Portal>
+        <div
+          className="fixed inset-0 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm"
+          style={{ zIndex: 9999 }}
+          onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+        >
+          <div className="flex flex-col bg-white rounded-2xl max-h-[90vh] w-[95vw] max-w-3xl overflow-hidden">
+            <div className="flex items-center justify-between p-4 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-amber-50 text-amber-600">
+                  <Calendar className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-black text-slate-900">
+                    {notificacion.titulo}
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    {notificacion.creadoEn ? new Date(notificacion.creadoEn).toLocaleString('es-ES') : ''}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={onClose}
+                className="p-2 rounded-full hover:bg-slate-100 transition-colors"
+              >
+                <X className="h-5 w-5 text-slate-500" />
+              </button>
+            </div>
+
+            <div className="p-4 overflow-y-auto flex-1">
+              <p className="mb-6 text-sm font-semibold text-slate-700 whitespace-pre-wrap">
+                {notificacion.mensaje}
+              </p>
+
+              <div className="space-y-4">
+                <section className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <h4 className="text-sm font-black text-slate-900">
+                    Detalle de la jornada
+                  </h4>
+
+                  <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <span className="text-slate-500">Ruta</span>
+                      <p className="font-semibold text-slate-900">
+                        {meta.rutaNombre || 'No disponible'}
+                      </p>
+                    </div>
+
+                    <div>
+                      <span className="text-slate-500">Fecha operativa</span>
+                      <p className="font-semibold text-slate-900">
+                        {meta.fechaOperativa || 'No disponible'}
+                      </p>
+                    </div>
+
+                    <div>
+                      <span className="text-slate-500">Tipo de cierre</span>
+                      <p className="font-semibold text-slate-900">
+                        {meta.tipoCierre === 'ADMINISTRATIVO_CON_OBSERVACION'
+                          ? 'Cierre administrativo con observación'
+                          : meta.tipoCierre || 'No disponible'}
+                      </p>
+                    </div>
+
+                    <div>
+                      <span className="text-slate-500">Cerrada por</span>
+                      <p className="font-semibold text-slate-900">
+                        {meta.cerradaPorNombre || 'No disponible'}
+                      </p>
+                    </div>
+                  </div>
+                </section>
+
+                <section className="rounded-xl border border-slate-200 bg-white p-4">
+                  <h4 className="text-sm font-black text-slate-900">
+                    Resumen operativo
+                  </h4>
+
+                  <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <Metric label="Clientes" value={meta.totalClientes} />
+                    <Metric label="Pagaron" value={meta.clientesPagaron} />
+                    <Metric label="Ausentes" value={meta.clientesAusentes} />
+                    <Metric label="Sin gestión" value={meta.clientesPendientes} />
+                  </div>
+                </section>
+
+                <section className="rounded-xl border border-slate-200 bg-white p-4">
+                  <h4 className="text-sm font-black text-slate-900">
+                    Resumen financiero
+                  </h4>
+
+                  <div className="mt-3 grid grid-cols-1 md:grid-cols-4 gap-3">
+                    <MetricMoney label="Meta" value={meta.meta} />
+                    <MetricMoney label="Recaudo operativo" value={meta.recaudoOperativo} />
+                    <MetricMoney label="Registrado ese día" value={meta.recaudoContable} />
+                    <MetricMoney label="Regularizado después" value={meta.recaudoRegularizado} />
+                  </div>
+                </section>
+
+                {meta.observaciones && (
+                  <section className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                    <h4 className="text-sm font-black text-amber-900">
+                      Observación administrativa
+                    </h4>
+                    <p className="mt-2 text-sm text-amber-900 whitespace-pre-wrap">
+                      {meta.observaciones}
+                    </p>
+                  </section>
+                )}
+
+                {Array.isArray(meta.advertencias) && meta.advertencias.length > 0 && (
+                  <section className="rounded-xl border border-rose-200 bg-rose-50 p-4">
+                    <h4 className="text-sm font-black text-rose-900">
+                      Advertencias
+                    </h4>
+                    <ul className="mt-2 list-disc pl-5 text-sm text-rose-900">
+                      {meta.advertencias.map((item: string, idx: number) => (
+                        <li key={idx}>{item}</li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </Portal>
+    )
+  }
+
   const { tipo, titulo, mensaje, fecha, solicitante, estado, approvalType } = notificacion
   
   // Versión segura de metadata para el renderizado
