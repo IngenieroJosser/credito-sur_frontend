@@ -2,13 +2,15 @@
 
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Loader2 } from 'lucide-react';
+import { X, Loader2, FileText } from 'lucide-react';
 import DetallePrestamo, { PrestamoDetalle } from '@/components/prestamos/DetallePrestamo';
 import { prestamosService } from '@/services/prestamos-service';
+import { exportService } from '@/services/export-service';
 import { getLoanAmounts } from '@/lib/loan-calculations';
 import { offlineStore } from '@/lib/offline/offlineDb';
 import { normalizeDateKey } from '@/lib/rutas-core';
 import { formatLoanTerm } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface DetallePrestamoModalProps {
   id: string;
@@ -19,6 +21,7 @@ interface DetallePrestamoModalProps {
 export default function DetallePrestamoModal({ id, onClose, includeArchived = false }: DetallePrestamoModalProps) {
   const [prestamo, setPrestamo] = useState<PrestamoDetalle | null>(null);
   const [loading, setLoading] = useState(true);
+  const [downloadingContract, setDownloadingContract] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
 
@@ -32,6 +35,19 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
   const handleClose = () => {
     setVisible(false);
     setTimeout(onClose, 200);
+  };
+
+  const handleDownloadContract = async () => {
+    if (!id || downloadingContract) return;
+    setDownloadingContract(true);
+    try {
+      await exportService.exportContrato(id);
+      toast.success('Contrato descargado');
+    } catch {
+      toast.error('Error al descargar contrato');
+    } finally {
+      setDownloadingContract(false);
+    }
   };
 
   useEffect(() => {
@@ -225,7 +241,20 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
         className={`relative w-full bg-white shadow-2xl flex flex-col transition-all duration-200 ease-out h-[100dvh] sm:h-auto sm:max-h-[92vh] rounded-none sm:rounded-2xl sm:max-w-5xl ${visible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Close button */}
+        {/* Modal actions */}
+        <button
+          onClick={handleDownloadContract}
+          disabled={downloadingContract}
+          className="absolute top-4 left-4 z-20 inline-flex items-center gap-2 rounded-xl border border-blue-100 bg-blue-600 px-4 py-2 text-xs font-black text-white shadow-sm transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {downloadingContract ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <FileText className="h-4 w-4" />
+          )}
+          <span className="hidden sm:inline">Descargar contrato</span>
+        </button>
+
         <button
           onClick={handleClose}
           className="absolute top-4 right-4 z-20 p-2 bg-white/80 backdrop-blur-sm rounded-full shadow-sm border border-slate-200 text-slate-400 hover:text-slate-900 hover:bg-white transition-all"

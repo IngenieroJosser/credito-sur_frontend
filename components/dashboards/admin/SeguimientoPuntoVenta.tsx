@@ -30,6 +30,7 @@ import {
 import { formatCurrency } from '@/lib/utils'
 import { prestamosService } from '@/services/prestamos-service'
 import { pagosService } from '@/services/pagos-service'
+import { usuariosService, type Usuario } from '@/services/usuarios-service'
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -98,6 +99,17 @@ const PER_PAGE = 10
 
 type Periodo = 'HOY' | 'SEM' | 'MES' | 'AÑO'
 
+const getUsuarioNombre = (usuario: Pick<Usuario, 'nombres' | 'apellidos' | 'correo'>) =>
+  [usuario.nombres, usuario.apellidos]
+    .map(part => String(part ?? '').trim())
+    .filter(Boolean)
+    .join(' ')
+    || usuario.correo
+    || 'Punto de Venta'
+
+const normalizeText = (value: string) =>
+  value.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+
 const getDatesByPeriod = (period: Periodo) => {
   const hoy = new Date()
   let inicio = new Date(hoy)
@@ -133,6 +145,7 @@ const getDatesByPeriod = (period: Periodo) => {
 
 export default function SeguimientoPuntoVenta() {
   const [ventas, setVentas] = useState<VentaPdv[]>([])
+  const [usuariosPdv, setUsuariosPdv] = useState<Usuario[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
@@ -157,8 +170,18 @@ export default function SeguimientoPuntoVenta() {
     try {
       const hoyStr = toLocalKey(new Date())
 
+      const [resp, usuariosResp] = await Promise.all([
+        prestamosService.obtenerPrestamos({ tipo: 'ARTICULO', limit: 200 } as any),
+        usuariosService.obtenerTodos().catch(() => []),
+      ])
+
+      const usuariosPuntoVenta = (usuariosResp || []).filter((usuario: Usuario) =>
+        String(usuario.rol || '').toUpperCase() === 'PUNTO_DE_VENTA' &&
+        String(usuario.estado || '').toUpperCase() === 'ACTIVO'
+      )
+      setUsuariosPdv(usuariosPuntoVenta)
+
       // 1. Cargar todos los créditos de artículos (tipo ARTICULO)
-      const resp = await prestamosService.obtenerPrestamos({ tipo: 'ARTICULO', limit: 200 } as any)
       const todosArticulos = (resp?.prestamos || []).filter((c: any) => {
         const tipo = String(c.tipoPrestamo || c.tipo || '').toUpperCase()
         const tipoProducto = String(c.tipoProducto || '').toLowerCase()
@@ -224,15 +247,6 @@ export default function SeguimientoPuntoVenta() {
 
       setVentas(soloVentasPdv)
 
-      // Log de depuración: ver qué campos envía el backend
-      if (soloVentasPdv.length > 0) {
-        console.log('[SeguimientoPdv] Ejemplo de venta:', {
-          vendedor: soloVentasPdv[0].vendedor,
-          vendedorId: soloVentasPdv[0].vendedorId,
-          vendedorRol: soloVentasPdv[0].vendedorRol,
-        })
-      }
-
     } catch (err) {
       console.error('[SeguimientoPdv] Error cargando datos:', err)
     }
@@ -289,14 +303,31 @@ export default function SeguimientoPuntoVenta() {
 
   // ─── Filtros y paginación ─────────────────────────────────────────────────
 
-  // Vendedores únicos (para el selector)
-  const vendedoresUnicos = useMemo(() => {
+  // Usuarios PDV reales para el selector. Si el backend aún no trae el usuario
+  // completo en alguna venta, conservamos un respaldo por nombre.
+  const vendedoresFiltro = useMemo(() => {
     const seen = new Set<string>()
-    return ventas
+    const usuarios = usuariosPdv.map(usuario => ({
+      id: usuario.id,
+      nombre: getUsuarioNombre(usuario),
+      normalizedName: normalizeText(getUsuarioNombre(usuario)),
+    }))
+
+    usuarios.forEach(usuario => seen.add(usuario.id))
+
+    const respaldos = ventas
       .filter(v => v.vendedor && v.vendedor !== 'Punto de Venta')
-      .filter(v => { if (seen.has(v.vendedorId || v.vendedor)) return false; seen.add(v.vendedorId || v.vendedor); return true })
-      .map(v => ({ id: v.vendedorId || v.vendedor, nombre: v.vendedor }))
-  }, [ventas])
+      .map(v => ({ id: v.vendedorId || v.vendedor, nombre: v.vendedor, normalizedName: normalizeText(v.vendedor) }))
+      .filter(v => {
+        const key = v.id || v.normalizedName
+        if (!key || seen.has(key) || seen.has(v.normalizedName)) return false
+        seen.add(key)
+        seen.add(v.normalizedName)
+        return true
+      })
+
+    return [...usuarios, ...respaldos]
+  }, [usuariosPdv, ventas])
 
   const ventasFiltradas = useMemo(() => {
     let result = ventas
@@ -313,7 +344,12 @@ export default function SeguimientoPuntoVenta() {
       result = result.filter(v => v.estado === filtroEstado)
     }
     if (filtroVendedor !== 'TODOS') {
-      result = result.filter(v => (v.vendedorId || v.vendedor) === filtroVendedor)
+      const usuario = vendedoresFiltro.find(v => v.id === filtroVendedor)
+      result = result.filter(v =>
+        (v.vendedorId && v.vendedorId === filtroVendedor) ||
+        (!!usuario && normalizeText(v.vendedor) === usuario.normalizedName) ||
+        (!usuario && (v.vendedorId || v.vendedor) === filtroVendedor)
+      )
     }
     if (filtroFechaDesde) {
       result = result.filter(v => {
@@ -336,7 +372,7 @@ export default function SeguimientoPuntoVenta() {
       })
     }
     return result
-  }, [ventas, search, filtroEstado, filtroVendedor, filtroFechaDesde, filtroFechaHasta, periodoVentas])
+  }, [ventas, search, filtroEstado, filtroVendedor, filtroFechaDesde, filtroFechaHasta, periodoVentas, vendedoresFiltro])
 
   const totalPages = Math.max(1, Math.ceil(ventasFiltradas.length / PER_PAGE))
   const ventasPaginadas = ventasFiltradas.slice((page - 1) * PER_PAGE, page * PER_PAGE)
@@ -473,22 +509,20 @@ export default function SeguimientoPuntoVenta() {
               </select>
             </div>
 
-            {/* Vendedor PDV */}
-            {vendedoresUnicos.length > 1 && (
-              <div className="flex items-center gap-1.5 bg-orange-50 border border-orange-200 rounded-xl px-3 py-2">
-                <Users className="h-3.5 w-3.5 text-orange-500" />
-                <select
-                  value={filtroVendedor}
-                  onChange={e => { setFiltroVendedor(e.target.value); setPage(1) }}
-                  className="text-sm font-bold text-orange-700 bg-transparent border-none outline-none cursor-pointer"
-                >
-                  <option value="TODOS">Todos los vendedores</option>
-                  {vendedoresUnicos.map(v => (
-                    <option key={v.id} value={v.id}>{v.nombre}</option>
-                  ))}
-                </select>
-              </div>
-            )}
+            {/* Usuario Punto de Venta */}
+            <div className="flex items-center gap-1.5 bg-orange-50 border border-orange-200 rounded-xl px-3 py-2">
+              <Users className="h-3.5 w-3.5 text-orange-500" />
+              <select
+                value={filtroVendedor}
+                onChange={e => { setFiltroVendedor(e.target.value); setPage(1) }}
+                className="max-w-[220px] text-sm font-bold text-orange-700 bg-transparent border-none outline-none cursor-pointer"
+              >
+                <option value="TODOS">Todos los puntos de venta</option>
+                {vendedoresFiltro.map(v => (
+                  <option key={v.id} value={v.id}>{v.nombre}</option>
+                ))}
+              </select>
+            </div>
 
             {/* Fechas */}
             <input
