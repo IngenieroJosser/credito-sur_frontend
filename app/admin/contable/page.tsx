@@ -88,6 +88,7 @@ import SelectCategoria from '@/components/ui/SelectCategoria'
 import AnimacionCarga from '@/components/ui/AnimacionCarga'
 import Link from 'next/link'
 import DeudorasCobradorCard from '@/components/contable/DeudorasCobradorCard'
+import FieldLabel from '@/components/ui/FieldLabel'
 
 // --- TIPOS DE DATOS ---
 // Definimos la estructura de nuestras "Cajas".
@@ -1796,7 +1797,7 @@ const ModuloContableContent = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-sm font-bold text-slate-700">Nombre</label>
+                    <FieldLabel required>Nombre</FieldLabel>
                     <input
                       value={crearCajaForm.nombre}
                       onChange={(e) => setCrearCajaForm((p) => ({ ...p, nombre: e.target.value }))}
@@ -1806,7 +1807,7 @@ const ModuloContableContent = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-bold text-slate-700">Responsable</label>
+                    <FieldLabel required>Responsable</FieldLabel>
                     <select
                       value={crearCajaForm.responsableId}
                       onChange={(e) => setCrearCajaForm((p) => ({ ...p, responsableId: e.target.value }))}
@@ -1822,7 +1823,7 @@ const ModuloContableContent = () => {
                   </div>
 
                   <div className="space-y-2 md:col-span-2">
-                    <label className="text-sm font-bold text-slate-700">Saldo inicial</label>
+                    <FieldLabel required>Saldo inicial</FieldLabel>
                     <div className="relative">
                       <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
                       <input
@@ -1886,7 +1887,7 @@ const ModuloContableContent = () => {
               <div className="p-6 space-y-5">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-sm font-bold text-slate-700">Nombre</label>
+                    <FieldLabel required>Nombre</FieldLabel>
                     <input
                       value={editarCajaForm.nombre}
                       onChange={(e) => setEditarCajaForm((p) => ({ ...p, nombre: e.target.value }))}
@@ -1894,7 +1895,7 @@ const ModuloContableContent = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-bold text-slate-700">Responsable</label>
+                    <FieldLabel required>Responsable</FieldLabel>
                     <select
                       value={editarCajaForm.responsableId}
                       onChange={(e) => setEditarCajaForm((p) => ({ ...p, responsableId: e.target.value }))}
@@ -1911,7 +1912,7 @@ const ModuloContableContent = () => {
 
                   {cajaSeleccionada.tipo === 'RUTA' && (
                     <div className="space-y-2 md:col-span-2">
-                      <label className="text-sm font-bold text-slate-700">Ruta</label>
+                      <FieldLabel required>Ruta</FieldLabel>
                       <select
                         value={editarCajaForm.rutaId}
                         onChange={(e) => setEditarCajaForm((p) => ({ ...p, rutaId: e.target.value }))}
@@ -1931,7 +1932,7 @@ const ModuloContableContent = () => {
                   )}
 
                   <div className="space-y-2">
-                    <label className="text-sm font-bold text-slate-700">Estado</label>
+                    <FieldLabel required>Estado</FieldLabel>
                     <select
                       value={editarCajaForm.estado}
                       onChange={(e) =>
@@ -2050,11 +2051,11 @@ const ModuloContableContent = () => {
                 {/* Caja y Origen */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-black text-slate-500 uppercase ml-1">
+                    <FieldLabel required className="text-xs font-black text-slate-500 uppercase ml-1 mb-1.5">
                         {movimientoForm.origen === 'COBRADOR' 
                            ? (movimientoForm.tipo === 'INGRESO' ? 'Caja Destino (Recibe)' : 'Caja Origen (Entrega)')
                            : 'Caja Afectada'}
-                    </label>
+                    </FieldLabel>
                     <div className="relative">
                         <Wallet className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                         <select
@@ -2072,7 +2073,7 @@ const ModuloContableContent = () => {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-xs font-black text-slate-500 uppercase ml-1">Origen del Capital</label>
+                    <FieldLabel required className="text-xs font-black text-slate-500 uppercase ml-1 mb-1.5">Origen del Capital</FieldLabel>
                     <div className="relative">
                         <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                         <select
@@ -2100,9 +2101,9 @@ const ModuloContableContent = () => {
                        </span>
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-orange-700 uppercase ml-1">
+                      <FieldLabel required className="text-[10px] font-bold text-orange-700 uppercase ml-1 mb-1.5">
                         {movimientoForm.tipo === 'INGRESO' ? '¿De qué caja sale el dinero?' : '¿A qué caja va el dinero?'}
-                      </label>
+                      </FieldLabel>
                       <select
                           value={movimientoForm.cajaOrigenId}
                           onChange={(e) => setMovimientoForm((p) => ({ ...p, cajaOrigenId: e.target.value }))}
@@ -2133,6 +2134,7 @@ const ModuloContableContent = () => {
                     <SelectCategoria
                         tipo={movimientoForm.tipo === 'INGRESO' ? 'INGRESO' : 'GASTO'}
                         label="Categoría"
+                        required
                         placeholder="Seleccionar..."
                         value={movimientoForm.categoriaId}
                         onChange={(val) => setMovimientoForm(p => ({ ...p, categoriaId: val, categoria: '' }))}
@@ -2142,7 +2144,7 @@ const ModuloContableContent = () => {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-500 uppercase ml-1">Monto de Operación</label>
+                    <FieldLabel required className="text-xs font-bold text-slate-500 uppercase ml-1 mb-1.5">Monto de Operación</FieldLabel>
                     <div className="relative">
                       <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
                       <input

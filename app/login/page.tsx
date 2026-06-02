@@ -289,7 +289,7 @@ const LoginPage = () => {
         'SUPER_ADMINISTRADOR': '/admin',
         'ADMINISTRADOR': '/admin',
         'SUPERVISOR': '/supervisor',
-        'CONTADOR': '/contable',
+        'CONTADOR': '/contador/contable',
         'PUNTO_DE_VENTA': '/punto-de-venta'
       };
 
@@ -453,7 +453,7 @@ const LoginPage = () => {
 
         {/* Formulario */}
         <div className="mb-8">
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6" autoComplete="on">
             
             {/* Input Usuario */}
             <div className="relative">
@@ -472,8 +472,9 @@ const LoginPage = () => {
                 onFocus={() => setFocusedField('usuario')}
                 onBlur={() => setFocusedField(null)}
                 className="w-full pl-8 pr-4 py-3 bg-transparent border-0 border-b border-gray-200 focus:border-[#08557f] focus:outline-none transition-all duration-300 text-gray-700 placeholder-gray-400 text-sm"
-                placeholder="Nombre"
-                autoComplete="username"
+                placeholder="Nombres"
+                autoComplete="name"
+                autoCapitalize="words"
                 disabled={isLoading}
               />
               {/* Línea animada inferior */}

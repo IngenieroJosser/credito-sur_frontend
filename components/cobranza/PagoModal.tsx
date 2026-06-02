@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { VisitaRuta } from '@/lib/types/cobranza'
 import { formatCOPInputValue, parseCOPInputToNumber, formatMilesCOP, getDisplayedCOPInteger, isSameDisplayedCOPAmount } from '@/lib/utils'
+import FieldLabel from '@/components/ui/FieldLabel'
 import Portal, { MODAL_Z_INDEX } from '@/components/ui/Portal'
 
 interface PagoModalProps {
@@ -136,7 +137,7 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm, montoCuota
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">Método de Pago</label>
+                <FieldLabel required>Método de Pago</FieldLabel>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
@@ -164,7 +165,7 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm, montoCuota
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">Monto Recibido</label>
+                <FieldLabel required>Monto Recibido</FieldLabel>
                 <div className="relative">
                   <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-6 w-6 text-slate-400" />
                   <input 
@@ -211,9 +212,7 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm, montoCuota
 
               {metodoPago === 'TRANSFERENCIA' && (
                 <div className="pt-2">
-                  <label className="block text-sm font-bold text-slate-700 mb-2">
-                    Comprobante (Obligatorio)
-                  </label>
+                  <FieldLabel required>Comprobante</FieldLabel>
                   <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1">

@@ -18,6 +18,7 @@ import { articulosService, Articulo } from '@/services/articulos-service'
 import { offlineStore } from '@/lib/offline/offlineDb'
 import { TipoAmortizacion } from '@/types/enums'
 import { getBogotaDateKey, toBogotaDateTimeLocalInputValue } from '@/lib/rutas-core'
+import FieldLabel from '@/components/ui/FieldLabel'
 
 interface CrearCreditoModalProps {
   isOpen: boolean
@@ -277,7 +278,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
 
             {!hideTypeSelector ? (
               <div className="mb-6">
-                <label className="block text-sm font-bold text-slate-700 mb-3">Tipo de Crédito</label>
+                <FieldLabel required className="mb-3">Tipo de Crédito</FieldLabel>
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     type="button"
@@ -316,7 +317,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">Cliente</label>
+                <FieldLabel required>Cliente</FieldLabel>
                 <select
                   value={clienteCreditoId}
                   onChange={(e) => setClienteCreditoId(e.target.value)}
@@ -335,7 +336,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                 <>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">Monto del Préstamo</label>
+                      <FieldLabel required>Monto del Préstamo</FieldLabel>
                       <div className="relative">
                         <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
                         <input
@@ -349,7 +350,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                       </div>
                     </div>
                     <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">Tipo de Interés</label>
+                      <FieldLabel required>Tipo de Interés</FieldLabel>
                       <select
                         value={tipoInteres}
                         onChange={(e) => setTipoInteres(e.target.value as TipoAmortizacion)}
@@ -362,7 +363,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">Tasa de Interés (%)</label>
+                      <FieldLabel required>Tasa de Interés (%)</FieldLabel>
                       <input
                           type="text"
                           inputMode="decimal"
@@ -373,7 +374,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">Cuotas</label>
+                      <FieldLabel required>Cuotas</FieldLabel>
                       <input
                         type="text"
                         inputMode="numeric"
@@ -386,7 +387,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                   </div>
                    <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">Frecuencia de Pago</label>
+                      <FieldLabel required>Frecuencia de Pago</FieldLabel>
                       <select 
                          value={frecuenciaPago}
                          onChange={(e) => {
@@ -403,7 +404,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">Fecha Crédito</label>
+                      <FieldLabel required>Fecha Crédito</FieldLabel>
                        <input 
                           type="datetime-local"
                           value={fechaCreditoInput}
@@ -464,7 +465,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                   </div>
                   
                   <div className="mt-3">
-                    <label className="block text-sm font-bold text-slate-700 mb-2">Modo de Venta</label>
+                    <FieldLabel required>Modo de Venta</FieldLabel>
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
@@ -489,7 +490,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">Artículo</label>
+                      <FieldLabel required>Artículo</FieldLabel>
                       <select 
                         value={articuloSeleccionadoId}
                         onChange={(e) => {
@@ -511,7 +512,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                     <div>
                         {!esContado && (
                           <>
-                            <label className="block text-sm font-bold text-slate-700 mt-3 mb-2">Plazo (Meses)</label>
+                            <FieldLabel required className="mt-3">Plazo (Meses)</FieldLabel>
                             <select 
                               value={planArticuloIndex !== null ? planArticuloIndex : ''}
                               onChange={(e) => {
@@ -540,7 +541,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                   {!esContado && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-bold text-slate-700 mb-2">Frecuencia de Pago</label>
+                        <FieldLabel required>Frecuencia de Pago</FieldLabel>
                         <select 
                            value={frecuenciaPago}
                            onChange={(e) => {
@@ -557,7 +558,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                         </select>
                       </div>
                       <div>
-                        <label className="block text-sm font-bold text-slate-700 mb-2">Cuota Inicial</label>
+                        <FieldLabel>Cuota Inicial</FieldLabel>
                         <div className="relative">
                           <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
                           <input 
@@ -574,7 +575,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                   )}
 
                   <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-2">Fecha Crédito</label>
+                    <FieldLabel required>Fecha Crédito</FieldLabel>
                     <input 
                        type="datetime-local"
                        value={fechaCreditoInput}
@@ -621,7 +622,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
 
               {!(creditType === 'articulo' && esContado) && (
                 <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-2">Fecha Primer Cobro</label>
+                  <FieldLabel required>Fecha Primer Cobro</FieldLabel>
                   {(() => {
                     const diaSeleccionado = fechaPrimerCobro
                       ? new Date(fechaPrimerCobro + 'T12:00:00').getDate()
@@ -665,7 +666,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
               )}
 
               <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">Notas (Opcional)</label>
+                <FieldLabel>Notas (Opcional)</FieldLabel>
                 <textarea 
                   className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900 resize-none"
                   rows={3}

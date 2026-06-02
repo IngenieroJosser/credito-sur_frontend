@@ -6,6 +6,7 @@ import { useNotification } from '@/components/providers/NotificationProvider';
 import Portal, { MODAL_Z_INDEX } from '@/components/ui/Portal';
 import { clientesService, CrearClienteDto, Cliente } from '@/services/clientes-service';
 import MediaUpload from '@/components/ui/MediaUpload';
+import FieldLabel from '@/components/ui/FieldLabel';
 import { enqueueClienteUpdate } from '@/lib/offline/offlineQueue';
 import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core';
 
@@ -296,7 +297,7 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-2">CC o Documento</label>
+                  <FieldLabel required>CC o Documento</FieldLabel>
                   <input
                     type="text"
                     inputMode="numeric"
@@ -311,7 +312,7 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-2">Teléfono</label>
+                  <FieldLabel required>Teléfono</FieldLabel>
                   <input
                     type="text"
                     inputMode="numeric"
@@ -329,7 +330,7 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-2">Nombres</label>
+                  <FieldLabel required>Nombres</FieldLabel>
                   <input
                     value={formulario.nombres}
                     onChange={(e) => setFormulario(prev => ({ ...prev, nombres: e.target.value }))}
@@ -338,7 +339,7 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-2">Apellidos</label>
+                  <FieldLabel required>Apellidos</FieldLabel>
                   <input
                     value={formulario.apellidos}
                     onChange={(e) => setFormulario(prev => ({ ...prev, apellidos: e.target.value }))}
@@ -349,7 +350,7 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">Correo (Opcional)</label>
+                <FieldLabel>Correo (Opcional)</FieldLabel>
                 <input
                   type="email"
                   value={formulario.correo}
@@ -360,7 +361,7 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">Dirección</label>
+                <FieldLabel required>Dirección</FieldLabel>
                 <input
                   value={formulario.direccion}
                   onChange={(e) => setFormulario(prev => ({ ...prev, direccion: e.target.value }))}
@@ -371,7 +372,7 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
               </div>
 
               <div className="border-t border-slate-100 pt-4">
-                <label className="block text-sm font-bold text-slate-700 mb-1">Referencias Personales</label>
+                <FieldLabel className="mb-1">Referencias Personales</FieldLabel>
                 <p className="text-xs text-slate-400 mb-4">Complete el nombre completo y teléfono de cada referencia</p>
 
                 {/* Referencia 1 */}
@@ -382,7 +383,7 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
                   </p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-bold text-slate-500 mb-1">Nombre Completo *</label>
+                      <FieldLabel required className="text-xs text-slate-500 mb-1">Nombre Completo</FieldLabel>
                       <input
                         value={formulario.referencia1Nombre}
                         onChange={(e) => setFormulario(prev => ({ ...prev, referencia1Nombre: e.target.value }))}
@@ -392,7 +393,7 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-500 mb-1">Teléfono *</label>
+                      <FieldLabel required className="text-xs text-slate-500 mb-1">Teléfono</FieldLabel>
                       <input
                         type="text"
                         inputMode="numeric"
@@ -414,7 +415,7 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
                   </p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-bold text-slate-500 mb-1">Nombre Completo *</label>
+                      <FieldLabel required className="text-xs text-slate-500 mb-1">Nombre Completo</FieldLabel>
                       <input
                         value={formulario.referencia2Nombre}
                         onChange={(e) => setFormulario(prev => ({ ...prev, referencia2Nombre: e.target.value }))}
@@ -424,7 +425,7 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-500 mb-1">Teléfono *</label>
+                      <FieldLabel required className="text-xs text-slate-500 mb-1">Teléfono</FieldLabel>
                       <input
                         type="text"
                         inputMode="numeric"

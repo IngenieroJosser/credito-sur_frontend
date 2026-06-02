@@ -5,7 +5,7 @@ import ArticulosContent from '@/components/articulos/ArticulosContent'
 
 export default function ArticulosPage() {
   return (
-    <ProtectedPage permiso="ARTICULOS_VIEW">
+    <ProtectedPage permiso="ARTICULOS_VIEW" roles={['PUNTO_DE_VENTA', 'CONTADOR', 'COORDINADOR', 'ADMIN', 'SUPER_ADMINISTRADOR']}>
       <ArticulosContent />
     </ProtectedPage>
   )

@@ -317,7 +317,7 @@ export default function AdminLayout({
       'COBRADOR': '/cobranzas',
       'COORDINADOR': '/coordinador',
       'SUPERVISOR': '/supervisor',
-      'CONTADOR': '/contable',
+      'CONTADOR': '/contador/contable',
       'PUNTO_DE_VENTA': '/punto-de-venta'
     }
 

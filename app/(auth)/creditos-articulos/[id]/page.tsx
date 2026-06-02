@@ -9,7 +9,7 @@ import AdminDetalleCreditoArticuloPage from '@/app/admin/creditos-articulos/[id]
 
 export default function DetalleCreditoArticuloPage() {
   return (
-    <ProtectedPage permiso="CREDITOS_ARTICULOS_VIEW">
+    <ProtectedPage permiso="CREDITOS_ARTICULOS_VIEW" roles={['PUNTO_DE_VENTA', 'ADMIN', 'SUPER_ADMINISTRADOR', 'SUPERVISOR']}>
       <AdminDetalleCreditoArticuloPage />
     </ProtectedPage>
   )

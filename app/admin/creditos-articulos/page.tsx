@@ -4,7 +4,7 @@ import { logger } from '@/lib/logger'
 import { useState, useEffect, useCallback } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { 
   Search, 
   Filter, 
@@ -29,13 +29,17 @@ import { loansServiceExt as loansService } from '@/services/loans-service'
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
 
 export default function CreditosArticulosPage() {
-  const router = useRouter()
+  const pathname = usePathname()
   const [searchTerm, setSearchTerm] = useState('')
   const [estadoFiltro, setEstadoFiltro] = useState('todos')
   const [riesgoFiltro, setRiesgoFiltro] = useState('todos')
   const [creditos, setCreditos] = useState<Prestamo[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showCrearCreditoModal, setShowCrearCreditoModal] = useState(false)
+  const isPuntoVentaView = pathname?.startsWith('/punto-de-venta')
+  const basePath = pathname?.startsWith('/punto-de-venta')
+    ? '/punto-de-venta/creditos-articulos'
+    : '/creditos-articulos'
   
   // Paginación
   const [paginaActual, setPaginaActual] = useState(1)
@@ -100,6 +104,27 @@ export default function CreditosArticulosPage() {
     }
   }
 
+  const getRiesgoLabel = (riesgo: string) => {
+    switch (riesgo) {
+      case 'VERDE': return 'Verde'
+      case 'AMARILLO': return 'Precaución'
+      case 'ROJO': return 'Rojo'
+      case 'LISTA_NEGRA': return 'Lista Negra'
+      default: return riesgo || 'Sin riesgo'
+    }
+  }
+
+  const getEstadoLabel = (estado: string) => {
+    switch (estado) {
+      case 'ACTIVO': return 'Activo'
+      case 'PENDIENTE_APROBACION': return 'Pendiente'
+      case 'EN_MORA': return 'En Mora'
+      case 'PAGADO': return 'Pagado'
+      case 'INCUMPLIDO': return 'Incumplido'
+      default: return (estado || 'Sin estado').replace(/_/g, ' ')
+    }
+  }
+
   const getRiesgoColor = (riesgo: NivelRiesgo) => {
     switch(riesgo) {
       case 'VERDE': return 'text-emerald-600 bg-emerald-50 border-emerald-100 border'
@@ -120,7 +145,8 @@ export default function CreditosArticulosPage() {
 
   const filteredCreditos = creditos.filter(credito => {
     const matchesSearch = credito.cliente.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         credito.producto.toLowerCase().includes(searchTerm.toLowerCase())
+                         credito.producto.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         credito.id.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesEstado = estadoFiltro === 'todos' || credito.estado === estadoFiltro
     const matchesRiesgo = riesgoFiltro === 'todos' || credito.riesgo === riesgoFiltro
     return matchesSearch && matchesEstado && matchesRiesgo
@@ -170,13 +196,15 @@ export default function CreditosArticulosPage() {
               Administra créditos para electrodomésticos, muebles y tecnología.
             </p>
           </div>
-          <button 
-            onClick={() => setShowCrearCreditoModal(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-lg hover:border-slate-400 hover:bg-slate-50 transition-all duration-200 group shadow-sm font-bold text-sm"
-          >
-            <Plus className="w-4 h-4 text-slate-500 group-hover:text-slate-900 transition-colors" />
-            <span>Nuevo Crédito</span>
-          </button>
+          {!isPuntoVentaView && (
+            <button
+              onClick={() => setShowCrearCreditoModal(true)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-lg hover:border-slate-400 hover:bg-slate-50 transition-all duration-200 group shadow-sm font-bold text-sm"
+            >
+              <Plus className="w-4 h-4 text-slate-500 group-hover:text-slate-900 transition-colors" />
+              <span>Nuevo Crédito</span>
+            </button>
+          )}
         </div>
 
         {/* Stats Cards */}
@@ -246,6 +274,7 @@ export default function CreditosArticulosPage() {
               {[
                 { id: 'todos', label: 'Todos' },
                 { id: 'ACTIVO', label: 'Activos' },
+                { id: 'PENDIENTE_APROBACION', label: 'Pendientes' },
                 { id: 'EN_MORA', label: 'En Mora' },
                 { id: 'PAGADO', label: 'Pagados' }
               ].map((filtro) => (
@@ -268,9 +297,10 @@ export default function CreditosArticulosPage() {
               <AlertCircle className="h-3.5 w-3.5 text-slate-400 shrink-0 mr-1" />
               {[
                 { id: 'todos', label: 'Todos' },
-                { id: 'VERDE', label: 'Bajo' },
-                { id: 'AMARILLO', label: 'Medio' },
-                { id: 'ROJO', label: 'Alto' }
+                { id: 'VERDE', label: 'Verde' },
+                { id: 'AMARILLO', label: 'Precaución' },
+                { id: 'ROJO', label: 'Rojo' },
+                { id: 'LISTA_NEGRA', label: 'Lista Negra' }
               ].map((filtro) => (
                 <button
                   key={filtro.id}
@@ -318,7 +348,7 @@ export default function CreditosArticulosPage() {
                     className="hover:bg-slate-50/80 transition-colors group"
                   >
                     <td className="px-6 py-4">
-                      <Link href={`/creditos-articulos/${credito.id}`} className="block">
+                      <Link href={`${basePath}/${credito.id}`} className="block">
                         <div className="flex items-center gap-3">
                         <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 shadow-sm border ${
                             credito.riesgo === 'ROJO' ? 'bg-rose-50 text-rose-500 border-rose-100' : 
@@ -333,7 +363,7 @@ export default function CreditosArticulosPage() {
                             <div className="flex items-center gap-2 mt-0.5">
                                <span className="text-xs font-medium text-slate-500">{credito.cliente}</span>
                                <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold border ${getRiesgoColor(credito.riesgo)}`}>
-                                 {credito.riesgo}
+                                 {getRiesgoLabel(credito.riesgo)}
                                </span>
                             </div>
                           </div>
@@ -341,14 +371,14 @@ export default function CreditosArticulosPage() {
                       </Link>
                     </td>
                     <td className="px-6 py-4">
-                      <Link href={`/creditos-articulos/${credito.id}`} className="block">
+                      <Link href={`${basePath}/${credito.id}`} className="block">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${getEstadoColor(credito.estado)}`}>
-                        {credito.estado.replace('_', ' ')}
+                        {getEstadoLabel(credito.estado)}
                       </span>
                       </Link>
                     </td>
                     <td className="px-6 py-4">
-                      <Link href={`/creditos-articulos/${credito.id}`} className="block">
+                      <Link href={`${basePath}/${credito.id}`} className="block">
                       <div className="flex items-center gap-2 text-slate-600">
                         <Calendar className="w-4 h-4 text-slate-400" />
                         <span className="text-xs font-bold">{credito.proximoPago}</span>
@@ -356,12 +386,12 @@ export default function CreditosArticulosPage() {
                       </Link>
                     </td>
                     <td className="px-6 py-4">
-                      <Link href={`/creditos-articulos/${credito.id}`} className="block">
+                      <Link href={`${basePath}/${credito.id}`} className="block">
                       <div className="w-full max-w-[140px]">
                         <div className="flex justify-between text-xs mb-1.5">
                           <span className="text-slate-500 font-medium">{credito.cuotasPagadas}/{credito.cuotasTotales} cuotas</span>
                           <span className="font-bold text-slate-900">
-                            {Math.round((credito.cuotasPagadas / credito.cuotasTotales) * 100)}%
+                            {credito.cuotasTotales > 0 ? Math.round((credito.cuotasPagadas / credito.cuotasTotales) * 100) : 0}%
                           </span>
                         </div>
                         <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
@@ -371,14 +401,14 @@ export default function CreditosArticulosPage() {
                               credito.riesgo === 'AMARILLO' ? 'bg-amber-500' :
                               'bg-primary'
                             }`}
-                            style={{ width: `${(credito.cuotasPagadas / credito.cuotasTotales) * 100}%` }}
+                            style={{ width: `${credito.cuotasTotales > 0 ? (credito.cuotasPagadas / credito.cuotasTotales) * 100 : 0}%` }}
                           />
                         </div>
                       </div>
                       </Link>
                     </td>
                     <td className="px-6 py-4">
-                      <Link href={`/creditos-articulos/${credito.id}`} className="block">
+                      <Link href={`${basePath}/${credito.id}`} className="block">
                       <div>
                         <div className="font-bold text-slate-900">{formatCurrency(credito.montoPendiente)}</div>
                         <div className="text-xs text-slate-500 mt-0.5 font-medium">Total: {formatCurrency(credito.montoTotal)}</div>
@@ -386,7 +416,7 @@ export default function CreditosArticulosPage() {
                       </Link>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <Link href={`/creditos-articulos/${credito.id}`} className="inline-block p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Ver Detalle">
+                      <Link href={`${basePath}/${credito.id}`} className="inline-block p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Ver Detalle">
                         <Eye className="w-4 h-4" />
                       </Link>
                     </td>
@@ -463,7 +493,7 @@ export default function CreditosArticulosPage() {
             creditosPaginados.map((credito) => (
               <Link
                 key={credito.id}
-                href={`/creditos-articulos/${credito.id}`}
+                href={`${basePath}/${credito.id}`}
                 className="block bg-white rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all"
               >
                 {/* Header */}
@@ -482,7 +512,7 @@ export default function CreditosArticulosPage() {
                     </div>
                   </div>
                   <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border flex-shrink-0 ml-2 ${getEstadoColor(credito.estado)}`}>
-                    {credito.estado.replace('_', ' ')}
+                    {getEstadoLabel(credito.estado)}
                   </span>
                 </div>
 
@@ -490,7 +520,7 @@ export default function CreditosArticulosPage() {
                 <div className="mb-3">
                   <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Nivel de Riesgo</div>
                   <span className={`inline-flex items-center text-xs px-2 py-1 rounded font-bold ${getRiesgoColor(credito.riesgo)}`}>
-                    {credito.riesgo}
+                    {getRiesgoLabel(credito.riesgo)}
                   </span>
                 </div>
 
@@ -510,7 +540,7 @@ export default function CreditosArticulosPage() {
                     <div className="flex justify-between items-center">
                       <span className="text-xs text-slate-500 font-medium">{credito.cuotasPagadas}/{credito.cuotasTotales} cuotas</span>
                       <span className="text-sm font-bold text-slate-900">
-                        {Math.round((credito.cuotasPagadas / credito.cuotasTotales) * 100)}%
+                        {credito.cuotasTotales > 0 ? Math.round((credito.cuotasPagadas / credito.cuotasTotales) * 100) : 0}%
                       </span>
                     </div>
                     <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
@@ -520,7 +550,7 @@ export default function CreditosArticulosPage() {
                           credito.riesgo === 'AMARILLO' ? 'bg-amber-500' :
                           'bg-primary'
                         }`}
-                        style={{ width: `${(credito.cuotasPagadas / credito.cuotasTotales) * 100}%` }}
+                        style={{ width: `${credito.cuotasTotales > 0 ? (credito.cuotasPagadas / credito.cuotasTotales) * 100 : 0}%` }}
                       />
                     </div>
                   </div>
@@ -574,16 +604,17 @@ export default function CreditosArticulosPage() {
           )}
         </div>
       </div>
-      {/* Modal de Crear Crédito de Artículo */}
-      <CrearCreditoModal
-        isOpen={showCrearCreditoModal}
-        onClose={() => setShowCrearCreditoModal(false)}
-        defaultCreditType="articulo"
-        onConfirm={(data) => {
-          logger.log('Crédito artículo creado:', data);
-          setShowCrearCreditoModal(false);
-        }}
-      />
+      {!isPuntoVentaView && (
+        <CrearCreditoModal
+          isOpen={showCrearCreditoModal}
+          onClose={() => setShowCrearCreditoModal(false)}
+          defaultCreditType="articulo"
+          onConfirm={(data) => {
+            logger.log('Crédito artículo creado:', data);
+            setShowCrearCreditoModal(false);
+          }}
+        />
+      )}
     </div>
   )
 }

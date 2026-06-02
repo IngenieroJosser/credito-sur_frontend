@@ -24,9 +24,11 @@ import {
 // ─── Types ───
 export interface UserDropdownUser {
   id?: string
-  nombres: string
-  apellidos: string
-  correo: string
+  nombres?: string | null
+  apellidos?: string | null
+  nombre?: string | null
+  nombreCompleto?: string | null
+  correo?: string | null
   telefono?: string
   rol: string
   fecha_creacion?: string
@@ -92,14 +94,24 @@ export function getRoleIcon(rol: string): React.ReactNode {
 
 function getUserInitials(user: UserDropdownUser | null): string {
   if (!user) return 'U'
-  const first = user.nombres?.charAt(0) || ''
-  const last = user.apellidos?.charAt(0) || ''
-  return (first + last).toUpperCase()
+  const fullName = getUserFullName(user)
+  const parts = fullName.split(/\s+/).filter(Boolean)
+  const first = parts[0]?.charAt(0) || ''
+  const last = parts.length > 1 ? parts[parts.length - 1]?.charAt(0) || '' : ''
+  return (first + last || 'U').toUpperCase()
 }
 
 function getUserFullName(user: UserDropdownUser | null): string {
   if (!user) return 'Usuario'
-  return `${user.nombres} ${user.apellidos}`
+  return [
+    user.nombres,
+    user.apellidos,
+  ]
+    .map(part => String(part ?? '').trim())
+    .filter(Boolean)
+    .join(' ')
+    || String(user.nombreCompleto ?? user.nombre ?? user.correo ?? 'Usuario').trim()
+    || 'Usuario'
 }
 
 function getProfileRoute(rol: string): string {
@@ -170,7 +182,7 @@ export default function UserDropdownMenu({ user, onLogout }: UserDropdownMenuPro
             </div>
             <div className="text-xs text-gray-500 flex items-center gap-1">
               <Mail className="h-3 w-3" />
-              <span className="truncate max-w-[120px]">{user.correo}</span>
+              <span className="truncate max-w-[120px]">{user.correo || 'Sin correo'}</span>
             </div>
           </div>
           <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${showMenu ? 'rotate-180' : ''}`} />
@@ -220,8 +232,8 @@ export default function UserDropdownMenu({ user, onLogout }: UserDropdownMenuPro
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-xs text-gray-500">Correo electrónico</div>
-                    <div className="text-sm font-medium text-gray-900 truncate" title={user.correo}>
-                      {user.correo}
+                    <div className="text-sm font-medium text-gray-900 truncate" title={user.correo || 'Sin correo'}>
+                      {user.correo || 'Sin correo'}
                     </div>
                   </div>
                 </div>

@@ -1,18 +1,3 @@
-'use client'
+import NotificacionesPage from '@/app/(auth)/notificaciones/page'
 
-/**
- * @deprecated Ruta legacy. Redirige a la ruta unificada /notificaciones
- * @migration Permission-Based Routing
- */
-import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-
-export default function ContadorNotificacionesRedirect() {
-  const router = useRouter()
-
-  useEffect(() => {
-    router.replace('/notificaciones')
-  }, [router])
-
-  return null
-}
+export default NotificacionesPage

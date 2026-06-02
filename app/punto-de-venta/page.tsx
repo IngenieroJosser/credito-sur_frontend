@@ -29,7 +29,7 @@ export default function PuntoDeVentaPage() {
           'COORDINADOR': '/coordinador',
           'SUPERVISOR': '/supervisor',
           'COBRADOR': '/cobranzas',
-          'CONTADOR': '/contable',
+          'CONTADOR': '/contador/contable',
         };
         
         const redirectPath = (user.rol && ROLE_REDIRECT_MAP[user.rol]) || '/login';

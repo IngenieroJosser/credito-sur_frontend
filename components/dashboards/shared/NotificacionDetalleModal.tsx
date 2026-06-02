@@ -585,6 +585,39 @@ export default function NotificacionDetalleModal({
     RECIBO_PAGO: 'Recibo de Pago',
   }
   const mensajeFmt = (mensaje || '').replace(/\bDNI\b/gi, 'CC')
+  const clientRequestDetails = {
+    nombreCompleto: pickString(
+      `${editedDetails?.nombres || ''} ${editedDetails?.apellidos || ''}`,
+      editedDetails?.nombreCompleto,
+      safeMeta?.nombreCompleto,
+    ),
+    dni: pickString(editedDetails?.dni, editedDetails?.cedula, safeMeta?.dni, safeMeta?.cedula),
+    telefono: pickString(editedDetails?.telefono, safeMeta?.telefono),
+    direccion: pickString(editedDetails?.direccion, safeMeta?.direccion),
+    correo: pickString(editedDetails?.correo, safeMeta?.correo) || 'No registrado',
+    referencia: pickString(editedDetails?.referencia, safeMeta?.referencia),
+    referencia1Nombre: pickString(editedDetails?.referencia1Nombre, safeMeta?.referencia1Nombre),
+    referencia1Telefono: pickString(editedDetails?.referencia1Telefono, safeMeta?.referencia1Telefono),
+    referencia2Nombre: pickString(editedDetails?.referencia2Nombre, safeMeta?.referencia2Nombre),
+    referencia2Telefono: pickString(editedDetails?.referencia2Telefono, safeMeta?.referencia2Telefono),
+  }
+
+  const ClientInfoField = ({
+    label,
+    value,
+    className = '',
+  }: {
+    label: string
+    value?: string
+    className?: string
+  }) => (
+    <div className={`min-w-0 rounded-xl border border-slate-200 bg-white p-3 ${className}`}>
+      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</p>
+      <p className="mt-1 break-words text-sm font-black leading-snug text-slate-900">
+        {value || 'No registrado'}
+      </p>
+    </div>
+  )
 
   const handleClose = () => {
     setIsEditingMode(false)
@@ -1145,7 +1178,7 @@ export default function NotificacionDetalleModal({
         }}
       >
         <div 
-          className="bg-white shadow-2xl w-full overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-100 flex flex-col h-[100dvh] sm:h-auto sm:max-h-[90vh] rounded-none sm:rounded-[2.5rem] sm:max-w-lg"
+          className="bg-white shadow-2xl w-full overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-100 flex flex-col h-[100dvh] sm:h-auto sm:max-h-[90vh] rounded-none sm:rounded-[2.5rem] sm:max-w-3xl"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
@@ -1196,35 +1229,39 @@ export default function NotificacionDetalleModal({
 
             {isNuevoCliente && (
               <div className="bg-slate-50 rounded-2xl border border-slate-100 p-5 space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-600 font-medium">Nombre:</span>
-                      <span className="font-bold text-slate-900">{editedDetails?.nombres} {editedDetails?.apellidos}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-600 font-medium">CC:</span>
-                      <span className="font-bold text-slate-900">{editedDetails?.dni || editedDetails?.cedula || safeMeta?.dni || safeMeta?.cedula}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-600 font-medium">Teléfono:</span>
-                      <span className="font-bold text-slate-900">{editedDetails?.telefono}</span>
-                    </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  <ClientInfoField label="Nombre" value={clientRequestDetails.nombreCompleto} className="sm:col-span-2" />
+                  <ClientInfoField label="CC" value={clientRequestDetails.dni} />
+                  <ClientInfoField label="Teléfono" value={clientRequestDetails.telefono} />
+                  <ClientInfoField label="Dirección" value={clientRequestDetails.direccion} className="sm:col-span-2" />
+                  <ClientInfoField label="Correo" value={clientRequestDetails.correo} className="sm:col-span-2 lg:col-span-3" />
+                  {clientRequestDetails.referencia && (
+                    <ClientInfoField label="Referencia general" value={clientRequestDetails.referencia} className="sm:col-span-2 lg:col-span-3" />
+                  )}
+                </div>
+
+                <div className="space-y-3">
+                  <div className="text-xs font-black text-slate-500 uppercase tracking-widest">
+                    Referencias personales
                   </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-600 font-medium">Dirección:</span>
-                      <span className="font-bold text-slate-900">{editedDetails?.direccion}</span>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="rounded-xl border border-slate-200 bg-white p-3">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Referencia 1</p>
+                      <p className="mt-1 break-words text-sm font-black text-slate-900">
+                        {clientRequestDetails.referencia1Nombre || 'No registrada'}
+                      </p>
+                      <p className="mt-1 break-words text-xs font-bold text-slate-500">
+                        {clientRequestDetails.referencia1Telefono || 'Sin teléfono'}
+                      </p>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-600 font-medium">Referencia:</span>
-                      <span className="font-bold text-slate-900">{editedDetails?.referencia}</span>
-                    </div>
-                    <div className="flex justify-between text-sm gap-2">
-                      <span className="text-slate-600 font-medium whitespace-nowrap">Correo:</span>
-                      <span className="font-bold text-slate-900 break-all text-right">
-                        {editedDetails?.correo || 'No registrado'}
-                      </span>
+                    <div className="rounded-xl border border-slate-200 bg-white p-3">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Referencia 2</p>
+                      <p className="mt-1 break-words text-sm font-black text-slate-900">
+                        {clientRequestDetails.referencia2Nombre || 'No registrada'}
+                      </p>
+                      <p className="mt-1 break-words text-xs font-bold text-slate-500">
+                        {clientRequestDetails.referencia2Telefono || 'Sin teléfono'}
+                      </p>
                     </div>
                   </div>
                 </div>
