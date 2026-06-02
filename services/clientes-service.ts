@@ -111,6 +111,12 @@ export interface FiltrosClientes {
   nivelRiesgo?: string;
   ruta?: string;
   search?: string;
+  /**
+   * Cuando es `true`, el backend retorna todos los clientes no bloqueados
+   * sin restringir por ruta del cobrador. Úsese solo en selectores de
+   * creación de crédito.
+   */
+  forCredit?: boolean;
 }
 
 export const clientesService = {
@@ -119,14 +125,15 @@ export const clientesService = {
    */
   async obtenerTodos(filtros?: FiltrosClientes): Promise<Cliente[]> {
     const params = new URLSearchParams();
-    
+
     if (filtros?.nivelRiesgo) params.append('nivelRiesgo', filtros.nivelRiesgo);
     if (filtros?.ruta) params.append('ruta', filtros.ruta);
     if (filtros?.search) params.append('search', filtros.search);
-    
+    if (filtros?.forCredit) params.append('forCredit', 'true');
+
     const query = params.toString();
     const endpoint = query ? `/clients?${query}` : '/clients';
-    
+
     // El backend puede devolver un array directo o un objeto { clientes: [] }
     const response = await apiRequest<Cliente[] | { clientes: Cliente[] }>('GET', endpoint, undefined, { cacheTTL: 0 });
     return Array.isArray(response) ? response : (response.clientes || []);
@@ -150,49 +157,49 @@ export const clientesService = {
 
     try {
       const result = await apiRequest<Cliente>('POST', '/clients', payload);
-      
+
       // Feedback visual inmediato en la cola de sync
       const { logSyncActivity } = await import('@/lib/offline/offlineQueue');
       logSyncActivity(`Crear cliente: ${payload.nombres} ${payload.apellidos}`);
-      
+
       return result;
     } catch (error: any) {
       if (
         (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
+        error?.statusCode === 0 ||
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-         logger.log('[Offline Mode] Guardando creacion de cliente en cola...');
-         // Usar un ID temporal
-         const tempId = `temp-${Date.now()}`;
-         
-         await syncService.enqueueOperation(
-           'cliente_create',
-           '/clients',
-           'POST',
-           payload,
-           `Crear cliente: ${payload.nombres} ${payload.apellidos}`
-         );
+        logger.log('[Offline Mode] Guardando creacion de cliente en cola...');
+        // Usar un ID temporal
+        const tempId = `temp-${Date.now()}`;
 
-         // Retornar objeto temporal para UI optimista
-         return {
-           id: tempId,
-           codigo: 'OFFLINE',
-           dni: payload.dni,
-           nombres: payload.nombres,
-           apellidos: payload.apellidos,
-           telefono: payload.telefono,
-           direccion: payload.direccion || null,
-           referencia: payload.referencia || null,
-           correo: payload.correo || null,
-           nivelRiesgo: payload.nivelRiesgo || NivelRiesgo.VERDE,
-           puntaje: payload.puntaje || 0,
-           enListaNegra: false,
-           estadoAprobacion: EstadoAprobacion.PENDIENTE,
-           creadoEn: toBogotaDateTimeOffsetIso(new Date()),
-           actualizadoEn: toBogotaDateTimeOffsetIso(new Date()),
-         } as any;
+        await syncService.enqueueOperation(
+          'cliente_create',
+          '/clients',
+          'POST',
+          payload,
+          `Crear cliente: ${payload.nombres} ${payload.apellidos}`
+        );
+
+        // Retornar objeto temporal para UI optimista
+        return {
+          id: tempId,
+          codigo: 'OFFLINE',
+          dni: payload.dni,
+          nombres: payload.nombres,
+          apellidos: payload.apellidos,
+          telefono: payload.telefono,
+          direccion: payload.direccion || null,
+          referencia: payload.referencia || null,
+          correo: payload.correo || null,
+          nivelRiesgo: payload.nivelRiesgo || NivelRiesgo.VERDE,
+          puntaje: payload.puntaje || 0,
+          enListaNegra: false,
+          estadoAprobacion: EstadoAprobacion.PENDIENTE,
+          creadoEn: toBogotaDateTimeOffsetIso(new Date()),
+          actualizadoEn: toBogotaDateTimeOffsetIso(new Date()),
+        } as any;
       }
       throw error;
     }
@@ -207,19 +214,19 @@ export const clientesService = {
     } catch (error: any) {
       if (
         (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
+        error?.statusCode === 0 ||
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-         logger.log('[Offline Mode] Guardando actualizacion de cliente en cola...');
-         await syncService.enqueueOperation(
-           'cliente_update',
-           `/clients/${id}`,
-           'PUT',
-           data,
-           `Actualizar cliente: ${id}`
-         );
-         return { id, ...data } as any;
+        logger.log('[Offline Mode] Guardando actualizacion de cliente en cola...');
+        await syncService.enqueueOperation(
+          'cliente_update',
+          `/clients/${id}`,
+          'PUT',
+          data,
+          `Actualizar cliente: ${id}`
+        );
+        return { id, ...data } as any;
       }
       throw error;
     }
@@ -234,19 +241,19 @@ export const clientesService = {
     } catch (error: any) {
       if (
         (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
+        error?.statusCode === 0 ||
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
-         logger.log('[Offline Mode] Guardando eliminacion de cliente en cola...');
-         await syncService.enqueueOperation(
-           'cliente_delete',
-           `/clients/${id}`,
-           'DELETE',
-           {},
-           `Eliminar cliente: ${id}`
-         );
-         return;
+        logger.log('[Offline Mode] Guardando eliminacion de cliente en cola...');
+        await syncService.enqueueOperation(
+          'cliente_delete',
+          `/clients/${id}`,
+          'DELETE',
+          {},
+          `Eliminar cliente: ${id}`
+        );
+        return;
       }
       throw error;
     }
@@ -264,14 +271,14 @@ export const clientesService = {
    */
   async aprobar(id: string, aprobadoPorId: string, datosAprobados?: unknown): Promise<Cliente> {
     try {
-      return await apiRequest<Cliente>('POST', `/clients/approve/${id}`, { 
-        aprobadoPorId, 
-        datosAprobados 
+      return await apiRequest<Cliente>('POST', `/clients/approve/${id}`, {
+        aprobadoPorId,
+        datosAprobados
       });
     } catch (error: any) {
       if (
         (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
+        error?.statusCode === 0 ||
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
@@ -295,9 +302,9 @@ export const clientesService = {
     try {
       return await apiRequest<Cliente>('POST', `/clients/${id}/blacklist`, data);
     } catch (error: any) {
-       if (
+      if (
         (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
+        error?.statusCode === 0 ||
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
@@ -323,7 +330,7 @@ export const clientesService = {
     } catch (error: any) {
       if (
         (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
+        error?.statusCode === 0 ||
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
@@ -349,7 +356,7 @@ export const clientesService = {
     } catch (error: any) {
       if (
         (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
+        error?.statusCode === 0 ||
         error?.message?.includes('network') ||
         error?.code === 'ERR_NETWORK'
       ) {
@@ -371,17 +378,14 @@ export const clientesService = {
   obtenerClientes: function(filtros?: FiltrosClientes): Promise<Cliente[]> {
     return this.obtenerTodos(filtros);
   },
-  
+
   eliminarCliente: function(id: string): Promise<void> {
     return this.eliminar(id);
   },
-  
+
   actualizarCliente: function(id: string, data: ActualizarClienteDto): Promise<Cliente> {
     return this.actualizar(id, data);
   }
 };
 
 // MOCK_CLIENTES eliminado - usar clientesService.obtenerTodos() para obtener datos reales
-
-
-
