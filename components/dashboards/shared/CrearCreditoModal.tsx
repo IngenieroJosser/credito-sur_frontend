@@ -628,16 +628,19 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                     const diaSeleccionado = fechaPrimerCobro
                       ? new Date(fechaPrimerCobro + 'T12:00:00').getDate()
                       : 0
+                    const todayKey = getBogotaDateKey(new Date())
+                    const esFechaPasada = !!fechaPrimerCobro && fechaPrimerCobro < todayKey
                     const esQuincenaInvalida = frecuenciaPago === 'QUINCENAL' && !!fechaPrimerCobro && diaSeleccionado !== 15 && diaSeleccionado !== 30
                     const esDomingoInvalido = !!fechaPrimerCobro
                       ? new Date(fechaPrimerCobro + 'T12:00:00').getDay() === 0
                       : false
-                    const inputInvalido = esQuincenaInvalida || esDomingoInvalido
+                    const inputInvalido = esQuincenaInvalida || esDomingoInvalido || esFechaPasada
                     return (
                       <div className="space-y-1">
                         <input
                           type="date"
                           value={fechaPrimerCobro}
+                          min={todayKey}
                           onChange={(e) => setFechaPrimerCobro(e.target.value)}
                           className={`w-full px-4 py-3 border rounded-xl focus:ring-0 font-medium text-slate-900 transition-colors ${
                             inputInvalido
@@ -645,6 +648,11 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                               : 'bg-slate-50 border-slate-200 focus:border-[#08557f]'
                           }`}
                         />
+                        {esFechaPasada && (
+                          <p className="text-xs text-red-600 font-semibold flex items-center gap-1">
+                            <span>⚠</span> La fecha del primer cobro no puede ser un día pasado.
+                          </p>
+                        )}
                         {esQuincenaInvalida && (
                           <p className="text-xs text-red-600 font-semibold flex items-center gap-1">
                             <span>⚠</span> Los créditos quincenales solo cobran el día <strong>15</strong> o el día <strong>30</strong>.
@@ -758,8 +766,10 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                     isSubmitting ||
                     !clienteCreditoId ||
                     (creditType === 'prestamo' ? !montoPrestamoInput : !calculoCreditoArticulo) ||
+                    (!(creditType === 'articulo' && esContado) && !fechaPrimerCobro) ||
                     (fechaPrimerCobro ? new Date(fechaPrimerCobro + 'T12:00:00').getDay() === 0 : false) ||
-                    (frecuenciaPago === 'QUINCENAL' && fechaPrimerCobro ? (() => { const d = new Date(fechaPrimerCobro + 'T12:00:00').getDate(); return d !== 15 && d !== 30 })() : false)
+                    (frecuenciaPago === 'QUINCENAL' && fechaPrimerCobro ? (() => { const d = new Date(fechaPrimerCobro + 'T12:00:00').getDate(); return d !== 15 && d !== 30 })() : false) ||
+                    (fechaPrimerCobro ? fechaPrimerCobro < getBogotaDateKey(new Date()) : false)
                   }
                   className="flex-1 bg-slate-900 text-white font-bold py-4 rounded-2xl shadow-xl shadow-slate-200 hover:bg-slate-800 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-widest text-xs"
                 >
