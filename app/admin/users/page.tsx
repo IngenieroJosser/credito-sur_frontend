@@ -1784,11 +1784,12 @@ const UserManagementPage = () => {
                         </label>
                         <input
                           type="tel"
+                          inputMode="numeric"
                           value={formData.telefono}
                           onChange={(e) =>
                             setFormData({
                               ...formData,
-                              telefono: e.target.value,
+                              telefono: e.target.value.replace(/\D/g, ""),
                             })
                           }
                           className="w-full px-4 py-3 border border-slate-200 rounded-2xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
@@ -1955,11 +1956,12 @@ const UserManagementPage = () => {
                         </label>
                         <input
                           type="tel"
+                          inputMode="numeric"
                           value={formData.telefono}
                           onChange={(e) =>
                             setFormData({
                               ...formData,
-                              telefono: e.target.value,
+                              telefono: e.target.value.replace(/\D/g, ""),
                             })
                           }
                           className="w-full px-4 py-3 border border-slate-200 rounded-2xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
