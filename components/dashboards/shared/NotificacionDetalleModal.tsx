@@ -1280,7 +1280,7 @@ export default function NotificacionDetalleModal({
                   <div className="pt-1">
                     <p className="text-[10px] font-black text-emerald-600 uppercase mb-2">Motivo de la Solicitud</p>
                     <p className="text-xs text-slate-700 font-medium leading-relaxed italic border-l-4 border-emerald-400 pl-3 py-1">
-                      {editedDetails?.motivo || mensaje}
+                      {editedDetails?.motivo || editedDetails?.descripcion || safeMeta?.descripcion || safeMeta?.motivo || mensaje}
                     </p>
                   </div>
                 </div>
