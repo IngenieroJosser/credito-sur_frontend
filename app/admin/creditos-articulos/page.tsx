@@ -27,6 +27,7 @@ import { EstadoPrestamo, NivelRiesgo, type Prestamo } from '@/components/prestam
 import AnimacionCarga from '@/components/ui/AnimacionCarga'
 import { loansServiceExt as loansService } from '@/services/loans-service'
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
+import DetallePrestamoModal from '@/components/prestamos/DetallePrestamoModal'
 
 export default function CreditosArticulosPage() {
   const pathname = usePathname()
@@ -36,6 +37,7 @@ export default function CreditosArticulosPage() {
   const [creditos, setCreditos] = useState<Prestamo[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showCrearCreditoModal, setShowCrearCreditoModal] = useState(false)
+  const [creditoDetalleId, setCreditoDetalleId] = useState<string | null>(null)
   const isPuntoVentaView = pathname?.startsWith('/punto-de-venta')
   const basePath = pathname?.startsWith('/punto-de-venta')
     ? '/punto-de-venta/creditos-articulos'
@@ -416,9 +418,14 @@ export default function CreditosArticulosPage() {
                       </Link>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <Link href={`${basePath}/${credito.id}`} className="inline-block p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Ver Detalle">
+                      <button
+                        type="button"
+                        onClick={() => setCreditoDetalleId(credito.id)}
+                        className="inline-block p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="Ver detalle"
+                      >
                         <Eye className="w-4 h-4" />
-                      </Link>
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -491,10 +498,11 @@ export default function CreditosArticulosPage() {
             ))
           ) : creditosPaginados.length > 0 ? (
             creditosPaginados.map((credito) => (
-              <Link
+              <button
+                type="button"
                 key={credito.id}
-                href={`${basePath}/${credito.id}`}
-                className="block bg-white rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all"
+                onClick={() => setCreditoDetalleId(credito.id)}
+                className="block w-full text-left bg-white rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all"
               >
                 {/* Header */}
                 <div className="flex items-start justify-between mb-3 pb-3 border-b border-slate-100">
@@ -562,7 +570,7 @@ export default function CreditosArticulosPage() {
                   <div className="font-bold text-lg text-slate-900">{formatCurrency(credito.montoPendiente)}</div>
                   <div className="text-xs text-slate-500 mt-0.5">Total: {formatCurrency(credito.montoTotal)}</div>
                 </div>
-              </Link>
+              </button>
             ))
           ) : (
             <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8">
@@ -613,6 +621,12 @@ export default function CreditosArticulosPage() {
             logger.log('Crédito artículo creado:', data);
             setShowCrearCreditoModal(false);
           }}
+        />
+      )}
+      {creditoDetalleId && (
+        <DetallePrestamoModal
+          id={creditoDetalleId}
+          onClose={() => setCreditoDetalleId(null)}
         />
       )}
     </div>
