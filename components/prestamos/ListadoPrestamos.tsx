@@ -76,6 +76,8 @@ const ListadoPrestamosElegante = () => {
     pagados: 0,
     cancelados: 0,
     montoTotal: 0,
+    montoPrestado: 0,
+    interesTotal: 0,
     montoPendiente: 0,
     moraTotal: 0
   });
@@ -490,15 +492,13 @@ const ListadoPrestamosElegante = () => {
         )}
 
         {/* Estadísticas */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Total</p>
-            <p className="text-2xl font-bold text-slate-900 tracking-tight">{estadisticas.total}</p>
-          </div>
-          
-          <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-            <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-2">Activos</p>
-            <p className="text-2xl font-bold text-slate-900 tracking-tight">{estadisticas.activos}</p>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Créditos</p>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-bold text-slate-900 tracking-tight">{estadisticas.total}</span>
+              <span className="text-xs font-semibold text-emerald-600">({estadisticas.activos} activos)</span>
+            </div>
           </div>
           
           <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
@@ -507,16 +507,30 @@ const ListadoPrestamosElegante = () => {
           </div>
           
           <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Capital a recibir</p>
-            <p className="text-lg font-bold text-slate-900 tracking-tight truncate" title={formatCurrency(estadisticas.montoPendiente)}>
-              {formatCurrency(estadisticas.montoPendiente)}
+            <p className="text-xs font-bold text-[#08557f] uppercase tracking-wider mb-2">Capital Prestado</p>
+            <p className="text-lg font-bold text-slate-900 tracking-tight truncate" title={formatCurrency(estadisticas.montoPrestado || 0)}>
+              {formatCurrency(estadisticas.montoPrestado || 0)}
             </p>
           </div>
-          
+
           <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Capital prestado</p>
-            <p className="text-lg font-bold text-slate-900 tracking-tight truncate" title={formatCurrency(estadisticas.montoTotal)}>
-              {formatCurrency(estadisticas.montoTotal)}
+            <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-2">Ganancia Esperada</p>
+            <p className="text-lg font-bold text-slate-900 tracking-tight truncate" title={formatCurrency(estadisticas.interesTotal || 0)}>
+              {formatCurrency(estadisticas.interesTotal || 0)}
+            </p>
+          </div>
+
+          <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Total a Cobrar</p>
+            <p className="text-lg font-bold text-slate-900 tracking-tight truncate" title={formatCurrency(estadisticas.montoTotal || 0)}>
+              {formatCurrency(estadisticas.montoTotal || 0)}
+            </p>
+          </div>
+
+          <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
+            <p className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-2">Saldo Pendiente</p>
+            <p className="text-lg font-bold text-slate-900 tracking-tight truncate" title={formatCurrency(estadisticas.montoPendiente || 0)}>
+              {formatCurrency(estadisticas.montoPendiente || 0)}
             </p>
           </div>
         </div>
@@ -585,8 +599,8 @@ const ListadoPrestamosElegante = () => {
                   <th className="px-6 py-4 font-bold tracking-wider text-slate-600">Préstamo / Cliente</th>
                   <th className="px-6 py-4 font-bold tracking-wider text-slate-600">Producto</th>
                   <th className="px-6 py-4 font-bold tracking-wider text-slate-600">Estado</th>
-                  <th className="px-6 py-4 font-bold tracking-wider text-slate-600 text-right">Monto</th>
-                  <th className="px-6 py-4 font-bold tracking-wider text-slate-600 text-right">Pendiente</th>
+                  <th className="px-6 py-4 font-bold tracking-wider text-slate-600 text-right">Capital Prestado</th>
+                  <th className="px-6 py-4 font-bold tracking-wider text-slate-600 text-right">Saldo Pendiente</th>
                   <th className="px-6 py-4 font-bold tracking-wider text-slate-600 text-center">Progreso</th>
                   <th className="px-6 py-4 font-bold tracking-wider text-slate-600 text-right">Acciones</th>
                 </tr>
@@ -637,8 +651,15 @@ const ListadoPrestamosElegante = () => {
                           {String(estadoUI || '').replace(/_/g, ' ')}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-right font-bold text-slate-900">
-                        {formatCurrency(Number(prestamo.montoTotal) || 0)}
+                      <td className="px-6 py-4 text-right">
+                        <div className="font-bold text-slate-900">
+                          {formatCurrency(Number(prestamo.montoPrestado ?? prestamo.monto) || 0)}
+                        </div>
+                        {(Number(prestamo.interesTotal) || 0) > 0 && (
+                          <div className="text-[10px] text-emerald-600 font-bold mt-0.5">
+                            + {formatCurrency(prestamo.interesTotal || 0)} int.
+                          </div>
+                        )}
                       </td>
                       <td className="px-6 py-4 text-right">
                         <span className={cn(
@@ -796,13 +817,20 @@ const ListadoPrestamosElegante = () => {
                 {/* Montos */}
                 <div className="grid grid-cols-2 gap-3 mb-3 pb-3 border-b border-slate-100">
                   <div>
-                    <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Monto Total</div>
-                    <div className="text-lg font-bold text-slate-900">{formatCurrency(Number(prestamo.montoTotal) || 0)}</div>
+                    <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Capital Prestado</div>
+                    <div className="text-sm font-bold text-slate-900">
+                      {formatCurrency(Number(prestamo.montoPrestado ?? prestamo.monto) || 0)}
+                    </div>
+                    {(Number(prestamo.interesTotal) || 0) > 0 && (
+                      <div className="text-[10px] text-emerald-600 font-bold mt-0.5">
+                        + {formatCurrency(prestamo.interesTotal || 0)} int.
+                      </div>
+                    )}
                   </div>
                   <div>
-                    <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Pendiente</div>
+                    <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Saldo Pendiente</div>
                     <div className={cn(
-                      "text-lg font-bold",
+                      "text-sm font-bold",
                       (prestamo.montoPendiente ?? 0) > 0 ? "text-slate-700" : "text-emerald-600"
                     )}>
                       {formatCurrency(Number(prestamo.montoPendiente) || 0)}
