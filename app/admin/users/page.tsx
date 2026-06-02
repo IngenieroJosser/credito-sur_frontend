@@ -51,6 +51,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermission } from "@/hooks/usePermission";
+import BaseFieldLabel from "@/components/ui/FieldLabel";
  
 
 // Tipos importados de enums
@@ -78,6 +79,20 @@ interface Role {
   color: string;
   bgColor: string;
   icon: React.ReactNode;
+}
+
+function FieldLabel({
+  children,
+  required = false,
+}: {
+  children: React.ReactNode;
+  required?: boolean;
+}) {
+  return (
+    <BaseFieldLabel required={required} className="text-xs text-slate-500 uppercase tracking-wider">
+      {children}
+    </BaseFieldLabel>
+  );
 }
 
 const GLOBAL_MODULE_CATALOG = (() => {
@@ -1726,9 +1741,9 @@ const UserManagementPage = () => {
                   <div className="space-y-5">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                        <FieldLabel required>
                           Nombres
-                        </label>
+                        </FieldLabel>
                         <input
                           type="text"
                           value={formData.nombres}
@@ -1743,9 +1758,9 @@ const UserManagementPage = () => {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                        <FieldLabel required>
                           Apellidos
-                        </label>
+                        </FieldLabel>
                         <input
                           type="text"
                           value={formData.apellidos}
@@ -1762,9 +1777,9 @@ const UserManagementPage = () => {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                      <FieldLabel required>
                         Correo Electrónico
-                      </label>
+                      </FieldLabel>
                       <input
                         type="email"
                         autoComplete="off"
@@ -1779,9 +1794,9 @@ const UserManagementPage = () => {
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                        <FieldLabel>
                           Teléfono
-                        </label>
+                        </FieldLabel>
                         <input
                           type="tel"
                           inputMode="numeric"
@@ -1797,9 +1812,9 @@ const UserManagementPage = () => {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                        <FieldLabel required>
                           Contraseña
-                        </label>
+                        </FieldLabel>
                         <div className="relative">
                           <input
                             type={showPassword ? "text" : "password"}
@@ -1831,9 +1846,9 @@ const UserManagementPage = () => {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                      <FieldLabel required>
                         Rol
-                      </label>
+                      </FieldLabel>
                       <div className="relative">
                         <select
                           value={formData.rol}
@@ -1901,9 +1916,9 @@ const UserManagementPage = () => {
                   <div className="space-y-5">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                        <FieldLabel required>
                           Nombres
-                        </label>
+                        </FieldLabel>
                         <input
                           type="text"
                           value={formData.nombres}
@@ -1917,9 +1932,9 @@ const UserManagementPage = () => {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                        <FieldLabel required>
                           Apellidos
-                        </label>
+                        </FieldLabel>
                         <input
                           type="text"
                           value={formData.apellidos}
@@ -1935,9 +1950,9 @@ const UserManagementPage = () => {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                      <FieldLabel required>
                         Correo Electrónico
-                      </label>
+                      </FieldLabel>
                       <input
                         type="email"
                         autoComplete="off"
@@ -1951,9 +1966,9 @@ const UserManagementPage = () => {
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                        <FieldLabel>
                           Teléfono
-                        </label>
+                        </FieldLabel>
                         <input
                           type="tel"
                           inputMode="numeric"
@@ -1969,9 +1984,9 @@ const UserManagementPage = () => {
                       </div>
                       <div>
                         <div>
-                          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                          <FieldLabel>
                             Contraseña
-                          </label>
+                          </FieldLabel>
                           <div className="relative">
                             <input
                               type={showPassword ? "text" : "password"}
@@ -2008,9 +2023,9 @@ const UserManagementPage = () => {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                      <FieldLabel required>
                         Rol
-                      </label>
+                      </FieldLabel>
                       <div className="relative">
                         <select
                           value={formData.rol}

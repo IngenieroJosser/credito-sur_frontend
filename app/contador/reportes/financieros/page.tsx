@@ -1,18 +1,10 @@
-'use client'
+import ProtectedPage from '@/components/auth/ProtectedPage'
+import ReportesFinancierosPage from '@/app/admin/reportes/financieros/page'
 
-/**
- * @deprecated Ruta legacy. Redirige a la ruta unificada /reportes/financieros
- * @migration Permission-Based Routing
- */
-import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-
-export default function ContadorReportesFinancierosRedirect() {
-  const router = useRouter()
-
-  useEffect(() => {
-    router.replace('/reportes/financieros')
-  }, [router])
-
-  return null
+export default function ContadorReportesFinancierosPage() {
+  return (
+    <ProtectedPage permiso="REPORTES_FINANCIEROS_VIEW" roles={['CONTADOR', 'ADMIN', 'SUPER_ADMINISTRADOR']}>
+      <ReportesFinancierosPage />
+    </ProtectedPage>
+  )
 }

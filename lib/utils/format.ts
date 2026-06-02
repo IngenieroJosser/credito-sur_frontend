@@ -3,7 +3,7 @@
  */
 
 /**
- * Formatea una fecha en formato "dd/mm/yy, hh:mm" (estilo corto es-CO)
+ * Formatea una fecha en formato "02 jun, 02:58 PM"
  * @param date Fecha a formatear (Date, string o number)
  * @param fallback Valor a devolver si la fecha es inválida
  * @returns String formateado o fallback
@@ -14,10 +14,19 @@ export const formatShortDateTime = (date: any, fallback: string = 'Nunca'): stri
     const d = new Date(date);
     if (isNaN(d.getTime())) return fallback;
     
-    return d.toLocaleString("es-CO", {
-      dateStyle: "short",
-      timeStyle: "short",
+    const fecha = d
+      .toLocaleDateString('es-CO', {
+        day: '2-digit',
+        month: 'short',
+      })
+      .replace('.', '');
+    const hora = d.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
     });
+
+    return `${fecha}, ${hora}`;
   } catch (error) {
     return fallback;
   }

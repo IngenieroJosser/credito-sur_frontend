@@ -16,8 +16,26 @@ const VOLVER_RUTAS: Record<string, string> = {
   'COORDINADOR': '/coordinador',
   'SUPERVISOR': '/supervisor',
   'COBRADOR': '/cobranzas',
-  'CONTADOR': '/contable',
+  'CONTADOR': '/contador/contable',
   'PUNTO_DE_VENTA': '/punto-de-venta',
+}
+
+const formatUserFullName = (user: Pick<Usuario, 'nombres' | 'apellidos' | 'correo'> | null) => {
+  if (!user) return 'Usuario'
+  return [user.nombres, user.apellidos]
+    .map(part => String(part ?? '').trim())
+    .filter(Boolean)
+    .join(' ')
+    || String(user.correo ?? 'Usuario').trim()
+    || 'Usuario'
+}
+
+const getUserInitials = (user: Pick<Usuario, 'nombres' | 'apellidos' | 'correo'> | null) => {
+  const fullName = formatUserFullName(user)
+  const parts = fullName.split(/\s+/).filter(Boolean)
+  const first = parts[0]?.charAt(0) || ''
+  const last = parts.length > 1 ? parts[parts.length - 1]?.charAt(0) || '' : ''
+  return (first + last || 'U').toUpperCase()
 }
 
 const PerfilUsuarioPage = () => {
@@ -170,6 +188,8 @@ const PerfilUsuarioPage = () => {
   const roleColor = backendUser ? getRoleColor(backendUser.rol) : '#2563eb'
   const roleIcon = backendUser ? getRoleIcon(backendUser.rol) : <User className="h-4 w-4" />
   const roleName = backendUser ? formatRoleName(backendUser.rol) : 'Usuario'
+  const userFullName = formatUserFullName(backendUser)
+  const userInitials = getUserInitials(backendUser)
 
   return (
     <div className="min-h-screen bg-slate-50 relative">
@@ -229,7 +249,7 @@ const PerfilUsuarioPage = () => {
                       className="h-32 w-32 rounded-full flex items-center justify-center text-white text-4xl font-bold border-4 border-white shadow-lg"
                       style={{ background: `linear-gradient(135deg, ${roleColor}, ${roleColor}CC)` }}
                     >
-                      {backendUser.nombres?.charAt(0)}{backendUser.apellidos?.charAt(0)}
+                      {userInitials}
                     </div>
                     <div 
                       className="absolute bottom-0 right-0 p-2 text-white rounded-full shadow-lg"
@@ -239,7 +259,7 @@ const PerfilUsuarioPage = () => {
                     </div>
                   </div>
                   
-                  <h2 className="text-xl font-bold text-slate-900">{backendUser.nombres} {backendUser.apellidos}</h2>
+                  <h2 className="text-xl font-bold text-slate-900">{userFullName}</h2>
                   <p className="text-sm text-slate-500 font-medium mb-4">{backendUser.correo}</p>
                   
                   <div className="w-full pt-6 border-t border-slate-100 space-y-4">

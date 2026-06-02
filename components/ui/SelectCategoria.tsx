@@ -3,12 +3,14 @@ import { useState, useEffect } from 'react';
 import { Plus, X, Check, Loader2 } from 'lucide-react';
 import { categoriasService, Categoria } from '@/services/categorias-service';
 import { useNotification } from '@/components/providers/NotificationProvider';
+import FieldLabel from '@/components/ui/FieldLabel';
 
 interface SelectCategoriaProps {
   tipo: string; // 'CLIENTE', 'GASTO', etc.
   value?: string;
   onChange: (categoriaId: string) => void;
   label?: string;
+  required?: boolean;
   placeholder?: string;
   disabled?: boolean;
   onCreated?: (categoria: Categoria) => void;
@@ -19,6 +21,7 @@ export default function SelectCategoria({
   value, 
   onChange, 
   label = 'Categoría',
+  required = false,
   placeholder = 'Seleccionar...',
   disabled = false,
   onCreated
@@ -80,7 +83,7 @@ export default function SelectCategoria({
   return (
     <div className="space-y-2">
       <div className="flex justify-between items-center">
-        <label className="block text-sm font-bold text-slate-700">{label}</label>
+        <FieldLabel required={required} className="mb-0">{label}</FieldLabel>
         <button
           type="button"
           onClick={() => setShowCreate(true)}

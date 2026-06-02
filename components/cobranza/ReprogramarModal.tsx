@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { X, Clock, AlertTriangle, CheckCircle2, Calendar, Loader2 } from 'lucide-react'
 import { VisitaRuta } from '@/lib/types/cobranza'
 import Portal, { MODAL_Z_INDEX } from '@/components/ui/Portal'
+import FieldLabel from '@/components/ui/FieldLabel'
 import { getBogotaDateKey } from '@/lib/rutas-core'
 
 interface ReprogramarModalProps {
@@ -123,9 +124,7 @@ export default function ReprogramarModal({ visita, onClose, onConfirm }: Reprogr
 
             {/* Nueva fecha */}
             <div>
-              <label className="block text-sm font-bold text-slate-700 mb-2">
-                Nueva fecha de pago
-              </label>
+              <FieldLabel required>Nueva fecha de pago</FieldLabel>
               <input
                 type="date"
                 value={reprogramFecha}
@@ -177,7 +176,7 @@ export default function ReprogramarModal({ visita, onClose, onConfirm }: Reprogr
 
             {/* Motivo */}
             <div>
-              <label className="block text-sm font-bold text-slate-700 mb-2">Motivo</label>
+              <FieldLabel>Motivo</FieldLabel>
               <textarea
                 value={reprogramMotivo}
                 onChange={(e) => setReprogramMotivo(e.target.value)}

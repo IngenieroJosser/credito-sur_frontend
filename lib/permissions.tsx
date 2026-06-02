@@ -215,8 +215,8 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
     },
   ],
   PUNTO_DE_VENTA: [
-    T.CRED_ART('PUNTO_DE_VENTA', '/creditos-articulos'),
-    T.INVENTARIO('PUNTO_DE_VENTA', '/articulos'),
+    T.CRED_ART('PUNTO_DE_VENTA', '/punto-de-venta/creditos-articulos'),
+    T.INVENTARIO('PUNTO_DE_VENTA', '/punto-de-venta/articulos'),
   ],
 };
 
@@ -409,7 +409,7 @@ export const obtenerModulos = (rol: Rol, sidebarData?: SidebarModulo[]): ModuloP
   const ensureCurated = (mods: ModuloPermiso[]): ModuloPermiso[] => {
     const blocked = BLOCKED_MODULES_BY_ROLE[rol];
     const filtered = blocked ? mods.filter(m => !blocked.has(m.id)) : mods;
-    if (!['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'SUPERVISOR'].includes(rol)) return filtered;
+    if (!['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'SUPERVISOR', 'PUNTO_DE_VENTA'].includes(rol)) return filtered;
     const curated = obtenerModulosPorRol(rol);
     const res = [...filtered];
     curated.forEach(cm => {
