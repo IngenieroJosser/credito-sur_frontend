@@ -71,6 +71,8 @@ export interface EstadisticasPrestamos {
   pagados: number;
   cancelados: number;
   montoTotal: number;
+  montoPrestado?: number;
+  interesTotal?: number;
   montoPendiente: number;
   moraTotal: number;
 }

@@ -85,6 +85,7 @@ export interface Prestamo {
   actualizadoEn: string;
   // ── Campos calculados / enriquecidos que devuelve el backend ───────────────
   montoTotal?: number;             // monto + intereses
+  montoPrestado?: number;          // capital inicial sin intereses
   interesTotal?: number;
   montoPendiente?: number;
   capitalPagado?: number;
