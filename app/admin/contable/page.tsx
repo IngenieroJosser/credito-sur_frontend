@@ -220,23 +220,29 @@ const mapTransaccion = (t: ApiTransaccion): MovimientoContable => {
 const mapMovimientoLedger = (m: ApiMovimientoLedger): MovimientoContable => {
   const impactoCaja = Number(m.impactoCaja || 0)
   const tipoLedger = String(m.tipo || '').toUpperCase()
+  const esVentaArticulo = tipoLedger === 'VENTA_ARTICULO'
+  const esVentaArticuloFinanciada = esVentaArticulo && impactoCaja === 0
   const tipo: MovimientoContable['tipo'] =
-    tipoLedger === 'CONSOLIDACION' || tipoLedger === 'TRANSFERENCIA'
+    tipoLedger === 'CONSOLIDACION' || tipoLedger === 'TRANSFERENCIA' || esVentaArticuloFinanciada
       ? 'TRANSFERENCIA'
       : impactoCaja < 0
         ? 'EGRESO'
         : 'INGRESO'
+  const montoCaja = Math.abs(impactoCaja)
+  const montoContable = Math.abs(Number(m.totalDebito || m.totalCredito || 0))
 
   return {
     id: m.id,
     numero: m.referenciaId,
     fecha: m.fecha,
-    concepto: m.descripcion || m.tipo,
+    concepto: esVentaArticuloFinanciada
+      ? `Venta de artículo financiado — ${m.descripcion || 'asiento contable sin entrada de caja'}`
+      : m.descripcion || m.tipo,
     tipo,
-    monto: Math.abs(impactoCaja || Number(m.totalDebito || m.totalCredito || 0)),
-    categoria: m.accountName || m.tipo || 'GENERAL',
+    monto: esVentaArticulo ? montoCaja : Math.abs(impactoCaja || montoContable),
+    categoria: esVentaArticuloFinanciada ? 'Asiento contable de venta' : (m.accountName || m.tipo || 'GENERAL'),
     responsable: m.creadoPorId || 'Sistema',
-    origen: tipoLedger === 'PAGO' || tipoLedger === 'VENTA_ARTICULO' ? 'COBRADOR' : 'EMPRESA',
+    origen: tipoLedger === 'PAGO' ? 'COBRADOR' : 'EMPRESA',
     estado: 'APROBADO',
     referenciaId: m.referenciaId,
     tipoReferencia: m.tipo,
@@ -254,9 +260,8 @@ const mapMovimientoLedgerResultado = (m: ApiMovimientoLedger, tipoResultado: 'IN
   const montoResultado = (m.lineas || [])
     .filter((linea) => {
       const accountCode = String(linea.accountCode || '')
-      if (!accountCode.startsWith(prefix)) return false
-      if (tipoResultado === 'INGRESO' && accountCode.startsWith('3.4')) return false
-      return true
+      if (tipoResultado === 'INGRESO') return accountCode.startsWith('3.1') || accountCode.startsWith('3.2')
+      return accountCode.startsWith(prefix)
     })
     .reduce((acc, linea) => {
       const debito = Number(linea.debitAmount || 0)
@@ -3485,5 +3490,3 @@ const ModuloContablePage = () => {
 }
 
 export default ModuloContablePage
-
-

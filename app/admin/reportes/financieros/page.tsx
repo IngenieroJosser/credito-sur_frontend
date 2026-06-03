@@ -58,7 +58,7 @@ const getIngresoOperativoMovimiento = (movimiento: { lineas?: Array<{ accountCod
   return (movimiento.lineas || [])
     .filter((linea) => {
       const accountCode = String(linea.accountCode || '')
-      return accountCode.startsWith('3.') && !accountCode.startsWith('3.4')
+      return accountCode.startsWith('3.1') || accountCode.startsWith('3.2')
     })
     .reduce((acc, linea) => acc + Number(linea.creditAmount || 0) - Number(linea.debitAmount || 0), 0)
 }
@@ -549,7 +549,7 @@ const ReportesFinancierosPage = () => {
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
             <div className="flex justify-between items-start mb-4">
               <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Ingresos Operativos</p>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Ingresos de Cartera</p>
                 <h3 className="text-2xl font-bold text-slate-900 mt-2">{formatCurrency(summary.ingresos)}</h3>
               </div>
               <div className="p-3 bg-teal-50 rounded-xl border border-teal-100">
@@ -562,7 +562,7 @@ const ReportesFinancierosPage = () => {
                 <span>{trendIngresos >= 0 ? `+${trendIngresos}%` : `${trendIngresos}%`} vs periodo anterior</span>
               </div>
             )}
-            <p className="mt-2 text-xs font-semibold text-slate-400">No incluye cartera ni cuota inicial de artículos</p>
+            <p className="mt-2 text-xs font-semibold text-slate-400">Interés y mora; no incluye artículos, cuota inicial ni otros ingresos externos</p>
           </div>
 
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
@@ -694,7 +694,7 @@ const ReportesFinancierosPage = () => {
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6 md:mb-8">
               <div>
                 <h3 className="text-base md:text-lg font-bold text-slate-900">Evolución Financiera</h3>
-                <p className="text-xs md:text-sm text-slate-400 font-medium">Comportamiento por periodo seleccionado de ingresos operativos y gastos operativos</p>
+                <p className="text-xs md:text-sm text-slate-400 font-medium">Comportamiento por periodo seleccionado de ingresos de cartera y gastos operativos</p>
               </div>
               <div className="flex items-center gap-3 md:gap-4 text-xs font-bold">
                 <div className="flex items-center gap-2">
