@@ -224,13 +224,18 @@ export const mergeVisitasPreservingLocalRecaudo = <T extends Record<string, any>
       ? 'pagado'
       : estadoFusionado
 
+    const estadoVisita =
+      localTienePagoHoy && String(v?.estadoVisita || '').toLowerCase() === 'ausente'
+        ? undefined
+        : estadoLocal === 'ausente' && !localTienePagoHoy
+          ? 'ausente'
+          : v?.estadoVisita
+
     const merged: any = {
       ...v,
       recaudadoDelDia,
       estado,
-      estadoVisita: estadoLocal === 'ausente' && !localTienePagoHoy
-        ? 'ausente'
-        : v?.estadoVisita,
+      estadoVisita,
     }
 
     if (localHasRecaudoTotal || nextHasRecaudoTotal) {

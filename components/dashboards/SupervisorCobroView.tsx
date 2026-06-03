@@ -2002,7 +2002,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
       const clienteIdPago = visita.clienteId
 
       if (!esCierrePendiente) {
-        setVisitasBase(prev => prev.map((v: any) => {
+        setVisitasBaseAndRef((prev: any[]) => prev.map((v: any) => {
           if (v.clienteId !== clienteIdPago) return v
 
           const esVisitaPagada = v.id === visitaId
