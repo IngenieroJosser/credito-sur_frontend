@@ -1,4 +1,4 @@
-import { logger } from '@/lib/logger'
+﻿import { logger } from '@/lib/logger'
 
 import { apiRequest } from '@/lib/api/api';
 
@@ -98,6 +98,47 @@ export interface ReordenarClientesResult {
 
 }
 
+
+
+export interface HistorialVisitaCliente {
+
+  id: string;
+
+  rutaId: string;
+
+  clienteId: string;
+
+  prestamoId?: string | null;
+
+  cobradorId: string;
+
+  fechaVisita: string;
+
+  estadoVisita: string;
+
+  notas?: string | null;
+
+  creadoEn: string;
+
+  ruta?: {
+
+    id: string;
+
+    nombre: string;
+
+    codigo: string;
+
+  } | null;
+
+  cobrador?: {
+
+    id: string;
+
+    nombre: string;
+
+  } | null;
+
+}
 
 
 export interface Ruta {
@@ -823,6 +864,24 @@ export const rutasService = {
     }
 
   },
+  /**
+   * Obtener historial de visitas de un cliente
+   */
+  async obtenerHistorialVisitasCliente(clienteId: string, params?: { estadoVisita?: string; limit?: number }): Promise<HistorialVisitaCliente[]> {
+    const query = new URLSearchParams();
+
+    if (params?.estadoVisita) {
+      query.set('estadoVisita', params.estadoVisita);
+    }
+
+    if (params?.limit) {
+      query.set('limit', String(params.limit));
+    }
+
+    const suffix = query.toString() ? `?${query.toString()}` : '';
+
+    return apiRequest<HistorialVisitaCliente[]>('GET', `/routes/clientes/${clienteId}/visitas${suffix}`);
+  },
 
   /**
    * Marcar visita como ausente (o cualquier otro estado) con notas
@@ -856,8 +915,3 @@ export const rutasService = {
   },
 
 };
-
-
-
-
-

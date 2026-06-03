@@ -14,6 +14,7 @@ export interface VisitaRuta {
   recaudadoPeriodo?: number  // Total pagado en el período actual (semana/quincena/mes/día)
   estado: EstadoVisita
   estadoVisita?: string      // Estado de la visita del día registrado (ej: 'ausente')
+  notasVisita?: string | null // Nota/justificación registrada al marcar ausencia
   proximaVisita: string
   targetVencimiento?: string
   ordenVisita: number

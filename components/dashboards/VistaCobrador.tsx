@@ -1547,12 +1547,13 @@ const VistaCobrador = () => {
     const accionVisita = payload?.accion || payload?.metadata?.accion;
     const clienteIdVisita = payload?.clienteId || payload?.metadata?.clienteId;
     const estadoVisitaPayload = payload?.estadoVisita || payload?.metadata?.estadoVisita;
+    const notasVisitaPayload = payload?.notasVisita || payload?.notas || payload?.metadata?.notasVisita || payload?.metadata?.notas;
 
     if (accionVisita === 'VISITA_REGISTRADA' && clienteIdVisita && estadoVisitaPayload) {
       setVisitasBase((prev) => {
         const nextVisitas = prev.map((v) =>
           v.clienteId === clienteIdVisita
-            ? { ...v, estado: estadoVisitaPayload as any, estadoVisita: estadoVisitaPayload as any }
+            ? { ...v, estado: estadoVisitaPayload as any, estadoVisita: estadoVisitaPayload as any, notasVisita: notasVisitaPayload ?? (v as any).notasVisita }
             : v,
         )
         visitasBaseRef.current = nextVisitas
@@ -5436,7 +5437,7 @@ const VistaCobrador = () => {
               setVisitasBase((prev: VisitaRuta[]) =>
                 prev.map((v: VisitaRuta) =>
                   v.clienteId === clienteIdAusente
-                    ? { ...v, estado: 'ausente' as any, estadoVisita: 'ausente' as any }
+                    ? { ...v, estado: 'ausente' as any, estadoVisita: 'ausente' as any, notasVisita: notas }
                     : v
                 )
               );
@@ -5444,7 +5445,7 @@ const VistaCobrador = () => {
               setMisCreditos((prev: VisitaRuta[]) =>
                 prev.map((v: VisitaRuta) =>
                   v.clienteId === clienteIdAusente
-                    ? { ...v, estado: 'ausente' as any, estadoVisita: 'ausente' as any }
+                    ? { ...v, estado: 'ausente' as any, estadoVisita: 'ausente' as any, notasVisita: notas }
                     : v
                 )
               );
@@ -5730,6 +5731,10 @@ const VistaCobrador = () => {
             return estado !== 'pagado'
           }).length
           const clientesAusentesHoy = visitasAusentesCierre.length
+          const ausentesConNotaCierre = visitasAusentesCierre.map((v: any) => ({
+            nombre: String(v?.cliente || 'Cliente'),
+            nota: String(v?.notasVisita || '').trim(),
+          }))
           const totalProgramadosHoy = visitasCierreHoy.length
           const totalOperativosHoy = visitasOperativasCierre.length
           const clientesCobradosHoy = visitasOperativasCierre.filter((v: any) => {
@@ -5762,7 +5767,7 @@ const VistaCobrador = () => {
               onClick={() => { setShowConfirmCompleteModal(false); setShowDoubleConfirmComplete(false); }}
             >
              <div 
-               className="bg-white rounded-3xl p-6 shadow-2xl w-full max-w-sm border border-slate-100 animate-in zoom-in-95 duration-200"
+               className="bg-white rounded-3xl p-6 shadow-2xl w-full max-w-md border border-slate-100 animate-in zoom-in-95 duration-200"
                onClick={(e) => e.stopPropagation()}
              >
                 <div className="flex flex-col items-center text-center gap-4">
@@ -5883,6 +5888,19 @@ const VistaCobrador = () => {
                         </div>
                       </div>
                    </div>
+                   {ausentesConNotaCierre.length > 0 && (
+                     <div className="w-full text-left rounded-2xl border border-amber-200 bg-amber-50 p-3 space-y-2">
+                       <p className="text-[10px] font-black text-amber-700 uppercase tracking-widest">Ausentes con justificación</p>
+                       <div className="space-y-2 max-h-32 overflow-y-auto pr-1">
+                         {ausentesConNotaCierre.map((item, idx) => (
+                           <div key={`${item.nombre}-${idx}`} className="text-[11px] leading-snug">
+                             <p className="font-black text-amber-900">{item.nombre}</p>
+                             <p className="font-medium text-amber-800 whitespace-pre-wrap break-words">{item.nota || 'Sin justificación registrada.'}</p>
+                           </div>
+                         ))}
+                       </div>
+                     </div>
+                   )}
 
                    <div className="flex gap-3 w-full mt-2">
                       <button

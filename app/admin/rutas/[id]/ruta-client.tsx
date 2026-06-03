@@ -1189,12 +1189,13 @@ const RutaClientLoaded = ({
     const accionVisita = payload?.accion || payload?.metadata?.accion;
     const clienteIdVisita = payload?.clienteId || payload?.metadata?.clienteId;
     const estadoVisitaPayload = payload?.estadoVisita || payload?.metadata?.estadoVisita;
+    const notasVisitaPayload = payload?.notasVisita || payload?.notas || payload?.metadata?.notasVisita || payload?.metadata?.notas;
 
     if (accionVisita === 'VISITA_REGISTRADA' && clienteIdVisita && estadoVisitaPayload) {
       setVisitasCobrador((prev: VisitaRuta[]) =>
         prev.map((v) =>
           v.clienteId === clienteIdVisita
-            ? { ...v, estado: estadoVisitaPayload as any, estadoVisita: estadoVisitaPayload as any }
+            ? { ...v, estado: estadoVisitaPayload as any, estadoVisita: estadoVisitaPayload as any, notasVisita: notasVisitaPayload ?? (v as any).notasVisita }
             : v,
         ),
       )
@@ -2388,7 +2389,7 @@ const RutaClientLoaded = ({
             setVisitasCobrador((prev) =>
               (prev || []).map((v) =>
                 v.clienteId === clienteIdAusente
-                  ? { ...v, estado: 'ausente' as any, estadoVisita: 'ausente' as any }
+                  ? { ...v, estado: 'ausente' as any, estadoVisita: 'ausente' as any, notasVisita: notas }
                   : v
               )
             );
