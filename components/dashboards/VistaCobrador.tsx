@@ -230,6 +230,7 @@ import {
   isVisitaExigibleHoy,
   normalizeDateKey,
   resolveFechaEfectivaCuota,
+  shouldExcludeVisitaFromOperationalMeta,
   resolveCuotaProgressFromPrestamo,
   resolveNextPagoFromPrestamo,
   resolveProximaCuotaFromPrestamo,
@@ -2370,11 +2371,7 @@ const VistaCobrador = () => {
   const rutaStatsUI = useMemo(() => {
     if (periodoCards !== 'HOY') return rutaStats
 
-    const isAusente = (v: any) => {
-      const estadoVisita = String(v?.estadoVisita || '').toLowerCase()
-      const estado = String(v?.estado || '').toLowerCase()
-      return estadoVisita === 'ausente' || estado === 'ausente'
-    }
+    const isAusente = shouldExcludeVisitaFromOperationalMeta
 
     const visitasParaMetaFiltradas = Array.isArray(visitasCobrador)
       ? visitasCobrador.filter((v: any) => !isAusente(v))
@@ -2405,11 +2402,7 @@ const VistaCobrador = () => {
       }))
       .filter((v: any) => isVisitaExigibleHoy(v, hoyBogotaKey))
 
-    const isAusente = (v: any) => {
-      const estadoVisita = String(v?.estadoVisita || '').toLowerCase()
-      const estado = String(v?.estado || '').toLowerCase()
-      return estadoVisita === 'ausente' || estado === 'ausente'
-    }
+    const isAusente = shouldExcludeVisitaFromOperationalMeta
 
     const visitasAusentesHoy = visitasExigiblesHoy.filter(isAusente)
     const visitasOperativasHoy = visitasExigiblesHoy.filter((v: any) => !isAusente(v))
@@ -2956,7 +2949,7 @@ const VistaCobrador = () => {
 
     if (estado === 'en_mora') return 'bg-rose-50 text-rose-700 border-rose-500/30'
 
-    if (estado === 'ausente') return 'bg-orange-50 text-orange-700 border-orange-500/30'
+    if (estado === 'ausente') return 'bg-amber-50 text-amber-700 border-amber-200'
 
     return 'bg-blue-50 text-blue-700 border-blue-500/30'
 
@@ -3115,11 +3108,7 @@ const VistaCobrador = () => {
 
       let cuotaCompletadaLocal = false
 
-      const isAusente = (v: any) => {
-        const estadoVisita = String(v?.estadoVisita || '').toLowerCase()
-        const estado = String(v?.estado || '').toLowerCase()
-        return estadoVisita === 'ausente' || estado === 'ausente'
-      }
+      const isAusente = shouldExcludeVisitaFromOperationalMeta
 
       const resolveEstadoSinAusente = (v: any): any => {
         const estado = String(v?.estado || '').toLowerCase()

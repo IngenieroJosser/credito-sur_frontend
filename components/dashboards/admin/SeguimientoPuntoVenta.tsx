@@ -110,6 +110,12 @@ const getUsuarioNombre = (usuario: Pick<Usuario, 'nombres' | 'apellidos' | 'corr
 const normalizeText = (value: string) =>
   value.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
 
+const isSameOrPartialName = (a: string, b: string) => {
+  const left = normalizeText(a)
+  const right = normalizeText(b)
+  return !!left && !!right && (left === right || left.startsWith(right) || right.startsWith(left))
+}
+
 const getDatesByPeriod = (period: Periodo) => {
   const hoy = new Date()
   let inicio = new Date(hoy)
@@ -181,6 +187,31 @@ export default function SeguimientoPuntoVenta() {
       )
       setUsuariosPdv(usuariosPuntoVenta)
 
+      const resolveVendedorPdv = (credito: any) => {
+        const vendedorId = String(credito.creadoPorId || '')
+        const vendedorNombre = String(credito.vendedor || credito.creadoPorNombre || '').trim()
+        const vendedorRol = String(credito.creadoPorRol || credito.vendedorRol || '').toUpperCase()
+
+        const usuarioPorId = vendedorId
+          ? usuariosPuntoVenta.find((usuario) => usuario.id === vendedorId)
+          : undefined
+
+        const usuarioPorNombre = vendedorNombre
+          ? usuariosPuntoVenta.find((usuario) =>
+              isSameOrPartialName(getUsuarioNombre(usuario), vendedorNombre),
+            )
+          : undefined
+
+        const usuario = usuarioPorId || usuarioPorNombre
+
+        return {
+          vendedor: usuario ? getUsuarioNombre(usuario) : (vendedorNombre || 'Punto de Venta'),
+          vendedorId: usuario?.id || vendedorId,
+          vendedorRol: usuario ? 'PUNTO_DE_VENTA' : vendedorRol,
+          esVentaPdv: Boolean(usuario) || vendedorRol === 'PUNTO_DE_VENTA',
+        }
+      }
+
       // 1. Cargar todos los créditos de artículos (tipo ARTICULO)
       const todosArticulos = (resp?.prestamos || []).filter((c: any) => {
         const tipo = String(c.tipoPrestamo || c.tipo || '').toUpperCase()
@@ -211,6 +242,8 @@ export default function SeguimientoPuntoVenta() {
             })
           } catch { /* skip */ }
 
+          const vendedorPdv = resolveVendedorPdv(c)
+
           return {
             id: c.id,
             cliente: c.cliente || 'Sin nombre',
@@ -230,10 +263,10 @@ export default function SeguimientoPuntoVenta() {
             fechaVenta: c.creadoEn || '',
             fechaPrimerCobro: c.fechaInicio || '',
             fechaUltimoPago,
-            vendedor: c.vendedor || c.creadoPorNombre || 'Punto de Venta',
-            vendedorId: c.creadoPorId || '',
-            vendedorRol: String(c.creadoPorRol || c.vendedorRol || '').toUpperCase(),
-            esVentaPdv: String(c.creadoPorRol || c.vendedorRol || '').toUpperCase() === 'PUNTO_DE_VENTA',
+            vendedor: vendedorPdv.vendedor,
+            vendedorId: vendedorPdv.vendedorId,
+            vendedorRol: vendedorPdv.vendedorRol,
+            esVentaPdv: vendedorPdv.esVentaPdv,
             observaciones: c.observaciones,
             pagadoHoy,
           }
@@ -304,7 +337,7 @@ export default function SeguimientoPuntoVenta() {
   // ─── Filtros y paginación ─────────────────────────────────────────────────
 
   // Usuarios PDV reales para el selector. Si el backend aún no trae el usuario
-  // completo en alguna venta, conservamos un respaldo por nombre.
+  // completo en alguna venta, solo dejamos respaldos que no coincidan con ningún usuario real.
   const vendedoresFiltro = useMemo(() => {
     const seen = new Set<string>()
     const usuarios = usuariosPdv.map(usuario => ({
@@ -323,7 +356,10 @@ export default function SeguimientoPuntoVenta() {
       .map(v => ({ id: v.vendedorId || v.vendedor, nombre: v.vendedor, normalizedName: normalizeText(v.vendedor) }))
       .filter(v => {
         const key = v.id || v.normalizedName
-        if (!key || seen.has(key) || seen.has(v.normalizedName)) return false
+        const matchesUsuarioReal = usuarios.some(usuario =>
+          isSameOrPartialName(usuario.nombre, v.nombre),
+        )
+        if (!key || seen.has(key) || seen.has(v.normalizedName) || matchesUsuarioReal) return false
         seen.add(key)
         seen.add(v.normalizedName)
         return true
@@ -350,7 +386,7 @@ export default function SeguimientoPuntoVenta() {
       const usuario = vendedoresFiltro.find(v => v.id === filtroVendedor)
       result = result.filter(v =>
         (v.vendedorId && v.vendedorId === filtroVendedor) ||
-        (!!usuario && normalizeText(v.vendedor) === usuario.normalizedName) ||
+        (!!usuario && isSameOrPartialName(v.vendedor, usuario.nombre)) ||
         (!usuario && (v.vendedorId || v.vendedor) === filtroVendedor)
       )
     }

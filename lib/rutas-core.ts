@@ -497,6 +497,22 @@ export const shouldMarkVisitaAsPagado = (params: {
   return recaudadoHoy > 0 && recaudadoHoy >= cuota;
 };
 
+export const shouldExcludeVisitaFromOperationalMeta = (
+  visita: any,
+  recaudadoHoyOverride?: unknown,
+): boolean => {
+  const estadoVisita = String(visita?.estadoVisita || '').toLowerCase().replace(/\s+/g, '_');
+  const estado = String(visita?.estado || '').toLowerCase().replace(/\s+/g, '_');
+  const esAusente = estadoVisita === 'ausente' || estado === 'ausente';
+  if (!esAusente) return false;
+
+  const recaudadoHoy = recaudadoHoyOverride !== undefined
+    ? Number(recaudadoHoyOverride || 0)
+    : Number((visita as any)?.recaudadoDelDia ?? (visita as any)?.recaudadoPeriodo ?? 0);
+
+  return !(Number.isFinite(recaudadoHoy) && recaudadoHoy > 0);
+};
+
 export const shouldShowVisitaEnRutaHoy = (visita: any, hoyBogotaKey: string): boolean => {
   // Regla unica para las vistas de ruta: no mostrar cobros futuros ni cuotas ya cubiertas.
   if (!visita) return false;

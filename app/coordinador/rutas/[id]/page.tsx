@@ -188,11 +188,11 @@ const LegacyDetalleRutaPage = () => {
 
 
 
-  const [rutaActual, setRutaActual] = useState<{ 
+  const [rutaActual, setRutaActual] = useState<{
 
     id?: string;
 
-    nombre: string | null; 
+    nombre: string | null;
 
     activa: boolean;
 
@@ -214,7 +214,7 @@ const LegacyDetalleRutaPage = () => {
 
   const totalRecaudadoHoy = visitasCobrador.reduce((acc, current) => acc + (current.recaudadoDelDia || 0), 0)
 
-  
+
 
   const [estadoCuentaVisita, setEstadoCuentaVisita] = useState<VisitaRuta | null>(null)
 
@@ -434,19 +434,19 @@ const LegacyDetalleRutaPage = () => {
 
       case 'pagado':
 
-        return 'bg-emerald-50 text-emerald-700 border-emerald-500/30' 
+        return 'bg-emerald-50 text-emerald-700 border-emerald-500/30'
 
       case 'pendiente':
 
-        return 'bg-orange-50 text-orange-700 border-orange-500/30' 
+        return 'bg-orange-50 text-orange-700 border-orange-500/30'
 
       case 'ausente':
 
-        return 'bg-slate-50 text-slate-600 border-slate-300' 
+        return 'bg-amber-50 text-amber-700 border-amber-200'
 
       case 'en_mora':
 
-        return 'bg-rose-50 text-rose-700 border-rose-500/30' 
+        return 'bg-rose-50 text-rose-700 border-rose-500/30'
 
       default:
 
@@ -464,15 +464,15 @@ const LegacyDetalleRutaPage = () => {
 
       case 'alta':
 
-        return '#f97316' 
+        return '#f97316'
 
       case 'media':
 
-        return '#08557f' 
+        return '#08557f'
 
       default:
 
-        return '#94a3b8' 
+        return '#94a3b8'
 
     }
 
@@ -548,9 +548,9 @@ const LegacyDetalleRutaPage = () => {
 
                const prestamoActivo = prestamos.find((p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA') || prestamos[0] || {};
 
-               
 
-               const proximaCuota = prestamoActivo.proximaCuota || {}; 
+
+               const proximaCuota = prestamoActivo.proximaCuota || {};
 
                const saldoTotal = asig.cliente?.prestamos?.reduce((sum: number, p: any) => sum + Number(p.saldoPendiente || 0), 0) || 0;
 
@@ -640,7 +640,7 @@ const LegacyDetalleRutaPage = () => {
 
             });
 
-            
+
 
             // Enriquecer con cuotas
 
@@ -654,21 +654,21 @@ const LegacyDetalleRutaPage = () => {
 
                    const pendiente = cuotas.find(c => c.estado !== 'PAGADA');
 
-                   
+
 
                    if (pendiente) {
 
                        const montoReal = Number(pendiente.monto || (pendiente.montoCapital + pendiente.montoInteres) || 0);
 
-                       return { 
+                       return {
 
-                         ...v, 
+                         ...v,
 
                          montoCuota: montoReal > 0 ? montoReal : v.montoCuota,
 
-                         proximaVisita: (pendiente.estado === 'PRORROGADA' && pendiente.fechaVencimientoProrroga) 
+                         proximaVisita: (pendiente.estado === 'PRORROGADA' && pendiente.fechaVencimientoProrroga)
 
-                           ? pendiente.fechaVencimientoProrroga 
+                           ? pendiente.fechaVencimientoProrroga
 
                            : (pendiente.fechaVencimiento || v.proximaVisita),
 
@@ -686,7 +686,7 @@ const LegacyDetalleRutaPage = () => {
 
                    }
 
-                   
+
 
                    const p = await prestamosService.obtenerPrestamoPorId(v.prestamoId);
 
@@ -694,11 +694,11 @@ const LegacyDetalleRutaPage = () => {
 
                    const montoP = Number(proxima.monto || p.montoCuota || p.valorCuota || 0);
 
-                   
 
-                   return { 
 
-                     ...v, 
+                   return {
+
+                     ...v,
 
                      montoCuota: montoP > 0 ? montoP : v.montoCuota,
 
@@ -734,7 +734,7 @@ const LegacyDetalleRutaPage = () => {
 
                 const pagosCalc = (pagosResp?.pagos || []);
 
-                
+
 
                 const totalHoy = sumMontoTotalPagosByBogotaDateKey(
                   pagosCalc,
@@ -742,7 +742,7 @@ const LegacyDetalleRutaPage = () => {
                   { includeCierrePendiente: false },
                 );
 
-                
+
 
                 const totalHistorico = pagosCalc.reduce((sum: number, p: any) => {
 
@@ -803,11 +803,11 @@ const LegacyDetalleRutaPage = () => {
 
             const rExtra = ruta as any;
 
-            setRutaActual({ 
+            setRutaActual({
 
               id: ruta.id,
 
-              nombre: ruta.nombre, 
+              nombre: ruta.nombre,
 
               activa: ruta.activa,
 
@@ -974,7 +974,7 @@ const LegacyDetalleRutaPage = () => {
 
       const pagosData = (pagosResp as any)?.pagos || pagosResp || [];
 
-      
+
 
       const normalize = (s: string) => (s || '').toLowerCase().replace(/^ruta\s+/i, '').trim();
 
@@ -988,21 +988,21 @@ const LegacyDetalleRutaPage = () => {
 
         if (!raw) return false;
 
-        
+
 
         const key = getLocalIsoKey(raw);
 
         const cobradorMatch = rutaActual?.cobradorId ? (p.cobradorId === rutaActual.cobradorId) : true;
 
-        const matchRuta = p.rutaId === rutaId || 
+        const matchRuta = p.rutaId === rutaId ||
 
-                          normalize(p.ruta) === rutaNombreNorm || 
+                          normalize(p.ruta) === rutaNombreNorm ||
 
                           (p.ruta && normalize(p.ruta).includes(rutaNombreNorm)) ||
 
                           (rutaNombreNorm && normalize(p.ruta).includes(rutaNombreNorm));
 
-        
+
 
         return key === fechaClave && cobradorMatch && (matchRuta || !p.ruta); // Fallback if no route specified
 
@@ -1038,13 +1038,13 @@ const LegacyDetalleRutaPage = () => {
 
         const saldoTotal = Number(prestamoActivo?.saldoPendiente || 0);
 
-        
+
 
         const recDia = cliente.id ? (recaudadoPorCliente[cliente.id] || 0) : 0;
 
         const montoCuota = Number(proximaCuota?.monto || 0);
 
-        
+
 
         if (cliente.id) existentes.add(cliente.id);
 
@@ -1190,7 +1190,7 @@ const LegacyDetalleRutaPage = () => {
 
       const recaudoDia = Number(saldo?.recaudoDelDia ?? 0) > 0 ? Number(saldo?.recaudoDelDia ?? 0) : pagosDelDia.reduce((s: number, p: any) => s + Number(p.montoTotal || 0), 0);
 
-      
+
 
       const resumen = {
 
@@ -1256,7 +1256,7 @@ const LegacyDetalleRutaPage = () => {
 
   const { visitasAgrupadas, totalMostradas } = useMemo(() => {
 
-    let filtradas = visitasCobrador.filter(v => 
+    let filtradas = visitasCobrador.filter(v =>
 
       (v.cliente.toLowerCase().includes(searchQuery.toLowerCase()) ||
 
@@ -1533,7 +1533,7 @@ const LegacyDetalleRutaPage = () => {
 
             <button
 
-              onClick={() => { setShowClienteSelector(true); }} 
+              onClick={() => { setShowClienteSelector(true); }}
 
               className="flex-1 md:flex-none px-6 py-3 rounded-2xl text-sm font-bold transition-all shadow-sm bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 flex items-center justify-center gap-2 active:scale-95"
 
@@ -1545,7 +1545,7 @@ const LegacyDetalleRutaPage = () => {
 
             </button>
 
-            <button 
+            <button
 
               onClick={() => {
 
@@ -1565,7 +1565,7 @@ const LegacyDetalleRutaPage = () => {
 
             </button>
 
-            <button 
+            <button
 
               onClick={() => {
 
@@ -1573,7 +1573,7 @@ const LegacyDetalleRutaPage = () => {
 
                 setShowMisClientes(false)
 
-              }} 
+              }}
 
               className={`flex-1 md:flex-none px-6 py-3 rounded-2xl text-sm font-bold transition-all shadow-sm flex items-center justify-center gap-2 active:scale-95 ${
 
@@ -1675,7 +1675,7 @@ const LegacyDetalleRutaPage = () => {
 
                        const dayName = dateObj.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' });
 
-                       
+
 
                        const isCompleted = data.visitas.length > 0 && (data.resumen.efectividad >= 95 || data.visitas.every((v: any) => v.estado === 'pagado'));
 
@@ -1683,7 +1683,7 @@ const LegacyDetalleRutaPage = () => {
 
                        return (
 
-                         <div key={date} 
+                         <div key={date}
 
                               className={`rounded-2xl border transition-all overflow-hidden bg-white border-slate-200
 
@@ -1695,7 +1695,7 @@ const LegacyDetalleRutaPage = () => {
 
                            {/* Header (Clickable) */}
 
-                           <div 
+                           <div
 
                               className="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
 
@@ -1725,7 +1725,7 @@ const LegacyDetalleRutaPage = () => {
 
                                 </div>
 
-                                
+
 
                                 <div>
 
@@ -1897,13 +1897,13 @@ const LegacyDetalleRutaPage = () => {
 
                 </div>
 
-                
+
 
                  <div className="flex flex-wrap gap-3 text-xs font-bold text-slate-600 bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
 
                     <div className="flex items-center gap-2 px-2 py-1 bg-emerald-50 rounded-lg border border-emerald-500/20 text-emerald-700">
 
-                        <div className="w-2h-2 rounded-full bg-emerald-500"></div> 
+                        <div className="w-2h-2 rounded-full bg-emerald-500"></div>
 
                         <span>Mínimo</span>
 
@@ -1911,7 +1911,7 @@ const LegacyDetalleRutaPage = () => {
 
                     <div className="flex items-center gap-2 px-2 py-1 bg-blue-50 rounded-lg border border-blue-500/20 text-blue-700">
 
-                        <div className="w-2 h-2 rounded-full bg-blue-500"></div> 
+                        <div className="w-2 h-2 rounded-full bg-blue-500"></div>
 
                         <span>Leve</span>
 
@@ -1919,7 +1919,7 @@ const LegacyDetalleRutaPage = () => {
 
                     <div className="flex items-center gap-2 px-2 py-1 bg-yellow-50 rounded-lg border border-yellow-500/20 text-yellow-700">
 
-                        <div className="w-2 h-2 rounded-full bg-yellow-500"></div> 
+                        <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
 
                         <span>Precaución</span>
 
@@ -1927,7 +1927,7 @@ const LegacyDetalleRutaPage = () => {
 
                     <div className="flex items-center gap-2 px-2 py-1 bg-orange-50 rounded-lg border border-orange-500/20 text-orange-700">
 
-                        <div className="w-2 h-2 rounded-full bg-orange-500"></div> 
+                        <div className="w-2 h-2 rounded-full bg-orange-500"></div>
 
                         <span>Moderado</span>
 
@@ -1935,7 +1935,7 @@ const LegacyDetalleRutaPage = () => {
 
                     <div className="flex items-center gap-2 px-2 py-1 bg-red-50 rounded-lg border border-red-500/20 text-red-700">
 
-                        <div className="w-2 h-2 rounded-full bg-red-500"></div> 
+                        <div className="w-2 h-2 rounded-full bg-red-500"></div>
 
                         <span>Crítico</span>
 
@@ -1967,7 +1967,7 @@ const LegacyDetalleRutaPage = () => {
 
                     const estaColapsado = !!gruposColapsados[key];
 
-                    
+
 
                     return (
 
@@ -2099,7 +2099,7 @@ const LegacyDetalleRutaPage = () => {
 
             </div>
 
-            
+
 
             <form onSubmit={handleGuardarGasto} className="p-6 space-y-4">
 
@@ -2135,7 +2135,7 @@ const LegacyDetalleRutaPage = () => {
 
                 <label className="text-sm font-bold text-slate-700">Descripción</label>
 
-                <textarea 
+                <textarea
 
                   required
 
@@ -2153,7 +2153,7 @@ const LegacyDetalleRutaPage = () => {
 
               </div>
 
-              
+
 
               <div className="space-y-2">
 
@@ -2163,9 +2163,9 @@ const LegacyDetalleRutaPage = () => {
 
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
 
-                  <input 
+                  <input
 
-                    type="text" 
+                    type="text"
 
                     inputMode="numeric"
 
@@ -2241,7 +2241,7 @@ const LegacyDetalleRutaPage = () => {
 
       )}
 
-      
+
 
       {pagoVisita && (
 
@@ -2263,7 +2263,7 @@ const LegacyDetalleRutaPage = () => {
 
       )}
 
-      
+
 
       {visitaReprogramar && (
 
@@ -2285,7 +2285,7 @@ const LegacyDetalleRutaPage = () => {
 
                   }
 
-                  
+
 
                   await prestamosService.reprogramarPrestamo(visitaReprogramar.prestamoId, {
 
@@ -2297,7 +2297,7 @@ const LegacyDetalleRutaPage = () => {
 
                   });
 
-                  
+
 
                   showNotification('success', 'Solicitud de reprogramación enviada correctamente', 'Éxito');
 
@@ -2324,7 +2324,7 @@ const LegacyDetalleRutaPage = () => {
 
       )}
 
-      
+
 
       {showClienteSelector && (
 
@@ -2346,7 +2346,7 @@ const LegacyDetalleRutaPage = () => {
 
       )}
 
-      
+
 
       {clienteDetalle && (
 
@@ -2411,7 +2411,7 @@ const LegacyDetalleRutaPage = () => {
 
                 cuotaInicial: data.cuotaInicialArticulo || 0,
 
-                notas: data.creditType === 'articulo' 
+                notas: data.creditType === 'articulo'
 
                   ? `${esContado ? 'Venta de contado' : 'Crédito de artículo'}: ${data.articuloNombre || ''}`
 
@@ -2437,7 +2437,7 @@ const LegacyDetalleRutaPage = () => {
 
               const prestamo = await prestamosService.crearPrestamo(payload);
 
-              
+
 
               if (data.creditType === 'articulo' && prestamo?.id && !esContado) {
 
@@ -2479,7 +2479,7 @@ const LegacyDetalleRutaPage = () => {
 
               }
 
-              
+
 
               showNotification('success', 'Crédito creado (Pendiente de Aprobación) y cliente vinculado a la ruta', 'Operación completada');
 
@@ -2627,7 +2627,7 @@ function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose:
 
   const r = visita.nivelRiesgo;
 
-  const riesgoColor = 
+  const riesgoColor =
 
     r === 'bajo' ? 'text-emerald-600 bg-emerald-50' :
 
@@ -2639,7 +2639,7 @@ function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose:
 
 
 
-  const riesgoLabel = 
+  const riesgoLabel =
 
     r === 'bajo' ? 'Peligro Mínimo' :
 
@@ -2657,7 +2657,7 @@ function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose:
 
     if (!clienteCompleto?.prestamos) return 0;
 
-    return clienteCompleto.prestamos.filter((p: any) => 
+    return clienteCompleto.prestamos.filter((p: any) =>
 
       p.estado !== 'PAGADO' && p.estado !== 'CANCELADO' && p.estado !== 'RECHAZADO'
 

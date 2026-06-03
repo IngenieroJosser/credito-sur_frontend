@@ -5,6 +5,7 @@ import {
   isCuotaNoPagada,
   isVisitaExigibleHoy,
   normalizeDateKey,
+  shouldExcludeVisitaFromOperationalMeta,
   getBogotaRangeByPeriod,
 } from '@/lib/rutas-core'
 import { mapAsignacionesToVisitasLite } from '@/lib/ruta-visitas-mapper'
@@ -127,11 +128,8 @@ export const computeOperationalMetaTotalForTimeFilter = async (
 
           const tieneCuotaPendiente = cuotas.some((c: any) => c && isCuotaNoPagada(c))
           if (!tieneCuotaPendiente) return sum
-
-          // Excluir clientes marcados como ausente
-          const estadoVisita = String(v?.estadoVisita || '').toLowerCase()
-          const estado = String(v?.estado || '').toLowerCase()
-          if (estadoVisita === 'ausente' || estado === 'ausente') return sum
+          const recHoy = timeFilter === 'today' ? Number((recaudosHoyMap as any)?.[pid] || 0) : 0
+          if (shouldExcludeVisitaFromOperationalMeta(v, recHoy)) return sum
 
           if (timeFilter === 'today' && !isVisitaExigibleHoy(v as any, endKey)) return sum
 
@@ -161,7 +159,6 @@ export const computeOperationalMetaTotalForTimeFilter = async (
               dueInPeriod = Math.min(dueInPeriod, saldoParaTope)
             }
 
-            const recHoy = Number((recaudosHoyMap as any)?.[pid] || 0)
             if (Number.isFinite(recHoy) && recHoy > 0) {
               dueInPeriod = Math.max(0, dueInPeriod - recHoy)
             }
@@ -273,11 +270,8 @@ export const computeOperationalMetaByRouteIdsForTimeFilter = async (
 
           const tieneCuotaPendiente = cuotas.some((c: any) => c && isCuotaNoPagada(c))
           if (!tieneCuotaPendiente) return sum
-
-          // Excluir clientes marcados como ausente
-          const estadoVisita = String(v?.estadoVisita || '').toLowerCase()
-          const estado = String(v?.estado || '').toLowerCase()
-          if (estadoVisita === 'ausente' || estado === 'ausente') return sum
+          const recHoy = timeFilter === 'today' ? Number((recaudosHoyMap as any)?.[pid] || 0) : 0
+          if (shouldExcludeVisitaFromOperationalMeta(v, recHoy)) return sum
 
           if (timeFilter === 'today' && !isVisitaExigibleHoy(v as any, endKey)) return sum
 
@@ -307,7 +301,6 @@ export const computeOperationalMetaByRouteIdsForTimeFilter = async (
               dueInPeriod = Math.min(dueInPeriod, saldoParaTope)
             }
 
-            const recHoy = Number((recaudosHoyMap as any)?.[pid] || 0)
             if (Number.isFinite(recHoy) && recHoy > 0) {
               dueInPeriod = Math.max(0, dueInPeriod - recHoy)
             }

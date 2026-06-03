@@ -1,6 +1,7 @@
 import {
   buildRegularizedPaymentTarget,
   computeRutaHoyUiStatsFromVisitas,
+  shouldExcludeVisitaFromOperationalMeta,
   esDomingoBogota,
   resolveCobradorIdForRouteAction,
   shouldShowVisitaEnRutaHoy,
@@ -171,6 +172,33 @@ describe('computeRutaHoyUiStatsFromVisitas', () => {
     expect(stats.meta).toBe(5602000)
   })
 
+  it('reincorpora a meta y recaudo un cliente ausente cuando registra pago hoy', () => {
+    const visitas = [
+      { estado: 'pendiente', montoCuota: 564_998, saldoTotal: 564_998 },
+      { estado: 'ausente', estadoVisita: 'ausente', montoCuota: 425_335, saldoTotal: 425_335, recaudadoDelDia: 425_335 },
+    ]
+
+    const visitasOperativas = visitas.filter((v) => !shouldExcludeVisitaFromOperationalMeta(v))
+    const stats = computeRutaHoyUiStatsFromVisitas(visitasOperativas)
+
+    expect(stats.recaudo).toBe(425_335)
+    expect(stats.pendiente).toBe(564_998)
+    expect(stats.meta).toBe(990_333)
+  })
+
+  it('excluye de meta a un cliente ausente mientras no tenga pago operativo', () => {
+    const visitas = [
+      { estado: 'pendiente', montoCuota: 564_998, saldoTotal: 564_998 },
+      { estado: 'ausente', estadoVisita: 'ausente', montoCuota: 425_335, saldoTotal: 425_335, recaudadoDelDia: 0 },
+    ]
+
+    const visitasOperativas = visitas.filter((v) => !shouldExcludeVisitaFromOperationalMeta(v))
+    const stats = computeRutaHoyUiStatsFromVisitas(visitasOperativas)
+
+    expect(stats.recaudo).toBe(0)
+    expect(stats.pendiente).toBe(564_998)
+    expect(stats.meta).toBe(564_998)
+  })
   it('no resta dos veces pagos cuando la cuota pendiente ya viene recalculada', () => {
     const stats = computeRutaHoyUiStatsFromVisitas([
       { estado: 'pendiente', montoCuotaPendiente: 80000, montoCuota: 180000, saldoTotal: 1180000, recaudadoDelDia: 100000 },
