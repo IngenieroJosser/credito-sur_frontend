@@ -19,14 +19,12 @@ export default function RoleFloatingActions({ role }: { role: FloatingRole }) {
 
   const actionsByRole: Record<FloatingRole, FabAction[]> = {
     COBRADOR: [
-      { label: 'Crear Crédito', icon: <CreditCard className="h-5 w-5" />, onClick: () => router.push('/cobranzas/prestamos/nuevo') },
-      { label: 'Nuevo Cliente', icon: <UserPlus className="h-5 w-5" />, color: 'blue', onClick: () => router.push('/cobranzas/clientes/nuevo') },
-      { label: 'Solicitudes', icon: <ClipboardList className="h-5 w-5" />, color: 'orange', onClick: () => router.push('/cobranzas/solicitudes') },
+      { label: 'Crear Crédito', icon: <CreditCard className="h-5 w-5" />, onClick: () => router.push('/cobranzas?action=crear-credito') },
+      { label: 'Nuevo Cliente', icon: <UserPlus className="h-5 w-5" />, color: 'blue', onClick: () => router.push('/cobranzas?action=nuevo-cliente') },
     ],
     SUPERVISOR: [
-      { label: 'Crear Crédito', icon: <CreditCard className="h-5 w-5" />, onClick: () => router.push('/supervisor/prestamos/nuevo') },
-      { label: 'Nuevo Cliente', icon: <UserPlus className="h-5 w-5" />, color: 'blue', onClick: () => router.push('/supervisor/clientes/nuevo') },
-      { label: 'Revisiones', icon: <ClipboardList className="h-5 w-5" />, color: 'orange', onClick: () => router.push('/supervisor/revisiones') },
+      { label: 'Crear Crédito', icon: <CreditCard className="h-5 w-5" />, onClick: () => router.push('/supervisor?action=crear-credito') },
+      { label: 'Nuevo Cliente', icon: <UserPlus className="h-5 w-5" />, color: 'blue', onClick: () => router.push('/supervisor?action=nuevo-cliente') },
     ],
   }
 

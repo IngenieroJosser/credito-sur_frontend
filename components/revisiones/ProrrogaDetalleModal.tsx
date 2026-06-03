@@ -74,6 +74,7 @@ function formatFechaHora(iso: string | null | undefined) {
     return new Date(iso).toLocaleDateString('es-CO', {
       day: '2-digit', month: 'short', year: 'numeric',
       hour: '2-digit', minute: '2-digit',
+      hour12: true,
     })
   } catch { return '—' }
 }

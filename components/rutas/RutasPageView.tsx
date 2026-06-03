@@ -88,8 +88,8 @@ interface RutasPageViewProps {
   readOnly?: boolean;
   rutasBasePath?: string;
   rutas?: Ruta[];
-  cobradores?: { id: string; nombre: string }[];
-  supervisores?: { id: string; nombre: string }[];
+  cobradores?: { id: string; nombre: string; rol?: string }[];
+  supervisores?: { id: string; nombre: string; rol?: string }[];
 }
 
 const mapAsignacionesToClientesRuta = (asignaciones: any[] = []): ClienteSelection[] => {
@@ -1535,7 +1535,7 @@ export const RutasPageView = ({
                             <option value="">Seleccione un supervisor</option>
                             {supervisoresList.map((s) => (
                               <option key={s.id} value={s.id}>
-                                {s.nombre}
+                                {s.nombre} {s.rol ? `(${s.rol})` : ''}
                               </option>
                             ))}
                           </select>

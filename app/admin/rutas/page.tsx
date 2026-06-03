@@ -17,8 +17,8 @@ export default async function Page() {
   ]);
 
   // Transformación de datos para la vista
-  const cobradoresList = cobradores.map(u => ({ id: u.id, nombre: `${u.nombres} ${u.apellidos}` }));
-  const supervisoresList = [...supervisores, ...coordinadores].map(u => ({ id: u.id, nombre: `${u.nombres} ${u.apellidos}` }));
+  const cobradoresList = cobradores.map(u => ({ id: u.id, nombre: `${u.nombres} ${u.apellidos}`, rol: u.rol }));
+  const supervisoresList = [...supervisores, ...coordinadores].map(u => ({ id: u.id, nombre: `${u.nombres} ${u.apellidos}`, rol: u.rol }));
 
   return (
     <RutasPageView 
