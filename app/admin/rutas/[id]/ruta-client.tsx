@@ -484,61 +484,8 @@ const RutaClientLoaded = ({
   useEffect(() => {
     if (rutaData) {
       const nextList = mapearAsignacionesAVisitas(rutaData)
-      const prevList = visitasCobradorRef.current
-      const prevById = new Map<string, any>((Array.isArray(prevList) ? prevList : []).map((v: any) => [String(v?.id || ''), v]))
-
-      const merged = (Array.isArray(nextList) ? nextList : []).map((v: any) => {
-        const id = String(v?.id || '')
-        const local = prevById.get(id)
-        if (!local) return v
-
-        const localRecaudoDia = Number(local?.recaudadoDelDia || 0)
-        const nextRecaudoDia = Number(v?.recaudadoDelDia || 0)
-        const recaudadoDelDia = Math.max(localRecaudoDia, nextRecaudoDia)
-
-        const localRecaudoTotal = Number(local?.recaudadoTotalClient || 0)
-        const nextRecaudoTotal = Number(v?.recaudadoTotalClient || 0)
-        const localHasRecaudoTotal = local?.recaudadoTotalClient !== undefined && local?.recaudadoTotalClient !== null
-        const nextHasRecaudoTotal = v?.recaudadoTotalClient !== undefined && v?.recaudadoTotalClient !== null
-        const recaudadoTotalClient = (localHasRecaudoTotal || nextHasRecaudoTotal)
-          ? Math.max(localRecaudoTotal, nextRecaudoTotal)
-          : undefined
-
-        const estadoLocal = String(local?.estado || '')
-        const estadoBackend = String(v?.estado || '')
-        const saldoBackend = Number(v?.saldoTotal || 0)
-        const proxBackend = String(v?.proximaVisita || '')
-        const proxLocal = String(local?.proximaVisita || '')
-        const esNuevaCuota = !!proxBackend && !!proxLocal && proxBackend !== proxLocal
-
-        const localTienePagoHoy =
-          Number(local?.recaudadoDelDia || 0) > 0 ||
-          Number(v?.recaudadoDelDia || 0) > 0
-
-        // Preservar el estado local si es 'pagado' o 'ausente' (evitar que el backend lo sobreescriba
-        // antes de que el siguiente ciclo de enriquecimiento lo valide con pagos reales)
-        const estadoProtegidoLocalmente =
-          (estadoLocal === 'pagado' && !esNuevaCuota && saldoBackend > 0) ||
-          (estadoLocal === 'ausente' && !localTienePagoHoy)
-        const estado = estadoProtegidoLocalmente
-          ? estadoLocal
-          : (estadoBackend as any)
-
-        // Si el estado quedó protegido como 'ausente', asegurar que estadoVisita también lo refleje
-        const estadoVisita =
-          estadoLocal === 'ausente' && !localTienePagoHoy
-            ? 'ausente'
-            : v?.estadoVisita
-
-        return {
-          ...v,
-          recaudadoDelDia,
-          recaudadoTotalClient,
-          estado,
-          estadoVisita,
-        }
-      })
-
+      const merged = mergeVisitasPreservingLocalRecaudo(visitasCobradorRef.current as any, nextList as any)
+      visitasCobradorRef.current = merged as any
       setVisitasCobrador(merged as any);
     }
   }, [rutaData, mapearAsignacionesAVisitas]);
