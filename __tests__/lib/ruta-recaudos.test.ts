@@ -116,5 +116,67 @@ describe('ruta-recaudos', () => {
     expect(stats.pendiente).toBe(564998)
     expect(stats.meta).toBe(990333)
   })
+
+  it('preserva recaudo de un ausente pagado aunque el refresh cambie el id visual de la visita', () => {
+    const local = [
+      {
+        id: 'asig-anterior-prestamo-1',
+        prestamoId: 'prestamo-1',
+        clienteId: 'cliente-1',
+        estado: 'pagado',
+        estadoVisita: undefined,
+        montoCuota: 126666,
+        montoCuotaPendiente: 126666,
+        saldoTotal: 1900000,
+        recaudadoDelDia: 126666,
+      },
+      {
+        id: 'asig-2-prestamo-2',
+        prestamoId: 'prestamo-2',
+        clienteId: 'cliente-2',
+        estado: 'pendiente',
+        montoCuota: 916664,
+        montoCuotaPendiente: 916664,
+        saldoTotal: 5500000,
+        recaudadoDelDia: 0,
+      },
+    ]
+
+    const backendRefresh = [
+      {
+        id: 'asig-nueva-prestamo-1',
+        prestamoId: 'prestamo-1',
+        clienteId: 'cliente-1',
+        estado: 'ausente',
+        estadoVisita: 'ausente',
+        montoCuota: 126666,
+        montoCuotaPendiente: 126666,
+        saldoTotal: 1900000,
+        recaudadoDelDia: 0,
+      },
+      {
+        id: 'asig-2-prestamo-2',
+        prestamoId: 'prestamo-2',
+        clienteId: 'cliente-2',
+        estado: 'pendiente',
+        montoCuota: 916664,
+        montoCuotaPendiente: 916664,
+        saldoTotal: 5500000,
+        recaudadoDelDia: 0,
+      },
+    ]
+
+    const merged = mergeVisitasPreservingLocalRecaudo(local as any, backendRefresh as any)
+    const operativas = merged.filter((v) => !shouldExcludeVisitaFromOperationalMeta(v))
+    const stats = computeRutaHoyUiStatsFromVisitas(operativas, 0)
+
+    expect(merged[0].id).toBe('asig-nueva-prestamo-1')
+    expect(merged[0].recaudadoDelDia).toBe(126666)
+    expect(merged[0].estado).toBe('pagado')
+    expect(merged[0].estadoVisita).toBeUndefined()
+    expect(stats.recaudo).toBe(126666)
+    expect(stats.pendiente).toBe(916664)
+    expect(stats.meta).toBe(1043330)
+  })
 })
 

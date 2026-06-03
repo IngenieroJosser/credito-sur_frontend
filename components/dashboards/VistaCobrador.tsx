@@ -241,7 +241,7 @@ import {
   computeDiasMoraFromCuotas,
 } from '@/lib/rutas-core'
 import { mapAsignacionesToVisitasLite } from '@/lib/ruta-visitas-mapper'
-import { applyRecaudoHoyToVisitas, buildRecaudosHoyMapByPrestamoId, sumMontoTotalPagosByBogotaDateKey, sumMontoTotalPagosHistorico } from '@/lib/ruta-recaudos'
+import { applyRecaudoHoyToVisitas, buildRecaudosHoyMapByPrestamoId, mergeVisitasPreservingLocalRecaudo, sumMontoTotalPagosByBogotaDateKey, sumMontoTotalPagosHistorico } from '@/lib/ruta-recaudos'
 import { buildHistorialDiaFromBackend } from '@/lib/ruta-historial'
 import { mapWithConcurrency, memoizePromiseByKey } from '@/lib/async-utils'
 
@@ -1071,56 +1071,6 @@ const VistaCobrador = () => {
   // El lock caduca después de 3s automáticamente sin necesidad de timeout externo.
   const pagosInFlightRef = useRef<Map<string, number>>(new Map())
 
-  const mergeVisitasPreservingLocal = useCallback((prevList: any[], nextList: any[]) => {
-    const prev = Array.isArray(prevList) ? prevList : []
-    const next = Array.isArray(nextList) ? nextList : []
-
-    const prevById = new Map<string, any>(prev.map((v: any) => [String(v?.id || ''), v]))
-
-    return next.map((v: any) => {
-      const id = String(v?.id || '')
-      const local = prevById.get(id)
-      if (!local) return v
-
-      const localRecaudoDia = Number(local?.recaudadoDelDia || 0)
-      const nextRecaudoDia = Number(v?.recaudadoDelDia || 0)
-      const recaudadoDelDia = Math.max(localRecaudoDia, nextRecaudoDia)
-
-      const localRecaudoTotal = Number(local?.recaudadoTotalClient || 0)
-      const nextRecaudoTotal = Number(v?.recaudadoTotalClient || 0)
-      const recaudadoTotalClient = Math.max(localRecaudoTotal, nextRecaudoTotal)
-
-      const estadoLocal = String(local?.estado || '')
-      const estadoBackend = String(v?.estado || '')
-      const saldoBackend = Number(v?.saldoTotal || 0)
-      const proxBackend = String(v?.proximaVisita || '')
-      const proxLocal = String(local?.proximaVisita || '')
-      const esNuevaCuota = !!proxBackend && !!proxLocal && proxBackend !== proxLocal
-
-      const montoCuotaNext = Number(v?.montoCuota || 0)
-      const cuotaCubierta = montoCuotaNext > 0 && recaudadoDelDia >= montoCuotaNext
-
-      const estadoBackendSeguro = (estadoBackend === 'pagado' && saldoBackend > 0 && !cuotaCubierta)
-        ? (estadoLocal && estadoLocal !== 'pagado' ? estadoLocal : 'pendiente')
-        : estadoBackend
-
-      // Preservar 'pagado' solo si el backend aún no ha “avanzado” la próxima visita
-      // y el saldo sigue siendo consistente.
-      const estado = (estadoLocal === 'pagado' && !esNuevaCuota && saldoBackend > 0 && cuotaCubierta)
-        ? 'pagado'
-        : (estadoBackendSeguro as any)
-
-      return {
-        ...v,
-        recaudadoDelDia,
-        recaudadoTotalClient,
-        estado,
-      }
-    })
-  }, [])
-
-
-
   // WebSocket handler – se declara DESPUÉS de cargarDatosRuta (ver abajo)
 
   // para evitar referencia forward. El useEffect del socket está al final
@@ -1385,7 +1335,7 @@ const VistaCobrador = () => {
           // silencioso
         }
 
-        const merged = mergeVisitasPreservingLocal(visitasBaseRef.current, visitasEnriquecidas as any)
+        const merged = mergeVisitasPreservingLocalRecaudo(visitasBaseRef.current as any, visitasEnriquecidas as any)
         setVisitasBase(merged as any)
         setVisitasSelectorFallback(merged as any)
         setVisitasOrden((merged as any[]).map((v: any) => v.id))
@@ -1543,7 +1493,7 @@ const VistaCobrador = () => {
   // BUG-05 FIX: cargarDatosRuta NO depende de periodoCards — las visitas son independientes
   // del período. Las estadísticas por período se actualizan via cargarEstadisticasRuta (useEffect L681).
   // Eliminando periodoCards/getDatesByPeriod se evitan 60+ requests paralelos en cada cambio de filtro.
-  }, [userSession?.id, hoyBogotaKey, mergeVisitasPreservingLocal])
+  }, [userSession?.id, hoyBogotaKey])
 
 
   useEffect(() => {
