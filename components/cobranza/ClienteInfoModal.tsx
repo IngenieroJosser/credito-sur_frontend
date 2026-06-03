@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 /**
  * Modal de Información del Cliente — Vista Cobrador
@@ -17,6 +17,7 @@ import { VisitaRuta } from '@/lib/types/cobranza'
 import { resolveMediaUrl, formatCurrency } from '@/lib/utils'
 import Portal, { MODAL_Z_INDEX } from '@/components/ui/Portal'
 import { clientesService } from '@/services/clientes-service'
+import { rutasService, type HistorialVisitaCliente } from '@/services/rutas-service'
 
 // ── Tipos ──────────────────────────────────────────────────────────────────────
 
@@ -67,6 +68,8 @@ export default function ClienteInfoModal({
   const [archivos, setArchivos] = useState<ArchivoCliente[]>([])
   const [loadingFotos, setLoadingFotos] = useState(false)
   const [fotoExpandida, setFotoExpandida] = useState<string | null>(null)
+  const [historialAusencias, setHistorialAusencias] = useState<HistorialVisitaCliente[]>([])
+  const [loadingHistorialAusencias, setLoadingHistorialAusencias] = useState(false)
 
   // Carga los archivos del cliente y la próxima cuota real desde el backend al abrir el modal
   useEffect(() => {
@@ -89,6 +92,22 @@ export default function ClienteInfoModal({
       .finally(() => setLoadingFotos(false))
   }, [visita.clienteId])
 
+  useEffect(() => {
+    if (!visita.clienteId) {
+      setHistorialAusencias([])
+      return
+    }
+
+    setLoadingHistorialAusencias(true)
+    rutasService
+      .obtenerHistorialVisitasCliente(visita.clienteId, { estadoVisita: 'ausente', limit: 10 })
+      .then((historial) => setHistorialAusencias(Array.isArray(historial) ? historial : []))
+      .catch((err) => {
+        console.error('[ClienteInfoModal] Error cargando historial de ausencias:', err)
+        setHistorialAusencias([])
+      })
+      .finally(() => setLoadingHistorialAusencias(false))
+  }, [visita.clienteId])
   // ── Helpers ──────────────────────────────────────────────────────────────────
 
   const resolveUrl = (archivo: ArchivoCliente) =>
@@ -122,7 +141,15 @@ export default function ClienteInfoModal({
   const estadoVisitaGestion = String((visita as any)?.estadoVisita || visita.estado || '').toLowerCase()
   const esAusenteGestion = estadoVisitaGestion === 'ausente'
   const notaAusencia = String((visita as any)?.notasVisita || '').trim()
-
+  const formatFechaVisita = (fecha: string) => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return fecha
+    const [year, month, day] = fecha.split('-').map(Number)
+    return new Intl.DateTimeFormat('es-CO', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    }).format(new Date(Date.UTC(year, month - 1, day)))
+  }
   // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
@@ -356,6 +383,50 @@ export default function ClienteInfoModal({
                     </div>
                   </div>
                 )}
+                <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Historial de ausencias</p>
+                      <p className="text-xs font-bold text-slate-500">Últimos registros del cliente</p>
+                    </div>
+                    <span className="shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-black text-amber-700">
+                      {historialAusencias.length}
+                    </span>
+                  </div>
+
+                  {loadingHistorialAusencias ? (
+                    <div className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-3 text-xs font-bold text-slate-500">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Cargando historial...
+                    </div>
+                  ) : historialAusencias.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-3 text-xs font-bold text-slate-500">
+                      Sin ausencias registradas.
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {historialAusencias.map((registro) => (
+                        <div key={registro.id} className="rounded-xl border border-amber-100 bg-amber-50/60 px-3 py-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-xs font-black text-amber-900">{formatFechaVisita(registro.fechaVisita)}</p>
+                              <p className="truncate text-[10px] font-bold text-amber-700">
+                                {registro.ruta?.nombre || 'Ruta no disponible'}
+                                {registro.cobrador?.nombre ? ` · ${registro.cobrador.nombre}` : ''}
+                              </p>
+                            </div>
+                            <span className="shrink-0 rounded-full bg-white px-2 py-0.5 text-[10px] font-black uppercase text-amber-700">
+                              {registro.estadoVisita}
+                            </span>
+                          </div>
+                          <p className="mt-2 whitespace-pre-wrap break-words text-xs font-semibold leading-relaxed text-amber-950">
+                            {String(registro.notas || '').trim() || 'Sin justificación registrada.'}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 {/* Estado del crédito */}
                 <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm flex items-center gap-3">
                   <div className={`w-3 h-3 rounded-full shrink-0 ${
