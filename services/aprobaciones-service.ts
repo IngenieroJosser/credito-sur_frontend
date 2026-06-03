@@ -70,6 +70,10 @@ export const aprobacionesService = {
     return apiRequest<SuperadminReviewResponse>('GET', '/approvals/superadmin-review');
   },
 
+  async obtenerMisSolicitudes(): Promise<Aprobacion[]> {
+    return apiRequest<Aprobacion[]>('GET', '/approvals/my-requests');
+  },
+
   /**
    * Aprobar un item pendiente
    */

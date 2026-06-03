@@ -89,6 +89,24 @@ export default function NotificacionDetalleModal({
   // Estado del modal de detalle de pago (componente separado)
   const [showPagoDetalle, setShowPagoDetalle] = useState(false)
 
+  const formatFechaHora = (raw: any, fallback = '—') => {
+    if (!raw || raw === 'N/A' || raw === '—') return fallback
+    try {
+      const d = new Date(raw)
+      if (Number.isNaN(d.getTime())) return String(raw)
+      return d.toLocaleString('es-CO', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      })
+    } catch {
+      return fallback
+    }
+  }
+
   React.useEffect(() => {
     if (notificacion) {
       const meta = safeJsonParse(notificacion.metadata)
@@ -443,7 +461,7 @@ export default function NotificacionDetalleModal({
                     {notificacion.titulo}
                   </h2>
                   <p className="text-xs text-slate-500">
-                    {notificacion.creadoEn ? new Date(notificacion.creadoEn).toLocaleString('es-ES') : ''}
+                    {formatFechaHora(notificacion.creadoEn, '')}
                   </p>
                 </div>
               </div>
@@ -914,7 +932,7 @@ export default function NotificacionDetalleModal({
 
                 {!isArticle || !esContado ? (
                   <div>
-                    <label className="text-[10px] text-blue-600 uppercase font-black block mb-1">Plazo Total (Meses)</label>
+                    <label className="text-[10px] text-blue-600 uppercase font-black block mb-1">Plazo Total</label>
                     {isEditingMode ? (
                       isArticle && articuloData?.opcionesCuotas?.length ? (
                         <select
@@ -1193,7 +1211,7 @@ export default function NotificacionDetalleModal({
                 </h3>
                 <div className="text-[10px] font-bold text-slate-400 flex items-center gap-1 mt-0.5">
                   <Clock className="h-3 w-3" />
-                  {fecha}
+                  {formatFechaHora(notificacion.creadoEn || fecha, fecha || '—')}
                 </div>
               </div>
             </div>
