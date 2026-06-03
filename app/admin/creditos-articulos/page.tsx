@@ -4,9 +4,9 @@ import { logger } from '@/lib/logger'
 import { useState, useEffect, useCallback } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { usePathname } from 'next/navigation'
-import { 
-  Search, 
-  Filter, 
+import {
+  Search,
+  Filter,
   ShoppingBag,
   TrendingUp,
   AlertCircle,
@@ -28,17 +28,22 @@ import { loansServiceExt as loansService } from '@/services/loans-service'
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
 import DetallePrestamoModal from '@/components/prestamos/DetallePrestamoModal'
 
+type CreditoArticuloRow = Prestamo & {
+  rowKey: string
+  detalleId: string
+}
+
 export default function CreditosArticulosPage() {
   const pathname = usePathname()
   const [searchTerm, setSearchTerm] = useState('')
   const [estadoFiltro, setEstadoFiltro] = useState('todos')
   const [riesgoFiltro, setRiesgoFiltro] = useState('todos')
-  const [creditos, setCreditos] = useState<Prestamo[]>([])
+  const [creditos, setCreditos] = useState<CreditoArticuloRow[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showCrearCreditoModal, setShowCrearCreditoModal] = useState(false)
   const [creditoDetalleId, setCreditoDetalleId] = useState<string | null>(null)
   const isPuntoVentaView = pathname?.startsWith('/punto-de-venta')
-  
+
   // Paginación
   const [paginaActual, setPaginaActual] = useState(1)
   const [itemsPorPagina] = useState(8)
@@ -47,8 +52,14 @@ export default function CreditosArticulosPage() {
     setIsLoading(true)
     try {
       const response = await loansService.getLoans({ limit: 100 })
-      const prestamos = (response?.prestamos || []).map((p: any) => ({
-        id: p.id || p.numeroPrestamo,
+      const prestamos = (response?.prestamos || []).map((p: any, index: number) => {
+        const detalleId = String(p.id || p.prestamoId || '')
+        const rowKey = detalleId || String(p.numeroPrestamo || `credito-articulo-${index}`)
+
+        return {
+        id: rowKey,
+        rowKey,
+        detalleId,
         cliente: p.cliente || '',
         clienteId: p.clienteId || '',
         producto: p.producto || p.tipoPrestamo || '',
@@ -70,9 +81,9 @@ export default function CreditosArticulosPage() {
         riesgo: p.riesgo || 'VERDE',
         ruta: p.ruta || '',
         tipoProducto: p.tipoProducto || 'electrodomestico',
-      }))
-      const creditosArticulos = prestamos.filter((p: Prestamo) =>
-        p.tipoProducto !== 'efectivo'
+      }})
+      const creditosArticulos = prestamos.filter((p: CreditoArticuloRow) =>
+        p.detalleId && p.tipoProducto !== 'efectivo'
       )
       setCreditos(creditosArticulos)
     } catch (err) {
@@ -104,7 +115,7 @@ export default function CreditosArticulosPage() {
 
   const getRiesgoLabel = (riesgo: string) => {
     switch (riesgo) {
-      case 'VERDE': return 'Verde'
+      case 'VERDE': return 'Al día'
       case 'AMARILLO': return 'Precaución'
       case 'ROJO': return 'Rojo'
       case 'LISTA_NEGRA': return 'Lista Negra'
@@ -132,7 +143,7 @@ export default function CreditosArticulosPage() {
       default: return 'text-slate-600 bg-slate-50 border-slate-200 border'
     }
   }
-  
+
   const getProductIcon = (producto: string, tipo: string) => {
     const p = producto.toLowerCase()
     if (p.includes('tv') || p.includes('televisor') || p.includes('pantalla')) return <Tv className="w-5 h-5" />
@@ -217,7 +228,7 @@ export default function CreditosArticulosPage() {
             <div className="text-2xl font-bold text-slate-900 mb-1">{stats.total}</div>
             <p className="text-xs font-medium text-slate-500">Créditos registrados</p>
           </div>
-          
+
           <div className="bg-white/80 backdrop-blur-sm p-5 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 group">
             <div className="flex items-center justify-between mb-4">
               <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl group-hover:bg-emerald-600 group-hover:text-white transition-all duration-300 border border-emerald-100">
@@ -264,7 +275,7 @@ export default function CreditosArticulosPage() {
               className="buscador-3d-input"
             />
           </div>
-          
+
           <div className="flex flex-wrap gap-3 w-full md:w-auto">
             {/* Filtro de Estado */}
             <div className="flex items-center gap-1.5 flex-wrap bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
@@ -280,8 +291,8 @@ export default function CreditosArticulosPage() {
                   key={filtro.id}
                   onClick={() => setEstadoFiltro(filtro.id)}
                   className={`px-3 py-1.5 text-[11px] font-bold rounded-xl transition-all whitespace-nowrap ${
-                    estadoFiltro === filtro.id 
-                      ? 'bg-primary text-white shadow-md shadow-primary/20' 
+                    estadoFiltro === filtro.id
+                      ? 'bg-primary text-white shadow-md shadow-primary/20'
                       : 'bg-slate-100/50 text-slate-600 hover:bg-slate-200/70 border border-slate-200'
                   }`}
                 >
@@ -295,7 +306,7 @@ export default function CreditosArticulosPage() {
               <AlertCircle className="h-3.5 w-3.5 text-slate-400 shrink-0 mr-1" />
               {[
                 { id: 'todos', label: 'Todos' },
-                { id: 'VERDE', label: 'Verde' },
+                { id: 'VERDE', label: 'Al día' },
                 { id: 'AMARILLO', label: 'Precaución' },
                 { id: 'ROJO', label: 'Rojo' },
                 { id: 'LISTA_NEGRA', label: 'Lista Negra' }
@@ -304,8 +315,8 @@ export default function CreditosArticulosPage() {
                   key={filtro.id}
                   onClick={() => setRiesgoFiltro(filtro.id)}
                   className={`px-3 py-1.5 text-[11px] font-bold rounded-xl transition-all whitespace-nowrap ${
-                    riesgoFiltro === filtro.id 
-                      ? 'bg-primary text-white shadow-md shadow-primary/20' 
+                    riesgoFiltro === filtro.id
+                      ? 'bg-primary text-white shadow-md shadow-primary/20'
                       : 'bg-slate-100/50 text-slate-600 hover:bg-slate-200/70 border border-slate-200'
                   }`}
                 >
@@ -341,15 +352,15 @@ export default function CreditosArticulosPage() {
                     </td>
                   </tr>
                 ) : creditosPaginados.map((credito) => (
-                  <tr 
-                    key={credito.id} 
-                    onClick={() => setCreditoDetalleId(credito.id)}
+                  <tr
+                    key={credito.rowKey}
+                    onClick={() => setCreditoDetalleId(credito.detalleId)}
                     className="hover:bg-slate-50/80 transition-colors group cursor-pointer"
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 shadow-sm border ${
-                            credito.riesgo === 'ROJO' ? 'bg-rose-50 text-rose-500 border-rose-100' : 
+                            credito.riesgo === 'ROJO' ? 'bg-rose-50 text-rose-500 border-rose-100' :
                             credito.riesgo === 'AMARILLO' ? 'bg-amber-50 text-amber-500 border-amber-100' : 'bg-slate-50 text-slate-500 border-slate-200'
                           }`}>
                           {getProductIcon(credito.producto, credito.tipoProducto || '')}
@@ -387,7 +398,7 @@ export default function CreditosArticulosPage() {
                           </span>
                         </div>
                         <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                          <div 
+                          <div
                             className={`h-full rounded-full transition-all duration-500 ${
                               credito.riesgo === 'ROJO' ? 'bg-rose-500' :
                               credito.riesgo === 'AMARILLO' ? 'bg-amber-500' :
@@ -409,7 +420,7 @@ export default function CreditosArticulosPage() {
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation()
-                          setCreditoDetalleId(credito.id)
+                          setCreditoDetalleId(credito.detalleId)
                         }}
                         className="inline-block p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                         title="Ver detalle"
@@ -422,7 +433,7 @@ export default function CreditosArticulosPage() {
               </tbody>
             </table>
           </div>
-          
+
           {!isLoading && filteredCreditos.length === 0 && (
             <div className="text-center py-16">
               <div className="w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center mx-auto mb-4 border border-slate-100">
@@ -442,7 +453,7 @@ export default function CreditosArticulosPage() {
                 Mostrando <span className="font-bold text-slate-700">{indicePrimero + 1}</span> a <span className="font-bold text-slate-700">{Math.min(indiceUltimo, filteredCreditos.length)}</span> de <span className="font-bold text-slate-700">{filteredCreditos.length}</span> resultados
               </p>
               <div className="flex items-center gap-2">
-                <button 
+                <button
                   onClick={() => cambiarPagina(paginaActual - 1)}
                   disabled={paginaActual === 1}
                   className="p-1.5 rounded-lg hover:bg-white hover:shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all border border-transparent hover:border-slate-200"
@@ -455,8 +466,8 @@ export default function CreditosArticulosPage() {
                       key={num}
                       onClick={() => cambiarPagina(num)}
                       className={`w-7 h-7 rounded-lg text-xs font-bold transition-all ${
-                        paginaActual === num 
-                          ? 'bg-white text-slate-900 shadow-sm border border-slate-200' 
+                        paginaActual === num
+                          ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
                           : 'text-slate-500 hover:bg-slate-50'
                       }`}
                     >
@@ -464,7 +475,7 @@ export default function CreditosArticulosPage() {
                     </button>
                   ))}
                 </div>
-                <button 
+                <button
                   onClick={() => cambiarPagina(paginaActual + 1)}
                   disabled={paginaActual === totalPaginas}
                   className="p-1.5 rounded-lg hover:bg-white hover:shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all"
@@ -490,16 +501,16 @@ export default function CreditosArticulosPage() {
             creditosPaginados.map((credito) => (
               <button
                 type="button"
-                key={credito.id}
-                onClick={() => setCreditoDetalleId(credito.id)}
+                key={credito.rowKey}
+                onClick={() => setCreditoDetalleId(credito.detalleId)}
                 className="block w-full text-left bg-white rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all"
               >
                 {/* Header */}
                 <div className="flex items-start justify-between mb-3 pb-3 border-b border-slate-100">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all shadow-sm border flex-shrink-0 ${
-                      credito.riesgo === 'ROJO' ? 'bg-rose-50 text-rose-500 border-rose-100' : 
-                      credito.riesgo === 'AMARILLO' ? 'bg-amber-50 text-amber-500 border-amber-100' : 
+                      credito.riesgo === 'ROJO' ? 'bg-rose-50 text-rose-500 border-rose-100' :
+                      credito.riesgo === 'AMARILLO' ? 'bg-amber-50 text-amber-500 border-amber-100' :
                       'bg-slate-50 text-slate-500 border-slate-200'
                     }`}>
                       {getProductIcon(credito.producto, credito.tipoProducto || '')}
@@ -542,7 +553,7 @@ export default function CreditosArticulosPage() {
                       </span>
                     </div>
                     <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                      <div 
+                      <div
                         className={`h-full rounded-full transition-all duration-500 ${
                           credito.riesgo === 'ROJO' ? 'bg-rose-500' :
                           credito.riesgo === 'AMARILLO' ? 'bg-amber-500' :
@@ -582,14 +593,14 @@ export default function CreditosArticulosPage() {
                   Mostrando {indicePrimero + 1} a {Math.min(indiceUltimo, filteredCreditos.length)} de {filteredCreditos.length}
                 </span>
                 <div className="flex gap-2 w-full sm:w-auto">
-                  <button 
+                  <button
                     onClick={() => cambiarPagina(paginaActual - 1)}
                     disabled={paginaActual === 1}
                     className="flex-1 sm:flex-none px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-bold flex items-center justify-center gap-1 transition-colors text-slate-700"
                   >
                     <ChevronLeft className="h-3 w-3" /> Anterior
                   </button>
-                  <button 
+                  <button
                     onClick={() => cambiarPagina(paginaActual + 1)}
                     disabled={paginaActual === totalPaginas}
                     className="flex-1 sm:flex-none px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-bold flex items-center justify-center gap-1 transition-colors text-slate-700"

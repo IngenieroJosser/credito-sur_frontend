@@ -105,7 +105,7 @@ import { useRutaHistorial } from '@/hooks/useRutaHistorial'
 import { useCierrePendienteRuta } from '@/hooks/useCierrePendienteRuta'
 import ClienteInfoModal from '@/components/cobranza/ClienteInfoModal'
 import { formatShortDate } from '@/lib/utils/format'
-import { buildRegularizedPaymentTarget, computeMontoExigibleHastaHoyFromCuotas, computeMontoNominalHastaHoyFromCuotas, computeRutaHoyUiStatsFromVisitas, esDomingoBogota, getBogotaDateKey, getBogotaRangeByPeriod, getPagoBogotaDateKey, isCuotaNoPagada, isTodayOrPastBogota, isVisitaExigibleHoy, normalizeDateKey, resolveFechaEfectivaCuota, shouldMarkVisitaAsPagado, shouldShowVisitaEnRutaHoy, toBogotaDateTimeOffsetIso, resolveProximaCuotaFromPrestamo, computeDiasMoraFromCuotas } from '@/lib/rutas-core'
+import { buildRegularizedPaymentTarget, computeMontoExigibleHastaHoyFromCuotas, computeMontoNominalHastaHoyFromCuotas, computeRutaHoyUiStatsFromVisitas, esDomingoBogota, getBogotaDateKey, getBogotaRangeByPeriod, getPagoBogotaDateKey, isCuotaNoPagada, isTodayOrPastBogota, isVisitaExigibleHoy, normalizeDateKey, resolveFechaEfectivaCuota, shouldExcludeVisitaFromOperationalMeta, shouldMarkVisitaAsPagado, shouldShowVisitaEnRutaHoy, toBogotaDateTimeOffsetIso, resolveProximaCuotaFromPrestamo, computeDiasMoraFromCuotas } from '@/lib/rutas-core'
 
 import { mapAsignacionesToVisitasLite } from '@/lib/ruta-visitas-mapper'
 import { buildRecaudosHoyMapByPrestamoId, indexPagosByPrestamoId, sumMontoTotalPagosByBogotaDateKey } from '@/lib/ruta-recaudos'
@@ -814,7 +814,7 @@ const RutaClientLoaded = ({
 
       case 'en_mora': return 'bg-rose-50 text-rose-700 border-rose-500/30'
 
-      case 'ausente': return 'bg-orange-50 text-orange-700 border-orange-500/30'
+      case 'ausente': return 'bg-amber-50 text-amber-700 border-amber-200'
 
       case 'reprogramado': return 'bg-blue-50 text-blue-700 border-blue-500/30'
 
@@ -967,11 +967,7 @@ const RutaClientLoaded = ({
 
         const recaudo = Number(saldo?.cobranzaDelDia ?? saldo?.recaudoDelDia ?? estadisticas?.cobranzaDelDia ?? 0)
 
-        const isAusente = (v: any) => {
-          const estadoVisita = String(v?.estadoVisita || '').toLowerCase()
-          const estado = String(v?.estado || '').toLowerCase()
-          return estadoVisita === 'ausente' || estado === 'ausente'
-        }
+        const isAusente = shouldExcludeVisitaFromOperationalMeta
 
         const visitasParaMeta = Array.isArray(visitasCobrador)
           ? visitasCobrador.filter((v: any) => !isAusente(v))
@@ -1012,11 +1008,7 @@ const RutaClientLoaded = ({
       } catch {
         const recaudo = Number(estadisticas?.cobranzaDelDia ?? 0)
 
-        const isAusente = (v: any) => {
-          const estadoVisita = String(v?.estadoVisita || '').toLowerCase()
-          const estado = String(v?.estado || '').toLowerCase()
-          return estadoVisita === 'ausente' || estado === 'ausente'
-        }
+        const isAusente = shouldExcludeVisitaFromOperationalMeta
 
         const visitasParaMeta = Array.isArray(visitasCobrador)
           ? visitasCobrador.filter((v: any) => !isAusente(v))

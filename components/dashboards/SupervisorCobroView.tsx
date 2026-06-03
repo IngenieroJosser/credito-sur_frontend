@@ -139,6 +139,7 @@ import {
   isVisitaExigibleHoy,
   normalizeDateKey,
   resolveFechaEfectivaCuota,
+  shouldExcludeVisitaFromOperationalMeta,
   resolveProximaCuotaFromPrestamo,
   resolveCuotaProgressFromPrestamo,
   resolveCobradorIdForRouteAction,
@@ -530,11 +531,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
       setRutaStats((prev: any) => {
         // Para HOY: usar meta calculada desde visitas (excluye ausentes)
-        const isAusente = (v: any) => {
-          const estadoVisita = String(v?.estadoVisita || '').toLowerCase()
-          const estado = String(v?.estado || '').toLowerCase()
-          return estadoVisita === 'ausente' || estado === 'ausente'
-        }
+        const isAusente = shouldExcludeVisitaFromOperationalMeta
         const visitasParaMeta = Array.isArray(visitasBase)
           ? visitasBase.filter((v: any) => !isAusente(v))
           : []
@@ -1114,11 +1111,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         // Filtrar aquí descartaba clientes válidos con saldoTotal=0 que aún están pendientes.
         const finalesFiltrados = finales;
 
-        const isAusente = (v: any) => {
-          const estadoVisita = String(v?.estadoVisita || '').toLowerCase()
-          const estado = String(v?.estado || '').toLowerCase()
-          return estadoVisita === 'ausente' || estado === 'ausente'
-        }
+        const isAusente = shouldExcludeVisitaFromOperationalMeta
 
         const finalesSinAusentes = (finalesFiltrados || []).filter((v: any) => !isAusente(v))
         const statsHoy = computeRutaHoyUiStatsFromVisitas(finalesSinAusentes as any[], 0)
@@ -1225,11 +1218,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
       // Recalcular rutaStats para reflejar cambios en meta excluyendo ausentes
       setRutaStats((prev: any) => {
         if (periodoCards !== 'HOY') return prev
-        const isAusente = (v: any) => {
-          const estadoVisita = String(v?.estadoVisita || '').toLowerCase()
-          const estado = String(v?.estado || '').toLowerCase()
-          return estadoVisita === 'ausente' || estado === 'ausente'
-        }
+        const isAusente = shouldExcludeVisitaFromOperationalMeta
         const visitasActualizadas = (visitasBaseRef.current || []).map((v: any) =>
           v.clienteId === clienteIdVisita
             ? { ...v, estado: estadoVisitaPayload as any, estadoVisita: estadoVisitaPayload as any }
@@ -1984,7 +1973,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
     if (estado === 'en_mora') return 'bg-rose-50 text-rose-700 border-rose-500/30'
 
-    if (estado === 'ausente') return 'bg-orange-50 text-orange-700 border-orange-500/30'
+    if (estado === 'ausente') return 'bg-amber-50 text-amber-700 border-amber-200'
 
     return 'bg-blue-50 text-blue-700 border-blue-100'
 
@@ -2379,11 +2368,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
       .map((v: any) => ({ ...v, estado: ajustarEstadoConPago(v) }))
       .filter((v: any) => debeCobrarHoyOMora(v))
 
-    const isAusente = (v: any) => {
-      const estado = String(v?.estado || '').toLowerCase();
-      const estadoVisita = String(v?.estadoVisita || '').toLowerCase();
-      return estado === 'ausente' || estadoVisita === 'ausente';
-    };
+    const isAusente = shouldExcludeVisitaFromOperationalMeta
 
     const visitasAusentesHoy = visitasHoy.filter(isAusente);
     const visitasOperativasHoy = visitasHoy.filter((v: any) => !isAusente(v));
@@ -4326,11 +4311,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
             return proxKey === hoyStr
           }
 
-          const isAusenteModal = (v: any) => {
-            const estado = String(v?.estado || '').toLowerCase()
-            const estadoVisita = String(v?.estadoVisita || '').toLowerCase()
-            return estado === 'ausente' || estadoVisita === 'ausente'
-          }
+          const isAusenteModal = shouldExcludeVisitaFromOperationalMeta
 
           const visitasHoyModal = (visitasBase || [])
             .map((v: any) => ({ ...v, estado: ajustarEstadoConPagoModal(v) }))
@@ -4545,11 +4526,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                 .map((v: any) => ({ ...v, estado: ajustarEstadoConPago(v) }))
                 .filter((v: any) => debeCobrarHoyOMora(v))
 
-              const isAusente = (v: any) => {
-                const estado = String(v?.estado || '').toLowerCase();
-                const estadoVisita = String(v?.estadoVisita || '').toLowerCase();
-                return estado === 'ausente' || estadoVisita === 'ausente';
-              };
+              const isAusente = shouldExcludeVisitaFromOperationalMeta
 
               const visitasAusentesHoy = visitasHoy.filter(isAusente);
               const visitasOperativasHoy = visitasHoy.filter((v: any) => !isAusente(v));

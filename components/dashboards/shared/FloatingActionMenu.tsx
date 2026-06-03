@@ -44,8 +44,7 @@ export default function FloatingActionMenu({ actions }: FloatingActionMenuProps)
     <>
       {isOpen && (
         <div
-          className="fixed top-0 left-0 w-screen h-screen z-40 bg-slate-900/10 backdrop-blur-[1px] cursor-default"
-          onClick={() => setIsOpen(false)}
+          className="pointer-events-none fixed top-0 left-0 w-screen h-screen z-40 bg-slate-900/10 backdrop-blur-[1px]"
         />
       )}
       <div className="fixed right-4 sm:right-6 z-50 flex flex-col items-end gap-3 bottom-24 md:bottom-[calc(1.5rem+env(safe-area-inset-bottom))]">
