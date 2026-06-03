@@ -119,6 +119,9 @@ export default function ClienteInfoModal({
   const cuotaProyectada = cuotaPendienteActual > 0
     ? cuotaPendienteActual
     : (nextPagoMonto ?? visita.montoCuota ?? 0)
+  const estadoVisitaGestion = String((visita as any)?.estadoVisita || visita.estado || '').toLowerCase()
+  const esAusenteGestion = estadoVisitaGestion === 'ausente'
+  const notaAusencia = String((visita as any)?.notasVisita || '').trim()
 
   // ── Render ───────────────────────────────────────────────────────────────────
 
@@ -339,6 +342,20 @@ export default function ClienteInfoModal({
                   </div>
                 </div>
 
+                {esAusenteGestion && (
+                  <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl space-y-3">
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 text-amber-600" />
+                      <p className="text-[10px] font-black text-amber-700 uppercase tracking-widest">Gestión de hoy</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-amber-700 font-black uppercase mb-1">Cliente marcado como ausente</p>
+                      <p className="text-sm font-bold text-amber-900 leading-relaxed whitespace-pre-wrap break-words">
+                        {notaAusencia || 'Sin justificación registrada.'}
+                      </p>
+                    </div>
+                  </div>
+                )}
                 {/* Estado del crédito */}
                 <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm flex items-center gap-3">
                   <div className={`w-3 h-3 rounded-full shrink-0 ${
@@ -355,7 +372,7 @@ export default function ClienteInfoModal({
                   </div>
                   <div className="ml-auto text-right">
                     <p className="text-[10px] text-slate-400 font-bold uppercase">Estado Visita</p>
-                    <p className="font-black text-slate-800 capitalize">{visita.estado.replace('_', ' ')}</p>
+                    <p className="font-black text-slate-800 capitalize">{(estadoVisitaGestion || visita.estado).replace('_', ' ')}</p>
                   </div>
                 </div>
               </div>
