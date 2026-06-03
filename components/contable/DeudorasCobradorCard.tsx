@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import {
   ChevronDown, ChevronUp, User, RefreshCw,
-  ShieldAlert, AlertTriangle, Minus, Plus, Check, X
+  ShieldAlert, AlertTriangle, Minus, Plus, Check, X, Eye, FileText
 } from 'lucide-react'
 import { formatCurrency, formatMilesCOP, cn } from '@/lib/utils'
 import { getCajas, getDeudoresCobrador, registrarAbonoDeudaCobrador, type DeudaCobrador } from '@/services/contabilidad-service'
@@ -18,6 +18,24 @@ function fmtCOPInput(val: string): string {
 }
 function parseCOP(val: string): number {
   return Number(val.replace(/\D/g, '')) || 0
+}
+
+function formatFechaEventoDeuda(fecha: string): string {
+  const date = new Date(fecha)
+  if (Number.isNaN(date.getTime())) return fecha
+
+  return new Intl.DateTimeFormat('es-CO', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  }).format(date)
+}
+
+function getTipoEventoLabel(tipoReferencia: string): string {
+  return String(tipoReferencia || '').replace(/_/g, ' ')
 }
 
 // ─── Modal de Abono ─────────────────────────────────────────────────────────
@@ -137,6 +155,116 @@ function AbonoModal({ cobrador, onClose, onConfirm, cajas }: AbonoModalProps) {
   )
 }
 
+// ─── Modal de Detalle de Deuda ──────────────────────────────────────────────
+
+type DetalleDeudaModalProps = {
+  cobrador: DeudaCobrador
+  onClose: () => void
+}
+
+function DetalleDeudaModal({ cobrador, onClose }: DetalleDeudaModalProps) {
+  const eventos = Array.isArray(cobrador.eventos) ? cobrador.eventos : []
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/50 backdrop-blur-sm p-0 sm:p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-2xl border border-slate-100 overflow-hidden max-h-[92vh] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="px-5 sm:px-6 pt-5 pb-4 flex items-start justify-between border-b border-slate-100 shrink-0">
+          <div className="min-w-0">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Detalle de deuda</p>
+            <h3 className="text-base sm:text-lg font-black text-slate-900 mt-0.5 truncate">{cobrador.nombreCobrador}</h3>
+            <p className="text-xs font-bold text-slate-500 mt-1">{cobrador.rol.replace('_', ' ')} · {cobrador.totalEventos} evento(s)</p>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors shrink-0">
+            <X className="h-5 w-5 text-slate-400" />
+          </button>
+        </div>
+
+        <div className="px-5 sm:px-6 py-5 space-y-4 overflow-y-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="p-4 rounded-2xl bg-orange-50 border border-orange-100">
+              <p className="text-[10px] text-orange-500 font-black uppercase tracking-widest mb-1">Adelantos</p>
+              <p className="text-lg font-black text-orange-700">{formatCurrency(cobrador.gastosPersonales)}</p>
+            </div>
+            <div className="p-4 rounded-2xl bg-rose-50 border border-rose-100">
+              <p className="text-[10px] text-rose-500 font-black uppercase tracking-widest mb-1">Descuadres</p>
+              <p className="text-lg font-black text-rose-700">{formatCurrency(cobrador.descuadres)}</p>
+            </div>
+            <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800">
+              <p className="text-[10px] text-slate-300 font-black uppercase tracking-widest mb-1">Total a saldar</p>
+              <p className="text-lg font-black text-white">{formatCurrency(cobrador.totalDeuda)}</p>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-slate-700">
+                <FileText className="h-4 w-4 text-slate-400" />
+                <p className="text-xs font-black uppercase tracking-widest">Eventos recientes</p>
+              </div>
+              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black text-slate-500">
+                {eventos.length}
+              </span>
+            </div>
+
+            {eventos.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-5 text-center">
+                <p className="text-sm font-black text-slate-500">Sin eventos recientes</p>
+                <p className="text-xs font-bold text-slate-400 mt-1">No hay registros para detallar en este momento.</p>
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {eventos.map((ev) => (
+                  <div key={ev.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                      <div className="min-w-0 space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className={cn(
+                            'text-[10px] font-black uppercase px-2 py-1 rounded-full',
+                            ev.tipoReferencia === 'SALDO_CAJA_RUTA' ? 'bg-blue-100 text-blue-700' : 'bg-rose-100 text-rose-700'
+                          )}>
+                            {getTipoEventoLabel(ev.tipoReferencia)}
+                          </span>
+                          <span className="text-[11px] font-bold text-slate-400">{formatFechaEventoDeuda(ev.fecha)}</span>
+                        </div>
+                        <p className="text-sm font-bold leading-relaxed text-slate-700 whitespace-pre-wrap break-words">
+                          {ev.descripcion || 'Sin descripción'}
+                        </p>
+                        {ev.referenciaId && (
+                          <p className="text-[10px] font-mono text-slate-400 break-all">Ref: {ev.referenciaId}</p>
+                        )}
+                      </div>
+                      <div className="sm:text-right shrink-0">
+                        <p className="text-lg font-black text-rose-700">{formatCurrency(ev.monto)}</p>
+                        <p className="text-[10px] font-black text-rose-400 uppercase tracking-widest">Pendiente</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="px-5 sm:px-6 pb-5 pt-3 border-t border-slate-100 shrink-0">
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full py-3 rounded-2xl bg-slate-900 text-white font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-all"
+          >
+            Cerrar
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Componente principal ────────────────────────────────────────────────────
 
 export default function DeudorasCobradorCard() {
@@ -151,6 +279,7 @@ export default function DeudorasCobradorCard() {
   const [expanded, setExpanded] = useState(true)
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
   const [modalAbono, setModalAbono] = useState<DeudaCobrador | null>(null)
+  const [modalDetalle, setModalDetalle] = useState<DeudaCobrador | null>(null)
   const [ultimoAbono, setUltimoAbono] = useState<{
     cobradorId: string
     nombre: string
@@ -385,31 +514,25 @@ export default function DeudorasCobradorCard() {
                         {/* Detalle de Eventos */}
                         {d.eventos && d.eventos.length > 0 && (
                           <div className="col-span-2 mt-2 pt-2 border-t border-slate-100">
-                            <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-2 px-1">Detalle Reciente</p>
-                            <div className="space-y-1.5">
-                              {d.eventos.map((ev) => (
-                                <div key={ev.id} className="flex items-center justify-between px-2 py-1.5 rounded-lg bg-slate-50/50 hover:bg-slate-50 transition-colors group">
-                                  <div className="min-w-0">
-                                    <div className="flex items-center gap-1.5">
-                                      <span className={cn(
-                                        "text-[8px] font-black uppercase px-1 rounded",
-                                        ev.tipoReferencia === 'SALDO_CAJA_RUTA' ? "bg-blue-100 text-blue-600" : "bg-rose-100 text-rose-600"
-                                      )}>
-                                        {ev.tipoReferencia.replace('_', ' ')}
-                                      </span>
-                                      <span className="text-[10px] font-bold text-slate-600 truncate max-w-[200px]">
-                                        {ev.descripcion || 'Sin descripción'}
-                                      </span>
-                                    </div>
-                                    <p className="text-[8px] text-slate-400 mt-0.5 font-medium">
-                                      {new Date(ev.fecha).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                                    </p>
-                                  </div>
-                                  <span className="text-[10px] font-black text-slate-700 shrink-0">
-                                    {formatCurrency(ev.monto)}
-                                  </span>
-                                </div>
-                              ))}
+                            <div className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 border border-slate-100 px-3 py-2.5">
+                              <div className="min-w-0">
+                                <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest">Detalle Reciente</p>
+                                <p className="text-xs font-bold text-slate-700 truncate mt-0.5">
+                                  {d.eventos[0]?.descripcion || 'Sin descripción'}
+                                </p>
+                                <p className="text-[10px] font-bold text-slate-400 mt-0.5">
+                                  {formatFechaEventoDeuda(d.eventos[0]?.fecha || '')} · {d.eventos.length} evento(s)
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); setModalDetalle(d) }}
+                                className="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 transition-all"
+                                title="Ver detalle completo"
+                              >
+                                <Eye className="h-3.5 w-3.5" />
+                                Ver detalle
+                              </button>
                             </div>
                           </div>
                         )}
@@ -433,6 +556,14 @@ export default function DeudorasCobradorCard() {
           </div>
         )}
       </div>
+
+      {/* Modal detalle deuda */}
+      {modalDetalle && (
+        <DetalleDeudaModal
+          cobrador={modalDetalle}
+          onClose={() => setModalDetalle(null)}
+        />
+      )}
 
       {/* Modal abono */}
       {modalAbono && (
