@@ -1657,7 +1657,7 @@ const VistaCobrador = () => {
                 proximaVisita: prox?.fechaVencimiento || v.proximaVisita,
                 cuotaActual: prox?.numeroCuota || v.cuotaActual,
                 saldoTotal: nuevoEstado === 'pagado' ? 0 : Number(p.saldoPendiente || 0),
-                recaudadoDelDia: totalHoy,
+                recaudadoDelDia: Math.max(Number(v?.recaudadoDelDia || 0), Number(totalHoy || 0)),
               };
 
               baseV.estado = ajustarEstadoConPago(baseV as any) as any;
@@ -6069,5 +6069,6 @@ const VistaCobrador = () => {
 
 
 export default VistaCobrador
+
 
 

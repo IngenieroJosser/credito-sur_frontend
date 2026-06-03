@@ -982,7 +982,7 @@ const RutaClientLoaded = ({
         const metaBackend = hasMetaBackend ? Number(metaBackendRaw) : null
 
         const meta = periodoCards === 'HOY'
-          ? (hasMetaBackend ? Number(metaBackend ?? 0) : Number(statsHoy.meta || 0))
+          ? Number(statsHoy.meta || 0)
           : Number(metaBackend ?? 0)
 
         const recaudoFinal = periodoCards === 'HOY'
@@ -1023,7 +1023,7 @@ const RutaClientLoaded = ({
         const metaBackend = hasMetaBackend ? Number(metaBackendRaw) : null
 
         const meta = periodoCards === 'HOY'
-          ? (hasMetaBackend ? Number(metaBackend ?? 0) : Number(statsHoy.meta || 0))
+          ? Number(statsHoy.meta || 0)
           : Number(metaBackend ?? 0)
 
         const recaudoFinal = periodoCards === 'HOY'
@@ -2514,15 +2514,22 @@ const RutaClientLoaded = ({
 
               // Actualizacion optimista solo para pagos operativos de hoy.
               if (!esCierrePendiente) {
-                const clienteIdPago = pagoActual.visita.clienteId;
+                const prestamoIdPago = String(prestamoIdFinal || pagoActual.visita.prestamoId || '')
+                const visitaIdPago = String(pagoActual.visita.id || '')
                 setVisitasCobrador((prev) =>
                   (prev || []).map((v: any) => {
-                    if (v.clienteId !== clienteIdPago) return v
+                    const esVisitaPagada =
+                      String(v?.prestamoId || '') === prestamoIdPago ||
+                      String(v?.id || '') === visitaIdPago
+                    if (!esVisitaPagada) return v
 
                     const estadoActual = String(v?.estado || '').toLowerCase()
+                    const estabaAusente =
+                      estadoActual === 'ausente' ||
+                      String(v?.estadoVisita || '').toLowerCase() === 'ausente'
 
                     const estadoSinAusente =
-                      estadoActual === 'ausente'
+                      estabaAusente
                         ? (
                             Number(v?.diasMora || 0) > 0 || Boolean(v?.enMoraHistorico)
                               ? 'en_mora'
@@ -2530,16 +2537,26 @@ const RutaClientLoaded = ({
                           )
                         : v.estado
 
+                    const recaudadoDelDia = Number(v?.recaudadoDelDia || 0) + Number(monto || 0)
+                    const estado = shouldMarkVisitaAsPagado({
+                      saldoTotal: v?.saldoTotal,
+                      recaudadoHoy: recaudadoDelDia,
+                      montoCuotaExigible: v?.montoCuota,
+                      estadoActual: estadoSinAusente,
+                    })
+                      ? 'pagado'
+                      : estadoSinAusente
+
                     return {
                       ...v,
-                      estado: estadoSinAusente,
+                      recaudadoDelDia,
+                      estado: estado as any,
                       estadoVisita: undefined as any,
                       notasVisita: undefined as any,
                     }
                   })
                 );
               }
-
               showNotification('success', `${pagoActual.tipo === 'ABONO' ? 'Abono' : 'Pago'} registrado correctamente`, 'Éxito');
 
               // Refrescar desde cuotas/pagos reales para no mostrar una ruta parcialmente parcheada.
@@ -3298,5 +3315,7 @@ function formatDateUTC(dateStr: string) {
 
 
 export default RutaClient
+
+
 
 

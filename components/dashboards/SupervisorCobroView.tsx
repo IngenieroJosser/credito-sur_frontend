@@ -1254,7 +1254,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
               proximaVisita: prox?.fechaVencimiento || v.proximaVisita,
               cuotaActual: prox?.numeroCuota || v.cuotaActual,
               saldoTotal: nuevoEstado === 'pagado' ? 0 : Number(p?.saldoPendiente || 0),
-              recaudadoDelDia: totalHoy,
+              recaudadoDelDia: Math.max(Number(v?.recaudadoDelDia || 0), Number(totalHoy || 0)),
             };
 
             // Solo marcar como pagado cuando realmente completó la cuota del período (o ya no hay saldo)
@@ -4695,6 +4695,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
 
 export default SupervisorCobroView
+
 
 
 
