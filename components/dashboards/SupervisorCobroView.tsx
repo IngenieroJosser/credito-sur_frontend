@@ -109,7 +109,7 @@ import {
 } from '@/services/prestamos-service'
 import { pagosService } from '@/services/pagos-service'
 
-import { applyRecaudoHoyToVisitas, buildRecaudosHoyMapByPrestamoId, indexPagosByPrestamoId, sumMontoTotalPagosByBogotaDateKey } from '@/lib/ruta-recaudos'
+import { applyRecaudoHoyToVisitas, buildRecaudosHoyMapByPrestamoId, indexPagosByPrestamoId, mergeVisitasPreservingLocalRecaudo, sumMontoTotalPagosByBogotaDateKey } from '@/lib/ruta-recaudos'
 
 import { obtenerSaldoDisponibleRuta, getRutaCierreHoy, registrarGasto } from '@/services/contabilidad-service'
 
@@ -532,8 +532,9 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
       setRutaStats((prev: any) => {
         // Para HOY: usar meta calculada desde visitas (excluye ausentes)
         const isAusente = shouldExcludeVisitaFromOperationalMeta
-        const visitasParaMeta = Array.isArray(visitasBase)
-          ? visitasBase.filter((v: any) => !isAusente(v))
+        const visitasActuales = visitasBaseRef.current
+        const visitasParaMeta = Array.isArray(visitasActuales)
+          ? visitasActuales.filter((v: any) => !isAusente(v))
           : []
         const statsHoy = computeRutaHoyUiStatsFromVisitas(visitasParaMeta, 0)
         const meta = statsHoy.meta || 0
@@ -1111,9 +1112,10 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         // Filtrar aquí descartaba clientes válidos con saldoTotal=0 que aún están pendientes.
         const finalesFiltrados = finales;
 
-        const isAusente = shouldExcludeVisitaFromOperationalMeta
+        const merged = mergeVisitasPreservingLocalRecaudo(visitasBaseRef.current, finalesFiltrados as any[])
 
-        const finalesSinAusentes = (finalesFiltrados || []).filter((v: any) => !isAusente(v))
+        const isAusente = shouldExcludeVisitaFromOperationalMeta
+        const finalesSinAusentes = (merged || []).filter((v: any) => !isAusente(v))
         const statsHoy = computeRutaHoyUiStatsFromVisitas(finalesSinAusentes as any[], 0)
 
         setRutaStats((prev: any) => {
@@ -1126,41 +1128,6 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
             pendiente: statsHoy.pendiente,
           }
         });
-
-        const prevList = visitasBaseRef.current
-        const prevById = new Map<string, any>((Array.isArray(prevList) ? prevList : []).map((v: any) => [String(v?.id || ''), v]))
-
-        const merged = (finalesFiltrados as any[]).map((v: any) => {
-          const id = String(v?.id || '')
-          const local = prevById.get(id)
-          if (!local) return v
-
-          const localRecaudoDia = Number(local?.recaudadoDelDia || 0)
-          const nextRecaudoDia = Number(v?.recaudadoDelDia || 0)
-          const recaudadoDelDia = Math.max(localRecaudoDia, nextRecaudoDia)
-
-          const localRecaudoTotal = Number(local?.recaudadoTotalClient || 0)
-          const nextRecaudoTotal = Number(v?.recaudadoTotalClient || 0)
-          const recaudadoTotalClient = Math.max(localRecaudoTotal, nextRecaudoTotal)
-
-          const estadoLocal = String(local?.estado || '')
-          const estadoBackend = String(v?.estado || '')
-          const saldoBackend = Number(v?.saldoTotal || 0)
-          const proxBackend = String(v?.proximaVisita || '')
-          const proxLocal = String(local?.proximaVisita || '')
-          const esNuevaCuota = !!proxBackend && !!proxLocal && proxBackend !== proxLocal
-
-          const estado = (estadoLocal === 'pagado' && !esNuevaCuota && saldoBackend > 0)
-            ? 'pagado'
-            : (estadoBackend as any)
-
-          return {
-            ...v,
-            recaudadoDelDia,
-            recaudadoTotalClient,
-            estado,
-          }
-        })
 
         setVisitasBase(merged as any);
         setVisitasOrden((merged as any[]).map((v: any) => v.id));
@@ -4728,6 +4695,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
 
 export default SupervisorCobroView
+
 
 
 

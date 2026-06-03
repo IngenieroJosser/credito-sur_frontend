@@ -108,7 +108,7 @@ import { formatShortDate } from '@/lib/utils/format'
 import { buildRegularizedPaymentTarget, computeMontoExigibleHastaHoyFromCuotas, computeMontoNominalHastaHoyFromCuotas, computeRutaHoyUiStatsFromVisitas, esDomingoBogota, getBogotaDateKey, getBogotaRangeByPeriod, getPagoBogotaDateKey, isCuotaNoPagada, isTodayOrPastBogota, isVisitaExigibleHoy, normalizeDateKey, resolveFechaEfectivaCuota, shouldExcludeVisitaFromOperationalMeta, shouldMarkVisitaAsPagado, shouldShowVisitaEnRutaHoy, toBogotaDateTimeOffsetIso, resolveProximaCuotaFromPrestamo, computeDiasMoraFromCuotas } from '@/lib/rutas-core'
 
 import { mapAsignacionesToVisitasLite } from '@/lib/ruta-visitas-mapper'
-import { buildRecaudosHoyMapByPrestamoId, indexPagosByPrestamoId, sumMontoTotalPagosByBogotaDateKey } from '@/lib/ruta-recaudos'
+import { buildRecaudosHoyMapByPrestamoId, indexPagosByPrestamoId, mergeVisitasPreservingLocalRecaudo, sumMontoTotalPagosByBogotaDateKey } from '@/lib/ruta-recaudos'
 import { mapWithConcurrency, memoizePromiseByKey } from '@/lib/async-utils'
 import { buildHistorialDiaFromBackend } from '@/lib/ruta-historial'
 
@@ -685,7 +685,7 @@ const RutaClientLoaded = ({
         6,
       );
 
-      setVisitasCobrador(actualizadas);
+      setVisitasCobrador(mergeVisitasPreservingLocalRecaudo(visitasCobradorRef.current as any, actualizadas as any) as any);
     };
 
 
@@ -3298,4 +3298,5 @@ function formatDateUTC(dateStr: string) {
 
 
 export default RutaClient
+
 

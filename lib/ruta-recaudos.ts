@@ -166,3 +166,67 @@ export const applyRecaudoHoyToVisitas = <T extends Record<string, any>>(
     }
   })
 }
+
+export const mergeVisitasPreservingLocalRecaudo = <T extends Record<string, any>>(
+  localVisitas: T[],
+  nextVisitas: T[],
+): T[] => {
+  const locales = Array.isArray(localVisitas) ? localVisitas : []
+  const next = Array.isArray(nextVisitas) ? nextVisitas : []
+
+  const localById = new Map<string, any>()
+  const localByPrestamoId = new Map<string, any>()
+
+  locales.forEach((v: any) => {
+    const id = String(v?.id || '')
+    const prestamoId = String(v?.prestamoId || '')
+    if (id) localById.set(id, v)
+    if (prestamoId) localByPrestamoId.set(prestamoId, v)
+  })
+
+  return next.map((v: any) => {
+    const local = localById.get(String(v?.id || ''))
+      || localByPrestamoId.get(String(v?.prestamoId || ''))
+
+    if (!local) return v
+
+    const recaudadoDelDia = Math.max(
+      Number(local?.recaudadoDelDia || 0),
+      Number(v?.recaudadoDelDia || 0),
+    )
+
+    const localHasRecaudoTotal = local?.recaudadoTotalClient !== undefined && local?.recaudadoTotalClient !== null
+    const nextHasRecaudoTotal = v?.recaudadoTotalClient !== undefined && v?.recaudadoTotalClient !== null
+    const recaudadoTotalClient = Math.max(
+      Number(local?.recaudadoTotalClient || 0),
+      Number(v?.recaudadoTotalClient || 0),
+    )
+
+    const estadoLocal = String(local?.estado || '')
+    const estadoBackend = String(v?.estado || '')
+    const saldoBackend = Number(v?.saldoTotal || 0)
+    const proxBackend = String(v?.proximaVisita || '')
+    const proxLocal = String(local?.proximaVisita || '')
+    const esNuevaCuota = !!proxBackend && !!proxLocal && proxBackend !== proxLocal
+    const localTienePagoHoy = recaudadoDelDia > 0
+
+    const estadoProtegidoLocalmente =
+      (estadoLocal === 'pagado' && !esNuevaCuota && saldoBackend > 0) ||
+      (estadoLocal === 'ausente' && !localTienePagoHoy)
+
+    const merged: any = {
+      ...v,
+      recaudadoDelDia,
+      estado: estadoProtegidoLocalmente ? estadoLocal : (estadoBackend || v?.estado),
+      estadoVisita: estadoLocal === 'ausente' && !localTienePagoHoy
+        ? 'ausente'
+        : v?.estadoVisita,
+    }
+
+    if (localHasRecaudoTotal || nextHasRecaudoTotal) {
+      merged.recaudadoTotalClient = recaudadoTotalClient
+    }
+
+    return merged as T
+  })
+}
