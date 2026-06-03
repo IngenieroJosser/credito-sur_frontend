@@ -231,6 +231,7 @@ import {
   normalizeDateKey,
   resolveFechaEfectivaCuota,
   shouldExcludeVisitaFromOperationalMeta,
+  shouldIncludeVisitaInRutaHoyKpis,
   resolveCuotaProgressFromPrestamo,
   resolveNextPagoFromPrestamo,
   resolveProximaCuotaFromPrestamo,
@@ -2385,38 +2386,13 @@ const VistaCobrador = () => {
 
   const visitasSelector = visitasCobrador.length > 0 ? visitasCobrador : visitasSelectorFallback
 
-  const rutaStatsUI = useMemo(() => {
-    if (periodoCards !== 'HOY') return rutaStats
-
-    const isAusente = shouldExcludeVisitaFromOperationalMeta
-
-    const visitasParaMetaFiltradas = Array.isArray(visitasCobrador)
-      ? visitasCobrador.filter((v: any) => !isAusente(v))
-      : []
-
-    const statsPorVisitas = computeRutaHoyUiStatsFromVisitas(visitasParaMetaFiltradas, 0)
-    const recaudoFinal = statsPorVisitas.recaudo
-    const meta = statsPorVisitas.meta || 0
-    const pendiente = Math.max(0, meta - recaudoFinal)
-    const eficienciaRaw = meta > 0 ? Number(((recaudoFinal / meta) * 100).toFixed(1)) : (recaudoFinal > 0 ? 100 : 0)
-    const eficiencia = Math.min(100, Math.max(0, eficienciaRaw))
-
-    return {
-      ...rutaStats,
-      recaudo: recaudoFinal,
-      meta,
-      eficiencia,
-      pendiente,
-    }
-  }, [periodoCards, rutaStats, visitasCobrador])
-
   const kpisHoy = useMemo(() => {
     const visitasExigiblesHoy = (visitasBase || [])
       .map((v: any) => ({
         ...v,
         estado: ajustarEstadoConPago(v),
       }))
-      .filter((v: any) => isVisitaExigibleHoy(v, hoyBogotaKey))
+      .filter((v: any) => shouldIncludeVisitaInRutaHoyKpis(v, hoyBogotaKey))
 
     const isAusente = shouldExcludeVisitaFromOperationalMeta
 
@@ -2460,6 +2436,22 @@ const VistaCobrador = () => {
 
 
 
+  const rutaStatsUI = useMemo(() => {
+    if (periodoCards !== 'HOY') return rutaStats
+
+    const recaudoFinal = Number(kpisHoy.recaudo || 0)
+    const meta = Number(kpisHoy.meta || 0)
+    const pendiente = Math.max(0, meta - recaudoFinal)
+    const eficiencia = Number(kpisHoy.efectividad || 0)
+
+    return {
+      ...rutaStats,
+      recaudo: recaudoFinal,
+      meta,
+      eficiencia,
+      pendiente,
+    }
+  }, [periodoCards, rutaStats, kpisHoy])
   // BUG-08 FIX: filtrar por el ID real del cobrador en sesión, no por 'CB-001' hardcodeado.
   const operacionesCobrador = useMemo(() =>
     userSession?.id
@@ -3257,7 +3249,7 @@ const VistaCobrador = () => {
   const confirmarFinalizarRuta = useCallback(async () => {
 
     const meta = Number(kpisHoy.meta || 0)
-    const recaudo = Number(rutaStats.recaudo || 0) > 0 ? Number(rutaStats.recaudo || 0) : Number(kpisHoy.recaudo || 0)
+    const recaudo = Number(kpisHoy.recaudo || 0)
     const efectividad = meta > 0 ? Number(((recaudo / meta) * 100).toFixed(1)) : 0
     const clientesFaltantes = Number(kpisHoy.pendientes || 0)
     const clientesAusentes = Number(kpisHoy.ausentes || 0)
@@ -3304,7 +3296,7 @@ const VistaCobrador = () => {
       toast.success('Ruta cerrada correctamente.')
     });
 
-  }, [socket, rutaActual, userSession, rutaStats, kpisHoy])
+  }, [socket, rutaActual, userSession, kpisHoy])
 
 
 
@@ -5746,7 +5738,9 @@ const VistaCobrador = () => {
 
           const clientesFaltantesHoy = Number(kpisHoy.pendientes || 0)
           const clientesAusentesHoy = Number(kpisHoy.ausentes || 0)
+          const totalProgramadosHoy = Number(kpisHoy.visitasExigiblesHoy?.length || 0)
           const totalOperativosHoy = Number(kpisHoy.visitasOperativasHoy?.length || 0)
+          const clientesCobradosHoy = Math.max(0, totalOperativosHoy - clientesFaltantesHoy)
           const metaV = Number((rutaStatsUI as any)?.meta || 0)
           const recaudoV = Number((rutaStatsUI as any)?.recaudo || 0)
           const porcentaje = Number((rutaStatsUI as any)?.eficiencia || 0)
@@ -5849,6 +5843,14 @@ const VistaCobrador = () => {
                         <p className="text-sm font-black text-slate-900">{formatCurrency(metaV)}</p>
                       </div>
 
+                      <div>
+                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Programados</p>
+                        <p className="text-sm font-black text-slate-900">{totalProgramadosHoy}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Cobrados</p>
+                        <p className="text-sm font-black text-emerald-600">{clientesCobradosHoy}</p>
+                      </div>
                       {descuadre && (
                         <div className="col-span-2 p-3 bg-red-50 rounded-xl border border-red-100">
                           <p className="text-[10px] text-red-500 font-bold uppercase tracking-widest">Dinero sin entregar</p>
@@ -6085,6 +6087,11 @@ const VistaCobrador = () => {
 
 
 export default VistaCobrador
+
+
+
+
+
 
 
 

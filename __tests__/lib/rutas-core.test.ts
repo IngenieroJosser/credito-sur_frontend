@@ -2,6 +2,7 @@ import {
   buildRegularizedPaymentTarget,
   computeRutaHoyUiStatsFromVisitas,
   shouldExcludeVisitaFromOperationalMeta,
+  shouldIncludeVisitaInRutaHoyKpis,
   esDomingoBogota,
   resolveCobradorIdForRouteAction,
   shouldShowVisitaEnRutaHoy,
@@ -286,5 +287,38 @@ describe('computeRutaHoyUiStatsFromVisitas', () => {
     // Por eso el listado de rutas usa r.metaDelDia del backend, no este resultado.
     expect(stats.meta).toBe(metaEsperada)
     expect(stats.meta).not.toBe(5_603_666) // no igual al valor correcto del backend
+  })
+})
+
+describe('shouldIncludeVisitaInRutaHoyKpis', () => {
+  it('incluye en KPI HOY una visita pagada aunque la proxima cuota ya avanzo', () => {
+    expect(
+      shouldIncludeVisitaInRutaHoyKpis(
+        {
+          estado: 'pagado',
+          periodoRuta: 'DIA',
+          proximaVisita: '2026-06-04',
+          recaudadoDelDia: 425335,
+          montoCuota: 425335,
+          saldoTotal: 1000000,
+        },
+        '2026-06-03',
+      ),
+    ).toBe(true)
+  })
+
+  it('no incluye una visita futura sin recaudo de hoy', () => {
+    expect(
+      shouldIncludeVisitaInRutaHoyKpis(
+        {
+          estado: 'pendiente',
+          periodoRuta: 'SEMANA',
+          proximaVisita: '2026-06-04',
+          recaudadoDelDia: 0,
+          montoCuota: 425335,
+        },
+        '2026-06-03',
+      ),
+    ).toBe(false)
   })
 })

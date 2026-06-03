@@ -140,6 +140,7 @@ import {
   normalizeDateKey,
   resolveFechaEfectivaCuota,
   shouldExcludeVisitaFromOperationalMeta,
+  shouldIncludeVisitaInRutaHoyKpis,
   resolveProximaCuotaFromPrestamo,
   resolveCuotaProgressFromPrestamo,
   resolveCobradorIdForRouteAction,
@@ -4184,8 +4185,6 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
 
         {showConfirmCompleteModal && (() => {
-          const recaudoV = Number(rutaStats.recaudo || 0)
-
           const hoyStr = getBogotaDateKey(new Date())
 
           const ajustarEstadoConPagoModal = (v: any) => {
@@ -4199,48 +4198,32 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
             return v.estado
           }
 
-          const debeCobrarHoyOMoraModal = (v: any) => {
-            if (v.estado === 'en_mora') return true
-
-            const prox = v?.targetVencimiento || v?.proximaVisita
-            const proxKey = prox
-              ? normalizeDateKey(String(prox))
-              : ''
-
-            return proxKey === hoyStr
-          }
-
           const isAusenteModal = shouldExcludeVisitaFromOperationalMeta
 
           const visitasHoyModal = (visitasBase || [])
             .map((v: any) => ({ ...v, estado: ajustarEstadoConPagoModal(v) }))
-            .filter((v: any) => debeCobrarHoyOMoraModal(v))
+            .filter((v: any) => shouldIncludeVisitaInRutaHoyKpis(v, hoyStr))
 
+          const visitasAusentesHoyModal = visitasHoyModal.filter((v: any) => isAusenteModal(v))
           const visitasOperativasHoyModal = visitasHoyModal.filter((v: any) => !isAusenteModal(v))
+          const statsModal = computeRutaHoyUiStatsFromVisitas(visitasOperativasHoyModal, 0)
 
-          const metaV = visitasOperativasHoyModal.reduce((sum: number, v: any) => {
-            return sum + Number(v?.montoCuota || 0)
-          }, 0)
-
+          const recaudoV = Number(statsModal.recaudo || 0)
+          const metaV = Number(statsModal.meta || 0)
           const porcentaje = metaV > 0
             ? Math.round((recaudoV / metaV) * 100)
             : (recaudoV > 0 ? 100 : 0)
 
           const alCien = porcentaje >= 100
           const descuadre = recaudoV < metaV
-
-          // Contar clientes pendientes hoy (reutilizar hoyStr ya declarado arriba)
-          const visitasHoy = (visitasBase || []).filter((v: any) => {
-             const prox = v.proximaVisita ? (String(v.proximaVisita).includes('T') ? String(v.proximaVisita).split('T')[0] : String(v.proximaVisita)) : ''
-             return prox === hoyStr || v.estado === 'en_mora'
-          })
-          const clientesFaltantesHoy = visitasHoy.filter((v: any) => {
-            const estado = String(v?.estado || '').toLowerCase();
-            const estadoVisita = String(v?.estadoVisita || '').toLowerCase();
-            return (estado === 'pendiente' || estado === 'en_mora') && estadoVisita !== 'ausente';
+          const clientesFaltantesHoy = visitasOperativasHoyModal.filter((v: any) => {
+            const estado = String(v?.estado || '').toLowerCase()
+            return estado === 'pendiente' || estado === 'en_mora'
           }).length
-          const todosPendientes = clientesFaltantesHoy > 0 && clientesFaltantesHoy === visitasHoy.length
-
+          const clientesAusentesHoy = visitasAusentesHoyModal.length
+          const totalProgramadosHoy = visitasHoyModal.length
+          const clientesCobradosHoy = Math.max(0, visitasOperativasHoyModal.length - clientesFaltantesHoy)
+          const todosPendientes = clientesFaltantesHoy > 0 && clientesFaltantesHoy === visitasOperativasHoyModal.length
           return (
             <Portal>
               <div
@@ -4266,7 +4249,19 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                           </p>
                         </div>
 
-                        {descuadre && (
+                        <div>
+                         <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Programados</p>
+                         <p className="text-sm font-black text-slate-900">{totalProgramadosHoy}</p>
+                       </div>
+                       <div>
+                         <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Cobrados</p>
+                         <p className="text-sm font-black text-emerald-600">{clientesCobradosHoy}</p>
+                       </div>
+                       <div>
+                         <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Ausentes</p>
+                         <p className="text-sm font-black text-amber-600">{clientesAusentesHoy}</p>
+                       </div>
+                       {descuadre && (
                           <div className="w-full flex items-start gap-2 p-3 bg-red-50 border border-red-100 rounded-2xl text-left">
                             <XCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
                             <div>
@@ -4627,6 +4622,10 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
 
 export default SupervisorCobroView
+
+
+
+
 
 
 

@@ -96,7 +96,8 @@ import { prestamosService } from '@/services/prestamos-service'
 
 import { pagosService } from '@/services/pagos-service'
 
-import { computeRutaHoyUiStatsFromVisitas, getBogotaDateKey, isVisitaExigibleHoy, normalizeDateKey, shouldExcludeVisitaFromOperationalMeta, toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
+import { computeRutaHoyUiStatsFromVisitas, getBogotaDateKey, isVisitaExigibleHoy, normalizeDateKey, shouldExcludeVisitaFromOperationalMeta,
+  shouldIncludeVisitaInRutaHoyKpis, toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 import { mergeVisitasPreservingLocalRecaudo, sumMontoTotalPagosByBogotaDateKey } from '@/lib/ruta-recaudos'
 
 import { exportService } from '@/services/export-service'
@@ -802,7 +803,7 @@ const LegacyDetalleRutaPage = () => {
             const cobranzaDia = finales.reduce((acc: number, curr: any) => acc + (curr.recaudadoDelDia || 0), 0)
             const hoyBogota = getBogotaDateKey(new Date());
             const finalesKpiHoy = finales
-              .filter(v => isVisitaExigibleHoy(v, hoyBogota))
+              .filter(v => shouldIncludeVisitaInRutaHoyKpis(v, hoyBogota))
               .filter(v => !shouldExcludeVisitaFromOperationalMeta(v));
             const statsHoy = computeRutaHoyUiStatsFromVisitas(finalesKpiHoy as any[], 0);
             const metaDia = statsHoy.meta;
@@ -3079,4 +3080,5 @@ function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose:
   )
 
 }
+
 

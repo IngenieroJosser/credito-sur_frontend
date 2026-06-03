@@ -497,6 +497,12 @@ export const shouldMarkVisitaAsPagado = (params: {
   return recaudadoHoy > 0 && recaudadoHoy >= cuota;
 };
 
+
+export const shouldIncludeVisitaInRutaHoyKpis = (visita: any, hoyBogotaKey: string): boolean => {
+  if (!visita) return false;
+  if (isVisitaExigibleHoy(visita, hoyBogotaKey)) return true;
+  return Number((visita as any)?.recaudadoDelDia ?? (visita as any)?.recaudadoPeriodo ?? 0) > 0;
+};
 export const shouldExcludeVisitaFromOperationalMeta = (
   visita: any,
   recaudadoHoyOverride?: unknown,
@@ -675,3 +681,4 @@ export const resolveCobradorIdForRouteAction = (
   if (fromRoute) return fromRoute;
   return String(sessionUserId || '').trim();
 };
+
