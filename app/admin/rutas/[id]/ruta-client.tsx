@@ -2516,8 +2516,8 @@ const RutaClientLoaded = ({
               if (!esCierrePendiente) {
                 const prestamoIdPago = String(prestamoIdFinal || pagoActual.visita.prestamoId || '')
                 const visitaIdPago = String(pagoActual.visita.id || '')
-                setVisitasCobrador((prev) =>
-                  (prev || []).map((v: any) => {
+                setVisitasCobrador((prev) => {
+                  const next = (prev || []).map((v: any) => {
                     const esVisitaPagada =
                       String(v?.prestamoId || '') === prestamoIdPago ||
                       String(v?.id || '') === visitaIdPago
@@ -2555,7 +2555,10 @@ const RutaClientLoaded = ({
                       notasVisita: undefined as any,
                     }
                   })
-                );
+
+                  visitasCobradorRef.current = next as any
+                  return next as any
+                });
               }
               showNotification('success', `${pagoActual.tipo === 'ABONO' ? 'Abono' : 'Pago'} registrado correctamente`, 'Éxito');
 
@@ -3321,6 +3324,8 @@ function formatDateUTC(dateStr: string) {
 
 
 export default RutaClient
+
+
 
 
 
