@@ -1580,13 +1580,15 @@ const VistaCobrador = () => {
     const estadoVisitaPayload = payload?.estadoVisita || payload?.metadata?.estadoVisita;
 
     if (accionVisita === 'VISITA_REGISTRADA' && clienteIdVisita && estadoVisitaPayload) {
-      setVisitasBase((prev) =>
-        prev.map((v) =>
+      setVisitasBase((prev) => {
+        const nextVisitas = prev.map((v) =>
           v.clienteId === clienteIdVisita
             ? { ...v, estado: estadoVisitaPayload as any, estadoVisita: estadoVisitaPayload as any }
             : v,
-        ),
-      )
+        )
+        visitasBaseRef.current = nextVisitas
+        return nextVisitas
+      })
       // Limpiar historial de hoy para forzar re-fetch si está abierto
       const hoyKey = hoyBogotaKey
       setHistorialRutas((prev: any) => {
@@ -1594,6 +1596,21 @@ const VistaCobrador = () => {
         const next = { ...prev }
         delete next[hoyKey]
         return next
+      })
+      // Recalcular rutaStats para reflejar cambios en meta excluyendo ausentes
+      setRutaStats((prev: any) => {
+        if (periodoCards !== 'HOY') return prev
+        const isAusente = shouldExcludeVisitaFromOperationalMeta
+        const visitasActualizadas = visitasBaseRef.current || []
+        const visitasSinAusentes = visitasActualizadas.filter((v: any) => !isAusente(v))
+        const statsHoy = computeRutaHoyUiStatsFromVisitas(visitasSinAusentes, 0)
+        const recaudo = Number(statsHoy.recaudo || 0)
+        return {
+          ...prev,
+          meta: statsHoy.meta || 0,
+          recaudo,
+          pendiente: Math.max(0, (statsHoy.meta || 0) - recaudo),
+        }
       })
       return // No necesita recarga completa
     }
@@ -2379,8 +2396,7 @@ const VistaCobrador = () => {
 
     const statsPorVisitas = computeRutaHoyUiStatsFromVisitas(visitasParaMetaFiltradas, 0)
     const recaudoFinal = statsPorVisitas.recaudo
-    const metaProgramada = Number((rutaStats as any)?.meta || 0)
-    const meta = Math.max(statsPorVisitas.meta || 0, metaProgramada)
+    const meta = statsPorVisitas.meta || 0
     const pendiente = Math.max(0, meta - recaudoFinal)
     const eficienciaRaw = meta > 0 ? Number(((recaudoFinal / meta) * 100).toFixed(1)) : (recaudoFinal > 0 ? 100 : 0)
     const eficiencia = Math.min(100, Math.max(0, eficienciaRaw))

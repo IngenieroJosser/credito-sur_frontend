@@ -3111,7 +3111,7 @@ const RutaClient = ({ initialRuta: initialRutaProp, rutaId }: RutaClientProps) =
 
   const { user: currentUser } = useAuth()
 
-  const pagosInFlightRef = useRef<Set<string>>(new Set())
+  const pagosInFlightRef = useRef<Map<string, number>>(new Map())
 
 
 
@@ -3128,7 +3128,7 @@ const RutaClient = ({ initialRuta: initialRutaProp, rutaId }: RutaClientProps) =
     if (!rutaId) return;
 
     if (prestamoIdToLock) {
-      pagosInFlightRef.current.add(String(prestamoIdToLock))
+      pagosInFlightRef.current.set(String(prestamoIdToLock), Date.now())
     }
 
     try {
@@ -3157,7 +3157,13 @@ const RutaClient = ({ initialRuta: initialRutaProp, rutaId }: RutaClientProps) =
   useRealtimeData(['pagos_actualizados', 'rutas_actualizadas', 'prestamos_actualizados', 'jornadas_actualizadas'], async (payload?: any) => {
 
     const prestamoId = payload?.prestamoId || payload?.metadata?.prestamoId
-    if (prestamoId && pagosInFlightRef.current.has(String(prestamoId))) return
+    const inFlightTs = prestamoId ? pagosInFlightRef.current.get(String(prestamoId)) : undefined;
+    if (inFlightTs !== undefined && Date.now() - inFlightTs < 3000) {
+      return
+    }
+    if (prestamoId && inFlightTs !== undefined) {
+      pagosInFlightRef.current.delete(String(prestamoId))
+    }
 
     await refreshRuta()
 
