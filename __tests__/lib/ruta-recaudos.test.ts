@@ -1,4 +1,5 @@
 import {
+  applyRecaudoHoyToVisitas,
   buildRecaudosHoyMapByPrestamoId,
   isPagoCierrePendiente,
   mergeVisitasPreservingLocalRecaudo,
@@ -177,6 +178,29 @@ describe('ruta-recaudos', () => {
     expect(stats.recaudo).toBe(126666)
     expect(stats.pendiente).toBe(916664)
     expect(stats.meta).toBe(1043330)
+  })
+
+  it('no pisa a cero el recaudo que ya viene autoritativo desde la ruta', () => {
+    const visitas = [
+      {
+        id: 'visita-1',
+        prestamoId: 'prestamo-1',
+        clienteId: 'cliente-1',
+        estado: 'ausente',
+        estadoVisita: 'ausente',
+        montoCuota: 126666,
+        saldoTotal: 1900000,
+        recaudadoDelDia: 126666,
+      },
+    ]
+
+    const result = applyRecaudoHoyToVisitas(visitas as any, {
+      hoyBogotaKey: '2026-06-03',
+      recaudosHoyMap: {},
+    })
+
+    expect(result[0].recaudadoDelDia).toBe(126666)
+    expect(result[0].estado).toBe('pagado')
   })
 })
 

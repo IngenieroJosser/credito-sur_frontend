@@ -143,7 +143,9 @@ export const applyRecaudoHoyToVisitas = <T extends Record<string, any>>(
       }
     }
 
-    const recHoy = v?.prestamoId ? Number(recaudosHoyMap[v.prestamoId] || 0) : 0
+    const recHoyBackend = Number((v as any)?.recaudadoDelDia ?? (v as any)?.recaudadoHoy ?? 0)
+    const recHoyMap = v?.prestamoId ? Number(recaudosHoyMap[v.prestamoId] || 0) : 0
+    const recHoy = Math.max(recHoyBackend, recHoyMap)
 
     const estadoRaw = String(v?.estado || '').toLowerCase().replace(/\s+/g, '_')
     const esMora = estadoRaw === 'en_mora' || estadoRaw.includes('mora')

@@ -214,6 +214,12 @@ export const mapAsignacionesToVisitasLite = (params: {
       // El campo estadoVisita puede venir del objeto de asignación cuando el backend
       // lo enriquece (ej: llamada a daily-visits). Se preserva para que la UI lo muestre.
       const estadoVisitaRaw = String(asig?.estadoVisita || '')
+      const recaudadoDelDia = Number(
+        (prestamo as any)?.recaudadoDelDia ??
+        (prestamo as any)?.recaudadoHoy ??
+        (asig as any)?.recaudadoDelDia ??
+        0,
+      )
 
       return [{
         id: prestamo?.id ? `${asig.id || `asig-${hoyKey}-${index}`}-${prestamo.id}` : (asig.id || `asig-${hoyKey}-${index}-${subIdx}`),
@@ -245,6 +251,7 @@ export const mapAsignacionesToVisitasLite = (params: {
         fechaProrroga,
         fechaOriginalVencimiento,
         apareceHoy,
+        recaudadoDelDia,
       }]
     })
   })
