@@ -105,7 +105,7 @@ describe('ruta-recaudos', () => {
       },
     ]
 
-    const merged = mergeVisitasPreservingLocalRecaudo(local, backendRefresh)
+    const merged = mergeVisitasPreservingLocalRecaudo(local as any, backendRefresh as any)
     const operativas = merged.filter((v) => !shouldExcludeVisitaFromOperationalMeta(v))
     const stats = computeRutaHoyUiStatsFromVisitas(operativas, 0)
 

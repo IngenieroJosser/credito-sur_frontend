@@ -716,14 +716,28 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
 
 
+
   // Datos base
 
   const [visitasBase, setVisitasBase] = useState<VisitaRuta[]>([])
-
   const visitasBaseRef = useRef<any[]>([])
-  useEffect(() => {
-    visitasBaseRef.current = Array.isArray(visitasBase) ? (visitasBase as any[]) : []
-  }, [visitasBase])
+  
+  // Helper: actualiza estado Y ref sincrónicamente para evitar que lecturas
+  // inmediatas de visitasBaseRef.current vean datos obsoletos (race condition
+  // entre setVisitasBase → useEffect → ref cuando la siguiente fn lee el ref
+  // antes de que React re-renderice).
+  const setVisitasBaseAndRef = useCallback((next: any[] | ((prev: any[]) => any[])) => {
+    if (typeof next === 'function') {
+      setVisitasBase((prev: any) => {
+        const result = next(prev)
+        visitasBaseRef.current = Array.isArray(result) ? result : []
+        return result
+      })
+    } else {
+      visitasBaseRef.current = Array.isArray(next) ? next : []
+      setVisitasBase(next)
+    }
+  }, [])
 
   // BUG-09 FIX: Map<string, number> con timestamp para evitar locks indefinidos.
   const pagosInFlightRef = useRef<Map<string, number>>(new Map())
@@ -940,8 +954,6 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
   // de montaje como desde el handler del WebSocket (tiempo real).
 
   // ---------------------------------------------------------------------------
-  // cargarVisitasRuta – carga y enriquece la lista de visitas desde el backend.
-  // ---------------------------------------------------------------------------
   const cargarVisitasRuta = useCallback(async (recaudosMapExterno?: Record<string, number>) => {
     if (!rutaId) return;
 
@@ -1129,13 +1141,13 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
           }
         });
 
-        setVisitasBase(merged as any);
+        // Sync ref ANTES de que cargarEstadisticasRuta lo lea (evita stale ref)
+        setVisitasBaseAndRef(merged as any[])
         setVisitasOrden((merged as any[]).map((v: any) => v.id));
       }
     } catch (error) {
       console.error('Error al cargar visitas de ruta (supervisor):', error);
     }
-  // BUG-06 FIX: agregar hoyBogotaKey a deps para evitar stale closure al cambio de día.
   }, [rutaId, hoyBogotaKey, cargarEstadisticasRuta]);
 
 
@@ -1151,7 +1163,6 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
   // Handler completo: recarga visitas/cuotas al registrar pagos o nuevos préstamos
 
   const handlerFull = useCallback(async (payload?: any) => {
-
     const prestamoId = payload?.prestamoId || payload?.metadata?.prestamoId;
     const clienteId = payload?.clienteId || payload?.metadata?.clienteId;
 
@@ -1168,13 +1179,15 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     const estadoVisitaPayload = payload?.estadoVisita || payload?.metadata?.estadoVisita;
 
     if (accionVisita === 'VISITA_REGISTRADA' && clienteIdVisita && estadoVisitaPayload) {
-      setVisitasBase((prev) =>
-        prev.map((v) =>
+      setVisitasBase((prev) => {
+        const nextVisitas = prev.map((v) =>
           v.clienteId === clienteIdVisita
             ? { ...v, estado: estadoVisitaPayload as any, estadoVisita: estadoVisitaPayload as any }
             : v,
-        ),
-      )
+        )
+        visitasBaseRef.current = nextVisitas
+        return nextVisitas
+      })
       const hoyKey = hoyBogotaKey
       setHistorialRutas((prev: any) => {
         if (!prev || !prev[hoyKey]) return prev
@@ -1186,11 +1199,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
       setRutaStats((prev: any) => {
         if (periodoCards !== 'HOY') return prev
         const isAusente = shouldExcludeVisitaFromOperationalMeta
-        const visitasActualizadas = (visitasBaseRef.current || []).map((v: any) =>
-          v.clienteId === clienteIdVisita
-            ? { ...v, estado: estadoVisitaPayload as any, estadoVisita: estadoVisitaPayload as any }
-            : v,
-        )
+        const visitasActualizadas = visitasBaseRef.current || []
         const visitasSinAusentes = visitasActualizadas.filter((v: any) => !isAusente(v))
         const statsHoy = computeRutaHoyUiStatsFromVisitas(visitasSinAusentes, 0)
         const recaudo = Number(statsHoy.recaudo || 0)
@@ -1204,96 +1213,19 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
       return
     }
 
-    if (prestamoId) {
-      const existeEnVisitas = visitasBaseRef.current.some((v: any) => v?.prestamoId === prestamoId);
-      if (existeEnVisitas) {
-        try {
-          const p = await prestamosService.obtenerPrestamoPorId(prestamoId);
-          const cuotas = await prestamosService.obtenerCuotas(prestamoId);
-          const prox = cuotas.find((c: any) => c.estado !== 'PAGADA');
-
-          const hoyBogota = getBogotaDateKey(new Date());
-
-          let totalHoy = 0;
-          if (prestamoId || clienteId) {
-            const pagosResp = prestamoId
-              ? await pagosService.obtenerPagos({ prestamoId, limit: 1000 })
-              : await pagosService.obtenerPagos({ clienteId, limit: 1000 });
-
-            const pagosCalc = (pagosResp?.pagos || []);
-            totalHoy = sumMontoTotalPagosByBogotaDateKey(
-              pagosCalc,
-              hoyBogota,
-              { includeCierrePendiente: false },
-            );
-          }
-
-          setVisitasBase((prev: any) => prev.map((v: any) => {
-            if (v?.prestamoId !== prestamoId) return v;
-
-            let nuevoEstado: any = 'pendiente';
-            const proxKey = prox ? normalizeDateKey(String(resolveFechaEfectivaCuota(prox) || prox?.fechaVencimiento || '')) : ''
-            if (proxKey && proxKey < hoyBogota) nuevoEstado = 'en_mora';
-            else if (!prox) nuevoEstado = 'pagado';
-
-            const cuotasHoyYVencidas = cuotas.filter((c: any) => {
-              if (c.estado === 'ANULADA') return false;
-              const pDate = c.fechaPago ? getBogotaDateKey(c.fechaPago) : '';
-              if (c.estado === 'PAGADA') {
-                return pDate === hoyBogota;
-              }
-              const dv = c.fechaVencimiento?.split('T')[0];
-              return dv && dv <= hoyBogota;
-            });
-            const montoMetaActualizado = cuotasHoyYVencidas.reduce((s, c) => s + Number(c.monto || 0), 0);
-
-            const baseV: any = {
-              ...v,
-              estado: nuevoEstado,
-              montoCuota: montoMetaActualizado,
-              proximaVisita: prox?.fechaVencimiento || v.proximaVisita,
-              cuotaActual: prox?.numeroCuota || v.cuotaActual,
-              saldoTotal: nuevoEstado === 'pagado' ? 0 : Number(p?.saldoPendiente || 0),
-              recaudadoDelDia: Math.max(Number(v?.recaudadoDelDia || 0), Number(totalHoy || 0)),
-            };
-
-            // Solo marcar como pagado cuando realmente completó la cuota del período (o ya no hay saldo)
-            const cuota = Number(baseV.montoCuota || 0);
-            if (Number(baseV.saldoTotal || 0) <= 0) {
-              baseV.estado = 'pagado';
-            } else if (cuota > 0 && totalHoy >= (cuota - 1) && totalHoy > 0) {
-              baseV.estado = 'pagado';
-            }
-
-            // Limpiar historial de hoy si existe
-            setHistorialRutas((prev: any) => {
-              if (!prev || !prev[hoyBogota]) return prev;
-              const next = { ...prev };
-              delete next[hoyBogota];
-              return next;
-            });
-
-            return baseV;
-          }));
-          
-          cargarEstadisticasRuta();
-          if (showMisClientes) await cargarMisCreditos();
-          return;
-        } catch (e) {
-          // Fallback a recarga completa
-        }
-      }
-    }
+    const hoyKey = hoyBogotaKey
+    setHistorialRutas((prev: any) => {
+      if (!prev || !prev[hoyKey]) return prev
+      const next = { ...prev }
+      delete next[hoyKey]
+      return next
+    })
 
     await cargarVisitasRuta();
 
     if (showMisClientes) await cargarMisCreditos();
 
-  }, [cargarVisitasRuta, showMisClientes, cargarMisCreditos, cargarEstadisticasRuta])
-
-
-
-  // Handler ligero: solo refresca KPIs (dashboards no cambian cuotas)
+  }, [cargarVisitasRuta, showMisClientes, cargarMisCreditos, hoyBogotaKey, periodoCards])
 
   const handlerKpi = useCallback(() => {
 
