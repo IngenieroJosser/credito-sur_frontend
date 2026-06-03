@@ -3139,8 +3139,8 @@ const VistaCobrador = () => {
       const clienteIdPago = visitaSnapshot.clienteId
 
       if (!esCierrePendiente) {
-        setVisitasBase((prev) =>
-          prev.map((v) => {
+        setVisitasBase((prev) => {
+          const next = prev.map((v) => {
             if (v.clienteId !== clienteIdPago) return v
 
             const esVisitaPagada = v.id === visitaSnapshot.id
@@ -3174,8 +3174,11 @@ const VistaCobrador = () => {
               estadoVisita: undefined as any,
               notasVisita: undefined as any,
             }
-          }),
-        )
+          })
+
+          visitasBaseRef.current = next as any
+          return next
+        })
       }
 
       // Si completó lo exigible de HOY, NO eliminar del estado local.
@@ -6087,6 +6090,7 @@ const VistaCobrador = () => {
 
 
 export default VistaCobrador
+
 
 
 
