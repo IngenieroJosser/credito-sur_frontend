@@ -5720,11 +5720,22 @@ const VistaCobrador = () => {
 
         {showConfirmCompleteModal && (() => {
 
-          const clientesFaltantesHoy = Number(kpisHoy.pendientes || 0)
-          const clientesAusentesHoy = Number(kpisHoy.ausentes || 0)
-          const totalProgramadosHoy = Number(kpisHoy.visitasExigiblesHoy?.length || 0)
-          const totalOperativosHoy = Number(kpisHoy.visitasOperativasHoy?.length || 0)
-          const clientesCobradosHoy = Math.max(0, totalOperativosHoy - clientesFaltantesHoy)
+          const visitasCierreHoy = (visitasBase || [])
+            .map((v: any) => ({ ...v, estado: ajustarEstadoConPago(v) }))
+            .filter((v: any) => shouldIncludeVisitaInRutaHoyKpis(v, hoyBogotaKey))
+          const visitasAusentesCierre = visitasCierreHoy.filter((v: any) => shouldExcludeVisitaFromOperationalMeta(v))
+          const visitasOperativasCierre = visitasCierreHoy.filter((v: any) => !shouldExcludeVisitaFromOperationalMeta(v))
+          const clientesFaltantesHoy = visitasOperativasCierre.filter((v: any) => {
+            const estado = String(v?.estado || '').toLowerCase()
+            return estado !== 'pagado'
+          }).length
+          const clientesAusentesHoy = visitasAusentesCierre.length
+          const totalProgramadosHoy = visitasCierreHoy.length
+          const totalOperativosHoy = visitasOperativasCierre.length
+          const clientesCobradosHoy = visitasOperativasCierre.filter((v: any) => {
+            const estado = String(v?.estado || '').toLowerCase()
+            return estado === 'pagado' || Number(v?.recaudadoDelDia || 0) > 0
+          }).length
           const metaV = Number((rutaStatsUI as any)?.meta || 0)
           const recaudoV = Number((rutaStatsUI as any)?.recaudo || 0)
           const porcentaje = Number((rutaStatsUI as any)?.eficiencia || 0)
@@ -5732,8 +5743,10 @@ const VistaCobrador = () => {
           const alCien = porcentaje >= 100;
 
           const saldoDisponibleV = Number((rutaStatsUI as any)?.base || 0)
-          // Descuadre = el cobrador tiene dinero en mano (saldo disponible) que aún no ha entregado
-          const descuadre = saldoDisponibleV > 0 && recaudoV > 0;
+          const gastosDiaV = Number((rutaStatsUI as any)?.gastos || 0)
+          const pendienteCobroV = Math.max(0, metaV - recaudoV)
+          const recaudoNetoV = Math.max(0, recaudoV - gastosDiaV)
+          const descuadre = saldoDisponibleV > 0 || clientesFaltantesHoy > 0 || clientesAusentesHoy > 0;
 
           // Todos pendientes = ningún cliente de la ruta fue cobrado
 
@@ -5772,7 +5785,7 @@ const VistaCobrador = () => {
                             <div>
                               <p className="text-xs font-black text-red-700 uppercase tracking-wide">Dinero sin entregar</p>
                               <p className="text-[11px] text-red-600 font-medium mt-0.5">
-                                Tienes <span className="font-black">{formatCurrency(saldoDisponibleV)}</span> en mano que aún no han recolectado. Asegúrate que ya hayan recolectado el dinero antes de cerrar.
+                                La caja de esta ruta conserva <span className="font-black">{formatCurrency(saldoDisponibleV)}</span>. Confirma que este valor ya fue recolectado o quedará soportado al cerrar.
                               </p>
                             </div>
                           </div>
@@ -5800,10 +5813,10 @@ const VistaCobrador = () => {
                         <div>
                           <h3 className="text-xl font-black text-red-900 tracking-tight mb-2">¡Doble Confirmación!</h3>
                           <p className="text-red-700 text-sm font-bold leading-relaxed px-2">
-                             Tienes <span className="text-lg underline underline-offset-4 decoration-2">{formatCurrency(saldoDisponibleV)}</span> sin entregar.
+                             Vas a cerrar con {clientesFaltantesHoy} pendiente{clientesFaltantesHoy === 1 ? '' : 's'}, {clientesAusentesHoy} ausente{clientesAusentesHoy === 1 ? '' : 's'} y {formatCurrency(saldoDisponibleV)} en caja.
                           </p>
                           <p className="mt-3 text-slate-500 text-[11px] font-medium leading-relaxed px-4">
-                             Al cerrar sin entregar el dinero, quedará registrado como deuda pendiente. ¿Estás seguro de continuar?
+                             Esta acción reportará la jornada a oficina con estos valores. Revisa antes de confirmar definitivamente.
                           </p>
                         </div>
                       </>
@@ -5811,7 +5824,7 @@ const VistaCobrador = () => {
 
                    <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 text-left grid grid-cols-2 gap-y-4 gap-x-3 w-full">
                       <div>
-                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Saldo Disponible</p>
+                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Saldo caja ruta</p>
                         <p className="text-sm font-black text-blue-600">{formatCurrency((rutaStatsUI as any)?.base || 0)}</p>
                       </div>
                       <div>
@@ -5820,7 +5833,7 @@ const VistaCobrador = () => {
                       </div>
                       <div>
                         <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Gastos del Día</p>
-                        <p className="text-sm font-black text-rose-600">{formatCurrency((rutaStatsUI as any)?.gastos || 0)}</p>
+                        <p className="text-sm font-black text-rose-600">{formatCurrency(gastosDiaV)}</p>
                       </div>
                       <div>
                         <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Meta Cobro</p>
@@ -5837,10 +5850,19 @@ const VistaCobrador = () => {
                       </div>
                       {descuadre && (
                         <div className="col-span-2 p-3 bg-red-50 rounded-xl border border-red-100">
-                          <p className="text-[10px] text-red-500 font-bold uppercase tracking-widest">Dinero sin entregar</p>
+                          <p className="text-[10px] text-red-500 font-bold uppercase tracking-widest">Saldo en caja al cierre</p>
                           <p className="text-lg font-black text-red-600">{formatCurrency(saldoDisponibleV)}</p>
                         </div>
                       )}
+
+                      <div>
+                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Pendiente $</p>
+                        <p className="text-sm font-black text-amber-600">{formatCurrency(pendienteCobroV)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Recaudo Neto</p>
+                        <p className="text-sm font-black text-emerald-600">{formatCurrency(recaudoNetoV)}</p>
+                      </div>
 
                       <div className="col-span-2 flex justify-between items-center border-t border-slate-200 pt-3">
                         <div>
