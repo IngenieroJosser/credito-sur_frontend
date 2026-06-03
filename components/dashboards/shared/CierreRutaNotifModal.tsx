@@ -43,7 +43,7 @@ export default function CierreRutaNotifModal({
   const fecha: string = notificacion.creadoEn || notificacion.fecha || ''
 
   // Parsear datos del mensaje: "Cobrador: X cerró la ruta Y. Recaudo Final: $Z (W% META). ..."
-  const cobradorMatch = mensaje.match(/Cobrador:\s*([^c]+?)\s+cerr[oó]/i)
+  const cobradorMatch = mensaje.match(/Cobrador:\s*(.+?)\s+cerr[oó]/i)
   const rutaMatch = mensaje.match(/cerr[oó]\s+la\s+ruta\s+(.+?)\.\s+Recaudo/i)
   const recaudoMatch = mensaje.match(/Recaudo Final:\s*\$?([\d.,]+)/i)
   const efectividadMatch = mensaje.match(/\((\d+)%\s*META\)/i)

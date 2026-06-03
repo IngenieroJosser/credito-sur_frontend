@@ -463,6 +463,22 @@ const VistaCobrador = () => {
     periodoCardsRef.current = periodoCards
   }, [periodoCards])
 
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const action = params.get('action')
+      if (action === 'crear-credito') {
+        setShowCreditModal(true)
+        const newUrl = window.location.pathname
+        window.history.replaceState({}, '', newUrl)
+      } else if (action === 'nuevo-cliente') {
+        setShowNewClientModal(true)
+        const newUrl = window.location.pathname
+        window.history.replaceState({}, '', newUrl)
+      }
+    }
+  }, [])
+
 
 
   const [gruposColapsados, setGruposColapsados] = useState<Record<string, boolean>>({})

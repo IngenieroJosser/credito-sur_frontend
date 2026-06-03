@@ -108,6 +108,22 @@ const VistaSupervisor = () => {
   // Tiempo real: refrescar cuando pagos, préstamos o rutas cambien
   useRealtimeData(['pagos_actualizados', 'prestamos_actualizados', 'rutas_actualizadas', 'dashboards_actualizados'], loadDashboardData)
 
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const action = params.get('action')
+      if (action === 'crear-credito') {
+        setShowCreditoTipoModal(true)
+        const newUrl = window.location.pathname
+        window.history.replaceState({}, '', newUrl)
+      } else if (action === 'nuevo-cliente') {
+        setShowNewClientModal(true)
+        const newUrl = window.location.pathname
+        window.history.replaceState({}, '', newUrl)
+      }
+    }
+  }, [])
+
   const handlePagoConfirm = (data: {
     clienteId: string;
     monto: number;
@@ -431,7 +447,6 @@ const VistaSupervisor = () => {
         { label: 'Nuevo Cliente', icon: <UserPlus className="h-5 w-5" />, onClick: () => setShowNewClientModal(true) },
         { label: 'Registrar abono', icon: <RefreshCw className="h-5 w-5" />, color: 'orange', onClick: () => { setPagoInitialIsAbono(true); setShowPagoModal(true); } },
         { label: 'Registrar pago', icon: <DollarSign className="h-5 w-5" />, onClick: () => { setPagoInitialIsAbono(false); setShowPagoModal(true); } },
-        { label: 'Solicitudes', icon: <ClipboardList className="h-5 w-5" />, onClick: () => router.push('/cobranzas/solicitudes') },
       ] as FabAction[]} />
     </div>
   )
