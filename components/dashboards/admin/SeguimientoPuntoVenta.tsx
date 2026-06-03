@@ -313,7 +313,10 @@ export default function SeguimientoPuntoVenta() {
       normalizedName: normalizeText(getUsuarioNombre(usuario)),
     }))
 
-    usuarios.forEach(usuario => seen.add(usuario.id))
+    usuarios.forEach(usuario => {
+      seen.add(usuario.id)
+      seen.add(usuario.normalizedName)
+    })
 
     const respaldos = ventas
       .filter(v => v.vendedor && v.vendedor !== 'Punto de Venta')

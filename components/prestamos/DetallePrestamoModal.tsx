@@ -231,6 +231,11 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
 
   if (!mounted) return null;
 
+  const showContractButton =
+    !loading &&
+    !!prestamo &&
+    String(prestamo.tipoPrestamo || '').toUpperCase() === 'ARTICULO';
+
   return createPortal(
     <div className="fixed inset-0 z-[2147483620] flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={handleClose}>
       {/* Backdrop */}
@@ -242,18 +247,20 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal actions */}
-        <button
-          onClick={handleDownloadContract}
-          disabled={downloadingContract}
-          className="absolute top-4 left-4 z-20 inline-flex items-center gap-2 rounded-xl border border-blue-100 bg-blue-600 px-4 py-2 text-xs font-black text-white shadow-sm transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {downloadingContract ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <FileText className="h-4 w-4" />
-          )}
-          <span className="hidden sm:inline">Descargar contrato</span>
-        </button>
+        {showContractButton && (
+          <button
+            onClick={handleDownloadContract}
+            disabled={downloadingContract}
+            className="absolute top-4 left-4 z-20 inline-flex items-center gap-2 rounded-xl border border-blue-100 bg-blue-600 px-4 py-2 text-xs font-black text-white shadow-sm transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {downloadingContract ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <FileText className="h-4 w-4" />
+            )}
+            <span className="hidden sm:inline">Descargar contrato</span>
+          </button>
+        )}
 
         <button
           onClick={handleClose}

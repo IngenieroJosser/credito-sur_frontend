@@ -9,15 +9,16 @@ export const dynamic = 'force-dynamic';
 // y pasarlos al componente de vista (RutasPageView).
 export default async function Page() {
   // Carga paralela de datos para optimizar el tiempo de respuesta
-  const [rutas, cobradores, supervisores] = await Promise.all([
+  const [rutas, cobradores, supervisores, coordinadores] = await Promise.all([
     getRutasList(),
     getUsuariosByRol(RolUsuario.COBRADOR),
+    getUsuariosByRol(RolUsuario.SUPERVISOR),
     getUsuariosByRol(RolUsuario.COORDINADOR)
   ]);
 
   // Transformación de datos para la vista
   const cobradoresList = cobradores.map(u => ({ id: u.id, nombre: `${u.nombres} ${u.apellidos}` }));
-  const supervisoresList = supervisores.map(u => ({ id: u.id, nombre: `${u.nombres} ${u.apellidos}` }));
+  const supervisoresList = [...supervisores, ...coordinadores].map(u => ({ id: u.id, nombre: `${u.nombres} ${u.apellidos}` }));
 
   return (
     <RutasPageView 

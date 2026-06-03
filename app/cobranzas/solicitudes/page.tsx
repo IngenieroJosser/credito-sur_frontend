@@ -14,7 +14,7 @@ import {
   ChevronLeft,
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
-import { obtenerPerfil } from '@/services/autenticacion-service'
+import { aprobacionesService, type Aprobacion } from '@/services/aprobaciones-service'
 
 interface SolicitudDinero {
   id: string
@@ -32,33 +32,44 @@ type EstadoFiltro = 'TODAS' | SolicitudDinero['estado']
 export default function SolicitudesCobradorPage() {
   const router = useRouter()
   
-  // Identificador del cobrador logueado para filtrar sus solicitudes
-  const [perfilId, setPerfilId] = useState<string>('')
-  const [loadingPerfil, setLoadingPerfil] = useState(true)
+  const [solicitudesBase, setSolicitudesBase] = useState<SolicitudDinero[]>([])
+  const [loadingSolicitudes, setLoadingSolicitudes] = useState(true)
 
   // --- FILTROS DE VISTA ---
   const [estadoFiltro, setEstadoFiltro] = useState<EstadoFiltro>('TODAS')
   const [busqueda, setBusqueda] = useState('')
   const [showFilters, setShowFilters] = useState(false) // Colapsar/Expandir barra de filtros
 
-  // Al cargar, obtenemos la info del cobrador actual
   useEffect(() => {
     let mounted = true
     ;(async () => {
       try {
-        const perfil = await obtenerPerfil()
+        const solicitudes = await aprobacionesService.obtenerMisSolicitudes()
         if (!mounted) return
-        
-        // Si hay sesión activa, guardamos el ID para filtrar la data
-        if (perfil?.rol === 'COBRADOR' && perfil?.id) {
-          setPerfilId(String(perfil.id))
-        } else if (perfil?.id) {
-          setPerfilId(String(perfil.id))
-        }
+        setSolicitudesBase(solicitudes.map((s: Aprobacion) => {
+          const datos = typeof s.datosSolicitud === 'object' && s.datosSolicitud ? s.datosSolicitud : {}
+          const solicitanteNombre = s.solicitadoPor
+            ? `${s.solicitadoPor.nombres} ${s.solicitadoPor.apellidos}`.trim()
+            : s.solicitante || 'Usuario'
+
+          return {
+            id: s.id,
+            fecha: s.creadoEn,
+            monto: Number(s.montoSolicitud || (datos as any).monto || 0),
+            descripcion:
+              String((datos as any).descripcion || (datos as any).notas || s.comentarios || s.tipoAprobacion || 'Solicitud'),
+            estado: s.estado as SolicitudDinero['estado'],
+            comentarioAdmin: s.datosAprobados
+              ? String((s.datosAprobados as any)?.comentarios || (s.datosAprobados as any)?.notas || '')
+              : s.comentarios || undefined,
+            solicitanteId: s.solicitadoPorId,
+            solicitanteNombre,
+          }
+        }))
       } catch {
-        // Si falla la autenticación, el usuario verá la lista vacía o data de prueba
+        setSolicitudesBase([])
       } finally {
-        if (mounted) setLoadingPerfil(false)
+        if (mounted) setLoadingSolicitudes(false)
       }
     })()
 
@@ -67,53 +78,11 @@ export default function SolicitudesCobradorPage() {
     }
   }, [])
 
-  // --- DATOS SIMULADOS (MOCK) ---
-  // Replicamos la estructura del módulo admin pero enfocado solo en lectura para el cobrador.
-  // En producción, esto se reemplazaría por un `useQuery` filtrando por solicitanteId.
-  const solicitudesBase: SolicitudDinero[] = useMemo(
-    () => [
-      {
-        id: 'SOL-001',
-        fecha: '2026-01-21T08:00:00',
-        monto: 2000000,
-        descripcion: 'Base para ruta centro, se espera alta demanda de préstamos hoy.',
-        estado: 'PENDIENTE',
-        solicitanteId: 'CB-001',
-        solicitanteNombre: 'Carlos Pérez',
-      },
-      {
-        id: 'SOL-002',
-        fecha: '2026-01-20T08:15:00',
-        monto: 1500000,
-        descripcion: 'Dinero para nuevos clientes referidos en sector norte.',
-        estado: 'APROBADO',
-        comentarioAdmin: 'Aprobado, pasar por tesorería.',
-        solicitanteId: 'CB-001',
-        solicitanteNombre: 'Carlos Pérez',
-      },
-      {
-        id: 'SOL-003',
-        fecha: '2026-01-19T09:30:00',
-        monto: 5000000,
-        descripcion: 'Solicitud extraordinaria para cliente VIP.',
-        estado: 'RECHAZADO',
-        comentarioAdmin: 'Monto excede el límite diario permitido sin autorización previa.',
-        solicitanteId: 'CB-002',
-        solicitanteNombre: 'María Rodríguez',
-      },
-    ],
-    []
-  )
-
-  // Por defecto filtramos por el usuario 'CB-001' si no hay sesión real (para demo)
-  const solicitanteIdFiltrado = perfilId || 'CB-001'
-
   // --- LÓGICA DE FILTRADO ---
   const solicitudesFiltradas = useMemo(() => {
     const normalized = busqueda.trim().toLowerCase()
 
     return solicitudesBase
-      .filter((s) => s.solicitanteId === solicitanteIdFiltrado) // Solo MIS solicitudes
       .filter((s) => (estadoFiltro === 'TODAS' ? true : s.estado === estadoFiltro))
       .filter((s) => {
         if (!normalized) return true
@@ -124,7 +93,7 @@ export default function SolicitudesCobradorPage() {
         )
       })
       .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()) // Más recientes primero
-  }, [busqueda, estadoFiltro, solicitudesBase, solicitanteIdFiltrado])
+  }, [busqueda, estadoFiltro, solicitudesBase])
 
   const getEstadoColor = (estado: SolicitudDinero['estado']) => {
     switch (estado) {
@@ -175,7 +144,7 @@ export default function SolicitudesCobradorPage() {
               <span className="text-orange-500">Solicitudes</span>
             </h1>
             <p className="text-sm text-slate-500 font-medium">
-              {loadingPerfil ? 'Cargando perfil...' : 'Consulta el estado de tus solicitudes de base.'}
+              {loadingSolicitudes ? 'Cargando solicitudes...' : 'Consulta el estado de tus solicitudes de base.'}
             </p>
           </div>
         </header>
@@ -254,7 +223,13 @@ export default function SolicitudesCobradorPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {solicitudesFiltradas.map((sol) => (
+                {loadingSolicitudes ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-12 text-center text-slate-400 font-medium">
+                      Cargando solicitudes...
+                    </td>
+                  </tr>
+                ) : solicitudesFiltradas.map((sol) => (
                   <tr key={sol.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="px-6 py-4 font-medium text-slate-900">
                       {new Date(sol.fecha).toLocaleDateString('es-CO', {
@@ -298,7 +273,7 @@ export default function SolicitudesCobradorPage() {
             </table>
           </div>
 
-          {solicitudesFiltradas.length === 0 && (
+          {!loadingSolicitudes && solicitudesFiltradas.length === 0 && (
             <div className="text-center py-12 border-t border-slate-100">
               <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
                 <ClipboardList className="h-8 w-8 text-slate-300" />

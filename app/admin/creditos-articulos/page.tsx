@@ -3,7 +3,6 @@ import { logger } from '@/lib/logger'
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
-import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { 
   Search, 
@@ -39,9 +38,6 @@ export default function CreditosArticulosPage() {
   const [showCrearCreditoModal, setShowCrearCreditoModal] = useState(false)
   const [creditoDetalleId, setCreditoDetalleId] = useState<string | null>(null)
   const isPuntoVentaView = pathname?.startsWith('/punto-de-venta')
-  const basePath = pathname?.startsWith('/punto-de-venta')
-    ? '/punto-de-venta/creditos-articulos'
-    : '/creditos-articulos'
   
   // Paginación
   const [paginaActual, setPaginaActual] = useState(1)
@@ -347,11 +343,11 @@ export default function CreditosArticulosPage() {
                 ) : creditosPaginados.map((credito) => (
                   <tr 
                     key={credito.id} 
-                    className="hover:bg-slate-50/80 transition-colors group"
+                    onClick={() => setCreditoDetalleId(credito.id)}
+                    className="hover:bg-slate-50/80 transition-colors group cursor-pointer"
                   >
                     <td className="px-6 py-4">
-                      <Link href={`${basePath}/${credito.id}`} className="block">
-                        <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3">
                         <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 shadow-sm border ${
                             credito.riesgo === 'ROJO' ? 'bg-rose-50 text-rose-500 border-rose-100' : 
                             credito.riesgo === 'AMARILLO' ? 'bg-amber-50 text-amber-500 border-amber-100' : 'bg-slate-50 text-slate-500 border-slate-200'
@@ -370,25 +366,19 @@ export default function CreditosArticulosPage() {
                             </div>
                           </div>
                         </div>
-                      </Link>
                     </td>
                     <td className="px-6 py-4">
-                      <Link href={`${basePath}/${credito.id}`} className="block">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${getEstadoColor(credito.estado)}`}>
                         {getEstadoLabel(credito.estado)}
                       </span>
-                      </Link>
                     </td>
                     <td className="px-6 py-4">
-                      <Link href={`${basePath}/${credito.id}`} className="block">
                       <div className="flex items-center gap-2 text-slate-600">
                         <Calendar className="w-4 h-4 text-slate-400" />
                         <span className="text-xs font-bold">{credito.proximoPago}</span>
                       </div>
-                      </Link>
                     </td>
                     <td className="px-6 py-4">
-                      <Link href={`${basePath}/${credito.id}`} className="block">
                       <div className="w-full max-w-[140px]">
                         <div className="flex justify-between text-xs mb-1.5">
                           <span className="text-slate-500 font-medium">{credito.cuotasPagadas}/{credito.cuotasTotales} cuotas</span>
@@ -407,20 +397,20 @@ export default function CreditosArticulosPage() {
                           />
                         </div>
                       </div>
-                      </Link>
                     </td>
                     <td className="px-6 py-4">
-                      <Link href={`${basePath}/${credito.id}`} className="block">
                       <div>
                         <div className="font-bold text-slate-900">{formatCurrency(credito.montoPendiente)}</div>
                         <div className="text-xs text-slate-500 mt-0.5 font-medium">Total: {formatCurrency(credito.montoTotal)}</div>
                       </div>
-                      </Link>
                     </td>
                     <td className="px-6 py-4 text-right">
                       <button
                         type="button"
-                        onClick={() => setCreditoDetalleId(credito.id)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setCreditoDetalleId(credito.id)
+                        }}
                         className="inline-block p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                         title="Ver detalle"
                       >
