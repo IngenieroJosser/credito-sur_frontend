@@ -540,15 +540,22 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         const statsHoy = computeRutaHoyUiStatsFromVisitas(visitasParaMeta, 0)
         const meta = statsHoy.meta || 0
         const recaudo = periodoCards === 'HOY'
-          ? Number(statsHoy.recaudo || 0)
+          ? Math.max(
+              Number(statsHoy.recaudo || 0),
+              Number(prev.recaudo ?? 0),
+              Number(recaudoBackend || 0),
+            )
           : (recaudoBackend > 0 ? recaudoBackend : Number(prev.recaudo ?? 0))
-        const eficiencia = meta > 0
-          ? Number(((recaudo / meta) * 100).toFixed(1))
+        const metaAutoritativa = periodoCards === 'HOY'
+          ? Math.max(Number(statsHoy.meta || 0), Number(prev.meta ?? 0))
+          : meta
+        const eficiencia = metaAutoritativa > 0
+          ? Number(((recaudo / metaAutoritativa) * 100).toFixed(1))
           : Number(prev.eficiencia ?? 0)
         return {
           ...prev,
           recaudo,
-          meta,
+          meta: metaAutoritativa,
           eficiencia,
           gastos: Number(saldo?.gastosDelDia ?? prev.gastos ?? 0),
           base: Number(saldo?.saldoCaja ?? saldo?.baseEfectivo ?? prev.base ?? 0),
@@ -1130,15 +1137,29 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         const isAusente = shouldExcludeVisitaFromOperationalMeta
         const finalesSinAusentes = (merged || []).filter((v: any) => !isAusente(v))
         const statsHoy = computeRutaHoyUiStatsFromVisitas(finalesSinAusentes as any[], 0)
+        const rutaStatsBackend = (ruta as any)?.estadisticas || {}
+        const recaudoBackendHoy = Math.max(
+          Number((ruta as any)?.cobranzaDelDia || 0),
+          Number(rutaStatsBackend?.cobranzaDelDia || 0),
+        )
+        const metaBackendHoy = Math.max(
+          Number((ruta as any)?.metaDelDia || 0),
+          Number(rutaStatsBackend?.metaDelDia || 0),
+        )
 
         setRutaStats((prev: any) => {
           if (periodoCards !== 'HOY') return prev
-          const recaudo = Number(statsHoy.recaudo || 0)
+          const recaudo = Math.max(Number(statsHoy.recaudo || 0), recaudoBackendHoy, Number(prev.recaudo || 0))
+          const meta = Math.max(
+            statsHoy.pendiente > 0 || recaudo > 0 ? statsHoy.pendiente + recaudo : 0,
+            metaBackendHoy,
+            Number(prev.meta || 0),
+          )
           return {
             ...prev,
-            meta: statsHoy.pendiente > 0 || recaudo > 0 ? statsHoy.pendiente + recaudo : 0,
+            meta,
             recaudo,
-            pendiente: statsHoy.pendiente,
+            pendiente: Math.max(0, meta - recaudo),
           }
         });
 

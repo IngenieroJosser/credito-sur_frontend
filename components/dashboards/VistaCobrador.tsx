@@ -1136,13 +1136,31 @@ const VistaCobrador = () => {
         // Esto garantiza que se trae todo lo asignado en Base de Datos.
 
         const rutaCompleta = await rutasService.obtenerRutaPorId(rutaResumen.id);
+        const estDetalleRuta = (rutaCompleta as any)?.estadisticas || {};
+        const estadisticasAutoritativas = {
+          ...estDetalleRuta,
+          cobranzaDelDia: Math.max(
+            Number(estDetalleRuta?.cobranzaDelDia || 0),
+            Number((rutaResumen as any)?.cobranzaDelDia || 0),
+            Number((rutaResumen as any)?.estadisticas?.cobranzaDelDia || 0),
+          ),
+          metaDelDia: Math.max(
+            Number(estDetalleRuta?.metaDelDia || 0),
+            Number((rutaResumen as any)?.metaDelDia || 0),
+            Number((rutaResumen as any)?.estadisticas?.metaDelDia || 0),
+          ),
+        };
+        const rutaCompletaAutoritativa = {
+          ...(rutaCompleta as any),
+          estadisticas: estadisticasAutoritativas,
+        };
 
-        setRutaActual(rutaCompleta);
+        setRutaActual(rutaCompletaAutoritativa as any);
 
         // 3. Actualizar estadísticas con datos reales del backend
 
         // 3. Actualizar estadísticas con datos reales del backend
-        const est = (rutaCompleta as any).estadisticas || {};
+        const est = estadisticasAutoritativas;
         // DEFECTO-D FIX: Usar periodoCardsRef en lugar de periodoCards para evitar stale closures
         // dado que cargarDatosRuta no tiene a periodoCards en sus deps.
         const { inicio: cardInicio, fin: cardFin } = getDatesByPeriod(periodoCardsRef.current);
@@ -1186,7 +1204,7 @@ const VistaCobrador = () => {
         // 4. Construir visitas desde asignaciones (ruta completa) con lógica correcta de próxima cuota y “aparece hoy”.
         const hoyKey = hoyBogotaKey
 
-        const asignaciones = (rutaCompleta as any).asignaciones || (rutaCompleta as any).asignacionesRuta || []
+        const asignaciones = (rutaCompletaAutoritativa as any).asignaciones || (rutaCompletaAutoritativa as any).asignacionesRuta || []
 
         const visitasMapeadas: VisitaRuta[] = mapAsignacionesToVisitasLite({
           asignaciones,
@@ -2389,19 +2407,32 @@ const VistaCobrador = () => {
   const rutaStatsUI = useMemo(() => {
     if (periodoCards !== 'HOY') return rutaStats
 
-    const recaudoFinal = Number(kpisHoy.recaudo || 0)
-    const meta = Number(kpisHoy.meta || 0)
+    const recaudoBackend = Math.max(
+      Number(rutaStats.recaudo || 0),
+      Number((rutaActual as any)?.cobranzaDelDia || 0),
+      Number((rutaActual as any)?.estadisticas?.cobranzaDelDia || 0),
+    )
+    const metaBackend = Math.max(
+      Number(rutaStats.meta || 0),
+      Number((rutaActual as any)?.metaDelDia || 0),
+      Number((rutaActual as any)?.estadisticas?.metaDelDia || 0),
+    )
+    const recaudoFinal = Math.max(Number(kpisHoy.recaudo || 0), recaudoBackend)
+    const meta = Math.max(Number(kpisHoy.meta || 0), metaBackend)
     const pendiente = Math.max(0, meta - recaudoFinal)
     const eficiencia = Number(kpisHoy.efectividad || 0)
+    const eficienciaFinal = meta > 0
+      ? Math.min(100, Math.max(0, Number(((recaudoFinal / meta) * 100).toFixed(1))))
+      : eficiencia
 
     return {
       ...rutaStats,
       recaudo: recaudoFinal,
       meta,
-      eficiencia,
+      eficiencia: eficienciaFinal,
       pendiente,
     }
-  }, [periodoCards, rutaStats, kpisHoy])
+  }, [periodoCards, rutaStats, kpisHoy, rutaActual])
   // BUG-08 FIX: filtrar por el ID real del cobrador en sesión, no por 'CB-001' hardcodeado.
   const operacionesCobrador = useMemo(() =>
     userSession?.id
