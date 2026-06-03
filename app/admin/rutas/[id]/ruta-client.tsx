@@ -2388,7 +2388,7 @@ const RutaClientLoaded = ({
             setVisitasCobrador((prev) =>
               (prev || []).map((v) =>
                 v.clienteId === clienteIdAusente
-                  ? { ...v, estado: 'ausente' as any, estadoVisita: 'ausente' as any }
+                  ? { ...v, estado: 'ausente' as any, estadoVisita: 'ausente' as any, notasVisita: notas }
                   : v
               )
             );

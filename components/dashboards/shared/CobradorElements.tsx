@@ -2,7 +2,7 @@
 
 import React, { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { MapPin, Eye, Phone, GripVertical, XCircle, ChevronDown, Timer, CheckCircle2 } from 'lucide-react'
+import { MapPin, Eye, Phone, GripVertical, XCircle, ChevronDown, Timer, CheckCircle2, Info } from 'lucide-react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { VisitaRuta, EstadoVisita } from '@/lib/types/cobranza'
@@ -189,6 +189,7 @@ function VisitaCardContent({
     ? (cuotaBase > 0 ? cuotaBase : recHoy)
     : Math.min(cuotaPendiente, saldo > 0 ? saldo : cuotaPendiente)
   const saldado = estadoLower === 'pagado' && cuotaUI === 0 && saldo === 0
+  const notaAusencia = String((visita as any)?.notasVisita || '').trim()
 
   const nivelRiesgoUI = resolveNivelRiesgoForVisita(visita)
   return (
@@ -293,6 +294,12 @@ function VisitaCardContent({
         </div>
       </div>
 
+      {visita.estadoVisita === 'ausente' && notaAusencia && (
+        <div title={notaAusencia} className="mt-1 flex items-start gap-1.5 px-2 py-1 rounded-lg border border-amber-200 bg-amber-50 text-amber-800 text-[9px] font-bold leading-snug">
+          <Info className="w-3 h-3 shrink-0 mt-0.5" />
+          <span className="break-words">Ausencia: {notaAusencia}</span>
+        </div>
+      )}
       {/* Fila 2b: Banner "Pendiente de aprobación" */}
       {visita.pendienteAprobacion && (
         <div className="mt-1 flex items-center gap-1.5 px-2 py-1 rounded-lg border border-amber-200 bg-amber-50 text-amber-700 text-[9px] font-black uppercase tracking-wide">

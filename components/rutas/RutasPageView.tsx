@@ -960,7 +960,7 @@ export const RutasPageView = ({
                             )}
                           </div>
                           <span className="text-sm font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
-                            {getAvanceOperativoRuta(ruta).toFixed(0)}%
+                            {getAvanceOperativoRuta(ruta).toFixed(1)}%
                           </span>
                         </div>
                         <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden border border-slate-200">
@@ -1143,7 +1143,7 @@ export const RutasPageView = ({
                           {ruta.estado === 'ACTIVA' ? (
                             <div className="w-32 space-y-1">
                               <div className="flex justify-between text-xs">
-                                <span className="font-bold text-primary">{getAvanceOperativoRuta(ruta).toFixed(0)}%</span>
+                                <span className="font-bold text-primary">{getAvanceOperativoRuta(ruta).toFixed(1)}%</span>
                                 <span className="text-slate-500 font-medium">{formatCurrency(getRecaudoOperativoRuta(ruta))}</span>
                               </div>
                               {Number(ruta.recaudoRegularizadoHoy || 0) > 0 && (
@@ -1292,7 +1292,7 @@ export const RutasPageView = ({
                       <div className="space-y-2">
                         <div className="flex justify-between items-center">
                           <span className="text-sm font-bold text-slate-900">{formatCurrency(getRecaudoOperativoRuta(ruta))}</span>
-                          <span className="text-sm font-bold text-primary">{getAvanceOperativoRuta(ruta).toFixed(0)}%</span>
+                          <span className="text-sm font-bold text-primary">{getAvanceOperativoRuta(ruta).toFixed(1)}%</span>
                         </div>
                         {Number(ruta.recaudoRegularizadoHoy || 0) > 0 && (
                           <div className="text-[10px] font-bold text-amber-600">

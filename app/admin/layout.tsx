@@ -18,7 +18,7 @@ import { logger } from '@/lib/logger'
  * en localStorage. Si no existe, redirige al Login.
  */
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import Image from 'next/image'
@@ -115,6 +115,10 @@ export default function AdminLayout({
   const router = useRouter()
 
   const notificationRef = useRef<HTMLDivElement>(null)
+  const seenModulesStorageKey = useMemo(() => {
+    const userKey = user?.id || user?.correo || user?.rol
+    return userKey ? 'credisur:seen-new-modules:' + userKey : ''
+  }, [user?.id, user?.correo, user?.rol])
 
   // Abre o cierra los submenús del sidebar
   const toggleMenu = (id: string) => {
@@ -129,12 +133,42 @@ export default function AdminLayout({
     if (moduleId && isNew && !seenModules.includes(moduleId)) {
       const newSeen = [...seenModules, moduleId]
       setSeenModules(newSeen)
-      localStorage.setItem('seenModules', JSON.stringify(newSeen))
+      localStorage.setItem(seenModulesStorageKey || 'seenModules', JSON.stringify(newSeen))
     }
     // En móvil cerramos el menú al navegar
     setIsMenuOpen(false)
   }
 
+  useEffect(() => {
+    if (!seenModulesStorageKey) return
+    try {
+      const stored = localStorage.getItem(seenModulesStorageKey) || localStorage.getItem('seenModules')
+      setSeenModules(stored ? JSON.parse(stored) : [])
+    } catch {
+      setSeenModules([])
+    }
+  }, [seenModulesStorageKey])
+  useEffect(() => {
+    if (!seenModulesStorageKey || navigation.length === 0) return
+
+    const collectNewModuleIds = (items: NavigationItem[]): string[] =>
+      items.flatMap((item) => [
+        ...(item.isNew && item.id ? [item.id] : []),
+        ...(item.submodulos ? collectNewModuleIds(item.submodulos) : []),
+      ])
+
+    const ids = collectNewModuleIds(navigation)
+    if (ids.length === 0) return
+
+    try {
+      const stored = localStorage.getItem(seenModulesStorageKey) || localStorage.getItem('seenModules')
+      const current = stored ? JSON.parse(stored) : []
+      const next = Array.from(new Set([...(Array.isArray(current) ? current : []), ...ids]))
+      localStorage.setItem(seenModulesStorageKey, JSON.stringify(next))
+    } catch {
+      // Si localStorage falla, no bloqueamos la navegación.
+    }
+  }, [navigation, seenModulesStorageKey])
   // Cierra los menús flotantes si haces clic fuera de ellos
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -207,17 +241,6 @@ export default function AdminLayout({
       try {
         const token = localStorage.getItem('token')
         const userData = localStorage.getItem('user')
-        const seenModulesStored = localStorage.getItem('seenModules')
-        
-        // Recuperamos qué novedades ya vio el usuario
-        if (seenModulesStored) {
-          try {
-            setSeenModules(JSON.parse(seenModulesStored))
-          } catch {
-            setSeenModules([])
-          }
-        }
-
         // Validación de sesión: verificar si hay usuario Y si el token no expiró
         if (!userData) {
           setUser(null)

@@ -39,6 +39,7 @@ export type VisitaRutaLite = {
   saldoTotal: number
   estado: EstadoVisita
   estadoVisita?: string       // estado de visita del día (ej: 'ausente')
+  notasVisita?: string | null // nota/justificación de ausencia del día
   proximaVisita: any
   targetVencimiento?: any
   ordenVisita: number
@@ -232,6 +233,7 @@ export const mapAsignacionesToVisitasLite = (params: {
         saldoTotal: saldoTotalToken,
         estado,
         estadoVisita: estadoVisitaRaw || undefined,
+        notasVisita: asig?.notasVisita || undefined,
         proximaVisita: fechaEfectiva || (proxima as any)?.fechaVencimiento || hoyKey,
         targetVencimiento: (proxima as any)?.fechaVencimiento,
         ordenVisita: asig.ordenVisita || index + 1,
