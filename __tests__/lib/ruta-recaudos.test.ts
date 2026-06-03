@@ -110,9 +110,11 @@ describe('ruta-recaudos', () => {
     const stats = computeRutaHoyUiStatsFromVisitas(operativas, 0)
 
     expect(merged[0].recaudadoDelDia).toBe(425335)
+    expect(merged[0].estado).toBe('pagado')
     expect(shouldExcludeVisitaFromOperationalMeta(merged[0])).toBe(false)
     expect(stats.recaudo).toBe(425335)
     expect(stats.pendiente).toBe(564998)
     expect(stats.meta).toBe(990333)
   })
 })
+

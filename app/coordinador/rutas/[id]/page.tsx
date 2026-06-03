@@ -56,7 +56,7 @@ import Link from 'next/link'
 
 import { useParams } from 'next/navigation'
 
-import { useCallback, useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 
 import { Cliente, clientesService } from '@/services/clientes-service'
 
@@ -96,8 +96,8 @@ import { prestamosService } from '@/services/prestamos-service'
 
 import { pagosService } from '@/services/pagos-service'
 
-import { computeRutaHoyUiStatsFromVisitas, getBogotaDateKey, isVisitaExigibleHoy, normalizeDateKey, toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
-import { sumMontoTotalPagosByBogotaDateKey } from '@/lib/ruta-recaudos'
+import { computeRutaHoyUiStatsFromVisitas, getBogotaDateKey, isVisitaExigibleHoy, normalizeDateKey, shouldExcludeVisitaFromOperationalMeta, toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
+import { mergeVisitasPreservingLocalRecaudo, sumMontoTotalPagosByBogotaDateKey } from '@/lib/ruta-recaudos'
 
 import { exportService } from '@/services/export-service'
 
@@ -211,6 +211,12 @@ const LegacyDetalleRutaPage = () => {
 
 
   const [visitasCobrador, setVisitasCobrador] = useState<VisitaRuta[]>([])
+
+  const visitasCobradorRef = useRef<VisitaRuta[]>([])
+
+  useEffect(() => {
+    visitasCobradorRef.current = visitasCobrador
+  }, [visitasCobrador])
 
   const totalRecaudadoHoy = visitasCobrador.reduce((acc, current) => acc + (current.recaudadoDelDia || 0), 0)
 
@@ -788,13 +794,16 @@ const LegacyDetalleRutaPage = () => {
 
 
 
-            const finales = withRecaudo.map(v => ({ ...v, estado: ajustarEstadoConPago(v) }));
+            const finalesBackend = withRecaudo.map(v => ({ ...v, estado: ajustarEstadoConPago(v) }));
+            const finales = mergeVisitasPreservingLocalRecaudo(visitasCobradorRef.current as any, finalesBackend as any) as any[];
 
 
 
             const cobranzaDia = finales.reduce((acc: number, curr: any) => acc + (curr.recaudadoDelDia || 0), 0)
             const hoyBogota = getBogotaDateKey(new Date());
-            const finalesKpiHoy = finales.filter(v => isVisitaExigibleHoy(v, hoyBogota));
+            const finalesKpiHoy = finales
+              .filter(v => isVisitaExigibleHoy(v, hoyBogota))
+              .filter(v => !shouldExcludeVisitaFromOperationalMeta(v));
             const statsHoy = computeRutaHoyUiStatsFromVisitas(finalesKpiHoy as any[], 0);
             const metaDia = statsHoy.meta;
             const progresoAvance = metaDia > 0 ? (statsHoy.recaudo / metaDia) * 100 : 0
@@ -3070,3 +3079,4 @@ function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose:
   )
 
 }
+

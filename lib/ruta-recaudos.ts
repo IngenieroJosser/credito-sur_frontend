@@ -214,10 +214,20 @@ export const mergeVisitasPreservingLocalRecaudo = <T extends Record<string, any>
       (estadoLocal === 'pagado' && !esNuevaCuota && saldoBackend > 0) ||
       (estadoLocal === 'ausente' && !localTienePagoHoy)
 
+    const estadoFusionado = estadoProtegidoLocalmente ? estadoLocal : (estadoBackend || v?.estado)
+    const estado = shouldMarkVisitaAsPagado({
+      saldoTotal: v?.saldoTotal,
+      recaudadoHoy: recaudadoDelDia,
+      montoCuotaExigible: v?.montoCuotaPendiente ?? v?.montoCuota,
+      estadoActual: estadoFusionado,
+    })
+      ? 'pagado'
+      : estadoFusionado
+
     const merged: any = {
       ...v,
       recaudadoDelDia,
-      estado: estadoProtegidoLocalmente ? estadoLocal : (estadoBackend || v?.estado),
+      estado,
       estadoVisita: estadoLocal === 'ausente' && !localTienePagoHoy
         ? 'ausente'
         : v?.estadoVisita,
@@ -230,3 +240,4 @@ export const mergeVisitasPreservingLocalRecaudo = <T extends Record<string, any>
     return merged as T
   })
 }
+
