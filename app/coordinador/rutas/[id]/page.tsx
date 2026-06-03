@@ -806,12 +806,20 @@ const LegacyDetalleRutaPage = () => {
               .filter(v => shouldIncludeVisitaInRutaHoyKpis(v, hoyBogota))
               .filter(v => !shouldExcludeVisitaFromOperationalMeta(v));
             const statsHoy = computeRutaHoyUiStatsFromVisitas(finalesKpiHoy as any[], 0);
-            const metaDia = statsHoy.meta;
-            const progresoAvance = metaDia > 0 ? (statsHoy.recaudo / metaDia) * 100 : 0
-
-
-
             const rExtra = ruta as any;
+            const recaudoBackendHoy = Math.max(
+              Number(rExtra?.cobranzaDelDia || 0),
+              Number(rExtra?.estadisticas?.cobranzaDelDia || 0),
+            )
+            const metaBackendHoy = Math.max(
+              Number(rExtra?.metaDelDia || 0),
+              Number(rExtra?.estadisticas?.metaDelDia || 0),
+            )
+            const recaudoDia = Math.max(statsHoy.recaudo, cobranzaDia, recaudoBackendHoy)
+            const metaDia = Math.max(statsHoy.meta, metaBackendHoy);
+            const progresoAvance = metaDia > 0 ? (recaudoDia / metaDia) * 100 : 0
+
+
 
             setRutaActual({
 
@@ -832,7 +840,7 @@ const LegacyDetalleRutaPage = () => {
               estadisticas: {
                 ...(rExtra.estadisticas || {}),
 
-                cobranzaDelDia: statsHoy.recaudo,
+                cobranzaDelDia: recaudoDia,
 
                 metaDelDia: metaDia,
 

@@ -928,12 +928,23 @@ const RutaClientLoaded = ({
         const hasMetaBackend = metaBackendRaw !== null && metaBackendRaw !== undefined
         const metaBackend = hasMetaBackend ? Number(metaBackendRaw) : null
 
+        const metaBackendHoy = Math.max(
+          Number(metaBackend ?? 0),
+          Number((initialRuta as any)?.metaDelDia || 0),
+          Number((initialRuta as any)?.estadisticas?.metaDelDia || 0),
+        )
+        const recaudoBackendHoy = Math.max(
+          Number(recaudo || 0),
+          Number((initialRuta as any)?.cobranzaDelDia || 0),
+          Number((initialRuta as any)?.estadisticas?.cobranzaDelDia || 0),
+        )
+
         const meta = periodoCards === 'HOY'
-          ? Number(statsHoy.meta || 0)
+          ? Math.max(Number(statsHoy.meta || 0), metaBackendHoy)
           : Number(metaBackend ?? 0)
 
         const recaudoFinal = periodoCards === 'HOY'
-          ? Number(statsHoy.recaudo ?? 0)
+          ? Math.max(Number(statsHoy.recaudo ?? 0), recaudoBackendHoy)
           : Number(recaudo ?? 0)
 
         const pendienteHoy = periodoCards === 'HOY'
@@ -969,12 +980,23 @@ const RutaClientLoaded = ({
         const hasMetaBackend = metaBackendRaw !== null && metaBackendRaw !== undefined
         const metaBackend = hasMetaBackend ? Number(metaBackendRaw) : null
 
+        const metaBackendHoy = Math.max(
+          Number(metaBackend ?? 0),
+          Number((initialRuta as any)?.metaDelDia || 0),
+          Number((initialRuta as any)?.estadisticas?.metaDelDia || 0),
+        )
+        const recaudoBackendHoy = Math.max(
+          Number(recaudo || 0),
+          Number((initialRuta as any)?.cobranzaDelDia || 0),
+          Number((initialRuta as any)?.estadisticas?.cobranzaDelDia || 0),
+        )
+
         const meta = periodoCards === 'HOY'
-          ? Number(statsHoy.meta || 0)
+          ? Math.max(Number(statsHoy.meta || 0), metaBackendHoy)
           : Number(metaBackend ?? 0)
 
         const recaudoFinal = periodoCards === 'HOY'
-          ? Number(statsHoy.recaudo ?? 0)
+          ? Math.max(Number(statsHoy.recaudo ?? 0), recaudoBackendHoy)
           : Number(recaudo ?? 0)
 
         const pendienteHoy = periodoCards === 'HOY'
