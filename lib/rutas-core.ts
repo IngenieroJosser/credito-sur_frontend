@@ -244,11 +244,12 @@ export const buildBogotaOffsetIsoFromKey = (
 };
 
 export const getBogotaRangeForFinancialPeriod = (
-  period: 'DIARIO' | 'MENSUAL' | 'TRIMESTRAL' | 'ANUAL',
+  period: 'DIARIO' | 'SEMANAL' | 'MENSUAL' | 'TRIMESTRAL' | 'ANUAL',
   now: Date = new Date(),
 ): { inicio: string; fin: string } => {
   // Rango de fechas para reportes/contabilidad.
   // - DIARIO: desde 00:00 Bogotá hasta "now".
+  // - SEMANAL: últimos 7 días incluyendo hoy hasta "now".
   // - MENSUAL: desde el día 1 del mes hasta "now".
   // - TRIMESTRAL: desde 3 meses atrás (día 1) hasta "now".
   // - ANUAL: desde 01-01 hasta "now".
@@ -263,6 +264,15 @@ export const getBogotaRangeForFinancialPeriod = (
   if (period === 'DIARIO') {
     return {
       inicio: buildBogotaOffsetIsoFromKey(nowKey, { hh: 0, mm: 0, ss: 0, ms: 0 }),
+      fin: toBogotaDateTimeOffsetIso(now),
+    };
+  }
+
+  if (period === 'SEMANAL') {
+    const start = new Date(y, m, d - 6, 12, 0, 0, 0);
+    const startKey = getBogotaDateKey(start);
+    return {
+      inicio: buildBogotaOffsetIsoFromKey(startKey, { hh: 0, mm: 0, ss: 0, ms: 0 }),
       fin: toBogotaDateTimeOffsetIso(now),
     };
   }

@@ -54,6 +54,15 @@ interface MonthlyEvolution {
   yearMonth?: string;
 }
 
+type FinancialPeriod = 'DIARIO' | 'SEMANAL' | 'MENSUAL' | 'ANUAL'
+
+const FINANCIAL_PERIOD_OPTIONS: Array<{ value: FinancialPeriod; label: string }> = [
+  { value: 'DIARIO', label: 'Hoy' },
+  { value: 'SEMANAL', label: 'Sem' },
+  { value: 'MENSUAL', label: 'Mes' },
+  { value: 'ANUAL', label: 'Año' },
+]
+
 const getIngresoOperativoMovimiento = (movimiento: { lineas?: Array<{ accountCode?: string; creditAmount?: number; debitAmount?: number }> }) => {
   return (movimiento.lineas || [])
     .filter((linea) => {
@@ -78,7 +87,7 @@ const getCobroMovimiento = (movimiento: { impactoCaja?: number; totalDebito?: nu
 const ReportesFinancierosPage = () => {
   const router = useRouter()
   const pathname = usePathname()
-  const [periodo, setPeriodo] = useState('ANUAL')
+  const [periodo, setPeriodo] = useState<FinancialPeriod>('DIARIO')
   const [loading, setLoading] = useState(true)
   const [mounted, setMounted] = useState(false)
   
@@ -201,9 +210,9 @@ const ReportesFinancierosPage = () => {
           }
         }
 
-        if (periodo === 'TRIMESTRAL') {
-          const prevStartNoon = new Date(y, m - 6, 1, 12, 0, 0, 0)
-          const prevEndNoon = new Date(y, m - 3, 0, 12, 0, 0, 0)
+        if (periodo === 'SEMANAL') {
+          const prevStartNoon = new Date(y, m, d - 13, 12, 0, 0, 0)
+          const prevEndNoon = new Date(y, m, d - 7, 12, 0, 0, 0)
           const sKey = getBogotaDateKey(prevStartNoon)
           const eKey = getBogotaDateKey(prevEndNoon)
           return {
@@ -246,7 +255,7 @@ const ReportesFinancierosPage = () => {
         setTrendEgresos(null)
       }
 
-      if (periodo === 'DIARIO') {
+      if (periodo === 'DIARIO' || periodo === 'SEMANAL') {
         const desde7Noon = new Date(y, m, d - 6, 12, 0, 0, 0)
         const desde7Key = getBogotaDateKey(desde7Noon)
         const fechaInicio = buildBogotaOffsetIsoFromKey(desde7Key, { hh: 0, mm: 0, ss: 0, ms: 0 })
@@ -308,67 +317,69 @@ const ReportesFinancierosPage = () => {
         const totalCobros7 = Object.values(dias).reduce((acc, v) => acc + v.cobros, 0)
         const totalEgresos7 = Object.values(dias).reduce((acc, v) => acc + v.egresos, 0)
 
-        const nowKey7 = getBogotaDateKey(ahora)
-        const resumen7 = await getResumenFinanciero(desde7Key, nowKey7)
-        const ingresosDevengados7 = Number((resumen7 as any)?.ingresosDevengadosHoy ?? totalIngresos7)
-        const entradasCaja7 = (Array.isArray(movimientos7Res?.data) ? movimientos7Res.data : [])
-          .reduce((acc, movimiento: any) => acc + Number(movimiento?.impactoCaja || 0), 0)
-        const utilidad7 = Number((resumen7 as any)?.utilidadReal ?? (resumen7 as any)?.gananciaNeta ?? (totalIngresos7 - totalEgresos7))
-        const margen7 = ingresosDevengados7 > 0 ? (utilidad7 / ingresosDevengados7) * 100 : 0
-        setSummary({
-          entradasCaja: entradasCaja7,
-          ingresos: totalIngresos7,
-          ingresosDevengados: ingresosDevengados7,
-          cobros: totalCobros7,
-          egresos: totalEgresos7,
-          utilidad: utilidad7,
-          margen: Number(margen7.toFixed(1)),
-          interes: Number((resumen7 as any)?.interesHoy || 0),
-          mora: Number((resumen7 as any)?.moraHoy || 0),
-          margenArticulos: Number((resumen7 as any)?.margenArticulosHoy || 0),
-          otrosIngresos: Number((resumen7 as any)?.otrosIngresosHoy || 0),
-          gastosOperativos: totalEgresos7,
-        })
+        if (periodo === 'SEMANAL') {
+          const nowKey7 = getBogotaDateKey(ahora)
+          const resumen7 = await getResumenFinanciero(desde7Key, nowKey7)
+          const ingresosDevengados7 = Number((resumen7 as any)?.ingresosDevengadosHoy ?? totalIngresos7)
+          const entradasCaja7 = (Array.isArray(movimientos7Res?.data) ? movimientos7Res.data : [])
+            .reduce((acc, movimiento: any) => acc + Number(movimiento?.impactoCaja || 0), 0)
+          const utilidad7 = Number((resumen7 as any)?.utilidadReal ?? (resumen7 as any)?.gananciaNeta ?? (totalIngresos7 - totalEgresos7))
+          const margen7 = ingresosDevengados7 > 0 ? (utilidad7 / ingresosDevengados7) * 100 : 0
+          setSummary({
+            entradasCaja: entradasCaja7,
+            ingresos: totalIngresos7,
+            ingresosDevengados: ingresosDevengados7,
+            cobros: totalCobros7,
+            egresos: totalEgresos7,
+            utilidad: utilidad7,
+            margen: Number(margen7.toFixed(1)),
+            interes: Number((resumen7 as any)?.interesHoy || 0),
+            mora: Number((resumen7 as any)?.moraHoy || 0),
+            margenArticulos: Number((resumen7 as any)?.margenArticulosHoy || 0),
+            otrosIngresos: Number((resumen7 as any)?.otrosIngresosHoy || 0),
+            gastosOperativos: totalEgresos7,
+          })
 
-        const prevDesde7Noon = new Date(y, m, d - 13, 12, 0, 0, 0)
-        const prevFin7Noon = new Date(y, m, d - 7, 12, 0, 0, 0)
-        const prevDesde7Key = getBogotaDateKey(prevDesde7Noon)
-        const prevFin7Key = getBogotaDateKey(prevFin7Noon)
-        try {
-          const [prevIng7Res, prevCobro7Res, prevEgre7Res] = await Promise.all([
-            getMovimientosLedger({
-              accountPrefix: '3.',
-              fechaInicio: buildBogotaOffsetIsoFromKey(prevDesde7Key, { hh: 0, mm: 0, ss: 0, ms: 0 }),
-              fechaFin: buildBogotaOffsetIsoFromKey(prevFin7Key, { hh: 23, mm: 59, ss: 59, ms: 999 }),
-              limit: 1000,
-            }),
-            getMovimientosLedger({
-              tipo: 'PAGO',
-              accountPrefix: '1.',
-              fechaInicio: buildBogotaOffsetIsoFromKey(prevDesde7Key, { hh: 0, mm: 0, ss: 0, ms: 0 }),
-              fechaFin: buildBogotaOffsetIsoFromKey(prevFin7Key, { hh: 23, mm: 59, ss: 59, ms: 999 }),
-              limit: 1000,
-            }),
-            getMovimientosLedger({
-              accountPrefix: '4.',
-              fechaInicio: buildBogotaOffsetIsoFromKey(prevDesde7Key, { hh: 0, mm: 0, ss: 0, ms: 0 }),
-              fechaFin: buildBogotaOffsetIsoFromKey(prevFin7Key, { hh: 23, mm: 59, ss: 59, ms: 999 }),
-              limit: 1000,
-            }),
-          ])
-          const prevIng7 = prevIng7Res.data.filter(isIngresoOperativoMovimiento).reduce((acc, t) => acc + getIngresoOperativoMovimiento(t), 0)
-          const prevCobro7 = prevCobro7Res.data.reduce((acc, t) => acc + getCobroMovimiento(t), 0)
-          const prevEgr7 = prevEgre7Res.data.reduce((acc, t) => acc + Number(t.totalDebito || 0), 0)
-          const ingresosPerc7 = prevIng7 > 0 ? ((totalIngresos7 - prevIng7) / prevIng7) * 100 : (totalIngresos7 > 0 ? 100 : 0)
-          const cobrosPerc7 = prevCobro7 > 0 ? ((totalCobros7 - prevCobro7) / prevCobro7) * 100 : (totalCobros7 > 0 ? 100 : 0)
-          const egresosPerc7 = prevEgr7 > 0 ? ((totalEgresos7 - prevEgr7) / prevEgr7) * 100 : (totalEgresos7 > 0 ? 100 : 0)
-          setTrendIngresos(Number(ingresosPerc7.toFixed(1)))
-          setTrendCobros(Number(cobrosPerc7.toFixed(1)))
-          setTrendEgresos(Number(egresosPerc7.toFixed(1)))
-        } catch {
-          setTrendIngresos(null)
-          setTrendCobros(null)
-          setTrendEgresos(null)
+          const prevDesde7Noon = new Date(y, m, d - 13, 12, 0, 0, 0)
+          const prevFin7Noon = new Date(y, m, d - 7, 12, 0, 0, 0)
+          const prevDesde7Key = getBogotaDateKey(prevDesde7Noon)
+          const prevFin7Key = getBogotaDateKey(prevFin7Noon)
+          try {
+            const [prevIng7Res, prevCobro7Res, prevEgre7Res] = await Promise.all([
+              getMovimientosLedger({
+                accountPrefix: '3.',
+                fechaInicio: buildBogotaOffsetIsoFromKey(prevDesde7Key, { hh: 0, mm: 0, ss: 0, ms: 0 }),
+                fechaFin: buildBogotaOffsetIsoFromKey(prevFin7Key, { hh: 23, mm: 59, ss: 59, ms: 999 }),
+                limit: 1000,
+              }),
+              getMovimientosLedger({
+                tipo: 'PAGO',
+                accountPrefix: '1.',
+                fechaInicio: buildBogotaOffsetIsoFromKey(prevDesde7Key, { hh: 0, mm: 0, ss: 0, ms: 0 }),
+                fechaFin: buildBogotaOffsetIsoFromKey(prevFin7Key, { hh: 23, mm: 59, ss: 59, ms: 999 }),
+                limit: 1000,
+              }),
+              getMovimientosLedger({
+                accountPrefix: '4.',
+                fechaInicio: buildBogotaOffsetIsoFromKey(prevDesde7Key, { hh: 0, mm: 0, ss: 0, ms: 0 }),
+                fechaFin: buildBogotaOffsetIsoFromKey(prevFin7Key, { hh: 23, mm: 59, ss: 59, ms: 999 }),
+                limit: 1000,
+              }),
+            ])
+            const prevIng7 = prevIng7Res.data.filter(isIngresoOperativoMovimiento).reduce((acc, t) => acc + getIngresoOperativoMovimiento(t), 0)
+            const prevCobro7 = prevCobro7Res.data.reduce((acc, t) => acc + getCobroMovimiento(t), 0)
+            const prevEgr7 = prevEgre7Res.data.reduce((acc, t) => acc + Number(t.totalDebito || 0), 0)
+            const ingresosPerc7 = prevIng7 > 0 ? ((totalIngresos7 - prevIng7) / prevIng7) * 100 : (totalIngresos7 > 0 ? 100 : 0)
+            const cobrosPerc7 = prevCobro7 > 0 ? ((totalCobros7 - prevCobro7) / prevCobro7) * 100 : (totalCobros7 > 0 ? 100 : 0)
+            const egresosPerc7 = prevEgr7 > 0 ? ((totalEgresos7 - prevEgr7) / prevEgr7) * 100 : (totalEgresos7 > 0 ? 100 : 0)
+            setTrendIngresos(Number(ingresosPerc7.toFixed(1)))
+            setTrendCobros(Number(cobrosPerc7.toFixed(1)))
+            setTrendEgresos(Number(egresosPerc7.toFixed(1)))
+          } catch {
+            setTrendIngresos(null)
+            setTrendCobros(null)
+            setTrendEgresos(null)
+          }
         }
       } else {
         const ingResAll = await getMovimientosLedger({ accountPrefix: '3.', fechaInicio: startDate, fechaFin: endDate, limit: 10000 })
@@ -509,17 +520,17 @@ const ReportesFinancierosPage = () => {
           </div>
           <div className="flex flex-wrap gap-2">
             <div className="flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
-              {['DIARIO','MENSUAL', 'TRIMESTRAL', 'ANUAL'].map((p) => (
+              {FINANCIAL_PERIOD_OPTIONS.map((p) => (
                 <button
-                  key={p}
-                  onClick={() => setPeriodo(p)}
+                  key={p.value}
+                  onClick={() => setPeriodo(p.value)}
                   className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
-                    periodo === p 
+                    periodo === p.value
                       ? 'bg-blue-600 text-white shadow-md' 
                       : 'text-slate-600 hover:text-blue-600 hover:bg-blue-50'
                   }`}
                 >
-                  {p}
+                  {p.label}
                 </button>
               ))}
             </div>

@@ -63,6 +63,11 @@ const HistorialPagosPage = () => {
     return `${fecha} • ${hora}`
   }
 
+  const getCategoriaGasto = (gasto: Gasto | null | undefined) => {
+    const categoria = String(gasto?.categoria || '').trim()
+    return categoria || 'Sin categoría registrada'
+  }
+
   const handlePeriodChange = (newPeriod: TimeFilterPeriod) => {
     const params = new URLSearchParams(searchParams.toString())
     params.set('period', newPeriod)
@@ -250,7 +255,7 @@ const HistorialPagosPage = () => {
   }, [gastos])
 
   const gastosFiltrados = useMemo(() => gastos.filter((g) => {
-    if (busqueda && !`${g.cobrador} ${g.ruta} ${g.descripcion} ${g.tipo} ${g.categoria || ''}`
+    if (busqueda && !`${g.cobrador} ${g.ruta} ${g.descripcion} ${g.tipo} ${getCategoriaGasto(g)}`
       .toLowerCase().includes(busqueda.toLowerCase())) return false
     if (g.fecha) {
       const f = new Date(g.fecha)
@@ -691,7 +696,7 @@ const HistorialPagosPage = () => {
                               <span className="text-[10px] font-bold text-slate-600 truncate">{g.descripcion || g.tipo}</span>
                             </div>
                             <p className="text-[9px] text-slate-400 mt-0.5">
-                              {g.categoria && `${g.categoria} · `}{formatFechaPago(g.fecha)}
+                              {getCategoriaGasto(g)} · {formatFechaPago(g.fecha)}
                             </p>
                           </div>
                           <span className="text-xs font-black text-rose-600 shrink-0 ml-2">{formatCurrency(g.monto)}</span>
@@ -762,7 +767,7 @@ const HistorialPagosPage = () => {
                   </div>
                   <div className="p-3 bg-slate-50 rounded-xl">
                     <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mb-1">Categoría</p>
-                    <p className="text-xs font-bold text-slate-700">{gastoDetalle.categoria || 'Sin categoría'}</p>
+                    <p className="text-xs font-bold text-slate-700">{getCategoriaGasto(gastoDetalle)}</p>
                   </div>
                   <div className="p-3 bg-slate-50 rounded-xl">
                     <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mb-1">Fecha</p>

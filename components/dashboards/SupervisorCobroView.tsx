@@ -1562,30 +1562,8 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
 
 
-  const handleDragEnd = useCallback((event: DragEndEvent) => {
-
-    const { active, over } = event
-
-
-
-    if (over && active.id !== over.id) {
-
-      setVisitasOrden((items) => {
-
-        const oldIndex = items.indexOf(active.id as string)
-
-        const newIndex = items.indexOf(over.id as string)
-
-        return arrayMove(items, oldIndex, newIndex)
-
-      })
-
-    }
-
-
-
+  const handleDragEnd = useCallback(() => {
     setActiveId(null)
-
   }, [])
 
 
@@ -3533,7 +3511,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
                                 {visitas.map((visita) => (
 
-                                  <SortableVisita
+                                  <StaticVisitaItem
 
                                     key={visita.id}
 
@@ -3552,8 +3530,6 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                                     onVerCliente={handleAbrirClienteInfo}
 
                                     getEstadoClasses={getEstadoClasses}
-
-                                    disableSort={rutaCompletada || !isPersonal}
 
                                     isSelected={visita.id === visitaSeleccionada}
 
