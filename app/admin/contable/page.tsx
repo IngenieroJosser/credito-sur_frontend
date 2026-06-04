@@ -28,7 +28,7 @@ import { getBogotaDateKey, normalizeDateKey } from '@/lib/rutas-core'
 import {
   esCuotaInicialContable,
   esEgresoOperativoContable,
-  esIngresoOperativoContable,
+  esIngresoContableGeneral,
   getEtiquetaMovimientoContable,
 } from '@/lib/contabilidad-clasificacion'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
@@ -260,7 +260,7 @@ const mapMovimientoLedgerResultado = (m: ApiMovimientoLedger, tipoResultado: 'IN
   const montoResultado = (m.lineas || [])
     .filter((linea) => {
       const accountCode = String(linea.accountCode || '')
-      if (tipoResultado === 'INGRESO') return accountCode.startsWith('3.1') || accountCode.startsWith('3.2')
+      if (tipoResultado === 'INGRESO' && accountCode.startsWith('3.4')) return false
       return accountCode.startsWith(prefix)
     })
     .reduce((acc, linea) => {
@@ -373,8 +373,8 @@ const ModuloContableContent = () => {
     return numero.toUpperCase().startsWith('TRX-IN')
   }
 
-  const esIngresoOperativo = (m: any) => {
-    return esIngresoOperativoContable(m)
+  const esIngresoContable = (m: any) => {
+    return esIngresoContableGeneral(m)
   }
 
   const esEgresoOperativo = (m: any) => {
@@ -460,10 +460,7 @@ const ModuloContableContent = () => {
         if (!cajaSeleccionada && m.categoria === 'CONSOLIDACION') return false
 
         if (tipo === 'INGRESOS') {
-          if (m.tipo !== 'TRANSFERENCIA') return false
-          if (String(m.tipoReferencia || '').toUpperCase() !== 'RECOLECCION') return false
-          const desc = String((m as any).descripcion || m.concepto || '').toUpperCase()
-          return desc.includes('RECIBIDA')
+          return esIngresoContable(m)
         }
 
         return esEgresoOperativo(m)
@@ -2752,7 +2749,7 @@ const ModuloContableContent = () => {
                                             if (detalleTipo === 'CAJA_TODOS') {
                                               return true
                                             } else if (detalleTipo === 'INGRESOS') {
-                                              return esIngresoOperativo(m);
+                                              return esIngresoContable(m);
                                             } else if (detalleTipo === 'CUOTAS_INICIALES') {
                                               return esCuotaInicialContable(m)
                                             } else if (detalleTipo === 'UTILIDAD') {
@@ -3009,7 +3006,7 @@ const ModuloContableContent = () => {
                                           return true
                                         }
                                         if (detalleTipo === 'INGRESOS') {
-                                          return esIngresoOperativo(m);
+                                          return esIngresoContable(m);
                                         } else if (detalleTipo === 'CUOTAS_INICIALES') {
                                           return esCuotaInicialContable(m)
                                         } else if (detalleTipo === 'UTILIDAD') {
@@ -3186,7 +3183,7 @@ const ModuloContableContent = () => {
                                return true
                              }
                              if (detalleTipo === 'INGRESOS') {
-                                return esIngresoOperativo(m);
+                                return esIngresoContable(m);
                               } else if (detalleTipo === 'CUOTAS_INICIALES') {
                                 return esCuotaInicialContable(m)
                               } else if (detalleTipo === 'UTILIDAD') {
