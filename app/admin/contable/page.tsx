@@ -1652,36 +1652,12 @@ const ModuloContableContent = () => {
 
                             if (c.tipo === 'RUTA') {
                               try {
-                                const resp = await getTransacciones({ cajaId: c.id, limit: 50 })
-                                if (resp?.data?.length) {
-                                  const ingresos = resp.data
-                                    .filter((m: any) => m.tipo === 'INGRESO' || m.tipo === 'TRANSFERENCIA')
-                                    .filter((m: any) => {
-                                      if (m.tipo === 'TRANSFERENCIA') {
-                                        const concepto = String(m.descripcion || '').toUpperCase()
-                                        return !(concepto.includes('SALIDA') || concepto.includes('ENVIADA A') || concepto.includes('EGRESO'))
-                                      }
-                                      return true
-                                    })
-                                    .reduce((acc: number, m: any) => acc + Number(m.monto), 0)
-
-                                  const egresos = resp.data
-                                    .filter((m: any) => m.tipo === 'EGRESO' || m.tipo === 'TRANSFERENCIA')
-                                    .filter((m: any) => {
-                                      if (m.tipo === 'TRANSFERENCIA') {
-                                        const concepto = String(m.descripcion || '').toUpperCase()
-                                        return concepto.includes('SALIDA') || concepto.includes('ENVIADA A') || concepto.includes('EGRESO')
-                                      }
-                                      return true
-                                    })
-                                    .reduce((acc: number, m: any) => acc + Number(m.monto), 0)
-
-                                  setSaldoRutaSeleccionada({
-                                    recaudoDelDia: ingresos,
-                                    gastosDelDia: egresos,
-                                    desembolsos: 0,
-                                    saldoCaja: Number(c.saldo) || 0,
-                                  } as any)
+                                const hoy = getBogotaDateKey(new Date())
+                                const saldoRuta = c.rutaId
+                                  ? await obtenerSaldoDisponibleRuta(c.rutaId, hoy)
+                                  : null
+                                if (saldoRuta) {
+                                  setSaldoRutaSeleccionada(saldoRuta)
                                 } else {
                                   setSaldoRutaSeleccionada(null)
                                 }
@@ -2719,7 +2695,13 @@ const ModuloContableContent = () => {
                                        ? "text-amber-700"
                                        : "text-indigo-700"
                                )}>
-                                 Total Registrado
+                                 {detalleCajaFocus === 'RECAUDO'
+                                   ? 'Entradas del rango'
+                                   : detalleCajaFocus === 'GASTOS'
+                                     ? 'Salidas del rango'
+                                     : detalleTipo === 'CAJA_TODOS'
+                                       ? 'Neto del rango'
+                                       : 'Total registrado'}
                                </span>
                                <span className={cn(
                                  "text-3xl font-black tracking-tight",
@@ -2740,6 +2722,33 @@ const ModuloContableContent = () => {
                                             return true;
                                         })
                                         .filter(m => {
+                                            if (cajaSeleccionada && detalleCajaFocus) {
+                                              const conc = String((m as any).descripcion || m.concepto || '').toUpperCase()
+                                              const ref = String(m.tipoReferencia || '').toUpperCase()
+                                              const tipoMovimiento = String(m.tipo || '').toUpperCase()
+                                              const esTransferencia = tipoMovimiento === 'TRANSFERENCIA'
+                                              const esIngreso = tipoMovimiento === 'INGRESO'
+                                              const esEgreso = tipoMovimiento === 'EGRESO'
+
+                                              const esTransferenciaEntrada =
+                                                esTransferencia &&
+                                                ((ref === 'RECOLECCION' && conc.includes('RECIBIDA')) ||
+                                                  (ref === 'TRANSFERENCIA_INTERNA' && conc.includes('RECIBIDA')))
+
+                                              const esTransferenciaSalida =
+                                                esTransferencia &&
+                                                (conc.includes('SALIDA') || conc.includes('ENVIADA A') || conc.includes('EGRESO'))
+
+                                              if (detalleCajaFocus === 'RECAUDO') {
+                                                return esIngreso || esTransferenciaEntrada
+                                              }
+
+                                              if (detalleCajaFocus === 'GASTOS') {
+                                                if (ref === 'DEUDA_COBRADOR') return false
+                                                return esEgreso || esTransferenciaSalida
+                                              }
+                                            }
+
                                             if (detalleTipo === 'CAJA_TODOS') {
                                               return true
                                             } else if (detalleTipo === 'INGRESOS') {
@@ -2773,6 +2782,10 @@ const ModuloContableContent = () => {
                                       ) {
                                         if (detalleTipo === 'CUOTAS_INICIALES') return Number(resumenData.cuotaInicialHoy || 0)
                                         if (detalleTipo === 'UTILIDAD') return Number(resumenData.utilidadNeta || 0)
+                                      }
+
+                                      if (detalleCajaFocus === 'RECAUDO' || detalleCajaFocus === 'GASTOS') {
+                                        return filtered.reduce((acc, m) => acc + Number(m.monto || 0), 0)
                                       }
 
                                       if (detalleTipo === 'CAJA_TODOS') {

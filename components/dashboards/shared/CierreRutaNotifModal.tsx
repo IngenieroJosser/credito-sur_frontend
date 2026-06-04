@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import { Portal } from '@/components/dashboards/shared/CobradorElements'
 import { formatCurrency, cn } from '@/lib/utils'
+import { parseCierreRutaNotif } from '@/lib/notificaciones/cierre-ruta'
 
 export interface CierreRutaNotifModalProps {
   isOpen: boolean
@@ -37,25 +38,17 @@ export default function CierreRutaNotifModal({
 }: CierreRutaNotifModalProps) {
   if (!isOpen || !notificacion) return null
 
-  // Extraer datos del mensaje con regex como fallback
+  // Extraer datos estructurados; el parser mantiene regex solo como fallback para notificaciones antiguas.
   const mensaje: string = notificacion.mensaje || ''
-  const titulo: string = notificacion.titulo || 'Cierre de Ruta'
   const fecha: string = notificacion.creadoEn || notificacion.fecha || ''
 
-  // Parsear datos del mensaje: "Cobrador: X cerró la ruta Y. Recaudo Final: $Z (W% META). ..."
-  const cobradorMatch = mensaje.match(/Cobrador:\s*(.+?)\s+cerr[oó]/i)
-  const rutaMatch = mensaje.match(/cerr[oó]\s+la\s+ruta\s+(.+?)\.\s+Recaudo/i)
-  const recaudoMatch = mensaje.match(/Recaudo Final:\s*\$?([\d.,]+)/i)
-  const efectividadMatch = mensaje.match(/\((\d+)%\s*META\)/i)
-  const faltantesMatch = mensaje.match(/Faltaron\s+(\d+)\s+clientes?/i)
-  const todosVisitados = /Todos visitados/i.test(mensaje)
-
-  const cobrador = cobradorMatch?.[1]?.trim() || 'Cobrador'
-  const rutaNombre = rutaMatch?.[1]?.trim() || 'Ruta'
-  const recaudobruto = recaudoMatch?.[1]?.replace(/\./g, '').replace(',', '.') || '0'
-  const recaudo = Number(recaudobruto) || 0
-  const efectividad = Number(efectividadMatch?.[1] || 0)
-  const clientesFaltantes = Number(faltantesMatch?.[1] || 0)
+  const {
+    cobrador,
+    rutaNombre,
+    recaudo,
+    efectividad,
+    clientesFaltantes,
+  } = parseCierreRutaNotif(notificacion)
 
   const excelente = efectividad >= 100
   const bueno = efectividad >= 75 && efectividad < 100

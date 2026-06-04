@@ -122,6 +122,7 @@ export interface Gasto {
   cobrador: string;
   ruta: string;
   caja: string;
+  categoriaId?: string | null;
   categoria: string | null;
   estado: string;
 }
