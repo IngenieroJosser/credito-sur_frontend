@@ -3,7 +3,8 @@
 export enum EstadoUsuario {
   ACTIVO = 'ACTIVO',
   INACTIVO = 'INACTIVO',
-  SUSPENDIDO = 'SUSPENDIDO'
+  SUSPENDIDO = 'SUSPENDIDO',
+  ARCHIVADO = 'ARCHIVADO'
 }
 
 export enum RolUsuario {

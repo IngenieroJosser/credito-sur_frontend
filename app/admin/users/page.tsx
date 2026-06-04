@@ -32,6 +32,8 @@ import {
   LayoutGrid,
   List,
   Trash2,
+  Archive,
+  RotateCcw,
   Save,
   ChevronLeft,
   XCircle,
@@ -181,7 +183,7 @@ const UserManagementPage = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const data = await usuariosService.obtenerTodos();
+      const data = await usuariosService.obtenerTodos({ includeArchived: true });
       const mappedUsers: User[] = data.map((u) => ({
         id: u.id,
         nombres: u.nombres,
@@ -223,7 +225,7 @@ const UserManagementPage = () => {
   useRealtimeData(['usuarios_actualizados'], fetchUsers)
   const [searchTerm, setSearchTerm] = useState("");
   const [filterRole, setFilterRole] = useState("all");
-  const [filterStatus] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("operativos");
 
   // Alternar entre vista de tabla (list) o tarjetas (grid)
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
@@ -235,6 +237,7 @@ const UserManagementPage = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [userAction, setUserAction] = useState<"toggle" | "archive" | "restore" | "hide">("toggle");
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isSavingUser, setIsSavingUser] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -430,6 +433,14 @@ const UserManagementPage = () => {
     ...roles,
   ];
 
+  const statusFilters = [
+    { id: "operativos", label: "Operativos" },
+    { id: EstadoUsuario.ACTIVO, label: "Activos" },
+    { id: EstadoUsuario.INACTIVO, label: "Inactivos" },
+    { id: EstadoUsuario.SUSPENDIDO, label: "Suspendidos" },
+    { id: EstadoUsuario.ARCHIVADO, label: "Archivados" },
+  ];
+
   const filteredUsers = users.filter((user) => {
     const fullName = `${user.nombres} ${user.apellidos}`.toLowerCase();
     const matchesSearch =
@@ -437,17 +448,20 @@ const UserManagementPage = () => {
       user.correo.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = filterRole === "all" || user.rol === filterRole;
     const matchesStatus =
-      filterStatus === "all" || user.estado === filterStatus;
+      filterStatus === "operativos"
+        ? user.estado !== EstadoUsuario.ARCHIVADO
+        : user.estado === filterStatus;
 
     return matchesSearch && matchesRole && matchesStatus;
   });
 
   const stats = {
-    total: users.length,
+    total: users.filter((u) => u.estado !== EstadoUsuario.ARCHIVADO).length,
     active: users.filter((u) => u.estado === EstadoUsuario.ACTIVO).length,
     admins: users.filter((u) => u.rol === RolUsuario.SUPER_ADMINISTRADOR)
       .length,
-    inactive: users.filter((u) => u.estado !== EstadoUsuario.ACTIVO).length,
+    inactive: users.filter((u) => u.estado === EstadoUsuario.INACTIVO || u.estado === EstadoUsuario.SUSPENDIDO).length,
+    archived: users.filter((u) => u.estado === EstadoUsuario.ARCHIVADO).length,
   };
 
   // PAGINACIÓN
@@ -719,6 +733,33 @@ const UserManagementPage = () => {
     }
 
     setSelectedUser(user);
+    setUserAction("toggle");
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleOpenArchiveModal = (user: User) => {
+    if (user.rol === RolUsuario.SUPER_ADMINISTRADOR) {
+      return;
+    }
+
+    setSelectedUser(user);
+    setUserAction("archive");
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleOpenRestoreModal = (user: User) => {
+    setSelectedUser(user);
+    setUserAction("restore");
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleOpenHideModal = (user: User) => {
+    if (user.rol === RolUsuario.SUPER_ADMINISTRADOR) {
+      return;
+    }
+
+    setSelectedUser(user);
+    setUserAction("hide");
     setIsDeleteModalOpen(true);
   };
 
@@ -755,16 +796,40 @@ const UserManagementPage = () => {
     }
   };
 
-  const handleToggleUserStatus = async () => {
+  const handleConfirmUserAction = async () => {
     if (!selectedUser) return;
 
-    if (selectedUser.rol === RolUsuario.SUPER_ADMINISTRADOR) {
+    if (selectedUser.rol === RolUsuario.SUPER_ADMINISTRADOR && userAction !== "restore") {
       showNotification('error', 'No se puede cambiar el estado de un Superadministrador por seguridad', 'Acción Denegada');
       setIsDeleteModalOpen(false);
       return;
     }
 
     try {
+      if (userAction === "archive") {
+        await usuariosService.archivar(selectedUser.id);
+        showNotification("success", "El usuario fue archivado y ya no aparecerá en la operación normal", "Usuario Archivado");
+        setIsDeleteModalOpen(false);
+        fetchUsers();
+        return;
+      }
+
+      if (userAction === "restore") {
+        await usuariosService.restaurar(selectedUser.id);
+        showNotification("success", "El usuario fue restaurado como activo", "Usuario Restaurado");
+        setIsDeleteModalOpen(false);
+        fetchUsers();
+        return;
+      }
+
+      if (userAction === "hide") {
+        await usuariosService.eliminar(selectedUser.id);
+        showNotification("success", "El usuario archivado fue ocultado del panel", "Usuario Ocultado");
+        setIsDeleteModalOpen(false);
+        fetchUsers();
+        return;
+      }
+
       const nuevoEstado: EstadoUsuario =
         selectedUser.estado === EstadoUsuario.ACTIVO
           ? EstadoUsuario.INACTIVO
@@ -783,10 +848,10 @@ const UserManagementPage = () => {
       setIsDeleteModalOpen(false); // Modal se usa para confirmar toggle
       fetchUsers();
     } catch (error) {
-      console.error("Error toggling status:", error);
+      console.error("Error gestionando usuario:", error);
       showNotification(
         "error",
-        "No se pudo cambiar el estado del usuario",
+        "No se pudo completar la acción sobre el usuario",
         "Error",
       );
     }
@@ -963,6 +1028,8 @@ const UserManagementPage = () => {
         return "text-slate-600 bg-slate-100 border-slate-200";
       case EstadoUsuario.SUSPENDIDO:
         return "text-rose-700 bg-rose-50 border-rose-100";
+      case EstadoUsuario.ARCHIVADO:
+        return "text-amber-700 bg-amber-50 border-amber-100";
       default:
         return "text-slate-600 bg-slate-100 border-slate-200";
     }
@@ -976,9 +1043,60 @@ const UserManagementPage = () => {
         return "Inactivo";
       case EstadoUsuario.SUSPENDIDO:
         return "Suspendido";
+      case EstadoUsuario.ARCHIVADO:
+        return "Archivado";
       default:
         return "Desconocido";
     }
+  };
+
+  const getUserActionConfig = (user: User) => {
+    if (userAction === "archive") {
+      return {
+        title: "¿Archivar usuario?",
+        message: `${user.nombres} saldrá de la operación normal, no podrá iniciar sesión y solo aparecerá en el filtro de archivados.`,
+        confirm: "Archivar",
+        icon: <Archive className="h-6 w-6" />,
+        tone: "bg-amber-50 text-amber-600",
+        button: "bg-amber-600 hover:bg-amber-700 shadow-amber-600/20",
+      };
+    }
+
+    if (userAction === "restore") {
+      return {
+        title: "¿Restaurar usuario?",
+        message: `${user.nombres} volverá al listado operativo como usuario activo.`,
+        confirm: "Restaurar",
+        icon: <RotateCcw className="h-6 w-6" />,
+        tone: "bg-emerald-50 text-emerald-600",
+        button: "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20",
+      };
+    }
+
+    if (userAction === "hide") {
+      return {
+        title: "¿Ocultar usuario archivado?",
+        message: `${user.nombres} dejará de aparecer incluso en Archivados. Su historial financiero y operativo se conservará.`,
+        confirm: "Ocultar",
+        icon: <Trash2 className="h-6 w-6" />,
+        tone: "bg-rose-50 text-rose-600",
+        button: "bg-rose-600 hover:bg-rose-700 shadow-rose-600/20",
+      };
+    }
+
+    const isActive = user.estado === EstadoUsuario.ACTIVO;
+    return {
+      title: isActive ? "¿Desactivar usuario?" : "¿Activar usuario?",
+      message: isActive
+        ? `Se bloqueará temporalmente el acceso de ${user.nombres}. Podrás reactivarlo cuando lo necesites.`
+        : `Se restablecerá el acceso para ${user.nombres}.`,
+      confirm: isActive ? "Desactivar" : "Activar",
+      icon: isActive ? <EyeOff className="h-6 w-6" /> : <CheckCircle2 className="h-6 w-6" />,
+      tone: isActive ? "bg-slate-100 text-slate-700" : "bg-emerald-50 text-emerald-600",
+      button: isActive
+        ? "bg-slate-800 hover:bg-slate-900 shadow-slate-800/20"
+        : "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20",
+    };
   };
 
   if (!permitido) {
@@ -1052,7 +1170,7 @@ const UserManagementPage = () => {
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
             {[
               {
                 label: "Usuarios Totales",
@@ -1081,6 +1199,13 @@ const UserManagementPage = () => {
                 color: "text-slate-600",
                 bgColor: "bg-slate-100",
                 icon: <EyeOff className="h-5 w-5" />,
+              },
+              {
+                label: "Archivados",
+                value: stats.archived,
+                color: "text-amber-700",
+                bgColor: "bg-amber-50",
+                icon: <Archive className="h-5 w-5" />,
               },
             ].map((stat, index) => (
               <div
@@ -1171,6 +1296,26 @@ const UserManagementPage = () => {
                     )}
                   >
                     {role.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-1 bg-slate-50/50 p-1 rounded-2xl border border-slate-200">
+                {statusFilters.map((status) => (
+                  <button
+                    key={status.id}
+                    onClick={() => {
+                      setFilterStatus(status.id);
+                      setCurrentPage(1);
+                    }}
+                    className={cn(
+                      "px-3 py-1.5 text-xs font-bold rounded-lg transition-all whitespace-nowrap",
+                      filterStatus === status.id
+                        ? "bg-blue-600 text-white shadow-md"
+                        : "text-slate-500 hover:text-slate-900 hover:bg-slate-200/50",
+                    )}
+                  >
+                    {status.label}
                   </button>
                 ))}
               </div>
@@ -1342,27 +1487,59 @@ const UserManagementPage = () => {
                                 </button>
                               )}
                               {puedeEliminar && (
-                                <button
-                                  onClick={() => handleOpenDeleteModal(user)}
-                                  className={cn(
-                                    "p-2 rounded-lg transition-colors",
-                                    user.estado === "ACTIVO"
-                                      ? "text-slate-400 hover:text-rose-600 hover:bg-rose-50"
-                                      : "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50",
-                                  )}
-                                  title={
-                                    user.estado === "ACTIVO"
-                                      ? "Desactivar"
-                                      : "Activar"
-                                  }
-                                  disabled={user.rol === "SUPER_ADMINISTRADOR"}
-                                >
-                                  {user.estado === "ACTIVO" ? (
-                                    <Trash2 className="h-4 w-4" />
+                                <>
+                                  {user.estado === EstadoUsuario.ARCHIVADO ? (
+                                    <>
+                                      <button
+                                        onClick={() => handleOpenRestoreModal(user)}
+                                        className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                                        title="Restaurar"
+                                      >
+                                        <RotateCcw className="h-4 w-4" />
+                                      </button>
+                                      <button
+                                        onClick={() => handleOpenHideModal(user)}
+                                        className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                                        title="Ocultar definitivamente"
+                                        disabled={user.rol === "SUPER_ADMINISTRADOR"}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </button>
+                                    </>
                                   ) : (
-                                    <CheckCircle2 className="h-4 w-4" />
+                                    <>
+                                      <button
+                                        onClick={() => handleOpenDeleteModal(user)}
+                                        className={cn(
+                                          "p-2 rounded-lg transition-colors",
+                                          user.estado === EstadoUsuario.ACTIVO
+                                            ? "text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+                                            : "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50",
+                                        )}
+                                        title={
+                                          user.estado === EstadoUsuario.ACTIVO
+                                            ? "Desactivar"
+                                            : "Activar"
+                                        }
+                                        disabled={user.rol === "SUPER_ADMINISTRADOR"}
+                                      >
+                                        {user.estado === EstadoUsuario.ACTIVO ? (
+                                          <EyeOff className="h-4 w-4" />
+                                        ) : (
+                                          <CheckCircle2 className="h-4 w-4" />
+                                        )}
+                                      </button>
+                                      <button
+                                        onClick={() => handleOpenArchiveModal(user)}
+                                        className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                                        title="Archivar"
+                                        disabled={user.rol === "SUPER_ADMINISTRADOR"}
+                                      >
+                                        <Archive className="h-4 w-4" />
+                                      </button>
+                                    </>
                                   )}
-                                </button>
+                                </>
                               )}
                             </div>
                           </td>
@@ -1508,25 +1685,55 @@ const UserManagementPage = () => {
                       >
                         <Key className="h-4 w-4" />
                       </button>
-                      <button
-                        onClick={() => handleOpenDeleteModal(user)}
-                        className={cn(
-                          "p-2 rounded-lg transition-colors",
-                          user.estado === "ACTIVO"
-                            ? "text-slate-400 hover:text-rose-600 hover:bg-rose-50"
-                            : "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50",
-                        )}
-                        title={
-                          user.estado === "ACTIVO" ? "Desactivar" : "Activar"
-                        }
-                        disabled={user.rol === "SUPER_ADMINISTRADOR"}
-                      >
-                        {user.estado === "ACTIVO" ? (
-                          <Trash2 className="h-4 w-4" />
-                        ) : (
-                          <CheckCircle2 className="h-4 w-4" />
-                        )}
-                      </button>
+                      {user.estado === EstadoUsuario.ARCHIVADO ? (
+                        <>
+                          <button
+                            onClick={() => handleOpenRestoreModal(user)}
+                            className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                            title="Restaurar"
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleOpenHideModal(user)}
+                            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                            title="Ocultar definitivamente"
+                            disabled={user.rol === "SUPER_ADMINISTRADOR"}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => handleOpenDeleteModal(user)}
+                            className={cn(
+                              "p-2 rounded-lg transition-colors",
+                              user.estado === EstadoUsuario.ACTIVO
+                                ? "text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+                                : "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50",
+                            )}
+                            title={
+                              user.estado === EstadoUsuario.ACTIVO ? "Desactivar" : "Activar"
+                            }
+                            disabled={user.rol === "SUPER_ADMINISTRADOR"}
+                          >
+                            {user.estado === EstadoUsuario.ACTIVO ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <CheckCircle2 className="h-4 w-4" />
+                            )}
+                          </button>
+                          <button
+                            onClick={() => handleOpenArchiveModal(user)}
+                            className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                            title="Archivar"
+                            disabled={user.rol === "SUPER_ADMINISTRADOR"}
+                          >
+                            <Archive className="h-4 w-4" />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 );
@@ -2035,30 +2242,23 @@ const UserManagementPage = () => {
                   className="bg-white rounded-2xl w-full max-w-md border border-slate-200 shadow-2xl p-10 transform scale-100 animate-in zoom-in-95 duration-200"
                   onClick={(e) => e.stopPropagation()}
                 >
+                  {(() => {
+                    const config = getUserActionConfig(selectedUser);
+                    return (
                   <div className="flex flex-col items-center text-center">
                     <div
                       className={cn(
                         "w-12 h-12 rounded-full flex items-center justify-center mb-4",
-                        selectedUser.estado === "ACTIVO"
-                          ? "bg-rose-50 text-rose-600"
-                          : "bg-emerald-50 text-emerald-600",
+                        config.tone,
                       )}
                     >
-                      {selectedUser.estado === "ACTIVO" ? (
-                        <Trash2 className="h-6 w-6" />
-                      ) : (
-                        <CheckCircle2 className="h-6 w-6" />
-                      )}
+                      {config.icon}
                     </div>
                     <h3 className="text-lg font-bold text-slate-900 mb-2">
-                      {selectedUser.estado === "ACTIVO"
-                        ? "¿Desactivar usuario?"
-                        : "¿Activar usuario?"}
+                      {config.title}
                     </h3>
                     <p className="text-sm text-slate-500 mb-6 font-medium">
-                      {selectedUser.estado === "ACTIVO"
-                        ? `Estás a punto de desactivar el acceso de ${selectedUser.nombres}.`
-                        : `Se restablecerá el acceso para ${selectedUser.nombres}.`}
+                      {config.message}
                     </p>
                     <div className="flex gap-3 w-full">
                       <button
@@ -2068,18 +2268,18 @@ const UserManagementPage = () => {
                         Cancelar
                       </button>
                       <button
-                        onClick={handleToggleUserStatus}
+                        onClick={handleConfirmUserAction}
                         className={cn(
                           "flex-1 px-4 py-2.5 text-sm font-bold text-white rounded-2xl shadow-lg transition-all transform active:scale-95",
-                          selectedUser.estado === "ACTIVO"
-                            ? "bg-rose-600 hover:bg-rose-700 shadow-rose-600/20"
-                            : "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20",
+                          config.button,
                         )}
                       >
-                        Confirmar
+                        {config.confirm}
                       </button>
                     </div>
                   </div>
+                    )
+                  })()}
                 </div>
               </div>
             )}
