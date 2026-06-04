@@ -84,9 +84,10 @@ export const usuariosService = {
   /**
    * Obtener todos los usuarios
    */
-  async obtenerTodos(): Promise<Usuario[]> {
+  async obtenerTodos(options?: { includeArchived?: boolean }): Promise<Usuario[]> {
     try {
-      return await apiRequest<Usuario[]>('GET', '/usuarios');
+      const endpoint = options?.includeArchived ? '/usuarios?includeArchived=true' : '/usuarios';
+      return await apiRequest<Usuario[]>('GET', endpoint);
     } catch (error) {
        if (typeof navigator !== 'undefined' && !navigator.onLine) {
         logger.log('[Offline Mode] Cargando usuarios desde cache local...');
@@ -175,7 +176,59 @@ export const usuariosService = {
   },
 
   /**
-   * Eliminar un usuario (soft delete)
+   * Archivar un usuario para ocultarlo de la operación normal.
+   */
+  async archivar(id: string): Promise<Usuario> {
+    try {
+      return await apiRequest<Usuario>('PATCH', `/usuarios/${id}/archive`, {});
+    } catch (error: any) {
+      if (
+        (typeof navigator !== 'undefined' && !navigator.onLine) ||
+        error?.statusCode === 0 ||
+        error?.message?.includes('network') ||
+        error?.code === 'ERR_NETWORK'
+      ) {
+        logger.log('[Offline Mode] Guardando archivado de usuario en cola...');
+        return await syncService.enqueueOperation(
+          'usuario_archivar',
+          `/usuarios/${id}/archive`,
+          'PATCH',
+          {},
+          'Archivar usuario ID: ' + id
+        ) as unknown as Usuario;
+      }
+      throw error;
+    }
+  },
+
+  /**
+   * Restaurar un usuario archivado o eliminado lógicamente.
+   */
+  async restaurar(id: string): Promise<Usuario> {
+    try {
+      return await apiRequest<Usuario>('PATCH', `/usuarios/${id}/restore`, {});
+    } catch (error: any) {
+      if (
+        (typeof navigator !== 'undefined' && !navigator.onLine) ||
+        error?.statusCode === 0 ||
+        error?.message?.includes('network') ||
+        error?.code === 'ERR_NETWORK'
+      ) {
+        logger.log('[Offline Mode] Guardando restauracion de usuario en cola...');
+        return await syncService.enqueueOperation(
+          'usuario_restaurar',
+          `/usuarios/${id}/restore`,
+          'PATCH',
+          {},
+          'Restaurar usuario ID: ' + id
+        ) as unknown as Usuario;
+      }
+      throw error;
+    }
+  },
+
+  /**
+   * Ocultar un usuario archivado sin borrar su historial.
    */
   async eliminar(id: string): Promise<void> {
     try {
