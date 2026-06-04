@@ -294,6 +294,30 @@ const UserManagementPage = () => {
 
   const availableModules = GLOBAL_MODULE_CATALOG
 
+  const asNumber = (...values: any[]) => {
+    for (const value of values) {
+      const parsed = Number(value)
+      if (Number.isFinite(parsed)) return parsed
+    }
+    return 0
+  }
+
+  const requestOrNull = async <T,>(method: 'GET', url: string): Promise<T | null> => {
+    try {
+      return await apiRequest<T>(method, url)
+    } catch (error) {
+      logger.warn(`[USER_DETAIL] No se pudo cargar ${url}`, error)
+      return null
+    }
+  }
+
+  const normalizeListResponse = <T,>(value: any): T[] => {
+    if (Array.isArray(value)) return value
+    if (Array.isArray(value?.data)) return value.data
+    if (Array.isArray(value?.items)) return value.items
+    return []
+  }
+
   useEffect(() => {
     const timer = setTimeout(() => setMounted(true), 100);
     return () => clearTimeout(timer);
@@ -583,6 +607,26 @@ const UserManagementPage = () => {
 
   const handleOpenDetailModal = (user: User) => {
     setSelectedUser(user);
+    setDetalle({
+      dineroCaja: 0,
+      recaudoDia: 0,
+      metaDiaria: 0,
+      porcentajeMeta: 0,
+      rutaNombre: "",
+      zona: "",
+      progreso: 0,
+      enMora: 0,
+      gastosHoy: 0,
+      actividadReciente: [],
+      ingresosDia: 0,
+      egresosDia: 0,
+      balanceDia: 0,
+      gastosCategorias: [],
+      rutasActivas: 0,
+      rutasTotal: 0,
+      rutasInactivas: 0,
+    });
+    setActividadPage(1);
     setIsDetailModalOpen(true);
     if (user.rol === RolUsuario.COBRADOR) {
       (async () => {
@@ -663,45 +707,67 @@ const UserManagementPage = () => {
     if (user.rol !== RolUsuario.COBRADOR) {
       (async () => {
         try {
-          const resumenGeneral = await apiRequest<any>(
-            "GET",
-            `/reports/operational/coordinator?period=today`,
-          );
           const { inicio: startDate, fin: endDate } = getBogotaRangeForFinancialPeriod('DIARIO', new Date());
-          const financiero = await apiRequest<any>(
-            "GET",
-            `/reports/financial/summary?startDate=${startDate}&endDate=${endDate}`,
-          );
-          const cajas = await apiRequest<any[]>("GET", `/accounting/cajas`);
-          const moraStats = await apiRequest<any>(
-            "GET",
-            `/reports/estadisticas-mora`,
-          );
+          const puedeVerReporteOperativo = [
+            RolUsuario.COORDINADOR,
+            RolUsuario.ADMIN,
+            RolUsuario.SUPER_ADMINISTRADOR,
+          ].includes(user.rol)
+          const puedeVerReporteFinanciero = [
+            RolUsuario.CONTADOR,
+            RolUsuario.ADMIN,
+            RolUsuario.SUPER_ADMINISTRADOR,
+          ].includes(user.rol)
+          const puedeVerMora = [
+            RolUsuario.COORDINADOR,
+            RolUsuario.SUPERVISOR,
+            RolUsuario.CONTADOR,
+            RolUsuario.ADMIN,
+            RolUsuario.SUPER_ADMINISTRADOR,
+          ].includes(user.rol)
+
           const querySupervisor =
             user.rol === RolUsuario.SUPERVISOR
               ? `&supervisorId=${user.id}`
               : "";
-          const rutasActivasResp = await apiRequest<any[]>(
-            "GET",
-            `/routes?activa=true${querySupervisor}`,
-          );
-          const rutasInactivasResp = await apiRequest<any[]>(
-            "GET",
-            `/routes?activa=false${querySupervisor}`,
-          );
-          const rutasTotalResp = await apiRequest<any[]>(
-            "GET",
-            `/routes?${querySupervisor}`,
-          );
-          const ingresosDia = Number(financiero?.ingresos?.total || 0);
-          const egresosDia = Number(financiero?.egresos?.total || 0);
+
+          const [
+            resumenGeneral,
+            financiero,
+            cajasResp,
+            moraStats,
+            rutasActivasRaw,
+            rutasInactivasRaw,
+            rutasTotalRaw,
+          ] = await Promise.all([
+            puedeVerReporteOperativo
+              ? requestOrNull<any>("GET", `/reports/operational/coordinator?period=today`)
+              : Promise.resolve(null),
+            puedeVerReporteFinanciero
+              ? requestOrNull<any>("GET", `/reports/financial/summary?startDate=${startDate}&endDate=${endDate}`)
+              : Promise.resolve(null),
+            requestOrNull<any[]>("GET", `/accounting/cajas`),
+            puedeVerMora
+              ? requestOrNull<any>("GET", `/reports/estadisticas-mora`)
+              : Promise.resolve(null),
+            requestOrNull<any>("GET", `/routes?activa=true${querySupervisor}`),
+            requestOrNull<any>("GET", `/routes?activa=false${querySupervisor}`),
+            requestOrNull<any>("GET", `/routes?${querySupervisor}`),
+          ]);
+
+          const rutasActivasResp = normalizeListResponse<any>(rutasActivasRaw)
+          const rutasInactivasResp = normalizeListResponse<any>(rutasInactivasRaw)
+          const rutasTotalResp = normalizeListResponse<any>(rutasTotalRaw)
+          const cajas = normalizeListResponse<any>(cajasResp)
+          const ingresosDia = asNumber(financiero?.ingresos, financiero?.ingresos?.total);
+          const egresosDia = asNumber(financiero?.egresos, financiero?.egresos?.total);
           const balanceDia = ingresosDia - egresosDia;
           const recaudo =
-            ingresosDia || Number(resumenGeneral?.totalRecaudo || 0);
-          const meta = Number(resumenGeneral?.totalMeta || 0);
-          const dineroCaja = Array.isArray(cajas)
+            ingresosDia || asNumber(resumenGeneral?.totalRecaudo);
+          const meta = asNumber(resumenGeneral?.totalMeta);
+          const dineroCaja = cajas.length
             ? cajas.reduce(
-                (s: number, c: any) => s + Number(c.saldoActual || 0),
+                (s: number, c: any) => s + asNumber(c.saldo, c.saldoActual),
                 0,
               )
             : 0;
@@ -709,13 +775,15 @@ const UserManagementPage = () => {
           let gastosCategorias: Array<{ categoria: string; monto: number }> =
             [];
           if (user.rol === RolUsuario.CONTADOR) {
-            const distribucion = await apiRequest<any>(
+            const distribucion = await requestOrNull<any>(
               "GET",
               `/reports/financial/expenses?startDate=${startDate}&endDate=${endDate}`,
             );
-            const categorias = Array.isArray(distribucion?.categorias)
-              ? distribucion.categorias
-              : [];
+            const categorias = Array.isArray(distribucion)
+              ? distribucion
+              : Array.isArray(distribucion?.categorias)
+                ? distribucion.categorias
+                : [];
             gastosCategorias = categorias
               .map((c: any) => ({
                 categoria: c.nombre || c.categoria || "Otro",
@@ -738,15 +806,9 @@ const UserManagementPage = () => {
             egresosDia,
             balanceDia,
             gastosCategorias,
-            rutasActivas: Array.isArray(rutasActivasResp)
-              ? rutasActivasResp.length
-              : 0,
-            rutasTotal: Array.isArray(rutasTotalResp)
-              ? rutasTotalResp.length
-              : 0,
-            rutasInactivas: Array.isArray(rutasInactivasResp)
-              ? rutasInactivasResp.length
-              : 0,
+            rutasActivas: rutasActivasResp.length,
+            rutasTotal: rutasTotalResp.length,
+            rutasInactivas: rutasInactivasResp.length,
           }));
         } catch (e) {
           console.error("Error cargando resumen general:", e);
