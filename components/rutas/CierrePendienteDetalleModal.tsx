@@ -50,6 +50,28 @@ function getJornadaSeverity(diasPendiente: number) {
   }
 }
 
+function getSaldoOperativoJornada(cliente: any) {
+  const saldoBackend = Number(cliente?.saldoOperativoJornada ?? NaN)
+  if (Number.isFinite(saldoBackend)) return saldoBackend
+
+  const saldoPrestamos = Array.isArray(cliente?.prestamos)
+    ? cliente.prestamos.reduce(
+        (sum: number, prestamo: any) =>
+          sum + Number(prestamo?.montoMetaOperativaPendiente || 0),
+        0,
+      )
+    : 0
+  if (saldoPrestamos > 0) return saldoPrestamos
+
+  return Number(cliente?.cuotaObjetivo?.saldoExigibleEnFechaOperativa || 0)
+}
+
+function formatPercent(value: number) {
+  if (!Number.isFinite(value)) return '0'
+  const rounded = Number(value.toFixed(1))
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1)
+}
+
 // Helper para calcular cumplimiento
 function getCumplimiento(meta: number, recaudo: number) {
   if (meta <= 0) {
@@ -62,7 +84,7 @@ function getCumplimiento(meta: number, recaudo: number) {
     }
   }
 
-  const porcentaje = Math.round((recaudo / meta) * 100)
+  const porcentaje = Number(((recaudo / meta) * 100).toFixed(1))
   const excedente = Math.max(0, recaudo - meta)
   const pendiente = Math.max(0, meta - recaudo)
 
@@ -372,7 +394,7 @@ export function CierrePendienteDetalleModal({
                         <div className={`rounded-2xl border p-4 ${cumplimiento.className}`}>
                           <p className="text-xs font-bold uppercase">Cumplimiento</p>
                           <p className="mt-1 text-xl font-black">
-                            {cumplimiento.porcentaje}%
+                            {formatPercent(cumplimiento.porcentaje)}%
                           </p>
                           <p className="text-xs font-bold">
                             {cumplimiento.label}
@@ -434,7 +456,10 @@ export function CierrePendienteDetalleModal({
                     const clientesPagaron = clientes.filter(c => c.estadoGestion === 'PAGO_REGISTRADO')
                     const clientesOrdenados = [...clientesPendientes, ...clientesAusentes, ...clientesPagaron]
 
-                    return clientesOrdenados.map((cliente) => (
+                    return clientesOrdenados.map((cliente) => {
+                      const saldoOperativoJornada = getSaldoOperativoJornada(cliente)
+
+                      return (
                       <div key={cliente.asignacionId || cliente.clienteId} className="p-4">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                           <div className="min-w-0">
@@ -451,7 +476,7 @@ export function CierrePendienteDetalleModal({
 
                           <EstadoGestionBadge
                             estado={cliente.estadoGestion}
-                            saldoExigible={cliente.cuotaObjetivo?.saldoExigibleEnFechaOperativa}
+                            saldoExigible={saldoOperativoJornada}
                           />
                         </div>
 
@@ -487,10 +512,10 @@ export function CierrePendienteDetalleModal({
                               </div>
                               <div className="text-right">
                                 <p className="text-[11px] font-black text-blue-700">
-                                  {formatCurrency(cliente.cuotaObjetivo.saldoCuota)}
+                                  {formatCurrency(saldoOperativoJornada)}
                                 </p>
                                 <p className="text-[10px] text-blue-600">
-                                  Saldo exigible
+                                  Saldo operativo
                                 </p>
                               </div>
                             </div>
@@ -519,12 +544,12 @@ export function CierrePendienteDetalleModal({
                             const cuota = cliente.cuotaObjetivo
                             const puedeRegistrarPagoRegularizado =
                               Boolean(cuota?.puedePagar) &&
-                              Number(cuota?.saldoExigibleEnFechaOperativa || 0) > 0 &&
+                              saldoOperativoJornada > 0 &&
                               Boolean(cliente.prestamoObjetivoId) &&
                               Boolean(cliente.cuotaObjetivoId || cuota?.id || cliente.cuotaObjetivoPrestamoId)
                             const puedeMarcarAusente =
                               estado === 'PENDIENTE' &&
-                              Number(cuota?.saldoExigibleEnFechaOperativa || 0) > 0 &&
+                              saldoOperativoJornada > 0 &&
                               !cuota?.esCuotaPagadaHistorica
 
                             const clienteId = cliente.clienteId || cliente.asignacionId
@@ -563,7 +588,7 @@ export function CierrePendienteDetalleModal({
                                           prestamoId,
                                           cuotaId,
                                           cuotaNumeroEsperada: cuota.numeroCuota,
-                                          montoCuotaEsperado: cuota.saldoExigibleEnFechaOperativa,
+                                          montoCuotaEsperado: saldoOperativoJornada,
                                         })
                                       } finally {
                                         setProcessingCliente(null)
@@ -690,7 +715,7 @@ export function CierrePendienteDetalleModal({
                           )}
                         </div>
                       </div>
-                    ))
+                    )})
                   })()}
 
                   {clientes.length === 0 && (
