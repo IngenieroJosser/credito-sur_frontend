@@ -70,6 +70,21 @@ export const esIngresoOperativoContable = (m: MovimientoClasificable) => {
   return !REFERENCIAS_NO_INGRESO.has(normalize(m.tipoReferencia))
 }
 
+// Ingreso contable general del panel: cuentas de resultado 3.x,
+// separando cuotas iniciales/artículos porque tienen su propia tarjeta.
+// No incluye entradas de caja/base 1.x aunque el movimiento tenga tipo INGRESO.
+export const esIngresoContableGeneral = (m: MovimientoClasificable) => {
+  if (normalize(m.tipo) !== 'INGRESO') return false
+  if (Number(m.monto || 0) <= 0) return false
+
+  const accountCode = String(m.accountCode || '')
+  if (accountCode.startsWith('3.4')) return false
+  if (mencionaArticulo(m)) return false
+  if (esCuotaInicialContable(m)) return false
+
+  return accountCode.startsWith('3.')
+}
+
 // Egreso operativo: gasto real del negocio. No es desembolso de cartera, reverso ni traslado interno.
 export const esEgresoOperativoContable = (m: MovimientoClasificable) => {
   if (normalize(m.tipo) !== 'EGRESO') return false
