@@ -53,6 +53,7 @@ export type PrestamoCierrePendiente = {
   frecuenciaPago?: string | null
   cantidadCuotas?: number | null
   estado?: string
+  montoMetaOperativaPendiente?: number
   proximaCuota?: ProximaCuotaCierrePendiente | null
   cuotaObjetivo?: CuotaObjetivoCierrePendiente | null
   registroSintetico?: boolean
@@ -92,6 +93,8 @@ export type ClienteCierrePendiente = {
   nivelRiesgo?: string
   estadoGestion: 'PAGO_REGISTRADO' | 'AUSENTE' | 'PENDIENTE'
   recaudadoDelDia: number
+  saldoOperativoJornada?: number
+  metaOperativaJornada?: number
   estadoVisita?: string | null
   notasVisita?: string | null
   prestamos?: PrestamoCierrePendiente[]

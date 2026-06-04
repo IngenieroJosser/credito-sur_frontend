@@ -71,7 +71,21 @@ export const buildRegularizedPaymentTarget = ({
     };
   }
 
-  const montoEsperado = Number(cuota.saldoExigibleEnFechaOperativa || 0);
+  const saldoOperativoBackend = Number(cliente.saldoOperativoJornada ?? NaN);
+  const saldoOperativoPrestamos = Array.isArray(cliente.prestamos)
+    ? cliente.prestamos.reduce(
+        (sum, prestamo) =>
+          sum + Number(prestamo?.montoMetaOperativaPendiente || 0),
+        0,
+      )
+    : 0;
+  const montoEsperado = Number(
+    Number.isFinite(saldoOperativoBackend)
+      ? saldoOperativoBackend
+      : saldoOperativoPrestamos > 0
+        ? saldoOperativoPrestamos
+        : cuota.saldoExigibleEnFechaOperativa || 0,
+  );
   const fechaOperativaRuta =
     contextoRegularizacion?.fechaOperativaRuta ||
     contextoRegularizacion?.fechaOperativa;

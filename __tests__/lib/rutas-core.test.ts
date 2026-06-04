@@ -143,6 +143,105 @@ describe('buildRegularizedPaymentTarget', () => {
       origenGestion: 'CIERRE_PENDIENTE',
     })
   })
+
+  it('usa el saldo operativo acumulado de la jornada para pagos regularizados diarios', () => {
+    const target = buildRegularizedPaymentTarget({
+      rutaId: 'ruta-3',
+      cliente: {
+        clienteId: 'cliente-1',
+        estadoGestion: 'PENDIENTE',
+        recaudadoDelDia: 0,
+        saldoOperativoJornada: 916664,
+        prestamoObjetivoId: 'prestamo-historico',
+        cuotaObjetivoId: 'cuota-1',
+        cuotaObjetivo: {
+          id: 'cuota-1',
+          numeroCuota: 1,
+          estadoActual: 'PENDIENTE',
+          fechaVencimiento: '2026-06-02',
+          fechaEfectiva: '2026-06-02',
+          montoCuota: 458332,
+          montoPagado: 0,
+          saldoCuota: 458332,
+          saldoExigibleEnFechaOperativa: 458332,
+          enMoraEnFechaOperativa: true,
+          puedePagar: true,
+          puedeReprogramar: false,
+        },
+      },
+      visitaBase: {
+        clienteId: 'cliente-1',
+        prestamoId: 'prestamo-actual',
+        cuotaActual: 1,
+        montoCuota: 458332,
+        montoCuotaPendiente: 458332,
+        saldoTotal: 916664,
+        proximaVisita: '2026-06-02',
+      },
+      contextoRegularizacion: {
+        fechaOperativa: '2026-06-03',
+        origenGestion: 'CIERRE_PENDIENTE',
+      },
+    })
+
+    expect(target.error).toBeUndefined()
+    expect(target.contextoPagoRegularizado).toMatchObject({
+      montoCuotaEsperado: 916664,
+      cuotaId: 'cuota-1',
+      fechaOperativaRuta: '2026-06-03',
+    })
+    expect(target.visitaRegularizada).toMatchObject({
+      montoCuota: 916664,
+      montoCuotaPendiente: 916664,
+      saldoTotal: 916664,
+    })
+  })
+
+  it('mantiene compatibilidad si prestamos no trae saldo operativo calculado', () => {
+    const target = buildRegularizedPaymentTarget({
+      rutaId: 'ruta-3',
+      cliente: {
+        clienteId: 'cliente-1',
+        estadoGestion: 'PENDIENTE',
+        recaudadoDelDia: 0,
+        prestamos: [{ id: 'prestamo-historico' }],
+        prestamoObjetivoId: 'prestamo-historico',
+        cuotaObjetivoId: 'cuota-16',
+        cuotaObjetivo: {
+          id: 'cuota-16',
+          numeroCuota: 16,
+          estadoActual: 'PENDIENTE',
+          fechaVencimiento: '2026-05-27',
+          fechaEfectiva: '2026-05-27',
+          montoCuota: 10000,
+          montoPagado: 0,
+          saldoCuota: 10000,
+          saldoExigibleEnFechaOperativa: 10000,
+          enMoraEnFechaOperativa: false,
+          puedePagar: true,
+          puedeReprogramar: false,
+        },
+      },
+      visitaBase: {
+        clienteId: 'cliente-1',
+        prestamoId: 'prestamo-actual',
+        cuotaActual: 20,
+        montoCuota: 70000,
+        montoCuotaPendiente: 70000,
+        saldoTotal: 70000,
+        proximaVisita: '2026-05-30',
+      },
+      contextoRegularizacion: {
+        fechaOperativa: '2026-05-27',
+        origenGestion: 'CIERRE_PENDIENTE',
+      },
+    })
+
+    expect(target.error).toBeUndefined()
+    expect(target.contextoPagoRegularizado).toMatchObject({
+      montoCuotaEsperado: 10000,
+    })
+  })
 })
 
 describe('esDomingoBogota', () => {
