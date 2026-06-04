@@ -13,7 +13,7 @@ import { usuariosService } from "@/services/usuarios-service";
 import { RolUsuario, EstadoUsuario } from "@/types/enums";
 import { apiRequest, formatErrorForComponent } from "@/lib/api/api";
 import { formatShortDateTime, formatShortDate } from "@/lib/utils/format";
-import { buildBogotaOffsetIsoFromKey, getBogotaRangeForFinancialPeriod, normalizeDateKey } from '@/lib/rutas-core'
+import { buildBogotaOffsetIsoFromKey, normalizeDateKey } from '@/lib/rutas-core'
 
 import {
   Search,
@@ -265,6 +265,7 @@ const UserManagementPage = () => {
     rutasActivas: number;
     rutasTotal: number;
     rutasInactivas: number;
+    usuariosActivos: number;
   }>({
     dineroCaja: 0,
     recaudoDia: 0,
@@ -283,6 +284,7 @@ const UserManagementPage = () => {
     rutasActivas: 0,
     rutasTotal: 0,
     rutasInactivas: 0,
+    usuariosActivos: 0,
   });
 
   const [timelineCount, setTimelineCount] = useState(20);
@@ -300,22 +302,6 @@ const UserManagementPage = () => {
       if (Number.isFinite(parsed)) return parsed
     }
     return 0
-  }
-
-  const requestOrNull = async <T,>(method: 'GET', url: string): Promise<T | null> => {
-    try {
-      return await apiRequest<T>(method, url)
-    } catch (error) {
-      logger.warn(`[USER_DETAIL] No se pudo cargar ${url}`, error)
-      return null
-    }
-  }
-
-  const normalizeListResponse = <T,>(value: any): T[] => {
-    if (Array.isArray(value)) return value
-    if (Array.isArray(value?.data)) return value.data
-    if (Array.isArray(value?.items)) return value.items
-    return []
   }
 
   useEffect(() => {
@@ -625,196 +611,42 @@ const UserManagementPage = () => {
       rutasActivas: 0,
       rutasTotal: 0,
       rutasInactivas: 0,
+      usuariosActivos: 0,
     });
     setActividadPage(1);
     setIsDetailModalOpen(true);
-    if (user.rol === RolUsuario.COBRADOR) {
-      (async () => {
-        try {
-          const routesResp = await apiRequest<any[]>(
-            "GET",
-            `/routes?cobradorId=${user.id}&activa=true`,
-          );
-          const ruta = routesResp?.[0];
-          if (!ruta) return;
-          const routeId = ruta.id;
-          const detalleRuta = await apiRequest<any>(
-            "GET",
-            `/reports/operational/route-detail/${routeId}?period=today`,
-          );
-          const resumenRuta = await apiRequest<any>(
-            "GET",
-            `/reports/operational/coordinator?period=today&routeId=${routeId}`,
-          );
-          const gastosResp = await apiRequest<any>(
-            "GET",
-            `/accounting/gastos?rutaId=${routeId}&estado=APROBADO&page=1&limit=50`,
-          );
-
-          const recaudo = Number(
-            detalleRuta?.estadisticas?.totalRecaudado || 0,
-          );
-          const meta = Number(resumenRuta?.rendimientoRutas?.[0]?.meta || 0);
-          const porcentaje = meta > 0 ? Math.round((recaudo / meta) * 100) : 0;
-          const pagos = (detalleRuta?.pagosRecientes || []).map((p: any) => ({
-            time: formatShortDateTime(p.fecha),
-            action: "Pago registrado",
-            detail: `Cliente: ${p.cliente}`,
-            amount: `+$${Number(p.monto).toLocaleString("es-CO")}`,
-            type: "in" as const,
-          }));
-          const toLocalKeyDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-          const hoyStrAdmin = toLocalKeyDate(new Date());
-
-          const gastosHoy = Array.isArray(gastosResp?.items)
-            ? gastosResp.items
-                .filter(
-                  (g: any) => {
-                    const raw = g.fecha || g.creadoEn;
-                    const f = raw ? (raw.includes('T') ? raw.split('T')[0] : raw) : '';
-                    return f === hoyStrAdmin;
-                  }
-                )
-                .reduce((s: number, g: any) => s + Number(g.monto || 0), 0)
-            : 0;
-
-          setDetalle({
-            dineroCaja: recaudo,
-            recaudoDia: recaudo,
-            metaDiaria: meta,
-            porcentajeMeta: porcentaje,
-            rutaNombre: detalleRuta?.ruta?.nombre || "",
-            zona: detalleRuta?.ruta?.zona || "",
-            progreso: porcentaje,
-            enMora: 0,
-            gastosHoy,
-            actividadReciente: pagos,
-            ingresosDia: 0,
-            egresosDia: 0,
-            balanceDia: 0,
-            gastosCategorias: [],
-            rutasActivas: 1,
-            rutasTotal: 1,
-            rutasInactivas: 0,
-          });
-        } catch (e) {
-          console.error("Error cargando detalle de cobrador:", e);
-        }
-      })();
-    }
-    fetchAuditForUser(user);
-    // Resumen general para otros roles
-    if (user.rol !== RolUsuario.COBRADOR) {
-      (async () => {
-        try {
-          const { inicio: startDate, fin: endDate } = getBogotaRangeForFinancialPeriod('DIARIO', new Date());
-          const puedeVerReporteOperativo = [
-            RolUsuario.COORDINADOR,
-            RolUsuario.ADMIN,
-            RolUsuario.SUPER_ADMINISTRADOR,
-          ].includes(user.rol)
-          const puedeVerReporteFinanciero = [
-            RolUsuario.CONTADOR,
-            RolUsuario.ADMIN,
-            RolUsuario.SUPER_ADMINISTRADOR,
-          ].includes(user.rol)
-          const puedeVerMora = [
-            RolUsuario.COORDINADOR,
-            RolUsuario.SUPERVISOR,
-            RolUsuario.CONTADOR,
-            RolUsuario.ADMIN,
-            RolUsuario.SUPER_ADMINISTRADOR,
-          ].includes(user.rol)
-
-          const querySupervisor =
-            user.rol === RolUsuario.SUPERVISOR
-              ? `&supervisorId=${user.id}`
-              : "";
-
-          const [
-            resumenGeneral,
-            financiero,
-            cajasResp,
-            moraStats,
-            rutasActivasRaw,
-            rutasInactivasRaw,
-            rutasTotalRaw,
-          ] = await Promise.all([
-            puedeVerReporteOperativo
-              ? requestOrNull<any>("GET", `/reports/operational/coordinator?period=today`)
-              : Promise.resolve(null),
-            puedeVerReporteFinanciero
-              ? requestOrNull<any>("GET", `/reports/financial/summary?startDate=${startDate}&endDate=${endDate}`)
-              : Promise.resolve(null),
-            requestOrNull<any[]>("GET", `/accounting/cajas`),
-            puedeVerMora
-              ? requestOrNull<any>("GET", `/reports/estadisticas-mora`)
-              : Promise.resolve(null),
-            requestOrNull<any>("GET", `/routes?activa=true${querySupervisor}`),
-            requestOrNull<any>("GET", `/routes?activa=false${querySupervisor}`),
-            requestOrNull<any>("GET", `/routes?${querySupervisor}`),
-          ]);
-
-          const rutasActivasResp = normalizeListResponse<any>(rutasActivasRaw)
-          const rutasInactivasResp = normalizeListResponse<any>(rutasInactivasRaw)
-          const rutasTotalResp = normalizeListResponse<any>(rutasTotalRaw)
-          const cajas = normalizeListResponse<any>(cajasResp)
-          const ingresosDia = asNumber(financiero?.ingresos, financiero?.ingresos?.total);
-          const egresosDia = asNumber(financiero?.egresos, financiero?.egresos?.total);
-          const balanceDia = ingresosDia - egresosDia;
-          const recaudo =
-            ingresosDia || asNumber(resumenGeneral?.totalRecaudo);
-          const meta = asNumber(resumenGeneral?.totalMeta);
-          const dineroCaja = cajas.length
-            ? cajas.reduce(
-                (s: number, c: any) => s + asNumber(c.saldo, c.saldoActual),
-                0,
-              )
-            : 0;
-          const porcentaje = meta > 0 ? Math.round((recaudo / meta) * 100) : 0;
-          let gastosCategorias: Array<{ categoria: string; monto: number }> =
-            [];
-          if (user.rol === RolUsuario.CONTADOR) {
-            const distribucion = await requestOrNull<any>(
-              "GET",
-              `/reports/financial/expenses?startDate=${startDate}&endDate=${endDate}`,
-            );
-            const categorias = Array.isArray(distribucion)
-              ? distribucion
-              : Array.isArray(distribucion?.categorias)
-                ? distribucion.categorias
-                : [];
-            gastosCategorias = categorias
-              .map((c: any) => ({
-                categoria: c.nombre || c.categoria || "Otro",
-                monto: Number(c.total || c.monto || 0),
-              }))
-              .sort((a: any, b: any) => b.monto - a.monto)
-              .slice(0, 5);
-          }
-          setDetalle((d) => ({
-            ...d,
-            dineroCaja,
-            recaudoDia: recaudo,
-            metaDiaria: meta,
-            porcentajeMeta: porcentaje,
-            rutaNombre: "General",
-            zona: "",
-            progreso: porcentaje,
-            enMora: Number(moraStats?.totalPrestamosMora || 0),
-            ingresosDia,
-            egresosDia,
-            balanceDia,
-            gastosCategorias,
-            rutasActivas: rutasActivasResp.length,
-            rutasTotal: rutasTotalResp.length,
-            rutasInactivas: rutasInactivasResp.length,
-          }));
-        } catch (e) {
-          console.error("Error cargando resumen general:", e);
-        }
-      })();
-    }
+    (async () => {
+      try {
+        const detalleOperativo = await usuariosService.obtenerDetalleOperativo(user.id);
+        const metricas = detalleOperativo.metricas;
+        setDetalle({
+          dineroCaja: asNumber(metricas.dineroCaja),
+          recaudoDia: asNumber(metricas.recaudoDia),
+          metaDiaria: asNumber(metricas.metaDiaria),
+          porcentajeMeta: asNumber(metricas.porcentajeMeta),
+          rutaNombre: metricas.rutaNombre || "",
+          zona: metricas.zona || "",
+          progreso: asNumber(metricas.progreso),
+          enMora: asNumber(metricas.enMora),
+          gastosHoy: asNumber(metricas.gastosHoy),
+          actividadReciente: (metricas.actividadReciente || []).map((item) => ({
+            ...item,
+            time: item.time ? formatShortDateTime(item.time) : "",
+          })),
+          ingresosDia: asNumber(metricas.ingresosDia),
+          egresosDia: asNumber(metricas.egresosDia),
+          balanceDia: asNumber(metricas.balanceDia),
+          gastosCategorias: metricas.gastosCategorias || [],
+          rutasActivas: asNumber(metricas.rutasActivas),
+          rutasTotal: asNumber(metricas.rutasTotal),
+          rutasInactivas: asNumber(metricas.rutasInactivas),
+          usuariosActivos: asNumber(metricas.usuariosActivos),
+        });
+      } catch (e) {
+        console.error("Error cargando detalle operativo del usuario:", e);
+        fetchAuditForUser(user);
+      }
+    })();
   };
 
   const handleOpenPermissionsModal = (user: User) => {
@@ -2804,10 +2636,10 @@ const UserManagementPage = () => {
                                   Usuarios Activos
                                 </div>
                                 <div className="text-2xl font-black text-slate-900">
-                                  {stats.active}
+                                  {detalle.usuariosActivos}
                                 </div>
                                 <div className="text-[10px] text-slate-500 font-medium mt-0.5">
-                                  de {stats.total} usuarios
+                                  activos en el sistema
                                 </div>
                               </div>
                               <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">

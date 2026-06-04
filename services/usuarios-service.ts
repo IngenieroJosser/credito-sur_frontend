@@ -49,6 +49,37 @@ export interface ChangePasswordDto {
   contrasenaNueva: string;
 }
 
+export interface UsuarioDetalleOperativo {
+  usuarioId: string;
+  rol: RolUsuario;
+  metricas: {
+    dineroCaja: number;
+    recaudoDia: number;
+    metaDiaria: number;
+    porcentajeMeta: number;
+    rutaNombre: string;
+    zona: string;
+    progreso: number;
+    enMora: number;
+    gastosHoy: number;
+    actividadReciente: Array<{
+      time: string;
+      action: string;
+      detail: string;
+      amount?: string;
+      type: 'in' | 'out' | 'neutral';
+    }>;
+    ingresosDia: number;
+    egresosDia: number;
+    balanceDia: number;
+    gastosCategorias: Array<{ categoria: string; monto: number }>;
+    rutasActivas: number;
+    rutasTotal: number;
+    rutasInactivas: number;
+    usuariosActivos: number;
+  };
+}
+
 export const usuariosService = {
   /**
    * Obtener todos los usuarios
@@ -80,6 +111,15 @@ export const usuariosService = {
       }
       throw error;
     }
+  },
+
+  /**
+   * Obtener métricas operativas/contables del usuario según su rol
+   */
+  async obtenerDetalleOperativo(id: string): Promise<UsuarioDetalleOperativo> {
+    return await apiRequest<UsuarioDetalleOperativo>('GET', `/usuarios/${id}/operational-detail`, undefined, {
+      cacheTTL: 0,
+    });
   },
 
   /**
