@@ -99,6 +99,15 @@ export default function NotificacionDetalleModal({
     )
   }
 
+  const cierrePendienteLabel = (tipoCierre: any) => {
+    const tipo = scalarText(tipoCierre, '')
+    const labels: Record<string, string> = {
+      ADMINISTRATIVO_CON_OBSERVACION: 'Cierre administrativo con observación',
+      REGULARIZACION_LIMPIA: 'Regularización limpia',
+    }
+    return labels[tipo] || tipo || 'No disponible'
+  }
+
   const [isEditingMode, setIsEditingMode] = useState(false)
   const [editedDetails, setEditedDetails] = useState<any>(notificacion?.detalles || {})
   const [actionComment, setActionComment] = useState('')
@@ -544,9 +553,7 @@ export default function NotificacionDetalleModal({
                     <div>
                       <span className="text-slate-500">Tipo de cierre</span>
                       <p className="font-semibold text-slate-900">
-                        {meta.tipoCierre === 'ADMINISTRATIVO_CON_OBSERVACION'
-                          ? 'Cierre administrativo con observación'
-                          : scalarText(meta.tipoCierre)}
+                        {cierrePendienteLabel(meta.tipoCierre)}
                       </p>
                     </div>
 
@@ -582,6 +589,19 @@ export default function NotificacionDetalleModal({
                     <MetricMoney label="Recaudo operativo" value={meta.recaudoOperativo} />
                     <MetricMoney label="Registrado ese día" value={meta.recaudoContable} />
                     <MetricMoney label="Regularizado después" value={meta.recaudoRegularizado} />
+                  </div>
+                </section>
+
+                <section className="rounded-xl border border-slate-200 bg-white p-4">
+                  <h4 className="text-sm font-black text-slate-900">
+                    Caja y conciliación
+                  </h4>
+
+                  <div className="mt-3 grid grid-cols-1 md:grid-cols-4 gap-3">
+                    <MetricMoney label="Efectivo ruta" value={meta.recaudoEfectivo} />
+                    <MetricMoney label="Transferencias banco" value={meta.recaudoTransferencia} />
+                    <MetricMoney label="Gastos ruta" value={meta.gastosRuta ?? meta.gastos} />
+                    <MetricMoney label="Neto efectivo ruta" value={meta.netoEfectivoRuta} />
                   </div>
                 </section>
 

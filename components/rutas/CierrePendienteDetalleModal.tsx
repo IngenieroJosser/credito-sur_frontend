@@ -434,6 +434,60 @@ export function CierrePendienteDetalleModal({
                     </div>
                   </div>
                 </div>
+
+                {/* Grupo D - Caja y conciliación */}
+                <div className="space-y-3">
+                  <p className="text-xs font-bold uppercase text-slate-400">Caja y conciliación</p>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="rounded-xl bg-emerald-50 p-3 border border-emerald-100">
+                      <p className="text-[10px] font-bold uppercase text-emerald-600">
+                        Efectivo ruta
+                      </p>
+                      <p className="text-sm font-black text-emerald-800">
+                        {formatCurrency(resumen.recaudoEfectivo ?? 0)}
+                      </p>
+                      <p className="text-[11px] text-emerald-700">
+                        Dinero físico registrado en la ruta.
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl bg-blue-50 p-3 border border-blue-100">
+                      <p className="text-[10px] font-bold uppercase text-blue-600">
+                        Transferencias banco
+                      </p>
+                      <p className="text-sm font-black text-blue-800">
+                        {formatCurrency(resumen.recaudoTransferencia ?? 0)}
+                      </p>
+                      <p className="text-[11px] text-blue-700">
+                        Recaudo que entra a caja banco.
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl bg-rose-50 p-3 border border-rose-100">
+                      <p className="text-[10px] font-bold uppercase text-rose-600">
+                        Gastos ruta
+                      </p>
+                      <p className="text-sm font-black text-rose-800">
+                        {formatCurrency(resumen.gastos ?? 0)}
+                      </p>
+                      <p className="text-[11px] text-rose-700">
+                        Gastos aprobados de esa fecha.
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl bg-slate-50 p-3 border border-slate-200">
+                      <p className="text-[10px] font-bold uppercase text-slate-500">
+                        Neto efectivo ruta
+                      </p>
+                      <p className="text-sm font-black text-slate-800">
+                        {formatCurrency(resumen.netoEfectivoRuta ?? 0)}
+                      </p>
+                      <p className="text-[11px] text-slate-500">
+                        Efectivo menos gastos de ruta.
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </>
             )}
 
