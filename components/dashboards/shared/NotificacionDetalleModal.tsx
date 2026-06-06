@@ -74,6 +74,31 @@ export default function NotificacionDetalleModal({
     return ''
   }
 
+  const scalarText = (value: any, fallback = 'No disponible') => {
+    if (Array.isArray(value)) return String(value.length)
+    if (value && typeof value === 'object') return fallback
+    const str = String(value ?? '').trim()
+    return str && str !== 'undefined' && str !== 'null' ? str : fallback
+  }
+
+  const countValue = (value: any) => {
+    if (Array.isArray(value)) return value.length
+    const n = Number(value)
+    return Number.isFinite(n) ? n : 0
+  }
+
+  const listItemText = (value: any) => {
+    if (typeof value === 'string') return value
+    if (!value || typeof value !== 'object') return String(value ?? '')
+    return (
+      value.mensaje ||
+      value.descripcion ||
+      value.nombreCliente ||
+      value.nombre ||
+      'Registro sin detalle'
+    )
+  }
+
   const [isEditingMode, setIsEditingMode] = useState(false)
   const [editedDetails, setEditedDetails] = useState<any>(notificacion?.detalles || {})
   const [actionComment, setActionComment] = useState('')
@@ -441,14 +466,15 @@ export default function NotificacionDetalleModal({
   // ── Detección de notificaciones de Jornada Pendiente Cerrada (modal especializado) ──
   const esJornadaPendienteCerrada =
     meta.tipoEvento === 'JORNADA_PENDIENTE_CERRADA' ||
-    (notificacion.titulo || '').toLowerCase().includes('jornada cerrada')
+    (notificacion.titulo || '').toLowerCase().includes('jornada cerrada') ||
+    (notificacion.titulo || '').toLowerCase().includes('jornada pendiente regularizada')
   if (esJornadaPendienteCerrada) {
     if (!isOpen || !notificacion) return null
     // Componentes auxiliares
     const Metric = ({ label, value }: { label: string; value: any }) => (
       <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
         <p className="text-[10px] font-black uppercase text-slate-500">{label}</p>
-        <p className="mt-1 text-lg font-black text-slate-900">{value ?? 0}</p>
+        <p className="mt-1 text-lg font-black text-slate-900">{countValue(value)}</p>
       </div>
     )
 
@@ -504,14 +530,14 @@ export default function NotificacionDetalleModal({
                     <div>
                       <span className="text-slate-500">Ruta</span>
                       <p className="font-semibold text-slate-900">
-                        {meta.rutaNombre || 'No disponible'}
+                        {scalarText(meta.rutaNombre)}
                       </p>
                     </div>
 
                     <div>
                       <span className="text-slate-500">Fecha operativa</span>
                       <p className="font-semibold text-slate-900">
-                        {meta.fechaOperativa || 'No disponible'}
+                        {scalarText(meta.fechaOperativa)}
                       </p>
                     </div>
 
@@ -520,14 +546,14 @@ export default function NotificacionDetalleModal({
                       <p className="font-semibold text-slate-900">
                         {meta.tipoCierre === 'ADMINISTRATIVO_CON_OBSERVACION'
                           ? 'Cierre administrativo con observación'
-                          : meta.tipoCierre || 'No disponible'}
+                          : scalarText(meta.tipoCierre)}
                       </p>
                     </div>
 
                     <div>
                       <span className="text-slate-500">Cerrada por</span>
                       <p className="font-semibold text-slate-900">
-                        {meta.cerradaPorNombre || 'No disponible'}
+                        {scalarText(meta.cerradaPorNombre)}
                       </p>
                     </div>
                   </div>
@@ -565,7 +591,7 @@ export default function NotificacionDetalleModal({
                       Observación administrativa
                     </h4>
                     <p className="mt-2 text-sm text-amber-900 whitespace-pre-wrap">
-                      {meta.observaciones}
+                      {scalarText(meta.observaciones, '')}
                     </p>
                   </section>
                 )}
@@ -576,8 +602,8 @@ export default function NotificacionDetalleModal({
                       Advertencias
                     </h4>
                     <ul className="mt-2 list-disc pl-5 text-sm text-rose-900">
-                      {meta.advertencias.map((item: string, idx: number) => (
-                        <li key={idx}>{item}</li>
+                      {meta.advertencias.map((item: any, idx: number) => (
+                        <li key={idx}>{listItemText(item)}</li>
                       ))}
                     </ul>
                   </section>
