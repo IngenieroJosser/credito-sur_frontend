@@ -130,6 +130,7 @@ import {
   computeMontoNominalHastaHoyFromCuotas,
   computeMetaHoyFromVisitas,
   computeRutaHoyUiStatsFromVisitas,
+  resolveRutaHoyKpiStats,
   esDomingoBogota,
   getBogotaDateKey,
   getBogotaRangeByPeriod,
@@ -538,25 +539,27 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
           ? visitasActuales.filter((v: any) => !isAusente(v))
           : []
         const statsHoy = computeRutaHoyUiStatsFromVisitas(visitasParaMeta, 0)
-        const meta = statsHoy.meta || 0
-        const recaudo = periodoCards === 'HOY'
-          ? Math.max(
-              Number(statsHoy.recaudo || 0),
-              Number(prev.recaudo ?? 0),
-              Number(recaudoBackend || 0),
-            )
-          : (recaudoBackend > 0 ? recaudoBackend : Number(prev.recaudo ?? 0))
-        const metaAutoritativa = periodoCards === 'HOY'
-          ? Math.max(Number(statsHoy.meta || 0), Number(prev.meta ?? 0))
-          : meta
-        const eficiencia = metaAutoritativa > 0
-          ? Number(((recaudo / metaAutoritativa) * 100).toFixed(1))
+        const statsAutoritativas = periodoCards === 'HOY'
+          ? resolveRutaHoyKpiStats(statsHoy, {
+              meta: Number(prev.meta ?? 0),
+              recaudo: recaudoBackend,
+              eficiencia: prev.eficiencia,
+            }, { preferUi: Array.isArray(visitasActuales) && visitasActuales.length > 0 })
+          : {
+              meta: Number(statsHoy.meta || 0),
+              recaudo: recaudoBackend > 0 ? recaudoBackend : Number(prev.recaudo ?? 0),
+              eficiencia: Number(prev.eficiencia ?? 0),
+              pendiente: Number(prev.pendiente ?? 0),
+            }
+        const eficiencia = statsAutoritativas.meta > 0
+          ? Number(((statsAutoritativas.recaudo / statsAutoritativas.meta) * 100).toFixed(1))
           : Number(prev.eficiencia ?? 0)
         return {
           ...prev,
-          recaudo,
-          meta: metaAutoritativa,
+          recaudo: statsAutoritativas.recaudo,
+          meta: statsAutoritativas.meta,
           eficiencia,
+          pendiente: periodoCards === 'HOY' ? statsAutoritativas.pendiente : prev.pendiente,
           gastos: Number(saldo?.gastosDelDia ?? prev.gastos ?? 0),
           base: Number(saldo?.saldoCaja ?? saldo?.baseEfectivo ?? prev.base ?? 0),
         }
@@ -1149,17 +1152,21 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
         setRutaStats((prev: any) => {
           if (periodoCards !== 'HOY') return prev
-          const recaudo = Math.max(Number(statsHoy.recaudo || 0), recaudoBackendHoy, Number(prev.recaudo || 0))
-          const meta = Math.max(
-            statsHoy.pendiente > 0 || recaudo > 0 ? statsHoy.pendiente + recaudo : 0,
-            metaBackendHoy,
-            Number(prev.meta || 0),
+          const stats = resolveRutaHoyKpiStats(
+            statsHoy,
+            {
+              recaudo: recaudoBackendHoy,
+              meta: metaBackendHoy,
+              eficiencia: rutaStatsBackend?.avanceDiario,
+            },
+            { preferUi: Array.isArray(merged) },
           )
           return {
             ...prev,
-            meta,
-            recaudo,
-            pendiente: Math.max(0, meta - recaudo),
+            meta: stats.meta,
+            recaudo: stats.recaudo,
+            eficiencia: stats.eficiencia,
+            pendiente: stats.pendiente,
           }
         });
 

@@ -1,6 +1,7 @@
 import {
   buildRegularizedPaymentTarget,
   computeRutaHoyUiStatsFromVisitas,
+  resolveRutaHoyKpiStats,
   shouldExcludeVisitaFromOperationalMeta,
   shouldIncludeVisitaInRutaHoyKpis,
   esDomingoBogota,
@@ -386,6 +387,46 @@ describe('computeRutaHoyUiStatsFromVisitas', () => {
     // Por eso el listado de rutas usa r.metaDelDia del backend, no este resultado.
     expect(stats.meta).toBe(metaEsperada)
     expect(stats.meta).not.toBe(5_603_666) // no igual al valor correcto del backend
+  })
+})
+
+describe('resolveRutaHoyKpiStats', () => {
+  it('usa el pendiente real de visitas aunque el backend conserve una meta vieja con regularizados', () => {
+    const stats = resolveRutaHoyKpiStats(
+      { pendiente: 2_023_999, recaudo: 0, meta: 2_023_999 },
+      { meta: 2_940_663, recaudo: 0 },
+    )
+
+    expect(stats).toMatchObject({
+      meta: 2_023_999,
+      pendiente: 2_023_999,
+      recaudo: 0,
+      eficiencia: 0,
+    })
+  })
+
+  it('mantiene meta como pendiente real mas recaudo operativo del dia', () => {
+    const stats = resolveRutaHoyKpiStats(
+      { pendiente: 959_997, recaudo: 552_001, meta: 1_511_998 },
+      { meta: 1_511_998, recaudo: 0 },
+    )
+
+    expect(stats.meta).toBe(1_511_998)
+    expect(stats.pendiente).toBe(959_997)
+    expect(stats.recaudo).toBe(552_001)
+    expect(stats.eficiencia).toBe(36.5)
+  })
+
+  it('respeta meta cero cuando las visitas cargadas fueron excluidas por ausencia', () => {
+    const stats = resolveRutaHoyKpiStats(
+      { pendiente: 0, recaudo: 0, meta: 0 },
+      { meta: 990_333, recaudo: 0 },
+      { preferUi: true },
+    )
+
+    expect(stats.meta).toBe(0)
+    expect(stats.pendiente).toBe(0)
+    expect(stats.recaudo).toBe(0)
   })
 })
 
