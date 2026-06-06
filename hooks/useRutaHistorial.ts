@@ -108,18 +108,24 @@ export const useRutaHistorial = (params: UseRutaHistorialParams) => {
         for (const k of keys) {
           if (next[k]?.loaded) continue
 
+          const pagosOperativosDelDia = pagosFiltrados.filter((p: any) => {
+            if (isPagoCierrePendiente(p)) return false
+
+            const fechaOperativa = String(p?.fechaOperativaRuta || '').slice(0, 10)
+            if (fechaOperativa && fechaOperativa !== k) return false
+
+            const raw = p?.fechaPago || p?.creadoEn
+            if (!raw) return false
+            return getPagoBogotaDateKey(raw) === k
+          })
+
           const recaudo = sumMontoTotalPagosByBogotaDateKey(
-            pagosFiltrados as any,
+            pagosOperativosDelDia as any,
             k,
             { includeCierrePendiente: false },
           )
           const visitadosKeys = new Set<string>()
-          ;(Array.isArray(pagosFiltrados) ? pagosFiltrados : []).forEach((p: any) => {
-            if (isPagoCierrePendiente(p)) return
-            const raw = p?.fechaPago || p?.creadoEn
-            if (!raw) return
-            const pk = getPagoBogotaDateKey(raw)
-            if (pk !== k) return
+          pagosOperativosDelDia.forEach((p: any) => {
             const pid = String(p?.prestamoId || p?.prestamo?.id || '')
             const cid = String(p?.clienteId || p?.cliente?.id || '')
             const key = pid ? `loan-${pid}` : (cid ? `client-${cid}` : String(p?.id || ''))
