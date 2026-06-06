@@ -72,8 +72,15 @@ export type CierrePendienteResumen = {
   recaudoOperativo?: number
   recaudoContable?: number
   recaudoRegularizado?: number
+  recaudoEfectivo?: number
+  recaudoTransferencia?: number
+  recaudoContableEfectivo?: number
+  recaudoContableTransferencia?: number
+  recaudoRegularizadoEfectivo?: number
+  recaudoRegularizadoTransferencia?: number
   pendiente: number
   gastos: number
+  netoEfectivoRuta?: number
   efectividad: number
   totalClientes: number
   clientesGestionados: number
