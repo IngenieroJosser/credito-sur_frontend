@@ -22,6 +22,7 @@ import SolicitudDetalleModal, { SolicitudData } from '@/components/dashboards/sh
 import { notificacionesService, type Notificacion as NotificacionBase } from '@/services/notificaciones-service'
 import EditarPrestamoModal from '@/components/prestamos/EditarPrestamoModal'
 import { useNotificaciones } from '@/components/providers/NotificacionesProvider'
+import PagoRegularizadoNotifModal from '@/components/dashboards/shared/PagoRegularizadoNotifModal'
 
 // Extender la interfaz base para supervisor
 interface Notificacion extends NotificacionBase {
@@ -40,6 +41,7 @@ export default function NotificacionesSupervisorPage() {
   const [error, setError] = useState<string | null>(null)
   const [selectedSolicitud, setSelectedSolicitud] = useState<SolicitudData | null>(null)
   const [selectedPrestamoId, setSelectedPrestamoId] = useState<string | null>(null)
+  const [selectedRegularizado, setSelectedRegularizado] = useState<Notificacion | null>(null)
 
   const { 
     notificaciones: globalNotifs,
@@ -112,6 +114,15 @@ export default function NotificacionesSupervisorPage() {
    * If it's a real Solicitud, it uses the details. Otherwise, creates a view-only representation.
    */
   const handleActionClick = (notif: Notificacion) => {
+     const metadata = (notif as any).metadata || {}
+     if (
+       metadata.tipoEvento === 'PAGO_REGULARIZADO' ||
+       String(notif.titulo || '').toLowerCase().includes('pago regularizado')
+     ) {
+       setSelectedRegularizado(notif);
+       return;
+     }
+
      const isPrestamo = notif.tipo === 'PRESTAMO' || (notif as any).metadata?.tipoAprobacion === 'NUEVO_PRESTAMO' || (notif as any).approvalType === 'NUEVO_PRESTAMO';
      const prestamoId = (notif.tipo === 'PRESTAMO' ? notif.entidadId : (notif as any).metadata?.prestamoId) || notif.entidadId;
 
@@ -373,6 +384,12 @@ export default function NotificacionesSupervisorPage() {
         solicitud={selectedSolicitud}
         onResolve={() => {}} // No-op, because readOnly hides actions
         readOnly={true}
+      />
+
+      <PagoRegularizadoNotifModal
+        isOpen={!!selectedRegularizado}
+        onClose={() => setSelectedRegularizado(null)}
+        notificacion={selectedRegularizado}
       />
 
       {/* Modal de Préstamo */}
