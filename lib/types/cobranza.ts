@@ -10,6 +10,7 @@ export interface VisitaRuta {
   montoCuota: number
   saldoTotal: number
   recaudadoDelDia?: number
+  recaudadoRegularizadoDespues?: number
   recaudadoTotalClient?: number
   recaudadoPeriodo?: number  // Total pagado en el período actual (semana/quincena/mes/día)
   estado: EstadoVisita
@@ -47,6 +48,12 @@ export interface HistorialDia {
     visitados: number;
     total: number;
     gastos: number;
+    jornadaId?: string | null;
+    jornadaEstado?: string | null;
+    jornadaCerradaEn?: string | null;
+    jornadaRegularizadaEn?: string | null;
+    jornadaEtiqueta?: string;
+    jornadaEtiquetaColor?: string;
   };
   visitas: VisitaRuta[];
   loaded?: boolean;

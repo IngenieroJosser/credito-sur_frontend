@@ -1,4 +1,5 @@
 import { isPagoCierrePendiente } from '@/lib/ruta-recaudos'
+import { getPagoBogotaDateKey } from '@/lib/rutas-core'
 import type { VisitaRuta } from '@/lib/types/cobranza'
 
 type Resumen = {
@@ -11,6 +12,42 @@ type Resumen = {
   efectividad: number
   visitados: number
   total: number
+  jornadaId?: string | null
+  jornadaEstado?: string | null
+  jornadaCerradaEn?: string | null
+  jornadaRegularizadaEn?: string | null
+  jornadaEtiqueta?: string
+  jornadaEtiquetaColor?: string
+}
+
+export const getHistorialJornadaBadge = (resumen: Partial<Resumen> | undefined) => {
+  const estado = String(resumen?.jornadaEstado || '').toUpperCase()
+  const visitados = Number(resumen?.visitados || 0)
+  const total = Number(resumen?.total || 0)
+  const todosGestionados = total > 0 && visitados >= total
+
+  if (estado === 'CERRADA') {
+    return { label: 'Completada', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' }
+  }
+  if (estado === 'REGULARIZADA') {
+    return { label: 'Regularizada', color: 'bg-blue-100 text-blue-700 border-blue-200' }
+  }
+  if (estado === 'PENDIENTE_CIERRE') {
+    return todosGestionados
+      ? { label: 'Lista para cerrar', color: 'bg-amber-100 text-amber-700 border-amber-200' }
+      : { label: 'Pendiente de gestión', color: 'bg-orange-100 text-orange-700 border-orange-200' }
+  }
+  return null
+}
+
+export const isPagoForHistorialFecha = (pago: any, fechaClave: string) => {
+  if (isPagoCierrePendiente(pago)) {
+    return String(pago?.fechaOperativaRuta || '').slice(0, 10) === fechaClave
+  }
+
+  const raw = pago?.fechaPago || pago?.creadoEn
+  if (!raw) return false
+  return getPagoBogotaDateKey(String(raw)) === fechaClave
 }
 
 const normalizeNivelRiesgo = (raw: any): any => {
@@ -125,7 +162,8 @@ export const applyPagosDelDiaToHistorialVisitas = (params: {
 // Construye la información de un día del historial (visitas + resumen) a partir de:
 // - `visitasResp`: respuesta del backend de `rutasService.obtenerVisitasDelDia(rutaId, fechaClave)`
 // - `saldo`: respuesta del backend de `obtenerSaldoDisponibleRuta(rutaId, fechaClave)`
-// - `pagosDelDia`: pagos filtrados estrictamente para esa fecha (Bogotá key) y (opcionalmente) por cobrador.
+// - `pagosDelDia`: pagos de esa jornada. Los normales entran por fecha de pago; los regularizados
+//   por `fechaOperativaRuta`, porque se registran después pero pertenecen a una jornada pasada.
 //
 // Importante:
 // - Este helper NO recalcula la lógica completa de la ruta del día (mora/cuota acumulada/etc.).
@@ -143,6 +181,9 @@ export const buildHistorialDiaFromBackend = (params: {
   const { fechaClave, visitasResp, saldo, pagosDelDia } = params
   const pagos = Array.isArray(pagosDelDia) ? pagosDelDia : []
   const pagosOperativos = pagos.filter((p: any) => !isPagoCierrePendiente(p))
+  const pagosRegularizados = pagos.filter((p: any) =>
+    isPagoCierrePendiente(p) && String(p?.fechaOperativaRuta || '').slice(0, 10) === fechaClave
+  )
 
   const prestamoIdPorCliente: Record<string, string> = {}
   for (const p of pagosOperativos) {
@@ -169,6 +210,17 @@ export const buildHistorialDiaFromBackend = (params: {
     recaudadoPorPrestamo[pid] = (recaudadoPorPrestamo[pid] || 0) + Number(p?.montoTotal || 0)
   }
 
+  const regularizadoPorCliente: Record<string, number> = {}
+  const regularizadoPorPrestamo: Record<string, number> = {}
+  for (const p of pagosRegularizados) {
+    const monto = Number(p?.montoTotal || 0)
+    if (!(monto > 0)) continue
+    const cid = String(p?.clienteId || p?.cliente?.id || '')
+    const pid = String(p?.prestamoId || p?.prestamo?.id || '')
+    if (cid) regularizadoPorCliente[cid] = (regularizadoPorCliente[cid] || 0) + monto
+    if (pid) regularizadoPorPrestamo[pid] = (regularizadoPorPrestamo[pid] || 0) + monto
+  }
+
   // 2) Mantener track de "visitas" ya creadas para evitar sintéticos duplicados.
   //    Usamos llave por préstamo cuando exista; si no, por cliente.
   const existentes = new Set<string>()
@@ -192,6 +244,7 @@ export const buildHistorialDiaFromBackend = (params: {
     // Si no hay préstamos, caer a una sola visita por cliente como antes.
     if (prestamos.length === 0) {
       const recDia = cliente?.id ? (recaudadoPorCliente[cliente.id] || 0) : 0
+      const regularizadoDespues = cliente?.id ? (regularizadoPorCliente[cliente.id] || 0) : 0
       const keyExist = cliente?.id ? `client-${cliente.id}` : `client-idx-${index}`
       existentes.add(keyExist)
       return [
@@ -203,7 +256,7 @@ export const buildHistorialDiaFromBackend = (params: {
           horaSugerida: '08:00 AM',
           montoCuota: recDia > 0 ? recDia : 0,
           saldoTotal: Number(item?.saldoTotal ?? 0),
-          estado: item?.estado || (recDia > 0 ? 'pagado' : 'pendiente'),
+          estado: item?.estado || ((recDia > 0 || regularizadoDespues > 0) ? 'pagado' : 'pendiente'),
           // Preservar estadoVisita del backend (ej: 'ausente') para mostrar el badge correcto
           estadoVisita: item?.estadoVisita || undefined,
           proximaVisita: item?.proximaVisita || fechaClave,
@@ -215,6 +268,7 @@ export const buildHistorialDiaFromBackend = (params: {
           clienteId: cliente?.id,
           prestamoId: String(item?.prestamoId || ''),
           recaudadoDelDia: recDia,
+          recaudadoRegularizadoDespues: regularizadoDespues,
         } as any,
       ]
     }
@@ -235,11 +289,15 @@ export const buildHistorialDiaFromBackend = (params: {
     return lista.map((p: any, loanIdx: number) => {
       const prestamoId = String(p?.id || prestamoPreferidoId || '')
       const recDiaPrestamo = prestamoId ? (recaudadoPorPrestamo[prestamoId] || 0) : 0
+      const regularizadoDespues = prestamoId
+        ? Number(regularizadoPorPrestamo[prestamoId] || 0)
+        : (cliente?.id ? Number(regularizadoPorCliente[cliente.id] || 0) : 0)
       const recDia = recDiaPrestamo
 
       const proximaCuota = p?.proximaCuota || {}
       const montoCuotaBase = Number(p?.montoCuota ?? proximaCuota?.monto ?? 0)
-      const montoCuotaDisplay = recDia > 0 ? Math.max(montoCuotaBase, recDia) : montoCuotaBase
+      const montoGestionado = recDia + regularizadoDespues
+      const montoCuotaDisplay = montoGestionado > 0 ? Math.max(montoCuotaBase, montoGestionado) : montoCuotaBase
 
       const saldoTotal = Number(p?.saldoPendiente ?? 0)
       const proxEstado = String(proximaCuota?.estado || '').toUpperCase()
@@ -249,12 +307,12 @@ export const buildHistorialDiaFromBackend = (params: {
         if (saldoTotal <= 0) estado = 'pagado'
         else if (proxEstado === 'PAGADA' || proxEstado === 'PAGADO') estado = 'pagado'
         else if (proxEstado === 'VENCIDA' || proxEstado === 'ATRASADA') estado = 'en_mora'
-        else if (recDia > 0 && recDia >= montoCuotaBase - 1) estado = 'pagado'
+        else if (montoGestionado > 0 && montoGestionado >= montoCuotaBase - 1) estado = 'pagado'
       }
 
       // Si el backend no reporta estado y no hay pago asociado a este préstamo, no marcarlo como pagado
       // por pagos del cliente de otros préstamos.
-      if (!item?.estado && recDia <= 0 && estado === 'pagado') estado = 'pendiente'
+      if (!item?.estado && montoGestionado <= 0 && estado === 'pagado') estado = 'pendiente'
 
       const periodoRuta = normalizePeriodoRuta(p?.frecuenciaRuta || p?.frecuenciaPago || p?.frecuencia || 'DIA')
 
@@ -281,6 +339,7 @@ export const buildHistorialDiaFromBackend = (params: {
         clienteId: cliente?.id,
         prestamoId,
         recaudadoDelDia: recDia,
+        recaudadoRegularizadoDespues: regularizadoDespues,
       } as any
     })
   })
@@ -303,6 +362,24 @@ export const buildHistorialDiaFromBackend = (params: {
         pago: p,
         total: Number(p?.montoTotal || 0),
         index: i,
+      })
+    }
+  }
+
+  for (const [i, p] of pagosRegularizados.entries()) {
+    const cid = p?.clienteId || p?.cliente?.id
+    const pid = String(p?.prestamoId || p?.prestamo?.id || '')
+    const keyExist = pid ? `loan-${pid}` : (cid ? `client-${cid}` : '')
+    if (!cid || !keyExist || existentes.has(keyExist)) continue
+
+    const actual = pagosSinteticosPorKey.get(keyExist)
+    if (actual) {
+      actual.total += Number(p?.montoTotal || 0)
+    } else {
+      pagosSinteticosPorKey.set(keyExist, {
+        pago: p,
+        total: Number(p?.montoTotal || 0),
+        index: pagosOperativos.length + i,
       })
     }
   }
@@ -345,7 +422,8 @@ export const buildHistorialDiaFromBackend = (params: {
       articuloNombre: String(prestamo?.tipoPrestamo || prestamo?.tipo || '').toUpperCase() === 'ARTICULO'
         ? (prestamo?.articulo || prestamo?.descripcionArticulo || 'Artículo')
         : 'Préstamo',
-      recaudadoDelDia: item.total,
+      recaudadoDelDia: isPagoCierrePendiente(p) ? 0 : item.total,
+      recaudadoRegularizadoDespues: isPagoCierrePendiente(p) ? item.total : 0,
     } as any
   })
 
@@ -354,7 +432,7 @@ export const buildHistorialDiaFromBackend = (params: {
   // Ocultar saldados (pagado y saldo <= 0) que NO tuvieron actividad (pago o ausente) en este día
   const filteredVisitas = todasVisitas.filter((v: any) => {
     const isSaldado = String(v.estado || '').toLowerCase() === 'pagado' && Number(v.saldoTotal || 0) <= 0;
-    const tuvoActividad = Number(v.recaudadoDelDia || 0) > 0 || v.estadoVisita === 'ausente';
+    const tuvoActividad = Number(v.recaudadoDelDia || 0) > 0 || Number(v.recaudadoRegularizadoDespues || 0) > 0 || v.estadoVisita === 'ausente';
     return !(isSaldado && !tuvoActividad);
   });
 
@@ -369,20 +447,20 @@ export const buildHistorialDiaFromBackend = (params: {
   const backendResumen = (visitasResp as any)?.resumen || {}
   const fallbackRecaudoOperativo = pagosOperativos.reduce((s: number, p: any) => s + Number(p?.montoTotal || 0), 0)
   const fallbackRecaudoRegularizado = pagos
-    .filter(isPagoCierrePendiente)
+    .filter((p: any) => isPagoCierrePendiente(p) && String(p?.fechaOperativaRuta || '').slice(0, 10) === fechaClave)
     .reduce((s: number, p: any) => s + Number(p?.montoTotal || 0), 0)
   const fallbackRecaudoContable = fallbackRecaudoOperativo + fallbackRecaudoRegularizado
   const saldoRecaudo = Number((saldo as any)?.recaudoDelDia ?? 0)
-  const soloTieneRegularizados = pagos.length > 0 && pagosOperativos.length === 0 && fallbackRecaudoRegularizado > 0
+  const soloTieneCierrePendiente = pagos.length > 0 && pagosOperativos.length === 0 && pagos.every((p: any) => isPagoCierrePendiente(p))
 
   const recaudoDia =
     Number(backendResumen?.recaudoOperativo ?? 0) > 0
       ? Number(backendResumen.recaudoOperativo)
       : Number(backendResumen?.recaudo ?? 0) > 0
         ? Number(backendResumen.recaudo)
-        : saldoRecaudo > 0 && !soloTieneRegularizados
+        : saldoRecaudo > 0 && !soloTieneCierrePendiente
           ? saldoRecaudo
-        : fallbackRecaudoOperativo
+          : fallbackRecaudoOperativo
 
   // `visitados` se define como:
   // - visitas con recaudo del día > 0
@@ -390,6 +468,7 @@ export const buildHistorialDiaFromBackend = (params: {
   // - o clientes marcados como ausentes (se hizo la visita aunque no estaban)
   const visitados = filteredVisitas.filter((v: any) =>
     Number(v?.recaudadoDelDia || 0) > 0 ||
+    Number(v?.recaudadoRegularizadoDespues || 0) > 0 ||
     v?.estado === 'pagado' ||
     String(v?.estadoVisita || '') === 'ausente'
   ).length
@@ -407,6 +486,15 @@ export const buildHistorialDiaFromBackend = (params: {
     efectividad,
     visitados,
     total,
+    jornadaId: backendResumen?.jornadaId ?? null,
+    jornadaEstado: backendResumen?.jornadaEstado ?? null,
+    jornadaCerradaEn: backendResumen?.jornadaCerradaEn ?? null,
+    jornadaRegularizadaEn: backendResumen?.jornadaRegularizadaEn ?? null,
+  }
+  const badge = getHistorialJornadaBadge(resumen)
+  if (badge) {
+    resumen.jornadaEtiqueta = badge.label
+    resumen.jornadaEtiquetaColor = badge.color
   }
 
   return { resumen, visitas: filteredVisitas }

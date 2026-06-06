@@ -15,7 +15,7 @@ import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { useRutaHistorial } from '@/hooks/useRutaHistorial'
 import { useCierrePendienteRuta } from '@/hooks/useCierrePendienteRuta'
 
-import { buildHistorialDiaFromBackend } from '@/lib/ruta-historial'
+import { buildHistorialDiaFromBackend, isPagoForHistorialFecha } from '@/lib/ruta-historial'
 import { mapWithConcurrency, memoizePromiseByKey } from '@/lib/async-utils'
 import { formatMilesCOP } from '@/lib/utils'
 
@@ -815,16 +815,13 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
       const visitasResp = await rutasService.obtenerVisitasDelDia(rutaId as string, fechaClave)
       const saldo = await obtenerSaldoDisponibleRuta(rutaId as string, fechaClave)
 
-      const toKey = (raw: string): string => getPagoBogotaDateKey(raw)
       let pagosDelDia: any[] = []
       try {
         const pagosResp = await pagosService.obtenerPagos({ limit: 5000 })
         const pagosData = (pagosResp as any)?.pagos || pagosResp || []
         pagosDelDia = (Array.isArray(pagosData) ? pagosData : []).filter((p: any) => {
-          const raw = p?.fechaPago || p?.creadoEn
-          if (!raw) return false
           const cobradorMatch = rutaInfo?.cobradorId ? (p?.cobradorId === rutaInfo.cobradorId) : true
-          return toKey(String(raw)) === fechaClave && cobradorMatch
+          return isPagoForHistorialFecha(p, fechaClave) && cobradorMatch
         })
       } catch {
         pagosDelDia = []
@@ -2874,7 +2871,8 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
                                         const dayName = dateObj.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' });
 
-                                        const isCompleted = data.visitas.length > 0 && (data.resumen.efectividad >= 95 || data.visitas.every((v: any) => v.estado === 'pagado'));
+                                        const jornadaEtiqueta = (data.resumen as any).jornadaEtiqueta;
+                                        const jornadaEtiquetaColor = (data.resumen as any).jornadaEtiquetaColor || 'bg-slate-100 text-slate-700 border-slate-200';
 
 
 
@@ -2921,7 +2919,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
                                                        {dayName}
 
-                                                       {isCompleted && <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold uppercase border border-emerald-200">Completada</span>}
+                                                       {jornadaEtiqueta && <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase border ${jornadaEtiquetaColor}`}>{jornadaEtiqueta}</span>}
 
                                                     </div>
 

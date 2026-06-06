@@ -358,6 +358,15 @@ function VisitaCardContent({
         </div>
       )}
 
+      {(visita as any).recaudadoRegularizadoDespues > 0 && (
+        <div className="mt-1 flex items-center gap-1 px-2 py-0.5 rounded-lg bg-blue-50 border border-blue-100 w-fit">
+          <CheckCircle2 className="w-3 h-3 text-blue-500 shrink-0" />
+          <span className="text-[9px] font-black text-blue-700 uppercase tracking-wide">
+            Regularizado después: {formatMontoCompleto((visita as any).recaudadoRegularizadoDespues)}
+          </span>
+        </div>
+      )}
+
       {/* Fila extra: children (fallback para contenido adicional) */}
       {children && (
         <div className="mt-1 pt-1 border-t border-slate-100">

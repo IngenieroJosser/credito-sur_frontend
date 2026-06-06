@@ -1,4 +1,27 @@
-import { applyPagosDelDiaToHistorialVisitas, buildHistorialDiaFromBackend } from '@/lib/ruta-historial'
+import { applyPagosDelDiaToHistorialVisitas, buildHistorialDiaFromBackend, isPagoForHistorialFecha } from '@/lib/ruta-historial'
+
+describe('isPagoForHistorialFecha', () => {
+  it('asocia pagos normales por fecha de pago y pagos regularizados por fecha operativa', () => {
+    expect(isPagoForHistorialFecha({
+      fechaPago: '2026-06-05T09:00:00-05:00',
+      montoTotal: 1000,
+    }, '2026-06-05')).toBe(true)
+
+    expect(isPagoForHistorialFecha({
+      fechaPago: '2026-06-05T09:00:00-05:00',
+      fechaOperativaRuta: '2026-06-03',
+      origenGestion: 'CIERRE_PENDIENTE',
+      montoTotal: 1000,
+    }, '2026-06-03')).toBe(true)
+
+    expect(isPagoForHistorialFecha({
+      fechaPago: '2026-06-05T09:00:00-05:00',
+      fechaOperativaRuta: '2026-06-03',
+      origenGestion: 'CIERRE_PENDIENTE',
+      montoTotal: 1000,
+    }, '2026-06-05')).toBe(false)
+  })
+})
 
 describe('buildHistorialDiaFromBackend', () => {
   it('preserva recaudo operativo, regularizado y contable enviados por el backend', () => {
@@ -136,14 +159,105 @@ describe('buildHistorialDiaFromBackend', () => {
 
     expect(result.resumen.recaudo).toBe(0)
     expect(result.resumen.recaudoOperativo).toBe(0)
-    expect(result.resumen.recaudoRegularizado).toBe(916664)
-    expect(result.resumen.recaudoContable).toBe(916664)
+    expect(result.resumen.recaudoRegularizado).toBe(0)
+    expect(result.resumen.recaudoContable).toBe(0)
     expect(result.resumen.visitados).toBe(0)
     expect(result.visitas[0]).toMatchObject({
       clienteId: 'cliente-1',
       prestamoId: 'prestamo-1',
       recaudadoDelDia: 0,
       estado: 'pendiente',
+    })
+  })
+
+  it('muestra un pago regularizado en la jornada operativa original sin mezclarlo con pago del dia', () => {
+    const result = buildHistorialDiaFromBackend({
+      fechaClave: '2026-06-03',
+      visitasResp: {
+        resumen: {
+          recaudo: 552001,
+          recaudoOperativo: 552001,
+          recaudoRegularizado: 916664,
+          recaudoContable: 1468665,
+          meta: 1511998,
+          jornadaEstado: 'PENDIENTE_CIERRE',
+        },
+        visitas: [
+          {
+            asignacionId: 'asig-1',
+            cliente: {
+              id: 'cliente-1',
+              nombres: 'Juan Camilo',
+              apellidos: 'Marrugo',
+              direccion: 'Calle 1',
+              telefono: '123',
+              nivelRiesgo: 'AMARILLO',
+            },
+            prestamos: [
+              {
+                id: 'prestamo-1',
+                saldoPendiente: 4583336,
+                proximaCuota: { monto: 916664, estado: 'PENDIENTE' },
+                frecuenciaPago: 'DIARIO',
+              },
+            ],
+          },
+        ],
+      },
+      saldo: { recaudoDelDia: 552001 },
+      pagosDelDia: [
+        {
+          id: 'pago-regularizado-1',
+          clienteId: 'cliente-1',
+          prestamoId: 'prestamo-1',
+          montoTotal: 916664,
+          origenGestion: 'CIERRE_PENDIENTE',
+          fechaPago: '2026-06-05T09:00:00-05:00',
+          fechaOperativaRuta: '2026-06-03',
+        },
+      ],
+    })
+
+    expect(result.resumen).toMatchObject({
+      recaudo: 552001,
+      recaudoOperativo: 552001,
+      recaudoRegularizado: 916664,
+      recaudoContable: 1468665,
+      visitados: 1,
+      total: 1,
+      jornadaEstado: 'PENDIENTE_CIERRE',
+      jornadaEtiqueta: 'Lista para cerrar',
+    })
+    expect(result.visitas[0]).toMatchObject({
+      clienteId: 'cliente-1',
+      prestamoId: 'prestamo-1',
+      recaudadoDelDia: 0,
+      recaudadoRegularizadoDespues: 916664,
+      estado: 'pagado',
+    })
+  })
+
+  it('usa el estado real de jornada para etiquetar el historial', () => {
+    const result = buildHistorialDiaFromBackend({
+      fechaClave: '2026-06-03',
+      visitasResp: {
+        resumen: {
+          recaudo: 1468665,
+          recaudoOperativo: 552001,
+          recaudoRegularizado: 916664,
+          recaudoContable: 1468665,
+          meta: 1511998,
+          jornadaEstado: 'REGULARIZADA',
+        },
+        visitas: [],
+      },
+      saldo: {},
+      pagosDelDia: [],
+    })
+
+    expect(result.resumen).toMatchObject({
+      jornadaEstado: 'REGULARIZADA',
+      jornadaEtiqueta: 'Regularizada',
     })
   })
 })
