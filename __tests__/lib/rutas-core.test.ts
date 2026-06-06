@@ -428,6 +428,19 @@ describe('resolveRutaHoyKpiStats', () => {
     expect(stats.pendiente).toBe(0)
     expect(stats.recaudo).toBe(0)
   })
+
+  it('no deja que recaudo backend contaminado con cierre pendiente pise el recaudo operativo de visitas', () => {
+    const stats = resolveRutaHoyKpiStats(
+      { pendiente: 2_023_999, recaudo: 0, meta: 2_023_999 },
+      { meta: 2_940_663, recaudo: 916_664 },
+      { preferUi: true },
+    )
+
+    expect(stats.meta).toBe(2_023_999)
+    expect(stats.pendiente).toBe(2_023_999)
+    expect(stats.recaudo).toBe(0)
+    expect(stats.eficiencia).toBe(0)
+  })
 })
 
 describe('shouldIncludeVisitaInRutaHoyKpis', () => {

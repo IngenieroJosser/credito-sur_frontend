@@ -620,8 +620,8 @@ export const resolveRutaHoyKpiStats = (
   const recaudoBackend = Math.max(0, Number(backend?.recaudo || 0));
   const metaBackend = Math.max(0, Number(backend?.meta || 0));
 
-  const recaudo = Math.max(recaudoUi, recaudoBackend);
   const usarUi = Boolean(options.preferUi) || pendienteUi > 0 || recaudoUi > 0 || metaUi > 0;
+  const recaudo = usarUi ? recaudoUi : Math.max(recaudoUi, recaudoBackend);
   const meta = usarUi
     ? pendienteUi + recaudo
     : Math.max(metaBackend, recaudo);
