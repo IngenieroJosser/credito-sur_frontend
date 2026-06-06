@@ -101,6 +101,9 @@ export default function PagoRegularizadoNotifModal({
   const interes = Number(meta.interesRecuperado || 0)
   const saldoAnterior = Number(meta.saldoAnterior || 0)
   const saldoNuevo = Number(meta.saldoNuevo || 0)
+  const notaAdministrativa = String(
+    meta.notaAdministrativa || meta.notas || meta.observaciones || '',
+  ).trim()
 
   return (
     <Portal>
@@ -238,6 +241,17 @@ export default function PagoRegularizadoNotifModal({
                 </div>
               </div>
             </section>
+
+            {notaAdministrativa && (
+              <section className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
+                <p className="text-[10px] font-black uppercase tracking-widest text-blue-700">
+                  Nota administrativa
+                </p>
+                <p className="mt-2 whitespace-pre-wrap text-sm font-semibold leading-relaxed text-blue-950">
+                  {notaAdministrativa}
+                </p>
+              </section>
+            )}
 
             <section className="rounded-2xl border border-amber-100 bg-amber-50 p-4">
               <p className="text-[10px] font-black uppercase tracking-widest text-amber-700">

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { getBogotaDateKey, getPagoBogotaDateKey, getLocalDateKey } from '@/lib/rutas-core'
 import { isPagoCierrePendiente, sumMontoTotalPagosByBogotaDateKey } from '@/lib/ruta-recaudos'
 import { applyPagosDelDiaToHistorialVisitas } from '@/lib/ruta-historial'
+import { useRealtimeData } from '@/hooks/useRealtimeData'
 
 import type { HistorialDia, VisitaRuta } from '@/lib/types/cobranza'
 
@@ -52,6 +53,11 @@ export const useRutaHistorial = (params: UseRutaHistorialParams) => {
   }, [cobradorId])
 
   const [historialRutas, setHistorialRutas] = useState<Record<string, HistorialDia> | null>(null)
+  const historialRutasRef = useRef<Record<string, HistorialDia> | null>(null)
+
+  useEffect(() => {
+    historialRutasRef.current = historialRutas
+  }, [historialRutas])
 
   const historyDates = useMemo(() => {
     if (!historialRutas) return []
@@ -255,6 +261,36 @@ export const useRutaHistorial = (params: UseRutaHistorialParams) => {
       })
     }
   }, [rutaId, getVisitasHoy, loadDay, deriveVisitadosFromVisitas, deriveEfectividad])
+
+  const refrescarHistorialCargado = useCallback(async (payload?: any) => {
+    if (!rutaId) return
+
+    const metadata = payload?.metadata || {}
+    const fechaEvento = String(
+      payload?.fechaOperativaRuta ||
+      metadata?.fechaOperativaRuta ||
+      payload?.fechaClave ||
+      metadata?.fechaClave ||
+      '',
+    ).slice(0, 10)
+
+    const historialActual = historialRutasRef.current || {}
+    const fechasCargadas = Object.entries(historialActual)
+      .filter(([, dia]) => dia?.loaded)
+      .map(([fecha]) => fecha)
+
+    const fechasAReload = fechaEvento && historialActual[fechaEvento]?.loaded
+      ? [fechaEvento]
+      : fechasCargadas
+
+    if (fechasAReload.length === 0) return
+    await Promise.all(fechasAReload.map((fecha) => cargarHistorialFecha(fecha)))
+  }, [rutaId, cargarHistorialFecha])
+
+  useRealtimeData(
+    ['pagos_actualizados', 'prestamos_actualizados', 'jornadas_actualizadas'],
+    refrescarHistorialCargado,
+  )
 
   return {
     historialRutas,

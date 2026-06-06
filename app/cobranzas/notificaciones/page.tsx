@@ -18,12 +18,14 @@ import { notificacionesService, type Notificacion } from '@/services/notificacio
 import { useNotificaciones } from '@/components/providers/NotificacionesProvider';
 import PagoRegularizadoNotifModal from '@/components/dashboards/shared/PagoRegularizadoNotifModal'
 
+type TipoNotificacionFiltro = 'TODOS' | Notificacion['tipo'] | 'REGULARIZADAS'
+
 export default function NotificacionesCobranzasPage() {
   const router = useRouter()
   
   // --- ESTADOS DE FILTROS ---
   const [filter, setFilter] = useState<'TODAS' | 'NO_LEIDAS' | 'LEIDAS'>('TODAS')
-  const [tipoFilter, setTipoFilter] = useState<'TODOS' | Notificacion['tipo']>('TODOS')
+  const [tipoFilter, setTipoFilter] = useState<TipoNotificacionFiltro>('TODOS')
   const [search, setSearch] = useState('')
   
   // --- ESTADO DE DATOS ---
@@ -38,8 +40,17 @@ export default function NotificacionesCobranzasPage() {
 
   // --- LÓGICA DE FILTRADO EN CLIENTE ---
   const notificaciones = globalNotifs
-    .filter((n) => (filter === 'TODAS' ? true : !n.leida))
-    .filter((n) => (tipoFilter === 'TODOS' ? true : n.tipo === tipoFilter))
+    .filter((n) => {
+      if (filter === 'TODAS') return true
+      if (filter === 'NO_LEIDAS') return !n.leida
+      if (filter === 'LEIDAS') return n.leida
+      return true
+    })
+    .filter((n) => {
+      if (tipoFilter === 'TODOS') return true
+      if (tipoFilter === 'REGULARIZADAS') return isPagoRegularizado(n)
+      return n.tipo === tipoFilter
+    })
     .filter((n) => {
       const q = search.trim().toLowerCase()
       if (!q) return true
@@ -151,7 +162,7 @@ export default function NotificacionesCobranzasPage() {
             <div className="border-b border-slate-100 p-6 flex flex-col gap-6">
               
               {/* Primary Tabs */}
-              <div className="flex bg-slate-100/50 p-1.5 rounded-2xl max-w-xs">
+              <div className="flex bg-slate-100/50 p-1.5 rounded-2xl max-w-md">
                 <button
                   onClick={() => setFilter('TODAS')}
                   className={`flex-1 px-4 py-2.5 rounded-xl text-xs font-black transition-all ${
@@ -172,6 +183,16 @@ export default function NotificacionesCobranzasPage() {
                 >
                   SIN LEER
                 </button>
+                <button
+                  onClick={() => setFilter('LEIDAS')}
+                  className={`flex-1 px-4 py-2.5 rounded-xl text-xs font-black transition-all ${
+                    filter === 'LEIDAS' 
+                      ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-100' 
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  LEÍDAS
+                </button>
               </div>
 
               <div className="flex flex-col gap-6">
@@ -179,7 +200,7 @@ export default function NotificacionesCobranzasPage() {
                 <div>
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 pl-1">Filtrar por Categoría</p>
                   <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-                    {(['TODOS', 'PAGO', 'CLIENTE', 'MORA', 'SISTEMA'] as const).map((t) => (
+                    {(['TODOS', 'PAGO', 'REGULARIZADAS', 'CLIENTE', 'MORA', 'SISTEMA'] as const).map((t) => (
                       <button
                         key={t}
                         onClick={() => setTipoFilter(t)}
@@ -189,7 +210,7 @@ export default function NotificacionesCobranzasPage() {
                             : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:border-slate-300'
                         }`}
                       >
-                        {t === 'TODOS' ? 'TODAS' : t}
+                        {t === 'TODOS' ? 'TODAS' : t === 'REGULARIZADAS' ? 'REGULARIZADAS' : t}
                       </button>
                     ))}
                   </div>

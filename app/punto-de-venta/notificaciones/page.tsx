@@ -33,7 +33,12 @@ export default function NotificacionesPuntoVentaPage() {
 
   // --- LÓGICA DE FILTRADO EN CLIENTE ---
   const notificaciones = globalNotifs
-    .filter((n) => (filter === 'TODAS' ? true : !n.leida))
+    .filter((n) => {
+      if (filter === 'TODAS') return true
+      if (filter === 'NO_LEIDAS') return !n.leida
+      if (filter === 'LEIDAS') return n.leida
+      return true
+    })
     .filter((n) => (tipoFilter === 'TODOS' ? true : n.tipo === tipoFilter))
     .filter((n) => {
       const q = search.trim().toLowerCase()
@@ -125,7 +130,7 @@ export default function NotificacionesPuntoVentaPage() {
             <div className="border-b border-slate-100 p-6 flex flex-col gap-6">
               
               {/* Primary Tabs */}
-              <div className="flex bg-slate-100/50 p-1.5 rounded-2xl max-w-xs">
+              <div className="flex bg-slate-100/50 p-1.5 rounded-2xl max-w-md">
                 <button
                   onClick={() => setFilter('TODAS')}
                   className={`flex-1 px-4 py-2.5 rounded-xl text-xs font-black transition-all ${
@@ -145,6 +150,16 @@ export default function NotificacionesPuntoVentaPage() {
                   }`}
                 >
                   SIN LEER
+                </button>
+                <button
+                  onClick={() => setFilter('LEIDAS')}
+                  className={`flex-1 px-4 py-2.5 rounded-xl text-xs font-black transition-all ${
+                    filter === 'LEIDAS' 
+                      ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-100' 
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  LEÍDAS
                 </button>
               </div>
 
