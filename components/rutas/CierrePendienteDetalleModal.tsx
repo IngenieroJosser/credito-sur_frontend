@@ -499,8 +499,22 @@ export function CierrePendienteDetalleModal({
                           )}
                         
                         {cliente.cuotaObjetivo && (
-                          <div className="mt-3 rounded-xl bg-blue-50 p-3 border border-blue-100">
-                            <p className="text-[10px] font-bold uppercase text-blue-400 mb-1">Cuota objetivo</p>
+                          <div
+                            className={cn(
+                              'mt-3 rounded-xl p-3 border',
+                              saldoOperativoJornada > 0
+                                ? 'bg-blue-50 border-blue-100'
+                                : 'bg-emerald-50 border-emerald-100',
+                            )}
+                          >
+                            <p
+                              className={cn(
+                                'text-[10px] font-bold uppercase mb-1',
+                                saldoOperativoJornada > 0 ? 'text-blue-400' : 'text-emerald-500',
+                              )}
+                            >
+                              Cuota objetivo
+                            </p>
                             <div className="grid grid-cols-2 gap-2">
                               <div>
                                 <p className="text-[11px] font-black text-slate-900">
@@ -511,11 +525,23 @@ export function CierrePendienteDetalleModal({
                                 </p>
                               </div>
                               <div className="text-right">
-                                <p className="text-[11px] font-black text-blue-700">
-                                  {formatCurrency(saldoOperativoJornada)}
+                                <p
+                                  className={cn(
+                                    'text-[11px] font-black',
+                                    saldoOperativoJornada > 0 ? 'text-blue-700' : 'text-emerald-700',
+                                  )}
+                                >
+                                  {saldoOperativoJornada > 0
+                                    ? formatCurrency(saldoOperativoJornada)
+                                    : 'Cubierto por pago'}
                                 </p>
-                                <p className="text-[10px] text-blue-600">
-                                  Saldo operativo
+                                <p
+                                  className={cn(
+                                    'text-[10px]',
+                                    saldoOperativoJornada > 0 ? 'text-blue-600' : 'text-emerald-600',
+                                  )}
+                                >
+                                  {saldoOperativoJornada > 0 ? 'Saldo operativo' : 'Sin saldo operativo'}
                                 </p>
                               </div>
                             </div>

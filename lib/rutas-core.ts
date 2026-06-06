@@ -609,6 +609,32 @@ export const computeRutaHoyUiStatsFromVisitas = (
   return { meta, pendiente, recaudo };
 };
 
+export const resolveRutaHoyKpiStats = (
+  statsHoy: { meta?: unknown; pendiente?: unknown; recaudo?: unknown },
+  backend: { meta?: unknown; recaudo?: unknown; eficiencia?: unknown } = {},
+  options: { preferUi?: boolean } = {},
+): { meta: number; pendiente: number; recaudo: number; eficiencia: number } => {
+  const pendienteUi = Math.max(0, Number(statsHoy?.pendiente || 0));
+  const recaudoUi = Math.max(0, Number(statsHoy?.recaudo || 0));
+  const metaUi = Math.max(0, Number(statsHoy?.meta || 0));
+  const recaudoBackend = Math.max(0, Number(backend?.recaudo || 0));
+  const metaBackend = Math.max(0, Number(backend?.meta || 0));
+
+  const recaudo = Math.max(recaudoUi, recaudoBackend);
+  const usarUi = Boolean(options.preferUi) || pendienteUi > 0 || recaudoUi > 0 || metaUi > 0;
+  const meta = usarUi
+    ? pendienteUi + recaudo
+    : Math.max(metaBackend, recaudo);
+  const pendiente = usarUi
+    ? pendienteUi
+    : Math.max(0, meta - recaudo);
+  const eficiencia = meta > 0
+    ? Math.min(100, Math.max(0, Number(((recaudo / meta) * 100).toFixed(1))))
+    : Math.max(0, Number(backend?.eficiencia || 0));
+
+  return { meta, pendiente, recaudo, eficiencia };
+};
+
 export const isCuotaNoPagada = (cuota: any): boolean => {
   // Predicado normalizado de "cuota no pagada" (incluye pendientes, vencidas, prorrogadas, etc.).
   const st = String(cuota?.estado || '').toUpperCase();

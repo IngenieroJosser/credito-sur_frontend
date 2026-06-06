@@ -96,7 +96,7 @@ import { prestamosService } from '@/services/prestamos-service'
 
 import { pagosService } from '@/services/pagos-service'
 
-import { computeRutaHoyUiStatsFromVisitas, getBogotaDateKey, isVisitaExigibleHoy, normalizeDateKey, shouldExcludeVisitaFromOperationalMeta,
+import { computeRutaHoyUiStatsFromVisitas, resolveRutaHoyKpiStats, getBogotaDateKey, isVisitaExigibleHoy, normalizeDateKey, shouldExcludeVisitaFromOperationalMeta,
   shouldIncludeVisitaInRutaHoyKpis, toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 import { mergeVisitasPreservingLocalRecaudo, sumMontoTotalPagosByBogotaDateKey } from '@/lib/ruta-recaudos'
 
@@ -815,9 +815,18 @@ const LegacyDetalleRutaPage = () => {
               Number(rExtra?.metaDelDia || 0),
               Number(rExtra?.estadisticas?.metaDelDia || 0),
             )
-            const recaudoDia = Math.max(statsHoy.recaudo, cobranzaDia, recaudoBackendHoy)
-            const metaDia = Math.max(statsHoy.meta, metaBackendHoy);
-            const progresoAvance = metaDia > 0 ? (recaudoDia / metaDia) * 100 : 0
+            const statsRutaHoy = resolveRutaHoyKpiStats(
+              { ...statsHoy, recaudo: Math.max(Number(statsHoy.recaudo || 0), cobranzaDia) },
+              {
+                recaudo: recaudoBackendHoy,
+                meta: metaBackendHoy,
+                eficiencia: rExtra?.estadisticas?.avanceDiario,
+              },
+              { preferUi: Array.isArray(finalesKpiHoy) },
+            )
+            const recaudoDia = statsRutaHoy.recaudo
+            const metaDia = statsRutaHoy.meta;
+            const progresoAvance = statsRutaHoy.eficiencia
 
 
 
@@ -844,7 +853,7 @@ const LegacyDetalleRutaPage = () => {
 
                 metaDelDia: metaDia,
 
-                pendienteDelDia: statsHoy.pendiente,
+                pendienteDelDia: statsRutaHoy.pendiente,
 
                 avanceDiario: progresoAvance > 100 ? 100 : progresoAvance,
 

@@ -220,6 +220,7 @@ import {
   computeMontoNominalHastaHoyFromCuotas,
   computeMetaHoyFromVisitas,
   computeRutaHoyUiStatsFromVisitas,
+  resolveRutaHoyKpiStats,
   esDomingoBogota,
   getBogotaDateKey,
   getBogotaRangeByPeriod,
@@ -1190,7 +1191,9 @@ const VistaCobrador = () => {
             recaudo: periodoCardsRef.current === 'HOY'
               ? Number(prev?.recaudo || 0)
               : Number(saldo?.cobranzaDelDia ?? saldo?.recaudoDelDia ?? est.cobranzaDelDia ?? 0),
-            meta: est.metaDelDia != null ? Number(est.metaDelDia) : Number(prev?.meta || 0),
+            meta: periodoCardsRef.current === 'HOY'
+              ? Number(prev?.meta || 0)
+              : (est.metaDelDia != null ? Number(est.metaDelDia) : Number(prev?.meta || 0)),
             eficiencia: periodoCardsRef.current === 'HOY'
               ? Number(prev?.eficiencia || 0)
               : ((est.metaDelDia > 0) ? Math.round((Number(saldo?.cobranzaDelDia ?? saldo?.recaudoDelDia ?? 0) / est.metaDelDia) * 100) : Number(est.avanceDiario ?? 0)),
@@ -1204,7 +1207,9 @@ const VistaCobrador = () => {
             recaudo: periodoCardsRef.current === 'HOY'
               ? Number(prev?.recaudo || 0)
               : Number(est.cobranzaDelDia ?? 0),
-            meta: est.metaDelDia != null ? Number(est.metaDelDia) : Number(prev?.meta || 0),
+            meta: periodoCardsRef.current === 'HOY'
+              ? Number(prev?.meta || 0)
+              : (est.metaDelDia != null ? Number(est.metaDelDia) : Number(prev?.meta || 0)),
             eficiencia: Number(est.avanceDiario ?? 0),
             gastos: 0,
             base: 0
@@ -2424,30 +2429,35 @@ const VistaCobrador = () => {
   const rutaStatsUI = useMemo(() => {
     if (periodoCards !== 'HOY') return rutaStats
 
-    const recaudoBackend = Math.max(
-      Number(rutaStats.recaudo || 0),
-      Number((rutaActual as any)?.cobranzaDelDia || 0),
-      Number((rutaActual as any)?.estadisticas?.cobranzaDelDia || 0),
+    const stats = resolveRutaHoyKpiStats(
+      {
+        meta: kpisHoy.meta,
+        pendiente: Number(kpisHoy.meta || 0) > 0
+          ? Math.max(0, Number(kpisHoy.meta || 0) - Number(kpisHoy.recaudo || 0))
+          : (rutaStats as any)?.pendiente,
+        recaudo: kpisHoy.recaudo,
+      },
+      {
+        recaudo: Math.max(
+          Number(rutaStats.recaudo || 0),
+          Number((rutaActual as any)?.cobranzaDelDia || 0),
+          Number((rutaActual as any)?.estadisticas?.cobranzaDelDia || 0),
+        ),
+        meta: Math.max(
+          Number((rutaActual as any)?.metaDelDia || 0),
+          Number((rutaActual as any)?.estadisticas?.metaDelDia || 0),
+        ),
+        eficiencia: kpisHoy.efectividad,
+      },
+      { preferUi: Array.isArray(visitasBase) },
     )
-    const metaBackend = Math.max(
-      Number(rutaStats.meta || 0),
-      Number((rutaActual as any)?.metaDelDia || 0),
-      Number((rutaActual as any)?.estadisticas?.metaDelDia || 0),
-    )
-    const recaudoFinal = Math.max(Number(kpisHoy.recaudo || 0), recaudoBackend)
-    const meta = Math.max(Number(kpisHoy.meta || 0), metaBackend)
-    const pendiente = Math.max(0, meta - recaudoFinal)
-    const eficiencia = Number(kpisHoy.efectividad || 0)
-    const eficienciaFinal = meta > 0
-      ? Math.min(100, Math.max(0, Number(((recaudoFinal / meta) * 100).toFixed(1))))
-      : eficiencia
 
     return {
       ...rutaStats,
-      recaudo: recaudoFinal,
-      meta,
-      eficiencia: eficienciaFinal,
-      pendiente,
+      recaudo: stats.recaudo,
+      meta: stats.meta,
+      eficiencia: stats.eficiencia,
+      pendiente: stats.pendiente,
     }
   }, [periodoCards, rutaStats, kpisHoy, rutaActual])
   // BUG-08 FIX: filtrar por el ID real del cobrador en sesión, no por 'CB-001' hardcodeado.
