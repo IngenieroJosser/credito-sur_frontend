@@ -70,6 +70,10 @@ export interface PagoDetalleModalProps {
     prestamoQuedaPagado?: boolean
     cuotasAfectadas?: number
     archivos?: any[]
+    fechaOperativaRuta?: string | null
+    origenGestion?: string | null
+    notaAdministrativa?: string | null
+    notas?: string | null
   }
 }
 
@@ -219,6 +223,18 @@ export default function PagoDetalleModal({
         hour: '2-digit', minute: '2-digit',
       })
     : '—'
+  const origenGestion = String(pago?.origenGestion ?? metadata.origenGestion ?? '').toUpperCase()
+  const fechaOperativaRuta = pago?.fechaOperativaRuta ?? metadata.fechaOperativaRuta ?? null
+  const esRegularizado = origenGestion === 'CIERRE_PENDIENTE'
+  const notaRegularizacion = pago?.notas ?? metadata.notaAdministrativa ?? metadata.notas ?? ''
+
+  const fechaOperativaLabel = fechaOperativaRuta
+    ? new Date(`${fechaOperativaRuta}T00:00:00-05:00`).toLocaleDateString('es-CO', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      })
+    : '—'
 
   const comprobantes = (pago?.archivos ?? metadata.archivos ?? []).filter(
     a => a.tipoContenido === 'COMPROBANTE_TRANSFERENCIA'
@@ -320,6 +336,27 @@ export default function PagoDetalleModal({
               )}
             </div>
 
+            {esRegularizado && (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <div className="flex items-start gap-3">
+                  <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-amber-700">
+                      Pago regularizado
+                    </p>
+                    <p className="mt-1 text-xs font-bold leading-relaxed text-amber-800">
+                      El dinero entra contablemente en la fecha real del pago, pero se asocia operativamente a la jornada {fechaOperativaLabel}.
+                    </p>
+                    {notaRegularizacion && (
+                      <p className="mt-2 rounded-xl border border-amber-200 bg-white/70 p-2 text-[11px] font-semibold text-amber-900">
+                        {notaRegularizacion}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* ── 2. Descomposición capital / interés / saldo ─────────────────── */}
             <div className="bg-white rounded-2xl border border-slate-100 p-5">
               <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100">
@@ -420,6 +457,12 @@ export default function PagoDetalleModal({
                   </span>
                 }
               />
+              {esRegularizado && (
+                <>
+                  <DataFila label="Jornada regularizada" value={fechaOperativaLabel} />
+                  <DataFila label="Origen gestión" value="CIERRE_PENDIENTE" />
+                </>
+              )}
               <DataFila label="Cobrador" value={cobrador} />
             </div>
 

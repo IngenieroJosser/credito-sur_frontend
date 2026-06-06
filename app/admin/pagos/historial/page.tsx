@@ -47,6 +47,8 @@ interface Pago {
   mora: number
   metodo: string
   estado: EstadoPago
+  fechaOperativaRuta?: string | null
+  origenGestion?: string | null
 }
 
 const HistorialPagosPage = () => {
@@ -161,6 +163,8 @@ const HistorialPagosPage = () => {
             mora,
             metodo: p.metodoPago || 'Efectivo',
             estado: (p.estado || 'completado').toLowerCase() as EstadoPago,
+            fechaOperativaRuta: p.fechaOperativaRuta || null,
+            origenGestion: p.origenGestion || null,
           }
         })
         setPagos(mapped)
@@ -184,6 +188,8 @@ const HistorialPagosPage = () => {
               mora: q.data?.montoMora || 0,
               metodo: 'Efectivo',
               estado: (q.status === 'completed' ? 'completado' : 'pendiente') as EstadoPago,
+              fechaOperativaRuta: q.data?.fechaOperativaRuta || null,
+              origenGestion: q.data?.origenGestion || null,
             }));
           if (pagosOffline.length > 0) setPagos(pagosOffline);
         } catch { /* ignore */ }
@@ -288,6 +294,18 @@ const HistorialPagosPage = () => {
     return 'bg-sky-50 text-sky-700 border-sky-100'
   }
 
+  const esPagoRegularizado = (pago: Pago) =>
+    String(pago.origenGestion || '').toUpperCase() === 'CIERRE_PENDIENTE'
+
+  const regularizadoBadge = (pago: Pago) => {
+    if (!esPagoRegularizado(pago)) return null
+    return (
+      <span className="mt-1 inline-flex w-fit items-center rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-amber-700">
+        Regularizado · Jornada {pago.fechaOperativaRuta || 'sin fecha'}
+      </span>
+    )
+  }
+
   const pagosFiltrados = pagos.filter((pago) => {
     if (pago.fecha) {
       const fechaPago = new Date(pago.fecha)
@@ -298,7 +316,7 @@ const HistorialPagosPage = () => {
 
     if (
       busqueda &&
-      !`${pago.id} ${pago.cliente} ${pago.cobrador} ${pago.ruta}`
+      !`${pago.id} ${pago.cliente} ${pago.cobrador} ${pago.ruta} ${pago.fechaOperativaRuta || ''} ${esPagoRegularizado(pago) ? 'regularizado cierre pendiente' : ''}`
         .toLowerCase()
         .includes(busqueda.toLowerCase())
     ) {
@@ -495,6 +513,7 @@ const HistorialPagosPage = () => {
                           <span className="text-[10px] text-slate-400 font-medium">
                             {formatFechaPago(pago.fecha)}
                           </span>
+                          {regularizadoBadge(pago)}
                         </div>
                       </td>
                       <td className="px-4 py-2 align-middle">
@@ -576,6 +595,7 @@ const HistorialPagosPage = () => {
                   <div>
                     <h3 className="font-bold text-sm text-slate-900 line-clamp-1">{pago.cliente}</h3>
                     <p className="text-[11px] text-slate-500">{pago.id} • {formatFechaPago(pago.fecha)}</p>
+                    {regularizadoBadge(pago)}
                   </div>
                   <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${getEstadoChipClasses(pago.estado)}`}>
                     {pago.estado}
