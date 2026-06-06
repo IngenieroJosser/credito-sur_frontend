@@ -460,8 +460,15 @@ export const buildHistorialDiaFromBackend = (params: {
   const fallbackRecaudoContable = fallbackRecaudoOperativo + fallbackRecaudoRegularizado
   const saldoRecaudo = Number((saldo as any)?.recaudoDelDia ?? 0)
   const soloTieneCierrePendiente = pagos.length > 0 && pagosOperativos.length === 0 && pagos.every((p: any) => isPagoCierrePendiente(p))
+  const recaudoDesdeVisitas = filteredVisitas.reduce((sum: number, v: any) => {
+    return (
+      sum +
+      Number(v?.recaudadoDelDia || 0) +
+      Number(v?.recaudadoRegularizadoDespues || 0)
+    )
+  }, 0)
 
-  const recaudoDia =
+  const recaudoResumen =
     backendResumen?.recaudoOperativo !== undefined && backendResumen?.recaudoOperativo !== null
       ? Number(backendResumen.recaudoOperativo)
       : backendResumen?.recaudo !== undefined && backendResumen?.recaudo !== null
@@ -469,6 +476,13 @@ export const buildHistorialDiaFromBackend = (params: {
         : saldoRecaudo > 0 && !soloTieneCierrePendiente
           ? saldoRecaudo
           : fallbackRecaudoOperativo
+  const recaudoOperativoFallback =
+    fallbackRecaudoOperativo + fallbackRecaudoRegularizado
+  const recaudoDia = Math.max(
+    recaudoResumen,
+    recaudoDesdeVisitas,
+    recaudoOperativoFallback,
+  )
 
   // `visitados` se define como:
   // - visitas con recaudo del día > 0
@@ -482,19 +496,23 @@ export const buildHistorialDiaFromBackend = (params: {
   ).length
   const metaResumen = Number(backendResumen?.meta ?? esperado)
   const objetivoShown = Math.max(esperado, recaudoDia)
-  const efectividadRaw = hasBackendResumen && backendResumen?.efectividad !== undefined && backendResumen?.efectividad !== null
+  const resumenFueReconciliado = recaudoDia !== recaudoResumen
+  const efectividadRaw = hasBackendResumen && !resumenFueReconciliado && backendResumen?.efectividad !== undefined && backendResumen?.efectividad !== null
     ? Number(backendResumen.efectividad)
     : metaResumen > 0
-      ? Math.round((recaudoDia / metaResumen) * 100)
+      ? Number(((recaudoDia / metaResumen) * 100).toFixed(1))
       : objetivoShown > 0
-        ? Math.round((recaudoDia / objetivoShown) * 100)
+        ? Number(((recaudoDia / objetivoShown) * 100).toFixed(1))
         : (recaudoDia > 0 ? 100 : 0)
   const efectividad = Math.min(100, Math.max(0, Number.isFinite(efectividadRaw) ? efectividadRaw : 0))
 
   const resumen: Resumen = {
     recaudo: recaudoDia,
-    recaudoOperativo: Number(backendResumen?.recaudoOperativo ?? recaudoDia),
-    recaudoRegularizado: Number(backendResumen?.recaudoRegularizado ?? fallbackRecaudoRegularizado),
+    recaudoOperativo: recaudoDia,
+    recaudoRegularizado: Math.max(
+      Number(backendResumen?.recaudoRegularizado ?? 0),
+      fallbackRecaudoRegularizado,
+    ),
     recaudoContable: Number(backendResumen?.recaudoContable ?? fallbackRecaudoContable),
     recaudoEfectivo: Number(backendResumen?.recaudoEfectivo ?? 0),
     recaudoTransferencia: Number(backendResumen?.recaudoTransferencia ?? 0),
