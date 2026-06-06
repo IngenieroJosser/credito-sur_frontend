@@ -93,6 +93,59 @@ describe('buildHistorialDiaFromBackend', () => {
     expect(result.resumen.visitados).toBe(1)
     expect(result.resumen.total).toBe(1)
   })
+
+  it('no muestra un pago regularizado como recaudo operativo del dia fisico', () => {
+    const result = buildHistorialDiaFromBackend({
+      fechaClave: '2026-06-05',
+      visitasResp: {
+        visitas: [
+          {
+            asignacionId: 'asig-1',
+            cliente: {
+              id: 'cliente-1',
+              nombres: 'Juan Camilo',
+              apellidos: 'Marrugo',
+              direccion: 'Calle 1',
+              telefono: '123',
+              nivelRiesgo: 'AMARILLO',
+            },
+            prestamos: [
+              {
+                id: 'prestamo-1',
+                saldoPendiente: 4583336,
+                proximaCuota: { monto: 916664, estado: 'PENDIENTE' },
+                frecuenciaPago: 'DIARIO',
+              },
+            ],
+          },
+        ],
+      },
+      saldo: { recaudoDelDia: 916664 },
+      pagosDelDia: [
+        {
+          id: 'pago-regularizado-1',
+          clienteId: 'cliente-1',
+          prestamoId: 'prestamo-1',
+          montoTotal: 916664,
+          origenGestion: 'CIERRE_PENDIENTE',
+          fechaPago: '2026-06-05T09:00:00-05:00',
+          fechaOperativaRuta: '2026-06-03',
+        },
+      ],
+    })
+
+    expect(result.resumen.recaudo).toBe(0)
+    expect(result.resumen.recaudoOperativo).toBe(0)
+    expect(result.resumen.recaudoRegularizado).toBe(916664)
+    expect(result.resumen.recaudoContable).toBe(916664)
+    expect(result.resumen.visitados).toBe(0)
+    expect(result.visitas[0]).toMatchObject({
+      clienteId: 'cliente-1',
+      prestamoId: 'prestamo-1',
+      recaudadoDelDia: 0,
+      estado: 'pendiente',
+    })
+  })
 })
 
 describe('applyPagosDelDiaToHistorialVisitas', () => {
@@ -129,6 +182,43 @@ describe('applyPagosDelDiaToHistorialVisitas', () => {
       clienteId: 'cliente-1',
       prestamoId: 'prestamo-1',
       recaudadoDelDia: 100000,
+    })
+  })
+
+  it('ignora pagos regularizados al pintar el historial operativo de hoy', () => {
+    const result = applyPagosDelDiaToHistorialVisitas({
+      fechaClave: '2026-06-05',
+      visitas: [
+        {
+          id: 'visita-1',
+          clienteId: 'cliente-1',
+          prestamoId: 'prestamo-1',
+          cliente: 'Juan Camilo Marrugo',
+          estado: 'pendiente',
+          recaudadoDelDia: 0,
+          montoCuota: 916664,
+          saldoTotal: 4583336,
+        } as any,
+      ],
+      pagosDelDia: [
+        {
+          id: 'pago-regularizado-1',
+          clienteId: 'cliente-1',
+          prestamoId: 'prestamo-1',
+          cobradorId: 'cobrador-ruta-1',
+          montoTotal: 916664,
+          origenGestion: 'CIERRE_PENDIENTE',
+        },
+      ],
+    })
+
+    expect(result.recaudo).toBe(0)
+    expect(result.visitados).toBe(0)
+    expect(result.visitas[0]).toMatchObject({
+      clienteId: 'cliente-1',
+      prestamoId: 'prestamo-1',
+      recaudadoDelDia: 0,
+      estado: 'pendiente',
     })
   })
 })

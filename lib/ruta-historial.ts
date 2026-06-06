@@ -1,3 +1,4 @@
+import { isPagoCierrePendiente } from '@/lib/ruta-recaudos'
 import type { VisitaRuta } from '@/lib/types/cobranza'
 
 type Resumen = {
@@ -27,11 +28,13 @@ export const applyPagosDelDiaToHistorialVisitas = (params: {
   pagosDelDia: any[]
 }) => {
   const { fechaClave, visitas, pagosDelDia } = params
+  const pagosOperativos = (Array.isArray(pagosDelDia) ? pagosDelDia : [])
+    .filter((p: any) => !isPagoCierrePendiente(p))
   const recaudadoPorPrestamo: Record<string, number> = {}
   const recaudadoPorCliente: Record<string, number> = {}
   const pagosPorKey = new Map<string, { pago: any; total: number; index: number }>()
 
-  ;(Array.isArray(pagosDelDia) ? pagosDelDia : []).forEach((p: any, index: number) => {
+  pagosOperativos.forEach((p: any, index: number) => {
     const monto = Number(p?.montoTotal ?? p?.monto ?? p?.valor ?? 0)
     if (!(monto > 0)) return
 
@@ -138,9 +141,11 @@ export const buildHistorialDiaFromBackend = (params: {
   pagosDelDia: any[]
 }) => {
   const { fechaClave, visitasResp, saldo, pagosDelDia } = params
+  const pagos = Array.isArray(pagosDelDia) ? pagosDelDia : []
+  const pagosOperativos = pagos.filter((p: any) => !isPagoCierrePendiente(p))
 
   const prestamoIdPorCliente: Record<string, string> = {}
-  for (const p of pagosDelDia || []) {
+  for (const p of pagosOperativos) {
     const cid = String(p?.clienteId || p?.cliente?.id || '')
     if (!cid) continue
     const pid = String(p?.prestamoId || p?.prestamo?.id || '')
@@ -150,7 +155,7 @@ export const buildHistorialDiaFromBackend = (params: {
 
   // 1) Índice de recaudo por cliente para poder asignar `recaudadoDelDia` a cada visita.
   const recaudadoPorCliente: Record<string, number> = {}
-  for (const p of pagosDelDia || []) {
+  for (const p of pagosOperativos) {
     const cid = p?.clienteId || p?.cliente?.id
     if (!cid) continue
     recaudadoPorCliente[cid] = (recaudadoPorCliente[cid] || 0) + Number(p?.montoTotal || 0)
@@ -158,7 +163,7 @@ export const buildHistorialDiaFromBackend = (params: {
 
   // Índice por préstamo para diferenciar múltiples préstamos del mismo cliente.
   const recaudadoPorPrestamo: Record<string, number> = {}
-  for (const p of pagosDelDia || []) {
+  for (const p of pagosOperativos) {
     const pid = String(p?.prestamoId || p?.prestamo?.id || '')
     if (!pid) continue
     recaudadoPorPrestamo[pid] = (recaudadoPorPrestamo[pid] || 0) + Number(p?.montoTotal || 0)
@@ -284,7 +289,7 @@ export const buildHistorialDiaFromBackend = (params: {
   // Si hubo un pago en el día para un cliente que no aparece en `visitasResp.visitas`,
   // lo agregamos al historial para que el recaudo y el "visitados" cuadre con la realidad.
   const pagosSinteticosPorKey = new Map<string, { pago: any; total: number; index: number }>()
-  for (const [i, p] of (pagosDelDia || []).entries()) {
+  for (const [i, p] of pagosOperativos.entries()) {
     const cid = p?.clienteId || p?.cliente?.id
     const pid = String(p?.prestamoId || p?.prestamo?.id || '')
     const keyExist = pid ? `loan-${pid}` : (cid ? `client-${cid}` : '')
@@ -362,20 +367,21 @@ export const buildHistorialDiaFromBackend = (params: {
   //   la efectividad "exacta" depende de reglas de negocio del backend.
   const esperado = filteredVisitas.reduce((sum: number, v: any) => sum + Number(v?.montoCuota || 0), 0)
   const backendResumen = (visitasResp as any)?.resumen || {}
-  const pagos = Array.isArray(pagosDelDia) ? pagosDelDia : []
-  const isCierrePendiente = (p: any) =>
-    String(p?.origenGestion || '').toUpperCase() === 'CIERRE_PENDIENTE'
-  const fallbackRecaudoOperativo = pagos.reduce((s: number, p: any) => s + Number(p?.montoTotal || 0), 0)
+  const fallbackRecaudoOperativo = pagosOperativos.reduce((s: number, p: any) => s + Number(p?.montoTotal || 0), 0)
   const fallbackRecaudoRegularizado = pagos
-    .filter(isCierrePendiente)
+    .filter(isPagoCierrePendiente)
     .reduce((s: number, p: any) => s + Number(p?.montoTotal || 0), 0)
-  const fallbackRecaudoContable = fallbackRecaudoOperativo
+  const fallbackRecaudoContable = fallbackRecaudoOperativo + fallbackRecaudoRegularizado
+  const saldoRecaudo = Number((saldo as any)?.recaudoDelDia ?? 0)
+  const soloTieneRegularizados = pagos.length > 0 && pagosOperativos.length === 0 && fallbackRecaudoRegularizado > 0
 
   const recaudoDia =
-    Number(backendResumen?.recaudo ?? 0) > 0
-      ? Number(backendResumen.recaudo)
-      : Number((saldo as any)?.recaudoDelDia ?? 0) > 0
-        ? Number((saldo as any)?.recaudoDelDia ?? 0)
+    Number(backendResumen?.recaudoOperativo ?? 0) > 0
+      ? Number(backendResumen.recaudoOperativo)
+      : Number(backendResumen?.recaudo ?? 0) > 0
+        ? Number(backendResumen.recaudo)
+        : saldoRecaudo > 0 && !soloTieneRegularizados
+          ? saldoRecaudo
         : fallbackRecaudoOperativo
 
   // `visitados` se define como:
@@ -393,7 +399,7 @@ export const buildHistorialDiaFromBackend = (params: {
 
   const resumen: Resumen = {
     recaudo: recaudoDia,
-    recaudoOperativo: Number(backendResumen?.recaudoOperativo ?? backendResumen?.recaudo ?? recaudoDia),
+    recaudoOperativo: Number(backendResumen?.recaudoOperativo ?? recaudoDia),
     recaudoRegularizado: Number(backendResumen?.recaudoRegularizado ?? fallbackRecaudoRegularizado),
     recaudoContable: Number(backendResumen?.recaudoContable ?? fallbackRecaudoContable),
     meta: Number(backendResumen?.meta ?? esperado),

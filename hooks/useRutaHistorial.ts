@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { getBogotaDateKey, getPagoBogotaDateKey, getLocalDateKey } from '@/lib/rutas-core'
-import { sumMontoTotalPagosByBogotaDateKey } from '@/lib/ruta-recaudos'
+import { isPagoCierrePendiente, sumMontoTotalPagosByBogotaDateKey } from '@/lib/ruta-recaudos'
 import { applyPagosDelDiaToHistorialVisitas } from '@/lib/ruta-historial'
 
 import type { HistorialDia, VisitaRuta } from '@/lib/types/cobranza'
@@ -102,9 +102,14 @@ export const useRutaHistorial = (params: UseRutaHistorialParams) => {
         for (const k of keys) {
           if (next[k]?.loaded) continue
 
-          const recaudo = sumMontoTotalPagosByBogotaDateKey(pagosFiltrados as any, k)
+          const recaudo = sumMontoTotalPagosByBogotaDateKey(
+            pagosFiltrados as any,
+            k,
+            { includeCierrePendiente: false },
+          )
           const visitadosKeys = new Set<string>()
           ;(Array.isArray(pagosFiltrados) ? pagosFiltrados : []).forEach((p: any) => {
+            if (isPagoCierrePendiente(p)) return
             const raw = p?.fechaPago || p?.creadoEn
             if (!raw) return
             const pk = getPagoBogotaDateKey(raw)
@@ -168,6 +173,7 @@ export const useRutaHistorial = (params: UseRutaHistorialParams) => {
             if (!raw) return false
             const pk = getPagoBogotaDateKey(raw)
             if (pk !== fechaClave) return false
+            if (isPagoCierrePendiente(p)) return false
             return cobradorIdActual ? p?.cobradorId === cobradorIdActual : true
           })
         } catch {

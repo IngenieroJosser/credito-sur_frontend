@@ -98,7 +98,7 @@ import { pagosService } from '@/services/pagos-service'
 
 import { computeRutaHoyUiStatsFromVisitas, resolveRutaHoyKpiStats, getBogotaDateKey, isVisitaExigibleHoy, normalizeDateKey, shouldExcludeVisitaFromOperationalMeta,
   shouldIncludeVisitaInRutaHoyKpis, toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
-import { mergeVisitasPreservingLocalRecaudo, sumMontoTotalPagosByBogotaDateKey } from '@/lib/ruta-recaudos'
+import { isPagoCierrePendiente, mergeVisitasPreservingLocalRecaudo, sumMontoTotalPagosByBogotaDateKey } from '@/lib/ruta-recaudos'
 
 import { exportService } from '@/services/export-service'
 
@@ -1014,6 +1014,7 @@ const LegacyDetalleRutaPage = () => {
         const raw = p.fechaPago || p.creadoEn;
 
         if (!raw) return false;
+        if (isPagoCierrePendiente(p)) return false;
 
 
 
@@ -1215,7 +1216,7 @@ const LegacyDetalleRutaPage = () => {
 
       const esperado = todasVisitas.reduce((sum, v) => sum + (v.montoCuota || 0), 0);
 
-      const recaudoDia = Number(saldo?.recaudoDelDia ?? 0) > 0 ? Number(saldo?.recaudoDelDia ?? 0) : pagosDelDia.reduce((s: number, p: any) => s + Number(p.montoTotal || 0), 0);
+      const recaudoDia = pagosDelDia.reduce((s: number, p: any) => s + Number(p.montoTotal || 0), 0);
 
 
 
