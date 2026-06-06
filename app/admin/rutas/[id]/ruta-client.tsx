@@ -3034,13 +3034,13 @@ const RutaClientLoaded = ({
             )
 
             toast.success('Jornada cerrada exitosamente.')
+            setShowDetalleCierre(false)
 
-            await Promise.allSettled([
+            void Promise.allSettled([
               refreshCierrePendiente(),
               cargarDetalle(),
               onRutaRefresh?.(),
             ])
-            setShowDetalleCierre(false)
           } catch (error: any) {
             toast.error(
               error?.response?.data?.message || error?.message || 'No se pudo cerrar la jornada regularizada.',

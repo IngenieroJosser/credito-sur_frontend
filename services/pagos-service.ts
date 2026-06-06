@@ -40,10 +40,14 @@ export interface Pago {
   metodoPago: MetodoPago;
   numeroReferencia: string | null;
   notas: string | null;
+  rutaId?: string | null;
+  fechaOperativaRuta?: string | null;
+  origenGestion?: string | null;
   detalles?: DetallePago[];
   archivos?: ArchivoMultimediaPago[];  // Comprobantes de transferencia, etc.
   cliente?: { id: string; nombres: string; apellidos: string; dni?: string };
   cobrador?: { id: string; nombres: string; apellidos: string };
+  ruta?: { id: string; nombre: string; codigo?: string | null } | null;
   prestamo?: { id: string; numeroPrestamo: string; saldoPendiente: number };
   creadoEn: string;
   actualizadoEn: string;

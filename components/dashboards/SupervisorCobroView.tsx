@@ -4547,7 +4547,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
               setShowReprogramModal(true)
             }, 80)
           }}
-          onRegularizar={async (contextoRegularizacion) => {
+          onRegularizar={async (contextoRegularizacion, observaciones) => {
             if (!rutaId) {
               toast.error('No se encontró la ruta.')
               return
@@ -4563,15 +4563,17 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
               await routesApi.cerrarJornadaRegularizada(
                 rutaId,
                 fechaOperativa,
-                'Jornada regularizada desde el módulo de cierre pendiente.',
+                observaciones || 'Jornada regularizada desde el módulo de cierre pendiente.',
               )
 
               toast.success('Jornada cerrada exitosamente.')
-
-              await cargarDetalle()
-              await refreshCierrePendiente?.()
-              await cargarVisitasRuta?.()
               setShowDetalleCierre(false)
+
+              void Promise.allSettled([
+                cargarDetalle(),
+                refreshCierrePendiente?.(),
+                cargarVisitasRuta?.(),
+              ])
             } catch (error: any) {
               toast.error(
                 error?.message || 'No se pudo cerrar la jornada regularizada.',

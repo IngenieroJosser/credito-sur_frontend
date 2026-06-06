@@ -6040,7 +6040,7 @@ const VistaCobrador = () => {
               setShowReprogramModal(true)
             }, 80)
           }}
-          onRegularizar={async (contextoRegularizacion) => {
+          onRegularizar={async (contextoRegularizacion, observaciones) => {
             if (!rutaActual?.id) {
               toast.error('No se encontró la ruta.')
               return
@@ -6056,15 +6056,17 @@ const VistaCobrador = () => {
               await routesApi.cerrarJornadaRegularizada(
                 rutaActual.id,
                 fechaOperativa,
-                'Jornada regularizada desde el módulo de cierre pendiente.',
+                observaciones || 'Jornada regularizada desde el módulo de cierre pendiente.',
               )
 
               toast.success('Jornada cerrada exitosamente.')
-
-              await cargarDetalle()
-              await refreshCierrePendiente?.()
-              await cargarDatosRuta?.()
               setShowDetalleCierre(false)
+
+              void Promise.allSettled([
+                cargarDetalle(),
+                refreshCierrePendiente?.(),
+                cargarDatosRuta?.(),
+              ])
             } catch (error: any) {
               toast.error(
                 error?.message || 'No se pudo cerrar la jornada regularizada.',
