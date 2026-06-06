@@ -28,6 +28,7 @@ import ConfirmApproveModal from '@/components/ui/ConfirmApproveModal'
 import ConfirmRejectModal from '@/components/ui/ConfirmRejectModal'
 import PagoDetalleModal from '@/components/dashboards/shared/PagoDetalleModal'
 import CierreRutaNotifModal from '@/components/dashboards/shared/CierreRutaNotifModal'
+import PagoRegularizadoNotifModal from '@/components/dashboards/shared/PagoRegularizadoNotifModal'
 
 export interface NotificacionDetalleModalProps {
   isOpen: boolean
@@ -405,6 +406,8 @@ export default function NotificacionDetalleModal({
 
   if (!isOpen || !notificacion) return null
 
+  const meta = safeJsonParse(notificacion.metadata)
+
   // ── Detección de notificaciones de Cierre de Ruta (modal especializado) ──
   const esCierreRuta = (
     (notificacion.titulo || '').toLowerCase().includes('cierre de ruta') ||
@@ -421,8 +424,21 @@ export default function NotificacionDetalleModal({
     )
   }
 
+  // ── Detección de Pago Regularizado (modal especializado) ──
+  const esPagoRegularizado =
+    meta.tipoEvento === 'PAGO_REGULARIZADO' ||
+    String(notificacion.titulo || '').toLowerCase().includes('pago regularizado')
+  if (esPagoRegularizado) {
+    return (
+      <PagoRegularizadoNotifModal
+        isOpen={isOpen}
+        onClose={onClose}
+        notificacion={notificacion}
+      />
+    )
+  }
+
   // ── Detección de notificaciones de Jornada Pendiente Cerrada (modal especializado) ──
-  const meta = safeJsonParse(notificacion.metadata)
   const esJornadaPendienteCerrada =
     meta.tipoEvento === 'JORNADA_PENDIENTE_CERRADA' ||
     (notificacion.titulo || '').toLowerCase().includes('jornada cerrada')

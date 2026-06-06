@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { notificacionesService, type Notificacion } from '@/services/notificaciones-service'
 import { useNotificaciones } from '@/components/providers/NotificacionesProvider';
+import PagoRegularizadoNotifModal from '@/components/dashboards/shared/PagoRegularizadoNotifModal'
 
 export default function NotificacionesCobranzasPage() {
   const router = useRouter()
@@ -27,6 +28,7 @@ export default function NotificacionesCobranzasPage() {
   
   // --- ESTADO DE DATOS ---
   const [isLoading, setIsLoading] = useState(false)
+  const [selectedRegularizado, setSelectedRegularizado] = useState<Notificacion | null>(null)
   
   const { 
     notificaciones: globalNotifs, 
@@ -65,6 +67,14 @@ export default function NotificacionesCobranzasPage() {
       case 'MORA': return 'bg-orange-50 text-orange-700 border-orange-100'
       default: return 'bg-white text-slate-700 border-slate-200'
     }
+  }
+
+  const isPagoRegularizado = (notif: Notificacion) => {
+    const metadata = (notif as any)?.metadata || {}
+    return (
+      metadata.tipoEvento === 'PAGO_REGULARIZADO' ||
+      String(notif.titulo || '').toLowerCase().includes('pago regularizado')
+    )
   }
 
   // --- PAGINACIÓN ---
@@ -233,6 +243,14 @@ export default function NotificacionesCobranzasPage() {
 
                         {/* Action Bar (Only shows when needed or hovered) */}
                         <div className="mt-4 flex items-center gap-3">
+                           {isPagoRegularizado(notif) && (
+                             <button
+                               onClick={() => setSelectedRegularizado(notif)}
+                               className="text-[10px] font-black text-[#08557f] uppercase tracking-widest flex items-center gap-1.5 hover:underline"
+                             >
+                               Ver regularización <ArrowRight className="w-3.5 h-3.5" />
+                             </button>
+                           )}
                            {notif.link && (
                              <button
                                onClick={() => router.push(notif.link!)}
@@ -296,6 +314,12 @@ export default function NotificacionesCobranzasPage() {
           </div>
         </div>
       </div>
+
+      <PagoRegularizadoNotifModal
+        isOpen={!!selectedRegularizado}
+        onClose={() => setSelectedRegularizado(null)}
+        notificacion={selectedRegularizado}
+      />
     </div>
   )
 }
