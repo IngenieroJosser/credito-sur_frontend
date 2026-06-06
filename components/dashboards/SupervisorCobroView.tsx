@@ -1823,43 +1823,26 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
 
 
-  useEffect(() => {
-
-    let cancelled = false
-
+  const refreshActivacionHoy = useCallback(async () => {
     const rutaIdToCheck = (rutaInfo as any)?.id || rutaId
-
     if (!rutaIdToCheck) return
 
-
-
-    ;(async () => {
-
-      try {
-
-        const resp = await routesApi.getActivacionHoy(rutaIdToCheck)
-
-        if (cancelled) return
-
-        setRutaActivadaHoy(Boolean(resp?.operableHoy ?? resp?.activadaHoy))
-
-      } catch {
-
-        // ignore
-
-      }
-
-    })()
-
-
-
-    return () => {
-
-      cancelled = true
-
+    try {
+      const resp = await routesApi.getActivacionHoy(rutaIdToCheck)
+      setRutaActivadaHoy(Boolean(resp?.operableHoy ?? resp?.activadaHoy))
+    } catch {
+      // ignore
     }
-
   }, [rutaId, (rutaInfo as any)?.id])
+
+  useEffect(() => {
+    void refreshActivacionHoy()
+  }, [refreshActivacionHoy])
+
+  useRealtimeData(
+    ['rutas_actualizadas', 'jornadas_actualizadas'],
+    refreshActivacionHoy,
+  )
 
   const handleDragCancel = useCallback(() => {
 

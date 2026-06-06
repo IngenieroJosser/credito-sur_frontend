@@ -1036,43 +1036,21 @@ const VistaCobrador = () => {
 
 
 
-  useEffect(() => {
-
-    let cancelled = false
-
+  const refreshActivacionHoy = useCallback(async () => {
     const rutaId = rutaActual?.id
-
     if (!rutaId) return
 
-
-
-    ;(async () => {
-
-      try {
-
-        const resp = await routesApi.getActivacionHoy(rutaId)
-
-        if (cancelled) return
-
-        setRutaActivadaHoy(Boolean(resp?.operableHoy ?? resp?.activadaHoy))
-
-      } catch {
-
-        // ignore
-
-      }
-
-    })()
-
-
-
-    return () => {
-
-      cancelled = true
-
+    try {
+      const resp = await routesApi.getActivacionHoy(rutaId)
+      setRutaActivadaHoy(Boolean(resp?.operableHoy ?? resp?.activadaHoy))
+    } catch {
+      // ignore
     }
-
   }, [rutaActual?.id])
+
+  useEffect(() => {
+    void refreshActivacionHoy()
+  }, [refreshActivacionHoy])
 
 
 
@@ -1722,6 +1700,11 @@ const VistaCobrador = () => {
   useRealtimeData(
     ['rutas_actualizadas', 'dashboards_actualizados', 'jornadas_actualizadas'],
     handlerFull,
+  )
+
+  useRealtimeData(
+    ['rutas_actualizadas', 'jornadas_actualizadas'],
+    refreshActivacionHoy,
   )
 
 
