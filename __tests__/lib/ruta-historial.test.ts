@@ -225,15 +225,96 @@ describe('buildHistorialDiaFromBackend', () => {
     })
   })
 
+  it('reconcilia el resumen con regularizados visibles en tarjetas de la misma jornada', () => {
+    const result = buildHistorialDiaFromBackend({
+      fechaClave: '2026-06-05',
+      visitasResp: {
+        resumen: {
+          recaudo: 1767334,
+          recaudoOperativo: 1767334,
+          recaudoRegularizado: 1767334,
+          recaudoContable: 0,
+          meta: 1980666,
+          gastos: 0,
+          efectividad: 89.2,
+          visitados: 2,
+          total: 4,
+          jornadaEstado: 'PENDIENTE_CIERRE',
+        },
+        visitas: [
+          {
+            asignacionId: 'asig-encarnacion',
+            cliente: {
+              id: 'cliente-encarnacion',
+              nombres: 'Encarnación',
+              apellidos: 'Mosquera',
+              direccion: 'Calle 4',
+              telefono: '123',
+              nivelRiesgo: 'AMARILLO',
+            },
+            prestamos: [
+              {
+                id: 'prestamo-encarnacion',
+                saldoPendiente: 1773334,
+                proximaCuota: { monto: 126666, estado: 'PENDIENTE' },
+                frecuenciaPago: 'DIARIO',
+              },
+            ],
+          },
+        ],
+      },
+      saldo: {},
+      pagosDelDia: [
+        {
+          id: 'pago-juan',
+          clienteId: 'cliente-juan',
+          prestamoId: 'prestamo-juan',
+          montoTotal: 916664,
+          origenGestion: 'CIERRE_PENDIENTE',
+          fechaPago: '2026-06-06T09:00:00-05:00',
+          fechaOperativaRuta: '2026-06-05',
+        },
+        {
+          id: 'pago-luis',
+          clienteId: 'cliente-luis',
+          prestamoId: 'prestamo-luis',
+          montoTotal: 850670,
+          origenGestion: 'CIERRE_PENDIENTE',
+          fechaPago: '2026-06-06T09:00:00-05:00',
+          fechaOperativaRuta: '2026-06-05',
+        },
+        {
+          id: 'pago-encarnacion',
+          clienteId: 'cliente-encarnacion',
+          prestamoId: 'prestamo-encarnacion',
+          montoTotal: 126666,
+          origenGestion: 'CIERRE_PENDIENTE',
+          fechaPago: '2026-06-06T09:00:00-05:00',
+          fechaOperativaRuta: '2026-06-05',
+        },
+      ],
+    })
+
+    expect(result.resumen.recaudo).toBe(1894000)
+    expect(result.resumen.recaudoOperativo).toBe(1894000)
+    expect(result.resumen.recaudoRegularizado).toBe(1894000)
+    expect(result.resumen.efectividad).toBe(95.6)
+    expect(result.resumen.visitados).toBe(3)
+    expect(result.visitas[0]).toMatchObject({
+      recaudadoRegularizadoDespues: 126666,
+      estado: 'pagado',
+    })
+  })
+
   it('muestra un pago regularizado en la jornada operativa original sin mezclarlo con pago del dia', () => {
     const result = buildHistorialDiaFromBackend({
       fechaClave: '2026-06-03',
       visitasResp: {
         resumen: {
-          recaudo: 552001,
-          recaudoOperativo: 552001,
+          recaudo: 1468665,
+          recaudoOperativo: 1468665,
           recaudoRegularizado: 916664,
-          recaudoContable: 1468665,
+          recaudoContable: 552001,
           meta: 1511998,
           jornadaEstado: 'PENDIENTE_CIERRE',
         },
@@ -274,10 +355,10 @@ describe('buildHistorialDiaFromBackend', () => {
     })
 
     expect(result.resumen).toMatchObject({
-      recaudo: 552001,
-      recaudoOperativo: 552001,
+      recaudo: 1468665,
+      recaudoOperativo: 1468665,
       recaudoRegularizado: 916664,
-      recaudoContable: 1468665,
+      recaudoContable: 552001,
       visitados: 1,
       total: 1,
       jornadaEstado: 'PENDIENTE_CIERRE',
