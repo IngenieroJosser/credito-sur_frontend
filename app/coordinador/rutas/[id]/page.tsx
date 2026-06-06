@@ -1705,7 +1705,8 @@ const LegacyDetalleRutaPage = () => {
 
 
 
-                       const isCompleted = data.visitas.length > 0 && (data.resumen.efectividad >= 95 || data.visitas.every((v: any) => v.estado === 'pagado'));
+                       const jornadaEtiqueta = (data.resumen as any).jornadaEtiqueta;
+                       const jornadaEtiquetaColor = (data.resumen as any).jornadaEtiquetaColor || 'bg-slate-100 text-slate-700 border-slate-200';
 
 
 
@@ -1761,7 +1762,7 @@ const LegacyDetalleRutaPage = () => {
 
                                       {dayName}
 
-                                      {isCompleted && <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold uppercase border border-emerald-200">Completada</span>}
+                                      {jornadaEtiqueta && <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase border ${jornadaEtiquetaColor}`}>{jornadaEtiqueta}</span>}
 
                                    </div>
 

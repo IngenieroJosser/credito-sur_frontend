@@ -29,12 +29,22 @@ interface Notificacion extends NotificacionBase {
   solicitudDetails?: SolicitudData
 }
 
+type TipoNotificacionFiltro = 'TODOS' | Notificacion['tipo'] | 'REGULARIZADAS'
+
+const isPagoRegularizadoNotif = (notif: Notificacion) => {
+  const metadata = (notif as any)?.metadata || {}
+  return (
+    metadata.tipoEvento === 'PAGO_REGULARIZADO' ||
+    String(notif.titulo || '').toLowerCase().includes('pago regularizado')
+  )
+}
+
 // MOCKS ELIMINADOS - La aplicación solo funciona con datos reales del backend
 
 export default function NotificacionesSupervisorPage() {
   const router = useRouter()
   const [filter, setFilter] = useState<'TODAS' | 'NO_LEIDAS' | 'LEIDAS'>('TODAS')
-  const [tipoFilter, setTipoFilter] = useState<'TODOS' | Notificacion['tipo']>('TODOS')
+  const [tipoFilter, setTipoFilter] = useState<TipoNotificacionFiltro>('TODOS')
   const [filterRuta, setFilterRuta] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -77,7 +87,11 @@ export default function NotificacionesSupervisorPage() {
       if (filter === 'LEIDAS') return n.leida;
       return true;
     })
-    .filter((n) => (tipoFilter === 'TODOS' ? true : n.tipo === tipoFilter))
+    .filter((n) => {
+      if (tipoFilter === 'TODOS') return true
+      if (tipoFilter === 'REGULARIZADAS') return isPagoRegularizadoNotif(n)
+      return n.tipo === tipoFilter
+    })
     .filter((n) => (!filterRuta || filterRuta === '' ? true : n.rutaId === filterRuta))
     .filter((n) => {
       const q = search.trim().toLowerCase()
@@ -247,6 +261,7 @@ export default function NotificacionesSupervisorPage() {
                       [
                         { key: 'TODOS' as const, label: 'Todas' },
                         { key: 'PAGO' as const, label: 'Pagos' },
+                        { key: 'REGULARIZADAS' as const, label: 'Regularizadas' },
                         { key: 'CLIENTE' as const, label: 'Clientes' },
                         { key: 'MORA' as const, label: 'Mora' },
                         { key: 'SOLICITUD' as const, label: 'Solicitudes' },

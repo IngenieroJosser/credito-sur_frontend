@@ -53,6 +53,15 @@ function inferirApprovalTypePorTitulo(titulo: string): string | undefined {
 const ROLES_APROBADORES = ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR']
 // Roles que tienen acceso a filtro de rutas
 const ROLES_CON_RUTAS = ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'SUPERVISOR']
+type TipoNotificacionFiltro = 'TODOS' | Notificacion['tipo'] | 'REGULARIZADAS'
+
+const isPagoRegularizadoNotif = (notif: Notificacion) => {
+  const metadata = (notif as any)?.metadata || {}
+  return (
+    metadata.tipoEvento === 'PAGO_REGULARIZADO' ||
+    String(notif.titulo || '').toLowerCase().includes('pago regularizado')
+  )
+}
 
 export default function NotificacionesPage() {
   const router = useRouter()
@@ -76,7 +85,7 @@ export default function NotificacionesPage() {
 
   // --- ESTADOS DE FILTROS ---
   const [filter, setFilter] = useState<'TODAS' | 'NO_LEIDAS' | 'LEIDAS' | 'APROBADAS' | 'RECHAZADAS'>('TODAS')
-  const [tipoFilter, setTipoFilter] = useState<'TODOS' | Notificacion['tipo']>('TODOS')
+  const [tipoFilter, setTipoFilter] = useState<TipoNotificacionFiltro>('TODOS')
   const [filterRuta, setFilterRuta] = useState<string | null>(null)
   const [sortBy, setSortBy] = useState<'RECENT' | 'OLD' | 'CATEGORY' | 'STATUS'>('RECENT')
   
@@ -260,7 +269,11 @@ export default function NotificacionesPage() {
       if (filter === 'RECHAZADAS') return n.estado === 'RECHAZADA'
       return true
     })
-    .filter((n) => (tipoFilter === 'TODOS' ? true : n.tipo === tipoFilter))
+    .filter((n) => {
+      if (tipoFilter === 'TODOS') return true
+      if (tipoFilter === 'REGULARIZADAS') return isPagoRegularizadoNotif(n)
+      return n.tipo === tipoFilter
+    })
     .filter((n) => (!filterRuta || filterRuta === '' ? true : n.rutaId === filterRuta))
     .filter((n) => {
       const q = search.trim().toLowerCase()
@@ -637,6 +650,7 @@ export default function NotificacionesPage() {
                         { key: 'GASTO' as const, label: 'Gastos' },
                         { key: 'SOLICITUD_DINERO' as const, label: 'Bases' },
                         { key: 'PAGO' as const, label: 'Pagos' },
+                        { key: 'REGULARIZADAS' as const, label: 'Regularizadas' },
                         { key: 'MORA' as const, label: 'Mora' },
                         { key: 'SISTEMA' as const, label: 'Sistema' },
                       ]
