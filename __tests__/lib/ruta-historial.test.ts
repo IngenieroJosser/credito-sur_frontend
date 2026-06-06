@@ -170,6 +170,61 @@ describe('buildHistorialDiaFromBackend', () => {
     })
   })
 
+  it('respeta el cero enviado por backend aunque el saldo de caja venga contaminado', () => {
+    const result = buildHistorialDiaFromBackend({
+      fechaClave: '2026-06-05',
+      visitasResp: {
+        resumen: {
+          recaudo: 0,
+          recaudoOperativo: 0,
+          recaudoRegularizado: 0,
+          recaudoContable: 0,
+          meta: 1980666,
+          gastos: 0,
+          efectividad: 0,
+          visitados: 0,
+          total: 4,
+          jornadaEstado: 'PENDIENTE_CIERRE',
+        },
+        visitas: [
+          {
+            asignacionId: 'asig-1',
+            cliente: {
+              id: 'cliente-1',
+              nombres: 'Juan Camilo',
+              apellidos: 'Marrugo',
+              direccion: 'Calle 1',
+              telefono: '123',
+              nivelRiesgo: 'AMARILLO',
+            },
+            prestamos: [
+              {
+                id: 'prestamo-1',
+                saldoPendiente: 4583336,
+                proximaCuota: { monto: 916664, estado: 'PENDIENTE' },
+                frecuenciaPago: 'DIARIO',
+              },
+            ],
+          },
+        ],
+      },
+      saldo: { recaudoDelDia: 959997, gastosDelDia: 20000 },
+      pagosDelDia: [],
+    })
+
+    expect(result.resumen).toMatchObject({
+      recaudo: 0,
+      recaudoOperativo: 0,
+      recaudoRegularizado: 0,
+      recaudoContable: 0,
+      meta: 1980666,
+      gastos: 0,
+      efectividad: 0,
+      visitados: 0,
+      jornadaEtiqueta: 'Pendiente de gestión',
+    })
+  })
+
   it('muestra un pago regularizado en la jornada operativa original sin mezclarlo con pago del dia', () => {
     const result = buildHistorialDiaFromBackend({
       fechaClave: '2026-06-03',
