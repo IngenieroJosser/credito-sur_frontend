@@ -164,6 +164,23 @@ type DetalleDeudaModalProps = {
 
 function DetalleDeudaModal({ cobrador, onClose }: DetalleDeudaModalProps) {
   const eventos = Array.isArray(cobrador.eventos) ? cobrador.eventos : []
+  
+  // Calcular el saldo acumulado para mostrar la historia (tanto a tanto)
+  const eventosConSaldo = eventos.reduceRight((acc, ev) => {
+    const esAbono = ev.tipoReferencia === 'ABONO_DEUDA'
+    const montoDelta = esAbono ? -Number(ev.monto) : Number(ev.monto)
+    const saldoAnterior = acc.length > 0 ? Number(acc[0].saldoNuevo) : Number(cobrador.totalDeuda)
+    const saldoNuevo = Math.max(0, saldoAnterior - montoDelta)
+    
+    acc.unshift({
+      ...ev,
+      saldoAnterior,
+      saldoNuevo,
+      esAbono
+    })
+    
+    return acc
+  }, [] as Array<any>)
 
   return (
     <div
@@ -219,14 +236,14 @@ function DetalleDeudaModal({ cobrador, onClose }: DetalleDeudaModalProps) {
               </div>
             ) : (
               <div className="space-y-2.5">
-                {eventos.map((ev) => (
+                {eventosConSaldo.map((ev) => (
                   <div key={ev.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                      <div className="min-w-0 space-y-2">
+                      <div className="min-w-0 space-y-2 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className={cn(
                             'text-[10px] font-black uppercase px-2 py-1 rounded-full',
-                            ev.tipoReferencia === 'SALDO_CAJA_RUTA' ? 'bg-blue-100 text-blue-700' : 'bg-rose-100 text-rose-700'
+                            ev.esAbono ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
                           )}>
                             {getTipoEventoLabel(ev.tipoReferencia)}
                           </span>
@@ -239,9 +256,26 @@ function DetalleDeudaModal({ cobrador, onClose }: DetalleDeudaModalProps) {
                           <p className="text-[10px] font-mono text-slate-400 break-all">Ref: {ev.referenciaId}</p>
                         )}
                       </div>
-                      <div className="sm:text-right shrink-0">
-                        <p className="text-lg font-black text-rose-700">{formatCurrency(ev.monto)}</p>
-                        <p className="text-[10px] font-black text-rose-400 uppercase tracking-widest">Pendiente</p>
+                      <div className="sm:text-right shrink-0 space-y-1">
+                        <div className="flex flex-col sm:items-end">
+                          <p className={cn(
+                            'text-lg font-black',
+                            ev.esAbono ? 'text-emerald-700' : 'text-rose-700'
+                          )}>
+                            {ev.esAbono ? '+ ' : '- '}{formatCurrency(ev.monto)}
+                          </p>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                            {ev.esAbono ? 'Abono' : 'Pendiente'}
+                          </p>
+                        </div>
+                        <div className="mt-2 border-t border-dashed border-slate-200 pt-2">
+                          <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Historial del saldo</p>
+                          <div className="flex items-center gap-2 text-xs">
+                            <span className="text-slate-500">{formatCurrency(ev.saldoAnterior)}</span>
+                            <span className="text-slate-400">→</span>
+                            <span className="font-black text-slate-700">{formatCurrency(ev.saldoNuevo)}</span>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
