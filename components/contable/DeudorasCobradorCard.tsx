@@ -166,21 +166,34 @@ function DetalleDeudaModal({ cobrador, onClose }: DetalleDeudaModalProps) {
   const eventos = Array.isArray(cobrador.eventos) ? cobrador.eventos : []
   
   // Calcular el saldo acumulado para mostrar la historia (tanto a tanto)
-  const eventosConSaldo = eventos.reduceRight((acc, ev) => {
+  const eventosConSaldo = eventos.map((ev, index) => {
     const esAbono = ev.tipoReferencia === 'ABONO_DEUDA'
-    const montoDelta = esAbono ? -Number(ev.monto) : Number(ev.monto)
-    const saldoAnterior = acc.length > 0 ? Number(acc[0].saldoNuevo) : Number(cobrador.totalDeuda)
-    const saldoNuevo = Math.max(0, saldoAnterior - montoDelta)
+    const monto = Number(ev.monto)
     
-    acc.unshift({
+    // Calcular el saldo anterior (todos los eventos antiguos)
+    const eventosAnteriores = eventos.slice(0, index)
+    let saldoAnterior = 0
+    
+    for (const evAnt of eventosAnteriores) {
+      const esAbonoAnt = evAnt.tipoReferencia === 'ABONO_DEUDA'
+      if (esAbonoAnt) {
+        saldoAnterior = Math.max(0, saldoAnterior - Number(evAnt.monto))
+      } else {
+        saldoAnterior += Number(evAnt.monto)
+      }
+    }
+    
+    const saldoNuevo = esAbono 
+      ? Math.max(0, saldoAnterior - monto) 
+      : saldoAnterior + monto
+    
+    return {
       ...ev,
       saldoAnterior,
       saldoNuevo,
       esAbono
-    })
-    
-    return acc
-  }, [] as Array<any>)
+    }
+  })
 
   return (
     <div
