@@ -25,6 +25,7 @@ import Image from 'next/image';
 import { restoreOfflineSession, hasValidOfflineSession, getOfflineSessionDaysRemaining, isTokenExpired, cacheSession } from '@/lib/auth/offlineAuth';
 import { setAuthCookiesAction } from './actions';
 import { apiClient } from '@/lib/api/apiClient';
+import { formatRoleLabel } from '@/lib/display-labels';
 
 interface LoginFormData {
   nombres: string;
@@ -149,18 +150,6 @@ const LoginPage = () => {
     if (error) setError('');
   };
 
-  // Convierte los roles técnicos (SUPER_ADMINISTRADOR) a texto legible (Super Administrador)
-  const formatRol = (rol: string): string => {
-    const roles: Record<string, string> = {
-      'SUPER_ADMINISTRADOR': 'Super Administrador',
-      'COORDINADOR': 'Coordinador',
-      'SUPERVISOR': 'Supervisor',
-      'COBRADOR': 'Cobrador',
-      'CONTADOR': 'Contador',
-    };
-    return roles[rol] || rol;
-  };
-
   // Utilidad para mostrar notificaciones flotantes
   const showToast = (message: string, userName: string = '', type: ToastState['type'] = 'success') => {
     setToast({
@@ -198,7 +187,7 @@ const LoginPage = () => {
     const redirectPath = roleRedirects[user.rol] || '/admin';
     const userName = user.nombres || 'Usuario';
     
-    showToast('Modo Offline', `${userName} (${formatRol(user.rol)})`, 'success');
+    showToast('Modo Offline', `${userName} (${formatRoleLabel(user.rol)})`, 'success');
     
     setTimeout(() => {
       setIsRedirecting(true);
@@ -280,7 +269,7 @@ const LoginPage = () => {
       const userName = result.usuario?.nombres || formData.nombres;
       const rol = result.usuario?.rol || 'Usuario';
       
-      showToast('Bienvenido', `${userName} (${formatRol(rol)})`, 'success');
+      showToast('Bienvenido', `${userName} (${formatRoleLabel(rol)})`, 'success');
 
       // Determinar ruta de redirección
       const fallbackRedirects: Record<string, string> = {
@@ -380,7 +369,7 @@ const LoginPage = () => {
                   {/* Mensaje descriptivo */}
                   <p className={`text-xs ${styles.detail} mt-1`}>
                     {toast.type === 'success' && toast.userName
-                      ? 'Redirigiendo al panel de administración...'
+                      ? 'Redirigiendo a tu panel...'
                       : 'Verifica tus credenciales'}
                   </p>
 

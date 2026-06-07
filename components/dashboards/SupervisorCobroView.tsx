@@ -18,6 +18,7 @@ import { useCierrePendienteRuta } from '@/hooks/useCierrePendienteRuta'
 import { buildHistorialDiaFromBackend, isPagoForHistorialFecha } from '@/lib/ruta-historial'
 import { mapWithConcurrency, memoizePromiseByKey } from '@/lib/async-utils'
 import { formatMilesCOP } from '@/lib/utils'
+import { formatRoleLabel } from '@/lib/display-labels'
 
 import {
   DndContext,
@@ -2499,7 +2500,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
                 <div className="flex items-center gap-2 text-sm text-slate-500">
 
-                  <span className="font-medium text-slate-700">{userSession.rol}</span>
+                  <span className="font-medium text-slate-700">{formatRoleLabel(userSession.rol)}</span>
 
                   <span>•</span>
 

@@ -42,6 +42,7 @@ import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
 import { getCajas, consolidarCaja, obtenerSaldoDisponibleRuta, Caja } from '@/services/contabilidad-service';
 import { prestamosService } from '@/services/prestamos-service';
 import { creditosService } from '@/services/creditos-service';
+import { formatRoleLabel } from '@/lib/display-labels';
 
 interface Ruta {
   id: string;
@@ -1535,7 +1536,7 @@ export const RutasPageView = ({
                             <option value="">Seleccione un supervisor</option>
                             {supervisoresList.map((s) => (
                               <option key={s.id} value={s.id}>
-                                {s.nombre} {s.rol ? `(${s.rol})` : ''}
+                                {s.nombre} {s.rol ? `(${formatRoleLabel(s.rol)})` : ''}
                               </option>
                             ))}
                           </select>

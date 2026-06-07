@@ -10,6 +10,7 @@ import { useNotification } from '@/components/providers/NotificationProvider'
 import { createTransaccion, getCajaById, getMovimientosLedger, type MovimientoLedger } from '@/services/contabilidad-service'
 import { usuariosService } from '@/services/usuarios-service'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
+import { formatRoleLabel } from '@/lib/display-labels'
 
 interface CajaDetalle {
   id: string
@@ -491,7 +492,7 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
                       <option value="">Seleccionar responsable...</option>
                       {usuariosAutorizados.map((u) => (
                         <option key={u.id} value={u.nombre}>
-                          {u.nombre} ({u.rol})
+                          {u.nombre} ({formatRoleLabel(u.rol)})
                         </option>
                       ))}
                     </select>
