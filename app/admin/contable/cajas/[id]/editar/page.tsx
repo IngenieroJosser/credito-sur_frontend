@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft, Save, Wallet } from 'lucide-react'
 import { getCajaById, updateCaja } from '@/services/contabilidad-service'
 import { usuariosService } from '@/services/usuarios-service'
+import { formatRoleLabel } from '@/lib/display-labels'
 
 export default function EditarCajaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -145,7 +146,7 @@ export default function EditarCajaPage({ params }: { params: Promise<{ id: strin
                   <option value="">Seleccionar responsable...</option>
                   {usuariosAutorizados.map((u) => (
                     <option key={u.id} value={u.id}>
-                      {u.nombre} ({u.rol})
+                      {u.nombre} ({formatRoleLabel(u.rol)})
                     </option>
                   ))}
                 </select>

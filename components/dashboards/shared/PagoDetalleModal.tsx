@@ -457,12 +457,7 @@ export default function PagoDetalleModal({
                   </span>
                 }
               />
-              {esRegularizado && (
-                <>
-                  <DataFila label="Jornada regularizada" value={fechaOperativaLabel} />
-                  <DataFila label="Origen gestión" value="CIERRE_PENDIENTE" />
-                </>
-              )}
+              {esRegularizado && <DataFila label="Jornada regularizada" value={fechaOperativaLabel} />}
               <DataFila label="Cobrador" value={cobrador} />
             </div>
 

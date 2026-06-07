@@ -52,6 +52,7 @@ import { useNotificaciones } from '@/components/providers/NotificacionesProvider
 import PushNotificationPrompt from '@/components/push/PushNotificationPrompt';
 import { aprobacionesService } from '@/services/aprobaciones-service';
 import { isTokenExpired } from '@/lib/auth/offlineAuth';
+import { formatRoleLabel } from '@/lib/display-labels';
 
 interface NavigationItem {
   name: string;
@@ -457,7 +458,7 @@ export default function AdminLayout({
               {user && (
                 <div className="hidden md:block">
                   <span className="ml-3 px-2.5 py-1 text-[10px] font-bold bg-slate-50 text-slate-500 border border-slate-100 rounded-lg uppercase tracking-wider">
-                    {user.rol.replace(/_/g, ' ')}
+                    {formatRoleLabel(user.rol)}
                   </span>
                 </div>
               )}

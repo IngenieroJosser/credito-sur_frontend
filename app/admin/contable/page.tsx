@@ -32,6 +32,7 @@ import {
   getEtiquetaMovimientoContable,
 } from '@/lib/contabilidad-clasificacion'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
+import { formatRoleLabel } from '@/lib/display-labels'
 
 import {
   DollarSign,
@@ -1794,7 +1795,7 @@ const ModuloContableContent = () => {
                       <option value="">Seleccionar responsable...</option>
                       {usuariosList.map((u) => (
                         <option key={u.id} value={u.id}>
-                          {u.nombres} {u.apellidos} ({u.rol})
+                          {u.nombres} {u.apellidos} ({formatRoleLabel(u.rol)})
                         </option>
                       ))}
                     </select>
@@ -1882,7 +1883,7 @@ const ModuloContableContent = () => {
                       <option value="">Seleccionar responsable...</option>
                       {usuariosList.map((u) => (
                         <option key={u.id} value={u.id}>
-                          {u.nombres} {u.apellidos} ({u.rol})
+                          {u.nombres} {u.apellidos} ({formatRoleLabel(u.rol)})
                         </option>
                       ))}
                     </select>

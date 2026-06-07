@@ -266,7 +266,6 @@ const VistaSupervisor = () => {
         <div className="text-center">
           <div className="relative">
             <div className="w-20 h-20 border-4 border-slate-200 border-t-[#08557f] rounded-full animate-spin"></div>
-            <Eye className="absolute inset-0 m-auto h-10 w-10 text-[#08557f]" />
           </div>
           <p className="mt-6 text-sm font-bold text-slate-500 uppercase tracking-[0.2em]">
             Cargando panel de supervisión...
