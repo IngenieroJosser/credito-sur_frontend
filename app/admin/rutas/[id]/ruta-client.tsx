@@ -1275,9 +1275,9 @@ const RutaClientLoaded = ({
         {/* Banner de cierre pendiente */}
         <CierrePendienteBanner
           cierrePendiente={cierrePendiente}
-          onVerDetalles={async () => {
+          onVerDetalles={() => {
             setShowDetalleCierre(true)
-            await cargarDetalle()
+            void cargarDetalle()
           }}
         />
 
