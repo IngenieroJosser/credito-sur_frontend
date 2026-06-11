@@ -63,9 +63,18 @@ export default function ReprogramarModal({ visita, onClose, onConfirm }: Reprogr
 
   const handleGuardar = async () => {
     if (!canSubmit) return
+    const cuotaId =
+      (visita as any)?.cuotaId ||
+      (visita as any)?.cuotaObjetivoId ||
+      (visita as any)?.cuotaObjetivoPrestamoId ||
+      (visita as any)?.proximaCuota?.id
     setIsSubmitting(true)
     try {
-      await onConfirm(reprogramFecha, reprogramMotivo.trim() || 'Reprogramación solicitada')
+      await onConfirm(
+        reprogramFecha,
+        reprogramMotivo.trim() || 'Reprogramación solicitada',
+        cuotaId ? String(cuotaId) : undefined,
+      )
     } catch (error) {
       console.error('Error al solicitar reprogramación:', error)
       setIsSubmitting(false)

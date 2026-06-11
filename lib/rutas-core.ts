@@ -32,6 +32,7 @@ type RegularizedPaymentTargetInput = {
   cliente: ClienteCierrePendiente;
   visitaBase: Record<string, any>;
   contextoRegularizacion?: Record<string, any> | null;
+  intent?: 'pago' | 'reprogramacion';
 };
 
 type RegularizedPaymentTarget =
@@ -51,6 +52,7 @@ export const buildRegularizedPaymentTarget = ({
   cliente,
   visitaBase,
   contextoRegularizacion,
+  intent = 'pago',
 }: RegularizedPaymentTargetInput): RegularizedPaymentTarget => {
   const cuota = cliente.cuotaObjetivo;
   const prestamoId = cliente.prestamoObjetivoId || visitaBase?.prestamoId;
@@ -63,7 +65,15 @@ export const buildRegularizedPaymentTarget = ({
     return { error: 'No se encontró la cuota objetivo para este pago regularizado.' };
   }
 
-  if (!cuota.puedePagar) {
+  if (intent === 'reprogramacion' && !cuota.puedeReprogramar) {
+    return {
+      error:
+        cuota.motivoBloqueoReprogramacion ||
+        'La cuota objetivo no está disponible para reprogramación.',
+    };
+  }
+
+  if (intent === 'pago' && !cuota.puedePagar) {
     return {
       error:
         cuota.motivoBloqueoPago ||
@@ -97,6 +107,8 @@ export const buildRegularizedPaymentTarget = ({
       clienteId: cliente.clienteId,
       prestamoId,
       cuotaId,
+      cuotaObjetivoId: cuotaId,
+      cuotaObjetivoPrestamoId: cuotaId,
       cuotaNumeroEsperada: cuota.numeroCuota,
       montoCuotaEsperado: montoEsperado,
       fechaOperativaRuta,
