@@ -29,6 +29,10 @@ export type CuotaObjetivoCierrePendiente = {
   puedeReprogramar: boolean
   esCuotaFuturaEnFechaOperativa?: boolean
   esCuotaPagadaHistorica?: boolean
+  esCuotaReprogramadaJornada?: boolean
+  nuevaFechaReprogramada?: string | null
+  aprobacionReprogramacionId?: string | null
+  estadoReprogramacion?: string | null
   motivoBloqueoPago?: string | null
   motivoBloqueoReprogramacion?: string | null
 }

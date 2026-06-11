@@ -601,6 +601,12 @@ export function CierrePendienteDetalleModal({
                                 <p className="text-[11px] text-slate-600">
                                   Vence: {formatFechaCortaBogota(cliente.cuotaObjetivo.fechaVencimiento)}
                                 </p>
+                                {cliente.cuotaObjetivo.esCuotaReprogramadaJornada &&
+                                  cliente.cuotaObjetivo.nuevaFechaReprogramada && (
+                                    <p className="text-[11px] font-bold text-emerald-700">
+                                      Nueva fecha: {formatFechaCortaBogota(cliente.cuotaObjetivo.nuevaFechaReprogramada)}
+                                    </p>
+                                  )}
                               </div>
                               <div className="text-right">
                                 <p
@@ -609,9 +615,11 @@ export function CierrePendienteDetalleModal({
                                     saldoOperativoJornada > 0 ? 'text-blue-700' : 'text-emerald-700',
                                   )}
                                 >
-                                  {saldoOperativoJornada > 0
-                                    ? formatCurrency(saldoOperativoJornada)
-                                    : 'Cubierto por pago'}
+                                  {cliente.cuotaObjetivo.esCuotaReprogramadaJornada
+                                    ? 'Reprogramada'
+                                    : saldoOperativoJornada > 0
+                                      ? formatCurrency(saldoOperativoJornada)
+                                      : 'Cubierto por pago'}
                                 </p>
                                 <p
                                   className={cn(
@@ -619,7 +627,11 @@ export function CierrePendienteDetalleModal({
                                     saldoOperativoJornada > 0 ? 'text-blue-600' : 'text-emerald-600',
                                   )}
                                 >
-                                  {saldoOperativoJornada > 0 ? 'Saldo operativo' : 'Sin saldo operativo'}
+                                  {cliente.cuotaObjetivo.esCuotaReprogramadaJornada
+                                    ? 'Gestión registrada'
+                                    : saldoOperativoJornada > 0
+                                      ? 'Saldo operativo'
+                                      : 'Sin saldo operativo'}
                                 </p>
                               </div>
                             </div>
