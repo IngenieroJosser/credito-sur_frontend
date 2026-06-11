@@ -12,6 +12,8 @@ import { formatCOPInputValue, parseCOPInputToNumber, formatMilesCOP, getDisplaye
 import FieldLabel from '@/components/ui/FieldLabel'
 import Portal, { MODAL_Z_INDEX } from '@/components/ui/Portal'
 
+const MONTO_MINIMO_ABONO_COP = 1000
+
 interface PagoModalProps {
   visita: VisitaRuta
   tipo: 'PAGO' | 'ABONO'
@@ -83,6 +85,11 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm, montoCuota
         setErrorMsg(`Para un PAGO, el monto debe ser exactamente $${formatMilesCOP(cuotaMostrada)}. Para otros valores use ABONO.`)
         return
       }
+    }
+
+    if (tipo === 'ABONO' && montoNum < MONTO_MINIMO_ABONO_COP) {
+      setErrorMsg(`El abono mínimo permitido es $${formatMilesCOP(MONTO_MINIMO_ABONO_COP)}.`)
+      return
     }
 
     const saldoTotal = Number(visita?.saldoTotal || 0)
@@ -166,6 +173,11 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm, montoCuota
 
               <div>
                 <FieldLabel required>Monto Recibido</FieldLabel>
+                {tipo === 'ABONO' && (
+                  <p className="mb-2 text-xs font-bold text-slate-500">
+                    Mínimo permitido: ${formatMilesCOP(MONTO_MINIMO_ABONO_COP)}
+                  </p>
+                )}
                 <div className="relative">
                   <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-6 w-6 text-slate-400" />
                   <input 
@@ -198,6 +210,7 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm, montoCuota
                 disabled={
                   isSubmitting ||
                   parseCOPInputToNumber(montoPagoInput) <= 0 ||
+                  (tipo === 'ABONO' && parseCOPInputToNumber(montoPagoInput) < MONTO_MINIMO_ABONO_COP) ||
                   (metodoPago === 'TRANSFERENCIA' && !comprobanteTransferencia)
                 }
                 className="w-full bg-[#08557f] text-white font-bold py-4 rounded-xl shadow-lg shadow-[#08557f]/20 hover:bg-[#063a58] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
