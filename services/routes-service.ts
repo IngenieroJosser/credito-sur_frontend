@@ -139,7 +139,7 @@ export const routesService = {
 
   // Obtener una ruta por ID
   async getById(id: string) {
-    return apiRequest<Route>('GET', `/routes/${id}`, undefined, { cacheTTL: 30000 });
+    return apiRequest<Route>('GET', `/routes/${id}`, undefined, { cacheTTL: 0 });
   },
 
   // Crear una nueva ruta
