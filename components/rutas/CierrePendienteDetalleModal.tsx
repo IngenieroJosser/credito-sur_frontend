@@ -179,6 +179,7 @@ export function CierrePendienteDetalleModal({
 }) {
   const [jornadaSeleccionada, setJornadaSeleccionada] = useState(0)
   const [processingCliente, setProcessingCliente] = useState<string | null>(null)
+  const [processingCierre, setProcessingCierre] = useState(false)
   const [showObservacionCierre, setShowObservacionCierre] = useState(false)
   const [observacionCierre, setObservacionCierre] = useState('')
 
@@ -217,11 +218,24 @@ export function CierrePendienteDetalleModal({
   const requiereObservacionAdministrativa = clientesPendientesCount > 0 || clientesAusentesCount > 0
   const puedeCerrarJornada = Boolean(permissions?.canCerrarJornada && onRegularizar)
   const canShowAccionesJornada = puedeCerrarJornada || Boolean(permissions?.canExportarDetalle && handlers?.onExportarDetalle) || Boolean(permissions?.canSolicitarCorreccion && handlers?.onSolicitarCorreccion)
+  const handleCerrarJornada = async (observaciones?: string) => {
+    if (!onRegularizar || processingCierre) return
+
+    setProcessingCierre(true)
+    try {
+      await onRegularizar(contextoRegularizacion, observaciones)
+      setShowObservacionCierre(false)
+    } finally {
+      setProcessingCierre(false)
+    }
+  }
 
   return (
     <div
       className="fixed inset-0 z-[90] flex items-end justify-center bg-slate-950/60 p-0 backdrop-blur-sm sm:items-center sm:p-4"
-      onClick={onClose}
+      onClick={() => {
+        if (!processingCierre) onClose()
+      }}
     >
       <div
         className="flex h-[96dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:h-auto sm:max-h-[92vh] sm:max-w-6xl sm:rounded-3xl"
@@ -248,7 +262,8 @@ export function CierrePendienteDetalleModal({
           <button
             type="button"
             onClick={onClose}
-            className="shrink-0 rounded-xl p-2 text-slate-400 hover:bg-white hover:text-slate-700"
+            disabled={processingCierre}
+            className="shrink-0 rounded-xl p-2 text-slate-400 hover:bg-white hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <X className="h-5 w-5" />
           </button>
@@ -510,7 +525,7 @@ export function CierrePendienteDetalleModal({
                   </p>
                 </div>
 
-                <div className="divide-y divide-slate-100 sm:max-h-[420px] sm:overflow-y-auto">
+                <div className="divide-y divide-slate-100 pb-8 sm:max-h-[520px] sm:overflow-y-auto sm:pb-10">
                   {(() => {
                     // Ordenar clientes por estado de gestión: pendientes, ausentes, pagos
                     const clientesPendientes = clientes.filter(c => c.estadoGestion === 'PENDIENTE')
@@ -981,11 +996,14 @@ export function CierrePendienteDetalleModal({
                               return
                             }
 
-                            onRegularizar?.(contextoRegularizacion)
+                            void handleCerrarJornada()
                           }}
-                          className="w-full whitespace-normal rounded-xl bg-slate-900 px-4 py-2.5 text-center text-sm font-bold leading-snug text-white transition hover:bg-slate-800 active:scale-[0.99]"
+                          disabled={processingCierre}
+                          className="w-full whitespace-normal rounded-xl bg-slate-900 px-4 py-2.5 text-center text-sm font-bold leading-snug text-white transition hover:bg-slate-800 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
                         >
-                          {requiereObservacionAdministrativa
+                          {processingCierre
+                            ? 'Cerrando jornada...'
+                            : requiereObservacionAdministrativa
                             ? 'Cerrar con observación administrativa'
                             : 'Cerrar jornada regularizada'}
                         </button>
@@ -1025,7 +1043,8 @@ export function CierrePendienteDetalleModal({
                       <button
                         type="button"
                         onClick={() => setShowObservacionCierre(false)}
-                        className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50"
+                        disabled={processingCierre}
+                        className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         Cancelar
                       </button>
@@ -1040,12 +1059,12 @@ export function CierrePendienteDetalleModal({
                             return
                           }
 
-                          onRegularizar?.(contextoRegularizacion, obs)
-                          setShowObservacionCierre(false)
+                          void handleCerrarJornada(obs)
                         }}
-                        className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white hover:bg-slate-800"
+                        disabled={processingCierre}
+                        className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
                       >
-                        Confirmar cierre
+                        {processingCierre ? 'Cerrando...' : 'Confirmar cierre'}
                       </button>
                     </div>
                   </div>

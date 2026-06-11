@@ -12,6 +12,7 @@ export function CierrePendienteBanner({
   onRegularizar,
   onVerDetalles,
   canRegularizar = false,
+  loading = false,
 }: {
   cierrePendiente: CierrePendienteRuta | null
   variant?: 'warning' | 'danger'
@@ -24,7 +25,26 @@ export function CierrePendienteBanner({
   }) => void
   onVerDetalles?: () => void
   canRegularizar?: boolean
+  loading?: boolean
 }) {
+  if (loading && !cierrePendiente) {
+    return (
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex items-start gap-3">
+          <RefreshCw className="mt-0.5 h-5 w-5 shrink-0 animate-spin text-slate-400" />
+          <div className="min-w-0 flex-1">
+            <h4 className="text-sm font-bold text-slate-800">
+              Verificando jornadas pendientes
+            </h4>
+            <p className="mt-1 text-xs leading-relaxed text-slate-500">
+              Consultando si la ruta tiene cierres anteriores por gestionar.
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   if (!cierrePendiente?.pendienteCierre) return null
 
   const isDanger = variant === 'danger'
