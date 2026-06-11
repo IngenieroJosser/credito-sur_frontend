@@ -269,7 +269,12 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     setContextoRegularizacion(null)
   }, [])
 
-  const { cierrePendiente, hasCierrePendiente, refreshCierrePendiente } = useCierrePendienteRuta(rutaId)
+  const {
+    cierrePendiente,
+    hasCierrePendiente,
+    loading: loadingCierrePendiente,
+    refreshCierrePendiente,
+  } = useCierrePendienteRuta(rutaId)
 
   const [showDetalleCierre, setShowDetalleCierre] = useState(false)
   const {
@@ -2525,6 +2530,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         {/* Banner de cierre pendiente */}
         <CierrePendienteBanner
           cierrePendiente={cierrePendiente}
+          loading={loadingCierrePendiente}
           onRefresh={refreshCierrePendiente}
           onVerDetalles={() => {
             setShowDetalleCierre(true)

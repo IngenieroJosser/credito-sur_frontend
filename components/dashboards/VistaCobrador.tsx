@@ -522,7 +522,12 @@ const VistaCobrador = () => {
 
   const [rutaActual, setRutaActual] = useState<Ruta | null>(null)
 
-  const { cierrePendiente, hasCierrePendiente, refreshCierrePendiente } = useCierrePendienteRuta(rutaActual?.id)
+  const {
+    cierrePendiente,
+    hasCierrePendiente,
+    loading: loadingCierrePendiente,
+    refreshCierrePendiente,
+  } = useCierrePendienteRuta(rutaActual?.id)
 
   const [showDetalleCierre, setShowDetalleCierre] = useState(false)
   const {
@@ -3824,6 +3829,7 @@ const VistaCobrador = () => {
         {/* Banner de cierre pendiente */}
         <CierrePendienteBanner
           cierrePendiente={cierrePendiente}
+          loading={loadingCierrePendiente}
           onRefresh={refreshCierrePendiente}
           onVerDetalles={() => {
             setShowDetalleCierre(true)

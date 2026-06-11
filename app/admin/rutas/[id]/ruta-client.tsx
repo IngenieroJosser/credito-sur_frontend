@@ -156,7 +156,12 @@ const RutaClientLoaded = ({
   const [showFilters, setShowFilters] = useState(false)
   const [periodoCards, setPeriodoCards] = useState<'HOY' | 'SEM' | 'MES' | 'AÑO'>('HOY')
 
-  const { cierrePendiente, hasCierrePendiente, refreshCierrePendiente } = useCierrePendienteRuta(rutaId)
+  const {
+    cierrePendiente,
+    hasCierrePendiente,
+    loading: loadingCierrePendiente,
+    refreshCierrePendiente,
+  } = useCierrePendienteRuta(rutaId)
 
   const [showDetalleCierre, setShowDetalleCierre] = useState(false)
   const {
@@ -1275,6 +1280,7 @@ const RutaClientLoaded = ({
         {/* Banner de cierre pendiente */}
         <CierrePendienteBanner
           cierrePendiente={cierrePendiente}
+          loading={loadingCierrePendiente}
           onVerDetalles={() => {
             setShowDetalleCierre(true)
             void cargarDetalle()
@@ -2998,7 +3004,6 @@ const RutaClientLoaded = ({
             cliente,
             visitaBase,
             contextoRegularizacion,
-            intent: 'reprogramacion',
           })
 
           if (target.error) {
