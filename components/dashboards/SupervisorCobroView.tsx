@@ -593,9 +593,9 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
 
 
-  const cargarMisCreditos = useCallback(async () => {
-    const cobradorId = rutaInfo?.cobradorId
-    if (!cobradorId) return
+  const cargarMisCreditos = useCallback(async (cobradorIdOverride?: string): Promise<VisitaRuta[]> => {
+    const cobradorId = cobradorIdOverride || rutaInfo?.cobradorId
+    if (!cobradorId) return []
 
     try {
       setLoadingMisCreditos(true)
@@ -721,8 +721,10 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
       });
 
       setMisCreditos(finales)
+      return finales
     } catch (e: any) {
       console.error('Error cargando mis clientes:', e)
+      return []
     } finally {
       setLoadingMisCreditos(false)
     }
@@ -1146,7 +1148,12 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         // Filtrar aquí descartaba clientes válidos con saldoTotal=0 que aún están pendientes.
         const finalesFiltrados = finales;
 
-        const merged = mergeVisitasPreservingLocalRecaudo(visitasBaseRef.current, finalesFiltrados as any[])
+        let merged = mergeVisitasPreservingLocalRecaudo(visitasBaseRef.current, finalesFiltrados as any[]) as any[]
+
+        if (merged.length === 0 && ruta.cobradorId) {
+          const fallbackCreditos = await cargarMisCreditos(ruta.cobradorId)
+          merged = mergeVisitasPreservingLocalRecaudo(visitasBaseRef.current, fallbackCreditos as any[]) as any[]
+        }
 
         const isAusente = shouldExcludeVisitaFromOperationalMeta
         const finalesSinAusentes = (merged || []).filter((v: any) => !isAusente(v))
@@ -1188,7 +1195,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     } catch (error) {
       console.error('Error al cargar visitas de ruta (supervisor):', error);
     }
-  }, [rutaId, hoyBogotaKey, cargarEstadisticasRuta]);
+  }, [rutaId, hoyBogotaKey, cargarEstadisticasRuta, cargarMisCreditos]);
 
 
 
