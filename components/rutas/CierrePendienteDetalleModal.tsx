@@ -515,8 +515,9 @@ export function CierrePendienteDetalleModal({
                     // Ordenar clientes por estado de gestión: pendientes, ausentes, pagos
                     const clientesPendientes = clientes.filter(c => c.estadoGestion === 'PENDIENTE')
                     const clientesAusentes = clientes.filter(c => c.estadoGestion === 'AUSENTE')
+                    const clientesReprogramados = clientes.filter(c => c.estadoGestion === 'REPROGRAMADO')
                     const clientesPagaron = clientes.filter(c => c.estadoGestion === 'PAGO_REGISTRADO')
-                    const clientesOrdenados = [...clientesPendientes, ...clientesAusentes, ...clientesPagaron]
+                    const clientesOrdenados = [...clientesPendientes, ...clientesAusentes, ...clientesReprogramados, ...clientesPagaron]
 
                     return clientesOrdenados.map((cliente) => {
                       const saldoOperativoJornada = getSaldoOperativoJornada(cliente)
@@ -635,6 +636,12 @@ export function CierrePendienteDetalleModal({
                               saldoOperativoJornada > 0 &&
                               Boolean(cliente.prestamoObjetivoId) &&
                               Boolean(cliente.cuotaObjetivoId || cuota?.id || cliente.cuotaObjetivoPrestamoId)
+                            const puedeReprogramarRegularizado =
+                              (estado === 'PENDIENTE' || estado === 'AUSENTE') &&
+                              Boolean(cuota?.puedeReprogramar) &&
+                              saldoOperativoJornada > 0 &&
+                              Boolean(cliente.prestamoObjetivoId) &&
+                              Boolean(cliente.cuotaObjetivoId || cuota?.id || cliente.cuotaObjetivoPrestamoId)
                             const puedeMarcarAusente =
                               estado === 'PENDIENTE' &&
                               saldoOperativoJornada > 0 &&
@@ -730,6 +737,50 @@ export function CierrePendienteDetalleModal({
                                     className="w-full rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                                   >
                                     {processingCliente === clienteId ? 'Procesando...' : 'Registrar abono regularizado'}
+                                  </button>
+                                )}
+
+                                {puedeReprogramarRegularizado && permissions?.canReprogramar && onReprogramar && (
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      const cuota = cliente.cuotaObjetivo
+                                      const prestamoId = cliente.prestamoObjetivoId
+                                      const cuotaId =
+                                        cliente.cuotaObjetivoId ||
+                                        cuota?.id ||
+                                        cliente.cuotaObjetivoPrestamoId
+
+                                      if (!prestamoId || !cuota || !cuotaId) {
+                                        toast.error('No se encontró la cuota objetivo para esta reprogramación.')
+                                        return
+                                      }
+
+                                      if (!cuota.puedeReprogramar) {
+                                        toast.error(
+                                          cuota.motivoBloqueoReprogramacion ||
+                                            'La cuota objetivo no está disponible para reprogramación.',
+                                        )
+                                        return
+                                      }
+
+                                      setProcessingCliente(clienteId)
+                                      try {
+                                        await onReprogramar(cliente, {
+                                          ...contextoRegularizacion,
+                                          prestamoId,
+                                          cuotaId,
+                                          cuotaNumeroEsperada: cuota.numeroCuota,
+                                          montoCuotaEsperado: saldoOperativoJornada,
+                                        })
+                                      } finally {
+                                        setProcessingCliente(null)
+                                      }
+                                    }}
+                                    disabled={processingCliente === clienteId}
+                                    className="w-full rounded-xl border border-orange-300 bg-orange-50 px-3 py-2 text-xs font-bold text-orange-800 hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                                  >
+                                    {processingCliente === clienteId ? 'Procesando...' : 'Reprogramar cuota'}
                                   </button>
                                 )}
 
@@ -1021,7 +1072,7 @@ function EstadoGestionBadge({
   estado,
   saldoExigible,
 }: {
-  estado: 'PAGO_REGISTRADO' | 'AUSENTE' | 'PENDIENTE'
+  estado: 'PAGO_REGISTRADO' | 'AUSENTE' | 'REPROGRAMADO' | 'PENDIENTE'
   saldoExigible?: number | null
 }) {
   const tieneSaldoPendiente =
@@ -1032,6 +1083,7 @@ function EstadoGestionBadge({
       ? 'border-amber-200 bg-amber-50 text-amber-700'
       : 'border-emerald-200 bg-emerald-50 text-emerald-700',
     AUSENTE: 'border-amber-200 bg-amber-50 text-amber-700',
+    REPROGRAMADO: 'border-orange-200 bg-orange-50 text-orange-700',
     PENDIENTE: 'border-red-200 bg-red-50 text-red-700',
   }
 
@@ -1040,6 +1092,7 @@ function EstadoGestionBadge({
       ? 'Pago registrado · saldo pendiente'
       : 'Pago registrado',
     AUSENTE: 'Ausente',
+    REPROGRAMADO: 'Reprogramado',
     PENDIENTE: 'Sin gestión',
   }
 

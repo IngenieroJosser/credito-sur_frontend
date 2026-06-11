@@ -98,7 +98,7 @@ export type ClienteCierrePendiente = {
   telefono?: string
   direccion?: string
   nivelRiesgo?: string
-  estadoGestion: 'PAGO_REGISTRADO' | 'AUSENTE' | 'PENDIENTE'
+  estadoGestion: 'PAGO_REGISTRADO' | 'AUSENTE' | 'REPROGRAMADO' | 'PENDIENTE'
   recaudadoDelDia: number
   saldoOperativoJornada?: number
   metaOperativaJornada?: number

@@ -2998,6 +2998,7 @@ const RutaClientLoaded = ({
             cliente,
             visitaBase,
             contextoRegularizacion,
+            intent: 'reprogramacion',
           })
 
           if (target.error) {
@@ -3030,17 +3031,29 @@ const RutaClientLoaded = ({
           }, 80)
         }}
         onReprogramar={(cliente, contextoRegularizacion) => {
-          const visita = visitasCobrador.find((v: any) => v.clienteId === cliente.clienteId)
-          if (!visita) {
+          const visitaBase = visitasCobrador.find((v: any) => v.clienteId === cliente.clienteId)
+          if (!visitaBase) {
             toast.error('No se encontró la visita del cliente.')
+            return
+          }
+
+          const target = buildRegularizedPaymentTarget({
+            rutaId,
+            cliente,
+            visitaBase,
+            contextoRegularizacion,
+          })
+
+          if (target.error) {
+            toast.error(target.error)
             return
           }
 
           setShowDetalleCierre(false)
 
           setTimeout(() => {
-            setRegularizacionContext(contextoRegularizacion)
-            setVisitaReprogramar(visita)
+            setRegularizacionContext(target.contextoPagoRegularizado)
+            setVisitaReprogramar(target.visitaRegularizada as any)
           }, 80)
         }}
         onRegularizar={async (contextoRegularizacion, observaciones) => {
@@ -3096,7 +3109,7 @@ const RutaClientLoaded = ({
             canRegistrarPago: (canSupervisarJornada || isCobrador) && !esDiaNoLaboral,
             canMarcarAusente: canSupervisarJornada || isCobrador,
             canAnularAusencia: false,
-            canReprogramar: false,
+            canReprogramar: (canSupervisarJornada || isCobrador) && !esDiaNoLaboral,
             canVerPago: false,
             canVerComprobante: false,
             canAgregarObservacion: false,
