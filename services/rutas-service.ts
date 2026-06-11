@@ -361,7 +361,7 @@ export const rutasService = {
 
   async obtenerRutaPorId(id: string): Promise<Ruta> {
 
-    return apiRequest<Ruta>('GET', `/routes/${id}`);
+    return apiRequest<Ruta>('GET', `/routes/${id}`, undefined, { cacheTTL: 0 } as any);
 
   },
 
