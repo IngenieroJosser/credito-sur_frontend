@@ -5083,6 +5083,11 @@ const VistaCobrador = () => {
                                           e.stopPropagation();
 
                                           if (!rutaOperable) return;
+                                          const isProrrogaVencida =
+                                            visita.enProrroga &&
+                                            visita.fechaProrroga &&
+                                            new Date(visita.fechaProrroga).getTime() < Date.now();
+                                          if (visita.enProrroga && !isProrrogaVencida) return;
 
                                           clearRegularizacionContext()
                                           setVisitaReprogramar(visita);
@@ -5091,9 +5096,29 @@ const VistaCobrador = () => {
 
                                         }}
 
-                                        disabled={!rutaOperable}
+                                        disabled={
+                                          !rutaOperable ||
+                                          (!!visita.enProrroga &&
+                                            !(
+                                              visita.fechaProrroga &&
+                                              new Date(visita.fechaProrroga).getTime() < Date.now()
+                                            ))
+                                        }
+                                        title={
+                                          !rutaOperable
+                                            ? rutaCompletada
+                                              ? 'Jornada completada'
+                                              : 'Jornada sin activar'
+                                            : visita.enProrroga &&
+                                                !(
+                                                  visita.fechaProrroga &&
+                                                  new Date(visita.fechaProrroga).getTime() < Date.now()
+                                                )
+                                              ? 'No se puede reprogramar con prórroga activa'
+                                              : 'Solicitar reprogramación'
+                                        }
 
-                                        className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border transition-all active:scale-95 text-[11px] font-bold ${!rutaOperable ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                                        className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border transition-all active:scale-95 text-[11px] font-bold ${!rutaOperable || (visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now())) ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
 
                                       >
 
