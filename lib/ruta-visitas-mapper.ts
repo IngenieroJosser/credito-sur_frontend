@@ -108,6 +108,7 @@ export const mapAsignacionesToVisitasLite = (params: {
   asignaciones: any[]
   hoyKey?: string
   cobradorId: string
+  filtrarExigibles?: boolean
 }): VisitaRutaLite[] => {
   // Construye visitas por cada asignación. Si el cliente tiene préstamos activos,
   // se genera una visita por préstamo; si no, se genera una visita "vacía" (prestamo=null)
@@ -170,7 +171,7 @@ export const mapAsignacionesToVisitasLite = (params: {
         hoyKey,
       )
 
-      if (!apareceHoy) return []
+      if (!apareceHoy && params.filtrarExigibles !== false) return []
 
       const esArticulo = prestamo?.tipo === 'ARTICULO' || prestamo?.tipoPrestamo === 'ARTICULO'
 

@@ -1007,6 +1007,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
           asignaciones: ruta.asignaciones,
           hoyKey,
           cobradorId: ruta.cobradorId,
+          filtrarExigibles: false,
         }) as any[]
 
         const clientesConPrestamo = new Set<string>();
