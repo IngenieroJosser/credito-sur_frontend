@@ -541,6 +541,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         // Para HOY: usar meta calculada desde visitas (excluye ausentes)
         const isAusente = shouldExcludeVisitaFromOperationalMeta
         const visitasActuales = visitasBaseRef.current
+        const hasVisitasActuales = Array.isArray(visitasActuales) && visitasActuales.length > 0
         const visitasParaMeta = Array.isArray(visitasActuales)
           ? visitasActuales.filter((v: any) => !isAusente(v))
           : []
@@ -550,7 +551,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
               meta: Number(prev.meta ?? 0),
               recaudo: recaudoBackend,
               eficiencia: prev.eficiencia,
-            }, { preferUi: Array.isArray(visitasActuales) && visitasActuales.length > 0 })
+            }, { preferUi: hasVisitasActuales })
           : {
               meta: Number(statsHoy.meta || 0),
               recaudo: recaudoBackend > 0 ? recaudoBackend : Number(prev.recaudo ?? 0),
@@ -560,12 +561,18 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         const eficiencia = statsAutoritativas.meta > 0
           ? Number(((statsAutoritativas.recaudo / statsAutoritativas.meta) * 100).toFixed(1))
           : Number(prev.eficiencia ?? 0)
+        const shouldUpdateOperationalKpis =
+          periodoCards !== 'HOY' ||
+          hasVisitasActuales ||
+          recaudoBackend > 0 ||
+          Number(prev.meta ?? 0) > 0 ||
+          Number(prev.recaudo ?? 0) > 0
         return {
           ...prev,
-          recaudo: statsAutoritativas.recaudo,
-          meta: statsAutoritativas.meta,
-          eficiencia,
-          pendiente: periodoCards === 'HOY' ? statsAutoritativas.pendiente : prev.pendiente,
+          recaudo: shouldUpdateOperationalKpis ? statsAutoritativas.recaudo : prev.recaudo,
+          meta: shouldUpdateOperationalKpis ? statsAutoritativas.meta : prev.meta,
+          eficiencia: shouldUpdateOperationalKpis ? eficiencia : prev.eficiencia,
+          pendiente: shouldUpdateOperationalKpis && periodoCards === 'HOY' ? statsAutoritativas.pendiente : prev.pendiente,
           gastos: Number(saldo?.gastosDelDia ?? prev.gastos ?? 0),
           base: Number(saldo?.saldoCaja ?? saldo?.baseEfectivo ?? prev.base ?? 0),
         }
@@ -1324,11 +1331,12 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
 
         if (rutaId) {
-          // Carga de estadísticas y recaudo (ahora retorna el mapa de recaudos por referencia)
-          const recaudosMap = await cargarEstadisticasRuta();
+          // La meta operativa depende de visitas/cuotas enriquecidas. Cargar visitas
+          // primero evita que una respuesta temprana de caja pise KPIs con ceros.
+          await cargarVisitasRuta();
 
-          // Carga de visitas delegada al useCallback reutilizable, pasando el mapa de recaudos
-          await cargarVisitasRuta(recaudosMap);
+          // Luego actualizar caja/base/gastos sin reemplazar KPIs operativas válidas.
+          await cargarEstadisticasRuta();
         }
       } catch (error) {
         console.error('Error al cargar datos de supervisor:', error);
