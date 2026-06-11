@@ -22,7 +22,6 @@ export function useCierrePendienteDetalle(rutaId?: string | null) {
     } catch (error) {
       console.error('[useCierrePendienteDetalle] Error:', error)
       setError(error)
-      setDetalle(null)
       return null
     } finally {
       setLoading(false)

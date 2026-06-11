@@ -135,6 +135,7 @@ export function CierrePendienteDetalleModal({
   onRegularizar,
   onVerEstadoCuenta,
   onRegistrarPago,
+  onRegistrarAbono,
   onMarcarAusente,
   onReprogramar,
   permissions,
@@ -152,6 +153,7 @@ export function CierrePendienteDetalleModal({
   }, observaciones?: string) => void | Promise<void>
   onVerEstadoCuenta?: (cliente: any, contextoRegularizacion?: any) => void
   onRegistrarPago?: (cliente: any, contextoRegularizacion?: any) => void
+  onRegistrarAbono?: (cliente: any, contextoRegularizacion?: any) => void
   onMarcarAusente?: (cliente: any, contextoRegularizacion?: any) => void
   onReprogramar?: (cliente: any, contextoRegularizacion?: any) => void
   permissions?: {
@@ -293,12 +295,18 @@ export function CierrePendienteDetalleModal({
           </>
         )}
 
-        {loading ? (
+        {loading && !detalle ? (
           <div className="p-10 text-center text-sm font-bold text-slate-500">
             Cargando detalle operativo...
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-6">
+            {loading && detalle && (
+              <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-xs font-bold text-blue-700">
+                Actualizando detalle operativo...
+              </div>
+            )}
+
             {resumen && (
               <>
                 {/* Grupo A - Header de jornada */}
@@ -678,6 +686,50 @@ export function CierrePendienteDetalleModal({
                                     className="w-full rounded-xl bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                                   >
                                     {processingCliente === clienteId ? 'Procesando...' : 'Registrar pago regularizado'}
+                                  </button>
+                                )}
+
+                                {puedeRegistrarPagoRegularizado && permissions?.canRegistrarPago && onRegistrarAbono && (
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      const cuota = cliente.cuotaObjetivo
+                                      const prestamoId = cliente.prestamoObjetivoId
+                                      const cuotaId =
+                                        cliente.cuotaObjetivoId ||
+                                        cuota?.id ||
+                                        cliente.cuotaObjetivoPrestamoId
+
+                                      if (!prestamoId || !cuota || !cuotaId) {
+                                        toast.error('No se encontró la cuota objetivo para este abono regularizado.')
+                                        return
+                                      }
+
+                                      if (!cuota.puedePagar) {
+                                        toast.error(
+                                          cuota.motivoBloqueoPago ||
+                                            'La cuota objetivo no está disponible para abono.',
+                                        )
+                                        return
+                                      }
+
+                                      setProcessingCliente(clienteId)
+                                      try {
+                                        await onRegistrarAbono(cliente, {
+                                          ...contextoRegularizacion,
+                                          prestamoId,
+                                          cuotaId,
+                                          cuotaNumeroEsperada: cuota.numeroCuota,
+                                          montoCuotaEsperado: saldoOperativoJornada,
+                                        })
+                                      } finally {
+                                        setProcessingCliente(null)
+                                      }
+                                    }}
+                                    disabled={processingCliente === clienteId}
+                                    className="w-full rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                                  >
+                                    {processingCliente === clienteId ? 'Procesando...' : 'Registrar abono regularizado'}
                                   </button>
                                 )}
 

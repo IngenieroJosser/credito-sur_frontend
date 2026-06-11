@@ -4519,6 +4519,35 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
               setShowPaymentModal(true)
             }, 80)
           }}
+          onRegistrarAbono={(cliente, contextoRegularizacion) => {
+            const visitaBase = visitasBase.find((v: any) => v.clienteId === cliente.clienteId)
+            if (!visitaBase) {
+              toast.error('No se encontró la visita del cliente.')
+              return
+            }
+
+            const target = buildRegularizedPaymentTarget({
+              rutaId,
+              cliente,
+              visitaBase,
+              contextoRegularizacion,
+            })
+
+            if (target.error) {
+              toast.error(target.error)
+              return
+            }
+
+            setShowDetalleCierre(false)
+
+            setTimeout(() => {
+              setRegularizacionContext(target.contextoPagoRegularizado)
+              setVisitaPagoRegularizada(target.visitaRegularizada as any)
+              setVisitaPagoSeleccionadaId(visitaBase.id)
+              setPagoInitialIsAbono(true)
+              setShowPaymentModal(true)
+            }, 80)
+          }}
           onMarcarAusente={(cliente, contextoRegularizacion) => {
             const visita = visitasBase.find((v: any) => v.clienteId === cliente.clienteId)
             if (!visita) {

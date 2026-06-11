@@ -2986,6 +2986,35 @@ const RutaClientLoaded = ({
             })
           }, 80)
         }}
+        onRegistrarAbono={(cliente, contextoRegularizacion) => {
+          const visitaBase = visitasCobrador.find((v: any) => v.clienteId === cliente.clienteId)
+          if (!visitaBase) {
+            toast.error('No se encontró la visita del cliente.')
+            return
+          }
+
+          const target = buildRegularizedPaymentTarget({
+            rutaId,
+            cliente,
+            visitaBase,
+            contextoRegularizacion,
+          })
+
+          if (target.error) {
+            toast.error(target.error)
+            return
+          }
+
+          setShowDetalleCierre(false)
+
+          setTimeout(() => {
+            setRegularizacionContext(target.contextoPagoRegularizado)
+            setPagoVisita({
+              visita: target.visitaRegularizada as any,
+              tipo: 'ABONO',
+            })
+          }, 80)
+        }}
         onMarcarAusente={(cliente, contextoRegularizacion) => {
           const visita = visitasCobrador.find((v: any) => v.clienteId === cliente.clienteId)
           if (!visita) {
