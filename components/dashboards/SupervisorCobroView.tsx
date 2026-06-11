@@ -1139,13 +1139,6 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                 const pendKey = getCuotaVtoKey(pendiente);
                 const montoReal = Number(pendiente.monto || (Number(pendiente.montoCapital || 0) + Number(pendiente.montoInteres || 0)) || v.montoCuota || 0);
                 const pendienteReal = Math.max(0, montoReal - Number(pendiente.montoPagado || 0));
-                const yaPagadoHoy = cuotas.some((c: any) => {
-                  const s = String(c?.estado || '').toUpperCase();
-                  if (s !== 'PAGADA' && s !== 'PAGADO') return false;
-                  const pKey = c?.fechaPago ? getBogotaDateKey(new Date(c.fechaPago)) : '';
-                  return pKey && pKey === hoyBogota;
-                });
-                
                 return {
                   ...v,
                   montoCuota: totalNominal > 0 ? totalNominal : (montoReal > 0 ? montoReal : v.montoCuota),
@@ -1155,7 +1148,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                     : (pendiente.fechaVencimiento || v.proximaVisita),
                   cuotaActual: pendiente.numeroCuota,
                   cuotasTotales: cuotas.length,
-                  estado: (yaPagadoHoy ? 'pagado' : (esMora ? 'en_mora' : 'pendiente')) as EstadoVisita,
+                  estado: (esMora ? 'en_mora' : 'pendiente') as EstadoVisita,
                   enProrroga: pendiente.estado === 'PRORROGADA' || !!pendiente.fechaVencimientoProrroga,
                   fechaProrroga: pendiente.fechaVencimientoProrroga || undefined,
                   fechaOriginalVencimiento: pendiente.fechaVencimiento || undefined,
