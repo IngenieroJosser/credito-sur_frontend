@@ -3825,9 +3825,9 @@ const VistaCobrador = () => {
         <CierrePendienteBanner
           cierrePendiente={cierrePendiente}
           onRefresh={refreshCierrePendiente}
-          onVerDetalles={async () => {
+          onVerDetalles={() => {
             setShowDetalleCierre(true)
-            await cargarDetalle()
+            void cargarDetalle()
           }}
         />
 

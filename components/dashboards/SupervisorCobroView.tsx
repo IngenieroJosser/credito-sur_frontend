@@ -2526,9 +2526,9 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         <CierrePendienteBanner
           cierrePendiente={cierrePendiente}
           onRefresh={refreshCierrePendiente}
-          onVerDetalles={async () => {
+          onVerDetalles={() => {
             setShowDetalleCierre(true)
-            await cargarDetalle()
+            void cargarDetalle()
           }}
         />
 
