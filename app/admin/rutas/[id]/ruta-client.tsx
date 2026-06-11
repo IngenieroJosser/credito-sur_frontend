@@ -3112,7 +3112,7 @@ const RutaClientLoaded = ({
             canSolicitarCorreccion: false,
             canCerrarJornada: canAdministrarJornada,
             canRegistrarPago: (canSupervisarJornada || isCobrador) && !esDiaNoLaboral,
-            canMarcarAusente: canSupervisarJornada || isCobrador,
+            canMarcarAusente: (canSupervisarJornada || isCobrador) && !esDiaNoLaboral,
             canAnularAusencia: false,
             canReprogramar: (canSupervisarJornada || isCobrador) && !esDiaNoLaboral,
             canVerPago: false,
