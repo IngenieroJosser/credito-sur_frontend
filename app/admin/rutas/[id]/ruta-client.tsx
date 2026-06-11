@@ -847,18 +847,17 @@ const RutaClientLoaded = ({
         error?.response?.data?.statusCode;
 
       const message =
-        error?.message ??
         error?.response?.data?.message ??
         error?.error?.message ??
+        error?.message ??
         'La ruta ya tiene movimiento de caja hoy y se considera operativa.';
 
       // Tratar 409 como caso de negocio (conflicto por restricción de BD)
       if (status === 409) {
         showNotification('info', message, 'Información');
-        setRutaActivadaHoy(true);
         await refreshActivacionHoy();
       } else {
-        showNotification('error', 'No se pudo activar la ruta para hoy', 'Error');
+        showNotification('error', message || 'No se pudo activar la ruta para hoy', 'Error');
       }
     } finally {
       setLoadingActivacionHoy(false)
