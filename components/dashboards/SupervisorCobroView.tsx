@@ -168,6 +168,65 @@ const normalizePeriodoRuta = (raw: any): any => {
   return 'DIA'
 }
 
+const normalizeNivelRiesgo = (nivel: string) => {
+  const n = String(nivel || '').toUpperCase()
+  if (n === 'AMARILLO') return 'precaucion'
+  if (n === 'ROJO') return 'moderado'
+  if (n === 'LISTA_NEGRA') return 'critico'
+  return 'bajo'
+}
+
+const mapDailyVisitToVisitaRuta = (row: any, rutaCobradorId: string, idx: number): VisitaRuta => {
+  const cliente = row?.cliente || {}
+  const prestamos = Array.isArray(row?.prestamos) ? row.prestamos : []
+  const prestamoObjetivo = prestamos.find((p: any) => p?.id === row?.prestamoObjetivoId) || prestamos[0] || {}
+  const cuotaObjetivo = row?.cuotaObjetivo || prestamoObjetivo?.cuotaObjetivo || prestamoObjetivo?.proximaCuota || {}
+  const saldoExigible = Number(
+    cuotaObjetivo?.saldoExigibleEnFechaOperativa ??
+    prestamoObjetivo?.montoMetaOperativaPendiente ??
+    cuotaObjetivo?.montoCuota ??
+    cuotaObjetivo?.monto ??
+    0,
+  )
+  const montoNominal = Number(cuotaObjetivo?.montoCuota ?? cuotaObjetivo?.monto ?? saldoExigible)
+  const saldoTotal = Number(prestamoObjetivo?.saldoPendiente ?? saldoExigible)
+  const recaudo = Number(row?.recaudadoDelDia || 0)
+  const estadoCuota = String(cuotaObjetivo?.estadoActual || cuotaObjetivo?.estado || '').toUpperCase()
+  const enMora = Boolean(cuotaObjetivo?.enMoraEnFechaOperativa) || estadoCuota === 'VENCIDA'
+  const pagado = saldoTotal <= 0 || Boolean(cuotaObjetivo?.cubiertaPorPagoJornada) || (saldoExigible <= 0 && recaudo > 0)
+
+  return {
+    id: `${row?.asignacionId || 'daily'}-${prestamoObjetivo?.id || cliente?.id || idx}`,
+    cliente: `${cliente?.nombres || ''} ${cliente?.apellidos || ''}`.trim() || 'Cliente',
+    direccion: cliente?.direccion || 'Sin dirección registrada',
+    telefono: cliente?.telefono || '',
+    horaSugerida: '08:00 AM',
+    montoCuota: Math.max(montoNominal, saldoExigible),
+    montoCuotaPendiente: saldoExigible,
+    saldoTotal: Math.max(0, saldoTotal),
+    estado: (pagado ? 'pagado' : enMora ? 'en_mora' : 'pendiente') as EstadoVisita,
+    estadoVisita: row?.estadoVisita || undefined,
+    notasVisita: row?.notasVisita || undefined,
+    proximaVisita: cuotaObjetivo?.fechaEfectiva || cuotaObjetivo?.fechaVencimientoProrroga || cuotaObjetivo?.fechaVencimiento || getBogotaDateKey(new Date()),
+    targetVencimiento: cuotaObjetivo?.fechaVencimiento || undefined,
+    ordenVisita: Number(row?.ordenVisita || idx + 1),
+    prioridad: enMora ? 'alta' : 'media',
+    nivelRiesgo: normalizeNivelRiesgo(cliente?.nivelRiesgo) as any,
+    cobradorId: rutaCobradorId,
+    periodoRuta: normalizePeriodoRuta(prestamoObjetivo?.frecuenciaPago) as PeriodoRuta,
+    clienteId: cliente?.id || '',
+    prestamoId: prestamoObjetivo?.id || row?.prestamoObjetivoId || '',
+    cuotaActual: Number(cuotaObjetivo?.numeroCuota || 0) || undefined,
+    cuotasTotales: Number(prestamoObjetivo?.cantidadCuotas || 0) || undefined,
+    tipoPrestamo: String(prestamoObjetivo?.tipo || '').toUpperCase() === 'ARTICULO' ? 'ARTICULO' : 'EFECTIVO',
+    articuloNombre: String(prestamoObjetivo?.tipo || '').toUpperCase() === 'ARTICULO' ? 'Artículo' : 'Préstamo',
+    enProrroga: Boolean(cuotaObjetivo?.fechaVencimientoProrroga),
+    fechaProrroga: cuotaObjetivo?.fechaVencimientoProrroga || undefined,
+    fechaOriginalVencimiento: cuotaObjetivo?.fechaVencimiento || undefined,
+    recaudadoDelDia: recaudo,
+  } as any
+}
+
 
 /**
 
@@ -995,7 +1054,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
       }
       setRutaInfo({ id: ruta.id, cobradorId: ruta.cobradorId, nombre: ruta.nombre, cobradorNombre });
 
-      if (ruta && ruta.asignaciones) {
+      if (ruta) {
         const hoyKey = getBogotaDateKey(new Date())
 
         const getCuotasByPrestamoId = memoizePromiseByKey(
@@ -1003,12 +1062,23 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
           () => [],
         )
 
-        const visitasRaw = mapAsignacionesToVisitasLite({
-          asignaciones: ruta.asignaciones,
-          hoyKey,
-          cobradorId: ruta.cobradorId,
-          filtrarExigibles: false,
-        }) as any[]
+        let visitasRaw: any[] = []
+        let dailyResumen: any = null
+
+        try {
+          const visitasDia = await rutasService.obtenerVisitasDelDia(ruta.id, hoyKey)
+          const rows = Array.isArray((visitasDia as any)?.visitas) ? (visitasDia as any).visitas : []
+          dailyResumen = (visitasDia as any)?.resumen || null
+          visitasRaw = rows.map((row: any, idx: number) => mapDailyVisitToVisitaRuta(row, ruta.cobradorId, idx))
+        } catch (dailyError) {
+          console.warn('No se pudo cargar agenda diaria de supervisor, usando detalle de ruta:', dailyError)
+          visitasRaw = mapAsignacionesToVisitasLite({
+            asignaciones: (ruta as any).asignaciones || (ruta as any).asignacionesRuta || [],
+            hoyKey,
+            cobradorId: ruta.cobradorId,
+            filtrarExigibles: false,
+          }) as any[]
+        }
 
         const clientesConPrestamo = new Set<string>();
         visitasRaw.forEach((v: any) => {
@@ -1146,7 +1216,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         // Filtrar aquí descartaba clientes válidos con saldoTotal=0 que aún están pendientes.
         const finalesFiltrados = finales;
 
-        const merged = mergeVisitasPreservingLocalRecaudo(visitasBaseRef.current, finalesFiltrados as any[])
+        const merged = mergeVisitasPreservingLocalRecaudo(visitasBaseRef.current, finalesFiltrados as any[]) as any[]
 
         const isAusente = shouldExcludeVisitaFromOperationalMeta
         const finalesSinAusentes = (merged || []).filter((v: any) => !isAusente(v))
@@ -1155,10 +1225,12 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         const recaudoBackendHoy = Math.max(
           Number((ruta as any)?.cobranzaDelDia || 0),
           Number(rutaStatsBackend?.cobranzaDelDia || 0),
+          Number(dailyResumen?.recaudo || dailyResumen?.recaudoOperativo || 0),
         )
         const metaBackendHoy = Math.max(
           Number((ruta as any)?.metaDelDia || 0),
           Number(rutaStatsBackend?.metaDelDia || 0),
+          Number(dailyResumen?.meta || 0),
         )
 
         setRutaStats((prev: any) => {
