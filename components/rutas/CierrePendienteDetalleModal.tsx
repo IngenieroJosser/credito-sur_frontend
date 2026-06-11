@@ -601,6 +601,12 @@ export function CierrePendienteDetalleModal({
                                 <p className="text-[11px] text-slate-600">
                                   Vence: {formatFechaCortaBogota(cliente.cuotaObjetivo.fechaVencimiento)}
                                 </p>
+                                {cliente.cuotaObjetivo.esCuotaReprogramadaJornada &&
+                                  cliente.cuotaObjetivo.nuevaFechaReprogramada && (
+                                    <p className="text-[11px] font-bold text-emerald-700">
+                                      Nueva fecha: {formatFechaCortaBogota(cliente.cuotaObjetivo.nuevaFechaReprogramada)}
+                                    </p>
+                                  )}
                               </div>
                               <div className="text-right">
                                 <p
@@ -609,9 +615,11 @@ export function CierrePendienteDetalleModal({
                                     saldoOperativoJornada > 0 ? 'text-blue-700' : 'text-emerald-700',
                                   )}
                                 >
-                                  {saldoOperativoJornada > 0
-                                    ? formatCurrency(saldoOperativoJornada)
-                                    : 'Cubierto por pago'}
+                                  {cliente.cuotaObjetivo.esCuotaReprogramadaJornada
+                                    ? 'Reprogramada'
+                                    : saldoOperativoJornada > 0
+                                      ? formatCurrency(saldoOperativoJornada)
+                                      : 'Cubierto por pago'}
                                 </p>
                                 <p
                                   className={cn(
@@ -619,7 +627,11 @@ export function CierrePendienteDetalleModal({
                                     saldoOperativoJornada > 0 ? 'text-blue-600' : 'text-emerald-600',
                                   )}
                                 >
-                                  {saldoOperativoJornada > 0 ? 'Saldo operativo' : 'Sin saldo operativo'}
+                                  {cliente.cuotaObjetivo.esCuotaReprogramadaJornada
+                                    ? 'Gestión registrada'
+                                    : saldoOperativoJornada > 0
+                                      ? 'Saldo operativo'
+                                      : 'Sin saldo operativo'}
                                 </p>
                               </div>
                             </div>
@@ -646,20 +658,31 @@ export function CierrePendienteDetalleModal({
                           {(() => {
                             const estado = cliente.estadoGestion
                             const cuota = cliente.cuotaObjetivo
+                            const esPendiente = estado === 'PENDIENTE'
+                            const esAusente = estado === 'AUSENTE'
+                            const esPagoRegistrado = estado === 'PAGO_REGISTRADO'
+                            const esReprogramado =
+                              estado === 'REPROGRAMADO' ||
+                              Boolean(cuota?.esCuotaReprogramadaJornada)
+                            const tieneSaldoOperativo = saldoOperativoJornada > 0
+                            const pagoParcial = esPagoRegistrado && tieneSaldoOperativo
                             const puedeRegistrarPagoRegularizado =
+                              !esReprogramado &&
+                              (esPendiente || esAusente || pagoParcial) &&
                               Boolean(cuota?.puedePagar) &&
-                              saldoOperativoJornada > 0 &&
+                              tieneSaldoOperativo &&
                               Boolean(cliente.prestamoObjetivoId) &&
                               Boolean(cliente.cuotaObjetivoId || cuota?.id || cliente.cuotaObjetivoPrestamoId)
                             const puedeReprogramarRegularizado =
-                              (estado === 'PENDIENTE' || estado === 'AUSENTE') &&
+                              !esReprogramado &&
+                              (esPendiente || esAusente || pagoParcial) &&
                               Boolean(cuota?.puedeReprogramar) &&
-                              saldoOperativoJornada > 0 &&
+                              tieneSaldoOperativo &&
                               Boolean(cliente.prestamoObjetivoId) &&
                               Boolean(cliente.cuotaObjetivoId || cuota?.id || cliente.cuotaObjetivoPrestamoId)
                             const puedeMarcarAusente =
-                              estado === 'PENDIENTE' &&
-                              saldoOperativoJornada > 0 &&
+                              esPendiente &&
+                              tieneSaldoOperativo &&
                               !cuota?.esCuotaPagadaHistorica
 
                             const clienteId = cliente.clienteId || cliente.asignacionId
@@ -817,7 +840,7 @@ export function CierrePendienteDetalleModal({
                                   </button>
                                 )}
 
-                                {cliente.estadoGestion === 'PENDIENTE' && permissions?.canAgregarObservacion && handlers?.onAgregarObservacion && (
+                                {esPendiente && permissions?.canAgregarObservacion && handlers?.onAgregarObservacion && (
                                   <button
                                     type="button"
                                     onClick={async () => {
@@ -835,7 +858,7 @@ export function CierrePendienteDetalleModal({
                                   </button>
                                 )}
 
-                                {cliente.estadoGestion === 'AUSENTE' && permissions?.canAnularAusencia && handlers?.onAnularAusencia && (
+                                {esAusente && permissions?.canAnularAusencia && handlers?.onAnularAusencia && (
                                   <button
                                     type="button"
                                     onClick={async () => {
@@ -853,7 +876,7 @@ export function CierrePendienteDetalleModal({
                                   </button>
                                 )}
 
-                                {cliente.estadoGestion === 'AUSENTE' && permissions?.canAgregarObservacion && handlers?.onAgregarObservacion && (
+                                {esAusente && permissions?.canAgregarObservacion && handlers?.onAgregarObservacion && (
                                   <button
                                     type="button"
                                     onClick={async () => {
@@ -871,7 +894,7 @@ export function CierrePendienteDetalleModal({
                                   </button>
                                 )}
 
-                                {cliente.estadoGestion === 'PAGO_REGISTRADO' && permissions?.canVerPago && handlers?.onVerPago && (
+                                {esPagoRegistrado && permissions?.canVerPago && handlers?.onVerPago && (
                                   <button
                                     type="button"
                                     onClick={() => handlers.onVerPago?.(cliente, contextoRegularizacion)}
@@ -881,7 +904,7 @@ export function CierrePendienteDetalleModal({
                                   </button>
                                 )}
 
-                                {cliente.estadoGestion === 'PAGO_REGISTRADO' && permissions?.canVerComprobante && handlers?.onVerComprobante && (
+                                {esPagoRegistrado && permissions?.canVerComprobante && handlers?.onVerComprobante && (
                                   <button
                                     type="button"
                                     onClick={() => handlers.onVerComprobante?.(cliente, contextoRegularizacion)}
