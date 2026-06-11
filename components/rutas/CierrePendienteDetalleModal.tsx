@@ -658,20 +658,31 @@ export function CierrePendienteDetalleModal({
                           {(() => {
                             const estado = cliente.estadoGestion
                             const cuota = cliente.cuotaObjetivo
+                            const esPendiente = estado === 'PENDIENTE'
+                            const esAusente = estado === 'AUSENTE'
+                            const esPagoRegistrado = estado === 'PAGO_REGISTRADO'
+                            const esReprogramado =
+                              estado === 'REPROGRAMADO' ||
+                              Boolean(cuota?.esCuotaReprogramadaJornada)
+                            const tieneSaldoOperativo = saldoOperativoJornada > 0
+                            const pagoParcial = esPagoRegistrado && tieneSaldoOperativo
                             const puedeRegistrarPagoRegularizado =
+                              !esReprogramado &&
+                              (esPendiente || esAusente || pagoParcial) &&
                               Boolean(cuota?.puedePagar) &&
-                              saldoOperativoJornada > 0 &&
+                              tieneSaldoOperativo &&
                               Boolean(cliente.prestamoObjetivoId) &&
                               Boolean(cliente.cuotaObjetivoId || cuota?.id || cliente.cuotaObjetivoPrestamoId)
                             const puedeReprogramarRegularizado =
-                              (estado === 'PENDIENTE' || estado === 'AUSENTE') &&
+                              !esReprogramado &&
+                              (esPendiente || esAusente || pagoParcial) &&
                               Boolean(cuota?.puedeReprogramar) &&
-                              saldoOperativoJornada > 0 &&
+                              tieneSaldoOperativo &&
                               Boolean(cliente.prestamoObjetivoId) &&
                               Boolean(cliente.cuotaObjetivoId || cuota?.id || cliente.cuotaObjetivoPrestamoId)
                             const puedeMarcarAusente =
-                              estado === 'PENDIENTE' &&
-                              saldoOperativoJornada > 0 &&
+                              esPendiente &&
+                              tieneSaldoOperativo &&
                               !cuota?.esCuotaPagadaHistorica
 
                             const clienteId = cliente.clienteId || cliente.asignacionId
@@ -829,7 +840,7 @@ export function CierrePendienteDetalleModal({
                                   </button>
                                 )}
 
-                                {cliente.estadoGestion === 'PENDIENTE' && permissions?.canAgregarObservacion && handlers?.onAgregarObservacion && (
+                                {esPendiente && permissions?.canAgregarObservacion && handlers?.onAgregarObservacion && (
                                   <button
                                     type="button"
                                     onClick={async () => {
@@ -847,7 +858,7 @@ export function CierrePendienteDetalleModal({
                                   </button>
                                 )}
 
-                                {cliente.estadoGestion === 'AUSENTE' && permissions?.canAnularAusencia && handlers?.onAnularAusencia && (
+                                {esAusente && permissions?.canAnularAusencia && handlers?.onAnularAusencia && (
                                   <button
                                     type="button"
                                     onClick={async () => {
@@ -865,7 +876,7 @@ export function CierrePendienteDetalleModal({
                                   </button>
                                 )}
 
-                                {cliente.estadoGestion === 'AUSENTE' && permissions?.canAgregarObservacion && handlers?.onAgregarObservacion && (
+                                {esAusente && permissions?.canAgregarObservacion && handlers?.onAgregarObservacion && (
                                   <button
                                     type="button"
                                     onClick={async () => {
@@ -883,7 +894,7 @@ export function CierrePendienteDetalleModal({
                                   </button>
                                 )}
 
-                                {cliente.estadoGestion === 'PAGO_REGISTRADO' && permissions?.canVerPago && handlers?.onVerPago && (
+                                {esPagoRegistrado && permissions?.canVerPago && handlers?.onVerPago && (
                                   <button
                                     type="button"
                                     onClick={() => handlers.onVerPago?.(cliente, contextoRegularizacion)}
@@ -893,7 +904,7 @@ export function CierrePendienteDetalleModal({
                                   </button>
                                 )}
 
-                                {cliente.estadoGestion === 'PAGO_REGISTRADO' && permissions?.canVerComprobante && handlers?.onVerComprobante && (
+                                {esPagoRegistrado && permissions?.canVerComprobante && handlers?.onVerComprobante && (
                                   <button
                                     type="button"
                                     onClick={() => handlers.onVerComprobante?.(cliente, contextoRegularizacion)}
