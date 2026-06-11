@@ -509,6 +509,8 @@ export const isVisitaExigibleHoy = (visita: any, hoyBogotaKey: string): boolean 
   const estado = estadoRaw.replace(/\s+/g, '_');
   if (estado === 'en_mora' || estado.includes('mora')) return true;
   const proximaKey = visita?.proximaVisita ? normalizeDateKey(String(visita.proximaVisita)) : '';
+  if (visita?.enProrroga && proximaKey && proximaKey > hoyBogotaKey) return false;
+  if (String(visita?.periodoRuta || '').toUpperCase() === 'DIA') return true;
   if (!proximaKey) return true;
   return proximaKey <= hoyBogotaKey;
 };
