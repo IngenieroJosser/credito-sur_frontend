@@ -166,6 +166,8 @@ export const routesService = {
     return apiRequest<{ rutaId: string; activadaHoy: boolean; operableHoy?: boolean; diaNoLaboral?: boolean; activacionId: string | null; fechaActivacion: string | null; activadaPorId: string | null }>(
       'GET',
       `/routes/${id}/activacion-hoy`,
+      undefined,
+      { cacheTTL: 0 }
     );
   },
 
@@ -173,6 +175,8 @@ export const routesService = {
     return apiRequest<{ rutaId: string; activadaHoy: boolean; operableHoy?: boolean; diaNoLaboral?: boolean; message?: string }>(
       'POST',
       `/routes/${id}/activar-hoy`,
+      undefined,
+      { cacheTTL: 0 }
     );
   },
 
