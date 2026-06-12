@@ -551,7 +551,16 @@ export const shouldExcludeVisitaFromOperationalMeta = (
   const estadoVisita = String(visita?.estadoVisita || '').toLowerCase().replace(/\s+/g, '_');
   const estado = String(visita?.estado || '').toLowerCase().replace(/\s+/g, '_');
   const esAusente = estadoVisita === 'ausente' || estado === 'ausente';
-  if (!esAusente) return false;
+  const esReprogramado =
+    estadoVisita === 'reprogramado' ||
+    estadoVisita === 'reprogramada' ||
+    estadoVisita === 'reprogramacion' ||
+    estadoVisita === 'reprogramación' ||
+    estado === 'reprogramado' ||
+    estado === 'reprogramada' ||
+    estado === 'reprogramacion' ||
+    estado === 'reprogramación';
+  if (!esAusente && !esReprogramado) return false;
 
   const recaudadoHoy = recaudadoHoyOverride !== undefined
     ? Number(recaudadoHoyOverride || 0)
