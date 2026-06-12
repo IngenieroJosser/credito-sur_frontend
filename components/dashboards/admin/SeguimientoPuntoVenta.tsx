@@ -28,6 +28,7 @@ import {
   Wifi,
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
+import { getBogotaDateKey, getBogotaRangeByPeriod, normalizeDateKey } from '@/lib/rutas-core'
 import { prestamosService } from '@/services/prestamos-service'
 import { pagosService } from '@/services/pagos-service'
 import { usuariosService, type Usuario } from '@/services/usuarios-service'
@@ -80,9 +81,6 @@ const fmtDate = (s: string | undefined) => {
   } catch { return '—' }
 }
 
-const toLocalKey = (d: Date) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-
 const estadoCfg = (estado: string) => {
   switch (estado) {
     case 'ACTIVO': return { label: 'Activo', bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', dot: 'bg-emerald-500' }
@@ -116,37 +114,6 @@ const isSameOrPartialName = (a: string, b: string) => {
   return !!left && !!right && (left === right || left.startsWith(right) || right.startsWith(left))
 }
 
-const getDatesByPeriod = (period: Periodo) => {
-  const hoy = new Date()
-  let inicio = new Date(hoy)
-  const fin = new Date(hoy)
-  switch (period) {
-    case 'HOY':
-      inicio.setHours(0, 0, 0, 0)
-      fin.setHours(23, 59, 59, 999)
-      break
-    case 'SEM': {
-      const day = hoy.getDay()
-      const diff = hoy.getDate() - day + (day === 0 ? -6 : 1)
-      inicio.setDate(diff)
-      inicio.setHours(0, 0, 0, 0)
-      fin.setHours(23, 59, 59, 999)
-      break
-    }
-    case 'MES':
-      inicio.setDate(1)
-      inicio.setHours(0, 0, 0, 0)
-      fin.setHours(23, 59, 59, 999)
-      break
-    case 'AÑO':
-      inicio.setMonth(0, 1)
-      inicio.setHours(0, 0, 0, 0)
-      fin.setHours(23, 59, 59, 999)
-      break
-  }
-  return { inicio: toLocalKey(inicio), fin: toLocalKey(fin) }
-}
-
 // ─── Componente Principal ─────────────────────────────────────────────────────
 
 export default function SeguimientoPuntoVenta() {
@@ -174,7 +141,7 @@ export default function SeguimientoPuntoVenta() {
 
   const cargarDatos = useCallback(async () => {
     try {
-      const hoyStr = toLocalKey(new Date())
+      const hoyStr = getBogotaDateKey(new Date())
 
       const [resp, usuariosResp] = await Promise.all([
         prestamosService.obtenerPrestamos({ tipo: 'ARTICULO', limit: 200 } as any),
@@ -226,19 +193,32 @@ export default function SeguimientoPuntoVenta() {
           let fechaUltimoPago: string | undefined
 
           try {
-            const pagosResp = await pagosService.obtenerPagos({ clienteId: c.clienteId, limit: 50 })
-            const pagos = pagosResp?.pagos || []
+            const pagosResp = await pagosService.obtenerPagos({ 
+              clienteId: c.clienteId, 
+              prestamoId: c.id, 
+              limit: 50 
+            } as any)
+            
+            // Filtrar pagos para asegurarnos que solo corresponden al préstamo actual (estricto)
+            const pagos = (pagosResp?.pagos || []).filter((p: any) => {
+              const pagoPrestamoId = String(p.prestamoId || p.creditoId || '').trim()
+              return pagoPrestamoId === String(c.id)
+            })
 
             pagadoHoy = pagos.reduce((sum: number, p: any) => {
               const raw = p.fechaPago || p.creadoEn
-              const f = raw ? (raw.includes('T') ? raw.split('T')[0] : raw) : ''
-              return f === hoyStr ? sum + Number(p.montoTotal || 0) : sum
+              const fechaPagoKey = getBogotaDateKey(raw)
+              return fechaPagoKey === hoyStr ? sum + Number(p.montoTotal || 0) : sum
             }, 0)
 
             let maxDate = 0
             pagos.forEach((p: any) => {
-              const d = new Date(p.fechaPago || p.creadoEn).getTime()
-              if (!isNaN(d) && d > maxDate) { maxDate = d; fechaUltimoPago = p.fechaPago || p.creadoEn }
+              const raw = p.fechaPago || p.creadoEn
+              const time = new Date(raw).getTime()
+              if (!Number.isNaN(time) && time > maxDate) {
+                maxDate = time
+                fechaUltimoPago = raw
+              }
             })
           } catch { /* skip */ }
 
@@ -320,13 +300,20 @@ export default function SeguimientoPuntoVenta() {
     setVentaDetalle(venta)
     setLoadingDetalle(true)
     try {
-      const resp = await pagosService.obtenerPagos({ clienteId: venta.clienteId, limit: 100 })
-      const pagos = (resp?.pagos || []).filter((p: any) => {
-        // Filtrar pagos asociados al préstamo
-        return !p.prestamoId || p.prestamoId === venta.id
+      const resp = await pagosService.obtenerPagos({ 
+        clienteId: venta.clienteId, 
+        prestamoId: venta.id, 
+        limit: 100 
+      } as any)
+      
+      // Filtrar pagos para asegurarnos que solo corresponden al préstamo actual (estricto)
+      const pagosVenta = (resp?.pagos || []).filter((p: any) => {
+        const pagoPrestamoId = String(p.prestamoId || p.creditoId || '').trim()
+        return pagoPrestamoId === String(venta.id)
       })
-      pagos.sort((a: any, b: any) => new Date(b.fechaPago || b.creadoEn).getTime() - new Date(a.fechaPago || a.creadoEn).getTime())
-      setHistorialPagos(pagos.slice(0, 20))
+      
+      pagosVenta.sort((a: any, b: any) => new Date(b.fechaPago || b.creadoEn).getTime() - new Date(a.fechaPago || a.creadoEn).getTime())
+      setHistorialPagos(pagosVenta.slice(0, 20))
     } catch {
       setHistorialPagos([])
     } finally {
@@ -392,22 +379,26 @@ export default function SeguimientoPuntoVenta() {
     }
     if (filtroFechaDesde) {
       result = result.filter(v => {
-        const f = v.fechaVenta.includes('T') ? v.fechaVenta.split('T')[0] : v.fechaVenta
+        const f = normalizeDateKey(v.fechaVenta)
         return f >= filtroFechaDesde
       })
     }
     if (filtroFechaHasta) {
       result = result.filter(v => {
-        const f = v.fechaVenta.includes('T') ? v.fechaVenta.split('T')[0] : v.fechaVenta
+        const f = normalizeDateKey(v.fechaVenta)
         return f <= filtroFechaHasta
       })
     }
     // Filtro por periodo (Hoy/Sem/Mes/Año) — ignora si hay fechas manuales
     if (periodoVentas !== 'TODOS' && !filtroFechaDesde && !filtroFechaHasta) {
-      const { inicio, fin } = getDatesByPeriod(periodoVentas)
+      const { inicio, fin } = getBogotaRangeByPeriod(periodoVentas)
+      // Convertir los rangos a keys YYYY-MM-DD
+      const inicioKey = inicio ? normalizeDateKey(inicio) : ''
+      const finKey = fin ? normalizeDateKey(fin) : ''
+      
       result = result.filter(v => {
-        const f = v.fechaVenta.includes('T') ? v.fechaVenta.split('T')[0] : v.fechaVenta
-        return f >= inicio && f <= fin
+        const f = normalizeDateKey(v.fechaVenta)
+        return inicioKey && finKey && f >= inicioKey && f <= finKey
       })
     }
     return result
