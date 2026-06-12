@@ -539,6 +539,7 @@ const VistaCobrador = () => {
   const [rutaCompletada, setRutaCompletada] = useState(false)
 
   const [rutaActivadaHoy, setRutaActivadaHoy] = useState(false)
+  const [isCheckingActivacion, setIsCheckingActivacion] = useState(true)
 
   const [coordinadorToast, setCoordinadorToast] = useState<string | null>(null)
 
@@ -1050,6 +1051,8 @@ const VistaCobrador = () => {
       setRutaActivadaHoy(Boolean(resp?.operableHoy ?? resp?.activadaHoy))
     } catch {
       // ignore
+    } finally {
+      setIsCheckingActivacion(false)
     }
   }, [rutaActual?.id])
 
@@ -3985,20 +3988,19 @@ const VistaCobrador = () => {
 
                     className={`px-4 py-2 border rounded-xl flex items-center gap-2 font-bold shadow-sm transition-colors ${
 
-                      !rutaOperable
-
-                        ? 'bg-emerald-100 text-emerald-800 border-emerald-200 cursor-not-allowed'
-
+                      isCheckingActivacion || !rutaOperable
+                        ? 'bg-emerald-100 text-emerald-800 border-emerald-200 cursor-not-allowed opacity-70'
                         : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-
                     }`}
-
                   >
-
                     <CheckCircle2 className="h-4 w-4" />
-
-                    <span className="hidden md:inline">{rutaCompletada ? 'Jornada completada hoy' : (!rutaActivadaHoy ? 'Jornada sin activar' : 'Completar jornada')}</span>
-
+                    <span className="hidden md:inline">
+                      {isCheckingActivacion 
+                        ? 'Comprobando...' 
+                        : rutaCompletada 
+                          ? 'Jornada completada hoy' 
+                          : (!rutaActivadaHoy ? 'Jornada sin activar' : 'Completar jornada')}
+                    </span>
                   </button>
 
 

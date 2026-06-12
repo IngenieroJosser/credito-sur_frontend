@@ -520,6 +520,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
 
   const [rutaActivadaHoy, setRutaActivadaHoy] = useState(false)
+  const [isCheckingActivacion, setIsCheckingActivacion] = useState(true)
 
 
   const esDiaNoLaboral = esDomingoBogota()
@@ -1912,6 +1913,8 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
       setRutaActivadaHoy(Boolean(resp?.operableHoy ?? resp?.activadaHoy))
     } catch {
       // ignore
+    } finally {
+      setIsCheckingActivacion(false)
     }
   }, [rutaId, (rutaInfo as any)?.id])
 

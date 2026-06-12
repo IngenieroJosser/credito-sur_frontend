@@ -813,6 +813,7 @@ const RutaClientLoaded = ({
 
   const [rutaActivadaHoy, setRutaActivadaHoy] = useState(false)
   const [loadingActivacionHoy, setLoadingActivacionHoy] = useState(false)
+  const [isCheckingActivacion, setIsCheckingActivacion] = useState(true)
   const esDiaNoLaboral = esDomingoBogota()
 
   const refreshActivacionHoy = useCallback(async () => {
@@ -822,6 +823,8 @@ const RutaClientLoaded = ({
       setRutaActivadaHoy(Boolean(resp?.operableHoy ?? resp?.activadaHoy))
     } catch (e) {
       // ignore
+    } finally {
+      setIsCheckingActivacion(false)
     }
   }, [initialRuta?.id])
 
@@ -1439,29 +1442,25 @@ const RutaClientLoaded = ({
 
 
                   {!esDiaNoLaboral && !rutaCompletada && !showHistory && (
-
                     <button 
-
                       type="button"
-
                       onClick={handleActivarRuta}
-
-                      disabled={loadingActivacionHoy || rutaActivadaHoy}
-
+                      disabled={isCheckingActivacion || loadingActivacionHoy || rutaActivadaHoy}
                       className={`px-4 py-2 border rounded-xl flex items-center gap-2 font-bold shadow-sm transition-colors ${
-                        loadingActivacionHoy || rutaActivadaHoy
-                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200 cursor-not-allowed'
+                        isCheckingActivacion || loadingActivacionHoy || rutaActivadaHoy
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200 cursor-not-allowed opacity-70'
                           : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                       }`}
-
                     >
-
                       <CheckCircle2 className="h-4 w-4" />
-
-                      <span className="hidden md:inline">{rutaActivadaHoy ? 'Jornada activada' : (loadingActivacionHoy ? 'Activando jornada...' : 'Activar jornada de hoy')}</span>
-
+                      <span className="hidden md:inline">
+                        {isCheckingActivacion 
+                          ? 'Comprobando...' 
+                          : rutaActivadaHoy 
+                            ? 'Jornada activada' 
+                            : (loadingActivacionHoy ? 'Activando...' : 'Activar jornada')}
+                      </span>
                     </button>
-
                   )}
 
 
