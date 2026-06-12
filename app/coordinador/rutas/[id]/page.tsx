@@ -2302,7 +2302,7 @@ const LegacyDetalleRutaPage = () => {
 
             onClose={() => setVisitaReprogramar(null)}
 
-            onConfirm={async (fecha, motivo) => {
+            onConfirm={async (fecha, motivo, cuotaId) => {
 
                 try {
 
@@ -2316,15 +2316,24 @@ const LegacyDetalleRutaPage = () => {
 
 
 
-                  await prestamosService.reprogramarPrestamo(visitaReprogramar.prestamoId, {
+                  if (cuotaId) {
+                    await prestamosService.solicitarReprogramacionCuota({
+                      prestamoId: visitaReprogramar.prestamoId,
+                      cuotaId,
+                      nuevaFecha: fecha,
+                      motivo,
+                    });
+                  } else {
+                    await prestamosService.reprogramarPrestamo(visitaReprogramar.prestamoId, {
 
-                    fecha,
+                      fecha,
 
-                    motivo,
+                      motivo,
 
-                    cobradorId: currentUser?.id || '',
+                      cobradorId: currentUser?.id || '',
 
-                  });
+                    });
+                  }
 
 
 
