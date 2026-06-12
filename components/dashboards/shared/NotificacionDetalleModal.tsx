@@ -1219,7 +1219,7 @@ export default function NotificacionDetalleModal({
                           {(() => {
                             const total = Number(editedDetails?.montoTotal || 0)
                             const cuotas = Math.max(1, Number(editedDetails?.cuotas || editedDetails?.cantidadCuotas || 1))
-                            const valorCuota = Math.ceil(total / cuotas)
+                            const valorCuota = Math.trunc(total / cuotas)
                             return formatCurrency(isNaN(valorCuota) ? 0 : valorCuota)
                           })()}
                         </p>

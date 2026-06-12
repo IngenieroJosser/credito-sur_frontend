@@ -27,7 +27,6 @@ import {
 } from 'lucide-react';
 import { formatCurrency, cn } from '@/lib/utils';
 import { useNotificaciones } from '@/components/providers/NotificacionesProvider';
-import { getBogotaDateKey } from '@/lib/rutas-core';
 import FiltroRuta from '@/components/filtros/FiltroRuta';
 import EditarPrestamoModal from '@/components/prestamos/EditarPrestamoModal';
 import DetallePrestamoModal from '@/components/prestamos/DetallePrestamoModal';
@@ -40,6 +39,7 @@ import { ExportButton } from '@/components/ui/ExportButton';
 import { exportService } from '@/services/export-service';
 import { offlineStore } from '@/lib/offline/offlineDb';
 import { prestamosService } from '@/services/prestamos-service';
+import { buildCrearPrestamoPayload } from '@/lib/creditos/crear-prestamo-payload';
 import { WifiOff } from 'lucide-react';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import { useRealtimeData } from '@/hooks/useRealtimeData';
@@ -961,75 +961,9 @@ const ListadoPrestamosElegante = () => {
         onClose={() => setShowCrearCreditoModal(false)}
         onConfirm={async (data) => {
           try {
-            // Obtener userId del token
-            const token = localStorage.getItem('token');
-            let userId = '';
-            if (token) {
-              try {
-                const base64Url = token.split('.')[1];
-                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-                const padding = '='.repeat((4 - (base64.length % 4)) % 4);
-                const payload = JSON.parse(atob(base64 + padding));
-                userId = payload.sub || payload.id || '';
-              } catch { /* ignore */ }
-            }
-
             const isArticulo = String(data.creditType || '').toLowerCase() === 'articulo';
             const esContado = isArticulo && !!data.ventaContado;
-            const freq = esContado ? 'MENSUAL' : (data.frecuenciaPago || 'DIARIO');
-            const d: any = data;
-
-            // Si es artículo, usamos lo que ya calculó el modal
-            // Si es préstamo, calculamos plazoMeses
-            let plazoMeses = data.plazoMeses || 1;
-            if (!isArticulo) {
-              const numCuotas = data.cuotasTotales || 1;
-              switch (freq) {
-                case 'DIARIO': plazoMeses = Math.ceil(numCuotas / 30); break;
-                case 'SEMANAL': plazoMeses = Math.ceil(numCuotas / 4); break;
-                case 'QUINCENAL': plazoMeses = Math.ceil(numCuotas / 2); break;
-                case 'MENSUAL': plazoMeses = numCuotas; break;
-              }
-            } else if (esContado) {
-              plazoMeses = 1;
-            }
-
-            const backendData: any = {
-              clienteId: data.clienteCreditoId,
-              tipoPrestamo: isArticulo ? 'ARTICULO' : 'EFECTIVO',
-              monto: data.monto || 0,
-              tasaInteres: esContado ? 0 : (data.tasaInteres || 0),
-              tasaInteresMora: 2.0,
-              plazoMeses,
-              cantidadCuotas: data.cantidadCuotas || data.cuotas || data.cuotasTotales || data.numCuotas || 0,
-              cuotas: data.cuotas || data.cantidadCuotas || data.cuotasTotales || data.numCuotas || 0,
-              frecuenciaPago: freq,
-              tipoAmortizacion: data.tipoInteres || 'INTERES_SIMPLE',
-              fechaInicio: data.fechaInicio || getBogotaDateKey(new Date()),
-              creadoPorId: userId,
-              cuotaInicial: data.cuotaInicialArticulo || 0,
-              notas: isArticulo
-                ? `${esContado ? 'Venta de contado' : 'Crédito de artículo'}: ${d.articuloNombre || ''}`
-                : (data.notas || ''),
-              esContado,
-            };
-
-            if (data.articuloId) {
-              backendData.productoId = data.articuloId;
-              if (data.precioProductoId) {
-                backendData.precioProductoId = data.precioProductoId;
-              }
-            }
-
-            if (!esContado) {
-              if (data.fechaPrimerCobro) {
-                backendData.fechaPrimerCobro = data.fechaPrimerCobro;
-              }
-            }
-
-            if (esContado) {
-              backendData.notas = 'Venta de artículo de contado';
-            }
+            const backendData = buildCrearPrestamoPayload(data)
 
             const response = await prestamosService.crearPrestamo(backendData);
             console.log('[CREDITO_CREADO] Respuesta del backend:', response);

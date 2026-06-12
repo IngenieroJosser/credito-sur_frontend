@@ -81,6 +81,7 @@ export function buildCrearPrestamoPayload(
   const esContado = esArticulo && Boolean(data.ventaContado)
   const frecuenciaPago = esContado ? FrecuenciaPago.MENSUAL : (data.frecuenciaPago || FrecuenciaPago.DIARIO)
   const totalCuotas = data.cuotas || data.cantidadCuotas || data.cuotasTotales || data.numCuotas || 0
+  const actorId = creadoPorId || resolveCurrentUserId()
 
   const payload: CrearPrestamoPayload = {
     clienteId: data.clienteCreditoId,
@@ -94,7 +95,7 @@ export function buildCrearPrestamoPayload(
     frecuenciaPago: frecuenciaPago as FrecuenciaPago,
     tipoAmortizacion: data.tipoInteres || TipoAmortizacion.INTERES_SIMPLE,
     fechaInicio: data.fechaInicio || toBogotaDateTimeOffsetIso(new Date()),
-    creadoPorId,
+    creadoPorId: actorId,
     cuotaInicial: Number(data.cuotaInicialArticulo || 0),
     notas: esArticulo
       ? `${esContado ? 'Venta de contado' : 'Crédito de artículo'}${data.articuloNombre ? `: ${data.articuloNombre}` : ''}`
