@@ -1,5 +1,4 @@
 'use client'
-import { logger } from '@/lib/logger'
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
@@ -25,8 +24,12 @@ import { formatCurrency } from '@/lib/utils'
 import { EstadoPrestamo, NivelRiesgo, type Prestamo } from '@/components/prestamos/data'
 import AnimacionCarga from '@/components/ui/AnimacionCarga'
 import { loansServiceExt as loansService } from '@/services/loans-service'
+import { prestamosService } from '@/services/prestamos-service'
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
 import DetallePrestamoModal from '@/components/prestamos/DetallePrestamoModal'
+import { buildCrearPrestamoPayload } from '@/lib/creditos/crear-prestamo-payload'
+import { exportService } from '@/services/export-service'
+import { useNotification } from '@/components/providers/NotificationProvider'
 
 type CreditoArticuloRow = Prestamo & {
   rowKey: string
@@ -35,6 +38,7 @@ type CreditoArticuloRow = Prestamo & {
 
 export default function CreditosArticulosPage() {
   const pathname = usePathname()
+  const { showNotification } = useNotification()
   const [searchTerm, setSearchTerm] = useState('')
   const [estadoFiltro, setEstadoFiltro] = useState('todos')
   const [riesgoFiltro, setRiesgoFiltro] = useState('todos')
@@ -618,9 +622,29 @@ export default function CreditosArticulosPage() {
           isOpen={showCrearCreditoModal}
           onClose={() => setShowCrearCreditoModal(false)}
           defaultCreditType="articulo"
-          onConfirm={(data) => {
-            logger.log('Crédito artículo creado:', data);
-            setShowCrearCreditoModal(false);
+          onConfirm={async (data) => {
+            try {
+              const payload = buildCrearPrestamoPayload(data)
+              const response = await prestamosService.crearPrestamo(payload)
+
+              showNotification('success', 'El crédito de artículo quedó pendiente de revisión.', 'Crédito creado')
+              setShowCrearCreditoModal(false)
+              await loadData()
+
+              if (!payload.esContado) {
+                const loanId = response?.data?.id || response?.id || response?.prestamo?.id || response?.data?.prestamo?.id
+                if (loanId) {
+                  try {
+                    await exportService.exportContrato(loanId)
+                  } catch {
+                    showNotification('warning', 'Crédito creado. No se pudo descargar el contrato automáticamente.', 'Contrato')
+                  }
+                }
+              }
+            } catch (err: any) {
+              const msg = err?.response?.data?.message || err?.message || 'No se pudo crear el crédito de artículo.'
+              showNotification('error', Array.isArray(msg) ? msg.join(', ') : msg, 'Error al crear crédito')
+            }
           }}
         />
       )}

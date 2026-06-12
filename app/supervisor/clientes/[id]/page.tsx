@@ -579,15 +579,13 @@ export default function ClienteDetalleSupervisorPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => setCreditType('articulo')}
-                      className={`p-4 rounded-xl border-2 transition-all ${
-                        creditType === 'articulo'
-                          ? 'border-orange-500 bg-orange-50 text-orange-700'
-                          : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
-                      }`}
+                      disabled
+                      title="Los créditos de artículo requieren seleccionar producto y plan desde el modal completo."
+                      className="p-4 rounded-xl border-2 border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed transition-all"
                     >
                       <ShoppingBag className="h-6 w-6 mx-auto mb-2" />
                       <div className="font-bold text-sm">Crédito por Artículo</div>
+                      <div className="mt-1 text-[10px] font-semibold">Usa Créditos Artículos</div>
                     </button>
                   </div>
                 </div>
@@ -714,19 +712,27 @@ export default function ClienteDetalleSupervisorPage() {
                         if (isSaving) return;
                         setIsSaving(true);
                         try {
+                          if (creditType === 'articulo') {
+                            showNotification('warning', 'Crea créditos de artículo desde el modal completo de Créditos Artículos.');
+                            return;
+                          }
+
                           const userStr = localStorage.getItem('user');
                           const userData = userStr ? JSON.parse(userStr) : null;
+                          const cuotas = Math.max(1, Number(cuotasPrestamoInput || 12));
                           
                           await prestamosService.crearPrestamo({
                             clienteId: id,
-                            tipoPrestamo: creditType === 'prestamo' ? 'EFECTIVO' : 'ARTICULO',
+                            tipoPrestamo: 'EFECTIVO',
                             monto: parseCOPInputToNumber(montoPrestamoInput),
                             tasaInteres: Number(tasaInteresInput),
                             tasaInteresMora: 5, // Default
-                            plazoMeses: Math.ceil(Number(cuotasPrestamoInput || 12) / 4), // Estimado si es semanal
+                            plazoMeses: Math.max(1, Math.ceil(cuotas / 4)), // Estimado si es semanal
+                            cantidadCuotas: cuotas,
                             frecuenciaPago: 'SEMANAL' as any,
                             fechaInicio: toBogotaDateTimeOffsetIso(new Date()),
-                            creadoPorId: userData?.id || ''
+                            creadoPorId: userData?.id || '',
+                            tipoAmortizacion: 'INTERES_SIMPLE',
                           });
 
                           showNotification('success', 'Crédito creado exitosamente');
