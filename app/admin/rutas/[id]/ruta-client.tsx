@@ -73,6 +73,7 @@ import { useAuth } from '@/hooks/useAuth'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
+import { buildCrearPrestamoPayload } from '@/lib/creditos/crear-prestamo-payload'
 
 import {
   buildReprogramacionCierrePendienteKey,
@@ -2852,35 +2853,7 @@ const RutaClientLoaded = ({
 
             try {
 
-              const esContado = Boolean((data as any).ventaContado)
-              const isArticulo = data.creditType === 'articulo'
-              const freq = esContado ? 'MENSUAL' : (data.frecuenciaPago || 'DIARIO')
-
-              const payload: any = {
-                clienteId: data.clienteCreditoId,
-                tipoPrestamo: isArticulo ? 'ARTICULO' : 'EFECTIVO',
-                monto: data.monto || 0,
-                tasaInteres: esContado ? 0 : (data.tasaInteres || 0),
-                tasaInteresMora: 2.0,
-                plazoMeses: data.plazoMeses || 1,
-                cantidadCuotas: data.cantidadCuotas || data.cuotas || data.cuotasTotales || (isArticulo ? data.numCuotas : 0),
-                cuotas: data.cuotas || data.cantidadCuotas || (isArticulo ? data.numCuotas : 0),
-                frecuenciaPago: freq,
-                fechaInicio: data.fechaInicio || toBogotaDateTimeOffsetIso(new Date()),
-                fechaPrimerCobro: esContado ? undefined : data.fechaPrimerCobro,
-                creadoPorId: currentUser?.id || '',
-                cuotaInicial: data.cuotaInicialArticulo || 0,
-                notas: isArticulo
-                  ? `${esContado ? 'Venta de contado' : 'Crédito de artículo'}: ${data.articuloNombre || ''}`
-                  : (data.notas || ''),
-                tipoAmortizacion: isArticulo ? 'INTERES_SIMPLE' : (data.tipoInteres || 'INTERES_SIMPLE'),
-                esContado: esContado,
-              }
-
-              if (isArticulo) {
-                payload.productoId = data.articuloId
-                payload.precioProductoId = esContado ? undefined : data.precioProductoId
-              }
+              const payload = buildCrearPrestamoPayload(data, currentUser?.id)
 
               await prestamosService.crearPrestamo(payload)
 

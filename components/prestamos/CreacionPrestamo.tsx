@@ -14,6 +14,7 @@ import NuevoClienteModal from '@/components/clientes/NuevoClienteModal';
 import { clientesService, Cliente } from '@/services/clientes-service';
 import { obtenerPerfil } from '@/services/autenticacion-service';
 import { prestamosService } from '@/services/prestamos-service';
+import { resolveCurrentUserId } from '@/lib/creditos/crear-prestamo-payload';
 import { FrecuenciaPago, NivelRiesgo, TipoAmortizacion } from '@/types/enums';
 
 // Interfaces alineadas con Prisma (Simuladas para Frontend)
@@ -297,12 +298,12 @@ const CreacionPrestamoElegante = ({ initialClienteId, isModal }: { initialClient
 
     try {
       // Intentar obtener el perfil del usuario actual para el creadorId
-      let creadorId = '';
+      let creadorId = resolveCurrentUserId();
       try {
         const userData = localStorage.getItem('user');
-        if (userData) {
+        if (!creadorId && userData) {
           creadorId = JSON.parse(userData).id;
-        } else {
+        } else if (!creadorId) {
           const perfil = await obtenerPerfil();
           creadorId = perfil.id;
         }

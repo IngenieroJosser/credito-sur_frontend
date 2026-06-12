@@ -32,6 +32,7 @@ import { clientesService } from '@/services/clientes-service'
 import { prestamosService } from '@/services/prestamos-service'
 import { pagosService } from '@/services/pagos-service'
 import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
+import { resolveCurrentUserId } from '@/lib/creditos/crear-prestamo-payload'
 import { useNotification } from '@/components/providers/NotificationProvider'
 import { formatCurrency, formatCOPInputValue, formatMilesCOP, parseCOPInputToNumber } from '@/lib/utils'
 
@@ -720,6 +721,7 @@ export default function ClienteDetalleSupervisorPage() {
                           const userStr = localStorage.getItem('user');
                           const userData = userStr ? JSON.parse(userStr) : null;
                           const cuotas = Math.max(1, Number(cuotasPrestamoInput || 12));
+                          const creadoPorId = userData?.id || resolveCurrentUserId();
                           
                           await prestamosService.crearPrestamo({
                             clienteId: id,
@@ -731,7 +733,7 @@ export default function ClienteDetalleSupervisorPage() {
                             cantidadCuotas: cuotas,
                             frecuenciaPago: 'SEMANAL' as any,
                             fechaInicio: toBogotaDateTimeOffsetIso(new Date()),
-                            creadoPorId: userData?.id || '',
+                            creadoPorId,
                             tipoAmortizacion: 'INTERES_SIMPLE',
                           });
 

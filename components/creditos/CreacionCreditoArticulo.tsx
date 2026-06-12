@@ -15,6 +15,7 @@ import NuevoClienteModal from '@/components/clientes/NuevoClienteModal';
 // --- Tipos y Servicios ---
 import { articulosService, Articulo } from '@/services/articulos-service';
 import { prestamosService } from '@/services/prestamos-service';
+import { resolveCurrentUserId } from '@/lib/creditos/crear-prestamo-payload';
 import { obtenerPerfil } from '@/services/autenticacion-service';
 import { TipoAmortizacion } from '@/types/enums';
 import { exportService } from '@/services/export-service';
@@ -276,12 +277,12 @@ export default function CreacionCreditoArticulo({
       setLoadingDatos(true);
       
       // Intentar obtener el perfil del usuario actual
-      let creadorId = '';
+      let creadorId = resolveCurrentUserId();
       try {
         const userData = localStorage.getItem('user');
-        if (userData) {
+        if (!creadorId && userData) {
           creadorId = JSON.parse(userData).id;
-        } else {
+        } else if (!creadorId) {
           const perfil = await obtenerPerfil();
           creadorId = perfil.id;
         }

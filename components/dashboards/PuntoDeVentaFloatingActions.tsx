@@ -19,10 +19,10 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn, formatCurrency } from '@/lib/utils'
-import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 import { exportService } from '@/services/export-service'
 import { prestamosService } from '@/services/prestamos-service'
 import { clientesService, Cliente } from '@/services/clientes-service'
+import { buildCrearPrestamoPayload } from '@/lib/creditos/crear-prestamo-payload'
 import FloatingActionMenu, { FabAction } from '@/components/dashboards/shared/FloatingActionMenu'
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal'
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
@@ -192,28 +192,7 @@ export default function PuntoDeVentaFloatingActions() {
     try {
       const esContado = Boolean(data.ventaContado)
       const isArticulo = data.creditType === 'articulo'
-      const payload: any = {
-        clienteId: data.clienteCreditoId,
-        tipoPrestamo: isArticulo ? 'ARTICULO' : 'EFECTIVO',
-        monto: data.monto || 0,
-        tasaInteres: esContado ? 0 : (data.tasaInteres || 0),
-        tasaInteresMora: 2,
-        plazoMeses: data.plazoMeses || 1,
-        cantidadCuotas: data.cantidadCuotas || data.cuotas || data.cuotasTotales || (isArticulo ? data.numCuotas : 0),
-        cuotas: data.cuotas || data.cantidadCuotas || data.cuotasTotales || (isArticulo ? data.numCuotas : 0),
-        frecuenciaPago: esContado ? 'MENSUAL' : (data.frecuenciaPago || 'DIARIO'),
-        fechaInicio: data.fechaInicio || toBogotaDateTimeOffsetIso(new Date()),
-        fechaPrimerCobro: data.fechaPrimerCobro,
-        creadoPorId: userSession?.id || '',
-        cuotaInicial: data.cuotaInicialArticulo || 0,
-        notas: isArticulo ? `${esContado ? 'Venta de contado' : 'Crédito de artículo'}: ${data.articuloNombre || ''}` : (data.notas || ''),
-        tipoAmortizacion: isArticulo ? 'INTERES_SIMPLE' : (data.tipoInteres || 'INTERES_SIMPLE'),
-        esContado,
-      }
-      if (isArticulo) {
-        payload.productoId = data.articuloId
-        payload.precioProductoId = esContado ? undefined : data.precioProductoId
-      }
+      const payload = buildCrearPrestamoPayload(data, userSession?.id)
       const prestamo = await prestamosService.crearPrestamo(payload)
       toast.success('Crédito creado', { description: 'El crédito ha sido registrado exitosamente.' })
       setShowCreditoModal(false)
