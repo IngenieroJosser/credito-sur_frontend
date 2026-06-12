@@ -771,3 +771,57 @@ export const resolveCobradorIdForRouteAction = (
   return String(sessionUserId || '').trim();
 };
 
+export function resolveRutaDailySummary(ruta: any, dailyVisits: any) {
+  const resumen = dailyVisits?.resumen || {};
+
+  const meta = Number(
+    resumen.meta ??
+      ruta?.estadisticas?.metaDelDia ??
+      ruta?.metaDelDia ??
+      0,
+  );
+
+  const recaudo = Number(
+    resumen.recaudoOperativo ??
+      resumen.recaudo ??
+      ruta?.estadisticas?.cobranzaDelDia ??
+      ruta?.estadisticas?.recaudoHoy ??
+      0,
+  );
+
+  const pendiente = Math.max(meta - recaudo, 0);
+
+  const visitados = Number(
+    resumen.visitados ??
+      resumen.obligacionesGestionadas ??
+      ruta?.estadisticas?.visitados ??
+      0,
+  );
+
+  const total = Number(
+    resumen.total ??
+      resumen.totalObligaciones ??
+      ruta?.estadisticas?.totalVisitas ??
+      0,
+  );
+
+  const obligaciones = Array.isArray(dailyVisits?.obligaciones)
+    ? dailyVisits.obligaciones
+    : [];
+
+  const visitas = Array.isArray(dailyVisits?.visitas)
+    ? dailyVisits.visitas
+    : [];
+
+  return {
+    meta,
+    recaudo,
+    pendiente,
+    efectividad: meta > 0 ? (recaudo / meta) * 100 : 0,
+    visitados,
+    total,
+    obligaciones,
+    visitas,
+  };
+}
+

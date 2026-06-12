@@ -7,6 +7,7 @@ import {
   normalizeDateKey,
   shouldExcludeVisitaFromOperationalMeta,
   getBogotaRangeByPeriod,
+  resolveRutaDailySummary,
 } from '@/lib/rutas-core'
 import { mapAsignacionesToVisitasLite } from '@/lib/ruta-visitas-mapper'
 import { buildRecaudosHoyMapByPrestamoId } from '@/lib/ruta-recaudos'
@@ -74,6 +75,22 @@ export const computeOperationalMetaTotalForTimeFilter = async (
     rutasActivas.map(async (r: any) => {
       try {
         const rutaCompleta: any = await rutasService.obtenerRutaPorId(String(r.id))
+        let dailyVisits: any = null
+        if (timeFilter === 'today') {
+          try {
+            dailyVisits = await rutasService.obtenerVisitasDelDia(String(r.id), endKey)
+          } catch {
+            dailyVisits = null
+          }
+        }
+        
+        // If we have dailyVisits, use resolveRutaDailySummary
+        if (timeFilter === 'today' && dailyVisits) {
+          const summary = resolveRutaDailySummary(rutaCompleta, dailyVisits)
+          return Number(summary.meta || 0)
+        }
+        
+        // Otherwise, use original logic
         const asignaciones = Array.isArray(rutaCompleta?.asignaciones) ? rutaCompleta.asignaciones : []
 
         const asigsConCuotas = await Promise.all(
@@ -191,8 +208,12 @@ export const computeOperationalMetaByRouteIdsForTimeFilter = async (
 
   const idsSorted = [...ids].sort()
   const cacheKey = `${timeFilter}:${startKey}:${endKey}::${idsSorted.join(',')}`
-  const cached = metaByRouteCache.get(cacheKey)
-  if (cached) return cached
+  
+  // No cachear datos de hoy, ya que cambian constantemente
+  if (timeFilter !== 'today') {
+    const cached = metaByRouteCache.get(cacheKey)
+    if (cached) return cached
+  }
 
   const beforeStartKey = getBeforeStartKey(timeFilter, startKey)
 
@@ -216,6 +237,23 @@ export const computeOperationalMetaByRouteIdsForTimeFilter = async (
     idsSorted.map(async (routeId) => {
       try {
         const rutaCompleta: any = await rutasService.obtenerRutaPorId(String(routeId))
+        let dailyVisits: any = null
+        if (timeFilter === 'today') {
+          try {
+            dailyVisits = await rutasService.obtenerVisitasDelDia(String(routeId), endKey)
+          } catch {
+            dailyVisits = null
+          }
+        }
+        
+        // If we have dailyVisits, use resolveRutaDailySummary
+        if (timeFilter === 'today' && dailyVisits) {
+          const summary = resolveRutaDailySummary(rutaCompleta, dailyVisits)
+          out[routeId] = Number(summary.meta || 0)
+          return
+        }
+        
+        // Otherwise, use original logic
         const asignaciones = Array.isArray(rutaCompleta?.asignaciones) ? rutaCompleta.asignaciones : []
 
         const asigsConCuotas = await Promise.all(
@@ -316,6 +354,9 @@ export const computeOperationalMetaByRouteIdsForTimeFilter = async (
     }),
   )
 
-  metaByRouteCache.set(cacheKey, out)
+  // No guardar en cache datos de hoy
+  if (timeFilter !== 'today') {
+    metaByRouteCache.set(cacheKey, out)
+  }
   return out
 }

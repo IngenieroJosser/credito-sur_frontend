@@ -222,6 +222,7 @@ import {
   computeMetaHoyFromVisitas,
   computeRutaHoyUiStatsFromVisitas,
   resolveRutaHoyKpiStats,
+  resolveRutaDailySummary,
   esDomingoBogota,
   getBogotaDateKey,
   getBogotaRangeByPeriod,
@@ -518,6 +519,7 @@ const VistaCobrador = () => {
 
 
   const [rutaActual, setRutaActual] = useState<Ruta | null>(null)
+  const [dailyVisitsHoy, setDailyVisitsHoy] = useState<any>(null)
 
   const {
     cierrePendiente,
@@ -1136,6 +1138,15 @@ const VistaCobrador = () => {
         // Esto garantiza que se trae todo lo asignado en Base de Datos.
 
         const rutaCompleta = await rutasService.obtenerRutaPorId(rutaResumen.id);
+        
+        // 2a. Cargar las visitas del día para la ruta (fuente autoritativa)
+        let dailyVisits: any = null;
+        try {
+          dailyVisits = await rutasService.obtenerVisitasDelDia(rutaResumen.id, hoyBogotaKey);
+          setDailyVisitsHoy(dailyVisits);
+        } catch {
+          setDailyVisitsHoy(null);
+        }
         const estDetalleRuta = (rutaCompleta as any)?.estadisticas || {};
         const estadisticasAutoritativas = {
           ...estDetalleRuta,
@@ -1169,34 +1180,84 @@ const VistaCobrador = () => {
         try {
           saldo = await obtenerSaldoDisponibleRuta(rutaCompleta.id, undefined, cardInicio, cardFin);
           
-          setRutaStats(prev => ({
-            ...prev,
-            recaudo: periodoCardsRef.current === 'HOY'
-              ? Number(prev?.recaudo || 0)
-              : Number(saldo?.cobranzaDelDia ?? saldo?.recaudoDelDia ?? est.cobranzaDelDia ?? 0),
-            meta: periodoCardsRef.current === 'HOY'
-              ? Number(prev?.meta || 0)
-              : (est.metaDelDia != null ? Number(est.metaDelDia) : Number(prev?.meta || 0)),
-            eficiencia: periodoCardsRef.current === 'HOY'
-              ? Number(prev?.eficiencia || 0)
-              : ((est.metaDelDia > 0) ? Math.round((Number(saldo?.cobranzaDelDia ?? saldo?.recaudoDelDia ?? 0) / est.metaDelDia) * 100) : Number(est.avanceDiario ?? 0)),
-            gastos: Number(saldo?.gastosDelDia ?? 0),
-            base: Number(saldo?.saldoCaja ?? saldo?.baseEfectivo ?? 0)
-          }));
+          if (periodoCardsRef.current === 'HOY' && dailyVisits) {
+            // Use shared helper con la variable local (actualizada inmediatamente)
+            const dailySummary = resolveRutaDailySummary(rutaCompletaAutoritativa, dailyVisits);
+            setRutaStats(prev => ({
+              ...prev,
+              recaudo: dailySummary.recaudo,
+              meta: dailySummary.meta,
+              eficiencia: dailySummary.efectividad,
+              pendientes: dailySummary.pendiente,
+              visitados: dailySummary.visitados,
+              totalVisitas: dailySummary.total,
+              gastos: Number(saldo?.gastosDelDia ?? 0),
+              base: Number(saldo?.saldoCaja ?? saldo?.baseEfectivo ?? 0)
+            }));
+          } else if (periodoCardsRef.current === 'HOY') {
+            // Si no hay dailyVisits, intentar con el state (fallback)
+            const dailySummary = resolveRutaDailySummary(rutaCompletaAutoritativa, dailyVisitsHoy);
+            setRutaStats(prev => ({
+              ...prev,
+              recaudo: dailySummary.recaudo,
+              meta: dailySummary.meta,
+              eficiencia: dailySummary.efectividad,
+              pendientes: dailySummary.pendiente,
+              visitados: dailySummary.visitados,
+              totalVisitas: dailySummary.total,
+              gastos: Number(saldo?.gastosDelDia ?? 0),
+              base: Number(saldo?.saldoCaja ?? saldo?.baseEfectivo ?? 0)
+            }));
+          } else {
+            // Para otros periodos: keep original behavior
+            setRutaStats(prev => ({
+              ...prev,
+              recaudo: Number(saldo?.cobranzaDelDia ?? saldo?.recaudoDelDia ?? est.cobranzaDelDia ?? 0),
+              meta: est.metaDelDia != null ? Number(est.metaDelDia) : Number(prev?.meta || 0),
+              eficiencia: est.metaDelDia > 0 ? Math.round((Number(saldo?.cobranzaDelDia ?? saldo?.recaudoDelDia ?? 0) / est.metaDelDia) * 100) : Number(est.avanceDiario ?? 0),
+              gastos: Number(saldo?.gastosDelDia ?? 0),
+              base: Number(saldo?.saldoCaja ?? saldo?.baseEfectivo ?? 0)
+            }));
+          }
         } catch (errSaldo) {
           console.error("Error al obtener saldo de la ruta:", errSaldo);
-          setRutaStats(prev => ({
-            ...prev,
-            recaudo: periodoCardsRef.current === 'HOY'
-              ? Number(prev?.recaudo || 0)
-              : Number(est.cobranzaDelDia ?? 0),
-            meta: periodoCardsRef.current === 'HOY'
-              ? Number(prev?.meta || 0)
-              : (est.metaDelDia != null ? Number(est.metaDelDia) : Number(prev?.meta || 0)),
-            eficiencia: Number(est.avanceDiario ?? 0),
-            gastos: 0,
-            base: 0
-          }));
+          
+          if (periodoCardsRef.current === 'HOY' && dailyVisits) {
+            const dailySummary = resolveRutaDailySummary(rutaCompletaAutoritativa, dailyVisits);
+            setRutaStats(prev => ({
+              ...prev,
+              recaudo: dailySummary.recaudo,
+              meta: dailySummary.meta,
+              eficiencia: dailySummary.efectividad,
+              pendientes: dailySummary.pendiente,
+              visitados: dailySummary.visitados,
+              totalVisitas: dailySummary.total,
+              gastos: 0,
+              base: 0
+            }));
+          } else if (periodoCardsRef.current === 'HOY') {
+            const dailySummary = resolveRutaDailySummary(rutaCompletaAutoritativa, dailyVisitsHoy);
+            setRutaStats(prev => ({
+              ...prev,
+              recaudo: dailySummary.recaudo,
+              meta: dailySummary.meta,
+              eficiencia: dailySummary.efectividad,
+              pendientes: dailySummary.pendiente,
+              visitados: dailySummary.visitados,
+              totalVisitas: dailySummary.total,
+              gastos: 0,
+              base: 0
+            }));
+          } else {
+            setRutaStats(prev => ({
+              ...prev,
+              recaudo: Number(est.cobranzaDelDia ?? 0),
+              meta: est.metaDelDia != null ? Number(est.metaDelDia) : Number(prev?.meta || 0),
+              eficiencia: Number(est.avanceDiario ?? 0),
+              gastos: 0,
+              base: 0
+            }));
+          }
         }
 
 
@@ -1204,6 +1265,151 @@ const VistaCobrador = () => {
 
 
 
+
+        // 4. Construir visitas. Si es HOY y tenemos dailyVisits, usarlo como fuente principal (usando obligaciones)
+        if (periodoCardsRef.current === 'HOY' && dailyVisits) {
+          try {
+            const dailySummary = resolveRutaDailySummary(rutaCompletaAutoritativa, dailyVisits);
+            const obligacionesOperativas = (dailySummary.obligaciones || []).filter((o: any) => {
+              const estado = String(
+                o.estadoGestion ||
+                  o.estadoVisita ||
+                  o.prestamo?.estadoGestion ||
+                  o.prestamo?.estadoVisita ||
+                  '',
+              ).toUpperCase();
+              const metaPendiente = Number(
+                o.montoMetaOperativaPendiente ||
+                  o.prestamo?.montoMetaOperativaPendiente ||
+                  o.cuotaObjetivo?.saldoExigibleEnFechaOperativa ||
+                  0,
+              );
+              return !estado.includes('REPROGRAM') && metaPendiente > 0;
+            });
+
+            // Convertir obligaciones en el formato que espera el componente (VisitaRuta)
+            const visitasOperativas = obligacionesOperativas.map((o: any, idx: number) => {
+              const clienteObj = typeof o.cliente === 'object' && o.cliente ? o.cliente : null
+              const prestamo = o.prestamo || {}
+
+              const clienteNombre =
+                o.clienteNombre ||
+                clienteObj?.nombre ||
+                `${clienteObj?.nombres || ''} ${clienteObj?.apellidos || ''}`.trim() ||
+                (typeof o.cliente === 'string' ? o.cliente : '') ||
+                'Cliente sin nombre'
+
+              const estadoGestion = String(
+                o.estadoGestion ||
+                  o.estadoVisita ||
+                  prestamo?.estadoGestion ||
+                  prestamo?.estadoVisita ||
+                  'PENDIENTE',
+              ).toUpperCase()
+
+              const montoMetaPendiente = Number(
+                o.montoMetaOperativaPendiente ??
+                  prestamo?.montoMetaOperativaPendiente ??
+                  o.cuotaObjetivo?.saldoExigibleEnFechaOperativa ??
+                  prestamo?.cuotaObjetivo?.saldoExigibleEnFechaOperativa ??
+                  0,
+              )
+
+              const cuotaObjetivo = o.cuotaObjetivo || prestamo?.cuotaObjetivo || prestamo?.proximaCuota || {}
+
+              const estadoCuota = String(
+                o.cuotaObjetivo?.estadoActual ||
+                o.cuotaObjetivo?.estado ||
+                cuotaObjetivo?.estadoActual ||
+                cuotaObjetivo?.estado ||
+                prestamo?.proximaCuota?.estadoActual ||
+                prestamo?.proximaCuota?.estado ||
+                '',
+              ).toUpperCase()
+
+              const estaEnMora =
+                Boolean(o.cuotaObjetivo?.enMoraEnFechaOperativa) ||
+                Boolean(cuotaObjetivo?.enMoraEnFechaOperativa) ||
+                estadoCuota.includes('VENC') ||
+                estadoCuota.includes('MORA')
+
+              const estadoVisual: any = estadoGestion.includes('REPROGRAM')
+                ? 'reprogramado'
+                : estaEnMora
+                  ? 'en_mora'
+                  : 'pendiente'
+
+              return {
+                ...o,
+
+                id: o.id || o.prestamoId || prestamo?.id || `obligacion-${idx}`,
+
+                cliente: clienteNombre,
+                direccion: o.direccion || clienteObj?.direccion || 'Sin dirección',
+                telefono: o.telefono || clienteObj?.telefono || '',
+
+                montoCuota: Number(
+                  montoMetaPendiente ||
+                    cuotaObjetivo?.montoCuota ||
+                    cuotaObjetivo?.monto ||
+                    prestamo?.proximaCuota?.monto ||
+                    0,
+                ),
+
+                montoCuotaPendiente: montoMetaPendiente,
+
+                saldoTotal: Number(
+                  o.saldoTotal ??
+                    o.saldoPendiente ??
+                    prestamo?.saldoTotal ??
+                    prestamo?.saldoPendiente ??
+                    0,
+                ),
+
+                estado: estadoVisual,
+
+                estadoGestion,
+                estadoVisita: o.estadoVisita || prestamo?.estadoVisita || null,
+                notasVisita: o.notasVisita || prestamo?.notasVisita || null,
+
+                proximaVisita:
+                  o.proximaVisita ||
+                  o.fechaVisita ||
+                  cuotaObjetivo?.fechaVencimiento ||
+                  hoyBogotaKey,
+
+                ordenVisita: Number(o.ordenVisita || idx + 1),
+                prioridad: o.prioridad || 'media',
+
+                nivelRiesgo: String(
+                  o.nivelRiesgo ||
+                    clienteObj?.nivelRiesgo ||
+                    'BAJO',
+                ).toLowerCase(),
+
+                cobradorId: rutaCompleta.cobradorId,
+                periodoRuta: normalizePeriodoRuta(
+                  o.frecuenciaPago || prestamo?.frecuenciaPago || 'DIARIO',
+                ),
+
+                clienteId: o.clienteId || clienteObj?.id || '',
+                prestamoId: o.prestamoId || prestamo?.id || '',
+              }
+            });
+
+            // Usar estas visitas como base
+            const merged = mergeVisitasPreservingLocalRecaudo(visitasBaseRef.current as any, visitasOperativas as any);
+            setVisitasBase(merged as any);
+            setVisitasSelectorFallback(merged as any);
+            setVisitasOrden((merged as any[]).map((v: any) => v.id));
+
+            // Saltarse el resto de la lógica, ya que usamos dailyVisits
+            setIsLoading(false);
+            return;
+          } catch {
+            // Si falla, seguir con la lógica original
+          }
+        }
 
         // 4. Construir visitas desde asignaciones (ruta completa) con lógica correcta de próxima cuota y “aparece hoy”.
         const hoyKey = hoyBogotaKey
@@ -1571,22 +1777,9 @@ const VistaCobrador = () => {
         delete next[hoyKey]
         return next
       })
-      // Recalcular rutaStats para reflejar cambios en meta excluyendo ausentes
-      setRutaStats((prev: any) => {
-        if (periodoCards !== 'HOY') return prev
-        const isAusente = shouldExcludeVisitaFromOperationalMeta
-        const visitasActualizadas = visitasBaseRef.current || []
-        const visitasSinAusentes = visitasActualizadas.filter((v: any) => !isAusente(v))
-        const statsHoy = computeRutaHoyUiStatsFromVisitas(visitasSinAusentes, 0)
-        const recaudo = Number(statsHoy.recaudo || 0)
-        return {
-          ...prev,
-          meta: statsHoy.meta || 0,
-          recaudo,
-          pendiente: Math.max(0, (statsHoy.meta || 0) - recaudo),
-        }
-      })
-      return // No necesita recarga completa
+      // Forzar recarga autoritativa para evitar cálculo local incorrecto
+      await cargarDatosRuta(true)
+      return
     }
 
     if (prestamoId) {
@@ -2410,36 +2603,23 @@ const VistaCobrador = () => {
   const rutaStatsUI = useMemo(() => {
     if (periodoCards !== 'HOY') return rutaStats
 
-    const stats = resolveRutaHoyKpiStats(
-      {
-        meta: kpisHoy.meta,
-        pendiente: Number(kpisHoy.meta || 0) > 0
-          ? Math.max(0, Number(kpisHoy.meta || 0) - Number(kpisHoy.recaudo || 0))
-          : (rutaStats as any)?.pendiente,
-        recaudo: kpisHoy.recaudo,
-      },
-      {
-        recaudo:
-          Number((rutaActual as any)?.cobranzaDelDia || 0) ||
-          Number((rutaActual as any)?.estadisticas?.cobranzaDelDia || 0) ||
-          Number(rutaStats.recaudo || 0),
-        meta:
-          Number((rutaActual as any)?.metaDelDia || 0) ||
-          Number((rutaActual as any)?.estadisticas?.metaDelDia || 0) ||
-          Number(rutaStats.meta || 0),
-        eficiencia: kpisHoy.efectividad,
-      },
-      { preferUi: Array.isArray(visitasBase) },
-    )
+    if (dailyVisitsHoy) {
+      const summary = resolveRutaDailySummary(rutaActual, dailyVisitsHoy)
 
-    return {
-      ...rutaStats,
-      recaudo: stats.recaudo,
-      meta: stats.meta,
-      eficiencia: stats.eficiencia,
-      pendiente: stats.pendiente,
+      return {
+        ...rutaStats,
+        recaudo: summary.recaudo,
+        meta: summary.meta,
+        eficiencia: summary.efectividad,
+        pendiente: summary.pendiente,
+        pendientes: summary.pendiente,
+        visitados: summary.visitados,
+        totalVisitas: summary.total,
+      } as any
     }
-  }, [periodoCards, rutaStats, kpisHoy, rutaActual])
+
+    return rutaStats
+  }, [periodoCards, rutaStats, rutaActual, dailyVisitsHoy])
   // BUG-08 FIX: filtrar por el ID real del cobrador en sesión, no por 'CB-001' hardcodeado.
   const operacionesCobrador = useMemo(() =>
     userSession?.id
