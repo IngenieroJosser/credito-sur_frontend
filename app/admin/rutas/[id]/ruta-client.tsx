@@ -46,7 +46,7 @@ import { RutaDetalleMock } from '@/lib/rutas-data'
 
 import { routesService } from '@/services/routes-service'
 
-import { rutasService } from '@/services/rutas-service'
+import { rutasService, type DailyVisitsResponse } from '@/services/rutas-service'
 
 import { clientesService } from '@/services/clientes-service'
 
@@ -178,6 +178,7 @@ const RutaClientLoaded = ({
   }, [])
 
   const [hoyBogotaKey, setHoyBogotaKey] = useState<string>(() => computeHoyBogotaKey())
+  const [dailyVisitsHoy, setDailyVisitsHoy] = useState<DailyVisitsResponse | null>(null)
 
   useEffect(() => {
     let timeout: ReturnType<typeof setTimeout> | undefined
@@ -295,6 +296,7 @@ const RutaClientLoaded = ({
 
       return buildHistorialDiaFromBackend({ fechaClave, visitasResp, saldo, pagosDelDia })
     },
+    preferLoadDayForToday: true,
   })
 
   useEffect(() => {
@@ -303,6 +305,24 @@ const RutaClientLoaded = ({
   }, [historial.historialRutas])
 
   const historyDates = historial.historyDates
+
+  const cargarDailyVisitsHoy = useCallback(async () => {
+    if (!rutaId) {
+      setDailyVisitsHoy(null)
+      return
+    }
+
+    try {
+      const resp = await rutasService.obtenerVisitasDelDia(rutaId as any, hoyBogotaKey)
+      setDailyVisitsHoy(resp)
+    } catch {
+      setDailyVisitsHoy(null)
+    }
+  }, [rutaId, hoyBogotaKey])
+
+  useEffect(() => {
+    void cargarDailyVisitsHoy()
+  }, [cargarDailyVisitsHoy, rutaData])
 
   const historyByMonth = useMemo(() => {
     const byMonth: Record<string, string[]> = {}
@@ -905,6 +925,7 @@ const RutaClientLoaded = ({
 
 
   const estadisticas = (rutaData as any)?.estadisticas || initialRuta.estadisticas;
+  const resumenDailyVisitsHoy = dailyVisitsHoy?.resumen || null
 
   const nivelRiesgo = (rutaData as any)?.nivelRiesgo || initialRuta.nivelRiesgo;
 
@@ -942,12 +963,46 @@ const RutaClientLoaded = ({
           Number((initialRuta as any)?.cobranzaDelDia || 0),
           Number((initialRuta as any)?.estadisticas?.cobranzaDelDia || 0),
         )
+        const metaResumenHoy = Math.max(
+          Number(resumenDailyVisitsHoy?.meta ?? 0),
+          metaBackendHoy,
+        )
+        const recaudoResumenHoy = Math.max(
+          Number(resumenDailyVisitsHoy?.recaudoOperativo ?? resumenDailyVisitsHoy?.recaudo ?? 0),
+          recaudoBackendHoy,
+        )
+        const tieneResumenHoy =
+          periodoCards === 'HOY'
+          && Boolean(
+            resumenDailyVisitsHoy
+            && (
+              resumenDailyVisitsHoy.meta !== undefined
+              || resumenDailyVisitsHoy.recaudo !== undefined
+              || resumenDailyVisitsHoy.recaudoOperativo !== undefined
+            ),
+          )
 
-        const statsRutaHoy = resolveRutaHoyKpiStats(statsHoy, {
-          meta: metaBackendHoy,
-          recaudo: recaudoBackendHoy,
-          eficiencia: estadisticas?.avanceDiario,
-        }, { preferUi: Array.isArray(visitasCobrador) })
+        const statsRutaHoy = tieneResumenHoy
+          ? {
+              meta: metaResumenHoy,
+              recaudo: recaudoResumenHoy,
+              pendiente: Math.max(0, metaResumenHoy - recaudoResumenHoy),
+              eficiencia: Number(
+                resumenDailyVisitsHoy?.efectividad
+                ?? (
+                  metaResumenHoy > 0
+                    ? ((recaudoResumenHoy / metaResumenHoy) * 100).toFixed(1)
+                    : recaudoResumenHoy > 0
+                      ? 100
+                      : 0
+                ),
+              ),
+            }
+          : resolveRutaHoyKpiStats(statsHoy, {
+              meta: metaBackendHoy,
+              recaudo: recaudoBackendHoy,
+              eficiencia: estadisticas?.avanceDiario,
+            }, { preferUi: Array.isArray(visitasCobrador) })
 
         const meta = periodoCards === 'HOY'
           ? statsRutaHoy.meta
@@ -1002,12 +1057,46 @@ const RutaClientLoaded = ({
           Number((initialRuta as any)?.cobranzaDelDia || 0),
           Number((initialRuta as any)?.estadisticas?.cobranzaDelDia || 0),
         )
+        const metaResumenHoy = Math.max(
+          Number(resumenDailyVisitsHoy?.meta ?? 0),
+          metaBackendHoy,
+        )
+        const recaudoResumenHoy = Math.max(
+          Number(resumenDailyVisitsHoy?.recaudoOperativo ?? resumenDailyVisitsHoy?.recaudo ?? 0),
+          recaudoBackendHoy,
+        )
+        const tieneResumenHoy =
+          periodoCards === 'HOY'
+          && Boolean(
+            resumenDailyVisitsHoy
+            && (
+              resumenDailyVisitsHoy.meta !== undefined
+              || resumenDailyVisitsHoy.recaudo !== undefined
+              || resumenDailyVisitsHoy.recaudoOperativo !== undefined
+            ),
+          )
 
-        const statsRutaHoy = resolveRutaHoyKpiStats(statsHoy, {
-          meta: metaBackendHoy,
-          recaudo: recaudoBackendHoy,
-          eficiencia: estadisticas?.avanceDiario,
-        }, { preferUi: Array.isArray(visitasCobrador) })
+        const statsRutaHoy = tieneResumenHoy
+          ? {
+              meta: metaResumenHoy,
+              recaudo: recaudoResumenHoy,
+              pendiente: Math.max(0, metaResumenHoy - recaudoResumenHoy),
+              eficiencia: Number(
+                resumenDailyVisitsHoy?.efectividad
+                ?? (
+                  metaResumenHoy > 0
+                    ? ((recaudoResumenHoy / metaResumenHoy) * 100).toFixed(1)
+                    : recaudoResumenHoy > 0
+                      ? 100
+                      : 0
+                ),
+              ),
+            }
+          : resolveRutaHoyKpiStats(statsHoy, {
+              meta: metaBackendHoy,
+              recaudo: recaudoBackendHoy,
+              eficiencia: estadisticas?.avanceDiario,
+            }, { preferUi: Array.isArray(visitasCobrador) })
 
         const meta = periodoCards === 'HOY'
           ? statsRutaHoy.meta
@@ -1038,7 +1127,19 @@ const RutaClientLoaded = ({
 
     if (!initialRuta?.id) return
     void run()
-  }, [estadisticas?.cobranzaDelDia, estadisticas?.metaDelDia, estadisticas?.avanceDiario, getDatesByPeriod, initialRuta?.id, periodoCards, visitasCobrador])
+  }, [
+    estadisticas?.cobranzaDelDia,
+    estadisticas?.metaDelDia,
+    estadisticas?.avanceDiario,
+    getDatesByPeriod,
+    initialRuta?.id,
+    periodoCards,
+    resumenDailyVisitsHoy?.efectividad,
+    resumenDailyVisitsHoy?.meta,
+    resumenDailyVisitsHoy?.recaudo,
+    resumenDailyVisitsHoy?.recaudoOperativo,
+    visitasCobrador,
+  ])
 
 
 
@@ -1789,7 +1890,7 @@ const RutaClientLoaded = ({
 
                                                     <span className="text-sm font-semibold text-slate-700 capitalize">{dayNameStr}</span>
 
-                                                    <div className="text-[11px] text-slate-400">Recaudo: <b>${formatMilesCOP((dayData?.resumen?.recaudo || 0) as any)}</b>{dayData?.loaded && dayData.visitas.length > 0 && <span className="ml-2">· {dayData.visitas.length} clientes</span>}</div>
+                                                    <div className="text-[11px] text-slate-400">Recaudo: <b>${formatMilesCOP((dayData?.resumen?.recaudo || 0) as any)}</b>{dayData?.loaded && Number(dayData?.resumen?.total || 0) > 0 && <span className="ml-2">· {Number(dayData?.resumen?.total || 0)} obligaciones</span>}</div>
 
                                                   </div>
 
@@ -1915,13 +2016,13 @@ const RutaClientLoaded = ({
 
                                           <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 text-center"><div className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Gastos</div><div className="text-xs font-black text-rose-600">${formatMilesCOP(data.resumen.gastos)}</div></div>
 
-                                          <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 text-center"><div className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Visitados</div><div className="text-xs font-black text-blue-600">{data.resumen.visitados}/{data.resumen.total}</div></div>
+                                          <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 text-center"><div className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Gestionados</div><div className="text-xs font-black text-blue-600">{data.resumen.visitados}/{data.resumen.total}</div></div>
 
                                        </div>
 
                                        <div className="space-y-3">
 
-                                          <div className="flex justify-between text-[10px] font-bold text-slate-500 uppercase px-1"><span>Clientes Gestionados</span><span>Estado</span></div>
+                                          <div className="flex justify-between text-[10px] font-bold text-slate-500 uppercase px-1"><span>Obligaciones gestionadas</span><span>Estado</span></div>
 
                                            {!data.loaded ? (
 

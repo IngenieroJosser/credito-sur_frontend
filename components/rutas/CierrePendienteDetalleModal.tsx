@@ -213,9 +213,14 @@ export function CierrePendienteDetalleModal({
   }
 
   // Lógica para cierre de jornada
+  const obligacionesPendientesCount = Number((resumen as any)?.obligacionesPendientes ?? NaN)
+  const obligacionesAusentesCount = Number((resumen as any)?.obligacionesAusentes ?? NaN)
   const clientesPendientesCount = Number(resumen?.clientesPendientes || 0)
   const clientesAusentesCount = Number(resumen?.clientesAusentes || 0)
-  const requiereObservacionAdministrativa = clientesPendientesCount > 0 || clientesAusentesCount > 0
+  const pendientesCount = Number.isFinite(obligacionesPendientesCount) ? obligacionesPendientesCount : clientesPendientesCount
+  const ausentesCount = Number.isFinite(obligacionesAusentesCount) ? obligacionesAusentesCount : clientesAusentesCount
+  const usaObligaciones = Number.isFinite(Number((resumen as any)?.totalObligaciones ?? NaN))
+  const requiereObservacionAdministrativa = pendientesCount > 0 || ausentesCount > 0
   const puedeCerrarJornada = Boolean(permissions?.canCerrarJornada && onRegularizar)
   const canShowAccionesJornada = puedeCerrarJornada || Boolean(permissions?.canExportarDetalle && handlers?.onExportarDetalle) || Boolean(permissions?.canSolicitarCorreccion && handlers?.onSolicitarCorreccion)
   const handleCerrarJornada = async (observaciones?: string) => {
@@ -356,8 +361,8 @@ export function CierrePendienteDetalleModal({
                     Number(resumen.meta || 0),
                     Number(resumen.recaudoOperativo ?? resumen.recaudo ?? 0),
                   )
-                  const clientesPendientes = resumen.clientesPendientes ?? 0
-                  const clientesAusentes = resumen.clientesAusentes ?? 0
+                  const clientesPendientes = pendientesCount
+                  const clientesAusentes = ausentesCount
                   const recaudoInsuficiente = Number(resumen.recaudoOperativo ?? resumen.recaudo ?? 0) < Number(resumen.meta ?? 0)
 
                   if (cumplimiento.excedente > 0) {
@@ -370,7 +375,7 @@ export function CierrePendienteDetalleModal({
                   if (clientesPendientes > 0) {
                     return (
                       <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-800">
-                        Esta jornada todavía tiene {clientesPendientes} cliente(s) sin gestión. Regulariza o registra una observación antes de cerrar.
+                        Esta jornada todavía tiene {clientesPendientes} {usaObligaciones ? 'obligación(es)' : 'cliente(s)'} sin gestión. Regulariza o registra una observación antes de cerrar.
                       </div>
                     )
                   }
@@ -518,10 +523,12 @@ export function CierrePendienteDetalleModal({
               <div className="rounded-2xl border border-slate-200 bg-white">
                 <div className="border-b border-slate-100 px-5 py-4">
                   <h3 className="font-black text-slate-900">
-                    Clientes de la jornada
+                    {usaObligaciones ? 'Obligaciones de la jornada' : 'Clientes de la jornada'}
                   </h3>
                   <p className="text-xs font-medium text-slate-500">
-                    Gestiona pagos, ausencias y pendientes de la fecha seleccionada.
+                    {usaObligaciones
+                      ? 'Gestiona pagos, ausencias y pendientes por obligación de la fecha seleccionada.'
+                      : 'Gestiona pagos, ausencias y pendientes de la fecha seleccionada.'}
                   </p>
                 </div>
 
@@ -1051,7 +1058,7 @@ export function CierrePendienteDetalleModal({
                     </h3>
 
                     <p className="mt-2 text-sm text-slate-600">
-                      Esta jornada tiene {clientesPendientesCount} cliente(s) sin gestión y {clientesAusentesCount} ausencia(s). Debes registrar una observación antes de cerrar.
+                      Esta jornada tiene {pendientesCount} {usaObligaciones ? 'obligación(es)' : 'cliente(s)'} sin gestión y {ausentesCount} ausencia(s). Debes registrar una observación antes de cerrar.
                     </p>
 
                     <textarea

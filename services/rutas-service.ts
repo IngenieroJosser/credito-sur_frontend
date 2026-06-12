@@ -1,4 +1,4 @@
-﻿import { logger } from '@/lib/logger'
+import { logger } from '@/lib/logger'
 
 import { apiRequest } from '@/lib/api/api';
 
@@ -72,9 +72,37 @@ export interface DailyVisitsResponse {
 
     recaudo: number;
 
+    recaudoOperativo?: number;
+
+    recaudoContable?: number;
+
+    recaudoRegularizado?: number;
+
+    recaudoEfectivo?: number;
+
+    recaudoTransferencia?: number;
+
+    recaudoContableEfectivo?: number;
+
+    recaudoContableTransferencia?: number;
+
+    recaudoRegularizadoEfectivo?: number;
+
+    recaudoRegularizadoTransferencia?: number;
+
+    jornadaId?: string | null;
+
+    jornadaEstado?: string | null;
+
+    jornadaCerradaEn?: string | null;
+
+    jornadaRegularizadaEn?: string | null;
+
     meta: number;
 
     gastos: number;
+
+    netoEfectivoRuta?: number;
 
     efectividad: number;
 
@@ -85,6 +113,8 @@ export interface DailyVisitsResponse {
   };
 
   visitas: any[];
+
+  obligaciones?: any[];
 
 }
 
