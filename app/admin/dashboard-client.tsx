@@ -19,6 +19,8 @@ import { useRealtimeData } from '@/hooks/useRealtimeData';
 import { usePageFocusRefresh } from '@/hooks/usePageFocusRefresh';
 import { exportService } from '@/services/export-service';
 import { toast } from 'sonner';
+import { prestamosService } from '@/services/prestamos-service';
+import { buildCrearPrestamoPayload } from '@/lib/creditos/crear-prestamo-payload';
 
 interface MetricItem {
   title: string;
@@ -305,7 +307,17 @@ export function DashboardClient({ data }: DashboardClientProps) {
       <CrearCreditoModal
         isOpen={showCrearCreditoModal}
         onClose={() => setShowCrearCreditoModal(false)}
-        onConfirm={() => setShowCrearCreditoModal(false)}
+        onConfirm={async (data) => {
+          try {
+            await prestamosService.crearPrestamo(buildCrearPrestamoPayload(data));
+            toast.success('Crédito creado y enviado a revisión.');
+            setShowCrearCreditoModal(false);
+            router.refresh();
+          } catch (err: any) {
+            const msg = err?.response?.data?.message || err?.message || 'No se pudo crear el crédito.';
+            toast.error(Array.isArray(msg) ? msg.join(', ') : msg);
+          }
+        }}
       />
 
       {/* Modal de Nuevo Cliente */}
