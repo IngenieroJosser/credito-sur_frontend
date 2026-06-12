@@ -110,7 +110,7 @@ import {
 } from '@/services/prestamos-service'
 import { pagosService } from '@/services/pagos-service'
 
-import { applyRecaudoHoyToVisitas, buildRecaudosHoyMapByPrestamoId, indexPagosByPrestamoId, mergeVisitasPreservingLocalRecaudo, sumMontoTotalPagosByBogotaDateKey } from '@/lib/ruta-recaudos'
+import { applyRecaudoHoyToVisitas, buildRecaudosHoyMapByPrestamoId, computeMontoCuotaPendienteDespuesDeRecaudo, indexPagosByPrestamoId, mergeVisitasPreservingLocalRecaudo, sumMontoTotalPagosByBogotaDateKey } from '@/lib/ruta-recaudos'
 
 import { obtenerSaldoDisponibleRuta, getRutaCierreHoy, registrarGasto } from '@/services/contabilidad-service'
 
@@ -2097,10 +2097,14 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
           const cuota = Number(v.montoCuota || 0)
           const cuotaCompletada = esVisitaPagada && cuota > 0 && recNuevoVisita >= cuota - 1
+          const montoCuotaPendiente = esVisitaPagada
+            ? computeMontoCuotaPendienteDespuesDeRecaudo(v as any, recNuevoVisita)
+            : (v as any)?.montoCuotaPendiente
 
           return {
             ...v,
             recaudadoDelDia: recNuevoVisita,
+            montoCuotaPendiente,
             estado: cuotaCompletada ? 'pagado' : estadoSinAusente,
             estadoVisita: undefined as any,
             notasVisita: undefined as any,

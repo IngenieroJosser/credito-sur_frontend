@@ -67,12 +67,12 @@ export function RutaStatsCards({ rutaStats, periodo = 'HOY' }: RutaStatsCardsPro
     ? recaudo + pendiente
     : Number(rutaStats?.meta || 0)
   const eficiencia = meta > 0
-    ? Math.min(100, Math.max(0, Number(((recaudo / meta) * 100).toFixed(1))))
+    ? Math.min(100, Math.max(0, (recaudo / meta) * 100))
     : 0
   const ef = eficienciaLabel(eficiencia)
   const eficienciaShown = Number.isFinite(eficiencia)
-    ? eficiencia.toFixed(1)
-    : '0.0'
+    ? eficiencia.toFixed(2)
+    : '0.00'
   const porcentajeRecaudo = meta > 0
     ? `${eficienciaShown}%`
     : '---'

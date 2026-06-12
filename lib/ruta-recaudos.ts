@@ -147,16 +147,13 @@ export const applyRecaudoHoyToVisitas = <T extends Record<string, any>>(
     const recHoyMap = v?.prestamoId ? Number(recaudosHoyMap[v.prestamoId] || 0) : 0
     const recHoy = Math.max(recHoyBackend, recHoyMap)
 
-    const estadoRaw = String(v?.estado || '').toLowerCase().replace(/\s+/g, '_')
-    const esMora = estadoRaw === 'en_mora' || estadoRaw.includes('mora')
-
     const estadoFinal = shouldMarkVisitaAsPagado({
       saldoTotal: v?.saldoTotal,
       recaudadoHoy: recHoy,
       montoCuotaExigible: v?.montoCuota,
       estadoActual: v?.estado,
     })
-      ? (esMora ? v?.estado : 'pagado')
+      ? 'pagado'
       : v?.estado
 
     return {
@@ -167,6 +164,24 @@ export const applyRecaudoHoyToVisitas = <T extends Record<string, any>>(
       estado: estadoFinal,
     }
   })
+}
+
+export const computeMontoCuotaPendienteDespuesDeRecaudo = (
+  visita: Record<string, any>,
+  recaudadoDelDia: unknown,
+): number => {
+  const cuotaPendienteActualRaw = (visita as any)?.montoCuotaPendiente
+  const tieneCuotaPendiente = cuotaPendienteActualRaw !== undefined && cuotaPendienteActualRaw !== null
+  const cuotaNominal = Number((visita as any)?.montoCuota || 0)
+  const recaudadoPrev = Number((visita as any)?.recaudadoDelDia || 0)
+  const recaudadoNext = Number(recaudadoDelDia || 0)
+  const deltaRecaudo = Math.max(0, recaudadoNext - recaudadoPrev)
+
+  if (tieneCuotaPendiente) {
+    return Math.max(0, Number(cuotaPendienteActualRaw || 0) - deltaRecaudo)
+  }
+
+  return Math.max(0, cuotaNominal - recaudadoNext)
 }
 
 export const mergeVisitasPreservingLocalRecaudo = <T extends Record<string, any>>(

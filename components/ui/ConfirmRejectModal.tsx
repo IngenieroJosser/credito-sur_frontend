@@ -26,6 +26,8 @@ export default function ConfirmRejectModal({
 
   if (!isOpen) return null
 
+  const canReject = reason.trim().length > 0 && checked && !loading
+
   const handleClose = () => {
     if (loading) return
     setReason('')
@@ -34,7 +36,7 @@ export default function ConfirmRejectModal({
   }
 
   const handleConfirm = async () => {
-    if (!reason.trim() || !checked || loading) return
+    if (!canReject) return
     setLoading(true)
     try {
       await onConfirm(reason.trim())
@@ -105,10 +107,10 @@ export default function ConfirmRejectModal({
             </button>
             <button
               onClick={handleConfirm}
-              disabled={!reason.trim() || !checked || loading}
-              className="px-5 py-2.5 bg-rose-600 text-white font-bold rounded-xl hover:bg-rose-700 text-sm disabled:opacity-50 shadow-lg shadow-rose-600/20"
+              disabled={!canReject}
+              className="px-5 py-2.5 bg-rose-600 text-white font-bold rounded-xl hover:bg-rose-700 text-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-rose-600 shadow-lg shadow-rose-600/20"
             >
-              {loading ? 'Procesando...' : 'Confirmar'}
+              {loading ? 'Procesando...' : 'Rechazar solicitud'}
             </button>
           </div>
         </div>

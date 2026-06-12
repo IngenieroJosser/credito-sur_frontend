@@ -108,7 +108,7 @@ import { formatShortDate } from '@/lib/utils/format'
 import { buildRegularizedPaymentTarget, computeMontoExigibleHastaHoyFromCuotas, computeMontoNominalHastaHoyFromCuotas, computeRutaHoyUiStatsFromVisitas, resolveRutaHoyKpiStats, esDomingoBogota, getBogotaDateKey, getBogotaRangeByPeriod, getPagoBogotaDateKey, isCuotaNoPagada, isTodayOrPastBogota, isVisitaExigibleHoy, normalizeDateKey, resolveFechaEfectivaCuota, shouldExcludeVisitaFromOperationalMeta, shouldMarkVisitaAsPagado, shouldShowVisitaEnRutaHoy, toBogotaDateTimeOffsetIso, resolveProximaCuotaFromPrestamo, computeDiasMoraFromCuotas } from '@/lib/rutas-core'
 
 import { mapAsignacionesToVisitasLite } from '@/lib/ruta-visitas-mapper'
-import { buildRecaudosHoyMapByPrestamoId, indexPagosByPrestamoId, mergeVisitasPreservingLocalRecaudo, sumMontoTotalPagosByBogotaDateKey } from '@/lib/ruta-recaudos'
+import { buildRecaudosHoyMapByPrestamoId, computeMontoCuotaPendienteDespuesDeRecaudo, indexPagosByPrestamoId, mergeVisitasPreservingLocalRecaudo, sumMontoTotalPagosByBogotaDateKey } from '@/lib/ruta-recaudos'
 import { mapWithConcurrency, memoizePromiseByKey } from '@/lib/async-utils'
 import { buildHistorialDiaFromBackend, hasGestionHistorial, isPagoForHistorialFecha } from '@/lib/ruta-historial'
 
@@ -2524,6 +2524,7 @@ const RutaClientLoaded = ({
                         : v.estado
 
                     const recaudadoDelDia = Number(v?.recaudadoDelDia || 0) + Number(monto || 0)
+                    const montoCuotaPendiente = computeMontoCuotaPendienteDespuesDeRecaudo(v as any, recaudadoDelDia)
                     const estado = shouldMarkVisitaAsPagado({
                       saldoTotal: v?.saldoTotal,
                       recaudadoHoy: recaudadoDelDia,
@@ -2536,6 +2537,7 @@ const RutaClientLoaded = ({
                     return {
                       ...v,
                       recaudadoDelDia,
+                      montoCuotaPendiente,
                       estado: estado as any,
                       estadoVisita: undefined as any,
                       notasVisita: undefined as any,

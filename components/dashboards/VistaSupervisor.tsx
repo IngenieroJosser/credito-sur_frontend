@@ -219,6 +219,12 @@ const VistaSupervisor = () => {
         : 'Trimestre actual'
 
     const trendValues = (dashboardData.trend || []).map((t) => t.value || 0)
+    const loanCompletion = metrics.loanCompletion || {
+      pagados: 0,
+      activos: 0,
+      total: 0,
+      porcentaje: 0,
+    }
 
     return [
       {
@@ -249,9 +255,9 @@ const VistaSupervisor = () => {
         trendData: trendValues.length > 0 ? trendValues : [0],
       },
       {
-        title: 'Eficiencia de cartera',
-        value: `${(metrics.efficiency || 0).toFixed(1)}%`,
-        subValue: 'Préstamos pagados vs activos',
+        title: 'Préstamos pagados',
+        value: `${loanCompletion.porcentaje.toFixed(1)}%`,
+        subValue: `${loanCompletion.pagados} pagados de ${loanCompletion.total} (${loanCompletion.activos} activos)`,
         change: null,
         icon: <Calendar className="h-4 w-4" />,
         color: '#fb851b',

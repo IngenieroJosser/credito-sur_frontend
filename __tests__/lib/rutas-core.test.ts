@@ -72,6 +72,22 @@ describe('shouldShowVisitaEnRutaHoy', () => {
       ),
     ).toBe(true)
   })
+
+  it('oculta una cuota reprogramada a futuro aunque el prestamo siga en mora', () => {
+    expect(
+      shouldShowVisitaEnRutaHoy(
+        {
+          estado: 'en_mora',
+          periodoRuta: 'DIA',
+          proximaVisita: '2026-06-12',
+          enProrroga: true,
+          saldoTotal: 2291676,
+          montoCuota: 458332,
+        },
+        '2026-06-11',
+      ),
+    ).toBe(false)
+  })
 })
 
 describe('resolveCobradorIdForRouteAction', () => {
