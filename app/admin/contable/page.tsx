@@ -144,6 +144,8 @@ interface MovimientoContable {
   accountName?: string
   direction?: 'IN' | 'OUT'
   impactoCaja?: number
+  origenGestion?: string | null
+  fechaOperativaRuta?: string | null
 }
 
 // Resumen general para los indicadores de arriba (KPIs)
@@ -215,6 +217,8 @@ const mapTransaccion = (t: ApiTransaccion): MovimientoContable => {
     accountName: (t as any).accountName,
     direction: (t as any).direction,
     impactoCaja: (t as any).impactoCaja,
+    origenGestion: (t as any).origenGestion ?? null,
+    fechaOperativaRuta: (t as any).fechaOperativaRuta ?? null,
   }
 }
 
@@ -253,7 +257,26 @@ const mapMovimientoLedger = (m: ApiMovimientoLedger): MovimientoContable => {
     accountName: m.accountName || undefined,
     direction: m.direction,
     impactoCaja,
+    origenGestion: m.origenGestion || null,
+    fechaOperativaRuta: m.fechaOperativaRuta || null,
   }
+}
+
+const esMovimientoPagoRegularizado = (m: Pick<MovimientoContable, 'origenGestion' | 'tipoReferencia'> | ApiMovimientoLedger) => {
+  const origenGestion = String((m as any).origenGestion || '').toUpperCase()
+  const tipo = String((m as any).tipo || '').toUpperCase()
+  const tipoReferencia = String((m as any).tipoReferencia || '').toUpperCase()
+  return origenGestion === 'CIERRE_PENDIENTE' && (tipo === 'PAGO' || tipoReferencia === 'PAGO')
+}
+
+const formatFechaOperativaRuta = (fecha?: string | null) => {
+  const key = String(fecha || '').slice(0, 10)
+  if (!key) return 'sin fecha'
+  return new Date(`${key}T00:00:00-05:00`).toLocaleDateString('es-CO', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  })
 }
 
 const mapMovimientoLedgerResultado = (m: ApiMovimientoLedger, tipoResultado: 'INGRESO' | 'EGRESO'): MovimientoContable => {
@@ -2241,6 +2264,19 @@ const ModuloContableContent = () => {
                   </div>
                 </div>
 
+                {esMovimientoPagoRegularizado(movimientoSeleccionado) && (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="inline-flex items-center rounded-full border border-amber-300 bg-white px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-amber-700">
+                        Pago regularizado
+                      </span>
+                      <span className="text-xs font-bold text-amber-800">
+                        Asociado a la jornada {formatFechaOperativaRuta(movimientoSeleccionado.fechaOperativaRuta)}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-y-5 gap-x-4">
                   <div>
                     <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Fecha Registro</div>
@@ -3236,6 +3272,7 @@ const ModuloContableContent = () => {
                                 .replace(/^Transferencia enviada a .*?: |^Transferencia recibida de .*?: /i, '')
                                 .replace(/\(Entrada\)|\(Salida\)/gi, '')
                                 .trim();
+                              const esRegularizado = esMovimientoPagoRegularizado(m)
 
                               const esIngresoRecoleccion =
                                 m.tipo === 'TRANSFERENCIA' &&
@@ -3291,6 +3328,16 @@ const ModuloContableContent = () => {
                                         <div className="font-bold text-slate-900 text-base leading-snug">
                                           {conceptoMostrar.replace(/\$(\d+)/g, (match, p1) => formatCurrency(Number(p1)))}
                                         </div>
+                                        {esRegularizado && (
+                                          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                                            <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-700">
+                                              Pago regularizado
+                                            </span>
+                                            <span className="text-[10px] font-bold text-slate-500">
+                                              Jornada {formatFechaOperativaRuta(m.fechaOperativaRuta)}
+                                            </span>
+                                          </div>
+                                        )}
                                       </div>
                                     </div>
                                     <div className={cn(
