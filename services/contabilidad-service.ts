@@ -67,6 +67,8 @@ export interface MovimientoLedger {
   impactoResultado?: number;
   accountCode?: string | null;
   accountName?: string | null;
+  origenGestion?: string | null;
+  fechaOperativaRuta?: string | null;
   caja?: string | null;
   cajaId?: string | null;
   cuadrado: boolean;

@@ -155,6 +155,14 @@ function periodoLabel(periodo: string): string {
   }
 }
 
+function normalizeEstadoVisita(raw: any): string {
+  return String(raw || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+}
+
 // ── Contenido de la tarjeta (reutilizado por Static y Sortable) ──────────────
 /**
  * Layout responsive:
@@ -189,6 +197,15 @@ function VisitaCardContent({
     ? (cuotaBase > 0 ? cuotaBase : recHoy)
     : Math.min(cuotaPendiente, saldo > 0 ? saldo : cuotaPendiente)
   const saldado = estadoLower === 'pagado' && cuotaUI === 0 && saldo === 0
+  const estadoVisitaNorm = normalizeEstadoVisita((visita as any)?.estadoVisita)
+  const esReprogramadoHistorial =
+    estadoVisitaNorm === 'reprogramado' ||
+    estadoVisitaNorm === 'reprogramada' ||
+    estadoVisitaNorm === 'reprogramacion'
+  const regularizadoDespues = Number((visita as any)?.recaudadoRegularizadoDespues || 0)
+  const esAbonoRegularizado =
+    regularizadoDespues > 0 &&
+    String((visita as any)?.estado || '').toLowerCase() !== 'pagado'
 
   const nivelRiesgoUI = resolveNivelRiesgoForVisita(visita)
   return (
@@ -240,6 +257,12 @@ function VisitaCardContent({
           {(visita.estadoVisita === 'ausente' && visita.estado !== 'ausente') && (
             <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md border uppercase bg-amber-100 text-amber-700 border-amber-300">
               ausente
+            </span>
+          )}
+
+          {esReprogramadoHistorial && estadoLower !== 'reprogramado' && (
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md border uppercase bg-sky-100 text-sky-700 border-sky-300">
+              reprogramado
             </span>
           )}
 
@@ -358,11 +381,20 @@ function VisitaCardContent({
         </div>
       )}
 
-      {(visita as any).recaudadoRegularizadoDespues > 0 && (
+      {regularizadoDespues > 0 && (
         <div className="mt-1 flex items-center gap-1 px-2 py-0.5 rounded-lg bg-blue-50 border border-blue-100 w-fit">
           <CheckCircle2 className="w-3 h-3 text-blue-500 shrink-0" />
           <span className="text-[9px] font-black text-blue-700 uppercase tracking-wide">
-            Regularizado después: {formatMontoCompleto((visita as any).recaudadoRegularizadoDespues)}
+            {esAbonoRegularizado ? 'Abono regularizado' : 'Regularizado después'}: {formatMontoCompleto(regularizadoDespues)}
+          </span>
+        </div>
+      )}
+
+      {esReprogramadoHistorial && (
+        <div className="mt-1 flex items-center gap-1 px-2 py-0.5 rounded-lg bg-sky-50 border border-sky-100 w-fit">
+          <Timer className="w-3 h-3 text-sky-500 shrink-0" />
+          <span className="text-[9px] font-black text-sky-700 uppercase tracking-wide">
+            Reprogramado en esta jornada
           </span>
         </div>
       )}

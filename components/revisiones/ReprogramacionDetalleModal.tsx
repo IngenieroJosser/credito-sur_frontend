@@ -25,6 +25,7 @@ export interface ReprogramacionData {
   clienteNombre?: string
   numeroPrestamo?: string
   montoCuota?: number
+  fechaGestionOriginal?: string
   fechaVencimientoOriginal?: string
   nuevaFechaVencimiento?: string
   motivo?: string

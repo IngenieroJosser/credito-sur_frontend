@@ -501,15 +501,18 @@ export const getPagoBogotaDateKey = (raw: unknown): string => {
 
 export const isVisitaExigibleHoy = (visita: any, hoyBogotaKey: string): boolean => {
   // Regla compartida: determina si una "visita" debe aparecer hoy.
+  // - Si la fecha efectiva de la próxima cuota está en el futuro, no aparece hoy
+  //   aunque el préstamo conserve temporalmente estado de mora.
   // - Si está en mora, aparece siempre.
   // - Si es ruta DIARIA, aparece siempre.
   // - Si no, solo aparece cuando proximaVisita == HOY (llave Bogotá).
   if (!visita) return false;
   const estadoRaw = String(visita?.estado || '').toLowerCase();
   const estado = estadoRaw.replace(/\s+/g, '_');
-  if (estado === 'en_mora' || estado.includes('mora')) return true;
   const proximaKey = visita?.proximaVisita ? normalizeDateKey(String(visita.proximaVisita)) : '';
   if (visita?.enProrroga && proximaKey && proximaKey > hoyBogotaKey) return false;
+  if (proximaKey && proximaKey > hoyBogotaKey) return false;
+  if (estado === 'en_mora' || estado.includes('mora')) return true;
   if (String(visita?.periodoRuta || '').toUpperCase() === 'DIA') return true;
   if (!proximaKey) return true;
   return proximaKey <= hoyBogotaKey;

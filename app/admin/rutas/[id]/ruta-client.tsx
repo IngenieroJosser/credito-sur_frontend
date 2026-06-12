@@ -108,9 +108,9 @@ import { formatShortDate } from '@/lib/utils/format'
 import { buildRegularizedPaymentTarget, computeMontoExigibleHastaHoyFromCuotas, computeMontoNominalHastaHoyFromCuotas, computeRutaHoyUiStatsFromVisitas, resolveRutaHoyKpiStats, esDomingoBogota, getBogotaDateKey, getBogotaRangeByPeriod, getPagoBogotaDateKey, isCuotaNoPagada, isTodayOrPastBogota, isVisitaExigibleHoy, normalizeDateKey, resolveFechaEfectivaCuota, shouldExcludeVisitaFromOperationalMeta, shouldMarkVisitaAsPagado, shouldShowVisitaEnRutaHoy, toBogotaDateTimeOffsetIso, resolveProximaCuotaFromPrestamo, computeDiasMoraFromCuotas } from '@/lib/rutas-core'
 
 import { mapAsignacionesToVisitasLite } from '@/lib/ruta-visitas-mapper'
-import { buildRecaudosHoyMapByPrestamoId, indexPagosByPrestamoId, mergeVisitasPreservingLocalRecaudo, sumMontoTotalPagosByBogotaDateKey } from '@/lib/ruta-recaudos'
+import { buildRecaudosHoyMapByPrestamoId, computeMontoCuotaPendienteDespuesDeRecaudo, indexPagosByPrestamoId, mergeVisitasPreservingLocalRecaudo, sumMontoTotalPagosByBogotaDateKey } from '@/lib/ruta-recaudos'
 import { mapWithConcurrency, memoizePromiseByKey } from '@/lib/async-utils'
-import { buildHistorialDiaFromBackend, isPagoForHistorialFecha } from '@/lib/ruta-historial'
+import { buildHistorialDiaFromBackend, hasGestionHistorial, isPagoForHistorialFecha } from '@/lib/ruta-historial'
 
 interface GastoRuta {
   id: string
@@ -1932,10 +1932,9 @@ const RutaClientLoaded = ({
                                                // Filtrar por frecuencia
                                                if (historyFrecuenciaFiltro !== 'TODOS' && v.periodoRuta !== historyFrecuenciaFiltro) return false;
                                                
-                                               // Ocultar saldados (pagado y saldo 0) que NO tuvieron actividad (pago o ausente) en este día
+                                               // Ocultar saldados que no tuvieron gestión real en este día.
                                                const isSaldado = String(v.estado || '').toLowerCase() === 'pagado' && Number(v.saldoTotal || 0) <= 0;
-                                               const tuvoActividad = Number(v.recaudadoDelDia || 0) > 0 || v.estadoVisita === 'ausente';
-                                               if (isSaldado && !tuvoActividad) return false;
+                                               if (isSaldado && !hasGestionHistorial(v)) return false;
 
                                                return true;
                                              });
@@ -2525,6 +2524,7 @@ const RutaClientLoaded = ({
                         : v.estado
 
                     const recaudadoDelDia = Number(v?.recaudadoDelDia || 0) + Number(monto || 0)
+                    const montoCuotaPendiente = computeMontoCuotaPendienteDespuesDeRecaudo(v as any, recaudadoDelDia)
                     const estado = shouldMarkVisitaAsPagado({
                       saldoTotal: v?.saldoTotal,
                       recaudadoHoy: recaudadoDelDia,
@@ -2537,6 +2537,7 @@ const RutaClientLoaded = ({
                     return {
                       ...v,
                       recaudadoDelDia,
+                      montoCuotaPendiente,
                       estado: estado as any,
                       estadoVisita: undefined as any,
                       notasVisita: undefined as any,

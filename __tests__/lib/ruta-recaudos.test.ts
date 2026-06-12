@@ -1,6 +1,7 @@
 import {
   applyRecaudoHoyToVisitas,
   buildRecaudosHoyMapByPrestamoId,
+  computeMontoCuotaPendienteDespuesDeRecaudo,
   isPagoCierrePendiente,
   mergeVisitasPreservingLocalRecaudo,
   sumMontoTotalPagosByBogotaDateKey,
@@ -201,6 +202,42 @@ describe('ruta-recaudos', () => {
 
     expect(result[0].recaudadoDelDia).toBe(126666)
     expect(result[0].estado).toBe('pagado')
+  })
+
+  it('marca como pagada una visita en mora cuando el recaudo de hoy cubre la cuota pendiente', () => {
+    const result = applyRecaudoHoyToVisitas([
+      {
+        id: 'visita-1',
+        prestamoId: 'prestamo-1',
+        clienteId: 'cliente-1',
+        estado: 'en_mora',
+        montoCuota: 126666,
+        montoCuotaPendiente: 63333,
+        saldoTotal: 1330003,
+        recaudadoDelDia: 0,
+      },
+    ] as any, {
+      hoyBogotaKey: '2026-06-11',
+      recaudosHoyMap: {
+        'prestamo-1': 126666,
+      },
+    })
+
+    expect(result[0].recaudadoDelDia).toBe(126666)
+    expect(result[0].estado).toBe('pagado')
+  })
+
+  it('recalcula el pendiente visible inmediatamente despues de un abono local', () => {
+    const pendiente = computeMontoCuotaPendienteDespuesDeRecaudo(
+      {
+        montoCuota: 126666,
+        montoCuotaPendiente: 126666,
+        recaudadoDelDia: 0,
+      },
+      50000,
+    )
+
+    expect(pendiente).toBe(76666)
   })
 })
 

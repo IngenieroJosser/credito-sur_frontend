@@ -8,6 +8,12 @@ export interface DashboardMetrics {
   efficiency: number;
   capitalPrestado?: number;
   recaudo?: number;
+  loanCompletion?: {
+    pagados: number;
+    activos: number;
+    total: number;
+    porcentaje: number;
+  };
 }
 
 export interface TrendData {

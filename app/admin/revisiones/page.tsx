@@ -142,6 +142,47 @@ const formatFecha = (iso: string | null | undefined) => {
   return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true })
 }
 
+const toBogotaDateKey = (value: string | null | undefined) => {
+  if (!value) return null
+  const raw = String(value).trim()
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw
+  const date = new Date(raw)
+  if (Number.isNaN(date.getTime())) return null
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Bogota',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date)
+  const get = (type: string) => parts.find((p) => p.type === type)?.value || ''
+  const year = get('year')
+  const month = get('month')
+  const day = get('day')
+  return year && month && day ? `${year}-${month}-${day}` : null
+}
+
+const formatFechaCortaBogota = (value: string | null | undefined) => {
+  const key = toBogotaDateKey(value)
+  if (!key) return '?'
+  const date = new Date(`${key}T12:00:00-05:00`)
+  return date.toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })
+}
+
+const resolveFechaOriginalReprogramacion = (datos: any, creadoEn?: string | null) => {
+  const fechaGestion =
+    toBogotaDateKey(datos?.fechaGestionOriginal) ||
+    toBogotaDateKey(datos?.fechaOperativaRuta)
+  if (fechaGestion) return fechaGestion
+
+  const fechaCuota = toBogotaDateKey(datos?.fechaVencimientoOriginal)
+  const fechaCreacion = toBogotaDateKey(creadoEn || null)
+  if (fechaCuota && fechaCreacion && fechaCuota < fechaCreacion) {
+    return fechaCreacion
+  }
+
+  return fechaCuota || datos?.fechaVencimientoOriginal || null
+}
+
 /**
  * Transforma un objeto de aprobación al formato que recibe NotificacionDetalleModal
  */
@@ -193,6 +234,9 @@ const aprobacionToNotificacion = (item: Aprobacion) => {
       tipoAprobacion: item.tipoAprobacion,
       estadoAprobacion: item.estado,
       solicitadoPor: item.solicitante,
+      revisadoPor: item.rechazadoPor,
+      fechaRevision: item.revisadoEn,
+      motivoRechazo: item.comentarios,
       monto: datos.monto || item.montoSolicitud,
     },
     motivoRechazo: item.comentarios,
@@ -299,7 +343,8 @@ export default function RevisionesPage() {
         clienteNombre:           datos.clienteNombre || datos.cliente,
         numeroPrestamo:          datos.numeroPrestamo,
         montoCuota:              datos.montoCuota,
-        fechaVencimientoOriginal: datos.fechaVencimientoOriginal,
+        fechaVencimientoOriginal: resolveFechaOriginalReprogramacion(datos, item.creadoEn),
+        fechaGestionOriginal:     datos.fechaGestionOriginal || datos.fechaOperativaRuta,
         nuevaFechaVencimiento:   datos.nuevaFechaVencimiento || datos.nuevaFecha,
         motivo:                  datos.motivo || datos.comentarios,
         gestionadoPor:           datos.gestionadoPor || datos.asignadoPor || item.solicitante,
@@ -533,8 +578,8 @@ export default function RevisionesPage() {
         }
         case 'REPROGRAMACION_CUOTA': {
           const frecLabel: Record<string,string> = { SEMANAL:'Semanal', QUINCENAL:'Quincenal', MENSUAL:'Mensual', DIARIO:'Diario' }
-          const fechaOrig = datos.fechaVencimientoOriginal ? new Date(datos.fechaVencimientoOriginal).toLocaleDateString('es-CO',{day:'2-digit',month:'short'}) : '?'
-          const fechaNueva = datos.nuevaFecha ? new Date(datos.nuevaFecha.includes('T') ? datos.nuevaFecha : datos.nuevaFecha+'T12:00:00').toLocaleDateString('es-CO',{day:'2-digit',month:'short'}) : '?'
+          const fechaOrig = formatFechaCortaBogota(resolveFechaOriginalReprogramacion(datos, item.creadoEn))
+          const fechaNueva = formatFechaCortaBogota(datos.nuevaFechaVencimiento || datos.nuevaFecha)
           return {
             titulo: datos.clienteNombre || 'Cliente',
             subtitulo: `${frecLabel[datos.frecuenciaPago]||datos.frecuenciaPago} · ${fechaOrig} → ${fechaNueva} · Motivo: ${datos.motivo || 'N/A'}`,

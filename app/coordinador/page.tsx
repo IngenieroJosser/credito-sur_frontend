@@ -33,7 +33,7 @@ interface MetricItem {
   value: number | string;
   subValue?: string;
   isCurrency: boolean;
-  change: number;
+  change: number | null;
   icon: React.ReactNode;
   color: string;
 }
@@ -156,7 +156,7 @@ export default function CoordinadorPage() {
             title: `Capital Prestado (${PERIOD_LABEL[period]})`,
             value: Number(dashboard?.metrics?.capitalPrestado ?? 0),
             isCurrency: true,
-            change: 0,
+            change: null,
             icon: <CreditCard className="h-4 w-4" />,
             color: '#3b82f6',
           },
@@ -165,7 +165,7 @@ export default function CoordinadorPage() {
             value: dashboard ? `${dashboard.metrics.efficiency}%` : '0%',
             subValue: `${stats?.pagados || 0} pagados de ${stats?.total || 0}`,
             isCurrency: false,
-            change: 0,
+            change: null,
             icon: <Target className="h-4 w-4" />,
             color: '#8b5cf6',
           },
@@ -174,7 +174,7 @@ export default function CoordinadorPage() {
             value: stats?.moraTotal || 0,
             subValue: `${moraPercent}% del total · ${stats?.atrasados || 0} cuentas`,
             isCurrency: true,
-            change: 0,
+            change: null,
             icon: <AlertCircle className="h-4 w-4" />,
             color: '#f43f5e',
           },
@@ -183,7 +183,7 @@ export default function CoordinadorPage() {
             value: stats?.montoPendiente || 0,
             subValue: `${stats?.activos || 0} créditos activos`,
             isCurrency: true,
-            change: 0,
+            change: null,
             icon: <Banknote className="h-4 w-4" />,
             color: '#f59e0b',
           },

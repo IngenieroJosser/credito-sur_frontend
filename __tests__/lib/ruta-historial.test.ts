@@ -396,6 +396,57 @@ describe('buildHistorialDiaFromBackend', () => {
       jornadaEtiqueta: 'Regularizada',
     })
   })
+
+  it('cuenta y conserva tarjetas reprogramadas aunque no tengan recaudo', () => {
+    const result = buildHistorialDiaFromBackend({
+      fechaClave: '2026-06-10',
+      visitasResp: {
+        resumen: {
+          recaudo: 0,
+          recaudoOperativo: 0,
+          recaudoRegularizado: 0,
+          recaudoContable: 0,
+          meta: 947000,
+          jornadaEstado: 'PENDIENTE_CIERRE',
+        },
+        visitas: [
+          {
+            asignacionId: 'asig-epifanio',
+            estadoVisita: 'reprogramado',
+            cliente: {
+              id: 'cliente-epifanio',
+              nombres: 'Epifanio',
+              apellidos: 'Mena',
+              direccion: 'Barrio Playita',
+              telefono: '311',
+              nivelRiesgo: 'VERDE',
+            },
+            prestamos: [
+              {
+                id: 'prestamo-epifanio',
+                saldoPendiente: 2296669,
+                proximaCuota: { monto: 43333, estado: 'PRORROGADA' },
+                frecuenciaPago: 'DIARIO',
+              },
+            ],
+          },
+        ],
+      },
+      saldo: {},
+      pagosDelDia: [],
+    })
+
+    expect(result.resumen.visitados).toBe(1)
+    expect(result.resumen.total).toBe(1)
+    expect(result.visitas).toHaveLength(1)
+    expect(result.visitas[0]).toMatchObject({
+      clienteId: 'cliente-epifanio',
+      prestamoId: 'prestamo-epifanio',
+      estadoVisita: 'reprogramado',
+      recaudadoDelDia: 0,
+      recaudadoRegularizadoDespues: 0,
+    })
+  })
 })
 
 describe('applyPagosDelDiaToHistorialVisitas', () => {
