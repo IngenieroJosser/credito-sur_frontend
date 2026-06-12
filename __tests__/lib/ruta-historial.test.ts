@@ -225,7 +225,7 @@ describe('buildHistorialDiaFromBackend', () => {
     })
   })
 
-  it('reconcilia el resumen con regularizados visibles en tarjetas de la misma jornada', () => {
+  it('reconcilia tarjetas visibles y conserva visitados del backend en la misma jornada', () => {
     const result = buildHistorialDiaFromBackend({
       fechaClave: '2026-06-05',
       visitasResp: {
@@ -299,7 +299,8 @@ describe('buildHistorialDiaFromBackend', () => {
     expect(result.resumen.recaudoOperativo).toBe(1894000)
     expect(result.resumen.recaudoRegularizado).toBe(1894000)
     expect(result.resumen.efectividad).toBe(95.6)
-    expect(result.resumen.visitados).toBe(3)
+    expect(result.resumen.visitados).toBe(2)
+    expect(result.visitas).toHaveLength(3)
     expect(result.visitas[0]).toMatchObject({
       recaudadoRegularizadoDespues: 126666,
       estado: 'pagado',
@@ -446,6 +447,235 @@ describe('buildHistorialDiaFromBackend', () => {
       recaudadoDelDia: 0,
       recaudadoRegularizadoDespues: 0,
     })
+  })
+
+  it('prioriza obligaciones del backend y conserva el total resumido aunque haya menos tarjetas visibles', () => {
+    const result = buildHistorialDiaFromBackend({
+      fechaClave: '2026-06-12',
+      visitasResp: {
+        resumen: {
+          recaudo: 43333,
+          recaudoOperativo: 43333,
+          recaudoRegularizado: 0,
+          recaudoContable: 43333,
+          meta: 390000,
+          gastos: 0,
+          efectividad: 11.1,
+          visitados: 1,
+          total: 9,
+        },
+        visitas: [
+          {
+            asignacionId: 'asig-cliente-1',
+            cliente: {
+              id: 'cliente-1',
+              nombres: 'Epifanio',
+              apellidos: 'Mena',
+            },
+          },
+        ],
+        obligaciones: [
+          {
+            asignacionId: 'asig-cliente-1',
+            ordenVisita: 1,
+            estadoGestion: 'PAGO_REGISTRADO',
+            estadoVisita: 'pagado',
+            recaudadoDelDia: 43333,
+            montoMetaOperativaPendiente: 43333,
+            cliente: {
+              id: 'cliente-1',
+              nombres: 'Epifanio',
+              apellidos: 'Mena',
+              direccion: 'Barrio Playita',
+              telefono: '311',
+              nivelRiesgo: 'VERDE',
+            },
+            prestamoId: 'prestamo-epifanio-1',
+            prestamo: {
+              id: 'prestamo-epifanio-1',
+              saldoPendiente: 190000,
+              frecuenciaPago: 'DIARIO',
+              cantidadCuotas: 12,
+            },
+          },
+        ],
+      },
+      saldo: {},
+      pagosDelDia: [],
+    })
+
+    expect(result.resumen.total).toBe(9)
+    expect(result.resumen.visitados).toBe(1)
+    expect(result.visitas).toHaveLength(1)
+    expect(result.visitas[0]).toMatchObject({
+      clienteId: 'cliente-1',
+      prestamoId: 'prestamo-epifanio-1',
+      cliente: 'Epifanio Mena',
+      estado: 'pagado',
+      recaudadoDelDia: 43333,
+    })
+  })
+
+  it('no vuelve a agrupar por cliente cuando daily-visits trae multiples obligaciones del mismo cliente', () => {
+    const result = buildHistorialDiaFromBackend({
+      fechaClave: '2026-06-12',
+      visitasResp: {
+        resumen: {
+          recaudo: 0,
+          recaudoOperativo: 0,
+          recaudoRegularizado: 0,
+          recaudoContable: 0,
+          meta: 86666,
+          gastos: 0,
+          efectividad: 50,
+          visitados: 1,
+          total: 2,
+        },
+        visitas: [],
+        obligaciones: [
+          {
+            asignacionId: 'asig-cliente-1',
+            ordenVisita: 1,
+            estadoGestion: 'REPROGRAMADO',
+            estadoVisita: 'reprogramado',
+            recaudadoDelDia: 0,
+            montoMetaOperativaPendiente: 0,
+            cliente: {
+              id: 'cliente-1',
+              nombres: 'Epifanio',
+              apellidos: 'Mena',
+              direccion: 'Barrio Playita',
+              telefono: '311',
+              nivelRiesgo: 'VERDE',
+            },
+            prestamoId: 'prestamo-viejo',
+            prestamo: {
+              id: 'prestamo-viejo',
+              saldoPendiente: 2296669,
+              frecuenciaPago: 'DIARIO',
+              cantidadCuotas: 24,
+              cuotaObjetivo: {
+                numeroCuota: 8,
+                montoCuota: 86666,
+              },
+            },
+          },
+          {
+            asignacionId: 'asig-cliente-1',
+            ordenVisita: 1,
+            estadoGestion: 'PENDIENTE',
+            estadoVisita: null,
+            recaudadoDelDia: 0,
+            montoMetaOperativaPendiente: 43333,
+            cliente: {
+              id: 'cliente-1',
+              nombres: 'Epifanio',
+              apellidos: 'Mena',
+              direccion: 'Barrio Playita',
+              telefono: '311',
+              nivelRiesgo: 'VERDE',
+            },
+            prestamoId: 'prestamo-nuevo',
+            prestamo: {
+              id: 'prestamo-nuevo',
+              saldoPendiente: 190000,
+              frecuenciaPago: 'DIARIO',
+              cantidadCuotas: 12,
+              cuotaObjetivo: {
+                numeroCuota: 1,
+              },
+            },
+          },
+        ],
+      },
+      saldo: {},
+      pagosDelDia: [],
+    })
+
+    expect(result.visitas).toHaveLength(2)
+    expect(result.resumen.total).toBe(2)
+    expect(result.visitas.map((visita) => visita.prestamoId)).toEqual([
+      'prestamo-viejo',
+      'prestamo-nuevo',
+    ])
+    expect(result.visitas[0]).toMatchObject({
+      estado: 'reprogramado',
+      estadoVisita: 'reprogramado',
+      montoCuota: 86666,
+      montoMetaOperativaPendiente: 0,
+    })
+    expect(result.visitas[1]).toMatchObject({
+      estado: 'pendiente',
+      montoCuota: 43333,
+    })
+  })
+
+  it('respeta visitados del backend aunque el calculo local encuentre mas gestiones', () => {
+    const result = buildHistorialDiaFromBackend({
+      fechaClave: '2026-06-12',
+      visitasResp: {
+        resumen: {
+          recaudo: 43333,
+          recaudoOperativo: 43333,
+          recaudoRegularizado: 0,
+          recaudoContable: 43333,
+          meta: 129999,
+          gastos: 0,
+          efectividad: 11.1,
+          visitados: 1,
+          total: 3,
+        },
+        obligaciones: [
+          {
+            asignacionId: 'asig-1',
+            ordenVisita: 1,
+            estadoGestion: 'PAGO_REGISTRADO',
+            estadoVisita: 'pagado',
+            recaudadoDelDia: 43333,
+            montoMetaOperativaPendiente: 43333,
+            cliente: {
+              id: 'cliente-1',
+              nombres: 'Epifanio',
+              apellidos: 'Mena',
+            },
+            prestamoId: 'prestamo-1',
+            prestamo: {
+              id: 'prestamo-1',
+              saldoPendiente: 190000,
+              frecuenciaPago: 'DIARIO',
+            },
+          },
+          {
+            asignacionId: 'asig-2',
+            ordenVisita: 2,
+            estadoGestion: 'REPROGRAMADO',
+            estadoVisita: 'reprogramado',
+            recaudadoDelDia: 0,
+            montoMetaOperativaPendiente: 0,
+            cliente: {
+              id: 'cliente-2',
+              nombres: 'Luis',
+              apellidos: 'Perez',
+            },
+            prestamoId: 'prestamo-2',
+            prestamo: {
+              id: 'prestamo-2',
+              saldoPendiente: 240000,
+              frecuenciaPago: 'DIARIO',
+              cuotaObjetivo: {
+                numeroCuota: 3,
+                montoCuota: 43333,
+              },
+            },
+          },
+        ],
+      },
+      saldo: {},
+      pagosDelDia: [],
+    })
+
+    expect(result.resumen.visitados).toBe(1)
+    expect(result.resumen.total).toBe(3)
   })
 })
 

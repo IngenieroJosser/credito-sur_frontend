@@ -91,6 +91,11 @@ export type CierrePendienteResumen = {
   clientesPagaron: number
   clientesAusentes: number
   clientesPendientes: number
+  totalObligaciones?: number
+  obligacionesGestionadas?: number
+  obligacionesPagaron?: number
+  obligacionesAusentes?: number
+  obligacionesPendientes?: number
 }
 
 export type ClienteCierrePendiente = {

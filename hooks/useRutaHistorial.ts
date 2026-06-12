@@ -29,6 +29,7 @@ export type UseRutaHistorialParams = {
   }>
 
   initialDays?: number
+  preferLoadDayForToday?: boolean
 }
 
 export const useRutaHistorial = (params: UseRutaHistorialParams) => {
@@ -39,6 +40,7 @@ export const useRutaHistorial = (params: UseRutaHistorialParams) => {
     fetchPagos,
     loadDay,
     initialDays = 30,
+    preferLoadDayForToday = false,
   } = params
 
   const fetchPagosRef = useRef(fetchPagos)
@@ -172,7 +174,7 @@ export const useRutaHistorial = (params: UseRutaHistorialParams) => {
     const hoyKey = getBogotaDateKey(new Date())
       || `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`
 
-    if (fechaClave === hoyKey && typeof getVisitasHoy === 'function') {
+    if (!preferLoadDayForToday && fechaClave === hoyKey && typeof getVisitasHoy === 'function') {
       const visitasHoy = getVisitasHoy() || []
       if (Array.isArray(visitasHoy) && visitasHoy.length > 0) {
         let pagosDelDia: any[] = []
@@ -200,8 +202,14 @@ export const useRutaHistorial = (params: UseRutaHistorialParams) => {
 
         setHistorialRutas((prev: any) => {
           const prevDia = (prev || {})[fechaClave] || {}
-          const total = aplicado.visitas.length
-          const visitados = Math.max(deriveVisitadosFromVisitas(aplicado.visitas), aplicado.visitados)
+          const totalPrevio = Number((prevDia.resumen || {})?.total || 0)
+          const visitadosPrevios = Number((prevDia.resumen || {})?.visitados || 0)
+          const total = totalPrevio > 0 ? totalPrevio : aplicado.visitas.length
+          const visitados = Math.max(
+            visitadosPrevios,
+            deriveVisitadosFromVisitas(aplicado.visitas),
+            aplicado.visitados,
+          )
           const recaudo = Math.max(
             Number((prevDia.resumen || {})?.recaudo || 0),
             aplicado.recaudo,
@@ -233,8 +241,15 @@ export const useRutaHistorial = (params: UseRutaHistorialParams) => {
         const baseResumen = prevDia.resumen || { recaudo: 0, gastos: 0, efectividad: 0, visitados: 0, total: 0 }
 
         const visitas = (data?.visitas || []) as VisitaRuta[]
-        const total = Number(visitas.length)
-        const visitados = deriveVisitadosFromVisitas(visitas)
+        const totalBackend = Number((data as any)?.resumen?.total)
+        const total = Number.isFinite(totalBackend) && totalBackend >= 0
+          ? totalBackend
+          : Number(visitas.length)
+        const visitadosDerivados = deriveVisitadosFromVisitas(visitas)
+        const visitadosBackend = Number((data as any)?.resumen?.visitados)
+        const visitados = Number.isFinite(visitadosBackend) && visitadosBackend >= 0
+          ? visitadosBackend
+          : visitadosDerivados
 
         return {
           ...(prev || {}),
@@ -243,7 +258,7 @@ export const useRutaHistorial = (params: UseRutaHistorialParams) => {
               ...baseResumen,
               ...(data?.resumen || {}),
               total,
-              visitados: typeof (data as any)?.resumen?.visitados === 'number' ? (data as any).resumen.visitados : visitados,
+              visitados,
               efectividad: typeof (data as any)?.resumen?.efectividad === 'number'
                 ? (data as any).resumen.efectividad
                 : deriveEfectividad(visitados, total),
@@ -266,7 +281,7 @@ export const useRutaHistorial = (params: UseRutaHistorialParams) => {
         }
       })
     }
-  }, [rutaId, getVisitasHoy, loadDay, deriveVisitadosFromVisitas, deriveEfectividad])
+  }, [rutaId, getVisitasHoy, loadDay, deriveVisitadosFromVisitas, deriveEfectividad, preferLoadDayForToday])
 
   const refrescarHistorialCargado = useCallback(async (payload?: any) => {
     if (!rutaId) return
