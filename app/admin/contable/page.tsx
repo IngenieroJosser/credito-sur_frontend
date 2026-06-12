@@ -2415,7 +2415,7 @@ const ModuloContableContent = () => {
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
                 <div>
                     <h3 className="text-lg font-bold text-slate-900">Detalle de Caja</h3>
-                    <p className="text-xs font-bold text-slate-500">{cajaSeleccionada.id}</p>
+                    {/* <p className="text-xs font-bold text-slate-500">{cajaSeleccionada.id}</p> */}
                 </div>
                 <button
                   onClick={() => setShowVerCajaModal(false)}
