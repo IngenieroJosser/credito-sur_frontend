@@ -316,6 +316,35 @@ describe('computeRutaHoyUiStatsFromVisitas', () => {
     expect(stats.pendiente).toBe(564_998)
     expect(stats.meta).toBe(564_998)
   })
+
+  it('excluye de meta a un cliente reprogramado mientras no tenga pago operativo', () => {
+    const visitas = [
+      { estado: 'pendiente', montoCuota: 1_957_333, saldoTotal: 1_957_333 },
+      { estado: 'reprogramado', estadoVisita: 'reprogramado', montoCuota: 86_666, saldoTotal: 86_666, recaudadoDelDia: 0 },
+    ]
+
+    const visitasOperativas = visitas.filter((v) => !shouldExcludeVisitaFromOperationalMeta(v))
+    const stats = computeRutaHoyUiStatsFromVisitas(visitasOperativas)
+
+    expect(stats.recaudo).toBe(0)
+    expect(stats.pendiente).toBe(1_957_333)
+    expect(stats.meta).toBe(1_957_333)
+  })
+
+  it('reincorpora a meta y recaudo un cliente reprogramado si registra pago operativo', () => {
+    const visitas = [
+      { estado: 'pendiente', montoCuota: 1_957_333, saldoTotal: 1_957_333 },
+      { estado: 'reprogramado', estadoVisita: 'reprogramado', montoCuota: 86_666, saldoTotal: 86_666, recaudadoDelDia: 86_666 },
+    ]
+
+    const visitasOperativas = visitas.filter((v) => !shouldExcludeVisitaFromOperationalMeta(v))
+    const stats = computeRutaHoyUiStatsFromVisitas(visitasOperativas)
+
+    expect(stats.recaudo).toBe(86_666)
+    expect(stats.pendiente).toBe(1_957_333)
+    expect(stats.meta).toBe(2_043_999)
+  })
+
   it('no resta dos veces pagos cuando la cuota pendiente ya viene recalculada', () => {
     const stats = computeRutaHoyUiStatsFromVisitas([
       { estado: 'pendiente', montoCuotaPendiente: 80000, montoCuota: 180000, saldoTotal: 1180000, recaudadoDelDia: 100000 },
