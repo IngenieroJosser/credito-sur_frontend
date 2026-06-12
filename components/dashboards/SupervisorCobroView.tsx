@@ -171,9 +171,36 @@ const normalizePeriodoRuta = (raw: any): any => {
 
 const normalizeNivelRiesgo = (nivel: string) => {
   const n = String(nivel || '').toUpperCase()
-  if (n === 'AMARILLO') return 'precaucion'
-  if (n === 'ROJO') return 'moderado'
-  if (n === 'LISTA_NEGRA') return 'critico'
+  if (
+    n === 'PELIGRO_MINIMO' ||
+    n === 'MINIMO' ||
+    n === 'MÍNIMO' ||
+    n === 'BAJO' ||
+    n === 'VERDE'
+  ) {
+    return 'bajo'
+  }
+  if (n === 'LEVE') return 'leve'
+  if (
+    n === 'PRECAUCION' ||
+    n === 'PRECAUCIÓN' ||
+    n === 'AMARILLO'
+  ) {
+    return 'precaucion'
+  }
+  if (
+    n === 'MODERADO' ||
+    n === 'ROJO'
+  ) {
+    return 'moderado'
+  }
+  if (
+    n === 'CRITICO' ||
+    n === 'CRÍTICO' ||
+    n === 'LISTA_NEGRA'
+  ) {
+    return 'critico'
+  }
   return 'bajo'
 }
 
@@ -846,7 +873,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
           proximaVisita: proximaVisitaV,
           ordenVisita: Number(row?.ordenVisita || idx + 1),
           prioridad: 'media' as any,
-          nivelRiesgo: toNivel(c?.nivelRiesgo || 'VERDE') as any,
+          nivelRiesgo: normalizeNivelRiesgo(c?.nivelRiesgo || 'VERDE') as any,
           cobradorId,
           periodoRuta: (p?.frecuenciaPago || 'DIA') as any,
           clienteId: c?.id || '',

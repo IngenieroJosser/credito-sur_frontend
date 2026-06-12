@@ -267,6 +267,49 @@ const normalizePeriodoRuta = (raw: any): any => {
   return 'DIA'
 }
 
+const resolveNivelRiesgoVisita = (raw: any): any => {
+  const value = String(raw || '').trim().toUpperCase()
+
+  if (!value) return 'bajo'
+
+  if (
+    value === 'PELIGRO_MINIMO' ||
+    value === 'MINIMO' ||
+    value === 'MÍNIMO' ||
+    value === 'BAJO' ||
+    value === 'VERDE'
+  ) {
+    return 'bajo'
+  }
+
+  if (value === 'LEVE') return 'leve'
+
+  if (
+    value === 'PRECAUCION' ||
+    value === 'PRECAUCIÓN' ||
+    value === 'AMARILLO'
+  ) {
+    return 'precaucion'
+  }
+
+  if (
+    value === 'MODERADO' ||
+    value === 'ROJO'
+  ) {
+    return 'moderado'
+  }
+
+  if (
+    value === 'CRITICO' ||
+    value === 'CRÍTICO' ||
+    value === 'LISTA_NEGRA'
+  ) {
+    return 'critico'
+  }
+
+  return mapNivelRiesgo(value as any) || 'bajo'
+}
+
 
 
 interface OperacionCaja {
@@ -939,7 +982,7 @@ const VistaCobrador = () => {
           proximaVisita: proximaVisitaV,
           ordenVisita: Number(row?.ordenVisita || idx + 1),
           prioridad: 'media' as any,
-          nivelRiesgo: toNivel(c?.nivelRiesgo || 'VERDE') as any,
+          nivelRiesgo: resolveNivelRiesgoVisita(c?.nivelRiesgo || 'VERDE') as any,
           diasMora,
           cobradorId,
           periodoRuta: normalizePeriodoRuta(p?.frecuenciaPago || 'DIARIO') as any,
@@ -1381,11 +1424,16 @@ const VistaCobrador = () => {
                 ordenVisita: Number(o.ordenVisita || idx + 1),
                 prioridad: o.prioridad || 'media',
 
-                nivelRiesgo: String(
+                nivelRiesgo: resolveNivelRiesgoVisita(
                   o.nivelRiesgo ||
+                    o.nivelRiesgoCliente ||
+                    o.riesgo ||
+                    o.riesgoCliente ||
                     clienteObj?.nivelRiesgo ||
+                    clienteObj?.riesgo ||
+                    clienteObj?.nivelRiesgoCalculado ||
                     'BAJO',
-                ).toLowerCase(),
+                ),
 
                 cobradorId: rutaCompleta.cobradorId,
                 periodoRuta: normalizePeriodoRuta(
@@ -4937,25 +4985,6 @@ const VistaCobrador = () => {
                                       title="Ver expediente"
                                     >
                                       <Eye className="h-3.5 w-3.5" />
-                                    </button>
-
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        const cliente: Cliente = {
-                                          id: visita.clienteId,
-                                          nombres: visita.cliente.split(' ')[0] || '',
-                                          apellidos: visita.cliente.split(' ').slice(1).join(' ') || '',
-                                          telefono: visita.telefono || '',
-                                          direccion: visita.direccion || '',
-                                        } as any;
-                                        setClientToEdit(cliente);
-                                        setShowEditClientModal(true);
-                                      }}
-                                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-amber-600 hover:bg-amber-50 transition-all font-bold text-[11px] shadow-sm"
-                                      title="Editar cliente"
-                                    >
-                                      <Pencil className="h-3.5 w-3.5" />
                                     </button>
 
                                     <button
