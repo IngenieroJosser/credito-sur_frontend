@@ -57,6 +57,38 @@ export const isPagoForHistorialFecha = (pago: any, fechaClave: string) => {
   return getPagoBogotaDateKey(String(raw)) === fechaClave
 }
 
+export const normalizeEstadoVisitaHistorial = (raw: any) =>
+  String(raw || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+
+export const isEstadoVisitaGestionadoHistorial = (raw: any) => {
+  const estado = normalizeEstadoVisitaHistorial(raw)
+  return (
+    estado === 'ausente' ||
+    estado === 'pagado' ||
+    estado === 'pago' ||
+    estado === 'pago_registrado' ||
+    estado === 'reprogramado' ||
+    estado === 'reprogramada' ||
+    estado === 'reprogramacion'
+  )
+}
+
+export const hasGestionHistorial = (visita: any) => {
+  return (
+    Number(visita?.recaudadoDelDia || 0) > 0 ||
+    Number(visita?.recaudadoRegularizadoDespues || 0) > 0 ||
+    isEstadoVisitaGestionadoHistorial(visita?.estadoVisita)
+  )
+}
+
+export const isVisitadoHistorial = (visita: any) => {
+  return hasGestionHistorial(visita) || String(visita?.estado || '').toLowerCase() === 'pagado'
+}
+
 const normalizeNivelRiesgo = (raw: any): any => {
   const r = String(raw || '').toUpperCase()
   if (r === 'VERDE') return 'bajo'
@@ -149,19 +181,14 @@ export const applyPagosDelDiaToHistorialVisitas = (params: {
 
   const finalVisitas = [...visitasActualizadas, ...sinteticos]
 
-  // Ocultar saldados (pagado y saldo <= 0) que NO tuvieron actividad (pago o ausente) en este día
+  // Ocultar saldados (pagado y saldo <= 0) que NO tuvieron gestión real en este día.
   const filteredVisitas = finalVisitas.filter((v: any) => {
     const isSaldado = String(v.estado || '').toLowerCase() === 'pagado' && Number(v.saldoTotal || 0) <= 0;
-    const tuvoActividad = Number(v.recaudadoDelDia || 0) > 0 || v.estadoVisita === 'ausente';
-    return !(isSaldado && !tuvoActividad);
+    return !(isSaldado && !hasGestionHistorial(v));
   });
 
   const recaudo = filteredVisitas.reduce((sum: number, v: any) => sum + Number(v?.recaudadoDelDia || 0), 0)
-  // Los ausentes cuentan como visitados (se hizo la visita pero el cliente no estaba)
-  const visitados = filteredVisitas.filter((v: any) => {
-    const estado = String(v?.estado || '').toLowerCase()
-    return Number(v?.recaudadoDelDia || 0) > 0 || estado === 'pagado' || String(v?.estadoVisita || '') === 'ausente'
-  }).length
+  const visitados = filteredVisitas.filter(isVisitadoHistorial).length
 
   return { visitas: filteredVisitas, recaudo, visitados }
 }
@@ -436,11 +463,10 @@ export const buildHistorialDiaFromBackend = (params: {
 
   const todasVisitas = [...visitas, ...sinteticos]
 
-  // Ocultar saldados (pagado y saldo <= 0) que NO tuvieron actividad (pago o ausente) en este día
+  // Ocultar saldados (pagado y saldo <= 0) que NO tuvieron gestión real en este día.
   const filteredVisitas = todasVisitas.filter((v: any) => {
     const isSaldado = String(v.estado || '').toLowerCase() === 'pagado' && Number(v.saldoTotal || 0) <= 0;
-    const tuvoActividad = Number(v.recaudadoDelDia || 0) > 0 || Number(v.recaudadoRegularizadoDespues || 0) > 0 || v.estadoVisita === 'ausente';
-    return !(isSaldado && !tuvoActividad);
+    return !(isSaldado && !hasGestionHistorial(v));
   });
 
   const total = filteredVisitas.length
@@ -484,16 +510,7 @@ export const buildHistorialDiaFromBackend = (params: {
     recaudoOperativoFallback,
   )
 
-  // `visitados` se define como:
-  // - visitas con recaudo del día > 0
-  // - o visitas en estado pagado
-  // - o clientes marcados como ausentes (se hizo la visita aunque no estaban)
-  const visitados = filteredVisitas.filter((v: any) =>
-    Number(v?.recaudadoDelDia || 0) > 0 ||
-    Number(v?.recaudadoRegularizadoDespues || 0) > 0 ||
-    v?.estado === 'pagado' ||
-    String(v?.estadoVisita || '') === 'ausente'
-  ).length
+  const visitados = filteredVisitas.filter(isVisitadoHistorial).length
   const metaResumen = Number(backendResumen?.meta ?? esperado)
   const objetivoShown = Math.max(esperado, recaudoDia)
   const resumenFueReconciliado = recaudoDia !== recaudoResumen

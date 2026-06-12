@@ -243,7 +243,7 @@ import {
 } from '@/lib/rutas-core'
 import { mapAsignacionesToVisitasLite } from '@/lib/ruta-visitas-mapper'
 import { applyRecaudoHoyToVisitas, buildRecaudosHoyMapByPrestamoId, mergeVisitasPreservingLocalRecaudo, sumMontoTotalPagosByBogotaDateKey, sumMontoTotalPagosHistorico } from '@/lib/ruta-recaudos'
-import { buildHistorialDiaFromBackend, isPagoForHistorialFecha } from '@/lib/ruta-historial'
+import { buildHistorialDiaFromBackend, hasGestionHistorial, isPagoForHistorialFecha } from '@/lib/ruta-historial'
 import { mapWithConcurrency, memoizePromiseByKey } from '@/lib/async-utils'
 
 import { offlineStore } from '@/lib/offline/offlineDb'
@@ -4409,9 +4409,7 @@ const VistaCobrador = () => {
 
                                                            const isSaldado = String(v.estado || '').toLowerCase() === 'pagado' && Number(v.saldoTotal || 0) <= 0;
 
-                                                           const tuvoActividad = Number(v.recaudadoDelDia || 0) > 0 || v.estadoVisita === 'ausente';
-
-                                                           return !(isSaldado && !tuvoActividad);
+                                                           return !(isSaldado && !hasGestionHistorial(v));
 
                                                          }).length === 0 ? (
 
@@ -4423,9 +4421,7 @@ const VistaCobrador = () => {
 
                                                              const isSaldado = String(v.estado || '').toLowerCase() === 'pagado' && Number(v.saldoTotal || 0) <= 0;
 
-                                                             const tuvoActividad = Number(v.recaudadoDelDia || 0) > 0 || v.estadoVisita === 'ausente';
-
-                                                             return !(isSaldado && !tuvoActividad);
+                                                             return !(isSaldado && !hasGestionHistorial(v));
 
                                                            }).map((visita: VisitaRuta) => (
 
@@ -4603,9 +4599,7 @@ const VistaCobrador = () => {
 
                                                            const isSaldado = String(v.estado || '').toLowerCase() === 'pagado' && Number(v.saldoTotal || 0) <= 0;
 
-                                                           const tuvoActividad = Number(v.recaudadoDelDia || 0) > 0 || v.estadoVisita === 'ausente';
-
-                                                           return !(isSaldado && !tuvoActividad);
+                                                           return !(isSaldado && !hasGestionHistorial(v));
 
                                                          }).length === 0 ? (
 
@@ -4623,9 +4617,7 @@ const VistaCobrador = () => {
 
                                                            const isSaldado = String(v.estado || '').toLowerCase() === 'pagado' && Number(v.saldoTotal || 0) <= 0;
 
-                                                           const tuvoActividad = Number(v.recaudadoDelDia || 0) > 0 || v.estadoVisita === 'ausente';
-
-                                                           return !(isSaldado && !tuvoActividad);
+                                                           return !(isSaldado && !hasGestionHistorial(v));
 
                                                          }).map((visita: VisitaRuta) => (
 

@@ -110,7 +110,7 @@ import { buildRegularizedPaymentTarget, computeMontoExigibleHastaHoyFromCuotas, 
 import { mapAsignacionesToVisitasLite } from '@/lib/ruta-visitas-mapper'
 import { buildRecaudosHoyMapByPrestamoId, indexPagosByPrestamoId, mergeVisitasPreservingLocalRecaudo, sumMontoTotalPagosByBogotaDateKey } from '@/lib/ruta-recaudos'
 import { mapWithConcurrency, memoizePromiseByKey } from '@/lib/async-utils'
-import { buildHistorialDiaFromBackend, isPagoForHistorialFecha } from '@/lib/ruta-historial'
+import { buildHistorialDiaFromBackend, hasGestionHistorial, isPagoForHistorialFecha } from '@/lib/ruta-historial'
 
 interface GastoRuta {
   id: string
@@ -1932,10 +1932,9 @@ const RutaClientLoaded = ({
                                                // Filtrar por frecuencia
                                                if (historyFrecuenciaFiltro !== 'TODOS' && v.periodoRuta !== historyFrecuenciaFiltro) return false;
                                                
-                                               // Ocultar saldados (pagado y saldo 0) que NO tuvieron actividad (pago o ausente) en este día
+                                               // Ocultar saldados que no tuvieron gestión real en este día.
                                                const isSaldado = String(v.estado || '').toLowerCase() === 'pagado' && Number(v.saldoTotal || 0) <= 0;
-                                               const tuvoActividad = Number(v.recaudadoDelDia || 0) > 0 || v.estadoVisita === 'ausente';
-                                               if (isSaldado && !tuvoActividad) return false;
+                                               if (isSaldado && !hasGestionHistorial(v)) return false;
 
                                                return true;
                                              });
