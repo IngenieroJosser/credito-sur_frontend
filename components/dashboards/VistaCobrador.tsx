@@ -2418,15 +2418,14 @@ const VistaCobrador = () => {
         recaudo: kpisHoy.recaudo,
       },
       {
-        recaudo: Math.max(
+        recaudo:
+          Number((rutaActual as any)?.cobranzaDelDia || 0) ||
+          Number((rutaActual as any)?.estadisticas?.cobranzaDelDia || 0) ||
           Number(rutaStats.recaudo || 0),
-          Number((rutaActual as any)?.cobranzaDelDia || 0),
-          Number((rutaActual as any)?.estadisticas?.cobranzaDelDia || 0),
-        ),
-        meta: Math.max(
-          Number((rutaActual as any)?.metaDelDia || 0),
-          Number((rutaActual as any)?.estadisticas?.metaDelDia || 0),
-        ),
+        meta:
+          Number((rutaActual as any)?.metaDelDia || 0) ||
+          Number((rutaActual as any)?.estadisticas?.metaDelDia || 0) ||
+          Number(rutaStats.meta || 0),
         eficiencia: kpisHoy.efectividad,
       },
       { preferUi: Array.isArray(visitasBase) },
