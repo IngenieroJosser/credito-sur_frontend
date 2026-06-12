@@ -149,6 +149,7 @@ import {
   resolveCobradorIdForRouteAction,
   shouldMarkVisitaAsPagado,
   shouldShowVisitaEnRutaHoy,
+  resolveRutaDailySummary,
 } from '@/lib/rutas-core'
 
 import { mapAsignacionesToVisitasLite } from '@/lib/ruta-visitas-mapper'
@@ -224,6 +225,97 @@ const mapDailyVisitToVisitaRuta = (row: any, rutaCobradorId: string, idx: number
     fechaProrroga: cuotaObjetivo?.fechaVencimientoProrroga || undefined,
     fechaOriginalVencimiento: cuotaObjetivo?.fechaVencimiento || undefined,
     recaudadoDelDia: recaudo,
+  } as any
+}
+
+const mapObligacionToVisitaRuta = (o: any, rutaCobradorId: string, idx: number, hoyKey: string): VisitaRuta => {
+  const clienteObj = typeof o.cliente === 'object' && o.cliente ? o.cliente : {}
+  const prestamo = o.prestamo || {}
+  const clienteNombre =
+    o.clienteNombre ||
+    clienteObj?.nombre ||
+    `${clienteObj?.nombres || ''} ${clienteObj?.apellidos || ''}`.trim() ||
+    (typeof o.cliente === 'string' ? o.cliente : '') ||
+    'Cliente'
+
+  const estadoGestion = String(
+    o.estadoGestion ||
+    o.estadoVisita ||
+    prestamo?.estadoGestion ||
+    prestamo?.estadoVisita ||
+    'PENDIENTE',
+  ).toUpperCase()
+
+  const cuotaObjetivo = o.cuotaObjetivo || prestamo?.cuotaObjetivo || prestamo?.proximaCuota || {}
+
+  const estadoCuota = String(
+    o.cuotaObjetivo?.estadoActual ||
+    o.cuotaObjetivo?.estado ||
+    cuotaObjetivo?.estadoActual ||
+    cuotaObjetivo?.estado ||
+    prestamo?.proximaCuota?.estadoActual ||
+    prestamo?.proximaCuota?.estado ||
+    '',
+  ).toUpperCase()
+
+  const estaEnMora =
+    Boolean(o.cuotaObjetivo?.enMoraEnFechaOperativa) ||
+    Boolean(cuotaObjetivo?.enMoraEnFechaOperativa) ||
+    estadoCuota.includes('VENC') ||
+    estadoCuota.includes('MORA')
+
+  const estadoVisual: EstadoVisita = estadoGestion.includes('REPROGRAM')
+    ? 'reprogramado'
+    : estaEnMora
+      ? 'en_mora'
+      : 'pendiente'
+
+  const montoMetaPendiente = Number(
+    o.montoMetaOperativaPendiente ??
+    prestamo?.montoMetaOperativaPendiente ??
+    o.cuotaObjetivo?.saldoExigibleEnFechaOperativa ??
+    prestamo?.cuotaObjetivo?.saldoExigibleEnFechaOperativa ??
+    0,
+  )
+
+  return {
+    ...o,
+    id: o.id || o.prestamoId || prestamo?.id || `obligacion-${idx}`,
+    cliente: clienteNombre,
+    direccion: o.direccion || clienteObj?.direccion || 'Sin dirección registrada',
+    telefono: o.telefono || clienteObj?.telefono || '',
+    horaSugerida: o.horaSugerida || '08:00 AM',
+    montoCuota: Number(
+      montoMetaPendiente ||
+      cuotaObjetivo?.montoCuota ||
+      cuotaObjetivo?.monto ||
+      prestamo?.proximaCuota?.monto ||
+      0,
+    ),
+    montoCuotaPendiente: montoMetaPendiente,
+    saldoTotal: Number(
+      o.saldoTotal ??
+      o.saldoPendiente ??
+      prestamo?.saldoTotal ??
+      prestamo?.saldoPendiente ??
+      0,
+    ),
+    estado: estadoVisual,
+    estadoGestion,
+    estadoVisita: o.estadoVisita || prestamo?.estadoVisita || undefined,
+    notasVisita: o.notasVisita || prestamo?.notasVisita || undefined,
+    proximaVisita:
+      o.proximaVisita ||
+      o.fechaVisita ||
+      cuotaObjetivo?.fechaVencimiento ||
+      hoyKey,
+    ordenVisita: Number(o.ordenVisita || idx + 1),
+    prioridad: estaEnMora ? 'alta' : o.prioridad || 'media',
+    nivelRiesgo: normalizeNivelRiesgo(o.nivelRiesgo || clienteObj?.nivelRiesgo),
+    cobradorId: rutaCobradorId,
+    periodoRuta: normalizePeriodoRuta(o.frecuenciaPago || prestamo?.frecuenciaPago) as PeriodoRuta,
+    clienteId: o.clienteId || clienteObj?.id || '',
+    prestamoId: o.prestamoId || prestamo?.id || '',
   } as any
 }
 
@@ -598,7 +690,25 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
       const recaudoBackend = Number(saldo?.cobranzaDelDia ?? saldo?.recaudoDelDia ?? 0)
 
       setRutaStats((prev: any) => {
-        // Para HOY: usar meta calculada desde visitas (excluye ausentes)
+        if (periodoCards === 'HOY') {
+          const recaudo = Number(
+            saldo?.cobranzaDelDia ??
+            saldo?.recaudoDelDia ??
+            prev.recaudo ??
+            0,
+          )
+          const meta = Number(prev.meta ?? 0)
+          return {
+            ...prev,
+            recaudo,
+            eficiencia: meta > 0 ? Number(((recaudo / meta) * 100).toFixed(1)) : prev.eficiencia,
+            pendiente: Math.max(0, meta - recaudo),
+            pendientes: Math.max(0, meta - recaudo),
+            gastos: Number(saldo?.gastosDelDia ?? prev.gastos ?? 0),
+            base: Number(saldo?.saldoCaja ?? saldo?.baseEfectivo ?? prev.base ?? 0),
+          }
+        }
+        // Lógica original para SEM / MES / AÑO
         const isAusente = shouldExcludeVisitaFromOperationalMeta
         const visitasActuales = visitasBaseRef.current
         const hasVisitasActuales = Array.isArray(visitasActuales) && visitasActuales.length > 0
@@ -606,23 +716,16 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
           ? visitasActuales.filter((v: any) => !isAusente(v))
           : []
         const statsHoy = computeRutaHoyUiStatsFromVisitas(visitasParaMeta, 0)
-        const statsAutoritativas = periodoCards === 'HOY'
-          ? resolveRutaHoyKpiStats(statsHoy, {
-              meta: Number(prev.meta ?? 0),
-              recaudo: recaudoBackend,
-              eficiencia: prev.eficiencia,
-            }, { preferUi: hasVisitasActuales })
-          : {
-              meta: Number(statsHoy.meta || 0),
-              recaudo: recaudoBackend > 0 ? recaudoBackend : Number(prev.recaudo ?? 0),
-              eficiencia: Number(prev.eficiencia ?? 0),
-              pendiente: Number(prev.pendiente ?? 0),
-            }
+        const statsAutoritativas = {
+          meta: Number(statsHoy.meta || 0),
+          recaudo: recaudoBackend > 0 ? recaudoBackend : Number(prev.recaudo ?? 0),
+          eficiencia: Number(prev.eficiencia ?? 0),
+          pendiente: Number(prev.pendiente ?? 0),
+        }
         const eficiencia = statsAutoritativas.meta > 0
           ? Number(((statsAutoritativas.recaudo / statsAutoritativas.meta) * 100).toFixed(1))
           : Number(prev.eficiencia ?? 0)
         const shouldUpdateOperationalKpis =
-          periodoCards !== 'HOY' ||
           hasVisitasActuales ||
           recaudoBackend > 0 ||
           Number(prev.meta ?? 0) > 0 ||
@@ -632,7 +735,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
           recaudo: shouldUpdateOperationalKpis ? statsAutoritativas.recaudo : prev.recaudo,
           meta: shouldUpdateOperationalKpis ? statsAutoritativas.meta : prev.meta,
           eficiencia: shouldUpdateOperationalKpis ? eficiencia : prev.eficiencia,
-          pendiente: shouldUpdateOperationalKpis && periodoCards === 'HOY' ? statsAutoritativas.pendiente : prev.pendiente,
+          pendiente: shouldUpdateOperationalKpis ? statsAutoritativas.pendiente : prev.pendiente,
           gastos: Number(saldo?.gastosDelDia ?? prev.gastos ?? 0),
           base: Number(saldo?.saldoCaja ?? saldo?.baseEfectivo ?? prev.base ?? 0),
         }
@@ -1064,13 +1167,32 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         )
 
         let visitasRaw: any[] = []
-        let dailyResumen: any = null
+        let dailyVisitsData: any = null
 
         try {
           const visitasDia = await rutasService.obtenerVisitasDelDia(ruta.id, hoyKey)
-          const rows = Array.isArray((visitasDia as any)?.visitas) ? (visitasDia as any).visitas : []
-          dailyResumen = (visitasDia as any)?.resumen || null
-          visitasRaw = rows.map((row: any, idx: number) => mapDailyVisitToVisitaRuta(row, ruta.cobradorId, idx))
+          dailyVisitsData = visitasDia
+          const summary = resolveRutaDailySummary(ruta, visitasDia)
+          const obligacionesOperativas = (summary.obligaciones || []).filter((o: any) => {
+            const estado = String(
+              o.estadoGestion ||
+              o.estadoVisita ||
+              o.prestamo?.estadoGestion ||
+              o.prestamo?.estadoVisita ||
+              '',
+            ).toUpperCase()
+            const metaPendiente = Number(
+              o.montoMetaOperativaPendiente ??
+              o.prestamo?.montoMetaOperativaPendiente ??
+              o.cuotaObjetivo?.saldoExigibleEnFechaOperativa ??
+              o.prestamo?.cuotaObjetivo?.saldoExigibleEnFechaOperativa ??
+              0,
+            )
+            return !estado.includes('REPROGRAM') && metaPendiente > 0
+          })
+          visitasRaw = obligacionesOperativas.map((o: any, idx: number) =>
+            mapObligacionToVisitaRuta(o, ruta.cobradorId, idx, hoyKey)
+          )
         } catch (dailyError) {
           console.warn('No se pudo cargar agenda diaria de supervisor, usando detalle de ruta:', dailyError)
           visitasRaw = mapAsignacionesToVisitasLite({
@@ -1081,19 +1203,8 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
           }) as any[]
         }
 
-        const clientesConPrestamo = new Set<string>();
-        visitasRaw.forEach((v: any) => {
-          if (v.prestamoId && v.clienteId) clientesConPrestamo.add(v.clienteId);
-        });
-
-        const seenIds = new Set<string>();
-        const visitas = visitasRaw.filter((v: any) => {
-          if (!v.prestamoId && v.clienteId && clientesConPrestamo.has(v.clienteId)) return false;
-          const clave = v.prestamoId ? `prestamo-${v.prestamoId}` : `cliente-${v.clienteId}`;
-          if (seenIds.has(clave)) return false;
-          seenIds.add(clave);
-          return true;
-        });
+        // No filtrar por cliente, permitir múltiples préstamos por cliente
+        const visitas = visitasRaw
 
         const visitasEnriquecidas = await mapWithConcurrency(
           visitas,
@@ -1212,39 +1323,50 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
         const merged = mergeVisitasPreservingLocalRecaudo(visitasBaseRef.current, finalesFiltrados as any[]) as any[]
 
-        const isAusente = shouldExcludeVisitaFromOperationalMeta
-        const finalesSinAusentes = (merged || []).filter((v: any) => !isAusente(v))
-        const statsHoy = computeRutaHoyUiStatsFromVisitas(finalesSinAusentes as any[], 0)
-        const rutaStatsBackend = (ruta as any)?.estadisticas || {}
-        const recaudoBackendHoy = Math.max(
-          Number((ruta as any)?.cobranzaDelDia || 0),
-          Number(rutaStatsBackend?.cobranzaDelDia || 0),
-          Number(dailyResumen?.recaudo || dailyResumen?.recaudoOperativo || 0),
-        )
-        const metaBackendHoy = Math.max(
-          Number((ruta as any)?.metaDelDia || 0),
-          Number(rutaStatsBackend?.metaDelDia || 0),
-          Number(dailyResumen?.meta || 0),
-        )
-
         setRutaStats((prev: any) => {
-          if (periodoCards !== 'HOY') return prev
-          const stats = resolveRutaHoyKpiStats(
-            statsHoy,
-            {
-              recaudo: recaudoBackendHoy,
-              meta: metaBackendHoy,
-              eficiencia: rutaStatsBackend?.avanceDiario,
-            },
-            { preferUi: Array.isArray(merged) },
-          )
-          return {
-            ...prev,
-            meta: stats.meta,
-            recaudo: stats.recaudo,
-            eficiencia: stats.eficiencia,
-            pendiente: stats.pendiente,
+          if (periodoCards !== 'HOY') {
+            const isAusente = shouldExcludeVisitaFromOperationalMeta
+            const finalesSinAusentes = (merged || []).filter((v: any) => !isAusente(v))
+            const statsHoy = computeRutaHoyUiStatsFromVisitas(finalesSinAusentes as any[], 0)
+            const rutaStatsBackend = (ruta as any)?.estadisticas || {}
+            const recaudoBackendHoy = Math.max(
+              Number((ruta as any)?.cobranzaDelDia || 0),
+              Number(rutaStatsBackend?.cobranzaDelDia || 0),
+            )
+            const metaBackendHoy = Math.max(
+              Number((ruta as any)?.metaDelDia || 0),
+              Number(rutaStatsBackend?.metaDelDia || 0),
+            )
+            const stats = resolveRutaHoyKpiStats(
+              statsHoy,
+              {
+                recaudo: recaudoBackendHoy,
+                meta: metaBackendHoy,
+                eficiencia: rutaStatsBackend?.avanceDiario,
+              },
+              { preferUi: Array.isArray(merged) },
+            )
+            return {
+              ...prev,
+              meta: stats.meta,
+              recaudo: stats.recaudo,
+              eficiencia: stats.eficiencia,
+              pendiente: stats.pendiente,
+            }
           }
+
+          if (dailyVisitsData) {
+            const summary = resolveRutaDailySummary(ruta, dailyVisitsData)
+            return {
+              ...prev,
+              meta: summary.meta,
+              recaudo: summary.recaudo,
+              eficiencia: summary.efectividad,
+              pendiente: summary.pendiente,
+              pendientes: summary.pendiente,
+            }
+          }
+          return prev
         });
 
         // Sync ref ANTES de que cargarEstadisticasRuta lo lea (evita stale ref)
@@ -1286,15 +1408,6 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     const notasVisitaPayload = payload?.notasVisita || payload?.notas || payload?.metadata?.notasVisita || payload?.metadata?.notas;
 
     if (accionVisita === 'VISITA_REGISTRADA' && clienteIdVisita && estadoVisitaPayload) {
-      setVisitasBase((prev) => {
-        const nextVisitas = prev.map((v) =>
-          v.clienteId === clienteIdVisita
-            ? { ...v, estado: estadoVisitaPayload as any, estadoVisita: estadoVisitaPayload as any, notasVisita: notasVisitaPayload ?? (v as any).notasVisita }
-            : v,
-        )
-        visitasBaseRef.current = nextVisitas
-        return nextVisitas
-      })
       const hoyKey = hoyBogotaKey
       setHistorialRutas((prev: any) => {
         if (!prev || !prev[hoyKey]) return prev
@@ -1302,21 +1415,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         delete next[hoyKey]
         return next
       })
-      // Recalcular rutaStats para reflejar cambios en meta excluyendo ausentes
-      setRutaStats((prev: any) => {
-        if (periodoCards !== 'HOY') return prev
-        const isAusente = shouldExcludeVisitaFromOperationalMeta
-        const visitasActualizadas = visitasBaseRef.current || []
-        const visitasSinAusentes = visitasActualizadas.filter((v: any) => !isAusente(v))
-        const statsHoy = computeRutaHoyUiStatsFromVisitas(visitasSinAusentes, 0)
-        const recaudo = Number(statsHoy.recaudo || 0)
-        return {
-          ...prev,
-          meta: statsHoy.meta || 0,
-          recaudo,
-          pendiente: Math.max(0, (statsHoy.meta || 0) - recaudo),
-        }
-      })
+      await cargarVisitasRuta()
       return
     }
 
