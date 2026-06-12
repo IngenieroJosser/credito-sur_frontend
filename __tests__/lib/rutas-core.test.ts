@@ -88,6 +88,23 @@ describe('shouldShowVisitaEnRutaHoy', () => {
       ),
     ).toBe(false)
   })
+
+  it('oculta una visita reprogramada de la ruta actual aunque siga vencida', () => {
+    expect(
+      shouldShowVisitaEnRutaHoy(
+        {
+          estado: 'en_mora',
+          estadoVisita: 'reprogramado',
+          periodoRuta: 'DIA',
+          proximaVisita: '2026-06-12',
+          saldoTotal: 2296669,
+          montoCuota: 86666,
+          recaudadoDelDia: 0,
+        },
+        '2026-06-12',
+      ),
+    ).toBe(false)
+  })
 })
 
 describe('resolveCobradorIdForRouteAction', () => {

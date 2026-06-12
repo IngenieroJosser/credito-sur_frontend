@@ -573,6 +573,19 @@ export const shouldShowVisitaEnRutaHoy = (visita: any, hoyBogotaKey: string): bo
   // Regla unica para las vistas de ruta: no mostrar cobros futuros ni cuotas ya cubiertas.
   if (!visita) return false;
   const estado = String(visita?.estado || '').toLowerCase().replace(/\s+/g, '_');
+  const estadoVisita = String(visita?.estadoVisita || '').toLowerCase().replace(/\s+/g, '_');
+  const esReprogramado =
+    estadoVisita === 'reprogramado' ||
+    estadoVisita === 'reprogramada' ||
+    estadoVisita === 'reprogramacion' ||
+    estadoVisita === 'reprogramación' ||
+    estado === 'reprogramado' ||
+    estado === 'reprogramada' ||
+    estado === 'reprogramacion' ||
+    estado === 'reprogramación';
+  const recaudadoHoy = Number((visita as any)?.recaudadoDelDia ?? (visita as any)?.recaudadoPeriodo ?? 0);
+
+  if (esReprogramado && !(Number.isFinite(recaudadoHoy) && recaudadoHoy > 0)) return false;
   if (estado === 'pagado') return false;
 
   if (shouldMarkVisitaAsPagado({
