@@ -263,8 +263,8 @@ const VistaSupervisor = () => {
   if (loading && !dashboardData) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="relative">
+        <div className="flex flex-col items-center text-center">
+          <div className="relative flex items-center justify-center">
             <div className="w-20 h-20 border-4 border-slate-200 border-t-[#08557f] rounded-full animate-spin"></div>
           </div>
           <p className="mt-6 text-sm font-bold text-slate-500 uppercase tracking-[0.2em]">
