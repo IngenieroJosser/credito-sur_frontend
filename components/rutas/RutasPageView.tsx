@@ -41,7 +41,6 @@ import { offlineStore } from '@/lib/offline/offlineDb';
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal';
 import { getCajas, consolidarCaja, obtenerSaldoDisponibleRuta, Caja } from '@/services/contabilidad-service';
 import { prestamosService } from '@/services/prestamos-service';
-import { creditosService } from '@/services/creditos-service';
 import { formatRoleLabel } from '@/lib/display-labels';
 
 interface Ruta {
@@ -1921,26 +1920,36 @@ export const RutasPageView = ({
         onClose={() => setShowCrearCreditoModal(false)}
         onConfirm={async (data: any) => {
           try {
-            const payload = {
-              ...data,
-              creadoPorId: currentUser?.id || ''
+            const esContado = Boolean(data.ventaContado);
+            const isArticulo = data.creditType === 'articulo';
+            const freq = esContado ? 'MENSUAL' : (data.frecuenciaPago || 'DIARIO');
+            const payload: any = {
+              clienteId: data.clienteCreditoId,
+              tipoPrestamo: isArticulo ? 'ARTICULO' : 'EFECTIVO',
+              monto: data.monto || 0,
+              tasaInteres: esContado ? 0 : (data.tasaInteres || 0),
+              tasaInteresMora: 2.0,
+              plazoMeses: data.plazoMeses || 1,
+              cantidadCuotas: data.cantidadCuotas || data.cuotas || data.cuotasTotales || (isArticulo ? data.numCuotas : 0),
+              cuotas: data.cuotas || data.cantidadCuotas || data.cuotasTotales || (isArticulo ? data.numCuotas : 0),
+              frecuenciaPago: freq,
+              fechaInicio: data.fechaInicio,
+              fechaPrimerCobro: esContado ? undefined : data.fechaPrimerCobro,
+              creadoPorId: currentUser?.id || '',
+              cuotaInicial: data.cuotaInicialArticulo || 0,
+              notas: isArticulo
+                ? `${esContado ? 'Venta de contado' : 'Crédito de artículo'}: ${data.articuloNombre || ''}`
+                : (data.notas || ''),
+              tipoAmortizacion: isArticulo ? 'INTERES_SIMPLE' : (data.tipoInteres || 'INTERES_SIMPLE'),
+              esContado,
             };
-            
-            if (data.creditType === 'prestamo') {
-              await prestamosService.crearPrestamo({
-                clienteId: data.clienteCreditoId,
-                tipoPrestamo: 'EFECTIVO',
-                monto: data.monto,
-                tasaInteres: data.tasaInteres,
-                tasaInteresMora: 2.0,
-                plazoMeses: data.cuotasTotales,
-                frecuenciaPago: data.frecuenciaPago,
-                fechaInicio: data.fechaInicio,
-                creadoPorId: currentUser?.id || ''
-              } as any);
-            } else {
-              await creditosService.crearCredito(payload as any);
+
+            if (isArticulo) {
+              payload.productoId = data.articuloId;
+              payload.precioProductoId = esContado ? undefined : data.precioProductoId;
             }
+
+            await prestamosService.crearPrestamo(payload);
             
             showNotification('success', 'Crédito creado exitosamente', 'Operación completada');
             setShowCrearCreditoModal(false);

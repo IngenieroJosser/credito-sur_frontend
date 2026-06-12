@@ -977,6 +977,7 @@ const ListadoPrestamosElegante = () => {
             const isArticulo = String(data.creditType || '').toLowerCase() === 'articulo';
             const esContado = isArticulo && !!data.ventaContado;
             const freq = esContado ? 'MENSUAL' : (data.frecuenciaPago || 'DIARIO');
+            const d: any = data;
 
             // Si es artículo, usamos lo que ya calculó el modal
             // Si es préstamo, calculamos plazoMeses
@@ -999,14 +1000,18 @@ const ListadoPrestamosElegante = () => {
               monto: data.monto || 0,
               tasaInteres: esContado ? 0 : (data.tasaInteres || 0),
               tasaInteresMora: 2.0,
-              plazoMeses: data.plazoMeses || 1,
-              cantidadCuotas: data.cantidadCuotas || data.cuotas || 0,
-              cuotas: data.cuotas || data.cantidadCuotas || 0,
+              plazoMeses,
+              cantidadCuotas: data.cantidadCuotas || data.cuotas || data.cuotasTotales || data.numCuotas || 0,
+              cuotas: data.cuotas || data.cantidadCuotas || data.cuotasTotales || data.numCuotas || 0,
               frecuenciaPago: freq,
               tipoAmortizacion: data.tipoInteres || 'INTERES_SIMPLE',
               fechaInicio: data.fechaInicio || getBogotaDateKey(new Date()),
               creadoPorId: userId,
-              notas: data.notas // IMPORTANTE: Pasar las notas
+              cuotaInicial: data.cuotaInicialArticulo || 0,
+              notas: isArticulo
+                ? `${esContado ? 'Venta de contado' : 'Crédito de artículo'}: ${d.articuloNombre || ''}`
+                : (data.notas || ''),
+              esContado,
             };
 
             if (data.articuloId) {
@@ -1017,9 +1022,6 @@ const ListadoPrestamosElegante = () => {
             }
 
             if (!esContado) {
-              if (data.cuotaInicialArticulo) {
-                backendData.cuotaInicial = data.cuotaInicialArticulo;
-              }
               if (data.fechaPrimerCobro) {
                 backendData.fechaPrimerCobro = data.fechaPrimerCobro;
               }

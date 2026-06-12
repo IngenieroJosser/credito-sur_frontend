@@ -457,6 +457,19 @@ describe('resolveRutaHoyKpiStats', () => {
     expect(stats.recaudo).toBe(0)
     expect(stats.eficiencia).toBe(0)
   })
+
+  it('prioriza la meta operativa visible sobre una meta backend/listado desfasada', () => {
+    const stats = resolveRutaHoyKpiStats(
+      { pendiente: 512_001, recaudo: 1_043_330, meta: 1_555_331 },
+      { meta: 1_129_996, recaudo: 1_043_330 },
+      { preferUi: true },
+    )
+
+    expect(stats.meta).toBe(1_555_331)
+    expect(stats.pendiente).toBe(512_001)
+    expect(stats.recaudo).toBe(1_043_330)
+    expect(stats.eficiencia).toBe(67.1)
+  })
 })
 
 describe('shouldIncludeVisitaInRutaHoyKpis', () => {
