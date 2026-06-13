@@ -86,15 +86,21 @@ export const mapNivelRiesgo = (nivel?: NivelRiesgoBackend | null): NivelRiesgoFr
     case 'BAJO':
     case 'VERDE':
       return 'bajo'
+    case 'LEVE_RETRASO':
     case 'LEVE':
       return 'leve'
     case 'PRECAUCION':
     case 'AMARILLO':
       return 'precaucion'
+    case 'RIESGO_MODERADO':
     case 'MODERADO':
-    case 'ROJO':
       return 'moderado'
+    case 'ALTO_RIESGO':
+    case 'ROJO':
     case 'CRITICO':
+    case 'CRÍTICO':
+    case 'RIESGO_CRITICO':
+    case 'RIESGO_CRÍTICO':
     case 'LISTA_NEGRA':
       return 'critico'
     default:

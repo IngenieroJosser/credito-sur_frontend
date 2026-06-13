@@ -1,5 +1,6 @@
 import {
   buildRegularizedPaymentTarget,
+  computeDiasMoraFromCuotaObjetivo,
   computeRutaHoyUiStatsFromVisitas,
   resolveRutaDailySummary,
   resolveRutaHoyKpiStats,
@@ -9,6 +10,39 @@ import {
   resolveCobradorIdForRouteAction,
   shouldShowVisitaEnRutaHoy,
 } from '@/lib/rutas-core'
+
+describe('computeDiasMoraFromCuotaObjetivo', () => {
+  it('calcula dias de mora operativos desde la cuota objetivo de daily-visits', () => {
+    const dias = computeDiasMoraFromCuotaObjetivo(
+      {
+        estadoActual: 'VENCIDA',
+        fechaEfectiva: '2026-06-02',
+      },
+      '2026-06-12',
+      'DIARIO',
+    )
+
+    expect(dias).toBe(9)
+  })
+
+  it('no marca mora para cuotas cubiertas o futuras', () => {
+    expect(
+      computeDiasMoraFromCuotaObjetivo(
+        { estadoActual: 'PAGADA', fechaEfectiva: '2026-06-01' },
+        '2026-06-12',
+        'DIARIO',
+      ),
+    ).toBe(0)
+
+    expect(
+      computeDiasMoraFromCuotaObjetivo(
+        { estadoActual: 'PENDIENTE', fechaEfectiva: '2026-06-13' },
+        '2026-06-12',
+        'DIARIO',
+      ),
+    ).toBe(0)
+  })
+})
 
 describe('resolveRutaDailySummary', () => {
   it('prioriza la meta de obligaciones operativas sobre un resumen inflado', () => {

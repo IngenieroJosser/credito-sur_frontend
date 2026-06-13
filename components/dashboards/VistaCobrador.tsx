@@ -241,6 +241,7 @@ import {
   shouldMarkVisitaAsPagado,
   shouldShowVisitaEnRutaHoy,
   toBogotaDateTimeOffsetIso,
+  computeDiasMoraFromCuotaObjetivo,
   computeDiasMoraFromCuotas,
 } from '@/lib/rutas-core'
 import { mapAsignacionesToVisitasLite } from '@/lib/ruta-visitas-mapper'
@@ -293,15 +294,19 @@ const resolveNivelRiesgoVisita = (raw: any): any => {
   }
 
   if (
-    value === 'MODERADO' ||
-    value === 'ROJO'
+    value === 'RIESGO_MODERADO' ||
+    value === 'MODERADO'
   ) {
     return 'moderado'
   }
 
   if (
+    value === 'ALTO_RIESGO' ||
+    value === 'ROJO' ||
     value === 'CRITICO' ||
     value === 'CRÍTICO' ||
+    value === 'RIESGO_CRITICO' ||
+    value === 'RIESGO_CRÍTICO' ||
     value === 'LISTA_NEGRA'
   ) {
     return 'critico'
@@ -1397,6 +1402,16 @@ const VistaCobrador = () => {
                   0,
               )
 
+              const frecuenciaPago = o.frecuenciaPago || prestamo?.frecuenciaPago || 'DIARIO'
+              const diasMora = Number(
+                o.diasMora ??
+                  o.diasMoraOperativos ??
+                  o.cuotaObjetivo?.diasMora ??
+                  cuotaObjetivo?.diasMora ??
+                  computeDiasMoraFromCuotaObjetivo(cuotaObjetivo, hoyBogotaKey, frecuenciaPago) ??
+                  0,
+              )
+
               return {
                 ...o,
 
@@ -1446,12 +1461,11 @@ const VistaCobrador = () => {
                 ),
 
                 cobradorId: rutaCompleta.cobradorId,
-                periodoRuta: normalizePeriodoRuta(
-                  o.frecuenciaPago || prestamo?.frecuenciaPago || 'DIARIO',
-                ),
+                periodoRuta: normalizePeriodoRuta(frecuenciaPago),
 
                 clienteId: o.clienteId || clienteObj?.id || '',
                 prestamoId: o.prestamoId || prestamo?.id || '',
+                diasMora,
               }
             });
 

@@ -30,7 +30,8 @@ function dotColor(nivelRiesgo: string | undefined): string {
     case 'critico':    return 'bg-red-600'
     case 'VERDE':      return 'bg-emerald-500'
     case 'AMARILLO':   return 'bg-amber-400'
-    case 'ROJO':       return 'bg-orange-500'
+    case 'ROJO':       return 'bg-red-600'
+    case 'ALTO_RIESGO':return 'bg-red-600'
     case 'LISTA_NEGRA':return 'bg-red-600'
     default:           return 'bg-slate-300'
   }
@@ -57,7 +58,8 @@ function resolveNivelRiesgoForVisita(visita: VisitaRuta): string | undefined {
       case 'critico': return 5
       case 'LISTA_NEGRA': return 5
       case 'moderado': return 4
-      case 'ROJO': return 4
+      case 'ROJO': return 5
+      case 'ALTO_RIESGO': return 5
       case 'precaucion': return 3
       case 'AMARILLO': return 3
       case 'leve': return 2
@@ -93,7 +95,8 @@ function nivelBadgeColor(nivelRiesgo: string | undefined): string {
     case 'critico':    return 'text-red-700 bg-red-50 border-red-100'
     case 'VERDE':      return 'text-emerald-700 bg-emerald-50 border-emerald-100'
     case 'AMARILLO':   return 'text-amber-700 bg-amber-50 border-amber-100'
-    case 'ROJO':       return 'text-orange-700 bg-orange-50 border-orange-100'
+    case 'ROJO':       return 'text-red-700 bg-red-50 border-red-100'
+    case 'ALTO_RIESGO':return 'text-red-700 bg-red-50 border-red-100'
     case 'LISTA_NEGRA':return 'text-red-700 bg-red-50 border-red-100'
     default:           return 'text-slate-400 bg-slate-50 border-slate-200'
   }
@@ -108,7 +111,8 @@ function nivelLabel(nivelRiesgo: string | undefined): string {
     case 'critico':    return 'Crítico'
     case 'VERDE':      return 'Mínimo'
     case 'AMARILLO':   return 'Precaución'
-    case 'ROJO':       return 'Moderado'
+    case 'ROJO':       return 'Crítico'
+    case 'ALTO_RIESGO':return 'Crítico'
     case 'LISTA_NEGRA':return 'Crítico'
     default:           return '—'
   }
@@ -123,7 +127,8 @@ function nivelTitle(nivelRiesgo: string | undefined): string {
     case 'critico':    return 'Crítico / Lista negra'
     case 'VERDE':      return 'Al día'
     case 'AMARILLO':   return 'Precaución'
-    case 'ROJO':       return 'En mora'
+    case 'ROJO':       return 'Crítico / Lista negra'
+    case 'ALTO_RIESGO':return 'Crítico / Lista negra'
     case 'LISTA_NEGRA':return 'Crítico / Lista negra'
     default:           return ''
   }
@@ -139,7 +144,8 @@ function borderColor(nivelRiesgo: string | undefined, isSelected: boolean): stri
     case 'critico':    return 'border-red-600 shadow-md'
     case 'VERDE':      return 'border-emerald-400 shadow-sm'
     case 'AMARILLO':   return 'border-amber-400 shadow-sm'
-    case 'ROJO':       return 'border-orange-500 shadow-sm'
+    case 'ROJO':       return 'border-red-600 shadow-md'
+    case 'ALTO_RIESGO':return 'border-red-600 shadow-md'
     case 'LISTA_NEGRA':return 'border-red-600 shadow-md'
     default:           return 'border-slate-200'
   }

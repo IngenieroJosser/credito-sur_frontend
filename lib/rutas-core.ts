@@ -743,6 +743,44 @@ export const computeDiasMoraFromCuotas = (
   return diff > 0 ? diff : 0;
 };
 
+export const computeDiasMoraFromCuotaObjetivo = (
+  cuotaObjetivo: any,
+  hoyBogotaKey: string,
+  frecuenciaPagoRaw?: string | null,
+): number => {
+  if (!cuotaObjetivo || !hoyBogotaKey) return 0;
+
+  const estado = String(
+    cuotaObjetivo?.estadoActual ??
+      cuotaObjetivo?.estado ??
+      '',
+  ).toUpperCase();
+
+  if (['PAGADA', 'PAGADO', 'ANULADA', 'ANULADO'].includes(estado)) {
+    return 0;
+  }
+
+  const fecha =
+    cuotaObjetivo?.fechaEfectiva ||
+    cuotaObjetivo?.fechaVencimientoProrroga ||
+    cuotaObjetivo?.fechaVencimiento ||
+    '';
+
+  const fechaKey = normalizeDateKey(String(fecha || ''));
+  if (!fechaKey || fechaKey >= hoyBogotaKey) return 0;
+
+  return computeDiasMoraFromCuotas(
+    [
+      {
+        estado: estado || 'VENCIDA',
+        fechaVencimiento: fechaKey,
+      },
+    ],
+    hoyBogotaKey,
+    frecuenciaPagoRaw,
+  );
+};
+
 export const computeMontoExigibleHastaHoyFromCuotas = (cuotas: any[], hoyBogotaKey: string): number => {
   // Regla de negocio clave (mora / abonos parciales):
   // Devuelve el total exigible acumulado hasta HOY (inclusive):

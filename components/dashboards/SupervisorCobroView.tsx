@@ -147,6 +147,7 @@ import {
   resolveProximaCuotaFromPrestamo,
   resolveCuotaProgressFromPrestamo,
   resolveCobradorIdForRouteAction,
+  computeDiasMoraFromCuotaObjetivo,
   shouldMarkVisitaAsPagado,
   shouldShowVisitaEnRutaHoy,
   resolveRutaDailySummary,
@@ -189,14 +190,18 @@ const normalizeNivelRiesgo = (nivel: string) => {
     return 'precaucion'
   }
   if (
-    n === 'MODERADO' ||
-    n === 'ROJO'
+    n === 'RIESGO_MODERADO' ||
+    n === 'MODERADO'
   ) {
     return 'moderado'
   }
   if (
+    n === 'ALTO_RIESGO' ||
+    n === 'ROJO' ||
     n === 'CRITICO' ||
     n === 'CRÍTICO' ||
+    n === 'RIESGO_CRITICO' ||
+    n === 'RIESGO_CRÍTICO' ||
     n === 'LISTA_NEGRA'
   ) {
     return 'critico'
@@ -230,6 +235,13 @@ const mapDailyVisitToVisitaRuta = (row: any, rutaCobradorId: string, idx: number
   const estadoCuota = String(cuotaObjetivo?.estadoActual || cuotaObjetivo?.estado || '').toUpperCase()
   const enMora = Boolean(cuotaObjetivo?.enMoraEnFechaOperativa) || estadoCuota === 'VENCIDA'
   const pagado = saldoTotal <= 0 || Boolean(cuotaObjetivo?.cubiertaPorPagoJornada) || (saldoExigible <= 0 && recaudo > 0)
+  const diasMora = Number(
+    row?.diasMora ??
+      row?.diasMoraOperativos ??
+      cuotaObjetivo?.diasMora ??
+      computeDiasMoraFromCuotaObjetivo(cuotaObjetivo, getBogotaDateKey(new Date()), prestamoObjetivo?.frecuenciaPago) ??
+      0,
+  )
 
   return {
     id: `${row?.asignacionId || 'daily'}-${prestamoObjetivo?.id || cliente?.id || idx}`,
@@ -261,6 +273,7 @@ const mapDailyVisitToVisitaRuta = (row: any, rutaCobradorId: string, idx: number
     fechaProrroga: cuotaObjetivo?.fechaVencimientoProrroga || undefined,
     fechaOriginalVencimiento: cuotaObjetivo?.fechaVencimiento || undefined,
     recaudadoDelDia: recaudo,
+    diasMora,
   } as any
 }
 
@@ -327,6 +340,15 @@ const mapObligacionToVisitaRuta = (o: any, rutaCobradorId: string, idx: number, 
     prestamo?.montoCuota ??
     0,
   )
+  const frecuenciaPago = o.frecuenciaPago || prestamo?.frecuenciaPago || 'DIARIO'
+  const diasMora = Number(
+    o.diasMora ??
+      o.diasMoraOperativos ??
+      o.cuotaObjetivo?.diasMora ??
+      cuotaObjetivo?.diasMora ??
+      computeDiasMoraFromCuotaObjetivo(cuotaObjetivo, hoyKey, frecuenciaPago) ??
+      0,
+  )
 
   return {
     ...o,
@@ -358,9 +380,10 @@ const mapObligacionToVisitaRuta = (o: any, rutaCobradorId: string, idx: number, 
     prioridad: estaEnMora ? 'alta' : o.prioridad || 'media',
     nivelRiesgo: normalizeNivelRiesgo(o.nivelRiesgo || clienteObj?.nivelRiesgo),
     cobradorId: rutaCobradorId,
-    periodoRuta: normalizePeriodoRuta(o.frecuenciaPago || prestamo?.frecuenciaPago) as PeriodoRuta,
+    periodoRuta: normalizePeriodoRuta(frecuenciaPago) as PeriodoRuta,
     clienteId: o.clienteId || clienteObj?.id || '',
     prestamoId: o.prestamoId || prestamo?.id || '',
+    diasMora,
   } as any
 }
 
