@@ -87,6 +87,7 @@ const formatDateShort = (dateStr: string) => {
 export default function PuntoDeVentaFloatingActions() {
   const [showNewClientModal, setShowNewClientModal] = useState(false)
   const [showCreditoModal, setShowCreditoModal] = useState(false)
+  const [creditoModalMode, setCreditoModalMode] = useState<'credito-articulo' | 'venta-contado'>('credito-articulo')
   const [showVentasModal, setShowVentasModal] = useState(false)
   const [showClientesModal, setShowClientesModal] = useState(false)
   const [showVentaDetalle, setShowVentaDetalle] = useState<VentaReciente | null>(null)
@@ -194,18 +195,36 @@ export default function PuntoDeVentaFloatingActions() {
       const isArticulo = data.creditType === 'articulo'
       const payload = buildCrearPrestamoPayload(data, userSession?.id)
       const prestamo = await prestamosService.crearPrestamo(payload)
-      toast.success('Crédito creado', { description: 'El crédito ha sido registrado exitosamente.' })
+      toast.success(esContado ? 'Venta registrada' : 'Crédito creado', {
+        description: esContado
+          ? 'La venta de contado ha sido registrada exitosamente.'
+          : 'El crédito ha sido registrado exitosamente.',
+      })
       setShowCreditoModal(false)
-      if (isArticulo && prestamo?.id) {
+      if (isArticulo && !esContado && prestamo?.id) {
         try { await exportService.exportContrato(prestamo.id) } catch {}
       }
     } catch (error: any) {
-      toast.error('Error al crear crédito', { description: error?.message || 'Ocurrió un error inesperado.' })
+      const esContado = Boolean(data?.ventaContado)
+      toast.error(esContado ? 'Error al registrar venta' : 'Error al crear crédito', {
+        description: error?.message || 'Ocurrió un error inesperado.',
+      })
     }
   }
 
+  const openCreditoArticulo = () => {
+    setCreditoModalMode('credito-articulo')
+    setShowCreditoModal(true)
+  }
+
+  const openVentaContado = () => {
+    setCreditoModalMode('venta-contado')
+    setShowCreditoModal(true)
+  }
+
   const actions: FabAction[] = [
-    { label: 'Nuevo Crédito Artículo', icon: <ShoppingBag className="h-5 w-5" />, onClick: () => setShowCreditoModal(true) },
+    { label: 'Venta', icon: <ShoppingBag className="h-5 w-5" />, color: 'emerald', onClick: openVentaContado },
+    { label: 'Nuevo Crédito Artículo', icon: <CreditCard className="h-5 w-5" />, onClick: openCreditoArticulo },
     { label: 'Nuevo Cliente', icon: <UserPlus className="h-5 w-5" />, color: 'blue', onClick: () => setShowNewClientModal(true) },
     { label: 'Clientes Registrados', icon: <Users className="h-5 w-5" />, color: 'emerald', onClick: () => { setShowClientesModal(true); fetchClientes() } },
     { label: 'Ventas Recientes', icon: <Clock className="h-5 w-5" />, color: 'orange', onClick: () => { setShowVentasModal(true); fetchVentasRecientes() } },
@@ -215,7 +234,15 @@ export default function PuntoDeVentaFloatingActions() {
     <>
       <FloatingActionMenu actions={actions} />
 
-      <CrearCreditoModal isOpen={showCreditoModal} onClose={() => setShowCreditoModal(false)} onConfirm={handleCrearCredito} defaultCreditType="articulo" hideTypeSelector />
+      <CrearCreditoModal
+        isOpen={showCreditoModal}
+        onClose={() => setShowCreditoModal(false)}
+        onConfirm={handleCrearCredito}
+        defaultCreditType="articulo"
+        hideTypeSelector
+        defaultVentaContado={creditoModalMode === 'venta-contado'}
+        lockVentaContado={creditoModalMode === 'venta-contado'}
+      />
 
       {showNewClientModal && (
         <NuevoClienteModal onClose={() => setShowNewClientModal(false)} onClienteCreado={() => { setShowNewClientModal(false); fetchClientes() }} />

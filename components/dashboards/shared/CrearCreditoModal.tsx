@@ -46,6 +46,8 @@ interface CrearCreditoModalProps {
   defaultClienteId?: string
   defaultCreditType?: 'prestamo' | 'articulo'
   hideTypeSelector?: boolean
+  defaultVentaContado?: boolean
+  lockVentaContado?: boolean
 }
 
 const dateTimeLocalToBogotaOffsetIso = (value: string) => {
@@ -119,7 +121,16 @@ const getDefaultFirstCollectionDate = (frecuencia: string, base: Date = new Date
   }
 }
 
-export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultClienteId, defaultCreditType, hideTypeSelector }: CrearCreditoModalProps) {
+export default function CrearCreditoModal({
+  isOpen,
+  onClose,
+  onConfirm,
+  defaultClienteId,
+  defaultCreditType,
+  hideTypeSelector,
+  defaultVentaContado = false,
+  lockVentaContado = false,
+}: CrearCreditoModalProps) {
   const [creditType, setCreditType] = useState<'prestamo' | 'articulo'>(defaultCreditType || 'prestamo')
   const [clienteCreditoId, setClienteCreditoId] = useState('')
   const [montoPrestamoInput, setMontoPrestamoInput] = useState('')
@@ -145,7 +156,9 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
 
   useEffect(() => {
     if (isOpen) {
-      setCreditType(defaultCreditType || 'prestamo')
+      const nextCreditType = defaultCreditType || 'prestamo'
+      const nextEsContado = nextCreditType === 'articulo' && (defaultVentaContado || lockVentaContado)
+      setCreditType(nextCreditType)
       setClienteCreditoId(defaultClienteId || '')
       setMontoPrestamoInput('')
       setTipoInteres(TipoAmortizacion.INTERES_SIMPLE)
@@ -155,7 +168,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
       setArticuloSeleccionadoId('')
       setPlanArticuloIndex(null)
       setFrecuenciaPago('DIARIO')
-      setEsContado(false)
+      setEsContado(nextEsContado)
       setNotasInput('')
       setFechaCreditoInput(toBogotaDateTimeLocalInputValue(new Date()))
       setFechaPrimerCobro(getDefaultFirstCollectionDate('DIARIO'))
@@ -176,7 +189,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
         } catch { /* ignore */ }
       })
     }
-  }, [isOpen, defaultClienteId, defaultCreditType])
+  }, [isOpen, defaultClienteId, defaultCreditType, defaultVentaContado, lockVentaContado])
 
   const articuloSeleccionado = articulos.find(a => a.id === articuloSeleccionadoId)
 
@@ -242,7 +255,8 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
 
   const handleReset = () => {
     setClienteCreditoId('')
-    setCreditType(defaultCreditType || 'prestamo')
+    const nextCreditType = defaultCreditType || 'prestamo'
+    setCreditType(nextCreditType)
     setMontoPrestamoInput('')
     setTipoInteres(TipoAmortizacion.INTERES_SIMPLE)
     setTasaInteresInput('10')
@@ -251,7 +265,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
     setArticuloSeleccionadoId('')
     setPlanArticuloIndex(null)
     setFrecuenciaPago('DIARIO')
-    setEsContado(false)
+    setEsContado(nextCreditType === 'articulo' && (defaultVentaContado || lockVentaContado))
     setNotasInput('')
     setFechaCreditoInput(toBogotaDateTimeLocalInputValue(new Date()))
     onClose()
@@ -277,7 +291,9 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
           <div className="p-6">
             <div className="flex justify-between items-start mb-6">
               <div>
-                <h3 className="text-xl font-bold text-slate-900">Crear Nuevo Crédito</h3>
+                <h3 className="text-xl font-bold text-slate-900">
+                  {creditType === 'articulo' && esContado ? 'Registrar Venta' : 'Crear Nuevo Crédito'}
+                </h3>
               </div>
               <button
                 type="button"
@@ -321,9 +337,13 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
               </div>
             ) : (
               <div className="mb-6 flex justify-center">
-                <div className="p-4 rounded-xl border-2 border-orange-500 bg-orange-50 text-orange-700 text-center w-56">
+                <div className={`p-4 rounded-xl border-2 text-center w-56 ${
+                  esContado
+                    ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
+                    : 'border-orange-500 bg-orange-50 text-orange-700'
+                }`}>
                   <Package className="h-6 w-6 mx-auto mb-2" />
-                  <div className="font-bold text-sm">Crédito por Artículo</div>
+                  <div className="font-bold text-sm">{esContado ? 'Venta de Contado' : 'Crédito por Artículo'}</div>
                 </div>
               </div>
             )}
@@ -473,10 +493,14 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                   <div className="bg-blue-50/50 border border-blue-100 rounded-2xl p-4 flex gap-3 items-start">
                     <Calculator className="w-5 h-5 text-blue-600 mt-0.5" />
                     <p className="text-xs font-medium text-blue-900 leading-relaxed">
-                      <strong>Venta de Artículos:</strong> Elige crédito por meses o marca <strong>Compra de Contado</strong>. En contado no se generan cuotas ni plan de pagos.
+                      <strong>{lockVentaContado ? 'Venta de contado:' : 'Venta de Artículos:'}</strong>{' '}
+                      {lockVentaContado
+                        ? 'Selecciona el cliente y el artículo. No se generan cuotas ni plan de pagos.'
+                        : <>Elige crédito por meses o marca <strong>Compra de Contado</strong>. En contado no se generan cuotas ni plan de pagos.</>}
                     </p>
                   </div>
 
+                  {!lockVentaContado && (
                   <div className="mt-3">
                     <FieldLabel required>Modo de Venta</FieldLabel>
                     <div className="flex items-center gap-2">
@@ -500,6 +524,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                       </button>
                     </div>
                   </div>
+                  )}
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -509,7 +534,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                         onChange={(e) => {
                           setArticuloSeleccionadoId(e.target.value)
                           setPlanArticuloIndex(null)
-                          setEsContado(false)
+                          setEsContado(Boolean(defaultVentaContado || lockVentaContado))
                         }}
                         className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-bold text-slate-900"
                       >
@@ -703,12 +728,18 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                   <div className="flex justify-between">
                     <span className="text-slate-600 font-medium">Tipo:</span>
                     <span className="font-bold text-slate-900">
-                      {creditType === 'prestamo' ? 'Préstamo en Efectivo' : 'Crédito de un Artículo'}
+                      {creditType === 'prestamo'
+                        ? 'Préstamo en Efectivo'
+                        : esContado
+                          ? 'Venta de Contado'
+                          : 'Crédito de un Artículo'}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-600 font-medium">Estado Inicial:</span>
-                    <span className="font-bold text-blue-600">Pendiente de Aprobación</span>
+                    <span className="font-bold text-blue-600">
+                      {creditType === 'articulo' && esContado ? 'Venta directa' : 'Pendiente de Aprobación'}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -790,7 +821,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                   ) : (
                     <Plus className="w-4 h-4" />
                   )}
-                  {isSubmitting ? 'Procesando...' : 'Crear Crédito'}
+                  {isSubmitting ? 'Procesando...' : (creditType === 'articulo' && esContado ? 'Registrar Venta' : 'Crear Crédito')}
                 </button>
               </div>
             </div>
