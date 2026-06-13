@@ -3566,7 +3566,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
                                         title={!rutaOperable ? (rutaCompletada ? 'Jornada completada' : 'Jornada sin activar') : (visita.estadoVisita === 'ausente' || visita.estado === 'ausente' ? 'Cliente ya marcado como ausente' : 'Marcar como ausente')}
 
-                                        className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border transition-all font-bold text-[11px] shadow-sm ${!rutaOperable || visita.estadoVisita === 'ausente' || visita.estado === 'ausente' ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-rose-700 border-rose-200 hover:bg-rose-50 active:scale-95'}`}
+                                        className={`hidden items-center gap-1 px-3 py-1.5 rounded-lg border transition-all font-bold text-[11px] shadow-sm ${!rutaOperable || visita.estadoVisita === 'ausente' || visita.estado === 'ausente' ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-rose-700 border-rose-200 hover:bg-rose-50 active:scale-95'}`}
 
                                       >
 
@@ -3779,7 +3779,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
                                           title={!rutaOperable ? (rutaCompletada ? 'Jornada completada' : 'Jornada sin activar') : (visita.estadoVisita === 'ausente' || visita.estado === 'ausente' ? 'Cliente ya marcado como ausente' : 'Marcar como ausente')}
 
-                                          className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border transition-all font-bold text-[11px] shadow-sm ${!rutaOperable || visita.estadoVisita === 'ausente' || visita.estado === 'ausente' ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-rose-700 border-rose-200 hover:bg-rose-50 active:scale-95'}`}
+                                          className={`hidden items-center gap-1 px-3 py-1.5 rounded-lg border transition-all font-bold text-[11px] shadow-sm ${!rutaOperable || visita.estadoVisita === 'ausente' || visita.estado === 'ausente' ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-rose-700 border-rose-200 hover:bg-rose-50 active:scale-95'}`}
 
                                         >
 
@@ -4822,7 +4822,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
               canSolicitarCorreccion: false,
               canCerrarJornada: canAdministrarJornada,
               canRegistrarPago: (canSupervisarJornada || isCobrador) && !esDiaNoLaboral,
-              canMarcarAusente: (canSupervisarJornada || isCobrador) && !esDiaNoLaboral,
+              canMarcarAusente: false,
               canAnularAusencia: false,
               canReprogramar: (canSupervisarJornada || isCobrador) && !esDiaNoLaboral,
               canVerPago: false,

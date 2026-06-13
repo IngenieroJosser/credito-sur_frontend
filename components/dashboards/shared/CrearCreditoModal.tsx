@@ -138,15 +138,27 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
 
   const [articuloSeleccionadoId, setArticuloSeleccionadoId] = useState<string>('')
   const [planArticuloIndex, setPlanArticuloIndex] = useState<number | null>(null)
+  const [esContado, setEsContado] = useState(false)
 
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [articulos, setArticulos] = useState<Articulo[]>([])
 
   useEffect(() => {
     if (isOpen) {
+      setCreditType(defaultCreditType || 'prestamo')
+      setClienteCreditoId(defaultClienteId || '')
+      setMontoPrestamoInput('')
+      setTipoInteres(TipoAmortizacion.INTERES_SIMPLE)
+      setTasaInteresInput('10')
+      setCuotasPrestamoInput('12')
+      setCuotaInicialArticuloInput('')
+      setArticuloSeleccionadoId('')
+      setPlanArticuloIndex(null)
+      setFrecuenciaPago('DIARIO')
+      setEsContado(false)
+      setNotasInput('')
       setFechaCreditoInput(toBogotaDateTimeLocalInputValue(new Date()))
-      if (defaultClienteId) setClienteCreditoId(defaultClienteId)
-      setFechaPrimerCobro(getDefaultFirstCollectionDate(frecuenciaPago))
+      setFechaPrimerCobro(getDefaultFirstCollectionDate('DIARIO'))
       Promise.all([
         // forCredit: true → el cobrador ve todos los clientes no bloqueados,
         // igual que el supervisor, sin restricción de ruta asignada.
@@ -164,10 +176,9 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
         } catch { /* ignore */ }
       })
     }
-  }, [isOpen, defaultClienteId])
+  }, [isOpen, defaultClienteId, defaultCreditType])
 
   const articuloSeleccionado = articulos.find(a => a.id === articuloSeleccionadoId)
-  const [esContado, setEsContado] = useState(false)
 
   const planSeleccionado = useMemo(() => {
     if (!articuloSeleccionado) return null
@@ -231,7 +242,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
 
   const handleReset = () => {
     setClienteCreditoId('')
-    setCreditType('prestamo')
+    setCreditType(defaultCreditType || 'prestamo')
     setMontoPrestamoInput('')
     setTipoInteres(TipoAmortizacion.INTERES_SIMPLE)
     setTasaInteresInput('10')
@@ -240,6 +251,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
     setArticuloSeleccionadoId('')
     setPlanArticuloIndex(null)
     setFrecuenciaPago('DIARIO')
+    setEsContado(false)
     setNotasInput('')
     setFechaCreditoInput(toBogotaDateTimeLocalInputValue(new Date()))
     onClose()
