@@ -146,6 +146,7 @@ import {
   shouldIncludeVisitaInRutaHoyKpis,
   resolveProximaCuotaFromPrestamo,
   resolveCuotaProgressFromPrestamo,
+  resolveCuotaNormalOperativa,
   resolveCobradorIdForRouteAction,
   computeDiasMoraFromCuotaObjetivo,
   shouldMarkVisitaAsPagado,
@@ -360,6 +361,21 @@ const mapObligacionToVisitaRuta = (o: any, rutaCobradorId: string, idx: number, 
     montoCuota: cuotaNormal,
     montoCuotaNormal: cuotaNormal,
     montoCuotaPendiente: montoMetaPendiente,
+    montoMoraAcumulada: Number(
+      o.montoMoraAcumulada ??
+      o.saldoVencidoAcumulado ??
+      o.cuotaObjetivo?.montoMoraAcumulada ??
+      o.cuotaObjetivo?.saldoVencidoAcumulado ??
+      prestamo?.cuotaObjetivo?.montoMoraAcumulada ??
+      prestamo?.cuotaObjetivo?.saldoVencidoAcumulado ??
+      0,
+    ),
+    cuotasVencidas: Number(
+      o.cuotasVencidas ??
+      o.cuotaObjetivo?.cuotasVencidas ??
+      prestamo?.cuotaObjetivo?.cuotasVencidas ??
+      0,
+    ),
     saldoTotal: Number(
       o.saldoTotal ??
       o.saldoPendiente ??
@@ -3970,7 +3986,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
             visita={visitaClienteSeleccionada}
 
-            nextPagoMonto={nextPagoMonto ?? Number((visitaClienteSeleccionada as any)?.montoCuotaPendiente ?? visitaClienteSeleccionada.montoCuota ?? 0)}
+            nextPagoMonto={nextPagoMonto ?? resolveCuotaNormalOperativa(visitaClienteSeleccionada)}
 
             nextPagoFecha={nextPagoFecha ?? (visitaClienteSeleccionada.proximaVisita || '')}
 
@@ -4059,7 +4075,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
               clearRegularizacionContext()
 
             }}
-            montoCuotaEsperadoOverride={(contextoRegularizacion as any)?.montoCuotaEsperado}
+            montoCuotaEsperadoOverride={(contextoRegularizacion as any)?.montoCuotaEsperado ?? resolveCuotaNormalOperativa(visitaPagoRegularizada || visitasBase.find(v => v.id === visitaPagoSeleccionadaId))}
             cuotaNumeroEsperadaOverride={(contextoRegularizacion as any)?.cuotaNumeroEsperada}
 
             onConfirm={async (monto: number, metodo: 'EFECTIVO' | 'TRANSFERENCIA', comprobante: File | null, contexto) => {

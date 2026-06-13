@@ -106,7 +106,7 @@ import { useRutaHistorial } from '@/hooks/useRutaHistorial'
 import { useCierrePendienteRuta } from '@/hooks/useCierrePendienteRuta'
 import ClienteInfoModal from '@/components/cobranza/ClienteInfoModal'
 import { formatShortDate } from '@/lib/utils/format'
-import { buildRegularizedPaymentTarget, computeMontoExigibleHastaHoyFromCuotas, computeMontoNominalHastaHoyFromCuotas, computeRutaHoyUiStatsFromVisitas, resolveRutaHoyKpiStats, esDomingoBogota, getBogotaDateKey, getBogotaRangeByPeriod, getPagoBogotaDateKey, isCuotaNoPagada, isTodayOrPastBogota, isVisitaExigibleHoy, normalizeDateKey, resolveFechaEfectivaCuota, shouldExcludeVisitaFromOperationalMeta, shouldMarkVisitaAsPagado, shouldShowVisitaEnRutaHoy, toBogotaDateTimeOffsetIso, resolveProximaCuotaFromPrestamo, computeDiasMoraFromCuotas } from '@/lib/rutas-core'
+import { buildRegularizedPaymentTarget, computeMontoExigibleHastaHoyFromCuotas, computeMontoNominalHastaHoyFromCuotas, computeRutaHoyUiStatsFromVisitas, resolveRutaHoyKpiStats, esDomingoBogota, getBogotaDateKey, getBogotaRangeByPeriod, getPagoBogotaDateKey, isCuotaNoPagada, isTodayOrPastBogota, isVisitaExigibleHoy, normalizeDateKey, resolveFechaEfectivaCuota, shouldExcludeVisitaFromOperationalMeta, shouldMarkVisitaAsPagado, shouldShowVisitaEnRutaHoy, toBogotaDateTimeOffsetIso, resolveProximaCuotaFromPrestamo, computeDiasMoraFromCuotas, resolveCuotaNormalOperativa } from '@/lib/rutas-core'
 
 import { mapAsignacionesToVisitasLite } from '@/lib/ruta-visitas-mapper'
 import { buildRecaudosHoyMapByPrestamoId, computeMontoCuotaPendienteDespuesDeRecaudo, indexPagosByPrestamoId, mergeVisitasPreservingLocalRecaudo, sumMontoTotalPagosByBogotaDateKey } from '@/lib/ruta-recaudos'
@@ -2520,7 +2520,7 @@ const RutaClientLoaded = ({
             setPagoVisita(null)
             clearRegularizacionContext()
           }}
-          montoCuotaEsperadoOverride={contextoRegularizacion?.montoCuotaEsperado}
+          montoCuotaEsperadoOverride={contextoRegularizacion?.montoCuotaEsperado ?? resolveCuotaNormalOperativa(pagoVisita?.visita)}
           cuotaNumeroEsperadaOverride={contextoRegularizacion?.cuotaNumeroEsperada}
           onConfirm={async (monto, metodo, comprobante, contexto) => {
             try {
@@ -2825,7 +2825,7 @@ const RutaClientLoaded = ({
             <ClienteInfoModal
               visita={detalleActual}
               onClose={() => setDetalleVisita(null)}
-              nextPagoMonto={Number((detalleActual as any)?.montoCuotaPendiente ?? detalleActual.montoCuota ?? 0)}
+              nextPagoMonto={resolveCuotaNormalOperativa(detalleActual)}
               nextPagoFecha={detalleActual.proximaVisita}
               recaudadoHoy={Number((detalleActual as any)?.recaudadoDelDia || 0)}
               formatFechaLargaUTC={formatShortDate}

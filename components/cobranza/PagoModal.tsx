@@ -8,6 +8,7 @@ import {
   Loader2
 } from 'lucide-react'
 import { VisitaRuta } from '@/lib/types/cobranza'
+import { resolveCuotaNormalOperativa } from '@/lib/rutas-core'
 import { formatCOPInputValue, parseCOPInputToNumber, formatMilesCOP, getDisplayedCOPInteger, isSameDisplayedCOPAmount } from '@/lib/utils'
 import FieldLabel from '@/components/ui/FieldLabel'
 import Portal, { MODAL_Z_INDEX } from '@/components/ui/Portal'
@@ -35,12 +36,9 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm, montoCuota
     if (montoCuotaEsperadoOverride != null) {
       return montoCuotaEsperadoOverride
     }
-    const tieneCuotaPendiente = (visita as any)?.montoCuotaPendiente != null
-    const cuotaBase = Number(((visita as any)?.montoCuotaPendiente ?? visita?.montoCuota) || 0)
-    const recHoy = Number((visita as any)?.recaudadoDelDia || 0)
+    const cuotaBase = resolveCuotaNormalOperativa(visita)
     const saldo = Number((visita as any)?.saldoTotal || 0)
-    const pendiente = tieneCuotaPendiente ? cuotaBase : Math.max(0, cuotaBase - recHoy)
-    return Math.max(0, Math.min(pendiente, saldo > 0 ? saldo : pendiente))
+    return Math.max(0, Math.min(cuotaBase, saldo > 0 ? saldo : cuotaBase))
   })()
   const [metodoPago, setMetodoPago] = useState<'EFECTIVO' | 'TRANSFERENCIA'>('EFECTIVO')
   const [montoPagoInput, setMontoPagoInput] = useState(

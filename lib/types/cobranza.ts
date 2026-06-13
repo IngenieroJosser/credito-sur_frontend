@@ -1,4 +1,4 @@
-export type EstadoVisita = 'pendiente' | 'pagado' | 'en_mora' | 'ausente' | 'reprogramado' | 'en_prorroga'
+export type EstadoVisita = 'pendiente' | 'pagado' | 'en_mora' | 'ausente' | 'reprogramado' | 'en_prorroga' | 'gestionado'
 export type PeriodoRuta = 'DIA' | 'SEMANA' | 'QUINCENA' | 'MES'
 
 export interface VisitaRuta {
@@ -40,6 +40,8 @@ export interface VisitaRuta {
   fechaUltimoPago?: number      // Timestamp del último pago realizado para ordenamiento rápido
   montoCuotaPendiente?: number  // Monto pendiente real (puede diferir de montoCuota si hay mora parcial)
   montoCuotaNormal?: number     // Cuota normal del periodo, sin acumular saldos vencidos
+  montoMoraAcumulada?: number   // Saldo vencido acumulado de cartera, separado de la cuota operativa
+  cuotasVencidas?: number       // Cantidad de cuotas vencidas/pendientes hasta la fecha operativa
 }
 
 export interface HistorialDia {

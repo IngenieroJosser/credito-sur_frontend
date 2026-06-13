@@ -35,6 +35,7 @@ import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 import { resolveCurrentUserId } from '@/lib/creditos/crear-prestamo-payload'
 import { useNotification } from '@/components/providers/NotificationProvider'
 import { formatCurrency, formatCOPInputValue, formatMilesCOP, parseCOPInputToNumber } from '@/lib/utils'
+import { TipoAmortizacion } from '@/types/enums'
 
 const MODAL_Z_INDEX = 2147483647
 
@@ -734,7 +735,7 @@ export default function ClienteDetalleSupervisorPage() {
                             frecuenciaPago: 'SEMANAL' as any,
                             fechaInicio: toBogotaDateTimeOffsetIso(new Date()),
                             creadoPorId,
-                            tipoAmortizacion: 'INTERES_SIMPLE',
+                            tipoAmortizacion: TipoAmortizacion.INTERES_SIMPLE,
                           });
 
                           showNotification('success', 'Crédito creado exitosamente');

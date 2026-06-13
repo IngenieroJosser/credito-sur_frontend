@@ -7,6 +7,7 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { VisitaRuta, EstadoVisita, mapNivelRiesgo } from '@/lib/types/cobranza'
 import { formatCurrency } from '@/lib/utils'
+import { resolveCuotaAcumuladaOperativa, resolveCuotaNormalOperativa } from '@/lib/rutas-core'
 
 export const MODAL_Z_INDEX = 2147483600
 
@@ -194,16 +195,17 @@ function VisitaCardContent({
   children?: ReactNode
 }) {
   const estadoLower = String((visita as any)?.estado || '').toLowerCase().replace(/\s+/g, '_')
-  const tieneCuotaPendiente = (visita as any)?.montoCuotaPendiente != null
-  const cuotaNormal = Number(((visita as any)?.montoCuotaNormal ?? (visita as any)?.montoCuota) || 0)
-  const cuotaBase = Number(((visita as any)?.montoCuotaPendiente ?? cuotaNormal) || 0)
+  const cuotaNormal = resolveCuotaNormalOperativa(visita)
+  const cuotaBase = cuotaNormal
   const recHoy = Number((visita as any)?.recaudadoDelDia || 0)
   const saldo = Number((visita as any)?.saldoTotal || 0)
-  const cuotaPendiente = tieneCuotaPendiente ? cuotaBase : Math.max(0, cuotaBase - recHoy)
+  const cuotaPendiente = Math.max(0, cuotaBase - recHoy)
   const cuotaOperativa = estadoLower === 'pagado'
     ? (cuotaBase > 0 ? cuotaBase : recHoy)
     : Math.min(cuotaPendiente, saldo > 0 ? saldo : cuotaPendiente)
   const cuotaUI = cuotaNormal > 0 ? Math.min(cuotaNormal, saldo > 0 ? saldo : cuotaNormal) : cuotaOperativa
+  const acumuladoVencido = resolveCuotaAcumuladaOperativa(visita)
+  const mostrarAcumuladoVencido = acumuladoVencido > cuotaUI + 1
   const saldado = estadoLower === 'pagado' && cuotaUI === 0 && saldo === 0
   const estadoVisitaNorm = normalizeEstadoVisita((visita as any)?.estadoVisita)
   const esReprogramadoHistorial =
@@ -329,6 +331,12 @@ function VisitaCardContent({
         <div className="mt-1 flex items-center gap-1.5 px-2 py-1 rounded-lg border border-amber-200 bg-amber-50 text-amber-700 text-[9px] font-black uppercase tracking-wide">
           <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse shrink-0" />
           Crédito pendiente de aprobación — cobro deshabilitado
+        </div>
+      )}
+
+      {mostrarAcumuladoVencido && (
+        <div className="mt-1 text-[10px] font-bold text-rose-700">
+          Acumulado vencido: {formatMontoCompleto(acumuladoVencido)}
         </div>
       )}
 

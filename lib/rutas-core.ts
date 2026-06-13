@@ -10,13 +10,36 @@ import type { ClienteCierrePendiente } from '@/types/rutas/cierre-pendiente';
 // Principios importantes:
 // - Todas las comparaciones de fechas "por día" deben hacerse con una llave
 //   YYYY-MM-DD en zona horaria de Bogotá.
-// - Para un préstamo en mora (cuotas vencidas o atrasadas), el monto exigible
-//   del día puede ser la suma de todas las cuotas no pagadas con vencimiento
-//   efectivo <= HOY.
+// - La ruta cobra y muestra una cuota normal del periodo. La cartera acumulada
+//   vencida se conserva como dato financiero separado, no como cuota principal.
 // - La lógica de "aparece hoy" y "pagado" se comparte para no romper reglas
 //   de negocio entre roles.
 
 const BOGOTA_TZ = 'America/Bogota';
+
+export const resolveCuotaNormalOperativa = (visita: any): number => {
+  return Number(
+    visita?.montoCuotaNormal ??
+      visita?.cuotaObjetivo?.montoCuota ??
+      visita?.cuotaObjetivo?.montoNominal ??
+      visita?.cuotaObjetivo?.monto ??
+      visita?.montoCuota ??
+      0,
+  );
+};
+
+export const resolveCuotaAcumuladaOperativa = (visita: any): number => {
+  return Number(
+    visita?.montoMoraAcumulada ??
+      visita?.saldoVencidoAcumulado ??
+      visita?.cuotaObjetivo?.montoMoraAcumulada ??
+      visita?.cuotaObjetivo?.saldoVencidoAcumulado ??
+      visita?.montoCuotaPendiente ??
+      visita?.montoMetaOperativaPendiente ??
+      visita?.cuotaObjetivo?.saldoExigibleEnFechaOperativa ??
+      0,
+  );
+};
 
 export const esDomingoBogota = (date: Date = new Date()): boolean => {
   const day = new Intl.DateTimeFormat('en-US', {
@@ -551,6 +574,7 @@ export const shouldExcludeVisitaFromOperationalMeta = (
   const estadoVisita = String(visita?.estadoVisita || '').toLowerCase().replace(/\s+/g, '_');
   const estado = String(visita?.estado || '').toLowerCase().replace(/\s+/g, '_');
   const esAusente = estadoVisita === 'ausente' || estado === 'ausente';
+  const esGestionado = estadoVisita === 'gestionado' || estado === 'gestionado';
   const esReprogramado =
     estadoVisita === 'reprogramado' ||
     estadoVisita === 'reprogramada' ||
@@ -571,7 +595,7 @@ export const shouldExcludeVisitaFromOperationalMeta = (
   const hoyBogotaKey = getBogotaNowKey();
   const tieneProrrogaFutura = Boolean(visita?.enProrroga || fechaProrrogaKey)
     && Boolean(fechaProrrogaKey && hoyBogotaKey && fechaProrrogaKey > hoyBogotaKey);
-  if (!esAusente && !esReprogramado && !tieneProrrogaFutura) return false;
+  if (!esAusente && !esGestionado && !esReprogramado && !tieneProrrogaFutura) return false;
 
   const recaudadoHoy = recaudadoHoyOverride !== undefined
     ? Number(recaudadoHoyOverride || 0)
@@ -585,6 +609,7 @@ export const shouldShowVisitaEnRutaHoy = (visita: any, hoyBogotaKey: string): bo
   if (!visita) return false;
   const estado = String(visita?.estado || '').toLowerCase().replace(/\s+/g, '_');
   const estadoVisita = String(visita?.estadoVisita || '').toLowerCase().replace(/\s+/g, '_');
+  const esGestionado = estadoVisita === 'gestionado' || estado === 'gestionado';
   const esReprogramado =
     estadoVisita === 'reprogramado' ||
     estadoVisita === 'reprogramada' ||
@@ -606,6 +631,7 @@ export const shouldShowVisitaEnRutaHoy = (visita: any, hoyBogotaKey: string): bo
   const tieneProrrogaFutura = Boolean(visita?.enProrroga || fechaProrrogaKey)
     && Boolean(fechaProrrogaKey && hoyBogotaKey && fechaProrrogaKey > hoyBogotaKey);
 
+  if (esGestionado) return false;
   if (esReprogramado && !(Number.isFinite(recaudadoHoy) && recaudadoHoy > 0)) return false;
   if (tieneProrrogaFutura && !(Number.isFinite(recaudadoHoy) && recaudadoHoy > 0)) return false;
   if (Number.isFinite(recaudadoHoy) && recaudadoHoy > 0) return false;
@@ -624,8 +650,8 @@ export const shouldShowVisitaEnRutaHoy = (visita: any, hoyBogotaKey: string): bo
 };
 
 export const computeMetaHoyFromVisitas = (visitas: any[], hoyBogotaKey: string): number => {
-  // Calcula la "meta" del día: suma de montoCuota de las visitas exigibles hoy
-  // excluyendo las que ya están pagadas.
+  // Calcula la meta visual del día como suma de una cuota normal por obligación.
+  // La mora/acumulado vencido vive aparte y no debe inflar la cuota principal.
   if (!Array.isArray(visitas) || visitas.length === 0) return 0;
   return visitas.reduce((sum: number, v: any) => {
     if (!isVisitaExigibleHoy(v, hoyBogotaKey)) return sum;
@@ -634,7 +660,7 @@ export const computeMetaHoyFromVisitas = (visitas: any[], hoyBogotaKey: string):
     const saldo = Number((v as any)?.saldoTotal ?? 0);
     if (saldo <= 0) return sum;
 
-    const cuotaBase = Number(((v as any)?.montoCuotaPendiente ?? v?.montoCuota) || 0);
+    const cuotaBase = resolveCuotaNormalOperativa(v);
     const recHoy = Number((v as any)?.recaudadoDelDia || 0);
     const cuotaPendiente = Math.max(0, cuotaBase - recHoy);
     const cuotaUI = Math.min(cuotaPendiente, saldo > 0 ? saldo : cuotaPendiente);
@@ -653,12 +679,11 @@ export const computeRutaHoyUiStatsFromVisitas = (
     if (estadoLower === 'pagado') return sum;
     if (Number((v as any)?.recaudadoDelDia || 0) > 0) return sum;
 
-    const tieneCuotaPendiente = (v as any)?.montoCuotaPendiente != null;
-    const cuotaBase = Number(((v as any)?.montoCuotaPendiente ?? v?.montoCuota) || 0);
+    const cuotaBase = resolveCuotaNormalOperativa(v);
     const recHoy = Number((v as any)?.recaudadoDelDia || 0);
     const saldo = Number((v as any)?.saldoTotal || 0);
 
-    const cuotaPendiente = tieneCuotaPendiente ? cuotaBase : Math.max(0, cuotaBase - recHoy);
+    const cuotaPendiente = Math.max(0, cuotaBase - recHoy);
     const cuotaUI = Math.min(cuotaPendiente, saldo > 0 ? saldo : cuotaPendiente);
     return sum + Number(cuotaUI || 0);
   }, 0);
