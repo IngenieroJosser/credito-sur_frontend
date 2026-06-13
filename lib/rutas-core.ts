@@ -799,7 +799,23 @@ export const resolveCobradorIdForRouteAction = (
 export function resolveRutaDailySummary(ruta: any, dailyVisits: any) {
   const resumen = dailyVisits?.resumen || {};
 
-  const meta = Number(
+  const obligaciones = Array.isArray(dailyVisits?.obligaciones)
+    ? dailyVisits.obligaciones
+    : [];
+
+  const metaDesdeObligaciones = obligaciones.reduce((sum: number, o: any) => {
+    const metaPendiente = Number(
+      o?.montoMetaOperativaPendiente ??
+        o?.prestamo?.montoMetaOperativaPendiente ??
+        o?.cuotaObjetivo?.saldoExigibleEnFechaOperativa ??
+        o?.prestamo?.cuotaObjetivo?.saldoExigibleEnFechaOperativa ??
+        0,
+    );
+    const recaudado = Number(o?.recaudadoDelDia ?? o?.recaudado ?? 0);
+    return sum + Math.max(0, metaPendiente) + Math.max(0, recaudado);
+  }, 0);
+
+  const metaResumen = Number(
     resumen.meta ??
       ruta?.estadisticas?.metaDelDia ??
       ruta?.metaDelDia ??
@@ -813,6 +829,10 @@ export function resolveRutaDailySummary(ruta: any, dailyVisits: any) {
       ruta?.estadisticas?.recaudoHoy ??
       0,
   );
+
+  const meta = obligaciones.length > 0
+    ? metaDesdeObligaciones
+    : metaResumen;
 
   const pendiente = Math.max(meta - recaudo, 0);
 
@@ -829,10 +849,6 @@ export function resolveRutaDailySummary(ruta: any, dailyVisits: any) {
       ruta?.estadisticas?.totalVisitas ??
       0,
   );
-
-  const obligaciones = Array.isArray(dailyVisits?.obligaciones)
-    ? dailyVisits.obligaciones
-    : [];
 
   const visitas = Array.isArray(dailyVisits?.visitas)
     ? dailyVisits.visitas

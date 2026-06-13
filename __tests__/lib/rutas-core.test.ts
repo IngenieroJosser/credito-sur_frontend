@@ -1,6 +1,7 @@
 import {
   buildRegularizedPaymentTarget,
   computeRutaHoyUiStatsFromVisitas,
+  resolveRutaDailySummary,
   resolveRutaHoyKpiStats,
   shouldExcludeVisitaFromOperationalMeta,
   shouldIncludeVisitaInRutaHoyKpis,
@@ -8,6 +9,30 @@ import {
   resolveCobradorIdForRouteAction,
   shouldShowVisitaEnRutaHoy,
 } from '@/lib/rutas-core'
+
+describe('resolveRutaDailySummary', () => {
+  it('prioriza la meta de obligaciones operativas sobre un resumen inflado', () => {
+    const summary = resolveRutaDailySummary(
+      { estadisticas: { metaDelDia: 6_878_333, cobranzaDelDia: 0 } },
+      {
+        resumen: {
+          meta: 6_878_333,
+          recaudoOperativo: 0,
+          visitados: 0,
+          total: 2,
+        },
+        obligaciones: [
+          { montoMetaOperativaPendiente: 63_333, recaudadoDelDia: 0 },
+          { montoMetaOperativaPendiente: 458_334, recaudadoDelDia: 0 },
+        ],
+      },
+    )
+
+    expect(summary.meta).toBe(521_667)
+    expect(summary.pendiente).toBe(521_667)
+    expect(summary.efectividad).toBe(0)
+  })
+})
 
 describe('shouldShowVisitaEnRutaHoy', () => {
   it('oculta visitas futuras aunque pertenezcan al cobrador', () => {
