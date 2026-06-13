@@ -889,15 +889,17 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         const { cuotaActual, cuotasTotales } = resolveCuotaProgressFromPrestamo(prestamoAutoritativo)
         const cuotasForMonto = Array.isArray((prestamoAutoritativo as any)?.cuotas) ? (prestamoAutoritativo as any).cuotas : []
         const hoyKey = hoyBogotaKey
-        const montoExigible = computeMontoExigibleHastaHoyFromCuotas(cuotasForMonto, hoyKey)
-        const montoNominalProx = Number((prox as any)?.montoNominal ?? (prox as any)?.monto ?? 0)
+        const montoMoraAcumulada = computeMontoExigibleHastaHoyFromCuotas(cuotasForMonto, hoyKey)
+        const montoNominalProx = Number((prox as any)?.montoNominal ?? (prox as any)?.montoCuota ?? (prox as any)?.monto ?? 0)
         const montoPagadoProx = Number((prox as any)?.montoPagado ?? 0)
         const pendienteProx = Math.max(0, montoNominalProx - montoPagadoProx)
-        const montoCuota = montoExigible > 0 ? montoExigible : pendienteProx
-        const montoCuotaNominal = computeMontoNominalHastaHoyFromCuotas(cuotasForMonto as any, hoyKey)
-        const montoCuotaTotal = montoCuotaNominal > 0
-          ? Math.max(montoCuotaNominal, Number((prox as any)?.monto ?? 0))
-          : Number((prox as any)?.monto ?? montoCuota)
+        const montoCuotaNormal = montoNominalProx
+        const montoCuotaPendiente = pendienteProx
+        const saldoTotalPrestamo = Number(
+          (prestamoAutoritativo as any)?.saldoPendiente ??
+            p?.saldoPendiente ??
+            0,
+        )
         const proximaVisitaV = fechaEfectiva || (prox as any)?.fechaVencimiento || row?.prestamo?.fechaEfectiva || getBogotaDateKey(new Date())
 
         const hoyBogota = getBogotaDateKey(new Date())
@@ -923,9 +925,16 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
           direccion: c?.direccion || 'Sin dirección registrada',
           telefono: c?.telefono || '',
           horaSugerida: '08:00 AM',
-          montoCuota: montoCuotaTotal,
-          montoCuotaPendiente: montoCuota,
-          saldoTotal: estadoCalculado === 'pagado' ? 0 : montoCuota,
+          montoCuota: montoCuotaNormal,
+          montoCuotaNormal,
+          montoCuotaPendiente,
+          montoMoraAcumulada,
+          cuotasVencidas: (cuotasForMonto as any[]).filter((cuota: any) => {
+            if (!cuota || !isCuotaNoPagada(cuota)) return false
+            const vtoKey = normalizeDateKey(resolveFechaEfectivaCuota(cuota) || String(cuota?.fechaVencimiento || ''))
+            return !!vtoKey && !!hoyKey && vtoKey <= hoyKey
+          }).length,
+          saldoTotal: estadoCalculado === 'pagado' ? 0 : saldoTotalPrestamo,
           estado: estadoCalculado,
           proximaVisita: proximaVisitaV,
           ordenVisita: Number(row?.ordenVisita || idx + 1),

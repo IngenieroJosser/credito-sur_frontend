@@ -1174,10 +1174,14 @@ const RutaClientLoaded = ({
         let cuotaActual = 1;
         let cuotasTotales = Number(p.cantidadCuotas || 0);
         let montoCuota = Number(p.montoCuota || 0);
+        let montoCuotaNormal = montoCuota;
+        let montoMoraAcumulada = 0;
+        let cuotasVencidas = 0;
         let proximaVisitaV = p.fechaEfectiva || getBogotaDateKey(new Date());
         let estadoCalculado: EstadoVisita = 'pendiente';
         let ultimoPagoDate = 0;
         let diasMora = 0;
+        const saldoTotalPrestamo = Number(p?.saldoPendiente || 0);
 
         const toNivel = (nivel: string) => {
           if (nivel === 'VERDE') return 'bajo'
@@ -1216,8 +1220,16 @@ const RutaClientLoaded = ({
               cuotaActual = pendiente.numeroCuota;
               const montoCuotaBruto = Number(pendiente.monto || (pendiente.montoCapital + pendiente.montoInteres) || 0);
               const montoCuotaPagado = Number(pendiente.montoPagado || 0);
+              montoCuotaNormal = montoCuotaBruto;
               montoCuota = Math.max(0, montoCuotaBruto - montoCuotaPagado);
               proximaVisitaV = pendiente.fechaVencimiento;
+              montoMoraAcumulada = computeMontoExigibleHastaHoyFromCuotas(cuotas as any, hoyBogotaKey);
+              cuotasVencidas = cuotas.filter((cuo: any) => {
+                if (!cuo || !isCuotaNoPagada(cuo)) return false
+                const vtoRaw = resolveFechaEfectivaCuota(cuo) || String(cuo?.fechaVencimiento || '')
+                const vtoKey = normalizeDateKey(vtoRaw)
+                return !!vtoKey && !!hoyBogotaKey && vtoKey <= hoyBogotaKey
+              }).length;
 
               const tieneMora = cuotas.some((cuo: any) => {
                 if (!cuo || !isCuotaNoPagada(cuo)) return false
@@ -1243,7 +1255,11 @@ const RutaClientLoaded = ({
           telefono: c?.telefono || '',
           horaSugerida: '08:00 AM',
           montoCuota,
-          saldoTotal: estadoCalculado === 'pagado' ? 0 : montoCuota,
+          montoCuotaNormal,
+          montoCuotaPendiente: montoCuota,
+          montoMoraAcumulada,
+          cuotasVencidas,
+          saldoTotal: estadoCalculado === 'pagado' ? 0 : saldoTotalPrestamo,
           estado: estadoCalculado,
           proximaVisita: proximaVisitaV,
           ordenVisita: Number(row?.ordenVisita || idx + 1),
