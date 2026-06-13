@@ -74,12 +74,31 @@ type NivelRiesgoFrontend = 'bajo' | 'leve' | 'precaucion' | 'moderado' | 'critic
  * ruta-client y coordinador/rutas.
  */
 export const mapNivelRiesgo = (nivel?: NivelRiesgoBackend | null): NivelRiesgoFrontend => {
-  switch (nivel) {
-    case 'VERDE':       return 'bajo'
-    case 'AMARILLO':    return 'precaucion'
-    case 'ROJO':        return 'moderado'
-    case 'LISTA_NEGRA': return 'critico'
-    default:            return 'bajo'
+  const normalized = String(nivel || '')
+    .trim()
+    .toUpperCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+
+  switch (normalized) {
+    case 'PELIGRO_MINIMO':
+    case 'MINIMO':
+    case 'BAJO':
+    case 'VERDE':
+      return 'bajo'
+    case 'LEVE':
+      return 'leve'
+    case 'PRECAUCION':
+    case 'AMARILLO':
+      return 'precaucion'
+    case 'MODERADO':
+    case 'ROJO':
+      return 'moderado'
+    case 'CRITICO':
+    case 'LISTA_NEGRA':
+      return 'critico'
+    default:
+      return 'bajo'
   }
 }
 

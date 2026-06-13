@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom'
 import { MapPin, Eye, Phone, GripVertical, XCircle, ChevronDown, Timer, CheckCircle2 } from 'lucide-react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { VisitaRuta, EstadoVisita } from '@/lib/types/cobranza'
+import { VisitaRuta, EstadoVisita, mapNivelRiesgo } from '@/lib/types/cobranza'
 import { formatCurrency } from '@/lib/utils'
 
 export const MODAL_Z_INDEX = 2147483600
@@ -37,7 +37,7 @@ function dotColor(nivelRiesgo: string | undefined): string {
 }
 
 function resolveNivelRiesgoForVisita(visita: VisitaRuta): string | undefined {
-  const base = String(visita?.nivelRiesgo || '') || undefined
+  const base = mapNivelRiesgo(visita?.nivelRiesgo as any)
   const enMora = ((visita as any)?.enMoraHistorico) || String(visita?.estado || '').toLowerCase() === 'en_mora'
   const enProrroga = ((visita as any)?.enProrrogaHistorico) || (visita as any)?.enProrroga || !!(visita as any)?.fechaProrroga
   const diasMora = Number((visita as any)?.diasMora ?? 0)

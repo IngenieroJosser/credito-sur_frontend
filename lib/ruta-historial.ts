@@ -1,6 +1,6 @@
 import { isPagoCierrePendiente } from '@/lib/ruta-recaudos'
 import { getPagoBogotaDateKey } from '@/lib/rutas-core'
-import type { VisitaRuta } from '@/lib/types/cobranza'
+import { mapNivelRiesgo, type VisitaRuta } from '@/lib/types/cobranza'
 
 type Resumen = {
   recaudo: number
@@ -90,12 +90,7 @@ export const isVisitadoHistorial = (visita: any) => {
 }
 
 const normalizeNivelRiesgo = (raw: any): any => {
-  const r = String(raw || '').toUpperCase()
-  if (r === 'VERDE') return 'bajo'
-  if (r === 'AMARILLO') return 'leve'
-  if (r === 'ROJO') return 'moderado'
-  if (r === 'LISTA_NEGRA') return 'critico'
-  return 'bajo'
+  return mapNivelRiesgo(raw)
 }
 
 const resolveEstadoHistorialFromGestion = (estadoGestion: any, cuotaObjetivo: any, recaudado: number) => {

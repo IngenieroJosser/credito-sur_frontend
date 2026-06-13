@@ -56,4 +56,47 @@ describe('mapAsignacionesToVisitasLite', () => {
       estado: 'en_mora',
     })
   })
+
+  it('usa la misma normalizacion de riesgo que las tarjetas de admin', () => {
+    const visitas = mapAsignacionesToVisitasLite({
+      hoyKey: '2026-06-12',
+      cobradorId: 'cobrador-1',
+      asignaciones: [
+        {
+          id: 'asig-1',
+          cliente: {
+            id: 'cliente-1',
+            nombres: 'Cliente',
+            apellidos: 'Amarillo',
+            direccion: 'Calle 1',
+            telefono: '3000000000',
+            nivelRiesgo: 'AMARILLO',
+            prestamos: [
+              {
+                id: 'prestamo-1',
+                estado: 'ACTIVO',
+                tipo: 'EFECTIVO',
+                frecuenciaPago: 'DIARIO',
+                valorCuota: 100_000,
+                saldoPendiente: 300_000,
+                cantidadCuotas: 3,
+                cuotas: [
+                  {
+                    id: 'cuota-1',
+                    numeroCuota: 1,
+                    estado: 'PENDIENTE',
+                    fechaVencimiento: '2026-06-12',
+                    montoNominal: 100_000,
+                    montoPagado: 0,
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      ],
+    })
+
+    expect(visitas[0]?.nivelRiesgo).toBe('precaucion')
+  })
 })

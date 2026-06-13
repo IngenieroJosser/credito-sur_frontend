@@ -1131,15 +1131,7 @@ const LegacyDetalleRutaPage = () => {
 
             const r = cliente.nivelRiesgo || 'VERDE';
 
-            if (r === 'VERDE') return 'bajo';
-
-            if (r === 'AMARILLO') return 'leve';
-
-            if (r === 'ROJO') return 'moderado';
-
-            if (r === 'LISTA_NEGRA') return 'critico';
-
-            return 'bajo';
+            return mapNivelRiesgo(r);
 
           })(),
 

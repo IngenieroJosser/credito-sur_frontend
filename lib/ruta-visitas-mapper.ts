@@ -1,4 +1,4 @@
-import type { PeriodoRuta } from '@/lib/types/cobranza'
+import { mapNivelRiesgo, type PeriodoRuta } from '@/lib/types/cobranza'
 import {
   computeDiasMoraFromCuotas,
   computeMontoExigibleHastaHoyFromCuotas,
@@ -71,12 +71,7 @@ const toPeriodo = (f: string): PeriodoRuta => {
 }
 
 const toNivel = (r: string) => {
-  // Normalización simple de nivel de riesgo para mantener compatibilidad
-  // con el criterio existente en las vistas.
-  if (r === 'AMARILLO') return 'leve'
-  if (r === 'ROJO') return 'moderado'
-  if (r === 'LISTA_NEGRA') return 'critico'
-  return 'bajo'
+  return mapNivelRiesgo(r)
 }
 
 const isPagada = (c: any) => {
