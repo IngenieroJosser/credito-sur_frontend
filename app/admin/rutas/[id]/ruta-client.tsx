@@ -587,7 +587,13 @@ const RutaClientLoaded = ({
               const pagadoPendiente = Number(pendiente.montoPagado || 0)
               const pendienteReal = Math.max(0, montoPendiente - pagadoPendiente)
 
-              montoCuotaReal = exigibleNominal > 0 ? exigibleNominal : (montoPendiente > 0 ? montoPendiente : montoCuotaReal)
+              montoCuotaReal = Number(
+                (v as any)?.montoCuotaNormal ??
+                pendiente.montoNominal ??
+                pendiente.montoCuota ??
+                pendiente.monto ??
+                (montoPendiente > 0 ? montoPendiente : montoCuotaReal),
+              )
               montoCuotaPendienteReal = exigiblePendiente > 0 ? exigiblePendiente : pendienteReal
 
               fechaReal = resolveFechaEfectivaCuota(pendiente) || (pendiente.fechaVencimiento || v.proximaVisita);
@@ -606,7 +612,8 @@ const RutaClientLoaded = ({
             // 3. Determinar Estado Final
             let nuevoEstado = v.estado;
             const cuotaComparar = montoCuotaReal > 0 ? montoCuotaReal : v.montoCuota;
-            const cobroSuficiente = totalHoy >= (cuotaComparar - 1);
+            const montoOperativoComparar = montoCuotaPendienteReal > 0 ? montoCuotaPendienteReal : cuotaComparar;
+            const cobroSuficiente = totalHoy >= (montoOperativoComparar - 1);
 
             // Si el cliente ya fue marcado ausente localmente, respetar ese estado
             // (un pago posterior lo sobreescribirá correctamente)
@@ -624,7 +631,7 @@ const RutaClientLoaded = ({
               const pagado = shouldMarkVisitaAsPagado({
                 saldoTotal: v.saldoTotal,
                 recaudadoHoy: totalHoy,
-                montoCuotaExigible: v.montoCuota,
+                montoCuotaExigible: montoOperativoComparar,
                 estadoActual: v.estado,
               })
               if (pagado) nuevoEstado = 'pagado'
@@ -640,6 +647,7 @@ const RutaClientLoaded = ({
               recaudadoTotalClient: totalHistorico, 
               fechaUltimoPago: ultimoPagoDate,
               montoCuota: cuotaComparar,
+              montoCuotaNormal: cuotaComparar,
               montoCuotaPendiente: montoCuotaPendienteReal,
               proximaVisita: fechaReal,
               cuotaActual,
@@ -963,14 +971,6 @@ const RutaClientLoaded = ({
           Number((initialRuta as any)?.cobranzaDelDia || 0),
           Number((initialRuta as any)?.estadisticas?.cobranzaDelDia || 0),
         )
-        const metaResumenHoy = Math.max(
-          Number(resumenDailyVisitsHoy?.meta ?? 0),
-          metaBackendHoy,
-        )
-        const recaudoResumenHoy = Math.max(
-          Number(resumenDailyVisitsHoy?.recaudoOperativo ?? resumenDailyVisitsHoy?.recaudo ?? 0),
-          recaudoBackendHoy,
-        )
         const tieneResumenHoy =
           periodoCards === 'HOY'
           && Boolean(
@@ -981,6 +981,12 @@ const RutaClientLoaded = ({
               || resumenDailyVisitsHoy.recaudoOperativo !== undefined
             ),
           )
+        const metaResumenHoy = tieneResumenHoy
+          ? Number(resumenDailyVisitsHoy?.meta ?? 0)
+          : metaBackendHoy
+        const recaudoResumenHoy = tieneResumenHoy
+          ? Number(resumenDailyVisitsHoy?.recaudoOperativo ?? resumenDailyVisitsHoy?.recaudo ?? 0)
+          : recaudoBackendHoy
 
         const statsRutaHoy = tieneResumenHoy
           ? {
@@ -1057,14 +1063,6 @@ const RutaClientLoaded = ({
           Number((initialRuta as any)?.cobranzaDelDia || 0),
           Number((initialRuta as any)?.estadisticas?.cobranzaDelDia || 0),
         )
-        const metaResumenHoy = Math.max(
-          Number(resumenDailyVisitsHoy?.meta ?? 0),
-          metaBackendHoy,
-        )
-        const recaudoResumenHoy = Math.max(
-          Number(resumenDailyVisitsHoy?.recaudoOperativo ?? resumenDailyVisitsHoy?.recaudo ?? 0),
-          recaudoBackendHoy,
-        )
         const tieneResumenHoy =
           periodoCards === 'HOY'
           && Boolean(
@@ -1075,6 +1073,12 @@ const RutaClientLoaded = ({
               || resumenDailyVisitsHoy.recaudoOperativo !== undefined
             ),
           )
+        const metaResumenHoy = tieneResumenHoy
+          ? Number(resumenDailyVisitsHoy?.meta ?? 0)
+          : metaBackendHoy
+        const recaudoResumenHoy = tieneResumenHoy
+          ? Number(resumenDailyVisitsHoy?.recaudoOperativo ?? resumenDailyVisitsHoy?.recaudo ?? 0)
+          : recaudoBackendHoy
 
         const statsRutaHoy = tieneResumenHoy
           ? {

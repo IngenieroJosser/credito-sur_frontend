@@ -1382,6 +1382,21 @@ const VistaCobrador = () => {
                   ? 'en_mora'
                   : 'pendiente'
 
+              const cuotaNormal = Number(
+                o.montoCuotaNormal ??
+                  o.cuotaObjetivo?.montoCuota ??
+                  o.cuotaObjetivo?.montoNominal ??
+                  cuotaObjetivo?.montoCuota ??
+                  cuotaObjetivo?.montoNominal ??
+                  cuotaObjetivo?.monto ??
+                  prestamo?.proximaCuota?.montoCuota ??
+                  prestamo?.proximaCuota?.montoNominal ??
+                  prestamo?.proximaCuota?.monto ??
+                  prestamo?.valorCuota ??
+                  prestamo?.montoCuota ??
+                  0,
+              )
+
               return {
                 ...o,
 
@@ -1391,13 +1406,8 @@ const VistaCobrador = () => {
                 direccion: o.direccion || clienteObj?.direccion || 'Sin dirección',
                 telefono: o.telefono || clienteObj?.telefono || '',
 
-                montoCuota: Number(
-                  montoMetaPendiente ||
-                    cuotaObjetivo?.montoCuota ||
-                    cuotaObjetivo?.monto ||
-                    prestamo?.proximaCuota?.monto ||
-                    0,
-                ),
+                montoCuota: cuotaNormal,
+                montoCuotaNormal: cuotaNormal,
 
                 montoCuotaPendiente: montoMetaPendiente,
 
@@ -1495,7 +1505,7 @@ const VistaCobrador = () => {
               const proximaKey = v?.proximaVisita ? normalizeDateKey(String(v.proximaVisita)) : ''
               return !!proximaKey && proximaKey === hoyKey
             })
-            .reduce((sum: number, v: any) => sum + Number(v?.montoCuota || 0), 0)
+            .reduce((sum: number, v: any) => sum + Number(v?.montoCuotaPendiente ?? v?.montoCuota ?? 0), 0)
 
           if (metaFallback > 0) {
             setRutaStats(prev => {
@@ -1530,10 +1540,18 @@ const VistaCobrador = () => {
 
               if (tipoPrestamo !== 'ARTICULO') {
                 const exigiblePendiente = computeMontoExigibleHastaHoyFromCuotas(cuotas as any, hoyKey)
-                const exigibleNominal = computeMontoNominalHastaHoyFromCuotas(cuotas as any, hoyKey)
+                const pendiente = (Array.isArray(cuotas) ? cuotas : []).find((c: any) => isCuotaNoPagada(c))
+                const cuotaNormal = Number(
+                  (v as any)?.montoCuotaNormal ??
+                    pendiente?.montoNominal ??
+                    pendiente?.montoCuota ??
+                    pendiente?.monto ??
+                    baseCuota,
+                )
                 return {
                   ...v,
-                  montoCuota: exigibleNominal > 0 ? Math.max(exigibleNominal, baseCuota) : baseCuota,
+                  montoCuota: cuotaNormal,
+                  montoCuotaNormal: cuotaNormal,
                   montoCuotaPendiente: exigiblePendiente > 0 ? exigiblePendiente : (v as any)?.montoCuotaPendiente,
                   estado: (saldoPendiente <= 0 ? 'pagado' : (tieneMora ? 'en_mora' : v.estado)) as any,
                 }
@@ -1541,12 +1559,21 @@ const VistaCobrador = () => {
 
               const exigibleNominal = computeMontoNominalHastaHoyFromCuotas(cuotas as any, hoyKey)
               const exigiblePendiente = computeMontoExigibleHastaHoyFromCuotas(cuotas as any, hoyKey)
+              const pendienteArticulo = (Array.isArray(cuotas) ? cuotas : []).find((c: any) => isCuotaNoPagada(c))
+              const cuotaNormalArticulo = Number(
+                (v as any)?.montoCuotaNormal ??
+                  pendienteArticulo?.montoNominal ??
+                  pendienteArticulo?.montoCuota ??
+                  pendienteArticulo?.monto ??
+                  baseCuota,
+              )
 
               if (!(exigibleNominal > 0) && !tieneMora) {
                 if (saldoPendiente > 0) {
                   return {
                     ...v,
-                    montoCuota: saldoPendiente,
+                    montoCuota: cuotaNormalArticulo > 0 ? cuotaNormalArticulo : saldoPendiente,
+                    montoCuotaNormal: cuotaNormalArticulo > 0 ? cuotaNormalArticulo : saldoPendiente,
                     estado: 'pendiente' as any,
                   }
                 }
@@ -1554,7 +1581,8 @@ const VistaCobrador = () => {
               }
               return {
                 ...v,
-                montoCuota: Math.max(exigibleNominal, baseCuota),
+                montoCuota: cuotaNormalArticulo,
+                montoCuotaNormal: cuotaNormalArticulo,
                 montoCuotaPendiente: exigiblePendiente,
                 estado: (saldoPendiente <= 0 ? 'pagado' : (tieneMora ? 'en_mora' : v.estado)) as any,
               }

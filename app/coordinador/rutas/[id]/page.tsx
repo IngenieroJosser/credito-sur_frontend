@@ -666,12 +666,23 @@ const LegacyDetalleRutaPage = () => {
                    if (pendiente) {
 
                        const montoReal = Number(pendiente.monto || (pendiente.montoCapital + pendiente.montoInteres) || 0);
+                       const montoNormal = Number(
+                         (v as any).montoCuotaNormal ??
+                         (pendiente as any).montoNominal ??
+                         (pendiente as any).montoCuota ??
+                         pendiente.monto ??
+                         v.montoCuota ??
+                         0,
+                       )
+                       const montoPendiente = Math.max(0, montoReal - Number((pendiente as any).montoPagado || 0))
 
                        return {
 
                          ...v,
 
-                         montoCuota: montoReal > 0 ? montoReal : v.montoCuota,
+                         montoCuota: montoNormal,
+                         montoCuotaNormal: montoNormal,
+                         montoCuotaPendiente: montoPendiente > 0 ? montoPendiente : (v as any).montoCuotaPendiente,
 
                          proximaVisita: (pendiente.estado === 'PRORROGADA' && pendiente.fechaVencimientoProrroga)
 
@@ -699,7 +710,7 @@ const LegacyDetalleRutaPage = () => {
 
                    const proxima = (p.proximaCuota ?? {}) as any;
 
-                   const montoP = Number(proxima.monto || p.montoCuota || p.valorCuota || 0);
+                   const montoP = Number(proxima.montoCuota || proxima.montoNominal || proxima.monto || p.montoCuota || p.valorCuota || 0);
 
 
 
@@ -781,7 +792,7 @@ const LegacyDetalleRutaPage = () => {
 
               const saldoHoy = Number(v.recaudadoDelDia || 0);
 
-              const cuota = Number(v.montoCuota || 0);
+              const cuota = Number((v as any).montoCuotaPendiente ?? v.montoCuota ?? 0);
 
               if (saldoHoy >= (cuota - 1) && saldoHoy > 0) return 'pagado';
 

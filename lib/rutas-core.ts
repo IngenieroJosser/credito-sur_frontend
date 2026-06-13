@@ -560,7 +560,18 @@ export const shouldExcludeVisitaFromOperationalMeta = (
     estado === 'reprogramada' ||
     estado === 'reprogramacion' ||
     estado === 'reprogramación';
-  if (!esAusente && !esReprogramado) return false;
+  const fechaProrrogaKey = normalizeDateKey(
+    String(
+      visita?.fechaProrroga ||
+      visita?.fechaVencimientoProrroga ||
+      visita?.cuotaObjetivo?.fechaVencimientoProrroga ||
+      '',
+    ),
+  );
+  const hoyBogotaKey = getBogotaNowKey();
+  const tieneProrrogaFutura = Boolean(visita?.enProrroga || fechaProrrogaKey)
+    && Boolean(fechaProrrogaKey && hoyBogotaKey && fechaProrrogaKey > hoyBogotaKey);
+  if (!esAusente && !esReprogramado && !tieneProrrogaFutura) return false;
 
   const recaudadoHoy = recaudadoHoyOverride !== undefined
     ? Number(recaudadoHoyOverride || 0)
@@ -584,8 +595,19 @@ export const shouldShowVisitaEnRutaHoy = (visita: any, hoyBogotaKey: string): bo
     estado === 'reprogramacion' ||
     estado === 'reprogramación';
   const recaudadoHoy = Number((visita as any)?.recaudadoDelDia ?? (visita as any)?.recaudadoPeriodo ?? 0);
+  const fechaProrrogaKey = normalizeDateKey(
+    String(
+      visita?.fechaProrroga ||
+      visita?.fechaVencimientoProrroga ||
+      visita?.cuotaObjetivo?.fechaVencimientoProrroga ||
+      '',
+    ),
+  );
+  const tieneProrrogaFutura = Boolean(visita?.enProrroga || fechaProrrogaKey)
+    && Boolean(fechaProrrogaKey && hoyBogotaKey && fechaProrrogaKey > hoyBogotaKey);
 
   if (esReprogramado && !(Number.isFinite(recaudadoHoy) && recaudadoHoy > 0)) return false;
+  if (tieneProrrogaFutura && !(Number.isFinite(recaudadoHoy) && recaudadoHoy > 0)) return false;
   if (Number.isFinite(recaudadoHoy) && recaudadoHoy > 0) return false;
   if (estado === 'pagado') return false;
 

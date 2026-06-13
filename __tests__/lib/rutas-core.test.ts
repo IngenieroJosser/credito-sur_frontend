@@ -89,6 +89,23 @@ describe('shouldShowVisitaEnRutaHoy', () => {
     ).toBe(false)
   })
 
+  it('oculta una prorroga futura aunque la vista conserve la fecha original vencida', () => {
+    expect(
+      shouldShowVisitaEnRutaHoy(
+        {
+          estado: 'en_mora',
+          periodoRuta: 'DIA',
+          proximaVisita: '2026-06-10',
+          enProrroga: true,
+          fechaProrroga: '2026-06-13',
+          saldoTotal: 2296669,
+          montoCuota: 86666,
+        },
+        '2026-06-12',
+      ),
+    ).toBe(false)
+  })
+
   it('oculta una visita reprogramada de la ruta actual aunque siga vencida', () => {
     expect(
       shouldShowVisitaEnRutaHoy(
@@ -306,6 +323,22 @@ describe('computeRutaHoyUiStatsFromVisitas', () => {
     expect(stats.meta).toBe(5602000)
   })
 
+  it('usa montoCuotaPendiente para la meta aunque la tarjeta muestre cuota normal', () => {
+    const stats = computeRutaHoyUiStatsFromVisitas([
+      {
+        estado: 'en_mora',
+        montoCuota: 100_000,
+        montoCuotaNormal: 100_000,
+        montoCuotaPendiente: 300_000,
+        saldoTotal: 900_000,
+      },
+    ])
+
+    expect(stats.pendiente).toBe(300_000)
+    expect(stats.recaudo).toBe(0)
+    expect(stats.meta).toBe(300_000)
+  })
+
   it('reincorpora a meta y recaudo un cliente ausente cuando registra pago hoy', () => {
     const visitas = [
       { estado: 'pendiente', montoCuota: 564_998, saldoTotal: 564_998 },
@@ -338,6 +371,20 @@ describe('computeRutaHoyUiStatsFromVisitas', () => {
     const visitas = [
       { estado: 'pendiente', montoCuota: 1_957_333, saldoTotal: 1_957_333 },
       { estado: 'reprogramado', estadoVisita: 'reprogramado', montoCuota: 86_666, saldoTotal: 86_666, recaudadoDelDia: 0 },
+    ]
+
+    const visitasOperativas = visitas.filter((v) => !shouldExcludeVisitaFromOperationalMeta(v))
+    const stats = computeRutaHoyUiStatsFromVisitas(visitasOperativas)
+
+    expect(stats.recaudo).toBe(0)
+    expect(stats.pendiente).toBe(1_957_333)
+    expect(stats.meta).toBe(1_957_333)
+  })
+
+  it('excluye de meta a una prorroga futura aunque no venga como estado reprogramado', () => {
+    const visitas = [
+      { estado: 'pendiente', montoCuota: 1_957_333, saldoTotal: 1_957_333 },
+      { estado: 'en_mora', enProrroga: true, fechaProrroga: '2999-01-01', montoCuota: 86_666, saldoTotal: 86_666, recaudadoDelDia: 0 },
     ]
 
     const visitasOperativas = visitas.filter((v) => !shouldExcludeVisitaFromOperationalMeta(v))

@@ -216,7 +216,15 @@ const mapDailyVisitToVisitaRuta = (row: any, rutaCobradorId: string, idx: number
     cuotaObjetivo?.monto ??
     0,
   )
-  const montoNominal = Number(cuotaObjetivo?.montoCuota ?? cuotaObjetivo?.monto ?? saldoExigible)
+  const montoNominal = Number(
+    cuotaObjetivo?.montoCuotaNormal ??
+    cuotaObjetivo?.montoNominal ??
+    cuotaObjetivo?.montoCuota ??
+    cuotaObjetivo?.monto ??
+    prestamoObjetivo?.valorCuota ??
+    prestamoObjetivo?.montoCuota ??
+    saldoExigible,
+  )
   const saldoTotal = Number(prestamoObjetivo?.saldoPendiente ?? saldoExigible)
   const recaudo = Number(row?.recaudadoDelDia || 0)
   const estadoCuota = String(cuotaObjetivo?.estadoActual || cuotaObjetivo?.estado || '').toUpperCase()
@@ -229,7 +237,8 @@ const mapDailyVisitToVisitaRuta = (row: any, rutaCobradorId: string, idx: number
     direccion: cliente?.direccion || 'Sin dirección registrada',
     telefono: cliente?.telefono || '',
     horaSugerida: '08:00 AM',
-    montoCuota: Math.max(montoNominal, saldoExigible),
+    montoCuota: montoNominal,
+    montoCuotaNormal: montoNominal,
     montoCuotaPendiente: saldoExigible,
     saldoTotal: Math.max(0, saldoTotal),
     estado: (pagado ? 'pagado' : enMora ? 'en_mora' : 'pendiente') as EstadoVisita,
@@ -304,6 +313,20 @@ const mapObligacionToVisitaRuta = (o: any, rutaCobradorId: string, idx: number, 
     prestamo?.cuotaObjetivo?.saldoExigibleEnFechaOperativa ??
     0,
   )
+  const cuotaNormal = Number(
+    o.montoCuotaNormal ??
+    o.cuotaObjetivo?.montoCuota ??
+    o.cuotaObjetivo?.montoNominal ??
+    cuotaObjetivo?.montoCuota ??
+    cuotaObjetivo?.montoNominal ??
+    cuotaObjetivo?.monto ??
+    prestamo?.proximaCuota?.montoCuota ??
+    prestamo?.proximaCuota?.montoNominal ??
+    prestamo?.proximaCuota?.monto ??
+    prestamo?.valorCuota ??
+    prestamo?.montoCuota ??
+    0,
+  )
 
   return {
     ...o,
@@ -312,13 +335,8 @@ const mapObligacionToVisitaRuta = (o: any, rutaCobradorId: string, idx: number, 
     direccion: o.direccion || clienteObj?.direccion || 'Sin dirección registrada',
     telefono: o.telefono || clienteObj?.telefono || '',
     horaSugerida: o.horaSugerida || '08:00 AM',
-    montoCuota: Number(
-      montoMetaPendiente ||
-      cuotaObjetivo?.montoCuota ||
-      cuotaObjetivo?.monto ||
-      prestamo?.proximaCuota?.monto ||
-      0,
-    ),
+    montoCuota: cuotaNormal,
+    montoCuotaNormal: cuotaNormal,
     montoCuotaPendiente: montoMetaPendiente,
     saldoTotal: Number(
       o.saldoTotal ??
@@ -1278,9 +1296,18 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                 const pendKey = getCuotaVtoKey(pendiente);
                 const montoReal = Number(pendiente.monto || (Number(pendiente.montoCapital || 0) + Number(pendiente.montoInteres || 0)) || v.montoCuota || 0);
                 const pendienteReal = Math.max(0, montoReal - Number(pendiente.montoPagado || 0));
+                const cuotaNormal = Number(
+                  (v as any)?.montoCuotaNormal ??
+                  pendiente.montoNominal ??
+                  pendiente.montoCuota ??
+                  pendiente.monto ??
+                  v.montoCuota ??
+                  0,
+                )
                 return {
                   ...v,
-                  montoCuota: totalNominal > 0 ? totalNominal : (montoReal > 0 ? montoReal : v.montoCuota),
+                  montoCuota: cuotaNormal,
+                  montoCuotaNormal: cuotaNormal,
                   montoCuotaPendiente: totalExigible > 0 ? totalExigible : pendienteReal,
                   proximaVisita: (pendiente.estado === 'PRORROGADA' && pendiente.fechaVencimientoProrroga)
                     ? pendiente.fechaVencimientoProrroga
