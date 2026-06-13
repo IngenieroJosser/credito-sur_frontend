@@ -121,6 +121,57 @@ const getDefaultFirstCollectionDate = (frecuencia: string, base: Date = new Date
   }
 }
 
+const calcularPrestamoPreview = (params: {
+  monto: number
+  cuotas: number
+  tasa: number
+  meses: number
+  tipoInteres: TipoAmortizacion
+}) => {
+  const monto = Number(params.monto || 0)
+  const cuotas = Number(params.cuotas || 0)
+  const tasa = Number(params.tasa || 0)
+
+  if (!(monto > 0) || !(cuotas > 0)) {
+    return null
+  }
+
+  if (params.tipoInteres === TipoAmortizacion.FRANCESA) {
+    const tasaPeriodo = tasa / 100
+    const cuotaFija = tasaPeriodo > 0
+      ? monto * tasaPeriodo / (1 - Math.pow(1 + tasaPeriodo, -cuotas))
+      : monto / cuotas
+    const valorCuota = Math.round(cuotaFija)
+    const total = valorCuota * cuotas
+    const intereses = Math.max(0, total - monto)
+
+    return {
+      meses: params.meses,
+      monto,
+      intereses,
+      total,
+      valorCuota,
+      numCuotas: cuotas,
+      sistema: 'Amortización francesa',
+    }
+  }
+
+  const mesesInteres = Math.max(1, params.meses)
+  const intereses = (monto * tasa * mesesInteres) / 100
+  const total = monto + intereses
+  const valorCuota = cuotas > 0 ? total / cuotas : 0
+
+  return {
+    meses: params.meses,
+    monto,
+    intereses,
+    total,
+    valorCuota,
+    numCuotas: cuotas,
+    sistema: 'Interés simple',
+  }
+}
+
 export default function CrearCreditoModal({
   isOpen,
   onClose,
@@ -242,14 +293,14 @@ export default function CrearCreditoModal({
     else if (frecuenciaPago === 'MENSUAL') meses = cuotas
 
     const tasa = Number(tasaInteresInput) || 0
-    // Cobrar al menos 1 mes de interés si el plazo es menor a 1 mes (típico en microcréditos)
-    const mesesInteres = Math.max(1, meses)
-    const intereses = (monto * tasa * mesesInteres) / 100
-    const total = monto + intereses
-    const valorCuota = cuotas > 0 ? total / cuotas : 0
-
-    return { meses, monto, intereses, total, valorCuota, numCuotas: cuotas }
-  }, [creditType, montoPrestamoInput, cuotasPrestamoInput, frecuenciaPago, tasaInteresInput])
+    return calcularPrestamoPreview({
+      monto,
+      cuotas,
+      tasa,
+      meses,
+      tipoInteres,
+    })
+  }, [creditType, montoPrestamoInput, cuotasPrestamoInput, frecuenciaPago, tasaInteresInput, tipoInteres])
 
   if (!isOpen) return null
 
@@ -461,11 +512,29 @@ export default function CrearCreditoModal({
                       <div className="grid grid-cols-2 gap-4">
                         <div className="bg-white/50 p-3 rounded-xl border border-blue-100">
                           <div className="text-[10px] text-blue-800 font-bold uppercase mb-1 flex items-center gap-1.5">
+                            <Calculator className="w-3 h-3" />
+                            Sistema
+                          </div>
+                          <div className="font-black text-blue-900 text-sm leading-tight">
+                            {calculoPrestamo.sistema}
+                          </div>
+                        </div>
+                        <div className="bg-white/50 p-3 rounded-xl border border-blue-100">
+                          <div className="text-[10px] text-blue-800 font-bold uppercase mb-1 flex items-center gap-1.5">
                             <Calendar className="w-3 h-3" />
                             Plazo Real
                           </div>
                           <div className="font-black text-blue-900 text-lg">
                             {calculoPrestamo.numCuotas} <span className="text-[10px] font-bold text-blue-600 uppercase tracking-tighter">Pagos {frecuenciaPago.toLowerCase()}s</span>
+                          </div>
+                        </div>
+                        <div className="bg-white/50 p-3 rounded-xl border border-blue-100">
+                          <div className="text-[10px] text-blue-800 font-bold uppercase mb-1 flex items-center gap-1.5">
+                            <DollarSign className="w-3 h-3" />
+                            Interés Total
+                          </div>
+                          <div className="font-black text-blue-900 text-lg">
+                            {formatCurrency(calculoPrestamo.intereses)}
                           </div>
                         </div>
                         <div className="bg-white/50 p-3 rounded-xl border border-blue-100">
@@ -741,6 +810,14 @@ export default function CrearCreditoModal({
                       {creditType === 'articulo' && esContado ? 'Venta directa' : 'Pendiente de Aprobación'}
                     </span>
                   </div>
+                  {creditType === 'prestamo' && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-600 font-medium">Sistema:</span>
+                      <span className="font-bold text-slate-900">
+                        {tipoInteres === TipoAmortizacion.FRANCESA ? 'Amortización francesa' : 'Interés simple'}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 

@@ -3603,29 +3603,6 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
                                       </button>
 
-                                      <button
-
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          if (!rutaOperable) return;
-                                          clearRegularizacionContext()
-                                          setVisitaAusente(visita);
-                                        }}
-
-                                        disabled={!rutaOperable || visita.estadoVisita === 'ausente' || visita.estado === 'ausente'}
-
-                                        title={!rutaOperable ? (rutaCompletada ? 'Jornada completada' : 'Jornada sin activar') : (visita.estadoVisita === 'ausente' || visita.estado === 'ausente' ? 'Cliente ya marcado como ausente' : 'Marcar como ausente')}
-
-                                        className={`hidden items-center gap-1 px-3 py-1.5 rounded-lg border transition-all font-bold text-[11px] shadow-sm ${!rutaOperable || visita.estadoVisita === 'ausente' || visita.estado === 'ausente' ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-rose-700 border-rose-200 hover:bg-rose-50 active:scale-95'}`}
-
-                                      >
-
-                                        <XCircle className="h-3.5 w-3.5" />
-
-                                        Ausente
-
-                                      </button>
-
                                     </>
 
                                   }
@@ -3813,29 +3790,6 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                                           <FileTextIcon className="h-3.5 w-3.5 text-slate-400" />
 
                                           Estado
-
-                                        </button>
-
-                                        <button
-
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            if (!rutaOperable) return;
-                                            clearRegularizacionContext()
-                                            setVisitaAusente(visita);
-                                          }}
-
-                                          disabled={!rutaOperable || visita.estadoVisita === 'ausente' || visita.estado === 'ausente'}
-
-                                          title={!rutaOperable ? (rutaCompletada ? 'Jornada completada' : 'Jornada sin activar') : (visita.estadoVisita === 'ausente' || visita.estado === 'ausente' ? 'Cliente ya marcado como ausente' : 'Marcar como ausente')}
-
-                                          className={`hidden items-center gap-1 px-3 py-1.5 rounded-lg border transition-all font-bold text-[11px] shadow-sm ${!rutaOperable || visita.estadoVisita === 'ausente' || visita.estado === 'ausente' ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-rose-700 border-rose-200 hover:bg-rose-50 active:scale-95'}`}
-
-                                        >
-
-                                          <XCircle className="h-3.5 w-3.5" />
-
-                                          Ausente
 
                                         </button>
 
