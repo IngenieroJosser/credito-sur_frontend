@@ -465,7 +465,7 @@ const VistaCobrador = () => {
     const pagado = shouldMarkVisitaAsPagado({
       saldoTotal: v.saldoTotal,
       recaudadoHoy: v.recaudadoDelDia,
-      montoCuotaExigible: v.montoCuota,
+      montoCuotaExigible: (v as any).montoCuotaPendiente ?? v.montoCuota,
       estadoActual: v.estado,
     });
 
@@ -1909,11 +1909,27 @@ const VistaCobrador = () => {
                 return dV && dV <= hoyStr;
               });
               const metaEstableRealtime = cuotasVencidasHoy.reduce((s, c) => s + Number(c.monto || 0), 0);
+              const cuotaNormal = Number(
+                (v as any).montoCuotaNormal ??
+                  (prox as any)?.montoNominal ??
+                  (prox as any)?.montoCuota ??
+                  (prox as any)?.monto ??
+                  v.montoCuota ??
+                  0,
+              )
+              const metaOperativa = Number(
+                metaEstableRealtime ||
+                  (v as any).montoCuotaPendiente ||
+                  cuotaNormal ||
+                  0,
+              )
 
               const baseV: any = {
                 ...v,
                 estado: nuevoEstado,
-                montoCuota: metaEstableRealtime,
+                montoCuota: cuotaNormal,
+                montoCuotaNormal: cuotaNormal,
+                montoCuotaPendiente: metaOperativa,
                 proximaVisita: prox?.fechaVencimiento || v.proximaVisita,
                 cuotaActual: prox?.numeroCuota || v.cuotaActual,
                 saldoTotal: nuevoEstado === 'pagado' ? 0 : Number(p.saldoPendiente || 0),
