@@ -39,6 +39,7 @@ export interface VisitaRuta {
   pendienteAprobacion?: boolean
   fechaUltimoPago?: number      // Timestamp del último pago realizado para ordenamiento rápido
   montoCuotaPendiente?: number  // Monto pendiente real (puede diferir de montoCuota si hay mora parcial)
+  montoCuotaNormal?: number     // Cuota normal del periodo, sin acumular saldos vencidos
 }
 
 export interface HistorialDia {

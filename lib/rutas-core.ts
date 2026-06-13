@@ -586,6 +586,7 @@ export const shouldShowVisitaEnRutaHoy = (visita: any, hoyBogotaKey: string): bo
   const recaudadoHoy = Number((visita as any)?.recaudadoDelDia ?? (visita as any)?.recaudadoPeriodo ?? 0);
 
   if (esReprogramado && !(Number.isFinite(recaudadoHoy) && recaudadoHoy > 0)) return false;
+  if (Number.isFinite(recaudadoHoy) && recaudadoHoy > 0) return false;
   if (estado === 'pagado') return false;
 
   if (shouldMarkVisitaAsPagado({
@@ -607,6 +608,7 @@ export const computeMetaHoyFromVisitas = (visitas: any[], hoyBogotaKey: string):
   return visitas.reduce((sum: number, v: any) => {
     if (!isVisitaExigibleHoy(v, hoyBogotaKey)) return sum;
     if (String(v?.estado || '').toLowerCase() === 'pagado') return sum;
+    if (Number((v as any)?.recaudadoDelDia || 0) > 0) return sum;
     const saldo = Number((v as any)?.saldoTotal ?? 0);
     if (saldo <= 0) return sum;
 
@@ -627,6 +629,7 @@ export const computeRutaHoyUiStatsFromVisitas = (
     if (!v) return sum;
     const estadoLower = String(v?.estado || '').toLowerCase().replace(/\s+/g, '_');
     if (estadoLower === 'pagado') return sum;
+    if (Number((v as any)?.recaudadoDelDia || 0) > 0) return sum;
 
     const tieneCuotaPendiente = (v as any)?.montoCuotaPendiente != null;
     const cuotaBase = Number(((v as any)?.montoCuotaPendiente ?? v?.montoCuota) || 0);

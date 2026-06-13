@@ -189,13 +189,15 @@ function VisitaCardContent({
 }) {
   const estadoLower = String((visita as any)?.estado || '').toLowerCase().replace(/\s+/g, '_')
   const tieneCuotaPendiente = (visita as any)?.montoCuotaPendiente != null
-  const cuotaBase = Number(((visita as any)?.montoCuotaPendiente ?? (visita as any)?.montoCuota) || 0)
+  const cuotaNormal = Number(((visita as any)?.montoCuotaNormal ?? (visita as any)?.montoCuota) || 0)
+  const cuotaBase = Number(((visita as any)?.montoCuotaPendiente ?? cuotaNormal) || 0)
   const recHoy = Number((visita as any)?.recaudadoDelDia || 0)
   const saldo = Number((visita as any)?.saldoTotal || 0)
   const cuotaPendiente = tieneCuotaPendiente ? cuotaBase : Math.max(0, cuotaBase - recHoy)
-  const cuotaUI = estadoLower === 'pagado'
+  const cuotaOperativa = estadoLower === 'pagado'
     ? (cuotaBase > 0 ? cuotaBase : recHoy)
     : Math.min(cuotaPendiente, saldo > 0 ? saldo : cuotaPendiente)
+  const cuotaUI = cuotaNormal > 0 ? Math.min(cuotaNormal, saldo > 0 ? saldo : cuotaNormal) : cuotaOperativa
   const saldado = estadoLower === 'pagado' && cuotaUI === 0 && saldo === 0
   const estadoVisitaNorm = normalizeEstadoVisita((visita as any)?.estadoVisita)
   const esReprogramadoHistorial =

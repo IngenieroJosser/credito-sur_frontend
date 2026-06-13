@@ -2,7 +2,6 @@ import type { PeriodoRuta } from '@/lib/types/cobranza'
 import {
   computeDiasMoraFromCuotas,
   computeMontoExigibleHastaHoyFromCuotas,
-  computeMontoNominalHastaHoyFromCuotas,
   getBogotaDateKey,
   isVisitaExigibleHoy,
   normalizeDateKey,
@@ -36,6 +35,7 @@ export type VisitaRutaLite = {
   horaSugerida: string
   montoCuota: number
   montoCuotaPendiente?: number
+  montoCuotaNormal?: number
   saldoTotal: number
   estado: EstadoVisita
   estadoVisita?: string       // estado de visita del día (ej: 'ausente')
@@ -182,19 +182,17 @@ export const mapAsignacionesToVisitasLite = (params: {
       const montoCuotaBase = esArticulo
         ? Math.max(montoNominalProxima, montoNominalPrestamo)
         : (montoNominalPrestamo > 0 ? montoNominalPrestamo : montoNominalProxima)
-      const montoNominalHastaHoy = computeMontoNominalHastaHoyFromCuotas(cuotasOrdenadas as any, hoyKey)
       const montoPendienteHastaHoy = computeMontoExigibleHastaHoyFromCuotas(cuotasOrdenadas as any, hoyKey)
-      const montoCuota = montoNominalHastaHoy > 0
-        ? Math.max(montoNominalHastaHoy, montoCuotaBase)
-        : montoCuotaBase
+      const montoCuotaNormal = montoCuotaBase
+      const montoCuota = montoCuotaNormal
 
       const montoCuotaPendiente = montoPendienteHastaHoy > 0
         ? montoPendienteHastaHoy
         : montoPendienteProxima
 
-      // Regla de montoCuota:
-      // - Si hay cuotas vencidas/no pagadas hasta hoy, se acumulan (mora) y se cobra ese total.
-      // - Si no hay mora, se usa el monto nominal de la próxima cuota.
+      // Regla de montos:
+      // - montoCuota muestra la cuota normal del periodo en la tarjeta.
+      // - montoCuotaPendiente conserva el exigible operativo acumulado para pagos/KPIs.
 
       const saldoTotalToken = Number(prestamo?.saldoPendiente || 0)
 
@@ -231,6 +229,7 @@ export const mapAsignacionesToVisitasLite = (params: {
         horaSugerida: asig.horaSugerida || '08:00 AM',
         montoCuota,
         montoCuotaPendiente,
+        montoCuotaNormal,
         saldoTotal: saldoTotalToken,
         estado,
         estadoVisita: estadoVisitaRaw || undefined,

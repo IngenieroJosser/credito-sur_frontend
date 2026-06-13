@@ -56,7 +56,7 @@ describe('shouldShowVisitaEnRutaHoy', () => {
     ).toBe(true)
   })
 
-  it('mantiene visible una cuota parcialmente pagada si aun falta saldo de la cuota', () => {
+  it('oculta una cuota parcialmente abonada porque ya fue gestionada en la ruta', () => {
     expect(
       shouldShowVisitaEnRutaHoy(
         {
@@ -70,7 +70,7 @@ describe('shouldShowVisitaEnRutaHoy', () => {
         },
         '2026-05-09',
       ),
-    ).toBe(true)
+    ).toBe(false)
   })
 
   it('oculta una cuota reprogramada a futuro aunque el prestamo siga en mora', () => {
@@ -348,7 +348,7 @@ describe('computeRutaHoyUiStatsFromVisitas', () => {
     expect(stats.meta).toBe(1_957_333)
   })
 
-  it('reincorpora a meta y recaudo un cliente reprogramado si registra pago operativo', () => {
+  it('mantiene el recaudo de un cliente reprogramado sin dejarlo pendiente otra vez', () => {
     const visitas = [
       { estado: 'pendiente', montoCuota: 1_957_333, saldoTotal: 1_957_333 },
       { estado: 'reprogramado', estadoVisita: 'reprogramado', montoCuota: 86_666, saldoTotal: 86_666, recaudadoDelDia: 86_666 },
@@ -362,14 +362,14 @@ describe('computeRutaHoyUiStatsFromVisitas', () => {
     expect(stats.meta).toBe(2_043_999)
   })
 
-  it('no resta dos veces pagos cuando la cuota pendiente ya viene recalculada', () => {
+  it('no deja pendiente visible a una cuota que ya tuvo abono en la ruta', () => {
     const stats = computeRutaHoyUiStatsFromVisitas([
       { estado: 'pendiente', montoCuotaPendiente: 80000, montoCuota: 180000, saldoTotal: 1180000, recaudadoDelDia: 100000 },
     ])
 
-    expect(stats.pendiente).toBe(80000)
+    expect(stats.pendiente).toBe(0)
     expect(stats.recaudo).toBe(100000)
-    expect(stats.meta).toBe(180000)
+    expect(stats.meta).toBe(100000)
   })
 
   /**
@@ -426,14 +426,11 @@ describe('computeRutaHoyUiStatsFromVisitas', () => {
     expect(stats.meta).toBe(5603666)
   })
 
-  it('produce meta inflada cuando montoCuotaPendiente incluye el pago del dia sin descontar', () => {
+  it('evita inflar la meta cuando una visita ya tuvo recaudo del dia', () => {
     const recaudadoDelDia = 822_000
     // montoCuotaPendiente NO descuenta aún el pago porque cuota.montoPagado no se actualizó
     const montoCuotaPendienteInflado = 5_603_666
     const saldoTotal = 5_240_000
-    // La función limita cuotaUI = min(cuotaPendiente, saldoTotal)
-    const pendienteEsperado = Math.min(montoCuotaPendienteInflado, saldoTotal) // 5.240.000
-    const metaEsperada = pendienteEsperado + recaudadoDelDia // 6.062.000
 
     const stats = computeRutaHoyUiStatsFromVisitas([
       {
@@ -445,10 +442,10 @@ describe('computeRutaHoyUiStatsFromVisitas', () => {
       },
     ])
 
-    // La función produce 6.062.000 que DIFIERE del metaDelDia correcto del backend (5.603.666).
-    // Por eso el listado de rutas usa r.metaDelDia del backend, no este resultado.
-    expect(stats.meta).toBe(metaEsperada)
-    expect(stats.meta).not.toBe(5_603_666) // no igual al valor correcto del backend
+    expect(stats.pendiente).toBe(0)
+    expect(stats.recaudo).toBe(recaudadoDelDia)
+    expect(stats.meta).toBe(recaudadoDelDia)
+    expect(stats.meta).not.toBe(6_062_000)
   })
 })
 
