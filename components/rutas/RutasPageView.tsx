@@ -202,9 +202,16 @@ const mapObligacionToRutaListVisita = (
       0,
   )
 
+  const saldoRaw = prestamo?.saldoPendiente ?? o?.saldoPendiente
+
+  const tieneSaldoInformado =
+    saldoRaw !== undefined &&
+    saldoRaw !== null &&
+    String(saldoRaw).trim() !== ''
+
   const estaPagado =
     estadoCuota.includes('PAGAD') ||
-    Number(prestamo?.saldoPendiente ?? o?.saldoPendiente ?? 0) <= 0
+    (tieneSaldoInformado && Number(saldoRaw) <= 0)
 
   const estaEnMora =
     Boolean(cuotaObjetivo?.enMoraEnFechaOperativa) ||
@@ -375,7 +382,8 @@ export const RutasPageView = ({
         : (Array.isArray((payload as any)?.data) ? (payload as any).data : [])
 
       if (Array.isArray(data) && data.length > 0) {
-        // La fuente de verdad del avance operativo es routesService.getAll.
+        // La lista base viene de routesService.getAll, pero las métricas operativas de HOY
+  // se recalculan con obtenerVisitasDelDia y dailySummaries.
         // No se mezcla con saldo de caja porque ahí entran regularizaciones,
         // bases y movimientos contables que no son productividad de HOY.
         setRutasList(data as Ruta[]);
