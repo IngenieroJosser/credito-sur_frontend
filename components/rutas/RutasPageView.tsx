@@ -32,9 +32,13 @@ import { formatCurrency, cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 import { routesService } from '@/services/routes-service';
 import {
+  computeRutaHoyUiStatsFromVisitas,
   esDomingoBogota,
-  resolveRutaDailySummary,
   getBogotaDateKey,
+  resolveFechaEfectivaCuota,
+  resolveRutaDailySummary,
+  shouldExcludeVisitaFromOperationalMeta,
+  shouldShowVisitaEnRutaHoy,
 } from '@/lib/rutas-core'
 import { rutasService } from '@/services/rutas-service';
 import { clientesService } from '@/services/clientes-service';
@@ -134,6 +138,102 @@ const getEstadoSistemaLabel = (estado: Ruta['estado']) => {
   return estado
 }
 
+const mapObligacionToRutaListVisita = (
+  o: any,
+  hoyKey: string,
+): any => {
+  const prestamo = o?.prestamo || {}
+  const cuotaObjetivo =
+    o?.cuotaObjetivo ||
+    prestamo?.cuotaObjetivo ||
+    prestamo?.proximaCuota ||
+    {}
+
+  const fechaCuota =
+    resolveFechaEfectivaCuota(cuotaObjetivo) ||
+    cuotaObjetivo?.fechaVencimientoProrroga ||
+    cuotaObjetivo?.fechaVencimiento ||
+    prestamo?.proximaCuota?.fechaVencimientoProrroga ||
+    prestamo?.proximaCuota?.fechaVencimiento ||
+    o?.proximaVisita ||
+    o?.fechaVisita ||
+    hoyKey
+
+  const estadoGestion = String(
+    o?.estadoGestion ||
+      o?.estadoVisita ||
+      prestamo?.estadoGestion ||
+      prestamo?.estadoVisita ||
+      '',
+  ).toUpperCase()
+
+  const estadoCuota = String(
+    cuotaObjetivo?.estadoActual ||
+      cuotaObjetivo?.estado ||
+      prestamo?.proximaCuota?.estadoActual ||
+      prestamo?.proximaCuota?.estado ||
+      '',
+  ).toUpperCase()
+
+  const metaPendiente = Number(
+    o?.montoMetaOperativaPendiente ??
+      prestamo?.montoMetaOperativaPendiente ??
+      cuotaObjetivo?.saldoExigibleEnFechaOperativa ??
+      prestamo?.cuotaObjetivo?.saldoExigibleEnFechaOperativa ??
+      cuotaObjetivo?.montoCuota ??
+      cuotaObjetivo?.monto ??
+      0,
+  )
+
+  const cuotaNormal = Number(
+    o?.montoCuotaNormal ??
+      cuotaObjetivo?.montoCuota ??
+      cuotaObjetivo?.montoNominal ??
+      cuotaObjetivo?.monto ??
+      prestamo?.valorCuota ??
+      prestamo?.montoCuota ??
+      metaPendiente,
+  )
+
+  const recaudo = Number(
+    o?.recaudadoDelDia ??
+      o?.recaudoDelDia ??
+      o?.montoPagadoHoy ??
+      0,
+  )
+
+  const estaPagado =
+    estadoCuota.includes('PAGAD') ||
+    Number(prestamo?.saldoPendiente ?? o?.saldoPendiente ?? 0) <= 0
+
+  const estaEnMora =
+    Boolean(cuotaObjetivo?.enMoraEnFechaOperativa) ||
+    estadoCuota.includes('VENC') ||
+    estadoCuota.includes('MORA')
+
+  return {
+    id: o?.id || o?.prestamoId || prestamo?.id || `${o?.clienteId || 'cliente'}-${fechaCuota}`,
+    clienteId: o?.clienteId || o?.cliente?.id || prestamo?.clienteId || '',
+    prestamoId: o?.prestamoId || prestamo?.id || '',
+    estado: estadoGestion.includes('REPROGRAM')
+      ? 'reprogramado'
+      : estaPagado
+        ? 'pagado'
+        : estaEnMora
+          ? 'en_mora'
+          : 'pendiente',
+    estadoGestion,
+    estadoVisita: o?.estadoVisita || prestamo?.estadoVisita,
+    proximaVisita: fechaCuota,
+    montoCuota: cuotaNormal,
+    montoCuotaNormal: cuotaNormal,
+    montoCuotaPendiente: metaPendiente,
+    recaudadoDelDia: recaudo,
+    cuotaObjetivo,
+    proximaCuota: prestamo?.proximaCuota || cuotaObjetivo,
+  }
+}
+
 export const RutasPageView = ({ 
   readOnly = false, 
   rutasBasePath = '/admin/rutas', 
@@ -203,25 +303,54 @@ export const RutasPageView = ({
   const [dailySummaries, setDailySummaries] = useState<Record<string, any>>({});
 
   const fetchDailySummaries = useCallback(async (rutas: Ruta[]) => {
-    if (!rutas || rutas.length === 0) return;
+    if (!rutas || rutas.length === 0) return
 
-    const hoyKey = getBogotaDateKey(new Date());
-    const newSummaries: Record<string, any> = {};
+    const hoyKey = getBogotaDateKey(new Date())
+    const newSummaries: Record<string, any> = {}
 
     await Promise.all(
       rutas.map(async (ruta) => {
         try {
-          const dailyVisits = await rutasService.obtenerVisitasDelDia(ruta.id, hoyKey);
-          const summary = resolveRutaDailySummary(ruta, dailyVisits);
-          newSummaries[ruta.id] = summary;
-        } catch (e) {
-          console.warn(`Error fetching daily summary for route ${ruta.id}:`, e);
-        }
-      })
-    );
+          const dailyVisits = await rutasService.obtenerVisitasDelDia(ruta.id, hoyKey)
+          const summary = resolveRutaDailySummary(ruta, dailyVisits)
 
-    setDailySummaries(newSummaries);
-  }, []);
+          const visitas = (summary.obligaciones || []).map((o: any) =>
+            mapObligacionToRutaListVisita(o, hoyKey),
+          )
+
+          const visitasOperativasHoy = visitas
+            .filter((v: any) => shouldShowVisitaEnRutaHoy(v, hoyKey))
+            .filter((v: any) => !shouldExcludeVisitaFromOperationalMeta(v))
+
+          const statsHoy = computeRutaHoyUiStatsFromVisitas(
+            visitasOperativasHoy,
+            0,
+          )
+
+          const recaudo = Math.max(
+            Number(statsHoy.recaudo || 0),
+            Number(summary.recaudo || 0),
+            Number(ruta.cobranzaDelDia || 0),
+          )
+
+          const meta = Number(statsHoy.meta || 0)
+
+          newSummaries[ruta.id] = {
+            ...summary,
+            meta,
+            recaudo,
+            pendiente: Math.max(0, meta - recaudo),
+            clientesOperativosHoy: visitasOperativasHoy.length,
+            visitasOperativasHoy,
+          }
+        } catch (e) {
+          console.warn(`Error fetching daily summary for route ${ruta.id}:`, e)
+        }
+      }),
+    )
+
+    setDailySummaries(newSummaries)
+  }, [])
 
   // Formatea numero con puntos de miles: 200000 -> '200.000'
   const formatInputMonto = (raw: string): string => {
@@ -609,7 +738,15 @@ export const RutasPageView = ({
   const rutasActivas = displayRutas.filter((ruta) => ruta.estado === 'ACTIVA').length
   const rutasOperativasHoy = esDiaNoLaboral
     ? 0
-    : displayRutas.filter((ruta) => ruta.estado === 'ACTIVA' && ruta.clientesAsignados > 0).length
+    : displayRutas.filter((ruta) => {
+        const clientesOperativos = Number(
+          dailySummaries[ruta.id]?.clientesOperativosHoy ??
+            ruta.clientesAsignados ??
+            0,
+        )
+
+        return ruta.estado === 'ACTIVA' && clientesOperativos > 0
+      }).length
   const rutasPendientes = displayRutas.filter((ruta) => ruta.estado === 'PENDIENTE_ACTIVACION').length
   const totalClientes = displayRutas.reduce((acc, curr) => acc + curr.clientesAsignados, 0)
 
@@ -648,6 +785,18 @@ export const RutasPageView = ({
     (ruta: Ruta) => {
       const summary = dailySummaries[ruta.id];
       return summary ? Number(summary.meta ?? 0) : Number(ruta?.metaDelDia ?? 0);
+    },
+    [dailySummaries],
+  )
+
+  const getClientesOperativosRuta = useCallback(
+    (ruta: Ruta) => {
+      const summary = dailySummaries[ruta.id]
+      return Number(
+        summary?.clientesOperativosHoy ??
+          ruta?.clientesAsignados ??
+          0,
+      )
     },
     [dailySummaries],
   )
@@ -966,8 +1115,8 @@ export const RutasPageView = ({
                           <Users className="h-4 w-4" />
                         </div>
                         <div>
-                          <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Cartera</p>
-                          <p className="font-bold text-slate-900">{ruta.clientesAsignados} clientes</p>
+                          <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Clientes operativos hoy</p>
+                          <p className="font-bold text-slate-900">{getClientesOperativosRuta(ruta)} operativos hoy</p>
                         </div>
                       </div>
 
@@ -1107,7 +1256,7 @@ export const RutasPageView = ({
                       <th className="px-6 py-4 font-bold tracking-wider">Ruta / Código</th>
                       <th className="px-6 py-4 font-bold tracking-wider">Estado</th>
                       <th className="px-6 py-4 font-bold tracking-wider">Cobrador</th>
-                      <th className="px-6 py-4 font-bold tracking-wider">Clientes</th>
+                      <th className="px-6 py-4 font-bold tracking-wider">Clientes operativos hoy</th>
                       <th className="px-6 py-4 font-bold tracking-wider">Avance Diario</th>
                       <th className="px-6 py-4 font-bold tracking-wider text-right">Acciones</th>
                     </tr>
@@ -1172,7 +1321,7 @@ export const RutasPageView = ({
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-1.5 text-slate-600 font-medium">
                             <Users className="w-4 h-4 text-slate-400" />
-                            <span>{ruta.clientesAsignados}</span>
+                            <span>{getClientesOperativosRuta(ruta)}</span>
                           </div>
                         </td>
                         <td className="px-6 py-4">
@@ -1314,12 +1463,12 @@ export const RutasPageView = ({
 
                   {/* Clientes */}
                   <div className="mb-3">
-                    <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Clientes Asignados</div>
-                    <div className="flex items-center gap-1.5 text-slate-700 font-bold">
-                      <Users className="w-4 h-4 text-slate-400" />
-                      <span>{ruta.clientesAsignados}</span>
+                      <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Clientes operativos hoy</div>
+                      <div className="flex items-center gap-1.5 text-slate-700 font-bold">
+                        <Users className="w-4 h-4 text-slate-400" />
+                        <span>{getClientesOperativosRuta(ruta)}</span>
+                      </div>
                     </div>
-                  </div>
 
                   {/* Avance Diario */}
                   {ruta.estado === 'ACTIVA' && (
