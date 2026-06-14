@@ -85,8 +85,132 @@ export const hasGestionHistorial = (visita: any) => {
   )
 }
 
+export const isReprogramadoHistorial = (v: any): boolean => {
+  const estado = String(
+    v?.estado ||
+    v?.estadoVisita ||
+    v?.estadoGestion ||
+    v?.tipoGestion ||
+    ''
+  ).toUpperCase()
+
+  return (
+    estado.includes('REPROGRAM') ||
+    Boolean(v?.fechaReprogramada) ||
+    Boolean(v?.nuevaFechaPago) ||
+    Boolean(v?.aprobacionReprogramacionId)
+  )
+}
+
+export const isGestionHistorial = (v: any): boolean => {
+  const estado = String(
+    v?.estado ||
+    v?.estadoVisita ||
+    v?.estadoGestion ||
+    ''
+  ).toUpperCase()
+
+  return (
+    Number(v?.recaudadoDelDia || 0) > 0 ||
+    Number(v?.montoPagado || 0) > 0 ||
+    estado.includes('PAGADO') ||
+    estado.includes('ABONO') ||
+    estado.includes('AUSENTE') ||
+    estado.includes('REPROGRAM') ||
+    isReprogramadoHistorial(v)
+  )
+}
+
+export const normalizeVisitaHistorial = (v: any): any => {
+  if (isReprogramadoHistorial(v)) {
+    return {
+      ...v,
+      estado: 'reprogramado',
+      estadoVisita: 'reprogramado',
+      estadoGestion: 'REPROGRAMADO',
+    }
+  }
+
+  return v
+}
+
+export const buildResumenHistorialCompartido = (visitas: any[], resumenBase?: any) => {
+  const normalizadas = (visitas || []).map(normalizeVisitaHistorial)
+
+  const total = normalizadas.length
+  const visitados = normalizadas.filter(isGestionHistorial).length
+  const recaudo = normalizadas.reduce(
+    (sum, v) => sum + Number(v?.recaudadoDelDia || v?.montoTotal || 0),
+    0,
+  )
+
+  const esperado = normalizadas.reduce(
+    (sum, v) => sum + Number(v?.montoCuotaPendiente ?? v?.montoCuota ?? 0),
+    0,
+  )
+
+  return {
+    ...(resumenBase || {}),
+    recaudo,
+    total,
+    visitados,
+    efectividad: esperado > 0 ? Number(((recaudo / esperado) * 100).toFixed(1)) : 0,
+  }
+}
+
+export function computeHistorialResumenCompartido(visitas: any[], resumenBase?: any) {
+  const normalizadas = (visitas || []).map(normalizeVisitaHistorial)
+
+  const total = normalizadas.length
+
+  const visitados = normalizadas.filter((v: any) => {
+    const estado = String(
+      v?.estadoGestion ||
+        v?.estadoVisita ||
+        v?.estado ||
+        ''
+    ).toLowerCase()
+
+    const aprobacionEstado = String(
+      v?.aprobacionEstado ||
+        v?.estadoAprobacion ||
+        v?.efectoProvisionalEstado ||
+        ''
+    ).toLowerCase()
+
+    if (estado.includes('reprogram')) {
+      return !aprobacionEstado.includes('rechaz')
+    }
+
+    return hasGestionHistorial(v)
+  }).length
+
+  const recaudo = normalizadas.reduce(
+    (sum, v) => sum + Number(v?.recaudadoDelDia || v?.montoTotal || 0),
+    0,
+  )
+
+  const esperado = normalizadas.reduce(
+    (sum, v) => sum + Number(v?.montoCuotaPendiente ?? v?.montoCuota ?? 0),
+    0,
+  )
+
+  return {
+    ...(resumenBase || {}),
+    total,
+    visitados,
+    recaudo,
+    efectividad:
+      esperado > 0
+        ? Number(((recaudo / esperado) * 100).toFixed(1))
+        : recaudo > 0
+          ? 100
+          : 0,
+  }
+}
+
 export const isVisitadoHistorial = (visita: any) => {
-  return hasGestionHistorial(visita) || String(visita?.estado || '').toLowerCase() === 'pagado'
+  return hasGestionHistorial(visita) || isGestionHistorial(visita) || String(visita?.estado || '').toLowerCase() === 'pagado'
 }
 
 const normalizeNivelRiesgo = (raw: any): any => {
@@ -546,12 +670,12 @@ export const buildHistorialDiaFromBackend = (params: {
     } as any
   })
 
-  const todasVisitas = [...visitas, ...sinteticos]
+  const todasVisitas = [...visitas, ...sinteticos].map(normalizeVisitaHistorial)
 
   // Ocultar saldados (pagado y saldo <= 0) que NO tuvieron gestión real en este día.
   const filteredVisitas = todasVisitas.filter((v: any) => {
     const isSaldado = String(v.estado || '').toLowerCase() === 'pagado' && Number(v.saldoTotal || 0) <= 0;
-    return !(isSaldado && !hasGestionHistorial(v));
+    return !(isSaldado && !isGestionHistorial(v));
   });
 
   // 5) Resumen:
@@ -597,10 +721,10 @@ export const buildHistorialDiaFromBackend = (params: {
     recaudoOperativoFallback,
   )
 
-  const visitadosCalculados = filteredVisitas.filter(isVisitadoHistorial).length
+  const visitadosCalculados = filteredVisitas.filter(isGestionHistorial).length
   const visitadosBackend = Number(backendResumen?.visitados)
   const visitados = Number.isFinite(visitadosBackend) && visitadosBackend >= 0
-    ? visitadosBackend
+    ? Math.max(visitadosBackend, visitadosCalculados)
     : visitadosCalculados
   const metaResumen = Number(backendResumen?.meta ?? esperado)
   const objetivoShown = Math.max(esperado, recaudoDia)
