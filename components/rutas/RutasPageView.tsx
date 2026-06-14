@@ -749,6 +749,13 @@ export const RutasPageView = ({
   const totalClientes = displayRutas.reduce((acc, curr) => acc + curr.clientesAsignados, 0)
 
   const { objetivoTotalShown, porcentajeAvance } = useMemo(() => {
+    if (esDiaNoLaboral) {
+      return {
+        objetivoTotalShown: 0,
+        porcentajeAvance: 0,
+      }
+    }
+
     const rutasOperativas = (Array.isArray(displayRutas) ? displayRutas : []).filter((r: any) => {
       if (!r || r.estado !== 'ACTIVA') return false
 
@@ -762,17 +769,17 @@ export const RutasPageView = ({
     })
 
     const objetivoTotal = rutasOperativas.reduce((acc, curr) => {
-      const summary = dailySummaries[curr.id];
-      const meta = summary ? Number(summary.meta ?? 0) : Number(curr?.metaDelDia ?? 0);
-      if (meta <= 0) return acc;
-      return acc + meta;
-    }, 0);
+      const summary = dailySummaries[curr.id]
+      const meta = summary ? Number(summary.meta ?? 0) : Number(curr?.metaDelDia ?? 0)
+      if (meta <= 0) return acc
+      return acc + meta
+    }, 0)
 
-    const recTotal = esDiaNoLaboral ? 0 : rutasOperativas.reduce((acc, curr) => {
-      const summary = dailySummaries[curr.id];
-      const recaudo = summary ? Number(summary.recaudo ?? 0) : Number(curr?.cobranzaDelDia ?? 0);
-      return acc + recaudo;
-    }, 0);
+    const recTotal = rutasOperativas.reduce((acc, curr) => {
+      const summary = dailySummaries[curr.id]
+      const recaudo = summary ? Number(summary.recaudo ?? 0) : Number(curr?.cobranzaDelDia ?? 0)
+      return acc + recaudo
+    }, 0)
 
     return {
       objetivoTotalShown: objetivoTotal,
@@ -791,10 +798,12 @@ export const RutasPageView = ({
 
   const getMetaOperativoRuta = useCallback(
     (ruta: Ruta) => {
-      const summary = dailySummaries[ruta.id];
-      return summary ? Number(summary.meta ?? 0) : Number(ruta?.metaDelDia ?? 0);
+      if (esDiaNoLaboral) return 0
+
+      const summary = dailySummaries[ruta.id]
+      return summary ? Number(summary.meta ?? 0) : Number(ruta?.metaDelDia ?? 0)
     },
-    [dailySummaries],
+    [dailySummaries, esDiaNoLaboral],
   )
 
   const getClientesOperativosRuta = useCallback(
