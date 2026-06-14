@@ -33,7 +33,10 @@ import { useAuth } from '@/hooks/useAuth'
 import { routesService } from '@/services/routes-service';
 import {
   esDomingoBogota,
+  resolveRutaDailySummary,
+  getBogotaDateKey,
 } from '@/lib/rutas-core'
+import { rutasService } from '@/services/rutas-service';
 import { clientesService } from '@/services/clientes-service';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { usePermission } from '@/hooks/usePermission';
@@ -197,6 +200,28 @@ export const RutasPageView = ({
   const [saldoDisponibleRecolectar, setSaldoDisponibleRecolectar] = useState<number | null>(null)
   const [cajaRutaIdRecolectar, setCajaRutaIdRecolectar] = useState<string | null>(null)
   const [errorRecolectar, setErrorRecolectar] = useState<string | null>(null)
+  const [dailySummaries, setDailySummaries] = useState<Record<string, any>>({});
+
+  const fetchDailySummaries = useCallback(async (rutas: Ruta[]) => {
+    if (!rutas || rutas.length === 0) return;
+
+    const hoyKey = getBogotaDateKey(new Date());
+    const newSummaries: Record<string, any> = {};
+
+    await Promise.all(
+      rutas.map(async (ruta) => {
+        try {
+          const dailyVisits = await rutasService.obtenerVisitasDelDia(ruta.id, hoyKey);
+          const summary = resolveRutaDailySummary(ruta, dailyVisits);
+          newSummaries[ruta.id] = summary;
+        } catch (e) {
+          console.warn(`Error fetching daily summary for route ${ruta.id}:`, e);
+        }
+      })
+    );
+
+    setDailySummaries(newSummaries);
+  }, []);
 
   // Formatea numero con puntos de miles: 200000 -> '200.000'
   const formatInputMonto = (raw: string): string => {
@@ -266,6 +291,12 @@ export const RutasPageView = ({
     fetchRutas,
   )
   usePageFocusRefresh(fetchRutas)
+
+  useEffect(() => {
+    if (rutasList.length > 0) {
+      fetchDailySummaries(rutasList);
+    }
+  }, [rutasList, fetchDailySummaries]);
 
 
   const [clienteSearch, setClienteSearch] = useState('')
@@ -585,45 +616,49 @@ export const RutasPageView = ({
   const { objetivoTotalShown, porcentajeAvance } = useMemo(() => {
     const rutasOperativas = (Array.isArray(displayRutas) ? displayRutas : []).filter((r: any) => r && r.estado === 'ACTIVA' && r.clientesAsignados > 0)
 
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('🔍 rutasOperativas:', rutasOperativas.map((r: any) => ({
-        nombre: r.nombre,
-        clientesAsignados: r.clientesAsignados,
-        metaDelDia: r.metaDelDia,
-        cobranzaDelDia: r.cobranzaDelDia,
-      })))
-    }
-
     const objetivoTotal = rutasOperativas.reduce((acc, curr) => {
-      const meta = Number(curr?.metaDelDia ?? 0)
-      // Si la meta del backend es 0 o no existe, no sumarla (evita metas incorrectas)
-      if (meta <= 0) return acc
-      return acc + meta
-    }, 0)
+      const summary = dailySummaries[curr.id];
+      const meta = summary ? Number(summary.meta ?? 0) : Number(curr?.metaDelDia ?? 0);
+      if (meta <= 0) return acc;
+      return acc + meta;
+    }, 0);
 
     const recTotal = esDiaNoLaboral ? 0 : rutasOperativas.reduce((acc, curr) => {
-      const recaudo = Number(curr?.cobranzaDelDia ?? 0)
-      return acc + recaudo
-    }, 0)
+      const summary = dailySummaries[curr.id];
+      const recaudo = summary ? Number(summary.recaudo ?? 0) : Number(curr?.cobranzaDelDia ?? 0);
+      return acc + recaudo;
+    }, 0);
 
     return {
       objetivoTotalShown: objetivoTotal,
       porcentajeAvance: objetivoTotal > 0 ? Math.min(100, (recTotal / objetivoTotal) * 100) : 0,
     }
-  }, [displayRutas, esDiaNoLaboral])
+  }, [displayRutas, esDiaNoLaboral, dailySummaries])
 
   const getRecaudoOperativoRuta = useCallback(
-    (ruta: Ruta) => esDiaNoLaboral ? 0 : Number(ruta?.cobranzaDelDia || 0),
-    [esDiaNoLaboral],
+    (ruta: Ruta) => {
+      if (esDiaNoLaboral) return 0;
+      const summary = dailySummaries[ruta.id];
+      return summary ? Number(summary.recaudo ?? 0) : Number(ruta?.cobranzaDelDia ?? 0);
+    },
+    [esDiaNoLaboral, dailySummaries],
+  )
+
+  const getMetaOperativoRuta = useCallback(
+    (ruta: Ruta) => {
+      const summary = dailySummaries[ruta.id];
+      return summary ? Number(summary.meta ?? 0) : Number(ruta?.metaDelDia ?? 0);
+    },
+    [dailySummaries],
   )
 
   const getAvanceOperativoRuta = useCallback(
     (ruta: Ruta) => {
-      const meta = Number(ruta?.metaDelDia || 0)
-      if (meta <= 0) return 0
+      const meta = getMetaOperativoRuta(ruta);
+      if (meta <= 0) return 0;
       return Math.min(100, (getRecaudoOperativoRuta(ruta) / meta) * 100)
     },
-    [getRecaudoOperativoRuta],
+    [getRecaudoOperativoRuta, getMetaOperativoRuta],
   )
 
   // Determine risk color classes
@@ -972,7 +1007,7 @@ export const RutasPageView = ({
                             }}
                           ></div>
                         </div>
-                        <p className="text-xs text-right text-slate-400 mt-2 font-medium">Objetivo: {formatCurrency(ruta.metaDelDia)}</p>
+                        <p className="text-xs text-right text-slate-400 mt-2 font-medium">Objetivo: {formatCurrency(getMetaOperativoRuta(ruta))}</p>
                       </div>
                     )}
                   </div>
@@ -1306,7 +1341,7 @@ export const RutasPageView = ({
                             style={{ width: `${getAvanceOperativoRuta(ruta)}%` }}
                           ></div>
                         </div>
-                        <div className="text-xs text-slate-500">Objetivo: {formatCurrency(ruta.metaDelDia)}</div>
+                        <div className="text-xs text-slate-500">Objetivo: {formatCurrency(getMetaOperativoRuta(ruta))}</div>
                       </div>
                     </div>
                   )}
