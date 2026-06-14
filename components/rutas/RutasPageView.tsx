@@ -327,11 +327,9 @@ export const RutasPageView = ({
             0,
           )
 
-          const recaudo = Math.max(
-            Number(statsHoy.recaudo || 0),
-            Number(summary.recaudo || 0),
-            Number(ruta.cobranzaDelDia || 0),
-          )
+          const recaudo = visitas.length > 0
+            ? Number(statsHoy.recaudo || 0)
+            : Number(summary.recaudo ?? ruta.cobranzaDelDia ?? 0)
 
           const meta = Number(statsHoy.meta || 0)
 
@@ -751,7 +749,17 @@ export const RutasPageView = ({
   const totalClientes = displayRutas.reduce((acc, curr) => acc + curr.clientesAsignados, 0)
 
   const { objetivoTotalShown, porcentajeAvance } = useMemo(() => {
-    const rutasOperativas = (Array.isArray(displayRutas) ? displayRutas : []).filter((r: any) => r && r.estado === 'ACTIVA' && r.clientesAsignados > 0)
+    const rutasOperativas = (Array.isArray(displayRutas) ? displayRutas : []).filter((r: any) => {
+      if (!r || r.estado !== 'ACTIVA') return false
+
+      const clientesOperativos = Number(
+        dailySummaries[r.id]?.clientesOperativosHoy ??
+          r.clientesAsignados ??
+          0,
+      )
+
+      return clientesOperativos > 0
+    })
 
     const objetivoTotal = rutasOperativas.reduce((acc, curr) => {
       const summary = dailySummaries[curr.id];
@@ -791,6 +799,8 @@ export const RutasPageView = ({
 
   const getClientesOperativosRuta = useCallback(
     (ruta: Ruta) => {
+      if (esDiaNoLaboral) return 0
+
       const summary = dailySummaries[ruta.id]
       return Number(
         summary?.clientesOperativosHoy ??
@@ -798,7 +808,7 @@ export const RutasPageView = ({
           0,
       )
     },
-    [dailySummaries],
+    [dailySummaries, esDiaNoLaboral],
   )
 
   const getAvanceOperativoRuta = useCallback(
