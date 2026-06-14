@@ -1,6 +1,22 @@
 import { mapFrecuenciaToPeriodo, type PeriodoRuta } from '@/lib/types/cobranza';
 import type { ClienteCierrePendiente } from '@/types/rutas/cierre-pendiente';
 
+export const resolveCuotaIdFromVisitaLike = (source: any, prestamo?: any, cuota?: any) => {
+  return String(
+    source?.cuotaId ??
+    source?.cuotaObjetivoId ??
+    source?.cuotaObjetivoPrestamoId ??
+    source?.cuotaObjetivo?.id ??
+    source?.proximaCuota?.id ??
+    cuota?.id ??
+    prestamo?.cuotaId ??
+    prestamo?.cuotaObjetivoId ??
+    prestamo?.cuotaObjetivo?.id ??
+    prestamo?.proximaCuota?.id ??
+    ''
+  ).trim()
+}
+
 // -----------------------------------------------------------------------------
 // Núcleo compartido de lógica para Rutas (Cobrador / Supervisor / Admin)
 // -----------------------------------------------------------------------------
@@ -10,9 +26,9 @@ import type { ClienteCierrePendiente } from '@/types/rutas/cierre-pendiente';
 // Principios importantes:
 // - Todas las comparaciones de fechas "por día" deben hacerse con una llave
 //   YYYY-MM-DD en zona horaria de Bogotá.
-// - La ruta cobra y muestra una cuota normal del periodo. La cartera acumulada
+// - La ruta cobra y muestra una cuota normal del período. La cartera acumulada
 //   vencida se conserva como dato financiero separado, no como cuota principal.
-// - La lógica de "aparece hoy" y "pagado" se comparte para no romper reglas
+// - La lógica de "aparece hoy" y "pagado" se comparten para no romper reglas
 //   de negocio entre roles.
 
 const BOGOTA_TZ = 'America/Bogota';

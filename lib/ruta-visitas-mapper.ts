@@ -49,6 +49,8 @@ export type VisitaRutaLite = {
   periodoRuta: PeriodoRuta
   clienteId: string
   prestamoId?: string
+  cuotaId?: string
+  cuotaObjetivoId?: string
   cuotaActual?: number
   cuotasTotales?: number
   diasMora?: number
@@ -216,6 +218,8 @@ export const mapAsignacionesToVisitasLite = (params: {
         0,
       )
 
+      const cuotaIdFinal = String((proxima as any)?.id || prestamo?.cuotaObjetivo?.id || prestamo?.proximaCuota?.id || '').trim();
+      
       return [{
         id: prestamo?.id ? `${asig.id || `asig-${hoyKey}-${index}`}-${prestamo.id}` : (asig.id || `asig-${hoyKey}-${index}-${subIdx}`),
         cliente: `${cliente.nombres || ''} ${cliente.apellidos || ''}`.trim() || 'Cliente',
@@ -238,6 +242,8 @@ export const mapAsignacionesToVisitasLite = (params: {
         periodoRuta,
         clienteId: cliente.id || asig.clienteId || '',
         prestamoId: prestamo?.id,
+        cuotaId: cuotaIdFinal,
+        cuotaObjetivoId: cuotaIdFinal,
         cuotaActual: (proxima as any)?.numeroCuota,
         cuotasTotales: prestamo?.cantidadCuotas,
         diasMora,

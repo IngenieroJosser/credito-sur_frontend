@@ -106,7 +106,7 @@ import { useRutaHistorial } from '@/hooks/useRutaHistorial'
 import { useCierrePendienteRuta } from '@/hooks/useCierrePendienteRuta'
 import ClienteInfoModal from '@/components/cobranza/ClienteInfoModal'
 import { formatShortDate } from '@/lib/utils/format'
-import { buildRegularizedPaymentTarget, computeMontoExigibleHastaHoyFromCuotas, computeMontoNominalHastaHoyFromCuotas, computeRutaHoyUiStatsFromVisitas, resolveRutaHoyKpiStats, esDomingoBogota, getBogotaDateKey, getBogotaRangeByPeriod, getPagoBogotaDateKey, isCuotaNoPagada, isTodayOrPastBogota, isVisitaExigibleHoy, normalizeDateKey, resolveFechaEfectivaCuota, shouldExcludeVisitaFromOperationalMeta, shouldMarkVisitaAsPagado, shouldShowVisitaEnRutaHoy, toBogotaDateTimeOffsetIso, resolveProximaCuotaFromPrestamo, computeDiasMoraFromCuotas, resolveCuotaNormalOperativa } from '@/lib/rutas-core'
+import { buildRegularizedPaymentTarget, computeMontoExigibleHastaHoyFromCuotas, computeMontoNominalHastaHoyFromCuotas, computeRutaHoyUiStatsFromVisitas, resolveRutaHoyKpiStats, esDomingoBogota, getBogotaDateKey, getBogotaRangeByPeriod, getPagoBogotaDateKey, isCuotaNoPagada, isTodayOrPastBogota, isVisitaExigibleHoy, normalizeDateKey, resolveFechaEfectivaCuota, shouldExcludeVisitaFromOperationalMeta, shouldMarkVisitaAsPagado, shouldShowVisitaEnRutaHoy, toBogotaDateTimeOffsetIso, resolveProximaCuotaFromPrestamo, computeDiasMoraFromCuotas, resolveCuotaNormalOperativa, resolveCuotaIdFromVisitaLike } from '@/lib/rutas-core'
 
 import { mapAsignacionesToVisitasLite } from '@/lib/ruta-visitas-mapper'
 import { buildRecaudosHoyMapByPrestamoId, computeMontoCuotaPendienteDespuesDeRecaudo, indexPagosByPrestamoId, mergeVisitasPreservingLocalRecaudo, sumMontoTotalPagosByBogotaDateKey } from '@/lib/ruta-recaudos'
@@ -480,11 +480,21 @@ const RutaClientLoaded = ({
       const uniqueKey = v?.prestamoId ? `loan-${v.prestamoId}` : `client-${v.clienteId}`
       if (idsProcesados.has(uniqueKey)) return []
       idsProcesados.add(uniqueKey)
+      
+      const cuotaId = resolveCuotaIdFromVisitaLike(
+        v,
+        (v as any)?.prestamo,
+        (v as any)?.cuotaObjetivo || (v as any)?.proximaCuota,
+      )
+      
       return [
         {
           ...v,
           // Ajuste de forma admin: mantiene el mismo shape que usaba antes.
           cobradorId: initialRuta?.cobradorId || '',
+          cuotaId,
+          cuotaObjetivoId: cuotaId,
+          cuotaObjetivoPrestamoId: cuotaId,
         },
       ]
     })
@@ -494,7 +504,7 @@ const RutaClientLoaded = ({
       if (!v.prestamoId && clientesConPrestamo.has(v.clienteId)) return false
       return true
     }) as VisitaRuta[]
-  }, [initialRuta?.cobradorId]);
+  }, [initialRuta?.cobradorId, hoyBogotaKey]);
 
   const [visitasCobrador, setVisitasCobrador] = useState<VisitaRuta[]>(() => mapearAsignacionesAVisitas(initialRuta));
 
@@ -652,7 +662,12 @@ const RutaClientLoaded = ({
               proximaVisita: fechaReal,
               cuotaActual,
               cuotasTotales,
-              estado: nuevoEstado 
+              estado: nuevoEstado,
+              cuotaId: pendiente?.id || (v as any)?.cuotaId,
+              cuotaObjetivoId: pendiente?.id || (v as any)?.cuotaObjetivoId,
+              cuotaObjetivoPrestamoId: pendiente?.id || (v as any)?.cuotaObjetivoPrestamoId,
+              proximaCuota: pendiente,
+              cuotaObjetivo: pendiente,
             };
           } catch (error) {
             console.error("Error en enriquecerConPagos (Admin):", error);
@@ -950,12 +965,11 @@ const RutaClientLoaded = ({
         const isAusente = shouldExcludeVisitaFromOperationalMeta
 
         const visitasParaMeta = Array.isArray(visitasCobrador)
-          ? visitasCobrador.filter((v: any) => !isAusente(v))
+          ? visitasCobrador
+              .filter((v: any) => shouldShowVisitaEnRutaHoy(v, hoyBogotaKey))
+              .filter((v: any) => !isAusente(v))
           : []
-        const statsHoy = computeRutaHoyUiStatsFromVisitas(
-          visitasParaMeta,
-          periodoCards === 'HOY' ? 0 : recaudo,
-        )
+        const statsUiHoy = computeRutaHoyUiStatsFromVisitas(visitasParaMeta, 0)
 
         const metaBackendRaw = estadisticas?.metaDelDia
         const hasMetaBackend = metaBackendRaw !== null && metaBackendRaw !== undefined
@@ -981,34 +995,28 @@ const RutaClientLoaded = ({
               || resumenDailyVisitsHoy.recaudoOperativo !== undefined
             ),
           )
-        const metaResumenHoy = tieneResumenHoy
-          ? Number(resumenDailyVisitsHoy?.meta ?? 0)
-          : metaBackendHoy
         const recaudoResumenHoy = tieneResumenHoy
           ? Number(resumenDailyVisitsHoy?.recaudoOperativo ?? resumenDailyVisitsHoy?.recaudo ?? 0)
           : recaudoBackendHoy
 
-        const statsRutaHoy = tieneResumenHoy
-          ? {
-              meta: metaResumenHoy,
-              recaudo: recaudoResumenHoy,
-              pendiente: Math.max(0, metaResumenHoy - recaudoResumenHoy),
-              eficiencia: Number(
-                resumenDailyVisitsHoy?.efectividad
-                ?? (
-                  metaResumenHoy > 0
-                    ? ((recaudoResumenHoy / metaResumenHoy) * 100).toFixed(1)
+        const statsRutaHoy = 
+          periodoCards === 'HOY'
+            ? {
+                meta: statsUiHoy.meta,
+                recaudo: recaudoResumenHoy,
+                pendiente: Math.max(0, statsUiHoy.meta - recaudoResumenHoy),
+                eficiencia: 
+                  statsUiHoy.meta > 0
+                    ? Number(((recaudoResumenHoy / statsUiHoy.meta) * 100).toFixed(1))
                     : recaudoResumenHoy > 0
                       ? 100
-                      : 0
-                ),
-              ),
-            }
-          : resolveRutaHoyKpiStats(statsHoy, {
-              meta: metaBackendHoy,
-              recaudo: recaudoBackendHoy,
-              eficiencia: estadisticas?.avanceDiario,
-            }, { preferUi: Array.isArray(visitasCobrador) })
+                      : 0,
+              }
+            : resolveRutaHoyKpiStats(statsUiHoy, {
+                meta: metaBackendHoy,
+                recaudo: recaudoBackendHoy,
+                eficiencia: estadisticas?.avanceDiario,
+              }, { preferUi: Array.isArray(visitasCobrador) })
 
         const meta = periodoCards === 'HOY'
           ? statsRutaHoy.meta
@@ -1042,7 +1050,9 @@ const RutaClientLoaded = ({
         const isAusente = shouldExcludeVisitaFromOperationalMeta
 
         const visitasParaMeta = Array.isArray(visitasCobrador)
-          ? visitasCobrador.filter((v: any) => !isAusente(v))
+          ? visitasCobrador
+              .filter((v: any) => shouldShowVisitaEnRutaHoy(v, hoyBogotaKey))
+              .filter((v: any) => !isAusente(v))
           : []
         const statsHoy = computeRutaHoyUiStatsFromVisitas(
           visitasParaMeta,
@@ -1080,27 +1090,24 @@ const RutaClientLoaded = ({
           ? Number(resumenDailyVisitsHoy?.recaudoOperativo ?? resumenDailyVisitsHoy?.recaudo ?? 0)
           : recaudoBackendHoy
 
-        const statsRutaHoy = tieneResumenHoy
-          ? {
-              meta: metaResumenHoy,
-              recaudo: recaudoResumenHoy,
-              pendiente: Math.max(0, metaResumenHoy - recaudoResumenHoy),
-              eficiencia: Number(
-                resumenDailyVisitsHoy?.efectividad
-                ?? (
-                  metaResumenHoy > 0
-                    ? ((recaudoResumenHoy / metaResumenHoy) * 100).toFixed(1)
+        const statsRutaHoy = 
+          periodoCards === 'HOY'
+            ? {
+                meta: statsHoy.meta,
+                recaudo: recaudoResumenHoy,
+                pendiente: Math.max(0, statsHoy.meta - recaudoResumenHoy),
+                eficiencia: 
+                  statsHoy.meta > 0
+                    ? Number(((recaudoResumenHoy / statsHoy.meta) * 100).toFixed(1))
                     : recaudoResumenHoy > 0
                       ? 100
-                      : 0
-                ),
-              ),
-            }
-          : resolveRutaHoyKpiStats(statsHoy, {
-              meta: metaBackendHoy,
-              recaudo: recaudoBackendHoy,
-              eficiencia: estadisticas?.avanceDiario,
-            }, { preferUi: Array.isArray(visitasCobrador) })
+                      : 0,
+              }
+            : resolveRutaHoyKpiStats(statsHoy, {
+                meta: metaBackendHoy,
+                recaudo: recaudoBackendHoy,
+                eficiencia: estadisticas?.avanceDiario,
+              }, { preferUi: Array.isArray(visitasCobrador) })
 
         const meta = periodoCards === 'HOY'
           ? statsRutaHoy.meta
@@ -1193,6 +1200,7 @@ const RutaClientLoaded = ({
 
         const esArticulo = p?.tipo === 'ARTICULO' || p?.tipoPrestamo === 'ARTICULO';
 
+        let pendiente: any = undefined;
         if (p.id) {
           try {
             // 1. Consultar cuotas
@@ -1215,7 +1223,7 @@ const RutaClientLoaded = ({
               }
             } catch (ep) { /* ignore */ }
 
-            const pendiente = cuotas.find(cuo => cuo.estado !== 'PAGADA');
+            pendiente = cuotas.find(cuo => cuo.estado !== 'PAGADA');
             if (pendiente) {
               cuotaActual = pendiente.numeroCuota;
               const montoCuotaBruto = Number(pendiente.monto || (pendiente.montoCapital + pendiente.montoInteres) || 0);
@@ -1281,6 +1289,11 @@ const RutaClientLoaded = ({
           articuloNombre: esArticulo ? (p?.articulo || 'Artículo') : 'Préstamo',
           cuotaActual,
           cuotasTotales,
+          cuotaId: pendiente?.id || '',
+          cuotaObjetivoId: pendiente?.id || '',
+          cuotaObjetivoPrestamoId: pendiente?.id || '',
+          cuotaObjetivo: pendiente,
+          proximaCuota: pendiente,
           fechaUltimoPago: ultimoPagoDate
         } as VisitaRuta
       }))
@@ -1312,7 +1325,7 @@ const RutaClientLoaded = ({
     } finally {
       setLoadingMisCreditos(false)
     }
-  }, [initialRuta?.cobradorId])
+  }, [rutaData?.cobradorId, initialRuta?.cobradorId])
 
 
 
@@ -2703,9 +2716,32 @@ const RutaClientLoaded = ({
                 return `${dd}/${mm}`
               }
 
+              const cuotaIdFinal = String(
+                cuotaId || 
+                (visitaReprogramar as any)?.cuotaId || 
+                (visitaReprogramar as any)?.cuotaObjetivoId || 
+                (visitaReprogramar as any)?.cuotaObjetivo?.id || 
+                (visitaReprogramar as any)?.proximaCuota?.id || 
+                ''
+              ).trim();
+
+              console.log('[REPROGRAMACION DEBUG]', {
+                prestamoId: visitaReprogramar.prestamoId,
+                clienteId: visitaReprogramar.clienteId,
+                cuotaId,
+                cuotaIdFinal,
+                fecha,
+                motivo,
+              })
+
               try {
                 if (!visitaReprogramar?.prestamoId) {
                   toast.error('La visita seleccionada no tiene un préstamo asociado.')
+                  return;
+                }
+
+                if (!cuotaIdFinal) {
+                  toast.error('No se pudo identificar la cuota a reprogramar.');
                   return;
                 }
 
@@ -2724,48 +2760,26 @@ const RutaClientLoaded = ({
                       : undefined,
                 } as const
 
-                if (cuotaId) {
-                  await prestamosService.solicitarReprogramacionCuota({
-                    prestamoId: visitaReprogramar.prestamoId,
-                    cuotaId,
-                    nuevaFecha: fecha,
-                    motivo,
-                    fechaOperativaRuta: payloadBase.fechaOperativaRuta,
-                    origenGestion: payloadBase.origenGestion,
-                    idempotencyKey:
-                      payloadBase.origenGestion === 'CIERRE_PENDIENTE'
-                        ? buildReprogramacionCierrePendienteKey({
-                            rutaId: contextoRegularizacionSnapshot?.rutaId,
-                            fechaOperativa:
-                              contextoRegularizacionSnapshot?.fechaOperativa,
-                            clienteId: visitaReprogramar.clienteId,
-                            prestamoId: visitaReprogramar.prestamoId,
-                            cuotaId,
-                            nuevaFecha: fecha,
-                          })
-                        : undefined,
-                  })
-                } else {
-                  await prestamosService.reprogramarPrestamo(visitaReprogramar.prestamoId, {
-                    fecha,
-                    motivo,
-                    cobradorId: currentUser?.id || '',
-                    fechaOperativaRuta: payloadBase.fechaOperativaRuta,
-                    origenGestion: payloadBase.origenGestion,
-                    idempotencyKey:
-                      payloadBase.origenGestion === 'CIERRE_PENDIENTE'
-                        ? buildReprogramacionCierrePendienteKey({
-                            rutaId: contextoRegularizacionSnapshot?.rutaId,
-                            fechaOperativa:
-                              contextoRegularizacionSnapshot?.fechaOperativa,
-                            clienteId: visitaReprogramar.clienteId,
-                            prestamoId: visitaReprogramar.prestamoId,
-                            cuotaId: 'SIN_CUOTA',
-                            nuevaFecha: fecha,
-                          })
-                        : undefined,
-                  })
-                }
+                await prestamosService.solicitarReprogramacionCuota({
+                  prestamoId: visitaReprogramar.prestamoId,
+                  cuotaId: cuotaIdFinal,
+                  nuevaFecha: fecha,
+                  motivo,
+                  fechaOperativaRuta: payloadBase.fechaOperativaRuta,
+                  origenGestion: payloadBase.origenGestion,
+                  idempotencyKey:
+                    payloadBase.origenGestion === 'CIERRE_PENDIENTE'
+                      ? buildReprogramacionCierrePendienteKey({
+                          rutaId: contextoRegularizacionSnapshot?.rutaId,
+                          fechaOperativa:
+                            contextoRegularizacionSnapshot?.fechaOperativa,
+                          clienteId: visitaReprogramar.clienteId,
+                          prestamoId: visitaReprogramar.prestamoId,
+                          cuotaId: cuotaIdFinal,
+                          nuevaFecha: fecha,
+                        })
+                      : undefined,
+                })
 
                 setVisitasCobrador((prev) =>
                   prev.map((v) => {
@@ -2773,10 +2787,52 @@ const RutaClientLoaded = ({
                     return {
                       ...v,
                       estado: 'reprogramado' as any,
-                      proximaVisita: formatearFechaISO(fecha),
+                      proximaVisita: fecha,
+                      cuotaObjetivo: {
+                        ...(v as any).cuotaObjetivo,
+                        fechaVencimiento: fecha,
+                        fechaEfectiva: fecha,
+                      },
+                      proximaCuota: {
+                        ...(v as any).proximaCuota,
+                        fechaVencimiento: fecha,
+                        fechaEfectiva: fecha,
+                      },
                     }
                   })
                 )
+
+                // Recalcular KPI inmediatamente
+                setRutaStatsCards((prev) => {
+                  const visitasActualizadas = visitasCobrador.map((v: any) => {
+                    if (v.id !== visitaReprogramar.id) return v
+
+                    return {
+                      ...v,
+                      estado: 'reprogramado',
+                      proximaVisita: fecha,
+                    }
+                  })
+
+                  const visitasParaMeta = visitasActualizadas
+                    .filter((v: any) => shouldShowVisitaEnRutaHoy(v, hoyBogotaKey))
+                    .filter((v: any) => !shouldExcludeVisitaFromOperationalMeta(v))
+
+                  const statsHoy = computeRutaHoyUiStatsFromVisitas(visitasParaMeta, 0)
+                  const recaudo = Number(prev.recaudo || 0)
+
+                  return {
+                    ...prev,
+                    meta: statsHoy.meta,
+                    pendiente: Math.max(0, statsHoy.meta - recaudo),
+                    eficiencia:
+                      statsHoy.meta > 0
+                        ? Number(((recaudo / statsHoy.meta) * 100).toFixed(1))
+                        : recaudo > 0
+                          ? 100
+                          : 0,
+                  }
+                })
 
                 toast.success('Solicitud de reprogramación enviada exitosamente', {
                   description: `La cuota será revisada para reprogramarse al ${formatearFechaISO(fecha)}`,
@@ -2790,8 +2846,20 @@ const RutaClientLoaded = ({
                 } catch {}
 
               } catch (error: any) {
-                console.error('Error reprogramando cuota (ruta admin):', error)
-                toast.error(error?.message || 'No se pudo realizar la reprogramación.')
+                const message =
+                  error?.response?.data?.message ??
+                  error?.data?.message ??
+                  error?.message ??
+                  'No se pudo realizar la reprogramación.'
+
+                console.error('Error reprogramando cuota (ruta admin):', {
+                  message,
+                  error,
+                  response: error?.response,
+                  data: error?.response?.data || error?.data,
+                })
+
+                toast.error(Array.isArray(message) ? message[0] : message)
               }
 
             }}
