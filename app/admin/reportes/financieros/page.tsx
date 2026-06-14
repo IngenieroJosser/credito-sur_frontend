@@ -36,6 +36,9 @@ interface FinancialSummary {
   cobros: number;
   egresos: number;
   utilidad: number;
+  utilidadOperativa: number;
+  provisionCartera: number;
+  utilidadNeta: number;
   margen: number;
   interes: number;
   mora: number;
@@ -98,6 +101,9 @@ const ReportesFinancierosPage = () => {
     cobros: 0,
     egresos: 0,
     utilidad: 0,
+    utilidadOperativa: 0,
+    provisionCartera: 0,
+    utilidadNeta: 0,
     margen: 0,
     interes: 0,
     mora: 0,
@@ -165,8 +171,11 @@ const ReportesFinancierosPage = () => {
       const totalCobrosPeriodo = Number((resumenPeriodo as any)?.cobranzaHoy || 0)
       const totalEgresosPeriodo = Number(resumenPeriodo?.egresosHoy || 0)
       const utilidadPeriodo = Number((resumenPeriodo as any)?.utilidadReal ?? (resumenPeriodo as any)?.gananciaNeta ?? (totalIngresosPeriodo - totalEgresosPeriodo))
+      const utilidadOperativaPeriodo = Number((resumenPeriodo as any)?.utilidadOperativa ?? utilidadPeriodo)
+      const provisionCarteraPeriodo = Number((resumenPeriodo as any)?.provisionCarteraTotal ?? 0)
+      const utilidadNetaPeriodo = utilidadPeriodo
 
-      const margenPeriodo = totalIngresosDevengadosPeriodo > 0 ? (utilidadPeriodo / totalIngresosDevengadosPeriodo) * 100 : 0
+      const margenPeriodo = totalIngresosDevengadosPeriodo > 0 ? (utilidadOperativaPeriodo / totalIngresosDevengadosPeriodo) * 100 : 0
 
       setSummary({
         entradasCaja: totalEntradasCajaPeriodo,
@@ -175,6 +184,9 @@ const ReportesFinancierosPage = () => {
         cobros: totalCobrosPeriodo,
         egresos: totalEgresosPeriodo,
         utilidad: utilidadPeriodo,
+        utilidadOperativa: utilidadOperativaPeriodo,
+        provisionCartera: provisionCarteraPeriodo,
+        utilidadNeta: utilidadNetaPeriodo,
         margen: Number(margenPeriodo.toFixed(1)),
         interes: Number((resumenPeriodo as any)?.interesHoy || 0),
         mora: Number((resumenPeriodo as any)?.moraHoy || 0),
@@ -281,10 +293,12 @@ const ReportesFinancierosPage = () => {
           const key = normalizeDateKey(t.fecha)
           if (dias[key]) dias[key].ingresos += getIngresoOperativoMovimiento(t)
         })
-        cobroRes.data.forEach(t => {
-          const key = normalizeDateKey(t.fecha)
-          if (dias[key]) dias[key].cobros += getCobroMovimiento(t)
-        })
+        cobroRes.data
+          .filter((t: any) => String(t.origenGestion || '').toUpperCase() !== 'CIERRE_PENDIENTE')
+          .forEach(t => {
+            const key = normalizeDateKey(t.fecha)
+            if (dias[key]) dias[key].cobros += getCobroMovimiento(t)
+          })
         egreRes.data.forEach(t => {
           const key = normalizeDateKey(t.fecha)
           if (dias[key]) dias[key].egresos += Number(t.totalDebito || 0)
@@ -324,7 +338,10 @@ const ReportesFinancierosPage = () => {
           const entradasCaja7 = (Array.isArray(movimientos7Res?.data) ? movimientos7Res.data : [])
             .reduce((acc, movimiento: any) => acc + Number(movimiento?.impactoCaja || 0), 0)
           const utilidad7 = Number((resumen7 as any)?.utilidadReal ?? (resumen7 as any)?.gananciaNeta ?? (totalIngresos7 - totalEgresos7))
-          const margen7 = ingresosDevengados7 > 0 ? (utilidad7 / ingresosDevengados7) * 100 : 0
+          const utilidadOperativa7 = Number((resumen7 as any)?.utilidadOperativa ?? utilidad7)
+          const provisionCartera7 = Number((resumen7 as any)?.provisionCarteraTotal ?? 0)
+          const utilidadNeta7 = utilidad7
+          const margen7 = ingresosDevengados7 > 0 ? (utilidadOperativa7 / ingresosDevengados7) * 100 : 0
           setSummary({
             entradasCaja: entradasCaja7,
             ingresos: totalIngresos7,
@@ -332,6 +349,9 @@ const ReportesFinancierosPage = () => {
             cobros: totalCobros7,
             egresos: totalEgresos7,
             utilidad: utilidad7,
+            utilidadOperativa: utilidadOperativa7,
+            provisionCartera: provisionCartera7,
+            utilidadNeta: utilidadNeta7,
             margen: Number(margen7.toFixed(1)),
             interes: Number((resumen7 as any)?.interesHoy || 0),
             mora: Number((resumen7 as any)?.moraHoy || 0),
@@ -367,7 +387,9 @@ const ReportesFinancierosPage = () => {
               }),
             ])
             const prevIng7 = prevIng7Res.data.filter(isIngresoOperativoMovimiento).reduce((acc, t) => acc + getIngresoOperativoMovimiento(t), 0)
-            const prevCobro7 = prevCobro7Res.data.reduce((acc, t) => acc + getCobroMovimiento(t), 0)
+            const prevCobro7 = prevCobro7Res.data
+              .filter((t: any) => String(t.origenGestion || '').toUpperCase() !== 'CIERRE_PENDIENTE')
+              .reduce((acc, t) => acc + getCobroMovimiento(t), 0)
             const prevEgr7 = prevEgre7Res.data.reduce((acc, t) => acc + Number(t.totalDebito || 0), 0)
             const ingresosPerc7 = prevIng7 > 0 ? ((totalIngresos7 - prevIng7) / prevIng7) * 100 : (totalIngresos7 > 0 ? 100 : 0)
             const cobrosPerc7 = prevCobro7 > 0 ? ((totalCobros7 - prevCobro7) / prevCobro7) * 100 : (totalCobros7 > 0 ? 100 : 0)
@@ -402,10 +424,12 @@ const ReportesFinancierosPage = () => {
             const key = normalizeDateKey(t.fecha)
             if (dayMap[key]) dayMap[key].ingresos += getIngresoOperativoMovimiento(t)
           })
-          cobroResAll.data.forEach(t => {
-            const key = normalizeDateKey(t.fecha)
-            if (dayMap[key]) dayMap[key].cobros += getCobroMovimiento(t)
-          })
+          cobroResAll.data
+            .filter((t: any) => String(t.origenGestion || '').toUpperCase() !== 'CIERRE_PENDIENTE')
+            .forEach(t => {
+              const key = normalizeDateKey(t.fecha)
+              if (dayMap[key]) dayMap[key].cobros += getCobroMovimiento(t)
+            })
           egreResAll.data.forEach(t => {
             const key = normalizeDateKey(t.fecha)
             if (dayMap[key]) dayMap[key].egresos += Number(t.totalDebito || 0)
@@ -443,11 +467,13 @@ const ReportesFinancierosPage = () => {
             const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`
             if (monthMap[key]) monthMap[key].ingresos += getIngresoOperativoMovimiento(t)
           })
-          cobroResAll.data.forEach(t => {
-            const d = new Date(t.fecha)
-            const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`
-            if (monthMap[key]) monthMap[key].cobros += getCobroMovimiento(t)
-          })
+          cobroResAll.data
+            .filter((t: any) => String(t.origenGestion || '').toUpperCase() !== 'CIERRE_PENDIENTE')
+            .forEach(t => {
+              const d = new Date(t.fecha)
+              const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`
+              if (monthMap[key]) monthMap[key].cobros += getCobroMovimiento(t)
+            })
           egreResAll.data.forEach(t => {
             const d = new Date(t.fecha)
             const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`
@@ -615,18 +641,43 @@ const ReportesFinancierosPage = () => {
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
             <div className="flex justify-between items-start mb-4">
               <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Utilidad Devengada</p>
-                <h3 className="text-2xl font-bold text-slate-900 mt-2">{formatCurrency(summary.utilidad)}</h3>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Utilidad Operativa</p>
+                <h3 className="text-2xl font-bold text-slate-900 mt-2">{formatCurrency(summary.utilidadOperativa)}</h3>
               </div>
               <div className="p-3 bg-blue-50 rounded-xl border border-blue-100">
                 <DollarSign className="h-5 w-5 text-blue-600" />
               </div>
             </div>
-            <div className={`flex items-center text-xs font-bold w-fit px-2 py-1 rounded-full border ${summary.utilidad >= 0 ? 'text-blue-600 bg-blue-50 border-blue-100' : 'text-rose-600 bg-rose-50 border-rose-100'}`}>
-              <ArrowUpRight className="h-3 w-3 mr-1" />
-              <span>{summary.utilidad >= 0 ? 'Rentable' : 'No rentable'}</span>
+            <p className="text-xs font-semibold text-slate-400">Interés + mora + margen de artículos menos gastos</p>
+          </div>
+
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Provisión de Cartera</p>
+                <h3 className="text-2xl font-bold text-slate-900 mt-2">{formatCurrency(summary.provisionCartera)}</h3>
+              </div>
+              <div className="p-3 bg-amber-50 rounded-xl border border-amber-100">
+                <PieChart className="h-5 w-5 text-amber-600" />
+              </div>
             </div>
-            <p className="mt-2 text-xs font-semibold text-slate-400">Incluye margen de artículos aunque no esté cobrado completo</p>
+            <p className="text-xs font-semibold text-slate-400">Reserva para préstamos en mora/incumplimiento</p>
+          </div>
+
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Utilidad Neta Estimada</p>
+                <h3 className="text-2xl font-bold text-slate-900 mt-2">{formatCurrency(summary.utilidadNeta)}</h3>
+              </div>
+              <div className="p-3 bg-purple-50 rounded-xl border border-purple-100">
+                <DollarSign className="h-5 w-5 text-purple-600" />
+              </div>
+            </div>
+            <div className={`flex items-center text-xs font-bold w-fit px-2 py-1 rounded-full border ${summary.utilidadNeta >= 0 ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-rose-600 bg-rose-50 border-rose-100'}`}>
+              <ArrowUpRight className="h-3 w-3 mr-1" />
+              <span>{summary.utilidadNeta >= 0 ? 'Rentable' : 'No rentable'}</span>
+            </div>
           </div>
 
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
@@ -650,10 +701,10 @@ const ReportesFinancierosPage = () => {
 
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
           <div className="flex flex-col gap-1 mb-5">
-            <h3 className="text-base font-bold text-slate-900">Desglose de Utilidad Devengada</h3>
-            <p className="text-xs text-slate-400 font-medium">Resultado contable del periodo: intereses, mora y margen de artículos menos gastos operativos. No incluye inyecciones de capital.</p>
+            <h3 className="text-base font-bold text-slate-900">Desglose de Utilidad</h3>
+            <p className="text-xs text-slate-400 font-medium">Resultado contable del periodo: intereses, mora y margen de artículos menos gastos operativos y provisión de cartera.</p>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-3">
             <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
               <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Interés</p>
               <p className="mt-2 text-lg font-black text-slate-900">{formatCurrency(summary.interes)}</p>
@@ -673,6 +724,10 @@ const ReportesFinancierosPage = () => {
             <div className="rounded-xl border border-rose-100 bg-rose-50/60 p-4">
               <p className="text-[10px] font-black uppercase tracking-wider text-rose-600">Gastos Operativos</p>
               <p className="mt-2 text-lg font-black text-rose-700">{formatCurrency(summary.gastosOperativos)}</p>
+            </div>
+            <div className="rounded-xl border border-amber-100 bg-amber-50/60 p-4">
+              <p className="text-[10px] font-black uppercase tracking-wider text-amber-600">Provisión de Cartera</p>
+              <p className="mt-2 text-lg font-black text-amber-700">{formatCurrency(summary.provisionCartera)}</p>
             </div>
           </div>
         </div>

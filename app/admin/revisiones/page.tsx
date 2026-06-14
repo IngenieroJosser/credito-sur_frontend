@@ -560,16 +560,36 @@ export default function RevisionesPage() {
           const capital = Number(datos.monto || 0) || Number(item.montoSolicitud || 0);
           const porcentaje = Number(datos.porcentaje || datos.tasaInteres || 0);
 
+          console.log('[Revisiones][NUEVO_PRESTAMO] datos:', JSON.stringify({
+            tipoAmortizacion: datos.tipoAmortizacion,
+            monto: datos.monto,
+            montoTotal: datos.montoTotal,
+            interesTotal: datos.interesTotal,
+            cantidadCuotas: datos.cantidadCuotas,
+            tasaInteres: datos.tasaInteres,
+            porcentaje: datos.porcentaje,
+            plazoMeses: datos.plazoMeses,
+          }));
+
           const totalDevolver = (() => {
             if (datos.montoTotal && Number(datos.montoTotal) > 0) return Number(datos.montoTotal);
             if (datos.interesTotal && Number(datos.interesTotal) > 0) return capital + Number(datos.interesTotal);
-            if (porcentaje > 0) return capital + (capital * porcentaje) / 100;
-            return 0;
+            if (String(datos.tipoAmortizacion || '').toUpperCase() === 'FRANCESA' && porcentaje > 0) {
+              const r = porcentaje / 100;
+              const n = Math.max(1, numCuotas);
+              const cuotaFija = capital * r / (1 - Math.pow(1 + r, -n));
+              return Math.round(cuotaFija * n);
+            }
+            if (porcentaje > 0) {
+              const plazoMeses = Number(datos.plazoMeses || datos.plazo || 1);
+              return capital + (capital * porcentaje * Math.max(1, plazoMeses)) / 100;
+            }
+            return capital;
           })();
 
           return {
             titulo: datos.cliente || 'Crédito nuevo',
-            subtitulo: `Efectivo • ${numCuotas} cuotas${freqLabel}`,
+            subtitulo: `${String(datos.tipoAmortizacion || '').toUpperCase() === 'FRANCESA' ? 'Amortizable' : 'Efectivo'} • ${numCuotas} cuotas${freqLabel}`,
             monto: capital,
             labelMonto: 'Capital',
             montoSecundario: totalDevolver > capital ? totalDevolver : null,

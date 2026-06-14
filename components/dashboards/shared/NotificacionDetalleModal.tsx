@@ -214,16 +214,30 @@ export default function NotificacionDetalleModal({
 
       const interesTotalBase = pickNumber(combined.interesTotal)
 
+      const tipoAmortBase = String(combined.tipoAmortizacion || '').toUpperCase()
+
+      // Calcular montoTotal según el tipo de amortización
+      const calcFallbackMontoTotal = () => {
+        if (isArticuloSolicitud) return valorArticuloBase
+        if (interesTotalBase > 0) return montoFinanciado + interesTotalBase
+        if (tipoAmortBase === 'FRANCESA') {
+          const r = tasaBase / 100
+          const n = Math.max(1, cuotasBase)
+          if (r > 0) {
+            const cuotaFija = montoFinanciado * r / (1 - Math.pow(1 + r, -n))
+            return Math.round(cuotaFija * n)
+          }
+          return montoFinanciado
+        }
+        // Interés simple
+        return montoFinanciado + (montoFinanciado * tasaBase * Math.max(1, plazoBase)) / 100
+      }
+
       const montoTotalBase = pickNumber(
         combined.montoTotal,
         combined.totalPagar,
         combined.totalAPagar,
-        isArticuloSolicitud
-          ? valorArticuloBase
-          : montoFinanciado + (interesTotalBase > 0
-              ? interesTotalBase
-              : (montoFinanciado * tasaBase * Math.max(1, plazoBase)) / 100
-            ),
+        calcFallbackMontoTotal(),
       )
 
       const initialVal = {
@@ -422,21 +436,37 @@ export default function NotificacionDetalleModal({
       dets?.tipo === 'ARTICULO' ||
       meta?.tipo === 'ARTICULO'
     )
-    if (!isArticleEff) return
-    const meses = Number(editedDetails?.plazoMeses || 0)
-    const freq = editedDetails?.frecuenciaPago || 'DIARIO'
-    let c = 0
-    if (meses > 0) {
-      if (freq === 'DIARIO') c = Math.ceil(meses * 30)
-      else if (freq === 'SEMANAL') c = Math.ceil(meses * 4)
-      else if (freq === 'QUINCENAL') c = Math.ceil(meses * 2)
-      else if (freq === 'MENSUAL') c = Math.ceil(meses)
-      else c = Math.ceil(meses * 4)
+    if (isArticleEff) {
+      const meses = Number(editedDetails?.plazoMeses || 0)
+      const freq = editedDetails?.frecuenciaPago || 'DIARIO'
+      let c = 0
+      if (meses > 0) {
+        if (freq === 'DIARIO') c = Math.ceil(meses * 30)
+        else if (freq === 'SEMANAL') c = Math.ceil(meses * 4)
+        else if (freq === 'QUINCENAL') c = Math.ceil(meses * 2)
+        else if (freq === 'MENSUAL') c = Math.ceil(meses)
+        else c = Math.ceil(meses * 4)
+      }
+      if (c > 0 && c !== editedDetails?.cuotas) {
+        setEditedDetails((prev: any) => ({ ...prev, cuotas: c, cantidadCuotas: c, numCuotas: c }))
+      }
+    } else if (isPrestamoEff) {
+      const c = Number(editedDetails?.cuotas || editedDetails?.cantidadCuotas || editedDetails?.numCuotas || 0)
+      const freq = editedDetails?.frecuenciaPago || 'DIARIO'
+      let meses = 0
+      if (c > 0) {
+        if (freq === 'DIARIO') meses = c / 30
+        else if (freq === 'SEMANAL') meses = c / 4
+        else if (freq === 'QUINCENAL') meses = c / 2
+        else if (freq === 'MENSUAL') meses = c
+        else meses = c / 4
+      }
+      const roundedMeses = Number(meses.toFixed(2))
+      if (roundedMeses > 0 && roundedMeses !== editedDetails?.plazoMeses) {
+        setEditedDetails((prev: any) => ({ ...prev, plazoMeses: roundedMeses }))
+      }
     }
-    if (c > 0) {
-      setEditedDetails((prev: any) => ({ ...prev, cuotas: c }))
-    }
-  }, [editedDetails?.plazoMeses, editedDetails?.frecuenciaPago, isEditingMode])
+  }, [editedDetails?.plazoMeses, editedDetails?.cuotas, editedDetails?.cantidadCuotas, editedDetails?.numCuotas, editedDetails?.frecuenciaPago, isEditingMode])
 
   if (!isOpen || !notificacion) return null
 
@@ -953,7 +983,9 @@ export default function NotificacionDetalleModal({
                         setEditedDetails({
                           ...editedDetails, 
                           [(editedDetails?.articulo || safeMeta?.articulo) ? 'valorArticulo' : 'monto']: val,
-                          monto: val
+                          monto: val,
+                          montoTotal: 0,
+                          interesTotal: 0
                         })
                       }}
                       className="w-full bg-white border border-blue-200 text-slate-900 rounded-xl px-4 py-2 text-base font-black outline-none focus:ring-2 focus:ring-blue-500/20"
@@ -980,7 +1012,7 @@ export default function NotificacionDetalleModal({
                           const v = e.target.value.replace(/[^0-9]/g, '')
                           setAutoCuotas(false)
                           const numVal = v === '' ? undefined : Number(v)
-                          setEditedDetails({ ...editedDetails, cuotas: numVal, cantidadCuotas: numVal, numCuotas: numVal })
+                          setEditedDetails({ ...editedDetails, cuotas: numVal, cantidadCuotas: numVal, numCuotas: numVal, montoTotal: 0, interesTotal: 0 })
                         }}
                         className="w-full bg-white border border-blue-200 text-slate-900 rounded-xl px-4 py-2 text-sm font-black outline-none focus:ring-2 focus:ring-blue-500/20"
                       />
@@ -1031,12 +1063,13 @@ export default function NotificacionDetalleModal({
                           })}
                         </select>
                       ) : (
-                        <input 
-                          type="number"
-                          value={editedDetails?.plazoMeses || ''}
-                          onChange={(e) => setEditedDetails({...editedDetails, plazoMeses: Number(e.target.value)})}
-                          className="w-full bg-white border border-blue-200 text-slate-900 rounded-xl px-4 py-2 text-sm font-black outline-none focus:ring-2 focus:ring-blue-500/20"
-                        />
+                        <p className="text-base font-black text-slate-900">
+                          {formatLoanTerm({
+                            plazoMeses: editedDetails?.plazoMeses || safeMeta?.plazoMeses || 1,
+                            cantidadCuotas: editedDetails?.cantidadCuotas || editedDetails?.cuotas || editedDetails?.numCuotas || safeMeta?.cantidadCuotas || safeMeta?.cuotas || safeMeta?.numCuotas,
+                            frecuenciaPago: editedDetails?.frecuenciaPago || safeMeta?.frecuenciaPago || editedDetails?.frecuencia || safeMeta?.frecuencia || 'DIARIO',
+                          })}
+                        </p>
                       )
                     ) : (
                       <p className="text-base font-black text-slate-900">
@@ -1090,6 +1123,8 @@ export default function NotificacionDetalleModal({
                             const interesTotal = Number(editedDetails?.interesTotal || 0)
                             const tasa = Number(editedDetails?.tasaInteres ?? editedDetails?.porcentaje ?? 0)
                             const meses = Math.max(1, Number(editedDetails?.plazoMeses || 1))
+                            const cuotas = Math.max(1, Number(editedDetails?.cuotas || editedDetails?.cantidadCuotas || 1))
+                            const tipoAmort = String(editedDetails?.tipoAmortizacion || '').toUpperCase()
 
                             if (montoTotal > 0) return montoTotal
 
@@ -1098,6 +1133,11 @@ export default function NotificacionDetalleModal({
                             }
 
                             if (interesTotal > 0) return monto + interesTotal
+
+                            if (tipoAmort === 'FRANCESA') {
+                              // Amortización ahora usa lógica plana: capital × tasa (una sola vez)
+                              return monto + Math.round(monto * (tasa / 100))
+                            }
 
                             return monto + ((monto * tasa * meses) / 100)
                           })()
@@ -1217,9 +1257,20 @@ export default function NotificacionDetalleModal({
                         <label className="text-[9px] text-emerald-500 uppercase font-black block mb-0.5">Valor Cuota (Est.)</label>
                         <p className="text-lg font-black text-emerald-900">
                           {(() => {
-                            const total = Number(editedDetails?.montoTotal || 0)
+                            const montoTotal = Number(editedDetails?.montoTotal || 0)
                             const cuotas = Math.max(1, Number(editedDetails?.cuotas || editedDetails?.cantidadCuotas || 1))
-                            const valorCuota = Math.trunc(total / cuotas)
+                            const monto = Number(editedDetails?.monto || 0)
+                            const tasa = Number(editedDetails?.tasaInteres ?? editedDetails?.porcentaje ?? 0)
+                            const interesTotal = Number(editedDetails?.interesTotal || 0)
+                            const tipoAmort = String(editedDetails?.tipoAmortizacion || '').toUpperCase()
+
+                            if (tipoAmort === 'FRANCESA' && monto > 0) {
+                              const interes = interesTotal > 0 ? interesTotal : Math.round(monto * (tasa / 100))
+                              const total = monto + interes
+                              return formatCurrency(Math.floor(total / cuotas))
+                            }
+
+                            const valorCuota = Math.trunc(montoTotal / cuotas)
                             return formatCurrency(isNaN(valorCuota) ? 0 : valorCuota)
                           })()}
                         </p>
@@ -1228,8 +1279,20 @@ export default function NotificacionDetalleModal({
                         <label className="text-[9px] text-emerald-500 uppercase font-black block mb-0.5">Total a Cobrar</label>
                         <p className="text-lg font-black text-emerald-900">
                           {(() => {
-                            const totalCobrar = Number(editedDetails?.montoTotal || 0)
-                            return formatCurrency(isNaN(totalCobrar) ? 0 : totalCobrar)
+                            const montoBase = Number(editedDetails?.montoTotal || 0)
+                            const monto = Number(editedDetails?.monto || 0)
+                            const tasa = Number(editedDetails?.tasaInteres ?? editedDetails?.porcentaje ?? 0)
+                            const interesTotal = Number(editedDetails?.interesTotal || 0)
+                            const tipoAmort = String(editedDetails?.tipoAmortizacion || '').toUpperCase()
+
+                            if (montoBase > 0) return formatCurrency(montoBase)
+
+                            if (tipoAmort === 'FRANCESA' && monto > 0) {
+                              const interes = interesTotal > 0 ? interesTotal : Math.round(monto * (tasa / 100))
+                              return formatCurrency(monto + interes)
+                            }
+
+                            return formatCurrency(0)
                           })()}
                         </p>
                       </div>

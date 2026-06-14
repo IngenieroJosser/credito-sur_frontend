@@ -28,6 +28,7 @@ interface CrearCreditoModalProps {
     clienteCreditoId: string
     monto: number
     tipoInteres?: TipoAmortizacion
+    tipoAmortizacion?: TipoAmortizacion
     tasaInteres?: number
     cuotasTotales?: number
     cantidadCuotas?: number
@@ -136,26 +137,27 @@ const calcularPrestamoPreview = (params: {
     return null
   }
 
-  if (params.tipoInteres === TipoAmortizacion.FRANCESA) {
-    const tasaPeriodo = tasa / 100
-    const cuotaFija = tasaPeriodo > 0
-      ? monto * tasaPeriodo / (1 - Math.pow(1 + tasaPeriodo, -cuotas))
-      : monto / cuotas
-    const valorCuota = Math.round(cuotaFija)
-    const total = valorCuota * cuotas
-    const intereses = Math.max(0, total - monto)
+  if (params.tipoInteres === TipoAmortizacion.INTERES_PLANO || params.tipoInteres === TipoAmortizacion.FRANCESA) {
+    // Interés plano (nuevo) / Amortización
+    const intereses = Math.round(monto * (tasa / 100))
+    const total = monto + intereses
+    const valorCuota = Math.floor(total / cuotas)
+    // La última cuota absorbe el residuo
+    const residuo = total - valorCuota * cuotas
 
     return {
       meses: params.meses,
       monto,
       intereses,
       total,
-      valorCuota,
+      valorCuota, // cuotas 1..n-1
+      valorUltimaCuota: valorCuota + residuo, // última cuota
       numCuotas: cuotas,
-      sistema: 'Amortización francesa',
+      sistema: 'Amortización',
     }
   }
 
+  // INTERES_SIMPLE
   const mesesInteres = Math.max(1, params.meses)
   const intereses = (monto * tasa * mesesInteres) / 100
   const total = monto + intereses
@@ -168,7 +170,7 @@ const calcularPrestamoPreview = (params: {
     total,
     valorCuota,
     numCuotas: cuotas,
-    sistema: 'Interés simple',
+    sistema: 'Interés Simple',
   }
 }
 
@@ -185,7 +187,7 @@ export default function CrearCreditoModal({
   const [creditType, setCreditType] = useState<'prestamo' | 'articulo'>(defaultCreditType || 'prestamo')
   const [clienteCreditoId, setClienteCreditoId] = useState('')
   const [montoPrestamoInput, setMontoPrestamoInput] = useState('')
-  const [tipoInteres, setTipoInteres] = useState<TipoAmortizacion>(TipoAmortizacion.INTERES_SIMPLE)
+  const [tipoInteres, setTipoInteres] = useState<TipoAmortizacion>(TipoAmortizacion.INTERES_PLANO)
   const [tasaInteresInput, setTasaInteresInput] = useState('10')
   const [cuotasPrestamoInput, setCuotasPrestamoInput] = useState('12')
   const [cuotaInicialArticuloInput, setCuotaInicialArticuloInput] = useState('')
@@ -212,7 +214,7 @@ export default function CrearCreditoModal({
       setCreditType(nextCreditType)
       setClienteCreditoId(defaultClienteId || '')
       setMontoPrestamoInput('')
-      setTipoInteres(TipoAmortizacion.INTERES_SIMPLE)
+      setTipoInteres(TipoAmortizacion.INTERES_PLANO)
       setTasaInteresInput('10')
       setCuotasPrestamoInput('12')
       setCuotaInicialArticuloInput('')
@@ -309,7 +311,7 @@ export default function CrearCreditoModal({
     const nextCreditType = defaultCreditType || 'prestamo'
     setCreditType(nextCreditType)
     setMontoPrestamoInput('')
-    setTipoInteres(TipoAmortizacion.INTERES_SIMPLE)
+    setTipoInteres(TipoAmortizacion.INTERES_PLANO)
     setTasaInteresInput('10')
     setCuotasPrestamoInput('12')
     setCuotaInicialArticuloInput('')
@@ -441,7 +443,7 @@ export default function CrearCreditoModal({
                         className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
                       >
                         <option value={TipoAmortizacion.INTERES_SIMPLE}>Interés Simple</option>
-                        <option value={TipoAmortizacion.FRANCESA}>Francés (Amortizable)</option>
+                        <option value={TipoAmortizacion.INTERES_PLANO}>Amortización</option>
                       </select>
                     </div>
                   </div>
@@ -814,14 +816,13 @@ export default function CrearCreditoModal({
                     <div className="flex justify-between">
                       <span className="text-slate-600 font-medium">Sistema:</span>
                       <span className="font-bold text-slate-900">
-                        {tipoInteres === TipoAmortizacion.FRANCESA ? 'Amortización francesa' : 'Interés simple'}
+                        {tipoInteres === TipoAmortizacion.INTERES_PLANO ? 'Amortización' : 'Interés Simple'}
                       </span>
                     </div>
                   )}
                 </div>
               </div>
-
-              <div className="flex gap-3 pt-2">
+              <div className="flex gap-3 pt-6 mt-6 border-t border-slate-100">
                 <button
                   onClick={handleReset}
                   className="flex-1 bg-white border border-slate-200 text-slate-700 font-bold py-4 rounded-2xl hover:bg-slate-50 transition-all uppercase tracking-widest text-xs"
@@ -839,7 +840,8 @@ export default function CrearCreditoModal({
                             creditType,
                             clienteCreditoId,
                             monto: parseCOPInputToNumber(montoPrestamoInput),
-                            tipoInteres,
+                            tipoInteres: tipoInteres,
+                            tipoAmortizacion: tipoInteres,
                             tasaInteres: Number(tasaInteresInput),
                             cuotas: Number(cuotasPrestamoInput),
                             cantidadCuotas: Number(cuotasPrestamoInput),
@@ -874,6 +876,8 @@ export default function CrearCreditoModal({
                             ventaContado: esContado ? true : undefined,
                             notas: notasInput.trim() || undefined,
                           }
+                      
+                      console.log('[CrearCreditoModal] payload to send:', payload);
                       await onConfirm(payload as any)
                       handleReset()
                     } catch (error) {

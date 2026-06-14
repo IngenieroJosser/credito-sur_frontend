@@ -252,7 +252,7 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
                             loanData?.estado === 'EN_MORA' ? 'bg-orange-100 text-orange-700 border-orange-200' :
                             'bg-blue-100 text-blue-700 border-blue-200'
                         }`}>
-                            {loanData?.estado || 'ACTIVO'}
+                            {loanData?.estado === 'EN_MORA' ? 'EN MORA' : loanData?.estado || 'ACTIVO'}
                         </span>
                     </div>
                 </div>
@@ -294,14 +294,20 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
                         </div>
                     </div>
 
-                    {/* Artículo (Diseño Original) */}
+                    {/* Artículo / Préstamo (Diseño Original) */}
                     <div className="bg-blue-50 border border-blue-100 p-5 rounded-2xl flex items-center justify-between">
                         <div className="flex items-center gap-4">
                             <div className="p-3 bg-white rounded-xl shadow-sm border border-blue-100">
-                                <ShoppingBag className="w-6 h-6 text-[#08557f]" />
+                                {isArticle ? (
+                                    <ShoppingBag className="w-6 h-6 text-[#08557f]" />
+                                ) : (
+                                    <Clock className="w-6 h-6 text-[#08557f]" />
+                                )}
                             </div>
                             <div>
-                                <div className="text-[10px] font-bold text-[#08557f] uppercase tracking-widest mb-1">Artículo Financiado</div>
+                                <div className="text-[10px] font-bold text-[#08557f] uppercase tracking-widest mb-1">
+                                    {isArticle ? "Artículo Financiado" : "Préstamo"}
+                                </div>
                                 <div className="font-black text-slate-900 text-lg leading-tight uppercase">{articleName}</div>
                             </div>
                         </div>

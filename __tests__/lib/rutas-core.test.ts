@@ -382,7 +382,7 @@ describe('computeRutaHoyUiStatsFromVisitas', () => {
     expect(stats.meta).toBe(5602000)
   })
 
-  it('usa montoCuotaPendiente para la meta aunque la tarjeta muestre cuota normal', () => {
+  it('usa cuota normal para la meta visual aunque exista acumulado pendiente', () => {
     const stats = computeRutaHoyUiStatsFromVisitas([
       {
         estado: 'en_mora',
@@ -393,9 +393,9 @@ describe('computeRutaHoyUiStatsFromVisitas', () => {
       },
     ])
 
-    expect(stats.pendiente).toBe(300_000)
+    expect(stats.pendiente).toBe(100_000)
     expect(stats.recaudo).toBe(0)
-    expect(stats.meta).toBe(300_000)
+    expect(stats.meta).toBe(100_000)
   })
 
   it('reincorpora a meta y recaudo un cliente ausente cuando registra pago hoy', () => {

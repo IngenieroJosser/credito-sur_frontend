@@ -57,7 +57,7 @@ export interface PrestamoDetalle {
   fechaProximoPago?: string;
   fechaVencimiento: string;
   estado: 'ACTIVO' | 'PAGADO' | 'EN_MORA' | 'PENDIENTE' | 'PENDIENTE_APROBACION' | string;
-  tipoAmortizacion?: 'FRANCESA' | 'INTERES_SIMPLE';
+  tipoAmortizacion?: 'FRANCESA' | 'INTERES_SIMPLE' | 'INTERES_PLANO';
   tipoPrestamo?: 'EFECTIVO' | 'ARTICULO' | string;
   cuotaInicial?: number;
   producto?: string;
@@ -231,7 +231,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
       .filter(Boolean) as string[]
 
     const vencidas = keys.filter((k) => !!hoyBogotaKey && k < hoyBogotaKey)
-    const futuras = keys.filter((k) => !!hoyBogotaKey && k > hoyBogotaKey)
+    const futuras = keys.filter((k) => !!hoyBogotaKey && k >= hoyBogotaKey)
 
     const cuotaVencidaDesdeKey = vencidas.length
       ? vencidas.reduce((min, k) => (k < min ? k : min), vencidas[0])
@@ -414,8 +414,10 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tipo de Interés</span>
              <p className="text-lg font-bold text-slate-900 tracking-tight">
                {prestamo.tipoAmortizacion === 'FRANCESA'
-                 ? 'Amortización Francesa'
-                 : 'Interés Simple'}
+                 ? 'Amortización'
+                 : prestamo.tipoAmortizacion === 'INTERES_PLANO'
+                   ? 'Amortización'
+                   : 'Interés Simple'}
              </p>
           </div>
 
@@ -695,7 +697,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                   <th scope="col" className="px-4 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Pendiente</th>
                   <th scope="col" className="px-4 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Capital</th>
                   <th scope="col" className="px-4 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Interés</th>
-                  <th scope="col" className="px-4 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Saldo</th>
+                  <th scope="col" className="px-4 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Saldo Capital</th>
                   <th scope="col" className="px-4 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Estado</th>
                   <th scope="col" className="px-4 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Gestión ruta</th>
                   <th scope="col" className="px-4 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest min-w-[110px]">Fecha Pago</th>
@@ -795,8 +797,10 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                   <dt className="text-xs font-bold text-slate-400">Tipo de interés</dt>
                   <dd className="text-sm font-bold text-slate-700">
                     {prestamo.tipoAmortizacion === 'FRANCESA'
-                      ? 'Amortización Francesa (cuota fija)'
-                      : 'Interés Simple'}
+                      ? 'Amortización (cuota fija)'
+                      : prestamo.tipoAmortizacion === 'INTERES_PLANO'
+                        ? 'Amortización'
+                        : 'Interés Simple'}
                   </dd>
                 </div>
                 <div className="flex justify-between border-b border-slate-50 pb-2">
@@ -836,8 +840,10 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                   <dt className="text-xs font-bold text-slate-400">Tipo de interés</dt>
                   <dd className="text-sm font-bold text-slate-700">
                     {prestamo.tipoAmortizacion === 'FRANCESA'
-                      ? 'Amortización Francesa (cuota fija)'
-                      : 'Interés Simple'}
+                      ? 'Amortización (cuota fija)'
+                      : prestamo.tipoAmortizacion === 'INTERES_PLANO'
+                        ? 'Amortización'
+                        : 'Interés Simple'}
                   </dd>
                 </div>
                 {!isArticle && (

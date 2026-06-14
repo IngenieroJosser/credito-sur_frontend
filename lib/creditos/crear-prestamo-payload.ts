@@ -7,6 +7,7 @@ export type CrearCreditoModalData = {
   clienteCreditoId: string
   monto: number
   tipoInteres?: TipoAmortizacion
+  tipoAmortizacion?: TipoAmortizacion
   tasaInteres?: number
   cuotasTotales?: number
   cantidadCuotas?: number
@@ -93,7 +94,7 @@ export function buildCrearPrestamoPayload(
     cantidadCuotas: totalCuotas,
     cuotas: totalCuotas,
     frecuenciaPago: frecuenciaPago as FrecuenciaPago,
-    tipoAmortizacion: data.tipoInteres || TipoAmortizacion.INTERES_SIMPLE,
+    tipoAmortizacion: data.tipoAmortizacion || data.tipoInteres || TipoAmortizacion.INTERES_PLANO,
     fechaInicio: data.fechaInicio || toBogotaDateTimeOffsetIso(new Date()),
     creadoPorId: actorId,
     cuotaInicial: Number(data.cuotaInicialArticulo || 0),
@@ -113,5 +114,6 @@ export function buildCrearPrestamoPayload(
     if (esContado) payload.notas = 'Venta de artículo de contado'
   }
 
+  console.log('[buildCrearPrestamoPayload] returning:', payload);
   return payload
 }

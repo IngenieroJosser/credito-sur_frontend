@@ -1,7 +1,7 @@
 import { logger } from '@/lib/logger'
 import { apiRequest } from '@/lib/api/api';
 import { syncService } from '@/lib/offline/syncService';
-import { EstadoPrestamo, FrecuenciaPago, EstadoCuota } from '@/types/enums';
+import { EstadoPrestamo, FrecuenciaPago, EstadoCuota, TipoAmortizacion } from '@/types/enums';
 import type { Prestamo } from '@/types/domain';
 import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 
@@ -43,7 +43,7 @@ export interface CrearPrestamoDto {
   plazoMeses: number;
   cantidadCuotas?: number;
   frecuenciaPago: FrecuenciaPago;
-  tipoAmortizacion?: 'INTERES_SIMPLE' | 'FRANCESA';
+  tipoAmortizacion?: TipoAmortizacion;
   fechaInicio: string;
   fechaPrimerCobro?: string;
   creadoPorId: string;
@@ -465,7 +465,7 @@ export const prestamosService = {
     cuotaInicial?: number;
     fechaInicio?: string;
     garantia?: string;
-    tipoAmortizacion?: string;
+    tipoAmortizacion?: TipoAmortizacion;
     archivos?: any[];
   }): Promise<any> {
     try {
