@@ -1246,7 +1246,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
     }
 
-  }, [showHistory, rutaId, historialRutas, cargarHistorialFecha]);
+  }, [showHistory, rutaId, historialRutas, cargarHistorialFecha, hoyBogotaKey]);
 
 
 
