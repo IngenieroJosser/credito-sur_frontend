@@ -344,6 +344,12 @@ export const RutasPageView = ({
             .filter((v: any) => shouldShowVisitaEnRutaHoy(v, hoyKey))
             .filter((v: any) => !shouldExcludeVisitaFromOperationalMeta(v))
 
+          const clientesOperativosHoy = new Set(
+            visitasOperativasHoy
+              .map((v: any) => v.clienteId)
+              .filter(Boolean),
+          ).size
+
           const statsHoy = computeRutaHoyUiStatsFromVisitas(
             visitasOperativasHoy,
             0,
@@ -360,7 +366,7 @@ export const RutasPageView = ({
             meta,
             recaudo,
             pendiente: Math.max(0, meta - recaudo),
-            clientesOperativosHoy: visitasOperativasHoy.length,
+            clientesOperativosHoy,
             visitasOperativasHoy,
           }
         } catch (e) {
