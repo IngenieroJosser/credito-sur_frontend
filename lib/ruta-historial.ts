@@ -5,6 +5,7 @@ import { mapNivelRiesgo, type VisitaRuta } from '@/lib/types/cobranza'
 /**
  * Función compartida para resolver el riesgo de obligación/crédito.
  * Prioriza campos explícitos del backend sobre cálculo manual.
+ * El acumulado vencido es factor dominante para riesgo.
  */
 export const resolveRiesgoObligacion = (params: {
   row?: any
@@ -45,7 +46,49 @@ export const resolveRiesgoObligacion = (params: {
     }
   }
 
-  // Créditos en mora: calcular riesgo basado en días de mora y cuotas vencidas
+  // Calcular acumulado vencido (factor dominante)
+  const montoVencidoAcumulado = Number(
+    row?.montoMoraAcumulada ??
+    row?.montoVencidoAcumulado ??
+    row?.saldoVencidoAcumulado ??
+    row?.saldoOperativoJornada ??
+    prestamo?.montoMoraAcumulada ??
+    prestamo?.montoVencidoAcumulado ??
+    prestamo?.saldoVencidoAcumulado ??
+    prestamo?.saldoOperativoJornada ??
+    cuotaObjetivo?.montoMoraAcumulada ??
+    cuotaObjetivo?.montoVencidoAcumulado ??
+    cuotaObjetivo?.saldoVencidoAcumulado ??
+    (
+      estadoCalculado === 'en_mora'
+        ? Number(prestamo?.saldoPendiente ?? row?.saldoPendiente ?? row?.saldoTotal ?? 0)
+        : 0
+    )
+  )
+
+  // Calcular cuota base
+  const cuotaBase = Number(
+    row?.montoCuotaNormal ??
+    row?.montoCuota ??
+    row?.montoMetaOperativaPendiente ??
+    prestamo?.montoCuotaNormal ??
+    prestamo?.valorCuota ??
+    cuotaObjetivo?.montoNominal ??
+    cuotaObjetivo?.montoCuota ??
+    cuotaObjetivo?.monto ??
+    0
+  )
+
+  // Si está en mora con acumulado vencido, usar ratio como factor dominante
+  if (estadoCalculado === 'en_mora' && montoVencidoAcumulado > 0 && cuotaBase > 0) {
+    const ratio = montoVencidoAcumulado / cuotaBase
+
+    if (ratio >= 3) return 'LISTA_NEGRA'
+    if (ratio >= 2) return 'ROJO'
+    if (ratio >= 1) return 'AMARILLO'
+  }
+
+  // Si no hay acumulado vencido, usar días de mora y cuotas vencidas
   if (estadoCalculado === 'en_mora') {
     const dias = diasMora || 0
     const cuotas = cuotasVencidas || 0
