@@ -182,7 +182,7 @@ import NuevoClienteModal from '@/components/clientes/NuevoClienteModal'
 
 import RutaProvisionalModal from '@/components/dashboards/shared/RutaProvisionalModal'
 import { VisitaRuta, EstadoVisita, PeriodoRuta, HistorialDia, mapNivelRiesgo, mapFrecuenciaToPeriodo } from '@/lib/types/cobranza'
-import { resolveRiesgoObligacion } from '@/lib/ruta-historial'
+import { resolveRiesgoObligacion, resolveNivelRiesgoUi } from '@/lib/rutas/riesgo-obligacion'
 import { StaticVisitaItem, SortableVisita, Portal, MODAL_Z_INDEX, SeleccionClienteModal } from '@/components/dashboards/shared/CobradorElements'
 import EstadoCuentaModal from '@/components/cobranza/EstadoCuentaModal'
 
@@ -287,15 +287,7 @@ const resolveNivelRiesgoVisita = (visita: any, prestamo?: any, cuotaObjetivo?: a
     esProvisional,
   })
 
-  // Mapear a los valores que usa VistaCobrador
-  const nivelMap: Record<string, string> = {
-    'VERDE': 'bajo',
-    'AMARILLO': 'precaucion',
-    'ROJO': 'moderado',
-    'LISTA_NEGRA': 'critico',
-  }
-
-  return nivelMap[nivelRiesgoRaw] || 'bajo'
+  return resolveNivelRiesgoUi(nivelRiesgoRaw)
 }
 
 
