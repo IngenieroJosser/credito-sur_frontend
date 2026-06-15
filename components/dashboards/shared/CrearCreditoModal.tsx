@@ -28,6 +28,7 @@ interface CrearCreditoModalProps {
     clienteCreditoId: string
     monto: number
     tipoInteres?: TipoAmortizacion
+    tipoAmortizacion?: TipoAmortizacion
     tasaInteres?: number
     cuotasTotales?: number
     cantidadCuotas?: number
@@ -46,6 +47,8 @@ interface CrearCreditoModalProps {
   defaultClienteId?: string
   defaultCreditType?: 'prestamo' | 'articulo'
   hideTypeSelector?: boolean
+  defaultVentaContado?: boolean
+  lockVentaContado?: boolean
 }
 
 const dateTimeLocalToBogotaOffsetIso = (value: string) => {
@@ -119,11 +122,72 @@ const getDefaultFirstCollectionDate = (frecuencia: string, base: Date = new Date
   }
 }
 
-export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultClienteId, defaultCreditType, hideTypeSelector }: CrearCreditoModalProps) {
+const calcularPrestamoPreview = (params: {
+  monto: number
+  cuotas: number
+  tasa: number
+  meses: number
+  tipoInteres: TipoAmortizacion
+}) => {
+  const monto = Number(params.monto || 0)
+  const cuotas = Number(params.cuotas || 0)
+  const tasa = Number(params.tasa || 0)
+
+  if (!(monto > 0) || !(cuotas > 0)) {
+    return null
+  }
+
+  if (params.tipoInteres === TipoAmortizacion.INTERES_PLANO || params.tipoInteres === TipoAmortizacion.FRANCESA) {
+    // Interés plano (nuevo) / Amortización
+    const intereses = Math.round(monto * (tasa / 100))
+    const total = monto + intereses
+    const valorCuota = Math.floor(total / cuotas)
+    // La última cuota absorbe el residuo
+    const residuo = total - valorCuota * cuotas
+
+    return {
+      meses: params.meses,
+      monto,
+      intereses,
+      total,
+      valorCuota, // cuotas 1..n-1
+      valorUltimaCuota: valorCuota + residuo, // última cuota
+      numCuotas: cuotas,
+      sistema: 'Amortización',
+    }
+  }
+
+  // INTERES_SIMPLE
+  const mesesInteres = Math.max(1, params.meses)
+  const intereses = (monto * tasa * mesesInteres) / 100
+  const total = monto + intereses
+  const valorCuota = cuotas > 0 ? total / cuotas : 0
+
+  return {
+    meses: params.meses,
+    monto,
+    intereses,
+    total,
+    valorCuota,
+    numCuotas: cuotas,
+    sistema: 'Interés Simple',
+  }
+}
+
+export default function CrearCreditoModal({
+  isOpen,
+  onClose,
+  onConfirm,
+  defaultClienteId,
+  defaultCreditType,
+  hideTypeSelector,
+  defaultVentaContado = false,
+  lockVentaContado = false,
+}: CrearCreditoModalProps) {
   const [creditType, setCreditType] = useState<'prestamo' | 'articulo'>(defaultCreditType || 'prestamo')
   const [clienteCreditoId, setClienteCreditoId] = useState('')
   const [montoPrestamoInput, setMontoPrestamoInput] = useState('')
-  const [tipoInteres, setTipoInteres] = useState<TipoAmortizacion>(TipoAmortizacion.INTERES_SIMPLE)
+  const [tipoInteres, setTipoInteres] = useState<TipoAmortizacion>(TipoAmortizacion.INTERES_PLANO)
   const [tasaInteresInput, setTasaInteresInput] = useState('10')
   const [cuotasPrestamoInput, setCuotasPrestamoInput] = useState('12')
   const [cuotaInicialArticuloInput, setCuotaInicialArticuloInput] = useState('')
@@ -138,15 +202,29 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
 
   const [articuloSeleccionadoId, setArticuloSeleccionadoId] = useState<string>('')
   const [planArticuloIndex, setPlanArticuloIndex] = useState<number | null>(null)
+  const [esContado, setEsContado] = useState(false)
 
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [articulos, setArticulos] = useState<Articulo[]>([])
 
   useEffect(() => {
     if (isOpen) {
+      const nextCreditType = defaultCreditType || 'prestamo'
+      const nextEsContado = nextCreditType === 'articulo' && (defaultVentaContado || lockVentaContado)
+      setCreditType(nextCreditType)
+      setClienteCreditoId(defaultClienteId || '')
+      setMontoPrestamoInput('')
+      setTipoInteres(TipoAmortizacion.INTERES_PLANO)
+      setTasaInteresInput('10')
+      setCuotasPrestamoInput('12')
+      setCuotaInicialArticuloInput('')
+      setArticuloSeleccionadoId('')
+      setPlanArticuloIndex(null)
+      setFrecuenciaPago('DIARIO')
+      setEsContado(nextEsContado)
+      setNotasInput('')
       setFechaCreditoInput(toBogotaDateTimeLocalInputValue(new Date()))
-      if (defaultClienteId) setClienteCreditoId(defaultClienteId)
-      setFechaPrimerCobro(getDefaultFirstCollectionDate(frecuenciaPago))
+      setFechaPrimerCobro(getDefaultFirstCollectionDate('DIARIO'))
       Promise.all([
         // forCredit: true → el cobrador ve todos los clientes no bloqueados,
         // igual que el supervisor, sin restricción de ruta asignada.
@@ -164,10 +242,9 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
         } catch { /* ignore */ }
       })
     }
-  }, [isOpen, defaultClienteId])
+  }, [isOpen, defaultClienteId, defaultCreditType, defaultVentaContado, lockVentaContado])
 
   const articuloSeleccionado = articulos.find(a => a.id === articuloSeleccionadoId)
-  const [esContado, setEsContado] = useState(false)
 
   const planSeleccionado = useMemo(() => {
     if (!articuloSeleccionado) return null
@@ -218,28 +295,30 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
     else if (frecuenciaPago === 'MENSUAL') meses = cuotas
 
     const tasa = Number(tasaInteresInput) || 0
-    // Cobrar al menos 1 mes de interés si el plazo es menor a 1 mes (típico en microcréditos)
-    const mesesInteres = Math.max(1, meses)
-    const intereses = (monto * tasa * mesesInteres) / 100
-    const total = monto + intereses
-    const valorCuota = cuotas > 0 ? total / cuotas : 0
-
-    return { meses, monto, intereses, total, valorCuota, numCuotas: cuotas }
-  }, [creditType, montoPrestamoInput, cuotasPrestamoInput, frecuenciaPago, tasaInteresInput])
+    return calcularPrestamoPreview({
+      monto,
+      cuotas,
+      tasa,
+      meses,
+      tipoInteres,
+    })
+  }, [creditType, montoPrestamoInput, cuotasPrestamoInput, frecuenciaPago, tasaInteresInput, tipoInteres])
 
   if (!isOpen) return null
 
   const handleReset = () => {
     setClienteCreditoId('')
-    setCreditType('prestamo')
+    const nextCreditType = defaultCreditType || 'prestamo'
+    setCreditType(nextCreditType)
     setMontoPrestamoInput('')
-    setTipoInteres(TipoAmortizacion.INTERES_SIMPLE)
+    setTipoInteres(TipoAmortizacion.INTERES_PLANO)
     setTasaInteresInput('10')
     setCuotasPrestamoInput('12')
     setCuotaInicialArticuloInput('')
     setArticuloSeleccionadoId('')
     setPlanArticuloIndex(null)
     setFrecuenciaPago('DIARIO')
+    setEsContado(nextCreditType === 'articulo' && (defaultVentaContado || lockVentaContado))
     setNotasInput('')
     setFechaCreditoInput(toBogotaDateTimeLocalInputValue(new Date()))
     onClose()
@@ -265,7 +344,9 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
           <div className="p-6">
             <div className="flex justify-between items-start mb-6">
               <div>
-                <h3 className="text-xl font-bold text-slate-900">Crear Nuevo Crédito</h3>
+                <h3 className="text-xl font-bold text-slate-900">
+                  {creditType === 'articulo' && esContado ? 'Registrar Venta' : 'Crear Nuevo Crédito'}
+                </h3>
               </div>
               <button
                 type="button"
@@ -309,9 +390,13 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
               </div>
             ) : (
               <div className="mb-6 flex justify-center">
-                <div className="p-4 rounded-xl border-2 border-orange-500 bg-orange-50 text-orange-700 text-center w-56">
+                <div className={`p-4 rounded-xl border-2 text-center w-56 ${
+                  esContado
+                    ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
+                    : 'border-orange-500 bg-orange-50 text-orange-700'
+                }`}>
                   <Package className="h-6 w-6 mx-auto mb-2" />
-                  <div className="font-bold text-sm">Crédito por Artículo</div>
+                  <div className="font-bold text-sm">{esContado ? 'Venta de Contado' : 'Crédito por Artículo'}</div>
                 </div>
               </div>
             )}
@@ -358,7 +443,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                         className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
                       >
                         <option value={TipoAmortizacion.INTERES_SIMPLE}>Interés Simple</option>
-                        <option value={TipoAmortizacion.FRANCESA}>Francés (Amortizable)</option>
+                        <option value={TipoAmortizacion.INTERES_PLANO}>Amortización</option>
                       </select>
                     </div>
                   </div>
@@ -429,11 +514,29 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                       <div className="grid grid-cols-2 gap-4">
                         <div className="bg-white/50 p-3 rounded-xl border border-blue-100">
                           <div className="text-[10px] text-blue-800 font-bold uppercase mb-1 flex items-center gap-1.5">
+                            <Calculator className="w-3 h-3" />
+                            Sistema
+                          </div>
+                          <div className="font-black text-blue-900 text-sm leading-tight">
+                            {calculoPrestamo.sistema}
+                          </div>
+                        </div>
+                        <div className="bg-white/50 p-3 rounded-xl border border-blue-100">
+                          <div className="text-[10px] text-blue-800 font-bold uppercase mb-1 flex items-center gap-1.5">
                             <Calendar className="w-3 h-3" />
                             Plazo Real
                           </div>
                           <div className="font-black text-blue-900 text-lg">
                             {calculoPrestamo.numCuotas} <span className="text-[10px] font-bold text-blue-600 uppercase tracking-tighter">Pagos {frecuenciaPago.toLowerCase()}s</span>
+                          </div>
+                        </div>
+                        <div className="bg-white/50 p-3 rounded-xl border border-blue-100">
+                          <div className="text-[10px] text-blue-800 font-bold uppercase mb-1 flex items-center gap-1.5">
+                            <DollarSign className="w-3 h-3" />
+                            Interés Total
+                          </div>
+                          <div className="font-black text-blue-900 text-lg">
+                            {formatCurrency(calculoPrestamo.intereses)}
                           </div>
                         </div>
                         <div className="bg-white/50 p-3 rounded-xl border border-blue-100">
@@ -461,10 +564,14 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                   <div className="bg-blue-50/50 border border-blue-100 rounded-2xl p-4 flex gap-3 items-start">
                     <Calculator className="w-5 h-5 text-blue-600 mt-0.5" />
                     <p className="text-xs font-medium text-blue-900 leading-relaxed">
-                      <strong>Venta de Artículos:</strong> Elige crédito por meses o marca <strong>Compra de Contado</strong>. En contado no se generan cuotas ni plan de pagos.
+                      <strong>{lockVentaContado ? 'Venta de contado:' : 'Venta de Artículos:'}</strong>{' '}
+                      {lockVentaContado
+                        ? 'Selecciona el cliente y el artículo. No se generan cuotas ni plan de pagos.'
+                        : <>Elige crédito por meses o marca <strong>Compra de Contado</strong>. En contado no se generan cuotas ni plan de pagos.</>}
                     </p>
                   </div>
 
+                  {!lockVentaContado && (
                   <div className="mt-3">
                     <FieldLabel required>Modo de Venta</FieldLabel>
                     <div className="flex items-center gap-2">
@@ -488,6 +595,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                       </button>
                     </div>
                   </div>
+                  )}
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -497,7 +605,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                         onChange={(e) => {
                           setArticuloSeleccionadoId(e.target.value)
                           setPlanArticuloIndex(null)
-                          setEsContado(false)
+                          setEsContado(Boolean(defaultVentaContado || lockVentaContado))
                         }}
                         className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-bold text-slate-900"
                       >
@@ -691,17 +799,30 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                   <div className="flex justify-between">
                     <span className="text-slate-600 font-medium">Tipo:</span>
                     <span className="font-bold text-slate-900">
-                      {creditType === 'prestamo' ? 'Préstamo en Efectivo' : 'Crédito de un Artículo'}
+                      {creditType === 'prestamo'
+                        ? 'Préstamo en Efectivo'
+                        : esContado
+                          ? 'Venta de Contado'
+                          : 'Crédito de un Artículo'}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-600 font-medium">Estado Inicial:</span>
-                    <span className="font-bold text-blue-600">Pendiente de Aprobación</span>
+                    <span className="font-bold text-blue-600">
+                      {creditType === 'articulo' && esContado ? 'Venta directa' : 'Pendiente de Aprobación'}
+                    </span>
                   </div>
+                  {creditType === 'prestamo' && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-600 font-medium">Sistema:</span>
+                      <span className="font-bold text-slate-900">
+                        {tipoInteres === TipoAmortizacion.INTERES_PLANO ? 'Amortización' : 'Interés Simple'}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
-
-              <div className="flex gap-3 pt-2">
+              <div className="flex gap-3 pt-6 mt-6 border-t border-slate-100">
                 <button
                   onClick={handleReset}
                   className="flex-1 bg-white border border-slate-200 text-slate-700 font-bold py-4 rounded-2xl hover:bg-slate-50 transition-all uppercase tracking-widest text-xs"
@@ -719,7 +840,8 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                             creditType,
                             clienteCreditoId,
                             monto: parseCOPInputToNumber(montoPrestamoInput),
-                            tipoInteres,
+                            tipoInteres: tipoInteres,
+                            tipoAmortizacion: tipoInteres,
                             tasaInteres: Number(tasaInteresInput),
                             cuotas: Number(cuotasPrestamoInput),
                             cantidadCuotas: Number(cuotasPrestamoInput),
@@ -754,6 +876,8 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                             ventaContado: esContado ? true : undefined,
                             notas: notasInput.trim() || undefined,
                           }
+                      
+                      console.log('[CrearCreditoModal] payload to send:', payload);
                       await onConfirm(payload as any)
                       handleReset()
                     } catch (error) {
@@ -778,7 +902,7 @@ export default function CrearCreditoModal({ isOpen, onClose, onConfirm, defaultC
                   ) : (
                     <Plus className="w-4 h-4" />
                   )}
-                  {isSubmitting ? 'Procesando...' : 'Crear Crédito'}
+                  {isSubmitting ? 'Procesando...' : (creditType === 'articulo' && esContado ? 'Registrar Venta' : 'Crear Crédito')}
                 </button>
               </div>
             </div>

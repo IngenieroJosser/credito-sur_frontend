@@ -666,12 +666,23 @@ const LegacyDetalleRutaPage = () => {
                    if (pendiente) {
 
                        const montoReal = Number(pendiente.monto || (pendiente.montoCapital + pendiente.montoInteres) || 0);
+                       const montoNormal = Number(
+                         (v as any).montoCuotaNormal ??
+                         (pendiente as any).montoNominal ??
+                         (pendiente as any).montoCuota ??
+                         pendiente.monto ??
+                         v.montoCuota ??
+                         0,
+                       )
+                       const montoPendiente = Math.max(0, montoReal - Number((pendiente as any).montoPagado || 0))
 
                        return {
 
                          ...v,
 
-                         montoCuota: montoReal > 0 ? montoReal : v.montoCuota,
+                         montoCuota: montoNormal,
+                         montoCuotaNormal: montoNormal,
+                         montoCuotaPendiente: montoPendiente > 0 ? montoPendiente : (v as any).montoCuotaPendiente,
 
                          proximaVisita: (pendiente.estado === 'PRORROGADA' && pendiente.fechaVencimientoProrroga)
 
@@ -689,6 +700,12 @@ const LegacyDetalleRutaPage = () => {
 
                          fechaOriginalVencimiento: pendiente.fechaVencimiento || undefined,
 
+                         cuotaId: pendiente?.id || (v as any)?.cuotaId,
+                         cuotaObjetivoId: pendiente?.id || (v as any)?.cuotaObjetivoId,
+                         cuotaObjetivoPrestamoId: pendiente?.id || (v as any)?.cuotaObjetivoPrestamoId,
+                         proximaCuota: pendiente,
+                         cuotaObjetivo: pendiente,
+
                        };
 
                    }
@@ -696,11 +713,12 @@ const LegacyDetalleRutaPage = () => {
 
 
                    const p = await prestamosService.obtenerPrestamoPorId(v.prestamoId);
+                   const pAny = p as any;
 
-                   const proxima = (p.proximaCuota ?? {}) as any;
+                   const proxima = (pAny.proximaCuota ?? {}) as any;
+                   const cuotaIdFromP = String(proxima?.id || pAny?.cuotaObjetivo?.id || pAny?.cuotaId || (v as any)?.cuotaId || '').trim();
 
-                   const montoP = Number(proxima.monto || p.montoCuota || p.valorCuota || 0);
-
+                   const montoP = Number(proxima.montoCuota || proxima.montoNominal || proxima.monto || p.montoCuota || p.valorCuota || 0);
 
 
                    return {
@@ -709,7 +727,13 @@ const LegacyDetalleRutaPage = () => {
 
                      montoCuota: montoP > 0 ? montoP : v.montoCuota,
 
-                     proximaVisita: proxima.fechaVencimiento || v.proximaVisita
+                     proximaVisita: proxima.fechaVencimiento || v.proximaVisita,
+
+                     cuotaId: cuotaIdFromP,
+                     cuotaObjetivoId: cuotaIdFromP,
+                     cuotaObjetivoPrestamoId: cuotaIdFromP,
+                     cuotaObjetivo: proxima || pAny?.cuotaObjetivo,
+                     proximaCuota: proxima,
 
                    };
 
@@ -781,7 +805,7 @@ const LegacyDetalleRutaPage = () => {
 
               const saldoHoy = Number(v.recaudadoDelDia || 0);
 
-              const cuota = Number(v.montoCuota || 0);
+              const cuota = Number((v as any).montoCuotaPendiente ?? v.montoCuota ?? 0);
 
               if (saldoHoy >= (cuota - 1) && saldoHoy > 0) return 'pagado';
 
@@ -1120,15 +1144,7 @@ const LegacyDetalleRutaPage = () => {
 
             const r = cliente.nivelRiesgo || 'VERDE';
 
-            if (r === 'VERDE') return 'bajo';
-
-            if (r === 'AMARILLO') return 'leve';
-
-            if (r === 'ROJO') return 'moderado';
-
-            if (r === 'LISTA_NEGRA') return 'critico';
-
-            return 'bajo';
+            return mapNivelRiesgo(r);
 
           })(),
 
@@ -2304,6 +2320,24 @@ const LegacyDetalleRutaPage = () => {
 
             onConfirm={async (fecha, motivo, cuotaId) => {
 
+                const cuotaIdFinal = String(
+                  cuotaId || 
+                  (visitaReprogramar as any)?.cuotaId || 
+                  (visitaReprogramar as any)?.cuotaObjetivoId || 
+                  (visitaReprogramar as any)?.cuotaObjetivo?.id || 
+                  (visitaReprogramar as any)?.proximaCuota?.id || 
+                  ''
+                ).trim();
+
+                console.log('[REPROGRAMACION DEBUG]', {
+                  prestamoId: visitaReprogramar.prestamoId,
+                  clienteId: visitaReprogramar.clienteId,
+                  cuotaId,
+                  cuotaIdFinal,
+                  fecha,
+                  motivo,
+                })
+
                 try {
 
                   if (!visitaReprogramar?.prestamoId) {
@@ -2314,26 +2348,17 @@ const LegacyDetalleRutaPage = () => {
 
                   }
 
-
-
-                  if (cuotaId) {
-                    await prestamosService.solicitarReprogramacionCuota({
-                      prestamoId: visitaReprogramar.prestamoId,
-                      cuotaId,
-                      nuevaFecha: fecha,
-                      motivo,
-                    });
-                  } else {
-                    await prestamosService.reprogramarPrestamo(visitaReprogramar.prestamoId, {
-
-                      fecha,
-
-                      motivo,
-
-                      cobradorId: currentUser?.id || '',
-
-                    });
+                  if (!cuotaIdFinal) {
+                    showNotification('error', 'No se pudo identificar la cuota a reprogramar.', 'Error');
+                    return;
                   }
+
+                  await prestamosService.solicitarReprogramacionCuota({
+                    prestamoId: visitaReprogramar.prestamoId,
+                    cuotaId: cuotaIdFinal,
+                    nuevaFecha: fecha,
+                    motivo,
+                  });
 
 
 
@@ -2349,11 +2374,20 @@ const LegacyDetalleRutaPage = () => {
                   } catch {}
 
                 } catch (e: any) {
+                  const message =
+                    e?.response?.data?.message ??
+                    e?.data?.message ??
+                    e?.message ??
+                    'Error al solicitar reprogramación.'
 
-                  console.error('Error reprogramando:', e);
+                  console.error('Error reprogramando cuota (coordinador):', {
+                    message,
+                    error: e,
+                    response: e?.response,
+                    data: e?.response?.data || e?.data,
+                  })
 
-                  showNotification('error', e?.message || 'Error al solicitar reprogramación', 'Error');
-
+                  showNotification('error', Array.isArray(message) ? message[0] : message, 'Error')
                 }
 
             }}

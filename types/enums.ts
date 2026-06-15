@@ -56,7 +56,8 @@ export enum MetodoPago {
 
 export enum TipoAmortizacion {
   INTERES_SIMPLE = 'INTERES_SIMPLE',
-  FRANCESA = 'FRANCESA'
+  FRANCESA = 'FRANCESA',
+  INTERES_PLANO = 'INTERES_PLANO'
 }
 
 export enum EstadoAprobacion {

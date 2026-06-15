@@ -236,12 +236,15 @@ import {
   shouldExcludeVisitaFromOperationalMeta,
   shouldIncludeVisitaInRutaHoyKpis,
   resolveCuotaProgressFromPrestamo,
+  resolveCuotaNormalOperativa,
   resolveNextPagoFromPrestamo,
   resolveProximaCuotaFromPrestamo,
   shouldMarkVisitaAsPagado,
   shouldShowVisitaEnRutaHoy,
   toBogotaDateTimeOffsetIso,
+  computeDiasMoraFromCuotaObjetivo,
   computeDiasMoraFromCuotas,
+  resolveCuotaIdFromVisitaLike,
 } from '@/lib/rutas-core'
 import { mapAsignacionesToVisitasLite } from '@/lib/ruta-visitas-mapper'
 import { applyRecaudoHoyToVisitas, buildRecaudosHoyMapByPrestamoId, computeMontoCuotaPendienteDespuesDeRecaudo, mergeVisitasPreservingLocalRecaudo, sumMontoTotalPagosByBogotaDateKey, sumMontoTotalPagosHistorico } from '@/lib/ruta-recaudos'
@@ -293,15 +296,19 @@ const resolveNivelRiesgoVisita = (raw: any): any => {
   }
 
   if (
-    value === 'MODERADO' ||
-    value === 'ROJO'
+    value === 'RIESGO_MODERADO' ||
+    value === 'MODERADO'
   ) {
     return 'moderado'
   }
 
   if (
+    value === 'ALTO_RIESGO' ||
+    value === 'ROJO' ||
     value === 'CRITICO' ||
     value === 'CRÍTICO' ||
+    value === 'RIESGO_CRITICO' ||
+    value === 'RIESGO_CRÍTICO' ||
     value === 'LISTA_NEGRA'
   ) {
     return 'critico'
@@ -465,7 +472,7 @@ const VistaCobrador = () => {
     const pagado = shouldMarkVisitaAsPagado({
       saldoTotal: v.saldoTotal,
       recaudadoHoy: v.recaudadoDelDia,
-      montoCuotaExigible: v.montoCuota,
+      montoCuotaExigible: (v as any).montoCuotaPendiente ?? v.montoCuota,
       estadoActual: v.estado,
     });
 
@@ -927,19 +934,17 @@ const VistaCobrador = () => {
         const nombreCredito = esArticulo ? (p?.articulo || 'Artículo') : 'Préstamo'
         const { cuotaActual, cuotasTotales } = resolveCuotaProgressFromPrestamo(prestamoAutoritativo)
         const cuotasForMonto = Array.isArray((prestamoAutoritativo as any)?.cuotas) ? (prestamoAutoritativo as any).cuotas : []
-        const montoExigible = esArticulo
-          ? computeMontoNominalHastaHoyFromCuotas(cuotasForMonto as any, hoyBogotaKey)
-          : computeMontoExigibleHastaHoyFromCuotas(cuotasForMonto as any, hoyBogotaKey)
-        const montoNominalProx = Number((prox as any)?.montoNominal ?? (prox as any)?.monto ?? 0)
+        const montoMoraAcumulada = computeMontoExigibleHastaHoyFromCuotas(cuotasForMonto as any, hoyBogotaKey)
+        const montoNominalProx = Number((prox as any)?.montoNominal ?? (prox as any)?.montoCuota ?? (prox as any)?.monto ?? 0)
         const montoPagadoProx = Number((prox as any)?.montoPagado ?? 0)
         const pendienteProx = Math.max(0, montoNominalProx - montoPagadoProx)
-        const montoCuota = montoExigible > 0
-          ? montoExigible
-          : pendienteProx
-        const montoCuotaNominal = computeMontoNominalHastaHoyFromCuotas(cuotasForMonto as any, hoyBogotaKey)
-        const montoCuotaTotal = montoCuotaNominal > 0
-          ? Math.max(montoCuotaNominal, Number((prox as any)?.monto ?? 0))
-          : Number((prox as any)?.monto ?? montoCuota)
+        const montoCuotaNormal = montoNominalProx
+        const montoCuotaPendiente = pendienteProx
+        const saldoTotalPrestamo = Number(
+          (prestamoAutoritativo as any)?.saldoPendiente ??
+            p?.saldoPendiente ??
+            0,
+        )
         const proximaVisitaV = fechaEfectiva || (prox as any)?.fechaVencimiento || row?.prestamo?.fechaEfectiva || hoyBogotaKey
 
         const hoyBogota = hoyBogotaKey
@@ -975,9 +980,16 @@ const VistaCobrador = () => {
           direccion: c?.direccion || 'Sin dirección registrada',
           telefono: c?.telefono || '',
           horaSugerida: '08:00 AM',
-          montoCuota: montoCuotaTotal,
-          montoCuotaPendiente: montoCuota,
-          saldoTotal: estadoCalculado === 'pagado' ? 0 : montoCuota,
+          montoCuota: montoCuotaNormal,
+          montoCuotaNormal,
+          montoCuotaPendiente,
+          montoMoraAcumulada,
+          cuotasVencidas: (cuotasForMonto as any[]).filter((cuota: any) => {
+            if (!cuota || !isCuotaNoPagada(cuota)) return false
+            const vtoKey = normalizeDateKey(resolveFechaEfectivaCuota(cuota) || String(cuota?.fechaVencimiento || ''))
+            return !!vtoKey && !!hoyBogotaKey && vtoKey <= hoyBogotaKey
+          }).length,
+          saldoTotal: estadoCalculado === 'pagado' ? 0 : saldoTotalPrestamo,
           estado: estadoCalculado,
           proximaVisita: proximaVisitaV,
           ordenVisita: Number(row?.ordenVisita || idx + 1),
@@ -1382,24 +1394,66 @@ const VistaCobrador = () => {
                   ? 'en_mora'
                   : 'pendiente'
 
+              const cuotaNormal = Number(
+                o.montoCuotaNormal ??
+                  o.cuotaObjetivo?.montoCuota ??
+                  o.cuotaObjetivo?.montoNominal ??
+                  cuotaObjetivo?.montoCuota ??
+                  cuotaObjetivo?.montoNominal ??
+                  cuotaObjetivo?.monto ??
+                  prestamo?.proximaCuota?.montoCuota ??
+                  prestamo?.proximaCuota?.montoNominal ??
+                  prestamo?.proximaCuota?.monto ??
+                  prestamo?.valorCuota ??
+                  prestamo?.montoCuota ??
+                  0,
+              )
+
+              const frecuenciaPago = o.frecuenciaPago || prestamo?.frecuenciaPago || 'DIARIO'
+              const diasMora = Number(
+                o.diasMora ??
+                  o.diasMoraOperativos ??
+                  o.cuotaObjetivo?.diasMora ??
+                  cuotaObjetivo?.diasMora ??
+                  computeDiasMoraFromCuotaObjetivo(cuotaObjetivo, hoyBogotaKey, frecuenciaPago) ??
+                  0,
+              )
+
+              const cuotaId = resolveCuotaIdFromVisitaLike(o, prestamo, cuotaObjetivo)
+              
               return {
                 ...o,
 
                 id: o.id || o.prestamoId || prestamo?.id || `obligacion-${idx}`,
+                cuotaId,
+                cuotaObjetivoId: cuotaId,
+                cuotaObjetivoPrestamoId: cuotaId,
+                cuotaObjetivo,
+                proximaCuota: cuotaObjetivo,
 
                 cliente: clienteNombre,
                 direccion: o.direccion || clienteObj?.direccion || 'Sin dirección',
                 telefono: o.telefono || clienteObj?.telefono || '',
 
-                montoCuota: Number(
-                  montoMetaPendiente ||
-                    cuotaObjetivo?.montoCuota ||
-                    cuotaObjetivo?.monto ||
-                    prestamo?.proximaCuota?.monto ||
-                    0,
-                ),
+                montoCuota: cuotaNormal,
+                montoCuotaNormal: cuotaNormal,
 
                 montoCuotaPendiente: montoMetaPendiente,
+                montoMoraAcumulada: Number(
+                  o.montoMoraAcumulada ??
+                    o.saldoVencidoAcumulado ??
+                    o.cuotaObjetivo?.montoMoraAcumulada ??
+                    o.cuotaObjetivo?.saldoVencidoAcumulado ??
+                    prestamo?.cuotaObjetivo?.montoMoraAcumulada ??
+                    prestamo?.cuotaObjetivo?.saldoVencidoAcumulado ??
+                    0,
+                ),
+                cuotasVencidas: Number(
+                  o.cuotasVencidas ??
+                    o.cuotaObjetivo?.cuotasVencidas ??
+                    prestamo?.cuotaObjetivo?.cuotasVencidas ??
+                    0,
+                ),
 
                 saldoTotal: Number(
                   o.saldoTotal ??
@@ -1416,9 +1470,11 @@ const VistaCobrador = () => {
                 notasVisita: o.notasVisita || prestamo?.notasVisita || null,
 
                 proximaVisita:
+                  resolveFechaEfectivaCuota(cuotaObjetivo) ||
+                  cuotaObjetivo?.fechaVencimiento ||
+                  prestamo?.proximaCuota?.fechaVencimiento ||
                   o.proximaVisita ||
                   o.fechaVisita ||
-                  cuotaObjetivo?.fechaVencimiento ||
                   hoyBogotaKey,
 
                 ordenVisita: Number(o.ordenVisita || idx + 1),
@@ -1436,20 +1492,124 @@ const VistaCobrador = () => {
                 ),
 
                 cobradorId: rutaCompleta.cobradorId,
-                periodoRuta: normalizePeriodoRuta(
-                  o.frecuenciaPago || prestamo?.frecuenciaPago || 'DIARIO',
-                ),
+                periodoRuta: normalizePeriodoRuta(frecuenciaPago),
 
                 clienteId: o.clienteId || clienteObj?.id || '',
                 prestamoId: o.prestamoId || prestamo?.id || '',
+                diasMora,
               }
             });
 
-            // Usar estas visitas como base
-            const merged = mergeVisitasPreservingLocalRecaudo(visitasBaseRef.current as any, visitasOperativas as any);
-            setVisitasBase(merged as any);
-            setVisitasSelectorFallback(merged as any);
-            setVisitasOrden((merged as any[]).map((v: any) => v.id));
+            // Enriquecer con cuotas vivas antes de filtrar
+            const getCuotasByPrestamoId = memoizePromiseByKey(
+              (prestamoId) => prestamosService.obtenerCuotas(prestamoId) as Promise<any[]>,
+              () => [],
+            );
+
+            const visitasOperativasVivas = await mapWithConcurrency(
+              visitasOperativas,
+              async (v: any) => {
+                if (!v?.prestamoId) return v;
+
+                const cuotas = await getCuotasByPrestamoId(String(v.prestamoId));
+                const pendiente = (Array.isArray(cuotas) ? cuotas : []).find((c: any) =>
+                  isCuotaNoPagada(c),
+                );
+
+                if (!pendiente) {
+                  return {
+                    ...v,
+                    estado: 'pagado',
+                    saldoTotal: 0,
+                  };
+                }
+
+                const fechaReal =
+                  resolveFechaEfectivaCuota(pendiente) ||
+                  pendiente.fechaVencimiento ||
+                  v.proximaVisita;
+
+                const cuotaId = resolveCuotaIdFromVisitaLike(v, undefined, pendiente);
+
+                const tieneMora = (Array.isArray(cuotas) ? cuotas : []).some((c: any) => {
+                  if (!c || !isCuotaNoPagada(c)) return false;
+
+                  const vtoRaw =
+                    resolveFechaEfectivaCuota(c) || String(c?.fechaVencimiento || '');
+
+                  const vtoKey = normalizeDateKey(vtoRaw);
+
+                  return !!vtoKey && !!hoyBogotaKey && vtoKey < hoyBogotaKey;
+                });
+
+                return {
+                  ...v,
+                  proximaVisita: fechaReal,
+                  estado: tieneMora ? 'en_mora' : 'pendiente',
+                  cuotaId,
+                  cuotaObjetivoId: cuotaId,
+                  cuotaObjetivoPrestamoId: cuotaId,
+                  cuotaObjetivo: pendiente,
+                  proximaCuota: pendiente,
+                  cuotaActual: pendiente.numeroCuota ?? v.cuotaActual,
+                  cuotasTotales: Array.isArray(cuotas) ? cuotas.length : v.cuotasTotales,
+                };
+              },
+              6,
+            );
+
+            // Filtrar visitas con la regla compartida
+            const visitasOperativasFiltradas = visitasOperativasVivas
+              .filter((v: any) => shouldShowVisitaEnRutaHoy(v, hoyBogotaKey))
+              .filter((v: any) => !shouldExcludeVisitaFromOperationalMeta(v));
+
+            // Recalcular KPI del cobrador con la lista filtrada
+            const statsHoy = computeRutaHoyUiStatsFromVisitas(visitasOperativasFiltradas as any[], 0);
+            setRutaStats((prev) => ({
+              ...prev,
+              recaudo: statsHoy.recaudo,
+              meta: statsHoy.meta,
+              eficiencia:
+                statsHoy.meta > 0
+                  ? Number(((statsHoy.recaudo / statsHoy.meta) * 100).toFixed(1))
+                  : statsHoy.recaudo > 0
+                    ? 100
+                    : 0,
+              pendiente: Math.max(0, statsHoy.meta - statsHoy.recaudo),
+              pendientes: Math.max(0, statsHoy.meta - statsHoy.recaudo),
+              totalVisitas: visitasOperativasFiltradas.length,
+            }));
+
+            // Usar estas visitas como base, sin traer visitas viejas que ya no vienen
+            const prevByKey = new Map(
+              (visitasBaseRef.current || []).map((v: any) => [
+                String(v?.prestamoId || v?.clienteId || v?.id || ''),
+                v,
+              ]),
+            );
+
+            const nextSoloRutaHoy = visitasOperativasFiltradas.map((v: any) => {
+              const key = String(v?.prestamoId || v?.clienteId || v?.id || '');
+              const prev = prevByKey.get(key);
+
+              return {
+                ...v,
+                recaudadoDelDia: Math.max(
+                  Number(v?.recaudadoDelDia || 0),
+                  Number(prev?.recaudadoDelDia || 0),
+                ),
+                recaudadoTotalClient: Math.max(
+                  Number(v?.recaudadoTotalClient || 0),
+                  Number(prev?.recaudadoTotalClient || 0),
+                ),
+                fechaUltimoPago: Number(v?.fechaUltimoPago || prev?.fechaUltimoPago || 0),
+              };
+            });
+
+            visitasBaseRef.current = nextSoloRutaHoy as any;
+            setVisitasBase(nextSoloRutaHoy as any);
+            setVisitasSelectorFallback(nextSoloRutaHoy as any);
+            setVisitasOrden((nextSoloRutaHoy as any[]).map((v: any) => v.id));
 
             // Saltarse el resto de la lógica, ya que usamos dailyVisits
             setIsLoading(false);
@@ -1495,7 +1655,7 @@ const VistaCobrador = () => {
               const proximaKey = v?.proximaVisita ? normalizeDateKey(String(v.proximaVisita)) : ''
               return !!proximaKey && proximaKey === hoyKey
             })
-            .reduce((sum: number, v: any) => sum + Number(v?.montoCuota || 0), 0)
+            .reduce((sum: number, v: any) => sum + Number(v?.montoCuotaPendiente ?? v?.montoCuota ?? 0), 0)
 
           if (metaFallback > 0) {
             setRutaStats(prev => {
@@ -1530,33 +1690,78 @@ const VistaCobrador = () => {
 
               if (tipoPrestamo !== 'ARTICULO') {
                 const exigiblePendiente = computeMontoExigibleHastaHoyFromCuotas(cuotas as any, hoyKey)
-                const exigibleNominal = computeMontoNominalHastaHoyFromCuotas(cuotas as any, hoyKey)
+                const pendiente = (Array.isArray(cuotas) ? cuotas : []).find((c: any) => isCuotaNoPagada(c))
+                const cuotaNormal = Number(
+                  (v as any)?.montoCuotaNormal ??
+                    pendiente?.montoNominal ??
+                    pendiente?.montoCuota ??
+                    pendiente?.monto ??
+                    baseCuota,
+                )
                 return {
                   ...v,
-                  montoCuota: exigibleNominal > 0 ? Math.max(exigibleNominal, baseCuota) : baseCuota,
+                  montoCuota: cuotaNormal,
+                  montoCuotaNormal: cuotaNormal,
                   montoCuotaPendiente: exigiblePendiente > 0 ? exigiblePendiente : (v as any)?.montoCuotaPendiente,
                   estado: (saldoPendiente <= 0 ? 'pagado' : (tieneMora ? 'en_mora' : v.estado)) as any,
+                  proximaVisita:
+                    resolveFechaEfectivaCuota(pendiente) ||
+                    pendiente?.fechaVencimiento ||
+                    (v as any)?.proximaVisita,
+                  cuotaId: pendiente?.id || (v as any)?.cuotaId,
+                  cuotaObjetivoId: pendiente?.id || (v as any)?.cuotaObjetivoId,
+                  cuotaObjetivoPrestamoId: pendiente?.id || (v as any)?.cuotaObjetivoPrestamoId,
+                  cuotaObjetivo: pendiente,
+                  proximaCuota: pendiente,
                 }
               }
 
               const exigibleNominal = computeMontoNominalHastaHoyFromCuotas(cuotas as any, hoyKey)
               const exigiblePendiente = computeMontoExigibleHastaHoyFromCuotas(cuotas as any, hoyKey)
+              const pendienteArticulo = (Array.isArray(cuotas) ? cuotas : []).find((c: any) => isCuotaNoPagada(c))
+              const cuotaNormalArticulo = Number(
+                (v as any)?.montoCuotaNormal ??
+                  pendienteArticulo?.montoNominal ??
+                  pendienteArticulo?.montoCuota ??
+                  pendienteArticulo?.monto ??
+                  baseCuota,
+              )
 
               if (!(exigibleNominal > 0) && !tieneMora) {
                 if (saldoPendiente > 0) {
                   return {
                     ...v,
-                    montoCuota: saldoPendiente,
+                    montoCuota: cuotaNormalArticulo > 0 ? cuotaNormalArticulo : saldoPendiente,
+                    montoCuotaNormal: cuotaNormalArticulo > 0 ? cuotaNormalArticulo : saldoPendiente,
                     estado: 'pendiente' as any,
+                    proximaVisita:
+                      resolveFechaEfectivaCuota(pendienteArticulo) ||
+                      pendienteArticulo?.fechaVencimiento ||
+                      (v as any)?.proximaVisita,
+                    cuotaId: pendienteArticulo?.id || (v as any)?.cuotaId,
+                    cuotaObjetivoId: pendienteArticulo?.id || (v as any)?.cuotaObjetivoId,
+                    cuotaObjetivoPrestamoId: pendienteArticulo?.id || (v as any)?.cuotaObjetivoPrestamoId,
+                    cuotaObjetivo: pendienteArticulo,
+                    proximaCuota: pendienteArticulo,
                   }
                 }
                 return v
               }
               return {
                 ...v,
-                montoCuota: Math.max(exigibleNominal, baseCuota),
+                montoCuota: cuotaNormalArticulo,
+                montoCuotaNormal: cuotaNormalArticulo,
                 montoCuotaPendiente: exigiblePendiente,
                 estado: (saldoPendiente <= 0 ? 'pagado' : (tieneMora ? 'en_mora' : v.estado)) as any,
+                proximaVisita:
+                  resolveFechaEfectivaCuota(pendienteArticulo) ||
+                  pendienteArticulo?.fechaVencimiento ||
+                  (v as any)?.proximaVisita,
+                cuotaId: pendienteArticulo?.id || (v as any)?.cuotaId,
+                cuotaObjetivoId: pendienteArticulo?.id || (v as any)?.cuotaObjetivoId,
+                cuotaObjetivoPrestamoId: pendienteArticulo?.id || (v as any)?.cuotaObjetivoPrestamoId,
+                cuotaObjetivo: pendienteArticulo,
+                proximaCuota: pendienteArticulo,
               }
             },
             6,
@@ -1881,11 +2086,27 @@ const VistaCobrador = () => {
                 return dV && dV <= hoyStr;
               });
               const metaEstableRealtime = cuotasVencidasHoy.reduce((s, c) => s + Number(c.monto || 0), 0);
+              const cuotaNormal = Number(
+                (v as any).montoCuotaNormal ??
+                  (prox as any)?.montoNominal ??
+                  (prox as any)?.montoCuota ??
+                  (prox as any)?.monto ??
+                  v.montoCuota ??
+                  0,
+              )
+              const metaOperativa = Number(
+                metaEstableRealtime ||
+                  (v as any).montoCuotaPendiente ||
+                  cuotaNormal ||
+                  0,
+              )
 
               const baseV: any = {
                 ...v,
                 estado: nuevoEstado,
-                montoCuota: metaEstableRealtime,
+                montoCuota: cuotaNormal,
+                montoCuotaNormal: cuotaNormal,
+                montoCuotaPendiente: metaOperativa,
                 proximaVisita: prox?.fechaVencimiento || v.proximaVisita,
                 cuotaActual: prox?.numeroCuota || v.cuotaActual,
                 saldoTotal: nuevoEstado === 'pagado' ? 0 : Number(p.saldoPendiente || 0),
@@ -2651,23 +2872,38 @@ const VistaCobrador = () => {
   const rutaStatsUI = useMemo(() => {
     if (periodoCards !== 'HOY') return rutaStats
 
-    if (dailyVisitsHoy) {
-      const summary = resolveRutaDailySummary(rutaActual, dailyVisitsHoy)
+    const visitasOperativasHoy = (visitasBase || [])
+      .map((v: any) => ({
+        ...v,
+        estado: ajustarEstadoConPago(v),
+      }))
+      .filter((v: any) => shouldShowVisitaEnRutaHoy(v, hoyBogotaKey))
+      .filter((v: any) => !shouldExcludeVisitaFromOperationalMeta(v))
 
-      return {
-        ...rutaStats,
-        recaudo: summary.recaudo,
-        meta: summary.meta,
-        eficiencia: summary.efectividad,
-        pendiente: summary.pendiente,
-        pendientes: summary.pendiente,
-        visitados: summary.visitados,
-        totalVisitas: summary.total,
-      } as any
-    }
+    const statsHoy = computeRutaHoyUiStatsFromVisitas(visitasOperativasHoy, 0)
+    const recaudo = Number(statsHoy.recaudo || rutaStats.recaudo || 0)
 
-    return rutaStats
-  }, [periodoCards, rutaStats, rutaActual, dailyVisitsHoy])
+    return {
+      ...rutaStats,
+      recaudo,
+      meta: statsHoy.meta,
+      eficiencia:
+        statsHoy.meta > 0
+          ? Number(((recaudo / statsHoy.meta) * 100).toFixed(1))
+          : recaudo > 0
+            ? 100
+            : 0,
+      pendiente: Math.max(0, statsHoy.meta - recaudo),
+      pendientes: Math.max(0, statsHoy.meta - recaudo),
+      totalVisitas: visitasOperativasHoy.length,
+    } as any
+  }, [
+    periodoCards,
+    rutaStats,
+    visitasBase,
+    ajustarEstadoConPago,
+    hoyBogotaKey,
+  ])
   // BUG-08 FIX: filtrar por el ID real del cobrador en sesión, no por 'CB-001' hardcodeado.
   const operacionesCobrador = useMemo(() =>
     userSession?.id
@@ -2854,7 +3090,23 @@ const VistaCobrador = () => {
 
     }
 
+    const cuotaIdFinal = String(
+      cuotaId || 
+      (visitaReprogramar as any)?.cuotaId || 
+      (visitaReprogramar as any)?.cuotaObjetivoId || 
+      (visitaReprogramar as any)?.cuotaObjetivo?.id || 
+      (visitaReprogramar as any)?.proximaCuota?.id || 
+      ''
+    ).trim();
 
+    console.log('[REPROGRAMACION DEBUG]', {
+      prestamoId: visitaReprogramar.prestamoId,
+      clienteId: visitaReprogramar.clienteId,
+      cuotaId,
+      cuotaIdFinal,
+      fecha,
+      motivo,
+    })
 
     try {
 
@@ -2876,6 +3128,15 @@ const VistaCobrador = () => {
 
       }
 
+      if (!cuotaIdFinal) {
+        setModalAlerta({
+          titulo: 'Error',
+          mensaje: 'No se pudo identificar la cuota a reprogramar.',
+          tipo: 'error'
+        })
+        return;
+      }
+
       const contextoRegularizacionSnapshot =
         contextoRegularizacionRef.current
       const payloadBase = {
@@ -2894,116 +3155,86 @@ const VistaCobrador = () => {
 
 
       // Usar el nuevo flujo con revisión del supervisor
-
-      if (cuotaId) {
-
-        await prestamosService.solicitarReprogramacionCuota({
-
-          prestamoId: visitaReprogramar.prestamoId,
-
-          cuotaId,
-
-          nuevaFecha: fecha,
-
-          motivo,
-          fechaOperativaRuta: payloadBase.fechaOperativaRuta,
-          origenGestion: payloadBase.origenGestion,
-          idempotencyKey:
-            payloadBase.origenGestion === 'CIERRE_PENDIENTE'
-              ? buildReprogramacionCierrePendienteKey({
-                  rutaId: contextoRegularizacionSnapshot?.rutaId,
-                  fechaOperativa:
-                    contextoRegularizacionSnapshot?.fechaOperativa,
-                  clienteId: visitaReprogramar.clienteId,
-                  prestamoId: visitaReprogramar.prestamoId,
-                  cuotaId,
-                  nuevaFecha: fecha,
-                })
-              : undefined,
-        })
-
-      } else {
-
-        // Fallback al endpoint anterior si no hay cuota específica
-
-        await prestamosService.reprogramarPrestamo(visitaReprogramar.prestamoId, {
-
-          fecha,
-
-          motivo,
-
-          cobradorId: userSession?.id || '',
-          fechaOperativaRuta: payloadBase.fechaOperativaRuta,
-          origenGestion: payloadBase.origenGestion,
-          idempotencyKey:
-            payloadBase.origenGestion === 'CIERRE_PENDIENTE'
-              ? buildReprogramacionCierrePendienteKey({
-                  rutaId: contextoRegularizacionSnapshot?.rutaId,
-                  fechaOperativa:
-                    contextoRegularizacionSnapshot?.fechaOperativa,
-                  clienteId: visitaReprogramar.clienteId,
-                  prestamoId: visitaReprogramar.prestamoId,
-                  cuotaId: 'SIN_CUOTA',
-                  nuevaFecha: fecha,
-                })
-              : undefined,
-
-        })
-
-      }
+      await prestamosService.solicitarReprogramacionCuota({
+        prestamoId: visitaReprogramar.prestamoId,
+        cuotaId: cuotaIdFinal,
+        nuevaFecha: fecha,
+        motivo,
+        fechaOperativaRuta: payloadBase.fechaOperativaRuta,
+        origenGestion: payloadBase.origenGestion,
+        idempotencyKey:
+          payloadBase.origenGestion === 'CIERRE_PENDIENTE'
+            ? buildReprogramacionCierrePendienteKey({
+                rutaId: contextoRegularizacionSnapshot?.rutaId,
+                fechaOperativa:
+                  contextoRegularizacionSnapshot?.fechaOperativa,
+                clienteId: visitaReprogramar.clienteId,
+                prestamoId: visitaReprogramar.prestamoId,
+                cuotaId: cuotaIdFinal,
+                nuevaFecha: fecha,
+              })
+            : undefined,
+      })
 
 
 
       setVisitasBase((prev) =>
-
         prev.map((v) => {
-
           if (v.id !== visitaReprogramar.id) return v
-
           return {
-
             ...v,
-
             estado: 'reprogramado',
-
-            proximaVisita: formatearFechaISO(fecha),
-
+            estadoVisita: 'reprogramado',
+            proximaVisita: fecha,
+            cuotaObjetivo: {
+              ...(v as any).cuotaObjetivo,
+              fechaVencimiento: fecha,
+              fechaEfectiva: fecha,
+            },
+            proximaCuota: {
+              ...(v as any).proximaCuota,
+              fechaVencimiento: fecha,
+              fechaEfectiva: fecha,
+            },
           }
-
         })
-
       )
 
+      // Invalidate dailyVisitsHoy and force refresh
+      setDailyVisitsHoy(null)
+      setRefreshTrigger((prev) => prev + 1)
 
+      try {
+        await cargarDatosRuta(true)
+      } catch {}
 
       toast.success('Solicitud de reprogramación enviada exitosamente', {
-
         description: `La cuota será revisada para reprogramarse al ${formatearFechaISO(fecha)}`
-
       })
 
-
-
       setShowReprogramModal(false)
-
       setVisitaReprogramar(null)
-
       clearRegularizacionContext()
 
     } catch (error: any) {
+      const message =
+        error?.response?.data?.message ??
+        error?.data?.message ??
+        error?.message ??
+        'No se pudo realizar la reprogramación.'
 
-      console.error(error)
-
-      setModalAlerta({
-
-          titulo: 'Error',
-
-          mensaje: error.message || 'No se pudo realizar la reprogramación.',
-
-          tipo: 'error'
-
+      console.error('Error reprogramando cuota (cobrador):', {
+        message,
+        error,
+        response: error?.response,
+        data: error?.response?.data || error?.data,
       })
 
+      setModalAlerta({
+        titulo: 'Error',
+        mensaje: Array.isArray(message) ? message[0] : message,
+        tipo: 'error'
+      })
     } finally {
 
       setIsLoadingAction(false)
@@ -4954,29 +5185,6 @@ const VistaCobrador = () => {
                                     </button>
 
                                     <button
-
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (!rutaOperable) return;
-                                        clearRegularizacionContext()
-                                        setVisitaAusente(visita);
-                                      }}
-
-                                      disabled={!rutaOperable || visita.estadoVisita === 'ausente' || visita.estado === 'ausente'}
-
-                                      title={!rutaOperable ? (rutaCompletada ? 'Jornada completada' : 'Jornada sin activar') : (visita.estadoVisita === 'ausente' || visita.estado === 'ausente' ? 'Cliente ya marcado como ausente' : 'Marcar como ausente')}
-
-                                      className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border transition-all font-bold text-[11px] shadow-sm ${!rutaOperable || visita.estadoVisita === 'ausente' || visita.estado === 'ausente' ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-rose-700 border-rose-200 hover:bg-rose-50 active:scale-95'}`}
-
-                                    >
-
-                                      <XCircle className="h-3.5 w-3.5" />
-
-                                      Ausente
-
-                                    </button>
-
-                                    <button
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         handleAbrirClienteInfo(visita);
@@ -5198,29 +5406,6 @@ const VistaCobrador = () => {
                                       <button
 
                                         onClick={(e) => {
-                                          e.stopPropagation();
-                                          if (!rutaOperable) return;
-                                          clearRegularizacionContext()
-                                          setVisitaAusente(visita);
-                                        }}
-
-                                        disabled={!rutaOperable || visita.estadoVisita === 'ausente' || visita.estado === 'ausente'}
-
-                                        title={!rutaOperable ? (rutaCompletada ? 'Jornada completada' : 'Jornada sin activar') : (visita.estadoVisita === 'ausente' || visita.estado === 'ausente' ? 'Cliente ya marcado como ausente' : 'Marcar como ausente')}
-
-                                        className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border transition-all font-bold text-[11px] shadow-sm ${!rutaOperable || visita.estadoVisita === 'ausente' || visita.estado === 'ausente' ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-rose-700 border-rose-200 hover:bg-rose-50 active:scale-95'}`}
-
-                                      >
-
-                                        <XCircle className="h-3.5 w-3.5" />
-
-                                        Ausente
-
-                                      </button>
-
-                                      <button
-
-                                        onClick={(e) => {
 
                                           e.stopPropagation();
 
@@ -5417,7 +5602,7 @@ const VistaCobrador = () => {
 
             visita={visitaClienteSeleccionada}
 
-            nextPagoMonto={nextPagoMonto ?? Number((visitaClienteSeleccionada as any)?.montoCuotaPendiente ?? visitaClienteSeleccionada.montoCuota ?? 0)}
+            nextPagoMonto={nextPagoMonto ?? resolveCuotaNormalOperativa(visitaClienteSeleccionada)}
 
             nextPagoFecha={nextPagoFecha ?? (visitaClienteSeleccionada.proximaVisita || '')}
 
@@ -5458,7 +5643,7 @@ const VistaCobrador = () => {
               clearRegularizacionContext()
 
             }}
-            montoCuotaEsperadoOverride={contextoRegularizacion?.montoCuotaEsperado}
+            montoCuotaEsperadoOverride={contextoRegularizacion?.montoCuotaEsperado ?? resolveCuotaNormalOperativa(visitaPagoSeleccionada)}
             cuotaNumeroEsperadaOverride={contextoRegularizacion?.cuotaNumeroEsperada}
 
             onConfirm={handleRegistrarPago}
@@ -6305,7 +6490,7 @@ const VistaCobrador = () => {
               canSolicitarCorreccion: false,
               canCerrarJornada: canAdministrarJornada,
               canRegistrarPago: (canSupervisarJornada || isCobrador) && !esDiaNoLaboral,
-              canMarcarAusente: (canSupervisarJornada || isCobrador) && !esDiaNoLaboral,
+              canMarcarAusente: false,
               canAnularAusencia: false,
               canReprogramar: (canSupervisarJornada || isCobrador) && !esDiaNoLaboral,
               canVerPago: false,

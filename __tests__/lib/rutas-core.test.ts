@@ -1,6 +1,12 @@
 import {
   buildRegularizedPaymentTarget,
+  computeDiasMoraFromCuotaObjetivo,
   computeRutaHoyUiStatsFromVisitas,
+  getEstadoRevisionOperacion,
+  isObligacionOperativaRuta,
+  isPrestamoOperativo,
+  isPrestamoRevertido,
+  resolveRutaDailySummary,
   resolveRutaHoyKpiStats,
   shouldExcludeVisitaFromOperationalMeta,
   shouldIncludeVisitaInRutaHoyKpis,
@@ -8,6 +14,146 @@ import {
   resolveCobradorIdForRouteAction,
   shouldShowVisitaEnRutaHoy,
 } from '@/lib/rutas-core'
+
+describe('validez operativa provisional', () => {
+  it('permite prestamos pendientes como provisionales y excluye rechazados/revertidos', () => {
+    const pendiente = {
+      estado: 'PENDIENTE_APROBACION',
+      estadoAprobacion: 'PENDIENTE',
+      efectoProvisional: { estado: 'PENDIENTE_REVISION' },
+    }
+    const rechazado = {
+      estado: 'PENDIENTE_APROBACION',
+      estadoAprobacion: 'RECHAZADO',
+    }
+    const revertido = {
+      estado: 'PENDIENTE_APROBACION',
+      estadoAprobacion: 'PENDIENTE',
+      efectoProvisional: { estado: 'REVERTIDO' },
+    }
+
+    expect(isPrestamoOperativo(pendiente)).toBe(true)
+    expect(getEstadoRevisionOperacion(pendiente)).toMatchObject({
+      esProvisional: true,
+      esRevertido: false,
+      etiquetaRevision: 'Pendiente de revisión',
+    })
+    expect(isPrestamoOperativo(rechazado)).toBe(false)
+    expect(isPrestamoOperativo(revertido)).toBe(false)
+    expect(isPrestamoRevertido(revertido)).toBe(true)
+  })
+
+  it('define una obligación operativa por préstamo válido y cuota válida de la fecha', () => {
+    expect(
+      isObligacionOperativaRuta(
+        {
+          prestamo: {
+            estado: 'PENDIENTE_APROBACION',
+            estadoAprobacion: 'PENDIENTE',
+            efectoProvisional: { estado: 'PENDIENTE_REVISION' },
+            tipoPrestamo: 'EFECTIVO',
+          },
+          cuota: {
+            estado: 'PENDIENTE',
+            fechaVencimiento: '2026-06-12',
+          },
+        },
+        '2026-06-12',
+      ),
+    ).toBe(true)
+
+    expect(
+      isObligacionOperativaRuta(
+        {
+          prestamo: {
+            estado: 'PENDIENTE_APROBACION',
+            estadoAprobacion: 'PENDIENTE',
+            efectoProvisional: { estado: 'REVERTIDO' },
+          },
+          cuota: {
+            estado: 'PENDIENTE',
+            fechaVencimiento: '2026-06-12',
+          },
+        },
+        '2026-06-12',
+      ),
+    ).toBe(false)
+
+    expect(
+      isObligacionOperativaRuta(
+        {
+          prestamo: {
+            estado: 'ACTIVO',
+            estadoAprobacion: 'APROBADO',
+            esContado: true,
+          },
+          cuota: {
+            estado: 'PENDIENTE',
+            fechaVencimiento: '2026-06-12',
+          },
+        },
+        '2026-06-12',
+      ),
+    ).toBe(false)
+  })
+})
+
+describe('computeDiasMoraFromCuotaObjetivo', () => {
+  it('calcula dias de mora operativos desde la cuota objetivo de daily-visits', () => {
+    const dias = computeDiasMoraFromCuotaObjetivo(
+      {
+        estadoActual: 'VENCIDA',
+        fechaEfectiva: '2026-06-02',
+      },
+      '2026-06-12',
+      'DIARIO',
+    )
+
+    expect(dias).toBe(9)
+  })
+
+  it('no marca mora para cuotas cubiertas o futuras', () => {
+    expect(
+      computeDiasMoraFromCuotaObjetivo(
+        { estadoActual: 'PAGADA', fechaEfectiva: '2026-06-01' },
+        '2026-06-12',
+        'DIARIO',
+      ),
+    ).toBe(0)
+
+    expect(
+      computeDiasMoraFromCuotaObjetivo(
+        { estadoActual: 'PENDIENTE', fechaEfectiva: '2026-06-13' },
+        '2026-06-12',
+        'DIARIO',
+      ),
+    ).toBe(0)
+  })
+})
+
+describe('resolveRutaDailySummary', () => {
+  it('prioriza la meta de obligaciones operativas sobre un resumen inflado', () => {
+    const summary = resolveRutaDailySummary(
+      { estadisticas: { metaDelDia: 6_878_333, cobranzaDelDia: 0 } },
+      {
+        resumen: {
+          meta: 6_878_333,
+          recaudoOperativo: 0,
+          visitados: 0,
+          total: 2,
+        },
+        obligaciones: [
+          { montoMetaOperativaPendiente: 63_333, recaudadoDelDia: 0 },
+          { montoMetaOperativaPendiente: 458_334, recaudadoDelDia: 0 },
+        ],
+      },
+    )
+
+    expect(summary.meta).toBe(521_667)
+    expect(summary.pendiente).toBe(521_667)
+    expect(summary.efectividad).toBe(0)
+  })
+})
 
 describe('shouldShowVisitaEnRutaHoy', () => {
   it('oculta visitas futuras aunque pertenezcan al cobrador', () => {
@@ -56,7 +202,7 @@ describe('shouldShowVisitaEnRutaHoy', () => {
     ).toBe(true)
   })
 
-  it('mantiene visible una cuota parcialmente pagada si aun falta saldo de la cuota', () => {
+  it('oculta una cuota parcialmente abonada porque ya fue gestionada en la ruta', () => {
     expect(
       shouldShowVisitaEnRutaHoy(
         {
@@ -70,7 +216,7 @@ describe('shouldShowVisitaEnRutaHoy', () => {
         },
         '2026-05-09',
       ),
-    ).toBe(true)
+    ).toBe(false)
   })
 
   it('oculta una cuota reprogramada a futuro aunque el prestamo siga en mora', () => {
@@ -85,6 +231,23 @@ describe('shouldShowVisitaEnRutaHoy', () => {
           montoCuota: 458332,
         },
         '2026-06-11',
+      ),
+    ).toBe(false)
+  })
+
+  it('oculta una prorroga futura aunque la vista conserve la fecha original vencida', () => {
+    expect(
+      shouldShowVisitaEnRutaHoy(
+        {
+          estado: 'en_mora',
+          periodoRuta: 'DIA',
+          proximaVisita: '2026-06-10',
+          enProrroga: true,
+          fechaProrroga: '2026-06-13',
+          saldoTotal: 2296669,
+          montoCuota: 86666,
+        },
+        '2026-06-12',
       ),
     ).toBe(false)
   })
@@ -306,6 +469,22 @@ describe('computeRutaHoyUiStatsFromVisitas', () => {
     expect(stats.meta).toBe(5602000)
   })
 
+  it('usa cuota normal para la meta visual aunque exista acumulado pendiente', () => {
+    const stats = computeRutaHoyUiStatsFromVisitas([
+      {
+        estado: 'en_mora',
+        montoCuota: 100_000,
+        montoCuotaNormal: 100_000,
+        montoCuotaPendiente: 300_000,
+        saldoTotal: 900_000,
+      },
+    ])
+
+    expect(stats.pendiente).toBe(100_000)
+    expect(stats.recaudo).toBe(0)
+    expect(stats.meta).toBe(100_000)
+  })
+
   it('reincorpora a meta y recaudo un cliente ausente cuando registra pago hoy', () => {
     const visitas = [
       { estado: 'pendiente', montoCuota: 564_998, saldoTotal: 564_998 },
@@ -348,7 +527,21 @@ describe('computeRutaHoyUiStatsFromVisitas', () => {
     expect(stats.meta).toBe(1_957_333)
   })
 
-  it('reincorpora a meta y recaudo un cliente reprogramado si registra pago operativo', () => {
+  it('excluye de meta a una prorroga futura aunque no venga como estado reprogramado', () => {
+    const visitas = [
+      { estado: 'pendiente', montoCuota: 1_957_333, saldoTotal: 1_957_333 },
+      { estado: 'en_mora', enProrroga: true, fechaProrroga: '2999-01-01', montoCuota: 86_666, saldoTotal: 86_666, recaudadoDelDia: 0 },
+    ]
+
+    const visitasOperativas = visitas.filter((v) => !shouldExcludeVisitaFromOperationalMeta(v))
+    const stats = computeRutaHoyUiStatsFromVisitas(visitasOperativas)
+
+    expect(stats.recaudo).toBe(0)
+    expect(stats.pendiente).toBe(1_957_333)
+    expect(stats.meta).toBe(1_957_333)
+  })
+
+  it('mantiene el recaudo de un cliente reprogramado sin dejarlo pendiente otra vez', () => {
     const visitas = [
       { estado: 'pendiente', montoCuota: 1_957_333, saldoTotal: 1_957_333 },
       { estado: 'reprogramado', estadoVisita: 'reprogramado', montoCuota: 86_666, saldoTotal: 86_666, recaudadoDelDia: 86_666 },
@@ -362,14 +555,14 @@ describe('computeRutaHoyUiStatsFromVisitas', () => {
     expect(stats.meta).toBe(2_043_999)
   })
 
-  it('no resta dos veces pagos cuando la cuota pendiente ya viene recalculada', () => {
+  it('no deja pendiente visible a una cuota que ya tuvo abono en la ruta', () => {
     const stats = computeRutaHoyUiStatsFromVisitas([
       { estado: 'pendiente', montoCuotaPendiente: 80000, montoCuota: 180000, saldoTotal: 1180000, recaudadoDelDia: 100000 },
     ])
 
-    expect(stats.pendiente).toBe(80000)
+    expect(stats.pendiente).toBe(0)
     expect(stats.recaudo).toBe(100000)
-    expect(stats.meta).toBe(180000)
+    expect(stats.meta).toBe(100000)
   })
 
   /**
@@ -426,14 +619,11 @@ describe('computeRutaHoyUiStatsFromVisitas', () => {
     expect(stats.meta).toBe(5603666)
   })
 
-  it('produce meta inflada cuando montoCuotaPendiente incluye el pago del dia sin descontar', () => {
+  it('evita inflar la meta cuando una visita ya tuvo recaudo del dia', () => {
     const recaudadoDelDia = 822_000
     // montoCuotaPendiente NO descuenta aún el pago porque cuota.montoPagado no se actualizó
     const montoCuotaPendienteInflado = 5_603_666
     const saldoTotal = 5_240_000
-    // La función limita cuotaUI = min(cuotaPendiente, saldoTotal)
-    const pendienteEsperado = Math.min(montoCuotaPendienteInflado, saldoTotal) // 5.240.000
-    const metaEsperada = pendienteEsperado + recaudadoDelDia // 6.062.000
 
     const stats = computeRutaHoyUiStatsFromVisitas([
       {
@@ -445,10 +635,10 @@ describe('computeRutaHoyUiStatsFromVisitas', () => {
       },
     ])
 
-    // La función produce 6.062.000 que DIFIERE del metaDelDia correcto del backend (5.603.666).
-    // Por eso el listado de rutas usa r.metaDelDia del backend, no este resultado.
-    expect(stats.meta).toBe(metaEsperada)
-    expect(stats.meta).not.toBe(5_603_666) // no igual al valor correcto del backend
+    expect(stats.pendiente).toBe(0)
+    expect(stats.recaudo).toBe(recaudadoDelDia)
+    expect(stats.meta).toBe(recaudadoDelDia)
+    expect(stats.meta).not.toBe(6_062_000)
   })
 })
 

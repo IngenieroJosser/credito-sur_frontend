@@ -564,6 +564,69 @@ export async function getHistorialCierresFiltrado(filtros?: {
   }
 }
 
+export async function getArqueoPreview(cajaId: string, fechaOperativa?: string): Promise<any> {
+  try {
+    const params = fechaOperativa ? `?fechaOperativa=${fechaOperativa}` : '';
+    console.log('[getArqueoPreview] Requesting:', `/cajas/${cajaId}/arqueo/preview${params}`);
+    return await apiRequest<any>('GET', `/cajas/${cajaId}/arqueo/preview${params}`);
+  } catch (error: any) {
+    console.error('[getArqueoPreview] Full error:', {
+      message: error?.message,
+      statusCode: error?.statusCode,
+      error: error?.error,
+      stack: error?.stack,
+      fullError: JSON.stringify(error, null, 2)
+    });
+    throw error;
+  }
+}
+
+export async function getArqueoById(arqueoId: string): Promise<any> {
+  try {
+    return await apiRequest<any>('GET', `/cajas/arqueos/${arqueoId}`);
+  } catch (error: any) {
+    console.error('[getArqueoById] Full error:', {
+      message: error?.message,
+      statusCode: error?.statusCode,
+      error: error?.error,
+      stack: error?.stack,
+      fullError: JSON.stringify(error, null, 2)
+    });
+    throw error;
+  }
+}
+
+export async function confirmarArqueo(cajaId: string, data: {
+  fechaOperativa: string;
+  efectivoContado: number;
+  recibidoPorId?: string;
+  denominaciones?: any;
+  observaciones?: string;
+}): Promise<any> {
+  try {
+    return await apiRequest<any>('POST', `/cajas/${cajaId}/arqueos`, data);
+  } catch (error: any) {
+    if (
+      (typeof navigator !== 'undefined' && !navigator.onLine) ||
+      error?.statusCode === 0 || 
+      error?.message?.includes('network') ||
+      error?.code === 'ERR_NETWORK'
+    ) {
+      logger.log('[Offline Mode] Guardando arqueo en cola...');
+      await syncService.enqueueOperation(
+        'arqueo_registrar',
+        `/cajas/${cajaId}/arqueos`,
+        'POST',
+        data,
+        `Arqueo de Caja (Offline)`
+      );
+      return { id: `temp-arq-${Date.now()}`, esOffline: true };
+    }
+    console.error('Error registrando arqueo:', error);
+    throw error;
+  }
+}
+
 export async function registrarArqueo(cajaId: string, data: {
   efectivoReal: number;
   saldoSistema: number;

@@ -8,9 +8,9 @@ import { useNotificaciones } from '@/components/providers/NotificacionesProvider
 import { formatCurrency, formatLoanTerm, formatMilesCOP } from '@/lib/utils';
 import { prestamosService } from '@/services/prestamos-service';
 import { formatErrorForComponent } from '@/lib/api/api';
-import { offlineStore } from '@/lib/offline/offlineDb';
 import { articulosService } from '@/services/articulos-service';
 import { normalizeDateKey } from '@/lib/rutas-core';
+import { TipoAmortizacion } from '@/types/enums';
 
 interface EditarPrestamoModalProps {
   id: string;
@@ -25,25 +25,17 @@ const formatCOPInput = (val: number | undefined) => {
 
 const parseCOP = (val: string) => Number(val.replace(/\D/g, ''));
 
-const calcularAmortizacionFrancesaPreview = (
+const calcularAmortizacionPreview = (
   capital: number,
-  tasaMensualPorc: number,
-  numCuotas: number,
-  frecuencia: string
+  tasaTotal: number,
+  numCuotas: number
 ) => {
   if (!capital || capital <= 0 || !numCuotas || numCuotas <= 0) {
     return { cuotaFija: 0, interesTotal: 0, total: 0 };
   }
 
-  const tasaMensual = (Number(tasaMensualPorc) || 0) / 100;
-  let fraccionMes = 1;
-  const f = String(frecuencia || '').toUpperCase();
-  if (f === 'DIARIO') fraccionMes = 1 / 30;
-  else if (f === 'SEMANAL') fraccionMes = 1 / 4;
-  else if (f === 'QUINCENAL') fraccionMes = 1 / 2;
-  else fraccionMes = 1;
+  const tasaPeriodo = (Number(tasaTotal) || 0) / 100;
 
-  const tasaPeriodo = Math.pow(1 + tasaMensual, fraccionMes) - 1;
   if (tasaPeriodo === 0) {
     const cuotaFija = capital / numCuotas;
     return {
@@ -53,9 +45,25 @@ const calcularAmortizacionFrancesaPreview = (
     };
   }
 
-  const cuotaFija = (capital * tasaPeriodo) / (1 - Math.pow(1 + tasaPeriodo, -numCuotas));
+  const cuotaFijaDecimal = (capital * tasaPeriodo) / (1 - Math.pow(1 + tasaPeriodo, -numCuotas));
+  const cuotaFija = Math.round(cuotaFijaDecimal);
   const total = cuotaFija * numCuotas;
-  const interesTotal = total - capital;
+  const interesTotal = Math.max(0, total - capital);
+  return { cuotaFija, interesTotal, total };
+};
+
+const calcularInteresPlanoPreview = (
+  capital: number,
+  tasaTotal: number,
+  numCuotas: number
+) => {
+  if (!capital || capital <= 0 || !numCuotas || numCuotas <= 0) {
+    return { cuotaFija: 0, interesTotal: 0, total: 0 };
+  }
+  
+  const interesTotal = Math.round(capital * (tasaTotal / 100));
+  const total = capital + interesTotal;
+  const cuotaFija = Math.floor(total / numCuotas);
   return { cuotaFija, interesTotal, total };
 };
 
@@ -79,7 +87,7 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
   const [plazoMeses, setPlazoMeses] = useState(0);  
   const [frecuencia, setFrecuencia] = useState('MENSUAL');
   const [estado, setEstado] = useState('ACTIVO');
-  const [tipoAmortizacion, setTipoAmortizacion] = useState('INTERES_SIMPLE');
+  const [tipoAmortizacion, setTipoAmortizacion] = useState<TipoAmortizacion>(TipoAmortizacion.INTERES_SIMPLE);
 
   // Client info from backend
   const [clienteNombre, setClienteNombre] = useState('');
@@ -96,15 +104,18 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
   const [garantia, setGarantia] = useState('');
 
   // Original values for comparison
-  const originalRef = useRef<any>({ 
+  const originalRef = useRef<{ 
+    monto: number, tasa: number, cuotas: number, frecuencia: string, estado: string,
+    cuotaInicial: number, fechaInicio: string, notas: string, garantia: string, 
+    tipoAmortizacion: TipoAmortizacion, plazoMeses: number
+  }>({ 
     monto: 0, tasa: 0, cuotas: 0, frecuencia: 'MENSUAL', estado: 'ACTIVO',
     cuotaInicial: 0, fechaInicio: '', notas: '', garantia: '', 
-    tipoAmortizacion: 'INTERES_SIMPLE', plazoMeses: 0
+    tipoAmortizacion: TipoAmortizacion.INTERES_SIMPLE, plazoMeses: 0
   });
 
   const tasa = Number(tasaStr) || 0;
   const cuotas = Number(cuotasStr) || 0;
-  const [productoId, setProductoId] = useState('');
   const [opcionesCuotas, setOpcionesCuotas] = useState<any[]>([]);
   const [planIndex, setPlanIndex] = useState<number | null>(null);
   const [autoCuotas, setAutoCuotas] = useState(true);
@@ -124,30 +135,40 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
   const isArticle = tipoPrestamo?.toUpperCase() === 'ARTICULO';
   const themeColor = isArticle ? 'orange' : 'blue';
 
-  const previewFrancesa = (!isArticle && hasChanges && tipoAmortizacion === 'FRANCESA')
-    ? calcularAmortizacionFrancesaPreview(monto, tasa, cuotas, frecuencia)
+  const previewAmortizacion = (!isArticle && hasChanges && tipoAmortizacion === TipoAmortizacion.FRANCESA)
+    ? calcularAmortizacionPreview(monto, tasa, cuotas)
+    : null;
+    
+  const previewInteresPlano = (!isArticle && hasChanges && tipoAmortizacion === TipoAmortizacion.INTERES_PLANO)
+    ? calcularInteresPlanoPreview(monto, tasa, cuotas)
     : null;
 
   // Computed preview (si no hay cambios, usar backend para que coincida con el detalle)
   const interesTotal = hasChanges
     ? (isArticle
       ? 0
-      : (tipoAmortizacion === 'FRANCESA'
-        ? Number(previewFrancesa?.interesTotal || 0)
+      : (tipoAmortizacion === TipoAmortizacion.FRANCESA
+        ? Number(previewAmortizacion?.interesTotal || 0)
+        : tipoAmortizacion === TipoAmortizacion.INTERES_PLANO
+        ? Number(previewInteresPlano?.interesTotal || 0)
         : (monto * tasa * (plazoMeses || 1)) / 100))
     : backendInteresTotal;
 
   const totalRecaudar = hasChanges
     ? (isArticle
       ? monto
-      : (tipoAmortizacion === 'FRANCESA'
-        ? Number(previewFrancesa?.total || 0)
+      : (tipoAmortizacion === TipoAmortizacion.FRANCESA
+        ? Number(previewAmortizacion?.total || 0)
+        : tipoAmortizacion === TipoAmortizacion.INTERES_PLANO
+        ? Number(previewInteresPlano?.total || 0)
         : monto + interesTotal))
     : backendTotalFinal;
 
   const cobroPorCuota = hasChanges
-    ? (tipoAmortizacion === 'FRANCESA'
-      ? Number(previewFrancesa?.cuotaFija || 0)
+    ? (tipoAmortizacion === TipoAmortizacion.FRANCESA
+      ? Number(previewAmortizacion?.cuotaFija || 0)
+      : tipoAmortizacion === TipoAmortizacion.INTERES_PLANO
+      ? Number(previewInteresPlano?.cuotaFija || 0)
       : (cuotas > 0 ? totalRecaudar / cuotas : 0))
     : backendCuotaProyectada;
 
@@ -171,12 +192,11 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
         const p = Number(data.plazoMeses) || 0;
         const f = data.frecuenciaPago || 'MENSUAL';
         const e = data.estado || 'ACTIVO';
-        const tm = String(data.tasaInteresMora || 2);
         const ci = Number(data.cuotaInicial || 0);
         const fi = data.fechaInicio ? normalizeDateKey(data.fechaInicio) : '';
         const n = data.notas || '';
         const g = data.garantia || '';
-        const ta = data.tipoAmortizacion || 'INTERES_SIMPLE';
+        const ta = (data.tipoAmortizacion || TipoAmortizacion.INTERES_SIMPLE) as TipoAmortizacion;
 
         const interesBackend = Number(data.interesTotal || 0);
         setBackendInteresTotal(interesBackend);
@@ -189,7 +209,6 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
         setCuotaInicial(ci); setFechaInicio(fi); setNotas(n); setGarantia(g);
         setTipoPrestamo(data.tipoPrestamo || 'EFECTIVO');
         setProductoNombre(data.producto?.nombre || '');
-        setProductoId(String(data.producto?.id || ''));
         setNumeroPrestamo(data.numeroPrestamo || id);
         setClienteNombre(data.cliente ? `${data.cliente.nombres || ''} ${data.cliente.apellidos || ''}`.trim() : '');
         setClienteDni(data.cliente?.dni || '');
@@ -508,16 +527,19 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
                       {isEditing ? (
                         <select
                           value={tipoAmortizacion}
-                          onChange={(e) => setTipoAmortizacion(e.target.value)}
+                          onChange={(e) => setTipoAmortizacion(e.target.value as TipoAmortizacion)}
                           className="w-full bg-slate-50 border border-slate-100 text-slate-900 rounded-2xl px-4 py-2.5 text-base font-black outline-none focus:ring-2 focus:ring-blue-500/10 focus:bg-white"
                         >
-                          <option value="INTERES_SIMPLE">Interés Simple</option>
-                          <option value="FRANCESA">Amortización Francesa (cuota fija)</option>
+                          <option value={TipoAmortizacion.INTERES_SIMPLE}>Interés Simple</option>
+                          <option value={TipoAmortizacion.INTERES_PLANO}>Amortización (cuota fija)</option>
+                          <option value={TipoAmortizacion.FRANCESA}>Amortización Francesa (Histórico)</option>
                         </select>
                       ) : (
                         <p className="text-sm font-black text-slate-900">
-                          {tipoAmortizacion === 'FRANCESA'
-                            ? 'Amortización Francesa (cuota fija)'
+                          {tipoAmortizacion === TipoAmortizacion.FRANCESA
+                            ? 'Amortización Francesa (Histórico)'
+                            : tipoAmortizacion === TipoAmortizacion.INTERES_PLANO
+                            ? 'Amortización (cuota fija)'
                             : 'Interés Simple'}
                         </p>
                       )}

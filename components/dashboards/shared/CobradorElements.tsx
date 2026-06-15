@@ -5,8 +5,9 @@ import { createPortal } from 'react-dom'
 import { MapPin, Eye, Phone, GripVertical, XCircle, ChevronDown, Timer, CheckCircle2 } from 'lucide-react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { VisitaRuta, EstadoVisita } from '@/lib/types/cobranza'
+import { VisitaRuta, EstadoVisita, mapNivelRiesgo } from '@/lib/types/cobranza'
 import { formatCurrency } from '@/lib/utils'
+import { resolveCuotaAcumuladaOperativa, resolveCuotaNormalOperativa } from '@/lib/rutas-core'
 
 export const MODAL_Z_INDEX = 2147483600
 
@@ -30,14 +31,15 @@ function dotColor(nivelRiesgo: string | undefined): string {
     case 'critico':    return 'bg-red-600'
     case 'VERDE':      return 'bg-emerald-500'
     case 'AMARILLO':   return 'bg-amber-400'
-    case 'ROJO':       return 'bg-orange-500'
+    case 'ROJO':       return 'bg-red-600'
+    case 'ALTO_RIESGO':return 'bg-red-600'
     case 'LISTA_NEGRA':return 'bg-red-600'
     default:           return 'bg-slate-300'
   }
 }
 
 function resolveNivelRiesgoForVisita(visita: VisitaRuta): string | undefined {
-  const base = String(visita?.nivelRiesgo || '') || undefined
+  const base = mapNivelRiesgo(visita?.nivelRiesgo as any)
   const enMora = ((visita as any)?.enMoraHistorico) || String(visita?.estado || '').toLowerCase() === 'en_mora'
   const enProrroga = ((visita as any)?.enProrrogaHistorico) || (visita as any)?.enProrroga || !!(visita as any)?.fechaProrroga
   const diasMora = Number((visita as any)?.diasMora ?? 0)
@@ -57,7 +59,8 @@ function resolveNivelRiesgoForVisita(visita: VisitaRuta): string | undefined {
       case 'critico': return 5
       case 'LISTA_NEGRA': return 5
       case 'moderado': return 4
-      case 'ROJO': return 4
+      case 'ROJO': return 5
+      case 'ALTO_RIESGO': return 5
       case 'precaucion': return 3
       case 'AMARILLO': return 3
       case 'leve': return 2
@@ -93,7 +96,8 @@ function nivelBadgeColor(nivelRiesgo: string | undefined): string {
     case 'critico':    return 'text-red-700 bg-red-50 border-red-100'
     case 'VERDE':      return 'text-emerald-700 bg-emerald-50 border-emerald-100'
     case 'AMARILLO':   return 'text-amber-700 bg-amber-50 border-amber-100'
-    case 'ROJO':       return 'text-orange-700 bg-orange-50 border-orange-100'
+    case 'ROJO':       return 'text-red-700 bg-red-50 border-red-100'
+    case 'ALTO_RIESGO':return 'text-red-700 bg-red-50 border-red-100'
     case 'LISTA_NEGRA':return 'text-red-700 bg-red-50 border-red-100'
     default:           return 'text-slate-400 bg-slate-50 border-slate-200'
   }
@@ -108,7 +112,8 @@ function nivelLabel(nivelRiesgo: string | undefined): string {
     case 'critico':    return 'Crítico'
     case 'VERDE':      return 'Mínimo'
     case 'AMARILLO':   return 'Precaución'
-    case 'ROJO':       return 'Moderado'
+    case 'ROJO':       return 'Crítico'
+    case 'ALTO_RIESGO':return 'Crítico'
     case 'LISTA_NEGRA':return 'Crítico'
     default:           return '—'
   }
@@ -123,7 +128,8 @@ function nivelTitle(nivelRiesgo: string | undefined): string {
     case 'critico':    return 'Crítico / Lista negra'
     case 'VERDE':      return 'Al día'
     case 'AMARILLO':   return 'Precaución'
-    case 'ROJO':       return 'En mora'
+    case 'ROJO':       return 'Crítico / Lista negra'
+    case 'ALTO_RIESGO':return 'Crítico / Lista negra'
     case 'LISTA_NEGRA':return 'Crítico / Lista negra'
     default:           return ''
   }
@@ -139,7 +145,8 @@ function borderColor(nivelRiesgo: string | undefined, isSelected: boolean): stri
     case 'critico':    return 'border-red-600 shadow-md'
     case 'VERDE':      return 'border-emerald-400 shadow-sm'
     case 'AMARILLO':   return 'border-amber-400 shadow-sm'
-    case 'ROJO':       return 'border-orange-500 shadow-sm'
+    case 'ROJO':       return 'border-red-600 shadow-md'
+    case 'ALTO_RIESGO':return 'border-red-600 shadow-md'
     case 'LISTA_NEGRA':return 'border-red-600 shadow-md'
     default:           return 'border-slate-200'
   }
@@ -188,14 +195,17 @@ function VisitaCardContent({
   children?: ReactNode
 }) {
   const estadoLower = String((visita as any)?.estado || '').toLowerCase().replace(/\s+/g, '_')
-  const tieneCuotaPendiente = (visita as any)?.montoCuotaPendiente != null
-  const cuotaBase = Number(((visita as any)?.montoCuotaPendiente ?? (visita as any)?.montoCuota) || 0)
+  const cuotaNormal = resolveCuotaNormalOperativa(visita)
+  const cuotaBase = cuotaNormal
   const recHoy = Number((visita as any)?.recaudadoDelDia || 0)
   const saldo = Number((visita as any)?.saldoTotal || 0)
-  const cuotaPendiente = tieneCuotaPendiente ? cuotaBase : Math.max(0, cuotaBase - recHoy)
-  const cuotaUI = estadoLower === 'pagado'
+  const cuotaPendiente = Math.max(0, cuotaBase - recHoy)
+  const cuotaOperativa = estadoLower === 'pagado'
     ? (cuotaBase > 0 ? cuotaBase : recHoy)
     : Math.min(cuotaPendiente, saldo > 0 ? saldo : cuotaPendiente)
+  const cuotaUI = cuotaNormal > 0 ? Math.min(cuotaNormal, saldo > 0 ? saldo : cuotaNormal) : cuotaOperativa
+  const acumuladoVencido = resolveCuotaAcumuladaOperativa(visita)
+  const mostrarAcumuladoVencido = acumuladoVencido > cuotaUI + 1
   const saldado = estadoLower === 'pagado' && cuotaUI === 0 && saldo === 0
   const estadoVisitaNorm = normalizeEstadoVisita((visita as any)?.estadoVisita)
   const esReprogramadoHistorial =
@@ -316,11 +326,17 @@ function VisitaCardContent({
         </div>
       </div>
 
-      {/* Fila 2b: Banner "Pendiente de aprobación" */}
+      {/* Fila 2b: Banner de revisión provisional */}
       {visita.pendienteAprobacion && (
         <div className="mt-1 flex items-center gap-1.5 px-2 py-1 rounded-lg border border-amber-200 bg-amber-50 text-amber-700 text-[9px] font-black uppercase tracking-wide">
           <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse shrink-0" />
-          Crédito pendiente de aprobación — cobro deshabilitado
+          {visita.etiquetaRevision || 'Pendiente de revisión'} — cobro deshabilitado
+        </div>
+      )}
+
+      {mostrarAcumuladoVencido && (
+        <div className="mt-1 text-[10px] font-bold text-rose-700">
+          Acumulado vencido: {formatMontoCompleto(acumuladoVencido)}
         </div>
       )}
 

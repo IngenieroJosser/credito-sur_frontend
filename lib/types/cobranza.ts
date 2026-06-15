@@ -1,4 +1,4 @@
-export type EstadoVisita = 'pendiente' | 'pagado' | 'en_mora' | 'ausente' | 'reprogramado' | 'en_prorroga'
+export type EstadoVisita = 'pendiente' | 'pagado' | 'en_mora' | 'ausente' | 'reprogramado' | 'en_prorroga' | 'gestionado'
 export type PeriodoRuta = 'DIA' | 'SEMANA' | 'QUINCENA' | 'MES'
 
 export interface VisitaRuta {
@@ -35,10 +35,18 @@ export interface VisitaRuta {
   cuotaActual?: number
   cuotasTotales?: number
   diasMora?: number
-  // Crédito pendiente de aprobación: el cliente aparece en la ruta pero aún no se puede cobrar
+  // Crédito pendiente de revisión: el cliente aparece en la ruta pero aún no se puede cobrar
   pendienteAprobacion?: boolean
+  estadoAprobacion?: string
+  estadoEfectoProvisional?: string | null
+  esProvisional?: boolean
+  esRevertido?: boolean
+  etiquetaRevision?: string | null
   fechaUltimoPago?: number      // Timestamp del último pago realizado para ordenamiento rápido
   montoCuotaPendiente?: number  // Monto pendiente real (puede diferir de montoCuota si hay mora parcial)
+  montoCuotaNormal?: number     // Cuota normal del periodo, sin acumular saldos vencidos
+  montoMoraAcumulada?: number   // Saldo vencido acumulado de cartera, separado de la cuota operativa
+  cuotasVencidas?: number       // Cantidad de cuotas vencidas/pendientes hasta la fecha operativa
 }
 
 export interface HistorialDia {
@@ -73,12 +81,37 @@ type NivelRiesgoFrontend = 'bajo' | 'leve' | 'precaucion' | 'moderado' | 'critic
  * ruta-client y coordinador/rutas.
  */
 export const mapNivelRiesgo = (nivel?: NivelRiesgoBackend | null): NivelRiesgoFrontend => {
-  switch (nivel) {
-    case 'VERDE':       return 'bajo'
-    case 'AMARILLO':    return 'precaucion'
-    case 'ROJO':        return 'moderado'
-    case 'LISTA_NEGRA': return 'critico'
-    default:            return 'bajo'
+  const normalized = String(nivel || '')
+    .trim()
+    .toUpperCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+
+  switch (normalized) {
+    case 'PELIGRO_MINIMO':
+    case 'MINIMO':
+    case 'BAJO':
+    case 'VERDE':
+      return 'bajo'
+    case 'LEVE_RETRASO':
+    case 'LEVE':
+      return 'leve'
+    case 'PRECAUCION':
+    case 'AMARILLO':
+      return 'precaucion'
+    case 'RIESGO_MODERADO':
+    case 'MODERADO':
+      return 'moderado'
+    case 'ALTO_RIESGO':
+    case 'ROJO':
+    case 'CRITICO':
+    case 'CRÍTICO':
+    case 'RIESGO_CRITICO':
+    case 'RIESGO_CRÍTICO':
+    case 'LISTA_NEGRA':
+      return 'critico'
+    default:
+      return 'bajo'
   }
 }
 

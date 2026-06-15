@@ -32,8 +32,16 @@ import { formatCurrency, cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 import { routesService } from '@/services/routes-service';
 import {
+  computeRutaHoyUiStatsFromVisitas,
   esDomingoBogota,
+  getBogotaDateKey,
+  getEstadoRevisionOperacion,
+  resolveFechaEfectivaCuota,
+  resolveRutaDailySummary,
+  shouldExcludeVisitaFromOperationalMeta,
+  shouldShowVisitaEnRutaHoy,
 } from '@/lib/rutas-core'
+import { rutasService } from '@/services/rutas-service';
 import { clientesService } from '@/services/clientes-service';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { usePermission } from '@/hooks/usePermission';
@@ -131,6 +139,122 @@ const getEstadoSistemaLabel = (estado: Ruta['estado']) => {
   return estado
 }
 
+export const mapObligacionToRutaListVisita = (
+  o: any,
+  hoyKey: string,
+): any => {
+  const prestamo = o?.prestamo || {}
+  const estadoRevision = getEstadoRevisionOperacion({ ...prestamo, ...o })
+  const cuotaObjetivo =
+    o?.cuotaObjetivo ||
+    prestamo?.cuotaObjetivo ||
+    prestamo?.proximaCuota ||
+    {}
+
+  const fechaCuota =
+    resolveFechaEfectivaCuota(cuotaObjetivo) ||
+    cuotaObjetivo?.fechaVencimientoProrroga ||
+    cuotaObjetivo?.fechaVencimiento ||
+    prestamo?.proximaCuota?.fechaVencimientoProrroga ||
+    prestamo?.proximaCuota?.fechaVencimiento ||
+    o?.proximaVisita ||
+    o?.fechaVisita ||
+    hoyKey
+
+  const estadoGestion = String(
+    o?.estadoGestion ||
+      o?.estadoVisita ||
+      prestamo?.estadoGestion ||
+      prestamo?.estadoVisita ||
+      '',
+  ).toUpperCase()
+
+  const estadoCuota = String(
+    cuotaObjetivo?.estadoActual ||
+      cuotaObjetivo?.estado ||
+      prestamo?.proximaCuota?.estadoActual ||
+      prestamo?.proximaCuota?.estado ||
+      '',
+  ).toUpperCase()
+
+  const metaPendiente = Number(
+    o?.montoMetaOperativaPendiente ??
+      prestamo?.montoMetaOperativaPendiente ??
+      cuotaObjetivo?.saldoExigibleEnFechaOperativa ??
+      prestamo?.cuotaObjetivo?.saldoExigibleEnFechaOperativa ??
+      cuotaObjetivo?.montoCuota ??
+      cuotaObjetivo?.monto ??
+      0,
+  )
+
+  const cuotaNormal = Number(
+    o?.montoCuotaNormal ??
+      cuotaObjetivo?.montoCuota ??
+      cuotaObjetivo?.montoNominal ??
+      cuotaObjetivo?.monto ??
+      prestamo?.valorCuota ??
+      prestamo?.montoCuota ??
+      metaPendiente,
+  )
+
+  const recaudo = Number(
+    o?.recaudadoDelDia ??
+      o?.recaudoDelDia ??
+      o?.montoPagadoHoy ??
+      0,
+  )
+
+  const saldoRaw = prestamo?.saldoPendiente ?? o?.saldoPendiente
+
+  const tieneSaldoInformado =
+    saldoRaw !== undefined &&
+    saldoRaw !== null &&
+    String(saldoRaw).trim() !== ''
+
+  const estaPagado =
+    estadoCuota.includes('PAGAD') ||
+    (tieneSaldoInformado && Number(saldoRaw) <= 0)
+
+  const estaEnMora =
+    Boolean(cuotaObjetivo?.enMoraEnFechaOperativa) ||
+    estadoCuota.includes('VENC') ||
+    estadoCuota.includes('MORA')
+
+  return {
+    id: o?.id || o?.prestamoId || prestamo?.id || `${o?.clienteId || 'cliente'}-${fechaCuota}`,
+    clienteId: o?.clienteId || o?.cliente?.id || prestamo?.clienteId || '',
+    prestamoId: o?.prestamoId || prestamo?.id || '',
+    estado: estadoGestion.includes('REPROGRAM')
+      ? 'reprogramado'
+      : estaPagado
+        ? 'pagado'
+        : estaEnMora
+          ? 'en_mora'
+          : 'pendiente',
+    estadoGestion,
+    estadoVisita: o?.estadoVisita || prestamo?.estadoVisita,
+    proximaVisita: fechaCuota,
+    montoCuota: cuotaNormal,
+    montoCuotaNormal: cuotaNormal,
+    montoCuotaPendiente: metaPendiente,
+    pendienteAprobacion: estadoRevision.esProvisional,
+    estadoAprobacion:
+      o?.estadoAprobacion ??
+      prestamo?.estadoAprobacion ??
+      undefined,
+    estadoEfectoProvisional:
+      o?.estadoEfectoProvisional ??
+      prestamo?.estadoEfectoProvisional ??
+      null,
+    esProvisional: estadoRevision.esProvisional,
+    esRevertido: estadoRevision.esRevertido,
+    etiquetaRevision: estadoRevision.etiquetaRevision,
+    recaudadoDelDia: recaudo,
+    cuotaObjetivo,
+    proximaCuota: prestamo?.proximaCuota || cuotaObjetivo,
+  }
+}
+
 export const RutasPageView = ({ 
   readOnly = false, 
   rutasBasePath = '/admin/rutas', 
@@ -197,6 +321,55 @@ export const RutasPageView = ({
   const [saldoDisponibleRecolectar, setSaldoDisponibleRecolectar] = useState<number | null>(null)
   const [cajaRutaIdRecolectar, setCajaRutaIdRecolectar] = useState<string | null>(null)
   const [errorRecolectar, setErrorRecolectar] = useState<string | null>(null)
+  const [dailySummaries, setDailySummaries] = useState<Record<string, any>>({});
+
+  const fetchDailySummaries = useCallback(async (rutas: Ruta[]) => {
+    if (!rutas || rutas.length === 0) return
+
+    const hoyKey = getBogotaDateKey(new Date())
+    const newSummaries: Record<string, any> = {}
+
+    await Promise.all(
+      rutas.map(async (ruta) => {
+        try {
+          const dailyVisits = await rutasService.obtenerVisitasDelDia(ruta.id, hoyKey)
+          const summary = resolveRutaDailySummary(ruta, dailyVisits)
+
+          const visitas = (summary.obligaciones || []).map((o: any) =>
+            mapObligacionToRutaListVisita(o, hoyKey),
+          )
+
+          const visitasOperativasHoy = visitas
+            .filter((v: any) => shouldShowVisitaEnRutaHoy(v, hoyKey))
+            .filter((v: any) => !shouldExcludeVisitaFromOperationalMeta(v))
+
+          const statsHoy = computeRutaHoyUiStatsFromVisitas(
+            visitasOperativasHoy,
+            0,
+          )
+
+          const recaudo = visitas.length > 0
+            ? Number(statsHoy.recaudo || 0)
+            : Number(summary.recaudo ?? ruta.cobranzaDelDia ?? 0)
+
+          const meta = Number(statsHoy.meta || 0)
+
+          newSummaries[ruta.id] = {
+            ...summary,
+            meta,
+            recaudo,
+            pendiente: Math.max(0, meta - recaudo),
+            clientesOperativosHoy: visitasOperativasHoy.length,
+            visitasOperativasHoy,
+          }
+        } catch (e) {
+          console.warn(`Error fetching daily summary for route ${ruta.id}:`, e)
+        }
+      }),
+    )
+
+    setDailySummaries(newSummaries)
+  }, [])
 
   // Formatea numero con puntos de miles: 200000 -> '200.000'
   const formatInputMonto = (raw: string): string => {
@@ -223,7 +396,8 @@ export const RutasPageView = ({
         : (Array.isArray((payload as any)?.data) ? (payload as any).data : [])
 
       if (Array.isArray(data) && data.length > 0) {
-        // La fuente de verdad del avance operativo es routesService.getAll.
+        // La lista base viene de routesService.getAll, pero las métricas operativas de HOY
+  // se recalculan con obtenerVisitasDelDia y dailySummaries.
         // No se mezcla con saldo de caja porque ahí entran regularizaciones,
         // bases y movimientos contables que no son productividad de HOY.
         setRutasList(data as Ruta[]);
@@ -266,6 +440,12 @@ export const RutasPageView = ({
     fetchRutas,
   )
   usePageFocusRefresh(fetchRutas)
+
+  useEffect(() => {
+    if (rutasList.length > 0) {
+      fetchDailySummaries(rutasList);
+    }
+  }, [rutasList, fetchDailySummaries]);
 
 
   const [clienteSearch, setClienteSearch] = useState('')
@@ -578,31 +758,48 @@ export const RutasPageView = ({
   const rutasActivas = displayRutas.filter((ruta) => ruta.estado === 'ACTIVA').length
   const rutasOperativasHoy = esDiaNoLaboral
     ? 0
-    : displayRutas.filter((ruta) => ruta.estado === 'ACTIVA' && ruta.clientesAsignados > 0).length
+    : displayRutas.filter((ruta) => {
+        const clientesOperativos = Number(
+          dailySummaries[ruta.id]?.clientesOperativosHoy ??
+            ruta.clientesAsignados ??
+            0,
+        )
+
+        return ruta.estado === 'ACTIVA' && clientesOperativos > 0
+      }).length
   const rutasPendientes = displayRutas.filter((ruta) => ruta.estado === 'PENDIENTE_ACTIVACION').length
   const totalClientes = displayRutas.reduce((acc, curr) => acc + curr.clientesAsignados, 0)
 
   const { objetivoTotalShown, porcentajeAvance } = useMemo(() => {
-    const rutasOperativas = (Array.isArray(displayRutas) ? displayRutas : []).filter((r: any) => r && r.estado === 'ACTIVA' && r.clientesAsignados > 0)
-
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('🔍 rutasOperativas:', rutasOperativas.map((r: any) => ({
-        nombre: r.nombre,
-        clientesAsignados: r.clientesAsignados,
-        metaDelDia: r.metaDelDia,
-        cobranzaDelDia: r.cobranzaDelDia,
-      })))
+    if (esDiaNoLaboral) {
+      return {
+        objetivoTotalShown: 0,
+        porcentajeAvance: 0,
+      }
     }
 
+    const rutasOperativas = (Array.isArray(displayRutas) ? displayRutas : []).filter((r: any) => {
+      if (!r || r.estado !== 'ACTIVA') return false
+
+      const clientesOperativos = Number(
+        dailySummaries[r.id]?.clientesOperativosHoy ??
+          r.clientesAsignados ??
+          0,
+      )
+
+      return clientesOperativos > 0
+    })
+
     const objetivoTotal = rutasOperativas.reduce((acc, curr) => {
-      const meta = Number(curr?.metaDelDia ?? 0)
-      // Si la meta del backend es 0 o no existe, no sumarla (evita metas incorrectas)
+      const summary = dailySummaries[curr.id]
+      const meta = summary ? Number(summary.meta ?? 0) : Number(curr?.metaDelDia ?? 0)
       if (meta <= 0) return acc
       return acc + meta
     }, 0)
 
-    const recTotal = esDiaNoLaboral ? 0 : rutasOperativas.reduce((acc, curr) => {
-      const recaudo = Number(curr?.cobranzaDelDia ?? 0)
+    const recTotal = rutasOperativas.reduce((acc, curr) => {
+      const summary = dailySummaries[curr.id]
+      const recaudo = summary ? Number(summary.recaudo ?? 0) : Number(curr?.cobranzaDelDia ?? 0)
       return acc + recaudo
     }, 0)
 
@@ -610,20 +807,48 @@ export const RutasPageView = ({
       objetivoTotalShown: objetivoTotal,
       porcentajeAvance: objetivoTotal > 0 ? Math.min(100, (recTotal / objetivoTotal) * 100) : 0,
     }
-  }, [displayRutas, esDiaNoLaboral])
+  }, [displayRutas, esDiaNoLaboral, dailySummaries])
 
   const getRecaudoOperativoRuta = useCallback(
-    (ruta: Ruta) => esDiaNoLaboral ? 0 : Number(ruta?.cobranzaDelDia || 0),
-    [esDiaNoLaboral],
+    (ruta: Ruta) => {
+      if (esDiaNoLaboral) return 0;
+      const summary = dailySummaries[ruta.id];
+      return summary ? Number(summary.recaudo ?? 0) : Number(ruta?.cobranzaDelDia ?? 0);
+    },
+    [esDiaNoLaboral, dailySummaries],
+  )
+
+  const getMetaOperativoRuta = useCallback(
+    (ruta: Ruta) => {
+      if (esDiaNoLaboral) return 0
+
+      const summary = dailySummaries[ruta.id]
+      return summary ? Number(summary.meta ?? 0) : Number(ruta?.metaDelDia ?? 0)
+    },
+    [dailySummaries, esDiaNoLaboral],
+  )
+
+  const getClientesOperativosRuta = useCallback(
+    (ruta: Ruta) => {
+      if (esDiaNoLaboral) return 0
+
+      const summary = dailySummaries[ruta.id]
+      return Number(
+        summary?.clientesOperativosHoy ??
+          ruta?.clientesAsignados ??
+          0,
+      )
+    },
+    [dailySummaries, esDiaNoLaboral],
   )
 
   const getAvanceOperativoRuta = useCallback(
     (ruta: Ruta) => {
-      const meta = Number(ruta?.metaDelDia || 0)
-      if (meta <= 0) return 0
+      const meta = getMetaOperativoRuta(ruta);
+      if (meta <= 0) return 0;
       return Math.min(100, (getRecaudoOperativoRuta(ruta) / meta) * 100)
     },
-    [getRecaudoOperativoRuta],
+    [getRecaudoOperativoRuta, getMetaOperativoRuta],
   )
 
   // Determine risk color classes
@@ -931,8 +1156,8 @@ export const RutasPageView = ({
                           <Users className="h-4 w-4" />
                         </div>
                         <div>
-                          <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Cartera</p>
-                          <p className="font-bold text-slate-900">{ruta.clientesAsignados} clientes</p>
+                          <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Clientes operativos hoy</p>
+                          <p className="font-bold text-slate-900">{getClientesOperativosRuta(ruta)} operativos hoy</p>
                         </div>
                       </div>
 
@@ -972,7 +1197,7 @@ export const RutasPageView = ({
                             }}
                           ></div>
                         </div>
-                        <p className="text-xs text-right text-slate-400 mt-2 font-medium">Objetivo: {formatCurrency(ruta.metaDelDia)}</p>
+                        <p className="text-xs text-right text-slate-400 mt-2 font-medium">Objetivo: {formatCurrency(getMetaOperativoRuta(ruta))}</p>
                       </div>
                     )}
                   </div>
@@ -1072,7 +1297,7 @@ export const RutasPageView = ({
                       <th className="px-6 py-4 font-bold tracking-wider">Ruta / Código</th>
                       <th className="px-6 py-4 font-bold tracking-wider">Estado</th>
                       <th className="px-6 py-4 font-bold tracking-wider">Cobrador</th>
-                      <th className="px-6 py-4 font-bold tracking-wider">Clientes</th>
+                      <th className="px-6 py-4 font-bold tracking-wider">Clientes operativos hoy</th>
                       <th className="px-6 py-4 font-bold tracking-wider">Avance Diario</th>
                       <th className="px-6 py-4 font-bold tracking-wider text-right">Acciones</th>
                     </tr>
@@ -1137,7 +1362,7 @@ export const RutasPageView = ({
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-1.5 text-slate-600 font-medium">
                             <Users className="w-4 h-4 text-slate-400" />
-                            <span>{ruta.clientesAsignados}</span>
+                            <span>{getClientesOperativosRuta(ruta)}</span>
                           </div>
                         </td>
                         <td className="px-6 py-4">
@@ -1279,12 +1504,12 @@ export const RutasPageView = ({
 
                   {/* Clientes */}
                   <div className="mb-3">
-                    <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Clientes Asignados</div>
-                    <div className="flex items-center gap-1.5 text-slate-700 font-bold">
-                      <Users className="w-4 h-4 text-slate-400" />
-                      <span>{ruta.clientesAsignados}</span>
+                      <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Clientes operativos hoy</div>
+                      <div className="flex items-center gap-1.5 text-slate-700 font-bold">
+                        <Users className="w-4 h-4 text-slate-400" />
+                        <span>{getClientesOperativosRuta(ruta)}</span>
+                      </div>
                     </div>
-                  </div>
 
                   {/* Avance Diario */}
                   {ruta.estado === 'ACTIVA' && (
@@ -1306,7 +1531,7 @@ export const RutasPageView = ({
                             style={{ width: `${getAvanceOperativoRuta(ruta)}%` }}
                           ></div>
                         </div>
-                        <div className="text-xs text-slate-500">Objetivo: {formatCurrency(ruta.metaDelDia)}</div>
+                        <div className="text-xs text-slate-500">Objetivo: {formatCurrency(getMetaOperativoRuta(ruta))}</div>
                       </div>
                     </div>
                   )}

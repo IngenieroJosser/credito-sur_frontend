@@ -16,6 +16,7 @@ import { X, User, MapPin, Phone, Camera, AlertCircle, Loader2 } from 'lucide-rea
 import { VisitaRuta } from '@/lib/types/cobranza'
 import { resolveMediaUrl, formatCurrency } from '@/lib/utils'
 import Portal, { MODAL_Z_INDEX } from '@/components/ui/Portal'
+import { resolveCuotaAcumuladaOperativa, resolveCuotaNormalOperativa } from '@/lib/rutas-core'
 import { clientesService } from '@/services/clientes-service'
 import { rutasService, type HistorialVisitaCliente } from '@/services/rutas-service'
 
@@ -134,10 +135,9 @@ export default function ClienteInfoModal({
     visita.nivelRiesgo === 'critico'   ? 'bg-red-100 text-red-700' :
     'bg-slate-100 text-slate-600'
 
-  const cuotaPendienteActual = Number((visita as any)?.montoCuotaPendiente ?? 0)
-  const cuotaProyectada = cuotaPendienteActual > 0
-    ? cuotaPendienteActual
-    : (nextPagoMonto ?? visita.montoCuota ?? 0)
+  const cuotaNormalOperativa = resolveCuotaNormalOperativa(visita)
+  const acumuladoVencido = resolveCuotaAcumuladaOperativa(visita)
+  const cuotaProyectada = nextPagoMonto ?? cuotaNormalOperativa
   const estadoVisitaGestion = String((visita as any)?.estadoVisita || visita.estado || '').toLowerCase()
   const esAusenteGestion = estadoVisitaGestion === 'ausente'
   const notaAusencia = String((visita as any)?.notasVisita || '').trim()
@@ -319,7 +319,7 @@ export default function ClienteInfoModal({
                 {/* Cuota proyectada */}
                 <div className="bg-white border border-slate-200 p-4 rounded-2xl flex justify-between items-center shadow-sm">
                   <div>
-                    <p className="text-[10px] text-slate-500 font-black uppercase mb-0.5">Cuota Proyectada</p>
+                    <p className="text-[10px] text-slate-500 font-black uppercase mb-0.5">Cuota normal</p>
                     <p className="text-slate-900 font-black text-lg">
                       {formatCurrency(cuotaProyectada)}
                     </p>
@@ -426,6 +426,21 @@ export default function ClienteInfoModal({
                       ))}
                     </div>
                   )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-rose-50 border border-rose-100 p-4 rounded-2xl">
+                    <p className="text-[10px] text-rose-600 font-black uppercase mb-1">Acumulado vencido</p>
+                    <p className="text-rose-900 font-black text-lg">
+                      {formatCurrency(acumuladoVencido)}
+                    </p>
+                  </div>
+                  <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl text-right">
+                    <p className="text-[10px] text-slate-500 font-black uppercase mb-1">Cuotas vencidas</p>
+                    <p className="text-slate-900 font-black text-lg">
+                      {Number((visita as any)?.cuotasVencidas || 0)}
+                    </p>
+                  </div>
                 </div>
                 {/* Estado del crédito */}
                 <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm flex items-center gap-3">

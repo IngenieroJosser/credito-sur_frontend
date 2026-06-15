@@ -1,9 +1,10 @@
-import type { PeriodoRuta } from '@/lib/types/cobranza'
+import { mapNivelRiesgo, type PeriodoRuta } from '@/lib/types/cobranza'
 import {
   computeDiasMoraFromCuotas,
   computeMontoExigibleHastaHoyFromCuotas,
-  computeMontoNominalHastaHoyFromCuotas,
+  getEstadoRevisionOperacion,
   getBogotaDateKey,
+  isPrestamoOperativo,
   isVisitaExigibleHoy,
   normalizeDateKey,
   resolveFechaEfectivaCuota,
@@ -36,6 +37,7 @@ export type VisitaRutaLite = {
   horaSugerida: string
   montoCuota: number
   montoCuotaPendiente?: number
+  montoCuotaNormal?: number
   saldoTotal: number
   estado: EstadoVisita
   estadoVisita?: string       // estado de visita del día (ej: 'ausente')
@@ -49,12 +51,19 @@ export type VisitaRutaLite = {
   periodoRuta: PeriodoRuta
   clienteId: string
   prestamoId?: string
+  cuotaId?: string
+  cuotaObjetivoId?: string
   cuotaActual?: number
   cuotasTotales?: number
   diasMora?: number
   tipoPrestamo?: any
   articuloNombre?: string
   pendienteAprobacion?: boolean
+  estadoAprobacion?: string
+  estadoEfectoProvisional?: string
+  esProvisional?: boolean
+  esRevertido?: boolean
+  etiquetaRevision?: string
   enProrroga?: boolean
   fechaProrroga?: any
   fechaOriginalVencimiento?: any
@@ -71,12 +80,7 @@ const toPeriodo = (f: string): PeriodoRuta => {
 }
 
 const toNivel = (r: string) => {
-  // Normalización simple de nivel de riesgo para mantener compatibilidad
-  // con el criterio existente en las vistas.
-  if (r === 'AMARILLO') return 'leve'
-  if (r === 'ROJO') return 'moderado'
-  if (r === 'LISTA_NEGRA') return 'critico'
-  return 'bajo'
+  return mapNivelRiesgo(r)
 }
 
 const isPagada = (c: any) => {
@@ -120,7 +124,7 @@ export const mapAsignacionesToVisitasLite = (params: {
     const cliente = asig?.cliente || {}
 
     const prestamos = Array.isArray(cliente?.prestamos) ? cliente.prestamos : []
-    const prestamosValidos = prestamos.filter((p: any) => p && (p.estado === 'ACTIVO' || p.estado === 'EN_MORA' || p.estado === 'PAGADO' || p.estado === 'PENDIENTE_APROBACION'))
+    const prestamosValidos = prestamos.filter((p: any) => isPrestamoOperativo(p))
     const lista = prestamosValidos.length > 0 ? prestamosValidos : [null]
 
     return lista.flatMap((prestamo: any, subIdx: number) => {
@@ -174,6 +178,7 @@ export const mapAsignacionesToVisitasLite = (params: {
       if (!apareceHoy && params.filtrarExigibles !== false) return []
 
       const esArticulo = prestamo?.tipo === 'ARTICULO' || prestamo?.tipoPrestamo === 'ARTICULO'
+      const estadoRevision = getEstadoRevisionOperacion(prestamo)
 
       const montoNominalProxima = Number((proxima as any)?.montoNominal ?? (proxima as any)?.monto ?? 0)
       const montoPagadoProxima = Number((proxima as any)?.montoPagado ?? 0)
@@ -182,19 +187,17 @@ export const mapAsignacionesToVisitasLite = (params: {
       const montoCuotaBase = esArticulo
         ? Math.max(montoNominalProxima, montoNominalPrestamo)
         : (montoNominalPrestamo > 0 ? montoNominalPrestamo : montoNominalProxima)
-      const montoNominalHastaHoy = computeMontoNominalHastaHoyFromCuotas(cuotasOrdenadas as any, hoyKey)
       const montoPendienteHastaHoy = computeMontoExigibleHastaHoyFromCuotas(cuotasOrdenadas as any, hoyKey)
-      const montoCuota = montoNominalHastaHoy > 0
-        ? Math.max(montoNominalHastaHoy, montoCuotaBase)
-        : montoCuotaBase
+      const montoCuotaNormal = montoCuotaBase
+      const montoCuota = montoCuotaNormal
 
       const montoCuotaPendiente = montoPendienteHastaHoy > 0
         ? montoPendienteHastaHoy
         : montoPendienteProxima
 
-      // Regla de montoCuota:
-      // - Si hay cuotas vencidas/no pagadas hasta hoy, se acumulan (mora) y se cobra ese total.
-      // - Si no hay mora, se usa el monto nominal de la próxima cuota.
+      // Regla de montos:
+      // - montoCuota muestra la cuota normal del periodo en la tarjeta.
+      // - montoCuotaPendiente conserva el exigible operativo acumulado para pagos/KPIs.
 
       const saldoTotalToken = Number(prestamo?.saldoPendiente || 0)
 
@@ -223,6 +226,8 @@ export const mapAsignacionesToVisitasLite = (params: {
         0,
       )
 
+      const cuotaIdFinal = String((proxima as any)?.id || prestamo?.cuotaObjetivo?.id || prestamo?.proximaCuota?.id || '').trim();
+      
       return [{
         id: prestamo?.id ? `${asig.id || `asig-${hoyKey}-${index}`}-${prestamo.id}` : (asig.id || `asig-${hoyKey}-${index}-${subIdx}`),
         cliente: `${cliente.nombres || ''} ${cliente.apellidos || ''}`.trim() || 'Cliente',
@@ -231,6 +236,7 @@ export const mapAsignacionesToVisitasLite = (params: {
         horaSugerida: asig.horaSugerida || '08:00 AM',
         montoCuota,
         montoCuotaPendiente,
+        montoCuotaNormal,
         saldoTotal: saldoTotalToken,
         estado,
         estadoVisita: estadoVisitaRaw || undefined,
@@ -244,12 +250,19 @@ export const mapAsignacionesToVisitasLite = (params: {
         periodoRuta,
         clienteId: cliente.id || asig.clienteId || '',
         prestamoId: prestamo?.id,
+        cuotaId: cuotaIdFinal,
+        cuotaObjetivoId: cuotaIdFinal,
         cuotaActual: (proxima as any)?.numeroCuota,
         cuotasTotales: prestamo?.cantidadCuotas,
         diasMora,
         tipoPrestamo: esArticulo ? 'ARTICULO' : 'EFECTIVO',
         articuloNombre: nombreCredito,
-        pendienteAprobacion: prestamo?.estado === 'PENDIENTE_APROBACION',
+        pendienteAprobacion: estadoRevision.esProvisional,
+        estadoAprobacion: estadoRevision.estadoAprobacion,
+        estadoEfectoProvisional: estadoRevision.estadoEfectoProvisional,
+        esProvisional: estadoRevision.esProvisional,
+        esRevertido: estadoRevision.esRevertido,
+        etiquetaRevision: estadoRevision.etiquetaRevision,
         enProrroga,
         fechaProrroga,
         fechaOriginalVencimiento,

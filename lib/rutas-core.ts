@@ -1,6 +1,22 @@
 import { mapFrecuenciaToPeriodo, type PeriodoRuta } from '@/lib/types/cobranza';
 import type { ClienteCierrePendiente } from '@/types/rutas/cierre-pendiente';
 
+export const resolveCuotaIdFromVisitaLike = (source: any, prestamo?: any, cuota?: any) => {
+  return String(
+    source?.cuotaId ??
+    source?.cuotaObjetivoId ??
+    source?.cuotaObjetivoPrestamoId ??
+    source?.cuotaObjetivo?.id ??
+    source?.proximaCuota?.id ??
+    cuota?.id ??
+    prestamo?.cuotaId ??
+    prestamo?.cuotaObjetivoId ??
+    prestamo?.cuotaObjetivo?.id ??
+    prestamo?.proximaCuota?.id ??
+    ''
+  ).trim()
+}
+
 // -----------------------------------------------------------------------------
 // Núcleo compartido de lógica para Rutas (Cobrador / Supervisor / Admin)
 // -----------------------------------------------------------------------------
@@ -10,13 +26,125 @@ import type { ClienteCierrePendiente } from '@/types/rutas/cierre-pendiente';
 // Principios importantes:
 // - Todas las comparaciones de fechas "por día" deben hacerse con una llave
 //   YYYY-MM-DD en zona horaria de Bogotá.
-// - Para un préstamo en mora (cuotas vencidas o atrasadas), el monto exigible
-//   del día puede ser la suma de todas las cuotas no pagadas con vencimiento
-//   efectivo <= HOY.
-// - La lógica de "aparece hoy" y "pagado" se comparte para no romper reglas
+// - La ruta cobra y muestra una cuota normal del período. La cartera acumulada
+//   vencida se conserva como dato financiero separado, no como cuota principal.
+// - La lógica de "aparece hoy" y "pagado" se comparten para no romper reglas
 //   de negocio entre roles.
 
 const BOGOTA_TZ = 'America/Bogota';
+
+export const resolveCuotaNormalOperativa = (visita: any): number => {
+  return Number(
+    visita?.montoCuotaNormal ??
+      visita?.cuotaObjetivo?.montoCuota ??
+      visita?.cuotaObjetivo?.montoNominal ??
+      visita?.cuotaObjetivo?.monto ??
+      visita?.montoCuota ??
+      0,
+  );
+};
+
+export const resolveCuotaAcumuladaOperativa = (visita: any): number => {
+  return Number(
+    visita?.montoMoraAcumulada ??
+      visita?.saldoVencidoAcumulado ??
+      visita?.cuotaObjetivo?.montoMoraAcumulada ??
+      visita?.cuotaObjetivo?.saldoVencidoAcumulado ??
+      visita?.montoCuotaPendiente ??
+      visita?.montoMetaOperativaPendiente ??
+      visita?.cuotaObjetivo?.saldoExigibleEnFechaOperativa ??
+      0,
+  );
+};
+
+const normalizeUpper = (value: unknown): string =>
+  String(value ?? '').trim().toUpperCase();
+
+export const getEstadoRevisionOperacion = (source: any) => {
+  const estadoAprobacion = normalizeUpper(source?.estadoAprobacion);
+  const estadoEfectoProvisional = normalizeUpper(
+    source?.estadoEfectoProvisional ??
+      source?.efectoProvisional?.estado ??
+      source?.efectosProvisionales?.[0]?.estado,
+  );
+  const esRevertido =
+    estadoEfectoProvisional === 'REVERTIDO' ||
+    estadoEfectoProvisional === 'REVERSA_FALLIDA' ||
+    Boolean(source?.esRevertido);
+  const esProvisional =
+    !esRevertido &&
+    (estadoAprobacion === 'PENDIENTE' ||
+      normalizeUpper(source?.estado) === 'PENDIENTE_APROBACION' ||
+      estadoEfectoProvisional === 'PENDIENTE_REVISION' ||
+      Boolean(source?.esProvisional));
+
+  return {
+    estadoAprobacion: estadoAprobacion || undefined,
+    estadoEfectoProvisional: estadoEfectoProvisional || undefined,
+    esProvisional,
+    esRevertido,
+    etiquetaRevision: esRevertido
+      ? 'Revertido'
+      : esProvisional
+        ? 'Pendiente de revisión'
+        : undefined,
+  };
+};
+
+export const isPrestamoRevertido = (prestamo: any): boolean => {
+  return getEstadoRevisionOperacion(prestamo).esRevertido;
+};
+
+export const isPrestamoOperativo = (prestamo: any): boolean => {
+  if (!prestamo) return false;
+  if (prestamo?.eliminadoEn) return false;
+
+  const estado = normalizeUpper(prestamo?.estado);
+  const estadoAprobacion = normalizeUpper(prestamo?.estadoAprobacion);
+  const tipoPrestamo = normalizeUpper(prestamo?.tipoPrestamo ?? prestamo?.tipo);
+
+  if (estadoAprobacion === 'RECHAZADO') return false;
+  if (['PERDIDA', 'BORRADOR'].includes(estado)) return false;
+  if (isPrestamoRevertido(prestamo)) return false;
+  if (prestamo?.esContado || tipoPrestamo === 'VENTA_CONTADO') return false;
+
+  return true;
+};
+
+export const isCuotaOperativaParaFecha = (cuota: any, fechaOperativaKey: string): boolean => {
+  if (!cuota || !fechaOperativaKey) return false;
+
+  const estado = normalizeUpper(cuota?.estado ?? cuota?.estadoActual);
+  if (!['PENDIENTE', 'PARCIAL', 'VENCIDA'].includes(estado)) return false;
+
+  const fechaKey = normalizeDateKey(
+    String(
+      cuota?.fechaEfectiva ||
+        cuota?.fechaVencimientoProrroga ||
+        cuota?.fechaVencimiento ||
+        '',
+    ),
+  );
+
+  return Boolean(fechaKey && fechaKey <= fechaOperativaKey);
+};
+
+export const isObligacionOperativaRuta = (
+  obligacion: { prestamo?: any; cuota?: any; cuotaObjetivo?: any },
+  fechaOperativaKey: string,
+): boolean => {
+  const prestamo = obligacion?.prestamo ?? obligacion;
+  const cuota =
+    obligacion?.cuota ??
+    obligacion?.cuotaObjetivo ??
+    prestamo?.cuotaObjetivo ??
+    prestamo?.proximaCuota;
+
+  return (
+    isPrestamoOperativo(prestamo) &&
+    isCuotaOperativaParaFecha(cuota, fechaOperativaKey)
+  );
+};
 
 export const esDomingoBogota = (date: Date = new Date()): boolean => {
   const day = new Intl.DateTimeFormat('en-US', {
@@ -551,6 +679,7 @@ export const shouldExcludeVisitaFromOperationalMeta = (
   const estadoVisita = String(visita?.estadoVisita || '').toLowerCase().replace(/\s+/g, '_');
   const estado = String(visita?.estado || '').toLowerCase().replace(/\s+/g, '_');
   const esAusente = estadoVisita === 'ausente' || estado === 'ausente';
+  const esGestionado = estadoVisita === 'gestionado' || estado === 'gestionado';
   const esReprogramado =
     estadoVisita === 'reprogramado' ||
     estadoVisita === 'reprogramada' ||
@@ -560,7 +689,18 @@ export const shouldExcludeVisitaFromOperationalMeta = (
     estado === 'reprogramada' ||
     estado === 'reprogramacion' ||
     estado === 'reprogramación';
-  if (!esAusente && !esReprogramado) return false;
+  const fechaProrrogaKey = normalizeDateKey(
+    String(
+      visita?.fechaProrroga ||
+      visita?.fechaVencimientoProrroga ||
+      visita?.cuotaObjetivo?.fechaVencimientoProrroga ||
+      '',
+    ),
+  );
+  const hoyBogotaKey = getBogotaNowKey();
+  const tieneProrrogaFutura = Boolean(visita?.enProrroga || fechaProrrogaKey)
+    && Boolean(fechaProrrogaKey && hoyBogotaKey && fechaProrrogaKey > hoyBogotaKey);
+  if (!esAusente && !esGestionado && !esReprogramado && !tieneProrrogaFutura) return false;
 
   const recaudadoHoy = recaudadoHoyOverride !== undefined
     ? Number(recaudadoHoyOverride || 0)
@@ -574,6 +714,7 @@ export const shouldShowVisitaEnRutaHoy = (visita: any, hoyBogotaKey: string): bo
   if (!visita) return false;
   const estado = String(visita?.estado || '').toLowerCase().replace(/\s+/g, '_');
   const estadoVisita = String(visita?.estadoVisita || '').toLowerCase().replace(/\s+/g, '_');
+  const esGestionado = estadoVisita === 'gestionado' || estado === 'gestionado';
   const esReprogramado =
     estadoVisita === 'reprogramado' ||
     estadoVisita === 'reprogramada' ||
@@ -584,8 +725,21 @@ export const shouldShowVisitaEnRutaHoy = (visita: any, hoyBogotaKey: string): bo
     estado === 'reprogramacion' ||
     estado === 'reprogramación';
   const recaudadoHoy = Number((visita as any)?.recaudadoDelDia ?? (visita as any)?.recaudadoPeriodo ?? 0);
+  const fechaProrrogaKey = normalizeDateKey(
+    String(
+      visita?.fechaProrroga ||
+      visita?.fechaVencimientoProrroga ||
+      visita?.cuotaObjetivo?.fechaVencimientoProrroga ||
+      '',
+    ),
+  );
+  const tieneProrrogaFutura = Boolean(visita?.enProrroga || fechaProrrogaKey)
+    && Boolean(fechaProrrogaKey && hoyBogotaKey && fechaProrrogaKey > hoyBogotaKey);
 
+  if (esGestionado) return false;
   if (esReprogramado && !(Number.isFinite(recaudadoHoy) && recaudadoHoy > 0)) return false;
+  if (tieneProrrogaFutura && !(Number.isFinite(recaudadoHoy) && recaudadoHoy > 0)) return false;
+  if (Number.isFinite(recaudadoHoy) && recaudadoHoy > 0) return false;
   if (estado === 'pagado') return false;
 
   if (shouldMarkVisitaAsPagado({
@@ -601,16 +755,17 @@ export const shouldShowVisitaEnRutaHoy = (visita: any, hoyBogotaKey: string): bo
 };
 
 export const computeMetaHoyFromVisitas = (visitas: any[], hoyBogotaKey: string): number => {
-  // Calcula la "meta" del día: suma de montoCuota de las visitas exigibles hoy
-  // excluyendo las que ya están pagadas.
+  // Calcula la meta visual del día como suma de una cuota normal por obligación.
+  // La mora/acumulado vencido vive aparte y no debe inflar la cuota principal.
   if (!Array.isArray(visitas) || visitas.length === 0) return 0;
   return visitas.reduce((sum: number, v: any) => {
     if (!isVisitaExigibleHoy(v, hoyBogotaKey)) return sum;
     if (String(v?.estado || '').toLowerCase() === 'pagado') return sum;
+    if (Number((v as any)?.recaudadoDelDia || 0) > 0) return sum;
     const saldo = Number((v as any)?.saldoTotal ?? 0);
     if (saldo <= 0) return sum;
 
-    const cuotaBase = Number(((v as any)?.montoCuotaPendiente ?? v?.montoCuota) || 0);
+    const cuotaBase = resolveCuotaNormalOperativa(v);
     const recHoy = Number((v as any)?.recaudadoDelDia || 0);
     const cuotaPendiente = Math.max(0, cuotaBase - recHoy);
     const cuotaUI = Math.min(cuotaPendiente, saldo > 0 ? saldo : cuotaPendiente);
@@ -627,13 +782,13 @@ export const computeRutaHoyUiStatsFromVisitas = (
     if (!v) return sum;
     const estadoLower = String(v?.estado || '').toLowerCase().replace(/\s+/g, '_');
     if (estadoLower === 'pagado') return sum;
+    if (Number((v as any)?.recaudadoDelDia || 0) > 0) return sum;
 
-    const tieneCuotaPendiente = (v as any)?.montoCuotaPendiente != null;
-    const cuotaBase = Number(((v as any)?.montoCuotaPendiente ?? v?.montoCuota) || 0);
+    const cuotaBase = resolveCuotaNormalOperativa(v);
     const recHoy = Number((v as any)?.recaudadoDelDia || 0);
     const saldo = Number((v as any)?.saldoTotal || 0);
 
-    const cuotaPendiente = tieneCuotaPendiente ? cuotaBase : Math.max(0, cuotaBase - recHoy);
+    const cuotaPendiente = Math.max(0, cuotaBase - recHoy);
     const cuotaUI = Math.min(cuotaPendiente, saldo > 0 ? saldo : cuotaPendiente);
     return sum + Number(cuotaUI || 0);
   }, 0);
@@ -718,6 +873,44 @@ export const computeDiasMoraFromCuotas = (
   return diff > 0 ? diff : 0;
 };
 
+export const computeDiasMoraFromCuotaObjetivo = (
+  cuotaObjetivo: any,
+  hoyBogotaKey: string,
+  frecuenciaPagoRaw?: string | null,
+): number => {
+  if (!cuotaObjetivo || !hoyBogotaKey) return 0;
+
+  const estado = String(
+    cuotaObjetivo?.estadoActual ??
+      cuotaObjetivo?.estado ??
+      '',
+  ).toUpperCase();
+
+  if (['PAGADA', 'PAGADO', 'ANULADA', 'ANULADO'].includes(estado)) {
+    return 0;
+  }
+
+  const fecha =
+    cuotaObjetivo?.fechaEfectiva ||
+    cuotaObjetivo?.fechaVencimientoProrroga ||
+    cuotaObjetivo?.fechaVencimiento ||
+    '';
+
+  const fechaKey = normalizeDateKey(String(fecha || ''));
+  if (!fechaKey || fechaKey >= hoyBogotaKey) return 0;
+
+  return computeDiasMoraFromCuotas(
+    [
+      {
+        estado: estado || 'VENCIDA',
+        fechaVencimiento: fechaKey,
+      },
+    ],
+    hoyBogotaKey,
+    frecuenciaPagoRaw,
+  );
+};
+
 export const computeMontoExigibleHastaHoyFromCuotas = (cuotas: any[], hoyBogotaKey: string): number => {
   // Regla de negocio clave (mora / abonos parciales):
   // Devuelve el total exigible acumulado hasta HOY (inclusive):
@@ -774,7 +967,23 @@ export const resolveCobradorIdForRouteAction = (
 export function resolveRutaDailySummary(ruta: any, dailyVisits: any) {
   const resumen = dailyVisits?.resumen || {};
 
-  const meta = Number(
+  const obligaciones = Array.isArray(dailyVisits?.obligaciones)
+    ? dailyVisits.obligaciones
+    : [];
+
+  const metaDesdeObligaciones = obligaciones.reduce((sum: number, o: any) => {
+    const metaPendiente = Number(
+      o?.montoMetaOperativaPendiente ??
+        o?.prestamo?.montoMetaOperativaPendiente ??
+        o?.cuotaObjetivo?.saldoExigibleEnFechaOperativa ??
+        o?.prestamo?.cuotaObjetivo?.saldoExigibleEnFechaOperativa ??
+        0,
+    );
+    const recaudado = Number(o?.recaudadoDelDia ?? o?.recaudado ?? 0);
+    return sum + Math.max(0, metaPendiente) + Math.max(0, recaudado);
+  }, 0);
+
+  const metaResumen = Number(
     resumen.meta ??
       ruta?.estadisticas?.metaDelDia ??
       ruta?.metaDelDia ??
@@ -788,6 +997,10 @@ export function resolveRutaDailySummary(ruta: any, dailyVisits: any) {
       ruta?.estadisticas?.recaudoHoy ??
       0,
   );
+
+  const meta = obligaciones.length > 0
+    ? metaDesdeObligaciones
+    : metaResumen;
 
   const pendiente = Math.max(meta - recaudo, 0);
 
@@ -804,10 +1017,6 @@ export function resolveRutaDailySummary(ruta: any, dailyVisits: any) {
       ruta?.estadisticas?.totalVisitas ??
       0,
   );
-
-  const obligaciones = Array.isArray(dailyVisits?.obligaciones)
-    ? dailyVisits.obligaciones
-    : [];
 
   const visitas = Array.isArray(dailyVisits?.visitas)
     ? dailyVisits.visitas
