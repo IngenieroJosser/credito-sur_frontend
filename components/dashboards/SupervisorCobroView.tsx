@@ -860,147 +860,54 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
   const cargarMisCreditos = useCallback(async () => {
     const cobradorId = rutaInfo?.cobradorId
-    if (!cobradorId) return
+    if (!cobradorId || !rutaId) return
 
     try {
       setLoadingMisCreditos(true)
-      const resp = await rutasService.obtenerCreditosAsignadosACobrador(cobradorId)
-      const raw = (resp as any)?.data
-      const filas = Array.isArray(raw) ? raw : []
 
-      const mapped: VisitaRuta[] = await Promise.all(filas.map(async (row: any, idx: number) => {
-        const c = row?.cliente || {}
-        const p = row?.prestamo || {}
-        let prestamoAutoritativo: any = p
-        if (p?.id) {
-          try {
-            const detalle = await prestamosService.obtenerPrestamoPorId(p.id)
-            if (detalle) prestamoAutoritativo = detalle
-          } catch {
-            // ignore
-          }
-        }
+      const visitasResp = await rutasService.obtenerVisitasDelDia(
+        rutaId as string,
+        hoyBogotaKey,
+      )
+      const obligaciones = Array.isArray((visitasResp as any)?.obligaciones)
+        ? (visitasResp as any).obligaciones
+        : []
+      const visitas = Array.isArray((visitasResp as any)?.visitas)
+        ? (visitasResp as any).visitas
+        : []
+      const mappedDaily: VisitaRuta[] = obligaciones.length > 0
+        ? obligaciones.map((o: any, idx: number) =>
+            mapObligacionToVisitaRuta(o, cobradorId, idx, hoyBogotaKey),
+          )
+        : visitas.map((row: any, idx: number) =>
+            mapDailyVisitToVisitaRuta(row, cobradorId, idx),
+          )
 
-        // Asegurar cuotas autoritativas para calcular exigible (incluye abonos).
-        try {
-          const cuotasEmb = Array.isArray((prestamoAutoritativo as any)?.cuotas) ? (prestamoAutoritativo as any).cuotas : []
-          const faltanAbonos = cuotasEmb.some((c: any) => c && c.montoPagado === undefined)
-          if (p?.id && (cuotasEmb.length === 0 || faltanAbonos)) {
-            const cuotas = await prestamosService.obtenerCuotas(p.id)
-            prestamoAutoritativo = { ...prestamoAutoritativo, cuotas }
-          }
-        } catch {
-          // ignore
-        }
-
-        const { cuota: prox, fechaEfectiva } = resolveProximaCuotaFromPrestamo(prestamoAutoritativo)
-        const esArticulo = p?.tipo === 'ARTICULO'
-
-        const toNivel = (nivel: string) => {
-          if (nivel === 'VERDE') return 'bajo'
-          if (nivel === 'AMARILLO') return 'precaucion'
-          if (nivel === 'ROJO') return 'moderado'
-          if (nivel === 'LISTA_NEGRA') return 'critico'
-          return 'bajo'
-        }
-
-        const { cuotaActual, cuotasTotales } = resolveCuotaProgressFromPrestamo(prestamoAutoritativo)
-        const cuotasForMonto = Array.isArray((prestamoAutoritativo as any)?.cuotas) ? (prestamoAutoritativo as any).cuotas : []
-        const hoyKey = hoyBogotaKey
-        const montoMoraAcumulada = computeMontoExigibleHastaHoyFromCuotas(cuotasForMonto, hoyKey)
-        const montoNominalProx = Number((prox as any)?.montoNominal ?? (prox as any)?.montoCuota ?? (prox as any)?.monto ?? 0)
-        const montoPagadoProx = Number((prox as any)?.montoPagado ?? 0)
-        const pendienteProx = Math.max(0, montoNominalProx - montoPagadoProx)
-        const montoCuotaNormal = montoNominalProx
-        const montoCuotaPendiente = pendienteProx
-        const saldoTotalPrestamo = Number(
-          (prestamoAutoritativo as any)?.saldoPendiente ??
-            p?.saldoPendiente ??
-            0,
-        )
-        const proximaVisitaV = fechaEfectiva || (prox as any)?.fechaVencimiento || row?.prestamo?.fechaEfectiva || getBogotaDateKey(new Date())
-
-        const hoyBogota = getBogotaDateKey(new Date())
-        const cuotasForEstado = Array.isArray((prestamoAutoritativo as any)?.cuotas) ? (prestamoAutoritativo as any).cuotas : []
-        const tieneMora = (Array.isArray(cuotasForEstado) ? cuotasForEstado : []).some((c: any) => {
-          if (!c || !isCuotaNoPagada(c)) return false
-          const vtoRaw = resolveFechaEfectivaCuota(c) || String(c?.fechaVencimiento || '')
-          const vtoKey = normalizeDateKey(vtoRaw)
-          return !!vtoKey && !!hoyBogota && vtoKey < hoyBogota
+      const seen = new Set<string>()
+      const finalesDaily = mappedDaily
+        .filter((v: any) => {
+          const key = String(v?.prestamoId || v?.clienteId || v?.id || '')
+          if (!key) return true
+          if (seen.has(key)) return false
+          seen.add(key)
+          return true
+        })
+        .sort((a: any, b: any) => {
+          if (a.estado === 'pagado' && b.estado !== 'pagado') return 1
+          if (a.estado !== 'pagado' && b.estado === 'pagado') return -1
+          const ao = Number(a.ordenVisita ?? 0)
+          const bo = Number(b.ordenVisita ?? 0)
+          if (ao !== bo) return ao - bo
+          return String(a.id || '').localeCompare(String(b.id || ''))
         })
 
-        const proxEstado = String((prox as any)?.estado || '').toUpperCase()
-        const estadoCalculado: EstadoVisita = (() => {
-          if (Number(p?.saldoPendiente || 0) <= 0) return 'pagado'
-          if (proxEstado === 'PAGADA' || proxEstado === 'PAGADO') return 'pagado'
-          if (tieneMora) return 'en_mora'
-          return 'pendiente'
-        })()
-
-        return {
-          id: `${row?.asignacionId || 'asig'}-${p?.id || idx}`,
-          cliente: `${c?.nombres || ''} ${c?.apellidos || ''}`.trim() || 'Cliente',
-          direccion: c?.direccion || 'Sin dirección registrada',
-          telefono: c?.telefono || '',
-          horaSugerida: '08:00 AM',
-          montoCuota: montoCuotaNormal,
-          montoCuotaNormal,
-          montoCuotaPendiente,
-          montoMoraAcumulada,
-          cuotasVencidas: (cuotasForMonto as any[]).filter((cuota: any) => {
-            if (!cuota || !isCuotaNoPagada(cuota)) return false
-            const vtoKey = normalizeDateKey(resolveFechaEfectivaCuota(cuota) || String(cuota?.fechaVencimiento || ''))
-            return !!vtoKey && !!hoyKey && vtoKey <= hoyKey
-          }).length,
-          saldoTotal: estadoCalculado === 'pagado' ? 0 : saldoTotalPrestamo,
-          estado: estadoCalculado,
-          proximaVisita: proximaVisitaV,
-          ordenVisita: Number(row?.ordenVisita || idx + 1),
-          prioridad: 'media' as any,
-          nivelRiesgo: normalizeNivelRiesgo(c?.nivelRiesgo || 'VERDE') as any,
-          cobradorId,
-          periodoRuta: (p?.frecuenciaPago || 'DIA') as any,
-          clienteId: c?.id || '',
-          prestamoId: p?.id || '',
-          tipoPrestamo: esArticulo ? 'ARTICULO' : 'EFECTIVO',
-          articuloNombre: esArticulo ? (p?.articulo || 'Artículo') : 'Préstamo',
-          cuotaActual,
-          cuotasTotales,
-        } as any
-      }))
-
-      // Dedupe igual que admin: evita préstamos repetidos / filas duplicadas.
-      const idsProcesados = new Set<string>()
-      const firstPass = (Array.isArray(mapped) ? mapped : []).flatMap((v: any) => {
-        const uniqueKey = v?.prestamoId ? `loan-${v.prestamoId}` : `client-${v.clienteId}`
-        if (idsProcesados.has(uniqueKey)) return []
-        idsProcesados.add(uniqueKey)
-        return [v]
-      })
-      const clientesConPrestamo = new Set(firstPass.filter((v: any) => v?.prestamoId).map((v: any) => v?.clienteId))
-      const mappedDedupe = firstPass.filter((v: any) => {
-        if (!v?.prestamoId && clientesConPrestamo.has(v?.clienteId)) return false
-        return true
-      }) as any
-
-      const finales = mappedDedupe.sort((a: any, b: any) => {
-        if (a.estado === 'pagado' && b.estado !== 'pagado') return 1;
-        if (a.estado !== 'pagado' && b.estado === 'pagado') return -1;
-        const ao = Number(a.ordenVisita ?? 0);
-        const bo = Number(b.ordenVisita ?? 0);
-        if (ao !== bo) return ao - bo;
-        const aId = String(a.id || '');
-        const bId = String(b.id || '');
-        return aId.localeCompare(bId);
-      });
-
-      setMisCreditos(finales)
+      setMisCreditos(finalesDaily)
     } catch (e: any) {
       console.error('Error cargando mis clientes:', e)
     } finally {
       setLoadingMisCreditos(false)
     }
-  }, [rutaInfo?.cobradorId, hoyBogotaKey])
+  }, [rutaInfo?.cobradorId, rutaId, hoyBogotaKey])
 
 
 
