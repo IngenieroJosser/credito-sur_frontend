@@ -24,6 +24,7 @@ import { prestamosService } from '@/services/prestamos-service'
 import { salesService } from '@/services/sales-service'
 import { clientesService, Cliente } from '@/services/clientes-service'
 import { buildCrearPrestamoPayload, buildVentaContadoPayload } from '@/lib/creditos/crear-prestamo-payload'
+import { calcularResumenVentas } from '@/lib/creditos/ventas-resumen'
 import FloatingActionMenu, { FabAction } from '@/components/dashboards/shared/FloatingActionMenu'
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal'
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
@@ -157,7 +158,10 @@ export default function PuntoDeVentaFloatingActions() {
         clienteId: undefined,
         clienteDni: undefined,
         clienteTelefono: undefined,
-        articulo: v.descripcion?.replace('Venta de contado: ', '') || 'Venta contado',
+        articulo:
+          v.descripcion
+            ?.replace(/^Venta de contado\s+(EFECTIVO|TRANSFERENCIA):\s*/i, '')
+            ?.trim() || 'Venta contado',
         monto: v.monto || 0,
         cuotaInicial: 0,
         cuotas: 0,
@@ -212,6 +216,10 @@ export default function PuntoDeVentaFloatingActions() {
 
   const ventasTotalPages = Math.max(1, Math.ceil(ventasFiltradas.length / VENTAS_PER_PAGE))
   const ventasPaginadas = ventasFiltradas.slice((ventasPage - 1) * VENTAS_PER_PAGE, ventasPage * VENTAS_PER_PAGE)
+  const resumenVentas = useMemo(
+    () => calcularResumenVentas(ventasFiltradas),
+    [ventasFiltradas],
+  )
 
   const clientesFiltrados = useMemo(() => {
     if (!clientesSearch.trim()) return clientes
@@ -229,18 +237,7 @@ export default function PuntoDeVentaFloatingActions() {
       let prestamo: any = null
 
       if (esContado) {
-        const cajaId =
-          data.cajaId ||
-          userSession?.cajaId ||
-          userSession?.caja?.id ||
-          userSession?.cajaActivaId ||
-          ''
-
-        if (!cajaId) {
-          throw new Error('No hay caja activa para registrar la venta de contado.')
-        }
-
-        const payload = buildVentaContadoPayload(data, userSession?.id, cajaId)
+        const payload = buildVentaContadoPayload(data, userSession?.id)
         await salesService.registrarVentaContado(payload)
       } else {
         const payload = buildCrearPrestamoPayload(data, userSession?.id)
@@ -386,9 +383,9 @@ export default function PuntoDeVentaFloatingActions() {
               </div>
               {!loadingVentas && ventasFiltradas.length > 0 && (
                 <div className="grid grid-cols-3 gap-3 mt-4">
-                  <div className="bg-white rounded-xl border border-slate-200 p-3"><div className="flex items-center gap-2 mb-1"><TrendingUp className="h-3.5 w-3.5 text-blue-500" /><span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Valor Financiado</span></div><p className="text-sm font-black text-slate-900">{formatCurrency(ventasFiltradas.reduce((s, v) => s + v.monto, 0))}</p></div>
-                  <div className="bg-white rounded-xl border border-slate-200 p-3"><div className="flex items-center gap-2 mb-1"><Package className="h-3.5 w-3.5 text-orange-500" /><span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Operaciones</span></div><p className="text-sm font-black text-slate-900">{ventasFiltradas.length}</p></div>
-                  <div className="bg-white rounded-xl border border-slate-200 p-3"><div className="flex items-center gap-2 mb-1"><CreditCard className="h-3.5 w-3.5 text-emerald-500" /><span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Cuota Inicial</span></div><p className="text-sm font-black text-slate-900">{formatCurrency(ventasFiltradas.reduce((s, v) => s + v.cuotaInicial, 0))}</p></div>
+                  <div className="bg-white rounded-xl border border-slate-200 p-3"><div className="flex items-center gap-2 mb-1"><TrendingUp className="h-3.5 w-3.5 text-blue-500" /><span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Valor Financiado</span></div><p className="text-sm font-black text-slate-900">{formatCurrency(resumenVentas.totalFinanciado)}</p></div>
+                  <div className="bg-white rounded-xl border border-slate-200 p-3"><div className="flex items-center gap-2 mb-1"><Package className="h-3.5 w-3.5 text-orange-500" /><span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ventas Contado</span></div><p className="text-sm font-black text-slate-900">{formatCurrency(resumenVentas.totalContado)}</p></div>
+                  <div className="bg-white rounded-xl border border-slate-200 p-3"><div className="flex items-center gap-2 mb-1"><CreditCard className="h-3.5 w-3.5 text-emerald-500" /><span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Cuota Inicial</span></div><p className="text-sm font-black text-slate-900">{formatCurrency(resumenVentas.totalCuotaInicial)}</p></div>
                 </div>
               )}
               {!loadingVentas && ventasRecientes.length > 0 && (
