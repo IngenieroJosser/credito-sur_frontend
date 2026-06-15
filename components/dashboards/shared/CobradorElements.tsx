@@ -326,11 +326,11 @@ function VisitaCardContent({
         </div>
       </div>
 
-      {/* Fila 2b: Banner "Pendiente de aprobación" */}
+      {/* Fila 2b: Banner de revisión provisional */}
       {visita.pendienteAprobacion && (
         <div className="mt-1 flex items-center gap-1.5 px-2 py-1 rounded-lg border border-amber-200 bg-amber-50 text-amber-700 text-[9px] font-black uppercase tracking-wide">
           <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse shrink-0" />
-          Crédito pendiente de aprobación — cobro deshabilitado
+          {visita.etiquetaRevision || 'Pendiente de revisión'} — cobro deshabilitado
         </div>
       )}
 

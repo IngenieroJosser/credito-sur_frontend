@@ -2,7 +2,9 @@ import { mapNivelRiesgo, type PeriodoRuta } from '@/lib/types/cobranza'
 import {
   computeDiasMoraFromCuotas,
   computeMontoExigibleHastaHoyFromCuotas,
+  getEstadoRevisionOperacion,
   getBogotaDateKey,
+  isPrestamoOperativo,
   isVisitaExigibleHoy,
   normalizeDateKey,
   resolveFechaEfectivaCuota,
@@ -57,6 +59,11 @@ export type VisitaRutaLite = {
   tipoPrestamo?: any
   articuloNombre?: string
   pendienteAprobacion?: boolean
+  estadoAprobacion?: string
+  estadoEfectoProvisional?: string
+  esProvisional?: boolean
+  esRevertido?: boolean
+  etiquetaRevision?: string
   enProrroga?: boolean
   fechaProrroga?: any
   fechaOriginalVencimiento?: any
@@ -117,7 +124,7 @@ export const mapAsignacionesToVisitasLite = (params: {
     const cliente = asig?.cliente || {}
 
     const prestamos = Array.isArray(cliente?.prestamos) ? cliente.prestamos : []
-    const prestamosValidos = prestamos.filter((p: any) => p && (p.estado === 'ACTIVO' || p.estado === 'EN_MORA' || p.estado === 'PAGADO' || p.estado === 'PENDIENTE_APROBACION'))
+    const prestamosValidos = prestamos.filter((p: any) => isPrestamoOperativo(p))
     const lista = prestamosValidos.length > 0 ? prestamosValidos : [null]
 
     return lista.flatMap((prestamo: any, subIdx: number) => {
@@ -171,6 +178,7 @@ export const mapAsignacionesToVisitasLite = (params: {
       if (!apareceHoy && params.filtrarExigibles !== false) return []
 
       const esArticulo = prestamo?.tipo === 'ARTICULO' || prestamo?.tipoPrestamo === 'ARTICULO'
+      const estadoRevision = getEstadoRevisionOperacion(prestamo)
 
       const montoNominalProxima = Number((proxima as any)?.montoNominal ?? (proxima as any)?.monto ?? 0)
       const montoPagadoProxima = Number((proxima as any)?.montoPagado ?? 0)
@@ -249,7 +257,12 @@ export const mapAsignacionesToVisitasLite = (params: {
         diasMora,
         tipoPrestamo: esArticulo ? 'ARTICULO' : 'EFECTIVO',
         articuloNombre: nombreCredito,
-        pendienteAprobacion: prestamo?.estado === 'PENDIENTE_APROBACION',
+        pendienteAprobacion: estadoRevision.esProvisional,
+        estadoAprobacion: estadoRevision.estadoAprobacion,
+        estadoEfectoProvisional: estadoRevision.estadoEfectoProvisional,
+        esProvisional: estadoRevision.esProvisional,
+        esRevertido: estadoRevision.esRevertido,
+        etiquetaRevision: estadoRevision.etiquetaRevision,
         enProrroga,
         fechaProrroga,
         fechaOriginalVencimiento,

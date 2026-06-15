@@ -35,8 +35,13 @@ export interface VisitaRuta {
   cuotaActual?: number
   cuotasTotales?: number
   diasMora?: number
-  // Crédito pendiente de aprobación: el cliente aparece en la ruta pero aún no se puede cobrar
+  // Crédito pendiente de revisión: el cliente aparece en la ruta pero aún no se puede cobrar
   pendienteAprobacion?: boolean
+  estadoAprobacion?: string
+  estadoEfectoProvisional?: string | null
+  esProvisional?: boolean
+  esRevertido?: boolean
+  etiquetaRevision?: string | null
   fechaUltimoPago?: number      // Timestamp del último pago realizado para ordenamiento rápido
   montoCuotaPendiente?: number  // Monto pendiente real (puede diferir de montoCuota si hay mora parcial)
   montoCuotaNormal?: number     // Cuota normal del periodo, sin acumular saldos vencidos

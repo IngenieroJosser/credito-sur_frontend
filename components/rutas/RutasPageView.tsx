@@ -35,6 +35,7 @@ import {
   computeRutaHoyUiStatsFromVisitas,
   esDomingoBogota,
   getBogotaDateKey,
+  getEstadoRevisionOperacion,
   resolveFechaEfectivaCuota,
   resolveRutaDailySummary,
   shouldExcludeVisitaFromOperationalMeta,
@@ -138,11 +139,12 @@ const getEstadoSistemaLabel = (estado: Ruta['estado']) => {
   return estado
 }
 
-const mapObligacionToRutaListVisita = (
+export const mapObligacionToRutaListVisita = (
   o: any,
   hoyKey: string,
 ): any => {
   const prestamo = o?.prestamo || {}
+  const estadoRevision = getEstadoRevisionOperacion({ ...prestamo, ...o })
   const cuotaObjetivo =
     o?.cuotaObjetivo ||
     prestamo?.cuotaObjetivo ||
@@ -235,6 +237,18 @@ const mapObligacionToRutaListVisita = (
     montoCuota: cuotaNormal,
     montoCuotaNormal: cuotaNormal,
     montoCuotaPendiente: metaPendiente,
+    pendienteAprobacion: estadoRevision.esProvisional,
+    estadoAprobacion:
+      o?.estadoAprobacion ??
+      prestamo?.estadoAprobacion ??
+      undefined,
+    estadoEfectoProvisional:
+      o?.estadoEfectoProvisional ??
+      prestamo?.estadoEfectoProvisional ??
+      null,
+    esProvisional: estadoRevision.esProvisional,
+    esRevertido: estadoRevision.esRevertido,
+    etiquetaRevision: estadoRevision.etiquetaRevision,
     recaudadoDelDia: recaudo,
     cuotaObjetivo,
     proximaCuota: prestamo?.proximaCuota || cuotaObjetivo,

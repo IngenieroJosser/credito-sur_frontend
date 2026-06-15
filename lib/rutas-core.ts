@@ -57,6 +57,95 @@ export const resolveCuotaAcumuladaOperativa = (visita: any): number => {
   );
 };
 
+const normalizeUpper = (value: unknown): string =>
+  String(value ?? '').trim().toUpperCase();
+
+export const getEstadoRevisionOperacion = (source: any) => {
+  const estadoAprobacion = normalizeUpper(source?.estadoAprobacion);
+  const estadoEfectoProvisional = normalizeUpper(
+    source?.estadoEfectoProvisional ??
+      source?.efectoProvisional?.estado ??
+      source?.efectosProvisionales?.[0]?.estado,
+  );
+  const esRevertido =
+    estadoEfectoProvisional === 'REVERTIDO' ||
+    estadoEfectoProvisional === 'REVERSA_FALLIDA' ||
+    Boolean(source?.esRevertido);
+  const esProvisional =
+    !esRevertido &&
+    (estadoAprobacion === 'PENDIENTE' ||
+      normalizeUpper(source?.estado) === 'PENDIENTE_APROBACION' ||
+      estadoEfectoProvisional === 'PENDIENTE_REVISION' ||
+      Boolean(source?.esProvisional));
+
+  return {
+    estadoAprobacion: estadoAprobacion || undefined,
+    estadoEfectoProvisional: estadoEfectoProvisional || undefined,
+    esProvisional,
+    esRevertido,
+    etiquetaRevision: esRevertido
+      ? 'Revertido'
+      : esProvisional
+        ? 'Pendiente de revisión'
+        : undefined,
+  };
+};
+
+export const isPrestamoRevertido = (prestamo: any): boolean => {
+  return getEstadoRevisionOperacion(prestamo).esRevertido;
+};
+
+export const isPrestamoOperativo = (prestamo: any): boolean => {
+  if (!prestamo) return false;
+  if (prestamo?.eliminadoEn) return false;
+
+  const estado = normalizeUpper(prestamo?.estado);
+  const estadoAprobacion = normalizeUpper(prestamo?.estadoAprobacion);
+  const tipoPrestamo = normalizeUpper(prestamo?.tipoPrestamo ?? prestamo?.tipo);
+
+  if (estadoAprobacion === 'RECHAZADO') return false;
+  if (['PERDIDA', 'BORRADOR'].includes(estado)) return false;
+  if (isPrestamoRevertido(prestamo)) return false;
+  if (prestamo?.esContado || tipoPrestamo === 'VENTA_CONTADO') return false;
+
+  return true;
+};
+
+export const isCuotaOperativaParaFecha = (cuota: any, fechaOperativaKey: string): boolean => {
+  if (!cuota || !fechaOperativaKey) return false;
+
+  const estado = normalizeUpper(cuota?.estado ?? cuota?.estadoActual);
+  if (!['PENDIENTE', 'PARCIAL', 'VENCIDA'].includes(estado)) return false;
+
+  const fechaKey = normalizeDateKey(
+    String(
+      cuota?.fechaEfectiva ||
+        cuota?.fechaVencimientoProrroga ||
+        cuota?.fechaVencimiento ||
+        '',
+    ),
+  );
+
+  return Boolean(fechaKey && fechaKey <= fechaOperativaKey);
+};
+
+export const isObligacionOperativaRuta = (
+  obligacion: { prestamo?: any; cuota?: any; cuotaObjetivo?: any },
+  fechaOperativaKey: string,
+): boolean => {
+  const prestamo = obligacion?.prestamo ?? obligacion;
+  const cuota =
+    obligacion?.cuota ??
+    obligacion?.cuotaObjetivo ??
+    prestamo?.cuotaObjetivo ??
+    prestamo?.proximaCuota;
+
+  return (
+    isPrestamoOperativo(prestamo) &&
+    isCuotaOperativaParaFecha(cuota, fechaOperativaKey)
+  );
+};
+
 export const esDomingoBogota = (date: Date = new Date()): boolean => {
   const day = new Intl.DateTimeFormat('en-US', {
     timeZone: BOGOTA_TZ,

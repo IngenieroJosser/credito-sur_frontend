@@ -1,6 +1,76 @@
 import { mapAsignacionesToVisitasLite } from '@/lib/ruta-visitas-mapper'
 
 describe('mapAsignacionesToVisitasLite', () => {
+  it('muestra créditos pendientes como provisionales y excluye créditos rechazados', () => {
+    const visitas = mapAsignacionesToVisitasLite({
+      hoyKey: '2026-06-12',
+      cobradorId: 'cobrador-1',
+      asignaciones: [
+        {
+          id: 'asig-1',
+          cliente: {
+            id: 'cliente-1',
+            nombres: 'Cliente',
+            apellidos: 'Provisional',
+            direccion: 'Calle 1',
+            telefono: '3000000000',
+            prestamos: [
+              {
+                id: 'prestamo-pendiente',
+                estado: 'PENDIENTE_APROBACION',
+                estadoAprobacion: 'PENDIENTE',
+                efectoProvisional: { estado: 'PENDIENTE_REVISION' },
+                tipoPrestamo: 'EFECTIVO',
+                frecuenciaPago: 'DIARIO',
+                valorCuota: 100_000,
+                saldoPendiente: 300_000,
+                cantidadCuotas: 3,
+                cuotas: [
+                  {
+                    id: 'cuota-pendiente',
+                    numeroCuota: 1,
+                    estado: 'PENDIENTE',
+                    fechaVencimiento: '2026-06-12',
+                    montoNominal: 100_000,
+                    montoPagado: 0,
+                  },
+                ],
+              },
+              {
+                id: 'prestamo-rechazado',
+                estado: 'PENDIENTE_APROBACION',
+                estadoAprobacion: 'RECHAZADO',
+                tipoPrestamo: 'EFECTIVO',
+                frecuenciaPago: 'DIARIO',
+                valorCuota: 200_000,
+                saldoPendiente: 600_000,
+                cantidadCuotas: 3,
+                cuotas: [
+                  {
+                    id: 'cuota-rechazada',
+                    numeroCuota: 1,
+                    estado: 'PENDIENTE',
+                    fechaVencimiento: '2026-06-12',
+                    montoNominal: 200_000,
+                    montoPagado: 0,
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      ],
+    })
+
+    expect(visitas).toHaveLength(1)
+    expect(visitas[0]).toMatchObject({
+      prestamoId: 'prestamo-pendiente',
+      pendienteAprobacion: true,
+      esProvisional: true,
+      etiquetaRevision: 'Pendiente de revisión',
+    })
+  })
+
   it('muestra la cuota normal en tarjeta y conserva el exigible acumulado para cobro', () => {
     const visitas = mapAsignacionesToVisitasLite({
       hoyKey: '2026-06-12',

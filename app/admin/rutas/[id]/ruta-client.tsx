@@ -2192,7 +2192,7 @@ const RutaClientLoaded = ({
                               <button
                                 onClick={(e) => { e.stopPropagation(); if (visita.pendienteAprobacion || !rutaOperable) return; handleAbrirPago(visita); }}
                                 disabled={visita.pendienteAprobacion || !rutaOperable}
-                                title={visita.pendienteAprobacion ? 'Crédito pendiente de aprobación' : !rutaOperable ? (rutaCompletada ? 'Jornada completada' : 'Jornada sin activar') : 'Registrar Pago'}
+                                title={visita.pendienteAprobacion ? 'Crédito pendiente de revisión' : !rutaOperable ? (rutaCompletada ? 'Jornada completada' : 'Jornada sin activar') : 'Registrar Pago'}
                                 className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] shadow-sm ${visita.pendienteAprobacion || !rutaOperable ? 'bg-slate-50 text-slate-300 border border-slate-100 opacity-50 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95'}`}
                               >
                                 <DollarSign className="h-3.5 w-3.5" />
@@ -2201,7 +2201,7 @@ const RutaClientLoaded = ({
                               <button
                                 onClick={(e) => { e.stopPropagation(); if (visita.pendienteAprobacion || !rutaOperable) return; handleAbrirAbono(visita); }}
                                 disabled={visita.pendienteAprobacion || !rutaOperable}
-                                title={visita.pendienteAprobacion ? 'Crédito pendiente de aprobación' : !rutaOperable ? (rutaCompletada ? 'Jornada completada' : 'Jornada sin activar') : 'Registrar Abono'}
+                                title={visita.pendienteAprobacion ? 'Crédito pendiente de revisión' : !rutaOperable ? (rutaCompletada ? 'Jornada completada' : 'Jornada sin activar') : 'Registrar Abono'}
                                 className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] shadow-sm ${visita.pendienteAprobacion || !rutaOperable ? 'bg-slate-50 text-slate-300 border border-slate-100 opacity-50 cursor-not-allowed' : 'bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95'}`}
                                 style={{ backgroundColor: !rutaOperable && !rutaCompletada ? '#f97316' : undefined }}
                               >
@@ -2383,7 +2383,7 @@ const RutaClientLoaded = ({
                                                 <button
                                                   onClick={(e) => { e.stopPropagation(); if (visita.pendienteAprobacion || !rutaOperable) return; handleAbrirPago(visita); }}
                                                   disabled={visita.pendienteAprobacion || !rutaOperable}
-                                                  title={visita.pendienteAprobacion ? 'Crédito pendiente de aprobación' : !rutaOperable ? (rutaCompletada ? 'Jornada completada' : 'Jornada sin activar') : 'Registrar Pago'}
+                                                  title={visita.pendienteAprobacion ? 'Crédito pendiente de revisión' : !rutaOperable ? (rutaCompletada ? 'Jornada completada' : 'Jornada sin activar') : 'Registrar Pago'}
                                                   className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] shadow-sm ${visita.pendienteAprobacion || !rutaOperable ? 'bg-slate-50 text-slate-300 border border-slate-100 opacity-50 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95'}`}
                                                 >
                                                   <DollarSign className="h-3.5 w-3.5" />
@@ -2392,7 +2392,7 @@ const RutaClientLoaded = ({
                                                 <button
                                                   onClick={(e) => { e.stopPropagation(); if (visita.pendienteAprobacion || !rutaOperable) return; handleAbrirAbono(visita); }}
                                                   disabled={visita.pendienteAprobacion || !rutaOperable}
-                                                  title={visita.pendienteAprobacion ? 'Crédito pendiente de aprobación' : !rutaOperable ? (rutaCompletada ? 'Jornada completada' : 'Jornada sin activar') : 'Registrar Abono'}
+                                                  title={visita.pendienteAprobacion ? 'Crédito pendiente de revisión' : !rutaOperable ? (rutaCompletada ? 'Jornada completada' : 'Jornada sin activar') : 'Registrar Abono'}
                                                   className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] shadow-sm ${visita.pendienteAprobacion || !rutaOperable ? 'bg-slate-50 text-slate-300 border border-slate-100 opacity-50 cursor-not-allowed' : 'bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95'}`}
                                                   style={{ backgroundColor: !rutaOperable && !rutaCompletada ? '#f97316' : undefined }}
                                                 >

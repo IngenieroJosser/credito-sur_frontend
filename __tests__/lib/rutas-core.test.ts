@@ -2,6 +2,10 @@ import {
   buildRegularizedPaymentTarget,
   computeDiasMoraFromCuotaObjetivo,
   computeRutaHoyUiStatsFromVisitas,
+  getEstadoRevisionOperacion,
+  isObligacionOperativaRuta,
+  isPrestamoOperativo,
+  isPrestamoRevertido,
   resolveRutaDailySummary,
   resolveRutaHoyKpiStats,
   shouldExcludeVisitaFromOperationalMeta,
@@ -10,6 +14,89 @@ import {
   resolveCobradorIdForRouteAction,
   shouldShowVisitaEnRutaHoy,
 } from '@/lib/rutas-core'
+
+describe('validez operativa provisional', () => {
+  it('permite prestamos pendientes como provisionales y excluye rechazados/revertidos', () => {
+    const pendiente = {
+      estado: 'PENDIENTE_APROBACION',
+      estadoAprobacion: 'PENDIENTE',
+      efectoProvisional: { estado: 'PENDIENTE_REVISION' },
+    }
+    const rechazado = {
+      estado: 'PENDIENTE_APROBACION',
+      estadoAprobacion: 'RECHAZADO',
+    }
+    const revertido = {
+      estado: 'PENDIENTE_APROBACION',
+      estadoAprobacion: 'PENDIENTE',
+      efectoProvisional: { estado: 'REVERTIDO' },
+    }
+
+    expect(isPrestamoOperativo(pendiente)).toBe(true)
+    expect(getEstadoRevisionOperacion(pendiente)).toMatchObject({
+      esProvisional: true,
+      esRevertido: false,
+      etiquetaRevision: 'Pendiente de revisión',
+    })
+    expect(isPrestamoOperativo(rechazado)).toBe(false)
+    expect(isPrestamoOperativo(revertido)).toBe(false)
+    expect(isPrestamoRevertido(revertido)).toBe(true)
+  })
+
+  it('define una obligación operativa por préstamo válido y cuota válida de la fecha', () => {
+    expect(
+      isObligacionOperativaRuta(
+        {
+          prestamo: {
+            estado: 'PENDIENTE_APROBACION',
+            estadoAprobacion: 'PENDIENTE',
+            efectoProvisional: { estado: 'PENDIENTE_REVISION' },
+            tipoPrestamo: 'EFECTIVO',
+          },
+          cuota: {
+            estado: 'PENDIENTE',
+            fechaVencimiento: '2026-06-12',
+          },
+        },
+        '2026-06-12',
+      ),
+    ).toBe(true)
+
+    expect(
+      isObligacionOperativaRuta(
+        {
+          prestamo: {
+            estado: 'PENDIENTE_APROBACION',
+            estadoAprobacion: 'PENDIENTE',
+            efectoProvisional: { estado: 'REVERTIDO' },
+          },
+          cuota: {
+            estado: 'PENDIENTE',
+            fechaVencimiento: '2026-06-12',
+          },
+        },
+        '2026-06-12',
+      ),
+    ).toBe(false)
+
+    expect(
+      isObligacionOperativaRuta(
+        {
+          prestamo: {
+            estado: 'ACTIVO',
+            estadoAprobacion: 'APROBADO',
+            esContado: true,
+          },
+          cuota: {
+            estado: 'PENDIENTE',
+            fechaVencimiento: '2026-06-12',
+          },
+        },
+        '2026-06-12',
+      ),
+    ).toBe(false)
+  })
+})
 
 describe('computeDiasMoraFromCuotaObjetivo', () => {
   it('calcula dias de mora operativos desde la cuota objetivo de daily-visits', () => {
