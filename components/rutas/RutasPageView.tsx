@@ -2043,7 +2043,7 @@ export const RutasPageView = ({
                             </div>
                           ) : (
                             <div className="border-t border-slate-100 px-4 py-3">
-                              <p className="text-xs text-slate-400 italic">Sin créditos activos</p>
+                              <p className="text-xs text-slate-400 italic">Sin créditos vigentes</p>
                             </div>
                           )}
                         </div>
