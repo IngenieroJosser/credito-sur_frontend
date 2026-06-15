@@ -127,6 +127,26 @@ export const mapDailyVisitsResponseToVisitas = ({
     const estadoGestion = String(row?.estadoGestion || p?.estadoGestion || '').toUpperCase()
     const estadoCuota = String(cuotaObjetivo?.estadoActual || cuotaObjetivo?.estado || proximaCuota?.estado || '').toUpperCase()
 
+    // Detectar señales de mora operativa
+    const estadoRaw = String(
+      row?.estado ||
+      row?.estadoCalculado ||
+      row?.estadoGestion ||
+      row?.estadoVisita ||
+      p?.estado ||
+      p?.estadoPrestamo ||
+      p?.estadoGestion ||
+      ''
+    ).toUpperCase()
+
+    const hayMoraOperativa =
+      estadoRaw.includes('MORA') ||
+      estadoRaw.includes('VENC') ||
+      estadoCuota.includes('MORA') ||
+      estadoCuota.includes('VENC') ||
+      estadoCuota.includes('ATRAS') ||
+      Boolean(cuotaObjetivo?.enMoraEnFechaOperativa)
+
     // En modo HISTORICO, usar estado histórico si existe
     let estadoCalculado: EstadoVisita
     if (esHistorico && estadoHistorico) {
@@ -144,7 +164,7 @@ export const mapDailyVisitsResponseToVisitas = ({
       estadoCalculado =
         recaudadoDelDia > 0 || estadoGestion === 'PAGO_REGISTRADO' || estadoCuota === 'PAGADA'
           ? 'pagado'
-          : cuotaObjetivo?.enMoraEnFechaOperativa || estadoCuota === 'VENCIDA'
+          : hayMoraOperativa
             ? 'en_mora'
             : 'pendiente'
     }

@@ -14,9 +14,25 @@
  */
 
 /**
+ * Convierte un valor a número positivo. Si el valor no es finito o es <= 0, devuelve 0.
+ */
+const toPositiveNumber = (value: any): number => {
+  const n = Number(value)
+  return Number.isFinite(n) && n > 0 ? n : 0
+}
+
+/**
+ * Devuelve el máximo valor positivo de una lista de valores.
+ * Si todos son <= 0 o no válidos, devuelve 0.
+ */
+const maxPositive = (...values: any[]): number => {
+  return Math.max(0, ...values.map(toPositiveNumber))
+}
+
+/**
  * Función compartida para resolver el riesgo de obligación/crédito.
- * Prioriza campos explícitos del backend sobre cálculo manual.
  * El acumulado vencido es factor dominante para riesgo.
+ * El riesgoFuente del backend se usa solo como fallback cuando no hay acumulado vencido suficiente.
  */
 export const resolveRiesgoObligacion = (params: {
   row?: any
@@ -39,43 +55,13 @@ export const resolveRiesgoObligacion = (params: {
     return 'VERDE'
   }
 
-  // Priorizar campos explícitos del backend
-  const riesgoFuente =
-    row?.nivelRiesgoObligacion ??
-    row?.nivelRiesgoCredito ??
-    row?.riesgoCredito ??
-    row?.riesgoOperativo ??
-    prestamo?.nivelRiesgoObligacion ??
-    prestamo?.nivelRiesgoCredito ??
-    prestamo?.riesgoCredito ??
-    null
-
-  if (riesgoFuente) {
-    const nivel = String(riesgoFuente).toUpperCase()
-    if (['VERDE', 'AMARILLO', 'ROJO', 'LISTA_NEGRA'].includes(nivel)) {
-      return nivel
-    }
-  }
-
-  // Calcular acumulado vencido (factor dominante)
-  const montoVencidoAcumulado = Number(
-    row?.montoMoraAcumulada ??
-    row?.montoVencidoAcumulado ??
-    row?.saldoVencidoAcumulado ??
-    row?.saldoOperativoJornada ??
-    prestamo?.montoMoraAcumulada ??
-    prestamo?.montoVencidoAcumulado ??
-    prestamo?.saldoVencidoAcumulado ??
-    prestamo?.saldoOperativoJornada ??
-    cuotaObjetivo?.montoMoraAcumulada ??
-    cuotaObjetivo?.montoVencidoAcumulado ??
-    cuotaObjetivo?.saldoVencidoAcumulado ??
-    (
-      estadoCalculado === 'en_mora'
-        ? Number(prestamo?.saldoPendiente ?? row?.saldoPendiente ?? row?.saldoTotal ?? 0)
-        : 0
-    )
-  )
+  // Calcular acumulado vencido (factor dominante para riesgo)
+  const montoVencidoAcumulado = resolveMontoVencidoAcumulado({
+    row,
+    prestamo,
+    cuotaObjetivo,
+    estadoCalculado,
+  })
 
   // Calcular cuota base
   const cuotaBase = Number(
@@ -99,7 +85,25 @@ export const resolveRiesgoObligacion = (params: {
     if (ratio >= 1) return 'AMARILLO'
   }
 
-  // Si no hay acumulado vencido, usar días de mora y cuotas vencidas
+  // Solo después usar riesgoFuente como fallback cuando no hay acumulado vencido suficiente
+  const riesgoFuente =
+    row?.nivelRiesgoObligacion ??
+    row?.nivelRiesgoCredito ??
+    row?.riesgoCredito ??
+    row?.riesgoOperativo ??
+    prestamo?.nivelRiesgoObligacion ??
+    prestamo?.nivelRiesgoCredito ??
+    prestamo?.riesgoCredito ??
+    null
+
+  if (riesgoFuente) {
+    const nivel = String(riesgoFuente).toUpperCase()
+    if (['VERDE', 'AMARILLO', 'ROJO', 'LISTA_NEGRA'].includes(nivel)) {
+      return nivel
+    }
+  }
+
+  // Si no hay acumulado vencido ni riesgoFuente, usar días de mora y cuotas vencidas
   if (estadoCalculado === 'en_mora') {
     const dias = diasMora || 0
     const cuotas = cuotasVencidas || 0
@@ -121,6 +125,7 @@ export const resolveRiesgoObligacion = (params: {
 
 /**
  * Calcular el monto vencido acumulado de una obligación/crédito.
+ * Usa maxPositive para evitar que 0 bloquee el fallback a saldoTotal cuando está en mora.
  */
 export const resolveMontoVencidoAcumulado = (params: {
   row?: any
@@ -130,24 +135,34 @@ export const resolveMontoVencidoAcumulado = (params: {
 }): number => {
   const { row, prestamo, cuotaObjetivo, estadoCalculado } = params
 
-  return Number(
-    row?.montoMoraAcumulada ??
-    row?.montoVencidoAcumulado ??
-    row?.saldoVencidoAcumulado ??
-    row?.saldoOperativoJornada ??
-    prestamo?.montoMoraAcumulada ??
-    prestamo?.montoVencidoAcumulado ??
-    prestamo?.saldoVencidoAcumulado ??
-    prestamo?.saldoOperativoJornada ??
-    cuotaObjetivo?.montoMoraAcumulada ??
-    cuotaObjetivo?.montoVencidoAcumulado ??
-    cuotaObjetivo?.saldoVencidoAcumulado ??
-    (
-      estadoCalculado === 'en_mora'
-        ? Number(prestamo?.saldoPendiente ?? row?.saldoPendiente ?? row?.saldoTotal ?? 0)
-        : 0
-    )
+  // Buscar el máximo valor positivo en campos explícitos de mora
+  const directo = maxPositive(
+    row?.montoMoraAcumulada,
+    row?.montoVencidoAcumulado,
+    row?.saldoVencidoAcumulado,
+    row?.saldoOperativoJornada,
+    prestamo?.montoMoraAcumulada,
+    prestamo?.montoVencidoAcumulado,
+    prestamo?.saldoVencidoAcumulado,
+    prestamo?.saldoOperativoJornada,
+    cuotaObjetivo?.montoMoraAcumulada,
+    cuotaObjetivo?.montoVencidoAcumulado,
+    cuotaObjetivo?.saldoVencidoAcumulado,
   )
+
+  if (directo > 0) return directo
+
+  // Si está en mora y no hay valor directo, usar saldo pendiente/total como fallback
+  if (estadoCalculado === 'en_mora') {
+    return maxPositive(
+      prestamo?.saldoPendiente,
+      row?.saldoPendiente,
+      row?.saldoTotal,
+      prestamo?.saldoTotal,
+    )
+  }
+
+  return 0
 }
 
 /**

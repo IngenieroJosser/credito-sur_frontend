@@ -113,7 +113,7 @@ import { buildRecaudosHoyMapByPrestamoId, computeMontoCuotaPendienteDespuesDeRec
 import { mapWithConcurrency, memoizePromiseByKey } from '@/lib/async-utils'
 import { buildHistorialDiaFromBackend, hasGestionHistorial, isPagoForHistorialFecha } from '@/lib/ruta-historial'
 import { mapDailyVisitsResponseToVisitas as mapDailyVisitsResponseToVisitasShared, type MapMode } from '@/lib/rutas/map-daily-visits-to-visitas'
-import { resolveRiesgoObligacion } from '@/lib/rutas/riesgo-obligacion'
+import { resolveRiesgoObligacion, resolveMontoVencidoAcumulado } from '@/lib/rutas/riesgo-obligacion'
 
 interface GastoRuta {
   id: string
@@ -707,10 +707,39 @@ const RutaClientLoaded = ({
               }
             }
 
-            return { 
-              ...v, 
-              recaudadoDelDia: totalHoy, 
-              recaudadoTotalClient: totalHistorico, 
+            // Recalcular riesgo final con los datos actualizados
+            const montoVencidoAcumuladoFinal = resolveMontoVencidoAcumulado({
+              row: {
+                ...v,
+                saldoTotal: v?.saldoTotal,
+                saldoPendiente: v?.saldoPendiente,
+              },
+              prestamo: {},
+              cuotaObjetivo: pendiente,
+              estadoCalculado: nuevoEstado,
+            })
+
+            const nivelRiesgoFinalRaw = resolveRiesgoObligacion({
+              row: {
+                ...v,
+                montoCuotaNormal: cuotaComparar,
+                montoCuota: cuotaComparar,
+                montoVencidoAcumulado: montoVencidoAcumuladoFinal,
+                montoMoraAcumulada: montoVencidoAcumuladoFinal,
+                saldoVencidoAcumulado: montoVencidoAcumuladoFinal,
+              },
+              prestamo: {},
+              cuotaObjetivo: pendiente,
+              estadoCalculado: nuevoEstado,
+              diasMora: Number(v?.diasMora || pendiente?.diasMora || 0),
+              cuotasVencidas: Number(v?.cuotasVencidas || pendiente?.cuotasVencidas || 0),
+              esProvisional: Boolean(v?.esProvisional || v?.pendienteAprobacion),
+            })
+
+            return {
+              ...v,
+              recaudadoDelDia: totalHoy,
+              recaudadoTotalClient: totalHistorico,
               fechaUltimoPago: ultimoPagoDate,
               montoCuota: cuotaComparar,
               montoCuotaNormal: cuotaComparar,
@@ -724,12 +753,12 @@ const RutaClientLoaded = ({
               cuotaObjetivoPrestamoId: pendiente?.id || (v as any)?.cuotaObjetivoPrestamoId,
               proximaCuota: pendiente,
               cuotaObjetivo: pendiente,
-              // Preservar campos de riesgo y acumulado vencido del objeto original
-              montoMoraAcumulada: v.montoMoraAcumulada,
-              montoVencidoAcumulado: v.montoVencidoAcumulado,
-              saldoVencidoAcumulado: v.saldoVencidoAcumulado,
-              nivelRiesgo: v.nivelRiesgo,
-              prioridad: v.prioridad,
+              // Recalcular riesgo y acumulado vencido con datos finales
+              montoMoraAcumulada: montoVencidoAcumuladoFinal,
+              montoVencidoAcumulado: montoVencidoAcumuladoFinal,
+              saldoVencidoAcumulado: montoVencidoAcumuladoFinal,
+              nivelRiesgo: mapNivelRiesgo(nivelRiesgoFinalRaw),
+              prioridad: nivelRiesgoFinalRaw === 'ROJO' || nivelRiesgoFinalRaw === 'LISTA_NEGRA' ? 'alta' : 'media',
             };
           } catch (error) {
             console.error("Error en enriquecerConPagos (Admin):", error);
@@ -739,7 +768,38 @@ const RutaClientLoaded = ({
         6,
       );
 
-      setVisitasCobrador(mergeVisitasPreservingLocalRecaudo(visitasCobradorRef.current as any, actualizadas as any) as any);
+      // Merge selectivo: actualizadas es la fuente base, solo preservar campos locales específicos
+      const merged = actualizadas.map((actualizada: any) => {
+        const local = visitasCobradorRef.current.find((v: any) =>
+          v.id === actualizada.id || v.prestamoId === actualizada.prestamoId
+        )
+
+        if (!local) return actualizada
+
+        // Solo preservar campos locales de recaudo/gestión
+        return {
+          ...actualizada,
+          // Preservar solo campos locales específicos
+          recaudadoDelDia: Math.max(
+            Number(local?.recaudadoDelDia || 0),
+            Number(actualizada?.recaudadoDelDia || 0),
+          ),
+          recaudadoTotalClient: Math.max(
+            Number(local?.recaudadoTotalClient || 0),
+            Number(actualizada?.recaudadoTotalClient || 0),
+          ),
+          fechaUltimoPago: Math.max(
+            Number(local?.fechaUltimoPago || 0),
+            Number(actualizada?.fechaUltimoPago || 0),
+          ),
+          // Preservar estadoVisita local si aplica
+          estadoVisita: local?.estadoVisita,
+          notasVisita: local?.notasVisita,
+          // NO preservar: nivelRiesgo, prioridad, montoMoraAcumulada, montoVencidoAcumulado, saldoVencidoAcumulado, montoCuota, saldoTotal, estado
+        }
+      })
+
+      setVisitasCobrador(merged as any);
     };
 
 
@@ -1336,6 +1396,35 @@ const RutaClientLoaded = ({
               }
             }
 
+            // Recalcular riesgo final con los datos actualizados
+            const montoVencidoAcumuladoFinal = resolveMontoVencidoAcumulado({
+              row: {
+                ...v,
+                saldoTotal: v?.saldoTotal,
+                saldoPendiente: v?.saldoPendiente,
+              },
+              prestamo: {},
+              cuotaObjetivo: pendiente,
+              estadoCalculado: nuevoEstado,
+            })
+
+            const nivelRiesgoFinalRaw = resolveRiesgoObligacion({
+              row: {
+                ...v,
+                montoCuotaNormal: cuotaComparar,
+                montoCuota: cuotaComparar,
+                montoVencidoAcumulado: montoVencidoAcumuladoFinal,
+                montoMoraAcumulada: montoVencidoAcumuladoFinal,
+                saldoVencidoAcumulado: montoVencidoAcumuladoFinal,
+              },
+              prestamo: {},
+              cuotaObjetivo: pendiente,
+              estadoCalculado: nuevoEstado,
+              diasMora: Number(v?.diasMora || pendiente?.diasMora || 0),
+              cuotasVencidas: Number(v?.cuotasVencidas || pendiente?.cuotasVencidas || 0),
+              esProvisional: Boolean(v?.esProvisional || v?.pendienteAprobacion),
+            })
+
             return {
               ...v,
               recaudadoDelDia: totalHoy,
@@ -1353,12 +1442,12 @@ const RutaClientLoaded = ({
               cuotaObjetivoPrestamoId: pendiente?.id || (v as any)?.cuotaObjetivoPrestamoId,
               proximaCuota: pendiente,
               cuotaObjetivo: pendiente,
-              // Preservar campos de riesgo y acumulado vencido del objeto original
-              montoMoraAcumulada: v.montoMoraAcumulada,
-              montoVencidoAcumulado: v.montoVencidoAcumulado,
-              saldoVencidoAcumulado: v.saldoVencidoAcumulado,
-              nivelRiesgo: v.nivelRiesgo,
-              prioridad: v.prioridad,
+              // Recalcular riesgo y acumulado vencido con datos finales
+              montoMoraAcumulada: montoVencidoAcumuladoFinal,
+              montoVencidoAcumulado: montoVencidoAcumuladoFinal,
+              saldoVencidoAcumulado: montoVencidoAcumuladoFinal,
+              nivelRiesgo: mapNivelRiesgo(nivelRiesgoFinalRaw),
+              prioridad: nivelRiesgoFinalRaw === 'ROJO' || nivelRiesgoFinalRaw === 'LISTA_NEGRA' ? 'alta' : 'media',
             }
           } catch (error) {
             console.error("Error en enriquecerMisCreditos (Admin):", error)
