@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, ChangeEvent, FormEvent, useEffect, useCallback, useMemo } from 'react'
+import { useState, ChangeEvent, FormEvent, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { usePageFocusRefresh } from '@/hooks/usePageFocusRefresh'
 import Link from 'next/link'
@@ -324,6 +324,17 @@ export const RutasPageView = ({
   const [errorRecolectar, setErrorRecolectar] = useState<string | null>(null)
   const [dailySummaries, setDailySummaries] = useState<Record<string, any>>({});
 
+  const recolectarIdempotencyKeyRef = useRef<string | null>(null)
+
+  const buildRecolectarIdempotencyKey = (cajaRutaId: string) => {
+    const random =
+      typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? crypto.randomUUID()
+        : Math.random().toString(36).slice(2, 12)
+
+    return `RECOLECCION:${cajaRutaId}:${Date.now()}:${random}`
+  }
+
   const fetchDailySummaries = useCallback(async (rutas: Ruta[]) => {
     if (!rutas || rutas.length === 0) return
 
@@ -598,6 +609,7 @@ export const RutasPageView = ({
     }
   }
   const handleRecolectarDinero = async (ruta: Ruta) => {
+    recolectarIdempotencyKeyRef.current = null
     setErrorRecolectar(null)
     setMontoRecolectar('')
     setSaldoDisponibleRecolectar(null)
@@ -624,6 +636,8 @@ export const RutasPageView = ({
   }
 
   const handleConfirmarRecolectar = async () => {
+    if (processingTransfer) return
+
     const monto = parseMonto(montoRecolectar)
     if (!monto || monto <= 0) { setErrorRecolectar('Ingresa un monto valido'); return }
     if (saldoDisponibleRecolectar !== null && monto > saldoDisponibleRecolectar) {
@@ -634,9 +648,22 @@ export const RutasPageView = ({
     setProcessingTransfer(true)
     setErrorRecolectar(null)
     try {
-      await consolidarCaja(cajaRutaIdRecolectar, monto)
+      const idempotencyKey =
+        recolectarIdempotencyKeyRef.current ??
+        buildRecolectarIdempotencyKey(cajaRutaIdRecolectar)
+
+      recolectarIdempotencyKeyRef.current = idempotencyKey
+
+      const result = await consolidarCaja(cajaRutaIdRecolectar, monto, idempotencyKey)
       setShowRecolectarModal(false)
-      showNotification('success', `Se recolectaron ${formatCurrency(monto)} de la ruta hacia Caja de Oficina`, 'Recoleccion exitosa')
+      recolectarIdempotencyKeyRef.current = null
+
+      if (result?.idempotente) {
+        showNotification('info', 'Esta recolección ya había sido procesada previamente.', 'Recolección Idempotente')
+      } else {
+        showNotification('success', `Se recolectaron ${formatCurrency(monto)} de la ruta hacia Caja de Oficina`, 'Recoleccion exitosa')
+      }
+
       await fetchRutas()
     } catch (e: any) {
       setErrorRecolectar(e?.message || 'No se pudo recolectar. Intenta de nuevo.')
@@ -652,10 +679,16 @@ export const RutasPageView = ({
       const cajaRuta = cajas.find(c => c.tipo === 'RUTA' && c.rutaId === routeForTransfer.id)
       const destino = cajas.find(c => c.id === destinoId)
       if (!cajaRuta || !destino) return
-      await consolidarCaja(cajaRuta.id)
+      const idempotencyKey = buildRecolectarIdempotencyKey(cajaRuta.id)
+      const result = await consolidarCaja(cajaRuta.id, undefined, idempotencyKey)
       setShowSelectPrincipalModal(false)
       setRouteForTransfer(null)
-      showNotification('success', `Dinero enviado a ${destino.nombre}`, 'Éxito')
+
+      if (result?.idempotente) {
+        showNotification('info', 'Esta transferencia ya había sido procesada previamente.', 'Transferencia Idempotente')
+      } else {
+        showNotification('success', `Dinero enviado a ${destino.nombre}`, 'Éxito')
+      }
     } catch {
       showNotification('error', 'No se pudo completar la transferencia', 'Error')
     } finally {

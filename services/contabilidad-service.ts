@@ -279,9 +279,28 @@ export async function updateCaja(id: string, data: {
   }
 }
 
-export async function consolidarCaja(cajaId: string, monto?: number) {
+export interface ConsolidarCajaResponse {
+  origen: string;
+  destino: string;
+  monto: number;
+  numeroRef: string;
+  transacciones: string[];
+  idempotente?: boolean;
+}
+
+export interface ConsolidarCajaOfflineResponse {
+  esOffline: boolean;
+  idempotente?: boolean;
+}
+
+export async function consolidarCaja(cajaId: string, monto?: number, idempotencyKey?: string): Promise<ConsolidarCajaResponse | ConsolidarCajaOfflineResponse> {
+  const key = idempotencyKey || generarIdempotencyKey(`RECOLECCION-${cajaId}`);
+  
   try {
-    return await apiRequest('POST', `/accounting/cajas/${cajaId}/consolidar`, monto ? { monto } : {});
+    return await apiRequest('POST', `/accounting/cajas/${cajaId}/consolidar`, { 
+      monto, 
+      idempotencyKey: key 
+    });
   } catch (error: any) {
     if (
         (typeof navigator !== 'undefined' && !navigator.onLine) ||
@@ -294,7 +313,7 @@ export async function consolidarCaja(cajaId: string, monto?: number) {
           'caja_consolidar',
           `/accounting/cajas/${cajaId}/consolidar`,
           'POST',
-          monto ? { monto } : null,
+          { monto, idempotencyKey: key },
           `Consolidar caja ID: ${cajaId}`
         );
         return { esOffline: true };
