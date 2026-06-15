@@ -102,8 +102,14 @@ export default function ConsolidacionCajasModal({ isOpen, onClose, onSuccess }: 
 
     setProcessingId(caja.id)
     try {
-      await consolidarCaja(caja.id)
-      showNotification('success', `Se recibieron ${formatCurrency(caja.saldo)} correctamente.`, 'Consolidación Exitosa')
+      const result = await consolidarCaja(caja.id)
+      
+      if (result?.idempotente) {
+        showNotification('info', 'Esta recolección ya había sido procesada previamente.', 'Recolección Idempotente')
+      } else {
+        showNotification('success', `Se recibieron ${formatCurrency(caja.saldo)} correctamente.`, 'Consolidación Exitosa')
+      }
+      
       await loadData()
       if (onSuccess) onSuccess()
     } catch (error) {
