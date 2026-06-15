@@ -111,7 +111,7 @@ import { buildRegularizedPaymentTarget, computeMontoExigibleHastaHoyFromCuotas, 
 import { mapAsignacionesToVisitasLite } from '@/lib/ruta-visitas-mapper'
 import { buildRecaudosHoyMapByPrestamoId, computeMontoCuotaPendienteDespuesDeRecaudo, indexPagosByPrestamoId, mergeVisitasPreservingLocalRecaudo, sumMontoTotalPagosByBogotaDateKey } from '@/lib/ruta-recaudos'
 import { mapWithConcurrency, memoizePromiseByKey } from '@/lib/async-utils'
-import { buildHistorialDiaFromBackend, hasGestionHistorial, isPagoForHistorialFecha } from '@/lib/ruta-historial'
+import { buildHistorialDiaFromBackend, hasGestionHistorial, isPagoForHistorialFecha, resolveRiesgoObligacion } from '@/lib/ruta-historial'
 
 interface GastoRuta {
   id: string
@@ -502,35 +502,6 @@ const RutaClientLoaded = ({
       ? obligaciones
       : (Array.isArray((resp as any)?.visitas) ? (resp as any).visitas : [])
 
-    // Función para calcular riesgo de obligación/crédito
-    const calcularRiesgoObligacion = (p: any, cuotaObjetivo: any, estadoCalculado: EstadoVisita, diasMora: number, cuotasVencidas: number, esProvisional: boolean): string => {
-      // Créditos nuevos pendientes de aprobación sin mora: riesgo mínimo
-      if (esProvisional && estadoCalculado === 'pendiente' && diasMora === 0) {
-        return 'VERDE'
-      }
-
-      // Créditos pagados: riesgo mínimo
-      if (estadoCalculado === 'pagado') {
-        return 'VERDE'
-      }
-
-      // Créditos en mora: calcular riesgo basado en días de mora y cuotas vencidas
-      if (estadoCalculado === 'en_mora') {
-        if (diasMora >= 30 || cuotasVencidas >= 3) {
-          return 'LISTA_NEGRA'
-        }
-        if (diasMora >= 15 || cuotasVencidas >= 2) {
-          return 'ROJO'
-        }
-        if (diasMora >= 7 || cuotasVencidas >= 1) {
-          return 'AMARILLO'
-        }
-      }
-
-      // Créditos pendientes sin mora: riesgo leve
-      return 'VERDE'
-    }
-
     const mapped = rows.map((row: any, idx: number) => {
       const visita = row?.visita || row || {}
       const c = row?.cliente || visita?.cliente || {}
@@ -599,7 +570,15 @@ const RutaClientLoaded = ({
       const diasMora = Number(cuotaObjetivo?.diasMora || p?.diasMora || 0)
       const cuotasVencidasVal = Number(row?.cuotasVencidas ?? cuotaObjetivo?.cuotasVencidas ?? 0)
       const esProvisional = Boolean(p?.esProvisional) || String(p?.estadoAprobacion || '').toUpperCase() === 'PENDIENTE'
-      const nivelObligacion = calcularRiesgoObligacion(p, cuotaObjetivo, estadoCalculado, diasMora, cuotasVencidasVal, esProvisional)
+      const nivelObligacion = resolveRiesgoObligacion({
+        row,
+        prestamo: p,
+        cuotaObjetivo,
+        estadoCalculado,
+        diasMora,
+        cuotasVencidas: cuotasVencidasVal,
+        esProvisional,
+      })
       const nivelCliente = c?.nivelRiesgo || visita?.nivelRiesgo || 'VERDE'
       
       // Priorizar riesgo de obligación sobre riesgo de cliente
@@ -2229,7 +2208,7 @@ const RutaClientLoaded = ({
                         <StaticVisitaItem
                           key={visita.id}
                           visita={visita}
-                          allowClick={false}
+                          allowClick={true}
                           onVerCliente={handleAbrirClienteInfo}
                           getEstadoClasses={getEstadoClasses}
                           getPrioridadColor={getPrioridadColor}

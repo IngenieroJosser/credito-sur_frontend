@@ -2,6 +2,69 @@ import { isPagoCierrePendiente } from '@/lib/ruta-recaudos'
 import { getPagoBogotaDateKey } from '@/lib/rutas-core'
 import { mapNivelRiesgo, type VisitaRuta } from '@/lib/types/cobranza'
 
+/**
+ * Función compartida para resolver el riesgo de obligación/crédito.
+ * Prioriza campos explícitos del backend sobre cálculo manual.
+ */
+export const resolveRiesgoObligacion = (params: {
+  row?: any
+  prestamo?: any
+  cuotaObjetivo?: any
+  estadoCalculado?: string
+  diasMora?: number
+  cuotasVencidas?: number
+  esProvisional?: boolean
+}): string => {
+  const { row, prestamo, cuotaObjetivo, estadoCalculado, diasMora, cuotasVencidas, esProvisional } = params
+
+  // Créditos nuevos pendientes de aprobación sin mora: riesgo mínimo
+  if (esProvisional && estadoCalculado === 'pendiente' && (diasMora || 0) === 0) {
+    return 'VERDE'
+  }
+
+  // Créditos pagados: riesgo mínimo
+  if (estadoCalculado === 'pagado') {
+    return 'VERDE'
+  }
+
+  // Priorizar campos explícitos del backend
+  const riesgoFuente =
+    row?.nivelRiesgoObligacion ??
+    row?.nivelRiesgoCredito ??
+    row?.riesgoCredito ??
+    row?.riesgoOperativo ??
+    prestamo?.nivelRiesgoObligacion ??
+    prestamo?.nivelRiesgoCredito ??
+    prestamo?.riesgoCredito ??
+    null
+
+  if (riesgoFuente) {
+    const nivel = String(riesgoFuente).toUpperCase()
+    if (['VERDE', 'AMARILLO', 'ROJO', 'LISTA_NEGRA'].includes(nivel)) {
+      return nivel
+    }
+  }
+
+  // Créditos en mora: calcular riesgo basado en días de mora y cuotas vencidas
+  if (estadoCalculado === 'en_mora') {
+    const dias = diasMora || 0
+    const cuotas = cuotasVencidas || 0
+
+    if (dias >= 30 || cuotas >= 3) {
+      return 'LISTA_NEGRA'
+    }
+    if (dias >= 15 || cuotas >= 2) {
+      return 'ROJO'
+    }
+    if (dias >= 7 || cuotas >= 1) {
+      return 'AMARILLO'
+    }
+  }
+
+  // Créditos pendientes sin mora: riesgo leve
+  return 'VERDE'
+}
+
 type Resumen = {
   recaudo: number
   recaudoOperativo?: number
@@ -458,8 +521,6 @@ export const buildHistorialDiaFromBackend = (params: {
         item?.visita?.proximaVisita ||
         fechaClave,
       ordenVisita: Number(item?.ordenVisita || item?.visita?.ordenVisita || index + 1),
-      prioridad: cliente?.nivelRiesgo === 'ROJO' ? 'alta' : 'media',
-      nivelRiesgo: normalizeNivelRiesgo(cliente?.nivelRiesgo),
       cobradorId: '',
       periodoRuta: normalizePeriodoRuta(prestamo?.frecuenciaRuta || prestamo?.frecuenciaPago || prestamo?.frecuencia || 'DIA'),
       clienteId,
@@ -472,14 +533,38 @@ export const buildHistorialDiaFromBackend = (params: {
         : 'Préstamo',
       recaudadoDelDia: recDia,
       recaudadoRegularizadoDespues: regularizadoDespues,
+      diasMora: Number(cuotaObjetivo?.diasMora || prestamo?.diasMora || 0),
+      cuotasVencidas: Number(item?.cuotasVencidas ?? cuotaObjetivo?.cuotasVencidas ?? 0),
+      pendienteAprobacion: Boolean(prestamo?.esProvisional) || String(prestamo?.estadoAprobacion || '').toUpperCase() === 'PENDIENTE',
+      esProvisional: Boolean(prestamo?.esProvisional),
     } as any
+  })
+
+  // Calcular riesgo de obligación para todas las visitas
+  const visitasConRiesgo = visitasDesdeObligaciones.map((visita: any) => {
+    const nivelRiesgoRaw = resolveRiesgoObligacion({
+      row: visita,
+      prestamo: visita.prestamo || {},
+      cuotaObjetivo: visita.cuotaObjetivo,
+      estadoCalculado: visita.estado,
+      diasMora: visita.diasMora,
+      cuotasVencidas: visita.cuotasVencidas,
+      esProvisional: visita.esProvisional,
+    })
+    const nivelRiesgo = normalizeNivelRiesgo(nivelRiesgoRaw)
+    const prioridad = nivelRiesgoRaw === 'ROJO' || nivelRiesgoRaw === 'LISTA_NEGRA' ? 'alta' : 'media'
+    return {
+      ...visita,
+      nivelRiesgo,
+      prioridad,
+    }
   })
 
   // 3) Mapear visitas del backend a `VisitaRuta` (shape que espera el UI).
   //    Nota: aquí NO aplicamos la lógica pesada de mapeo/asignación del día actual.
   //    Para historial, la mayoría de campos se debe respetar del backend si viene.
-  const visitas: VisitaRuta[] = visitasDesdeObligaciones.length > 0
-    ? visitasDesdeObligaciones
+  const visitas: VisitaRuta[] = visitasConRiesgo.length > 0
+    ? visitasConRiesgo
     : ((visitasResp as any)?.visitas || []).flatMap((item: any, index: number) => {
     const cliente = item?.cliente || {}
     const prestamos = Array.isArray(item?.prestamos) ? item.prestamos : []
