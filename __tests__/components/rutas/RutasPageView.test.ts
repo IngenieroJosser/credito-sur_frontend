@@ -1,4 +1,7 @@
-import { mapObligacionToRutaListVisita } from '@/components/rutas/RutasPageView'
+import {
+  mapAsignacionesToClientesRuta,
+  mapObligacionToRutaListVisita,
+} from '@/components/rutas/RutasPageView'
 
 describe('mapObligacionToRutaListVisita', () => {
   it('conserva el estado provisional para el listado de rutas', () => {
@@ -40,6 +43,42 @@ describe('mapObligacionToRutaListVisita', () => {
       estadoEfectoProvisional: 'PENDIENTE_REVISION',
       esProvisional: true,
       etiquetaRevision: 'Pendiente de revisión',
+    })
+  })
+})
+
+describe('mapAsignacionesToClientesRuta', () => {
+  it('incluye créditos pendientes operativos como parte de clientes asignados de ruta', () => {
+    const clientes = mapAsignacionesToClientesRuta([
+      {
+        cliente: {
+          id: 'cliente-1',
+          nombres: 'Cliente',
+          apellidos: 'Provisional',
+          prestamos: [
+            {
+              id: 'prestamo-pendiente',
+              estado: 'PENDIENTE_APROBACION',
+              estadoAprobacion: 'PENDIENTE',
+              efectoProvisional: { estado: 'PENDIENTE_REVISION' },
+              saldoPendiente: 300_000,
+            },
+            {
+              id: 'prestamo-rechazado',
+              estado: 'PENDIENTE_APROBACION',
+              estadoAprobacion: 'RECHAZADO',
+              saldoPendiente: 300_000,
+            },
+          ],
+        },
+      },
+    ])
+
+    expect(clientes).toHaveLength(1)
+    expect(clientes[0]?.prestamos).toHaveLength(1)
+    expect(clientes[0]?.prestamos?.[0]).toMatchObject({
+      id: 'prestamo-pendiente',
+      saldoPendiente: 300_000,
     })
   })
 })

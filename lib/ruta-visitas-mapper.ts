@@ -5,6 +5,7 @@ import {
   getEstadoRevisionOperacion,
   getBogotaDateKey,
   isPrestamoOperativo,
+  isObligacionOperativaRuta,
   isVisitaExigibleHoy,
   normalizeDateKey,
   resolveFechaEfectivaCuota,
@@ -125,7 +126,12 @@ export const mapAsignacionesToVisitasLite = (params: {
 
     const prestamos = Array.isArray(cliente?.prestamos) ? cliente.prestamos : []
     const prestamosValidos = prestamos.filter((p: any) => isPrestamoOperativo(p))
-    const lista = prestamosValidos.length > 0 ? prestamosValidos : [null]
+    const lista =
+      prestamosValidos.length > 0
+        ? prestamosValidos
+        : params.filtrarExigibles === false
+          ? [null]
+          : []
 
     return lista.flatMap((prestamo: any, subIdx: number) => {
       const cuotas = Array.isArray(prestamo?.cuotas) ? prestamo.cuotas : []
@@ -137,6 +143,12 @@ export const mapAsignacionesToVisitasLite = (params: {
       })
 
       const proxima = cuotasOrdenadas.find((c: any) => c && !isPagada(c) && !isAnulada(c)) || (prestamo?.proximaCuota ?? null)
+      const esObligacionOperativa = isObligacionOperativaRuta(
+        { prestamo, cuota: proxima },
+        hoyKey,
+      )
+      if (!esObligacionOperativa && params.filtrarExigibles !== false) return []
+
       const dueKey = getCuotaEffectiveVtoKey(proxima)
       const fechaEfectiva = proxima ? (resolveFechaEfectivaCuota(proxima) || String((proxima as any)?.fechaVencimiento || '')) : ''
 
