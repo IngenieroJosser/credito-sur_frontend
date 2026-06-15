@@ -503,6 +503,35 @@ const RutaClientLoaded = ({
       ? obligaciones
       : (Array.isArray((resp as any)?.visitas) ? (resp as any).visitas : [])
 
+    // Función para calcular riesgo de obligación/crédito
+    const calcularRiesgoObligacion = (p: any, cuotaObjetivo: any, estadoCalculado: EstadoVisita, diasMora: number, cuotasVencidas: number, esProvisional: boolean): string => {
+      // Créditos nuevos pendientes de aprobación sin mora: riesgo mínimo
+      if (esProvisional && estadoCalculado === 'pendiente' && diasMora === 0) {
+        return 'VERDE'
+      }
+
+      // Créditos pagados: riesgo mínimo
+      if (estadoCalculado === 'pagado') {
+        return 'VERDE'
+      }
+
+      // Créditos en mora: calcular riesgo basado en días de mora y cuotas vencidas
+      if (estadoCalculado === 'en_mora') {
+        if (diasMora >= 30 || cuotasVencidas >= 3) {
+          return 'LISTA_NEGRA'
+        }
+        if (diasMora >= 15 || cuotasVencidas >= 2) {
+          return 'ROJO'
+        }
+        if (diasMora >= 7 || cuotasVencidas >= 1) {
+          return 'AMARILLO'
+        }
+      }
+
+      // Créditos pendientes sin mora: riesgo leve
+      return 'VERDE'
+    }
+
     const mapped = rows.map((row: any, idx: number) => {
       const visita = row?.visita || row || {}
       const c = row?.cliente || visita?.cliente || {}
@@ -564,7 +593,6 @@ const RutaClientLoaded = ({
           visita?.cuotaObjetivoId ||
           '',
       )
-      const nivel = c?.nivelRiesgo || visita?.nivelRiesgo || 'VERDE'
       const frecuencia = p?.frecuenciaPago || 'DIARIO'
       const nombreCliente = `${c?.nombres || ''} ${c?.apellidos || ''}`.trim()
 
@@ -591,9 +619,44 @@ const RutaClientLoaded = ({
         proximaVisita: fechaEfectiva,
         targetVencimiento: proximaCuota?.fechaVencimiento || cuotaObjetivo?.fechaVencimiento,
         ordenVisita: Number(visita?.ordenVisita || row?.ordenVisita || idx + 1),
+      }
+      
+      // Calcular riesgo de obligación/crédito (no del cliente)
+      const diasMora = Number(cuotaObjetivo?.diasMora || p?.diasMora || 0)
+      const cuotasVencidasVal = Number(row?.cuotasVencidas ?? cuotaObjetivo?.cuotasVencidas ?? 0)
+      const esProvisional = Boolean(p?.esProvisional) || String(p?.estadoAprobacion || '').toUpperCase() === 'PENDIENTE'
+      const nivelObligacion = calcularRiesgoObligacion(p, cuotaObjetivo, estadoCalculado, diasMora, cuotasVencidasVal, esProvisional)
+      const nivelCliente = c?.nivelRiesgo || visita?.nivelRiesgo || 'VERDE'
+      
+      // Priorizar riesgo de obligación sobre riesgo de cliente
+      const nivel = nivelObligacion
+      
+      return {
+        id: `${visita?.asignacionId || row?.asignacionId || 'daily'}-${p?.id || cuotaId || idx}`,
+        cliente: nombreCliente || row?.nombreCliente || 'Cliente',
+        direccion: c?.direccion || visita?.direccion || 'Sin dirección registrada',
+        telefono: c?.telefono || visita?.telefono || '',
+        horaSugerida: '08:00 AM',
+        montoCuota,
+        montoCuotaNormal,
+        montoCuotaPendiente: montoMetaPendiente > 0 ? montoMetaPendiente : montoCuota,
+        montoMoraAcumulada: Number(
+          row?.montoMoraAcumulada ??
+            cuotaObjetivo?.montoMoraAcumulada ??
+            cuotaObjetivo?.saldoVencidoAcumulado ??
+            0,
+        ),
+        cuotasVencidas: Number(row?.cuotasVencidas ?? cuotaObjetivo?.cuotasVencidas ?? 0),
+        saldoTotal: estadoCalculado === 'pagado' ? 0 : Number(p?.saldoPendiente || 0),
+        estado: estadoCalculado,
+        estadoVisita: row?.estadoVisita || p?.estadoVisita || visita?.estadoVisita || undefined,
+        notasVisita: row?.notasVisita || p?.notasVisita || visita?.notasVisita || undefined,
+        proximaVisita: fechaEfectiva,
+        targetVencimiento: proximaCuota?.fechaVencimiento || cuotaObjetivo?.fechaVencimiento,
+        ordenVisita: Number(visita?.ordenVisita || row?.ordenVisita || idx + 1),
         prioridad: nivel === 'ROJO' || nivel === 'LISTA_NEGRA' ? 'alta' : 'media' as any,
         nivelRiesgo: mapNivelRiesgo(nivel) as any,
-        diasMora: Number(cuotaObjetivo?.diasMora || p?.diasMora || 0),
+        diasMora,
         cobradorId: rutaData?.cobradorId || initialRuta.cobradorId,
         periodoRuta: mapFrecuenciaToPeriodo(frecuencia as any) as any,
         clienteId: c?.id || visita?.clienteId || '',
