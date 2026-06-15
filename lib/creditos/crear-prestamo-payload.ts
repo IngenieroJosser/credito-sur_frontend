@@ -23,6 +23,7 @@ export type CrearCreditoModalData = {
   notas?: string
   ventaContado?: boolean
   articuloNombre?: string
+  metodoPago?: 'EFECTIVO' | 'TRANSFERENCIA'
 }
 
 export type CrearPrestamoPayload = CrearPrestamoDto & {
@@ -140,7 +141,7 @@ export function buildVentaContadoPayload(
     precioVenta: Number(data.monto || 0),
     cajaId,
     creadoPorId: creadoPorId || resolveCurrentUserId(),
-    metodoPago: 'EFECTIVO',
+    metodoPago: (data.metodoPago || 'EFECTIVO') as 'EFECTIVO' | 'TRANSFERENCIA',
     notas: data.notas || 'Venta de artículo de contado',
   }
 }
