@@ -34,6 +34,8 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
   const [loading, setLoading] = useState(true);
   const [prestamos, setPrestamos] = useState<Prestamo[]>([]);
   const [pagos, setPagos] = useState<Pago[]>([]);
+  const [estadoCuenta, setEstadoCuenta] = useState<any>(null);
+  const [loadingEstadoCuenta, setLoadingEstadoCuenta] = useState(false);
 
   const [comentarios, setComentarios] = useState<Comentario[]>([]);
 
@@ -193,6 +195,23 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
     };
     fetchCliente();
   }, [clientId]);
+
+  useEffect(() => {
+    const fetchEstadoCuenta = async () => {
+      setLoadingEstadoCuenta(true);
+      try {
+        const data = await clientesService.obtenerEstadoCuenta(clientId);
+        setEstadoCuenta(data);
+      } catch (error) {
+        console.error("Error cargando estado de cuenta", error);
+        setEstadoCuenta(null);
+      } finally {
+        setLoadingEstadoCuenta(false);
+      }
+    };
+
+    fetchEstadoCuenta();
+  }, [clientId]);
   
   if (loading) return null;
 
@@ -233,6 +252,94 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
 
           {/* Contenido con Scroll */}
           <div className="flex-1 overflow-y-auto scrollbar-hide">
+            {/* Loading Estado de Cuenta */}
+            {loadingEstadoCuenta && (
+              <div className="bg-slate-50 border-b border-slate-200 p-4 text-sm text-slate-500">
+                Cargando estado de cuenta...
+              </div>
+            )}
+
+            {/* Resumen Financiero */}
+            {estadoCuenta && (
+              <div className="bg-slate-50 border-b border-slate-200 p-6">
+                <h3 className="text-lg font-bold text-slate-900 mb-4">Estado de Cuenta Financiero</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="bg-white p-4 rounded-xl border border-slate-200">
+                    <p className="text-sm text-slate-500 mb-1">Saldo Pendiente</p>
+                    <p className="text-xl font-bold text-slate-900">
+                      ${estadoCuenta.resumen?.saldoPendiente?.toLocaleString() || 0}
+                    </p>
+                  </div>
+                  <div className="bg-white p-4 rounded-xl border border-slate-200">
+                    <p className="text-sm text-slate-500 mb-1">Total Pagado</p>
+                    <p className="text-xl font-bold text-green-600">
+                      ${estadoCuenta.resumen?.totalPagado?.toLocaleString() || 0}
+                    </p>
+                  </div>
+                  <div className="bg-white p-4 rounded-xl border border-slate-200">
+                    <p className="text-sm text-slate-500 mb-1">Ventas Contado</p>
+                    <p className="text-xl font-bold text-blue-600">
+                      ${estadoCuenta.resumen?.totalVentasContado?.toLocaleString() || 0}
+                    </p>
+                  </div>
+                  <div className="bg-white p-4 rounded-xl border border-slate-200">
+                    <p className="text-sm text-slate-500 mb-1">Cuotas Iniciales</p>
+                    <p className="text-xl font-bold text-purple-600">
+                      ${estadoCuenta.resumen?.totalCuotaInicial?.toLocaleString() || 0}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Indicadores de Préstamos y Cuotas */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+                  <div className="bg-white p-4 rounded-xl border border-slate-200">
+                    <p className="text-sm text-slate-500 mb-1">Préstamos Activos</p>
+                    <p className="text-xl font-bold text-slate-900">
+                      {estadoCuenta.resumen?.prestamosActivos || 0}
+                    </p>
+                  </div>
+                  <div className="bg-white p-4 rounded-xl border border-slate-200">
+                    <p className="text-sm text-slate-500 mb-1">Préstamos Pagados</p>
+                    <p className="text-xl font-bold text-slate-900">
+                      {estadoCuenta.resumen?.prestamosPagados || 0}
+                    </p>
+                  </div>
+                  <div className="bg-white p-4 rounded-xl border border-slate-200">
+                    <p className="text-sm text-slate-500 mb-1">Cuotas Pendientes</p>
+                    <p className="text-xl font-bold text-orange-600">
+                      {estadoCuenta.resumen?.cuotasPendientes || 0}
+                    </p>
+                  </div>
+                  <div className="bg-white p-4 rounded-xl border border-slate-200">
+                    <p className="text-sm text-slate-500 mb-1">Cuotas Vencidas</p>
+                    <p className="text-xl font-bold text-red-600">
+                      {estadoCuenta.resumen?.cuotasVencidas || 0}
+                    </p>
+                  </div>
+                </div>
+                
+                {/* Movimientos Comerciales */}
+                {estadoCuenta.movimientosComerciales && estadoCuenta.movimientosComerciales.length > 0 && (
+                  <div className="mt-4">
+                    <h4 className="text-sm font-semibold text-slate-700 mb-2">Movimientos Comerciales</h4>
+                    <div className="space-y-2">
+                      {estadoCuenta.movimientosComerciales.map((mov: any) => (
+                        <div key={mov.id} className="bg-white p-3 rounded-lg border border-slate-200 flex justify-between items-center">
+                          <div>
+                            <span className="text-xs font-medium text-slate-500">{mov.tipo}</span>
+                            <p className="text-sm text-slate-900">{mov.descripcion}</p>
+                          </div>
+                          <span className="font-bold text-slate-900">
+                            ${mov.monto?.toLocaleString() || 0}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            
             <ClienteDetalleElegante 
               cliente={clienteData}
               prestamos={prestamos}
