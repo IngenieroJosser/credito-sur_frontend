@@ -1,13 +1,17 @@
 /**
  * Mapper compartido para convertir DailyVisitsResponse en VisitaRuta[].
  * Centraliza la normalización de obligaciones operativas para todas las vistas:
- * - Ruta Actual
- * - Historial
- * - Mis clientes
- * - Vista Cobrador
- * - Vista Supervisor
- * - Vista Coordinador
- * - Vista Admin / SuperAdmin cuando entran a rutas
+ * - Ruta Actual (modo LIVE)
+ * - Historial (modo HISTORICO)
+ * - Mis clientes (modo LIVE)
+ * - Vista Cobrador (modo LIVE)
+ * - Vista Supervisor (modo LIVE)
+ * - Vista Coordinador (modo LIVE)
+ * - Vista Admin / SuperAdmin cuando entran a rutas (modo LIVE)
+ *
+ * Este mapper soporta modo temporal:
+ * - LIVE: Usa la situación actual de la obligación. Recalcula estado operativo actual.
+ * - HISTORICO: Respeta el estado que tuvo la obligación ese día. No sobrescribe con estado actual.
  *
  * Este mapper siempre devuelve:
  * - nivelRiesgo (calculado con resolveRiesgoObligacion)
@@ -37,11 +41,15 @@ import { getPagoBogotaDateKey } from '@/lib/rutas-core'
 import { mapNivelRiesgo, mapFrecuenciaToPeriodo, type VisitaRuta, type EstadoVisita } from '@/lib/types/cobranza'
 import { resolveRiesgoObligacion, resolveMontoVencidoAcumulado } from './riesgo-obligacion'
 
+export type MapMode = 'LIVE' | 'HISTORICO'
+
 interface MapDailyVisitsToVisitasParams {
   resp: any
   hoyBogotaKey?: string
   rutaData?: any
   initialRuta?: any
+  modo?: MapMode
+  fechaOperativa?: string
 }
 
 export const mapDailyVisitsResponseToVisitas = ({
@@ -49,6 +57,8 @@ export const mapDailyVisitsResponseToVisitas = ({
   hoyBogotaKey = getPagoBogotaDateKey(new Date()),
   rutaData,
   initialRuta,
+  modo = 'LIVE',
+  fechaOperativa = hoyBogotaKey,
 }: MapDailyVisitsToVisitasParams): VisitaRuta[] => {
   const obligaciones = Array.isArray((resp as any)?.obligaciones)
     ? (resp as any).obligaciones
@@ -70,7 +80,17 @@ export const mapDailyVisitsResponseToVisitas = ({
       visita?.proximaCuota ||
       null
     const proximaCuota = p?.proximaCuota || cuotaObjetivo
+
+    // En modo HISTORICO, priorizar campos del backend para esa fecha
+    const esHistorico = modo === 'HISTORICO'
+    const estadoHistorico = esHistorico ? (row?.estadoCalculadoEnFecha || row?.estadoGestion || visita?.estadoVisita) : null
+    const riesgoHistorico = esHistorico ? (row?.riesgoOperativoEnFecha || row?.nivelRiesgoObligacion || row?.nivelRiesgoCredito) : null
+    const montoVencidoHistorico = esHistorico ? (row?.montoVencidoAcumuladoEnFecha || row?.montoVencidoAcumulado) : null
+    const montoCuotaHistorico = esHistorico ? (row?.montoCuotaPendienteEnFecha || row?.montoCuota) : null
+    const recaudadoHistorico = esHistorico ? (row?.recaudadoDelDia) : null
+
     const montoMetaPendiente = Number(
+      esHistorico && montoCuotaHistorico !== null ? montoCuotaHistorico :
       row?.montoMetaOperativaPendiente ??
         p?.montoMetaOperativaPendiente ??
         cuotaObjetivo?.saldoExigibleEnFechaOperativa ??
@@ -79,6 +99,7 @@ export const mapDailyVisitsResponseToVisitas = ({
         0,
     )
     const recaudadoDelDia = Number(
+      esHistorico && recaudadoHistorico !== null ? recaudadoHistorico :
       row?.recaudadoDelDia ??
         p?.recaudadoDelDia ??
         p?.recaudadoHoy ??
@@ -102,15 +123,32 @@ export const mapDailyVisitsResponseToVisitas = ({
       proximaCuota?.fechaEfectiva ||
       proximaCuota?.fechaVencimientoProrroga ||
       proximaCuota?.fechaVencimiento ||
-      hoyBogotaKey
+      fechaOperativa
     const estadoGestion = String(row?.estadoGestion || p?.estadoGestion || '').toUpperCase()
     const estadoCuota = String(cuotaObjetivo?.estadoActual || cuotaObjetivo?.estado || proximaCuota?.estado || '').toUpperCase()
-    const estadoCalculado: EstadoVisita =
-      recaudadoDelDia > 0 || estadoGestion === 'PAGO_REGISTRADO' || estadoCuota === 'PAGADA'
-        ? 'pagado'
-        : cuotaObjetivo?.enMoraEnFechaOperativa || estadoCuota === 'VENCIDA'
-          ? 'en_mora'
-          : 'pendiente'
+
+    // En modo HISTORICO, usar estado histórico si existe
+    let estadoCalculado: EstadoVisita
+    if (esHistorico && estadoHistorico) {
+      const estadoStr = String(estadoHistorico).toUpperCase()
+      if (estadoStr === 'PAGADO' || estadoStr === 'PAGO_REGISTRADO' || estadoStr === 'PAGADA') {
+        estadoCalculado = 'pagado'
+      } else if (estadoStr === 'EN_MORA' || estadoStr === 'VENCIDA') {
+        estadoCalculado = 'en_mora'
+      } else if (estadoStr === 'AUSENTE') {
+        estadoCalculado = 'ausente'
+      } else {
+        estadoCalculado = 'pendiente'
+      }
+    } else {
+      estadoCalculado =
+        recaudadoDelDia > 0 || estadoGestion === 'PAGO_REGISTRADO' || estadoCuota === 'PAGADA'
+          ? 'pagado'
+          : cuotaObjetivo?.enMoraEnFechaOperativa || estadoCuota === 'VENCIDA'
+            ? 'en_mora'
+            : 'pendiente'
+    }
+
     const esArticulo = p?.tipo === 'ARTICULO' || p?.tipoPrestamo === 'ARTICULO'
     const cuotaId = String(
       row?.cuotaObjetivoId ||
@@ -123,33 +161,50 @@ export const mapDailyVisitsResponseToVisitas = ({
     const nombreCliente = `${c?.nombres || ''} ${c?.apellidos || ''}`.trim()
 
     // Calcular monto vencido acumulado (factor dominante para riesgo)
-    const montoVencidoAcumulado = resolveMontoVencidoAcumulado({
-      row,
-      prestamo: p,
-      cuotaObjetivo,
-      estadoCalculado,
-    })
+    const montoVencidoAcumulado = esHistorico && montoVencidoHistorico !== null
+      ? montoVencidoHistorico
+      : resolveMontoVencidoAcumulado({
+          row,
+          prestamo: p,
+          cuotaObjetivo,
+          estadoCalculado,
+        })
 
     // Calcular riesgo de obligación/crédito (no del cliente)
     const diasMora = Number(cuotaObjetivo?.diasMora || p?.diasMora || 0)
     const cuotasVencidasVal = Number(row?.cuotasVencidas ?? cuotaObjetivo?.cuotasVencidas ?? 0)
     const esProvisional = Boolean(p?.esProvisional) || String(p?.estadoAprobacion || '').toUpperCase() === 'PENDIENTE'
 
-    // Enriquecer row con montoVencidoAcumulado para que resolveRiesgoObligacion lo use
-    const rowEnriquecido = { ...row, montoVencidoAcumulado }
-
-    const nivelObligacion = resolveRiesgoObligacion({
-      row: rowEnriquecido,
-      prestamo: p,
-      cuotaObjetivo,
-      estadoCalculado,
-      diasMora,
-      cuotasVencidas: cuotasVencidasVal,
-      esProvisional,
-    })
-
-    // Priorizar riesgo de obligación sobre riesgo de cliente
-    const nivel = nivelObligacion
+    // En modo HISTORICO, usar riesgo histórico si existe
+    let nivel: string
+    if (esHistorico && riesgoHistorico) {
+      nivel = String(riesgoHistorico).toUpperCase()
+      if (!['VERDE', 'AMARILLO', 'ROJO', 'LISTA_NEGRA'].includes(nivel)) {
+        // Fallback a cálculo si el riesgo histórico no es válido
+        const rowEnriquecido = { ...row, montoVencidoAcumulado }
+        nivel = resolveRiesgoObligacion({
+          row: rowEnriquecido,
+          prestamo: p,
+          cuotaObjetivo,
+          estadoCalculado,
+          diasMora,
+          cuotasVencidas: cuotasVencidasVal,
+          esProvisional,
+        })
+      }
+    } else {
+      // En modo LIVE o si no hay riesgo histórico, calcular
+      const rowEnriquecido = { ...row, montoVencidoAcumulado }
+      nivel = resolveRiesgoObligacion({
+        row: rowEnriquecido,
+        prestamo: p,
+        cuotaObjetivo,
+        estadoCalculado,
+        diasMora,
+        cuotasVencidas: cuotasVencidasVal,
+        esProvisional,
+      })
+    }
 
     return {
       id: `${visita?.asignacionId || row?.asignacionId || 'daily'}-${p?.id || cuotaId || idx}`,

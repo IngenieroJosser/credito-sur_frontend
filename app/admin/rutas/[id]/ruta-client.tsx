@@ -112,7 +112,7 @@ import { mapAsignacionesToVisitasLite } from '@/lib/ruta-visitas-mapper'
 import { buildRecaudosHoyMapByPrestamoId, computeMontoCuotaPendienteDespuesDeRecaudo, indexPagosByPrestamoId, mergeVisitasPreservingLocalRecaudo, sumMontoTotalPagosByBogotaDateKey } from '@/lib/ruta-recaudos'
 import { mapWithConcurrency, memoizePromiseByKey } from '@/lib/async-utils'
 import { buildHistorialDiaFromBackend, hasGestionHistorial, isPagoForHistorialFecha } from '@/lib/ruta-historial'
-import { mapDailyVisitsResponseToVisitas as mapDailyVisitsResponseToVisitasShared } from '@/lib/rutas/map-daily-visits-to-visitas'
+import { mapDailyVisitsResponseToVisitas as mapDailyVisitsResponseToVisitasShared, type MapMode } from '@/lib/rutas/map-daily-visits-to-visitas'
 import { resolveRiesgoObligacion } from '@/lib/rutas/riesgo-obligacion'
 
 interface GastoRuta {
@@ -501,6 +501,8 @@ const RutaClientLoaded = ({
       hoyBogotaKey,
       rutaData,
       initialRuta,
+      modo: 'LIVE' as MapMode,
+      fechaOperativa: hoyBogotaKey,
     })
   }, [hoyBogotaKey, initialRuta.cobradorId, rutaData?.cobradorId])
 
