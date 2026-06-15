@@ -632,8 +632,6 @@ export const buildHistorialDiaFromBackend = (params: {
           estadoVisita: item?.estadoVisita || undefined,
           proximaVisita: item?.proximaVisita || fechaClave,
           ordenVisita: item?.ordenVisita || index + 1,
-          prioridad: cliente?.nivelRiesgo === 'ROJO' ? 'alta' : 'media',
-          nivelRiesgo: normalizeNivelRiesgo(cliente?.nivelRiesgo),
           cobradorId: '',
           periodoRuta: 'DIA',
           clienteId: cliente?.id,
@@ -690,7 +688,7 @@ export const buildHistorialDiaFromBackend = (params: {
       const keyExist = prestamoId ? `loan-${prestamoId}` : (cliente?.id ? `client-${cliente.id}` : `client-idx-${index}`)
       existentes.add(keyExist)
 
-      return {
+      const visitaBase = {
         id: `${item?.asignacionId || `hist-${fechaClave}-${index}`}-${prestamoId || loanIdx}`,
         cliente: `${cliente?.nombres || ''} ${cliente?.apellidos || ''}`.trim() || 'Cliente Sin Nombre',
         direccion: cliente?.direccion || 'Sin dirección',
@@ -703,14 +701,35 @@ export const buildHistorialDiaFromBackend = (params: {
         estadoVisita: item?.estadoVisita || undefined,
         proximaVisita: item?.proximaVisita || proximaCuota?.fechaVencimiento || fechaClave,
         ordenVisita: (item?.ordenVisita ? Number(item.ordenVisita) : (index + 1)) + loanIdx,
-        prioridad: cliente?.nivelRiesgo === 'ROJO' ? 'alta' : 'media',
-        nivelRiesgo: normalizeNivelRiesgo(cliente?.nivelRiesgo),
         cobradorId: '',
         periodoRuta,
         clienteId: cliente?.id,
         prestamoId,
         recaudadoDelDia: recDia,
         recaudadoRegularizadoDespues: regularizadoDespues,
+        diasMora: Number(proximaCuota?.diasMora || p?.diasMora || 0),
+        cuotasVencidas: Number(item?.cuotasVencidas ?? proximaCuota?.cuotasVencidas ?? 0),
+        pendienteAprobacion: Boolean(p?.esProvisional) || String(p?.estadoAprobacion || '').toUpperCase() === 'PENDIENTE',
+        esProvisional: Boolean(p?.esProvisional),
+      } as any
+
+      // Calcular riesgo de obligación
+      const nivelRiesgoRaw = resolveRiesgoObligacion({
+        row: visitaBase,
+        prestamo: p,
+        cuotaObjetivo: proximaCuota,
+        estadoCalculado: estado,
+        diasMora: visitaBase.diasMora,
+        cuotasVencidas: visitaBase.cuotasVencidas,
+        esProvisional: visitaBase.esProvisional,
+      })
+      const nivelRiesgo = normalizeNivelRiesgo(nivelRiesgoRaw)
+      const prioridad = nivelRiesgoRaw === 'ROJO' || nivelRiesgoRaw === 'LISTA_NEGRA' ? 'alta' : 'media'
+
+      return {
+        ...visitaBase,
+        nivelRiesgo,
+        prioridad,
       } as any
     })
     })
