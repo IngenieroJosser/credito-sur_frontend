@@ -181,7 +181,7 @@ export default function CoordinadorPage() {
           {
             title: 'Saldo Pendiente',
             value: stats?.montoPendiente || 0,
-            subValue: `${stats?.activos || 0} créditos activos`,
+            subValue: `${stats?.activos || 0} créditos vigentes`,
             isCurrency: true,
             change: null,
             icon: <Banknote className="h-4 w-4" />,

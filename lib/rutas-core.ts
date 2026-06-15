@@ -660,11 +660,63 @@ export const isVisitaExigibleHoy = (visita: any, hoyBogotaKey: string): boolean 
   if (!visita) return false;
   const estadoRaw = String(visita?.estado || '').toLowerCase();
   const estado = estadoRaw.replace(/\s+/g, '_');
+  
+  // Verificar estado de gestión (estadoGestion, estadoVisita, etc.)
+  const estadoGestionRaw = String(
+    visita?.estadoGestion ||
+    visita?.estadoVisita ||
+    '',
+  ).toUpperCase();
+  
+  // Verificar si ya fue gestionado/pagado/reprogramado/ausente hoy
+  const yaGestionado =
+    estadoGestionRaw.includes('PAGAD') ||
+    estadoGestionRaw.includes('GESTION') ||
+    estadoGestionRaw.includes('REPROGRAM') ||
+    estadoGestionRaw.includes('AUSENTE') ||
+    estado === 'pagado' ||
+    estado === 'reprogramado';
+  
+  // Verificar si está revertido/rechazado
+  const noOperativo =
+    visita?.esRevertido ||
+    estadoGestionRaw.includes('REVERT') ||
+    estadoGestionRaw.includes('RECHAZ') ||
+    estado.includes('revert') ||
+    estado.includes('rechaz');
+  
+  if (yaGestionado || noOperativo) return false;
+  
+  // Verificar si tiene saldo pendiente o monto operativo pendiente
+  const saldoPendiente = Number(
+    visita?.saldoPendiente ??
+    visita?.prestamo?.saldoPendiente ??
+    visita?.saldoTotal ??
+    0,
+  );
+  
+  const montoPendiente = Number(
+    visita?.montoCuotaPendiente ??
+    visita?.montoMetaOperativaPendiente ??
+    visita?.cuotaObjetivo?.saldoExigibleEnFechaOperativa ??
+    visita?.cuotaObjetivo?.montoCuota ??
+    visita?.cuotaObjetivo?.monto ??
+    visita?.montoCuota ??
+    0,
+  );
+  
+  if (saldoPendiente <= 0 && montoPendiente <= 0) return false;
+  
+  // Si está en mora, aparece siempre (independientemente de la fecha)
+  if (estado === 'en_mora' || estado.includes('mora')) return true;
+  
+  // Si es ruta DIARIA, aparece siempre
+  if (String(visita?.periodoRuta || '').toUpperCase() === 'DIA') return true;
+  
+  // Determinar fecha efectiva de la cuota
   const proximaKey = visita?.proximaVisita ? normalizeDateKey(String(visita.proximaVisita)) : '';
   if (visita?.enProrroga && proximaKey && proximaKey > hoyBogotaKey) return false;
   if (proximaKey && proximaKey > hoyBogotaKey) return false;
-  if (estado === 'en_mora' || estado.includes('mora')) return true;
-  if (String(visita?.periodoRuta || '').toUpperCase() === 'DIA') return true;
   if (!proximaKey) return true;
   return proximaKey <= hoyBogotaKey;
 };
@@ -733,47 +785,8 @@ export const shouldExcludeVisitaFromOperationalMeta = (
 };
 
 export const shouldShowVisitaEnRutaHoy = (visita: any, hoyBogotaKey: string): boolean => {
-  // Regla unica para las vistas de ruta: no mostrar cobros futuros ni cuotas ya cubiertas.
-  if (!visita) return false;
-  const estado = String(visita?.estado || '').toLowerCase().replace(/\s+/g, '_');
-  const estadoVisita = String(visita?.estadoVisita || '').toLowerCase().replace(/\s+/g, '_');
-  const esGestionado = estadoVisita === 'gestionado' || estado === 'gestionado';
-  const esReprogramado =
-    estadoVisita === 'reprogramado' ||
-    estadoVisita === 'reprogramada' ||
-    estadoVisita === 'reprogramacion' ||
-    estadoVisita === 'reprogramación' ||
-    estado === 'reprogramado' ||
-    estado === 'reprogramada' ||
-    estado === 'reprogramacion' ||
-    estado === 'reprogramación';
-  const recaudadoHoy = Number((visita as any)?.recaudadoDelDia ?? (visita as any)?.recaudadoPeriodo ?? 0);
-  const fechaProrrogaKey = normalizeDateKey(
-    String(
-      visita?.fechaProrroga ||
-      visita?.fechaVencimientoProrroga ||
-      visita?.cuotaObjetivo?.fechaVencimientoProrroga ||
-      '',
-    ),
-  );
-  const tieneProrrogaFutura = Boolean(visita?.enProrroga || fechaProrrogaKey)
-    && Boolean(fechaProrrogaKey && hoyBogotaKey && fechaProrrogaKey > hoyBogotaKey);
-
-  if (esGestionado) return false;
-  if (esReprogramado && !(Number.isFinite(recaudadoHoy) && recaudadoHoy > 0)) return false;
-  if (tieneProrrogaFutura && !(Number.isFinite(recaudadoHoy) && recaudadoHoy > 0)) return false;
-  if (Number.isFinite(recaudadoHoy) && recaudadoHoy > 0) return false;
-  if (estado === 'pagado') return false;
-
-  if (shouldMarkVisitaAsPagado({
-    saldoTotal: visita?.saldoTotal,
-    recaudadoHoy: visita?.recaudadoDelDia,
-    montoCuotaExigible: visita?.montoCuota,
-    estadoActual: visita?.estado,
-  })) {
-    return false;
-  }
-
+  // Regla unificada para las vistas de ruta: usar isVisitaExigibleHoy
+  // que ya maneja todos los casos: mora, fecha vencida, gestionado, etc.
   return isVisitaExigibleHoy(visita, hoyBogotaKey);
 };
 

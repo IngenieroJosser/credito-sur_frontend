@@ -257,14 +257,119 @@ describe('shouldShowVisitaEnRutaHoy', () => {
       shouldShowVisitaEnRutaHoy(
         {
           estado: 'en_mora',
-          estadoVisita: 'reprogramado',
           periodoRuta: 'DIA',
-          proximaVisita: '2026-06-12',
+          proximaVisita: '2026-06-10',
+          estadoVisita: 'reprogramado',
           saldoTotal: 2296669,
           montoCuota: 86666,
-          recaudadoDelDia: 0,
         },
         '2026-06-12',
+      ),
+    ).toBe(false)
+  })
+
+  // Tests para corrección de bug: cuotas vencidas deben mostrarse
+  it('muestra visita en mora con fecha vencida anterior a hoy', () => {
+    expect(
+      shouldShowVisitaEnRutaHoy(
+        {
+          estado: 'en_mora',
+          estadoGestion: 'PENDIENTE',
+          periodoRuta: 'DIA',
+          proximaVisita: '2026-05-13',
+          saldoPendiente: 1900000,
+          montoMetaOperativaPendiente: 63333,
+        },
+        '2026-06-15',
+      ),
+    ).toBe(true)
+  })
+
+  it('muestra visita en mora sin fecha específica pero con saldo pendiente', () => {
+    expect(
+      shouldShowVisitaEnRutaHoy(
+        {
+          estado: 'en_mora',
+          estadoGestion: 'PENDIENTE',
+          periodoRuta: 'DIA',
+          saldoPendiente: 2291676,
+          montoMetaOperativaPendiente: 458334,
+        },
+        '2026-06-15',
+      ),
+    ).toBe(true)
+  })
+
+  it('oculta visita pagada aunque tenga fecha vencida', () => {
+    expect(
+      shouldShowVisitaEnRutaHoy(
+        {
+          estado: 'pagado',
+          estadoGestion: 'PENDIENTE',
+          periodoRuta: 'DIA',
+          proximaVisita: '2026-05-13',
+          saldoPendiente: 0,
+        },
+        '2026-06-15',
+      ),
+    ).toBe(false)
+  })
+
+  it('oculta visita con estadoGestion GESTIONADO aunque esté en mora', () => {
+    expect(
+      shouldShowVisitaEnRutaHoy(
+        {
+          estado: 'en_mora',
+          estadoGestion: 'GESTIONADO',
+          periodoRuta: 'DIA',
+          proximaVisita: '2026-05-13',
+          saldoPendiente: 1900000,
+        },
+        '2026-06-15',
+      ),
+    ).toBe(false)
+  })
+
+  it('oculta visita revertida aunque tenga saldo pendiente', () => {
+    expect(
+      shouldShowVisitaEnRutaHoy(
+        {
+          estado: 'en_mora',
+          estadoGestion: 'PENDIENTE',
+          esRevertido: true,
+          periodoRuta: 'DIA',
+          saldoPendiente: 1900000,
+        },
+        '2026-06-15',
+      ),
+    ).toBe(false)
+  })
+
+  it('oculta visita con estadoGestion RECHAZADO', () => {
+    expect(
+      shouldShowVisitaEnRutaHoy(
+        {
+          estado: 'en_mora',
+          estadoGestion: 'RECHAZADO',
+          periodoRuta: 'DIA',
+          saldoPendiente: 1900000,
+        },
+        '2026-06-15',
+      ),
+    ).toBe(false)
+  })
+
+  it('oculta visita futura aunque tenga saldo pendiente', () => {
+    expect(
+      shouldShowVisitaEnRutaHoy(
+        {
+          estado: 'pendiente',
+          estadoGestion: 'PENDIENTE',
+          periodoRuta: 'SEMANAL',
+          proximaVisita: '2026-06-20',
+          saldoPendiente: 1900000,
+        },
+        '2026-06-15',
       ),
     ).toBe(false)
   })

@@ -473,7 +473,7 @@ export default function SeguimientoPuntoVenta() {
               { label: `Monto ${periodoVentas === 'TODOS' ? 'total' : periodoVentas.toLowerCase()}`, value: formatCurrency(kpis.montoVentas), icon: TrendingUp, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100' },
               { label: 'Cuota inicial', value: formatCurrency(kpis.cuotaInicial), icon: CreditCard, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100' },
               { label: 'Cartera activa', value: formatCurrency(kpis.carteraTotal), icon: BarChart3, color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-100' },
-              { label: 'Créditos activos', value: kpis.clientesActivos.toString(), icon: Users, color: 'text-slate-600', bg: 'bg-slate-100', border: 'border-slate-200' },
+              { label: 'Créditos vigentes', value: kpis.clientesActivos.toString(), icon: Users, color: 'text-slate-600', bg: 'bg-slate-100', border: 'border-slate-200' },
             ].map((kpi, i) => (
               <div key={i} className="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex items-center gap-2 mb-2">
