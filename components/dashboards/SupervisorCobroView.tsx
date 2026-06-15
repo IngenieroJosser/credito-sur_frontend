@@ -22,6 +22,7 @@ import {
   isPagoForHistorialFecha,
   normalizeVisitaHistorial,
 } from '@/lib/ruta-historial'
+import { resolveRiesgoObligacion, resolveMontoVencidoAcumulado } from '@/lib/rutas/riesgo-obligacion'
 import { mapWithConcurrency, memoizePromiseByKey } from '@/lib/async-utils'
 import { formatMilesCOP } from '@/lib/utils'
 import { formatRoleLabel } from '@/lib/display-labels'

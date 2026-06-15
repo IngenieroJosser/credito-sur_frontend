@@ -273,6 +273,7 @@ const RutaClientLoaded = ({
 
   const visitasCobradorRef = useRef<VisitaRuta[]>([])
   const lastEnrichKeyRef = useRef('')
+  const lastMisCreditosEnrichKeyRef = useRef('')
 
   const historial = useRutaHistorial({
     rutaId,
@@ -1301,6 +1302,20 @@ const RutaClientLoaded = ({
   useEffect(() => {
     const enriquecerMisCreditos = async () => {
       if (misCreditos.length === 0 || vistaRuta !== 'MIS_CLIENTES') return
+
+      const enrichKey = JSON.stringify({
+        items: misCreditos.map((v: any) => ({
+          id: v?.id,
+          prestamoId: v?.prestamoId,
+          recaudo: v?.recaudadoDelDia,
+          cuota: v?.montoCuota,
+          saldo: v?.saldoTotal,
+          estado: v?.estado,
+        })),
+      })
+
+      if (lastMisCreditosEnrichKeyRef.current === enrichKey) return
+      lastMisCreditosEnrichKeyRef.current = enrichKey
 
       const hoyBogota = getBogotaDateKey(new Date())
 

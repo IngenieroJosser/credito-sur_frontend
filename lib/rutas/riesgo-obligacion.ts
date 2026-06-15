@@ -63,17 +63,16 @@ export const resolveRiesgoObligacion = (params: {
     estadoCalculado,
   })
 
-  // Calcular cuota base
-  const cuotaBase = Number(
-    row?.montoCuotaNormal ??
-    row?.montoCuota ??
-    row?.montoMetaOperativaPendiente ??
-    prestamo?.montoCuotaNormal ??
-    prestamo?.valorCuota ??
-    cuotaObjetivo?.montoNominal ??
-    cuotaObjetivo?.montoCuota ??
-    cuotaObjetivo?.monto ??
-    0
+  // Calcular cuota base usando maxPositive para evitar que 0 bloquee fallback
+  const cuotaBase = maxPositive(
+    row?.montoCuotaNormal,
+    row?.montoCuota,
+    row?.montoMetaOperativaPendiente,
+    prestamo?.montoCuotaNormal,
+    prestamo?.valorCuota,
+    cuotaObjetivo?.montoNominal,
+    cuotaObjetivo?.montoCuota,
+    cuotaObjetivo?.monto,
   )
 
   // Si está en mora con acumulado vencido, usar ratio como factor dominante
