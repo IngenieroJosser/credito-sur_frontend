@@ -157,7 +157,7 @@ export default function PuntoDeVentaFloatingActions() {
         clienteId: undefined,
         clienteDni: undefined,
         clienteTelefono: undefined,
-        articulo: 'Venta contado',
+        articulo: v.descripcion?.replace('Venta de contado: ', '') || 'Venta contado',
         monto: v.monto || 0,
         cuotaInicial: 0,
         cuotas: 0,
