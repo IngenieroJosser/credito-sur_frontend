@@ -23,11 +23,22 @@ export type CrearCreditoModalData = {
   notas?: string
   ventaContado?: boolean
   articuloNombre?: string
+  metodoPago?: 'EFECTIVO' | 'TRANSFERENCIA'
 }
 
 export type CrearPrestamoPayload = CrearPrestamoDto & {
   cuotas?: number
   esContado?: boolean
+}
+
+export type VentaContadoPayload = {
+  clienteId: string
+  productoId: string
+  precioVenta: number
+  cajaId: string
+  creadoPorId: string
+  metodoPago: 'EFECTIVO' | 'TRANSFERENCIA'
+  notas: string
 }
 
 export function resolveCurrentUserId() {
@@ -80,6 +91,9 @@ export function buildCrearPrestamoPayload(
 ): CrearPrestamoPayload {
   const esArticulo = data.creditType === 'articulo'
   const esContado = esArticulo && Boolean(data.ventaContado)
+  if (esContado) {
+    throw new Error('La venta de contado debe registrarse por el flujo de ventas.')
+  }
   const frecuenciaPago = esContado ? FrecuenciaPago.MENSUAL : (data.frecuenciaPago || FrecuenciaPago.DIARIO)
   const totalCuotas = data.cuotas || data.cantidadCuotas || data.cuotasTotales || data.numCuotas || 0
   const actorId = creadoPorId || resolveCurrentUserId()
@@ -113,7 +127,21 @@ export function buildCrearPrestamoPayload(
     if (!esContado) payload.precioProductoId = data.precioProductoId
     if (esContado) payload.notas = 'Venta de artículo de contado'
   }
-
-  console.log('[buildCrearPrestamoPayload] returning:', payload);
   return payload
+}
+
+export function buildVentaContadoPayload(
+  data: CrearCreditoModalData,
+  creadoPorId: string = resolveCurrentUserId(),
+  cajaId = '',
+): VentaContadoPayload {
+  return {
+    clienteId: data.clienteCreditoId,
+    productoId: data.articuloId || '',
+    precioVenta: Number(data.monto || 0),
+    cajaId,
+    creadoPorId: creadoPorId || resolveCurrentUserId(),
+    metodoPago: (data.metodoPago || 'EFECTIVO') as 'EFECTIVO' | 'TRANSFERENCIA',
+    notas: data.notas || 'Venta de artículo de contado',
+  }
 }

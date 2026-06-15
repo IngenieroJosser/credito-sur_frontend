@@ -374,6 +374,13 @@ export const clientesService = {
     }
   },
 
+  /**
+   * Obtener estado de cuenta financiero del cliente
+   */
+  async obtenerEstadoCuenta(clienteId: string): Promise<any> {
+    return apiRequest<any>('GET', `/clients/${clienteId}/estado-cuenta`, undefined, { cacheTTL: 0 });
+  },
+
   // Alias para compatibilidad
   obtenerClientes: function(filtros?: FiltrosClientes): Promise<Cliente[]> {
     return this.obtenerTodos(filtros);

@@ -169,4 +169,44 @@ describe('mapAsignacionesToVisitasLite', () => {
 
     expect(visitas[0]?.nivelRiesgo).toBe('precaucion')
   })
+
+  it('no genera visita operativa vacía cuando el cliente no tiene obligaciones válidas', () => {
+    const visitas = mapAsignacionesToVisitasLite({
+      hoyKey: '2026-06-12',
+      cobradorId: 'cobrador-1',
+      asignaciones: [
+        {
+          id: 'asig-1',
+          cliente: {
+            id: 'cliente-sin-obligacion',
+            nombres: 'Cliente',
+            apellidos: 'Sin Obligacion',
+            direccion: 'Calle 1',
+            telefono: '3000000000',
+            prestamos: [
+              {
+                id: 'prestamo-rechazado',
+                estado: 'PENDIENTE_APROBACION',
+                estadoAprobacion: 'RECHAZADO',
+                frecuenciaPago: 'DIARIO',
+                valorCuota: 100_000,
+                saldoPendiente: 300_000,
+                cuotas: [
+                  {
+                    id: 'cuota-rechazada',
+                    numeroCuota: 1,
+                    estado: 'PENDIENTE',
+                    fechaVencimiento: '2026-06-12',
+                    montoNominal: 100_000,
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      ],
+    })
+
+    expect(visitas).toEqual([])
+  })
 })

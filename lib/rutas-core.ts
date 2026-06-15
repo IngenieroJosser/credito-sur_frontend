@@ -95,6 +95,17 @@ export const isPrestamoRevertido = (prestamo: any): boolean => {
   return getEstadoRevisionOperacion(prestamo).esRevertido;
 };
 
+const nonOperativePrestamoStates = new Set([
+  'PERDIDA',
+  'BORRADOR',
+  'ANULADO',
+  'ANULADA',
+  'CANCELADO',
+  'CANCELADA',
+  'REVERSADO',
+  'REVERTIDO',
+]);
+
 export const isPrestamoOperativo = (prestamo: any): boolean => {
   if (!prestamo) return false;
   if (prestamo?.eliminadoEn) return false;
@@ -104,7 +115,7 @@ export const isPrestamoOperativo = (prestamo: any): boolean => {
   const tipoPrestamo = normalizeUpper(prestamo?.tipoPrestamo ?? prestamo?.tipo);
 
   if (estadoAprobacion === 'RECHAZADO') return false;
-  if (['PERDIDA', 'BORRADOR'].includes(estado)) return false;
+  if (nonOperativePrestamoStates.has(estado)) return false;
   if (isPrestamoRevertido(prestamo)) return false;
   if (prestamo?.esContado || tipoPrestamo === 'VENTA_CONTADO') return false;
 
@@ -115,7 +126,7 @@ export const isCuotaOperativaParaFecha = (cuota: any, fechaOperativaKey: string)
   if (!cuota || !fechaOperativaKey) return false;
 
   const estado = normalizeUpper(cuota?.estado ?? cuota?.estadoActual);
-  if (!['PENDIENTE', 'PARCIAL', 'VENCIDA'].includes(estado)) return false;
+  if (!['PENDIENTE', 'PARCIAL', 'VENCIDA', 'PRORROGADA'].includes(estado)) return false;
 
   const fechaKey = normalizeDateKey(
     String(
@@ -469,6 +480,12 @@ export const getBogotaDateKey = (date: Date | string | number): string => {
   // Llave YYYY-MM-DD interpretada en zona horaria Bogotá.
   // Esta es la representación canónica para comparaciones por día.
   try {
+    if (typeof date === 'string') {
+      const raw = date.trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+        return raw;
+      }
+    }
     const d = date instanceof Date ? date : new Date(date);
     if (isNaN(d.getTime())) return '';
     const parts = d
@@ -528,10 +545,16 @@ export const resolveFechaEfectivaCuota = (cuota: any): string => {
   // Si la cuota está PRORROGADA y trae fechaVencimientoProrroga, esa fecha manda.
   // En caso contrario usa fechaVencimiento.
   if (!cuota) return '';
-  const estado = String(cuota?.estado || '').toUpperCase();
-  const raw = (estado === 'PRORROGADA' && cuota?.fechaVencimientoProrroga)
-    ? cuota.fechaVencimientoProrroga
-    : cuota?.fechaVencimiento;
+
+  const estado = String(
+    cuota?.estadoActual ?? cuota?.estado ?? '',
+  ).toUpperCase();
+
+  const raw =
+    estado === 'PRORROGADA' && cuota?.fechaVencimientoProrroga
+      ? cuota.fechaVencimientoProrroga
+      : cuota?.fechaEfectiva || cuota?.fechaVencimientoProrroga || cuota?.fechaVencimiento;
+
   return raw ? String(raw) : '';
 };
 

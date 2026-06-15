@@ -12,6 +12,9 @@ export { prestamosService } from './prestamos-service';
 export type { Cuota, CrearPrestamoDto, FiltrosPrestamos, EstadisticasPrestamos, RespuestaPrestamos } from './prestamos-service';
 export type { EstadoPrestamo, FrecuenciaPago, EstadoCuota } from './prestamos-service';
 
+export { salesService } from './sales-service';
+export type { VentaContadoResponse } from './sales-service';
+
 export { rutasService } from './rutas-service';
 export type { Ruta, CrearRutaDto, ActualizarRutaDto, FiltrosRutas, EstadisticasRutas, Cobrador } from './rutas-service';
 

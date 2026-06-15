@@ -36,6 +36,7 @@ import {
   esDomingoBogota,
   getBogotaDateKey,
   getEstadoRevisionOperacion,
+  isPrestamoOperativo,
   resolveFechaEfectivaCuota,
   resolveRutaDailySummary,
   shouldExcludeVisitaFromOperationalMeta,
@@ -101,7 +102,7 @@ interface RutasPageViewProps {
   supervisores?: { id: string; nombre: string; rol?: string }[];
 }
 
-const mapAsignacionesToClientesRuta = (asignaciones: any[] = []): ClienteSelection[] => {
+export const mapAsignacionesToClientesRuta = (asignaciones: any[] = []): ClienteSelection[] => {
   const uniqueByClienteId = new Map<string, ClienteSelection>();
 
   asignaciones.forEach((a: any) => {
@@ -114,7 +115,7 @@ const mapAsignacionesToClientesRuta = (asignaciones: any[] = []): ClienteSelecti
       codigo: a.cliente.dni,
       direccion: a.cliente.telefono,
       prestamos: (a.cliente.prestamos || [])
-        .filter((p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA')
+        .filter((p: any) => isPrestamoOperativo(p))
         .map((p: any) => ({
           id: p.id,
           tipo:
@@ -343,6 +344,12 @@ export const RutasPageView = ({
             .filter((v: any) => shouldShowVisitaEnRutaHoy(v, hoyKey))
             .filter((v: any) => !shouldExcludeVisitaFromOperationalMeta(v))
 
+          const clientesOperativosHoy = new Set(
+            visitasOperativasHoy
+              .map((v: any) => v.clienteId)
+              .filter(Boolean),
+          ).size
+
           const statsHoy = computeRutaHoyUiStatsFromVisitas(
             visitasOperativasHoy,
             0,
@@ -359,7 +366,7 @@ export const RutasPageView = ({
             meta,
             recaudo,
             pendiente: Math.max(0, meta - recaudo),
-            clientesOperativosHoy: visitasOperativasHoy.length,
+            clientesOperativosHoy,
             visitasOperativasHoy,
           }
         } catch (e) {
