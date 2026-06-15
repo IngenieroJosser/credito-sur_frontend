@@ -230,8 +230,7 @@ const RutaClientLoaded = ({
   const [showCrearCreditoPrompt, setShowCrearCreditoPrompt] = useState(false)
   const [isExportingPdf, setIsExportingPdf] = useState(false)
 
-  const [showHistory, setShowHistory] = useState(false)
-  const [showMisClientes, setShowMisClientes] = useState(false)
+  const [vistaRuta, setVistaRuta] = useState<'ACTUAL' | 'HISTORIAL' | 'MIS_CLIENTES'>('ACTUAL')
   const [enrichNonce, setEnrichNonce] = useState(0)
   
   const [visitaAusente, setVisitaAusente] = useState<VisitaRuta | null>(null)
@@ -416,24 +415,24 @@ const RutaClientLoaded = ({
   }, [])
 
   useEffect(() => {
-    if (!showHistory) return
+    if (vistaRuta !== 'HISTORIAL') return
     const hoy = hoyBogotaKey
     const dayData = (historialRutasRef.current as any)?.[hoy]
     if (!dayData?.loaded) return
     void enriquecerHistorialDiaConCuotas(hoy)
-  }, [showHistory, hoyBogotaKey, enriquecerHistorialDiaConCuotas])
+  }, [vistaRuta, hoyBogotaKey, enriquecerHistorialDiaConCuotas])
 
   useEffect(() => {
-    if (!showHistory) return
+    if (vistaRuta !== 'HISTORIAL') return
     if (!selectedHistoryDate) return
     void enriquecerHistorialDiaConCuotas(selectedHistoryDate)
-  }, [showHistory, selectedHistoryDate, enriquecerHistorialDiaConCuotas])
+  }, [vistaRuta, selectedHistoryDate, enriquecerHistorialDiaConCuotas])
 
 
 
   useEffect(() => {
 
-    if (!showHistory || !initialRuta?.id) return;
+    if (vistaRuta !== 'HISTORIAL' || !initialRuta?.id) return;
 
     const hoy = hoyBogotaKey;
     const existing = (historialRutas || {})[hoy];
@@ -444,7 +443,7 @@ const RutaClientLoaded = ({
 
     }
 
-  }, [showHistory, rutaId, historialRutas, cargarHistorialFecha]);  // === Mapeo de asignaciones a modelo de UI (VisitaRuta) ===
+  }, [vistaRuta, rutaId, historialRutas, cargarHistorialFecha]);  // === Mapeo de asignaciones a modelo de UI (VisitaRuta) ===
   // === Mapeo de asignaciones a modelo de UI (VisitaRuta) ===
   const mapearAsignacionesAVisitas = useCallback((data: any) => {
     const asignaciones = data?.asignaciones || data?.asignacionesRuta;
@@ -595,31 +594,6 @@ const RutaClientLoaded = ({
       )
       const frecuencia = p?.frecuenciaPago || 'DIARIO'
       const nombreCliente = `${c?.nombres || ''} ${c?.apellidos || ''}`.trim()
-
-      return {
-        id: `${visita?.asignacionId || row?.asignacionId || 'daily'}-${p?.id || cuotaId || idx}`,
-        cliente: nombreCliente || row?.nombreCliente || 'Cliente',
-        direccion: c?.direccion || visita?.direccion || 'Sin dirección registrada',
-        telefono: c?.telefono || visita?.telefono || '',
-        horaSugerida: '08:00 AM',
-        montoCuota,
-        montoCuotaNormal,
-        montoCuotaPendiente: montoMetaPendiente > 0 ? montoMetaPendiente : montoCuota,
-        montoMoraAcumulada: Number(
-          row?.montoMoraAcumulada ??
-            cuotaObjetivo?.montoMoraAcumulada ??
-            cuotaObjetivo?.saldoVencidoAcumulado ??
-            0,
-        ),
-        cuotasVencidas: Number(row?.cuotasVencidas ?? cuotaObjetivo?.cuotasVencidas ?? 0),
-        saldoTotal: estadoCalculado === 'pagado' ? 0 : Number(p?.saldoPendiente || 0),
-        estado: estadoCalculado,
-        estadoVisita: row?.estadoVisita || p?.estadoVisita || visita?.estadoVisita || undefined,
-        notasVisita: row?.notasVisita || p?.notasVisita || visita?.notasVisita || undefined,
-        proximaVisita: fechaEfectiva,
-        targetVencimiento: proximaCuota?.fechaVencimiento || cuotaObjetivo?.fechaVencimiento,
-        ordenVisita: Number(visita?.ordenVisita || row?.ordenVisita || idx + 1),
-      }
       
       // Calcular riesgo de obligación/crédito (no del cliente)
       const diasMora = Number(cuotaObjetivo?.diasMora || p?.diasMora || 0)
@@ -1005,7 +979,7 @@ const RutaClientLoaded = ({
       exportarRutaDiariaCSV,
       exportarRutaDiariaPDF
     };
-  }, [visitasCobrador, searchQuery, periodoRutaFiltro, showHistory, showMisClientes, initialRuta?.id]);
+  }, [visitasCobrador, searchQuery, periodoRutaFiltro, vistaRuta, initialRuta?.id]);
 
 
 
@@ -1407,11 +1381,11 @@ const RutaClientLoaded = ({
 
   useEffect(() => {
 
-    if (!showMisClientes) return
+    if (vistaRuta !== 'MIS_CLIENTES') return
 
     cargarMisCreditos()
 
-  }, [showMisClientes, cargarMisCreditos])
+  }, [vistaRuta, cargarMisCreditos])
 
   // Tiempo real: actualización optimista para visitas registradas
   useRealtimeData(['pagos_actualizados', 'rutas_actualizadas', 'prestamos_actualizados', 'jornadas_actualizadas'], async (payload?: any) => {
@@ -1572,15 +1546,13 @@ const RutaClientLoaded = ({
 
                     onClick={() => {
 
-                      setShowHistory(false)
-
-                      setShowMisClientes(false)
+                      setVistaRuta('ACTUAL')
 
                     }}
 
                     className={`px-4 py-2 border rounded-xl flex items-center gap-2 font-medium shadow-sm transition-colors ${
 
-                      !showHistory 
+                      vistaRuta === 'ACTUAL'
 
                         ? 'bg-[#08557f] text-white border-[#08557f]' 
 
@@ -1600,11 +1572,11 @@ const RutaClientLoaded = ({
 
                   <button 
 
-                    onClick={() => setShowHistory(true)}
+                    onClick={() => setVistaRuta('HISTORIAL')}
 
                     className={`px-4 py-2 border rounded-xl flex items-center gap-2 font-medium shadow-sm transition-colors ${
 
-                      showHistory 
+                      vistaRuta === 'HISTORIAL'
 
                         ? 'bg-[#08557f] text-white border-[#08557f]' 
 
@@ -1626,15 +1598,13 @@ const RutaClientLoaded = ({
 
                     onClick={() => {
 
-                      setShowMisClientes(true)
-
-                      setShowHistory(false)
+                      setVistaRuta('MIS_CLIENTES')
 
                     }}
 
                     className={`px-4 py-2 border rounded-xl flex items-center gap-2 font-medium shadow-sm transition-colors ${
 
-                      showMisClientes
+                      vistaRuta === 'MIS_CLIENTES'
 
                         ? 'bg-[#08557f] text-white border-[#08557f]'
 
@@ -1652,7 +1622,7 @@ const RutaClientLoaded = ({
 
 
 
-                  {!esDiaNoLaboral && !rutaCompletada && !showHistory && (
+                  {!esDiaNoLaboral && !rutaCompletada && vistaRuta === 'ACTUAL' && (
                     <button 
                       type="button"
                       onClick={handleActivarRuta}
@@ -1676,7 +1646,7 @@ const RutaClientLoaded = ({
 
 
 
-                  {(currentUser?.rol === 'SUPER_ADMINISTRADOR' || currentUser?.rol === 'ADMIN') && !showHistory && (
+                  {(currentUser?.rol === 'SUPER_ADMINISTRADOR' || currentUser?.rol === 'ADMIN') && vistaRuta === 'ACTUAL' && (
 
                     <div className="flex gap-2">
 
@@ -1734,7 +1704,7 @@ const RutaClientLoaded = ({
 
               {/* Filtros de Periodo (Estilo Cobrador Exacto) */}
 
-              {!showHistory && !showMisClientes && (
+              {vistaRuta === 'ACTUAL' && (
 
                 <div className="mt-4 pt-4 border-t border-slate-200">
 
@@ -1805,7 +1775,7 @@ const RutaClientLoaded = ({
 
             
 
-            {showHistory ? (
+            {vistaRuta === 'HISTORIAL' ? (
 
               // ========================= VISTA HISTORIAL =========================
 
@@ -2196,7 +2166,7 @@ const RutaClientLoaded = ({
 
               </div>
 
-            ) : showMisClientes ? (
+            ) : vistaRuta === 'MIS_CLIENTES' ? (
 
               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
 
