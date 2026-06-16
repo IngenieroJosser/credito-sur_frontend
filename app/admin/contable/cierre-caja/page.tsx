@@ -771,7 +771,7 @@ export default function CierreCajaPage() {
             {/* Resumen del Día - Caja Principal */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
-                <div className="text-xs font-bold text-slate-500 uppercase mb-1">Saldo Caja Principal</div>
+                <div className="text-xs font-bold text-slate-500 uppercase mb-1">Saldo Caja Oficina</div>
                 <div className="text-xl font-bold text-slate-900">
                   <MoneyAmount value={getSaldoCaja(principalCaja)} amountClassName="text-xl font-bold text-slate-900" />
                 </div>
