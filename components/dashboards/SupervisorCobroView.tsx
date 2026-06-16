@@ -158,6 +158,7 @@ import {
 } from '@/lib/rutas-core'
 
 import { mapAsignacionesToVisitasLite } from '@/lib/ruta-visitas-mapper'
+import { mapDailyVisitsResponseToVisitas as mapDailyVisitsResponseToVisitasShared, type MapMode } from '@/lib/rutas/map-daily-visits-to-visitas'
 
 import SundayNoticeBanner from '@/components/rutas/SundayNoticeBanner'
 
@@ -857,6 +858,17 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
   const [rutaInfo, setRutaInfo] = useState<{ id: string; cobradorId: string; nombre?: string; cobradorNombre?: string } | null>(null);
 
+  const mapDailyVisitsResponseToVisitas = useCallback((resp: any, cobradorId: string): VisitaRuta[] => {
+    return mapDailyVisitsResponseToVisitasShared({
+      resp,
+      hoyBogotaKey,
+      rutaData: { cobradorId },
+      initialRuta: { cobradorId },
+      modo: 'LIVE' as MapMode,
+      fechaOperativa: hoyBogotaKey,
+    })
+  }, [hoyBogotaKey])
+
 
 
   const cargarMisCreditos = useCallback(async () => {
@@ -870,45 +882,13 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         rutaId as string,
         hoyBogotaKey,
       )
-      const obligaciones = Array.isArray((visitasResp as any)?.obligaciones)
-        ? (visitasResp as any).obligaciones
-        : []
-      const visitas = Array.isArray((visitasResp as any)?.visitas)
-        ? (visitasResp as any).visitas
-        : []
-      const mappedDaily: VisitaRuta[] = obligaciones.length > 0
-        ? obligaciones.map((o: any, idx: number) =>
-            mapObligacionToVisitaRuta(o, cobradorId, idx, hoyBogotaKey),
-          )
-        : visitas.map((row: any, idx: number) =>
-            mapDailyVisitToVisitaRuta(row, cobradorId, idx),
-          )
-
-      const seen = new Set<string>()
-      const finalesDaily = mappedDaily
-        .filter((v: any) => {
-          const key = String(v?.prestamoId || v?.clienteId || v?.id || '')
-          if (!key) return true
-          if (seen.has(key)) return false
-          seen.add(key)
-          return true
-        })
-        .sort((a: any, b: any) => {
-          if (a.estado === 'pagado' && b.estado !== 'pagado') return 1
-          if (a.estado !== 'pagado' && b.estado === 'pagado') return -1
-          const ao = Number(a.ordenVisita ?? 0)
-          const bo = Number(b.ordenVisita ?? 0)
-          if (ao !== bo) return ao - bo
-          return String(a.id || '').localeCompare(String(b.id || ''))
-        })
-
-      setMisCreditos(finalesDaily)
+      setMisCreditos(mapDailyVisitsResponseToVisitas(visitasResp, cobradorId))
     } catch (e: any) {
       console.error('Error cargando mis clientes:', e)
     } finally {
       setLoadingMisCreditos(false)
     }
-  }, [rutaInfo?.cobradorId, rutaId, hoyBogotaKey])
+  }, [rutaInfo?.cobradorId, rutaId, hoyBogotaKey, mapDailyVisitsResponseToVisitas])
 
 
 
@@ -1223,8 +1203,9 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
             )
             return !estado.includes('REPROGRAM') && metaPendiente > 0
           })
-          visitasRaw = obligacionesOperativas.map((o: any, idx: number) =>
-            mapObligacionToVisitaRuta(o, ruta.cobradorId, idx, hoyKey)
+          visitasRaw = mapDailyVisitsResponseToVisitas(
+            { ...visitasDia, obligaciones: obligacionesOperativas },
+            ruta.cobradorId,
           )
         } catch (dailyError) {
           console.warn('No se pudo cargar agenda diaria de supervisor, usando detalle de ruta:', dailyError)

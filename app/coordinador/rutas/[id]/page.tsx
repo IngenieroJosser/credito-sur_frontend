@@ -99,6 +99,7 @@ import { pagosService } from '@/services/pagos-service'
 import { computeRutaHoyUiStatsFromVisitas, resolveRutaHoyKpiStats, getBogotaDateKey, isVisitaExigibleHoy, normalizeDateKey, shouldExcludeVisitaFromOperationalMeta,
   shouldIncludeVisitaInRutaHoyKpis, toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 import { isPagoCierrePendiente, mergeVisitasPreservingLocalRecaudo, sumMontoTotalPagosByBogotaDateKey } from '@/lib/ruta-recaudos'
+import { mapDailyVisitsResponseToVisitas as mapDailyVisitsResponseToVisitasShared, type MapMode } from '@/lib/rutas/map-daily-visits-to-visitas'
 
 import { exportService } from '@/services/export-service'
 
@@ -431,112 +432,15 @@ const LegacyDetalleRutaPage = () => {
   }, [setClienteDetalle]);
 
   const mapDailyVisitsResponseToVisitasCoordinador = useCallback((resp: any, cobradorId: string): VisitaRuta[] => {
-    const obligaciones = Array.isArray(resp?.obligaciones) ? resp.obligaciones : []
-    const rows = obligaciones.length > 0
-      ? obligaciones
-      : (Array.isArray(resp?.visitas) ? resp.visitas : [])
-
-    return rows.map((row: any, idx: number) => {
-      const visita = row?.visita || row || {}
-      const c = row?.cliente || visita?.cliente || {}
-      const p = row?.prestamo || visita?.prestamo || visita?.prestamos?.[0] || {}
-      const cuotaObjetivo =
-        row?.cuotaObjetivo ||
-        p?.cuotaObjetivo ||
-        visita?.cuotaObjetivo ||
-        p?.proximaCuota ||
-        visita?.proximaCuota ||
-        null
-      const proximaCuota = p?.proximaCuota || cuotaObjetivo
-      const montoMetaPendiente = Number(
-        row?.montoMetaOperativaPendiente ??
-          p?.montoMetaOperativaPendiente ??
-          cuotaObjetivo?.saldoExigibleEnFechaOperativa ??
-          proximaCuota?.montoNominal ??
-          proximaCuota?.monto ??
-          0,
-      )
-      const recaudadoDelDia = Number(
-        row?.recaudadoDelDia ??
-          p?.recaudadoDelDia ??
-          p?.recaudadoHoy ??
-          visita?.recaudadoDelDia ??
-          0,
-      )
-      const montoCuotaNormal = Number(
-        cuotaObjetivo?.montoNominal ??
-          cuotaObjetivo?.montoCuota ??
-          cuotaObjetivo?.monto ??
-          proximaCuota?.montoNominal ??
-          proximaCuota?.monto ??
-          montoMetaPendiente,
-      )
-      const montoCuota = montoMetaPendiente > 0
-        ? montoMetaPendiente
-        : Math.max(0, montoCuotaNormal - Number(cuotaObjetivo?.montoPagado || 0))
-      const estadoGestion = String(row?.estadoGestion || p?.estadoGestion || '').toUpperCase()
-      const estadoCuota = String(cuotaObjetivo?.estadoActual || cuotaObjetivo?.estado || proximaCuota?.estado || '').toUpperCase()
-      const estado: EstadoVisita =
-        recaudadoDelDia > 0 || estadoGestion === 'PAGO_REGISTRADO' || estadoCuota === 'PAGADA'
-          ? 'pagado'
-          : cuotaObjetivo?.enMoraEnFechaOperativa || estadoCuota === 'VENCIDA'
-            ? 'en_mora'
-            : 'pendiente'
-      const cuotaId = String(row?.cuotaObjetivoId || cuotaObjetivo?.id || proximaCuota?.id || visita?.cuotaObjetivoId || '')
-      const esArticulo = p?.tipo === 'ARTICULO' || p?.tipoPrestamo === 'ARTICULO'
-      const nombreCliente = `${c?.nombres || ''} ${c?.apellidos || ''}`.trim()
-
-      return {
-        id: `${visita?.asignacionId || row?.asignacionId || 'daily'}-${p?.id || cuotaId || idx}`,
-        cliente: nombreCliente || row?.nombreCliente || 'Cliente',
-        direccion: c?.direccion || visita?.direccion || 'Sin dirección registrada',
-        telefono: c?.telefono || visita?.telefono || '',
-        horaSugerida: '08:00 AM',
-        montoCuota,
-        montoCuotaNormal,
-        montoCuotaPendiente: montoMetaPendiente > 0 ? montoMetaPendiente : montoCuota,
-        montoMoraAcumulada: Number(row?.montoMoraAcumulada ?? cuotaObjetivo?.montoMoraAcumulada ?? cuotaObjetivo?.saldoVencidoAcumulado ?? 0),
-        cuotasVencidas: Number(row?.cuotasVencidas ?? cuotaObjetivo?.cuotasVencidas ?? 0),
-        saldoTotal: estado === 'pagado' ? 0 : Number(p?.saldoPendiente || 0),
-        estado,
-        estadoVisita: row?.estadoVisita || p?.estadoVisita || visita?.estadoVisita || undefined,
-        notasVisita: row?.notasVisita || p?.notasVisita || visita?.notasVisita || undefined,
-        proximaVisita:
-          cuotaObjetivo?.fechaEfectiva ||
-          p?.fechaEfectiva ||
-          proximaCuota?.fechaEfectiva ||
-          proximaCuota?.fechaVencimientoProrroga ||
-          proximaCuota?.fechaVencimiento ||
-          getBogotaDateKey(new Date()),
-        targetVencimiento: proximaCuota?.fechaVencimiento || cuotaObjetivo?.fechaVencimiento,
-        ordenVisita: Number(visita?.ordenVisita || row?.ordenVisita || idx + 1),
-        prioridad: cuotaObjetivo?.enMoraEnFechaOperativa ? 'alta' : 'media',
-        nivelRiesgo: mapNivelRiesgo(c?.nivelRiesgo || visita?.nivelRiesgo || 'VERDE') as any,
-        cobradorId,
-        periodoRuta: mapFrecuenciaToPeriodo((p?.frecuenciaPago || 'DIARIO') as any) as any,
-        clienteId: c?.id || visita?.clienteId || '',
-        prestamoId: p?.id || row?.prestamoId || '',
-        cuotaId,
-        cuotaObjetivoId: cuotaId,
-        cuotaObjetivoPrestamoId: cuotaId,
-        cuotaObjetivo,
-        proximaCuota,
-        cuotaActual: Number(cuotaObjetivo?.numeroCuota || proximaCuota?.numeroCuota || 1),
-        cuotasTotales: Number(p?.cantidadCuotas || 0),
-        tipoPrestamo: esArticulo ? 'ARTICULO' : 'EFECTIVO',
-        articuloNombre: esArticulo ? (p?.articulo || p?.producto?.nombre || 'Artículo') : 'Préstamo',
-        pendienteAprobacion: Boolean(p?.esProvisional) || String(p?.estadoAprobacion || '').toUpperCase() === 'PENDIENTE',
-        estadoAprobacion: p?.estadoAprobacion || null,
-        estadoEfectoProvisional: p?.estadoEfectoProvisional || null,
-        esProvisional: Boolean(p?.esProvisional),
-        esRevertido: Boolean(p?.esRevertido),
-        etiquetaRevision: p?.etiquetaRevision || null,
-        enProrroga: String(proximaCuota?.estado || cuotaObjetivo?.estadoActual || '').toUpperCase() === 'PRORROGADA',
-        fechaProrroga: proximaCuota?.fechaVencimientoProrroga || cuotaObjetivo?.fechaVencimientoProrroga || null,
-        fechaOriginalVencimiento: proximaCuota?.fechaVencimiento || cuotaObjetivo?.fechaVencimiento || null,
-        recaudadoDelDia,
-      } as any
-    }).sort((a: any, b: any) => Number(a.ordenVisita || 0) - Number(b.ordenVisita || 0))
+    const hoyBogotaKey = getBogotaDateKey(new Date())
+    return mapDailyVisitsResponseToVisitasShared({
+      resp,
+      hoyBogotaKey,
+      rutaData: { cobradorId },
+      initialRuta: { cobradorId },
+      modo: 'LIVE' as MapMode,
+      fechaOperativa: hoyBogotaKey,
+    })
   }, [])
 
 
