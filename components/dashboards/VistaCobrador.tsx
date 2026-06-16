@@ -5928,7 +5928,13 @@ const VistaCobrador = () => {
 
                   ...prev,
 
-                  gastos: Number(saldo.gastosDelDia || prev.gastos)
+                  gastos: Number(saldo?.gastosDelDia ?? prev.gastos ?? 0),
+                  base: Number(
+                    (saldo as any)?.saldoCaja ??
+                    (saldo as any)?.baseEfectivo ??
+                    prev.base ??
+                    0
+                  ),
 
                 }));
 
@@ -5939,6 +5945,8 @@ const VistaCobrador = () => {
                 setRutaStats(prev => ({ ...prev, gastos: prev.gastos + data.valor }))
 
               }
+
+              await cargarDatosRuta(true)
 
               setModalAlerta({
                 titulo: 'Éxito',
