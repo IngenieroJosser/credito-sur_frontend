@@ -118,6 +118,13 @@ export const getEtiquetaMovimientoContable = (m: MovimientoClasificable): Etique
   const ref = normalize(m.tipoReferencia)
   const accountCode = String(m.accountCode || '')
   const concepto = normalize(m.concepto)
+  const referenciaId = normalize((m as any).referenciaId)
+  const esReversa =
+    (ref === 'AJUSTE' && referenciaId.startsWith('REVERSA:')) ||
+    concepto.startsWith('REVERSA DE ASIENTO') ||
+    concepto.startsWith('REVERSA DE DESEMBOLSO') ||
+    concepto.includes('REVERSA DE ASIENTO') ||
+    concepto.includes('REVERSO DE ASIENTO')
 
   if (esIngresoOperativoContable(m)) {
     return { label: 'INGRESO', positivo: true, className: 'bg-emerald-100 text-emerald-700' }
@@ -130,6 +137,11 @@ export const getEtiquetaMovimientoContable = (m: MovimientoClasificable): Etique
   }
   if (esCuotaInicialContable(m) || (ref === 'VENTA_ARTICULO' && Number(m.monto || 0) > 0)) {
     return { label: 'CUOTA INICIAL', positivo: true, className: 'bg-amber-100 text-amber-700' }
+  }
+  if (esReversa) {
+    const impactoCaja = Number(m.impactoCaja || 0)
+    const positivo = impactoCaja !== 0 ? impactoCaja > 0 : Number(m.monto || 0) >= 0
+    return { label: 'REVERSA', positivo, className: 'bg-slate-100 text-slate-700' }
   }
   if (ref === 'DESEMBOLSO' || ref === 'PRESTAMO' || concepto.includes('DESEMBOLSO')) {
     return { label: 'DESEMBOLSO', positivo: false, className: 'bg-blue-100 text-blue-700' }
