@@ -38,6 +38,9 @@ import {
   Calendar,
   TrendingDown,
   Gavel,
+  Filter,
+  MapPin,
+  X,
 } from 'lucide-react'
 import { formatCurrency, formatMilesCOP } from '@/lib/utils'
 import { aprobacionesService, type Aprobacion, type PendingResponse, type SuperadminReviewResponse } from '@/services/aprobaciones-service'
@@ -732,39 +735,52 @@ export default function RevisionesPage() {
       </div>
 
       {/* Filtros */}
-      <div className="flex gap-3 mb-6 flex-wrap">
-        <select
-          value={filtroRuta}
-          onChange={(e) => setFiltroRuta(e.target.value)}
-          className="px-4 py-2 rounded-xl text-xs font-medium border border-slate-200 bg-white text-slate-700 hover:border-slate-300 transition-colors"
-        >
-          <option value="">Todas las rutas</option>
-          {rutas.map(ruta => (
-            <option key={ruta.id} value={ruta.id}>{ruta.nombre || ruta.codigo}</option>
-          ))}
-        </select>
+      <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] mb-6">
+        <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
+          <div className="flex items-center gap-2 text-slate-400">
+            <Filter className="h-4 w-4" />
+            <span className="text-xs font-bold uppercase tracking-wider">Filtros</span>
+          </div>
 
-        <label className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-medium border border-slate-200 bg-white text-slate-700 hover:border-slate-300 transition-colors cursor-pointer">
-          <input
-            type="checkbox"
-            checked={filtroPuntoVenta}
-            onChange={(e) => setFiltroPuntoVenta(e.target.checked)}
-            className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-          />
-          Solo Punto de Venta
-        </label>
+          <div className="flex flex-wrap gap-3 flex-1">
+            <div className="relative">
+              <select
+                value={filtroRuta}
+                onChange={(e) => setFiltroRuta(e.target.value)}
+                className="appearance-none pl-10 pr-8 py-2 rounded-xl text-xs font-medium border border-slate-200 bg-white text-slate-700 hover:border-slate-300 transition-colors cursor-pointer focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900/20"
+              >
+                <option value="">Todas las rutas</option>
+                {rutas.map(ruta => (
+                  <option key={ruta.id} value={ruta.id}>{ruta.nombre || ruta.codigo}</option>
+                ))}
+              </select>
+              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+            </div>
 
-        {(filtroRuta || filtroPuntoVenta) && (
-          <button
-            onClick={() => {
-              setFiltroRuta('')
-              setFiltroPuntoVenta(false)
-            }}
-            className="px-3 py-2 rounded-xl text-xs font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-          >
-            Limpiar filtros
-          </button>
-        )}
+            <label className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-medium border border-slate-200 bg-white text-slate-700 hover:border-slate-300 transition-colors cursor-pointer hover:bg-slate-50">
+              <input
+                type="checkbox"
+                checked={filtroPuntoVenta}
+                onChange={(e) => setFiltroPuntoVenta(e.target.checked)}
+                className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 focus:ring-offset-0"
+              />
+              Solo Punto de Venta
+            </label>
+
+            {(filtroRuta || filtroPuntoVenta) && (
+              <button
+                onClick={() => {
+                  setFiltroRuta('')
+                  setFiltroPuntoVenta(false)
+                }}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+              >
+                <X className="h-3.5 w-3.5" />
+                Limpiar
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
       {loading ? (
