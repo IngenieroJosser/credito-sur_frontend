@@ -339,7 +339,7 @@ const ListadoPrestamosElegante = () => {
 
   // Backend already paginates — don't slice again
   const prestamosPaginados = prestamosFiltrados;
-  const totalPaginas = Math.ceil(totalPrestamos / prestamosPorPagina);
+  const totalPaginas = Math.ceil(prestamosFiltrados.length / prestamosPorPagina);
 
   const cambiarPagina = (pagina: number) => {
     setPaginaActual(pagina);
@@ -494,10 +494,10 @@ const ListadoPrestamosElegante = () => {
         {/* Estadísticas */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Créditos</p>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Créditos (visibles)</p>
             <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-bold text-slate-900 tracking-tight">{estadisticas.total}</span>
-              <span className="text-xs font-semibold text-emerald-600">({estadisticas.activos} activos normales)</span>
+              <span className="text-2xl font-bold text-slate-900 tracking-tight">{prestamosFiltrados.length}</span>
+              <span className="text-xs font-semibold text-slate-500">de {totalPrestamos} totales</span>
             </div>
           </div>
           
