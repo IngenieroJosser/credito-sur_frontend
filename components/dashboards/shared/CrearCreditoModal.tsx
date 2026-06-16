@@ -49,6 +49,7 @@ interface CrearCreditoModalProps {
   hideTypeSelector?: boolean
   defaultVentaContado?: boolean
   lockVentaContado?: boolean
+  allowVentaContadoOption?: boolean
 }
 
 const dateTimeLocalToBogotaOffsetIso = (value: string) => {
@@ -183,6 +184,7 @@ export default function CrearCreditoModal({
   hideTypeSelector,
   defaultVentaContado = false,
   lockVentaContado = false,
+  allowVentaContadoOption = true,
 }: CrearCreditoModalProps) {
   const [creditType, setCreditType] = useState<'prestamo' | 'articulo'>(defaultCreditType || 'prestamo')
   const [clienteCreditoId, setClienteCreditoId] = useState('')
@@ -206,6 +208,8 @@ export default function CrearCreditoModal({
 
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [articulos, setArticulos] = useState<Articulo[]>([])
+
+  const puedeMostrarModoVenta = creditType === 'articulo' && allowVentaContadoOption && !lockVentaContado
 
   useEffect(() => {
     if (isOpen) {
@@ -567,11 +571,13 @@ export default function CrearCreditoModal({
                       <strong>{lockVentaContado ? 'Venta de contado:' : 'Venta de Artículos:'}</strong>{' '}
                       {lockVentaContado
                         ? 'Selecciona el cliente y el artículo. No se generan cuotas ni plan de pagos.'
-                        : <>Elige crédito por meses o marca <strong>Compra de Contado</strong>. En contado no se generan cuotas ni plan de pagos.</>}
+                        : allowVentaContadoOption
+                          ? <>Elige crédito por meses o marca <strong>Compra de Contado</strong>. En contado no se generan cuotas ni plan de pagos.</>
+                          : 'Selecciona el artículo, plazo, frecuencia y fecha de primer cobro.'}
                     </p>
                   </div>
 
-                  {!lockVentaContado && (
+                  {puedeMostrarModoVenta && (
                   <div className="mt-3">
                     <FieldLabel required>Modo de Venta</FieldLabel>
                     <div className="flex items-center gap-2">

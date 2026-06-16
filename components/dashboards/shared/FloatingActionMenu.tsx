@@ -76,7 +76,7 @@ export default function FloatingActionMenu({ actions }: FloatingActionMenuProps)
       )}
       <div ref={menuRef} className="fixed right-4 sm:right-6 z-50 flex flex-col items-end gap-3 bottom-24 md:bottom-[calc(1.5rem+env(safe-area-inset-bottom))]">
         <div
-          className={`flex flex-col gap-3 transition-all duration-200 origin-bottom-right ${
+          className={`flex max-h-[calc(100vh-9rem)] flex-col gap-3 overflow-y-auto pr-1 transition-all duration-200 origin-bottom-right ${
             isOpen
               ? 'scale-100 opacity-100 translate-y-0 pointer-events-auto'
               : 'scale-95 opacity-0 translate-y-2 pointer-events-none'
