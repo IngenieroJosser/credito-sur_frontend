@@ -44,6 +44,7 @@ export interface AprobarDto {
   type: TipoAprobacion;
   aprobadoPorId?: string;
   notas?: string;
+  resultadoRevision?: 'RECHAZADO_CON_DEUDA' | 'RECHAZADO_CON_REINTEGRO';
   editedData?: any;
 }
 
@@ -52,6 +53,7 @@ export interface RechazarDto {
   rechazadoPorId?: string;
   motivoRechazo?: string;
   notas?: string;
+  resultadoRevision?: 'RECHAZADO_CON_DEUDA' | 'RECHAZADO_CON_REINTEGRO';
 }
 
 export const aprobacionesService = {
@@ -102,4 +104,5 @@ export const aprobacionesService = {
     return apiRequest<Aprobacion[]>('POST', '/approvals/history', { entidadId, tabla });
   }
 };
+
 

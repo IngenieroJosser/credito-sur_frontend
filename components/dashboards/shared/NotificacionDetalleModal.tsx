@@ -35,7 +35,7 @@ export interface NotificacionDetalleModalProps {
   onClose: () => void
   notificacion: any
   onApprove: (id: string, type: string, editedDetails: any) => Promise<void>
-  onReject: (id: string, type: string, reason: string) => Promise<void>
+  onReject: (id: string, type: string, reason: string, resultadoRevision?: 'RECHAZADO_CON_DEUDA' | 'RECHAZADO_CON_REINTEGRO') => Promise<void>
   canApprove?: boolean
 }
 
@@ -113,6 +113,8 @@ export default function NotificacionDetalleModal({
   const [actionComment, setActionComment] = useState('')
   const [showApproveModal, setShowApproveModal] = useState(false)
   const [showRejectModal, setShowRejectModal] = useState(false)
+  const [showRejectDeudaModal, setShowRejectDeudaModal] = useState(false)
+  const [showRejectReintegroModal, setShowRejectReintegroModal] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [history, setHistory] = useState<any[]>([])
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
@@ -672,7 +674,9 @@ export default function NotificacionDetalleModal({
   const safeMeta = typeof notificacion.metadata === 'string'
     ? JSON.parse(notificacion.metadata)
     : (notificacion.metadata || {})
-  const safeMetaDetalles = (safeMeta && typeof safeMeta === 'object') ? (safeMeta.detalles || {}) : {}
+  const safeMetaDetalles = safeJsonParse(
+    safeMeta && typeof safeMeta === 'object' ? safeMeta.detalles : {},
+  )
 
   const isPrestamo = tipo === 'PRESTAMO' || approvalType === 'NUEVO_PRESTAMO'
   const isGasto = tipo === 'GASTO' || approvalType === 'GASTO'
@@ -680,6 +684,22 @@ export default function NotificacionDetalleModal({
   const isArticle = isPrestamo && (editedDetails?.tipo === 'ARTICULO' || editedDetails?.tipoPrestamo === 'ARTICULO' || safeMeta?.tipo === 'ARTICULO' || safeMeta?.tipoPrestamo === 'ARTICULO')
   const isApprovalNotification = Boolean(approvalType)
   const isNuevoCliente = approvalType === 'NUEVO_CLIENTE'
+  
+  // Detectar gastos provisionales
+  const datosSolicitud = safeJsonParse(
+    notificacion.datosSolicitud ||
+    safeMeta.datosSolicitud ||
+    safeMeta.detalles?.datosSolicitud ||
+    notificacion.aprobacion?.datosSolicitud
+  )
+  const esGastoProvisional =
+    isGasto &&
+    (
+      datosSolicitud.esProvisional === true ||
+      safeMeta.esProvisional === true ||
+      safeMetaDetalles.esProvisional === true ||
+      editedDetails?.esProvisional === true
+    )
   const mediaArchivos = (() => {
     const meta = typeof notificacion.metadata === 'string' ? JSON.parse(notificacion.metadata) : (notificacion.metadata || {})
     const dets = typeof notificacion.detalles === 'string' ? JSON.parse(notificacion.detalles) : (notificacion.detalles || {})
@@ -772,11 +792,11 @@ export default function NotificacionDetalleModal({
     }
   }
 
-  const rejectNow = async (motivo: string) => {
+  const rejectNow = async (motivo: string, resultadoRevision?: 'RECHAZADO_CON_DEUDA' | 'RECHAZADO_CON_REINTEGRO') => {
     if (!notificacion.entidadId || !approvalType) return
     setIsProcessing(true)
     try {
-      await onReject(notificacion.entidadId, approvalType, motivo)
+      await onReject(notificacion.entidadId, approvalType, motivo, resultadoRevision)
       handleClose()
     } catch (error) {
       console.error('Error processing notification action:', error)
@@ -1431,6 +1451,17 @@ export default function NotificacionDetalleModal({
 
               {isGasto && (
                 <div className="bg-orange-50/50 rounded-2xl border border-orange-100 p-5 space-y-4">
+                  {esGastoProvisional && (
+                    <div className="mb-4 p-3 bg-amber-50 rounded-xl border border-amber-200">
+                      <div className="flex items-center gap-2 mb-2">
+                        <AlertTriangle className="h-4 w-4 text-amber-600" />
+                        <p className="text-[10px] font-black uppercase tracking-widest text-amber-700">Gasto Provisional</p>
+                      </div>
+                      <p className="text-xs text-amber-800 font-medium leading-relaxed">
+                        La caja ya fue afectada. La decisión solo define si se reconoce como gasto operativo, deuda del cobrador o reintegro.
+                      </p>
+                    </div>
+                  )}
                   <div className="text-center pb-4 border-b border-orange-100">
                     <p className="text-[10px] font-black uppercase tracking-widest text-orange-600 mb-1">Monto del Gasto</p>
                     <h4 className="text-3xl font-black text-slate-900 tabular-nums">{formatCurrency(editedDetails?.monto || safeMeta?.monto)}</h4>
@@ -1515,19 +1546,49 @@ export default function NotificacionDetalleModal({
           <div className="p-6 bg-slate-50 border-t border-slate-100 flex gap-4 sticky bottom-0 z-10">
             {estado === 'PENDIENTE' && canApprove && isApprovalNotification && (
               <>
-                <button 
-                  onClick={() => setShowRejectModal(true)}
-                  className="flex-1 py-4 bg-white border border-rose-200 text-rose-600 font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-rose-50 transition-all shadow-sm hover:shadow-md"
-                >
-                  Rechazar
-                </button>
-                <button 
-                  onClick={() => approveNow()}
-                  disabled={isProcessing}
-                  className="flex-1 py-4 bg-emerald-600 text-white font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-emerald-700 shadow-xl shadow-emerald-600/20 transition-all border border-emerald-500 disabled:opacity-50"
-                >
-                  {isProcessing ? 'Procesando...' : 'Aprobar Ahora'}
-                </button>
+                {esGastoProvisional ? (
+                  // Tres botones específicos para gastos provisionales
+                  <>
+                    <button 
+                      onClick={() => setShowRejectDeudaModal(true)}
+                      disabled={isProcessing}
+                      className="flex-1 py-4 bg-white border border-rose-200 text-rose-600 font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-rose-50 transition-all shadow-sm hover:shadow-md disabled:opacity-50"
+                    >
+                      Rechazar y Crear Deuda
+                    </button>
+                    <button 
+                      onClick={() => setShowRejectReintegroModal(true)}
+                      disabled={isProcessing}
+                      className="flex-1 py-4 bg-white border border-amber-200 text-amber-600 font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-amber-50 transition-all shadow-sm hover:shadow-md disabled:opacity-50"
+                    >
+                      Rechazar con Reintegro
+                    </button>
+                    <button 
+                      onClick={() => approveNow()}
+                      disabled={isProcessing}
+                      className="flex-1 py-4 bg-emerald-600 text-white font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-emerald-700 shadow-xl shadow-emerald-600/20 transition-all border border-emerald-500 disabled:opacity-50"
+                    >
+                      {isProcessing ? 'Procesando...' : 'Aprobar como Gasto Operativo'}
+                    </button>
+                  </>
+                ) : (
+                  // Botones genéricos para otros tipos
+                  <>
+                    <button 
+                      onClick={() => setShowRejectModal(true)}
+                      className="flex-1 py-4 bg-white border border-rose-200 text-rose-600 font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-rose-50 transition-all shadow-sm hover:shadow-md"
+                    >
+                      Rechazar
+                    </button>
+                    <button 
+                      onClick={() => approveNow()}
+                      disabled={isProcessing}
+                      className="flex-1 py-4 bg-emerald-600 text-white font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-emerald-700 shadow-xl shadow-emerald-600/20 transition-all border border-emerald-500 disabled:opacity-50"
+                    >
+                      {isProcessing ? 'Procesando...' : 'Aprobar Ahora'}
+                    </button>
+                  </>
+                )}
               </>
             )}
             {(estado !== 'PENDIENTE' || !canApprove || !isApprovalNotification) && (
@@ -1544,6 +1605,24 @@ export default function NotificacionDetalleModal({
             isOpen={showRejectModal}
             onClose={() => setShowRejectModal(false)}
             onConfirm={(motivo) => rejectNow(motivo)}
+          />
+
+          {/* Modal para rechazar con deuda */}
+          <ConfirmRejectModal
+            isOpen={showRejectDeudaModal}
+            onClose={() => setShowRejectDeudaModal(false)}
+            onConfirm={(motivo) => rejectNow(motivo, 'RECHAZADO_CON_DEUDA')}
+            title="Rechazar y Crear Deuda"
+            placeholder="Escriba el motivo (ej: gasto no corresponde a operación de ruta)..."
+          />
+
+          {/* Modal para rechazar con reintegro */}
+          <ConfirmRejectModal
+            isOpen={showRejectReintegroModal}
+            onClose={() => setShowRejectReintegroModal(false)}
+            onConfirm={(motivo) => rejectNow(motivo, 'RECHAZADO_CON_REINTEGRO')}
+            title="Rechazar con Reintegro"
+            placeholder="Confirme que el dinero fue reintegrado físicamente a la caja antes de continuar..."
           />
 
 
