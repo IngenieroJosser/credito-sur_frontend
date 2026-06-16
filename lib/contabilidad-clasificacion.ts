@@ -126,6 +126,13 @@ export const getEtiquetaMovimientoContable = (m: MovimientoClasificable): Etique
     concepto.includes('REVERSA DE ASIENTO') ||
     concepto.includes('REVERSO DE ASIENTO')
 
+  const esReapertura = ref === 'AJUSTE' && referenciaId.startsWith('REAPERTURA:')
+
+  // Detectar reversa de reapertura (cuando el concepto menciona reapertura o el referenciaId tiene patrón específico)
+  const esReversaReapertura =
+    esReversa &&
+    (concepto.includes('REAPERTURA') || referenciaId.includes('REAPERTURA'))
+
   if (esIngresoOperativoContable(m)) {
     return { label: 'INGRESO', positivo: true, className: 'bg-emerald-100 text-emerald-700' }
   }
@@ -137,6 +144,16 @@ export const getEtiquetaMovimientoContable = (m: MovimientoClasificable): Etique
   }
   if (esCuotaInicialContable(m) || (ref === 'VENTA_ARTICULO' && Number(m.monto || 0) > 0)) {
     return { label: 'CUOTA INICIAL', positivo: true, className: 'bg-amber-100 text-amber-700' }
+  }
+  if (esReapertura) {
+    const impactoCaja = Number(m.impactoCaja || 0)
+    const positivo = impactoCaja !== 0 ? impactoCaja > 0 : Number(m.monto || 0) >= 0
+    return { label: 'REAPERTURA', positivo, className: 'bg-slate-100 text-slate-700' }
+  }
+  if (esReversaReapertura) {
+    const impactoCaja = Number(m.impactoCaja || 0)
+    const positivo = impactoCaja !== 0 ? impactoCaja > 0 : Number(m.monto || 0) >= 0
+    return { label: 'REVERSA REAPERTURA', positivo, className: 'bg-slate-100 text-slate-700' }
   }
   if (esReversa) {
     const impactoCaja = Number(m.impactoCaja || 0)

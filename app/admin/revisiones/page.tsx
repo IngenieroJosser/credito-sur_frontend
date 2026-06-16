@@ -42,6 +42,7 @@ import {
 import { formatCurrency, formatMilesCOP } from '@/lib/utils'
 import { aprobacionesService, type Aprobacion, type PendingResponse, type SuperadminReviewResponse } from '@/services/aprobaciones-service'
 import { prestamosService } from '@/services/prestamos-service'
+import { rutasService, type Ruta } from '@/services/rutas-service'
 import { TipoAprobacion } from '@/types/enums'
 import { toast } from 'sonner'
 
@@ -258,6 +259,11 @@ export default function RevisionesPage() {
     item: Aprobacion;
   } | null>(null)
 
+  // Filtros
+  const [rutas, setRutas] = useState<Ruta[]>([])
+  const [filtroRuta, setFiltroRuta] = useState<string>('')
+  const [filtroPuntoVenta, setFiltroPuntoVenta] = useState<boolean>(false)
+
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
   const [selectedItem, setSelectedItem] = useState<any>(null)
 
@@ -285,15 +291,17 @@ export default function RevisionesPage() {
   const loadData = useCallback(async () => {
     setLoading(true)
     try {
-      const [pendientes, superadmin] = await Promise.allSettled([
+      const [pendientes, superadmin, rutasData] = await Promise.allSettled([
         aprobacionesService.obtenerPendientes(),
         canReviewRejected
           ? aprobacionesService.obtenerRevisionSuperadmin()
           : Promise.resolve({ total: 0, items: [] }),
+        rutasService.getAll(),
       ])
 
       if (pendientes.status === 'fulfilled') setData(pendientes.value)
       if (superadmin.status === 'fulfilled') setSuperadminData(superadmin.value as any)
+      if (rutasData.status === 'fulfilled') setRutas(rutasData.value)
     } catch (error) {
       console.error('Error cargando revisiones:', error)
       toast.error('Error al cargar las revisiones')
@@ -497,9 +505,31 @@ export default function RevisionesPage() {
 
   const getFilteredItems = (): Aprobacion[] => {
     if (!data) return []
-    if (activeTab === 'todos') return Object.values(data.items).flat()
-    if (activeTab === 'revision-final') return superadminData?.items || []
-    return data.items[activeTab] || []
+    let items: Aprobacion[] = []
+    
+    if (activeTab === 'todos') {
+      items = Object.values(data.items).flat()
+    } else if (activeTab === 'revision-final') {
+      items = superadminData?.items || []
+    } else {
+      items = data.items[activeTab] || []
+    }
+
+    // Aplicar filtro de ruta
+    if (filtroRuta) {
+      items = items.filter(item => {
+        const datos = item.datosSolicitud || {}
+        const itemRutaId = datos.rutaId || datos.ruta?.id
+        return itemRutaId === filtroRuta
+      })
+    }
+
+    // Aplicar filtro de punto de venta (rol)
+    if (filtroPuntoVenta) {
+      items = items.filter(item => item.rolSolicitante === 'PUNTO_DE_VENTA')
+    }
+
+    return items
   }
 
   const filteredItems = getFilteredItems()
@@ -699,6 +729,42 @@ export default function RevisionesPage() {
             {t.label} <span className="ml-1.5 opacity-50">{t.count}</span>
           </button>
         ))}
+      </div>
+
+      {/* Filtros */}
+      <div className="flex gap-3 mb-6 flex-wrap">
+        <select
+          value={filtroRuta}
+          onChange={(e) => setFiltroRuta(e.target.value)}
+          className="px-4 py-2 rounded-xl text-xs font-medium border border-slate-200 bg-white text-slate-700 hover:border-slate-300 transition-colors"
+        >
+          <option value="">Todas las rutas</option>
+          {rutas.map(ruta => (
+            <option key={ruta.id} value={ruta.id}>{ruta.nombre || ruta.codigo}</option>
+          ))}
+        </select>
+
+        <label className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-medium border border-slate-200 bg-white text-slate-700 hover:border-slate-300 transition-colors cursor-pointer">
+          <input
+            type="checkbox"
+            checked={filtroPuntoVenta}
+            onChange={(e) => setFiltroPuntoVenta(e.target.checked)}
+            className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+          />
+          Solo Punto de Venta
+        </label>
+
+        {(filtroRuta || filtroPuntoVenta) && (
+          <button
+            onClick={() => {
+              setFiltroRuta('')
+              setFiltroPuntoVenta(false)
+            }}
+            className="px-3 py-2 rounded-xl text-xs font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+          >
+            Limpiar filtros
+          </button>
+        )}
       </div>
 
       {loading ? (
