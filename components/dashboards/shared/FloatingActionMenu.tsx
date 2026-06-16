@@ -42,6 +42,10 @@ export default function FloatingActionMenu({ actions }: FloatingActionMenuProps)
   const menuRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
+    console.log('[FloatingActionMenu] actions:', actions.map((a) => a.label))
+  }, [actions])
+
+  useEffect(() => {
     if (!isOpen) return
 
     const handlePointerDown = (event: MouseEvent | TouchEvent) => {
@@ -86,7 +90,8 @@ export default function FloatingActionMenu({ actions }: FloatingActionMenuProps)
             const colors = colorMap[action.color || 'primary']
             return (
               <button
-                key={index}
+                type="button"
+                key={`${action.label}-${index}`}
                 onClick={() => {
                   setIsOpen(false)
                   action.onClick()
@@ -105,7 +110,8 @@ export default function FloatingActionMenu({ actions }: FloatingActionMenuProps)
         </div>
 
         <button
-          onClick={() => setIsOpen(!isOpen)}
+          type="button"
+          onClick={() => setIsOpen((prev) => !prev)}
           className={`p-4 rounded-full shadow-xl transition-all duration-300 ${
             isOpen
               ? 'bg-[#063a58] text-white rotate-45'
