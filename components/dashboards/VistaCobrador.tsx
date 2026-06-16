@@ -770,7 +770,14 @@ const VistaCobrador = () => {
 
         gastos: Number(saldo?.gastosDelDia ?? 0),
 
-        base: Number((saldo as any)?.saldoCaja ?? (saldo as any)?.baseEfectivo ?? prev.base ?? 0),
+        base: Number(
+          (saldo as any)?.saldoCaja ??
+          (saldo as any)?.baseEfectivo ??
+          (saldo as any)?.saldoDisponible ??
+          (saldo as any)?.saldo ??
+          prev.base ??
+          0
+        ),
 
         // Para HOY preservamos la meta operativa ya cargada desde rutas.
         // No debe moverse por saldos vivos ni regularizaciones de jornadas pasadas.
@@ -1220,7 +1227,13 @@ const VistaCobrador = () => {
               visitados: dailySummary.visitados,
               totalVisitas: dailySummary.total,
               gastos: Number(saldo?.gastosDelDia ?? 0),
-              base: Number(saldo?.saldoCaja ?? saldo?.baseEfectivo ?? 0)
+              base: Number(
+                saldo?.saldoCaja ??
+                saldo?.baseEfectivo ??
+                saldo?.saldoDisponible ??
+                saldo?.saldo ??
+                0
+              )
             }));
           } else if (periodoCardsRef.current === 'HOY') {
             // Si no hay dailyVisits, intentar con el state (fallback)
@@ -1234,7 +1247,13 @@ const VistaCobrador = () => {
               visitados: dailySummary.visitados,
               totalVisitas: dailySummary.total,
               gastos: Number(saldo?.gastosDelDia ?? 0),
-              base: Number(saldo?.saldoCaja ?? saldo?.baseEfectivo ?? 0)
+              base: Number(
+                saldo?.saldoCaja ??
+                saldo?.baseEfectivo ??
+                saldo?.saldoDisponible ??
+                saldo?.saldo ??
+                0
+              )
             }));
           } else {
             // Para otros periodos: keep original behavior
@@ -1244,7 +1263,13 @@ const VistaCobrador = () => {
               meta: est.metaDelDia != null ? Number(est.metaDelDia) : Number(prev?.meta || 0),
               eficiencia: est.metaDelDia > 0 ? Math.round((Number(saldo?.cobranzaDelDia ?? saldo?.recaudoDelDia ?? 0) / est.metaDelDia) * 100) : Number(est.avanceDiario ?? 0),
               gastos: Number(saldo?.gastosDelDia ?? 0),
-              base: Number(saldo?.saldoCaja ?? saldo?.baseEfectivo ?? 0)
+              base: Number(
+                saldo?.saldoCaja ??
+                saldo?.baseEfectivo ??
+                saldo?.saldoDisponible ??
+                saldo?.saldo ??
+                0
+              )
             }));
           }
         } catch (errSaldo) {
@@ -5924,25 +5949,32 @@ const VistaCobrador = () => {
 
                 const saldo = await obtenerSaldoDisponibleRuta(rutaActual.id, hoyClave);
 
+                console.log('[GASTO][SALDO DESPUÉS DE REGISTRAR]', saldo)
+
+                const saldoCajaBackend = Number(
+                  (saldo as any)?.saldoCaja ??
+                  (saldo as any)?.baseEfectivo ??
+                  (saldo as any)?.saldoDisponible ??
+                  (saldo as any)?.saldo ??
+                  NaN
+                )
+
                 setRutaStats(prev => ({
-
                   ...prev,
-
                   gastos: Number(saldo?.gastosDelDia ?? prev.gastos ?? 0),
-                  base: Number(
-                    (saldo as any)?.saldoCaja ??
-                    (saldo as any)?.baseEfectivo ??
-                    prev.base ??
-                    0
-                  ),
-
-                }));
+                  base: Number.isFinite(saldoCajaBackend)
+                    ? saldoCajaBackend
+                    : Math.max(0, Number(prev.base || 0) - Number(data.valor || 0)),
+                }))
 
               } catch {
 
                 // Fallback local si el endpoint falla
 
-                setRutaStats(prev => ({ ...prev, gastos: prev.gastos + data.valor }))
+                setRutaStats(prev => ({
+                  ...prev,
+                  base: Math.max(0, Number(prev.base || 0) - Number(data.valor || 0)),
+                }))
 
               }
 
