@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Plus, X } from 'lucide-react'
 
 export interface FabAction {
@@ -39,11 +40,12 @@ const colorMap = {
 
 export default function FloatingActionMenu({ actions }: FloatingActionMenuProps) {
   const [isOpen, setIsOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
   const menuRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
-    console.log('[FloatingActionMenu] actions:', actions.map((a) => a.label))
-  }, [actions])
+    setMounted(true)
+  }, [])
 
   useEffect(() => {
     if (!isOpen) return
@@ -69,11 +71,13 @@ export default function FloatingActionMenu({ actions }: FloatingActionMenuProps)
     }
   }, [isOpen])
 
-  return (
+  if (!mounted) return null
+
+  return createPortal(
     <>
       {isOpen && (
         <div
-          className="fixed inset-0 z-40 bg-slate-900/10 backdrop-blur-[1px]"
+          className="fixed inset-0 z-[2147483645] bg-slate-900/10 backdrop-blur-[1px]"
           onClick={() => setIsOpen(false)}
           aria-hidden="true"
         />
@@ -81,57 +85,57 @@ export default function FloatingActionMenu({ actions }: FloatingActionMenuProps)
 
       <div
         ref={menuRef}
-        className="fixed bottom-24 right-4 z-50 sm:right-6 md:bottom-[calc(1.5rem+env(safe-area-inset-bottom))]"
+        className="fixed bottom-6 right-4 z-[2147483646] flex flex-col items-end gap-4 sm:right-6"
       >
-        <div className="relative flex flex-col items-end">
-          <div
-            className={`absolute bottom-20 right-0 flex max-h-[70vh] min-w-60 flex-col gap-3 overflow-y-auto rounded-3xl bg-white/95 p-3 shadow-2xl ring-1 ring-slate-200 backdrop-blur-md transition-all duration-200 ${
-              isOpen
-                ? 'scale-100 opacity-100 translate-y-0 pointer-events-auto'
-                : 'scale-95 opacity-0 translate-y-2 pointer-events-none'
-            }`}
-          >
-            {actions.map((action, index) => {
-              const colors = colorMap[action.color || 'primary']
+        <div
+          className={`flex max-h-[calc(100dvh-8rem)] min-w-64 flex-col gap-3 overflow-y-auto rounded-3xl bg-white/95 p-3 shadow-2xl ring-1 ring-slate-200 backdrop-blur-md transition-all duration-200 ${
+            isOpen
+              ? 'scale-100 opacity-100 translate-y-0 pointer-events-auto'
+              : 'scale-95 opacity-0 translate-y-3 pointer-events-none'
+          }`}
+        >
+          {actions.map((action, index) => {
+            const colors = colorMap[action.color || 'primary']
 
-              return (
-                <button
-                  type="button"
-                  key={`${action.label}-${index}`}
-                  onClick={() => {
-                    setIsOpen(false)
-                    action.onClick()
-                  }}
-                  className="flex w-56 items-center justify-between gap-3 rounded-2xl px-1 py-1 transition-colors hover:bg-slate-50"
+            return (
+              <button
+                type="button"
+                key={`${action.label}-${index}`}
+                data-fab-action={action.label}
+                onClick={() => {
+                  setIsOpen(false)
+                  action.onClick()
+                }}
+                className="flex w-60 items-center justify-between gap-3 rounded-2xl px-2 py-1.5 transition-colors hover:bg-slate-50"
+              >
+                <span className={`rounded-full px-3 py-1 text-xs font-bold ${colors.badge}`}>
+                  {action.label}
+                </span>
+
+                <div
+                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition-all ${colors.icon}`}
                 >
-                  <span className={`rounded-full px-3 py-1 text-xs font-bold ${colors.badge}`}>
-                    {action.label}
-                  </span>
-
-                  <div
-                    className={`flex h-11 w-11 items-center justify-center rounded-full border transition-all ${colors.icon}`}
-                  >
-                    {action.icon}
-                  </div>
-                </button>
-              )
-            })}
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setIsOpen((prev) => !prev)}
-            className={`rounded-full p-4 shadow-xl transition-all duration-300 ${
-              isOpen
-                ? 'rotate-45 bg-[#063a58] text-white'
-                : 'bg-[#08557f] text-white hover:scale-105 hover:bg-[#063a58]'
-            }`}
-            aria-label={isOpen ? 'Cerrar acciones' : 'Abrir acciones'}
-          >
-            {isOpen ? <X className="h-6 w-6" /> : <Plus className="h-6 w-6" />}
-          </button>
+                  {action.icon}
+                </div>
+              </button>
+            )
+          })}
         </div>
+
+        <button
+          type="button"
+          onClick={() => setIsOpen((prev) => !prev)}
+          className={`rounded-full p-4 shadow-xl transition-all duration-300 ${
+            isOpen
+              ? 'rotate-45 bg-[#063a58] text-white'
+              : 'bg-[#08557f] text-white hover:scale-105 hover:bg-[#063a58]'
+          }`}
+          aria-label={isOpen ? 'Cerrar acciones' : 'Abrir acciones'}
+        >
+          {isOpen ? <X className="h-6 w-6" /> : <Plus className="h-6 w-6" />}
+        </button>
       </div>
-    </>
+    </>,
+    document.body,
   )
 }
