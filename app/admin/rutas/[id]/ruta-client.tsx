@@ -112,6 +112,8 @@ import { mapAsignacionesToVisitasLite } from '@/lib/ruta-visitas-mapper'
 import { buildRecaudosHoyMapByPrestamoId, computeMontoCuotaPendienteDespuesDeRecaudo, indexPagosByPrestamoId, mergeVisitasPreservingLocalRecaudo, sumMontoTotalPagosByBogotaDateKey } from '@/lib/ruta-recaudos'
 import { mapWithConcurrency, memoizePromiseByKey } from '@/lib/async-utils'
 import { buildHistorialDiaFromBackend, hasGestionHistorial, isPagoForHistorialFecha } from '@/lib/ruta-historial'
+import { mapDailyVisitsResponseToVisitas as mapDailyVisitsResponseToVisitasShared, type MapMode } from '@/lib/rutas/map-daily-visits-to-visitas'
+import { resolveRiesgoObligacion, resolveMontoVencidoAcumulado } from '@/lib/rutas/riesgo-obligacion'
 
 interface GastoRuta {
   id: string
@@ -230,8 +232,7 @@ const RutaClientLoaded = ({
   const [showCrearCreditoPrompt, setShowCrearCreditoPrompt] = useState(false)
   const [isExportingPdf, setIsExportingPdf] = useState(false)
 
-  const [showHistory, setShowHistory] = useState(false)
-  const [showMisClientes, setShowMisClientes] = useState(false)
+  const [vistaRuta, setVistaRuta] = useState<'ACTUAL' | 'HISTORIAL' | 'MIS_CLIENTES'>('ACTUAL')
   const [enrichNonce, setEnrichNonce] = useState(0)
   
   const [visitaAusente, setVisitaAusente] = useState<VisitaRuta | null>(null)
@@ -272,6 +273,7 @@ const RutaClientLoaded = ({
 
   const visitasCobradorRef = useRef<VisitaRuta[]>([])
   const lastEnrichKeyRef = useRef('')
+  const lastMisCreditosEnrichKeyRef = useRef('')
 
   const historial = useRutaHistorial({
     rutaId,
@@ -416,24 +418,24 @@ const RutaClientLoaded = ({
   }, [])
 
   useEffect(() => {
-    if (!showHistory) return
+    if (vistaRuta !== 'HISTORIAL') return
     const hoy = hoyBogotaKey
     const dayData = (historialRutasRef.current as any)?.[hoy]
     if (!dayData?.loaded) return
     void enriquecerHistorialDiaConCuotas(hoy)
-  }, [showHistory, hoyBogotaKey, enriquecerHistorialDiaConCuotas])
+  }, [vistaRuta, hoyBogotaKey, enriquecerHistorialDiaConCuotas])
 
   useEffect(() => {
-    if (!showHistory) return
+    if (vistaRuta !== 'HISTORIAL') return
     if (!selectedHistoryDate) return
     void enriquecerHistorialDiaConCuotas(selectedHistoryDate)
-  }, [showHistory, selectedHistoryDate, enriquecerHistorialDiaConCuotas])
+  }, [vistaRuta, selectedHistoryDate, enriquecerHistorialDiaConCuotas])
 
 
 
   useEffect(() => {
 
-    if (!showHistory || !initialRuta?.id) return;
+    if (vistaRuta !== 'HISTORIAL' || !initialRuta?.id) return;
 
     const hoy = hoyBogotaKey;
     const existing = (historialRutas || {})[hoy];
@@ -444,7 +446,7 @@ const RutaClientLoaded = ({
 
     }
 
-  }, [showHistory, rutaId, historialRutas, cargarHistorialFecha]);  // === Mapeo de asignaciones a modelo de UI (VisitaRuta) ===
+  }, [vistaRuta, rutaId, historialRutas, cargarHistorialFecha]);  // === Mapeo de asignaciones a modelo de UI (VisitaRuta) ===
   // === Mapeo de asignaciones a modelo de UI (VisitaRuta) ===
   const mapearAsignacionesAVisitas = useCallback((data: any) => {
     const asignaciones = data?.asignaciones || data?.asignacionesRuta;
@@ -495,147 +497,13 @@ const RutaClientLoaded = ({
   }, [visitasCobrador])
 
   const mapDailyVisitsResponseToVisitas = useCallback((resp: DailyVisitsResponse | null | undefined): VisitaRuta[] => {
-    const obligaciones = Array.isArray((resp as any)?.obligaciones)
-      ? (resp as any).obligaciones
-      : []
-
-    const rows = obligaciones.length > 0
-      ? obligaciones
-      : (Array.isArray((resp as any)?.visitas) ? (resp as any).visitas : [])
-
-    const mapped = rows.map((row: any, idx: number) => {
-      const visita = row?.visita || row || {}
-      const c = row?.cliente || visita?.cliente || {}
-      const p = row?.prestamo || visita?.prestamo || visita?.prestamos?.[0] || {}
-      const cuotaObjetivo =
-        row?.cuotaObjetivo ||
-        p?.cuotaObjetivo ||
-        visita?.cuotaObjetivo ||
-        p?.proximaCuota ||
-        visita?.proximaCuota ||
-        null
-      const proximaCuota = p?.proximaCuota || cuotaObjetivo
-      const montoMetaPendiente = Number(
-        row?.montoMetaOperativaPendiente ??
-          p?.montoMetaOperativaPendiente ??
-          cuotaObjetivo?.saldoExigibleEnFechaOperativa ??
-          proximaCuota?.montoNominal ??
-          proximaCuota?.monto ??
-          0,
-      )
-      const recaudadoDelDia = Number(
-        row?.recaudadoDelDia ??
-          p?.recaudadoDelDia ??
-          p?.recaudadoHoy ??
-          visita?.recaudadoDelDia ??
-          0,
-      )
-      const montoCuotaNormal = Number(
-        cuotaObjetivo?.montoNominal ??
-          cuotaObjetivo?.montoCuota ??
-          cuotaObjetivo?.monto ??
-          proximaCuota?.montoNominal ??
-          proximaCuota?.monto ??
-          montoMetaPendiente,
-      )
-      const montoCuota = montoMetaPendiente > 0
-        ? montoMetaPendiente
-        : Math.max(0, montoCuotaNormal - Number(cuotaObjetivo?.montoPagado || 0))
-      const fechaEfectiva =
-        cuotaObjetivo?.fechaEfectiva ||
-        p?.fechaEfectiva ||
-        proximaCuota?.fechaEfectiva ||
-        proximaCuota?.fechaVencimientoProrroga ||
-        proximaCuota?.fechaVencimiento ||
-        hoyBogotaKey
-      const estadoGestion = String(row?.estadoGestion || p?.estadoGestion || '').toUpperCase()
-      const estadoCuota = String(cuotaObjetivo?.estadoActual || cuotaObjetivo?.estado || proximaCuota?.estado || '').toUpperCase()
-      const estadoCalculado: EstadoVisita =
-        recaudadoDelDia > 0 || estadoGestion === 'PAGO_REGISTRADO' || estadoCuota === 'PAGADA'
-          ? 'pagado'
-          : cuotaObjetivo?.enMoraEnFechaOperativa || estadoCuota === 'VENCIDA'
-            ? 'en_mora'
-            : 'pendiente'
-      const esArticulo = p?.tipo === 'ARTICULO' || p?.tipoPrestamo === 'ARTICULO'
-      const cuotaId = String(
-        row?.cuotaObjetivoId ||
-          cuotaObjetivo?.id ||
-          proximaCuota?.id ||
-          visita?.cuotaObjetivoId ||
-          '',
-      )
-      const nivel = c?.nivelRiesgo || visita?.nivelRiesgo || 'VERDE'
-      const frecuencia = p?.frecuenciaPago || 'DIARIO'
-      const nombreCliente = `${c?.nombres || ''} ${c?.apellidos || ''}`.trim()
-
-      return {
-        id: `${visita?.asignacionId || row?.asignacionId || 'daily'}-${p?.id || cuotaId || idx}`,
-        cliente: nombreCliente || row?.nombreCliente || 'Cliente',
-        direccion: c?.direccion || visita?.direccion || 'Sin dirección registrada',
-        telefono: c?.telefono || visita?.telefono || '',
-        horaSugerida: '08:00 AM',
-        montoCuota,
-        montoCuotaNormal,
-        montoCuotaPendiente: montoMetaPendiente > 0 ? montoMetaPendiente : montoCuota,
-        montoMoraAcumulada: Number(
-          row?.montoMoraAcumulada ??
-            cuotaObjetivo?.montoMoraAcumulada ??
-            cuotaObjetivo?.saldoVencidoAcumulado ??
-            0,
-        ),
-        cuotasVencidas: Number(row?.cuotasVencidas ?? cuotaObjetivo?.cuotasVencidas ?? 0),
-        saldoTotal: estadoCalculado === 'pagado' ? 0 : Number(p?.saldoPendiente || 0),
-        estado: estadoCalculado,
-        estadoVisita: row?.estadoVisita || p?.estadoVisita || visita?.estadoVisita || undefined,
-        notasVisita: row?.notasVisita || p?.notasVisita || visita?.notasVisita || undefined,
-        proximaVisita: fechaEfectiva,
-        targetVencimiento: proximaCuota?.fechaVencimiento || cuotaObjetivo?.fechaVencimiento,
-        ordenVisita: Number(visita?.ordenVisita || row?.ordenVisita || idx + 1),
-        prioridad: nivel === 'ROJO' || nivel === 'LISTA_NEGRA' ? 'alta' : 'media' as any,
-        nivelRiesgo: mapNivelRiesgo(nivel) as any,
-        diasMora: Number(cuotaObjetivo?.diasMora || p?.diasMora || 0),
-        cobradorId: rutaData?.cobradorId || initialRuta.cobradorId,
-        periodoRuta: mapFrecuenciaToPeriodo(frecuencia as any) as any,
-        clienteId: c?.id || visita?.clienteId || '',
-        prestamoId: p?.id || row?.prestamoId || '',
-        tipoPrestamo: esArticulo ? 'ARTICULO' : 'EFECTIVO',
-        articuloNombre: esArticulo ? (p?.articulo || p?.producto?.nombre || 'Artículo') : 'Préstamo',
-        cuotaActual: Number(cuotaObjetivo?.numeroCuota || proximaCuota?.numeroCuota || 1),
-        cuotasTotales: Number(p?.cantidadCuotas || 0),
-        cuotaId,
-        cuotaObjetivoId: cuotaId,
-        cuotaObjetivoPrestamoId: cuotaId,
-        cuotaObjetivo,
-        proximaCuota,
-        pendienteAprobacion: Boolean(p?.esProvisional) || String(p?.estadoAprobacion || '').toUpperCase() === 'PENDIENTE',
-        estadoAprobacion: p?.estadoAprobacion || null,
-        estadoEfectoProvisional: p?.estadoEfectoProvisional || null,
-        esProvisional: Boolean(p?.esProvisional),
-        esRevertido: Boolean(p?.esRevertido),
-        etiquetaRevision: p?.etiquetaRevision || null,
-        enProrroga: String(proximaCuota?.estado || cuotaObjetivo?.estadoActual || '').toUpperCase() === 'PRORROGADA',
-        fechaProrroga: proximaCuota?.fechaVencimientoProrroga || cuotaObjetivo?.fechaVencimientoProrroga || null,
-        fechaOriginalVencimiento: proximaCuota?.fechaVencimiento || cuotaObjetivo?.fechaVencimiento || null,
-        recaudadoDelDia,
-      } as VisitaRuta
-    })
-
-    const seen = new Set<string>()
-    const uniques = mapped.filter((v: any) => {
-      const key = String(v?.prestamoId || v?.clienteId || v?.id || '')
-      if (!key) return true
-      if (seen.has(key)) return false
-      seen.add(key)
-      return true
-    })
-
-    return uniques.sort((a: any, b: any) => {
-      if (a.estado === 'pagado' && b.estado !== 'pagado') return 1
-      if (a.estado !== 'pagado' && b.estado === 'pagado') return -1
-      const ao = Number(a.ordenVisita ?? 0)
-      const bo = Number(b.ordenVisita ?? 0)
-      if (ao !== bo) return ao - bo
-      return String(a.id || '').localeCompare(String(b.id || ''))
+    return mapDailyVisitsResponseToVisitasShared({
+      resp,
+      hoyBogotaKey,
+      rutaData,
+      initialRuta,
+      modo: 'LIVE' as MapMode,
+      fechaOperativa: hoyBogotaKey,
     })
   }, [hoyBogotaKey, initialRuta.cobradorId, rutaData?.cobradorId])
 
@@ -651,10 +519,33 @@ const RutaClientLoaded = ({
 
       const mapped = mapDailyVisitsResponseToVisitas(resp)
       if (mapped.length > 0) {
-        const merged = mergeVisitasPreservingLocalRecaudo(
-          visitasCobradorRef.current as any,
-          mapped as any,
+        // Merge selectivo: mapped es la fuente canónica, solo preservar campos locales de recaudo/gestión
+        const prevByPrestamoId = new Map(
+          (visitasCobradorRef.current || [])
+            .filter((v: any) => v?.prestamoId)
+            .map((v: any) => [String(v.prestamoId), v]),
         )
+
+        const merged = mapped.map((next: any) => {
+          const prev = prevByPrestamoId.get(String(next?.prestamoId || ''))
+
+          if (!prev) return next
+
+          return {
+            ...next,
+
+            // preservar solo estado local de cobro/gestión
+            recaudadoDelDia: Number(prev?.recaudadoDelDia || 0) > 0
+              ? prev.recaudadoDelDia
+              : next.recaudadoDelDia,
+
+            recaudadoTotalClient: prev?.recaudadoTotalClient ?? next.recaudadoTotalClient,
+            fechaUltimoPago: prev?.fechaUltimoPago ?? next.fechaUltimoPago,
+
+            estadoVisita: prev?.estadoVisita ?? next.estadoVisita,
+            notasVisita: prev?.notasVisita ?? next.notasVisita,
+          }
+        })
 
         visitasCobradorRef.current = merged as any
         setVisitasCobrador(merged as any)
@@ -817,10 +708,39 @@ const RutaClientLoaded = ({
               }
             }
 
-            return { 
-              ...v, 
-              recaudadoDelDia: totalHoy, 
-              recaudadoTotalClient: totalHistorico, 
+            // Recalcular riesgo final con los datos actualizados
+            const montoVencidoAcumuladoFinal = resolveMontoVencidoAcumulado({
+              row: {
+                ...v,
+                saldoTotal: v?.saldoTotal,
+                saldoPendiente: v?.saldoPendiente,
+              },
+              prestamo: {},
+              cuotaObjetivo: pendiente,
+              estadoCalculado: nuevoEstado,
+            })
+
+            const nivelRiesgoFinalRaw = resolveRiesgoObligacion({
+              row: {
+                ...v,
+                montoCuotaNormal: cuotaComparar,
+                montoCuota: cuotaComparar,
+                montoVencidoAcumulado: montoVencidoAcumuladoFinal,
+                montoMoraAcumulada: montoVencidoAcumuladoFinal,
+                saldoVencidoAcumulado: montoVencidoAcumuladoFinal,
+              },
+              prestamo: {},
+              cuotaObjetivo: pendiente,
+              estadoCalculado: nuevoEstado,
+              diasMora: Number(v?.diasMora || pendiente?.diasMora || 0),
+              cuotasVencidas: Number(v?.cuotasVencidas || pendiente?.cuotasVencidas || 0),
+              esProvisional: Boolean(v?.esProvisional || v?.pendienteAprobacion),
+            })
+
+            return {
+              ...v,
+              recaudadoDelDia: totalHoy,
+              recaudadoTotalClient: totalHistorico,
               fechaUltimoPago: ultimoPagoDate,
               montoCuota: cuotaComparar,
               montoCuotaNormal: cuotaComparar,
@@ -834,6 +754,12 @@ const RutaClientLoaded = ({
               cuotaObjetivoPrestamoId: pendiente?.id || (v as any)?.cuotaObjetivoPrestamoId,
               proximaCuota: pendiente,
               cuotaObjetivo: pendiente,
+              // Recalcular riesgo y acumulado vencido con datos finales
+              montoMoraAcumulada: montoVencidoAcumuladoFinal,
+              montoVencidoAcumulado: montoVencidoAcumuladoFinal,
+              saldoVencidoAcumulado: montoVencidoAcumuladoFinal,
+              nivelRiesgo: mapNivelRiesgo(nivelRiesgoFinalRaw),
+              prioridad: nivelRiesgoFinalRaw === 'ROJO' || nivelRiesgoFinalRaw === 'LISTA_NEGRA' ? 'alta' : 'media',
             };
           } catch (error) {
             console.error("Error en enriquecerConPagos (Admin):", error);
@@ -843,7 +769,38 @@ const RutaClientLoaded = ({
         6,
       );
 
-      setVisitasCobrador(mergeVisitasPreservingLocalRecaudo(visitasCobradorRef.current as any, actualizadas as any) as any);
+      // Merge selectivo: actualizadas es la fuente base, solo preservar campos locales específicos
+      const merged = actualizadas.map((actualizada: any) => {
+        const local = visitasCobradorRef.current.find((v: any) =>
+          v.id === actualizada.id || v.prestamoId === actualizada.prestamoId
+        )
+
+        if (!local) return actualizada
+
+        // Solo preservar campos locales de recaudo/gestión
+        return {
+          ...actualizada,
+          // Preservar solo campos locales específicos
+          recaudadoDelDia: Math.max(
+            Number(local?.recaudadoDelDia || 0),
+            Number(actualizada?.recaudadoDelDia || 0),
+          ),
+          recaudadoTotalClient: Math.max(
+            Number(local?.recaudadoTotalClient || 0),
+            Number(actualizada?.recaudadoTotalClient || 0),
+          ),
+          fechaUltimoPago: Math.max(
+            Number(local?.fechaUltimoPago || 0),
+            Number(actualizada?.fechaUltimoPago || 0),
+          ),
+          // Preservar estadoVisita local si aplica
+          estadoVisita: local?.estadoVisita,
+          notasVisita: local?.notasVisita,
+          // NO preservar: nivelRiesgo, prioridad, montoMoraAcumulada, montoVencidoAcumulado, saldoVencidoAcumulado, montoCuota, saldoTotal, estado
+        }
+      })
+
+      setVisitasCobrador(merged as any);
     };
 
 
@@ -942,7 +899,7 @@ const RutaClientLoaded = ({
       exportarRutaDiariaCSV,
       exportarRutaDiariaPDF
     };
-  }, [visitasCobrador, searchQuery, periodoRutaFiltro, showHistory, showMisClientes, initialRuta?.id]);
+  }, [visitasCobrador, searchQuery, periodoRutaFiltro, vistaRuta, initialRuta?.id]);
 
 
 
@@ -1331,7 +1288,8 @@ const RutaClientLoaded = ({
     try {
       setLoadingMisCreditos(true)
       const resp = await rutasService.obtenerVisitasDelDia(rutaId as any, hoyBogotaKey)
-      setMisCreditos(mapDailyVisitsResponseToVisitas(resp))
+      const mapped = mapDailyVisitsResponseToVisitas(resp)
+      setMisCreditos(mapped)
     } catch (e: any) {
       console.error('Error cargando mis clientes (ruta admin):', e)
       toast.error('No se pudieron cargar las obligaciones operativas de la ruta.')
@@ -1340,15 +1298,195 @@ const RutaClientLoaded = ({
     }
   }, [rutaId, hoyBogotaKey, mapDailyVisitsResponseToVisitas])
 
+  // Enriquecer Mis clientes con pagos (similar a enriquecerConPagos)
+  useEffect(() => {
+    const enriquecerMisCreditos = async () => {
+      if (misCreditos.length === 0 || vistaRuta !== 'MIS_CLIENTES') return
+
+      const enrichKey = JSON.stringify({
+        items: misCreditos.map((v: any) => ({
+          id: v?.id,
+          prestamoId: v?.prestamoId,
+          recaudo: v?.recaudadoDelDia,
+          cuota: v?.montoCuota,
+          saldo: v?.saldoTotal,
+          estado: v?.estado,
+        })),
+      })
+
+      if (lastMisCreditosEnrichKeyRef.current === enrichKey) return
+      lastMisCreditosEnrichKeyRef.current = enrichKey
+
+      const hoyBogota = getBogotaDateKey(new Date())
+
+      const getCuotasByPrestamoId = memoizePromiseByKey(
+        (prestamoId) => prestamosService.obtenerCuotas(prestamoId) as Promise<any[]>,
+        () => [],
+      )
+
+      const pagosRecientesResp = await pagosService.obtenerPagos({ limit: 1000 })
+      const todosPagos = (pagosRecientesResp as any)?.pagos || pagosRecientesResp || []
+
+      const recaudosHoyMap = buildRecaudosHoyMapByPrestamoId(
+        todosPagos as any,
+        hoyBogota,
+        { includeCierrePendiente: false },
+      )
+
+      const { totalHistoricoByPrestamoId, ultimoPagoDateByPrestamoId } = indexPagosByPrestamoId(todosPagos as any)
+
+      const actualizadas = await mapWithConcurrency(
+        misCreditos,
+        async (v: any) => {
+          if (!v.clienteId || !v.prestamoId) return { ...v, recaudadoDelDia: 0, recaudadoTotalClient: 0 }
+
+          try {
+            const prestamoId = v.prestamoId
+            const totalHoy = Number(recaudosHoyMap[prestamoId] || 0)
+            const totalHistorico = Number(totalHistoricoByPrestamoId[prestamoId] || 0)
+            const ultimoPagoDate = Number(ultimoPagoDateByPrestamoId[prestamoId] || 0)
+
+            let montoCuotaReal = v.montoCuota
+            let montoCuotaPendienteReal = Number((v as any)?.montoCuotaPendiente ?? v.montoCuota ?? 0)
+            let fechaReal = v.proximaVisita
+            let cuotaActual = v.cuotaActual
+            let cuotasTotales = v.cuotasTotales
+
+            const cuotas = await getCuotasByPrestamoId(prestamoId)
+            const pendiente = (Array.isArray(cuotas) ? cuotas : []).find((c: any) => isCuotaNoPagada(c))
+
+            if (pendiente) {
+              const exigiblePendiente = computeMontoExigibleHastaHoyFromCuotas(cuotas as any, hoyBogota)
+              const exigibleNominal = computeMontoNominalHastaHoyFromCuotas(cuotas as any, hoyBogota)
+              const montoPendiente = Number(pendiente.monto || (Number(pendiente.montoCapital || 0) + Number(pendiente.montoInteres || 0)) || 0)
+              const pagadoPendiente = Number(pendiente.montoPagado || 0)
+              const pendienteReal = Math.max(0, montoPendiente - pagadoPendiente)
+
+              montoCuotaReal = Number(
+                (v as any)?.montoCuotaNormal ??
+                pendiente.montoNominal ??
+                pendiente.montoCuota ??
+                pendiente.monto ??
+                (montoPendiente > 0 ? montoPendiente : montoCuotaReal),
+              )
+              montoCuotaPendienteReal = exigiblePendiente > 0 ? exigiblePendiente : pendienteReal
+
+              fechaReal = resolveFechaEfectivaCuota(pendiente) || (pendiente.fechaVencimiento || v.proximaVisita)
+
+              cuotaActual = pendiente.numeroCuota
+              cuotasTotales = Array.isArray(cuotas) ? cuotas.length : cuotasTotales
+            }
+
+            const tieneMora = (Array.isArray(cuotas) ? cuotas : []).some((c: any) => {
+              if (!c || !isCuotaNoPagada(c)) return false
+              const vtoRaw = resolveFechaEfectivaCuota(c) || String(c?.fechaVencimiento || '')
+              const vtoKey = normalizeDateKey(vtoRaw)
+              return !!vtoKey && vtoKey < hoyBogota
+            })
+
+            let nuevoEstado = v.estado
+            const cuotaComparar = montoCuotaReal > 0 ? montoCuotaReal : v.montoCuota
+            const montoOperativoComparar = montoCuotaPendienteReal > 0 ? montoCuotaPendienteReal : cuotaComparar
+            const cobroSuficiente = totalHoy >= (montoOperativoComparar - 1)
+
+            if (nuevoEstado === 'ausente') {
+              if (totalHoy > 0 && cobroSuficiente) {
+                nuevoEstado = 'pagado'
+              }
+            } else {
+              if (Number(v.saldoTotal || 0) <= 0 || (totalHoy > 0 && cobroSuficiente) || v.estado === 'pagado') {
+                nuevoEstado = 'pagado'
+              }
+
+              const pagado = shouldMarkVisitaAsPagado({
+                saldoTotal: v.saldoTotal,
+                recaudadoHoy: totalHoy,
+                montoCuotaExigible: montoOperativoComparar,
+                estadoActual: v.estado,
+              })
+              if (pagado) nuevoEstado = 'pagado'
+
+              if (nuevoEstado !== 'pagado' && Number(v?.saldoTotal || 0) > 0 && tieneMora) {
+                nuevoEstado = 'en_mora' as any
+              }
+            }
+
+            // Recalcular riesgo final con los datos actualizados
+            const montoVencidoAcumuladoFinal = resolveMontoVencidoAcumulado({
+              row: {
+                ...v,
+                saldoTotal: v?.saldoTotal,
+                saldoPendiente: v?.saldoPendiente,
+              },
+              prestamo: {},
+              cuotaObjetivo: pendiente,
+              estadoCalculado: nuevoEstado,
+            })
+
+            const nivelRiesgoFinalRaw = resolveRiesgoObligacion({
+              row: {
+                ...v,
+                montoCuotaNormal: cuotaComparar,
+                montoCuota: cuotaComparar,
+                montoVencidoAcumulado: montoVencidoAcumuladoFinal,
+                montoMoraAcumulada: montoVencidoAcumuladoFinal,
+                saldoVencidoAcumulado: montoVencidoAcumuladoFinal,
+              },
+              prestamo: {},
+              cuotaObjetivo: pendiente,
+              estadoCalculado: nuevoEstado,
+              diasMora: Number(v?.diasMora || pendiente?.diasMora || 0),
+              cuotasVencidas: Number(v?.cuotasVencidas || pendiente?.cuotasVencidas || 0),
+              esProvisional: Boolean(v?.esProvisional || v?.pendienteAprobacion),
+            })
+
+            return {
+              ...v,
+              recaudadoDelDia: totalHoy,
+              recaudadoTotalClient: totalHistorico,
+              fechaUltimoPago: ultimoPagoDate,
+              montoCuota: cuotaComparar,
+              montoCuotaNormal: cuotaComparar,
+              montoCuotaPendiente: montoCuotaPendienteReal,
+              proximaVisita: fechaReal,
+              cuotaActual,
+              cuotasTotales,
+              estado: nuevoEstado,
+              cuotaId: pendiente?.id || (v as any)?.cuotaId,
+              cuotaObjetivoId: pendiente?.id || (v as any)?.cuotaObjetivoId,
+              cuotaObjetivoPrestamoId: pendiente?.id || (v as any)?.cuotaObjetivoPrestamoId,
+              proximaCuota: pendiente,
+              cuotaObjetivo: pendiente,
+              // Recalcular riesgo y acumulado vencido con datos finales
+              montoMoraAcumulada: montoVencidoAcumuladoFinal,
+              montoVencidoAcumulado: montoVencidoAcumuladoFinal,
+              saldoVencidoAcumulado: montoVencidoAcumuladoFinal,
+              nivelRiesgo: mapNivelRiesgo(nivelRiesgoFinalRaw),
+              prioridad: nivelRiesgoFinalRaw === 'ROJO' || nivelRiesgoFinalRaw === 'LISTA_NEGRA' ? 'alta' : 'media',
+            }
+          } catch (error) {
+            console.error("Error en enriquecerMisCreditos (Admin):", error)
+            return { ...v, recaudadoDelDia: 0, recaudadoTotalClient: 0, fechaUltimoPago: 0 }
+          }
+        },
+        6,
+      )
+
+      setMisCreditos(actualizadas)
+    }
+
+    enriquecerMisCreditos()
+  }, [misCreditos, vistaRuta])
+
 
 
   useEffect(() => {
 
-    if (!showMisClientes) return
+    if (vistaRuta !== 'MIS_CLIENTES') return
 
     cargarMisCreditos()
 
-  }, [showMisClientes, cargarMisCreditos])
+  }, [vistaRuta, cargarMisCreditos])
 
   // Tiempo real: actualización optimista para visitas registradas
   useRealtimeData(['pagos_actualizados', 'rutas_actualizadas', 'prestamos_actualizados', 'jornadas_actualizadas'], async (payload?: any) => {
@@ -1509,15 +1647,13 @@ const RutaClientLoaded = ({
 
                     onClick={() => {
 
-                      setShowHistory(false)
-
-                      setShowMisClientes(false)
+                      setVistaRuta('ACTUAL')
 
                     }}
 
                     className={`px-4 py-2 border rounded-xl flex items-center gap-2 font-medium shadow-sm transition-colors ${
 
-                      !showHistory 
+                      vistaRuta === 'ACTUAL'
 
                         ? 'bg-[#08557f] text-white border-[#08557f]' 
 
@@ -1537,11 +1673,11 @@ const RutaClientLoaded = ({
 
                   <button 
 
-                    onClick={() => setShowHistory(true)}
+                    onClick={() => setVistaRuta('HISTORIAL')}
 
                     className={`px-4 py-2 border rounded-xl flex items-center gap-2 font-medium shadow-sm transition-colors ${
 
-                      showHistory 
+                      vistaRuta === 'HISTORIAL'
 
                         ? 'bg-[#08557f] text-white border-[#08557f]' 
 
@@ -1563,15 +1699,13 @@ const RutaClientLoaded = ({
 
                     onClick={() => {
 
-                      setShowMisClientes(true)
-
-                      setShowHistory(false)
+                      setVistaRuta('MIS_CLIENTES')
 
                     }}
 
                     className={`px-4 py-2 border rounded-xl flex items-center gap-2 font-medium shadow-sm transition-colors ${
 
-                      showMisClientes
+                      vistaRuta === 'MIS_CLIENTES'
 
                         ? 'bg-[#08557f] text-white border-[#08557f]'
 
@@ -1589,7 +1723,7 @@ const RutaClientLoaded = ({
 
 
 
-                  {!esDiaNoLaboral && !rutaCompletada && !showHistory && (
+                  {!esDiaNoLaboral && !rutaCompletada && vistaRuta === 'ACTUAL' && (
                     <button 
                       type="button"
                       onClick={handleActivarRuta}
@@ -1613,7 +1747,7 @@ const RutaClientLoaded = ({
 
 
 
-                  {(currentUser?.rol === 'SUPER_ADMINISTRADOR' || currentUser?.rol === 'ADMIN') && !showHistory && (
+                  {(currentUser?.rol === 'SUPER_ADMINISTRADOR' || currentUser?.rol === 'ADMIN') && vistaRuta === 'ACTUAL' && (
 
                     <div className="flex gap-2">
 
@@ -1671,7 +1805,7 @@ const RutaClientLoaded = ({
 
               {/* Filtros de Periodo (Estilo Cobrador Exacto) */}
 
-              {!showHistory && !showMisClientes && (
+              {vistaRuta === 'ACTUAL' && (
 
                 <div className="mt-4 pt-4 border-t border-slate-200">
 
@@ -1742,7 +1876,7 @@ const RutaClientLoaded = ({
 
             
 
-            {showHistory ? (
+            {vistaRuta === 'HISTORIAL' ? (
 
               // ========================= VISTA HISTORIAL =========================
 
@@ -2133,7 +2267,7 @@ const RutaClientLoaded = ({
 
               </div>
 
-            ) : showMisClientes ? (
+            ) : vistaRuta === 'MIS_CLIENTES' ? (
 
               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
 
@@ -2196,7 +2330,7 @@ const RutaClientLoaded = ({
                         <StaticVisitaItem
                           key={visita.id}
                           visita={visita}
-                          allowClick={false}
+                          allowClick={true}
                           onVerCliente={handleAbrirClienteInfo}
                           getEstadoClasses={getEstadoClasses}
                           getPrioridadColor={getPrioridadColor}

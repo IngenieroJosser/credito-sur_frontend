@@ -497,7 +497,7 @@ const ListadoPrestamosElegante = () => {
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Créditos</p>
             <div className="flex items-baseline gap-2">
               <span className="text-2xl font-bold text-slate-900 tracking-tight">{estadisticas.total}</span>
-              <span className="text-xs font-semibold text-emerald-600">({estadisticas.activos} activos)</span>
+              <span className="text-xs font-semibold text-emerald-600">({estadisticas.activos} activos normales)</span>
             </div>
           </div>
           

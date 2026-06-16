@@ -1,6 +1,7 @@
 import { isPagoCierrePendiente } from '@/lib/ruta-recaudos'
 import { getPagoBogotaDateKey } from '@/lib/rutas-core'
 import { mapNivelRiesgo, type VisitaRuta } from '@/lib/types/cobranza'
+import { resolveRiesgoObligacion } from '@/lib/rutas/riesgo-obligacion'
 
 type Resumen = {
   recaudo: number
@@ -458,8 +459,6 @@ export const buildHistorialDiaFromBackend = (params: {
         item?.visita?.proximaVisita ||
         fechaClave,
       ordenVisita: Number(item?.ordenVisita || item?.visita?.ordenVisita || index + 1),
-      prioridad: cliente?.nivelRiesgo === 'ROJO' ? 'alta' : 'media',
-      nivelRiesgo: normalizeNivelRiesgo(cliente?.nivelRiesgo),
       cobradorId: '',
       periodoRuta: normalizePeriodoRuta(prestamo?.frecuenciaRuta || prestamo?.frecuenciaPago || prestamo?.frecuencia || 'DIA'),
       clienteId,
@@ -472,14 +471,38 @@ export const buildHistorialDiaFromBackend = (params: {
         : 'Préstamo',
       recaudadoDelDia: recDia,
       recaudadoRegularizadoDespues: regularizadoDespues,
+      diasMora: Number(cuotaObjetivo?.diasMora || prestamo?.diasMora || 0),
+      cuotasVencidas: Number(item?.cuotasVencidas ?? cuotaObjetivo?.cuotasVencidas ?? 0),
+      pendienteAprobacion: Boolean(prestamo?.esProvisional) || String(prestamo?.estadoAprobacion || '').toUpperCase() === 'PENDIENTE',
+      esProvisional: Boolean(prestamo?.esProvisional),
     } as any
+  })
+
+  // Calcular riesgo de obligación para todas las visitas
+  const visitasConRiesgo = visitasDesdeObligaciones.map((visita: any) => {
+    const nivelRiesgoRaw = resolveRiesgoObligacion({
+      row: visita,
+      prestamo: visita.prestamo || {},
+      cuotaObjetivo: visita.cuotaObjetivo,
+      estadoCalculado: visita.estado,
+      diasMora: visita.diasMora,
+      cuotasVencidas: visita.cuotasVencidas,
+      esProvisional: visita.esProvisional,
+    })
+    const nivelRiesgo = normalizeNivelRiesgo(nivelRiesgoRaw)
+    const prioridad = nivelRiesgoRaw === 'ROJO' || nivelRiesgoRaw === 'LISTA_NEGRA' ? 'alta' : 'media'
+    return {
+      ...visita,
+      nivelRiesgo,
+      prioridad,
+    }
   })
 
   // 3) Mapear visitas del backend a `VisitaRuta` (shape que espera el UI).
   //    Nota: aquí NO aplicamos la lógica pesada de mapeo/asignación del día actual.
   //    Para historial, la mayoría de campos se debe respetar del backend si viene.
-  const visitas: VisitaRuta[] = visitasDesdeObligaciones.length > 0
-    ? visitasDesdeObligaciones
+  const visitas: VisitaRuta[] = visitasConRiesgo.length > 0
+    ? visitasConRiesgo
     : ((visitasResp as any)?.visitas || []).flatMap((item: any, index: number) => {
     const cliente = item?.cliente || {}
     const prestamos = Array.isArray(item?.prestamos) ? item.prestamos : []
@@ -504,8 +527,6 @@ export const buildHistorialDiaFromBackend = (params: {
           estadoVisita: item?.estadoVisita || undefined,
           proximaVisita: item?.proximaVisita || fechaClave,
           ordenVisita: item?.ordenVisita || index + 1,
-          prioridad: cliente?.nivelRiesgo === 'ROJO' ? 'alta' : 'media',
-          nivelRiesgo: normalizeNivelRiesgo(cliente?.nivelRiesgo),
           cobradorId: '',
           periodoRuta: 'DIA',
           clienteId: cliente?.id,
@@ -562,7 +583,7 @@ export const buildHistorialDiaFromBackend = (params: {
       const keyExist = prestamoId ? `loan-${prestamoId}` : (cliente?.id ? `client-${cliente.id}` : `client-idx-${index}`)
       existentes.add(keyExist)
 
-      return {
+      const visitaBase = {
         id: `${item?.asignacionId || `hist-${fechaClave}-${index}`}-${prestamoId || loanIdx}`,
         cliente: `${cliente?.nombres || ''} ${cliente?.apellidos || ''}`.trim() || 'Cliente Sin Nombre',
         direccion: cliente?.direccion || 'Sin dirección',
@@ -575,14 +596,35 @@ export const buildHistorialDiaFromBackend = (params: {
         estadoVisita: item?.estadoVisita || undefined,
         proximaVisita: item?.proximaVisita || proximaCuota?.fechaVencimiento || fechaClave,
         ordenVisita: (item?.ordenVisita ? Number(item.ordenVisita) : (index + 1)) + loanIdx,
-        prioridad: cliente?.nivelRiesgo === 'ROJO' ? 'alta' : 'media',
-        nivelRiesgo: normalizeNivelRiesgo(cliente?.nivelRiesgo),
         cobradorId: '',
         periodoRuta,
         clienteId: cliente?.id,
         prestamoId,
         recaudadoDelDia: recDia,
         recaudadoRegularizadoDespues: regularizadoDespues,
+        diasMora: Number(proximaCuota?.diasMora || p?.diasMora || 0),
+        cuotasVencidas: Number(item?.cuotasVencidas ?? proximaCuota?.cuotasVencidas ?? 0),
+        pendienteAprobacion: Boolean(p?.esProvisional) || String(p?.estadoAprobacion || '').toUpperCase() === 'PENDIENTE',
+        esProvisional: Boolean(p?.esProvisional),
+      } as any
+
+      // Calcular riesgo de obligación
+      const nivelRiesgoRaw = resolveRiesgoObligacion({
+        row: visitaBase,
+        prestamo: p,
+        cuotaObjetivo: proximaCuota,
+        estadoCalculado: estado,
+        diasMora: visitaBase.diasMora,
+        cuotasVencidas: visitaBase.cuotasVencidas,
+        esProvisional: visitaBase.esProvisional,
+      })
+      const nivelRiesgo = normalizeNivelRiesgo(nivelRiesgoRaw)
+      const prioridad = nivelRiesgoRaw === 'ROJO' || nivelRiesgoRaw === 'LISTA_NEGRA' ? 'alta' : 'media'
+
+      return {
+        ...visitaBase,
+        nivelRiesgo,
+        prioridad,
       } as any
     })
     })

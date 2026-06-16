@@ -182,6 +182,7 @@ import NuevoClienteModal from '@/components/clientes/NuevoClienteModal'
 
 import RutaProvisionalModal from '@/components/dashboards/shared/RutaProvisionalModal'
 import { VisitaRuta, EstadoVisita, PeriodoRuta, HistorialDia, mapNivelRiesgo, mapFrecuenciaToPeriodo } from '@/lib/types/cobranza'
+import { resolveRiesgoObligacion, resolveNivelRiesgoUi } from '@/lib/rutas/riesgo-obligacion'
 import { StaticVisitaItem, SortableVisita, Portal, MODAL_Z_INDEX, SeleccionClienteModal } from '@/components/dashboards/shared/CobradorElements'
 import EstadoCuentaModal from '@/components/cobranza/EstadoCuentaModal'
 
@@ -270,51 +271,23 @@ const normalizePeriodoRuta = (raw: any): any => {
   return 'DIA'
 }
 
-const resolveNivelRiesgoVisita = (raw: any): any => {
-  const value = String(raw || '').trim().toUpperCase()
+const resolveNivelRiesgoVisita = (visita: any, prestamo?: any, cuotaObjetivo?: any): any => {
+  const estadoCalculado = visita?.estado || 'pendiente'
+  const diasMora = Number(cuotaObjetivo?.diasMora || prestamo?.diasMora || visita?.diasMora || 0)
+  const cuotasVencidas = Number(visita?.cuotasVencidas ?? cuotaObjetivo?.cuotasVencidas ?? 0)
+  const esProvisional = Boolean(prestamo?.esProvisional) || String(prestamo?.estadoAprobacion || '').toUpperCase() === 'PENDIENTE'
 
-  if (!value) return 'bajo'
+  const nivelRiesgoRaw = resolveRiesgoObligacion({
+    row: visita,
+    prestamo: prestamo || {},
+    cuotaObjetivo,
+    estadoCalculado,
+    diasMora,
+    cuotasVencidas,
+    esProvisional,
+  })
 
-  if (
-    value === 'PELIGRO_MINIMO' ||
-    value === 'MINIMO' ||
-    value === 'MÍNIMO' ||
-    value === 'BAJO' ||
-    value === 'VERDE'
-  ) {
-    return 'bajo'
-  }
-
-  if (value === 'LEVE') return 'leve'
-
-  if (
-    value === 'PRECAUCION' ||
-    value === 'PRECAUCIÓN' ||
-    value === 'AMARILLO'
-  ) {
-    return 'precaucion'
-  }
-
-  if (
-    value === 'RIESGO_MODERADO' ||
-    value === 'MODERADO'
-  ) {
-    return 'moderado'
-  }
-
-  if (
-    value === 'ALTO_RIESGO' ||
-    value === 'ROJO' ||
-    value === 'CRITICO' ||
-    value === 'CRÍTICO' ||
-    value === 'RIESGO_CRITICO' ||
-    value === 'RIESGO_CRÍTICO' ||
-    value === 'LISTA_NEGRA'
-  ) {
-    return 'critico'
-  }
-
-  return mapNivelRiesgo(value as any) || 'bajo'
+  return resolveNivelRiesgoUi(nivelRiesgoRaw)
 }
 
 
@@ -994,7 +967,7 @@ const VistaCobrador = () => {
           proximaVisita: proximaVisitaV,
           ordenVisita: Number(row?.ordenVisita || idx + 1),
           prioridad: 'media' as any,
-          nivelRiesgo: resolveNivelRiesgoVisita(c?.nivelRiesgo || 'VERDE') as any,
+          nivelRiesgo: resolveNivelRiesgoVisita(row, p, prox) as any,
           diasMora,
           cobradorId,
           periodoRuta: normalizePeriodoRuta(p?.frecuenciaPago || 'DIARIO') as any,
@@ -1480,16 +1453,7 @@ const VistaCobrador = () => {
                 ordenVisita: Number(o.ordenVisita || idx + 1),
                 prioridad: o.prioridad || 'media',
 
-                nivelRiesgo: resolveNivelRiesgoVisita(
-                  o.nivelRiesgo ||
-                    o.nivelRiesgoCliente ||
-                    o.riesgo ||
-                    o.riesgoCliente ||
-                    clienteObj?.nivelRiesgo ||
-                    clienteObj?.riesgo ||
-                    clienteObj?.nivelRiesgoCalculado ||
-                    'BAJO',
-                ),
+                nivelRiesgo: resolveNivelRiesgoVisita(o, prestamo, undefined),
 
                 cobradorId: rutaCompleta.cobradorId,
                 periodoRuta: normalizePeriodoRuta(frecuenciaPago),
