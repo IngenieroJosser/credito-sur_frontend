@@ -73,54 +73,64 @@ export default function FloatingActionMenu({ actions }: FloatingActionMenuProps)
     <>
       {isOpen && (
         <div
-          className="fixed top-0 left-0 w-screen h-screen z-40 bg-slate-900/10 backdrop-blur-[1px]"
+          className="fixed inset-0 z-40 bg-slate-900/10 backdrop-blur-[1px]"
           onClick={() => setIsOpen(false)}
           aria-hidden="true"
         />
       )}
-      <div ref={menuRef} className="fixed right-4 sm:right-6 z-50 flex flex-col items-end gap-3 bottom-24 md:bottom-[calc(1.5rem+env(safe-area-inset-bottom))]">
-        <div
-          className={`flex max-h-[calc(100vh-9rem)] flex-col gap-3 overflow-y-auto pr-1 transition-all duration-200 origin-bottom-right ${
-            isOpen
-              ? 'scale-100 opacity-100 translate-y-0 pointer-events-auto'
-              : 'scale-95 opacity-0 translate-y-2 pointer-events-none'
-          }`}
-        >
-          {actions.map((action, index) => {
-            const colors = colorMap[action.color || 'primary']
-            return (
-              <button
-                type="button"
-                key={`${action.label}-${index}`}
-                onClick={() => {
-                  setIsOpen(false)
-                  action.onClick()
-                }}
-                className="flex items-center justify-between w-56 gap-3"
-              >
-                <span className={`text-xs font-bold px-3 py-1 rounded-full ${colors.badge}`}>
-                  {action.label}
-                </span>
-                <div className={`h-11 w-11 flex items-center justify-center rounded-full border transition-all ${colors.icon}`}>
-                  {action.icon}
-                </div>
-              </button>
-            )
-          })}
-        </div>
 
-        <button
-          type="button"
-          onClick={() => setIsOpen((prev) => !prev)}
-          className={`p-4 rounded-full shadow-xl transition-all duration-300 ${
-            isOpen
-              ? 'bg-[#063a58] text-white rotate-45'
-              : 'bg-[#08557f] text-white hover:bg-[#063a58] hover:scale-105'
-          }`}
-          aria-label={isOpen ? 'Cerrar acciones' : 'Abrir acciones'}
-        >
-          {isOpen ? <X className="h-6 w-6" /> : <Plus className="h-6 w-6" />}
-        </button>
+      <div
+        ref={menuRef}
+        className="fixed bottom-24 right-4 z-50 sm:right-6 md:bottom-[calc(1.5rem+env(safe-area-inset-bottom))]"
+      >
+        <div className="relative flex flex-col items-end">
+          <div
+            className={`absolute bottom-20 right-0 flex max-h-[70vh] min-w-60 flex-col gap-3 overflow-y-auto rounded-3xl bg-white/95 p-3 shadow-2xl ring-1 ring-slate-200 backdrop-blur-md transition-all duration-200 ${
+              isOpen
+                ? 'scale-100 opacity-100 translate-y-0 pointer-events-auto'
+                : 'scale-95 opacity-0 translate-y-2 pointer-events-none'
+            }`}
+          >
+            {actions.map((action, index) => {
+              const colors = colorMap[action.color || 'primary']
+
+              return (
+                <button
+                  type="button"
+                  key={`${action.label}-${index}`}
+                  onClick={() => {
+                    setIsOpen(false)
+                    action.onClick()
+                  }}
+                  className="flex w-56 items-center justify-between gap-3 rounded-2xl px-1 py-1 transition-colors hover:bg-slate-50"
+                >
+                  <span className={`rounded-full px-3 py-1 text-xs font-bold ${colors.badge}`}>
+                    {action.label}
+                  </span>
+
+                  <div
+                    className={`flex h-11 w-11 items-center justify-center rounded-full border transition-all ${colors.icon}`}
+                  >
+                    {action.icon}
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsOpen((prev) => !prev)}
+            className={`rounded-full p-4 shadow-xl transition-all duration-300 ${
+              isOpen
+                ? 'rotate-45 bg-[#063a58] text-white'
+                : 'bg-[#08557f] text-white hover:scale-105 hover:bg-[#063a58]'
+            }`}
+            aria-label={isOpen ? 'Cerrar acciones' : 'Abrir acciones'}
+          >
+            {isOpen ? <X className="h-6 w-6" /> : <Plus className="h-6 w-6" />}
+          </button>
+        </div>
       </div>
     </>
   )
