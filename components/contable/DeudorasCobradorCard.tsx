@@ -447,7 +447,7 @@ export default function DeudorasCobradorCard() {
             </div>
             <div className="text-left">
               <p className="text-xs font-black text-slate-700 uppercase tracking-wider">
-                Deudas de Cobradores
+                Deudas reales de cobradores
               </p>
               <p className="text-[10px] text-slate-400 font-medium mt-0.5">
                 {loading

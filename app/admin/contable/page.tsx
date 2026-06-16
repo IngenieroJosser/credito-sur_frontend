@@ -89,6 +89,7 @@ import SelectCategoria from '@/components/ui/SelectCategoria'
 import AnimacionCarga from '@/components/ui/AnimacionCarga'
 import Link from 'next/link'
 import DeudorasCobradorCard from '@/components/contable/DeudorasCobradorCard'
+import EfectivoBajoCustodiaCard from '@/components/contable/EfectivoBajoCustodiaCard'
 import FieldLabel from '@/components/ui/FieldLabel'
 
 // --- TIPOS DE DATOS ---
@@ -3532,7 +3533,14 @@ const ModuloContableContent = () => {
       </div>
 
       {/* =============================================
-          DEUDAS DE COBRADORES — Tarjeta al fondo
+          EFECTIVO BAJO CUSTODIA — Tarjeta al fondo
+      ============================================= */}
+      <div className="px-6 pb-8">
+        <EfectivoBajoCustodiaCard />
+      </div>
+
+      {/* =============================================
+          DEUDAS REALES DE COBRADORES — Tarjeta al fondo
       ============================================= */}
       <div className="px-6 pb-8">
         <DeudorasCobradorCard />
@@ -3553,3 +3561,6 @@ const ModuloContablePage = () => {
 }
 
 export default ModuloContablePage
+
+
+

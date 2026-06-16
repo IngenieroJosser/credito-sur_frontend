@@ -817,6 +817,7 @@ export type DeudaCobrador = {
   totalDeuda: number;
   gastosPersonales: number;
   descuadres: number;
+  efectivoBajoCustodia: number;
   totalEventos: number;
   eventos?: DeudaEvento[];
 };
