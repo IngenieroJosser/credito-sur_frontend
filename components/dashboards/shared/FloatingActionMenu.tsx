@@ -1,12 +1,13 @@
 'use client'
 
+import type { ReactNode } from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Plus, X } from 'lucide-react'
 
 export interface FabAction {
   label: string
-  icon: React.ReactNode
+  icon: ReactNode
   onClick: () => void
   color?: 'primary' | 'orange' | 'emerald' | 'rose' | 'blue'
 }
@@ -17,24 +18,34 @@ interface FloatingActionMenuProps {
 
 const colorMap = {
   primary: {
-    badge: 'bg-[#08557f]/90 text-white shadow-lg shadow-[#08557f]/20',
-    icon: 'bg-white/20 text-[#08557f] border-white/25 shadow-lg shadow-[#08557f]/10 hover:bg-white/30',
+    badge:
+      'bg-[#08557f]/90 text-white shadow-[0_8px_22px_rgba(8,85,127,0.28)]',
+    icon:
+      'bg-white/[0.20] text-[#08557f] border-white/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_8px_24px_rgba(8,85,127,0.16)] hover:bg-white/[0.30]',
   },
   orange: {
-    badge: 'bg-orange-600/90 text-white shadow-lg shadow-orange-600/20',
-    icon: 'bg-white/20 text-orange-600 border-white/25 shadow-lg shadow-orange-600/10 hover:bg-white/30',
+    badge:
+      'bg-orange-600/90 text-white shadow-[0_8px_22px_rgba(234,88,12,0.28)]',
+    icon:
+      'bg-white/[0.20] text-orange-600 border-white/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_8px_24px_rgba(234,88,12,0.16)] hover:bg-white/[0.30]',
   },
   emerald: {
-    badge: 'bg-emerald-600/90 text-white shadow-lg shadow-emerald-600/20',
-    icon: 'bg-white/20 text-emerald-600 border-white/25 shadow-lg shadow-emerald-600/10 hover:bg-white/30',
+    badge:
+      'bg-emerald-600/90 text-white shadow-[0_8px_22px_rgba(5,150,105,0.28)]',
+    icon:
+      'bg-white/[0.20] text-emerald-600 border-white/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_8px_24px_rgba(5,150,105,0.16)] hover:bg-white/[0.30]',
   },
   rose: {
-    badge: 'bg-rose-600/90 text-white shadow-lg shadow-rose-600/20',
-    icon: 'bg-white/20 text-rose-600 border-white/25 shadow-lg shadow-rose-600/10 hover:bg-white/30',
+    badge:
+      'bg-rose-600/90 text-white shadow-[0_8px_22px_rgba(225,29,72,0.28)]',
+    icon:
+      'bg-white/[0.20] text-rose-600 border-white/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_8px_24px_rgba(225,29,72,0.16)] hover:bg-white/[0.30]',
   },
   blue: {
-    badge: 'bg-blue-600/90 text-white shadow-lg shadow-blue-600/20',
-    icon: 'bg-white/20 text-blue-600 border-white/25 shadow-lg shadow-blue-600/10 hover:bg-white/30',
+    badge:
+      'bg-blue-600/90 text-white shadow-[0_8px_22px_rgba(37,99,235,0.28)]',
+    icon:
+      'bg-white/[0.20] text-blue-600 border-white/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_8px_24px_rgba(37,99,235,0.16)] hover:bg-white/[0.30]',
   },
 }
 
@@ -77,7 +88,7 @@ export default function FloatingActionMenu({ actions }: FloatingActionMenuProps)
     <>
       {isOpen && (
         <div
-          className="fixed inset-0 z-[2147483645] bg-slate-900/10 backdrop-blur-[2px]"
+          className="fixed inset-0 z-[2147483645] bg-slate-950/[0.08] backdrop-blur-[2px]"
           onClick={() => setIsOpen(false)}
           aria-hidden="true"
         />
@@ -85,17 +96,26 @@ export default function FloatingActionMenu({ actions }: FloatingActionMenuProps)
 
       <div
         ref={menuRef}
-        className="fixed bottom-6 right-4 z-[2147483646] flex flex-col items-end gap-4 sm:right-6"
+        className="fixed right-4 z-[2147483646] flex flex-col items-end gap-4 bottom-[calc(1.5rem+env(safe-area-inset-bottom))] sm:right-6"
       >
         <div
-          className={`relative flex max-h-[calc(100dvh-8rem)] min-w-64 flex-col gap-3 overflow-y-auto rounded-[2rem] border border-white/20 bg-white/10 p-3 shadow-[0_12px_40px_rgba(15,23,42,0.18)] ring-1 ring-white/10 backdrop-blur-2xl backdrop-saturate-150 transition-all duration-200 ${
+          className={`relative flex max-h-[calc(100dvh-8.5rem)] min-w-64 flex-col gap-3 overflow-y-auto rounded-[2.25rem] border border-white/20 bg-white/[0.075] p-3 shadow-[0_24px_80px_rgba(15,23,42,0.24)] ring-1 ring-white/[0.10] backdrop-blur-[28px] backdrop-saturate-[1.8] transition-all duration-300 ease-out [scrollbar-width:thin] ${
             isOpen
-              ? 'scale-100 opacity-100 translate-y-0 pointer-events-auto'
-              : 'scale-95 opacity-0 translate-y-3 pointer-events-none'
+              ? 'translate-y-0 scale-100 opacity-100 pointer-events-auto'
+              : 'translate-y-4 scale-95 opacity-0 pointer-events-none'
           }`}
         >
-          <div className="pointer-events-none absolute inset-0 rounded-[2rem] bg-gradient-to-br from-white/18 via-white/8 to-transparent" />
-          <div className="pointer-events-none absolute inset-[1px] rounded-[calc(2rem-1px)] border border-white/10" />
+          {/* Brillo líquido superior */}
+          <div className="pointer-events-none absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-white/70 to-transparent" />
+
+          {/* Capa de vidrio */}
+          <div className="pointer-events-none absolute inset-0 rounded-[2.25rem] bg-gradient-to-br from-white/[0.24] via-white/[0.08] to-white/[0.02]" />
+
+          {/* Reflejo diagonal */}
+          <div className="pointer-events-none absolute -top-20 right-4 h-40 w-40 rounded-full bg-white/[0.18] blur-3xl" />
+
+          {/* Borde interno */}
+          <div className="pointer-events-none absolute inset-[1px] rounded-[calc(2.25rem-1px)] border border-white/[0.12]" />
 
           <div className="relative z-10 flex flex-col gap-3">
             {actions.map((action, index) => {
@@ -110,16 +130,16 @@ export default function FloatingActionMenu({ actions }: FloatingActionMenuProps)
                     setIsOpen(false)
                     action.onClick()
                   }}
-                  className="flex w-60 items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/8 px-2 py-1.5 transition-all duration-200 hover:bg-white/16 hover:shadow-lg"
+                  className="group/action flex w-60 items-center justify-between gap-3 rounded-2xl border border-white/[0.10] bg-white/[0.075] px-2 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/[0.16] hover:shadow-[0_12px_30px_rgba(15,23,42,0.16)] active:translate-y-0 active:scale-[0.99]"
                 >
                   <span
-                    className={`rounded-full px-3 py-1 text-xs font-bold backdrop-blur-md ${colors.badge}`}
+                    className={`rounded-full px-3 py-1 text-xs font-bold backdrop-blur-xl transition-transform duration-200 group-hover/action:scale-[1.03] ${colors.badge}`}
                   >
                     {action.label}
                   </span>
 
                   <div
-                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border backdrop-blur-md transition-all ${colors.icon}`}
+                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border backdrop-blur-xl transition-all duration-200 group-hover/action:scale-105 ${colors.icon}`}
                   >
                     {action.icon}
                   </div>
@@ -132,14 +152,19 @@ export default function FloatingActionMenu({ actions }: FloatingActionMenuProps)
         <button
           type="button"
           onClick={() => setIsOpen((prev) => !prev)}
-          className={`rounded-full border border-white/20 p-4 shadow-[0_10px_30px_rgba(8,85,127,0.35)] backdrop-blur-xl transition-all duration-300 ${
+          className={`relative overflow-hidden rounded-full border border-white/20 p-4 text-white shadow-[0_18px_45px_rgba(8,85,127,0.38)] backdrop-blur-2xl transition-all duration-300 active:scale-95 ${
             isOpen
-              ? 'rotate-45 bg-[#063a58]/90 text-white'
-              : 'bg-[#08557f]/90 text-white hover:scale-105 hover:bg-[#063a58]/95'
+              ? 'rotate-45 bg-[#063a58]/90'
+              : 'bg-[#08557f]/90 hover:scale-105 hover:bg-[#063a58]/95'
           }`}
           aria-label={isOpen ? 'Cerrar acciones' : 'Abrir acciones'}
         >
-          {isOpen ? <X className="h-6 w-6" /> : <Plus className="h-6 w-6" />}
+          <span className="pointer-events-none absolute inset-x-2 top-0 h-px bg-gradient-to-r from-transparent via-white/80 to-transparent" />
+          <span className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-transparent" />
+
+          <span className="relative z-10 block">
+            {isOpen ? <X className="h-6 w-6" /> : <Plus className="h-6 w-6" />}
+          </span>
         </button>
       </div>
     </>,
