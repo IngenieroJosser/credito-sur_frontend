@@ -1450,6 +1450,7 @@ const ModuloContableContent = () => {
                     let conceptoLimpio = m.concepto
                         .replace(/^Entrada desde .*?: |^Salida hacia .*?: |^Consolidación .*?: /i, '')
                         .replace(/^Transferencia enviada a .*?: |^Transferencia recibida de .*?: /i, '')
+                        .replace(/^Reversa de asiento\s+DESEMBOLSO\b/i, 'Reversa de desembolso')
                         .replace(/\(Entrada\)|\(Salida\)/gi, '')
                         .trim();
 
@@ -2345,6 +2346,7 @@ const ModuloContableContent = () => {
                   <div className="font-medium text-slate-800 text-sm leading-relaxed">
                     {(() => {
                       let conceptoMostrar = movimientoSeleccionado.concepto
+                        .replace(/^Reversa de asiento\s+DESEMBOLSO\b/i, 'Reversa de desembolso')
                         .replace(/^Entrada desde .*?: |^Salida hacia .*?: |^Consolidación .*?: /i, '')
                         .replace(/^Transferencia enviada a .*?: |^Transferencia recibida de .*?: /i, '')
                         .replace(/\(Entrada\)|\(Salida\)/gi, '')
@@ -2376,6 +2378,7 @@ const ModuloContableContent = () => {
 
                       if (conceptoMostrar.includes('undefined') || conceptoMostrar.length < 5) {
                         conceptoMostrar = movimientoSeleccionado.concepto
+                          .replace(/^Reversa de asiento\s+DESEMBOLSO\b/i, 'Reversa de desembolso')
                           .replace(/^Entrada desde .*?: |^Salida hacia .*?: |^Consolidación .*?: /i, '')
                           .replace(/^Transferencia enviada a .*?: |^Transferencia recibida de .*?: /i, '')
                           .trim()
@@ -3268,6 +3271,7 @@ const ModuloContableContent = () => {
                             })
                             .map((m) => {
                               let conceptoMostrar = m.concepto
+                                .replace(/^Reversa de asiento\s+DESEMBOLSO\b/i, 'Reversa de desembolso')
                                 .replace(/^Entrada desde .*?: |^Salida hacia .*?: |^Consolidación .*?: /i, '')
                                 .replace(/^Transferencia enviada a .*?: |^Transferencia recibida de .*?: /i, '')
                                 .replace(/\(Entrada\)|\(Salida\)/gi, '')
@@ -3311,6 +3315,7 @@ const ModuloContableContent = () => {
                               
                               if (conceptoMostrar.includes('undefined') || conceptoMostrar.length < 5) {
                                 conceptoMostrar = m.concepto
+                                  .replace(/^Reversa de asiento\s+DESEMBOLSO\b/i, 'Reversa de desembolso')
                                   .replace(/^Entrada desde .*?: |^Salida hacia .*?: |^Consolidación .*?: /i, '')
                                   .replace(/^Transferencia enviada a .*?: |^Transferencia recibida de .*?: /i, '')
                                   .trim();

@@ -123,6 +123,20 @@ describe('clasificacion contable de movimientos', () => {
     }).positivo).toBe(false)
   })
 
+  it('etiqueta reversas de desembolso como reversa y firma por impacto de caja', () => {
+    const etiqueta = getEtiquetaMovimientoContable({
+      tipo: 'INGRESO',
+      tipoReferencia: 'AJUSTE',
+      concepto: 'Reversa de asiento DESEMBOLSO PRES-000019',
+      monto: 500000,
+      accountCode: '1.2.1',
+      impactoCaja: 500000,
+    })
+
+    expect(etiqueta.label).toBe('REVERSA')
+    expect(etiqueta.positivo).toBe(true)
+  })
+
   it('calcula entradas y salidas fisicas para arqueo desde impactoCaja', () => {
     expect(getEntradaCajaFisica({ impactoCaja: 8500000 })).toBe(8500000)
     expect(getEntradaCajaFisica({ impactoCaja: -5500000 })).toBe(0)
