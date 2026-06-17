@@ -1171,6 +1171,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
       const visitasNormalizadas = nextVisitas.map(normalizeVisitaHistorial).map((v: any) => ({
         ...v,
         riesgoHistoricoUiCalculado: true,
+        riesgoHistoricoUiSource: 'ruta-hoy-v1',
       }))
       const resumenActualizado = computeHistorialResumenCompartido(
         visitasNormalizadas,
@@ -1343,6 +1344,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     const visitasNormalizadas = (nextVisitas || []).map(normalizeVisitaHistorial).map((v: any) => ({
       ...v,
       riesgoHistoricoUiCalculado: true,
+      riesgoHistoricoUiSource: v?.riesgoHistoricoUiSource || 'cuotas-historicas-v2',
     }))
     const resumenActualizado = computeHistorialResumenCompartido(
       visitasNormalizadas,
