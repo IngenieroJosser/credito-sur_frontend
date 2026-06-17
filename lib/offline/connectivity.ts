@@ -7,13 +7,17 @@
  * está activa (cable/WiFi conectado), NO si hay internet real.
  * Si el router tiene WiFi pero no internet, onLine = true.
  *
- * Solución: hacer un HEAD a /api/ping (Vercel, ultra rápido)
- * para confirmar que hay conexión a internet real.
+ * Solución: hacer un HEAD al backend real para confirmar conectividad.
  *
  * Cache de 10s para evitar over-fetching.
  */
 
-const PING_ENDPOINT = '/api/ping';
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  process.env.NEXT_PUBLIC_BACKEND_URL ||
+  'http://localhost:3001/api-credisur';
+
+const PING_ENDPOINT = `${API_URL.replace(/\/$/, '')}/health`;
 const PING_TIMEOUT_MS = 4000;
 const CACHE_DURATION_MS = 10_000; // No re-pinguear más de 1 vez cada 10s
 
@@ -39,9 +43,12 @@ export async function checkRealConnectivity(): Promise<boolean> {
     const timeoutId = setTimeout(() => controller.abort(), PING_TIMEOUT_MS);
 
     const response = await fetch(PING_ENDPOINT, {
-      method: 'HEAD',
+      method: 'GET',
       cache: 'no-store',
       signal: controller.signal,
+      headers: {
+        Accept: 'application/json',
+      },
     });
 
     clearTimeout(timeoutId);
