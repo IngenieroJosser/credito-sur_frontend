@@ -131,18 +131,25 @@ export default function OfflineIndicator() {
   }
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 max-w-sm">
+    <div className="fixed left-1/2 -translate-x-1/2 bottom-4 z-50 max-w-md pointer-events-none">
       {/* Resultado de sync */}
       {showResult && lastSyncResult && (
-        <div className="mb-2 bg-white rounded-xl border border-slate-200 shadow-lg p-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
-          <div className="flex items-center justify-between">
+        <div className="mb-2 rounded-2xl border border-white/20 bg-white/[0.075] p-3 shadow-[0_24px_80px_rgba(15,23,42,0.24)] ring-1 ring-white/[0.10] backdrop-blur-[28px] backdrop-saturate-[1.8] animate-in fade-in slide-in-from-bottom-2 duration-300 pointer-events-auto">
+          {/* Brillo líquido superior */}
+          <div className="pointer-events-none absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-white/70 to-transparent" />
+          {/* Capa de vidrio */}
+          <div className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-br from-white/[0.24] via-white/[0.08] to-white/[0.02]" />
+          {/* Borde interno */}
+          <div className="pointer-events-none absolute inset-[1px] rounded-[calc(2rem-1px)] border border-white/[0.12]" />
+          
+          <div className="relative z-10 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <CheckCircle className="h-4 w-4 text-emerald-500" />
               <span className="text-xs font-bold text-slate-700">
                 Sync: {lastSyncResult.succeeded} OK, {lastSyncResult.failed} fallidos
               </span>
             </div>
-            <button onClick={() => setShowResult(false)} className="p-1 hover:bg-slate-100 rounded">
+            <button onClick={() => setShowResult(false)} className="p-1 hover:bg-white/20 rounded transition-colors">
               <X className="h-3 w-3 text-slate-400" />
             </button>
           </div>
@@ -151,7 +158,15 @@ export default function OfflineIndicator() {
 
       {/* Panel expandido */}
       {expanded && (
-        <div className="mb-2 bg-white rounded-xl border border-slate-200 shadow-xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-300">
+        <div className="mb-2 rounded-2xl border border-white/20 bg-white/[0.075] shadow-[0_24px_80px_rgba(15,23,42,0.24)] ring-1 ring-white/[0.10] backdrop-blur-[28px] backdrop-saturate-[1.8] overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-300 pointer-events-auto">
+          {/* Brillo líquido superior */}
+          <div className="pointer-events-none absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-white/70 to-transparent" />
+          {/* Capa de vidrio */}
+          <div className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-br from-white/[0.24] via-white/[0.08] to-white/[0.02]" />
+          {/* Reflejo diagonal */}
+          <div className="pointer-events-none absolute -top-20 right-4 h-40 w-40 rounded-full bg-white/[0.18] blur-3xl" />
+          {/* Borde interno */}
+          <div className="pointer-events-none absolute inset-[1px] rounded-[calc(2rem-1px)] border border-white/[0.12]" />
           {/* Información de sesión offline */}
           {hasOfflineSession && (
             <div className={`p-3 border-b ${isExpiringSoon ? 'bg-amber-50 border-amber-100' : 'border-slate-100'}`}>
@@ -299,33 +314,40 @@ export default function OfflineIndicator() {
       {/* Barra principal */}
       <button
         onClick={handleExpand}
-        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg border transition-all ${
+        className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl shadow-[0_18px_45px_rgba(8,85,127,0.38)] border border-white/20 backdrop-blur-2xl transition-all duration-300 active:scale-95 pointer-events-auto ${
           !isOnline
-            ? 'bg-slate-800 border-slate-700 text-white'
+            ? 'bg-slate-800/90 text-white'
             : failedOps > 0
-            ? 'bg-rose-600 border-rose-500 text-white'
+            ? 'bg-rose-600/90 text-white'
             : pendingOps > 0
-            ? 'bg-amber-500 border-amber-400 text-white'
+            ? 'bg-amber-500/90 text-white'
             : isSyncing
-            ? 'bg-blue-600 border-blue-500 text-white'
-            : 'bg-emerald-600 border-emerald-500 text-white'
+            ? 'bg-blue-600/90 text-white'
+            : 'bg-emerald-600/90 text-white'
         }`}
       >
+        {/* Brillo líquido superior */}
+        <span className="pointer-events-none absolute inset-x-2 top-0 h-px bg-gradient-to-r from-transparent via-white/80 to-transparent" />
+        {/* Capa de vidrio */}
+        <span className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-br from-white/20 via-transparent to-transparent" />
+        
         {/* Icono de estado */}
-        {!isOnline ? (
-          <WifiOff className="h-4 w-4 flex-shrink-0" />
-        ) : isSyncing ? (
-          <RefreshCw className="h-4 w-4 flex-shrink-0 animate-spin" />
-        ) : failedOps > 0 ? (
-          <AlertTriangle className="h-4 w-4 flex-shrink-0" />
-        ) : pendingOps > 0 ? (
-          <CloudUpload className="h-4 w-4 flex-shrink-0" />
-        ) : (
-          <Wifi className="h-4 w-4 flex-shrink-0" />
-        )}
+        <span className="relative z-10">
+          {!isOnline ? (
+            <WifiOff className="h-4 w-4 flex-shrink-0" />
+          ) : isSyncing ? (
+            <RefreshCw className="h-4 w-4 flex-shrink-0 animate-spin" />
+          ) : failedOps > 0 ? (
+            <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+          ) : pendingOps > 0 ? (
+            <CloudUpload className="h-4 w-4 flex-shrink-0" />
+          ) : (
+            <Wifi className="h-4 w-4 flex-shrink-0" />
+          )}
+        </span>
 
         {/* Texto */}
-        <span className="text-xs font-bold flex-1 text-left">
+        <span className="text-xs font-bold flex-1 text-left relative z-10">
           {!isOnline
             ? 'Sin conexión'
             : isSyncing
@@ -339,13 +361,15 @@ export default function OfflineIndicator() {
 
         {/* Badge de conteo */}
         {totalOps > 0 && (
-          <span className="bg-white/20 text-white text-[10px] font-black px-2 py-0.5 rounded-full">
+          <span className="bg-white/20 text-white text-[10px] font-black px-2 py-0.5 rounded-full relative z-10">
             {totalOps}
           </span>
         )}
 
         {/* Chevron */}
-        {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronUp className="h-3.5 w-3.5" />}
+        <span className="relative z-10">
+          {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronUp className="h-3.5 w-3.5" />}
+        </span>
       </button>
     </div>
   );
