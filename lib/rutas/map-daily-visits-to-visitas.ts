@@ -38,8 +38,9 @@
  */
 
 import { getPagoBogotaDateKey } from '@/lib/rutas-core'
-import { mapNivelRiesgo, mapFrecuenciaToPeriodo, type VisitaRuta, type EstadoVisita } from '@/lib/types/cobranza'
+import { mapFrecuenciaToPeriodo, type VisitaRuta, type EstadoVisita } from '@/lib/types/cobranza'
 import { resolveRiesgoObligacion, resolveMontoVencidoAcumulado } from './riesgo-obligacion'
+import { resolveNivelRiesgoVisita } from './resolve-riesgo-visita'
 
 export type MapMode = 'LIVE' | 'HISTORICO'
 
@@ -226,7 +227,7 @@ export const mapDailyVisitsResponseToVisitas = ({
       })
     }
 
-    return {
+    const visitaBase = {
       id: `${visita?.asignacionId || row?.asignacionId || 'daily'}-${p?.id || cuotaId || idx}`,
       cliente: nombreCliente || row?.nombreCliente || 'Cliente',
       direccion: c?.direccion || visita?.direccion || 'Sin dirección registrada',
@@ -238,7 +239,10 @@ export const mapDailyVisitsResponseToVisitas = ({
       montoMoraAcumulada: montoVencidoAcumulado,
       montoVencidoAcumulado,
       saldoVencidoAcumulado: montoVencidoAcumulado,
-      cuotasVencidas: Number(row?.cuotasVencidas ?? cuotaObjetivo?.cuotasVencidas ?? 0),
+      cuotasVencidas: Math.max(
+        Number(row?.cuotasVencidas ?? cuotaObjetivo?.cuotasVencidas ?? 0),
+        estadoCalculado === 'en_mora' ? 1 : 0,
+      ),
       saldoTotal: estadoCalculado === 'pagado' ? 0 : Number(p?.saldoPendiente || 0),
       estado: estadoCalculado,
       estadoVisita: row?.estadoVisita || p?.estadoVisita || visita?.estadoVisita || undefined,
@@ -247,7 +251,6 @@ export const mapDailyVisitsResponseToVisitas = ({
       targetVencimiento: proximaCuota?.fechaVencimiento || cuotaObjetivo?.fechaVencimiento,
       ordenVisita: Number(visita?.ordenVisita || row?.ordenVisita || idx + 1),
       prioridad: nivel === 'ROJO' || nivel === 'LISTA_NEGRA' ? 'alta' : 'media' as any,
-      nivelRiesgo: mapNivelRiesgo(nivel) as any,
       diasMora,
       cobradorId: rutaData?.cobradorId || initialRuta?.cobradorId || '',
       periodoRuta: mapFrecuenciaToPeriodo(frecuencia as any) as any,
@@ -272,6 +275,17 @@ export const mapDailyVisitsResponseToVisitas = ({
       fechaProrroga: proximaCuota?.fechaVencimientoProrroga || cuotaObjetivo?.fechaVencimientoProrroga || null,
       fechaOriginalVencimiento: proximaCuota?.fechaVencimiento || cuotaObjetivo?.fechaVencimiento || null,
       recaudadoDelDia,
+      // Preservar señales crudas de riesgo del backend
+      nivelRiesgoObligacion: row?.nivelRiesgoObligacion ?? row?.prestamo?.nivelRiesgoObligacion ?? p?.nivelRiesgoObligacion,
+      nivelRiesgoCredito: row?.nivelRiesgoCredito ?? row?.prestamo?.nivelRiesgoCredito ?? p?.nivelRiesgoCredito,
+      riesgoCredito: row?.riesgoCredito ?? row?.prestamo?.riesgoCredito ?? p?.riesgoCredito,
+      riesgoOperativo: row?.riesgoOperativo ?? row?.prestamo?.riesgoOperativo ?? p?.riesgoOperativo,
+      nivelRiesgoBackend: row?.nivelRiesgoBackend ?? row?.cliente?.nivelRiesgo ?? c?.nivelRiesgo,
+    }
+
+    return {
+      ...visitaBase,
+      nivelRiesgo: resolveNivelRiesgoVisita(visitaBase, p, cuotaObjetivo) as any,
     } as VisitaRuta
   })
 
@@ -285,8 +299,13 @@ export const mapDailyVisitsResponseToVisitas = ({
   })
 
   return uniques.sort((a: any, b: any) => {
+    // Pagados al final (criterio de VistaCobrador)
     if (a.estado === 'pagado' && b.estado !== 'pagado') return 1
     if (a.estado !== 'pagado' && b.estado === 'pagado') return -1
+    // En mora primero (criterio de VistaCobrador)
+    if (a.estado === 'en_mora' && b.estado !== 'en_mora') return -1
+    if (a.estado !== 'en_mora' && b.estado === 'en_mora') return 1
+    // Luego ordenVisita
     const ao = Number(a.ordenVisita ?? 0)
     const bo = Number(b.ordenVisita ?? 0)
     if (ao !== bo) return ao - bo

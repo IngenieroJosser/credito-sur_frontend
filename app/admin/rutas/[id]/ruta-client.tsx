@@ -96,6 +96,7 @@ import { useCierrePendienteDetalle } from '@/hooks/useCierrePendienteDetalle'
 import type { CierrePendienteDetalle } from '@/types/rutas/cierre-pendiente'
 
 import { HistorialDia, mapNivelRiesgo, mapFrecuenciaToPeriodo } from '@/lib/types/cobranza'
+import { ordenarVisitasRutaActual } from '@/lib/rutas/ordenar-visitas-ruta'
 
 import { exportService } from '@/services/export-service'
 
@@ -112,8 +113,11 @@ import { mapAsignacionesToVisitasLite } from '@/lib/ruta-visitas-mapper'
 import { buildRecaudosHoyMapByPrestamoId, computeMontoCuotaPendienteDespuesDeRecaudo, indexPagosByPrestamoId, mergeVisitasPreservingLocalRecaudo, sumMontoTotalPagosByBogotaDateKey } from '@/lib/ruta-recaudos'
 import { mapWithConcurrency, memoizePromiseByKey } from '@/lib/async-utils'
 import { buildHistorialDiaFromBackend, hasGestionHistorial, isPagoForHistorialFecha } from '@/lib/ruta-historial'
+import { resolveRiesgoObligacion, resolveNivelRiesgoUi } from '@/lib/rutas/riesgo-obligacion'
 import { mapDailyVisitsResponseToVisitas as mapDailyVisitsResponseToVisitasShared, type MapMode } from '@/lib/rutas/map-daily-visits-to-visitas'
-import { resolveRiesgoObligacion, resolveMontoVencidoAcumulado } from '@/lib/rutas/riesgo-obligacion'
+import { enrichVisitasConCuotasYRiesgo } from '@/lib/rutas/enrich-visitas-con-cuotas-y-riesgo'
+import { resolveVisitaBaseRegularizacion } from '@/lib/rutas/resolve-visita-base-regularizacion'
+import { buildRutaHoyOperativa } from '@/lib/rutas/build-ruta-hoy-operativa'
 
 interface GastoRuta {
   id: string
@@ -210,6 +214,7 @@ const RutaClientLoaded = ({
     meta: number
     eficiencia: number
     gastos: number
+    gastosProvisionales: number
     base: number
     pendiente?: number
   }>({
@@ -217,6 +222,7 @@ const RutaClientLoaded = ({
     meta: Number((initialRuta as any)?.estadisticas?.metaDelDia || 0),
     eficiencia: Number((initialRuta as any)?.estadisticas?.avanceDiario || 0),
     gastos: 0,
+    gastosProvisionales: 0,
     base: 0,
   })
 
@@ -288,9 +294,50 @@ const RutaClientLoaded = ({
       try {
         const pagosResp = await pagosService.obtenerPagos({ limit: 5000 })
         const pagosData = (pagosResp as any)?.pagos || pagosResp || []
+        
+        // Extraer prestamoId de obligaciones para filtrar pagos por préstamos de la ruta
+        const obligacionesRuta =
+          (Array.isArray((visitasResp as any)?.resumen?.obligaciones)
+            ? (visitasResp as any).resumen.obligaciones
+            : []) ||
+          []
+
+        const obligaciones =
+          Array.isArray((visitasResp as any)?.obligaciones)
+            ? (visitasResp as any).obligaciones
+            : obligacionesRuta.length > 0
+              ? obligacionesRuta
+              : Array.isArray((visitasResp as any)?.visitas)
+                ? (visitasResp as any).visitas
+                : []
+
+        const prestamosRuta = new Set(
+          obligaciones
+            .map((o: any) =>
+              String(
+                o?.prestamoId ||
+                o?.prestamo?.id ||
+                o?.prestamoObjetivoId ||
+                '',
+              ).trim(),
+            )
+            .filter(Boolean),
+        )
+        
         pagosDelDia = (Array.isArray(pagosData) ? pagosData : []).filter((p: any) => {
-          const cobradorMatch = rutaData?.cobradorId ? (p?.cobradorId === rutaData.cobradorId) : true
-          return isPagoForHistorialFecha(p, fechaClave) && cobradorMatch
+          if (!isPagoForHistorialFecha(p, fechaClave)) return false
+
+          const prestamoId = String(p?.prestamoId || p?.prestamo?.id || '').trim()
+
+          if (prestamosRuta.size > 0) {
+            return prestamosRuta.has(prestamoId)
+          }
+
+          const cobradorMatch = rutaData?.cobradorId 
+            ? String(p?.cobradorId || p?.cobrador?.id || '') === rutaData.cobradorId
+            : true
+
+          return cobradorMatch
         })
       } catch {
         pagosDelDia = []
@@ -301,9 +348,56 @@ const RutaClientLoaded = ({
     preferLoadDayForToday: true,
   })
 
+  const hasRiesgoHistoricoUiCalculado = (dia: any) => {
+    const visitas = Array.isArray(dia?.visitas) ? dia.visitas : []
+    const visitasConPrestamo = visitas.filter((v: any) => String(v?.prestamoId || '').trim())
+
+    if (visitasConPrestamo.length === 0) return false
+
+    return visitasConPrestamo.every((v: any) =>
+      v?.riesgoHistoricoUiCalculado === true &&
+      Boolean(v?.riesgoHistoricoUiSource)
+    )
+  }
+
+  const mergeHistorialPreservandoEnriquecido = (
+    prev: Record<string, any>,
+    incoming: Record<string, any>,
+  ) => {
+    const next = { ...(prev || {}) }
+
+    for (const [fecha, incomingDia] of Object.entries(incoming || {})) {
+      const prevDia = next[fecha]
+
+      if (hasRiesgoHistoricoUiCalculado(prevDia)) {
+        next[fecha] = {
+          ...incomingDia,
+          ...prevDia,
+          loaded: Boolean((incomingDia as any)?.loaded ?? prevDia?.loaded),
+          resumen: prevDia?.resumen || (incomingDia as any)?.resumen,
+          visitas: prevDia?.visitas,
+        }
+        continue
+      }
+
+      next[fecha] = incomingDia
+    }
+
+    return next
+  }
+
   useEffect(() => {
     if (!historial.historialRutas) return
-    setHistorialRutas(historial.historialRutas as any)
+
+    setHistorialRutas((prev: any) => {
+      const next = mergeHistorialPreservandoEnriquecido(
+        prev || {},
+        historial.historialRutas as any,
+      )
+
+      historialRutasRef.current = next
+      return next
+    })
   }, [historial.historialRutas])
 
   const historyDates = historial.historyDates
@@ -352,9 +446,87 @@ const RutaClientLoaded = ({
     const visitasRaw = Array.isArray(dayData?.visitas) ? dayData.visitas : []
 
     const visitasConPrestamo = visitasRaw.filter((v: any) => !!String(v?.prestamoId || ''))
+    const esHistorialDeHoy = fechaClave === hoyBogotaKey
+    const expectedSource = esHistorialDeHoy ? 'ruta-hoy-v1' : 'cuotas-historicas-v2'
     const yaEnriquecido = visitasConPrestamo.length > 0
-      && visitasConPrestamo.every((v: any) => (v as any)?.enMoraHistorico !== undefined)
+      && visitasConPrestamo.every((v: any) =>
+        (v as any)?.riesgoHistoricoUiCalculado === true &&
+        (v as any)?.riesgoHistoricoUiSource === expectedSource
+      )
     if (yaEnriquecido) return
+
+    // Para el día actual, usar los mismos datos de la ruta actual (visitasRutaHoyKpi)
+    if (esHistorialDeHoy && Array.isArray(visitasRutaHoyKpiRef.current) && visitasRutaHoyKpiRef.current.length > 0) {
+      const liveByPrestamoId = new Map(
+        visitasRutaHoyKpiRef.current
+          .filter((v: any) => String(v?.prestamoId || '').trim())
+          .map((v: any) => [String(v.prestamoId).trim(), v]),
+      )
+
+      const nextVisitas = visitasRaw.map((v: any) => {
+        const pid = String(v?.prestamoId || '').trim()
+        const live = liveByPrestamoId.get(pid)
+
+        if (!live) {
+          return {
+            ...v,
+            riesgoHistoricoUiCalculado: true,
+            riesgoHistoricoUiSource: 'ruta-hoy-v1',
+          }
+        }
+
+        return {
+          ...v,
+
+          estado: live.estado,
+          nivelRiesgo: live.nivelRiesgo,
+          nivelRiesgoObligacion: (live as any).nivelRiesgoObligacion,
+
+          montoCuota: live.montoCuota,
+          montoCuotaNormal: (live as any).montoCuotaNormal ?? live.montoCuota,
+          montoCuotaPendiente: (live as any).montoCuotaPendiente,
+
+          montoVencidoAcumulado: (live as any).montoVencidoAcumulado,
+          saldoVencidoAcumulado: (live as any).saldoVencidoAcumulado,
+          montoMoraAcumulada: (live as any).montoMoraAcumulada,
+
+          cuotasVencidas: (live as any).cuotasVencidas,
+          diasMora: (live as any).diasMora,
+
+          cuotaActual: (live as any).cuotaActual,
+          cuotasTotales: (live as any).cuotasTotales,
+
+          cuotaId: (live as any).cuotaId,
+          cuotaObjetivoId: (live as any).cuotaObjetivoId,
+          cuotaObjetivoPrestamoId: (live as any).cuotaObjetivoPrestamoId,
+          cuotaObjetivo: (live as any).cuotaObjetivo,
+          proximaCuota: (live as any).proximaCuota,
+
+          enMoraHistorico:
+            live.estado === 'en_mora' ||
+            Number((live as any).montoVencidoAcumulado || 0) > 0 ||
+            Number((live as any).diasMora || 0) > 0,
+
+          riesgoHistoricoUiCalculado: true,
+          riesgoHistoricoUiSource: 'ruta-hoy-v1',
+        }
+      })
+
+      setHistorialRutas((prev: any) => {
+        const prevDia = (prev || {})[fechaClave]
+        if (!prevDia) return prev
+
+        return {
+          ...(prev || {}),
+          [fechaClave]: {
+            ...prevDia,
+            visitas: nextVisitas,
+          },
+        }
+      })
+
+      return
+    }
 
     const prestamoIds = Array.from(new Set(visitasConPrestamo.map((v: any) => String(v?.prestamoId || '')).filter(Boolean)))
     if (prestamoIds.length === 0) return
@@ -376,14 +548,59 @@ const RutaClientLoaded = ({
         const pid = String(v?.prestamoId || '')
         if (!pid) return v
         const cuotas = await getCuotasByPrestamoId(pid)
-        const exigible = computeMontoExigibleHastaHoyFromCuotas(cuotas as any, fechaClave)
-        const tieneMora = (Array.isArray(cuotas) ? cuotas : []).some((c: any) => {
+        const cuotasArray = Array.isArray(cuotas) ? cuotas : []
+
+        // Calcular cuotas vencidas históricas
+        const cuotasVencidasHistoricas = cuotasArray.filter((c: any) => {
           if (!c || !isCuotaNoPagada(c)) return false
           const vtoRaw = resolveFechaEfectivaCuota(c) || String(c?.fechaVencimiento || '')
           const vtoKey = normalizeDateKey(vtoRaw)
           return !!vtoKey && vtoKey < fechaClave
         })
-        const enProrrogaHistorico = (Array.isArray(cuotas) ? cuotas : []).some((c: any) => {
+
+        const cuotasVencidasFinal = cuotasVencidasHistoricas.length
+
+        // Calcular monto vencido bruto
+        const montoVencidoBruto = computeMontoExigibleHastaHoyFromCuotas(
+          cuotasArray as any,
+          fechaClave,
+        )
+
+        const montoVencidoFinal = montoVencidoBruto
+
+        // Calcular días de mora final
+        const diasMoraFinal = computeDiasMoraFromCuotas(
+          cuotasArray as any,
+          fechaClave,
+          (v as any)?.frecuenciaPago || (v as any)?.periodoRuta || 'DIARIO',
+        )
+
+        // Determinar si tiene mora histórica
+        const tieneMoraHistorica =
+          Number(diasMoraFinal || 0) > 0 ||
+          Number(cuotasVencidasFinal || 0) > 0 ||
+          Number(montoVencidoFinal || 0) > 0
+
+        // Calcular cuota normal y recaudo del día
+        const cuotaNormal = Number((v as any)?.montoCuotaNormal ?? (v as any)?.montoCuota ?? 0)
+        const recaudadoDelDia = Number((v as any)?.recaudadoDelDia || 0)
+
+        // Determinar si pagó la cuota completa
+        const pagoCompletaCuota =
+          recaudadoDelDia > 0 &&
+          cuotaNormal > 0 &&
+          recaudadoDelDia >= cuotaNormal
+
+        // Determinar estado histórico
+        const estadoHistorico =
+          pagoCompletaCuota
+            ? 'pagado'
+            : tieneMoraHistorica
+              ? 'en_mora'
+              : 'pendiente'
+
+        // Calcular en prorroga histórico
+        const enProrrogaHistorico = cuotasArray.some((c: any) => {
           if (!c || !isCuotaNoPagada(c)) return false
           const prRaw = String(c?.fechaVencimientoProrroga || '')
           if (!prRaw) return false
@@ -394,15 +611,68 @@ const RutaClientLoaded = ({
           if (vtoKey && vtoKey > fechaClave) return false
           return true
         })
+
+        // Calcular riesgo con datos históricos
+        const rowRiesgo = {
+          ...v,
+          estado: estadoHistorico,
+          montoVencidoAcumulado: montoVencidoFinal,
+          saldoVencidoAcumulado: montoVencidoFinal,
+          montoMoraAcumulada: montoVencidoFinal,
+          cuotasVencidas: cuotasVencidasFinal,
+          diasMora: diasMoraFinal,
+          enMoraHistorico: tieneMoraHistorica,
+        }
+
+        const nivelRiesgoRaw = resolveRiesgoObligacion({
+          row: rowRiesgo,
+          prestamo: (v as any)?.prestamo || {},
+          cuotaObjetivo: (v as any)?.cuotaObjetivo || (v as any)?.proximaCuota || {},
+          estadoCalculado: estadoHistorico,
+          diasMora: diasMoraFinal,
+          cuotasVencidas: cuotasVencidasFinal,
+          esProvisional: Boolean((v as any)?.esProvisional),
+        })
+
+        const nivelRiesgo = resolveNivelRiesgoUi(nivelRiesgoRaw)
+
         return {
           ...v,
-          montoCuotaPendiente: exigible > 0 ? exigible : (v as any)?.montoCuotaPendiente,
-          enMoraHistorico: tieneMora,
+          estado: estadoHistorico,
+          montoCuotaPendiente: montoVencidoFinal > 0 ? montoVencidoFinal : (v as any)?.montoCuotaPendiente,
+          montoVencidoAcumulado: montoVencidoFinal,
+          saldoVencidoAcumulado: montoVencidoFinal,
+          montoMoraAcumulada: montoVencidoFinal,
+          cuotasVencidas: cuotasVencidasFinal,
+          diasMora: diasMoraFinal,
+          enMoraHistorico: tieneMoraHistorica,
           enProrrogaHistorico,
+          nivelRiesgo,
+          nivelRiesgoObligacion: nivelRiesgoRaw,
+          riesgoHistoricoUiCalculado: true,
+          riesgoHistoricoUiSource: 'cuotas-historicas-v2',
         }
       },
       6,
     )
+
+    // Logs de validación para riesgo histórico UI
+    if (process.env.NODE_ENV !== 'production') {
+      console.table(nextVisitas.map((v: any) => ({
+        tipo: 'RIESGO_HISTORIAL_UI',
+        cliente: v.cliente,
+        prestamoId: v.prestamoId,
+        estado: v.estado,
+        montoCuotaNormal: v.montoCuotaNormal,
+        recaudadoDelDia: v.recaudadoDelDia,
+        montoVencidoAcumulado: v.montoVencidoAcumulado,
+        cuotasVencidas: v.cuotasVencidas,
+        diasMora: v.diasMora,
+        enMoraHistorico: v.enMoraHistorico,
+        nivelRiesgo: v.nivelRiesgo,
+        nivelRiesgoObligacion: v.nivelRiesgoObligacion,
+      })))
+    }
 
     setHistorialRutas((prev: any) => {
       const prevDia = (prev || {})[fechaClave]
@@ -411,11 +681,14 @@ const RutaClientLoaded = ({
         ...(prev || {}),
         [fechaClave]: {
           ...prevDia,
-          visitas: nextVisitas,
+          visitas: nextVisitas.map((v: any) => ({
+            ...v,
+            riesgoHistoricoUiCalculado: true,
+          })),
         },
       }
     })
-  }, [])
+  }, [hoyBogotaKey])
 
   useEffect(() => {
     if (vistaRuta !== 'HISTORIAL') return
@@ -430,6 +703,41 @@ const RutaClientLoaded = ({
     if (!selectedHistoryDate) return
     void enriquecerHistorialDiaConCuotas(selectedHistoryDate)
   }, [vistaRuta, selectedHistoryDate, enriquecerHistorialDiaConCuotas])
+
+  useEffect(() => {
+    if (vistaRuta !== 'HISTORIAL') return
+
+    const historialActual = historialRutasRef.current || {}
+
+    const fechasPendientes = Object.keys(historialActual).filter((fecha) => {
+      const dia = (historialActual as any)[fecha]
+      if (!dia?.loaded) return false
+
+      const visitas = Array.isArray(dia?.visitas) ? dia.visitas : []
+      const tienePrestamos = visitas.some((v: any) => String(v?.prestamoId || '').trim())
+
+      const sourceEsperada = fecha === hoyBogotaKey
+        ? 'ruta-hoy-v1'
+        : 'cuotas-historicas-v2'
+
+      const yaCalculado = visitas.length > 0 && visitas.every((v: any) =>
+        v?.riesgoHistoricoUiCalculado === true &&
+        v?.riesgoHistoricoUiSource === sourceEsperada
+      )
+
+      return tienePrestamos && !yaCalculado
+    })
+
+    for (const fecha of fechasPendientes.slice(0, 5)) {
+      void enriquecerHistorialDiaConCuotas(fecha)
+    }
+  }, [
+    vistaRuta,
+    selectedHistoryDate,
+    hoyBogotaKey,
+    historial.historialRutas,
+    enriquecerHistorialDiaConCuotas,
+  ])
 
 
 
@@ -491,10 +799,16 @@ const RutaClientLoaded = ({
   }, [initialRuta?.cobradorId, hoyBogotaKey]);
 
   const [visitasCobrador, setVisitasCobrador] = useState<VisitaRuta[]>(() => mapearAsignacionesAVisitas(initialRuta));
+  const [visitasRutaHoyKpi, setVisitasRutaHoyKpi] = useState<VisitaRuta[]>([]);
+  const visitasRutaHoyKpiRef = useRef<VisitaRuta[]>([])
 
   useEffect(() => {
     visitasCobradorRef.current = visitasCobrador
   }, [visitasCobrador])
+
+  useEffect(() => {
+    visitasRutaHoyKpiRef.current = visitasRutaHoyKpi
+  }, [visitasRutaHoyKpi])
 
   const mapDailyVisitsResponseToVisitas = useCallback((resp: DailyVisitsResponse | null | undefined): VisitaRuta[] => {
     return mapDailyVisitsResponseToVisitasShared({
@@ -517,45 +831,36 @@ const RutaClientLoaded = ({
       const resp = await rutasService.obtenerVisitasDelDia(rutaId as any, hoyBogotaKey)
       setDailyVisitsHoy(resp)
 
-      const mapped = mapDailyVisitsResponseToVisitas(resp)
-      if (mapped.length > 0) {
-        // Merge selectivo: mapped es la fuente canónica, solo preservar campos locales de recaudo/gestión
-        const prevByPrestamoId = new Map(
-          (visitasCobradorRef.current || [])
-            .filter((v: any) => v?.prestamoId)
-            .map((v: any) => [String(v.prestamoId), v]),
-        )
+      // Usar helper compartido para construir fuente completa de KPI
+      const pagosResp = await pagosService.obtenerPagos({ limit: 5000 })
+      const pagos = (pagosResp as any)?.pagos || pagosResp || []
 
-        const merged = mapped.map((next: any) => {
-          const prev = prevByPrestamoId.get(String(next?.prestamoId || ''))
+      const result = await buildRutaHoyOperativa({
+        ruta: rutaData || initialRuta,
+        dailyVisits: resp,
+        hoyBogotaKey,
+        cobradorId: rutaData?.cobradorId || initialRuta?.cobradorId || '',
+        pagos,
+      })
 
-          if (!prev) return next
+      setVisitasRutaHoyKpi(result.kpiItems)
+      visitasCobradorRef.current = result.visibleItems as any
+      setVisitasCobrador(result.visibleItems as any)
+      setEnrichNonce((n) => n + 1)
 
-          return {
-            ...next,
-
-            // preservar solo estado local de cobro/gestión
-            recaudadoDelDia: Number(prev?.recaudadoDelDia || 0) > 0
-              ? prev.recaudadoDelDia
-              : next.recaudadoDelDia,
-
-            recaudadoTotalClient: prev?.recaudadoTotalClient ?? next.recaudadoTotalClient,
-            fechaUltimoPago: prev?.fechaUltimoPago ?? next.fechaUltimoPago,
-
-            estadoVisita: prev?.estadoVisita ?? next.estadoVisita,
-            notasVisita: prev?.notasVisita ?? next.notasVisita,
-          }
-        })
-
-        visitasCobradorRef.current = merged as any
-        setVisitasCobrador(merged as any)
-        setEnrichNonce((n) => n + 1)
-      }
+      // Actualizar KPI directamente desde el resultado del helper
+      setRutaStatsCards((prev) => ({
+        ...prev,
+        recaudo: result.stats.recaudo,
+        meta: result.stats.meta,
+        eficiencia: result.stats.eficiencia,
+        pendiente: result.stats.pendiente,
+      }))
     } catch (error) {
       console.error('Error cargando daily-visits de ruta actual:', error)
       setDailyVisitsHoy(null)
     }
-  }, [rutaId, hoyBogotaKey, mapDailyVisitsResponseToVisitas])
+  }, [rutaId, hoyBogotaKey, rutaData, initialRuta])
 
   useEffect(() => {
     void cargarDailyVisitsHoy()
@@ -564,6 +869,9 @@ const RutaClientLoaded = ({
   // Mantener visitas actualizadas cuando cambian los datos de la ruta (WebSocket)
   useEffect(() => {
     if (!rutaData) return
+
+    // Guard para evitar doble mutación cuando existe dailyVisitsHoy
+    if (vistaRuta === 'ACTUAL' && dailyVisitsHoy) return
 
     const tieneDailyVisits =
       (Array.isArray((dailyVisitsHoy as any)?.obligaciones) &&
@@ -589,6 +897,9 @@ const RutaClientLoaded = ({
 
     if (visitasCobrador.length === 0) return;
 
+    // Guard para evitar doble mutación cuando existe dailyVisitsHoy
+    if (vistaRuta === 'ACTUAL' && dailyVisitsHoy) return;
+
     const enrichKey = JSON.stringify({
       nonce: enrichNonce,
       items: visitasCobrador.map((v: any) => ({
@@ -613,8 +924,16 @@ const RutaClientLoaded = ({
         (prestamoId) => prestamosService.obtenerCuotas(prestamoId) as Promise<any[]>,
         () => [],
       )
-      
-      // 1. Obtener todos los pagos recientes de forma masiva para evitar N peticiones API
+
+      // 1. Enriquecer visitas con cuotas vivas y riesgo usando helper compartido
+      const visitasEnriquecidasConCuotas = await enrichVisitasConCuotasYRiesgo({
+        visitas: visitasCobrador,
+        hoyBogotaKey: hoyBogota,
+        getCuotasByPrestamoId,
+        concurrency: 6,
+      })
+
+      // 2. Obtener todos los pagos recientes de forma masiva para evitar N peticiones API
       const pagosRecientesResp = await pagosService.obtenerPagos({ limit: 1000 });
       const todosPagos = (pagosRecientesResp as any)?.pagos || pagosRecientesResp || [];
 
@@ -627,7 +946,7 @@ const RutaClientLoaded = ({
       const { totalHistoricoByPrestamoId, ultimoPagoDateByPrestamoId } = indexPagosByPrestamoId(todosPagos as any)
 
       const actualizadas = await mapWithConcurrency(
-        visitasCobrador,
+        visitasEnriquecidasConCuotas,
         async (v: any) => {
           if (!v.clienteId || !v.prestamoId) return { ...v, recaudadoDelDia: 0, recaudadoTotalClient: 0 };
 
@@ -637,44 +956,23 @@ const RutaClientLoaded = ({
             const totalHistorico = Number(totalHistoricoByPrestamoId[prestamoId] || 0)
             const ultimoPagoDate = Number(ultimoPagoDateByPrestamoId[prestamoId] || 0)
 
-            // 2. Obtener Cuotas para actualizar fecha y monto real
+            // 2. Usar valores ya enriquecidos por el helper compartido
             let montoCuotaReal = v.montoCuota;
             let montoCuotaPendienteReal = Number((v as any)?.montoCuotaPendiente ?? v.montoCuota ?? 0);
             let fechaReal = v.proximaVisita;
             let cuotaActual = v.cuotaActual
             let cuotasTotales = v.cuotasTotales
 
-            const cuotas = await getCuotasByPrestamoId(prestamoId);
-            const pendiente = (Array.isArray(cuotas) ? cuotas : []).find((c: any) => isCuotaNoPagada(c));
-
-            if (pendiente) {
-              const exigiblePendiente = computeMontoExigibleHastaHoyFromCuotas(cuotas as any, hoyBogota)
-              const exigibleNominal = computeMontoNominalHastaHoyFromCuotas(cuotas as any, hoyBogota)
-              const montoPendiente = Number(pendiente.monto || (Number(pendiente.montoCapital || 0) + Number(pendiente.montoInteres || 0)) || 0)
-              const pagadoPendiente = Number(pendiente.montoPagado || 0)
-              const pendienteReal = Math.max(0, montoPendiente - pagadoPendiente)
-
-              montoCuotaReal = Number(
-                (v as any)?.montoCuotaNormal ??
-                pendiente.montoNominal ??
-                pendiente.montoCuota ??
-                pendiente.monto ??
-                (montoPendiente > 0 ? montoPendiente : montoCuotaReal),
-              )
-              montoCuotaPendienteReal = exigiblePendiente > 0 ? exigiblePendiente : pendienteReal
-
-              fechaReal = resolveFechaEfectivaCuota(pendiente) || (pendiente.fechaVencimiento || v.proximaVisita);
-              
-              cuotaActual = pendiente.numeroCuota;
-              cuotasTotales = Array.isArray(cuotas) ? cuotas.length : cuotasTotales;
+            // El helper ya calculó estos valores, usarlos directamente
+            if (v.cuotaObjetivo) {
+              montoCuotaReal = v.montoCuotaNormal
+              montoCuotaPendienteReal = v.montoCuotaPendiente
+              fechaReal = v.proximaVisita
+              cuotaActual = v.cuotaActual
+              cuotasTotales = v.cuotasTotales
             }
 
-            const tieneMora = (Array.isArray(cuotas) ? cuotas : []).some((c: any) => {
-              if (!c || !isCuotaNoPagada(c)) return false
-              const vtoRaw = resolveFechaEfectivaCuota(c) || String(c?.fechaVencimiento || '')
-              const vtoKey = normalizeDateKey(vtoRaw)
-              return !!vtoKey && vtoKey < hoyBogota
-            })
+            const tieneMora = v.estado === 'en_mora'
 
             // 3. Determinar Estado Final
             let nuevoEstado = v.estado;
@@ -708,35 +1006,6 @@ const RutaClientLoaded = ({
               }
             }
 
-            // Recalcular riesgo final con los datos actualizados
-            const montoVencidoAcumuladoFinal = resolveMontoVencidoAcumulado({
-              row: {
-                ...v,
-                saldoTotal: v?.saldoTotal,
-                saldoPendiente: v?.saldoPendiente,
-              },
-              prestamo: {},
-              cuotaObjetivo: pendiente,
-              estadoCalculado: nuevoEstado,
-            })
-
-            const nivelRiesgoFinalRaw = resolveRiesgoObligacion({
-              row: {
-                ...v,
-                montoCuotaNormal: cuotaComparar,
-                montoCuota: cuotaComparar,
-                montoVencidoAcumulado: montoVencidoAcumuladoFinal,
-                montoMoraAcumulada: montoVencidoAcumuladoFinal,
-                saldoVencidoAcumulado: montoVencidoAcumuladoFinal,
-              },
-              prestamo: {},
-              cuotaObjetivo: pendiente,
-              estadoCalculado: nuevoEstado,
-              diasMora: Number(v?.diasMora || pendiente?.diasMora || 0),
-              cuotasVencidas: Number(v?.cuotasVencidas || pendiente?.cuotasVencidas || 0),
-              esProvisional: Boolean(v?.esProvisional || v?.pendienteAprobacion),
-            })
-
             return {
               ...v,
               recaudadoDelDia: totalHoy,
@@ -749,17 +1018,17 @@ const RutaClientLoaded = ({
               cuotaActual,
               cuotasTotales,
               estado: nuevoEstado,
-              cuotaId: pendiente?.id || (v as any)?.cuotaId,
-              cuotaObjetivoId: pendiente?.id || (v as any)?.cuotaObjetivoId,
-              cuotaObjetivoPrestamoId: pendiente?.id || (v as any)?.cuotaObjetivoPrestamoId,
-              proximaCuota: pendiente,
-              cuotaObjetivo: pendiente,
-              // Recalcular riesgo y acumulado vencido con datos finales
-              montoMoraAcumulada: montoVencidoAcumuladoFinal,
-              montoVencidoAcumulado: montoVencidoAcumuladoFinal,
-              saldoVencidoAcumulado: montoVencidoAcumuladoFinal,
-              nivelRiesgo: mapNivelRiesgo(nivelRiesgoFinalRaw),
-              prioridad: nivelRiesgoFinalRaw === 'ROJO' || nivelRiesgoFinalRaw === 'LISTA_NEGRA' ? 'alta' : 'media',
+              cuotaId: v?.cuotaObjetivo?.id || (v as any)?.cuotaId,
+              cuotaObjetivoId: v?.cuotaObjetivo?.id || (v as any)?.cuotaObjetivoId,
+              cuotaObjetivoPrestamoId: v?.cuotaObjetivo?.id || (v as any)?.cuotaObjetivoPrestamoId,
+              proximaCuota: v?.cuotaObjetivo,
+              cuotaObjetivo: v?.cuotaObjetivo,
+              // Usar valores normalizados del mapper compartido
+              montoMoraAcumulada: v?.montoMoraAcumulada,
+              montoVencidoAcumulado: v?.montoVencidoAcumulado,
+              saldoVencidoAcumulado: v?.saldoVencidoAcumulado,
+              nivelRiesgo: v?.nivelRiesgo,
+              prioridad: v?.prioridad,
             };
           } catch (error) {
             console.error("Error en enriquecerConPagos (Admin):", error);
@@ -841,26 +1110,7 @@ const RutaClientLoaded = ({
         filtradas = filtradas.filter(v => v.periodoRuta === periodoRutaFiltro);
     }
 
-    filtradas.sort((a: any, b: any) => {
-      if (a.estado === 'pagado' && b.estado !== 'pagado') return 1;
-      if (a.estado !== 'pagado' && b.estado === 'pagado') return -1;
-
-      if (a.estado === 'en_mora' && b.estado !== 'en_mora') return -1;
-      if (a.estado !== 'en_mora' && b.estado === 'en_mora') return 1;
-
-      if (a.periodoRuta !== 'DIA' || b.periodoRuta !== 'DIA') {
-        if (a.fechaUltimoPago !== b.fechaUltimoPago) {
-          return (a.fechaUltimoPago || 0) - (b.fechaUltimoPago || 0);
-        }
-      }
-
-      const ao = Number(a.ordenVisita ?? 0);
-      const bo = Number(b.ordenVisita ?? 0);
-      if (ao !== bo) return ao - bo;
-      const aId = String(a.id || '');
-      const bId = String(b.id || '');
-      return aId.localeCompare(bId);
-    });
+    filtradas = ordenarVisitasRutaActual(filtradas)
 
     const exportarRutaDiariaCSV = async () => {
       try {
@@ -900,6 +1150,101 @@ const RutaClientLoaded = ({
       exportarRutaDiariaPDF
     };
   }, [visitasCobrador, searchQuery, periodoRutaFiltro, vistaRuta, initialRuta?.id]);
+
+
+
+  // Helpers para renderizar acciones según la vista
+  const renderRutaActualActions = (visita: VisitaRuta) => (
+    <>
+      <button
+        onClick={(e) => { e.stopPropagation(); if (visita.pendienteAprobacion || !rutaOperable) return; handleAbrirPago(visita); }}
+        disabled={visita.pendienteAprobacion || !rutaOperable}
+        title={visita.pendienteAprobacion ? 'Crédito pendiente de revisión' : !rutaOperable ? (rutaCompletada ? 'Jornada completada' : 'Jornada sin activar') : 'Registrar Pago'}
+        className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] shadow-sm ${visita.pendienteAprobacion || !rutaOperable ? 'bg-slate-50 text-slate-300 border border-slate-100 opacity-50 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95'}`}
+      >
+        <DollarSign className="h-3.5 w-3.5" />
+        Pago
+      </button>
+      <button
+        onClick={(e) => { e.stopPropagation(); if (visita.pendienteAprobacion || !rutaOperable) return; handleAbrirAbono(visita); }}
+        disabled={visita.pendienteAprobacion || !rutaOperable}
+        title={visita.pendienteAprobacion ? 'Crédito pendiente de revisión' : !rutaOperable ? (rutaCompletada ? 'Jornada completada' : 'Jornada sin activar') : 'Registrar Abono'}
+        className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] shadow-sm ${visita.pendienteAprobacion || !rutaOperable ? 'bg-slate-50 text-slate-300 border border-slate-100 opacity-50 cursor-not-allowed' : 'bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95'}`}
+        style={{ backgroundColor: !rutaOperable && !rutaCompletada ? '#f97316' : undefined }}
+      >
+        <Wallet className="h-3.5 w-3.5" />
+        Abono
+      </button>
+      <button
+        onClick={(e) => { e.stopPropagation(); if(!rutaOperable) return; handleAbrirEstadoCuenta(visita); }}
+        disabled={!rutaOperable}
+        className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] shadow-sm border ${!rutaOperable ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 active:scale-95'}`}
+      >
+        <FileTextIcon className="h-3.5 w-3.5 text-slate-400" />
+        Estado
+      </button>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          if (!rutaOperable) return;
+          const isProrrogaVencida = visita.enProrroga && visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now();
+          if (!visita.enProrroga || isProrrogaVencida) {
+            clearRegularizacionContext()
+            setVisitaReprogramar(visita)
+          }
+        }}
+        disabled={!rutaOperable || (!!visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now()))}
+        title={!rutaOperable ? (rutaCompletada ? 'Jornada completada' : 'Jornada sin activar') : (visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now()) ? 'No se puede reprogramar con prorroga activa' : 'Solicitar reprogramacion')}
+        className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border transition-all font-bold text-[11px] shadow-sm ${!rutaOperable || (visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now())) ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 active:scale-95'}`}
+      >
+        <Calendar className="h-3.5 w-3.5 text-slate-400" />
+        Repro.
+      </button>
+    </>
+  )
+
+  const renderMisClientesActions = (visita: VisitaRuta) => (
+    <>
+      <button
+        type="button"
+        data-card-action="true"
+        onClick={(e) => {
+          e.stopPropagation()
+          handleAbrirEstadoCuenta(visita)
+        }}
+        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border transition-all font-bold text-[11px] shadow-sm bg-white text-slate-700 border-slate-200 hover:bg-slate-50 active:scale-95"
+      >
+        <FileTextIcon className="h-3.5 w-3.5 text-slate-400" />
+        Estado
+      </button>
+    </>
+  )
+
+  const renderHistorialActions = (visita: VisitaRuta) => null
+
+  // Log temporal para depuración de riesgo
+  useEffect(() => {
+    if (vistaRuta === 'ACTUAL' && visitasCobrador.length > 0) {
+      const filtradas = visitasCobrador.filter(v => {
+        const matchesSearch =
+          v.cliente.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          v.direccion.toLowerCase().includes(searchQuery.toLowerCase())
+        return matchesSearch
+      })
+      console.table(filtradas.map((v: any) => ({
+        cliente: v.cliente,
+        cuotaActual: v.cuotaActual,
+        estado: v.estado,
+        nivelRiesgo: v.nivelRiesgo,
+        montoCuotaNormal: v.montoCuotaNormal,
+        montoMoraAcumulada: v.montoMoraAcumulada,
+        montoVencidoAcumulado: v.montoVencidoAcumulado,
+        saldoVencidoAcumulado: v.saldoVencidoAcumulado,
+        cuotasVencidas: v.cuotasVencidas,
+        diasMora: v.diasMora,
+      })))
+    }
+  }, [visitasCobrador, searchQuery, vistaRuta])
 
 
 
@@ -1087,12 +1432,29 @@ const RutaClientLoaded = ({
 
         const isAusente = shouldExcludeVisitaFromOperationalMeta
 
-        const visitasParaMeta = Array.isArray(visitasCobrador)
-          ? visitasCobrador
-              .filter((v: any) => shouldShowVisitaEnRutaHoy(v, hoyBogotaKey))
-              .filter((v: any) => !isAusente(v))
-          : []
-        const statsUiHoy = computeRutaHoyUiStatsFromVisitas(visitasParaMeta, 0)
+        // Usar visitasRutaHoyKpi como fuente autoritativa para KPI cuando es HOY
+        const fuenteKpiHoy =
+          periodoCards === 'HOY' && visitasRutaHoyKpi.length > 0
+            ? visitasRutaHoyKpi
+            : Array.isArray(visitasCobrador)
+              ? visitasCobrador
+                  .filter((v: any) => {
+                    const recaudado = Number(v?.recaudadoDelDia || 0)
+                    const metaPendiente = Number(v?.montoCuotaPendiente || 0)
+                    const cuotaNormal = Number(v?.montoCuotaNormal ?? v?.montoCuota ?? 0)
+                    const estadoGestion = String(v?.estadoGestion || '').toUpperCase()
+
+                    return (
+                      metaPendiente > 0 ||
+                      cuotaNormal > 0 ||
+                      recaudado > 0 ||
+                      estadoGestion.includes('PAGO')
+                    )
+                  })
+                  .filter((v: any) => !isAusente(v))
+              : []
+
+        const statsUiHoy = computeRutaHoyUiStatsFromVisitas(fuenteKpiHoy, 0)
 
         const metaBackendRaw = estadisticas?.metaDelDia
         const hasMetaBackend = metaBackendRaw !== null && metaBackendRaw !== undefined
@@ -1165,6 +1527,7 @@ const RutaClientLoaded = ({
           eficiencia,
           pendiente: pendienteHoy,
           gastos: Number(saldo?.gastosDelDia ?? 0),
+          gastosProvisionales: Number((saldo as any)?.egresosProvisionales ?? 0),
           base: Number(saldo?.saldoCaja ?? saldo?.baseEfectivo ?? 0)
         } as any)
       } catch {
@@ -1172,13 +1535,30 @@ const RutaClientLoaded = ({
 
         const isAusente = shouldExcludeVisitaFromOperationalMeta
 
-        const visitasParaMeta = Array.isArray(visitasCobrador)
-          ? visitasCobrador
-              .filter((v: any) => shouldShowVisitaEnRutaHoy(v, hoyBogotaKey))
-              .filter((v: any) => !isAusente(v))
-          : []
+        // Usar visitasRutaHoyKpi como fuente autoritativa para KPI cuando es HOY
+        const fuenteKpiHoy =
+          periodoCards === 'HOY' && visitasRutaHoyKpi.length > 0
+            ? visitasRutaHoyKpi
+            : Array.isArray(visitasCobrador)
+              ? visitasCobrador
+                  .filter((v: any) => {
+                    const recaudado = Number(v?.recaudadoDelDia || 0)
+                    const metaPendiente = Number(v?.montoCuotaPendiente || 0)
+                    const cuotaNormal = Number(v?.montoCuotaNormal ?? v?.montoCuota ?? 0)
+                    const estadoGestion = String(v?.estadoGestion || '').toUpperCase()
+
+                    return (
+                      metaPendiente > 0 ||
+                      cuotaNormal > 0 ||
+                      recaudado > 0 ||
+                      estadoGestion.includes('PAGO')
+                    )
+                  })
+                  .filter((v: any) => !isAusente(v))
+              : []
+
         const statsHoy = computeRutaHoyUiStatsFromVisitas(
-          visitasParaMeta,
+          fuenteKpiHoy,
           periodoCards === 'HOY' ? 0 : recaudo,
         )
 
@@ -1255,6 +1635,7 @@ const RutaClientLoaded = ({
           meta,
           eficiencia,
           pendiente: periodoCards === 'HOY' ? pendienteHoy : prev.pendiente,
+          gastosProvisionales: prev.gastosProvisionales,
         }))
       }
     }
@@ -1273,6 +1654,7 @@ const RutaClientLoaded = ({
     resumenDailyVisitsHoy?.recaudo,
     resumenDailyVisitsHoy?.recaudoOperativo,
     visitasCobrador,
+    visitasRutaHoyKpi,
   ])
 
 
@@ -1288,195 +1670,35 @@ const RutaClientLoaded = ({
     try {
       setLoadingMisCreditos(true)
       const resp = await rutasService.obtenerVisitasDelDia(rutaId as any, hoyBogotaKey)
-      const mapped = mapDailyVisitsResponseToVisitas(resp)
-      setMisCreditos(mapped)
+
+      // Usar helper compartido para construir fuente completa de KPI
+      const pagosResp = await pagosService.obtenerPagos({ limit: 5000 })
+      const pagos = (pagosResp as any)?.pagos || pagosResp || []
+
+      const result = await buildRutaHoyOperativa({
+        ruta: rutaData || initialRuta,
+        dailyVisits: resp,
+        hoyBogotaKey,
+        cobradorId: rutaData?.cobradorId || initialRuta?.cobradorId || '',
+        pagos,
+      })
+
+      // Para "Mis clientes", mostrar kpiItems (obligaciones completas) enriquecidas
+      setMisCreditos(result.kpiItems as any)
     } catch (e: any) {
       console.error('Error cargando mis clientes (ruta admin):', e)
       toast.error('No se pudieron cargar las obligaciones operativas de la ruta.')
     } finally {
       setLoadingMisCreditos(false)
     }
-  }, [rutaId, hoyBogotaKey, mapDailyVisitsResponseToVisitas])
+  }, [rutaId, hoyBogotaKey, rutaData, initialRuta])
 
   // Enriquecer Mis clientes con pagos (similar a enriquecerConPagos)
+  // NOTA: Ya no es necesario porque cargarMisCreditos usa buildRutaHoyOperativa
+  // que ya enriquece con cuotas y pagos. Este efecto está desactivado.
   useEffect(() => {
-    const enriquecerMisCreditos = async () => {
-      if (misCreditos.length === 0 || vistaRuta !== 'MIS_CLIENTES') return
-
-      const enrichKey = JSON.stringify({
-        items: misCreditos.map((v: any) => ({
-          id: v?.id,
-          prestamoId: v?.prestamoId,
-          recaudo: v?.recaudadoDelDia,
-          cuota: v?.montoCuota,
-          saldo: v?.saldoTotal,
-          estado: v?.estado,
-        })),
-      })
-
-      if (lastMisCreditosEnrichKeyRef.current === enrichKey) return
-      lastMisCreditosEnrichKeyRef.current = enrichKey
-
-      const hoyBogota = getBogotaDateKey(new Date())
-
-      const getCuotasByPrestamoId = memoizePromiseByKey(
-        (prestamoId) => prestamosService.obtenerCuotas(prestamoId) as Promise<any[]>,
-        () => [],
-      )
-
-      const pagosRecientesResp = await pagosService.obtenerPagos({ limit: 1000 })
-      const todosPagos = (pagosRecientesResp as any)?.pagos || pagosRecientesResp || []
-
-      const recaudosHoyMap = buildRecaudosHoyMapByPrestamoId(
-        todosPagos as any,
-        hoyBogota,
-        { includeCierrePendiente: false },
-      )
-
-      const { totalHistoricoByPrestamoId, ultimoPagoDateByPrestamoId } = indexPagosByPrestamoId(todosPagos as any)
-
-      const actualizadas = await mapWithConcurrency(
-        misCreditos,
-        async (v: any) => {
-          if (!v.clienteId || !v.prestamoId) return { ...v, recaudadoDelDia: 0, recaudadoTotalClient: 0 }
-
-          try {
-            const prestamoId = v.prestamoId
-            const totalHoy = Number(recaudosHoyMap[prestamoId] || 0)
-            const totalHistorico = Number(totalHistoricoByPrestamoId[prestamoId] || 0)
-            const ultimoPagoDate = Number(ultimoPagoDateByPrestamoId[prestamoId] || 0)
-
-            let montoCuotaReal = v.montoCuota
-            let montoCuotaPendienteReal = Number((v as any)?.montoCuotaPendiente ?? v.montoCuota ?? 0)
-            let fechaReal = v.proximaVisita
-            let cuotaActual = v.cuotaActual
-            let cuotasTotales = v.cuotasTotales
-
-            const cuotas = await getCuotasByPrestamoId(prestamoId)
-            const pendiente = (Array.isArray(cuotas) ? cuotas : []).find((c: any) => isCuotaNoPagada(c))
-
-            if (pendiente) {
-              const exigiblePendiente = computeMontoExigibleHastaHoyFromCuotas(cuotas as any, hoyBogota)
-              const exigibleNominal = computeMontoNominalHastaHoyFromCuotas(cuotas as any, hoyBogota)
-              const montoPendiente = Number(pendiente.monto || (Number(pendiente.montoCapital || 0) + Number(pendiente.montoInteres || 0)) || 0)
-              const pagadoPendiente = Number(pendiente.montoPagado || 0)
-              const pendienteReal = Math.max(0, montoPendiente - pagadoPendiente)
-
-              montoCuotaReal = Number(
-                (v as any)?.montoCuotaNormal ??
-                pendiente.montoNominal ??
-                pendiente.montoCuota ??
-                pendiente.monto ??
-                (montoPendiente > 0 ? montoPendiente : montoCuotaReal),
-              )
-              montoCuotaPendienteReal = exigiblePendiente > 0 ? exigiblePendiente : pendienteReal
-
-              fechaReal = resolveFechaEfectivaCuota(pendiente) || (pendiente.fechaVencimiento || v.proximaVisita)
-
-              cuotaActual = pendiente.numeroCuota
-              cuotasTotales = Array.isArray(cuotas) ? cuotas.length : cuotasTotales
-            }
-
-            const tieneMora = (Array.isArray(cuotas) ? cuotas : []).some((c: any) => {
-              if (!c || !isCuotaNoPagada(c)) return false
-              const vtoRaw = resolveFechaEfectivaCuota(c) || String(c?.fechaVencimiento || '')
-              const vtoKey = normalizeDateKey(vtoRaw)
-              return !!vtoKey && vtoKey < hoyBogota
-            })
-
-            let nuevoEstado = v.estado
-            const cuotaComparar = montoCuotaReal > 0 ? montoCuotaReal : v.montoCuota
-            const montoOperativoComparar = montoCuotaPendienteReal > 0 ? montoCuotaPendienteReal : cuotaComparar
-            const cobroSuficiente = totalHoy >= (montoOperativoComparar - 1)
-
-            if (nuevoEstado === 'ausente') {
-              if (totalHoy > 0 && cobroSuficiente) {
-                nuevoEstado = 'pagado'
-              }
-            } else {
-              if (Number(v.saldoTotal || 0) <= 0 || (totalHoy > 0 && cobroSuficiente) || v.estado === 'pagado') {
-                nuevoEstado = 'pagado'
-              }
-
-              const pagado = shouldMarkVisitaAsPagado({
-                saldoTotal: v.saldoTotal,
-                recaudadoHoy: totalHoy,
-                montoCuotaExigible: montoOperativoComparar,
-                estadoActual: v.estado,
-              })
-              if (pagado) nuevoEstado = 'pagado'
-
-              if (nuevoEstado !== 'pagado' && Number(v?.saldoTotal || 0) > 0 && tieneMora) {
-                nuevoEstado = 'en_mora' as any
-              }
-            }
-
-            // Recalcular riesgo final con los datos actualizados
-            const montoVencidoAcumuladoFinal = resolveMontoVencidoAcumulado({
-              row: {
-                ...v,
-                saldoTotal: v?.saldoTotal,
-                saldoPendiente: v?.saldoPendiente,
-              },
-              prestamo: {},
-              cuotaObjetivo: pendiente,
-              estadoCalculado: nuevoEstado,
-            })
-
-            const nivelRiesgoFinalRaw = resolveRiesgoObligacion({
-              row: {
-                ...v,
-                montoCuotaNormal: cuotaComparar,
-                montoCuota: cuotaComparar,
-                montoVencidoAcumulado: montoVencidoAcumuladoFinal,
-                montoMoraAcumulada: montoVencidoAcumuladoFinal,
-                saldoVencidoAcumulado: montoVencidoAcumuladoFinal,
-              },
-              prestamo: {},
-              cuotaObjetivo: pendiente,
-              estadoCalculado: nuevoEstado,
-              diasMora: Number(v?.diasMora || pendiente?.diasMora || 0),
-              cuotasVencidas: Number(v?.cuotasVencidas || pendiente?.cuotasVencidas || 0),
-              esProvisional: Boolean(v?.esProvisional || v?.pendienteAprobacion),
-            })
-
-            return {
-              ...v,
-              recaudadoDelDia: totalHoy,
-              recaudadoTotalClient: totalHistorico,
-              fechaUltimoPago: ultimoPagoDate,
-              montoCuota: cuotaComparar,
-              montoCuotaNormal: cuotaComparar,
-              montoCuotaPendiente: montoCuotaPendienteReal,
-              proximaVisita: fechaReal,
-              cuotaActual,
-              cuotasTotales,
-              estado: nuevoEstado,
-              cuotaId: pendiente?.id || (v as any)?.cuotaId,
-              cuotaObjetivoId: pendiente?.id || (v as any)?.cuotaObjetivoId,
-              cuotaObjetivoPrestamoId: pendiente?.id || (v as any)?.cuotaObjetivoPrestamoId,
-              proximaCuota: pendiente,
-              cuotaObjetivo: pendiente,
-              // Recalcular riesgo y acumulado vencido con datos finales
-              montoMoraAcumulada: montoVencidoAcumuladoFinal,
-              montoVencidoAcumulado: montoVencidoAcumuladoFinal,
-              saldoVencidoAcumulado: montoVencidoAcumuladoFinal,
-              nivelRiesgo: mapNivelRiesgo(nivelRiesgoFinalRaw),
-              prioridad: nivelRiesgoFinalRaw === 'ROJO' || nivelRiesgoFinalRaw === 'LISTA_NEGRA' ? 'alta' : 'media',
-            }
-          } catch (error) {
-            console.error("Error en enriquecerMisCreditos (Admin):", error)
-            return { ...v, recaudadoDelDia: 0, recaudadoTotalClient: 0, fechaUltimoPago: 0 }
-          }
-        },
-        6,
-      )
-
-      setMisCreditos(actualizadas)
-    }
-
-    enriquecerMisCreditos()
-  }, [misCreditos, vistaRuta])
+    return // Desactivado: el helper ya hace el enriquecimiento
+  }, [])
 
 
 
@@ -2100,7 +2322,7 @@ const RutaClientLoaded = ({
 
                                                     return filtradas.map((v: any) => (
 
-                                                      <StaticVisitaItem key={v.id} visita={v} allowClick={false} onVerCliente={handleAbrirClienteInfo} getEstadoClasses={getEstadoClasses} getPrioridadColor={getPrioridadColor} />
+                                                      <StaticVisitaItem key={v.id} visita={v} allowClick={false} onVerCliente={handleAbrirClienteInfo} getEstadoClasses={getEstadoClasses} getPrioridadColor={getPrioridadColor} actions={renderHistorialActions(v)} />
 
                                                     ));
 
@@ -2229,7 +2451,7 @@ const RutaClientLoaded = ({
 
                                              return filtradas.map((v: any) => (
 
-                                               <StaticVisitaItem key={v.id} visita={v} allowClick={false} onVerCliente={handleAbrirClienteInfo} getEstadoClasses={getEstadoClasses} getPrioridadColor={getPrioridadColor} />
+                                               <StaticVisitaItem key={v.id} visita={v} allowClick={false} onVerCliente={handleAbrirClienteInfo} getEstadoClasses={getEstadoClasses} getPrioridadColor={getPrioridadColor} actions={renderHistorialActions(v)} />
 
                                              ));
 
@@ -2330,58 +2552,10 @@ const RutaClientLoaded = ({
                         <StaticVisitaItem
                           key={visita.id}
                           visita={visita}
-                          allowClick={true}
-                          onVerCliente={handleAbrirClienteInfo}
+                          allowClick={false}
                           getEstadoClasses={getEstadoClasses}
                           getPrioridadColor={getPrioridadColor}
-                          actions={
-                            <>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); if (visita.pendienteAprobacion || !rutaOperable) return; handleAbrirPago(visita); }}
-                                disabled={visita.pendienteAprobacion || !rutaOperable}
-                                title={visita.pendienteAprobacion ? 'Crédito pendiente de revisión' : !rutaOperable ? (rutaCompletada ? 'Jornada completada' : 'Jornada sin activar') : 'Registrar Pago'}
-                                className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] shadow-sm ${visita.pendienteAprobacion || !rutaOperable ? 'bg-slate-50 text-slate-300 border border-slate-100 opacity-50 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95'}`}
-                              >
-                                <DollarSign className="h-3.5 w-3.5" />
-                                Pago
-                              </button>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); if (visita.pendienteAprobacion || !rutaOperable) return; handleAbrirAbono(visita); }}
-                                disabled={visita.pendienteAprobacion || !rutaOperable}
-                                title={visita.pendienteAprobacion ? 'Crédito pendiente de revisión' : !rutaOperable ? (rutaCompletada ? 'Jornada completada' : 'Jornada sin activar') : 'Registrar Abono'}
-                                className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] shadow-sm ${visita.pendienteAprobacion || !rutaOperable ? 'bg-slate-50 text-slate-300 border border-slate-100 opacity-50 cursor-not-allowed' : 'bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95'}`}
-                                style={{ backgroundColor: !rutaOperable && !rutaCompletada ? '#f97316' : undefined }}
-                              >
-                                <Wallet className="h-3.5 w-3.5" />
-                                Abono
-                              </button>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); if(!rutaOperable) return; handleAbrirEstadoCuenta(visita); }}
-                                disabled={!rutaOperable}
-                                className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] shadow-sm border ${!rutaOperable ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 active:scale-95'}`}
-                              >
-                                <FileTextIcon className="h-3.5 w-3.5 text-slate-400" />
-                                Estado
-                              </button>
-                              <button
-                                onClick={(e) => { 
-                                  e.stopPropagation(); 
-                                  if (!rutaOperable) return;
-                                  const isProrrogaVencida = visita.enProrroga && visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now();
-                                  if (!visita.enProrroga || isProrrogaVencida) {
-                                    clearRegularizacionContext()
-                                    setVisitaReprogramar(visita)
-                                  }
-                                }}
-                                disabled={!rutaOperable || (!!visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now()))}
-                                title={!rutaOperable ? (rutaCompletada ? 'Jornada completada' : 'Jornada sin activar') : (visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now()) ? 'No se puede reprogramar con prorroga activa' : 'Solicitar reprogramacion')}
-                                className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border transition-all font-bold text-[11px] shadow-sm ${!rutaOperable || (visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now())) ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 active:scale-95'}`}
-                              >
-                                <Calendar className="h-3.5 w-3.5 text-slate-400" />
-                                Repro.
-                              </button>
-                            </>
-                          }
+                          actions={renderMisClientesActions(visita)}
                         />
                       ))}
                     </div>
@@ -2419,7 +2593,7 @@ const RutaClientLoaded = ({
 
                         <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-50 rounded-lg border border-blue-500/20">
 
-                            <div className="w-2 h-2 rounded-full bg-blue-500"></div> 
+                            <div className="w-2 h-2 rounded-full bg-blue-500"></div>
 
                             <span>Leve</span>
 
@@ -2427,7 +2601,7 @@ const RutaClientLoaded = ({
 
                         <div className="flex items-center gap-1.5 px-2 py-1 bg-yellow-50 rounded-lg border border-yellow-500/20">
 
-                            <div className="w-2 h-2 rounded-full bg-yellow-500"></div> 
+                            <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
 
                             <span>Precaución</span>
 
@@ -2435,7 +2609,7 @@ const RutaClientLoaded = ({
 
                         <div className="flex items-center gap-1.5 px-2 py-1 bg-amber-50 rounded-lg border border-amber-500/20">
 
-                            <div className="w-2 h-2 rounded-full bg-amber-500"></div> 
+                            <div className="w-2 h-2 rounded-full bg-amber-500"></div>
 
                             <span>Moderado</span>
 
@@ -2525,54 +2699,7 @@ const RutaClientLoaded = ({
                                             onVerCliente={handleAbrirClienteInfo}
                                             getEstadoClasses={getEstadoClasses}
                                             getPrioridadColor={getPrioridadColor}
-                                            actions={
-                                              <>
-                                                <button
-                                                  onClick={(e) => { e.stopPropagation(); if (visita.pendienteAprobacion || !rutaOperable) return; handleAbrirPago(visita); }}
-                                                  disabled={visita.pendienteAprobacion || !rutaOperable}
-                                                  title={visita.pendienteAprobacion ? 'Crédito pendiente de revisión' : !rutaOperable ? (rutaCompletada ? 'Jornada completada' : 'Jornada sin activar') : 'Registrar Pago'}
-                                                  className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] shadow-sm ${visita.pendienteAprobacion || !rutaOperable ? 'bg-slate-50 text-slate-300 border border-slate-100 opacity-50 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95'}`}
-                                                >
-                                                  <DollarSign className="h-3.5 w-3.5" />
-                                                  Pago
-                                                </button>
-                                                <button
-                                                  onClick={(e) => { e.stopPropagation(); if (visita.pendienteAprobacion || !rutaOperable) return; handleAbrirAbono(visita); }}
-                                                  disabled={visita.pendienteAprobacion || !rutaOperable}
-                                                  title={visita.pendienteAprobacion ? 'Crédito pendiente de revisión' : !rutaOperable ? (rutaCompletada ? 'Jornada completada' : 'Jornada sin activar') : 'Registrar Abono'}
-                                                  className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] shadow-sm ${visita.pendienteAprobacion || !rutaOperable ? 'bg-slate-50 text-slate-300 border border-slate-100 opacity-50 cursor-not-allowed' : 'bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95'}`}
-                                                  style={{ backgroundColor: !rutaOperable && !rutaCompletada ? '#f97316' : undefined }}
-                                                >
-                                                  <Wallet className="h-3.5 w-3.5" />
-                                                  Abono
-                                                </button>
-                                                <button
-                                                  onClick={(e) => { e.stopPropagation(); if(!rutaOperable) return; handleAbrirEstadoCuenta(visita); }}
-                                                  disabled={!rutaOperable}
-                                                  className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] shadow-sm border ${!rutaOperable ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 active:scale-95'}`}
-                                                >
-                                                  <FileTextIcon className="h-3.5 w-3.5 text-slate-400" />
-                                                  Estado
-                                                </button>
-                                                <button
-                                                  onClick={(e) => { 
-                                                    e.stopPropagation(); 
-                                                    if (!rutaOperable) return;
-                                                    const isProrrogaVencida = visita.enProrroga && visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now();
-                                                    if (!visita.enProrroga || isProrrogaVencida) {
-                                                      clearRegularizacionContext()
-                                                      setVisitaReprogramar(visita)
-                                                    }
-                                                  }}
-                                                  disabled={!rutaOperable || (!!visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now()))}
-                                                  title={!rutaOperable ? (rutaCompletada ? 'Jornada completada' : 'Jornada sin activar') : (visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now()) ? 'No se puede reprogramar con prorroga activa' : 'Solicitar reprogramacion')}
-                                                  className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border transition-all font-bold text-[11px] shadow-sm ${!rutaOperable || (visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now())) ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 active:scale-95'}`}
-                                                >
-                                                  <Calendar className="h-3.5 w-3.5 text-slate-400" />
-                                                  Repro.
-                                                </button>
-                                              </>
-                                            }
+                                            actions={renderRutaActualActions(visita)}
                                         >
                                         </StaticVisitaItem>
 
@@ -2961,11 +3088,27 @@ const RutaClientLoaded = ({
                     }
                   })
 
-                  const visitasParaMeta = visitasActualizadas
-                    .filter((v: any) => shouldShowVisitaEnRutaHoy(v, hoyBogotaKey))
-                    .filter((v: any) => !shouldExcludeVisitaFromOperationalMeta(v))
+                  // Usar visitasRutaHoyKpi como fuente autoritativa para KPI cuando es HOY
+                  const fuenteKpiHoy =
+                    visitasRutaHoyKpi.length > 0
+                      ? visitasRutaHoyKpi
+                      : visitasActualizadas
+                          .filter((v: any) => {
+                            const recaudado = Number(v?.recaudadoDelDia || 0)
+                            const metaPendiente = Number(v?.montoCuotaPendiente || 0)
+                            const cuotaNormal = Number(v?.montoCuotaNormal ?? v?.montoCuota ?? 0)
+                            const estadoGestion = String(v?.estadoGestion || '').toUpperCase()
 
-                  const statsHoy = computeRutaHoyUiStatsFromVisitas(visitasParaMeta, 0)
+                            return (
+                              metaPendiente > 0 ||
+                              cuotaNormal > 0 ||
+                              recaudado > 0 ||
+                              estadoGestion.includes('PAGO')
+                            )
+                          })
+                          .filter((v: any) => !shouldExcludeVisitaFromOperationalMeta(v))
+
+                  const statsHoy = computeRutaHoyUiStatsFromVisitas(fuenteKpiHoy, 0)
                   const recaudo = Number(prev.recaudo || 0)
 
                   return {
@@ -2978,6 +3121,7 @@ const RutaClientLoaded = ({
                         : recaudo > 0
                           ? 100
                           : 0,
+                    gastosProvisionales: prev.gastosProvisionales,
                   }
                 })
 
@@ -3245,7 +3389,7 @@ const RutaClientLoaded = ({
         detalle={detalle}
         loading={loadingDetalleCierre}
         onVerEstadoCuenta={(cliente, contextoRegularizacion) => {
-          const visita = visitasCobrador.find((v: any) => v.clienteId === cliente.clienteId)
+          const visita = resolveVisitaBaseRegularizacion(cliente, visitasCobrador)
           if (!visita) {
             toast.error('No se encontró la visita del cliente.')
             return
@@ -3258,7 +3402,7 @@ const RutaClientLoaded = ({
           }, 80)
         }}
         onRegistrarPago={(cliente, contextoRegularizacion) => {
-          const visitaBase = visitasCobrador.find((v: any) => v.clienteId === cliente.clienteId)
+          const visitaBase = resolveVisitaBaseRegularizacion(cliente, visitasCobrador)
           if (!visitaBase) {
             toast.error('No se encontró la visita del cliente.')
             return
@@ -3287,7 +3431,7 @@ const RutaClientLoaded = ({
           }, 80)
         }}
         onRegistrarAbono={(cliente, contextoRegularizacion) => {
-          const visitaBase = visitasCobrador.find((v: any) => v.clienteId === cliente.clienteId)
+          const visitaBase = resolveVisitaBaseRegularizacion(cliente, visitasCobrador)
           if (!visitaBase) {
             toast.error('No se encontró la visita del cliente.')
             return
@@ -3316,7 +3460,7 @@ const RutaClientLoaded = ({
           }, 80)
         }}
         onMarcarAusente={(cliente, contextoRegularizacion) => {
-          const visita = visitasCobrador.find((v: any) => v.clienteId === cliente.clienteId)
+          const visita = resolveVisitaBaseRegularizacion(cliente, visitasCobrador)
           if (!visita) {
             toast.error('No se encontró la visita del cliente.')
             return
@@ -3330,7 +3474,7 @@ const RutaClientLoaded = ({
           }, 80)
         }}
         onReprogramar={(cliente, contextoRegularizacion) => {
-          const visitaBase = visitasCobrador.find((v: any) => v.clienteId === cliente.clienteId)
+          const visitaBase = resolveVisitaBaseRegularizacion(cliente, visitasCobrador)
           if (!visitaBase) {
             toast.error('No se encontró la visita del cliente.')
             return

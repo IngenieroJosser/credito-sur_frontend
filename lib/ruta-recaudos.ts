@@ -143,9 +143,21 @@ export const applyRecaudoHoyToVisitas = <T extends Record<string, any>>(
       }
     }
 
-    const recHoyBackend = Number((v as any)?.recaudadoDelDia ?? (v as any)?.recaudadoHoy ?? 0)
-    const recHoyMap = v?.prestamoId ? Number(recaudosHoyMap[v.prestamoId] || 0) : 0
-    const recHoy = Math.max(recHoyBackend, recHoyMap)
+    const recHoyBackend = Number(
+      (v as any)?.recaudadoDelDia ??
+      (v as any)?.recaudadoHoy ??
+      0
+    )
+
+    const recHoyMap = v?.prestamoId
+      ? Number(recaudosHoyMap[v.prestamoId] || 0)
+      : 0
+
+    // Si existe prestamoId, el recaudo de HOY debe venir exclusivamente
+    // del mapa por prestamoId. No preservar recaudos agrupados por cliente.
+    const recHoy = v?.prestamoId
+      ? recHoyMap
+      : recHoyBackend
 
     const estadoFinal = shouldMarkVisitaAsPagado({
       saldoTotal: v?.saldoTotal,
@@ -184,82 +196,56 @@ export const computeMontoCuotaPendienteDespuesDeRecaudo = (
   return Math.max(0, cuotaNominal - recaudadoNext)
 }
 
+export const resolveObligacionKey = (v: any): string => {
+  const prestamoId = String(v?.prestamoId || '')
+  const cuotaId = String(
+    v?.cuotaId ||
+    v?.cuotaObjetivoId ||
+    v?.cuotaObjetivo?.id ||
+    v?.proximaCuota?.id ||
+    v?.cuotaObjetivoPrestamoId ||
+    '',
+  )
+
+  if (prestamoId && cuotaId) return `loan:${prestamoId}:cuota:${cuotaId}`
+  if (prestamoId) return `loan:${prestamoId}`
+  return `visita:${v?.id || ''}`
+}
+
 export const mergeVisitasPreservingLocalRecaudo = <T extends Record<string, any>>(
-  localVisitas: T[],
-  nextVisitas: T[],
+  prev: T[],
+  fresh: T[],
 ): T[] => {
-  const locales = Array.isArray(localVisitas) ? localVisitas : []
-  const next = Array.isArray(nextVisitas) ? nextVisitas : []
+  const prevByKey = new Map(
+    (Array.isArray(prev) ? prev : []).map((v) => [resolveObligacionKey(v), v]),
+  )
 
-  const localById = new Map<string, any>()
-  const localByPrestamoId = new Map<string, any>()
+  return (Array.isArray(fresh) ? fresh : []).map((freshItem) => {
+    const key = resolveObligacionKey(freshItem)
+    const prevItem = prevByKey.get(key)
 
-  locales.forEach((v: any) => {
-    const id = String(v?.id || '')
-    const prestamoId = String(v?.prestamoId || '')
-    if (id) localById.set(id, v)
-    if (prestamoId) localByPrestamoId.set(prestamoId, v)
-  })
-
-  return next.map((v: any) => {
-    const local = localById.get(String(v?.id || ''))
-      || localByPrestamoId.get(String(v?.prestamoId || ''))
-
-    if (!local) return v
+    if (!prevItem) return freshItem
 
     const recaudadoDelDia = Math.max(
-      Number(local?.recaudadoDelDia || 0),
-      Number(v?.recaudadoDelDia || 0),
+      Number(freshItem?.recaudadoDelDia || 0),
+      Number(prevItem?.recaudadoDelDia || 0),
     )
 
-    const localHasRecaudoTotal = local?.recaudadoTotalClient !== undefined && local?.recaudadoTotalClient !== null
-    const nextHasRecaudoTotal = v?.recaudadoTotalClient !== undefined && v?.recaudadoTotalClient !== null
-    const recaudadoTotalClient = Math.max(
-      Number(local?.recaudadoTotalClient || 0),
-      Number(v?.recaudadoTotalClient || 0),
+    const fechaUltimoPago = Math.max(
+      Number(freshItem?.fechaUltimoPago || 0),
+      Number(prevItem?.fechaUltimoPago || 0),
     )
 
-    const estadoLocal = String(local?.estado || '')
-    const estadoBackend = String(v?.estado || '')
-    const saldoBackend = Number(v?.saldoTotal || 0)
-    const proxBackend = String(v?.proximaVisita || '')
-    const proxLocal = String(local?.proximaVisita || '')
-    const esNuevaCuota = !!proxBackend && !!proxLocal && proxBackend !== proxLocal
-    const localTienePagoHoy = recaudadoDelDia > 0
+    return {
+      ...freshItem,
 
-    const estadoProtegidoLocalmente =
-      (estadoLocal === 'pagado' && !esNuevaCuota && saldoBackend > 0) ||
-      (estadoLocal === 'ausente' && !localTienePagoHoy)
-
-    const estadoFusionado = estadoProtegidoLocalmente ? estadoLocal : (estadoBackend || v?.estado)
-    const estado = shouldMarkVisitaAsPagado({
-      saldoTotal: v?.saldoTotal,
-      recaudadoHoy: recaudadoDelDia,
-      montoCuotaExigible: v?.montoCuotaPendiente ?? v?.montoCuota,
-      estadoActual: estadoFusionado,
-    })
-      ? 'pagado'
-      : estadoFusionado
-
-    const estadoVisita =
-      localTienePagoHoy && String(v?.estadoVisita || '').toLowerCase() === 'ausente'
-        ? undefined
-        : estadoLocal === 'ausente' && !localTienePagoHoy
-          ? 'ausente'
-          : v?.estadoVisita
-
-    const merged: any = {
-      ...v,
+      // Solo campos volátiles/locales permitidos:
       recaudadoDelDia,
-      estado,
-      estadoVisita,
-    }
+      fechaUltimoPago,
 
-    if (localHasRecaudoTotal || nextHasRecaudoTotal) {
-      merged.recaudadoTotalClient = recaudadoTotalClient
+      estadoVisita: freshItem?.estadoVisita ?? prevItem?.estadoVisita,
+      notasVisita: freshItem?.notasVisita ?? prevItem?.notasVisita,
     }
-
-    return merged as T
   })
 }
 

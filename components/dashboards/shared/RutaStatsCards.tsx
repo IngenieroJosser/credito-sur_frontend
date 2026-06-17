@@ -12,6 +12,7 @@ export interface RutaStatsData {
   meta: number
   eficiencia: number
   gastos: number
+  gastosProvisionales?: number
   base: number
   pendiente?: number
 }
@@ -154,7 +155,10 @@ export function RutaStatsCards({ rutaStats, periodo = 'HOY' }: RutaStatsCardsPro
           </div>
         </div>
         <p className="text-xs text-slate-400 font-medium">
-          Registrados {labelPeriodo(periodo, 'minuscula')}
+          {rutaStats.gastosProvisionales && rutaStats.gastosProvisionales > 0
+            ? `${formatCurrency(rutaStats.gastos)} aprobados, ${formatCurrency(rutaStats.gastosProvisionales)} por confirmar`
+            : `Aprobados`
+          }
         </p>
       </StatCard>
 

@@ -114,7 +114,9 @@ export type ClienteCierrePendiente = {
   estadoVisita?: string | null
   notasVisita?: string | null
   prestamos?: PrestamoCierrePendiente[]
+  prestamoId?: string | null
   prestamoObjetivoId?: string | null
+  cuotaId?: string | null
   cuotaObjetivoId?: string | null
 
   /**
@@ -125,10 +127,13 @@ export type ClienteCierrePendiente = {
   cuotaObjetivo?: CuotaObjetivoCierrePendiente | null
 }
 
+export type ObligacionCierrePendiente = ClienteCierrePendiente
+
 export type CierrePendienteJornada = {
   cierrePendiente?: CierrePendienteRuta
   resumen?: CierrePendienteResumen
   clientes?: ClienteCierrePendiente[]
+  obligaciones?: ObligacionCierrePendiente[]
   accionesSugeridas?: string[]
 }
 
@@ -141,5 +146,6 @@ export type CierrePendienteDetalle = {
   cierrePendiente?: CierrePendienteRuta
   resumen?: CierrePendienteResumen
   clientes?: ClienteCierrePendiente[]
+  obligaciones?: ObligacionCierrePendiente[]
   accionesSugeridas?: string[]
 }

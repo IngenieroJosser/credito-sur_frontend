@@ -198,6 +198,16 @@ const aprobacionToNotificacion = (item: Aprobacion) => {
   let titulo = cat.label
   let mensaje = `Solicitud de ${cat.label.toLowerCase()} por ${item.solicitante}`
 
+  // Ajuste específico para gastos provisionales
+  if (item.tipoAprobacion === 'GASTO' && (datos.esProvisional === true || datos.esProvisional === 'true')) {
+    titulo = 'Gasto Provisional'
+    mensaje = `Solicitud de gasto por ${item.solicitante}`
+  } else if (item.tipoAprobacion === 'GASTO') {
+    // Gasto legacy
+    titulo = 'Solicitud de Gasto (Legacy)'
+    mensaje = `Solicitud de gasto por ${item.solicitante} (sin impacto de caja)`
+  }
+
   if (item.tipoAprobacion === 'PRORROGA_PAGO' || datos.tipo === 'GESTION_VENCIDA' || datos.tipo === 'ASIGNAR_MORA') {
     const clienteNombre = datos.cliente || datos.clienteNombre || '—'
     const decision = datos.decision || 'PRORROGAR'
@@ -258,7 +268,7 @@ export default function RevisionesPage() {
   const [userRol, setUserRol] = useState<string>('')
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
-    type: 'APPROVE' | 'REJECT' | 'CONFIRMAR' | 'REVERTIR';
+    type: 'APPROVE' | 'REJECT' | 'CONFIRMAR' | 'REVERTIR' | 'APPROVE_GASTO_PROVISIONAL' | 'CREAR_DEUDA' | 'REINTEGRAR' | 'ANULAR_LEGACY';
     item: Aprobacion;
   } | null>(null)
 
@@ -339,6 +349,24 @@ export default function RevisionesPage() {
       item.tipoAprobacion === 'PRORROGA_PAGO' ||
       datos.tipo === 'GESTION_VENCIDA' ||
       datos.tipo === 'ASIGNAR_MORA'
+    )
+  }
+
+  // Helper para detectar si es un gasto provisional real
+  const isGastoProvisional = (item: Aprobacion) => {
+    const datos = item.datosSolicitud || {} as any
+    return (
+      item.tipoAprobacion === 'GASTO' &&
+      (datos.esProvisional === true || datos.esProvisional === 'true')
+    )
+  }
+
+  // Helper para detectar si es una solicitud legacy de gasto (sin impacto de caja)
+  const isGastoProvisionalLegacy = (item: Aprobacion) => {
+    const datos = item.datosSolicitud || {} as any
+    return (
+      item.tipoAprobacion === 'GASTO' &&
+      !isGastoProvisional(item)
     )
   }
 
@@ -448,6 +476,27 @@ export default function RevisionesPage() {
   const handleRechazar = (item: Aprobacion) => {
     closeAllDetailModals()
     setConfirmModal({ isOpen: true, type: 'REJECT', item })
+  }
+
+  // Handlers específicos para gastos provisionales
+  const handleAprobarGastoProvisional = (item: Aprobacion) => {
+    closeAllDetailModals()
+    setConfirmModal({ isOpen: true, type: 'APPROVE_GASTO_PROVISIONAL', item })
+  }
+
+  const handleCrearDeuda = (item: Aprobacion) => {
+    closeAllDetailModals()
+    setConfirmModal({ isOpen: true, type: 'CREAR_DEUDA', item })
+  }
+
+  const handleReintegrar = (item: Aprobacion) => {
+    closeAllDetailModals()
+    setConfirmModal({ isOpen: true, type: 'REINTEGRAR', item })
+  }
+
+  const handleAnularSolicitudLegacy = (item: Aprobacion) => {
+    closeAllDetailModals()
+    setConfirmModal({ isOpen: true, type: 'ANULAR_LEGACY', item })
   }
 
   const handleConfirmRechazar = async (reason: string) => {
@@ -685,20 +734,42 @@ export default function RevisionesPage() {
           </div>
 
           <div className="flex gap-2">
-            <button onClick={() => handleOpenDetail(item)} className="p-2 border border-slate-200 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors">
+            <button onClick={() => handleOpenDetail(item)} disabled={isProcessing} className="p-2 border border-slate-200 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors">
               <Eye className="h-4 w-4" />
             </button>
             {!isReviewMode ? (
-              <>
-                <button onClick={() => handleAprobar(item)} disabled={isProcessing} className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2">
-                  {isProcessing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
-                  Aprobar
+              isGastoProvisional(item) ? (
+                <div className="flex-1 grid grid-cols-3 gap-1.5">
+                  <button onClick={() => handleAprobarGastoProvisional(item)} disabled={isProcessing} className="py-2 bg-emerald-600 text-white rounded-lg text-[9px] font-bold hover:bg-emerald-700 transition-colors flex flex-col items-center justify-center gap-0.5">
+                    {isProcessing ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
+                    <span className="leading-tight">Aprobar</span>
+                  </button>
+                  <button onClick={() => handleCrearDeuda(item)} disabled={isProcessing} className="py-2 border border-amber-200 text-amber-600 rounded-lg text-[9px] font-bold hover:bg-amber-50 transition-colors flex flex-col items-center justify-center gap-0.5">
+                    <Ban className="h-3 w-3" />
+                    <span className="leading-tight">Rechazar+Deuda</span>
+                  </button>
+                  <button onClick={() => handleReintegrar(item)} disabled={isProcessing} className="py-2 border border-blue-200 text-blue-600 rounded-lg text-[9px] font-bold hover:bg-blue-50 transition-colors flex flex-col items-center justify-center gap-0.5">
+                    <RotateCcw className="h-3 w-3" />
+                    <span className="leading-tight">Reintegro</span>
+                  </button>
+                </div>
+              ) : isGastoProvisionalLegacy(item) ? (
+                <button onClick={() => handleAnularSolicitudLegacy(item)} disabled={isProcessing} className="flex-1 py-2.5 bg-slate-600 text-white rounded-xl text-xs font-bold hover:bg-slate-700 transition-colors flex items-center justify-center gap-2">
+                  {isProcessing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Ban className="h-3.5 w-3.5" />}
+                  Anular solicitud
                 </button>
-                <button onClick={() => handleRechazar(item)} disabled={isProcessing} className="flex-1 py-2.5 border border-rose-200 text-rose-600 rounded-xl text-xs font-bold hover:bg-rose-50 transition-colors flex items-center justify-center gap-2">
-                  <XCircle className="h-3.5 w-3.5" />
-                  Rechazar
-                </button>
-              </>
+              ) : (
+                <>
+                  <button onClick={() => handleAprobar(item)} disabled={isProcessing} className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2">
+                    {isProcessing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                    Aprobar
+                  </button>
+                  <button onClick={() => handleRechazar(item)} disabled={isProcessing} className="flex-1 py-2.5 border border-rose-200 text-rose-600 rounded-xl text-xs font-bold hover:bg-rose-50 transition-colors flex items-center justify-center gap-2">
+                    <XCircle className="h-3.5 w-3.5" />
+                    Rechazar
+                  </button>
+                </>
+              )
             ) : (
               <>
                 <button onClick={() => setConfirmModal({ isOpen: true, type: 'CONFIRMAR', item })} disabled={isProcessing} className="flex-1 py-2.5 bg-rose-600 text-white rounded-xl text-xs font-bold hover:bg-rose-700 transition-colors">Eliminar</button>
@@ -801,13 +872,14 @@ export default function RevisionesPage() {
         </div>
       )}
 
-      <NotificacionDetalleModal 
-        isOpen={isDetailModalOpen} 
-        onClose={() => setIsDetailModalOpen(false)} 
-        notificacion={selectedItem} 
-        onApprove={handleApproveFromModal} 
-        onReject={handleRejectFromModal} 
-        canApprove 
+      <NotificacionDetalleModal
+        isOpen={isDetailModalOpen}
+        onClose={() => setIsDetailModalOpen(false)}
+        notificacion={selectedItem}
+        onApprove={handleApproveFromModal}
+        onReject={handleRejectFromModal}
+        canApprove
+        isLegacy={selectedItem ? isGastoProvisionalLegacy(selectedItem) : false}
       />
 
       {/* Modal dedicado para prorrogas y gestion de cuentas vencidas */}
@@ -857,20 +929,37 @@ export default function RevisionesPage() {
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
            <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl animate-in zoom-in-95 duration-200">
               <h3 className="text-lg font-bold text-slate-900 mb-2">
-                {confirmModal.type === 'APPROVE' ? 'Aprobar Solicitud' : 
+                {confirmModal.type === 'APPROVE' ? 'Aprobar Solicitud' :
+                 confirmModal.type === 'APPROVE_GASTO_PROVISIONAL' ? 'Aprobar Gasto Operativo' :
+                 confirmModal.type === 'CREAR_DEUDA' ? 'Rechazar con Deuda' :
+                 confirmModal.type === 'REINTEGRAR' ? 'Rechazar con Reintegro' :
+                 confirmModal.type === 'ANULAR_LEGACY' ? 'Anular Solicitud Legacy' :
                  confirmModal.type === 'CONFIRMAR' ? 'Confirmar Eliminación' : 'Restaurar Solicitud'}
               </h3>
-              <p className="text-sm text-slate-500 mb-6">¿Estás seguro de realizar esta acción para {confirmModal.item.solicitante}?</p>
-              
+              <p className="text-sm text-slate-500 mb-6">
+                {confirmModal.type === 'APPROVE_GASTO_PROVISIONAL' ? '¿Aprobar este gasto como gasto operativo? La caja no se moverá nuevamente.' :
+                 confirmModal.type === 'CREAR_DEUDA' ? '¿Rechazar este gasto y crear deuda al cobrador? La caja no se moverá y el monto quedará como deuda.' :
+                 confirmModal.type === 'REINTEGRAR' ? '¿Rechazar este gasto con reintegro? La caja aumentará nuevamente por el valor del gasto.' :
+                 confirmModal.type === 'ANULAR_LEGACY' ? 'Esta solicitud fue creada antes del flujo de gasto provisional y no afectó caja. Solo puede anularse sin impacto financiero.' :
+                 `¿Estás seguro de realizar esta acción para ${confirmModal.item.solicitante}?`}
+              </p>
+
               <div className="flex flex-col gap-2">
-                <button 
+                <button
                   onClick={() => {
                     if (confirmModal.type === 'APPROVE') handleConfirmAprobar();
+                    else if (confirmModal.type === 'APPROVE_GASTO_PROVISIONAL') handleConfirmAprobar();
+                    else if (confirmModal.type === 'CREAR_DEUDA') handleConfirmRechazar('Gasto rechazado, deuda creada al cobrador');
+                    else if (confirmModal.type === 'REINTEGRAR') handleConfirmRechazar('Gasto rechazado con reintegro');
+                    else if (confirmModal.type === 'ANULAR_LEGACY') handleConfirmRechazar('Solicitud legacy anulada sin impacto financiero');
                     else handleSuperadminAction();
-                  }} 
-                  disabled={!!processingId} 
+                  }}
+                  disabled={!!processingId}
                   className={`py-3 rounded-xl font-bold text-white ${
-                    confirmModal.type === 'APPROVE' ? 'bg-emerald-600' : 
+                    confirmModal.type === 'APPROVE' || confirmModal.type === 'APPROVE_GASTO_PROVISIONAL' ? 'bg-emerald-600' :
+                    confirmModal.type === 'CREAR_DEUDA' ? 'bg-amber-600' :
+                    confirmModal.type === 'REINTEGRAR' ? 'bg-blue-600' :
+                    confirmModal.type === 'ANULAR_LEGACY' ? 'bg-slate-600' :
                     confirmModal.type === 'CONFIRMAR' ? 'bg-slate-900' : 'bg-blue-600'
                   }`}
                 >

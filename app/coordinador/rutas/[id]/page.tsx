@@ -2625,7 +2625,7 @@ function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose:
 
   const riesgoColor =
 
-    r === 'bajo' ? 'text-emerald-600 bg-emerald-50' :
+    r === 'minimo' ? 'text-emerald-600 bg-emerald-50' :
 
     r === 'leve' ? 'text-blue-600 bg-blue-50' :
 
@@ -2637,7 +2637,7 @@ function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose:
 
   const riesgoLabel =
 
-    r === 'bajo' ? 'Peligro Mínimo' :
+    r === 'minimo' ? 'Peligro Mínimo' :
 
     r === 'leve' ? 'Leve Retraso' :
 

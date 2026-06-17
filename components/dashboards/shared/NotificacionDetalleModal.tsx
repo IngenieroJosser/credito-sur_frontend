@@ -37,15 +37,17 @@ export interface NotificacionDetalleModalProps {
   onApprove: (id: string, type: string, editedDetails: any) => Promise<void>
   onReject: (id: string, type: string, reason: string, resultadoRevision?: 'RECHAZADO_CON_DEUDA' | 'RECHAZADO_CON_REINTEGRO') => Promise<void>
   canApprove?: boolean
+  isLegacy?: boolean
 }
 
-export default function NotificacionDetalleModal({ 
-  isOpen, 
-  onClose, 
-  notificacion, 
-  onApprove, 
+export default function NotificacionDetalleModal({
+  isOpen,
+  onClose,
+  notificacion,
+  onApprove,
   onReject,
-  canApprove = true 
+  canApprove = true,
+  isLegacy = false
 }: NotificacionDetalleModalProps) {
   // Helpers para normalizar datos de la notificación
   const safeJsonParse = (value: any) => {
@@ -699,6 +701,22 @@ export default function NotificacionDetalleModal({
       safeMeta.esProvisional === true ||
       safeMetaDetalles.esProvisional === true ||
       editedDetails?.esProvisional === true
+    )
+
+  // Variable interna robusta para detectar gastos legacy
+  const tituloNotif = notificacion.titulo || notificacion.mensaje || ''
+  const mensajeNotif = notificacion.descripcion || notificacion.mensaje || ''
+  const isLegacyEff =
+    isLegacy ||
+    (
+      isGasto &&
+      !esGastoProvisional &&
+      (
+        String(tituloNotif || '').toLowerCase().includes('legacy') ||
+        String(mensajeNotif || '').toLowerCase().includes('sin impacto de caja') ||
+        safeMeta?.legacy === true ||
+        safeMeta?.sinImpactoCaja === true
+      )
     )
   const mediaArchivos = (() => {
     const meta = typeof notificacion.metadata === 'string' ? JSON.parse(notificacion.metadata) : (notificacion.metadata || {})
@@ -1451,6 +1469,20 @@ export default function NotificacionDetalleModal({
 
               {isGasto && (
                 <div className="bg-orange-50/50 rounded-2xl border border-orange-100 p-5 space-y-4">
+                  {isLegacyEff && (
+                    <div className="mb-4 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                      <div className="flex items-center gap-2 mb-2">
+                        <AlertTriangle className="h-4 w-4 text-slate-600" />
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-700">
+                          Solicitud legacy sin impacto de caja
+                        </p>
+                      </div>
+                      <p className="text-xs text-slate-700 font-medium leading-relaxed">
+                        Esta solicitud fue creada antes del flujo de gasto provisional y no afectó caja.
+                        Solo puede anularse sin impacto financiero.
+                      </p>
+                    </div>
+                  )}
                   {esGastoProvisional && (
                     <div className="mb-4 p-3 bg-amber-50 rounded-xl border border-amber-200">
                       <div className="flex items-center gap-2 mb-2">
@@ -1546,24 +1578,33 @@ export default function NotificacionDetalleModal({
           <div className="p-6 bg-slate-50 border-t border-slate-100 flex gap-4 sticky bottom-0 z-10">
             {estado === 'PENDIENTE' && canApprove && isApprovalNotification && (
               <>
-                {esGastoProvisional ? (
+                {isLegacyEff ? (
+                  // Botón específico para gastos legacy
+                  <button
+                    onClick={() => setShowRejectModal(true)}
+                    disabled={isProcessing}
+                    className="flex-1 py-4 bg-slate-600 text-white font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-slate-700 shadow-xl shadow-slate-600/20 transition-all border border-slate-500 disabled:opacity-50"
+                  >
+                    {isProcessing ? 'Procesando...' : 'Anular Solicitud'}
+                  </button>
+                ) : esGastoProvisional ? (
                   // Tres botones específicos para gastos provisionales
                   <>
-                    <button 
+                    <button
                       onClick={() => setShowRejectDeudaModal(true)}
                       disabled={isProcessing}
                       className="flex-1 py-4 bg-white border border-rose-200 text-rose-600 font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-rose-50 transition-all shadow-sm hover:shadow-md disabled:opacity-50"
                     >
                       Rechazar y Crear Deuda
                     </button>
-                    <button 
+                    <button
                       onClick={() => setShowRejectReintegroModal(true)}
                       disabled={isProcessing}
                       className="flex-1 py-4 bg-white border border-amber-200 text-amber-600 font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-amber-50 transition-all shadow-sm hover:shadow-md disabled:opacity-50"
                     >
                       Rechazar con Reintegro
                     </button>
-                    <button 
+                    <button
                       onClick={() => approveNow()}
                       disabled={isProcessing}
                       className="flex-1 py-4 bg-emerald-600 text-white font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-emerald-700 shadow-xl shadow-emerald-600/20 transition-all border border-emerald-500 disabled:opacity-50"
@@ -1574,13 +1615,13 @@ export default function NotificacionDetalleModal({
                 ) : (
                   // Botones genéricos para otros tipos
                   <>
-                    <button 
+                    <button
                       onClick={() => setShowRejectModal(true)}
                       className="flex-1 py-4 bg-white border border-rose-200 text-rose-600 font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-rose-50 transition-all shadow-sm hover:shadow-md"
                     >
                       Rechazar
                     </button>
-                    <button 
+                    <button
                       onClick={() => approveNow()}
                       disabled={isProcessing}
                       className="flex-1 py-4 bg-emerald-600 text-white font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-emerald-700 shadow-xl shadow-emerald-600/20 transition-all border border-emerald-500 disabled:opacity-50"

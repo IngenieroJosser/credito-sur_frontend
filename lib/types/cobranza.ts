@@ -20,7 +20,7 @@ export interface VisitaRuta {
   targetVencimiento?: string
   ordenVisita: number
   prioridad: 'alta' | 'media' | 'baja'
-  nivelRiesgo?: 'bajo' | 'leve' | 'precaucion' | 'moderado' | 'critico'
+  nivelRiesgo?: 'minimo' | 'leve' | 'precaucion' | 'moderado' | 'critico'
   cobradorId: string
   periodoRuta: PeriodoRuta
   clienteId: string
@@ -35,6 +35,12 @@ export interface VisitaRuta {
   cuotaActual?: number
   cuotasTotales?: number
   diasMora?: number
+  montoCuotaNormal?: number
+  montoCuotaPendiente?: number
+  montoMoraAcumulada?: number
+  montoVencidoAcumulado?: number
+  saldoVencidoAcumulado?: number
+  cuotasVencidas?: number
   // Crédito pendiente de revisión: el cliente aparece en la ruta pero aún no se puede cobrar
   pendienteAprobacion?: boolean
   estadoAprobacion?: string
@@ -43,10 +49,6 @@ export interface VisitaRuta {
   esRevertido?: boolean
   etiquetaRevision?: string | null
   fechaUltimoPago?: number      // Timestamp del último pago realizado para ordenamiento rápido
-  montoCuotaPendiente?: number  // Monto pendiente real (puede diferir de montoCuota si hay mora parcial)
-  montoCuotaNormal?: number     // Cuota normal del periodo, sin acumular saldos vencidos
-  montoMoraAcumulada?: number   // Saldo vencido acumulado de cartera, separado de la cuota operativa
-  cuotasVencidas?: number       // Cantidad de cuotas vencidas/pendientes hasta la fecha operativa
 }
 
 export interface HistorialDia {
@@ -72,8 +74,8 @@ export interface HistorialDia {
 // Usarlos en lugar de duplicar la lógica inline en cada componente
 // ─────────────────────────────────────────────────────────────────────────────
 
-type NivelRiesgoBackend = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA' | string
-type NivelRiesgoFrontend = 'bajo' | 'leve' | 'precaucion' | 'moderado' | 'critico'
+type NivelRiesgoBackend = 'VERDE' | 'AMARILLO' | 'PRECAUCION' | 'ROJO' | 'LISTA_NEGRA' | string
+type NivelRiesgoFrontend = 'minimo' | 'leve' | 'precaucion' | 'moderado' | 'critico'
 
 /**
  * Convierte el nivel de riesgo del backend al formato del frontend.
@@ -92,7 +94,7 @@ export const mapNivelRiesgo = (nivel?: NivelRiesgoBackend | null): NivelRiesgoFr
     case 'MINIMO':
     case 'BAJO':
     case 'VERDE':
-      return 'bajo'
+      return 'minimo'
     case 'LEVE_RETRASO':
     case 'LEVE':
       return 'leve'
@@ -111,7 +113,7 @@ export const mapNivelRiesgo = (nivel?: NivelRiesgoBackend | null): NivelRiesgoFr
     case 'LISTA_NEGRA':
       return 'critico'
     default:
-      return 'bajo'
+      return 'minimo'
   }
 }
 

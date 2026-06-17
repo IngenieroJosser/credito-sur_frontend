@@ -42,8 +42,10 @@ import {
   shouldExcludeVisitaFromOperationalMeta,
   shouldShowVisitaEnRutaHoy,
 } from '@/lib/rutas-core'
+import { buildRutaHoyOperativa } from '@/lib/rutas/build-ruta-hoy-operativa'
 import { rutasService } from '@/services/rutas-service';
 import { clientesService } from '@/services/clientes-service';
+import { pagosService } from '@/services/pagos-service';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { usePermission } from '@/hooks/usePermission';
 import { offlineStore } from '@/lib/offline/offlineDb';
@@ -341,44 +343,38 @@ export const RutasPageView = ({
     const hoyKey = getBogotaDateKey(new Date())
     const newSummaries: Record<string, any> = {}
 
+    // Obtener pagos una sola vez para todas las rutas
+    const pagosResp = await pagosService.obtenerPagos({ limit: 5000 })
+    const pagos = (pagosResp as any)?.pagos || pagosResp || []
+
     await Promise.all(
       rutas.map(async (ruta) => {
         try {
           const dailyVisits = await rutasService.obtenerVisitasDelDia(ruta.id, hoyKey)
-          const summary = resolveRutaDailySummary(ruta, dailyVisits)
 
-          const visitas = (summary.obligaciones || []).map((o: any) =>
-            mapObligacionToRutaListVisita(o, hoyKey),
-          )
-
-          const visitasOperativasHoy = visitas
-            .filter((v: any) => shouldShowVisitaEnRutaHoy(v, hoyKey))
-            .filter((v: any) => !shouldExcludeVisitaFromOperationalMeta(v))
+          // Usar helper compartido para construir fuente completa de KPI
+          const result = await buildRutaHoyOperativa({
+            ruta,
+            dailyVisits,
+            hoyBogotaKey: hoyKey,
+            cobradorId: ruta.cobradorId || '',
+            pagos,
+          })
 
           const clientesOperativosHoy = new Set(
-            visitasOperativasHoy
+            result.visibleItems
               .map((v: any) => v.clienteId)
               .filter(Boolean),
           ).size
 
-          const statsHoy = computeRutaHoyUiStatsFromVisitas(
-            visitasOperativasHoy,
-            0,
-          )
-
-          const recaudo = visitas.length > 0
-            ? Number(statsHoy.recaudo || 0)
-            : Number(summary.recaudo ?? ruta.cobranzaDelDia ?? 0)
-
-          const meta = Number(statsHoy.meta || 0)
-
           newSummaries[ruta.id] = {
-            ...summary,
-            meta,
-            recaudo,
-            pendiente: Math.max(0, meta - recaudo),
+            meta: result.stats.meta,
+            recaudo: result.stats.recaudo,
+            pendiente: result.stats.pendiente,
+            eficiencia: result.stats.eficiencia,
             clientesOperativosHoy,
-            visitasOperativasHoy,
+            visitasOperativasHoy: result.visibleItems,
+            obligacionesKpiHoy: result.kpiItems,
           }
         } catch (e) {
           console.warn(`Error fetching daily summary for route ${ruta.id}:`, e)

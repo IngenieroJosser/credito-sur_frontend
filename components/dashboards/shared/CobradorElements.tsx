@@ -25,12 +25,14 @@ const formatMontoCompleto = (amount: number): string => formatCurrency(amount)
 function dotColor(nivelRiesgo: string | undefined): string {
   switch (nivelRiesgo) {
     case 'bajo':       return 'bg-emerald-500'
+    case 'minimo':     return 'bg-emerald-500'
     case 'leve':       return 'bg-blue-500'
-    case 'precaucion': return 'bg-amber-400'
+    case 'precaucion': return 'bg-yellow-500'
     case 'moderado':   return 'bg-orange-500'
     case 'critico':    return 'bg-red-600'
     case 'VERDE':      return 'bg-emerald-500'
-    case 'AMARILLO':   return 'bg-amber-400'
+    case 'AMARILLO':   return 'bg-yellow-500'
+    case 'PRECAUCION': return 'bg-yellow-500'
     case 'ROJO':       return 'bg-red-600'
     case 'ALTO_RIESGO':return 'bg-red-600'
     case 'LISTA_NEGRA':return 'bg-red-600'
@@ -39,63 +41,21 @@ function dotColor(nivelRiesgo: string | undefined): string {
 }
 
 function resolveNivelRiesgoForVisita(visita: VisitaRuta): string | undefined {
-  const base = mapNivelRiesgo(visita?.nivelRiesgo as any)
-  const enMora = ((visita as any)?.enMoraHistorico) || String(visita?.estado || '').toLowerCase() === 'en_mora'
-  const enProrroga = ((visita as any)?.enProrrogaHistorico) || (visita as any)?.enProrroga || !!(visita as any)?.fechaProrroga
-  const diasMora = Number((visita as any)?.diasMora ?? 0)
-
-  const nivelPorDias = (() => {
-    if (!(diasMora > 0)) return undefined
-    if (diasMora >= 8) return 'critico'
-    if (diasMora >= 5) return 'moderado'
-    if (diasMora >= 3) return 'precaucion'
-    return 'leve'
-  })()
-
-  if (!enMora && !enProrroga && !nivelPorDias) return base
-
-  const severity = (nivel: string | undefined) => {
-    switch (nivel) {
-      case 'critico': return 5
-      case 'LISTA_NEGRA': return 5
-      case 'moderado': return 4
-      case 'ROJO': return 5
-      case 'ALTO_RIESGO': return 5
-      case 'precaucion': return 3
-      case 'AMARILLO': return 3
-      case 'leve': return 2
-      case 'bajo': return 1
-      case 'VERDE': return 1
-      default: return 0
-    }
-  }
-
-  // Criterio por días (prioritario):
-  // - 1-2 => leve
-  // - 3-4 => precaucion
-  // - 5-7 => moderado
-  // - 8+  => critico
-  // Si no tenemos `diasMora` pero el backend ya marcó `en_mora`, degradamos a un mínimo
-  // razonable (leve) en vez de forzar moderado.
-  const target = nivelPorDias
-    || (enProrroga ? 'precaucion' : undefined)
-    || (enMora ? 'leve' : undefined)
-    || base
-
-  const merged = severity(base) >= severity(target) ? base : target
-  if (nivelPorDias && severity(merged) < severity(nivelPorDias)) return nivelPorDias
-  return merged
+  // Función puramente visual: solo retorna el riesgo ya calculado por el mapper/helper compartido
+  return visita?.nivelRiesgo || 'minimo'
 }
 
 function nivelBadgeColor(nivelRiesgo: string | undefined): string {
   switch (nivelRiesgo) {
     case 'bajo':       return 'text-emerald-700 bg-emerald-50 border-emerald-100'
+    case 'minimo':     return 'text-emerald-700 bg-emerald-50 border-emerald-100'
     case 'leve':       return 'text-blue-700 bg-blue-50 border-blue-100'
-    case 'precaucion': return 'text-amber-700 bg-amber-50 border-amber-100'
+    case 'precaucion': return 'text-yellow-700 bg-yellow-50 border-yellow-200'
     case 'moderado':   return 'text-orange-700 bg-orange-50 border-orange-100'
     case 'critico':    return 'text-red-700 bg-red-50 border-red-100'
     case 'VERDE':      return 'text-emerald-700 bg-emerald-50 border-emerald-100'
-    case 'AMARILLO':   return 'text-amber-700 bg-amber-50 border-amber-100'
+    case 'AMARILLO':   return 'text-yellow-700 bg-yellow-50 border-yellow-200'
+    case 'PRECAUCION': return 'text-yellow-700 bg-yellow-50 border-yellow-200'
     case 'ROJO':       return 'text-red-700 bg-red-50 border-red-100'
     case 'ALTO_RIESGO':return 'text-red-700 bg-red-50 border-red-100'
     case 'LISTA_NEGRA':return 'text-red-700 bg-red-50 border-red-100'
@@ -106,12 +66,14 @@ function nivelBadgeColor(nivelRiesgo: string | undefined): string {
 function nivelLabel(nivelRiesgo: string | undefined): string {
   switch (nivelRiesgo) {
     case 'bajo':       return 'Mínimo'
+    case 'minimo':     return 'Mínimo'
     case 'leve':       return 'Leve'
     case 'precaucion': return 'Precaución'
     case 'moderado':   return 'Moderado'
     case 'critico':    return 'Crítico'
     case 'VERDE':      return 'Mínimo'
     case 'AMARILLO':   return 'Precaución'
+    case 'PRECAUCION': return 'Precaución'
     case 'ROJO':       return 'Crítico'
     case 'ALTO_RIESGO':return 'Crítico'
     case 'LISTA_NEGRA':return 'Crítico'
@@ -122,12 +84,14 @@ function nivelLabel(nivelRiesgo: string | undefined): string {
 function nivelTitle(nivelRiesgo: string | undefined): string {
   switch (nivelRiesgo) {
     case 'bajo':       return 'Al día'
+    case 'minimo':     return 'Al día'
     case 'leve':       return 'Riesgo leve'
     case 'precaucion': return 'Precaución'
     case 'moderado':   return 'En mora'
     case 'critico':    return 'Crítico / Lista negra'
     case 'VERDE':      return 'Al día'
     case 'AMARILLO':   return 'Precaución'
+    case 'PRECAUCION': return 'Precaución'
     case 'ROJO':       return 'Crítico / Lista negra'
     case 'ALTO_RIESGO':return 'Crítico / Lista negra'
     case 'LISTA_NEGRA':return 'Crítico / Lista negra'
@@ -135,16 +99,42 @@ function nivelTitle(nivelRiesgo: string | undefined): string {
   }
 }
 
+// Helpers para determinar estado visual de pagado y mora
+function isPagadaVisual(visita: VisitaRuta): boolean {
+  const estado = String(visita?.estado || '').toLowerCase()
+  const recaudo = Number(visita?.recaudadoDelDia || 0)
+  const cuota = Number(visita?.montoCuotaNormal ?? visita?.montoCuota ?? 0)
+
+  return estado === 'pagado' || (cuota > 0 && recaudo >= cuota)
+}
+
+function shouldShowMoraBadge(visita: VisitaRuta): boolean {
+  if (isPagadaVisual(visita)) return false
+
+  const estado = String(visita?.estado || '').toLowerCase()
+  // Si el estado ya es 'en_mora', el badge principal ya muestra "en mora"
+  // No mostrar el badge adicional para evitar duplicación
+  if (estado === 'en_mora') return false
+
+  return (
+    Boolean((visita as any)?.enMoraHistorico) ||
+    Number(visita?.diasMora || 0) > 0 ||
+    Number((visita as any)?.montoVencidoAcumulado || (visita as any)?.saldoVencidoAcumulado || 0) > 0
+  )
+}
+
 function borderColor(nivelRiesgo: string | undefined, isSelected: boolean): string {
   if (isSelected) return 'ring-2 ring-[#08557f] shadow-md bg-blue-50/30 border-[#08557f]'
   switch (nivelRiesgo) {
     case 'bajo':       return 'border-emerald-400 shadow-sm'
+    case 'minimo':     return 'border-emerald-400 shadow-sm'
     case 'leve':       return 'border-blue-400 shadow-sm'
-    case 'precaucion': return 'border-amber-400 shadow-sm'
+    case 'precaucion': return 'border-yellow-400 shadow-sm'
     case 'moderado':   return 'border-orange-500 shadow-sm'
     case 'critico':    return 'border-red-600 shadow-md'
     case 'VERDE':      return 'border-emerald-400 shadow-sm'
-    case 'AMARILLO':   return 'border-amber-400 shadow-sm'
+    case 'AMARILLO':   return 'border-yellow-400 shadow-sm'
+    case 'PRECAUCION': return 'border-yellow-400 shadow-sm'
     case 'ROJO':       return 'border-red-600 shadow-md'
     case 'ALTO_RIESGO':return 'border-red-600 shadow-md'
     case 'LISTA_NEGRA':return 'border-red-600 shadow-md'
@@ -188,7 +178,7 @@ function VisitaCardContent({
   children,
 }: {
   visita: VisitaRuta
-  onVerCliente: (v: VisitaRuta) => void
+  onVerCliente?: (v: VisitaRuta) => void
   getEstadoClasses: (e: EstadoVisita) => string
   grip?: ReactNode
   actions?: ReactNode
@@ -205,7 +195,15 @@ function VisitaCardContent({
     : Math.min(cuotaPendiente, saldo > 0 ? saldo : cuotaPendiente)
   const cuotaUI = cuotaNormal > 0 ? Math.min(cuotaNormal, saldo > 0 ? saldo : cuotaNormal) : cuotaOperativa
   const acumuladoVencido = resolveCuotaAcumuladaOperativa(visita)
-  const mostrarAcumuladoVencido = acumuladoVencido > cuotaUI + 1
+  const montoVencido = Number(
+    visita?.montoVencidoAcumulado ??
+    visita?.montoMoraAcumulada ??
+    visita?.saldoVencidoAcumulado ??
+    0
+  )
+  const mostrarAcumuladoVencido =
+    String(visita?.estado || '').toLowerCase() === 'en_mora' &&
+    montoVencido > 0
   const saldado = estadoLower === 'pagado' && cuotaUI === 0 && saldo === 0
   const estadoVisitaNorm = normalizeEstadoVisita((visita as any)?.estadoVisita)
   const esReprogramadoHistorial =
@@ -231,12 +229,32 @@ function VisitaCardContent({
 
         {/* Botón ver detalles */}
         <button
-          onClick={(e) => { e.stopPropagation(); onVerCliente(visita) }}
-          onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); onVerCliente(visita) }}
-          className="p-2.5 sm:p-2 bg-slate-100/60 rounded-lg hover:bg-white text-slate-400 hover:text-[#08557f] transition-all border border-transparent hover:border-slate-200 shrink-0 active:scale-95 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center cursor-pointer"
+          type="button"
+          data-action="ver-cliente"
+          data-testid={`ver-cliente-${visita.id}`}
+          onPointerDownCapture={(e) => {
+            e.stopPropagation()
+          }}
+          onMouseDownCapture={(e) => {
+            e.stopPropagation()
+          }}
+          onClickCapture={(e) => {
+            e.stopPropagation()
+
+            console.log('[StaticVisitaItem] click capture ojo', {
+              id: visita.id,
+              clienteId: visita.clienteId,
+              prestamoId: visita.prestamoId,
+              cliente: visita.cliente,
+            })
+
+            onVerCliente?.(visita)
+          }}
+          className="relative z-[80] pointer-events-auto p-2.5 sm:p-2 bg-slate-100/60 rounded-lg hover:bg-white text-slate-400 hover:text-[#08557f] transition-all border border-transparent hover:border-slate-200 shrink-0 active:scale-95 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center cursor-pointer"
           title="Ver expediente del cliente"
+          aria-label={`Ver detalle de ${visita.cliente}`}
         >
-          <Eye className="w-5 h-5" />
+          <Eye className="w-5 h-5 pointer-events-none" />
         </button>
       </div>
 
@@ -261,7 +279,7 @@ function VisitaCardContent({
           )}
           {/* Badge estado visita */}
           <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md border uppercase ${getEstadoClasses(visita.estado)}`}>
-            {visita.estado.replace('_', ' ')}
+            {visita.estado?.replace('_', ' ') || visita.estado || ''}
           </span>
 
           {(visita.estadoVisita === 'ausente' && visita.estado !== 'ausente') && (
@@ -276,7 +294,7 @@ function VisitaCardContent({
             </span>
           )}
 
-          {((visita as any)?.enMoraHistorico && String(visita.estado || '').toLowerCase() !== 'en_mora') && (
+          {shouldShowMoraBadge(visita) && (
             <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md border uppercase bg-rose-50 text-rose-700 border-rose-200">
               en mora
             </span>
@@ -440,7 +458,7 @@ export function StaticVisitaItem({
 }: {
   visita: VisitaRuta
   onSelect?: (id: string) => void
-  onVerCliente: (visita: VisitaRuta) => void
+  onVerCliente?: (visita: VisitaRuta) => void
   getEstadoClasses: (estado: EstadoVisita) => string
   getPrioridadColor?: (prioridad: 'alta' | 'media' | 'baja') => string
   isSelected?: boolean

@@ -63,7 +63,7 @@ function getSaldoOperativoJornada(cliente: any) {
     : 0
   if (saldoPrestamos > 0) return saldoPrestamos
 
-  return Number(cliente?.cuotaObjetivo?.saldoExigibleEnFechaOperativa || 0)
+  return 0
 }
 
 function formatPercent(value: number) {
@@ -201,7 +201,50 @@ export function CierrePendienteDetalleModal({
   // Usar la jornada seleccionada o la estructura antigua
   const jornadaActual = tieneJornadas ? (jornadas[jornadaSeleccionada] || jornadas[0]) : detalle
   const resumen = jornadaActual?.resumen
-  const clientes = jornadaActual?.clientes || []
+
+  // Mapper local para transformar obligaciones al formato que el modal espera
+  const obligacionesJornada = Array.isArray(jornadaActual?.obligaciones) && jornadaActual.obligaciones.length > 0
+    ? jornadaActual.obligaciones.map((item: any) => {
+        const cliente = item.cliente || item.visita?.cliente || {}
+        const cuota = item.cuotaObjetivo || item.prestamo?.cuotaObjetivo || {}
+
+        return {
+          asignacionId: item.asignacionId,
+          ordenVisita: item.ordenVisita,
+
+          clienteId: cliente.id || item.clienteId,
+          nombreCliente:
+            item.nombreCliente ||
+            `${cliente.nombres || ''} ${cliente.apellidos || ''}`.trim() ||
+            'Cliente',
+
+          dni: cliente.dni,
+          telefono: cliente.telefono,
+          direccion: cliente.direccion,
+          nivelRiesgo: cliente.nivelRiesgo,
+
+          prestamoObjetivoId: item.prestamoId || item.prestamo?.id,
+          cuotaObjetivoId: item.cuotaObjetivoId || cuota.id,
+          cuotaObjetivoPrestamoId: item.cuotaObjetivoPrestamoId || cuota.id,
+          cuotaObjetivo: cuota,
+
+          estadoGestion: item.estadoGestion,
+          estadoVisita: item.estadoVisita,
+          notasVisita: item.notasVisita,
+          recaudadoDelDia: Number(item.recaudadoDelDia || 0),
+
+          saldoOperativoJornada: Number(
+            item.montoMetaOperativaPendiente ??
+            cuota.saldoExigibleEnFechaOperativa ??
+            cuota.saldoCuota ??
+            cuota.montoCuota ??
+            cuota.montoNominal ??
+            0
+          ),
+        }
+      })
+    : (jornadaActual?.clientes || [])
+
   const cierrePendiente = jornadaActual?.cierrePendiente || detalle?.cierrePendiente
   const accionesSugeridas = jornadaActual?.accionesSugeridas || detalle?.accionesSugeridas
 
@@ -534,18 +577,18 @@ export function CierrePendienteDetalleModal({
 
                 <div className="divide-y divide-slate-100 pb-8 sm:max-h-[520px] sm:overflow-y-auto sm:pb-10">
                   {(() => {
-                    // Ordenar clientes por estado de gestión: pendientes, ausentes, pagos
-                    const clientesPendientes = clientes.filter(c => c.estadoGestion === 'PENDIENTE')
-                    const clientesAusentes = clientes.filter(c => c.estadoGestion === 'AUSENTE')
-                    const clientesReprogramados = clientes.filter(c => c.estadoGestion === 'REPROGRAMADO')
-                    const clientesPagaron = clientes.filter(c => c.estadoGestion === 'PAGO_REGISTRADO')
-                    const clientesOrdenados = [...clientesPendientes, ...clientesAusentes, ...clientesReprogramados, ...clientesPagaron]
+                    // Ordenar obligaciones por estado de gestión: pendientes, ausentes, pagos
+                    const obligacionesPendientes = obligacionesJornada.filter((c: any) => c.estadoGestion === 'PENDIENTE')
+                    const obligacionesAusentes = obligacionesJornada.filter((c: any) => c.estadoGestion === 'AUSENTE')
+                    const obligacionesReprogramados = obligacionesJornada.filter((c: any) => c.estadoGestion === 'REPROGRAMADO')
+                    const obligacionesPagaron = obligacionesJornada.filter((c: any) => c.estadoGestion === 'PAGO_REGISTRADO')
+                    const obligacionesOrdenadas = [...obligacionesPendientes, ...obligacionesAusentes, ...obligacionesReprogramados, ...obligacionesPagaron]
 
-                    return clientesOrdenados.map((cliente) => {
+                    return obligacionesOrdenadas.map((cliente) => {
                       const saldoOperativoJornada = getSaldoOperativoJornada(cliente)
 
                       return (
-                      <div key={cliente.asignacionId || cliente.clienteId} className="p-4">
+                      <div key={`${cliente.clienteId}-${cliente.prestamoObjetivoId}-${cliente.cuotaObjetivoId || cliente.cuotaObjetivo?.id}`} className="p-4">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                           <div className="min-w-0">
                             <p className="truncate text-sm font-black text-slate-900">
@@ -624,9 +667,7 @@ export function CierrePendienteDetalleModal({
                                 >
                                   {cliente.cuotaObjetivo.esCuotaReprogramadaJornada
                                     ? 'Reprogramada'
-                                    : saldoOperativoJornada > 0
-                                      ? formatCurrency(saldoOperativoJornada)
-                                      : 'Cubierto por pago'}
+                                    : formatCurrency(cliente.cuotaObjetivo.montoCuota || 0)}
                                 </p>
                                 <p
                                   className={cn(
@@ -636,12 +677,26 @@ export function CierrePendienteDetalleModal({
                                 >
                                   {cliente.cuotaObjetivo.esCuotaReprogramadaJornada
                                     ? 'Gestión registrada'
-                                    : saldoOperativoJornada > 0
-                                      ? 'Saldo operativo'
-                                      : 'Sin saldo operativo'}
+                                    : 'Valor cuota'}
                                 </p>
                               </div>
                             </div>
+                            {saldoOperativoJornada > 0 && (
+                              <div className="mt-2 pt-2 border-t border-blue-200">
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                    <p className="text-[10px] text-blue-600">
+                                      Saldo operativo jornada
+                                    </p>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="text-[11px] font-black text-blue-700">
+                                      {formatCurrency(saldoOperativoJornada)}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         )}
 
@@ -946,9 +1001,9 @@ export function CierrePendienteDetalleModal({
                     )})
                   })()}
 
-                  {clientes.length === 0 && (
+                  {obligacionesJornada.length === 0 && (
                     <div className="p-8 text-center text-sm font-bold text-slate-400">
-                      No hay clientes programados para esta jornada.
+                      No hay obligaciones programadas para esta jornada.
                     </div>
                   )}
                 </div>
