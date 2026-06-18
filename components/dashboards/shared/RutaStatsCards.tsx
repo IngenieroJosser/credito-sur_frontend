@@ -3,6 +3,7 @@
 import React from 'react'
 import { DollarSign, Target, Receipt, Wallet } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
+import { RolUsuario } from '@/types/enums'
 
 // ─────────────────────────────────────────────────
 // Tipos
@@ -22,6 +23,7 @@ type Periodo = 'HOY' | 'SEM' | 'MES' | 'AÑO'
 interface RutaStatsCardsProps {
   rutaStats: RutaStatsData
   periodo?: Periodo
+  userRol?: RolUsuario
 }
 
 // ─────────────────────────────────────────────────
@@ -59,7 +61,7 @@ const StatCard = ({ children }: StatCardProps) => (
 // ─────────────────────────────────────────────────
 // Componente principal exportado
 // ─────────────────────────────────────────────────
-export function RutaStatsCards({ rutaStats, periodo = 'HOY' }: RutaStatsCardsProps) {
+export function RutaStatsCards({ rutaStats, periodo = 'HOY', userRol }: RutaStatsCardsProps) {
   const recaudo = Number(rutaStats?.recaudo || 0)
   const pendiente = rutaStats.pendiente != null
     ? Math.max(0, Number(rutaStats.pendiente || 0))
@@ -77,6 +79,10 @@ export function RutaStatsCards({ rutaStats, periodo = 'HOY' }: RutaStatsCardsPro
   const porcentajeRecaudo = meta > 0
     ? `${eficienciaShown}%`
     : '---'
+
+  const esSupervisor = userRol === RolUsuario.SUPERVISOR
+  const baseLabel = esSupervisor ? 'Base efectivo supervisor' : 'Base Efectivo'
+  const baseSublabel = esSupervisor ? 'Caja propia del supervisor' : 'Asignada por coordinador'
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -167,7 +173,7 @@ export function RutaStatsCards({ rutaStats, periodo = 'HOY' }: RutaStatsCardsPro
         <div className="flex justify-between items-start mb-4">
           <div>
             <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-              Base Efectivo
+              {baseLabel}
             </p>
             <div className="flex items-baseline gap-2 mt-2">
               <h3 className="text-2xl font-bold text-slate-900">
@@ -180,7 +186,7 @@ export function RutaStatsCards({ rutaStats, periodo = 'HOY' }: RutaStatsCardsPro
           </div>
         </div>
         <p className="text-xs text-slate-400 font-medium">
-          Asignada por coordinador
+          {baseSublabel}
         </p>
       </StatCard>
 

@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 /**
  * Modal de Información del Cliente — Vista Cobrador
@@ -121,14 +121,14 @@ export default function ClienteInfoModal({
   }
 
   const nivelRiesgoLabel =
-    visita.nivelRiesgo === 'bajo'      ? 'Mínimo' :
+    visita.nivelRiesgo === 'minimo'      ? 'Mínimo' :
     visita.nivelRiesgo === 'leve'      ? 'Leve' :
     (visita.nivelRiesgo as string) === 'precaucion' ? 'Precaución' :
     visita.nivelRiesgo === 'moderado'  ? 'Moderado' :
     visita.nivelRiesgo === 'critico'   ? 'Crítico' : '—'
 
   const nivelRiesgoColor =
-    visita.nivelRiesgo === 'bajo'      ? 'bg-emerald-100 text-emerald-700' :
+    visita.nivelRiesgo === 'minimo'      ? 'bg-emerald-100 text-emerald-700' :
     visita.nivelRiesgo === 'leve'      ? 'bg-yellow-100 text-yellow-700' :
     (visita.nivelRiesgo as string) === 'precaucion' ? 'bg-amber-100 text-amber-700' :
     visita.nivelRiesgo === 'moderado'  ? 'bg-orange-100 text-orange-700' :
@@ -445,7 +445,7 @@ export default function ClienteInfoModal({
                 {/* Estado del crédito */}
                 <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm flex items-center gap-3">
                   <div className={`w-3 h-3 rounded-full shrink-0 ${
-                    visita.nivelRiesgo === 'bajo'     ? 'bg-emerald-500' :
+                    visita.nivelRiesgo === 'minimo'     ? 'bg-emerald-500' :
                     visita.nivelRiesgo === 'leve'     ? 'bg-yellow-400'  :
                     (visita.nivelRiesgo as string) === 'precaucion' ? 'bg-amber-400'  :
                     visita.nivelRiesgo === 'moderado' ? 'bg-orange-500'  :

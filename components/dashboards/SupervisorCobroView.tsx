@@ -124,7 +124,7 @@ import { pagosService } from '@/services/pagos-service'
 
 import { applyRecaudoHoyToVisitas, buildRecaudosHoyMapByPrestamoId, computeMontoCuotaPendienteDespuesDeRecaudo, indexPagosByPrestamoId } from '@/lib/ruta-recaudos'
 
-import { obtenerSaldoDisponibleRuta, getRutaCierreHoy, registrarGasto } from '@/services/contabilidad-service'
+import { obtenerSaldoDisponibleRuta, obtenerSaldoCajaSupervisor, getRutaCierreHoy, registrarGasto } from '@/services/contabilidad-service'
 
 
 import { routesService as routesApi } from '@/services/routes-service'
@@ -758,7 +758,11 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     const { inicio: cardInicio, fin: cardFin } = getDatesByPeriod(periodoCards)
 
     try {
-      const saldo: any = await obtenerSaldoDisponibleRuta(rutaId as string, undefined, cardInicio, cardFin)
+      // Si el usuario es SUPERVISOR, usar su caja propia en lugar de la caja de ruta
+      const esSupervisor = userSession?.rol === RolUsuario.SUPERVISOR
+      const saldo: any = esSupervisor && userSession?.id
+        ? await obtenerSaldoCajaSupervisor(userSession.id, undefined, cardInicio, cardFin)
+        : await obtenerSaldoDisponibleRuta(rutaId as string, undefined, cardInicio, cardFin)
 
       const recaudoBackend = Number(saldo?.cobranzaDelDia ?? saldo?.recaudoDelDia ?? 0)
 
@@ -820,7 +824,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     } catch (e) {
       return {} as Record<string, number>
     }
-  }, [rutaId, periodoCards])
+  }, [rutaId, periodoCards, userSession?.id, userSession?.rol])
 
 
 
@@ -980,7 +984,11 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     fetchPagos: () => pagosService.obtenerPagos({ limit: 5000 }) as any,
     loadDay: async (fechaClave: string) => {
       const visitasResp = await rutasService.obtenerVisitasDelDia(rutaId as string, fechaClave)
-      const saldo = await obtenerSaldoDisponibleRuta(rutaId as string, fechaClave)
+      // Si el usuario es SUPERVISOR, usar su caja propia en lugar de la caja de ruta
+      const esSupervisor = userSession?.rol === RolUsuario.SUPERVISOR
+      const saldo = esSupervisor && userSession?.id
+        ? await obtenerSaldoCajaSupervisor(userSession.id, fechaClave)
+        : await obtenerSaldoDisponibleRuta(rutaId as string, fechaClave)
 
       let pagosDelDia: any[] = []
       try {
@@ -2376,6 +2384,27 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
     }
 
+    const rutaIdFinal = esCierrePendiente
+      ? contextoRegularizacionSnapshot?.rutaId
+      : (rutaInfo?.id || rutaId);
+
+    if (!rutaIdFinal) {
+      toast.error('No se pudo registrar el pago: falta la ruta operativa.');
+      return;
+    }
+
+    const esSupervisor = userSession?.rol === RolUsuario.SUPERVISOR;
+
+    if (esSupervisor && !rutaInfo?.cobradorId) {
+      toast.error('No se pudo registrar el pago: falta el cobrador responsable de la ruta.');
+      return;
+    }
+
+    const cobradorResponsableId = resolveCobradorIdForRouteAction(
+      rutaInfo?.cobradorId,
+      userSession.id,
+    );
+
 
 
     try {
@@ -2409,11 +2438,11 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
         comprobante,
 
-        cobradorId: resolveCobradorIdForRouteAction(rutaInfo?.cobradorId, userSession.id),
+        cobradorId: cobradorResponsableId,
 
         tipoRegistro: contexto?.tipoRegistro || (esAbono ? 'ABONO' : 'PAGO'),
 
-        rutaId: esCierrePendiente ? contextoRegularizacionSnapshot?.rutaId : undefined,
+        rutaId: rutaIdFinal,
 
         cuotaId: cuotaIdFinal,
 
@@ -2537,7 +2566,21 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
     }
 
-  }, [visitasBase, visitaPagoRegularizada, userSession?.id, pagoInitialIsAbono, cargarVisitasRuta, showMisClientes, cargarMisCreditos, cargarEstadisticasRuta])
+  }, [
+    visitasBase,
+    visitaPagoRegularizada,
+    userSession?.id,
+    pagoInitialIsAbono,
+    rutaInfo?.id,
+    rutaInfo?.cobradorId,
+    rutaId,
+    cargarVisitasRuta,
+    showMisClientes,
+    cargarMisCreditos,
+    cargarEstadisticasRuta,
+    clearRegularizacionContext,
+    setVisitasBaseAndRef,
+  ])
 
   const handleCrearCredito = useCallback(async (data: any) => {
 
@@ -2930,7 +2973,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
 
 
-        <RutaKpiSection periodo={periodoCards} onPeriodoChange={setPeriodoCards} rutaStats={rutaStats as any} />
+        <RutaKpiSection periodo={periodoCards} onPeriodoChange={setPeriodoCards} rutaStats={rutaStats as any} userRol={userSession?.rol} />
 
         {/* Banner de cierre pendiente */}
         <CierrePendienteBanner
@@ -4441,7 +4484,12 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
           onConfirm={async (data) => {
             if (!rutaId) return
 
-            const cobradorIdReal = (rutaInfo as any)?.cobradorId || userSession?.id || ''
+            // Si el usuario es SUPERVISOR, usar su propio ID para que el gasto se debite de su caja
+            const esSupervisor = userSession?.rol === RolUsuario.SUPERVISOR
+            const cobradorIdReal = esSupervisor
+              ? userSession?.id
+              : ((rutaInfo as any)?.cobradorId || userSession?.id || '')
+
             if (!cobradorIdReal) {
               toast.error('No se pudo registrar el gasto: falta cobrador')
               return
@@ -4573,9 +4621,10 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
 
 
-        {/* Floating Action Button (FAB) - siempre visible para supervisor */}
+        {/* Floating Action Button (FAB) - local cuando hay rutaId seleccionado para contexto operativo */}
 
-        <FloatingActionMenu actions={[
+        {rutaId && (
+          <FloatingActionMenu actions={[
 
             { label: 'Crear Crédito', icon: <CreditCard className="h-5 w-5" />, onClick: () => { setShowCreditModal(true); } },
 
@@ -4590,6 +4639,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
             { label: 'Gastos', icon: <ReceiptText className="h-5 w-5" />, color: 'rose', onClick: () => { setShowGastoModal(true); } },
 
           ] as FabAction[]} />
+        )}
 
 
 

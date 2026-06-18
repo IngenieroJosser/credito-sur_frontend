@@ -51,6 +51,10 @@ export default function OfflineIndicator() {
 
   const [manualActivities, setManualActivities] = useState<any[]>([]);
 
+  // Estados para mantener visible la tarjeta de sincronización
+  const [syncVisibleUntil, setSyncVisibleUntil] = useState(0);
+  const [now, setNow] = useState(() => Date.now());
+
   // Función auxiliar para verificar si un estado es completado
   const isCompletedStatus = (status: unknown) => {
     const normalized = String(status || '').toLowerCase();
@@ -83,6 +87,51 @@ export default function OfflineIndicator() {
     Number(completedOps || 0) + completedManualActivities.length;
 
   const visibleOps = actionableOps + recentCompletedOps;
+
+  // Variables para mantener visible la tarjeta de sincronización
+  const hasActiveSync = isSyncing || syncingOps > 0;
+  const shouldKeepSyncVisible = now < syncVisibleUntil;
+  const isSyncingVisible = hasActiveSync || shouldKeepSyncVisible;
+
+  // Mantener la tarjeta visible mínimo 3 segundos cuando hay sincronización activa
+  useEffect(() => {
+    if (!hasActiveSync) return;
+
+    setSyncVisibleUntil(Date.now() + 3000);
+    setShowResult(false);
+  }, [hasActiveSync]);
+
+  // Actualizar now mientras shouldKeepSyncVisible sea true
+  useEffect(() => {
+    if (!shouldKeepSyncVisible) return;
+
+    const interval = window.setInterval(() => {
+      setNow(Date.now());
+    }, 250);
+
+    return () => window.clearInterval(interval);
+  }, [shouldKeepSyncVisible]);
+
+  // Escuchar eventos de sincronización desde syncManager
+  useEffect(() => {
+    const handleSyncStarted = () => {
+      setSyncVisibleUntil(Date.now() + 3000);
+      setShowResult(false);
+    };
+
+    const handleSyncFinished = () => {
+      // Mantener visible un poco más después de terminar
+      setSyncVisibleUntil(Date.now() + 3000);
+    };
+
+    window.addEventListener('offline-sync-started', handleSyncStarted);
+    window.addEventListener('offline-sync-finished', handleSyncFinished);
+
+    return () => {
+      window.removeEventListener('offline-sync-started', handleSyncStarted);
+      window.removeEventListener('offline-sync-finished', handleSyncFinished);
+    };
+  }, []);
 
   const syncTone = useMemo(() => {
     if (!browserOnline) {
@@ -142,7 +191,7 @@ export default function OfflineIndicator() {
       };
     }
 
-    if (isSyncing || syncingOps > 0) {
+    if (isSyncingVisible) {
       return {
         label: 'Sincronizando',
         shortLabel: 'Sync activo',
@@ -196,7 +245,14 @@ export default function OfflineIndicator() {
       chip: 'border-emerald-300/50 bg-emerald-500/[0.18] text-emerald-950',
       metricText: 'text-emerald-950',
     };
-  }, [browserOnline, backendReachable, failedOps, isSyncing, syncingOps, pendingOps, activeManualActivities.length]);
+  }, [
+    browserOnline,
+    backendReachable,
+    failedOps,
+    isSyncingVisible,
+    pendingOps,
+    activeManualActivities.length,
+  ]);
 
   const StatusIcon = syncTone.icon;
 
@@ -302,7 +358,7 @@ export default function OfflineIndicator() {
   });
 
   // No mostrar nada si está online y no hay operaciones pendientes
-  if (browserOnline && backendReachable && actionableOps === 0 && !isSyncing && !showResult) {
+  if (browserOnline && backendReachable && actionableOps === 0 && !isSyncingVisible && !showResult) {
     return null;
   }
 
@@ -350,7 +406,7 @@ export default function OfflineIndicator() {
                 <div className="flex min-w-0 items-start gap-3">
                   <div className={`relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/20 bg-white/[0.10] shadow-lg ${syncTone.halo}`}>
                     <div className={`absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full ${syncTone.dot} shadow-[0_0_18px_currentColor]`} />
-                    <StatusIcon className={`h-5 w-5 ${syncTone.iconText} ${isSyncing ? 'animate-spin' : ''}`} />
+                    <StatusIcon className={`h-5 w-5 ${syncTone.iconText} ${isSyncingVisible ? 'animate-spin' : ''}`} />
                   </div>
 
                   <div className="min-w-0">
@@ -540,7 +596,7 @@ export default function OfflineIndicator() {
 
           <span className={`relative z-10 h-2.5 w-2.5 rounded-full ${syncTone.dot} shadow-[0_0_16px_currentColor]`} />
 
-          <StatusIcon className={`relative z-10 h-4 w-4 ${syncTone.iconText} ${isSyncing ? 'animate-spin' : ''}`} />
+          <StatusIcon className={`relative z-10 h-4 w-4 ${syncTone.iconText} ${isSyncingVisible ? 'animate-spin' : ''}`} />
 
           <span className={`relative z-10 max-w-[210px] truncate text-xs font-black ${syncTone.titleText}`}>
             {syncTone.label}

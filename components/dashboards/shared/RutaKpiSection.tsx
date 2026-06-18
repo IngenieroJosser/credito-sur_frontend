@@ -1,6 +1,7 @@
 'use client'
 
 import { RutaStatsCards } from '@/components/dashboards/shared/RutaStatsCards'
+import { RolUsuario } from '@/types/enums'
 
 type Periodo = 'HOY' | 'SEM' | 'MES' | 'AÑO'
 
@@ -16,9 +17,10 @@ type Props = {
   periodo: Periodo
   onPeriodoChange: (p: Periodo) => void
   rutaStats: RutaStatsLike
+  userRol?: RolUsuario
 }
 
-export default function RutaKpiSection({ periodo, onPeriodoChange, rutaStats }: Props) {
+export default function RutaKpiSection({ periodo, onPeriodoChange, rutaStats, userRol }: Props) {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -39,7 +41,7 @@ export default function RutaKpiSection({ periodo, onPeriodoChange, rutaStats }: 
         </div>
       </div>
 
-      <RutaStatsCards rutaStats={rutaStats as any} periodo={periodo as any} />
+      <RutaStatsCards rutaStats={rutaStats as any} periodo={periodo as any} userRol={userRol} />
     </div>
   )
 }

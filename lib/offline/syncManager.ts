@@ -23,126 +23,144 @@ export const syncManager = {
     const startTime = Date.now();
     const result: SyncResult = { processed: 0, succeeded: 0, failed: 0, errors: [] };
 
-    if (!navigator.onLine) return result;
-
-    const pending = await offlineQueue.getPending();
-    const failed = await offlineQueue.getFailed();
-
-    // Reintentar fallidos con menos de MAX_RETRIES
-    const retryable = failed.filter((item) => item.retries < MAX_RETRIES);
-    const allToProcess = [...pending, ...retryable];
-
-    for (const item of allToProcess) {
-      result.processed++;
-      await offlineQueue.updateStatus(item.id, 'syncing');
-
-      try {
-        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-        let requestData: any = item.data;
-        const headers: Record<string, string> = {
-          Accept: 'application/json',
-          ...(token && { Authorization: `Bearer ${token}` }),
-        };
-
-        // Soporte para archivos (Multimedia)
-        if (item.file) {
-          const formData = new FormData();
-          formData.append('file', item.file, item.fileName || 'upload');
-          
-          if (item.data && typeof item.data === 'object') {
-            Object.entries(item.data as Record<string, any>).forEach(([key, value]) => {
-              formData.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
-            });
-          }
-          requestData = formData;
-          // El navegador pondrá el Content-Type adecuado para FormData
-        } else {
-          headers['Content-Type'] = 'application/json';
-        }
-
-        await apiClient.request({
-          method: item.method,
-          url: item.endpoint,
-          data: requestData,
-          headers,
-          timeout: 30000,
-        });
-
-        // Éxito: marcar como completado
-        await offlineQueue.updateStatus(item.id, 'completed');
-        result.succeeded++;
-
-        // Eliminar permanentemente tras 3 segundos (para que el usuario vea el check)
-        setTimeout(async () => {
-          await offlineQueue.remove(item.id);
-        }, 3000);
-      } catch (err: any) {
-        const status = err?.response?.status;
-        const errorMsg = err?.response?.data?.message || err?.message || 'Error desconocido';
-
-        const newRetries = (item.retries || 0) + 1;
-
-        // Si es 401, no reintentar (token expirado) pero no lo borramos (esperamos login)
-        if (status === 401) {
-          await offlineQueue.updateStatus(item.id, 'failed', 'Token expirado. Inicie sesión nuevamente.', newRetries);
-        } else {
-          const isFatal = status === 409 || status === 400 || status === 403 || status === 404 || newRetries >= MAX_RETRIES;
-          
-          if (isFatal) {
-            // Es un fallo definitivo, tratamos de enviarlo al Pipeline de Fallos Centralizado
-            try {
-              const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-              await apiClient.request({
-                method: 'POST',
-                url: '/sync-conflicts/report-failed',
-                data: {
-                  entidad: item.type || 'desconocido',
-                  operacion: item.method,
-                  datos: typeof item.data === 'string' ? JSON.parse(item.data) : (item.data || {}),
-                  errorMotivo: errorMsg,
-                  statusCode: status || 0,
-                  endpoint: item.endpoint
-                },
-                headers: {
-                  Accept: 'application/json',
-                  'Content-Type': 'application/json',
-                  ...(token && { Authorization: `Bearer ${token}` }),
-                }
-              });
-              
-              // Se reportó exitosamente al servidor. Ya podemos borrarlo seguro.
-              await offlineQueue.remove(item.id);
-            } catch (reportErr) {
-              // Si falla el reporte (ej. no hay internet), actualizamos su estado y reintentos para que intente reportarlo después
-              await offlineQueue.updateStatus(item.id, 'failed', `Fallo definitivo. Pendiente de reporte al servidor. Error: ${errorMsg}`, newRetries);
-            }
-          } else {
-            // Aún le quedan reintentos, solo actualizamos el error con el contador correcto
-            await offlineQueue.updateStatus(item.id, 'failed', errorMsg, newRetries);
-          }
-        }
-
-        result.failed++;
-        result.errors.push({ id: item.id, description: item.description, error: errorMsg });
-        await trackOfflineEvent('error', { errorMessage: errorMsg });
-      }
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      return result;
     }
 
-    // Track sync completion
-    const duration = Date.now() - startTime;
-    await trackOfflineEvent('sync', {
-      duration,
-      recordCount: result.processed,
-      success: result.failed === 0,
-    });
+    let shouldNotifySync = false;
 
-    return result;
+    try {
+      const pending = await offlineQueue.getPending();
+      const failed = await offlineQueue.getFailed();
+
+      // Reintentar fallidos con menos de MAX_RETRIES
+      const retryable = failed.filter((item) => item.retries < MAX_RETRIES);
+      const allToProcess = [...pending, ...retryable];
+
+      shouldNotifySync = allToProcess.length > 0;
+
+      // Disparar evento de inicio de sincronización
+      if (shouldNotifySync && typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('offline-sync-started'));
+      }
+
+      for (const item of allToProcess) {
+        result.processed++;
+        await offlineQueue.updateStatus(item.id, 'syncing');
+
+        try {
+          const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+          let requestData: any = item.data;
+          const headers: Record<string, string> = {
+            Accept: 'application/json',
+            ...(token && { Authorization: `Bearer ${token}` }),
+          };
+
+          // Soporte para archivos (Multimedia)
+          if (item.file) {
+            const formData = new FormData();
+            formData.append('file', item.file, item.fileName || 'upload');
+            
+            if (item.data && typeof item.data === 'object') {
+              Object.entries(item.data as Record<string, any>).forEach(([key, value]) => {
+                formData.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
+              });
+            }
+            requestData = formData;
+            // El navegador pondrá el Content-Type adecuado para FormData
+          } else {
+            headers['Content-Type'] = 'application/json';
+          }
+
+          await apiClient.request({
+            method: item.method,
+            url: item.endpoint,
+            data: requestData,
+            headers,
+            timeout: 30000,
+          });
+
+          // Éxito: marcar como completado
+          await offlineQueue.updateStatus(item.id, 'completed');
+          result.succeeded++;
+
+          // Eliminar permanentemente tras 3 segundos (para que el usuario vea el check)
+          setTimeout(async () => {
+            await offlineQueue.remove(item.id);
+          }, 3000);
+        } catch (err: any) {
+          const status = err?.response?.status;
+          const errorMsg = err?.response?.data?.message || err?.message || 'Error desconocido';
+
+          const newRetries = (item.retries || 0) + 1;
+
+          // Si es 401, no reintentar (token expirado) pero no lo borramos (esperamos login)
+          if (status === 401) {
+            await offlineQueue.updateStatus(item.id, 'failed', 'Token expirado. Inicie sesión nuevamente.', newRetries);
+          } else {
+            const isFatal = status === 409 || status === 400 || status === 403 || status === 404 || newRetries >= MAX_RETRIES;
+            
+            if (isFatal) {
+              // Es un fallo definitivo, tratamos de enviarlo al Pipeline de Fallos Centralizado
+              try {
+                const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+                await apiClient.request({
+                  method: 'POST',
+                  url: '/sync-conflicts/report-failed',
+                  data: {
+                    entidad: item.type || 'desconocido',
+                    operacion: item.method,
+                    datos: typeof item.data === 'string' ? JSON.parse(item.data) : (item.data || {}),
+                    errorMotivo: errorMsg,
+                    statusCode: status || 0,
+                    endpoint: item.endpoint
+                  },
+                  headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                    ...(token && { Authorization: `Bearer ${token}` }),
+                  }
+                });
+                
+                // Se reportó exitosamente al servidor. Ya podemos borrarlo seguro.
+                await offlineQueue.remove(item.id);
+              } catch (reportErr) {
+                // Si falla el reporte (ej. no hay internet), actualizamos su estado y reintentos para que intente reportarlo después
+                await offlineQueue.updateStatus(item.id, 'failed', `Fallo definitivo. Pendiente de reporte al servidor. Error: ${errorMsg}`, newRetries);
+              }
+            } else {
+              // Aún le quedan reintentos, solo actualizamos el error con el contador correcto
+              await offlineQueue.updateStatus(item.id, 'failed', errorMsg, newRetries);
+            }
+          }
+
+          result.failed++;
+          result.errors.push({ id: item.id, description: item.description, error: errorMsg });
+          await trackOfflineEvent('error', { errorMessage: errorMsg });
+        }
+      }
+
+      // Track sync completion
+      const duration = Date.now() - startTime;
+      await trackOfflineEvent('sync', {
+        duration,
+        recordCount: result.processed,
+        success: result.failed === 0,
+      });
+
+      return result;
+    } finally {
+      // Disparar evento de fin de sincronización siempre
+      if (shouldNotifySync && typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('offline-sync-finished', { detail: result }));
+      }
+    }
   },
 
   // ─── Descargar datos para uso offline ────────────────────────
 
   async downloadClientes(): Promise<number> {
-    if (!navigator.onLine) {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
       logger.warn('[Offline Sync] Sin conexión a internet, omitiendo descarga de clientes');
       return 0;
     }
@@ -218,7 +236,7 @@ export const syncManager = {
   },
 
   async downloadPrestamos(): Promise<number> {
-    if (!navigator.onLine) return 0;
+    if (typeof navigator !== 'undefined' && !navigator.onLine) return 0;
 
     try {
       let token = localStorage.getItem('token');
@@ -316,7 +334,7 @@ export const syncManager = {
   },
 
   async downloadRutas(): Promise<number> {
-    if (!navigator.onLine) return 0;
+    if (typeof navigator !== 'undefined' && !navigator.onLine) return 0;
 
     try {
       let token = localStorage.getItem('token');
@@ -373,7 +391,7 @@ export const syncManager = {
   },
 
   async downloadProductos(): Promise<number> {
-    if (!navigator.onLine) return 0;
+    if (typeof navigator !== 'undefined' && !navigator.onLine) return 0;
     try {
       const data = await apiRequest<any>('GET', '/inventory', undefined, { timeout: 30000, cacheTTL: 0 });
       const productos = (Array.isArray(data) ? data : data.data || []).map((p: any) => ({
@@ -396,7 +414,7 @@ export const syncManager = {
   },
 
   async downloadCajas(): Promise<number> {
-    if (!navigator.onLine) return 0;
+    if (typeof navigator !== 'undefined' && !navigator.onLine) return 0;
     try {
       const data = await apiRequest<any>('GET', '/accounting/cajas', undefined, { timeout: 30000, cacheTTL: 0 });
       const cajas = (Array.isArray(data) ? data : data.data || []).map((c: any) => ({
@@ -442,7 +460,7 @@ export const syncManager = {
   },
 
   async downloadUsuarios(): Promise<number> {
-    if (!navigator.onLine) return 0;
+    if (typeof navigator !== 'undefined' && !navigator.onLine) return 0;
     try {
       const data = await apiRequest<any>('GET', '/usuarios', undefined, { timeout: 30000, cacheTTL: 0 });
       const usuarios = (Array.isArray(data) ? data : data.data || []).map((u: any) => ({

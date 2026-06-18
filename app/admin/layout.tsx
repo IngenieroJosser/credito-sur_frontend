@@ -53,6 +53,7 @@ import PushNotificationPrompt from '@/components/push/PushNotificationPrompt';
 import { aprobacionesService } from '@/services/aprobaciones-service';
 import { isTokenExpired } from '@/lib/auth/offlineAuth';
 import { formatRoleLabel } from '@/lib/display-labels';
+import SupervisorFloatingActionsGate from '@/components/dashboards/SupervisorFloatingActionsGate';
 
 interface NavigationItem {
   name: string;
@@ -732,6 +733,8 @@ export default function AdminLayout({
       >
         {children}
       </main>
+
+      <SupervisorFloatingActionsGate />
 
       {/* Sidebar móvil */}
       {!hideSidebar && showSidebar && (

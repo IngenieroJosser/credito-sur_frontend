@@ -242,7 +242,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
       : ''
 
     return { cuotaVencidaDesdeKey, proximoPagoProgramadoKey }
-  }, [prestamo?.cuotas, hoyBogotaKey])
+  }, [prestamo.cuotas, hoyBogotaKey])
 
   const diasMora = (() => {
     const vencidas = prestamo.cuotas.filter((c) => {

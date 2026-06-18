@@ -1,5 +1,5 @@
 import AdminLayout from '../admin/layout'
-import RoleFloatingActions from '@/components/dashboards/RoleFloatingActions'
+import SupervisorLayoutClient from './SupervisorLayoutClient'
 
 export default function SupervisorLayout({
   children,
@@ -8,8 +8,7 @@ export default function SupervisorLayout({
 }) {
   return (
     <AdminLayout>
-      {children}
-      <RoleFloatingActions role="SUPERVISOR" />
+      <SupervisorLayoutClient>{children}</SupervisorLayoutClient>
     </AdminLayout>
   )
 }

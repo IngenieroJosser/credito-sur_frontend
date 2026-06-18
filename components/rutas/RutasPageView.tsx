@@ -1785,7 +1785,7 @@ export const RutasPageView = ({
                       </div>
 
                       <div className="space-y-2">
-                        <label className="text-xs uppercase tracking-wider font-bold text-slate-500">Supervisor</label>
+                        <label className="text-xs uppercase tracking-wider font-bold text-slate-500">Asignar supervisor</label>
                         <div className="relative">
                           <select
                             name="supervisorId"

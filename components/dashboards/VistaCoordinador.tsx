@@ -160,7 +160,6 @@ const VistaCoordinador = () => {
     }
   // BUG-16 FIX: quitar refreshing de deps evita el ciclo:
   // handleRefresh → setRefreshing(true) → callback recreado → doble disparo del useEffect.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeFilter])
 
   useEffect(() => {

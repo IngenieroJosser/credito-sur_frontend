@@ -691,6 +691,21 @@ export async function obtenerSaldoDisponibleRuta(
   return apiRequest<SaldoDisponibleRuta>('GET', `/accounting/rutas/${rutaId}/saldo-disponible${qs ? `?${qs}` : ''}`);
 }
 
+export async function obtenerSaldoCajaSupervisor(
+  supervisorId: string,
+  fecha?: string,
+  fechaInicio?: string,
+  fechaFin?: string
+): Promise<SaldoDisponibleRuta> {
+  const params = new URLSearchParams();
+  if (fecha) params.append('fecha', fecha);
+  if (fechaInicio) params.append('fechaInicio', fechaInicio);
+  if (fechaFin) params.append('fechaFin', fechaFin);
+  
+  const qs = params.toString();
+  return apiRequest<SaldoDisponibleRuta>('GET', `/accounting/supervisores/${supervisorId}/saldo-disponible${qs ? `?${qs}` : ''}`);
+}
+
 export async function getRutaCierreHoy(rutaId: string): Promise<{ rutaId: string; cerradaHoy: boolean; cierreId: string | null; fechaCierre: string | null }> {
   return apiRequest('GET', `/accounting/rutas/${rutaId}/cierre-hoy`);
 }
