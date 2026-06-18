@@ -1023,22 +1023,38 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
             )
             .filter(Boolean),
         )
-        
+
+        const rutaOperativaId = String((rutaInfo as any)?.id || rutaId || '').trim();
+
         pagosDelDia = (Array.isArray(pagosData) ? pagosData : []).filter((p: any) => {
-          if (!isPagoForHistorialFecha(p, fechaClave)) return false
+          if (!isPagoForHistorialFecha(p, fechaClave)) return false;
 
-          const prestamoId = String(p?.prestamoId || p?.prestamo?.id || '').trim()
+          const pagoRutaId = String(
+            p?.rutaId ||
+            p?.ruta?.id ||
+            p?.metadata?.rutaId ||
+            p?.datosSolicitud?.rutaId ||
+            '',
+          ).trim();
 
-          if (prestamosRuta.size > 0) {
-            return prestamosRuta.has(prestamoId)
+          // Fuente primaria: la ruta operativa del pago
+          if (rutaOperativaId && pagoRutaId) {
+            return pagoRutaId === rutaOperativaId;
           }
 
-          const cobradorMatch = rutaInfo?.cobradorId 
-            ? String(p?.cobradorId || p?.cobrador?.id || '') === rutaInfo.cobradorId
-            : true
+          // Fallback para pagos antiguos sin rutaId
+          const prestamoId = String(p?.prestamoId || p?.prestamo?.id || '').trim();
 
-          return cobradorMatch
-        })
+          if (prestamosRuta.size > 0 && prestamoId) {
+            return prestamosRuta.has(prestamoId);
+          }
+
+          const cobradorMatch = rutaInfo?.cobradorId
+            ? String(p?.cobradorId || p?.cobrador?.id || '') === rutaInfo.cobradorId
+            : true;
+
+          return cobradorMatch;
+        });
       } catch {
         pagosDelDia = []
       }
@@ -2527,6 +2543,15 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
 
       toast.success('Pago registrado')
+
+      const hoyKey = hoyBogotaKey;
+
+      setHistorialRutas((prev: any) => {
+        const next = { ...(prev || {}) };
+        delete next[hoyKey];
+        historialRutasRef.current = next;
+        return next;
+      });
 
       // Reconciliar una sola vez contra backend (y mantener lock durante la reconciliación)
       try {
