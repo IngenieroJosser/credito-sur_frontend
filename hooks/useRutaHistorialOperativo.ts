@@ -4,11 +4,14 @@ import { useRutaHistorial } from '@/hooks/useRutaHistorial'
 import {
   buildHistorialDiaFromBackend,
   isPagoForHistorialFecha,
+  normalizeVisitaHistorial,
+  computeHistorialResumenCompartido,
 } from '@/lib/ruta-historial'
 import {
   filterPagosDelDiaByRuta,
   mergePagosDelDiaIntoHistorialDia,
 } from '@/lib/rutas/historial/build-ruta-historial-operativo'
+import { enrichRutaHistorialRiesgo } from '@/lib/rutas/historial/enrich-ruta-historial-riesgo'
 import type { VisitaRuta } from '@/lib/types/cobranza'
 import { pagosService } from '@/services/pagos-service'
 import { rutasService } from '@/services/rutas-service'
@@ -17,6 +20,7 @@ import {
   obtenerSaldoDisponibleRuta,
 } from '@/services/contabilidad-service'
 import { RolUsuario } from '@/types/enums'
+import { getBogotaDateKey } from '@/lib/rutas-core'
 
 export type UseRutaHistorialOperativoProps = {
   rutaId?: string
@@ -139,12 +143,37 @@ export const useRutaHistorialOperativo = ({
         pagosDelDia,
       })
 
-      return mergePagosDelDiaIntoHistorialDia({
+      const diaMerged = mergePagosDelDiaIntoHistorialDia({
         fechaClave,
         diaBase,
         pagosDelDia,
         rutaCobradorId: cobradorId || actorId || '',
       })
+
+      // Aplicar enrich de riesgo histórico
+      const hoy = new Date()
+      const hoyBogotaKey = getBogotaDateKey(hoy) ||
+        `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`
+      const visitasHoy = getVisitasHoy()
+
+      const visitasEnriquecidas = await enrichRutaHistorialRiesgo({
+        visitas: diaMerged.visitas || [],
+        fechaClave,
+        hoyBogotaKey,
+        visitasHoy,
+      })
+
+      const visitasNormalizadas = visitasEnriquecidas.map(normalizeVisitaHistorial)
+      const resumenActualizado = computeHistorialResumenCompartido(
+        visitasNormalizadas,
+        diaMerged.resumen,
+      )
+
+      return {
+        ...diaMerged,
+        visitas: visitasNormalizadas,
+        resumen: resumenActualizado,
+      }
     } catch {
       return {
         resumen: {
@@ -163,6 +192,7 @@ export const useRutaHistorialOperativo = ({
     cobradorId,
     actorId,
     obtenerSaldoSegunRol,
+    getVisitasHoy,
   ])
 
   return useRutaHistorial({

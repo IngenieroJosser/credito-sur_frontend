@@ -611,7 +611,6 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
   }, [computeHoyBogotaKey])
 
 
-  const [historyViewMode, setHistoryViewMode] = useState<'DAYS' | 'MONTHS'>('DAYS')
   const [historialRefreshKey, setHistorialRefreshKey] = useState(0)
   const [periodoRutaFiltro, setPeriodoRutaFiltro] = useState<PeriodoRuta | 'TODOS'>('TODOS')
   const refreshHistorialOperativo = useCallback(() => { setHistorialRefreshKey((prev) => prev + 1) }, [])
@@ -908,7 +907,6 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
 
 
-  const [historialRutas, setHistorialRutas] = useState<any>({});
   // WebSocket useEffect queda declarado DESPUÉS de cargarVisitasRuta (ver abajo)
 
 
