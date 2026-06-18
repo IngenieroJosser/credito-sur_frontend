@@ -107,6 +107,12 @@ interface Caja {
   recaudoEsperado?: number
   eficiencia?: number
   ultimaActualizacion: string
+  rutasSupervisadas?: Array<{ id: string; nombre: string; codigo: string }>
+}
+
+// Forzar actualización de TypeScript
+type CajaWithRutas = Caja & {
+  rutasSupervisadas?: Array<{ id: string; nombre: string; codigo: string }>
 }
 
 // Historial de cuando se cierra la caja (El famoso "Cuadre")
@@ -395,6 +401,10 @@ const ModuloContableContent = () => {
     if (String(m?.tipo || '').toUpperCase() !== 'TRANSFERENCIA') return false
     const numero = String((m as any)?.numero || (m as any)?.numeroTransaccion || '')
     return numero.toUpperCase().startsWith('TRX-IN')
+  }
+
+  const esCajaSupervisor = (caja?: Caja | null) => {
+    return caja?.tipo === 'RUTA' && !caja?.rutaId;
   }
 
   const esIngresoContable = (m: any) => {
@@ -712,7 +722,8 @@ const ModuloContableContent = () => {
           responsableId: c.responsableId, // ID real
           saldo: c.saldo,
           estado: c.estado,
-          ultimaActualizacion: c.ultimaActualizacion
+          ultimaActualizacion: c.ultimaActualizacion,
+          rutasSupervisadas: (c as any).rutasSupervisadas
         })));
       }
 
@@ -1673,18 +1684,63 @@ const ModuloContableContent = () => {
                             }
 
                             if (c.tipo === 'RUTA') {
-                              try {
-                                const hoy = getBogotaDateKey(new Date())
-                                const saldoRuta = c.rutaId
-                                  ? await obtenerSaldoDisponibleRuta(c.rutaId, hoy)
-                                  : null
-                                if (saldoRuta) {
-                                  setSaldoRutaSeleccionada(saldoRuta)
-                                } else {
+                              if (c.rutaId) {
+                                try {
+                                  const hoy = getBogotaDateKey(new Date())
+                                  const saldoRuta = await obtenerSaldoDisponibleRuta(c.rutaId, hoy)
+
+                                  setSaldoRutaSeleccionada(saldoRuta || null)
+                                  setCajaHoyStats(null)
+                                } catch {
                                   setSaldoRutaSeleccionada(null)
+                                  setCajaHoyStats(null)
                                 }
-                              } catch {
+                              } else {
+                                // Caja propia de supervisor: no tiene rutaId, se calcula por transacciones de la caja.
                                 setSaldoRutaSeleccionada(null)
+
+                                try {
+                                  const hoyClave = getBogotaDateKey(new Date())
+
+                                  const resp = await getTransacciones({
+                                    cajaId: c.id,
+                                    fechaInicio: hoyClave,
+                                    fechaFin: hoyClave,
+                                    limit: 500,
+                                  })
+
+                                  const movimientosCaja = Array.isArray(resp?.data)
+                                    ? resp.data.map(mapTransaccion)
+                                    : []
+
+                                  const ingresos = movimientosCaja
+                                    .filter((m: any) => {
+                                      const tipo = String(m.tipo || '').toUpperCase()
+                                      const numero = String((m.numero || m.numeroTransaccion || '')).toUpperCase()
+
+                                      if (tipo === 'INGRESO') return true
+                                      if (tipo === 'TRANSFERENCIA') return numero.startsWith('TRX-IN')
+
+                                      return false
+                                    })
+                                    .reduce((acc: number, m: any) => acc + Number(m.monto || 0), 0)
+
+                                  const egresos = movimientosCaja
+                                    .filter((m: any) => {
+                                      const tipo = String(m.tipo || '').toUpperCase()
+                                      const numero = String((m.numero || m.numeroTransaccion || '')).toUpperCase()
+
+                                      if (tipo === 'EGRESO') return true
+                                      if (tipo === 'TRANSFERENCIA') return numero.startsWith('TRX-OUT')
+
+                                      return false
+                                    })
+                                    .reduce((acc: number, m: any) => acc + Number(m.monto || 0), 0)
+
+                                  setCajaHoyStats({ ingresos, egresos })
+                                } catch {
+                                  setCajaHoyStats({ ingresos: 0, egresos: 0 })
+                                }
                               }
                             } else {
                               setSaldoRutaSeleccionada(null)
@@ -2454,7 +2510,11 @@ const ModuloContableContent = () => {
                     <div>
                         <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Tipo / Ruta</label>
                         <div>
-                            {cajaSeleccionada.tipo === 'RUTA' ? (
+                            {cajaSeleccionada.tipo === 'RUTA' && !cajaSeleccionada.rutaId ? (
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                    Supervisor
+                                </span>
+                            ) : cajaSeleccionada.tipo === 'RUTA' ? (
                                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                                     Ruta
                                 </span>
@@ -2465,6 +2525,25 @@ const ModuloContableContent = () => {
                             )}
                         </div>
                     </div>
+                    {esCajaSupervisor(cajaSeleccionada) && (
+                        <div className="md:col-span-2">
+                            <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Rutas Supervisadas</label>
+                            {Array.isArray((cajaSeleccionada as any).rutasSupervisadas) &&
+                            (cajaSeleccionada as any).rutasSupervisadas.length > 0 ? (
+                                <div className="flex flex-wrap gap-2">
+                                    {(cajaSeleccionada as any).rutasSupervisadas.map((ruta: any) => (
+                                        <span key={ruta.id} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                                            {ruta.nombre} ({ruta.codigo})
+                                        </span>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="text-xs font-medium text-slate-400">
+                                    Este supervisor no tiene rutas asignadas.
+                                </div>
+                            )}
+                        </div>
+                    )}
                     <div>
                         <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Responsable</label>
                         <div className="font-medium text-slate-700 flex items-center gap-2">
@@ -2593,7 +2672,7 @@ const ModuloContableContent = () => {
                       </div>
                  </div>
 
-                 {cajaSeleccionada?.tipo === 'RUTA' && (
+                 {cajaSeleccionada?.tipo === 'RUTA' && cajaSeleccionada?.rutaId && (
                    <div className="mt-4">
                      <div
                        onClick={async () => {
