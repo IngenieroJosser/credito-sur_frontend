@@ -24,6 +24,18 @@ interface ArqueoCajaModalProps {
   hayColaOffline?: boolean // Mock para las alertas offline
 }
 
+const StepIndicator = ({ current }: { current: number }) => (
+  <div className="flex items-center gap-2 mb-8">
+    <div className="flex items-center gap-2">
+      <span className={cn("text-xs font-black uppercase tracking-widest", current === 1 ? "text-blue-600" : "text-slate-400")}>1. Conteo</span>
+      <ArrowRight className="h-3 w-3 text-slate-300" />
+      <span className={cn("text-xs font-black uppercase tracking-widest", current === 2 ? "text-blue-600" : "text-slate-400")}>2. Revisión</span>
+      <ArrowRight className="h-3 w-3 text-slate-300" />
+      <span className={cn("text-xs font-black uppercase tracking-widest", current === 3 ? "text-emerald-500" : "text-slate-400")}>3. Cierre</span>
+    </div>
+  </div>
+)
+
 export default function ArqueoCajaModal({ onClose, cajaData, hayColaOffline = false }: ArqueoCajaModalProps) {
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
@@ -42,18 +54,6 @@ export default function ArqueoCajaModal({ onClose, cajaData, hayColaOffline = fa
     setLoading(false)
     setStep(3)
   }
-
-  const StepIndicator = ({ current }: { current: number }) => (
-    <div className="flex items-center gap-2 mb-8">
-      <div className="flex items-center gap-2">
-        <span className={cn("text-xs font-black uppercase tracking-widest", current === 1 ? "text-blue-600" : "text-slate-400")}>1. Conteo</span>
-        <ArrowRight className="h-3 w-3 text-slate-300" />
-        <span className={cn("text-xs font-black uppercase tracking-widest", current === 2 ? "text-blue-600" : "text-slate-400")}>2. Revisión</span>
-        <ArrowRight className="h-3 w-3 text-slate-300" />
-        <span className={cn("text-xs font-black uppercase tracking-widest", current === 3 ? "text-emerald-500" : "text-slate-400")}>3. Cierre</span>
-      </div>
-    </div>
-  )
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-slate-900/40 backdrop-blur-md animate-in fade-in duration-300">

@@ -53,6 +53,7 @@ import PushNotificationPrompt from '@/components/push/PushNotificationPrompt';
 import { aprobacionesService } from '@/services/aprobaciones-service';
 import { isTokenExpired } from '@/lib/auth/offlineAuth';
 import { formatRoleLabel } from '@/lib/display-labels';
+import SupervisorFloatingActionsGate from '@/components/dashboards/SupervisorFloatingActionsGate';
 
 interface NavigationItem {
   name: string;
@@ -570,13 +571,7 @@ export default function AdminLayout({
                         <button 
                           onClick={() => {
                             setShowNotifications(false)
-                            let target = '/notificaciones'
-                            if (user?.rol === 'COORDINADOR') target = '/coordinador/notificaciones'
-                            if (user?.rol === 'SUPERVISOR') target = '/supervisor/notificaciones'
-                            if (user?.rol === 'CONTADOR') target = '/contador/notificaciones'
-                            if (user?.rol === 'COBRADOR') target = '/cobranzas/notificaciones'
-                            if (user?.rol === 'PUNTO_DE_VENTA') target = '/punto-de-venta/notificaciones'
-                            router.push(target)
+                            router.push('/notificaciones')
                           }}
                           className="w-full py-2 text-xs font-medium text-gray-400 hover:text-blue-600 transition-colors"
                         >
@@ -732,6 +727,8 @@ export default function AdminLayout({
       >
         {children}
       </main>
+
+      <SupervisorFloatingActionsGate />
 
       {/* Sidebar móvil */}
       {!hideSidebar && showSidebar && (

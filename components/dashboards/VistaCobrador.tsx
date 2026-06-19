@@ -47,8 +47,9 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 
 import { useRealtimeData } from '@/hooks/useRealtimeData'
-import { useRutaHistorial } from '@/hooks/useRutaHistorial'
+import RutaHistorialOperativo from '@/components/rutas/historial/RutaHistorialOperativo'
 import { useCierrePendienteRuta } from '@/hooks/useCierrePendienteRuta'
+import { FinalizarRutaModal } from '@/components/rutas/FinalizarRutaModal'
 
 import {
 
@@ -94,12 +95,6 @@ import {
 
   ReceiptText,
 
-  AlertTriangle,
-
-  XCircle,
-
-  Info,
-
   Eye,
 
   Pencil,
@@ -111,7 +106,6 @@ import {
   ChevronLeft,
 
   FileDown,
-  ShieldAlert,
 
 } from 'lucide-react'
 
@@ -183,7 +177,10 @@ import NuevoClienteModal from '@/components/clientes/NuevoClienteModal'
 import RutaProvisionalModal from '@/components/dashboards/shared/RutaProvisionalModal'
 import { VisitaRuta, EstadoVisita, PeriodoRuta, HistorialDia, mapNivelRiesgo, mapFrecuenciaToPeriodo } from '@/lib/types/cobranza'
 import { resolveRiesgoObligacion, resolveNivelRiesgoUi } from '@/lib/rutas/riesgo-obligacion'
+import { resolveNivelRiesgoVisita } from '@/lib/rutas/resolve-riesgo-visita'
+import { ordenarVisitasRutaActual } from '@/lib/rutas/ordenar-visitas-ruta'
 import { StaticVisitaItem, SortableVisita, Portal, MODAL_Z_INDEX, SeleccionClienteModal } from '@/components/dashboards/shared/CobradorElements'
+import { SafePointerSensor } from '@/components/dashboards/shared/safe-pointer-sensor'
 import EstadoCuentaModal from '@/components/cobranza/EstadoCuentaModal'
 
 import PagoModal from '@/components/cobranza/PagoModal'
@@ -248,9 +245,11 @@ import {
   resolveCuotaIdFromVisitaLike,
 } from '@/lib/rutas-core'
 import { mapAsignacionesToVisitasLite } from '@/lib/ruta-visitas-mapper'
-import { applyRecaudoHoyToVisitas, buildRecaudosHoyMapByPrestamoId, computeMontoCuotaPendienteDespuesDeRecaudo, mergeVisitasPreservingLocalRecaudo, sumMontoTotalPagosByBogotaDateKey, sumMontoTotalPagosHistorico } from '@/lib/ruta-recaudos'
-import { buildHistorialDiaFromBackend, hasGestionHistorial, isPagoForHistorialFecha } from '@/lib/ruta-historial'
+import { applyRecaudoHoyToVisitas, buildRecaudosHoyMapByPrestamoId, computeMontoCuotaPendienteDespuesDeRecaudo, indexPagosByPrestamoId, mergeVisitasPreservingLocalRecaudo, sumMontoTotalPagosByBogotaDateKey, sumMontoTotalPagosHistorico } from '@/lib/ruta-recaudos'
+import { buildRutaHoyOperativa } from '@/lib/rutas/build-ruta-hoy-operativa'
 import { mapWithConcurrency, memoizePromiseByKey } from '@/lib/async-utils'
+import { enrichVisitasConCuotasYRiesgo } from '@/lib/rutas/enrich-visitas-con-cuotas-y-riesgo'
+import { resolveVisitaBaseRegularizacion } from '@/lib/rutas/resolve-visita-base-regularizacion'
 
 import { offlineStore } from '@/lib/offline/offlineDb'
 
@@ -269,25 +268,6 @@ const normalizePeriodoRuta = (raw: any): any => {
   if (v === 'QUINCENAL' || v === 'QUINCENA') return 'QUINCENA'
   if (v === 'MENSUAL' || v === 'MES') return 'MES'
   return 'DIA'
-}
-
-const resolveNivelRiesgoVisita = (visita: any, prestamo?: any, cuotaObjetivo?: any): any => {
-  const estadoCalculado = visita?.estado || 'pendiente'
-  const diasMora = Number(cuotaObjetivo?.diasMora || prestamo?.diasMora || visita?.diasMora || 0)
-  const cuotasVencidas = Number(visita?.cuotasVencidas ?? cuotaObjetivo?.cuotasVencidas ?? 0)
-  const esProvisional = Boolean(prestamo?.esProvisional) || String(prestamo?.estadoAprobacion || '').toUpperCase() === 'PENDIENTE'
-
-  const nivelRiesgoRaw = resolveRiesgoObligacion({
-    row: visita,
-    prestamo: prestamo || {},
-    cuotaObjetivo,
-    estadoCalculado,
-    diasMora,
-    cuotasVencidas,
-    esProvisional,
-  })
-
-  return resolveNivelRiesgoUi(nivelRiesgoRaw)
 }
 
 
@@ -421,6 +401,7 @@ const VistaCobrador = () => {
   const [showBaseModal, setShowBaseModal] = useState(false)
 
   const [activeId, setActiveId] = useState<string | null>(null)
+  const [modoOrdenarRuta, setModoOrdenarRuta] = useState(false)
 
   const [accionPendiente, setAccionPendiente] = useState<'PAGO' | 'ABONO' | 'REPROGRAMAR' | 'CUENTA' | null>(null)
 
@@ -472,12 +453,6 @@ const VistaCobrador = () => {
 
   const [periodoRutaFiltro, setPeriodoRutaFiltro] = useState<PeriodoRuta | 'TODOS'>('TODOS')
 
-  const [selectedHistoryDate, setSelectedHistoryDate] = useState<string | null>(null)
-
-  const [selectedHistoryMonth, setSelectedHistoryMonth] = useState<string | null>(null)
-
-  const [historyViewMode, setHistoryViewMode] = useState<'DAYS' | 'MONTHS'>('DAYS')
-
   const [periodoCards, setPeriodoCards] = useState<'HOY' | 'SEM' | 'MES' | 'AÑO'>('HOY')
   // Ref para evitar stale closures en useCallback que no tienen periodoCards en sus deps
   const periodoCardsRef = useRef<'HOY' | 'SEM' | 'MES' | 'AÑO'>('HOY')
@@ -520,17 +495,19 @@ const VistaCobrador = () => {
     meta: number
     eficiencia: number
     gastos: number
+    gastosProvisionales: number
     base: number
     pendientes?: number
     clientes?: number
     avance?: number
     nivelRiesgo?: string
     porcentajeMora?: number
-  }>({ 
-    recaudo: 0, 
-    meta: 0, 
-    eficiencia: 0, 
-    gastos: 0, 
+  }>({
+    recaudo: 0,
+    meta: 0,
+    eficiencia: 0,
+    gastos: 0,
+    gastosProvisionales: 0,
     base: 0,
     pendientes: 0,
     clientes: 0,
@@ -606,13 +583,7 @@ const VistaCobrador = () => {
 
 
 
-  // Historial dinámico (pendiente de integración real)
-
-  const [historialRutas, setHistorialRutas] = useState<Record<string, HistorialDia> | null>(null);
-  // DEFECTO-B FIX: ref que espeja historialRutas para leer el valor actual en effectos
-  // sin necesitar historialRutas como dependencia (evita ciclos de re-render).
-  const historialRutasRef = useRef<Record<string, HistorialDia> | null>(null);
-  const cuotasHistorialCacheRef = useRef<Map<string, any[]>>(new Map())
+  const visitasRutaHoyKpiRef = useRef<any[]>([])
 
   const [monthlyReport, setMonthlyReport] = useState<RouteDetailResponse | null>(null);
 
@@ -769,8 +740,16 @@ const VistaCobrador = () => {
           : Number(saldo?.recaudoDelDia ?? 0),
 
         gastos: Number(saldo?.gastosDelDia ?? 0),
+        gastosProvisionales: Number((saldo as any)?.egresosProvisionales ?? 0),
 
-        base: Number((saldo as any)?.saldoCaja ?? (saldo as any)?.baseEfectivo ?? prev.base ?? 0),
+        base: Number(
+          (saldo as any)?.saldoCaja ??
+          (saldo as any)?.baseEfectivo ??
+          (saldo as any)?.saldoDisponible ??
+          (saldo as any)?.saldo ??
+          prev.base ??
+          0
+        ),
 
         // Para HOY preservamos la meta operativa ya cargada desde rutas.
         // No debe moverse por saldos vivos ni regularizaciones de jornadas pasadas.
@@ -843,10 +822,37 @@ const VistaCobrador = () => {
 
   const cargarMisCreditosAsignados = useCallback(async (cobradorId: string) => {
 
+    if (!cobradorId) {
+      console.warn('[Mis clientes] cobradorId vacío, no se cargan créditos')
+      setMisCreditos([])
+      return
+    }
+
     try {
 
       setLoadingMisCreditos(true)
 
+      // Priorizar ruta actual + buildRutaHoyOperativa en lugar de endpoint legacy
+      if (rutaActual?.id) {
+        console.log('[Mis clientes] Usando ruta actual + buildRutaHoyOperativa:', rutaActual.id)
+        const hoyBogota = hoyBogotaKey
+        const resp = await rutasService.obtenerVisitasDelDia(rutaActual.id, hoyBogota)
+        const pagosResp = await pagosService.obtenerPagos({ limit: 5000 })
+        const pagos = (pagosResp as any)?.pagos || pagosResp || []
+
+        const result = await buildRutaHoyOperativa({
+          ruta: rutaActual,
+          dailyVisits: resp,
+          hoyBogotaKey,
+          cobradorId: rutaActual.cobradorId || cobradorId,
+          pagos,
+        })
+
+        setMisCreditos(result.kpiItems as any)
+        return
+      }
+
+      // Fallback: endpoint legacy solo si no hay ruta actual
       const resp = await rutasService.obtenerCreditosAsignadosACobrador(cobradorId)
 
       if (process.env.NODE_ENV !== 'production') {
@@ -897,11 +903,11 @@ const VistaCobrador = () => {
         const { cuota: prox, fechaEfectiva } = resolveProximaCuotaFromPrestamo(prestamoAutoritativo)
         const esArticulo = p?.tipo === 'ARTICULO';
         const toNivel = (nivel: string) => {
-          if (nivel === 'VERDE')   return 'bajo';
-          if (nivel === 'AMARILLO') return 'precaucion';
+          if (nivel === 'VERDE')   return 'minimo';
+          if (nivel === 'AMARILLO') return 'leve';
           if (nivel === 'ROJO')    return 'moderado';
           if (nivel === 'LISTA_NEGRA') return 'critico';
-          return 'bajo';
+          return 'minimo';
         };
 
         const nombreCredito = esArticulo ? (p?.articulo || 'Artículo') : 'Préstamo'
@@ -947,7 +953,7 @@ const VistaCobrador = () => {
         const diasMora = computeDiasMoraFromCuotas(cuotasForEstado as any, hoyBogota, p?.frecuenciaPago || 'DIARIO');
         const ultimoPagoDate = 0
 
-        return {
+        const visitaBase = {
           id: `${row?.asignacionId || 'asig'}-${p?.id || idx}`,
           cliente: `${c?.nombres || ''} ${c?.apellidos || ''}`.trim() || 'Cliente',
           direccion: c?.direccion || 'Sin dirección registrada',
@@ -957,17 +963,18 @@ const VistaCobrador = () => {
           montoCuotaNormal,
           montoCuotaPendiente,
           montoMoraAcumulada,
+          montoVencidoAcumulado: montoMoraAcumulada,
+          saldoVencidoAcumulado: montoMoraAcumulada,
           cuotasVencidas: (cuotasForMonto as any[]).filter((cuota: any) => {
             if (!cuota || !isCuotaNoPagada(cuota)) return false
             const vtoKey = normalizeDateKey(resolveFechaEfectivaCuota(cuota) || String(cuota?.fechaVencimiento || ''))
             return !!vtoKey && !!hoyBogotaKey && vtoKey <= hoyBogotaKey
           }).length,
-          saldoTotal: estadoCalculado === 'pagado' ? 0 : saldoTotalPrestamo,
+          saldoTotal: saldoTotalPrestamo,
           estado: estadoCalculado,
           proximaVisita: proximaVisitaV,
           ordenVisita: Number(row?.ordenVisita || idx + 1),
           prioridad: 'media' as any,
-          nivelRiesgo: resolveNivelRiesgoVisita(row, p, prox) as any,
           diasMora,
           cobradorId,
           periodoRuta: normalizePeriodoRuta(p?.frecuenciaPago || 'DIARIO') as any,
@@ -979,9 +986,16 @@ const VistaCobrador = () => {
           fechaProrroga: prox?.fechaVencimientoProrroga || undefined,
           cuotaActual,
           cuotasTotales,
+          cuotaObjetivo: prox,
+          proximaCuota: prox,
           recaudadoDelDia: 0,
           recaudadoTotalClient: 0,
           fechaUltimoPago: ultimoPagoDate
+        } as any;
+
+        return {
+          ...visitaBase,
+          nivelRiesgo: resolveNivelRiesgoVisita(visitaBase, prestamoAutoritativo, prox) as any,
         } as any;
       }));
 
@@ -999,22 +1013,30 @@ const VistaCobrador = () => {
         return true
       }) as any
 
-      const finales = mappedDedupe.sort((a: any, b: any) => {
-        if (a.estado === 'pagado' && b.estado !== 'pagado') return 1;
-        if (a.estado !== 'pagado' && b.estado === 'pagado') return -1;
-        const ao = Number((a as any).ordenVisita ?? 0);
-        const bo = Number((b as any).ordenVisita ?? 0);
-        if (ao !== bo) return ao - bo;
-        const aId = String((a as any).id || '');
-        const bId = String((b as any).id || '');
-        return aId.localeCompare(bId);
-      });
+      const finales = ordenarVisitasRutaActual(mappedDedupe)
 
       setMisCreditos(finales)
 
     } catch (e: any) {
+      const extractErrorInfo = (err: any) => ({
+        message: err?.message,
+        status: err?.status,
+        statusCode: err?.statusCode,
+        responseStatus: err?.response?.status,
+        responseData: err?.response?.data,
+        data: err?.data,
+        name: err?.name,
+      })
 
-      console.error('Error cargando mis clientes (VistaCobrador):', e)
+      const info = extractErrorInfo(e)
+      console.error('Error cargando mis clientes (VistaCobrador):', JSON.stringify(info, null, 2))
+
+      // No mostrar toast genérico si el backend responde 404/204/empty por no haber créditos
+      if ([204, 404].includes(Number(info.status || info.statusCode || info.responseStatus))) {
+        console.warn('[Mis clientes] Backend responde 404/204 - sin créditos asignados')
+        setMisCreditos([])
+        return
+      }
 
       toast.error('No se pudieron cargar los clientes asignados.')
 
@@ -1024,8 +1046,8 @@ const VistaCobrador = () => {
 
     }
 
-  // BUG-03 FIX: agregar hoyBogotaKey a deps para evitar stale closure al cambio de día.
-  }, [hoyBogotaKey])
+  // BUG-03 FIX: agregar hoyBogotaKey, rutaActual?.id y rutaActual?.cobradorId a deps para evitar stale closure.
+  }, [hoyBogotaKey, rutaActual?.id, rutaActual?.cobradorId])
 
 
 
@@ -1095,6 +1117,11 @@ const VistaCobrador = () => {
   const visitasBaseRef = useRef<any[]>([])
   useEffect(() => {
     visitasBaseRef.current = Array.isArray(visitasBase) ? (visitasBase as any[]) : []
+  }, [visitasBase])
+
+  // Ref para guardar los datos enriquecidos de la ruta actual (KPI)
+  useEffect(() => {
+    visitasRutaHoyKpiRef.current = Array.isArray(visitasBase) ? (visitasBase as any[]) : []
   }, [visitasBase])
 
   // BUG-09 FIX: Map<string, number> con timestamp para evitar locks indefinidos.
@@ -1220,7 +1247,13 @@ const VistaCobrador = () => {
               visitados: dailySummary.visitados,
               totalVisitas: dailySummary.total,
               gastos: Number(saldo?.gastosDelDia ?? 0),
-              base: Number(saldo?.saldoCaja ?? saldo?.baseEfectivo ?? 0)
+              base: Number(
+                saldo?.saldoCaja ??
+                saldo?.baseEfectivo ??
+                saldo?.saldoDisponible ??
+                saldo?.saldo ??
+                0
+              )
             }));
           } else if (periodoCardsRef.current === 'HOY') {
             // Si no hay dailyVisits, intentar con el state (fallback)
@@ -1234,7 +1267,13 @@ const VistaCobrador = () => {
               visitados: dailySummary.visitados,
               totalVisitas: dailySummary.total,
               gastos: Number(saldo?.gastosDelDia ?? 0),
-              base: Number(saldo?.saldoCaja ?? saldo?.baseEfectivo ?? 0)
+              base: Number(
+                saldo?.saldoCaja ??
+                saldo?.baseEfectivo ??
+                saldo?.saldoDisponible ??
+                saldo?.saldo ??
+                0
+              )
             }));
           } else {
             // Para otros periodos: keep original behavior
@@ -1244,7 +1283,13 @@ const VistaCobrador = () => {
               meta: est.metaDelDia != null ? Number(est.metaDelDia) : Number(prev?.meta || 0),
               eficiencia: est.metaDelDia > 0 ? Math.round((Number(saldo?.cobranzaDelDia ?? saldo?.recaudoDelDia ?? 0) / est.metaDelDia) * 100) : Number(est.avanceDiario ?? 0),
               gastos: Number(saldo?.gastosDelDia ?? 0),
-              base: Number(saldo?.saldoCaja ?? saldo?.baseEfectivo ?? 0)
+              base: Number(
+                saldo?.saldoCaja ??
+                saldo?.baseEfectivo ??
+                saldo?.saldoDisponible ??
+                saldo?.saldo ??
+                0
+              )
             }));
           }
         } catch (errSaldo) {
@@ -1298,7 +1343,7 @@ const VistaCobrador = () => {
         if (periodoCardsRef.current === 'HOY' && dailyVisits) {
           try {
             const dailySummary = resolveRutaDailySummary(rutaCompletaAutoritativa, dailyVisits);
-            const obligacionesOperativas = (dailySummary.obligaciones || []).filter((o: any) => {
+            const obligacionesJornada = (dailySummary.obligaciones || []).filter((o: any) => {
               const estado = String(
                 o.estadoGestion ||
                   o.estadoVisita ||
@@ -1306,17 +1351,11 @@ const VistaCobrador = () => {
                   o.prestamo?.estadoVisita ||
                   '',
               ).toUpperCase();
-              const metaPendiente = Number(
-                o.montoMetaOperativaPendiente ||
-                  o.prestamo?.montoMetaOperativaPendiente ||
-                  o.cuotaObjetivo?.saldoExigibleEnFechaOperativa ||
-                  0,
-              );
-              return !estado.includes('REPROGRAM') && metaPendiente > 0;
+              return !estado.includes('REPROGRAM');
             });
 
             // Convertir obligaciones en el formato que espera el componente (VisitaRuta)
-            const visitasOperativas = obligacionesOperativas.map((o: any, idx: number) => {
+            const visitasOperativas = obligacionesJornada.map((o: any, idx: number) => {
               const clienteObj = typeof o.cliente === 'object' && o.cliente ? o.cliente : null
               const prestamo = o.prestamo || {}
 
@@ -1393,8 +1432,8 @@ const VistaCobrador = () => {
               )
 
               const cuotaId = resolveCuotaIdFromVisitaLike(o, prestamo, cuotaObjetivo)
-              
-              return {
+
+              const visitaBase = {
                 ...o,
 
                 id: o.id || o.prestamoId || prestamo?.id || `obligacion-${idx}`,
@@ -1421,11 +1460,32 @@ const VistaCobrador = () => {
                     prestamo?.cuotaObjetivo?.saldoVencidoAcumulado ??
                     0,
                 ),
-                cuotasVencidas: Number(
-                  o.cuotasVencidas ??
-                    o.cuotaObjetivo?.cuotasVencidas ??
-                    prestamo?.cuotaObjetivo?.cuotasVencidas ??
+                montoVencidoAcumulado: Number(
+                  o.montoMoraAcumulada ??
+                    o.saldoVencidoAcumulado ??
+                    o.cuotaObjetivo?.montoMoraAcumulada ??
+                    o.cuotaObjetivo?.saldoVencidoAcumulado ??
+                    prestamo?.cuotaObjetivo?.montoMoraAcumulada ??
+                    prestamo?.cuotaObjetivo?.saldoVencidoAcumulado ??
                     0,
+                ),
+                saldoVencidoAcumulado: Number(
+                  o.montoMoraAcumulada ??
+                    o.saldoVencidoAcumulado ??
+                    o.cuotaObjetivo?.montoMoraAcumulada ??
+                    o.cuotaObjetivo?.saldoVencidoAcumulado ??
+                    prestamo?.cuotaObjetivo?.montoMoraAcumulada ??
+                    prestamo?.cuotaObjetivo?.saldoVencidoAcumulado ??
+                    0,
+                ),
+                cuotasVencidas: Math.max(
+                  Number(
+                    o.cuotasVencidas ??
+                      o.cuotaObjetivo?.cuotasVencidas ??
+                      prestamo?.cuotaObjetivo?.cuotasVencidas ??
+                      0,
+                  ),
+                  estadoVisual === 'en_mora' ? 1 : 0,
                 ),
 
                 saldoTotal: Number(
@@ -1453,127 +1513,158 @@ const VistaCobrador = () => {
                 ordenVisita: Number(o.ordenVisita || idx + 1),
                 prioridad: o.prioridad || 'media',
 
-                nivelRiesgo: resolveNivelRiesgoVisita(o, prestamo, undefined),
-
                 cobradorId: rutaCompleta.cobradorId,
                 periodoRuta: normalizePeriodoRuta(frecuenciaPago),
 
                 clienteId: o.clienteId || clienteObj?.id || '',
                 prestamoId: o.prestamoId || prestamo?.id || '',
                 diasMora,
+                // Preservar señales crudas de riesgo del backend
+                nivelRiesgoObligacion: o?.nivelRiesgoObligacion ?? o?.prestamo?.nivelRiesgoObligacion ?? prestamo?.nivelRiesgoObligacion,
+                nivelRiesgoCredito: o?.nivelRiesgoCredito ?? o?.prestamo?.nivelRiesgoCredito ?? prestamo?.nivelRiesgoCredito,
+                riesgoCredito: o?.riesgoCredito ?? o?.prestamo?.riesgoCredito ?? prestamo?.riesgoCredito,
+                riesgoOperativo: o?.riesgoOperativo ?? o?.prestamo?.riesgoOperativo ?? prestamo?.riesgoOperativo,
+                nivelRiesgoBackend: o?.nivelRiesgoBackend ?? o?.cliente?.nivelRiesgo ?? clienteObj?.nivelRiesgo,
+                // Guardar préstamo fuente para reutilizar después del enriquecimiento
+                prestamoRaw: prestamo,
+              }
+
+              return {
+                ...visitaBase,
+                nivelRiesgo: resolveNivelRiesgoVisita(visitaBase, prestamo, cuotaObjetivo),
               }
             });
 
-            // Enriquecer con cuotas vivas antes de filtrar
+            // Enriquecer con cuotas vivas antes de filtrar usando helper compartido
             const getCuotasByPrestamoId = memoizePromiseByKey(
               (prestamoId) => prestamosService.obtenerCuotas(prestamoId) as Promise<any[]>,
               () => [],
             );
 
-            const visitasOperativasVivas = await mapWithConcurrency(
-              visitasOperativas,
-              async (v: any) => {
-                if (!v?.prestamoId) return v;
+            const visitasOperativasVivas = await enrichVisitasConCuotasYRiesgo({
+              visitas: visitasOperativas,
+              hoyBogotaKey,
+              getCuotasByPrestamoId,
+              concurrency: 6,
+            });
 
-                const cuotas = await getCuotasByPrestamoId(String(v.prestamoId));
-                const pendiente = (Array.isArray(cuotas) ? cuotas : []).find((c: any) =>
-                  isCuotaNoPagada(c),
-                );
+            // Aplicar pagos por prestamoId para limpiar recaudos agrupados por cliente
+            let visitasOperativasConPagos = visitasOperativasVivas as any[]
 
-                if (!pendiente) {
-                  return {
-                    ...v,
-                    estado: 'pagado',
-                    saldoTotal: 0,
-                  };
-                }
+            try {
+              const pagosResp = await pagosService.obtenerPagos({ limit: 5000 })
+              const pagosData = (pagosResp as any)?.pagos || pagosResp || []
 
-                const fechaReal =
-                  resolveFechaEfectivaCuota(pendiente) ||
-                  pendiente.fechaVencimiento ||
-                  v.proximaVisita;
+              const recaudosHoyMap = buildRecaudosHoyMapByPrestamoId(
+                pagosData as any,
+                hoyBogotaKey,
+                { includeCierrePendiente: false },
+              )
 
-                const cuotaId = resolveCuotaIdFromVisitaLike(v, undefined, pendiente);
+              const { ultimoPagoDateByPrestamoId } = indexPagosByPrestamoId(pagosData as any)
 
-                const tieneMora = (Array.isArray(cuotas) ? cuotas : []).some((c: any) => {
-                  if (!c || !isCuotaNoPagada(c)) return false;
+              visitasOperativasConPagos = applyRecaudoHoyToVisitas(
+                visitasOperativasVivas.map((v: any) => ({
+                  ...v,
 
-                  const vtoRaw =
-                    resolveFechaEfectivaCuota(c) || String(c?.fechaVencimiento || '');
-
-                  const vtoKey = normalizeDateKey(vtoRaw);
-
-                  return !!vtoKey && !!hoyBogotaKey && vtoKey < hoyBogotaKey;
-                });
-
+                  // Limpiar posibles recaudos agrupados por cliente que vengan del daily summary.
+                  recaudadoDelDia: 0,
+                  recaudadoTotalClient: 0,
+                  recaudadoPeriodo: 0,
+                })) as any,
+                {
+                  hoyBogotaKey,
+                  recaudosHoyMap,
+                },
+              ).map((v: any) => {
+                const pid = String(v?.prestamoId || '')
                 return {
                   ...v,
-                  proximaVisita: fechaReal,
-                  estado: tieneMora ? 'en_mora' : 'pendiente',
-                  cuotaId,
-                  cuotaObjetivoId: cuotaId,
-                  cuotaObjetivoPrestamoId: cuotaId,
-                  cuotaObjetivo: pendiente,
-                  proximaCuota: pendiente,
-                  cuotaActual: pendiente.numeroCuota ?? v.cuotaActual,
-                  cuotasTotales: Array.isArray(cuotas) ? cuotas.length : v.cuotasTotales,
-                };
-              },
-              6,
-            );
+                  fechaUltimoPago: pid
+                    ? Number(ultimoPagoDateByPrestamoId[pid] || 0)
+                    : Number(v?.fechaUltimoPago || 0),
+                }
+              })
+            } catch {
+              visitasOperativasConPagos = visitasOperativasVivas as any[]
+            }
 
             // Filtrar visitas con la regla compartida
-            const visitasOperativasFiltradas = visitasOperativasVivas
-              .filter((v: any) => shouldShowVisitaEnRutaHoy(v, hoyBogotaKey))
-              .filter((v: any) => !shouldExcludeVisitaFromOperationalMeta(v));
+            const visitasBaseParaKpi = visitasOperativasConPagos
+              .filter((v: any) => {
+                const recaudado = Number(v?.recaudadoDelDia || 0)
+                const metaPendiente = Number(v?.montoCuotaPendiente || 0)
+                const estadoGestion = String(v?.estadoGestion || '').toUpperCase()
 
-            // Recalcular KPI del cobrador con la lista filtrada
-            const statsHoy = computeRutaHoyUiStatsFromVisitas(visitasOperativasFiltradas as any[], 0);
+                return (
+                  metaPendiente > 0 ||
+                  recaudado > 0 ||
+                  estadoGestion.includes('PAGO')
+                )
+              })
+              .filter((v: any) => !shouldExcludeVisitaFromOperationalMeta(v))
+
+            const visitasOperativasFiltradas = visitasBaseParaKpi
+              .filter((v: any) => shouldShowVisitaEnRutaHoy(v, hoyBogotaKey))
+
+            const recaudoHoy = visitasBaseParaKpi.reduce(
+              (sum: number, v: any) => sum + Number(v?.recaudadoDelDia || 0),
+              0,
+            )
+
+            const metaHoy = visitasBaseParaKpi.reduce((sum: number, v: any) => {
+              return sum + Number(
+                v?.montoCuotaNormal ??
+                v?.montoCuota ??
+                0
+              )
+            }, 0)
+
+            // Recalcular KPI del cobrador con la lista para KPI
             setRutaStats((prev) => ({
               ...prev,
-              recaudo: statsHoy.recaudo,
-              meta: statsHoy.meta,
+              recaudo: recaudoHoy,
+              meta: metaHoy,
               eficiencia:
-                statsHoy.meta > 0
-                  ? Number(((statsHoy.recaudo / statsHoy.meta) * 100).toFixed(1))
-                  : statsHoy.recaudo > 0
+                metaHoy > 0
+                  ? Number(((recaudoHoy / metaHoy) * 100).toFixed(1))
+                  : recaudoHoy > 0
                     ? 100
                     : 0,
-              pendiente: Math.max(0, statsHoy.meta - statsHoy.recaudo),
-              pendientes: Math.max(0, statsHoy.meta - statsHoy.recaudo),
+              pendiente: Math.max(0, metaHoy - recaudoHoy),
+              pendientes: Math.max(0, metaHoy - recaudoHoy),
               totalVisitas: visitasOperativasFiltradas.length,
             }));
 
-            // Usar estas visitas como base, sin traer visitas viejas que ya no vienen
-            const prevByKey = new Map(
-              (visitasBaseRef.current || []).map((v: any) => [
-                String(v?.prestamoId || v?.clienteId || v?.id || ''),
-                v,
-              ]),
-            );
-
-            const nextSoloRutaHoy = visitasOperativasFiltradas.map((v: any) => {
-              const key = String(v?.prestamoId || v?.clienteId || v?.id || '');
-              const prev = prevByKey.get(key);
-
-              return {
+            // Usar estas visitas como base para KPI (incluye pagadas de hoy)
+            const nextBaseHoy = ordenarVisitasRutaActual(
+              visitasBaseParaKpi.map((v: any) => ({
                 ...v,
-                recaudadoDelDia: Math.max(
-                  Number(v?.recaudadoDelDia || 0),
-                  Number(prev?.recaudadoDelDia || 0),
-                ),
-                recaudadoTotalClient: Math.max(
-                  Number(v?.recaudadoTotalClient || 0),
-                  Number(prev?.recaudadoTotalClient || 0),
-                ),
-                fechaUltimoPago: Number(v?.fechaUltimoPago || prev?.fechaUltimoPago || 0),
-              };
-            });
+                recaudadoDelDia: Number(v?.recaudadoDelDia || 0),
+                recaudadoTotalClient: Number(v?.recaudadoDelDia || 0),
+                recaudadoPeriodo: Number(v?.recaudadoDelDia || 0),
+                fechaUltimoPago: Number(v?.fechaUltimoPago || 0),
+              })),
+            )
 
-            visitasBaseRef.current = nextSoloRutaHoy as any;
-            setVisitasBase(nextSoloRutaHoy as any);
-            setVisitasSelectorFallback(nextSoloRutaHoy as any);
-            setVisitasOrden((nextSoloRutaHoy as any[]).map((v: any) => v.id));
+            console.table(nextBaseHoy.map((v: any) => ({
+              cliente: v.cliente,
+              prestamoId: v.prestamoId,
+              cuotaId: v.cuotaId,
+              cuotaActual: v.cuotaActual,
+              montoCuota: v.montoCuota,
+              montoCuotaNormal: v.montoCuotaNormal,
+              saldoTotal: v.saldoTotal,
+              recaudadoDelDia: v.recaudadoDelDia,
+              nivelRiesgo: v.nivelRiesgo,
+            })))
+
+            visitasBaseRef.current = nextBaseHoy as any;
+            setVisitasBase(nextBaseHoy as any);
+            setVisitasSelectorFallback(nextBaseHoy as any);
+            setVisitasOrden(
+              ordenarVisitasRutaActual(visitasOperativasFiltradas as any).map((v: any) => v.id),
+            );
 
             // Saltarse el resto de la lógica, ya que usamos dailyVisits
             setIsLoading(false);
@@ -1603,12 +1694,12 @@ const VistaCobrador = () => {
         })
 
         const clientesConPrestamo = new Set(firstPass.filter((v: any) => v?.prestamoId).map((v: any) => v?.clienteId))
-        const visitasMapeadasDedupe = firstPass.filter((v: any) => {
+        let visitasMapeadasDedupe = firstPass.filter((v: any) => {
           if (!v?.prestamoId && clientesConPrestamo.has(v?.clienteId)) return false
           return true
         }) as any
 
-        visitasMapeadasDedupe.sort((a: any, b: any) => (a.ordenVisita || 0) - (b.ordenVisita || 0))
+        visitasMapeadasDedupe = ordenarVisitasRutaActual(visitasMapeadasDedupe)
 
         if (periodoCardsRef.current === 'HOY') {
           const metaFallback = (Array.isArray(visitasMapeadasDedupe) ? visitasMapeadasDedupe : [])
@@ -1767,6 +1858,18 @@ const VistaCobrador = () => {
         try {
           const pagosResp = await pagosService.obtenerPagos({ limit: 5000 })
           const pagosData = (pagosResp as any)?.pagos || pagosResp || []
+
+          console.table(pagosData.map((p: any) => ({
+            id: p.id,
+            clienteId: p.clienteId,
+            prestamoId: p.prestamoId,
+            cuotaId: p.cuotaId,
+            montoTotal: p.montoTotal,
+            tipoRegistro: p.tipoRegistro,
+            fechaPago: p.fechaPago,
+            origenGestion: p.origenGestion,
+          })))
+
           const recaudosHoyMap = buildRecaudosHoyMapByPrestamoId(
             pagosData as any,
             hoyKey,
@@ -1776,6 +1879,17 @@ const VistaCobrador = () => {
             hoyBogotaKey: hoyKey,
             recaudosHoyMap,
           }) as any
+
+          // Asignar fechaUltimoPago por prestamoId para el ordenamiento
+          const { ultimoPagoDateByPrestamoId } = indexPagosByPrestamoId(pagosData as any)
+          visitasEnriquecidas = (visitasEnriquecidas as any[]).map((v: any) => {
+            const pid = v?.prestamoId
+            if (!pid) return v
+            return {
+              ...v,
+              fechaUltimoPago: Number(ultimoPagoDateByPrestamoId[pid] || 0),
+            }
+          })
         } catch {
           // silencioso
         }
@@ -1861,7 +1975,7 @@ const VistaCobrador = () => {
 
                      montoCuota: Number(proximaCuota?.monto || p?.montoCuota || 0),
 
-                     saldoTotal: proximaCuota?.estado === 'PAGADA' || proximaCuota?.estado === 'PAGADO' ? 0 : Number(p?.saldoPendiente || 0),
+                     saldoTotal: Number(p?.saldoPendiente || 0),
 
                      estado: proximaCuota?.estado === 'VENCIDA' ? 'en_mora' : (proximaCuota?.estado === 'PAGADA' || proximaCuota?.estado === 'PAGADO' ? 'pagado' : 'pendiente'),
 
@@ -1871,7 +1985,7 @@ const VistaCobrador = () => {
 
                      prioridad: 'media',
 
-                     nivelRiesgo: (c.nivelRiesgo || 'BAJO').toLowerCase() as any,
+                     nivelRiesgo: (c.nivelRiesgo || 'MINIMO').toLowerCase() as any,
 
                      cobradorId: userSession.id,
 
@@ -1909,6 +2023,8 @@ const VistaCobrador = () => {
 
                gastos: 0,
 
+               gastosProvisionales: 0,
+
                base: 0
 
              });
@@ -1933,6 +2049,18 @@ const VistaCobrador = () => {
 
       } finally {
         if (!silent) setIsLoading(false)
+
+        console.table(visitasBaseRef.current.map((v: any) => ({
+          cliente: v.cliente,
+          prestamoId: v.prestamoId,
+          cuotaId: v.cuotaId,
+          cuotaActual: v.cuotaActual,
+          montoCuota: v.montoCuota,
+          montoCuotaNormal: v.montoCuotaNormal,
+          saldoTotal: v.saldoTotal,
+          recaudadoDelDia: v.recaudadoDelDia,
+          nivelRiesgo: v.nivelRiesgo,
+        })))
       }
 
   // BUG-05 FIX: cargarDatosRuta NO depende de periodoCards — las visitas son independientes
@@ -1985,14 +2113,6 @@ const VistaCobrador = () => {
         )
         visitasBaseRef.current = nextVisitas
         return nextVisitas
-      })
-      // Limpiar historial de hoy para forzar re-fetch si está abierto
-      const hoyKey = hoyBogotaKey
-      setHistorialRutas((prev: any) => {
-        if (!prev || !prev[hoyKey]) return prev
-        const next = { ...prev }
-        delete next[hoyKey]
-        return next
       })
       // Forzar recarga autoritativa para evitar cálculo local incorrecto
       await cargarDatosRuta(true)
@@ -2073,20 +2193,11 @@ const VistaCobrador = () => {
                 montoCuotaPendiente: metaOperativa,
                 proximaVisita: prox?.fechaVencimiento || v.proximaVisita,
                 cuotaActual: prox?.numeroCuota || v.cuotaActual,
-                saldoTotal: nuevoEstado === 'pagado' ? 0 : Number(p.saldoPendiente || 0),
+                saldoTotal: Number(p.saldoPendiente || 0),
                 recaudadoDelDia: Math.max(Number(v?.recaudadoDelDia || 0), Number(totalHoy || 0)),
               };
 
               baseV.estado = ajustarEstadoConPago(baseV as any) as any;
-            // También limpiar el historial cargado para hoy, para forzar re-fetch
-            const keyHoy = hoyBogotaKey;
-            
-            setHistorialRutas((prev: any) => {
-              if (!prev || !prev[keyHoy]) return prev;
-              const next = { ...prev };
-              delete next[keyHoy];
-              return next;
-            });
 
             return baseV;
           }
@@ -2191,25 +2302,7 @@ const VistaCobrador = () => {
 
           const riesgoBackend = c.nivelRiesgo;
 
-          const riesgo =
-
-            riesgoBackend === 'VERDE'
-
-              ? 'bajo'
-
-              : riesgoBackend === 'AMARILLO'
-
-              ? 'leve'
-
-              : riesgoBackend === 'ROJO'
-
-              ? 'moderado'
-
-              : riesgoBackend === 'LISTA_NEGRA'
-
-              ? 'critico'
-
-              : 'bajo';
+          const riesgo = mapNivelRiesgo(riesgoBackend);
 
           return {
 
@@ -2276,25 +2369,7 @@ const VistaCobrador = () => {
 
             const riesgoBackend = c.nivelRiesgo;
 
-            const riesgo =
-
-              riesgoBackend === 'VERDE'
-
-                ? 'bajo'
-
-                : riesgoBackend === 'AMARILLO'
-
-                ? 'leve'
-
-                : riesgoBackend === 'ROJO'
-
-                ? 'moderado'
-
-                : riesgoBackend === 'LISTA_NEGRA'
-
-                ? 'critico'
-
-                : 'bajo';
+            const riesgo = mapNivelRiesgo(riesgoBackend);
 
             return {
 
@@ -2351,307 +2426,6 @@ const VistaCobrador = () => {
   }, [showClientSelector, visitasBase.length, rutaActual?.id, userSession?.id]);
 
 
-
-  useEffect(() => {
-
-    const cargarResumenMensual = async () => {
-
-      if (!showHistory || historyViewMode !== 'MONTHS' || !rutaActual?.id) return;
-
-      try {
-
-        const now = new Date();
-
-        const start = new Date(now.getFullYear(), now.getMonth(), 1);
-
-        const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-
-        let totalRecaudado = 0;
-
-        const pagosResp = await pagosService.obtenerPagos({ limit: 5000 });
-
-        const pagosData = (pagosResp as any)?.pagos || pagosResp || [];
-
-        const pagosMes = (Array.isArray(pagosData) ? pagosData : []).filter((p: any) => {
-
-          const raw = p.fechaPago || p.creadoEn;
-
-          if (!raw) return false;
-
-          const d = new Date(raw);
-
-          const inMonth = d >= start && d <= end;
-
-          const cobradorMatch = userSession?.id ? (p.cobradorId === userSession.id) : true;
-
-          // Un pago pertenece a esta ruta indirectamente si el cobrador coincide (ya que no viene p.ruta).
-
-          // Por seguridad vamos a mapear en inMonth, si es el cobrador activo
-
-          return inMonth && cobradorMatch;
-
-        });
-
-        const uniqueClientes = new Set<string>();
-
-        for (const p of pagosMes) {
-
-          totalRecaudado += Number(p.montoTotal || 0);
-
-          const cid = p.clienteId || (p.cliente?.id);
-
-          if (cid) uniqueClientes.add(cid);
-
-        }
-
-        const elapsedDays = now.getDate(); // días transcurridos del mes
-
-        setMonthlyReport({
-
-          ruta: {
-
-            id: rutaActual.id,
-
-            nombre: rutaActual.nombre,
-
-            codigo: rutaActual.codigo || '',
-
-            zona: rutaActual.zona || '',
-
-            cobrador: {
-
-              id: rutaActual.cobradorId,
-
-              nombres: '',
-
-              apellidos: ''
-
-            }
-
-          },
-
-          periodo: {
-
-            tipo: 'month',
-
-            inicio: (() => {
-              const startKey = getBogotaDateKey(start);
-              return startKey
-                ? buildBogotaOffsetIsoFromKey(startKey, { hh: 0, mm: 0, ss: 0, ms: 0 })
-                : '';
-            })(),
-
-            fin: (() => {
-              const endKey = getBogotaDateKey(end);
-              return endKey
-                ? buildBogotaOffsetIsoFromKey(endKey, { hh: 23, mm: 59, ss: 59, ms: 999 })
-                : '';
-            })()
-
-          },
-
-          estadisticas: {
-
-            totalClientes: uniqueClientes.size,
-
-            totalRecaudado,
-
-            totalPagos: pagosMes.length,
-
-            promedioDiario: elapsedDays > 0 ? Math.round(totalRecaudado / elapsedDays) : 0,
-
-            pagosPorDia: []
-
-          },
-
-          pagosRecientes: [],
-
-          clientesConPrestamos: []
-
-        });
-
-      } catch {
-
-        setMonthlyReport(null);
-
-      }
-
-    };
-
-    cargarResumenMensual();
-
-  }, [showHistory, historyViewMode, rutaActual?.id]);
-
-
-
-  const historial = useRutaHistorial({
-    rutaId: rutaActual?.id,
-    cobradorId: userSession?.id,
-    getVisitasHoy: () => visitasBase,
-    fetchPagos: () => pagosService.obtenerPagos({ limit: 5000 }) as any,
-    loadDay: async (fechaClave: string) => {
-      const visitasResp = await rutasService.obtenerVisitasDelDia(rutaActual?.id as any, fechaClave)
-      const saldo = await obtenerSaldoDisponibleRuta(rutaActual?.id as any, fechaClave)
-
-      let pagosDelDia: any[] = []
-      try {
-        const pagosResp = await pagosService.obtenerPagos({ limit: 5000 })
-        const pagosData = (pagosResp as any)?.pagos || pagosResp || []
-        pagosDelDia = (Array.isArray(pagosData) ? pagosData : []).filter((p: any) => {
-          const cobradorMatch = userSession?.id ? (p?.cobradorId === userSession.id) : true
-          return isPagoForHistorialFecha(p, fechaClave) && cobradorMatch
-        })
-      } catch {
-        pagosDelDia = []
-      }
-
-      return buildHistorialDiaFromBackend({ fechaClave, visitasResp, saldo, pagosDelDia })
-    },
-  })
-
-  // DEFECTO-B FIX: mantener historialRutasRef sincronizado con el estado.
-  useEffect(() => {
-    historialRutasRef.current = historialRutas;
-  }, [historialRutas]);
-
-  useEffect(() => {
-    if (!historial.historialRutas) return
-    setHistorialRutas(historial.historialRutas)
-  }, [historial.historialRutas])
-
-  const cargarHistorialFecha = historial.cargarHistorialFecha
-
-  const enriquecerHistorialDiaConCuotas = useCallback(async (fechaClave: string) => {
-    const dayData = (historialRutas || {})[fechaClave]
-    if (!dayData?.loaded) return
-    const visitasRaw = Array.isArray(dayData?.visitas) ? dayData.visitas : []
-
-    // 1) Backfill de prestamoId (solo ID) desde visitasBaseRef (ruta del día) cuando falte.
-    //    No copiamos montoCuota/estado porque para historial interesa el exigible de esa fecha,
-    //    y el "estado actual" puede haber avanzado después de pagar.
-    const base = Array.isArray(visitasBaseRef.current) ? visitasBaseRef.current : []
-    const byClienteId = new Map<string, any>()
-    base.forEach((b: any) => {
-      const k = String(b?.clienteId || '')
-      if (!k) return
-      byClienteId.set(k, b)
-    })
-
-    const visitas = visitasRaw.map((v: any) => {
-      if (String(v?.prestamoId || '')) return v
-      const cid = String(v?.clienteId || '')
-      const match = cid ? byClienteId.get(cid) : null
-      const pid = String(match?.prestamoId || '')
-      if (!pid) return v
-      return { ...v, prestamoId: pid }
-    })
-
-    const visitasConPrestamo = visitas.filter((v: any) => !!String(v?.prestamoId || ''))
-    const yaEnriquecido = visitasConPrestamo.length > 0
-      && visitasConPrestamo.every((v: any) => (v as any)?.enMoraHistorico !== undefined)
-    if (yaEnriquecido) return
-    const prestamoIds = Array.from(new Set(visitasConPrestamo.map((v: any) => String(v?.prestamoId || '')).filter(Boolean)))
-    if (prestamoIds.length === 0) return
-
-    const getCuotasByPrestamoId = memoizePromiseByKey(
-      async (prestamoId: string) => {
-        const cache = cuotasHistorialCacheRef.current
-        if (cache.has(prestamoId)) return cache.get(prestamoId) || []
-        const cuotas = await prestamosService.obtenerCuotas(prestamoId).catch(() => [])
-        cache.set(prestamoId, cuotas as any[])
-        return cuotas as any[]
-      },
-      () => [],
-    )
-
-    const nextVisitas = await mapWithConcurrency(
-      visitas,
-      async (v: any) => {
-        const pid = String(v?.prestamoId || '')
-        if (!pid) return v
-        const cuotas = await getCuotasByPrestamoId(pid)
-        const exigible = computeMontoExigibleHastaHoyFromCuotas(cuotas as any, fechaClave)
-        const tieneMora = (Array.isArray(cuotas) ? cuotas : []).some((c: any) => {
-          if (!c || !isCuotaNoPagada(c)) return false
-          const vtoRaw = resolveFechaEfectivaCuota(c) || String(c?.fechaVencimiento || '')
-          const vtoKey = normalizeDateKey(vtoRaw)
-          return !!vtoKey && vtoKey < fechaClave
-        })
-
-        const enProrrogaHistorico = (Array.isArray(cuotas) ? cuotas : []).some((c: any) => {
-          if (!c || !isCuotaNoPagada(c)) return false
-          const prRaw = String(c?.fechaVencimientoProrroga || '')
-          if (!prRaw) return false
-          const prKey = normalizeDateKey(prRaw)
-          if (!prKey) return false
-          const vtoKey = normalizeDateKey(resolveFechaEfectivaCuota(c) || String(c?.fechaVencimiento || ''))
-
-          // Considerar en prórroga si:
-          // - existe fecha de prórroga
-          // - la fecha del historial está antes o en la prórroga
-          // - y el vencimiento original ya era previo/igual a la fecha del historial (se activó la prórroga)
-          if (prKey < fechaClave) return false
-          if (vtoKey && vtoKey > fechaClave) return false
-          return true
-        })
-        return {
-          ...v,
-          montoCuotaPendiente: exigible > 0 ? exigible : (v as any)?.montoCuotaPendiente,
-          enMoraHistorico: tieneMora,
-          enProrrogaHistorico,
-        }
-      },
-      6,
-    )
-
-    // BUG-17 FIX: enriquecerHistorialDiaConCuotas ya NO tiene historialRutas en deps.
-    // Leer el historial del día directamente dentro del setter funcional de setHistorialRutas
-    // evita que se recree el callback cada vez que se carga un nuevo día del historial,
-    // rompiendo el ciclo de re-renders en cascada.
-    setHistorialRutas((prev: any) => {
-      const prevDia = (prev || {})[fechaClave]
-      if (!prevDia) return prev
-      return {
-        ...(prev || {}),
-        [fechaClave]: {
-          ...prevDia,
-          visitas: nextVisitas,
-        },
-      }
-    })
-  // BUG-17 FIX: sin historialRutas en deps — se accede vía setter funcional
-  }, [])
-
-  // DEFECTO-B FIX (completo): usar historialRutasRef para leer el historial actual sin
-  // necesitar historialRutas como dep. Elimina el anti-patrón de side-effect en setState.
-  useEffect(() => {
-    if (!showHistory) return
-    const hoy = new Date()
-    const hoyKey = getBogotaDateKey(hoy)
-      || `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`
-    const dayData = (historialRutasRef.current || {})[hoyKey]
-    if (dayData?.loaded) {
-      void enriquecerHistorialDiaConCuotas(hoyKey)
-    }
-  }, [showHistory, enriquecerHistorialDiaConCuotas])
-
-  // DEFECTO-B FIX (completo): usar historialRutasRef en lugar de setter como lector.
-  useEffect(() => {
-    if (!showHistory || !rutaActual?.id) return;
-    const hoy = new Date();
-    const key = getBogotaDateKey(hoy)
-      || `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
-    const existing = (historialRutasRef.current || {})[key];
-    if (!existing || !existing.loaded) {
-      void cargarHistorialFecha(key);
-    }
-  }, [showHistory, rutaActual?.id, cargarHistorialFecha]);
-
-  useEffect(() => {
-    if (!showHistory) return
-    if (!selectedHistoryDate) return
-    void enriquecerHistorialDiaConCuotas(selectedHistoryDate)
-  }, [showHistory, selectedHistoryDate, enriquecerHistorialDiaConCuotas])
 
   // Filtrar y ordenar visitas
 
@@ -2739,43 +2513,7 @@ const VistaCobrador = () => {
 
     // Ordenar consistente con Supervisor/Admin
 
-    const sorted = visibles.sort((a: any, b: any) => {
-      // En mora primero
-      if (a.estado === 'en_mora' && b.estado !== 'en_mora') return -1;
-      if (a.estado !== 'en_mora' && b.estado === 'en_mora') return 1;
-
-      // Pagados al final (aunque en la mayoría de casos ya se filtran)
-      if (a.estado === 'pagado' && b.estado !== 'pagado') return 1;
-      if (a.estado !== 'pagado' && b.estado === 'pagado') return -1;
-
-      // Para DIA respetar el orden de visita
-      if (a.periodoRuta === 'DIA' && b.periodoRuta === 'DIA') {
-        const ao = Number(a.ordenVisita ?? 0)
-        const bo = Number(b.ordenVisita ?? 0)
-        if (ao !== bo) return ao - bo
-      }
-
-      // Para no-DIA, priorizar por fechaUltimoPago (más antiguo arriba) si existe
-      if (a.periodoRuta !== 'DIA' || b.periodoRuta !== 'DIA') {
-        const aLast = Number(a.fechaUltimoPago || 0)
-        const bLast = Number(b.fechaUltimoPago || 0)
-        if (aLast !== bLast) return aLast - bLast
-      }
-
-      // Fallback por periodo (Mensual -> Quincenal -> Semanal -> Diario)
-      const priority: Record<string, number> = { MES: 0, QUINCENA: 1, SEMANA: 2, DIA: 3 };
-      const pA = priority[String(a.periodoRuta || '').toUpperCase()] ?? 99;
-      const pB = priority[String(b.periodoRuta || '').toUpperCase()] ?? 99;
-      if (pA !== pB) return pA - pB;
-
-      // Fallback final estable
-      const ao = Number(a.ordenVisita ?? 0)
-      const bo = Number(b.ordenVisita ?? 0)
-      if (ao !== bo) return ao - bo
-      const aId = String(a.id || '')
-      const bId = String(b.id || '')
-      return aId.localeCompare(bId)
-    });
+    const sorted = ordenarVisitasRutaActual(visibles)
 
 
 
@@ -2793,7 +2531,10 @@ const VistaCobrador = () => {
         ...v,
         estado: ajustarEstadoConPago(v),
       }))
-      .filter((v: any) => shouldIncludeVisitaInRutaHoyKpis(v, hoyBogotaKey))
+      .filter((v: any) =>
+        shouldIncludeVisitaInRutaHoyKpis(v, hoyBogotaKey) ||
+        Number(v?.recaudadoDelDia || 0) > 0
+      )
 
     const isAusente = shouldExcludeVisitaFromOperationalMeta
 
@@ -2836,45 +2577,31 @@ const VistaCobrador = () => {
   const rutaStatsUI = useMemo(() => {
     if (periodoCards !== 'HOY') return rutaStats
 
-    const visitasOperativasHoy = (visitasBase || [])
-      .map((v: any) => ({
-        ...v,
-        estado: ajustarEstadoConPago(v),
-      }))
-      .filter((v: any) => shouldShowVisitaEnRutaHoy(v, hoyBogotaKey))
-      .filter((v: any) => !shouldExcludeVisitaFromOperationalMeta(v))
-
-    const statsHoy = computeRutaHoyUiStatsFromVisitas(visitasOperativasHoy, 0)
-    const recaudo = Number(statsHoy.recaudo || rutaStats.recaudo || 0)
+    const recaudo = Number(kpisHoy.recaudo || 0)
+    const meta = Number(kpisHoy.meta || 0)
 
     return {
       ...rutaStats,
       recaudo,
-      meta: statsHoy.meta,
+      meta,
       eficiencia:
-        statsHoy.meta > 0
-          ? Number(((recaudo / statsHoy.meta) * 100).toFixed(1))
+        meta > 0
+          ? Number(((recaudo / meta) * 100).toFixed(1))
           : recaudo > 0
             ? 100
             : 0,
-      pendiente: Math.max(0, statsHoy.meta - recaudo),
-      pendientes: Math.max(0, statsHoy.meta - recaudo),
-      totalVisitas: visitasOperativasHoy.length,
+      pendiente: Math.max(0, meta - recaudo),
+      pendientes: Math.max(0, meta - recaudo),
+      totalVisitas: kpisHoy.visitasOperativasHoy.length,
     } as any
-  }, [
-    periodoCards,
-    rutaStats,
-    visitasBase,
-    ajustarEstadoConPago,
-    hoyBogotaKey,
-  ])
+  }, [periodoCards, rutaStats, kpisHoy])
+
   // BUG-08 FIX: filtrar por el ID real del cobrador en sesión, no por 'CB-001' hardcodeado.
   const operacionesCobrador = useMemo(() =>
     userSession?.id
       ? operacionesCaja.filter(op => op.cobradorId === userSession.id)
       : operacionesCaja,
     [operacionesCaja, userSession?.id]
-
   )
 
 
@@ -2961,7 +2688,7 @@ const VistaCobrador = () => {
 
   const sensors = useSensors(
 
-    useSensor(PointerSensor, {
+    useSensor(SafePointerSensor, {
 
       activationConstraint: {
 
@@ -3338,16 +3065,33 @@ const VistaCobrador = () => {
     contexto?: { tipoRegistro: 'PAGO' | 'ABONO'; cuotaNumeroEsperada?: number; montoCuotaEsperado: number; cuotaId?: string },
   ) => {
 
+    // Helpers para matching por obligación (prestamoId + cuotaId)
+    const resolveCuotaIdLocal = (v: any): string => {
+      return String(
+        v?.cuotaId ||
+        v?.cuotaObjetivoId ||
+        v?.cuotaObjetivo?.id ||
+        v?.proximaCuota?.id ||
+        v?.cuotaObjetivoPrestamoId ||
+        '',
+      )
+    }
+
     const visitaSnapshot = visitaPagoSeleccionada
     const esAbonoSnapshot = pagoInitialIsAbono
 
     if (!visitaSnapshot) return
 
     if (!esAbonoSnapshot) {
-      const cuota = Number(contexto?.montoCuotaEsperado || visitaSnapshot?.montoCuota || 0)
-      const cuotaMostrada = getDisplayedCOPInteger(cuota)
+      const montoEsperadoPago = Number(
+        contexto?.montoCuotaEsperado ||
+        visitaSnapshot?.montoCuotaNormal ||
+        visitaSnapshot?.montoCuota ||
+        0
+      )
+      const cuotaMostrada = getDisplayedCOPInteger(montoEsperadoPago)
       const montoNum = Number(monto || 0)
-      if (cuotaMostrada > 0 && !isSameDisplayedCOPAmount(montoNum, cuota)) {
+      if (cuotaMostrada > 0 && !isSameDisplayedCOPAmount(montoNum, montoEsperadoPago)) {
         setModalAlerta({
           titulo: 'Monto no coincide',
           mensaje: `Para registrar un PAGO el monto debe ser exactamente $${formatMilesCOP(cuotaMostrada)}. Si el valor es diferente, use la opción ABONO.`,
@@ -3406,13 +3150,24 @@ const VistaCobrador = () => {
         : visitaSnapshot.prestamoId
       const cuotaIdFinal = esCierrePendiente
         ? contextoRegularizacionSnapshot?.cuotaId
-        : contexto?.cuotaId
+        : contexto?.cuotaId || resolveCuotaIdLocal(visitaSnapshot)
       const cuotaNumeroFinal = esCierrePendiente
         ? contextoRegularizacionSnapshot?.cuotaNumeroEsperada
         : contexto?.cuotaNumeroEsperada
       const montoCuotaEsperadoFinal = esCierrePendiente
         ? contextoRegularizacionSnapshot?.montoCuotaEsperado
-        : contexto?.montoCuotaEsperado
+        : contexto?.montoCuotaEsperado ||
+          visitaSnapshot?.montoCuotaNormal ||
+          visitaSnapshot?.montoCuota
+
+      if (!cuotaIdFinal) {
+        setModalAlerta({
+          titulo: 'Cuota no identificada',
+          mensaje: 'No se pudo identificar la cuota objetivo de esta obligación. Recarga la ruta e inténtalo de nuevo.',
+          tipo: 'error',
+        })
+        return
+      }
 
       const resultado = await pagosService.registrarPago({
 
@@ -3460,6 +3215,20 @@ const VistaCobrador = () => {
 
       })
 
+      console.table([
+        {
+          tipo: contexto?.tipoRegistro || (esAbonoSnapshot ? 'ABONO' : 'PAGO'),
+          prestamoIdFinal,
+          cuotaIdFinal,
+          clienteId: visitaSnapshot.clienteId,
+          monto,
+          visitaSnapshotId: visitaSnapshot.id,
+          visitaSnapshotCliente: visitaSnapshot.cliente,
+          visitaSnapshotCuota: visitaSnapshot.cuotaActual,
+          visitaSnapshotMontoCuota: visitaSnapshot.montoCuotaNormal,
+        },
+      ])
+
 
 
       // Actualizar estado local (optimista) para reflejar pago
@@ -3490,44 +3259,66 @@ const VistaCobrador = () => {
         return 'pendiente'
       }
 
-      const clienteIdPago = visitaSnapshot.clienteId
+      const sameObligacionPago = (
+        visita: any,
+        visitaSnapshot: any,
+        cuotaIdFinal?: string | null,
+      ): boolean => {
+        const visitaPrestamoId = String(visita?.prestamoId || '')
+        const snapshotPrestamoId = String(visitaSnapshot?.prestamoId || '')
+
+        if (!visitaPrestamoId || !snapshotPrestamoId) {
+          return String(visita?.id || '') === String(visitaSnapshot?.id || '')
+        }
+
+        if (visitaPrestamoId !== snapshotPrestamoId) return false
+
+        const cuotaVisita = resolveCuotaIdLocal(visita)
+        const cuotaSnapshot = String(
+          cuotaIdFinal ||
+          resolveCuotaIdLocal(visitaSnapshot) ||
+          '',
+        )
+
+        if (!cuotaSnapshot) return true
+
+        return cuotaVisita === cuotaSnapshot
+      }
 
       if (!esCierrePendiente) {
         setVisitasBase((prev) => {
           const next = prev.map((v) => {
-            if (v.clienteId !== clienteIdPago) return v
+            const esVisitaPagada = sameObligacionPago(
+              v,
+              visitaSnapshot,
+              cuotaIdFinal,
+            )
 
-            const esVisitaPagada = v.id === visitaSnapshot.id
+            if (!esVisitaPagada) return v
 
             const recaudadoPrev = Number((v as any).recaudadoDelDia || 0)
-            const recaudadoNuevo = esVisitaPagada
-              ? recaudadoPrev + Number(monto || 0)
-              : recaudadoPrev
+            const recaudadoNuevo = recaudadoPrev + Number(monto || 0)
 
-            const estadoBase = isAusente(v)
+            const estadoBase = shouldExcludeVisitaFromOperationalMeta(v)
               ? resolveEstadoSinAusente(v)
               : v.estado
 
-            const nextEstado = esVisitaPagada
-              ? (
-                  esAbonoSnapshot
-                    ? estadoBase
-                    : ajustarEstadoConPago({
-                        ...(v as any),
-                        estado: estadoBase,
-                        estadoVisita: undefined,
-                        recaudadoDelDia: recaudadoNuevo,
-                      } as any)
-                )
-              : estadoBase
-            const montoCuotaPendiente = esVisitaPagada
-              ? computeMontoCuotaPendienteDespuesDeRecaudo(v as any, recaudadoNuevo)
-              : (v as any)?.montoCuotaPendiente
+            const nextEstado = esAbonoSnapshot
+              ? estadoBase
+              : ajustarEstadoConPago({
+                  ...(v as any),
+                  estado: estadoBase,
+                  estadoVisita: undefined,
+                  recaudadoDelDia: recaudadoNuevo,
+                } as any)
 
             return {
               ...v,
               recaudadoDelDia: recaudadoNuevo,
-              montoCuotaPendiente,
+              montoCuotaPendiente: computeMontoCuotaPendienteDespuesDeRecaudo(
+                v as any,
+                recaudadoNuevo,
+              ),
               estado: nextEstado as any,
               estadoVisita: undefined as any,
               notasVisita: undefined as any,
@@ -3681,6 +3472,12 @@ const VistaCobrador = () => {
 
 
   const handleAbrirClienteInfo = useCallback((visita: VisitaRuta) => {
+    console.log('[VistaCobrador] abrir ClienteInfoModal', {
+      id: visita.id,
+      clienteId: visita.clienteId,
+      prestamoId: visita.prestamoId,
+      cliente: visita.cliente,
+    })
 
     // El cobrador siempre abre el modal de info del cliente (para pagos)
 
@@ -3717,19 +3514,14 @@ const VistaCobrador = () => {
 
       try {
 
-        const resp = await pagosService.obtenerPagos({ clienteId: visitaClienteSeleccionada.clienteId, limit: 100 });
+        const resp = await pagosService.obtenerPagos({
+          prestamoId: visitaClienteSeleccionada.prestamoId,
+          limit: 100,
+        });
 
         let targetDateStr = hoyBogotaKey;
 
-        
-
-        // Si hay una fecha seleccionada en el historial, evaluarla directamente
-
-        if (selectedHistoryDate) {
-
-           targetDateStr = selectedHistoryDate;
-
-        } else if ((visitaClienteSeleccionada as any).fecha || visitaClienteSeleccionada.proximaVisita) {
+        if ((visitaClienteSeleccionada as any).fecha || visitaClienteSeleccionada.proximaVisita) {
 
            const dString = (visitaClienteSeleccionada as any).fecha || visitaClienteSeleccionada.proximaVisita;
 
@@ -4467,7 +4259,7 @@ const VistaCobrador = () => {
 
                          <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-50 rounded-lg border border-blue-500/20">
 
-                             <div className="w-2 h-2 rounded-full bg-blue-500"></div> 
+                             <div className="w-2 h-2 rounded-full bg-blue-500"></div>
 
                              <span>Leve</span>
 
@@ -4475,7 +4267,7 @@ const VistaCobrador = () => {
 
                          <div className="flex items-center gap-1.5 px-2 py-1 bg-yellow-50 rounded-lg border border-yellow-500/20">
 
-                             <div className="w-2 h-2 rounded-full bg-yellow-500"></div> 
+                             <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
 
                              <span>Precaución</span>
 
@@ -4483,7 +4275,7 @@ const VistaCobrador = () => {
 
                          <div className="flex items-center gap-1.5 px-2 py-1 bg-amber-50 rounded-lg border border-amber-500/20">
 
-                             <div className="w-2 h-2 rounded-full bg-amber-500"></div> 
+                             <div className="w-2 h-2 rounded-full bg-amber-500"></div>
 
                              <span>Moderado</span>
 
@@ -4505,527 +4297,44 @@ const VistaCobrador = () => {
 
               </div>
 
-
-
               <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
-                onDragCancel={handleDragCancel}
-              >
-
-                <SortableContext
-
-                  items={visitasOrden}
-
-                  strategy={verticalListSortingStrategy}
-
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragStart={handleDragStart}
+                  onDragEnd={handleDragEnd}
+                  onDragCancel={handleDragCancel}
                 >
+
+                  <SortableContext
+
+                    items={visitasOrden}
+
+                    strategy={verticalListSortingStrategy}
+
+                  >
 
                   <div className="space-y-6">
 
-                    {(() => {
-
-                      if (showHistory) {
-
-                        const historyDates = historialRutas ? Object.keys(historialRutas).sort().reverse() : []; // Newest first
-
-
-
-                        if (historyDates.length === 0) {
-
-                          return (
-
-                            <div className="flex flex-col items-center justify-center py-12 text-slate-400">
-
-                               <History className="h-12 w-12 mb-3 opacity-20" />
-
-                               <p className="text-sm font-bold">Sin historial disponible</p>
-
-                            </div>
-
-                          )
-
+                    {showHistory && (
+                      <RutaHistorialOperativo
+                        rutaId={rutaActual?.id}
+                        cobradorId={rutaActual?.cobradorId || userSession?.id}
+                        actorId={userSession?.id}
+                        actorRol={userSession?.rol}
+                        getVisitasHoy={() =>
+                          visitasRutaHoyKpiRef.current.length > 0
+                            ? visitasRutaHoyKpiRef.current
+                            : visitasBaseRef.current
                         }
-
-
-
-                        return (
-
-                          <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
-
-                             {/* Improved Filter Tabs (Pills) */}
-
-                             <div className="flex items-center gap-2 mb-2">
-
-                               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mr-1">VISTA:</span>
-
-                               <button 
-
-                                 onClick={() => setHistoryViewMode('DAYS')}
-
-                                 className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all border ${
-
-                                    historyViewMode === 'DAYS' 
-
-                                    ? 'bg-slate-900 text-white border-slate-900 shadow-lg shadow-slate-900/20' 
-
-                                    : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:text-slate-700'
-
-                                 }`}
-
-                               >
-
-                                 Días
-
-                               </button>
-
-                               <button 
-
-                                 onClick={() => setHistoryViewMode('MONTHS')}
-
-                                 className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all border ${
-
-                                    historyViewMode === 'MONTHS' 
-
-                                    ? 'bg-slate-900 text-white border-slate-900 shadow-lg shadow-slate-900/20' 
-
-                                    : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:text-slate-700'
-
-                                 }`}
-
-                               >
-
-                                 Meses
-
-                               </button>
-
-                             </div>
-
-
-
-                             {/* MONTHS VIEW: días agrupados por mes con tarjetas de clientes */}
-
-                             {historyViewMode === 'MONTHS' && (() => {
-
-                               const allDates2 = historialRutas ? Object.keys(historialRutas).sort().reverse() : [];
-
-                               const byMonth2: Record<string, string[]> = {};
-
-                               for (const date of allDates2) {
-
-                                 const [y2, mi2] = date.split('-');
-
-                                 const mk = `${y2}-${mi2}`;
-
-                                 if (!byMonth2[mk]) byMonth2[mk] = [];
-
-                                 byMonth2[mk].push(date);
-
-                               }
-
-                               const monthKeys2 = Object.keys(byMonth2).sort().reverse();
-
-                               if (monthKeys2.length === 0) {
-
-                                 return (
-
-                                   <div className="flex flex-col items-center justify-center py-12 text-slate-400">
-
-                                     <History className="h-12 w-12 mb-3 opacity-20" />
-
-                                     <p className="text-sm font-bold">Sin historial disponible</p>
-
-                                   </div>
-
-                                 );
-
-                               }
-
-                               return (
-
-                                 <div className="space-y-4">
-
-                                   {monthKeys2.map(monthKey => {
-
-                                     const [my, mNum] = monthKey.split('-');
-
-                                     const monthObj = new Date(parseInt(my), parseInt(mNum)-1, 1);
-
-                                     const monthName = monthObj.toLocaleDateString('es-CO', { month: 'long', year: 'numeric' });
-
-                                     const daysInMonth = byMonth2[monthKey];
-
-                                    const isMonthExpanded = selectedHistoryMonth === monthKey;
-
-                                    const monthRecaudo = daysInMonth.reduce((sum, d2) => sum + (((historialRutas as any)||{})[d2]?.resumen?.recaudo || 0), 0);
-
-                                    const monthPagados = daysInMonth.reduce((sum, d2) => {
-
-                                      const dd2 = ((historialRutas as any)||{})[d2];
-
-                                      const cobrosFromPagos = Number(dd2?.resumen?.visitados || 0);
-
-                                      if (cobrosFromPagos > 0) return sum + cobrosFromPagos;
-
-                                      return sum + (dd2?.visitas?.filter((v: any) => v.estado === 'pagado')?.length || 0);
-
-                                    }, 0);
-
-                                    return (
-
-                                      <div key={monthKey} className={`rounded-2xl border transition-all overflow-hidden bg-white border-slate-200 ${isMonthExpanded ? 'ring-1 ring-slate-300 shadow-md' : 'shadow-sm'}`}>
-
-                                        <div className="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => setSelectedHistoryMonth(isMonthExpanded ? null : monthKey)}>
-
-                                          <div className="flex items-center gap-3">
-
-                                             <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs shadow-sm ${isMonthExpanded ? 'bg-[#08557f] text-white' : 'bg-slate-100 text-slate-600'}`}>{mNum}</div>
-
-                                             <div>
-
-                                               <div className="font-bold text-slate-900 capitalize">{monthName}</div>
-
-                                               <div className="text-xs text-slate-500">{daysInMonth.length} días · Recaudo: <b>${formatMilesCOP(monthRecaudo)}</b></div>
-
-                                             </div>
-
-                                          </div>
-
-                                          <div className="flex items-center gap-3">
-
-                                           </div>
-
-                                           <div className="flex items-center gap-3">
-
-                                             <div className="px-2 py-1 rounded-lg text-[10px] font-bold bg-blue-50 text-blue-700">{monthPagados} cobros</div>
-
-                                             <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isMonthExpanded ? 'rotate-180' : ''}`} />
-
-                                           </div>
-
-                                         </div>
-
-                                         {isMonthExpanded && (
-
-                                           <div className="border-t border-slate-100">
-
-                                             {daysInMonth.map(date => {
-
-                                               const dayData = ((historialRutas as any)||{})[date];
-
-                                               const isDayExpanded = selectedHistoryDate === date;
-
-                                               const [dy, dm, dd] = date.split('-');
-
-                                               const dateObj2 = new Date(parseInt(dy), parseInt(dm)-1, parseInt(dd));
-
-                                               const dayNameStr = dateObj2.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric' });
-
-                                               return (
-
-                                                 <div key={date} className={`border-b border-slate-50 last:border-0 transition-all ${isDayExpanded ? 'bg-slate-50/40' : ''}`}>
-
-                                                   <div className="px-5 py-3 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => {
-
-                                                     setSelectedHistoryDate(isDayExpanded ? null : date)
-
-                                                     if (!isDayExpanded && !dayData.loaded) { void cargarHistorialFecha(date) }
-
-                                                   }}>
-
-                                                     <div className="flex items-center gap-3">
-
-                                                       <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-[11px] ${isDayExpanded ? 'bg-[#08557f] text-white' : 'bg-white border border-slate-200 text-slate-600'}`}>{dd}</div>
-
-                                                       <div>
-
-                                                         <span className="text-sm font-semibold text-slate-700 capitalize">{dayNameStr}</span>
-
-                                                         <div className="text-[11px] text-slate-400">Recaudo: <b>${formatMilesCOP((dayData?.resumen?.recaudo || 0) as any)}</b>{dayData?.loaded && dayData.visitas.length > 0 && <span className="ml-2">· {dayData.visitas.length} clientes</span>}</div>
-
-                                                       </div>
-
-                                                     </div>
-
-                                                     <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isDayExpanded ? 'rotate-180' : ''}`} />
-
-                                                   </div>
-
-                                                   {isDayExpanded && (
-
-                                                     <div className="px-4 pb-4 space-y-2 animate-in slide-in-from-top-1 duration-150">
-
-                                                       {!dayData.loaded ? (
-
-                                                         <div className="flex flex-col items-center justify-center py-6 text-slate-400">
-
-                                                           <div className="w-5 h-5 border-2 border-slate-300 border-t-[#08557f] rounded-full animate-spin mb-2" />
-
-                                                           <span className="text-xs font-medium">Cargando clientes...</span>
-
-                                                         </div>
-
-                                                       ) : dayData.visitas.filter((v: any) => {
-
-                                                           const isSaldado = String(v.estado || '').toLowerCase() === 'pagado' && Number(v.saldoTotal || 0) <= 0;
-
-                                                           return !(isSaldado && !hasGestionHistorial(v));
-
-                                                         }).length === 0 ? (
-
-                                                         <div className="text-center py-6 text-[11px] text-slate-400 font-medium">Sin cobros registrados para este día</div>
-
-                                                       ) : (
-
-                                                         dayData.visitas.filter((v: any) => {
-
-                                                             const isSaldado = String(v.estado || '').toLowerCase() === 'pagado' && Number(v.saldoTotal || 0) <= 0;
-
-                                                             return !(isSaldado && !hasGestionHistorial(v));
-
-                                                           }).map((visita: VisitaRuta) => (
-
-                                                           <StaticVisitaItem key={visita.id} visita={visita} onSelect={() => {}} onVerCliente={handleAbrirClienteInfo} getEstadoClasses={getEstadoClasses} />
-
-                                                         ))
-
-                                                       )}
-
-                                                     </div>
-
-                                                   )}
-
-                                                 </div>
-
-                                               );
-
-                                             })}
-
-                                           </div>
-
-                                         )}
-
-                                       </div>
-
-                                     );
-
-                                   })}
-
-                                 </div>
-
-                               );
-
-                             })()}
-
-
-
-                             {/* Daily Routes List (Only in DAYS mode) */}
-
-                             {historyViewMode === 'DAYS' && (
-
-                                <div className="space-y-3">
-
-                                    <h3 className="text-sm font-bold text-slate-500 uppercase px-1">Historial de Días</h3>
-
-                                    {historyDates.map(date => {
-
-                                       const data = (historialRutas as Record<string, HistorialDia>)[date]
-
-                                       const isExpanded = selectedHistoryDate === date
-
-                                       const [y, m, d] = date.split('-')
-
-                                       const dateObj = new Date(parseInt(y), parseInt(m)-1, parseInt(d))
-
-                                       const dayName = dateObj.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })
-
-                                       
-
-                                       const jornadaEtiqueta = (data.resumen as any).jornadaEtiqueta;
-                                       const jornadaEtiquetaColor = (data.resumen as any).jornadaEtiquetaColor || 'bg-slate-100 text-slate-700 border-slate-200';
-
-
-
-                                       return (
-
-                                         <div key={date} 
-
-                                              className={`rounded-2xl border transition-all overflow-hidden bg-white border-slate-200
-
-                                                ${isExpanded ? 'ring-1 ring-slate-300 shadow-md' : 'shadow-sm'}
-
-                                              `}
-
-                                         >
-
-                                           {/* Header (Clickable) */}
-
-                                           <div 
-
-                                              className="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
-
-                                             onClick={() => {
-
-                                               setSelectedHistoryDate(isExpanded ? null : date)
-
-                                               if (!isExpanded && (!data.loaded)) {
-
-                                                 void cargarHistorialFecha(date)
-
-                                               }
-
-                                             }}
-
-                                           >
-
-                                             <div className="flex items-center gap-3">
-
-                                                {/* Date Badge */}
-
-                                                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs shadow-sm
-
-                                                    ${isExpanded ? 'bg-[#08557f] text-white' : 'bg-slate-100 text-slate-600'}
-
-                                                `}>
-
-                                                   {d}
-
-                                                </div>
-
-                                                
-
-                                                <div>
-
-                                                   <div className="font-bold text-slate-900 capitalize flex items-center gap-2">
-
-                                                      {dayName}
-
-                                                      {jornadaEtiqueta && <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase border ${jornadaEtiquetaColor}`}>{jornadaEtiqueta}</span>}
-
-                                                   </div>
-
-                                                   <div className="text-xs text-slate-500">
-
-                                                      Recaudo: <b>${formatMilesCOP(data.resumen.recaudo)}</b>
-
-                                                    </div>
-
-                                                 </div>
-
-                                              </div>
-
-                                              <div className="flex items-center gap-3">
-
-                                                 <div className={`px-2 py-1 rounded-lg text-[10px] font-bold ${data.resumen.efectividad >= 90 ? 'bg-emerald-50 text-emerald-700' : 'bg-orange-50 text-orange-700'}`}>
-
-                                                   {data.resumen.efectividad}%
-
-                                                 </div>
-
-                                                 <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-
-                                              </div>
-
-                                            </div>
-
-
-
-                                             {/* Body (Expanded) */}
-
-                                             {isExpanded && (
-
-                                                <div className="border-t border-slate-100 bg-white p-4 space-y-3 animate-in slide-in-from-top-2 duration-200">
-
-                                                   <div className="flex justify-between text-xs font-bold text-slate-500 uppercase px-1">
-
-                                                      <span>{data.resumen.visitados} Clientes Gestionados</span>
-
-                                                      <span>Estado</span>
-
-                                                    </div>
-
-                                                   <div>
-
-                                                      {!(data as any).loaded ? (
-                                                        <div className="flex flex-col items-center justify-center py-8 text-slate-400">
-
-                                                          <div className="w-6 h-6 border-2 border-slate-300 border-t-[#08557f] rounded-full animate-spin mb-2" />
-
-                                                          <span className="text-xs font-medium">Cargando detalles...</span>
-
-                                                        </div>
-
-                                                      ) : data.visitas.filter((v: any) => {
-
-                                                           const isSaldado = String(v.estado || '').toLowerCase() === 'pagado' && Number(v.saldoTotal || 0) <= 0;
-
-                                                           return !(isSaldado && !hasGestionHistorial(v));
-
-                                                         }).length === 0 ? (
-
-                                                        <div className="flex flex-col items-center justify-center py-10 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-
-                                                          <History className="w-8 h-8 text-slate-300 mb-2 opacity-30" />
-
-                                                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center px-4">No se registraron visitas ni pagos para este día</span>
-
-                                                        </div>
-
-                                                      ) : (
-
-                                                        data.visitas.filter((v: any) => {
-
-                                                           const isSaldado = String(v.estado || '').toLowerCase() === 'pagado' && Number(v.saldoTotal || 0) <= 0;
-
-                                                           return !(isSaldado && !hasGestionHistorial(v));
-
-                                                         }).map((visita: VisitaRuta) => (
-
-                                                          <StaticVisitaItem
-
-                                                            key={visita.id}
-
-                                                            visita={visita}
-
-                                                            onSelect={() => {}}
-
-                                                            onVerCliente={handleAbrirClienteInfo}
-
-                                                            getEstadoClasses={getEstadoClasses}
-
-                                                          />
-
-                                                        ))
-
-                                                      )}
-
-                                                   </div>
-
-                                                </div>
-
-                                             )}
-
-                                          </div>
-
-                                        )
-
-                                     })}
-
-                                 </div>
-
-                              )}
-
-                           </div>
-
-                         )
-
-                      }
-
-
-
-                      if (showMisClientes) {
+                        onVerCliente={handleAbrirClienteInfo}
+                        getEstadoClasses={getEstadoClasses}
+                      />
+                    )}
+
+                  </div>
+
+                  {(() => {
+                    if (!showMisClientes) return null;
 
                         if (loadingMisCreditos) {
 
@@ -5043,16 +4352,12 @@ const VistaCobrador = () => {
 
                         }
 
-
-
                         const filtradas = misCreditos.filter((v) =>
                           (
                             v.cliente.toLowerCase().includes(searchQuery.toLowerCase()) ||
                             v.direccion.toLowerCase().includes(searchQuery.toLowerCase())
                           ),
                         )
-
-
 
                         if (filtradas.length === 0) {
 
@@ -5070,8 +4375,6 @@ const VistaCobrador = () => {
 
                         }
 
-
-
                         return (
 
                           <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
@@ -5084,9 +4387,7 @@ const VistaCobrador = () => {
 
                                 visita={visita}
 
-                                onSelect={() => {}}
-
-                                onVerCliente={handleAbrirClienteInfo}
+                                allowClick={false}
 
                                 getEstadoClasses={getEstadoClasses}
 
@@ -5100,45 +4401,13 @@ const VistaCobrador = () => {
 
                                         e.stopPropagation();
 
-                                        if (!rutaOperable) return
-
-                                        setVisitaPagoSeleccionada(visita);
-
-                                        setPagoInitialIsAbono(true);
-
-                                        setShowPaymentModal(true);
-
-                                      }}
-
-                                      disabled={!rutaOperable}
-
-                                      className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all active:scale-95 text-[11px] font-bold ${!rutaOperable ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed' : 'bg-emerald-600 text-white hover:bg-emerald-700'}`}
-
-                                    >
-
-                                      <Wallet className="h-3.5 w-3.5" />
-
-                                      Abono
-
-                                    </button>
-
-                                    <button
-
-                                      onClick={(e) => {
-
-                                        e.stopPropagation();
-
-                                        if (!rutaOperable) return
-
                                         setVisitaEstadoCuentaSeleccionada(visita);
 
                                         setShowEstadoCuentaModal(true);
 
                                       }}
 
-                                      disabled={!rutaOperable}
-
-                                      className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all active:scale-95 text-[11px] font-bold ${!rutaOperable ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}`}
+                                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all active:scale-95 text-[11px] font-bold bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
 
                                     >
 
@@ -5146,34 +4415,6 @@ const VistaCobrador = () => {
 
                                       Estado
 
-                                    </button>
-
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleAbrirClienteInfo(visita);
-                                      }}
-                                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-all font-bold text-[11px] shadow-sm"
-                                      title="Ver expediente"
-                                    >
-                                      <Eye className="h-3.5 w-3.5" />
-                                    </button>
-
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        const cliente: Cliente = {
-                                          id: visita.clienteId,
-                                          nombres: visita.cliente.split(' ')[0] || '',
-                                          apellidos: visita.cliente.split(' ').slice(1).join(' ') || '',
-                                        } as any;
-                                        setClientToDelete(cliente);
-                                        setShowDeleteClientModal(true);
-                                      }}
-                                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-rose-600 hover:bg-rose-50 transition-all font-bold text-[11px] shadow-sm"
-                                      title="Eliminar cliente"
-                                    >
-                                      <Trash2 className="h-3.5 w-3.5" />
                                     </button>
 
                                   </>
@@ -5188,67 +4429,53 @@ const VistaCobrador = () => {
 
                         )
 
-                      }
+                      })()}
 
+                      {(() => {
+                        const isTodayOrMora = (dateStr: string) => {
+                          if (!dateStr) return true;
+                          return isTodayOrPastBogota(dateStr);
+                        };
 
+                        const filterByDate = (v: any) =>
+                          searchQuery ||
+                          isVisitaExigibleHoy(v, hoyBogotaKey);
 
-                      const isTodayOrMora = (dateStr: string) => {
-                        if (!dateStr) return true;
-                        return isTodayOrPastBogota(dateStr);
-                      };
+                        const porPeriodo = {
+                          DIA: visitasCobrador.filter(v => v.periodoRuta === 'DIA' && filterByDate(v)),
+                          SEMANA: visitasCobrador.filter(v => v.periodoRuta === 'SEMANA' && filterByDate(v)),
+                          QUINCENA: visitasCobrador.filter(v => v.periodoRuta === 'QUINCENA' && filterByDate(v)),
+                          MES: visitasCobrador.filter(v => v.periodoRuta === 'MES' && filterByDate(v)),
+                        }
 
-                      const filterByDate = (v: any) =>
-                        searchQuery ||
-                        isVisitaExigibleHoy(v, hoyBogotaKey);
+                        const renderSeccion = (key: string, titulo: string, visitas: VisitaRuta[]) => {
 
-                      const porPeriodo = {
-                        DIA: visitasCobrador.filter(v => v.periodoRuta === 'DIA' && filterByDate(v)),
-                        SEMANA: visitasCobrador.filter(v => v.periodoRuta === 'SEMANA' && filterByDate(v)),
-                        QUINCENA: visitasCobrador.filter(v => v.periodoRuta === 'QUINCENA' && filterByDate(v)),
-                        MES: visitasCobrador.filter(v => v.periodoRuta === 'MES' && filterByDate(v)),
-                      }
+                          if (visitas.length === 0) return null;
 
+                          const visitasOrdenadas = (() => {
+                            if (key !== 'DIA') return visitas
+                            if (!Array.isArray(visitasOrden) || visitasOrden.length === 0) return visitas
 
+                            return ordenarVisitasRutaActual(visitas)
+                          })()
 
-                      const renderSeccion = (key: string, titulo: string, visitas: VisitaRuta[]) => {
+                          const estaColapsado = !!gruposColapsados[key];
 
-                        if (visitas.length === 0) return null;
+                          return (
 
-                        const visitasOrdenadas = (() => {
-                          if (key !== 'DIA') return visitas
-                          if (!Array.isArray(visitasOrden) || visitasOrden.length === 0) return visitas
+                          <div className="space-y-4">
 
-                          return [...visitas].sort((a, b) => {
-                            // En mora primero (incluso dentro del orden manual del día)
-                            if (a.estado === 'en_mora' && b.estado !== 'en_mora') return -1
-                            if (a.estado !== 'en_mora' && b.estado === 'en_mora') return 1
+                            <button
 
-                            const ai = visitasOrdenIndex.get(a.id)
-                            const bi = visitasOrdenIndex.get(b.id)
-                            if (typeof ai === 'number' && typeof bi === 'number') return ai - bi
-                            if (typeof ai === 'number') return -1
-                            if (typeof bi === 'number') return 1
-                            return (a.ordenVisita || 0) - (b.ordenVisita || 0)
-                          })
-                        })()
+                              type="button"
 
-                        const estaColapsado = !!gruposColapsados[key];
+                              onClick={() => toggleGrupo(key)}
 
-                        return (
+                              className="w-full flex items-center gap-4 group"
 
-                        <div className="space-y-4">
+                            >
 
-                          <button
-
-                            type="button"
-
-                            onClick={() => toggleGrupo(key)}
-
-                            className="w-full flex items-center gap-4 group"
-
-                          >
-
-                            <div className="h-px flex-1 bg-slate-200"></div>
+                              <div className="h-px flex-1 bg-slate-200"></div>
 
                             <span className="flex items-center gap-2 text-[11px] font-black text-[#08557f] uppercase tracking-[0.25em] bg-blue-50/50 px-4 py-1.5 rounded-full border border-blue-100 shadow-sm whitespace-nowrap select-none group-hover:bg-blue-100/60 transition-colors">
 
@@ -5268,17 +4495,15 @@ const VistaCobrador = () => {
 
                             <div className="space-y-3">
 
-                              {visitasOrdenadas.map((visita) => (
-
+                              {visitasOrdenadas.map((visita: any, index: number) => (
                                 <SortableVisita
-                                  key={visita.id}
+                                  key={visita.id || visita.prestamoId || visita.cuotaId || index}
                                   visita={visita}
                                   onSelect={(id) => setVisitaSeleccionada(id === visitaSeleccionada ? null : id)}
                                   onVerCliente={handleAbrirClienteInfo}
                                   getEstadoClasses={getEstadoClasses}
-                                  disableSort={key !== 'DIA' || !rutaOperable}
+                                  disableSort={!modoOrdenarRuta}
                                   isSelected={visita.id === visitaSeleccionada}
-
                                   actions={
 
                                     <>
@@ -5422,9 +4647,7 @@ const VistaCobrador = () => {
                                     </>
 
                                   }
-
                                 />
-
                               ))}
 
                             </div>
@@ -5437,8 +4660,6 @@ const VistaCobrador = () => {
 
                       }
 
-
-
                       if (periodoRutaFiltro === 'DIA') return renderSeccion('DIA', 'Ruta del día', porPeriodo.DIA)
 
                       if (periodoRutaFiltro === 'SEMANA') return renderSeccion('SEMANA', 'Ruta de la semana', porPeriodo.SEMANA)
@@ -5446,8 +4667,6 @@ const VistaCobrador = () => {
                       if (periodoRutaFiltro === 'QUINCENA') return renderSeccion('QUINCENA', 'Ruta quincenal', porPeriodo.QUINCENA)
 
                       if (periodoRutaFiltro === 'MES') return renderSeccion('MES', 'Ruta del mes', porPeriodo.MES)
-
-
 
                       return (
 
@@ -5467,11 +4686,7 @@ const VistaCobrador = () => {
 
                     })()}
 
-                  </div>
-
                 </SortableContext>
-
-                
 
                 <DragOverlay>
 
@@ -5540,17 +4755,17 @@ const VistaCobrador = () => {
 
         <FloatingActionMenu actions={[
 
-          { label: 'Crear Crédito', icon: <CreditCard className="h-5 w-5" />, onClick: () => { setShowCreditModal(true); } },
+          { label: 'Crear Crédito', icon: <CreditCard className="h-5 w-5" />, onClick: () => { if (!rutaOperable) return; setShowCreditModal(true); } },
 
-          { label: 'Nuevo Cliente', icon: <UserPlus className="h-5 w-5" />, onClick: () => { setShowNewClientModal(true); } },
+          { label: 'Nuevo Cliente', icon: <UserPlus className="h-5 w-5" />, onClick: () => { if (!rutaOperable) return; setShowNewClientModal(true); } },
 
-          { label: 'Registrar abono', icon: <RefreshCw className="h-5 w-5" />, color: 'orange', onClick: () => { setAccionPendiente('ABONO'); setShowClientSelector(true); } },
+          { label: 'Registrar abono', icon: <RefreshCw className="h-5 w-5" />, color: 'orange', onClick: () => { if (!rutaOperable) return; setAccionPendiente('ABONO'); setShowClientSelector(true); } },
 
-          { label: 'Registrar pago', icon: <DollarSign className="h-5 w-5" />, onClick: () => { setAccionPendiente('PAGO'); setShowClientSelector(true); } },
+          { label: 'Registrar pago', icon: <DollarSign className="h-5 w-5" />, onClick: () => { if (!rutaOperable) return; setAccionPendiente('PAGO'); setShowClientSelector(true); } },
 
-          { label: 'Pedir Base', icon: <Wallet className="h-5 w-5" />, color: 'emerald', onClick: () => { setShowBaseModal(true); } },
+          { label: 'Pedir Base', icon: <Wallet className="h-5 w-5" />, color: 'emerald', onClick: () => { if (!rutaOperable) return; setShowBaseModal(true); } },
 
-          { label: 'Gastos', icon: <ReceiptText className="h-5 w-5" />, color: 'rose', onClick: () => { setShowGastoModal(true); } },
+          { label: 'Gastos', icon: <ReceiptText className="h-5 w-5" />, color: 'rose', onClick: () => { if (!rutaOperable) return; setShowGastoModal(true); } },
 
         ] as FabAction[]} />
 
@@ -5924,21 +5139,37 @@ const VistaCobrador = () => {
 
                 const saldo = await obtenerSaldoDisponibleRuta(rutaActual.id, hoyClave);
 
+                console.log('[GASTO][SALDO DESPUÉS DE REGISTRAR]', saldo)
+
+                const saldoCajaBackend = Number(
+                  (saldo as any)?.saldoCaja ??
+                  (saldo as any)?.baseEfectivo ??
+                  (saldo as any)?.saldoDisponible ??
+                  (saldo as any)?.saldo ??
+                  NaN
+                )
+
                 setRutaStats(prev => ({
-
                   ...prev,
-
-                  gastos: Number(saldo.gastosDelDia || prev.gastos)
-
-                }));
+                  gastos: Number(saldo?.gastosDelDia ?? prev.gastos ?? 0),
+                  gastosProvisionales: Number((saldo as any)?.egresosProvisionales ?? prev.gastosProvisionales ?? 0),
+                  base: Number.isFinite(saldoCajaBackend)
+                    ? saldoCajaBackend
+                    : Math.max(0, Number(prev.base || 0) - Number(data.valor || 0)),
+                }))
 
               } catch {
 
                 // Fallback local si el endpoint falla
 
-                setRutaStats(prev => ({ ...prev, gastos: prev.gastos + data.valor }))
+                setRutaStats(prev => ({
+                  ...prev,
+                  base: Math.max(0, Number(prev.base || 0) - Number(data.valor || 0)),
+                }))
 
               }
+
+              await cargarDatosRuta(true)
 
               setModalAlerta({
                 titulo: 'Éxito',
@@ -6063,7 +5294,6 @@ const VistaCobrador = () => {
             nota: String(v?.notasVisita || '').trim(),
           }))
           const totalProgramadosHoy = visitasCierreHoy.length
-          const totalOperativosHoy = visitasOperativasCierre.length
           const clientesCobradosHoy = visitasOperativasCierre.filter((v: any) => {
             const estado = String(v?.estado || '').toLowerCase()
             return estado === 'pagado' || Number(v?.recaudadoDelDia || 0) > 0
@@ -6072,190 +5302,40 @@ const VistaCobrador = () => {
           const recaudoV = Number((rutaStatsUI as any)?.recaudo || 0)
           const porcentaje = Number((rutaStatsUI as any)?.eficiencia || 0)
 
-          const alCien = porcentaje >= 100;
-
           const saldoDisponibleV = Number((rutaStatsUI as any)?.base || 0)
           const gastosDiaV = Number((rutaStatsUI as any)?.gastos || 0)
           const pendienteCobroV = Math.max(0, metaV - recaudoV)
           const recaudoNetoV = Math.max(0, recaudoV - gastosDiaV)
-          const descuadre = saldoDisponibleV > 0 || clientesFaltantesHoy > 0 || clientesAusentesHoy > 0;
-
-          // Todos pendientes = ningún cliente de la ruta fue cobrado
-
-          const todosPendientes = clientesFaltantesHoy > 0 && clientesFaltantesHoy === totalOperativosHoy;
 
           return (
-
-          <Portal>
-
-            <div
-              className="fixed inset-0 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
-              style={{ zIndex: MODAL_Z_INDEX }}
-              onClick={() => { setShowConfirmCompleteModal(false); setShowDoubleConfirmComplete(false); }}
-            >
-             <div 
-               className="bg-white rounded-3xl p-6 shadow-2xl w-full max-w-md border border-slate-100 animate-in zoom-in-95 duration-200"
-               onClick={(e) => e.stopPropagation()}
-             >
-                <div className="flex flex-col items-center text-center gap-4">
-                    {!showDoubleConfirmComplete ? (
-                      <>
-                        <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-2 border ${alCien ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-orange-50 text-orange-500 border-orange-100'}`}>
-                           {alCien ? <CheckCircle2 className="h-8 w-8" /> : <AlertTriangle className="h-8 w-8" />}
-                        </div>
-
-                        <div>
-                          <h3 className="text-xl font-black text-slate-900 tracking-tight mb-2">¿Finalizar Ruta del Día?</h3>
-                          <p className="text-slate-500 text-sm font-medium leading-relaxed">
-                             Al marcar la ruta como completada se reportará tu rendimiento a la oficina.
-                          </p>
-                        </div>
-
-                        {descuadre && (
-                          <div className="w-full flex items-start gap-2 p-3 bg-red-50 border border-red-100 rounded-2xl text-left">
-                            <XCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
-                            <div>
-                              <p className="text-xs font-black text-red-700 uppercase tracking-wide">Dinero sin entregar</p>
-                              <p className="text-[11px] text-red-600 font-medium mt-0.5">
-                                La caja de esta ruta conserva <span className="font-black">{formatCurrency(saldoDisponibleV)}</span>. Confirma que este valor ya fue recolectado o quedará soportado al cerrar.
-                              </p>
-                            </div>
-                          </div>
-                        )}
-
-                        {clientesFaltantesHoy > 0 && (
-                          <div className={`w-full flex items-start gap-2 p-3 rounded-2xl text-left border ${todosPendientes ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-100'}`}>
-                            {todosPendientes
-                              ? <XCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
-                              : <Info className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />}
-                            <p className={`text-[11px] font-bold ${todosPendientes ? 'text-red-700' : 'text-amber-700'}`}>
-                              {todosPendientes
-                                ? <><span className="text-red-900 text-sm font-black">Ningún</span> cliente fue cobrado hoy. Sin recaudo en la jornada.</>  
-                                : <>Faltaron <span className="text-amber-900 text-sm font-black">{clientesFaltantesHoy}</span> cliente{clientesFaltantesHoy > 1 ? 's' : ''} por cobrar hoy.</>}
-                            </p>
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <>
-                        <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-2 border border-red-200 animate-pulse">
-                           <ShieldAlert className="h-8 w-8 text-red-600" />
-                        </div>
-
-                        <div>
-                          <h3 className="text-xl font-black text-red-900 tracking-tight mb-2">¡Doble Confirmación!</h3>
-                          <p className="text-red-700 text-sm font-bold leading-relaxed px-2">
-                             Vas a cerrar con {clientesFaltantesHoy} pendiente{clientesFaltantesHoy === 1 ? '' : 's'}, {clientesAusentesHoy} ausente{clientesAusentesHoy === 1 ? '' : 's'} y {formatCurrency(saldoDisponibleV)} en caja.
-                          </p>
-                          <p className="mt-3 text-slate-500 text-[11px] font-medium leading-relaxed px-4">
-                             Esta acción reportará la jornada a oficina con estos valores. Revisa antes de confirmar definitivamente.
-                          </p>
-                        </div>
-                      </>
-                    )}
-
-                   <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 text-left grid grid-cols-2 gap-y-4 gap-x-3 w-full">
-                      <div>
-                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Saldo caja ruta</p>
-                        <p className="text-sm font-black text-blue-600">{formatCurrency((rutaStatsUI as any)?.base || 0)}</p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Recaudado Hoy</p>
-                        <p className={`text-sm font-black ${alCien ? 'text-emerald-600' : 'text-orange-600'}`}>{formatCurrency(recaudoV)}</p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Gastos del Día</p>
-                        <p className="text-sm font-black text-rose-600">{formatCurrency(gastosDiaV)}</p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Meta Cobro</p>
-                        <p className="text-sm font-black text-slate-900">{formatCurrency(metaV)}</p>
-                      </div>
-
-                      <div>
-                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Programados</p>
-                        <p className="text-sm font-black text-slate-900">{totalProgramadosHoy}</p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Cobrados</p>
-                        <p className="text-sm font-black text-emerald-600">{clientesCobradosHoy}</p>
-                      </div>
-                      {descuadre && (
-                        <div className="col-span-2 p-3 bg-red-50 rounded-xl border border-red-100">
-                          <p className="text-[10px] text-red-500 font-bold uppercase tracking-widest">Saldo en caja al cierre</p>
-                          <p className="text-lg font-black text-red-600">{formatCurrency(saldoDisponibleV)}</p>
-                        </div>
-                      )}
-
-                      <div>
-                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Pendiente $</p>
-                        <p className="text-sm font-black text-amber-600">{formatCurrency(pendienteCobroV)}</p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Recaudo Neto</p>
-                        <p className="text-sm font-black text-emerald-600">{formatCurrency(recaudoNetoV)}</p>
-                      </div>
-
-                      <div className="col-span-2 flex justify-between items-center border-t border-slate-200 pt-3">
-                        <div>
-                           <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Efectividad</p>
-                           <p className={`text-sm font-black ${alCien ? 'text-emerald-600' : 'text-orange-600'}`}>{porcentaje}%</p>
-                        </div>
-                        <div className="text-right">
-                           <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Pendientes</p>
-                           <p className={`text-sm font-black ${clientesFaltantesHoy > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
-                             {clientesFaltantesHoy === 0 ? 'Ninguno' : `${clientesFaltantesHoy} clientes`}
-                           </p>
-                        </div>
-                        <div className="text-right">
-                           <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Ausentes</p>
-                           <p className="text-sm font-black text-slate-500">
-                             {clientesAusentesHoy === 0 ? 'Ninguno' : `${clientesAusentesHoy} cliente${clientesAusentesHoy > 1 ? 's' : ''}`}
-                           </p>
-                        </div>
-                      </div>
-                   </div>
-                   {ausentesConNotaCierre.length > 0 && (
-                     <div className="w-full text-left rounded-2xl border border-amber-200 bg-amber-50 p-3 space-y-2">
-                       <p className="text-[10px] font-black text-amber-700 uppercase tracking-widest">Ausentes con justificación</p>
-                       <div className="space-y-2 max-h-32 overflow-y-auto pr-1">
-                         {ausentesConNotaCierre.map((item, idx) => (
-                           <div key={`${item.nombre}-${idx}`} className="text-[11px] leading-snug">
-                             <p className="font-black text-amber-900">{item.nombre}</p>
-                             <p className="font-medium text-amber-800 whitespace-pre-wrap break-words">{item.nota || 'Sin justificación registrada.'}</p>
-                           </div>
-                         ))}
-                       </div>
-                     </div>
-                   )}
-
-                   <div className="flex gap-3 w-full mt-2">
-                      <button
-                        onClick={() => { setShowConfirmCompleteModal(false); setShowDoubleConfirmComplete(false); }}
-                        className="flex-1 py-3.5 text-slate-600 font-bold bg-slate-50 hover:bg-slate-100 rounded-2xl transition-all active:scale-95 border border-slate-200"
-                      >
-                        Cancelar
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          if (descuadre && !showDoubleConfirmComplete) {
-                            setShowDoubleConfirmComplete(true)
-                          } else {
-                            confirmarFinalizarRuta()
-                            setShowDoubleConfirmComplete(false)
-                          }
-                        }}
-                        className={`flex-1 py-3.5 text-white font-bold rounded-2xl transition-all shadow-xl active:scale-95 ${showDoubleConfirmComplete ? 'bg-red-600 hover:bg-red-700 shadow-red-600/20' : 'bg-slate-900 hover:bg-slate-800 shadow-slate-900/20'}`}
-                      >
-                        {showDoubleConfirmComplete ? 'Sí, Finalizar' : 'Confirmar'}
-                      </button>
-                   </div>
-                </div>
-             </div>
-          </div>
-          </Portal>
-        );
+            <FinalizarRutaModal
+              open={showConfirmCompleteModal}
+              doubleConfirm={showDoubleConfirmComplete}
+              resumen={{
+                saldoCajaRuta: saldoDisponibleV,
+                recaudadoHoy: recaudoV,
+                gastosDia: gastosDiaV,
+                metaCobro: metaV,
+                programados: totalProgramadosHoy,
+                cobrados: clientesCobradosHoy,
+                pendientes: clientesFaltantesHoy,
+                ausentes: clientesAusentesHoy,
+                efectividad: porcentaje,
+                pendienteCobro: pendienteCobroV,
+                recaudoNeto: recaudoNetoV,
+                ausentesConNota: ausentesConNotaCierre,
+              }}
+              onClose={() => {
+                setShowConfirmCompleteModal(false)
+                setShowDoubleConfirmComplete(false)
+              }}
+              onRequestDoubleConfirm={() => setShowDoubleConfirmComplete(true)}
+              onConfirm={() => {
+                confirmarFinalizarRuta()
+                setShowDoubleConfirmComplete(false)
+              }}
+            />
+          )
       })()}
 
 
@@ -6292,7 +5372,7 @@ const VistaCobrador = () => {
           detalle={detalle}
           loading={loadingDetalleCierre}
           onVerEstadoCuenta={(cliente, contextoRegularizacion) => {
-            const visita = visitasBase.find((v: any) => v.clienteId === cliente.clienteId)
+            const visita = resolveVisitaBaseRegularizacion(cliente, visitasBase)
             if (!visita) {
               toast.error('No se encontró la visita del cliente.')
               return
@@ -6306,7 +5386,7 @@ const VistaCobrador = () => {
             }, 80)
           }}
           onRegistrarPago={(cliente, contextoRegularizacion) => {
-            const visitaBase = visitasBase.find((v: any) => v.clienteId === cliente.clienteId)
+            const visitaBase = resolveVisitaBaseRegularizacion(cliente, visitasBase)
             if (!visitaBase) {
               toast.error('No se encontró la visita del cliente.')
               return
@@ -6334,7 +5414,7 @@ const VistaCobrador = () => {
             }, 80)
           }}
           onRegistrarAbono={(cliente, contextoRegularizacion) => {
-            const visitaBase = visitasBase.find((v: any) => v.clienteId === cliente.clienteId)
+            const visitaBase = resolveVisitaBaseRegularizacion(cliente, visitasBase)
             if (!visitaBase) {
               toast.error('No se encontró la visita del cliente.')
               return
@@ -6362,7 +5442,7 @@ const VistaCobrador = () => {
             }, 80)
           }}
           onMarcarAusente={(cliente, contextoRegularizacion) => {
-            const visita = visitasBase.find((v: any) => v.clienteId === cliente.clienteId)
+            const visita = resolveVisitaBaseRegularizacion(cliente, visitasBase)
             if (!visita) {
               toast.error('No se encontró la visita del cliente.')
               return
@@ -6376,7 +5456,7 @@ const VistaCobrador = () => {
             }, 80)
           }}
           onReprogramar={(cliente, contextoRegularizacion) => {
-            const visitaBase = visitasBase.find((v: any) => v.clienteId === cliente.clienteId)
+            const visitaBase = resolveVisitaBaseRegularizacion(cliente, visitasBase)
             if (!visitaBase) {
               toast.error('No se encontró la visita del cliente.')
               return

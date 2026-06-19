@@ -6,7 +6,7 @@ export interface Notificacion {
   id: string;
   titulo: string;
   mensaje: string;
-  tipo: 'PAGO' | 'CLIENTE' | 'MORA' | 'SISTEMA' | 'PRESTAMO' | 'GASTO' | 'SOLICITUD_DINERO' | 'SOLICITUD' | 'APROBACION';
+  tipo: 'PAGO' | 'CLIENTE' | 'MORA' | 'SISTEMA' | 'PRESTAMO' | 'GASTO' | 'SOLICITUD_DINERO' | 'SOLICITUD' | 'APROBACION' | 'ALERTA_CLIENTE_NO_UBICADO';
   fecha: string;
   leida: boolean;
   link?: string;

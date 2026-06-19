@@ -282,7 +282,7 @@ export default function DashboardPage() {
           {
             title: `Cartera en Mora`,
             value: moraMonto,
-            subValue: `${moraPercent}% del capital · ${moraCount} cuentas en mora`,
+            subValue: `${moraCount} cuentas · ${moraPercent}% del capital`,
             isCurrency: true,
             change: null, // La mora es un estado actual, no tiene variación vs período anterior
             icon: <AlertCircle className="h-4 w-4" />,
@@ -363,11 +363,22 @@ export default function DashboardPage() {
           metaOperativaTotal = 0
         }
 
-        const chartData = (dashboard?.trend || []).map((t) => ({
-          label: t.label,
-          value: t.value,
-          target: metaOperativaTotal > 0 ? metaOperativaTotal : t.target,
-        }));
+        const chartData = (dashboard?.trend || []).map((t: any) => {
+          const value = Number(t?.value || 0);
+          const target = Number(t?.target || 0);
+
+          return {
+            label: t.label,
+            value,
+            target,
+            date: t.date,
+            time: t.time,
+            efficiency:
+              target > 0
+                ? Math.min(100, Math.max(0, Number(((value / target) * 100).toFixed(2))))
+                : 0,
+          };
+        });
 
         // Build top collectors from real backend data
         const topCollectors = (dashboard?.topCollectors || []).map(c => ({
@@ -469,7 +480,7 @@ export default function DashboardPage() {
       const mainMetrics: MetricItem[] = [
         { title: `Capital Prestado (${PERIOD_LABEL[period]})`, value: capitalPrestado, isCurrency: true, change: null, icon: <CreditCard className="h-4 w-4" />, color: '#3b82f6' },
         { title: `Recaudo (${PERIOD_LABEL[period]})`, value: recaudo, subValue: recaudo > 0 ? `${formatCurrency(recaudo)} cobrado` : 'Sin pagos en el período', isCurrency: true, change: null, icon: <Target className="h-4 w-4" />, color: '#8b5cf6' },
-        { title: 'Cartera en Mora', value: moraMonto, subValue: `${moraPercent}% del capital · ${moraCount} cuentas en mora`, isCurrency: true, change: null, icon: <AlertCircle className="h-4 w-4" />, color: '#f43f5e' },
+        { title: 'Cartera en Mora', value: moraMonto, subValue: `${moraCount} cuentas · ${moraPercent}% del capital`, isCurrency: true, change: null, icon: <AlertCircle className="h-4 w-4" />, color: '#f43f5e' },
         { title: `Gastos (${PERIOD_LABEL[period]})`, value: gastosPeriodo, subValue: `Utilidad: ${formatCurrency(utilidadPeriodo)}`, isCurrency: true, change: (period === 'today' && gastosPeriodo > 0 && resumen?.porcentajeEgresosVsAyer) ? resumen.porcentajeEgresosVsAyer : null, icon: <Banknote className="h-4 w-4" />, color: '#f59e0b' },
       ]
       const chartData = (dashboard?.trend || []).map((t) => ({ label: t.label, value: t.value }))

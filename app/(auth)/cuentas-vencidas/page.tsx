@@ -45,6 +45,7 @@ import { exportService } from '@/services/export-service'
 import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 import { toast } from 'sonner'
 import { offlineStore } from '@/lib/offline/offlineDb'
+import { resolveRiesgoObligacion } from '@/lib/rutas/riesgo-obligacion'
 
 type ViewMode = 'list' | 'grid'
 
@@ -57,10 +58,12 @@ function diasVencidosDesde(fecha: string): number {
 }
 
 function severidadVencida(dias: number): { label: string; badge: string; barColor: string } {
-  if (dias >= 90) return { label: 'Crítico',    badge: 'bg-rose-100 text-rose-800 border-rose-200',   barColor: 'bg-rose-600' }
-  if (dias >= 60) return { label: 'Grave',      badge: 'bg-orange-100 text-orange-800 border-orange-200', barColor: 'bg-orange-500' }
-  if (dias >= 30) return { label: 'Moderado',   badge: 'bg-amber-100 text-amber-800 border-amber-200',  barColor: 'bg-amber-500' }
-  return               { label: 'Reciente',   badge: 'bg-yellow-100 text-yellow-800 border-yellow-200', barColor: 'bg-yellow-500' }
+  // Criterios más estrictos alineados con el principio de cálculo de riesgo
+  if (dias >= 15) return { label: 'Crítico',    badge: 'bg-rose-100 text-rose-800 border-rose-200',   barColor: 'bg-rose-600' }
+  if (dias >= 8)  return { label: 'Grave',      badge: 'bg-orange-100 text-orange-800 border-orange-200', barColor: 'bg-orange-500' }
+  if (dias >= 4)  return { label: 'Moderado',   badge: 'bg-amber-100 text-amber-800 border-amber-200',  barColor: 'bg-amber-500' }
+  if (dias >= 1)  return { label: 'Leve',       badge: 'bg-yellow-100 text-yellow-800 border-yellow-200', barColor: 'bg-yellow-500' }
+  return               { label: 'Reciente',   badge: 'bg-emerald-100 text-emerald-800 border-emerald-200', barColor: 'bg-emerald-500' }
 }
 
 function getEstadoBadge(estado: string) {
@@ -119,13 +122,20 @@ function CuentasVencidasContent() {
           .filter((p: any) => p.estado === 'EN_MORA' || p.estado === 'INCUMPLIDO')
           .map((p: any) => {
             const cli = offClientes.find((c: any) => c.id === p.clienteId)
+            const diasVencidos = diasVencidosDesde(p.fechaFin || toBogotaDateTimeOffsetIso(new Date()))
+            const nivelRiesgo = resolveRiesgoObligacion({
+              row: p,
+              estadoCalculado: p.estado,
+              diasMora: diasVencidos,
+              cuotasVencidas: p.cuotasVencidas || 0,
+            }) as NivelRiesgo
             return {
               id: p.id, numeroPrestamo: p.numeroPrestamo || p.id,
               cliente: { nombre: cli ? `${cli.nombres} ${cli.apellidos}` : '', documento: cli?.dni || '' },
               fechaVencimiento: p.fechaFin || '',
-              diasVencidos: diasVencidosDesde(p.fechaFin || toBogotaDateTimeOffsetIso(new Date())),
+              diasVencidos,
               saldoPendiente: p.saldoPendiente || 0, montoOriginal: p.monto || 0,
-              ruta: '', nivelRiesgo: 'ROJO' as NivelRiesgo, estado: p.estado,
+              ruta: '', nivelRiesgo, estado: p.estado,
             } as any
           })
         if (vencidas.length > 0) { setCuentas(vencidas); setError(null); return }
@@ -278,11 +288,12 @@ function CuentasVencidasContent() {
 
         {/* ── Filtro por severidad ── */}
         <div className="flex items-center gap-2 flex-wrap">
-          {['TODOS', 'Reciente', 'Moderado', 'Grave', 'Crítico'].map(s => {
+          {['TODOS', 'Reciente', 'Leve', 'Moderado', 'Grave', 'Crítico'].map(s => {
             const count = s === 'TODOS' ? cuentas.length : (porSeveridad[s] || 0)
             const isActive = filtroSeveridad === s
             const badgeConfig: Record<string, string> = {
-              'Reciente': 'bg-yellow-100 text-yellow-800 border-yellow-200',
+              'Reciente': 'bg-emerald-100 text-emerald-800 border-emerald-200',
+              'Leve':     'bg-yellow-100 text-yellow-800 border-yellow-200',
               'Moderado':  'bg-amber-100 text-amber-800 border-amber-200',
               'Grave':     'bg-orange-100 text-orange-800 border-orange-200',
               'Crítico':   'bg-rose-100 text-rose-800 border-rose-200',

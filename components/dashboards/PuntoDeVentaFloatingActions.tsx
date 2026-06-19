@@ -291,6 +291,7 @@ export default function PuntoDeVentaFloatingActions() {
         hideTypeSelector
         defaultVentaContado={creditoModalMode === 'venta-contado'}
         lockVentaContado={creditoModalMode === 'venta-contado'}
+        allowVentaContadoOption={false}
       />
 
       {showNewClientModal && (

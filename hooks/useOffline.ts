@@ -2,15 +2,15 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { syncManager, SyncResult } from '@/lib/offline/syncManager';
-import { offlineQueue } from '@/lib/offline/offlineQueue';
 import {
   checkRealConnectivity,
-  checkRealConnectivityForce,
   setConnectivityResult,
 } from '@/lib/offline/connectivity';
 
 export interface OfflineState {
   isOnline: boolean;
+  browserOnline: boolean;
+  backendReachable: boolean;
   pendingOps: number;
   failedOps: number;
   syncingOps: number;
@@ -20,9 +20,11 @@ export interface OfflineState {
 }
 
 export function useOffline() {
-  // Estado inicial conservador: usar navigator.onLine como primer guess
+  // Estado inicial: browserOnline usa navigator.onLine, backendReachable inicia en true
   const [state, setState] = useState<OfflineState>({
     isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
+    browserOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
+    backendReachable: true,
     pendingOps: 0,
     failedOps: 0,
     syncingOps: 0,
@@ -32,6 +34,14 @@ export function useOffline() {
   });
 
   const syncInProgress = useRef(false);
+  const browserOnlineRef = useRef(
+    typeof navigator !== 'undefined' ? navigator.onLine : true,
+  );
+
+  // Mantener el ref sincronizado con el estado
+  useEffect(() => {
+    browserOnlineRef.current = state.browserOnline;
+  }, [state.browserOnline]);
 
   // Actualizar contadores de la cola
   const refreshCounts = useCallback(async () => {
@@ -57,9 +67,8 @@ export function useOffline() {
 
   // Sincronizar: subir operaciones pendientes
   const syncNow = useCallback(async (): Promise<SyncResult | null> => {
-    // Verificar conectividad REAL antes de intentar sincronizar
-    const online = await checkRealConnectivity();
-    if (syncInProgress.current || !online) return null;
+    // Verificar conectividad del navegador antes de intentar sincronizar
+    if (syncInProgress.current || !browserOnlineRef.current) return null;
 
     syncInProgress.current = true;
     setState((prev) => ({ ...prev, isSyncing: true }));
@@ -80,8 +89,7 @@ export function useOffline() {
 
   // Descargar datos para uso offline
   const downloadForOffline = useCallback(async () => {
-    const online = await checkRealConnectivity();
-    if (!online) return null;
+    if (!browserOnlineRef.current) return null;
 
     setState((prev) => ({ ...prev, isSyncing: true }));
     try {
@@ -97,30 +105,35 @@ export function useOffline() {
 
   // Escuchar cambios de conectividad
   useEffect(() => {
-    /**
-     * El evento 'online' del navegador es poco confiable:
-     * se dispara cuando la interfaz de red se activa, pero no
-     * garantiza que haya internet real (ej: WiFi sin internet).
-     *
-     * Por eso hacemos un ping real al recibir el evento 'online'
-     * antes de actualizar el estado. El evento 'offline' SÍ es
-     * confiable: si se dispara, definitivamente no hay red.
-     */
-    const handleOnline = async () => {
-      // Confirmar con ping real antes de asumir que hay internet
-      const reallyOnline = await checkRealConnectivityForce();
-      if (reallyOnline) {
-        setState((prev) => ({ ...prev, isOnline: true }));
-        setConnectivityResult(true);
-        // Auto-sync cuando vuelve la conexión real
-        syncNow();
-      }
-      // Si el ping falla, no cambiamos el estado (seguimos offline)
+    const handleOnline = () => {
+      // Actualizar el ref inmediatamente antes del setState
+      browserOnlineRef.current = true;
+
+      // Marcar que el navegador está online, pero NO asumir que el backend está disponible
+      setState((prev) => ({ ...prev, browserOnline: true, isOnline: true }));
+
+      // Validar conectividad real del backend antes de sincronizar
+      void checkRealConnectivity().then((backendOk) => {
+        setState((prev) => ({
+          ...prev,
+          backendReachable: backendOk,
+        }));
+
+        setConnectivityResult(backendOk);
+
+        // Solo sincronizar si el backend responde
+        if (backendOk) {
+          void syncNow();
+        }
+      });
     };
 
     const handleOffline = () => {
-      // El evento offline es confiable — siempre actualizar inmediatamente
-      setState((prev) => ({ ...prev, isOnline: false }));
+      // Actualizar el ref inmediatamente antes del setState
+      browserOnlineRef.current = false;
+
+      // El evento offline actualiza browserOnline inmediatamente
+      setState((prev) => ({ ...prev, browserOnline: false, isOnline: false, backendReachable: false }));
       setConnectivityResult(false);
     };
 
@@ -128,10 +141,10 @@ export function useOffline() {
     window.addEventListener('offline', handleOffline);
     window.addEventListener('offline-queue-changed', refreshCounts);
 
-    // Verificar conectividad real al montar (navigator.onLine puede ser incorrecto)
-    checkRealConnectivity().then((online) => {
-      setState((prev) => ({ ...prev, isOnline: online }));
-      setConnectivityResult(online);
+    // Verificar conectividad real del backend al montar
+    checkRealConnectivity().then((backendOk) => {
+      setState((prev) => ({ ...prev, backendReachable: backendOk }));
+      setConnectivityResult(backendOk);
     });
 
     // Cargar contadores iniciales
@@ -144,27 +157,42 @@ export function useOffline() {
     };
   }, [syncNow, refreshCounts]);
 
-  // Polling cada 30s: verificar conectividad real + actualizar contadores
+  // Polling cada 30s: verificar conectividad del backend + actualizar contadores
   useEffect(() => {
     const interval = setInterval(async () => {
-      const online = await checkRealConnectivity();
+      // Si el navegador está offline, no hacer ping al backend
+      if (!browserOnlineRef.current) {
+        setState((prev) => {
+          if (!prev.backendReachable) return prev;
+
+          setConnectivityResult(false);
+          return {
+            ...prev,
+            backendReachable: false,
+          };
+        });
+
+        await refreshCounts();
+        return;
+      }
+
+      // Si el navegador está online, verificar conectividad del backend
+      const backendOk = await checkRealConnectivity();
+
       setState((prev) => {
-        // Solo actualizar si cambió para evitar renders innecesarios
-        if (prev.isOnline !== online) {
-          setConnectivityResult(online);
-          // Si acaba de reconectar, auto-sync
-          if (online && !prev.isOnline) {
-            syncNow();
-          }
-          return { ...prev, isOnline: online };
+        if (prev.backendReachable !== backendOk) {
+          setConnectivityResult(backendOk);
+          return { ...prev, backendReachable: backendOk };
         }
+
         return prev;
       });
-      refreshCounts();
+
+      await refreshCounts();
     }, 30_000);
 
     return () => clearInterval(interval);
-  }, [refreshCounts, syncNow]);
+  }, [refreshCounts]);
 
   return {
     ...state,

@@ -124,7 +124,7 @@ export const getEtiquetaMovimientoContable = (m: MovimientoClasificable): Etique
     concepto.startsWith('REVERSA DE ASIENTO') ||
     concepto.startsWith('REVERSA DE DESEMBOLSO') ||
     concepto.includes('REVERSA DE ASIENTO') ||
-    concepto.includes('REVERSO DE ASIENTO')
+    concepto.includes('REVERSA DE ASIENTO')
 
   const esReapertura = ref === 'AJUSTE' && referenciaId.startsWith('REAPERTURA:')
 
@@ -132,6 +132,17 @@ export const getEtiquetaMovimientoContable = (m: MovimientoClasificable): Etique
   const esReversaReapertura =
     esReversa &&
     (concepto.includes('REAPERTURA') || referenciaId.includes('REAPERTURA'))
+
+  // Detectar aprobación de gasto provisional
+  const esAprobacionGasto =
+    (ref === 'GASTO' && referenciaId.startsWith('APROBADO:')) ||
+    concepto.includes('GASTO PROVISIONAL APROBADO') ||
+    concepto.includes('APROBACIÓN DE GASTO') ||
+    (accountCode.startsWith('4.') && concepto.includes('GASTO'))
+
+  if (esAprobacionGasto) {
+    return { label: 'GASTO APROBADO', positivo: false, className: 'bg-amber-100 text-amber-700' }
+  }
 
   if (esIngresoOperativoContable(m)) {
     return { label: 'INGRESO', positivo: true, className: 'bg-emerald-100 text-emerald-700' }

@@ -320,8 +320,8 @@ export default function GastoModal({ isOpen, onClose, onConfirm, cobradorId, rut
                   <AlertCircle className="h-4 w-4" />
                 </div>
                 <div className="text-[10px] text-amber-800 leading-tight">
-                  <p className="font-bold mb-0.5 uppercase tracking-wider">Gasto Operativo Directo</p>
-                  <p>Este gasto se descontará de la ruta inmediatamente.</p>
+                  <p className="font-bold mb-0.5 uppercase tracking-wider">GASTO OPERATIVO POR LEGALIZAR</p>
+                  <p>Este gasto se descontará de la caja de ruta inmediatamente y quedará pendiente de revisión.</p>
                 </div>
               </div>
             )}

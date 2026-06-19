@@ -422,12 +422,6 @@ const VistaSupervisor = () => {
         />
       )}
 
-      <FloatingActionMenu actions={[
-        { label: 'Crear Crédito', icon: <CreditCard className="h-5 w-5" />, onClick: () => setShowCreditoTipoModal(true) },
-        { label: 'Nuevo Cliente', icon: <UserPlus className="h-5 w-5" />, onClick: () => setShowNewClientModal(true) },
-        { label: 'Registrar abono', icon: <RefreshCw className="h-5 w-5" />, color: 'orange', onClick: () => { setPagoInitialIsAbono(true); setShowPagoModal(true); } },
-        { label: 'Registrar pago', icon: <DollarSign className="h-5 w-5" />, onClick: () => { setPagoInitialIsAbono(false); setShowPagoModal(true); } },
-      ] as FabAction[]} />
     </div>
   )
 }

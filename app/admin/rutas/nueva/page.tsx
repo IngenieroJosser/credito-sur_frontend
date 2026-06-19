@@ -223,7 +223,7 @@ const NuevaRutaPage = () => {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-sm font-bold text-slate-700">Supervisor</label>
+                      <label className="text-sm font-bold text-slate-700">Asignar supervisor</label>
                       <div className="relative">
                         <select
                           name="supervisorId"

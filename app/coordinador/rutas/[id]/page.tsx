@@ -8,6 +8,12 @@ import { use, useState } from 'react'
 
 import RutaClient from '../../../admin/rutas/[id]/ruta-client'
 
+const isUuid = (value?: string | null) => {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    String(value || '').trim(),
+  )
+}
+
 import {
 
   CheckCircle2,
@@ -100,6 +106,7 @@ import { computeRutaHoyUiStatsFromVisitas, resolveRutaHoyKpiStats, getBogotaDate
   shouldIncludeVisitaInRutaHoyKpis, toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 import { isPagoCierrePendiente, mergeVisitasPreservingLocalRecaudo, sumMontoTotalPagosByBogotaDateKey } from '@/lib/ruta-recaudos'
 import { mapDailyVisitsResponseToVisitas as mapDailyVisitsResponseToVisitasShared, type MapMode } from '@/lib/rutas/map-daily-visits-to-visitas'
+import { ordenarVisitasRutaActual } from '@/lib/rutas/ordenar-visitas-ruta'
 
 import { exportService } from '@/services/export-service'
 
@@ -267,7 +274,7 @@ const LegacyDetalleRutaPage = () => {
       setLoadingMisCreditos(true)
 
       const resp = await rutasService.obtenerVisitasDelDia(rutaId, getBogotaDateKey(new Date()))
-      setMisCreditos(mapDailyVisitsResponseToVisitasCoordinador(resp, cobradorId))
+      setMisCreditos(ordenarVisitasRutaActual(mapDailyVisitsResponseToVisitasCoordinador(resp, cobradorId)))
 
     } catch (e: any) {
 
@@ -433,14 +440,14 @@ const LegacyDetalleRutaPage = () => {
 
   const mapDailyVisitsResponseToVisitasCoordinador = useCallback((resp: any, cobradorId: string): VisitaRuta[] => {
     const hoyBogotaKey = getBogotaDateKey(new Date())
-    return mapDailyVisitsResponseToVisitasShared({
+    return ordenarVisitasRutaActual(mapDailyVisitsResponseToVisitasShared({
       resp,
       hoyBogotaKey,
       rutaData: { cobradorId },
       initialRuta: { cobradorId },
       modo: 'LIVE' as MapMode,
       fechaOperativa: hoyBogotaKey,
-    })
+    }))
   }, [])
 
 
@@ -719,10 +726,6 @@ const LegacyDetalleRutaPage = () => {
 
 
 
-            withRecaudo.sort((a, b) => a.ordenVisita - b.ordenVisita);
-
-
-
             const ajustarEstadoConPago = (v: any): EstadoVisita => {
 
               if (Number(v.saldoTotal || 0) <= 0) return 'pagado';
@@ -743,7 +746,9 @@ const LegacyDetalleRutaPage = () => {
 
 
 
-            const finalesBackend = withRecaudo.map(v => ({ ...v, estado: ajustarEstadoConPago(v) }));
+            const finalesBackend = ordenarVisitasRutaActual(
+              withRecaudo.map(v => ({ ...v, estado: ajustarEstadoConPago(v) })),
+            );
             const finales = mergeVisitasPreservingLocalRecaudo(visitasCobradorRef.current as any, finalesBackend as any) as any[];
 
 
@@ -816,7 +821,7 @@ const LegacyDetalleRutaPage = () => {
               return isVisitaExigibleHoy(v, hoyBogota);
             });
 
-            setVisitasCobrador(finalesFiltradas);
+            setVisitasCobrador(ordenarVisitasRutaActual(finalesFiltradas));
             setClientes(finalesFiltradas.map((v: any) => ({
 
                 id: v.id,
@@ -1267,15 +1272,17 @@ const LegacyDetalleRutaPage = () => {
 
 
 
+    const ordenadas = ordenarVisitasRutaActual(filtradas);
+
     const agrupar = {
 
-      MES: filtradas.filter(v => v.periodoRuta === 'MES' && filterByDate(v)),
+      MES: ordenadas.filter(v => v.periodoRuta === 'MES' && filterByDate(v)),
 
-      QUINCENA: filtradas.filter(v => v.periodoRuta === 'QUINCENA' && filterByDate(v)),
+      QUINCENA: ordenadas.filter(v => v.periodoRuta === 'QUINCENA' && filterByDate(v)),
 
-      SEMANA: filtradas.filter(v => v.periodoRuta === 'SEMANA' && filterByDate(v)),
+      SEMANA: ordenadas.filter(v => v.periodoRuta === 'SEMANA' && filterByDate(v)),
 
-      DIA: filtradas.filter(v => v.periodoRuta === 'DIA' && filterByDate(v)),
+      DIA: ordenadas.filter(v => v.periodoRuta === 'DIA' && filterByDate(v)),
 
     }
 
@@ -2452,27 +2459,47 @@ const LegacyDetalleRutaPage = () => {
 
 
               // Asignar cliente a la ruta automáticamente
+              const clienteIdFinal = String(
+                prestamo?.clienteId ||
+                  prestamo?.cliente?.id ||
+                  prestamo?.cliente?.clienteId ||
+                  data?.clienteId ||
+                  data?.clienteCreditoId ||
+                  data?.cliente?.id ||
+                  '',
+              ).trim()
 
-              if (rutaActual?.id) {
+              const cobradorResponsableId = String(rutaActual?.cobradorId || '').trim()
 
-                try {
-
-                  await rutasService.asignarCliente(
-
-                    rutaActual.id,
-
-                    data.clienteCreditoId,
-
-                    rutaActual.cobradorId || ''
-
-                  );
-
-                } catch (assignError) {
-
-                  console.error('Error al asignar cliente a la ruta:', assignError);
-
+              if (rutaActual?.id && cobradorResponsableId && clienteIdFinal) {
+                if (!isUuid(rutaActual.id)) {
+                  console.warn('[Crear crédito coordinador] rutaId inválido para asignación:', {
+                    rutaId: rutaActual.id,
+                  })
+                } else if (!isUuid(clienteIdFinal)) {
+                  console.warn('[Crear crédito coordinador] clienteId inválido para asignación:', {
+                    clienteIdFinal,
+                    dataClienteCreditoId: data?.clienteCreditoId,
+                    dataClienteId: data?.clienteId,
+                    prestamoClienteId: prestamo?.clienteId,
+                    prestamo,
+                  })
+                } else if (!isUuid(cobradorResponsableId)) {
+                  console.warn('[Crear crédito coordinador] cobradorId inválido para asignación:', {
+                    cobradorResponsableId,
+                    rutaActual,
+                  })
+                } else {
+                  try {
+                    await rutasService.asignarCliente(
+                      rutaActual.id,
+                      clienteIdFinal,
+                      cobradorResponsableId,
+                    );
+                  } catch (assignError) {
+                    console.error('Error al asignar cliente a la ruta:', assignError);
+                  }
                 }
-
               }
 
 
@@ -2625,7 +2652,7 @@ function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose:
 
   const riesgoColor =
 
-    r === 'bajo' ? 'text-emerald-600 bg-emerald-50' :
+    r === 'minimo' ? 'text-emerald-600 bg-emerald-50' :
 
     r === 'leve' ? 'text-blue-600 bg-blue-50' :
 
@@ -2637,7 +2664,7 @@ function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose:
 
   const riesgoLabel =
 
-    r === 'bajo' ? 'Peligro Mínimo' :
+    r === 'minimo' ? 'Peligro Mínimo' :
 
     r === 'leve' ? 'Leve Retraso' :
 

@@ -29,23 +29,29 @@ import ConfirmRejectModal from '@/components/ui/ConfirmRejectModal'
 import PagoDetalleModal from '@/components/dashboards/shared/PagoDetalleModal'
 import CierreRutaNotifModal from '@/components/dashboards/shared/CierreRutaNotifModal'
 import PagoRegularizadoNotifModal from '@/components/dashboards/shared/PagoRegularizadoNotifModal'
+import AlertaClienteDetalleModal from '@/components/notificaciones/AlertaClienteDetalleModal'
+import { alertasClientesService } from '@/services/alertas-clientes-service'
 
 export interface NotificacionDetalleModalProps {
   isOpen: boolean
   onClose: () => void
   notificacion: any
   onApprove: (id: string, type: string, editedDetails: any) => Promise<void>
-  onReject: (id: string, type: string, reason: string) => Promise<void>
+  onReject: (id: string, type: string, reason: string, resultadoRevision?: 'RECHAZADO_CON_DEUDA' | 'RECHAZADO_CON_REINTEGRO') => Promise<void>
   canApprove?: boolean
+  isLegacy?: boolean
+  userRol?: string
 }
 
-export default function NotificacionDetalleModal({ 
-  isOpen, 
-  onClose, 
-  notificacion, 
-  onApprove, 
+export default function NotificacionDetalleModal({
+  isOpen,
+  onClose,
+  notificacion,
+  onApprove,
   onReject,
-  canApprove = true 
+  canApprove = true,
+  isLegacy = false,
+  userRol = ''
 }: NotificacionDetalleModalProps) {
   // Helpers para normalizar datos de la notificación
   const safeJsonParse = (value: any) => {
@@ -113,6 +119,8 @@ export default function NotificacionDetalleModal({
   const [actionComment, setActionComment] = useState('')
   const [showApproveModal, setShowApproveModal] = useState(false)
   const [showRejectModal, setShowRejectModal] = useState(false)
+  const [showRejectDeudaModal, setShowRejectDeudaModal] = useState(false)
+  const [showRejectReintegroModal, setShowRejectReintegroModal] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [history, setHistory] = useState<any[]>([])
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
@@ -120,6 +128,8 @@ export default function NotificacionDetalleModal({
   const [planIndex, setPlanIndex] = React.useState<number | null>(null)
   const [autoCuotas, setAutoCuotas] = useState(true)
   const [esContado, setEsContado] = useState(false)
+  const [alertaClienteDetalle, setAlertaClienteDetalle] = useState<any | null>(null)
+  const [loadingAlertaCliente, setLoadingAlertaCliente] = useState(false)
   const mouseDownTargetRef = useRef<EventTarget | null>(null)
   // Estado del modal de detalle de pago (componente separado)
   const [showPagoDetalle, setShowPagoDetalle] = useState(false)
@@ -141,6 +151,86 @@ export default function NotificacionDetalleModal({
       return fallback
     }
   }
+
+  const isAlertaClienteNoUbicado = (notif: any) => {
+    const meta = safeJsonParse(notif?.metadata)
+    return (
+      notif?.tipo === 'ALERTA_CLIENTE_NO_UBICADO' ||
+      meta?.tipoAlerta === 'CLIENTE_NO_UBICADO' ||
+      meta?.tipo === 'ALERTA_CLIENTE_NO_UBICADO'
+    )
+  }
+
+  React.useEffect(() => {
+    if (!isOpen || !notificacion || !isAlertaClienteNoUbicado(notificacion)) {
+      setAlertaClienteDetalle(null)
+      setLoadingAlertaCliente(false)
+      return
+    }
+
+    const meta = safeJsonParse(notificacion.metadata)
+    const alertaId = meta.alertaId || notificacion.entidadId
+    const fallbackAlerta = {
+      id: alertaId || notificacion.id,
+      estado: meta.estadoAlerta || 'ACTIVA',
+      motivo: meta.motivo,
+      descripcion: meta.descripcion || notificacion.mensaje,
+      ultimaUbicacionConocida: meta.ultimaUbicacionConocida,
+      observacionesReportante: meta.observacionesReportante,
+      snapshotCliente: meta.snapshotCliente || {
+        cliente: {
+          id: meta.clienteId,
+          nombres: meta.clienteNombre,
+          dni: meta.documento,
+          telefono: meta.telefono,
+          direccion: meta.direccion,
+        },
+        ruta: {
+          id: meta.rutaId,
+          nombre: meta.rutaNombre,
+          cobrador: {
+            id: meta.cobradorId,
+            nombres: meta.cobradorNombre,
+          },
+        },
+        metricas: {
+          saldoPendienteTotal: meta.saldoPendienteTotal,
+          cuotasVencidas: meta.cuotasVencidas,
+          saldoVencidoTotal: meta.saldoVencidoTotal,
+        },
+        referencias: meta.referencias || [],
+        evidencias: meta.evidencias || [],
+        creditos: meta.creditos || [],
+        historialVisitas: meta.historialVisitas || [],
+      },
+      metadata: meta,
+    }
+
+    if (!alertaId) {
+      setAlertaClienteDetalle(fallbackAlerta)
+      return
+    }
+
+    let cancelled = false
+    setLoadingAlertaCliente(true)
+    setAlertaClienteDetalle(fallbackAlerta)
+
+    alertasClientesService
+      .obtenerDetalle(String(alertaId))
+      .then((detalle) => {
+        if (!cancelled) setAlertaClienteDetalle(detalle || fallbackAlerta)
+      })
+      .catch(() => {
+        if (!cancelled) setAlertaClienteDetalle(fallbackAlerta)
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingAlertaCliente(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [isOpen, notificacion?.id, notificacion?.entidadId])
 
   React.useEffect(() => {
     if (notificacion) {
@@ -327,27 +417,56 @@ export default function NotificacionDetalleModal({
 
 
   React.useEffect(() => {
-    if (isOpen && notificacion?.entidadId) {
-      const fetchHistory = async () => {
-        setIsLoadingHistory(true)
-        try {
-          // Determinar tabla de referencia
-          let tabla = 'Aprobacion'
-          if (notificacion.tipo === 'PRESTAMO') tabla = 'Prestamo'
-          else if (notificacion.tipo === 'GASTO') tabla = 'Gasto'
-          else if (notificacion.tipo === 'SOLICITUD_DINERO') tabla = 'Caja'
-          
-          const data = await aprobacionesService.getHistorial(notificacion.entidadId, tabla)
-          setHistory(data)
-        } catch (error) {
-          console.error('Error fetching history:', error)
-        } finally {
-          setIsLoadingHistory(false)
-        }
-      }
-      fetchHistory()
+    if (!isOpen || !notificacion?.entidadId) return
+
+    const rolNormalizado = String(userRol || '').trim().toUpperCase()
+
+    const puedeConsultarHistorial =
+      rolNormalizado === 'ADMIN' ||
+      rolNormalizado === 'SUPER_ADMIN' ||
+      rolNormalizado === 'SUPER_ADMINISTRADOR' ||
+      rolNormalizado === 'COORDINADOR'
+
+    if (!puedeConsultarHistorial) {
+      setHistory([])
+      setIsLoadingHistory(false)
+      return
     }
-  }, [isOpen, notificacion?.entidadId, notificacion?.tipo])
+
+    const fetchHistory = async () => {
+      setIsLoadingHistory(true)
+
+      try {
+        let tabla = 'Aprobacion'
+
+        if (notificacion.tipo === 'PRESTAMO') tabla = 'Prestamo'
+        else if (notificacion.tipo === 'GASTO') tabla = 'Gasto'
+        else if (notificacion.tipo === 'SOLICITUD_DINERO') tabla = 'Caja'
+
+        const data = await aprobacionesService.getHistorial(
+          notificacion.entidadId,
+          tabla,
+        )
+
+        setHistory(Array.isArray(data) ? data : [])
+      } catch (error: any) {
+        if (error?.statusCode !== 403 && error?.error?.statusCode !== 403) {
+          console.error('Error fetching history:', error)
+        }
+
+        setHistory([])
+      } finally {
+        setIsLoadingHistory(false)
+      }
+    }
+
+    void fetchHistory()
+  }, [
+    isOpen,
+    notificacion?.entidadId,
+    notificacion?.tipo,
+    userRol,
+  ])
 
   React.useEffect(() => {
     if (!isOpen) return
@@ -471,6 +590,16 @@ export default function NotificacionDetalleModal({
   if (!isOpen || !notificacion) return null
 
   const meta = safeJsonParse(notificacion.metadata)
+
+  if (isAlertaClienteNoUbicado(notificacion)) {
+    return (
+      <AlertaClienteDetalleModal
+        alerta={alertaClienteDetalle}
+        loading={loadingAlertaCliente}
+        onClose={onClose}
+      />
+    )
+  }
 
   // ── Detección de notificaciones de Cierre de Ruta (modal especializado) ──
   const esCierreRuta = (
@@ -672,7 +801,9 @@ export default function NotificacionDetalleModal({
   const safeMeta = typeof notificacion.metadata === 'string'
     ? JSON.parse(notificacion.metadata)
     : (notificacion.metadata || {})
-  const safeMetaDetalles = (safeMeta && typeof safeMeta === 'object') ? (safeMeta.detalles || {}) : {}
+  const safeMetaDetalles = safeJsonParse(
+    safeMeta && typeof safeMeta === 'object' ? safeMeta.detalles : {},
+  )
 
   const isPrestamo = tipo === 'PRESTAMO' || approvalType === 'NUEVO_PRESTAMO'
   const isGasto = tipo === 'GASTO' || approvalType === 'GASTO'
@@ -680,6 +811,38 @@ export default function NotificacionDetalleModal({
   const isArticle = isPrestamo && (editedDetails?.tipo === 'ARTICULO' || editedDetails?.tipoPrestamo === 'ARTICULO' || safeMeta?.tipo === 'ARTICULO' || safeMeta?.tipoPrestamo === 'ARTICULO')
   const isApprovalNotification = Boolean(approvalType)
   const isNuevoCliente = approvalType === 'NUEVO_CLIENTE'
+  
+  // Detectar gastos provisionales
+  const datosSolicitud = safeJsonParse(
+    notificacion.datosSolicitud ||
+    safeMeta.datosSolicitud ||
+    safeMeta.detalles?.datosSolicitud ||
+    notificacion.aprobacion?.datosSolicitud
+  )
+  const esGastoProvisional =
+    isGasto &&
+    (
+      datosSolicitud.esProvisional === true ||
+      safeMeta.esProvisional === true ||
+      safeMetaDetalles.esProvisional === true ||
+      editedDetails?.esProvisional === true
+    )
+
+  // Variable interna robusta para detectar gastos legacy
+  const tituloNotif = notificacion.titulo || notificacion.mensaje || ''
+  const mensajeNotif = notificacion.descripcion || notificacion.mensaje || ''
+  const isLegacyEff =
+    isLegacy ||
+    (
+      isGasto &&
+      !esGastoProvisional &&
+      (
+        String(tituloNotif || '').toLowerCase().includes('legacy') ||
+        String(mensajeNotif || '').toLowerCase().includes('sin impacto de caja') ||
+        safeMeta?.legacy === true ||
+        safeMeta?.sinImpactoCaja === true
+      )
+    )
   const mediaArchivos = (() => {
     const meta = typeof notificacion.metadata === 'string' ? JSON.parse(notificacion.metadata) : (notificacion.metadata || {})
     const dets = typeof notificacion.detalles === 'string' ? JSON.parse(notificacion.detalles) : (notificacion.detalles || {})
@@ -739,8 +902,8 @@ export default function NotificacionDetalleModal({
     if (!notificacion.entidadId || !approvalType) return
     setIsProcessing(true)
     try {
-      let finalDetails = editedDetails
-      if (isPrestamo && isArticle && esContado) {
+      let finalDetails = isEditingMode ? editedDetails : undefined
+      if (finalDetails && isPrestamo && isArticle && esContado) {
         const precioContado = (() => {
           if (articuloData) {
             return Number(articuloData.precioContado || articuloData.precioBase || editedDetails?.valorArticulo || editedDetails?.monto || 0)
@@ -762,7 +925,7 @@ export default function NotificacionDetalleModal({
           ventaContado: true,
         }
       }
-      finalDetails = { ...finalDetails }
+      finalDetails = finalDetails ? { ...finalDetails } : undefined
       await onApprove(notificacion.entidadId, approvalType, finalDetails)
       handleClose()
     } catch (error) {
@@ -772,11 +935,11 @@ export default function NotificacionDetalleModal({
     }
   }
 
-  const rejectNow = async (motivo: string) => {
+  const rejectNow = async (motivo: string, resultadoRevision?: 'RECHAZADO_CON_DEUDA' | 'RECHAZADO_CON_REINTEGRO') => {
     if (!notificacion.entidadId || !approvalType) return
     setIsProcessing(true)
     try {
-      await onReject(notificacion.entidadId, approvalType, motivo)
+      await onReject(notificacion.entidadId, approvalType, motivo, resultadoRevision)
       handleClose()
     } catch (error) {
       console.error('Error processing notification action:', error)
@@ -881,6 +1044,12 @@ export default function NotificacionDetalleModal({
         )}
       </div>
 
+      {isEditingMode && (
+        <div className="rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-xs font-bold text-orange-800">
+          Los cambios se aplicarán al aprobar la solicitud. Si cierras o bloqueas cambios, no se guardan todavía.
+        </div>
+      )}
+
       <div className="space-y-4">
         <div className={`p-5 rounded-2xl border transition-all duration-300 ${isEditingMode ? 'bg-white border-orange-200 shadow-xl' : 'bg-slate-50 border-slate-100'}`}>
           <div className="flex items-center gap-2 mb-4 border-b border-slate-200/50 pb-2">
@@ -980,10 +1149,12 @@ export default function NotificacionDetalleModal({
                       value={formatCOPInputValue(String(editedDetails?.valorArticulo || safeMeta?.valorArticulo || editedDetails?.monto || safeMeta?.monto || ''))}
                       onChange={(e) => {
                         const val = parseCOPInputToNumber(e.target.value)
+                        const cuotaInicial = Number(editedDetails?.cuotaInicial || safeMeta?.cuotaInicial || 0)
+                        const isArticuloInput = Boolean(editedDetails?.articulo || safeMeta?.articulo)
                         setEditedDetails({
                           ...editedDetails, 
-                          [(editedDetails?.articulo || safeMeta?.articulo) ? 'valorArticulo' : 'monto']: val,
-                          monto: val,
+                          [isArticuloInput ? 'valorArticulo' : 'monto']: val,
+                          monto: isArticuloInput ? Math.max(0, val - cuotaInicial) : val,
                           montoTotal: 0,
                           interesTotal: 0
                         })
@@ -1108,6 +1279,33 @@ export default function NotificacionDetalleModal({
                   </div>
                 ) : null}
 
+                {!isArticle && (
+                  <div>
+                    <label className="text-[10px] text-blue-600 uppercase font-black block mb-1">Tipo de Amortización</label>
+                    {isEditingMode ? (
+                      <select
+                        value={editedDetails?.tipoAmortizacion || safeMeta?.tipoAmortizacion || 'INTERES_SIMPLE'}
+                        onChange={(e) =>
+                          setEditedDetails({
+                            ...editedDetails,
+                            tipoAmortizacion: e.target.value,
+                            montoTotal: 0,
+                            interesTotal: 0,
+                          })
+                        }
+                        className="w-full bg-white border border-blue-200 text-slate-900 rounded-xl px-4 py-2 text-sm font-black outline-none focus:ring-2 focus:ring-blue-500/20"
+                      >
+                        <option value="INTERES_SIMPLE">Interés simple</option>
+                        <option value="FRANCESA">Amortizable</option>
+                      </select>
+                    ) : (
+                      <p className="text-sm font-black text-slate-900">
+                        {String(editedDetails?.tipoAmortizacion || safeMeta?.tipoAmortizacion || 'INTERES_SIMPLE').replace(/_/g, ' ')}
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 <div className="col-span-2 p-4 bg-white/50 rounded-2xl border border-blue-100 space-y-4">
                   <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest mb-1">Detalles de Venta</p>
                   <div className="grid grid-cols-2 gap-4">
@@ -1162,14 +1360,16 @@ export default function NotificacionDetalleModal({
                           {isEditingMode ? (
                             <input 
                               type="text"
-                              value={formatCOPInput(Number(editedDetails?.cuotaInicial ?? safeMeta?.cuotaInicial ?? 0))}
-                              onChange={(e) => {
-                                const val = parseCOPInput(e.target.value)
-                                setEditedDetails({
-                                  ...editedDetails, 
-                                  cuotaInicial: val,
-                                })
-                              }}
+                            value={formatCOPInput(Number(editedDetails?.cuotaInicial ?? safeMeta?.cuotaInicial ?? 0))}
+                            onChange={(e) => {
+                              const val = parseCOPInput(e.target.value)
+                              const valorArticulo = Number(editedDetails?.valorArticulo || safeMeta?.valorArticulo || editedDetails?.monto || safeMeta?.monto || 0)
+                              setEditedDetails({
+                                ...editedDetails, 
+                                cuotaInicial: val,
+                                monto: Math.max(0, valorArticulo - val),
+                              })
+                            }}
                               className="w-full bg-white border border-blue-200 text-slate-900 rounded-xl px-4 py-2 text-sm font-black outline-none focus:ring-2 focus:ring-blue-500/20"
                             />
                           ) : (
@@ -1195,7 +1395,16 @@ export default function NotificacionDetalleModal({
                           <input 
                             type="number"
                             value={editedDetails?.porcentaje || safeMeta?.porcentaje || ''}
-                            onChange={(e) => setEditedDetails({...editedDetails, porcentaje: Number(e.target.value)})}
+                            onChange={(e) => {
+                              const tasa = Number(e.target.value)
+                              setEditedDetails({
+                                ...editedDetails,
+                                porcentaje: tasa,
+                                tasaInteres: tasa,
+                                montoTotal: 0,
+                                interesTotal: 0,
+                              })
+                            }}
                             className="w-full bg-white border border-blue-200 text-slate-900 rounded-xl px-4 py-2 text-sm font-black outline-none focus:ring-2 focus:ring-blue-500/20"
                           />
                         ) : (
@@ -1205,6 +1414,21 @@ export default function NotificacionDetalleModal({
                     )}
                     <div>
                     <label className="text-[10px] text-blue-600 uppercase font-black block mb-1">Fecha Inicio</label>
+                      {isEditingMode ? (
+                        <input
+                          type="date"
+                          value={normalizeDateKey(String(
+                            editedDetails?.fechaInicio ||
+                            editedDetails?.fecha ||
+                            safeMeta?.fechaInicio ||
+                            safeMeta?.fecha ||
+                            safeMetaDetalles?.fechaInicio ||
+                            '',
+                          )) || ''}
+                          onChange={(e) => setEditedDetails({ ...editedDetails, fechaInicio: e.target.value })}
+                          className="w-full bg-white border border-blue-200 text-slate-900 rounded-xl px-4 py-2 text-sm font-black outline-none focus:ring-2 focus:ring-blue-500/20"
+                        />
+                      ) : (
                       <p className="text-base font-black text-slate-900">
                         {(() => {
                           // Priorizar editedDetails, luego safeMeta (ambos incluyen la data del backend)
@@ -1229,6 +1453,7 @@ export default function NotificacionDetalleModal({
                           return 'N/A';
                         })()}
                       </p>
+                      )}
                     </div>
                     <div className="col-span-2">
                             <label className="text-[10px] text-blue-600 uppercase font-black block mb-1">Notas / Observaciones</label>
@@ -1431,6 +1656,31 @@ export default function NotificacionDetalleModal({
 
               {isGasto && (
                 <div className="bg-orange-50/50 rounded-2xl border border-orange-100 p-5 space-y-4">
+                  {isLegacyEff && (
+                    <div className="mb-4 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                      <div className="flex items-center gap-2 mb-2">
+                        <AlertTriangle className="h-4 w-4 text-slate-600" />
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-700">
+                          Solicitud legacy sin impacto de caja
+                        </p>
+                      </div>
+                      <p className="text-xs text-slate-700 font-medium leading-relaxed">
+                        Esta solicitud fue creada antes del flujo de gasto provisional y no afectó caja.
+                        Solo puede anularse sin impacto financiero.
+                      </p>
+                    </div>
+                  )}
+                  {esGastoProvisional && (
+                    <div className="mb-4 p-3 bg-amber-50 rounded-xl border border-amber-200">
+                      <div className="flex items-center gap-2 mb-2">
+                        <AlertTriangle className="h-4 w-4 text-amber-600" />
+                        <p className="text-[10px] font-black uppercase tracking-widest text-amber-700">Gasto Provisional</p>
+                      </div>
+                      <p className="text-xs text-amber-800 font-medium leading-relaxed">
+                        La caja ya fue afectada. La decisión solo define si se reconoce como gasto operativo, deuda del cobrador o reintegro.
+                      </p>
+                    </div>
+                  )}
                   <div className="text-center pb-4 border-b border-orange-100">
                     <p className="text-[10px] font-black uppercase tracking-widest text-orange-600 mb-1">Monto del Gasto</p>
                     <h4 className="text-3xl font-black text-slate-900 tabular-nums">{formatCurrency(editedDetails?.monto || safeMeta?.monto)}</h4>
@@ -1515,19 +1765,58 @@ export default function NotificacionDetalleModal({
           <div className="p-6 bg-slate-50 border-t border-slate-100 flex gap-4 sticky bottom-0 z-10">
             {estado === 'PENDIENTE' && canApprove && isApprovalNotification && (
               <>
-                <button 
-                  onClick={() => setShowRejectModal(true)}
-                  className="flex-1 py-4 bg-white border border-rose-200 text-rose-600 font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-rose-50 transition-all shadow-sm hover:shadow-md"
-                >
-                  Rechazar
-                </button>
-                <button 
-                  onClick={() => approveNow()}
-                  disabled={isProcessing}
-                  className="flex-1 py-4 bg-emerald-600 text-white font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-emerald-700 shadow-xl shadow-emerald-600/20 transition-all border border-emerald-500 disabled:opacity-50"
-                >
-                  {isProcessing ? 'Procesando...' : 'Aprobar Ahora'}
-                </button>
+                {isLegacyEff ? (
+                  // Botón específico para gastos legacy
+                  <button
+                    onClick={() => setShowRejectModal(true)}
+                    disabled={isProcessing}
+                    className="flex-1 py-4 bg-slate-600 text-white font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-slate-700 shadow-xl shadow-slate-600/20 transition-all border border-slate-500 disabled:opacity-50"
+                  >
+                    {isProcessing ? 'Procesando...' : 'Anular Solicitud'}
+                  </button>
+                ) : esGastoProvisional ? (
+                  // Tres botones específicos para gastos provisionales
+                  <>
+                    <button
+                      onClick={() => setShowRejectDeudaModal(true)}
+                      disabled={isProcessing}
+                      className="flex-1 py-4 bg-white border border-rose-200 text-rose-600 font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-rose-50 transition-all shadow-sm hover:shadow-md disabled:opacity-50"
+                    >
+                      Rechazar y Crear Deuda
+                    </button>
+                    <button
+                      onClick={() => setShowRejectReintegroModal(true)}
+                      disabled={isProcessing}
+                      className="flex-1 py-4 bg-white border border-amber-200 text-amber-600 font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-amber-50 transition-all shadow-sm hover:shadow-md disabled:opacity-50"
+                    >
+                      Rechazar con Reintegro
+                    </button>
+                    <button
+                      onClick={() => approveNow()}
+                      disabled={isProcessing}
+                      className="flex-1 py-4 bg-emerald-600 text-white font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-emerald-700 shadow-xl shadow-emerald-600/20 transition-all border border-emerald-500 disabled:opacity-50"
+                    >
+                      {isProcessing ? 'Procesando...' : 'Aprobar como Gasto Operativo'}
+                    </button>
+                  </>
+                ) : (
+                  // Botones genéricos para otros tipos
+                  <>
+                    <button
+                      onClick={() => setShowRejectModal(true)}
+                      className="flex-1 py-4 bg-white border border-rose-200 text-rose-600 font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-rose-50 transition-all shadow-sm hover:shadow-md"
+                    >
+                      Rechazar
+                    </button>
+                    <button
+                      onClick={() => approveNow()}
+                      disabled={isProcessing}
+                      className="flex-1 py-4 bg-emerald-600 text-white font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-emerald-700 shadow-xl shadow-emerald-600/20 transition-all border border-emerald-500 disabled:opacity-50"
+                    >
+                      {isProcessing ? 'Procesando...' : 'Aprobar Ahora'}
+                    </button>
+                  </>
+                )}
               </>
             )}
             {(estado !== 'PENDIENTE' || !canApprove || !isApprovalNotification) && (
@@ -1544,6 +1833,24 @@ export default function NotificacionDetalleModal({
             isOpen={showRejectModal}
             onClose={() => setShowRejectModal(false)}
             onConfirm={(motivo) => rejectNow(motivo)}
+          />
+
+          {/* Modal para rechazar con deuda */}
+          <ConfirmRejectModal
+            isOpen={showRejectDeudaModal}
+            onClose={() => setShowRejectDeudaModal(false)}
+            onConfirm={(motivo) => rejectNow(motivo, 'RECHAZADO_CON_DEUDA')}
+            title="Rechazar y Crear Deuda"
+            placeholder="Escriba el motivo (ej: gasto no corresponde a operación de ruta)..."
+          />
+
+          {/* Modal para rechazar con reintegro */}
+          <ConfirmRejectModal
+            isOpen={showRejectReintegroModal}
+            onClose={() => setShowRejectReintegroModal(false)}
+            onConfirm={(motivo) => rejectNow(motivo, 'RECHAZADO_CON_REINTEGRO')}
+            title="Rechazar con Reintegro"
+            placeholder="Confirme que el dinero fue reintegrado físicamente a la caja antes de continuar..."
           />
 
 

@@ -128,22 +128,30 @@ const VistaCoordinador = () => {
     try {
       if (!refreshing) setLoading(true)
       setError(null)
-      const [data, metaOperativa] = await Promise.all([
-        dashboardService.getDashboardData(timeFilter),
-        computeOperationalMetaTotalForTimeFilter(timeFilter as any).catch(() => 0),
-      ])
-      const meta = Number(metaOperativa || 0)
-      const next = meta > 0
-        ? ({
 
-            ...(data as any),
-            trend: (Array.isArray((data as any)?.trend) ? (data as any).trend : []).map((t: any) => ({
-              ...t,
-              target: meta,
-            })),
-          } as any)
-        : data
-      setDashboardData(next)
+    const data = await dashboardService.getDashboardData(timeFilter)
+
+    const trend = Array.isArray((data as any)?.trend)
+      ? (data as any).trend.map((t: any) => {
+          const value = Number(t?.value || 0);
+          const target = Number(t?.target || 0);
+
+          return {
+            ...t,
+            value,
+            target,
+            efficiency:
+              target > 0
+                ? Math.min(100, Math.max(0, Number(((value / target) * 100).toFixed(2))))
+                : 0,
+          };
+        })
+      : [];
+
+    setDashboardData({
+      ...(data as any),
+      trend,
+    });
     } catch (err) {
       setError(formatErrorForComponent(err))
     } finally {
@@ -152,7 +160,6 @@ const VistaCoordinador = () => {
     }
   // BUG-16 FIX: quitar refreshing de deps evita el ciclo:
   // handleRefresh → setRefreshing(true) → callback recreado → doble disparo del useEffect.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeFilter])
 
   useEffect(() => {

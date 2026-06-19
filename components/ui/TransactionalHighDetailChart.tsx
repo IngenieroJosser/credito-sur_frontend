@@ -59,8 +59,13 @@ const formatBogotaDateTime = (value: unknown): string | null => {
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     const d = payload[0].payload;
-    const hasTarget = typeof d.target === 'number' && d.target > 0;
-    const eficiencia = hasTarget ? d.value / d.target : undefined;
+    const value = Number(d?.value || 0);
+    const target = Number(d?.target || 0);
+    const hasTarget = target > 0;
+    const efficiency =
+      hasTarget
+        ? Math.min(100, Math.max(0, Number(((value / target) * 100).toFixed(2))))
+        : 0;
     const tooltipTime = formatBogotaTime(d.time) ?? formatBogotaDateTime(d.time);
     return (
       <div className="bg-white/95 backdrop-blur-md p-5 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.12)] border border-slate-100 min-w-[220px] pointer-events-none animate-in fade-in zoom-in duration-300 relative z-[9999]">
@@ -91,15 +96,11 @@ const CustomTooltip = ({ active, payload }: any) => {
             </div>
           )}
 
-          {hasTarget && typeof eficiencia === 'number' && Number.isFinite(eficiencia) && (
-            <div className="flex items-center justify-between gap-6">
+          {hasTarget && (
+            <div className="flex items-center justify-between gap-6 pt-2 border-t border-slate-50">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Eficiencia</span>
               <span className="text-sm font-black text-emerald-700 tracking-tight tabular-nums">
-                {new Intl.NumberFormat('es-CO', {
-                  style: 'percent',
-                  minimumFractionDigits: 0,
-                  maximumFractionDigits: 0,
-                }).format(eficiencia)}
+                {efficiency}%
               </span>
             </div>
           )}

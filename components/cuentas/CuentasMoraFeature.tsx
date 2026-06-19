@@ -32,8 +32,9 @@ import { apiRequest } from '@/lib/api/api'
 import { formatErrorForComponent } from '@/lib/api/api'
 import { exportService } from '@/services/export-service'
 import { toast } from 'sonner'
+import { resolveRiesgoObligacion } from '@/lib/rutas/riesgo-obligacion'
 
-type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA'
+type NivelRiesgo = 'VERDE' | 'LEVE' | 'PRECAUCION' | 'ROJO' | 'LISTA_NEGRA'
 type EstadoPrestamo = 'EN_MORA' | 'INCUMPLIDO' | 'PERDIDA'
 type ViewMode = 'list' | 'grid'
 
@@ -73,40 +74,45 @@ interface EstadisticasMora {
   variacionMensual: number
 }
 
-export type NivelMoraKey = 'Minimo' | 'Leve' | 'Precaucion' | 'Moderado' | 'Critico'
+export type NivelMoraKey = 'VERDE' | 'LEVE' | 'PRECAUCION' | 'ROJO' | 'LISTA_NEGRA'
 
 const NIVEL_LABEL: Record<NivelMoraKey, string> = {
-  Minimo:     'Mínimo',
-  Leve:       'Leve',
-  Precaucion: 'Precaución',
-  Moderado:   'Moderado',
-  Critico:    'Crítico',
+  VERDE:      'Mínimo',
+  LEVE:       'Leve',
+  PRECAUCION: 'Precaución',
+  ROJO:       'Moderado',
+  LISTA_NEGRA: 'Crítico',
 }
 
-const NIVELES_MORA: NivelMoraKey[] = ['Minimo', 'Leve', 'Precaucion', 'Moderado', 'Critico']
+const NIVELES_MORA: NivelMoraKey[] = ['VERDE', 'LEVE', 'PRECAUCION', 'ROJO', 'LISTA_NEGRA']
 
-function calcularNivelMora(dias: number): NivelMoraKey {
-  if (dias >= 8) return 'Critico'
-  if (dias >= 5) return 'Moderado'
-  if (dias >= 3) return 'Precaucion'
-  if (dias >= 1) return 'Leve'
-  return 'Minimo'
+function calcularNivelMora(cuenta: CuentaMora): NivelMoraKey {
+  // Calcular riesgo basado en días y cuotas vencidas (sin monto vencido acumulado)
+  const dias = cuenta.diasMora || 0
+  const cuotas = cuenta.cuotasVencidas || 0
+
+  // Criterios más estrictos para cuentas en mora
+  if (dias >= 15 || cuotas >= 5) return 'LISTA_NEGRA'
+  if (dias >= 8 || cuotas >= 3) return 'ROJO'
+  if (dias >= 4 || cuotas >= 2) return 'PRECAUCION'
+  if (dias >= 1 || cuotas >= 1) return 'ROJO' // Cualquier mora es al menos moderado
+  return 'VERDE'
 }
 
 const NIVEL_COLORS: Record<string, { badge: string; bar: string; icon: string }> = {
-  Minimo:     { badge: 'bg-emerald-50 text-emerald-700 border-emerald-200', bar: 'bg-emerald-400', icon: 'text-emerald-500' },
-  Leve:       { badge: 'bg-yellow-50  text-yellow-700  border-yellow-200',  bar: 'bg-yellow-400',  icon: 'text-yellow-600' },
-  Precaucion: { badge: 'bg-amber-50   text-amber-700   border-amber-200',   bar: 'bg-amber-500',   icon: 'text-amber-600'  },
-  Moderado:   { badge: 'bg-orange-50  text-orange-700  border-orange-200',  bar: 'bg-orange-500',  icon: 'text-orange-600' },
-  Critico:    { badge: 'bg-rose-50    text-rose-700    border-rose-200',    bar: 'bg-rose-600',    icon: 'text-rose-600'   },
+  VERDE:      { badge: 'bg-emerald-50 text-emerald-700 border-emerald-200', bar: 'bg-emerald-400', icon: 'text-emerald-500' },
+  LEVE:       { badge: 'bg-yellow-50  text-yellow-700  border-yellow-200',  bar: 'bg-yellow-400',  icon: 'text-yellow-600' },
+  PRECAUCION: { badge: 'bg-amber-50   text-amber-700   border-amber-200',   bar: 'bg-amber-500',   icon: 'text-amber-600'  },
+  ROJO:       { badge: 'bg-orange-50  text-orange-700  border-orange-200',  bar: 'bg-orange-500',  icon: 'text-orange-600' },
+  LISTA_NEGRA: { badge: 'bg-rose-50    text-rose-700    border-rose-200',    bar: 'bg-rose-600',    icon: 'text-rose-600'   },
 }
 
 function NivelIcon({ nivel, className }: { nivel: string; className?: string }) {
   const cls = cn(NIVEL_COLORS[nivel]?.icon, className)
-  if (nivel === 'Critico')    return <Flame className={cls} />
-  if (nivel === 'Moderado')   return <ShieldAlert className={cls} />
-  if (nivel === 'Precaucion') return <AlertTriangle className={cls} />
-  if (nivel === 'Leve')       return <Zap className={cls} />
+  if (nivel === 'LISTA_NEGRA') return <Flame className={cls} />
+  if (nivel === 'ROJO')       return <ShieldAlert className={cls} />
+  if (nivel === 'PRECAUCION') return <AlertTriangle className={cls} />
+  if (nivel === 'LEVE')       return <Zap className={cls} />
   return <CheckCircle className={cls} />
 }
 
@@ -234,7 +240,8 @@ export default function CuentasMoraFeature() {
 
       const enriched: CuentaMora[] = raw.map(p => ({
         ...p,
-        etiquetaMora: p.etiquetaMora || calcularNivelMora(p.diasMora || 0),
+        // Calcular nivel en frontend (ignorar nivel del backend que es incorrecto)
+        etiquetaMora: calcularNivelMora(p),
       }))
 
       const soloEnMora = enriched.filter((c) => {
@@ -314,11 +321,11 @@ export default function CuentasMoraFeature() {
   const totalDeuda = estadisticas?.totalDeudaRiesgo ?? cuentas.reduce((a, c) => a + c.montoTotalDeuda, 0)
   const clientesAfectados = estadisticas?.totalClientesAfectados ?? cuentas.length
   const clientesCriticos = estadisticas?.clientesCriticos
-    ?? cuentas.filter(c => calcularNivelMora(Number(c?.diasMora || 0)) === 'Critico').length
+    ?? cuentas.filter(c => calcularNivelMora(c) === 'LISTA_NEGRA').length
 
   const porNivel: Partial<Record<NivelMoraKey, number>> = {}
   cuentas.forEach(c => {
-    const n = (c.etiquetaMora || calcularNivelMora(c.diasMora)) as NivelMoraKey
+    const n = (c.etiquetaMora || calcularNivelMora(c)) as NivelMoraKey
     porNivel[n] = (porNivel[n] || 0) + 1
   })
 
@@ -487,7 +494,7 @@ export default function CuentasMoraFeature() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {cuentas.map(cuenta => {
-                    const nivel = (cuenta.etiquetaMora || calcularNivelMora(cuenta.diasMora)) as NivelMoraKey
+                    const nivel = (cuenta.etiquetaMora || calcularNivelMora(cuenta)) as NivelMoraKey
                     const cfg = NIVEL_COLORS[nivel]
                     const cuotasVencidasUI = Number(cuenta.cuotasVencidas || 0)
                     return (
@@ -563,7 +570,7 @@ export default function CuentasMoraFeature() {
           /* GRID */
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {cuentas.map(cuenta => {
-              const nivel = (cuenta.etiquetaMora || calcularNivelMora(cuenta.diasMora)) as NivelMoraKey
+              const nivel = (cuenta.etiquetaMora || calcularNivelMora(cuenta)) as NivelMoraKey
               const cfg = NIVEL_COLORS[nivel]
               const cuotasVencidasUI = Number(cuenta.cuotasVencidas || 0)
               return (

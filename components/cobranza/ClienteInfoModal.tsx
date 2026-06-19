@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 /**
  * Modal de Información del Cliente — Vista Cobrador
@@ -12,13 +12,15 @@
  */
 
 import { useState, useEffect } from 'react'
-import { X, User, MapPin, Phone, Camera, AlertCircle, Loader2 } from 'lucide-react'
+import { X, User, MapPin, Phone, Camera, AlertCircle, Loader2, Megaphone } from 'lucide-react'
+import { toast } from 'sonner'
 import { VisitaRuta } from '@/lib/types/cobranza'
 import { resolveMediaUrl, formatCurrency } from '@/lib/utils'
 import Portal, { MODAL_Z_INDEX } from '@/components/ui/Portal'
 import { resolveCuotaAcumuladaOperativa, resolveCuotaNormalOperativa } from '@/lib/rutas-core'
 import { clientesService } from '@/services/clientes-service'
 import { rutasService, type HistorialVisitaCliente } from '@/services/rutas-service'
+import { alertasClientesService } from '@/services/alertas-clientes-service'
 
 // ── Tipos ──────────────────────────────────────────────────────────────────────
 
@@ -32,6 +34,7 @@ interface Props {
 }
 
 type Tab = 'expediente' | 'detalle'
+type UserRole = 'SUPER_ADMINISTRADOR' | 'ADMIN' | 'COORDINADOR' | 'SUPERVISOR' | 'COBRADOR' | string
 
 interface ArchivoCliente {
   id: string
@@ -55,6 +58,13 @@ const TIPO_LABEL: Record<string, string> = {
   OTRO:               'Otro',
 }
 
+const ROLES_ALERTA_CLIENTE = [
+  'SUPER_ADMINISTRADOR',
+  'ADMIN',
+  'COORDINADOR',
+  'SUPERVISOR',
+]
+
 // ── Componente ─────────────────────────────────────────────────────────────────
 
 export default function ClienteInfoModal({
@@ -69,8 +79,27 @@ export default function ClienteInfoModal({
   const [archivos, setArchivos] = useState<ArchivoCliente[]>([])
   const [loadingFotos, setLoadingFotos] = useState(false)
   const [fotoExpandida, setFotoExpandida] = useState<string | null>(null)
-  const [historialAusencias, setHistorialAusencias] = useState<HistorialVisitaCliente[]>([])
-  const [loadingHistorialAusencias, setLoadingHistorialAusencias] = useState(false)
+
+  const [userRole, setUserRole] = useState<UserRole>('')
+  const [alertaOpen, setAlertaOpen] = useState(false)
+  const [alertaSubmitting, setAlertaSubmitting] = useState(false)
+  const [alertaForm, setAlertaForm] = useState({
+    motivo: 'NO_LOCALIZADO',
+    descripcion: '',
+    ultimaUbicacionConocida: '',
+    observacionesReportante: '',
+  })
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('user')
+      const user = raw ? JSON.parse(raw) : null
+      setUserRole(String(user?.rol || ''))
+    } catch {
+      setUserRole('')
+    }
+  }, [])
+
 
   // Carga los archivos del cliente y la próxima cuota real desde el backend al abrir el modal
   useEffect(() => {
@@ -93,22 +122,6 @@ export default function ClienteInfoModal({
       .finally(() => setLoadingFotos(false))
   }, [visita.clienteId])
 
-  useEffect(() => {
-    if (!visita.clienteId) {
-      setHistorialAusencias([])
-      return
-    }
-
-    setLoadingHistorialAusencias(true)
-    rutasService
-      .obtenerHistorialVisitasCliente(visita.clienteId, { estadoVisita: 'ausente', limit: 10 })
-      .then((historial) => setHistorialAusencias(Array.isArray(historial) ? historial : []))
-      .catch((err) => {
-        console.error('[ClienteInfoModal] Error cargando historial de ausencias:', err)
-        setHistorialAusencias([])
-      })
-      .finally(() => setLoadingHistorialAusencias(false))
-  }, [visita.clienteId])
   // ── Helpers ──────────────────────────────────────────────────────────────────
 
   const resolveUrl = (archivo: ArchivoCliente) =>
@@ -121,14 +134,14 @@ export default function ClienteInfoModal({
   }
 
   const nivelRiesgoLabel =
-    visita.nivelRiesgo === 'bajo'      ? 'Mínimo' :
+    visita.nivelRiesgo === 'minimo'      ? 'Mínimo' :
     visita.nivelRiesgo === 'leve'      ? 'Leve' :
     (visita.nivelRiesgo as string) === 'precaucion' ? 'Precaución' :
     visita.nivelRiesgo === 'moderado'  ? 'Moderado' :
     visita.nivelRiesgo === 'critico'   ? 'Crítico' : '—'
 
   const nivelRiesgoColor =
-    visita.nivelRiesgo === 'bajo'      ? 'bg-emerald-100 text-emerald-700' :
+    visita.nivelRiesgo === 'minimo'      ? 'bg-emerald-100 text-emerald-700' :
     visita.nivelRiesgo === 'leve'      ? 'bg-yellow-100 text-yellow-700' :
     (visita.nivelRiesgo as string) === 'precaucion' ? 'bg-amber-100 text-amber-700' :
     visita.nivelRiesgo === 'moderado'  ? 'bg-orange-100 text-orange-700' :
@@ -141,6 +154,46 @@ export default function ClienteInfoModal({
   const estadoVisitaGestion = String((visita as any)?.estadoVisita || visita.estado || '').toLowerCase()
   const esAusenteGestion = estadoVisitaGestion === 'ausente'
   const notaAusencia = String((visita as any)?.notasVisita || '').trim()
+  const puedeReportarClienteNoUbicado = ROLES_ALERTA_CLIENTE.includes(String(userRole || '').toUpperCase())
+
+  const handleReportarClienteNoUbicado = async () => {
+    if (!visita.clienteId) {
+      toast.error('No se encontró el cliente de la visita.')
+      return
+    }
+
+    const descripcion = alertaForm.descripcion.trim()
+    const observacionesReportante = alertaForm.observacionesReportante.trim()
+    if (!descripcion || !observacionesReportante) {
+      toast.error('Completa la descripción y las observaciones.')
+      return
+    }
+
+    setAlertaSubmitting(true)
+    try {
+      await alertasClientesService.reportarClienteNoUbicado({
+        clienteId: visita.clienteId,
+        rutaId: String((visita as any)?.rutaId || '').trim() || undefined,
+        motivo: alertaForm.motivo,
+        descripcion,
+        observacionesReportante,
+        ultimaUbicacionConocida: alertaForm.ultimaUbicacionConocida.trim() || undefined,
+      })
+      toast.success('Alerta de cliente no ubicado creada.')
+      setAlertaOpen(false)
+      setAlertaForm({
+        motivo: 'NO_LOCALIZADO',
+        descripcion: '',
+        ultimaUbicacionConocida: '',
+        observacionesReportante: '',
+      })
+    } catch (error: any) {
+      toast.error(error?.message || 'No se pudo crear la alerta.')
+    } finally {
+      setAlertaSubmitting(false)
+    }
+  }
+
   const formatFechaVisita = (fecha: string) => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return fecha
     const [year, month, day] = fecha.split('-').map(Number)
@@ -149,6 +202,18 @@ export default function ClienteInfoModal({
       month: 'short',
       year: 'numeric',
     }).format(new Date(Date.UTC(year, month - 1, day)))
+  }
+  const formatFechaHora = (fecha?: string | null) => {
+    if (!fecha) return 'Sin fecha'
+    const date = new Date(fecha)
+    if (Number.isNaN(date.getTime())) return fecha
+    return new Intl.DateTimeFormat('es-CO', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    }).format(date)
   }
   // ── Render ───────────────────────────────────────────────────────────────────
 
@@ -383,50 +448,7 @@ export default function ClienteInfoModal({
                     </div>
                   </div>
                 )}
-                <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm space-y-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Historial de ausencias</p>
-                      <p className="text-xs font-bold text-slate-500">Últimos registros del cliente</p>
-                    </div>
-                    <span className="shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-black text-amber-700">
-                      {historialAusencias.length}
-                    </span>
-                  </div>
 
-                  {loadingHistorialAusencias ? (
-                    <div className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-3 text-xs font-bold text-slate-500">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Cargando historial...
-                    </div>
-                  ) : historialAusencias.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-3 text-xs font-bold text-slate-500">
-                      Sin ausencias registradas.
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {historialAusencias.map((registro) => (
-                        <div key={registro.id} className="rounded-xl border border-amber-100 bg-amber-50/60 px-3 py-3">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <p className="text-xs font-black text-amber-900">{formatFechaVisita(registro.fechaVisita)}</p>
-                              <p className="truncate text-[10px] font-bold text-amber-700">
-                                {registro.ruta?.nombre || 'Ruta no disponible'}
-                                {registro.cobrador?.nombre ? ` · ${registro.cobrador.nombre}` : ''}
-                              </p>
-                            </div>
-                            <span className="shrink-0 rounded-full bg-white px-2 py-0.5 text-[10px] font-black uppercase text-amber-700">
-                              {registro.estadoVisita}
-                            </span>
-                          </div>
-                          <p className="mt-2 whitespace-pre-wrap break-words text-xs font-semibold leading-relaxed text-amber-950">
-                            {String(registro.notas || '').trim() || 'Sin justificación registrada.'}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-rose-50 border border-rose-100 p-4 rounded-2xl">
@@ -445,7 +467,7 @@ export default function ClienteInfoModal({
                 {/* Estado del crédito */}
                 <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm flex items-center gap-3">
                   <div className={`w-3 h-3 rounded-full shrink-0 ${
-                    visita.nivelRiesgo === 'bajo'     ? 'bg-emerald-500' :
+                    visita.nivelRiesgo === 'minimo'     ? 'bg-emerald-500' :
                     visita.nivelRiesgo === 'leve'     ? 'bg-yellow-400'  :
                     (visita.nivelRiesgo as string) === 'precaucion' ? 'bg-amber-400'  :
                     visita.nivelRiesgo === 'moderado' ? 'bg-orange-500'  :
@@ -461,6 +483,24 @@ export default function ClienteInfoModal({
                     <p className="font-black text-slate-800 capitalize">{(estadoVisitaGestion || visita.estado).replace('_', ' ')}</p>
                   </div>
                 </div>
+
+                {puedeReportarClienteNoUbicado && (
+                  <>
+                    <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm space-y-3">
+                      <div>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Más acciones administrativas</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setAlertaOpen(true)}
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-black uppercase tracking-widest text-amber-800 transition hover:bg-amber-100 active:scale-[0.98]"
+                      >
+                        <Megaphone className="h-4 w-4" />
+                        Reportar no ubicado
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -497,6 +537,108 @@ export default function ClienteInfoModal({
             className="max-w-full max-h-[85vh] rounded-2xl object-contain shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           />
+        </div>
+      )}
+
+      {alertaOpen && (
+        <div
+          className="fixed inset-0 flex items-end justify-center bg-slate-900/70 p-4 sm:items-center"
+          style={{ zIndex: MODAL_Z_INDEX + 20 }}
+          onClick={() => !alertaSubmitting && setAlertaOpen(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-3xl bg-white p-5 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-4">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-amber-600">Alerta operativa</p>
+                <h4 className="mt-1 text-lg font-black text-slate-900">Cliente no ubicado</h4>
+                <p className="mt-1 text-xs font-semibold text-slate-500">{visita.cliente}</p>
+              </div>
+              <button
+                type="button"
+                disabled={alertaSubmitting}
+                onClick={() => setAlertaOpen(false)}
+                className="rounded-full bg-slate-100 p-2 text-slate-500 transition hover:bg-slate-200 disabled:opacity-60"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-3">
+              <label className="block">
+                <span className="mb-1 block text-[10px] font-black uppercase tracking-widest text-slate-500">
+                  Motivo <span className="text-red-500">*</span>
+                </span>
+                <select
+                  value={alertaForm.motivo}
+                  onChange={(e) => setAlertaForm((prev) => ({ ...prev, motivo: e.target.value }))}
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-3 text-sm font-bold text-slate-800 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                >
+                  <option value="NO_LOCALIZADO">No localizado</option>
+                  <option value="DIRECCION_INVALIDA">Dirección inválida</option>
+                  <option value="TELEFONO_SIN_RESPUESTA">Teléfono sin respuesta</option>
+                  <option value="POSIBLE_TRASLADO">Posible traslado</option>
+                </select>
+              </label>
+
+              <label className="block">
+                <span className="mb-1 block text-[10px] font-black uppercase tracking-widest text-slate-500">
+                  Descripción <span className="text-red-500">*</span>
+                </span>
+                <textarea
+                  value={alertaForm.descripcion}
+                  onChange={(e) => setAlertaForm((prev) => ({ ...prev, descripcion: e.target.value }))}
+                  rows={3}
+                  className="w-full resize-none rounded-2xl border border-slate-200 px-3 py-3 text-sm font-semibold text-slate-800 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                  placeholder="Describe qué ocurrió al intentar ubicarlo"
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-1 block text-[10px] font-black uppercase tracking-widest text-slate-500">Última ubicación conocida</span>
+                <input
+                  value={alertaForm.ultimaUbicacionConocida}
+                  onChange={(e) => setAlertaForm((prev) => ({ ...prev, ultimaUbicacionConocida: e.target.value }))}
+                  className="w-full rounded-2xl border border-slate-200 px-3 py-3 text-sm font-semibold text-slate-800 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                  placeholder={visita.direccion || 'Barrio, dirección o referencia'}
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-1 block text-[10px] font-black uppercase tracking-widest text-slate-500">
+                  Observaciones <span className="text-red-500">*</span>
+                </span>
+                <textarea
+                  value={alertaForm.observacionesReportante}
+                  onChange={(e) => setAlertaForm((prev) => ({ ...prev, observacionesReportante: e.target.value }))}
+                  rows={3}
+                  className="w-full resize-none rounded-2xl border border-slate-200 px-3 py-3 text-sm font-semibold text-slate-800 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                  placeholder="Qué se verificó, con quién se habló o qué queda pendiente"
+                />
+              </label>
+            </div>
+
+            <div className="mt-5 flex gap-3">
+              <button
+                type="button"
+                disabled={alertaSubmitting}
+                onClick={() => setAlertaOpen(false)}
+                className="flex-1 rounded-2xl border border-slate-200 py-3 text-xs font-black uppercase tracking-widest text-slate-600 transition hover:bg-slate-50 disabled:opacity-60"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={alertaSubmitting}
+                onClick={handleReportarClienteNoUbicado}
+                className="flex-1 rounded-2xl bg-amber-600 py-3 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-amber-600/20 transition hover:bg-amber-700 disabled:opacity-60"
+              >
+                {alertaSubmitting ? 'Enviando...' : 'Crear alerta'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </Portal>

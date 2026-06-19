@@ -496,11 +496,12 @@ export default function NotificacionesPage() {
     }
   }
 
-  const handleRejectFromModal = async (entityId: string, type: string, reason: string) => {
+  const handleRejectFromModal = async (entityId: string, type: string, reason: string, resultadoRevision?: 'RECHAZADO_CON_DEUDA' | 'RECHAZADO_CON_REINTEGRO') => {
     try {
       await aprobacionesService.rechazar(entityId, {
         type: type as any,
         motivoRechazo: reason || 'Rechazado por el administrador',
+        resultadoRevision,
       })
 
       setNotificacionesState(prev =>
@@ -784,8 +785,6 @@ export default function NotificacionesPage() {
                         >
                           <Eye className="h-4 w-4" />
                         </button>
-                        
-
 
                          {!notif.leida && (
                            <button
@@ -855,6 +854,7 @@ export default function NotificacionesPage() {
         onApprove={handleApproveFromModal}
         onReject={handleRejectFromModal}
         canApprove={false}
+        userRol={userRol || ''}
       />
 
       <ConfirmRejectModal

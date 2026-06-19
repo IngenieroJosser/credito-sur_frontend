@@ -1,5 +1,5 @@
 import AdminLayout from '../admin/layout';
-import RoleFloatingActions from '@/components/dashboards/RoleFloatingActions';
+import CobradorFloatingActions from '@/components/dashboards/CobradorFloatingActions';
 
 export default function CobranzasLayout({
   children,
@@ -9,7 +9,7 @@ export default function CobranzasLayout({
   return (
     <AdminLayout>
       {children}
-      <RoleFloatingActions role="COBRADOR" />
+      <CobradorFloatingActions />
     </AdminLayout>
   );
 }

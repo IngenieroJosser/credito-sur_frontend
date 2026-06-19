@@ -40,10 +40,54 @@ export interface SuperadminReviewResponse {
   items: Aprobacion[];
 }
 
+export interface ApprovalMultimedia {
+  id: string;
+  url?: string | null;
+  ruta?: string | null;
+  rutaArchivo?: string | null;
+  nombreOriginal?: string | null;
+  nombreArchivo?: string | null;
+  tipoContenido?: string | null;
+  tipoArchivo?: string | null;
+  formato?: string | null;
+  entidad?: string | null;
+  descripcion?: string | null;
+  creadoEn?: string;
+  clienteId?: string | null;
+  prestamoId?: string | null;
+  pagoId?: string | null;
+}
+
+export interface ApprovalContext {
+  approval: Aprobacion;
+  cliente: any | null;
+  creditoSolicitud: any | null;
+  creditosCliente: any[];
+  referencias: Array<{
+    tipo: string;
+    nombre?: string | null;
+    telefono?: string | null;
+  }>;
+  multimedia: ApprovalMultimedia[];
+  pagosUltimos30Dias: any[];
+  metricas: {
+    saldoTotalPendiente: number;
+    creditosActivos: number;
+    cuotasVencidas: number;
+    cuotasPagadas: number;
+    reprogramacionesPrevias: number;
+    pagosUltimos30Dias: number;
+    montoPagadoUltimos30Dias: number;
+    candidatoReprogramacion: boolean;
+    alertas: string[];
+  };
+}
+
 export interface AprobarDto {
   type: TipoAprobacion;
   aprobadoPorId?: string;
   notas?: string;
+  resultadoRevision?: 'RECHAZADO_CON_DEUDA' | 'RECHAZADO_CON_REINTEGRO';
   editedData?: any;
 }
 
@@ -52,6 +96,7 @@ export interface RechazarDto {
   rechazadoPorId?: string;
   motivoRechazo?: string;
   notas?: string;
+  resultadoRevision?: 'RECHAZADO_CON_DEUDA' | 'RECHAZADO_CON_REINTEGRO';
 }
 
 export const aprobacionesService = {
@@ -72,6 +117,10 @@ export const aprobacionesService = {
 
   async obtenerMisSolicitudes(): Promise<Aprobacion[]> {
     return apiRequest<Aprobacion[]>('GET', '/approvals/my-requests');
+  },
+
+  async obtenerContexto(id: string): Promise<ApprovalContext> {
+    return apiRequest<ApprovalContext>('GET', `/approvals/${id}/context`);
   },
 
   /**
@@ -102,4 +151,5 @@ export const aprobacionesService = {
     return apiRequest<Aprobacion[]>('POST', '/approvals/history', { entidadId, tabla });
   }
 };
+
 

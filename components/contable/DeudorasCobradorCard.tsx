@@ -447,7 +447,7 @@ export default function DeudorasCobradorCard() {
             </div>
             <div className="text-left">
               <p className="text-xs font-black text-slate-700 uppercase tracking-wider">
-                Deudas de Cobradores
+                Deudas reales de cobradores
               </p>
               <p className="text-[10px] text-slate-400 font-medium mt-0.5">
                 {loading
@@ -491,6 +491,9 @@ export default function DeudorasCobradorCard() {
                 <p className="text-sm font-black text-slate-500">Todos los cobradores están al día</p>
                 <p className="text-xs text-slate-400 text-center max-w-xs">
                   No hay adelantos de nómina ni descuadres de cierre de ruta registrados.
+                </p>
+                <p className="text-[10px] text-slate-300 font-medium text-center">
+                  No incluye saldos de caja ni bases asignadas.
                 </p>
               </div>
             ) : (
