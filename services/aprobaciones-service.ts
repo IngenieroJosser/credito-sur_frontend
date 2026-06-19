@@ -40,6 +40,31 @@ export interface SuperadminReviewResponse {
   items: Aprobacion[];
 }
 
+export interface ApprovalContext {
+  approval: Aprobacion;
+  cliente: any | null;
+  creditoSolicitud: any | null;
+  creditosCliente: any[];
+  referencias: Array<{
+    tipo: string;
+    nombre?: string | null;
+    telefono?: string | null;
+  }>;
+  multimedia: any[];
+  pagosUltimos30Dias: any[];
+  metricas: {
+    saldoTotalPendiente: number;
+    creditosActivos: number;
+    cuotasVencidas: number;
+    cuotasPagadas: number;
+    reprogramacionesPrevias: number;
+    pagosUltimos30Dias: number;
+    montoPagadoUltimos30Dias: number;
+    candidatoReprogramacion: boolean;
+    alertas: string[];
+  };
+}
+
 export interface AprobarDto {
   type: TipoAprobacion;
   aprobadoPorId?: string;
@@ -74,6 +99,10 @@ export const aprobacionesService = {
 
   async obtenerMisSolicitudes(): Promise<Aprobacion[]> {
     return apiRequest<Aprobacion[]>('GET', '/approvals/my-requests');
+  },
+
+  async obtenerContexto(id: string): Promise<ApprovalContext> {
+    return apiRequest<ApprovalContext>('GET', `/approvals/${id}/context`);
   },
 
   /**
