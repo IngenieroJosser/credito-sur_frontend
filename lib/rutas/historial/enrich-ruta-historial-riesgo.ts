@@ -48,8 +48,9 @@ export async function enrichRutaHistorialRiesgo({
       if (!live) {
         return {
           ...v,
+          nivelRiesgo: v?.nivelRiesgo || v?.nivelRiesgoObligacion || 'minimo',
           riesgoHistoricoUiCalculado: true,
-          riesgoHistoricoUiSource: 'ruta-hoy-v1',
+          riesgoHistoricoUiSource: 'ruta-hoy-v1-fallback',
         }
       }
 

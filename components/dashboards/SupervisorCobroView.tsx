@@ -17,14 +17,12 @@ import RutaHistorialOperativo from '@/components/rutas/historial/RutaHistorialOp
 
 import { mapWithConcurrency, memoizePromiseByKey } from '@/lib/async-utils'
 import { mapNivelRiesgo } from '@/lib/types/cobranza'
-import { enrichVisitasConCuotasYRiesgo } from '@/lib/rutas/enrich-visitas-con-cuotas-y-riesgo'
 import { ordenarVisitasRutaActual } from '@/lib/rutas/ordenar-visitas-ruta'
 import { resolveVisitaBaseRegularizacion } from '@/lib/rutas/resolve-visita-base-regularizacion'
 import { formatMilesCOP } from '@/lib/utils'
 import { buildRutaHoyOperativa } from '@/lib/rutas/build-ruta-hoy-operativa'
 import { formatRoleLabel } from '@/lib/display-labels'
 import { computeDiasMoraFromCuotas } from '@/lib/rutas-core'
-import { resolveRiesgoObligacion, resolveNivelRiesgoUi } from '@/lib/rutas/riesgo-obligacion'
 
 import {
   DndContext,
@@ -37,7 +35,6 @@ import {
   DragOverlay,
 } from '@dnd-kit/core'
 import {
-  arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
@@ -55,20 +52,16 @@ import {
   ChevronDown,
   X,
   CreditCard,
-  Plus,
-  ClipboardList,
   GripVertical,
   Calendar,
   Search,
   FileText as FileTextIcon,
-  BarChart3,
   User,
   Target,
   ReceiptText,
   AlertTriangle,
   XCircle,
   Info,
-  FileDown,
   ShieldAlert,
 } from 'lucide-react'
 
@@ -115,7 +108,7 @@ import {
 import { buildCrearPrestamoPayload } from '@/lib/creditos/crear-prestamo-payload'
 import { pagosService } from '@/services/pagos-service'
 
-import { applyRecaudoHoyToVisitas, buildRecaudosHoyMapByPrestamoId, computeMontoCuotaPendienteDespuesDeRecaudo, indexPagosByPrestamoId } from '@/lib/ruta-recaudos'
+import { computeMontoCuotaPendienteDespuesDeRecaudo, indexPagosByPrestamoId } from '@/lib/ruta-recaudos'
 
 import { obtenerSaldoDisponibleRuta, obtenerSaldoCajaSupervisor, getRutaCierreHoy, registrarGasto } from '@/services/contabilidad-service'
 
@@ -138,7 +131,6 @@ import {
   esDomingoBogota,
   getBogotaDateKey,
   getBogotaRangeByPeriod,
-  getPagoBogotaDateKey,
   isCuotaNoPagada,
   isTodayOrPastBogota,
   isVisitaExigibleHoy,
@@ -151,7 +143,6 @@ import {
   resolveCobradorIdForRouteAction,
   computeDiasMoraFromCuotaObjetivo,
   shouldShowVisitaEnRutaHoy,
-  resolveRutaDailySummary,
   resolveCuotaIdFromVisitaLike,
 } from '@/lib/rutas-core'
 
@@ -2692,7 +2683,11 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                             cobradorId={rutaInfo?.cobradorId}
                             actorId={userSession?.id}
                             actorRol={userSession?.rol}
-                            getVisitasHoy={() => visitasBase}
+                            getVisitasHoy={() =>
+                              visitasRutaHoyKpiRef.current.length > 0
+                                ? visitasRutaHoyKpiRef.current
+                                : visitasBase
+                            }
                             onVerCliente={handleAbrirClienteInfo}
                             getEstadoClasses={getEstadoClasses}
                           />
