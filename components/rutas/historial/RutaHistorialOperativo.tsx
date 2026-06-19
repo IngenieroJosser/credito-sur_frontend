@@ -325,8 +325,37 @@ export default function RutaHistorialOperativo({
                             </div>
                             {isDayExpanded && (
                               <div className="border-t border-slate-100 bg-white p-4 space-y-3 animate-in slide-in-from-top-2 duration-200">
-                                <div className="flex justify-between text-xs font-bold text-slate-500 uppercase px-1">
-                                  <span>Gestionados {resumenHistorial.visitados}/{resumenHistorial.total}</span>
+                                <div className="grid grid-cols-3 gap-2">
+                                  <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 text-center">
+                                    <div className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
+                                      Recaudo
+                                    </div>
+                                    <div className="text-xs font-black text-slate-700">
+                                      ${formatMilesCOP(resumenHistorial.recaudo || 0)}
+                                    </div>
+                                  </div>
+
+                                  <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 text-center">
+                                    <div className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
+                                      Gastos
+                                    </div>
+                                    <div className="text-xs font-black text-rose-600">
+                                      ${formatMilesCOP(resumenHistorial.gastos || 0)}
+                                    </div>
+                                  </div>
+
+                                  <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 text-center">
+                                    <div className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
+                                      Gestionados
+                                    </div>
+                                    <div className="text-xs font-black text-blue-600">
+                                      {resumenHistorial.visitados || 0}/{resumenHistorial.total || 0}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="flex justify-between text-[10px] font-bold text-slate-500 uppercase px-1">
+                                  <span>Obligaciones gestionadas</span>
                                   <span>Estado</span>
                                 </div>
                                 <div>
