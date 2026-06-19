@@ -308,7 +308,7 @@ export default function RutaHistorialOperativo({
                                 <div>
                                   <div className="font-bold text-slate-900 capitalize">{dayName}</div>
                                   <div className="text-xs text-slate-500">
-                                    Recaudo: <b>${formatMilesCOP(resumenHistorial.recaudo)}</b>
+                                    Recaudo <b>${formatMilesCOP(resumenHistorial.recaudo)}</b> Gastos <b>${formatMilesCOP(resumenHistorial.gastos || 0)}</b>
                                   </div>
                                 </div>
                               </div>
