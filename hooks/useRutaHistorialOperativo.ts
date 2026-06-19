@@ -35,7 +35,6 @@ export const useRutaHistorialOperativo = ({
   rutaId,
   cobradorId,
   actorId,
-  actorRol,
   getVisitasHoy,
   initialDays = 30,
   preferLoadDayForToday = false,
@@ -82,7 +81,7 @@ export const useRutaHistorialOperativo = ({
 
     try {
       const visitasResp = await rutasService.obtenerVisitasDelDia(rutaId, fechaClave)
-      const saldo = await obtenerSaldoDisponibleRuta(rutaId, fechaClave)
+      const saldoRuta = await obtenerSaldoDisponibleRuta(rutaId, fechaClave)
 
       const pagosResp = await pagosService.obtenerPagos({ limit: 5000 })
       const pagosData = (pagosResp as any)?.pagos || pagosResp || []
@@ -124,7 +123,7 @@ export const useRutaHistorialOperativo = ({
       const diaBase = buildHistorialDiaFromBackend({
         fechaClave,
         visitasResp,
-        saldo,
+        saldo: saldoRuta,
         pagosDelDia,
       })
 
