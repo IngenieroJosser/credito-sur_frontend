@@ -44,12 +44,14 @@ import {
 } from 'lucide-react'
 import { formatCurrency, formatMilesCOP } from '@/lib/utils'
 import { aprobacionesService, type Aprobacion, type PendingResponse, type SuperadminReviewResponse } from '@/services/aprobaciones-service'
+import { alertasClientesService, type AlertaCliente } from '@/services/alertas-clientes-service'
 import { prestamosService } from '@/services/prestamos-service'
 import { rutasService, type Ruta } from '@/services/rutas-service'
 import { TipoAprobacion } from '@/types/enums'
 import { toast } from 'sonner'
 
 import NotificacionDetalleModal from '@/components/dashboards/shared/NotificacionDetalleModal'
+import AlertaClienteDetalleModal from '@/components/notificaciones/AlertaClienteDetalleModal'
 import ProrrogaDetalleModal, { type ProrrogaData } from '@/components/revisiones/ProrrogaDetalleModal'
 import ReprogramacionDetalleModal, { type ReprogramacionData } from '@/components/revisiones/ReprogramacionDetalleModal'
 import ConfirmRejectModal from '@/components/ui/ConfirmRejectModal'
@@ -172,6 +174,70 @@ const formatFechaCortaBogota = (value: string | null | undefined) => {
   return date.toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })
 }
 
+const textValue = (...values: any[]) => {
+  for (const value of values) {
+    if (value === null || value === undefined) continue
+    const str = String(value).trim()
+    if (str && str !== 'undefined' && str !== 'null' && str !== '—') return str
+  }
+  return ''
+}
+
+const getAlertaClienteNombre = (alerta: AlertaCliente) => {
+  const snapshot = alerta.snapshotCliente || {}
+  const cliente = snapshot.cliente || alerta.cliente || {}
+  return textValue(
+    cliente.nombreCompleto,
+    `${cliente.nombres || ''} ${cliente.apellidos || ''}`,
+    'Cliente sin nombre',
+  )
+}
+
+const getAlertaMetricas = (alerta: AlertaCliente) => {
+  const snapshot = alerta.snapshotCliente || {}
+  const creditos = Array.isArray(snapshot.creditos) ? snapshot.creditos : []
+  const esActiva = (credito: any) => {
+    if (credito?.esCarteraActiva === true) return true
+    if (credito?.esCarteraActiva === false) return false
+
+    const estado = String(credito?.estado || '').toUpperCase()
+    const estadoAprobacion = String(credito?.estadoAprobacion || '').toUpperCase()
+    return (
+      ['ACTIVO', 'EN_MORA', 'INCUMPLIDO'].includes(estado) &&
+      !['PENDIENTE', 'RECHAZADO'].includes(estadoAprobacion)
+    )
+  }
+  const saldoCarteraActiva = creditos
+    .filter(esActiva)
+    .reduce((sum: number, credito: any) => sum + Number(credito.saldoPendiente || 0), 0)
+  const cuotasVencidas = creditos
+    .filter(esActiva)
+    .reduce((sum: number, credito: any) => sum + Number(credito.cuotasVencidas || 0), 0)
+  const metricas = snapshot.metricas || {}
+  const tieneDetalleCreditos = creditos.length > 0
+
+  return {
+    ...metricas,
+    saldoPendienteTotal: tieneDetalleCreditos
+      ? saldoCarteraActiva
+      : (
+      metricas.saldoPendienteCarteraActiva ??
+      metricas.saldoCarteraActiva ??
+      metricas.saldoPendienteTotal ??
+      0
+      ),
+    cuotasVencidas: tieneDetalleCreditos
+      ? cuotasVencidas
+      : (metricas.cuotasVencidas ?? 0),
+    creditosActivos: tieneDetalleCreditos
+      ? creditos.filter(esActiva).length
+      : (metricas.creditosActivos ?? 0),
+    creditosPendientesRevision: tieneDetalleCreditos
+      ? creditos.filter((credito: any) => !esActiva(credito)).length
+      : (metricas.creditosPendientesRevision ?? 0),
+  }
+}
+
 const resolveFechaOriginalReprogramacion = (datos: any, creadoEn?: string | null) => {
   const fechaGestion =
     toBogotaDateKey(datos?.fechaGestionOriginal) ||
@@ -262,8 +328,11 @@ export default function RevisionesPage() {
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<PendingResponse | null>(null)
   const [superadminData, setSuperadminData] = useState<SuperadminReviewResponse | null>(null)
+  const [alertasCliente, setAlertasCliente] = useState<AlertaCliente[]>([])
   const [activeTab, setActiveTab] = useState<string>('todos')
   const [processingId, setProcessingId] = useState<string | null>(null)
+  const [resolvingAlertaId, setResolvingAlertaId] = useState<string | null>(null)
+  const [motivoResolucionAlerta, setMotivoResolucionAlerta] = useState('')
   const [notaSuperadmin, setNotaSuperadmin] = useState('')
   const [userRol, setUserRol] = useState<string>('')
   const [confirmModal, setConfirmModal] = useState<{
@@ -279,6 +348,8 @@ export default function RevisionesPage() {
 
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
   const [selectedItem, setSelectedItem] = useState<any>(null)
+  const [selectedAlertaCliente, setSelectedAlertaCliente] = useState<AlertaCliente | null>(null)
+  const [resolveAlertaCliente, setResolveAlertaCliente] = useState<AlertaCliente | null>(null)
 
   // Modal dedicado para prorrogas
   const [prorrogaModalOpen, setProrrogaModalOpen] = useState(false)
@@ -299,22 +370,27 @@ export default function RevisionesPage() {
     setSelectedProrroga(null)
     setReprogramacionModalOpen(false)
     setSelectedReprogramacion(null)
+    setSelectedAlertaCliente(null)
+    setResolveAlertaCliente(null)
+    setMotivoResolucionAlerta('')
   }
 
   const loadData = useCallback(async () => {
     setLoading(true)
     try {
-      const [pendientes, superadmin, rutasData] = await Promise.allSettled([
+      const [pendientes, superadmin, rutasData, alertasData] = await Promise.allSettled([
         aprobacionesService.obtenerPendientes(),
         canReviewRejected
           ? aprobacionesService.obtenerRevisionSuperadmin()
           : Promise.resolve({ total: 0, items: [] }),
         rutasService.getAll(),
+        alertasClientesService.listar({ estado: 'ACTIVA' }),
       ])
 
       if (pendientes.status === 'fulfilled') setData(pendientes.value)
       if (superadmin.status === 'fulfilled') setSuperadminData(superadmin.value as any)
       if (rutasData.status === 'fulfilled') setRutas(rutasData.value)
+      if (alertasData.status === 'fulfilled') setAlertasCliente(alertasData.value)
     } catch (error) {
       console.error('Error cargando revisiones:', error)
       toast.error('Error al cargar las revisiones')
@@ -330,6 +406,10 @@ export default function RevisionesPage() {
         const user = JSON.parse(userData)
         setUserRol(user.rol || '')
       } catch { /* ignore */ }
+    }
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('tab') === 'alertas-clientes') {
+      setActiveTab('alertas-clientes')
     }
   }, [])
 
@@ -417,7 +497,47 @@ export default function RevisionesPage() {
     }
   }
 
-  const handleApproveFromModal = async (entityId: string) => {
+  const handleOpenAlertaCliente = async (alerta: AlertaCliente) => {
+    setSelectedAlertaCliente(alerta)
+    try {
+      const detalle = await alertasClientesService.obtenerDetalle(alerta.id)
+      setSelectedAlertaCliente(detalle)
+    } catch (error) {
+      console.error('[Revisiones] Error cargando alerta de cliente:', error)
+      toast.error('No se pudo cargar el detalle completo de la alerta')
+    }
+  }
+
+  const handleResolverAlertaCliente = async () => {
+    if (!resolveAlertaCliente) return
+    const motivo = motivoResolucionAlerta.trim()
+    if (!motivo) {
+      toast.error('Indica el motivo de resolución de la alerta')
+      return
+    }
+
+    setResolvingAlertaId(resolveAlertaCliente.id)
+    try {
+      await alertasClientesService.resolver(resolveAlertaCliente.id, {
+        motivoResolucion: motivo,
+      })
+      toast.success('Alerta resuelta correctamente')
+      setResolveAlertaCliente(null)
+      setSelectedAlertaCliente(null)
+      setMotivoResolucionAlerta('')
+      await loadData()
+    } catch (error: any) {
+      toast.error(error?.message || 'Error al resolver la alerta')
+    } finally {
+      setResolvingAlertaId(null)
+    }
+  }
+
+  const handleApproveFromModal = async (
+    entityId: string,
+    type?: string,
+    editedDetails?: any,
+  ) => {
     const item = Object.values(data?.items || {}).flat().find(i => i.id === entityId)
     if (!item) return
     
@@ -427,7 +547,8 @@ export default function RevisionesPage() {
         await prestamosService.aprobarReprogramacion(item.id)
       } else {
         await aprobacionesService.aprobar(item.id, {
-          type: item.tipoAprobacion as TipoAprobacion
+          type: (type || item.tipoAprobacion) as TipoAprobacion,
+          editedData: editedDetails,
         })
       }
       toast.success('Solicitud aprobada correctamente')
@@ -545,6 +666,7 @@ export default function RevisionesPage() {
 
   const tabs = [
     { id: 'todos', label: 'Todas', count: data?.total || 0 },
+    { id: 'alertas-clientes', label: 'Alertas cliente', count: alertasCliente.length },
     ...Object.entries(data?.conteo || {}).map(([tipo, count]) => ({
       id: tipo,
       label: CATEGORIAS[tipo]?.label || tipo,
@@ -585,6 +707,10 @@ export default function RevisionesPage() {
   }
 
   const filteredItems = getFilteredItems()
+  const filteredAlertasCliente = alertasCliente.filter((alerta) => {
+    if (!filtroRuta) return true
+    return alerta.rutaId === filtroRuta || alerta.snapshotCliente?.ruta?.id === filtroRuta
+  })
 
   const renderItemCard = (item: Aprobacion, isReviewMode = false) => {
     const cat = CATEGORIAS[item.tipoAprobacion] || CATEGORIAS.BAJA_POR_PERDIDA
@@ -782,6 +908,104 @@ export default function RevisionesPage() {
     )
   }
 
+  const renderAlertaClienteCard = (alerta: AlertaCliente) => {
+    const snapshot = alerta.snapshotCliente || {}
+    const metricas = getAlertaMetricas(alerta)
+    const cliente = snapshot.cliente || alerta.cliente || {}
+    const ruta = snapshot.ruta || {}
+    const reportante = alerta.reportadoPor
+      ? `${alerta.reportadoPor.nombres || ''} ${alerta.reportadoPor.apellidos || ''}`.trim()
+      : 'Sistema'
+    const isResolving = resolvingAlertaId === alerta.id
+
+    return (
+      <div key={alerta.id} className="overflow-hidden rounded-2xl border border-red-200 bg-white shadow-sm transition-all duration-300 hover:shadow-md">
+        <div className="p-5">
+          <div className="mb-4 flex items-start justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="rounded-xl border border-red-200 bg-red-50 p-2 text-red-600">
+                <ShieldCheck className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="truncate font-bold text-slate-900">
+                  {getAlertaClienteNombre(alerta)}
+                </h3>
+                <p className="mt-0.5 truncate text-xs text-slate-500">
+                  {textValue(cliente.dni, 'Sin documento')} · {textValue(ruta.nombre, 'Sin ruta')}
+                </p>
+              </div>
+            </div>
+            <span className="rounded-full bg-red-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-red-700">
+              Activa
+            </span>
+          </div>
+
+          <div className="mb-4 rounded-xl bg-red-50 px-3 py-3">
+            <p className="text-xs font-black uppercase tracking-widest text-red-500">
+              {String(alerta.motivo || 'CLIENTE NO UBICADO').replace(/_/g, ' ')}
+            </p>
+            <p className="mt-1 line-clamp-2 text-sm font-bold text-red-950">
+              {alerta.descripcion || 'Sin descripción registrada.'}
+            </p>
+          </div>
+
+          <div className="mb-4 grid grid-cols-3 gap-2">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Saldo activo</p>
+              <p className="mt-1 truncate text-sm font-black text-slate-900">
+                {formatCurrency(Number(metricas.saldoPendienteTotal || 0))}
+              </p>
+            </div>
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+              <p className="text-[9px] font-black uppercase tracking-widest text-amber-500">Vencidas</p>
+              <p className="mt-1 text-sm font-black text-amber-800">
+                {Number(metricas.cuotasVencidas || 0)}
+              </p>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Obligaciones</p>
+              <p className="mt-1 text-sm font-black text-slate-900">
+                {Array.isArray(snapshot.creditos) ? snapshot.creditos.length : 0}
+              </p>
+            </div>
+          </div>
+          {Number(metricas.creditosPendientesRevision || 0) > 0 ? (
+            <p className="mb-4 rounded-xl bg-slate-50 px-3 py-2 text-xs font-bold text-slate-500">
+              {Number(metricas.creditosPendientesRevision || 0)} pendiente(s) de revisión no suman al saldo activo.
+            </p>
+          ) : null}
+
+          <div className="mb-4 flex items-center gap-3 text-[11px] font-bold text-slate-400">
+            <span className="flex items-center gap-1"><User className="h-3 w-3" /> {reportante || 'Sistema'}</span>
+            <span className="h-1 w-1 rounded-full bg-slate-200"></span>
+            <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {formatFecha(alerta.creadoEn)}</span>
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              onClick={() => handleOpenAlertaCliente(alerta)}
+              className="rounded-xl border border-slate-200 p-2 text-slate-400 transition-colors hover:bg-slate-50 hover:text-slate-600"
+              title="Ver detalle"
+            >
+              <Eye className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => {
+                setResolveAlertaCliente(alerta)
+                setMotivoResolucionAlerta('')
+              }}
+              disabled={isResolving}
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 py-2.5 text-xs font-bold text-white transition-colors hover:bg-emerald-700 disabled:opacity-60"
+            >
+              {isResolving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+              Resolver alerta
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 p-6 md:p-10">
       <header className="mb-10">
@@ -861,7 +1085,16 @@ export default function RevisionesPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredItems.length > 0 ? (
+          {activeTab === 'alertas-clientes' ? (
+            filteredAlertasCliente.length > 0 ? (
+              filteredAlertasCliente.map(renderAlertaClienteCard)
+            ) : (
+              <div className="col-span-full rounded-3xl border-2 border-dashed border-slate-200 bg-white py-20 text-center">
+                <CheckCircle2 className="mx-auto mb-3 h-10 w-10 text-slate-200" />
+                <p className="font-bold text-slate-500">No hay alertas activas de clientes en esta categoría</p>
+              </div>
+            )
+          ) : filteredItems.length > 0 ? (
             filteredItems.map(i => renderItemCard(i, activeTab === 'revision-final'))
           ) : (
              <div className="col-span-full py-20 text-center bg-white rounded-3xl border-2 border-dashed border-slate-200">
@@ -882,6 +1115,13 @@ export default function RevisionesPage() {
         isLegacy={selectedItem ? isGastoProvisionalLegacy(selectedItem) : false}
         userRol={userRol}
       />
+
+      {selectedAlertaCliente && (
+        <AlertaClienteDetalleModal
+          alerta={selectedAlertaCliente}
+          onClose={() => setSelectedAlertaCliente(null)}
+        />
+      )}
 
       {/* Modal dedicado para prorrogas y gestion de cuentas vencidas */}
       <ProrrogaDetalleModal
@@ -916,6 +1156,59 @@ export default function RevisionesPage() {
           if (item) handleRechazar(item)
         }}
       />
+
+      {resolveAlertaCliente && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
+            <div className="mb-5">
+              <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600">
+                Resolver alerta operativa
+              </p>
+              <h3 className="mt-2 text-lg font-black text-slate-900">
+                {getAlertaClienteNombre(resolveAlertaCliente)}
+              </h3>
+              <p className="mt-1 text-sm font-semibold text-slate-500">
+                La alerta quedará cerrada, pero seguirá en el historial del cliente.
+              </p>
+            </div>
+
+            <label className="mb-2 block text-xs font-black uppercase tracking-widest text-slate-500">
+              Motivo de resolución <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              value={motivoResolucionAlerta}
+              onChange={(event) => setMotivoResolucionAlerta(event.target.value)}
+              rows={4}
+              className="w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+              placeholder="Ej: Cliente ubicado, datos actualizados y cobrador notificado."
+            />
+
+            <div className="mt-5 flex gap-2">
+              <button
+                onClick={() => {
+                  setResolveAlertaCliente(null)
+                  setMotivoResolucionAlerta('')
+                }}
+                className="flex-1 rounded-xl border border-slate-200 py-3 text-sm font-bold text-slate-500 transition hover:bg-slate-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleResolverAlertaCliente}
+                disabled={resolvingAlertaId === resolveAlertaCliente.id}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+              >
+                {resolvingAlertaId === resolveAlertaCliente.id ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4" />
+                )}
+                Resolver
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {confirmModal && confirmModal.type === 'REJECT' && (
         <ConfirmRejectModal 

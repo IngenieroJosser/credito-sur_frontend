@@ -29,6 +29,8 @@ import ConfirmRejectModal from '@/components/ui/ConfirmRejectModal'
 import PagoDetalleModal from '@/components/dashboards/shared/PagoDetalleModal'
 import CierreRutaNotifModal from '@/components/dashboards/shared/CierreRutaNotifModal'
 import PagoRegularizadoNotifModal from '@/components/dashboards/shared/PagoRegularizadoNotifModal'
+import AlertaClienteDetalleModal from '@/components/notificaciones/AlertaClienteDetalleModal'
+import { alertasClientesService } from '@/services/alertas-clientes-service'
 
 export interface NotificacionDetalleModalProps {
   isOpen: boolean
@@ -126,6 +128,8 @@ export default function NotificacionDetalleModal({
   const [planIndex, setPlanIndex] = React.useState<number | null>(null)
   const [autoCuotas, setAutoCuotas] = useState(true)
   const [esContado, setEsContado] = useState(false)
+  const [alertaClienteDetalle, setAlertaClienteDetalle] = useState<any | null>(null)
+  const [loadingAlertaCliente, setLoadingAlertaCliente] = useState(false)
   const mouseDownTargetRef = useRef<EventTarget | null>(null)
   // Estado del modal de detalle de pago (componente separado)
   const [showPagoDetalle, setShowPagoDetalle] = useState(false)
@@ -147,6 +151,86 @@ export default function NotificacionDetalleModal({
       return fallback
     }
   }
+
+  const isAlertaClienteNoUbicado = (notif: any) => {
+    const meta = safeJsonParse(notif?.metadata)
+    return (
+      notif?.tipo === 'ALERTA_CLIENTE_NO_UBICADO' ||
+      meta?.tipoAlerta === 'CLIENTE_NO_UBICADO' ||
+      meta?.tipo === 'ALERTA_CLIENTE_NO_UBICADO'
+    )
+  }
+
+  React.useEffect(() => {
+    if (!isOpen || !notificacion || !isAlertaClienteNoUbicado(notificacion)) {
+      setAlertaClienteDetalle(null)
+      setLoadingAlertaCliente(false)
+      return
+    }
+
+    const meta = safeJsonParse(notificacion.metadata)
+    const alertaId = meta.alertaId || notificacion.entidadId
+    const fallbackAlerta = {
+      id: alertaId || notificacion.id,
+      estado: meta.estadoAlerta || 'ACTIVA',
+      motivo: meta.motivo,
+      descripcion: meta.descripcion || notificacion.mensaje,
+      ultimaUbicacionConocida: meta.ultimaUbicacionConocida,
+      observacionesReportante: meta.observacionesReportante,
+      snapshotCliente: meta.snapshotCliente || {
+        cliente: {
+          id: meta.clienteId,
+          nombres: meta.clienteNombre,
+          dni: meta.documento,
+          telefono: meta.telefono,
+          direccion: meta.direccion,
+        },
+        ruta: {
+          id: meta.rutaId,
+          nombre: meta.rutaNombre,
+          cobrador: {
+            id: meta.cobradorId,
+            nombres: meta.cobradorNombre,
+          },
+        },
+        metricas: {
+          saldoPendienteTotal: meta.saldoPendienteTotal,
+          cuotasVencidas: meta.cuotasVencidas,
+          saldoVencidoTotal: meta.saldoVencidoTotal,
+        },
+        referencias: meta.referencias || [],
+        evidencias: meta.evidencias || [],
+        creditos: meta.creditos || [],
+        historialVisitas: meta.historialVisitas || [],
+      },
+      metadata: meta,
+    }
+
+    if (!alertaId) {
+      setAlertaClienteDetalle(fallbackAlerta)
+      return
+    }
+
+    let cancelled = false
+    setLoadingAlertaCliente(true)
+    setAlertaClienteDetalle(fallbackAlerta)
+
+    alertasClientesService
+      .obtenerDetalle(String(alertaId))
+      .then((detalle) => {
+        if (!cancelled) setAlertaClienteDetalle(detalle || fallbackAlerta)
+      })
+      .catch(() => {
+        if (!cancelled) setAlertaClienteDetalle(fallbackAlerta)
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingAlertaCliente(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [isOpen, notificacion?.id, notificacion?.entidadId])
 
   React.useEffect(() => {
     if (notificacion) {
@@ -507,6 +591,16 @@ export default function NotificacionDetalleModal({
 
   const meta = safeJsonParse(notificacion.metadata)
 
+  if (isAlertaClienteNoUbicado(notificacion)) {
+    return (
+      <AlertaClienteDetalleModal
+        alerta={alertaClienteDetalle}
+        loading={loadingAlertaCliente}
+        onClose={onClose}
+      />
+    )
+  }
+
   // ── Detección de notificaciones de Cierre de Ruta (modal especializado) ──
   const esCierreRuta = (
     (notificacion.titulo || '').toLowerCase().includes('cierre de ruta') ||
@@ -808,8 +902,8 @@ export default function NotificacionDetalleModal({
     if (!notificacion.entidadId || !approvalType) return
     setIsProcessing(true)
     try {
-      let finalDetails = editedDetails
-      if (isPrestamo && isArticle && esContado) {
+      let finalDetails = isEditingMode ? editedDetails : undefined
+      if (finalDetails && isPrestamo && isArticle && esContado) {
         const precioContado = (() => {
           if (articuloData) {
             return Number(articuloData.precioContado || articuloData.precioBase || editedDetails?.valorArticulo || editedDetails?.monto || 0)
@@ -831,7 +925,7 @@ export default function NotificacionDetalleModal({
           ventaContado: true,
         }
       }
-      finalDetails = { ...finalDetails }
+      finalDetails = finalDetails ? { ...finalDetails } : undefined
       await onApprove(notificacion.entidadId, approvalType, finalDetails)
       handleClose()
     } catch (error) {
@@ -950,6 +1044,12 @@ export default function NotificacionDetalleModal({
         )}
       </div>
 
+      {isEditingMode && (
+        <div className="rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-xs font-bold text-orange-800">
+          Los cambios se aplicarán al aprobar la solicitud. Si cierras o bloqueas cambios, no se guardan todavía.
+        </div>
+      )}
+
       <div className="space-y-4">
         <div className={`p-5 rounded-2xl border transition-all duration-300 ${isEditingMode ? 'bg-white border-orange-200 shadow-xl' : 'bg-slate-50 border-slate-100'}`}>
           <div className="flex items-center gap-2 mb-4 border-b border-slate-200/50 pb-2">
@@ -1049,10 +1149,12 @@ export default function NotificacionDetalleModal({
                       value={formatCOPInputValue(String(editedDetails?.valorArticulo || safeMeta?.valorArticulo || editedDetails?.monto || safeMeta?.monto || ''))}
                       onChange={(e) => {
                         const val = parseCOPInputToNumber(e.target.value)
+                        const cuotaInicial = Number(editedDetails?.cuotaInicial || safeMeta?.cuotaInicial || 0)
+                        const isArticuloInput = Boolean(editedDetails?.articulo || safeMeta?.articulo)
                         setEditedDetails({
                           ...editedDetails, 
-                          [(editedDetails?.articulo || safeMeta?.articulo) ? 'valorArticulo' : 'monto']: val,
-                          monto: val,
+                          [isArticuloInput ? 'valorArticulo' : 'monto']: val,
+                          monto: isArticuloInput ? Math.max(0, val - cuotaInicial) : val,
                           montoTotal: 0,
                           interesTotal: 0
                         })
@@ -1177,6 +1279,33 @@ export default function NotificacionDetalleModal({
                   </div>
                 ) : null}
 
+                {!isArticle && (
+                  <div>
+                    <label className="text-[10px] text-blue-600 uppercase font-black block mb-1">Tipo de Amortización</label>
+                    {isEditingMode ? (
+                      <select
+                        value={editedDetails?.tipoAmortizacion || safeMeta?.tipoAmortizacion || 'INTERES_SIMPLE'}
+                        onChange={(e) =>
+                          setEditedDetails({
+                            ...editedDetails,
+                            tipoAmortizacion: e.target.value,
+                            montoTotal: 0,
+                            interesTotal: 0,
+                          })
+                        }
+                        className="w-full bg-white border border-blue-200 text-slate-900 rounded-xl px-4 py-2 text-sm font-black outline-none focus:ring-2 focus:ring-blue-500/20"
+                      >
+                        <option value="INTERES_SIMPLE">Interés simple</option>
+                        <option value="FRANCESA">Amortizable</option>
+                      </select>
+                    ) : (
+                      <p className="text-sm font-black text-slate-900">
+                        {String(editedDetails?.tipoAmortizacion || safeMeta?.tipoAmortizacion || 'INTERES_SIMPLE').replace(/_/g, ' ')}
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 <div className="col-span-2 p-4 bg-white/50 rounded-2xl border border-blue-100 space-y-4">
                   <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest mb-1">Detalles de Venta</p>
                   <div className="grid grid-cols-2 gap-4">
@@ -1231,14 +1360,16 @@ export default function NotificacionDetalleModal({
                           {isEditingMode ? (
                             <input 
                               type="text"
-                              value={formatCOPInput(Number(editedDetails?.cuotaInicial ?? safeMeta?.cuotaInicial ?? 0))}
-                              onChange={(e) => {
-                                const val = parseCOPInput(e.target.value)
-                                setEditedDetails({
-                                  ...editedDetails, 
-                                  cuotaInicial: val,
-                                })
-                              }}
+                            value={formatCOPInput(Number(editedDetails?.cuotaInicial ?? safeMeta?.cuotaInicial ?? 0))}
+                            onChange={(e) => {
+                              const val = parseCOPInput(e.target.value)
+                              const valorArticulo = Number(editedDetails?.valorArticulo || safeMeta?.valorArticulo || editedDetails?.monto || safeMeta?.monto || 0)
+                              setEditedDetails({
+                                ...editedDetails, 
+                                cuotaInicial: val,
+                                monto: Math.max(0, valorArticulo - val),
+                              })
+                            }}
                               className="w-full bg-white border border-blue-200 text-slate-900 rounded-xl px-4 py-2 text-sm font-black outline-none focus:ring-2 focus:ring-blue-500/20"
                             />
                           ) : (
@@ -1264,7 +1395,16 @@ export default function NotificacionDetalleModal({
                           <input 
                             type="number"
                             value={editedDetails?.porcentaje || safeMeta?.porcentaje || ''}
-                            onChange={(e) => setEditedDetails({...editedDetails, porcentaje: Number(e.target.value)})}
+                            onChange={(e) => {
+                              const tasa = Number(e.target.value)
+                              setEditedDetails({
+                                ...editedDetails,
+                                porcentaje: tasa,
+                                tasaInteres: tasa,
+                                montoTotal: 0,
+                                interesTotal: 0,
+                              })
+                            }}
                             className="w-full bg-white border border-blue-200 text-slate-900 rounded-xl px-4 py-2 text-sm font-black outline-none focus:ring-2 focus:ring-blue-500/20"
                           />
                         ) : (
@@ -1274,6 +1414,21 @@ export default function NotificacionDetalleModal({
                     )}
                     <div>
                     <label className="text-[10px] text-blue-600 uppercase font-black block mb-1">Fecha Inicio</label>
+                      {isEditingMode ? (
+                        <input
+                          type="date"
+                          value={normalizeDateKey(String(
+                            editedDetails?.fechaInicio ||
+                            editedDetails?.fecha ||
+                            safeMeta?.fechaInicio ||
+                            safeMeta?.fecha ||
+                            safeMetaDetalles?.fechaInicio ||
+                            '',
+                          )) || ''}
+                          onChange={(e) => setEditedDetails({ ...editedDetails, fechaInicio: e.target.value })}
+                          className="w-full bg-white border border-blue-200 text-slate-900 rounded-xl px-4 py-2 text-sm font-black outline-none focus:ring-2 focus:ring-blue-500/20"
+                        />
+                      ) : (
                       <p className="text-base font-black text-slate-900">
                         {(() => {
                           // Priorizar editedDetails, luego safeMeta (ambos incluyen la data del backend)
@@ -1298,6 +1453,7 @@ export default function NotificacionDetalleModal({
                           return 'N/A';
                         })()}
                       </p>
+                      )}
                     </div>
                     <div className="col-span-2">
                             <label className="text-[10px] text-blue-600 uppercase font-black block mb-1">Notas / Observaciones</label>

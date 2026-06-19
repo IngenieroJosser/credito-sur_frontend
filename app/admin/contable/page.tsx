@@ -58,7 +58,8 @@ import {
   AlertTriangle,
   ChevronLeft,
   ChevronRight,
-  ArrowRightLeft
+  ArrowRightLeft,
+  Search,
 } from 'lucide-react'
 
 import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber, cn, formatMilesCOP } from '@/lib/utils'
@@ -127,6 +128,8 @@ interface HistorialCierre {
   estado: 'CUADRADA' | 'DESCUADRADA'
 }
 
+type OrigenMovimientoContable = 'TODOS' | 'EMPRESA' | 'COBRADOR' | 'CLIENTE' | 'SISTEMA'
+
 // Cada movimiento de dinero que entra o sale
 interface MovimientoContable {
   id: string
@@ -137,7 +140,7 @@ interface MovimientoContable {
   monto: number
   categoria: string // Ej: 'Transporte', 'Papelería', 'Aporte Capital'
   responsable: string
-  origen: 'EMPRESA' | 'COBRADOR' // Quién generó el movimiento
+  origen: Exclude<OrigenMovimientoContable, 'TODOS'> // Quién generó el movimiento
   estado: 'PENDIENTE' | 'APROBADO' | 'RECHAZADO'
   referencia?: string // Número de recibo, factura, etc.
   rutaId?: string
@@ -211,7 +214,7 @@ const mapTransaccion = (t: ApiTransaccion): MovimientoContable => {
     monto: t.monto,
     categoria: t.categoria || 'GENERAL',
     responsable: t.responsable,
-    origen: origenInferido as any,
+    origen: origenInferido as Exclude<OrigenMovimientoContable, 'TODOS'>,
     estado: (t.estado as any) || 'APROBADO',
     rutaId: (t as any).rutaId,
     cajaId: (t as any).cajaId,
@@ -253,7 +256,11 @@ const mapMovimientoLedger = (m: ApiMovimientoLedger): MovimientoContable => {
     monto: esVentaArticulo ? montoCaja : Math.abs(impactoCaja || montoContable),
     categoria: esVentaArticuloFinanciada ? 'Asiento contable de venta' : (m.accountName || m.tipo || 'GENERAL'),
     responsable: m.creadoPorId || 'Sistema',
-    origen: tipoLedger === 'PAGO' ? 'COBRADOR' : 'EMPRESA',
+    origen: tipoLedger === 'PAGO'
+      ? 'CLIENTE'
+      : tipoLedger === 'CONSOLIDACION' || tipoLedger === 'TRANSFERENCIA'
+        ? 'COBRADOR'
+        : 'EMPRESA',
     estado: 'APROBADO',
     referenciaId: m.referenciaId,
     tipoReferencia: m.tipo,
@@ -319,6 +326,29 @@ const ocultarPagosClientePanelContable = <T extends Pick<MovimientoContable, 'ti
   return movimientos.filter((m) => !esPagoClienteEnPanelContable(m))
 }
 
+const esRecepcionConsolidacion = (m: Pick<MovimientoContable, 'tipo' | 'tipoReferencia' | 'direction' | 'impactoCaja'>) => {
+  const ref = String(m.tipoReferencia || '').toUpperCase()
+  return (
+    (String(m.tipo || '').toUpperCase() === 'TRANSFERENCIA' || ref === 'CONSOLIDACION') &&
+    (m.direction === 'IN' || Number(m.impactoCaja || 0) > 0)
+  )
+}
+
+const normalizarConceptoContable = (concepto: string, movimiento?: MovimientoContable | null) => {
+  const limpio = String(concepto || '')
+    .replace(/^Entrada desde .*?: |^Salida hacia .*?: |^Consolidación .*?: /i, '')
+    .replace(/^Transferencia enviada a .*?: |^Transferencia recibida de .*?: /i, '')
+    .replace(/^Reversa de asiento\s+DESEMBOLSO\b/i, 'Reversa de desembolso')
+    .replace(/\(Entrada\)|\(Salida\)/gi, '')
+    .trim()
+
+  if (movimiento && esRecepcionConsolidacion(movimiento)) {
+    return limpio.replace(/^Consolidación\b/i, 'Recepción')
+  }
+
+  return limpio
+}
+
 const ModuloContableContent = () => {
   // --- AUTENTICACIÓN Y PERMISOS ---
   // Identificamos quién está usando el módulo para mostrar/ocultar botones sensibles
@@ -341,9 +371,9 @@ const ModuloContableContent = () => {
   const { showNotification } = useNotification()
   
   // Filtros para la tabla de movimientos
-  const [busqueda, setBusqueda] = useState('') // Buscará por concepto, responsable o categoría
-  const [filtroTipo, setFiltroTipo] = useState<'TODOS' | 'INGRESO' | 'EGRESO' | 'TRANSFERENCIA'>('TODOS')
-  const [filtroOrigen, setFiltroOrigen] = useState<'TODOS' | MovimientoContable['origen']>('TODOS')
+  const [busqueda, setBusqueda] = useState('')
+  const [filtroTipo, setFiltroTipo] = useState<'TODOS' | 'INGRESO' | 'EGRESO' | 'TRANSFERENCIA' | 'DEUDA_COBRADOR'>('TODOS')
+  const [filtroOrigen, setFiltroOrigen] = useState<OrigenMovimientoContable>('TODOS')
   const [filtroEstado, setFiltroEstado] = useState<'TODOS' | MovimientoContable['estado']>('TODOS')
   const [filtroRuta, setFiltroRuta] = useState<string>('TODOS')
 
@@ -932,11 +962,27 @@ const ModuloContableContent = () => {
   })
 
   // Filtrado de movimientos
-  const movimientosFiltrados = movimientos.filter(mov => {
-    const cumpleBusqueda = 
-      mov.concepto.toLowerCase().includes(busqueda.toLowerCase()) ||
-      mov.responsable.toLowerCase().includes(busqueda.toLowerCase()) ||
-      mov.categoria.toLowerCase().includes(busqueda.toLowerCase())
+  const movimientosFiltrados = movimientos.filter((mov) => {
+    const textoBusqueda = busqueda.trim().toLowerCase()
+
+    const cumpleBusqueda =
+      !textoBusqueda ||
+      [
+        mov.numero,
+        mov.concepto,
+        mov.responsable,
+        mov.categoria,
+        mov.origen,
+        mov.estado,
+        mov.referencia,
+        mov.referenciaId,
+        mov.tipoReferencia,
+        mov.caja,
+        mov.accountCode,
+        mov.accountName,
+      ]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(textoBusqueda))
     
     // Movimientos recientes (global) ahora muestra solo TRANSFERENCIA entre cajas.
     // Aun así dejamos el filtro para consistencia visual.
@@ -946,6 +992,10 @@ const ModuloContableContent = () => {
         cumpleTipo = mov.tipoReferencia === 'DEUDA_COBRADOR' || mov.tipoReferencia === 'ABONO_DEUDA';
       } else if (filtroTipo === 'TRANSFERENCIA') {
         cumpleTipo = mov.tipo === 'TRANSFERENCIA' && mov.tipoReferencia !== 'DEUDA_COBRADOR';
+      } else if (filtroTipo === 'INGRESO') {
+        cumpleTipo = esIngresoContable(mov);
+      } else if (filtroTipo === 'EGRESO') {
+        cumpleTipo = esEgresoOperativo(mov);
       } else {
         cumpleTipo = mov.tipo === filtroTipo;
       }
@@ -1138,7 +1188,7 @@ const ModuloContableContent = () => {
         monto: monto,
         // Eliminamos la lógica mágica de descripción automática para transferencias manuales
         // para que el usuario siempre vea lo que escribió o un default claro.
-        descripcion: movimientoForm.concepto || (movimientoForm.origen === 'COBRADOR' ? (movimientoForm.tipo === 'INGRESO' ? 'Consolidación de Ruta (Entrada)' : 'Entrega de Base a Ruta (Salida)') : 'Movimiento de Caja'),
+        descripcion: movimientoForm.concepto || (movimientoForm.origen === 'COBRADOR' ? (movimientoForm.tipo === 'INGRESO' ? 'Recepción de Ruta (Entrada)' : 'Entrega de Base a Ruta (Salida)') : 'Movimiento de Caja'),
         tipoReferencia,
         referenciaId,
         cajaOrigenId: isEgresoConsolidacion ? movimientoForm.cajaId : (movimientoForm.origen === 'COBRADOR' ? movimientoForm.cajaOrigenId : undefined),
@@ -1399,41 +1449,78 @@ const ModuloContableContent = () => {
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-1.5">
-                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Tipo de Movimiento</div>
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                <div className="space-y-1.5 md:col-span-3">
+                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                    Clase de movimiento
+                  </div>
                   <select
                     value={filtroTipo}
                     onChange={(e) => setFiltroTipo(e.target.value as typeof filtroTipo)}
                     className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
                   >
-                    <option value="TRANSFERENCIA">Transferencias entre cajas</option>
-                    <option value="DEUDA_COBRADOR">Deudas de Cobradores</option>
-                    <option value="TODOS">Todos</option>
+                    <option value="TODOS">Todas las clases</option>
+                    <option value="INGRESO">Ingresos contables</option>
+                    <option value="EGRESO">Egresos</option>
+                    <option value="TRANSFERENCIA">Transferencias / recepción entre cajas</option>
+                    <option value="DEUDA_COBRADOR">Deudas de cobradores</option>
                   </select>
                 </div>
 
-                <div className="space-y-1.5">
-                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Origen / Fuente</div>
+                <div className="space-y-1.5 md:col-span-3">
+                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                    Origen / Fuente
+                  </div>
                   <select
                     value={filtroOrigen}
-                    onChange={(e) => setFiltroOrigen(e.target.value as typeof filtroOrigen)}
+                    onChange={(e) => setFiltroOrigen(e.target.value as OrigenMovimientoContable)}
                     className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
                   >
-                    <option value="TODOS">Todos los orígenes</option>
-                    <option value="EMPRESA">Empresa</option>
-                    <option value="COBRADOR">Cobrador</option>
+                    <option value="TODOS">Todas las fuentes</option>
+                    <option value="EMPRESA">Empresa / Oficina</option>
+                    <option value="COBRADOR">Cobrador / Ruta</option>
+                    <option value="CLIENTE">Cliente</option>
+                    <option value="SISTEMA">Sistema</option>
                   </select>
                 </div>
 
-                <div className="space-y-1.5">
-                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Ruta</div>
-                  <FiltroRuta 
-                    onRutaChange={(r: string | null) => setFiltroRuta(r || 'TODOS')} 
+                <div className="space-y-1.5 md:col-span-3">
+                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                    Ruta / Caja
+                  </div>
+                  <FiltroRuta
+                    onRutaChange={(r: string | null) => setFiltroRuta(r || 'TODOS')}
                     selectedRutaId={filtroRuta === 'TODOS' ? null : filtroRuta}
                     layout="wrap"
                     hideLabel={true}
                   />
+                </div>
+
+                <div className="space-y-1.5 md:col-span-3">
+                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                    Búsqueda rápida
+                  </div>
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      value={busqueda}
+                      onChange={(e) => setBusqueda(e.target.value)}
+                      placeholder="Buscar escribiendo..."
+                      className="w-full rounded-2xl border border-slate-200 bg-white py-2.5 pl-9 pr-9 text-xs font-bold text-slate-700 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                    />
+
+                    {busqueda.trim() && (
+                      <button
+                        type="button"
+                        onClick={() => setBusqueda('')}
+                        className="absolute right-2 top-1/2 inline-flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                        title="Limpiar búsqueda"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -1458,12 +1545,7 @@ const ModuloContableContent = () => {
                     let montoMostrar = m.monto
                     if (m.tipo === 'TRANSFERENCIA' && m.impactoCaja) montoMostrar = Math.abs(m.impactoCaja)
                     const cajaName = m.caja || 'Caja Central'
-                    let conceptoLimpio = m.concepto
-                        .replace(/^Entrada desde .*?: |^Salida hacia .*?: |^Consolidación .*?: /i, '')
-                        .replace(/^Transferencia enviada a .*?: |^Transferencia recibida de .*?: /i, '')
-                        .replace(/^Reversa de asiento\s+DESEMBOLSO\b/i, 'Reversa de desembolso')
-                        .replace(/\(Entrada\)|\(Salida\)/gi, '')
-                        .trim();
+                    let conceptoLimpio = normalizarConceptoContable(m.concepto, m);
 
                     if (m.tipo === 'DEUDA_COBRADOR') {
                       if (m.tipoReferencia === 'DESCUADRE_CAJA') conceptoLimpio = 'Descuadre de Caja'
@@ -2401,12 +2483,10 @@ const ModuloContableContent = () => {
                   <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Concepto / Descripción</div>
                   <div className="font-medium text-slate-800 text-sm leading-relaxed">
                     {(() => {
-                      let conceptoMostrar = movimientoSeleccionado.concepto
-                        .replace(/^Reversa de asiento\s+DESEMBOLSO\b/i, 'Reversa de desembolso')
-                        .replace(/^Entrada desde .*?: |^Salida hacia .*?: |^Consolidación .*?: /i, '')
-                        .replace(/^Transferencia enviada a .*?: |^Transferencia recibida de .*?: /i, '')
-                        .replace(/\(Entrada\)|\(Salida\)/gi, '')
-                        .trim()
+                      let conceptoMostrar = normalizarConceptoContable(
+                        movimientoSeleccionado.concepto,
+                        movimientoSeleccionado,
+                      )
 
                       if (movimientoSeleccionado.tipo === 'TRANSFERENCIA' || movimientoSeleccionado.categoria === 'CONSOLIDACION') {
                         const isIngreso =
@@ -2433,11 +2513,10 @@ const ModuloContableContent = () => {
                       }
 
                       if (conceptoMostrar.includes('undefined') || conceptoMostrar.length < 5) {
-                        conceptoMostrar = movimientoSeleccionado.concepto
-                          .replace(/^Reversa de asiento\s+DESEMBOLSO\b/i, 'Reversa de desembolso')
-                          .replace(/^Entrada desde .*?: |^Salida hacia .*?: |^Consolidación .*?: /i, '')
-                          .replace(/^Transferencia enviada a .*?: |^Transferencia recibida de .*?: /i, '')
-                          .trim()
+                        conceptoMostrar = normalizarConceptoContable(
+                          movimientoSeleccionado.concepto,
+                          movimientoSeleccionado,
+                        )
                       }
 
                       return conceptoMostrar.replace(/\$(\d+)/g, (match, p1) => formatCurrency(Number(p1)))
@@ -3349,12 +3428,7 @@ const ModuloContableContent = () => {
                               return true
                             })
                             .map((m) => {
-                              let conceptoMostrar = m.concepto
-                                .replace(/^Reversa de asiento\s+DESEMBOLSO\b/i, 'Reversa de desembolso')
-                                .replace(/^Entrada desde .*?: |^Salida hacia .*?: |^Consolidación .*?: /i, '')
-                                .replace(/^Transferencia enviada a .*?: |^Transferencia recibida de .*?: /i, '')
-                                .replace(/\(Entrada\)|\(Salida\)/gi, '')
-                                .trim();
+                              let conceptoMostrar = normalizarConceptoContable(m.concepto, m);
                               const esRegularizado = esMovimientoPagoRegularizado(m)
 
                               const esIngresoRecoleccion =
@@ -3393,11 +3467,7 @@ const ModuloContableContent = () => {
                               }
                               
                               if (conceptoMostrar.includes('undefined') || conceptoMostrar.length < 5) {
-                                conceptoMostrar = m.concepto
-                                  .replace(/^Reversa de asiento\s+DESEMBOLSO\b/i, 'Reversa de desembolso')
-                                  .replace(/^Entrada desde .*?: |^Salida hacia .*?: |^Consolidación .*?: /i, '')
-                                  .replace(/^Transferencia enviada a .*?: |^Transferencia recibida de .*?: /i, '')
-                                  .trim();
+                                conceptoMostrar = normalizarConceptoContable(m.concepto, m);
                               }
                               
                               return (

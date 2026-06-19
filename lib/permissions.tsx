@@ -189,7 +189,7 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
     T.DASHBOARD('COBRADOR', '/cobranzas'),
     T.PRESTAMO_DINERO('COBRADOR', '/cobranzas/prestamos/nuevo'),
     T.CLIENTES('COBRADOR', '/cobranzas/clientes/nuevo'),
-    T.NOTIF('COBRADOR', '/cobranzas/notificaciones'),
+    T.NOTIF('COBRADOR', '/notificaciones'),
     T.SOLICITUDES('COBRADOR', '/cobranzas/solicitudes'),
   ],
   CONTADOR: [
@@ -315,7 +315,7 @@ const inferIconName = (id: string, iconFromApi?: string | null) => {
 
 export const buildSidebarFromApi = (sidebarData: SidebarModulo[]): ModuloPermiso[] => {
   if (!sidebarData || sidebarData.length === 0) return [];
-  const EXCLUDED_SIDEBAR_ROUTES = new Set(['/cobranzas/notificaciones', '/cobranzas/solicitudes', '/creditos-articulos']);
+  const EXCLUDED_SIDEBAR_ROUTES = new Set(['/cobranzas/solicitudes', '/creditos-articulos']);
   const EXCLUDED_SIDEBAR_IDS = new Set(['reportes-operativos']);
   const EXCLUDED_SIDEBAR_ROUTE_PREFIXES = ['/cobranzas'];
 

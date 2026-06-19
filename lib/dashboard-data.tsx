@@ -354,7 +354,7 @@ function configurarDashboardPorRol(rol: Rol) {
         icon: <Bell className="h-5 w-5" />,
         color: '#0f172a',
         badge: 8,
-        href: '/coordinador/notificaciones'
+        href: '/notificaciones'
       },
       {
         title: 'Nuevo Crédito',

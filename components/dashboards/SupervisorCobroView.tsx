@@ -59,10 +59,6 @@ import {
   User,
   Target,
   ReceiptText,
-  AlertTriangle,
-  XCircle,
-  Info,
-  ShieldAlert,
 } from 'lucide-react'
 
 import { RolUsuario, MetodoPago } from '@/types/enums'
@@ -73,7 +69,7 @@ import { rutasService, Ruta } from '@/services/rutas-service'
 
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal'
 import ClienteInfoModal from '@/components/cobranza/ClienteInfoModal'
-import { StaticVisitaItem, SeleccionClienteModal, Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
+import { StaticVisitaItem, SeleccionClienteModal } from '@/components/dashboards/shared/CobradorElements'
 import EstadoCuentaModal from '@/components/cobranza/EstadoCuentaModal'
 import PagoModal from '@/components/cobranza/PagoModal'
 import AusenteModal from '@/components/cobranza/AusenteModal'
@@ -495,7 +491,6 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     cargarDetalle,
   } = useCierrePendienteDetalle(rutaId)
 
-  const [showCierrePendienteModal, setShowCierrePendienteModal] = useState(false)
 
 
   
@@ -654,10 +649,6 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
 
   
-
-
-  const [showConfirmCompleteModal, setShowConfirmCompleteModal] = useState(false)
-  const [showDoubleConfirmComplete, setShowDoubleConfirmComplete] = useState(false)
 
 
   const [rutaCompletada, setRutaCompletada] = useState(false)
@@ -2141,114 +2132,6 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     showMisClientes,
     refreshHistorialOperativo,
   ])
-
-
-
-  const handleCompletarRuta = useCallback(() => {
-    // Advertir si hay cierre pendiente anterior (supervisor puede regularizar)
-    if (hasCierrePendiente) {
-      setShowCierrePendienteModal(true)
-      return
-    }
-
-    const recaudo = rutaStats.recaudo || 0
-
-    // Calcular meta desde visitasOperativasHoy (excluye ausentes) en lugar de rutaStats.meta
-    // Esto evita emitir meta incorrecta en evento de cierre cuando rutaStats está stale
-    const hoyStr = hoyBogotaKey
-
-    const ajustarEstadoConPago = (v: any) => {
-      if (Number(v.saldoTotal || 0) <= 0) return 'pagado'
-      const pagadoHoy = Number((v as any).recaudadoDelDia || 0)
-      const cuota = Number(v.montoCuota || 0)
-      if (pagadoHoy >= cuota - 1 && pagadoHoy > 0) return 'pagado'
-      const prox = v.proximaVisita ? (String(v.proximaVisita).includes('T') ? String(v.proximaVisita).split('T')[0] : String(v.proximaVisita)) : ''
-      if (prox === hoyStr && pagadoHoy >= cuota - 1) return 'pagado'
-      return v.estado
-    }
-
-    const visitasHoy = (visitasBase || [])
-      .map((v: any) => ({ ...v, estado: ajustarEstadoConPago(v) }))
-      .filter((v: any) => shouldShowVisitaEnRutaHoy(v, hoyBogotaKey))
-
-    const visitasOperativasHoy = visitasHoy.filter((v: any) => !shouldExcludeVisitaFromOperationalMeta(v));
-    const visitasAusentesHoy = visitasHoy.filter((v: any) => shouldExcludeVisitaFromOperationalMeta(v));
-
-    // Calcular meta real desde visitas operativas (excluye ausentes)
-    const statsHoy = computeRutaHoyUiStatsFromVisitas(visitasOperativasHoy, 0);
-    const meta = statsHoy.meta;
-
-    const efectividad = meta > 0 ? Math.round((recaudo / meta) * 100) : (recaudo > 0 ? 100 : 0)
-
-    const clientesFaltantes = visitasOperativasHoy.filter((v: any) => {
-      const estado = String(v?.estado || '').toLowerCase();
-      return estado === 'pendiente' || estado === 'en_mora';
-    }).length;
-
-    const clientesAusentes = visitasAusentesHoy.length;
-
-
-
-    // Emitir evento de cierre con datos completos (guarda en BD + notifica coordinadores)
-
-    socket?.emit('ruta_completada_emit', {
-
-      rutaNombre: userSession?.rutaAsignada || rutaId || 'Mi Ruta',
-
-      cobradorNombre: `${userSession?.nombres || ''} ${userSession?.apellidos || ''}`.trim() || 'Supervisor',
-
-      recaudo,
-
-      meta,
-
-      efectividad,
-
-      clientesFaltantes,
-
-      clientesAusentes,
-
-      rutaId: rutaInfo?.id || rutaId || undefined,
-
-      actorId: userSession?.id,
-
-      actorRol: userSession?.rol,
-
-    }, (response: any) => {
-      if (!response?.success) {
-        toast.error(response?.message || 'No se pudo cerrar la ruta.')
-        return
-      }
-
-      setRutaCompletada(true)
-      setShowConfirmCompleteModal(false)
-      toast.success('Ruta cerrada correctamente.')
-    })
-
-
-
-    const mensajeCierre = clientesFaltantes > 0
-
-      ? `Ruta cerrada. Faltaron ${clientesFaltantes} cliente${clientesFaltantes > 1 ? 's' : ''} por cobrar. Se alertó a la oficina.`
-
-      : 'Ruta del día completada exitosamente. Se notificó al coordinador.'
-
-    setCoordinadorToast(mensajeCierre)
-
-    window.setTimeout(() => setCoordinadorToast(null), 5000)
-
-  }, [
-    socket,
-    rutaId,
-    rutaInfo,
-    rutaStats,
-    visitasBase,
-    userSession,
-    hoyBogotaKey,
-    hasCierrePendiente,
-  ]);
-
-
-
   const handleAbrirClienteInfo = useCallback((visita: VisitaRuta) => {
     // Si llegamos aquí, el clic fue detectado.
     if (!visita.clienteId) {
@@ -3679,198 +3562,6 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
 
 
-        {showConfirmCompleteModal && (() => {
-          const ajustarEstadoConPagoModal = (v: any) => {
-            if (Number(v.saldoTotal || 0) <= 0) return 'pagado'
-
-            const pagadoHoy = Number(v?.recaudadoDelDia || 0)
-            const cuota = Number(v?.montoCuota || 0)
-
-            if (cuota > 0 && pagadoHoy >= cuota - 1 && pagadoHoy > 0) return 'pagado'
-
-            return v.estado
-          }
-
-          const isAusenteModal = shouldExcludeVisitaFromOperationalMeta
-
-          const visitasHoyModal = (visitasBase || [])
-            .map((v: any) => ({ ...v, estado: ajustarEstadoConPagoModal(v) }))
-            .filter((v: any) => shouldShowVisitaEnRutaHoy(v, hoyBogotaKey))
-
-          const visitasAusentesHoyModal = visitasHoyModal.filter((v: any) => isAusenteModal(v))
-          const visitasOperativasHoyModal = visitasHoyModal.filter((v: any) => !isAusenteModal(v))
-          const statsModal = computeRutaHoyUiStatsFromVisitas(visitasOperativasHoyModal, 0)
-
-          const recaudoV = Number(statsModal.recaudo || 0)
-          const metaV = Number(statsModal.meta || 0)
-          const porcentaje = metaV > 0
-            ? Math.round((recaudoV / metaV) * 100)
-            : (recaudoV > 0 ? 100 : 0)
-
-          const alCien = porcentaje >= 100
-          const descuadre = recaudoV < metaV
-          const clientesFaltantesHoy = visitasOperativasHoyModal.filter((v: any) => {
-            const estado = String(v?.estado || '').toLowerCase()
-            return estado === 'pendiente' || estado === 'en_mora'
-          }).length
-          const clientesAusentesHoy = visitasAusentesHoyModal.length
-          const ausentesConNotaCierre = visitasAusentesHoyModal.map((v: any) => ({
-            nombre: String(v?.cliente || 'Cliente'),
-            nota: String(v?.notasVisita || '').trim(),
-          }))
-          const totalProgramadosHoy = visitasHoyModal.length
-          const clientesCobradosHoy = Math.max(0, visitasOperativasHoyModal.length - clientesFaltantesHoy)
-          const todosPendientes = clientesFaltantesHoy > 0 && clientesFaltantesHoy === visitasOperativasHoyModal.length
-          return (
-            <Portal>
-              <div
-                className="fixed inset-0 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
-                style={{ zIndex: MODAL_Z_INDEX }}
-                onClick={() => { setShowConfirmCompleteModal(false); setShowDoubleConfirmComplete(false); }}
-              >
-                <div 
-                  className="bg-white rounded-3xl p-6 shadow-2xl w-full max-w-md border border-slate-100 animate-in zoom-in-95 duration-200"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="flex flex-col items-center text-center gap-4">
-                    {!showDoubleConfirmComplete ? (
-                      <>
-                        <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-2 border ${alCien ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-orange-50 text-orange-500 border-orange-100'}`}>
-                           {alCien ? <CheckCircle2 className="h-8 w-8" /> : <AlertTriangle className="h-8 w-8" />}
-                        </div>
-
-                        <div>
-                          <h3 className="text-xl font-black text-slate-900 tracking-tight mb-2">¿Finalizar Ruta Supervisada?</h3>
-                          <p className="text-slate-500 text-sm font-medium leading-relaxed">
-                             Al cerrar como supervisor se enviará el reporte consolidado a la oficina central.
-                          </p>
-                        </div>
-
-                        <div>
-                         <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Programados</p>
-                         <p className="text-sm font-black text-slate-900">{totalProgramadosHoy}</p>
-                       </div>
-                       <div>
-                         <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Cobrados</p>
-                         <p className="text-sm font-black text-emerald-600">{clientesCobradosHoy}</p>
-                       </div>
-                       <div>
-                         <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Ausentes</p>
-                         <p className="text-sm font-black text-amber-600">{clientesAusentesHoy}</p>
-                       </div>
-                       {descuadre && (
-                          <div className="w-full flex items-start gap-2 p-3 bg-red-50 border border-red-100 rounded-2xl text-left">
-                            <XCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
-                            <div>
-                              <p className="text-xs font-black text-red-700 uppercase tracking-wide">Descuadre Detectado</p>
-                              <p className="text-[11px] text-red-600 font-medium mt-0.5">
-                                Se recaudaron {formatMilesCOP(recaudoV)} de {formatMilesCOP(metaV)} esperados. Esta diferencia se registrará en la deuda del cobrador.
-                              </p>
-                            </div>
-                          </div>
-                        )}
-
-                        {clientesFaltantesHoy > 0 && (
-                          <div className={`w-full flex items-start gap-2 p-3 rounded-2xl text-left border ${todosPendientes ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-100'}`}>
-                            {todosPendientes
-                              ? <XCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
-                              : <Info className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />}
-                            <p className={`text-[11px] font-bold ${todosPendientes ? 'text-red-700' : 'text-amber-700'}`}>
-                              {todosPendientes
-                                ? <><span className="text-red-900 text-sm font-black">Ningún</span> cliente fue cobrado hoy. Sin recaudo reportado.</>  
-                                : <>Faltaron <span className="text-amber-900 text-sm font-black">{clientesFaltantesHoy}</span> cliente{clientesFaltantesHoy > 1 ? 's' : ''} por cobrar.</>}
-                            </p>
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <>
-                        <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-2 border border-red-200 animate-pulse">
-                           <ShieldAlert className="h-8 w-8 text-red-600" />
-                        </div>
-
-                        <div>
-                          <h3 className="text-xl font-black text-red-900 tracking-tight mb-2">¡Doble Confirmación!</h3>
-                          <p className="text-red-700 text-sm font-bold leading-relaxed px-2">
-                             Confirmas un descuadre de <span className="text-lg underline underline-offset-4 decoration-2">{formatMilesCOP(metaV - recaudoV)}</span>. 
-                          </p>
-                          <p className="mt-3 text-slate-500 text-[11px] font-medium leading-relaxed px-4">
-                             Esta acción es irreversible y afectará el balance contable del cobrador. ¿Deseas proceder con el cierre supervisado?
-                          </p>
-                        </div>
-                      </>
-                    )}
-
-                    <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 text-left grid grid-cols-2 gap-y-4 gap-x-3 w-full">
-                       <div>
-                         <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Base/Saldo</p>
-                         <p className="text-sm font-black text-blue-600">{formatMilesCOP(rutaStats.base || 0)}</p>
-                       </div>
-                       <div>
-                         <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Recaudado</p>
-                         <p className={`text-sm font-black ${alCien ? 'text-emerald-600' : 'text-orange-600'}`}>{formatMilesCOP(recaudoV)}</p>
-                       </div>
-                       <div>
-                         <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Gastos</p>
-                         <p className="text-sm font-black text-rose-600">{formatMilesCOP(rutaStats.gastos || 0)}</p>
-                       </div>
-                       <div>
-                         <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Meta</p>
-                         <p className="text-sm font-black text-slate-900">{formatMilesCOP(metaV)}</p>
-                       </div>
-
-                       {descuadre && (
-                         <div className="col-span-2 p-3 bg-red-50 rounded-xl border border-red-100">
-                           <p className="text-[10px] text-red-500 font-bold uppercase tracking-widest">Diferencia Final</p>
-                           <p className="text-lg font-black text-red-600">{formatMilesCOP(metaV - recaudoV)}</p>
-                         </div>
-                       )}
-                    </div>
-                    {ausentesConNotaCierre.length > 0 && (
-                      <div className="w-full text-left rounded-2xl border border-amber-200 bg-amber-50 p-3 space-y-2">
-                        <p className="text-[10px] font-black text-amber-700 uppercase tracking-widest">Ausentes con justificación</p>
-                        <div className="space-y-2 max-h-32 overflow-y-auto pr-1">
-                          {ausentesConNotaCierre.map((item, idx) => (
-                            <div key={`${item.nombre}-${idx}`} className="text-[11px] leading-snug">
-                              <p className="font-black text-amber-900">{item.nombre}</p>
-                              <p className="font-medium text-amber-800 whitespace-pre-wrap break-words">{item.nota || 'Sin justificación registrada.'}</p>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="flex gap-3 w-full mt-2">
-                       <button
-                         onClick={() => { setShowConfirmCompleteModal(false); setShowDoubleConfirmComplete(false); }}
-                         className="flex-1 py-3.5 text-slate-600 font-bold bg-slate-50 hover:bg-slate-100 rounded-2xl transition-all active:scale-95 border border-slate-200"
-                       >
-                         Cancelar
-                       </button>
-
-                       <button
-                         onClick={() => {
-                           if (descuadre && !showDoubleConfirmComplete) {
-                             setShowDoubleConfirmComplete(true)
-                           } else {
-                             handleCompletarRuta()
-                             setShowDoubleConfirmComplete(false)
-                           }
-                         }}
-                         className={`flex-1 py-3.5 text-white font-bold rounded-2xl transition-all shadow-xl active:scale-95 ${showDoubleConfirmComplete ? 'bg-red-600 hover:bg-red-700 shadow-red-600/20' : 'bg-slate-900 hover:bg-slate-800 shadow-slate-900/20'}`}
-                       >
-                         {showDoubleConfirmComplete ? 'Sí, Finalizar' : 'Confirmar'}
-                       </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </Portal>
-          );
-        })()}
-
-
-
         {/* Modal de Alerta */}
 
         {modalAlerta && (
@@ -3895,77 +3586,6 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
           />
 
-        )}
-
-        {/* Modal de confirmación de cierre pendiente */}
-        {showCierrePendienteModal && (
-          <ConfirmModal
-            isOpen={showCierrePendienteModal}
-            onClose={() => setShowCierrePendienteModal(false)}
-            onConfirm={() => {
-              setShowCierrePendienteModal(false)
-              // Continuar con el cierre de ruta
-              const recaudo = rutaStats.recaudo || 0
-              const hoyStr = hoyBogotaKey
-
-              const ajustarEstadoConPago = (v: any) => {
-                if (Number(v.saldoTotal || 0) <= 0) return 'pagado'
-                const pagadoHoy = Number((v as any).recaudadoDelDia || 0)
-                const cuota = Number(v.montoCuota || 0)
-                if (pagadoHoy >= cuota - 1 && pagadoHoy > 0) return 'pagado'
-                const prox = v.proximaVisita ? (String(v.proximaVisita).includes('T') ? String(v.proximaVisita).split('T')[0] : String(v.proximaVisita)) : ''
-                if (prox === hoyStr && pagadoHoy >= cuota - 1) return 'pagado'
-                return v.estado
-              }
-
-              const visitasHoy = (visitasBase || [])
-                .map((v: any) => ({ ...v, estado: ajustarEstadoConPago(v) }))
-                .filter((v: any) => shouldShowVisitaEnRutaHoy(v, hoyBogotaKey))
-
-              const isAusente = shouldExcludeVisitaFromOperationalMeta
-
-              const visitasAusentesHoy = visitasHoy.filter(isAusente);
-              const visitasOperativasHoy = visitasHoy.filter((v: any) => !isAusente(v));
-
-              const statsHoy = computeRutaHoyUiStatsFromVisitas(visitasOperativasHoy, 0);
-              const meta = statsHoy.meta;
-
-              const clientesFaltantes = visitasHoy.filter((v: any) => !isAusente(v) && v.estado !== 'pagado').length
-              const clientesAusentes = visitasAusentesHoy.length
-
-              const efectividad = meta > 0 ? Math.round((recaudo / meta) * 100) : 0
-
-              socket?.emit('ruta_completada_emit', {
-                rutaNombre: userSession?.rutaAsignada || rutaId || 'Mi Ruta',
-                cobradorNombre: userSession?.nombres || 'Cobrador',
-                recaudo,
-                meta,
-                efectividad,
-                clientesFaltantes,
-                rutaId,
-                actorId: userSession?.id,
-                actorRol: userSession?.rol,
-              }, (response: any) => {
-                if (!response?.success) {
-                  toast.error(response?.message || 'No se pudo cerrar la ruta.')
-                  return
-                }
-
-                const mensajeCierre = clientesFaltantes > 0
-                  ? `Ruta cerrada. Faltaron ${clientesFaltantes} cliente${clientesFaltantes > 1 ? 's' : ''} por cobrar hoy. Se alertó a la oficina.`
-                  : 'Se ha cerrado el día de manera exitosa y se alertó a la oficina.';
-
-                setCoordinadorToast(mensajeCierre);
-                window.setTimeout(() => setCoordinadorToast(null), 5000);
-                toast.success('Ruta cerrada correctamente.')
-              })
-            }}
-            title="Jornada Pendiente de Cierre"
-            message="Esta ruta tiene una jornada anterior pendiente de cierre. No se recomienda cerrar la jornada actual hasta regularizar la anterior. ¿Desea continuar con el cierre de la jornada actual?"
-            confirmText="Continuar con cierre"
-            cancelText="Cancelar"
-            variant="warning"
-          />
         )}
 
         <CierrePendienteDetalleModal

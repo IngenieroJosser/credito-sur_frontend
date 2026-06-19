@@ -49,6 +49,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import RutaHistorialOperativo from '@/components/rutas/historial/RutaHistorialOperativo'
 import { useCierrePendienteRuta } from '@/hooks/useCierrePendienteRuta'
+import { FinalizarRutaModal } from '@/components/rutas/FinalizarRutaModal'
 
 import {
 
@@ -94,12 +95,6 @@ import {
 
   ReceiptText,
 
-  AlertTriangle,
-
-  XCircle,
-
-  Info,
-
   Eye,
 
   Pencil,
@@ -111,7 +106,6 @@ import {
   ChevronLeft,
 
   FileDown,
-  ShieldAlert,
 
 } from 'lucide-react'
 
@@ -5300,7 +5294,6 @@ const VistaCobrador = () => {
             nota: String(v?.notasVisita || '').trim(),
           }))
           const totalProgramadosHoy = visitasCierreHoy.length
-          const totalOperativosHoy = visitasOperativasCierre.length
           const clientesCobradosHoy = visitasOperativasCierre.filter((v: any) => {
             const estado = String(v?.estado || '').toLowerCase()
             return estado === 'pagado' || Number(v?.recaudadoDelDia || 0) > 0
@@ -5309,190 +5302,40 @@ const VistaCobrador = () => {
           const recaudoV = Number((rutaStatsUI as any)?.recaudo || 0)
           const porcentaje = Number((rutaStatsUI as any)?.eficiencia || 0)
 
-          const alCien = porcentaje >= 100;
-
           const saldoDisponibleV = Number((rutaStatsUI as any)?.base || 0)
           const gastosDiaV = Number((rutaStatsUI as any)?.gastos || 0)
           const pendienteCobroV = Math.max(0, metaV - recaudoV)
           const recaudoNetoV = Math.max(0, recaudoV - gastosDiaV)
-          const descuadre = saldoDisponibleV > 0 || clientesFaltantesHoy > 0 || clientesAusentesHoy > 0;
-
-          // Todos pendientes = ningún cliente de la ruta fue cobrado
-
-          const todosPendientes = clientesFaltantesHoy > 0 && clientesFaltantesHoy === totalOperativosHoy;
 
           return (
-
-          <Portal>
-
-            <div
-              className="fixed inset-0 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
-              style={{ zIndex: MODAL_Z_INDEX }}
-              onClick={() => { setShowConfirmCompleteModal(false); setShowDoubleConfirmComplete(false); }}
-            >
-             <div 
-               className="bg-white rounded-3xl p-6 shadow-2xl w-full max-w-md border border-slate-100 animate-in zoom-in-95 duration-200"
-               onClick={(e) => e.stopPropagation()}
-             >
-                <div className="flex flex-col items-center text-center gap-4">
-                    {!showDoubleConfirmComplete ? (
-                      <>
-                        <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-2 border ${alCien ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-orange-50 text-orange-500 border-orange-100'}`}>
-                           {alCien ? <CheckCircle2 className="h-8 w-8" /> : <AlertTriangle className="h-8 w-8" />}
-                        </div>
-
-                        <div>
-                          <h3 className="text-xl font-black text-slate-900 tracking-tight mb-2">¿Finalizar Ruta del Día?</h3>
-                          <p className="text-slate-500 text-sm font-medium leading-relaxed">
-                             Al marcar la ruta como completada se reportará tu rendimiento a la oficina.
-                          </p>
-                        </div>
-
-                        {descuadre && (
-                          <div className="w-full flex items-start gap-2 p-3 bg-red-50 border border-red-100 rounded-2xl text-left">
-                            <XCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
-                            <div>
-                              <p className="text-xs font-black text-red-700 uppercase tracking-wide">Dinero sin entregar</p>
-                              <p className="text-[11px] text-red-600 font-medium mt-0.5">
-                                La caja de esta ruta conserva <span className="font-black">{formatCurrency(saldoDisponibleV)}</span>. Confirma que este valor ya fue recolectado o quedará soportado al cerrar.
-                              </p>
-                            </div>
-                          </div>
-                        )}
-
-                        {clientesFaltantesHoy > 0 && (
-                          <div className={`w-full flex items-start gap-2 p-3 rounded-2xl text-left border ${todosPendientes ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-100'}`}>
-                            {todosPendientes
-                              ? <XCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
-                              : <Info className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />}
-                            <p className={`text-[11px] font-bold ${todosPendientes ? 'text-red-700' : 'text-amber-700'}`}>
-                              {todosPendientes
-                                ? <><span className="text-red-900 text-sm font-black">Ningún</span> cliente fue cobrado hoy. Sin recaudo en la jornada.</>  
-                                : <>Faltaron <span className="text-amber-900 text-sm font-black">{clientesFaltantesHoy}</span> cliente{clientesFaltantesHoy > 1 ? 's' : ''} por cobrar hoy.</>}
-                            </p>
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <>
-                        <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-2 border border-red-200 animate-pulse">
-                           <ShieldAlert className="h-8 w-8 text-red-600" />
-                        </div>
-
-                        <div>
-                          <h3 className="text-xl font-black text-red-900 tracking-tight mb-2">¡Doble Confirmación!</h3>
-                          <p className="text-red-700 text-sm font-bold leading-relaxed px-2">
-                             Vas a cerrar con {clientesFaltantesHoy} pendiente{clientesFaltantesHoy === 1 ? '' : 's'}, {clientesAusentesHoy} ausente{clientesAusentesHoy === 1 ? '' : 's'} y {formatCurrency(saldoDisponibleV)} en caja.
-                          </p>
-                          <p className="mt-3 text-slate-500 text-[11px] font-medium leading-relaxed px-4">
-                             Esta acción reportará la jornada a oficina con estos valores. Revisa antes de confirmar definitivamente.
-                          </p>
-                        </div>
-                      </>
-                    )}
-
-                   <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 text-left grid grid-cols-2 gap-y-4 gap-x-3 w-full">
-                      <div>
-                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Saldo caja ruta</p>
-                        <p className="text-sm font-black text-blue-600">{formatCurrency((rutaStatsUI as any)?.base || 0)}</p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Recaudado Hoy</p>
-                        <p className={`text-sm font-black ${alCien ? 'text-emerald-600' : 'text-orange-600'}`}>{formatCurrency(recaudoV)}</p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Gastos del Día</p>
-                        <p className="text-sm font-black text-rose-600">{formatCurrency(gastosDiaV)}</p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Meta Cobro</p>
-                        <p className="text-sm font-black text-slate-900">{formatCurrency(metaV)}</p>
-                      </div>
-
-                      <div>
-                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Programados</p>
-                        <p className="text-sm font-black text-slate-900">{totalProgramadosHoy}</p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Cobrados</p>
-                        <p className="text-sm font-black text-emerald-600">{clientesCobradosHoy}</p>
-                      </div>
-                      {descuadre && (
-                        <div className="col-span-2 p-3 bg-red-50 rounded-xl border border-red-100">
-                          <p className="text-[10px] text-red-500 font-bold uppercase tracking-widest">Saldo en caja al cierre</p>
-                          <p className="text-lg font-black text-red-600">{formatCurrency(saldoDisponibleV)}</p>
-                        </div>
-                      )}
-
-                      <div>
-                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Pendiente $</p>
-                        <p className="text-sm font-black text-amber-600">{formatCurrency(pendienteCobroV)}</p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Recaudo Neto</p>
-                        <p className="text-sm font-black text-emerald-600">{formatCurrency(recaudoNetoV)}</p>
-                      </div>
-
-                      <div className="col-span-2 flex justify-between items-center border-t border-slate-200 pt-3">
-                        <div>
-                           <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Efectividad</p>
-                           <p className={`text-sm font-black ${alCien ? 'text-emerald-600' : 'text-orange-600'}`}>{porcentaje}%</p>
-                        </div>
-                        <div className="text-right">
-                           <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Pendientes</p>
-                           <p className={`text-sm font-black ${clientesFaltantesHoy > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
-                             {clientesFaltantesHoy === 0 ? 'Ninguno' : `${clientesFaltantesHoy} clientes`}
-                           </p>
-                        </div>
-                        <div className="text-right">
-                           <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Ausentes</p>
-                           <p className="text-sm font-black text-slate-500">
-                             {clientesAusentesHoy === 0 ? 'Ninguno' : `${clientesAusentesHoy} cliente${clientesAusentesHoy > 1 ? 's' : ''}`}
-                           </p>
-                        </div>
-                      </div>
-                   </div>
-                   {ausentesConNotaCierre.length > 0 && (
-                     <div className="w-full text-left rounded-2xl border border-amber-200 bg-amber-50 p-3 space-y-2">
-                       <p className="text-[10px] font-black text-amber-700 uppercase tracking-widest">Ausentes con justificación</p>
-                       <div className="space-y-2 max-h-32 overflow-y-auto pr-1">
-                         {ausentesConNotaCierre.map((item, idx) => (
-                           <div key={`${item.nombre}-${idx}`} className="text-[11px] leading-snug">
-                             <p className="font-black text-amber-900">{item.nombre}</p>
-                             <p className="font-medium text-amber-800 whitespace-pre-wrap break-words">{item.nota || 'Sin justificación registrada.'}</p>
-                           </div>
-                         ))}
-                       </div>
-                     </div>
-                   )}
-
-                   <div className="flex gap-3 w-full mt-2">
-                      <button
-                        onClick={() => { setShowConfirmCompleteModal(false); setShowDoubleConfirmComplete(false); }}
-                        className="flex-1 py-3.5 text-slate-600 font-bold bg-slate-50 hover:bg-slate-100 rounded-2xl transition-all active:scale-95 border border-slate-200"
-                      >
-                        Cancelar
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          if (descuadre && !showDoubleConfirmComplete) {
-                            setShowDoubleConfirmComplete(true)
-                          } else {
-                            confirmarFinalizarRuta()
-                            setShowDoubleConfirmComplete(false)
-                          }
-                        }}
-                        className={`flex-1 py-3.5 text-white font-bold rounded-2xl transition-all shadow-xl active:scale-95 ${showDoubleConfirmComplete ? 'bg-red-600 hover:bg-red-700 shadow-red-600/20' : 'bg-slate-900 hover:bg-slate-800 shadow-slate-900/20'}`}
-                      >
-                        {showDoubleConfirmComplete ? 'Sí, Finalizar' : 'Confirmar'}
-                      </button>
-                   </div>
-                </div>
-             </div>
-          </div>
-          </Portal>
-        );
+            <FinalizarRutaModal
+              open={showConfirmCompleteModal}
+              doubleConfirm={showDoubleConfirmComplete}
+              resumen={{
+                saldoCajaRuta: saldoDisponibleV,
+                recaudadoHoy: recaudoV,
+                gastosDia: gastosDiaV,
+                metaCobro: metaV,
+                programados: totalProgramadosHoy,
+                cobrados: clientesCobradosHoy,
+                pendientes: clientesFaltantesHoy,
+                ausentes: clientesAusentesHoy,
+                efectividad: porcentaje,
+                pendienteCobro: pendienteCobroV,
+                recaudoNeto: recaudoNetoV,
+                ausentesConNota: ausentesConNotaCierre,
+              }}
+              onClose={() => {
+                setShowConfirmCompleteModal(false)
+                setShowDoubleConfirmComplete(false)
+              }}
+              onRequestDoubleConfirm={() => setShowDoubleConfirmComplete(true)}
+              onConfirm={() => {
+                confirmarFinalizarRuta()
+                setShowDoubleConfirmComplete(false)
+              }}
+            />
+          )
       })()}
 
 
