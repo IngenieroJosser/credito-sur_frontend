@@ -15,9 +15,19 @@
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ||
   process.env.NEXT_PUBLIC_BACKEND_URL ||
-  'http://localhost:3001/api-credisur';
+  process.env.NEXT_PUBLIC_BASE_URL ||
+  (process.env.NODE_ENV === 'production'
+    ? 'https://credito-sur-backend.onrender.com'
+    : 'http://127.0.0.1:3001');
 
-const PING_ENDPOINT = `${API_URL.replace(/\/$/, '')}/health`;
+const normalizeBackendUrl = (url: string) => {
+  const normalized = url.replace(/\/$/, '');
+  return normalized.endsWith('/api-credisur')
+    ? normalized
+    : `${normalized}/api-credisur`;
+};
+
+const PING_ENDPOINT = `${normalizeBackendUrl(API_URL)}/health`;
 const PING_TIMEOUT_MS = 4000;
 const CACHE_DURATION_MS = 10_000; // No re-pinguear más de 1 vez cada 10s
 
