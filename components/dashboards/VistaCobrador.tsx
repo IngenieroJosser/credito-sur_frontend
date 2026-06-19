@@ -48,6 +48,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { useRutaHistorial } from '@/hooks/useRutaHistorial'
+import RutaHistorialOperativo from '@/components/rutas/historial/RutaHistorialOperativo'
 import { useCierrePendienteRuta } from '@/hooks/useCierrePendienteRuta'
 
 import {
@@ -5257,190 +5258,15 @@ const VistaCobrador = () => {
                              {/* Daily Routes List (Only in DAYS mode) */}
 
                              {historyViewMode === 'DAYS' && (
-
-                                <div className="space-y-3">
-
-                                    <h3 className="text-sm font-bold text-slate-500 uppercase px-1">Historial de Días</h3>
-
-                                    {historyDates.map(date => {
-
-                                       const data = (historialRutas as Record<string, HistorialDia>)[date]
-
-                                       const isExpanded = selectedHistoryDate === date
-
-                                       const [y, m, d] = date.split('-')
-
-                                       const dateObj = new Date(parseInt(y), parseInt(m)-1, parseInt(d))
-
-                                       const dayName = dateObj.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })
-
-                                       
-
-                                       const jornadaEtiqueta = (data.resumen as any).jornadaEtiqueta;
-                                       const jornadaEtiquetaColor = (data.resumen as any).jornadaEtiquetaColor || 'bg-slate-100 text-slate-700 border-slate-200';
-
-
-
-                                       return (
-
-                                         <div key={date} 
-
-                                              className={`rounded-2xl border transition-all overflow-hidden bg-white border-slate-200
-
-                                                ${isExpanded ? 'ring-1 ring-slate-300 shadow-md' : 'shadow-sm'}
-
-                                              `}
-
-                                         >
-
-                                           {/* Header (Clickable) */}
-
-                                           <div 
-
-                                              className="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
-
-                                             onClick={() => {
-
-                                               setSelectedHistoryDate(isExpanded ? null : date)
-
-                                               if (!isExpanded && (!data.loaded)) {
-
-                                                 void cargarHistorialFecha(date)
-
-                                               }
-
-                                             }}
-
-                                           >
-
-                                             <div className="flex items-center gap-3">
-
-                                                {/* Date Badge */}
-
-                                                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs shadow-sm
-
-                                                    ${isExpanded ? 'bg-[#08557f] text-white' : 'bg-slate-100 text-slate-600'}
-
-                                                `}>
-
-                                                   {d}
-
-                                                </div>
-
-                                                
-
-                                                <div>
-
-                                                   <div className="font-bold text-slate-900 capitalize flex items-center gap-2">
-
-                                                      {dayName}
-
-                                                      {jornadaEtiqueta && <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase border ${jornadaEtiquetaColor}`}>{jornadaEtiqueta}</span>}
-
-                                                   </div>
-
-                                                   <div className="text-xs text-slate-500">
-
-                                                      Recaudo: <b>${formatMilesCOP(data.resumen.recaudo)}</b>
-
-                                                    </div>
-
-                                                 </div>
-
-                                              </div>
-
-                                              <div className="flex items-center gap-3">
-
-                                                 <div className={`px-2 py-1 rounded-lg text-[10px] font-bold ${data.resumen.efectividad >= 90 ? 'bg-emerald-50 text-emerald-700' : 'bg-orange-50 text-orange-700'}`}>
-
-                                                   {data.resumen.efectividad}%
-
-                                                 </div>
-
-                                                 <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-
-                                              </div>
-
-                                            </div>
-
-
-
-                                             {/* Body (Expanded) */}
-
-                                             {isExpanded && (
-
-                                                <div className="border-t border-slate-100 bg-white p-4 space-y-3 animate-in slide-in-from-top-2 duration-200">
-
-                                                   <div className="flex justify-between text-xs font-bold text-slate-500 uppercase px-1">
-
-                                                      <span>{data.resumen.visitados} Clientes Gestionados</span>
-
-                                                      <span>Estado</span>
-
-                                                    </div>
-
-                                                   <div>
-
-                                                      {!(data as any).loaded ? (
-                                                        <div className="flex flex-col items-center justify-center py-8 text-slate-400">
-
-                                                          <div className="w-6 h-6 border-2 border-slate-300 border-t-[#08557f] rounded-full animate-spin mb-2" />
-
-                                                          <span className="text-xs font-medium">Cargando detalles...</span>
-
-                                                        </div>
-
-                                                      ) : data.visitas.filter((v: any) => {
-
-                                                           const isSaldado = String(v.estado || '').toLowerCase() === 'pagado' && Number(v.saldoTotal || 0) <= 0;
-
-                                                           return !(isSaldado && !hasGestionHistorial(v));
-
-                                                         }).length === 0 ? (
-
-                                                        <div className="flex flex-col items-center justify-center py-10 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-
-                                                          <History className="w-8 h-8 text-slate-300 mb-2 opacity-30" />
-
-                                                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center px-4">No se registraron visitas ni pagos para este día</span>
-
-                                                        </div>
-
-                                                      ) : (
-
-                                                        data.visitas.filter((v: any) => {
-
-                                                           const isSaldado = String(v.estado || '').toLowerCase() === 'pagado' && Number(v.saldoTotal || 0) <= 0;
-
-                                                           return !(isSaldado && !hasGestionHistorial(v));
-
-                                                         }).map((visita: VisitaRuta) => (
-
-                                                          <StaticVisitaItem
-                                                            key={visita.id}
-                                                            visita={visita}
-                                                            allowClick={false}
-                                                            getEstadoClasses={getEstadoClasses}
-                                                          />
-
-                                                        ))
-
-                                                      )}
-
-                                                   </div>
-
-                                                </div>
-
-                                             )}
-
-                                          </div>
-
-                                        )
-
-                                     })}
-
-                                 </div>
-
+                                <RutaHistorialOperativo
+                                  rutaId={rutaActual?.id}
+                                  cobradorId={userSession?.id}
+                                  actorId={userSession?.id}
+                                  actorRol={userSession?.rol}
+                                  getVisitasHoy={() => visitasBase}
+                                  onVerCliente={handleAbrirClienteInfo}
+                                  getEstadoClasses={getEstadoClasses}
+                                />
                               )}
 
                            </div>
