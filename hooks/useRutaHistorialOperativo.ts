@@ -16,7 +16,6 @@ import type { VisitaRuta } from '@/lib/types/cobranza'
 import { pagosService } from '@/services/pagos-service'
 import { rutasService } from '@/services/rutas-service'
 import {
-  obtenerSaldoCajaSupervisor,
   obtenerSaldoDisponibleRuta,
 } from '@/services/contabilidad-service'
 import { RolUsuario } from '@/types/enums'
@@ -66,20 +65,6 @@ export const useRutaHistorialOperativo = ({
     void loadPagos()
   }, [rutaId])
 
-  const obtenerSaldoSegunRol = useCallback(async (fechaClave: string): Promise<any> => {
-    const esSupervisor = String(actorRol || '').toUpperCase() === 'SUPERVISOR'
-
-    if (esSupervisor && actorId) {
-      return obtenerSaldoCajaSupervisor(actorId, fechaClave)
-    }
-
-    if (rutaId) {
-      return obtenerSaldoDisponibleRuta(rutaId, fechaClave)
-    }
-
-    return null
-  }, [actorId, actorRol, rutaId])
-
   const loadDay = useCallback(async (fechaClave: string) => {
     if (!rutaId) {
       return {
@@ -97,7 +82,7 @@ export const useRutaHistorialOperativo = ({
 
     try {
       const visitasResp = await rutasService.obtenerVisitasDelDia(rutaId, fechaClave)
-      const saldo = await obtenerSaldoSegunRol(fechaClave)
+      const saldo = await obtenerSaldoDisponibleRuta(rutaId, fechaClave)
 
       const pagosResp = await pagosService.obtenerPagos({ limit: 5000 })
       const pagosData = (pagosResp as any)?.pagos || pagosResp || []
@@ -191,7 +176,6 @@ export const useRutaHistorialOperativo = ({
     rutaId,
     cobradorId,
     actorId,
-    obtenerSaldoSegunRol,
     getVisitasHoy,
   ])
 
