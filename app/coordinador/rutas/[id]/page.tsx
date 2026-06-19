@@ -106,6 +106,7 @@ import { computeRutaHoyUiStatsFromVisitas, resolveRutaHoyKpiStats, getBogotaDate
   shouldIncludeVisitaInRutaHoyKpis, toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 import { isPagoCierrePendiente, mergeVisitasPreservingLocalRecaudo, sumMontoTotalPagosByBogotaDateKey } from '@/lib/ruta-recaudos'
 import { mapDailyVisitsResponseToVisitas as mapDailyVisitsResponseToVisitasShared, type MapMode } from '@/lib/rutas/map-daily-visits-to-visitas'
+import { ordenarVisitasRutaActual } from '@/lib/rutas/ordenar-visitas-ruta'
 
 import { exportService } from '@/services/export-service'
 
@@ -273,7 +274,7 @@ const LegacyDetalleRutaPage = () => {
       setLoadingMisCreditos(true)
 
       const resp = await rutasService.obtenerVisitasDelDia(rutaId, getBogotaDateKey(new Date()))
-      setMisCreditos(mapDailyVisitsResponseToVisitasCoordinador(resp, cobradorId))
+      setMisCreditos(ordenarVisitasRutaActual(mapDailyVisitsResponseToVisitasCoordinador(resp, cobradorId)))
 
     } catch (e: any) {
 
@@ -439,14 +440,14 @@ const LegacyDetalleRutaPage = () => {
 
   const mapDailyVisitsResponseToVisitasCoordinador = useCallback((resp: any, cobradorId: string): VisitaRuta[] => {
     const hoyBogotaKey = getBogotaDateKey(new Date())
-    return mapDailyVisitsResponseToVisitasShared({
+    return ordenarVisitasRutaActual(mapDailyVisitsResponseToVisitasShared({
       resp,
       hoyBogotaKey,
       rutaData: { cobradorId },
       initialRuta: { cobradorId },
       modo: 'LIVE' as MapMode,
       fechaOperativa: hoyBogotaKey,
-    })
+    }))
   }, [])
 
 
@@ -725,10 +726,6 @@ const LegacyDetalleRutaPage = () => {
 
 
 
-            withRecaudo.sort((a, b) => a.ordenVisita - b.ordenVisita);
-
-
-
             const ajustarEstadoConPago = (v: any): EstadoVisita => {
 
               if (Number(v.saldoTotal || 0) <= 0) return 'pagado';
@@ -749,7 +746,9 @@ const LegacyDetalleRutaPage = () => {
 
 
 
-            const finalesBackend = withRecaudo.map(v => ({ ...v, estado: ajustarEstadoConPago(v) }));
+            const finalesBackend = ordenarVisitasRutaActual(
+              withRecaudo.map(v => ({ ...v, estado: ajustarEstadoConPago(v) })),
+            );
             const finales = mergeVisitasPreservingLocalRecaudo(visitasCobradorRef.current as any, finalesBackend as any) as any[];
 
 
@@ -822,7 +821,7 @@ const LegacyDetalleRutaPage = () => {
               return isVisitaExigibleHoy(v, hoyBogota);
             });
 
-            setVisitasCobrador(finalesFiltradas);
+            setVisitasCobrador(ordenarVisitasRutaActual(finalesFiltradas));
             setClientes(finalesFiltradas.map((v: any) => ({
 
                 id: v.id,
@@ -1273,15 +1272,17 @@ const LegacyDetalleRutaPage = () => {
 
 
 
+    const ordenadas = ordenarVisitasRutaActual(filtradas);
+
     const agrupar = {
 
-      MES: filtradas.filter(v => v.periodoRuta === 'MES' && filterByDate(v)),
+      MES: ordenadas.filter(v => v.periodoRuta === 'MES' && filterByDate(v)),
 
-      QUINCENA: filtradas.filter(v => v.periodoRuta === 'QUINCENA' && filterByDate(v)),
+      QUINCENA: ordenadas.filter(v => v.periodoRuta === 'QUINCENA' && filterByDate(v)),
 
-      SEMANA: filtradas.filter(v => v.periodoRuta === 'SEMANA' && filterByDate(v)),
+      SEMANA: ordenadas.filter(v => v.periodoRuta === 'SEMANA' && filterByDate(v)),
 
-      DIA: filtradas.filter(v => v.periodoRuta === 'DIA' && filterByDate(v)),
+      DIA: ordenadas.filter(v => v.periodoRuta === 'DIA' && filterByDate(v)),
 
     }
 

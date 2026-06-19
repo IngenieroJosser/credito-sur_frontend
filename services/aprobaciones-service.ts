@@ -40,6 +40,24 @@ export interface SuperadminReviewResponse {
   items: Aprobacion[];
 }
 
+export interface ApprovalMultimedia {
+  id: string;
+  url?: string | null;
+  ruta?: string | null;
+  rutaArchivo?: string | null;
+  nombreOriginal?: string | null;
+  nombreArchivo?: string | null;
+  tipoContenido?: string | null;
+  tipoArchivo?: string | null;
+  formato?: string | null;
+  entidad?: string | null;
+  descripcion?: string | null;
+  creadoEn?: string;
+  clienteId?: string | null;
+  prestamoId?: string | null;
+  pagoId?: string | null;
+}
+
 export interface ApprovalContext {
   approval: Aprobacion;
   cliente: any | null;
@@ -50,7 +68,7 @@ export interface ApprovalContext {
     nombre?: string | null;
     telefono?: string | null;
   }>;
-  multimedia: any[];
+  multimedia: ApprovalMultimedia[];
   pagosUltimos30Dias: any[];
   metricas: {
     saldoTotalPendiente: number;

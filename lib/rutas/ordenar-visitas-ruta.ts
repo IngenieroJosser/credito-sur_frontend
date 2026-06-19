@@ -1,6 +1,6 @@
 /**
  * Helper compartido para ordenar visitas en la vista de ruta actual.
- * Nuevo contrato: ordenar por última cuota o abono registrado para cada crédito.
+ * Nuevo contrato: ordenar por obligación operativa, no por cliente.
  *
  * Criterio de ordenamiento:
  * 1. Gestionados/pagados al final
@@ -46,7 +46,7 @@ const resolveFechaOrdenRutaTs = (v: any): number => {
 }
 
 export function ordenarVisitasRutaActual(visitas: any[]): any[] {
-  const sorted = [...(Array.isArray(visitas) ? visitas : [])].sort((a, b) => {
+  return [...(Array.isArray(visitas) ? visitas : [])].sort((a, b) => {
     const aGestionado = isGestionado(a)
     const bGestionado = isGestionado(b)
 
@@ -102,22 +102,4 @@ export function ordenarVisitasRutaActual(visitas: any[]): any[] {
 
     return String(a?.id || '').localeCompare(String(b?.id || ''))
   })
-
-  // Log temporal para validar el orden
-  console.table(sorted.map((v: any) => ({
-    cliente: v.cliente,
-    prestamoId: v.prestamoId,
-    cuotaActual: v.cuotaActual,
-    estado: v.estado,
-    nivelRiesgo: v.nivelRiesgo,
-    fechaUltimoPago: v.fechaUltimoPago,
-    fechaPrimeraCuotaPendiente: v.fechaPrimeraCuotaPendiente,
-    fechaPrimeraCuotaPendienteTs: v.fechaPrimeraCuotaPendienteTs,
-    fechaOrdenRuta: v.fechaOrdenRuta,
-    montoVencidoAcumulado: v.montoVencidoAcumulado,
-    cuotasVencidas: v.cuotasVencidas,
-    diasMora: v.diasMora,
-  })))
-
-  return sorted
 }

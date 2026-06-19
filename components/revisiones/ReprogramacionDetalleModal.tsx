@@ -123,6 +123,68 @@ function InfoTile({
   )
 }
 
+function InfoMini({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
+      <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">{label}</p>
+      <p className="text-sm font-black text-slate-900 mt-0.5">{value || '—'}</p>
+    </div>
+  )
+}
+
+function humanizeToken(value: string | null | undefined, fallback = '—') {
+  const raw = String(value || '').trim()
+  if (!raw) return fallback
+
+  return raw
+    .toLowerCase()
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase())
+}
+
+function formatTipoCredito(value: string | null | undefined) {
+  const raw = String(value || '').toUpperCase()
+  if (raw === 'EFECTIVO') return 'Crédito en efectivo'
+  if (raw === 'ARTICULO') return 'Crédito de artículo'
+  return humanizeToken(value, 'Crédito')
+}
+
+function formatFrecuencia(value: string | null | undefined) {
+  const raw = String(value || '').toUpperCase()
+  if (raw === 'DIARIO') return 'Cobro diario'
+  if (raw === 'SEMANAL') return 'Cobro semanal'
+  if (raw === 'QUINCENAL') return 'Cobro quincenal'
+  if (raw === 'MENSUAL') return 'Cobro mensual'
+  return humanizeToken(value, 'Frecuencia no definida')
+}
+
+function formatEstadoCredito(value: string | null | undefined) {
+  const raw = String(value || '').toUpperCase()
+  if (raw === 'EN_MORA') return 'En mora'
+  if (raw === 'ACTIVO') return 'Activo'
+  if (raw === 'PENDIENTE_APROBACION') return 'Pendiente de revisión'
+  if (raw === 'PAGADO') return 'Pagado'
+  if (raw === 'RECHAZADO') return 'Rechazado'
+  return humanizeToken(value, 'Sin estado')
+}
+
+function getEstadoCreditoClasses(value: string | null | undefined) {
+  const raw = String(value || '').toUpperCase()
+  if (raw === 'EN_MORA') return 'bg-rose-50 text-rose-700 border-rose-200'
+  if (raw === 'PAGADO') return 'bg-emerald-50 text-emerald-700 border-emerald-200'
+  if (raw === 'PENDIENTE_APROBACION') return 'bg-amber-50 text-amber-700 border-amber-200'
+  return 'bg-slate-50 text-slate-700 border-slate-200'
+}
+
+function getMediaHref(item: any) {
+  return item?.url || item?.ruta || item?.rutaArchivo || ''
+}
+
+function isImageMedia(item: any) {
+  const text = `${item?.tipoContenido || ''} ${item?.tipoArchivo || ''} ${item?.formato || ''} ${getMediaHref(item)}`.toLowerCase()
+  return text.includes('imagen') || /\.(png|jpe?g|webp|gif|avif)$/i.test(text)
+}
+
 export default function ReprogramacionDetalleModal({
   isOpen,
   onClose,
@@ -220,6 +282,36 @@ export default function ReprogramacionDetalleModal({
           </p>
         </div>
       )}
+
+      {metricas && (
+        <div className={`rounded-2xl border p-4 ${
+          metricas.candidatoReprogramacion
+            ? 'border-emerald-200 bg-emerald-50'
+            : 'border-amber-200 bg-amber-50'
+        }`}>
+          <div className="flex items-start gap-3">
+            {metricas.candidatoReprogramacion ? (
+              <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
+            ) : (
+              <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+            )}
+            <div>
+              <p className={`text-sm font-black ${
+                metricas.candidatoReprogramacion ? 'text-emerald-800' : 'text-amber-800'
+              }`}>
+                {metricas.candidatoReprogramacion
+                  ? 'Candidato viable para reprogramación'
+                  : 'Requiere revisión manual antes de aprobar'}
+              </p>
+              {!metricas.candidatoReprogramacion && (
+                <p className="text-xs font-bold text-amber-700 mt-1 leading-relaxed">
+                  Hay señales operativas que conviene revisar: mora, saldo vencido, reprogramaciones previas o poco historial reciente de pagos.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 
@@ -261,9 +353,17 @@ export default function ReprogramacionDetalleModal({
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-sm font-black text-slate-900">{credito.numeroPrestamo}</p>
-                  <p className="text-[11px] font-bold text-slate-500 mt-0.5">
-                    {credito.tipoPrestamo} · {credito.frecuenciaPago} · {credito.estado}
-                  </p>
+                  <div className="flex flex-wrap items-center gap-2 mt-2">
+                    <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-black text-slate-600">
+                      {formatTipoCredito(credito.tipoPrestamo)}
+                    </span>
+                    <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-black text-slate-600">
+                      {formatFrecuencia(credito.frecuenciaPago)}
+                    </span>
+                    <span className={`rounded-full border px-2 py-1 text-[10px] font-black ${getEstadoCreditoClasses(credito.estado)}`}>
+                      {formatEstadoCredito(credito.estado)}
+                    </span>
+                  </div>
                 </div>
                 {isTarget && (
                   <span className="px-2 py-1 rounded-full bg-orange-600 text-white text-[9px] font-black uppercase tracking-widest">
@@ -271,10 +371,11 @@ export default function ReprogramacionDetalleModal({
                   </span>
                 )}
               </div>
-              <div className="grid grid-cols-3 gap-2 mt-3">
-                <InfoTile label="Saldo" value={formatCurrency(Number(credito.saldoPendiente || 0))} />
-                <InfoTile label="Vencidas" value={vencidas} tone={vencidas > 0 ? 'rose' : 'slate'} />
-                <InfoTile label="Pagadas" value={pagadas} tone={pagadas > 0 ? 'emerald' : 'slate'} />
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-3">
+                <InfoMini label="Saldo" value={formatCurrency(Number(credito.saldoPendiente || 0))} />
+                <InfoMini label="Cuotas" value={credito.cantidadCuotas || credito.cuotas?.length || 0} />
+                <InfoMini label="Vencidas" value={vencidas} />
+                <InfoMini label="Pagadas" value={pagadas} />
               </div>
             </div>
           )
@@ -288,14 +389,19 @@ export default function ReprogramacionDetalleModal({
     if (!context?.pagosUltimos30Dias?.length) return <EmptyState text="Sin pagos recientes" />
 
     return (
-      <div className="space-y-3">
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        <div className="grid grid-cols-[1.2fr_1fr_1fr_1fr] gap-3 bg-slate-50 px-4 py-3 text-[9px] font-black uppercase tracking-widest text-slate-400">
+          <span>Fecha</span>
+          <span>Método</span>
+          <span>Monto</span>
+          <span>Origen</span>
+        </div>
         {context.pagosUltimos30Dias.map((pago) => (
-          <div key={pago.id} className="rounded-2xl border border-slate-200 bg-white p-4 flex items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-black text-slate-900">{formatCurrency(Number(pago.montoTotal || 0))}</p>
-              <p className="text-[11px] font-bold text-slate-500">{pago.metodoPago || '—'} · {formatFechaHora(pago.fechaPago)}</p>
-            </div>
-            <Receipt className="h-5 w-5 text-emerald-500" />
+          <div key={pago.id} className="grid grid-cols-[1.2fr_1fr_1fr_1fr] gap-3 border-t border-slate-100 px-4 py-3 text-xs font-bold text-slate-700">
+            <span>{formatFechaHora(pago.fechaPago)}</span>
+            <span>{humanizeToken(pago.metodoPago)}</span>
+            <span className="font-black text-emerald-700">{formatCurrency(Number(pago.montoTotal || 0))}</span>
+            <span>{humanizeToken(pago.origenGestion || pago.tipo || pago.tipoReferencia, 'Ruta')}</span>
           </div>
         ))}
       </div>
@@ -307,24 +413,33 @@ export default function ReprogramacionDetalleModal({
     if (!context?.multimedia?.length) return <EmptyState text="Sin evidencias cargadas" />
 
     return (
-      <div className="grid grid-cols-1 gap-3">
-        {context.multimedia.map((item) => (
-          <a
-            key={item.id}
-            href={item.url || item.ruta}
-            target="_blank"
-            rel="noreferrer"
-            className="rounded-2xl border border-slate-200 bg-white p-4 hover:border-orange-200 transition-colors"
-          >
-            <div className="flex items-center gap-3">
-              <FileImage className="h-5 w-5 text-orange-500" />
-              <div className="min-w-0">
-                <p className="text-sm font-black text-slate-900 truncate">{item.descripcion || item.nombreOriginal || 'Evidencia'}</p>
-                <p className="text-[11px] font-bold text-slate-400">{item.tipoContenido || item.formato || 'Archivo'}</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {context.multimedia.map((item) => {
+          const href = getMediaHref(item)
+          const title = item.descripcion || item.nombreOriginal || item.nombreArchivo || 'Evidencia'
+          const image = href && isImageMedia(item)
+          return (
+            <a
+              key={item.id}
+              href={href || '#'}
+              target="_blank"
+              rel="noreferrer"
+              className="overflow-hidden rounded-2xl border border-slate-200 bg-white hover:border-orange-200 transition-colors"
+            >
+              {image ? (
+                <img src={href} alt={title} className="h-36 w-full object-cover bg-slate-100" />
+              ) : (
+                <div className="h-24 bg-slate-50 flex items-center justify-center">
+                  <FileImage className="h-7 w-7 text-orange-500" />
+                </div>
+              )}
+              <div className="p-4">
+                <p className="text-sm font-black text-slate-900 truncate">{title}</p>
+                <p className="text-[11px] font-bold text-slate-400 mt-1">{item.tipoContenido || item.formato || 'Archivo'}</p>
               </div>
-            </div>
-          </a>
-        ))}
+            </a>
+          )
+        })}
       </div>
     )
   }
