@@ -8,6 +8,12 @@ import { use, useState } from 'react'
 
 import RutaClient from '../../../admin/rutas/[id]/ruta-client'
 
+const isUuid = (value?: string | null) => {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    String(value || '').trim(),
+  )
+}
+
 import {
 
   CheckCircle2,
@@ -2452,27 +2458,47 @@ const LegacyDetalleRutaPage = () => {
 
 
               // Asignar cliente a la ruta automáticamente
+              const clienteIdFinal = String(
+                prestamo?.clienteId ||
+                  prestamo?.cliente?.id ||
+                  prestamo?.cliente?.clienteId ||
+                  data?.clienteId ||
+                  data?.clienteCreditoId ||
+                  data?.cliente?.id ||
+                  '',
+              ).trim()
 
-              if (rutaActual?.id) {
+              const cobradorResponsableId = String(rutaActual?.cobradorId || '').trim()
 
-                try {
-
-                  await rutasService.asignarCliente(
-
-                    rutaActual.id,
-
-                    data.clienteCreditoId,
-
-                    rutaActual.cobradorId || ''
-
-                  );
-
-                } catch (assignError) {
-
-                  console.error('Error al asignar cliente a la ruta:', assignError);
-
+              if (rutaActual?.id && cobradorResponsableId && clienteIdFinal) {
+                if (!isUuid(rutaActual.id)) {
+                  console.warn('[Crear crédito coordinador] rutaId inválido para asignación:', {
+                    rutaId: rutaActual.id,
+                  })
+                } else if (!isUuid(clienteIdFinal)) {
+                  console.warn('[Crear crédito coordinador] clienteId inválido para asignación:', {
+                    clienteIdFinal,
+                    dataClienteCreditoId: data?.clienteCreditoId,
+                    dataClienteId: data?.clienteId,
+                    prestamoClienteId: prestamo?.clienteId,
+                    prestamo,
+                  })
+                } else if (!isUuid(cobradorResponsableId)) {
+                  console.warn('[Crear crédito coordinador] cobradorId inválido para asignación:', {
+                    cobradorResponsableId,
+                    rutaActual,
+                  })
+                } else {
+                  try {
+                    await rutasService.asignarCliente(
+                      rutaActual.id,
+                      clienteIdFinal,
+                      cobradorResponsableId,
+                    );
+                  } catch (assignError) {
+                    console.error('Error al asignar cliente a la ruta:', assignError);
+                  }
                 }
-
               }
 
 

@@ -880,6 +880,7 @@ export default function RevisionesPage() {
         onReject={handleRejectFromModal}
         canApprove
         isLegacy={selectedItem ? isGastoProvisionalLegacy(selectedItem) : false}
+        userRol={userRol}
       />
 
       {/* Modal dedicado para prorrogas y gestion de cuentas vencidas */}

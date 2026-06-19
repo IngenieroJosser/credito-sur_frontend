@@ -856,6 +856,7 @@ export default function NotificacionesPage() {
         onApprove={handleApproveFromModal}
         onReject={handleRejectFromModal}
         canApprove={false}
+        userRol={userRol || ''}
       />
 
       <ConfirmRejectModal

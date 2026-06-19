@@ -68,8 +68,11 @@ function getSaldoOperativoJornada(cliente: any) {
 
 function formatPercent(value: number) {
   if (!Number.isFinite(value)) return '0'
-  const rounded = Number(value.toFixed(1))
-  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1)
+
+  return value.toLocaleString('es-CO', {
+    minimumFractionDigits: Number.isInteger(value) ? 0 : 2,
+    maximumFractionDigits: 2,
+  })
 }
 
 // Helper para calcular cumplimiento
@@ -84,7 +87,7 @@ function getCumplimiento(meta: number, recaudo: number) {
     }
   }
 
-  const porcentaje = Number(((recaudo / meta) * 100).toFixed(1))
+  const porcentaje = Number(((recaudo / meta) * 100).toFixed(2))
   const excedente = Math.max(0, recaudo - meta)
   const pendiente = Math.max(0, meta - recaudo)
 

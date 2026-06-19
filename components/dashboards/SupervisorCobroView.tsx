@@ -110,7 +110,7 @@ import { pagosService } from '@/services/pagos-service'
 
 import { computeMontoCuotaPendienteDespuesDeRecaudo, indexPagosByPrestamoId } from '@/lib/ruta-recaudos'
 
-import { obtenerSaldoDisponibleRuta, obtenerSaldoCajaSupervisor, getRutaCierreHoy, registrarGasto } from '@/services/contabilidad-service'
+import { obtenerSaldoDisponibleRuta, obtenerSaldoCajaSupervisor, getRutaCierreHoy, registrarGasto, solicitarBase } from '@/services/contabilidad-service'
 
 
 import { routesService as routesApi } from '@/services/routes-service'
@@ -155,6 +155,12 @@ import { SafePointerSensor } from '@/components/dashboards/shared/safe-pointer-s
 import RutaProvisionalModal from '@/components/dashboards/shared/RutaProvisionalModal'
 
 import { toast } from 'sonner'
+
+const isUuid = (value?: string | null) => {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    String(value || '').trim(),
+  )
+}
 
 const normalizePeriodoRuta = (raw: any): any => {
   const v = String(raw || '').toUpperCase()
@@ -2022,9 +2028,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
   ])
 
   const handleCrearCredito = useCallback(async (data: any) => {
-
     try {
-
       setIsLoading(true)
 
       const esContado = Boolean((data as any).ventaContado)
@@ -2033,85 +2037,110 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
       const prestamo = await prestamosService.crearPrestamo(payload)
 
-
-
       if (isArticulo && prestamo?.id && !esContado) {
-
         try {
-
           await exportService.exportContrato(prestamo.id)
-
         } catch (err) {
-
           console.error('Error al descargar contrato:', err)
-
         }
-
       }
 
-      
+      const rutaOperativaId = String(rutaInfo?.id || rutaId || '').trim()
+      const cobradorResponsableId = String(rutaInfo?.cobradorId || '').trim()
 
-      // Asignar cliente a la ruta automáticamente si estamos en una ruta específica
+      const clienteIdFinal = String(
+        prestamo?.clienteId ||
+          prestamo?.cliente?.id ||
+          prestamo?.cliente?.clienteId ||
+          data?.clienteId ||
+          data?.clienteCreditoId ||
+          data?.cliente?.id ||
+          '',
+      ).trim()
 
-      if (rutaId) {
+      let clienteVinculadoARuta = false
 
-        try {
-
-          await rutasService.asignarCliente(
-
+      if (rutaOperativaId && cobradorResponsableId && clienteIdFinal) {
+        if (!isUuid(rutaOperativaId)) {
+          console.warn('[Crear crédito supervisor] rutaId inválido para asignación:', {
+            rutaOperativaId,
             rutaId,
+            rutaInfo,
+          })
+        } else if (!isUuid(clienteIdFinal)) {
+          console.warn('[Crear crédito supervisor] clienteId inválido para asignación:', {
+            clienteIdFinal,
+            dataClienteCreditoId: data?.clienteCreditoId,
+            dataClienteId: data?.clienteId,
+            prestamoClienteId: prestamo?.clienteId,
+            prestamo,
+          })
+        } else if (!isUuid(cobradorResponsableId)) {
+          console.warn('[Crear crédito supervisor] cobradorId inválido para asignación:', {
+            cobradorResponsableId,
+            rutaInfo,
+            userId: userSession?.id,
+          })
+        } else {
+          try {
+            await rutasService.asignarCliente(
+              rutaOperativaId,
+              clienteIdFinal,
+              cobradorResponsableId,
+            )
 
-            data.clienteCreditoId,
+            clienteVinculadoARuta = true
+          } catch (assignError: any) {
+            console.error('Error al asignar cliente a la ruta:', assignError)
 
-            rutaInfo?.cobradorId || ''
-
-          );
-
-        } catch (assignError) {
-
-          console.error('Error al asignar cliente a la ruta:', assignError);
-
+            toast.warning(
+              assignError?.message ||
+                'El crédito se creó, pero no se pudo confirmar la asignación del cliente a la ruta.',
+            )
+          }
         }
-
       }
 
-
+      try {
+        await cargarVisitasRuta()
+        await cargarEstadisticasRuta()
+        if (showMisClientes) await cargarMisCreditos()
+        refreshHistorialOperativo()
+      } catch {}
 
       setModalAlerta({
-
         titulo: 'Crédito Creado',
-
-        mensaje: 'El crédito ha sido registrado (Pendiente de Aprobación) y el cliente vinculado a esta ruta.',
-
-        tipo: 'exito'
-
+        mensaje: clienteVinculadoARuta
+          ? 'El crédito ha sido registrado y el cliente fue vinculado a esta ruta.'
+          : 'El crédito ha sido registrado. Si no aparece en la ruta, recarga o revisa la asignación del cliente.',
+        tipo: 'exito',
       })
 
       setShowCreditModal(false)
-
-      
-
     } catch (error: any) {
-
       console.error('Error al crear crédito:', error)
 
       setModalAlerta({
-
         titulo: 'Error',
-
-        mensaje: error.message || 'No se pudo crear el crédito. Inténtelo de nuevo.',
-
-        tipo: 'error'
-
+        mensaje:
+          error?.message ||
+          'No se pudo crear el crédito. Inténtelo de nuevo.',
+        tipo: 'error',
       })
-
     } finally {
-
       setIsLoading(false)
-
     }
-
-  }, [userSession?.id])
+  }, [
+    userSession?.id,
+    rutaId,
+    rutaInfo?.id,
+    rutaInfo?.cobradorId,
+    cargarVisitasRuta,
+    cargarEstadisticasRuta,
+    cargarMisCreditos,
+    showMisClientes,
+    refreshHistorialOperativo,
+  ])
 
 
 
@@ -3497,12 +3526,48 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
           onClose={() => setShowBaseModal(false)}
 
-          onConfirm={(data) => {
+          onConfirm={async (data) => {
+            const rutaOperativaId = String(rutaInfo?.id || rutaId || '').trim()
+            const solicitanteId = String(userSession?.id || '').trim()
 
-            console.log('Base solicitada:', data)
+            if (!rutaOperativaId) {
+              toast.error('No se pudo solicitar base: falta la ruta operativa.')
+              return
+            }
 
-            setShowBaseModal(false)
+            if (!solicitanteId) {
+              toast.error('No se pudo solicitar base: falta la sesión del usuario.')
+              return
+            }
 
+            try {
+              setIsLoading(true)
+
+              await solicitarBase({
+                monto: data.monto,
+                descripcion: data.descripcion,
+                cobradorId: solicitanteId,
+                rutaId: rutaOperativaId,
+              })
+
+              setModalAlerta({
+                titulo: 'Éxito',
+                mensaje: 'Solicitud de base enviada al coordinador. Espere aprobación.',
+                tipo: 'exito'
+              })
+
+              setShowBaseModal(false)
+            } catch (error: any) {
+              console.error('Error solicitando base:', error)
+
+              setModalAlerta({
+                titulo: 'Error',
+                mensaje: error.message || 'No se pudo enviar la solicitud de base.',
+                tipo: 'error'
+              })
+            } finally {
+              setIsLoading(false)
+            }
           }}
 
         />
@@ -3597,17 +3662,17 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         {rutaId && (
           <FloatingActionMenu actions={[
 
-            { label: 'Crear Crédito', icon: <CreditCard className="h-5 w-5" />, onClick: () => { setShowCreditModal(true); } },
+            { label: 'Crear Crédito', icon: <CreditCard className="h-5 w-5" />, onClick: () => { if (!rutaOperable) return; setShowCreditModal(true); } },
 
-            { label: 'Nuevo Cliente', icon: <UserPlus className="h-5 w-5" />, onClick: () => { setShowNewClientModal(true); } },
+            { label: 'Nuevo Cliente', icon: <UserPlus className="h-5 w-5" />, onClick: () => { if (!rutaOperable) return; setShowNewClientModal(true); } },
 
-            { label: 'Registrar abono', icon: <RefreshCw className="h-5 w-5" />, color: 'orange', onClick: () => { setPendingAction('ABONO'); setShowClientSelector(true); } },
+            { label: 'Registrar abono', icon: <RefreshCw className="h-5 w-5" />, color: 'orange', onClick: () => { if (!rutaOperable) return; setPendingAction('ABONO'); setShowClientSelector(true); } },
 
-            { label: 'Registrar pago', icon: <DollarSign className="h-5 w-5" />, onClick: () => { setPendingAction('PAGO'); setShowClientSelector(true); } },
+            { label: 'Registrar pago', icon: <DollarSign className="h-5 w-5" />, onClick: () => { if (!rutaOperable) return; setPendingAction('PAGO'); setShowClientSelector(true); } },
 
-            { label: 'Pedir Base', icon: <Wallet className="h-5 w-5" />, color: 'emerald', onClick: () => { setShowBaseModal(true); } },
+            { label: 'Pedir Base', icon: <Wallet className="h-5 w-5" />, color: 'emerald', onClick: () => { if (!rutaOperable) return; setShowBaseModal(true); } },
 
-            { label: 'Gastos', icon: <ReceiptText className="h-5 w-5" />, color: 'rose', onClick: () => { setShowGastoModal(true); } },
+            { label: 'Gastos', icon: <ReceiptText className="h-5 w-5" />, color: 'rose', onClick: () => { if (!rutaOperable) return; setShowGastoModal(true); } },
 
           ] as FabAction[]} />
         )}

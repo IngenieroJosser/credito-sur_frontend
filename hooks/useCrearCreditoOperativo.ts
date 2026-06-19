@@ -5,6 +5,12 @@ import { prestamosService } from '@/services/prestamos-service';
 import { exportService } from '@/services/export-service';
 import { rutasService } from '@/services/rutas-service';
 
+const isUuid = (value?: string | null) => {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    String(value || '').trim(),
+  )
+}
+
 interface UseCrearCreditoOperativoProps {
   userId?: string;
   rutaId?: string;
@@ -42,15 +48,44 @@ export function useCrearCreditoOperativo({
       }
 
       // Asignar cliente a la ruta automáticamente si estamos en una ruta específica
-      if (rutaId && cobradorId && data?.clienteCreditoId) {
-        try {
-          await rutasService.asignarCliente(
+      const clienteIdFinal = String(
+        prestamo?.clienteId ||
+          prestamo?.cliente?.id ||
+          prestamo?.cliente?.clienteId ||
+          data?.clienteId ||
+          data?.clienteCreditoId ||
+          data?.cliente?.id ||
+          '',
+      ).trim()
+
+      if (rutaId && cobradorId && clienteIdFinal) {
+        if (!isUuid(rutaId)) {
+          console.warn('[Crear crédito operativo] rutaId inválido para asignación:', {
             rutaId,
-            data.clienteCreditoId,
+          })
+        } else if (!isUuid(clienteIdFinal)) {
+          console.warn('[Crear crédito operativo] clienteId inválido para asignación:', {
+            clienteIdFinal,
+            dataClienteCreditoId: data?.clienteCreditoId,
+            dataClienteId: data?.clienteId,
+            prestamoClienteId: prestamo?.clienteId,
+            prestamo,
+          })
+        } else if (!isUuid(cobradorId)) {
+          console.warn('[Crear crédito operativo] cobradorId inválido para asignación:', {
             cobradorId,
-          );
-        } catch (assignError) {
-          console.error('Error al asignar cliente a la ruta:', assignError);
+            userId,
+          })
+        } else {
+          try {
+            await rutasService.asignarCliente(
+              rutaId,
+              clienteIdFinal,
+              cobradorId,
+            );
+          } catch (assignError) {
+            console.error('Error al asignar cliente a la ruta:', assignError);
+          }
         }
       }
 

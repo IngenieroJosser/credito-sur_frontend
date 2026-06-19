@@ -38,6 +38,7 @@ export interface NotificacionDetalleModalProps {
   onReject: (id: string, type: string, reason: string, resultadoRevision?: 'RECHAZADO_CON_DEUDA' | 'RECHAZADO_CON_REINTEGRO') => Promise<void>
   canApprove?: boolean
   isLegacy?: boolean
+  userRol?: string
 }
 
 export default function NotificacionDetalleModal({
@@ -47,7 +48,8 @@ export default function NotificacionDetalleModal({
   onApprove,
   onReject,
   canApprove = true,
-  isLegacy = false
+  isLegacy = false,
+  userRol = ''
 }: NotificacionDetalleModalProps) {
   // Helpers para normalizar datos de la notificación
   const safeJsonParse = (value: any) => {
@@ -331,27 +333,56 @@ export default function NotificacionDetalleModal({
 
 
   React.useEffect(() => {
-    if (isOpen && notificacion?.entidadId) {
-      const fetchHistory = async () => {
-        setIsLoadingHistory(true)
-        try {
-          // Determinar tabla de referencia
-          let tabla = 'Aprobacion'
-          if (notificacion.tipo === 'PRESTAMO') tabla = 'Prestamo'
-          else if (notificacion.tipo === 'GASTO') tabla = 'Gasto'
-          else if (notificacion.tipo === 'SOLICITUD_DINERO') tabla = 'Caja'
-          
-          const data = await aprobacionesService.getHistorial(notificacion.entidadId, tabla)
-          setHistory(data)
-        } catch (error) {
-          console.error('Error fetching history:', error)
-        } finally {
-          setIsLoadingHistory(false)
-        }
-      }
-      fetchHistory()
+    if (!isOpen || !notificacion?.entidadId) return
+
+    const rolNormalizado = String(userRol || '').trim().toUpperCase()
+
+    const puedeConsultarHistorial =
+      rolNormalizado === 'ADMIN' ||
+      rolNormalizado === 'SUPER_ADMIN' ||
+      rolNormalizado === 'SUPER_ADMINISTRADOR' ||
+      rolNormalizado === 'COORDINADOR'
+
+    if (!puedeConsultarHistorial) {
+      setHistory([])
+      setIsLoadingHistory(false)
+      return
     }
-  }, [isOpen, notificacion?.entidadId, notificacion?.tipo])
+
+    const fetchHistory = async () => {
+      setIsLoadingHistory(true)
+
+      try {
+        let tabla = 'Aprobacion'
+
+        if (notificacion.tipo === 'PRESTAMO') tabla = 'Prestamo'
+        else if (notificacion.tipo === 'GASTO') tabla = 'Gasto'
+        else if (notificacion.tipo === 'SOLICITUD_DINERO') tabla = 'Caja'
+
+        const data = await aprobacionesService.getHistorial(
+          notificacion.entidadId,
+          tabla,
+        )
+
+        setHistory(Array.isArray(data) ? data : [])
+      } catch (error: any) {
+        if (error?.statusCode !== 403 && error?.error?.statusCode !== 403) {
+          console.error('Error fetching history:', error)
+        }
+
+        setHistory([])
+      } finally {
+        setIsLoadingHistory(false)
+      }
+    }
+
+    void fetchHistory()
+  }, [
+    isOpen,
+    notificacion?.entidadId,
+    notificacion?.tipo,
+    userRol,
+  ])
 
   React.useEffect(() => {
     if (!isOpen) return
