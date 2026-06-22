@@ -51,9 +51,7 @@ export default function OfflineIndicator() {
 
   const [manualActivities, setManualActivities] = useState<any[]>([]);
 
-  // Estados para mantener visible la tarjeta de sincronización
-  const [syncVisibleUntil, setSyncVisibleUntil] = useState(0);
-  const [now, setNow] = useState(() => Date.now());
+  const [eventSyncActive, setEventSyncActive] = useState(false);
 
   // Función auxiliar para verificar si un estado es completado
   const isCompletedStatus = (status: unknown) => {
@@ -88,40 +86,18 @@ export default function OfflineIndicator() {
 
   const visibleOps = actionableOps + recentCompletedOps;
 
-  // Variables para mantener visible la tarjeta de sincronización
-  const hasActiveSync = isSyncing || syncingOps > 0;
-  const shouldKeepSyncVisible = now < syncVisibleUntil;
-  const isSyncingVisible = hasActiveSync || shouldKeepSyncVisible;
-
-  // Mantener la tarjeta visible mínimo 3 segundos cuando hay sincronización activa
-  useEffect(() => {
-    if (!hasActiveSync) return;
-
-    setSyncVisibleUntil(Date.now() + 3000);
-    setShowResult(false);
-  }, [hasActiveSync]);
-
-  // Actualizar now mientras shouldKeepSyncVisible sea true
-  useEffect(() => {
-    if (!shouldKeepSyncVisible) return;
-
-    const interval = window.setInterval(() => {
-      setNow(Date.now());
-    }, 250);
-
-    return () => window.clearInterval(interval);
-  }, [shouldKeepSyncVisible]);
+  const hasActiveSync = isSyncing || syncingOps > 0 || eventSyncActive;
+  const isSyncingVisible = hasActiveSync;
 
   // Escuchar eventos de sincronización desde syncManager
   useEffect(() => {
     const handleSyncStarted = () => {
-      setSyncVisibleUntil(Date.now() + 3000);
+      setEventSyncActive(true);
       setShowResult(false);
     };
 
     const handleSyncFinished = () => {
-      // Mantener visible un poco más después de terminar
-      setSyncVisibleUntil(Date.now() + 3000);
+      setEventSyncActive(false);
     };
 
     window.addEventListener('offline-sync-started', handleSyncStarted);
