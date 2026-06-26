@@ -804,6 +804,15 @@ const UserManagementPage = () => {
         return;
       }
 
+      if (formData.password.trim().length < 6) {
+        showNotification(
+          "error",
+          "La contraseña debe tener al menos 6 caracteres",
+          "Contraseña inválida",
+        );
+        return;
+      }
+
       const nombreUsuarioError = getNombreUsuarioError(formData.nombreUsuario);
       if (nombreUsuarioError) {
         showNotification("error", nombreUsuarioError, "Nombre de usuario");
@@ -823,9 +832,15 @@ const UserManagementPage = () => {
       );
       setIsCreateModalOpen(false);
       fetchUsers(); // Recargar lista
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating user:", error);
-      showNotification("error", "No se pudo crear el usuario", "Error");
+      const backendMsg =
+        error?.message ||
+        (Array.isArray(error?.error?.message)
+          ? error.error.message.join(", ")
+          : error?.error?.message) ||
+        "No se pudo crear el usuario";
+      showNotification("error", backendMsg, "Error al crear usuario");
     }
   };
 
