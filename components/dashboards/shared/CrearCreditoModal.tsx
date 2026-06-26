@@ -19,6 +19,7 @@ import { offlineStore } from '@/lib/offline/offlineDb'
 import { TipoAmortizacion } from '@/types/enums'
 import { getBogotaDateKey, toBogotaDateTimeLocalInputValue } from '@/lib/rutas-core'
 import FieldLabel from '@/components/ui/FieldLabel'
+import { useAuth } from '@/hooks/useAuth'
 
 interface CrearCreditoModalProps {
   isOpen: boolean
@@ -186,6 +187,7 @@ export default function CrearCreditoModal({
   lockVentaContado = false,
   allowVentaContadoOption = true,
 }: CrearCreditoModalProps) {
+  const { user } = useAuth()
   const [creditType, setCreditType] = useState<'prestamo' | 'articulo'>(defaultCreditType || 'prestamo')
   const [clienteCreditoId, setClienteCreditoId] = useState('')
   const [montoPrestamoInput, setMontoPrestamoInput] = useState('')
@@ -208,6 +210,14 @@ export default function CrearCreditoModal({
 
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [articulos, setArticulos] = useState<Articulo[]>([])
+
+  const puedeUsarFechaAntiguaCredito = [
+    'ADMIN',
+    'SUPER_ADMINISTRADOR',
+  ].includes(String(user?.rol || '').toUpperCase())
+  const hoyBogotaKey = getBogotaDateKey(new Date())
+  const hoyBogotaDateTimeMin = `${hoyBogotaKey}T00:00`
+  const fechaCreditoKey = String(fechaCreditoInput || '').slice(0, 10) || hoyBogotaKey
 
   const puedeMostrarModoVenta = creditType === 'articulo' && allowVentaContadoOption && !lockVentaContado
 
@@ -498,8 +508,14 @@ export default function CrearCreditoModal({
                       <input
                          type="datetime-local"
                          value={fechaCreditoInput}
-                         readOnly
-                         className="w-full px-4 py-3 bg-slate-100 border border-slate-200 rounded-xl focus:outline-none font-medium text-slate-500 cursor-not-allowed"
+                         min={puedeUsarFechaAntiguaCredito ? undefined : hoyBogotaDateTimeMin}
+                         readOnly={!puedeUsarFechaAntiguaCredito}
+                         onChange={(e) => setFechaCreditoInput(e.target.value)}
+                         className={`w-full px-4 py-3 border rounded-xl focus:ring-0 font-medium transition-colors ${
+                           puedeUsarFechaAntiguaCredito
+                             ? 'bg-white border-slate-200 text-slate-900 focus:border-[#08557f]'
+                             : 'bg-slate-100 border-slate-200 text-slate-500 cursor-not-allowed focus:outline-none'
+                         }`}
                       />
                     </div>
                   </div>
@@ -694,8 +710,14 @@ export default function CrearCreditoModal({
                     <input
                       type="datetime-local"
                       value={fechaCreditoInput}
-                      readOnly
-                      className="w-full px-4 py-3 bg-slate-100 border border-slate-200 rounded-xl focus:outline-none font-bold text-slate-500 cursor-not-allowed"
+                      min={puedeUsarFechaAntiguaCredito ? undefined : hoyBogotaDateTimeMin}
+                      readOnly={!puedeUsarFechaAntiguaCredito}
+                      onChange={(e) => setFechaCreditoInput(e.target.value)}
+                      className={`w-full px-4 py-3 border rounded-xl focus:ring-0 font-bold transition-colors ${
+                        puedeUsarFechaAntiguaCredito
+                          ? 'bg-white border-slate-200 text-slate-900 focus:border-[#08557f]'
+                          : 'bg-slate-100 border-slate-200 text-slate-500 cursor-not-allowed focus:outline-none'
+                      }`}
                     />
                   </div>
 
@@ -742,19 +764,19 @@ export default function CrearCreditoModal({
                     const diaSeleccionado = fechaPrimerCobro
                       ? new Date(fechaPrimerCobro + 'T12:00:00').getDate()
                       : 0
-                    const todayKey = getBogotaDateKey(new Date())
-                    const esFechaPasada = !!fechaPrimerCobro && fechaPrimerCobro < todayKey
+                    const esFechaPasada = !puedeUsarFechaAntiguaCredito && !!fechaPrimerCobro && fechaPrimerCobro < hoyBogotaKey
+                    const esAnteriorFechaCredito = !!fechaPrimerCobro && fechaPrimerCobro < fechaCreditoKey
                     const esQuincenaInvalida = frecuenciaPago === 'QUINCENAL' && !!fechaPrimerCobro && diaSeleccionado !== 15 && diaSeleccionado !== 30
                     const esDomingoInvalido = !!fechaPrimerCobro
                       ? new Date(fechaPrimerCobro + 'T12:00:00').getDay() === 0
                       : false
-                    const inputInvalido = esQuincenaInvalida || esDomingoInvalido || esFechaPasada
+                    const inputInvalido = esQuincenaInvalida || esDomingoInvalido || esFechaPasada || esAnteriorFechaCredito
                     return (
                       <div className="space-y-1">
                         <input
                           type="date"
                           value={fechaPrimerCobro}
-                          min={todayKey}
+                          min={puedeUsarFechaAntiguaCredito ? undefined : hoyBogotaKey}
                           onChange={(e) => setFechaPrimerCobro(e.target.value)}
                           className={`w-full px-4 py-3 border rounded-xl focus:ring-0 font-medium text-slate-900 transition-colors ${
                             inputInvalido
@@ -765,6 +787,11 @@ export default function CrearCreditoModal({
                         {esFechaPasada && (
                           <p className="text-xs text-red-600 font-semibold flex items-center gap-1">
                             <span>⚠</span> La fecha del primer cobro no puede ser un día pasado.
+                          </p>
+                        )}
+                        {esAnteriorFechaCredito && (
+                          <p className="text-xs text-red-600 font-semibold flex items-center gap-1">
+                            <span>⚠</span> La fecha del primer cobro no puede ser anterior a la fecha del crédito.
                           </p>
                         )}
                         {esQuincenaInvalida && (
@@ -899,7 +926,8 @@ export default function CrearCreditoModal({
                     (!(creditType === 'articulo' && esContado) && !fechaPrimerCobro) ||
                     (fechaPrimerCobro ? new Date(fechaPrimerCobro + 'T12:00:00').getDay() === 0 : false) ||
                     (frecuenciaPago === 'QUINCENAL' && fechaPrimerCobro ? (() => { const d = new Date(fechaPrimerCobro + 'T12:00:00').getDate(); return d !== 15 && d !== 30 })() : false) ||
-                    (fechaPrimerCobro ? fechaPrimerCobro < getBogotaDateKey(new Date()) : false)
+                    (fechaPrimerCobro ? fechaPrimerCobro < fechaCreditoKey : false) ||
+                    (!puedeUsarFechaAntiguaCredito && fechaPrimerCobro ? fechaPrimerCobro < hoyBogotaKey : false)
                   }
                   className="flex-1 bg-slate-900 text-white font-bold py-4 rounded-2xl shadow-xl shadow-slate-200 hover:bg-slate-800 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-widest text-xs"
                 >
