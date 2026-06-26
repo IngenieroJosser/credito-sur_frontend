@@ -304,7 +304,7 @@ const AuditoriaSistemaPage = () => {
                   <th className="px-6 py-4 font-bold tracking-wider">Fecha / Hora</th>
                   <th className="px-6 py-4 font-bold tracking-wider">Usuario</th>
                   <th className="px-6 py-4 font-bold tracking-wider">Módulo / Acción</th>
-                  <th className="px-6 py-4 font-bold tracking-wider">Detalle</th>
+                  <th className="px-6 py-4 font-bold tracking-wider">ID</th>
                   <th className="px-6 py-4 font-bold tracking-wider text-center">Nivel</th>
                   <th className="px-6 py-4 font-bold tracking-wider text-right">Acciones</th>
                 </tr>

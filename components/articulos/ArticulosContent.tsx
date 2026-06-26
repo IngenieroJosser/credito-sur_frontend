@@ -51,6 +51,7 @@ import { usePermission } from '@/hooks/usePermission'
 import { useRouter } from 'next/navigation'
 import IngresoMercanciaModal from '@/components/articulos/IngresoMercanciaModal'
 import { exportService } from '@/services/export-service'
+import { formatErrorForComponent } from '@/lib/api/api'
 
 // Interfaces
 interface PrecioCuota {
@@ -144,7 +145,7 @@ export default function ArticulosContent() {
 
   const fetchArticulos = async () => {
     try {
-      const data = await inventarioService.obtenerProductos()
+      const data = await inventarioService.obtenerProductos();
       const mapped: Articulo[] = data.map(p => {
         const precioContadoItem = p.precios?.find(pr => pr.meses === 0);
         const creditPrecios = p.precios?.filter(pr => pr.meses > 0) || [];
@@ -164,14 +165,15 @@ export default function ArticulosContent() {
           stockMinimo: p.stockMinimo,
           estado: p.activo ? 'activo' : 'inactivo',
           precios: creditPrecios.map(cp => ({ ...cp, precio: Number(cp.precio) }))
-        }
-      })
-      setArticulos(mapped)
+        };
+      });
+      setArticulos(mapped);
     } catch (error) {
-      console.error('Error fetching inventory:', error)
-      showNotification('error', 'No se pudo cargar el inventario', 'Error')
+      console.error('Error fetching inventory:', error);
+      const errorMsg = formatErrorForComponent(error);
+      showNotification('error', errorMsg, 'Error');
     }
-  }
+  };
 
   const fetchCategorias = async () => {
     try {
