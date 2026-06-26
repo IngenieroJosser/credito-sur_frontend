@@ -99,7 +99,7 @@ export default function ArticulosContent() {
 
   const [articulos, setArticulos] = useState<Articulo[]>([])
   const [busqueda, setBusqueda] = useState('')
-  const [soloStockBajo, setSoloStockBajo] = useState(false)
+  const [priorizarStockBajo, setPriorizarStockBajo] = useState(false)
   const [stockSort, setStockSort] = useState<'asc' | 'desc' | null>(null)
   const [page, setPage] = useState(1)
   const [categorias, setCategorias] = useState<Categoria[]>([])
@@ -224,19 +224,18 @@ export default function ArticulosContent() {
       a.codigo.toLowerCase().includes(q) ||
       a.categoria.toLowerCase().includes(q)
 
-    if (!matchBusqueda) return false
-    if (soloStockBajo) return Number(a.stock || 0) <= Number(a.stockMinimo || 0)
-    return true
+    return matchBusqueda
   })
 
   const articulosOrdenados = useMemo(() => {
     const lista = [...articulosFiltrados]
-    if (!stockSort) return lista
+    const sortMode = stockSort || (priorizarStockBajo ? 'asc' : null)
+    if (!sortMode) return lista
     return lista.sort((a, b) => {
       const diff = Number(a.stock || 0) - Number(b.stock || 0)
-      return stockSort === 'asc' ? diff : -diff
+      return sortMode === 'asc' ? diff : -diff
     })
-  }, [articulosFiltrados, stockSort])
+  }, [articulosFiltrados, priorizarStockBajo, stockSort])
 
   const pageSize = 10
   const totalPages = useMemo(() => {
@@ -245,7 +244,7 @@ export default function ArticulosContent() {
 
   useEffect(() => {
     setPage(1)
-  }, [busqueda, soloStockBajo, stockSort, articulos.length])
+  }, [busqueda, priorizarStockBajo, stockSort, articulos.length])
 
   const pagedArticulos = useMemo(() => {
     const safePage = Math.min(Math.max(1, page), totalPages)
@@ -286,11 +285,8 @@ export default function ArticulosContent() {
   }
 
   const handleToggleStockBajo = () => {
-    if (!soloStockBajo && atencionStockBajo === 0) {
-      showNotification('info', 'No hay artículos con stock bajo en el listado actual.', 'Inventario')
-      return
-    }
-    setSoloStockBajo((prev) => !prev)
+    setPriorizarStockBajo((prev) => !prev)
+    setStockSort(null)
   }
 
   const handleExportarInventario = async () => {
@@ -559,14 +555,14 @@ export default function ArticulosContent() {
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
               />
-              {soloStockBajo && (
+              {priorizarStockBajo && (
                 <button
                   type="button"
-                  onClick={() => setSoloStockBajo(false)}
+                  onClick={() => setPriorizarStockBajo(false)}
                   className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700 border border-amber-100"
                 >
                   <XCircle className="h-3.5 w-3.5" />
-                  Quitar filtro stock bajo
+                  Quitar orden por menor stock
                 </button>
               )}
             </div>
@@ -577,12 +573,12 @@ export default function ArticulosContent() {
                   type="button"
                   onClick={handleToggleStockBajo}
                   className={`inline-flex items-center gap-2 px-4 py-2.5 border rounded-xl transition-all text-sm font-medium whitespace-nowrap ${
-                    soloStockBajo
+                    priorizarStockBajo
                       ? 'bg-amber-50 text-amber-700 border-amber-200'
                       : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300'
                   }`}
                 >
-                  Stock Bajo
+                  Menor stock primero
                 </button>
                 <button
                   type="button"
