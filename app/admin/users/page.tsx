@@ -65,6 +65,7 @@ interface User {
   nombres: string;
   apellidos: string;
   correo: string;
+  nombreUsuario?: string;
   telefono: string;
   rol: RolUsuario;
   estado: EstadoUsuario;
@@ -189,6 +190,7 @@ const UserManagementPage = () => {
         nombres: u.nombres,
         apellidos: u.apellidos,
         correo: u.correo,
+        nombreUsuario: u.nombreUsuario || "",
         telefono: u.telefono || "",
         rol: u.rol as RolUsuario,
         estado: u.estado as EstadoUsuario,
@@ -338,6 +340,7 @@ const UserManagementPage = () => {
     nombres: string;
     apellidos: string;
     correo: string;
+    nombreUsuario: string;
     telefono: string;
     password: string;
     rol: RolUsuario;
@@ -348,6 +351,7 @@ const UserManagementPage = () => {
     nombres: "",
     apellidos: "",
     correo: "",
+    nombreUsuario: "",
     telefono: "",
     password: "",
     rol: RolUsuario.COBRADOR,
@@ -445,6 +449,7 @@ const UserManagementPage = () => {
     const fullName = `${user.nombres} ${user.apellidos}`.toLowerCase();
     const matchesSearch =
       fullName.includes(searchTerm.toLowerCase()) ||
+      (user.nombreUsuario || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.correo.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = filterRole === "all" || user.rol === filterRole;
     const matchesStatus =
@@ -480,6 +485,7 @@ const UserManagementPage = () => {
       nombres: "",
       apellidos: "",
       correo: "",
+      nombreUsuario: "",
       telefono: "",
       password: "",
       rol: RolUsuario.COBRADOR,
@@ -505,6 +511,7 @@ const UserManagementPage = () => {
       nombres: user.nombres,
       apellidos: user.apellidos,
       correo: user.correo,
+      nombreUsuario: user.nombreUsuario || "",
       telefono: user.telefono,
       password: "", // No password on edit
       rol: user.rol,
@@ -763,14 +770,30 @@ const UserManagementPage = () => {
     setIsDeleteModalOpen(true);
   };
 
+  const normalizeNombreUsuario = (value: string) => value.trim().toLowerCase();
+
+  const getNombreUsuarioError = (value: string) => {
+    const normalized = normalizeNombreUsuario(value);
+
+    if (!normalized) return "El nombre de usuario es obligatorio";
+    if (normalized.length < 3 || normalized.length > 50) {
+      return "El nombre de usuario debe tener entre 3 y 50 caracteres";
+    }
+    if (!/^[a-zA-Z0-9._-]+$/.test(normalized)) {
+      return "El nombre de usuario solo puede contener letras, números, punto, guion y guion bajo.";
+    }
+
+    return "";
+  };
+
   const handleCreateUser = async () => {
     try {
-      const { password, ...userData } = formData;
       // Validar campos mínimos
       if (
         !formData.nombres ||
         !formData.apellidos ||
         !formData.correo ||
+        !formData.nombreUsuario ||
         !formData.password
       ) {
         showNotification(
@@ -781,7 +804,17 @@ const UserManagementPage = () => {
         return;
       }
 
-      await usuariosService.crear(formData);
+      const nombreUsuarioError = getNombreUsuarioError(formData.nombreUsuario);
+      if (nombreUsuarioError) {
+        showNotification("error", nombreUsuarioError, "Nombre de usuario");
+        return;
+      }
+
+      await usuariosService.crear({
+        ...formData,
+        correo: formData.correo.trim().toLowerCase(),
+        nombreUsuario: normalizeNombreUsuario(formData.nombreUsuario),
+      });
 
       showNotification(
         "success",
@@ -879,11 +912,22 @@ const UserManagementPage = () => {
         }
       }
 
+      if (formData.nombreUsuario.trim()) {
+        const nombreUsuarioError = getNombreUsuarioError(formData.nombreUsuario);
+        if (nombreUsuarioError) {
+          showNotification("error", nombreUsuarioError, "Nombre de usuario");
+          return;
+        }
+      }
+
       // Actualizar datos personales
       await usuariosService.actualizar(selectedUser.id, {
         nombres: formData.nombres,
         apellidos: formData.apellidos,
         correo: formData.correo,
+        ...(formData.nombreUsuario.trim() && {
+          nombreUsuario: normalizeNombreUsuario(formData.nombreUsuario),
+        }),
         telefono: formData.telefono,
         rol: formData.rol,
         estado: formData.estado,
@@ -900,6 +944,9 @@ const UserManagementPage = () => {
               nombres: formData.nombres,
               apellidos: formData.apellidos,
               correo: formData.correo,
+              nombreUsuario: formData.nombreUsuario.trim()
+                ? normalizeNombreUsuario(formData.nombreUsuario)
+                : parsedLocal.nombreUsuario,
               telefono: formData.telefono,
               rol: formData.rol,
               estado: formData.estado
@@ -1850,6 +1897,28 @@ const UserManagementPage = () => {
                       />
                     </div>
 
+                    <div>
+                      <FieldLabel required>
+                        Nombre de usuario
+                      </FieldLabel>
+                      <div className="relative">
+                        <AtSign className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                        <input
+                          type="text"
+                          autoComplete="username"
+                          value={formData.nombreUsuario}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              nombreUsuario: e.target.value.toLowerCase(),
+                            })
+                          }
+                          className="w-full pl-11 pr-4 py-3 border border-slate-200 rounded-2xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
+                          placeholder="Ej. juan.perez"
+                        />
+                      </div>
+                    </div>
+
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <FieldLabel>
@@ -2020,6 +2089,28 @@ const UserManagementPage = () => {
                         }
                         className="w-full px-4 py-3 border border-slate-200 rounded-2xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
                       />
+                    </div>
+
+                    <div>
+                      <FieldLabel>
+                        Nombre de usuario
+                      </FieldLabel>
+                      <div className="relative">
+                        <AtSign className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                        <input
+                          type="text"
+                          autoComplete="username"
+                          value={formData.nombreUsuario}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              nombreUsuario: e.target.value.toLowerCase(),
+                            })
+                          }
+                          className="w-full pl-11 pr-4 py-3 border border-slate-200 rounded-2xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all text-sm font-medium text-slate-900 placeholder:text-slate-400"
+                          placeholder="Ej. juan.perez"
+                        />
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">

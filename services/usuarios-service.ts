@@ -9,6 +9,7 @@ export type { RolUsuario, EstadoUsuario };
 export interface Usuario {
   id: string;
   correo: string;
+  nombreUsuario?: string | null;
   nombres: string;
   apellidos: string;
   telefono: string | null;
@@ -25,6 +26,7 @@ export interface Usuario {
 
 export interface CreateUsuarioDto {
   correo: string;
+  nombreUsuario: string;
   password: string;
   nombres: string;
   apellidos: string;
@@ -36,6 +38,7 @@ export interface CreateUsuarioDto {
 
 export interface UpdateUsuarioDto {
   correo?: string;
+  nombreUsuario?: string;
   nombres?: string;
   apellidos?: string;
   telefono?: string;
