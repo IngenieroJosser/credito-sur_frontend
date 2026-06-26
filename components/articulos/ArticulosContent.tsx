@@ -50,6 +50,7 @@ import AnimacionCarga from '@/components/ui/AnimacionCarga'
 import { usePermission } from '@/hooks/usePermission'
 import { useRouter } from 'next/navigation'
 import IngresoMercanciaModal from '@/components/articulos/IngresoMercanciaModal'
+import { exportService } from '@/services/export-service'
 import { formatErrorForComponent } from '@/lib/api/api'
 
 // Interfaces
@@ -98,6 +99,7 @@ export default function ArticulosContent() {
 
   const [articulos, setArticulos] = useState<Articulo[]>([])
   const [busqueda, setBusqueda] = useState('')
+  const [soloStockBajo, setSoloStockBajo] = useState(false)
   const [stockSort, setStockSort] = useState<'asc' | 'desc' | null>(null)
   const [page, setPage] = useState(1)
   const [categorias, setCategorias] = useState<Categoria[]>([])
@@ -106,6 +108,7 @@ export default function ArticulosContent() {
   const { unreadCount, socket } = useNotificaciones()
   const router = useRouter()
   const [loading, setLoading] = useState(true)
+  const [exportLoading, setExportLoading] = useState(false)
 
   useEffect(() => {
     const cargar = async () => {
@@ -216,11 +219,14 @@ export default function ArticulosContent() {
 
   const articulosFiltrados = articulos.filter((a) => {
     const q = busqueda.toLowerCase()
-    return (
+    const matchBusqueda =
       a.nombre.toLowerCase().includes(q) ||
       a.codigo.toLowerCase().includes(q) ||
       a.categoria.toLowerCase().includes(q)
-    )
+
+    if (!matchBusqueda) return false
+    if (soloStockBajo) return Number(a.stock || 0) <= Number(a.stockMinimo || 0)
+    return true
   })
 
   const articulosOrdenados = useMemo(() => {
@@ -239,7 +245,7 @@ export default function ArticulosContent() {
 
   useEffect(() => {
     setPage(1)
-  }, [busqueda, stockSort, articulos.length])
+  }, [busqueda, soloStockBajo, stockSort, articulos.length])
 
   const pagedArticulos = useMemo(() => {
     const safePage = Math.min(Math.max(1, page), totalPages)
@@ -277,6 +283,37 @@ export default function ArticulosContent() {
   const handleEliminar = (articulo: Articulo) => {
     setArticuloSeleccionado(articulo)
     setShowEliminarModal(true)
+  }
+
+  const handleToggleStockBajo = () => {
+    if (!soloStockBajo && atencionStockBajo === 0) {
+      showNotification('info', 'No hay artículos con stock bajo en el listado actual.', 'Inventario')
+      return
+    }
+    setSoloStockBajo((prev) => !prev)
+  }
+
+  const handleExportarInventario = async () => {
+    if (exportLoading) return
+    if (articulosFiltrados.length === 0) {
+      showNotification('warning', 'No hay artículos para exportar con los filtros actuales.', 'Inventario')
+      return
+    }
+
+    setExportLoading(true)
+    try {
+      await exportService.downloadFile(
+        'inventory/export',
+        { format: 'excel' },
+        'inventario.xlsx',
+      )
+      showNotification('success', 'Inventario exportado correctamente.', 'Exportación')
+    } catch (error) {
+      console.error('Error exporting inventory:', error)
+      showNotification('error', 'No se pudo exportar el inventario.', 'Error')
+    } finally {
+      setExportLoading(false)
+    }
   }
 
   const confirmarEliminar = async () => {
@@ -522,16 +559,39 @@ export default function ArticulosContent() {
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
               />
+              {soloStockBajo && (
+                <button
+                  type="button"
+                  onClick={() => setSoloStockBajo(false)}
+                  className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700 border border-amber-100"
+                >
+                  <XCircle className="h-3.5 w-3.5" />
+                  Quitar filtro stock bajo
+                </button>
+              )}
             </div>
             
             {!esReadOnly && (
               <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
-                <button className="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all text-sm font-medium whitespace-nowrap">
+                <button
+                  type="button"
+                  onClick={handleToggleStockBajo}
+                  className={`inline-flex items-center gap-2 px-4 py-2.5 border rounded-xl transition-all text-sm font-medium whitespace-nowrap ${
+                    soloStockBajo
+                      ? 'bg-amber-50 text-amber-700 border-amber-200'
+                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300'
+                  }`}
+                >
                   Stock Bajo
                 </button>
-                <button className="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all text-sm font-medium whitespace-nowrap">
-                  <Download className="w-4 h-4" />
-                  Exportar
+                <button
+                  type="button"
+                  onClick={handleExportarInventario}
+                  disabled={exportLoading || articulosFiltrados.length === 0}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all text-sm font-medium whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Download className={`w-4 h-4 ${exportLoading ? 'animate-pulse' : ''}`} />
+                  {exportLoading ? 'Exportando...' : 'Exportar'}
                 </button>
               </div>
             )}
