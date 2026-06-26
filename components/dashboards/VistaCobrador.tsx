@@ -1114,6 +1114,29 @@ const VistaCobrador = () => {
   const esDiaNoLaboral = esDomingoBogota()
   const rutaOperable = rutaActivadaHoy && !rutaCompletada && !esDiaNoLaboral
 
+  const validarRutaOperableParaAccion = useCallback((accion: string) => {
+    if (rutaOperable) return true
+
+    let mensaje = 'La ruta debe estar activa para usar esta acción.'
+    if (isCheckingActivacion) {
+      mensaje = 'Estamos verificando si la ruta está activa. Intenta nuevamente en unos segundos.'
+    } else if (esDiaNoLaboral) {
+      mensaje = 'La ruta no está operable hoy porque es día no laboral.'
+    } else if (rutaCompletada) {
+      mensaje = 'La ruta ya fue completada. No puedes registrar nuevas acciones en esta jornada.'
+    } else if (!rutaActivadaHoy) {
+      mensaje = 'Activa la ruta del día antes de usar las acciones flotantes.'
+    }
+
+    setModalAlerta({
+      titulo: accion,
+      mensaje,
+      tipo: 'info',
+    })
+
+    return false
+  }, [esDiaNoLaboral, isCheckingActivacion, rutaActivadaHoy, rutaCompletada, rutaOperable])
+
   const visitasBaseRef = useRef<any[]>([])
   useEffect(() => {
     visitasBaseRef.current = Array.isArray(visitasBase) ? (visitasBase as any[]) : []
@@ -4755,17 +4778,17 @@ const VistaCobrador = () => {
 
         <FloatingActionMenu actions={[
 
-          { label: 'Crear Crédito', icon: <CreditCard className="h-5 w-5" />, onClick: () => { if (!rutaOperable) return; setShowCreditModal(true); } },
+          { label: 'Crear Crédito', icon: <CreditCard className="h-5 w-5" />, onClick: () => { if (!validarRutaOperableParaAccion('Crear crédito')) return; setShowCreditModal(true); } },
 
-          { label: 'Nuevo Cliente', icon: <UserPlus className="h-5 w-5" />, onClick: () => { if (!rutaOperable) return; setShowNewClientModal(true); } },
+          { label: 'Nuevo Cliente', icon: <UserPlus className="h-5 w-5" />, onClick: () => { if (!validarRutaOperableParaAccion('Nuevo cliente')) return; setShowNewClientModal(true); } },
 
-          { label: 'Registrar abono', icon: <RefreshCw className="h-5 w-5" />, color: 'orange', onClick: () => { if (!rutaOperable) return; setAccionPendiente('ABONO'); setShowClientSelector(true); } },
+          { label: 'Registrar abono', icon: <RefreshCw className="h-5 w-5" />, color: 'orange', onClick: () => { if (!validarRutaOperableParaAccion('Registrar abono')) return; setAccionPendiente('ABONO'); setShowClientSelector(true); } },
 
-          { label: 'Registrar pago', icon: <DollarSign className="h-5 w-5" />, onClick: () => { if (!rutaOperable) return; setAccionPendiente('PAGO'); setShowClientSelector(true); } },
+          { label: 'Registrar pago', icon: <DollarSign className="h-5 w-5" />, onClick: () => { if (!validarRutaOperableParaAccion('Registrar pago')) return; setAccionPendiente('PAGO'); setShowClientSelector(true); } },
 
-          { label: 'Pedir Base', icon: <Wallet className="h-5 w-5" />, color: 'emerald', onClick: () => { if (!rutaOperable) return; setShowBaseModal(true); } },
+          { label: 'Pedir Base', icon: <Wallet className="h-5 w-5" />, color: 'emerald', onClick: () => { if (!validarRutaOperableParaAccion('Pedir base')) return; setShowBaseModal(true); } },
 
-          { label: 'Gastos', icon: <ReceiptText className="h-5 w-5" />, color: 'rose', onClick: () => { if (!rutaOperable) return; setShowGastoModal(true); } },
+          { label: 'Gastos', icon: <ReceiptText className="h-5 w-5" />, color: 'rose', onClick: () => { if (!validarRutaOperableParaAccion('Gastos')) return; setShowGastoModal(true); } },
 
         ] as FabAction[]} />
 
