@@ -149,6 +149,7 @@ const ListadoPrestamosElegante = () => {
 
       // Si el backend no manda `diasMora/cuotasVencidas` en /loans, cruzamos con el reporte canónico.
       let moraMap = new Map<string, { diasMora: number; cuotasVencidas: number; estado?: string }>()
+      let moraReportCount: number | null = null
       try {
         const params: any = { pagina: 1, limite: 500 }
         if (filtros.busqueda) params.busqueda = filtros.busqueda
@@ -162,6 +163,7 @@ const ListadoPrestamosElegante = () => {
             : Array.isArray((moraResp as any)?.data)
               ? (moraResp as any).data
               : []
+        moraReportCount = Number((moraResp as any)?.total ?? (moraResp as any)?.totales?.totalRegistros ?? raw.length)
 
         moraMap = new Map(
           raw
@@ -202,9 +204,10 @@ const ListadoPrestamosElegante = () => {
       }).length
 
       const stats = (response.estadisticas || {}) as any
+      const backendMoraCount = Number(stats.atrasados ?? 0)
       setEstadisticas({
         ...stats,
-        atrasados: Number(stats.atrasados ?? moraCount),
+        atrasados: Math.max(backendMoraCount, Number(moraReportCount ?? 0), moraCount),
       });
       setTotalPrestamos(response.paginacion.total);
       setDataSource('online');

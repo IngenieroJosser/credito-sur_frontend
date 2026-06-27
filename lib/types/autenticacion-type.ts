@@ -1,5 +1,8 @@
 export interface LoginData {
-  nombres: string;
+  nombres?: string;
+  identificador?: string;
+  correo?: string;
+  email?: string;
   contrasena: string;
 }
 

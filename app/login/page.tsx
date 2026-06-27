@@ -213,6 +213,7 @@ const LoginPage = () => {
 
     try {
       const payload: LoginData = {
+        identificador: formData.nombres.trim(),
         nombres: formData.nombres.trim(),
         contrasena: formData.password.trim(),
       };
@@ -461,9 +462,9 @@ const LoginPage = () => {
                 onFocus={() => setFocusedField('usuario')}
                 onBlur={() => setFocusedField(null)}
                 className="w-full pl-8 pr-4 py-3 bg-transparent border-0 border-b border-gray-200 focus:border-[#08557f] focus:outline-none transition-all duration-300 text-gray-700 placeholder-gray-400 text-sm"
-                placeholder="Nombres"
-                autoComplete="name"
-                autoCapitalize="words"
+                placeholder="Usuario o correo"
+                autoComplete="username"
+                autoCapitalize="none"
                 disabled={isLoading}
               />
               {/* Línea animada inferior */}
