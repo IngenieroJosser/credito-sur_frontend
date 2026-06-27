@@ -92,7 +92,17 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
         }, 0)
 
       const saldoActual = cajaData?.saldo || 0
-      const saldoPrevioRango = saldoActual - totalRegistradoRango
+      const saldoPrevioRango = (ledgerRes.data || [])
+        .filter((entry: any) => {
+          const key = new Date(entry.fecha).toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
+          return key < ayerKey
+        })
+        .reduce((s: number, entry: MovimientoLedger) => {
+          const lineasCaja = entry.lineas.filter((linea) => linea.cajaId === id)
+          const debitos = lineasCaja.reduce((acc, linea) => acc + Number(linea.debitAmount || 0), 0)
+          const creditos = lineasCaja.reduce((acc, linea) => acc + Number(linea.creditAmount || 0), 0)
+          return s + debitos - creditos
+        }, 0)
 
       const ingresos = ledgerRes.data
         .reduce((s, entry: MovimientoLedger) => {

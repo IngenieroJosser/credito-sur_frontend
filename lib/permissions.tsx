@@ -42,6 +42,7 @@ const T = {
   CONFIG: (role: Rol, path: string) => ({ id: 'configuracion', nombre: 'Configuración', icono: 'Settings', path, roles: [role] }),
   BACKUP: (role: Rol, path: string) => ({ id: 'backups', nombre: 'Backups', icono: 'HardDrive', path, roles: [role], isNew: true }),
   SYNC: (role: Rol, path: string) => ({ id: 'sincronizacion', nombre: 'Sincronización', icono: 'RefreshCw', path, roles: [role], isNew: true }),
+  IMPORTACIONES: (role: Rol, path: string) => ({ id: 'importaciones', nombre: 'Importación Masiva', icono: 'Upload', path, roles: [role], isNew: true }),
   
   // Otros
   REP_OPER: (role: Rol, path: string) => ({ id: 'reportes-operativos', nombre: 'Reportes operativos', icono: 'ClipboardList', path, roles: [role] }),
@@ -96,6 +97,7 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
         T.CONFIG('SUPER_ADMINISTRADOR', '/admin/sistema/configuracion'),
         T.SYNC('SUPER_ADMINISTRADOR', '/admin/sistema/sincronizacion'),
         T.BACKUP('SUPER_ADMINISTRADOR', '/admin/sistema/backups'),
+        T.IMPORTACIONES('SUPER_ADMINISTRADOR', '/admin/sistema/importaciones'),
       ]
     },
   ],
@@ -138,6 +140,7 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
       id: 'sistema', nombre: 'Sistema', icono: 'Settings', path: '#', roles: ['ADMIN'],
       submodulos: [
         T.SYNC('ADMIN', '/sistema/sincronizacion'),
+        T.IMPORTACIONES('ADMIN', '/admin/sistema/importaciones'),
       ]
     },
   ],
@@ -226,7 +229,7 @@ import {
   Eye, Home, LayoutDashboard, Bell, CreditCard, ShoppingBag, ShieldCheck, Banknote, Users, AlertCircle,
   Route, Package, PieChart, User, Archive, Shield, Settings, CheckCircle2, Receipt, Wallet, Map as MapIcon,
   HardDrive, Landmark, History, ClipboardList, Briefcase, Calculator, BarChart3, Key, FileText, FileX2,
-  RefreshCw, UserCircle, AlertTriangle
+  RefreshCw, UserCircle, AlertTriangle, Upload
 } from 'lucide-react';
 
 export const iconosMap: Record<string, React.ReactNode> = {
@@ -264,6 +267,7 @@ export const iconosMap: Record<string, React.ReactNode> = {
   'UserCircle': <UserCircle className="h-4 w-4" />,
   'ShieldCheck': <ShieldCheck className="h-4 w-4" />,
   'AlertTriangle': <AlertTriangle className="h-4 w-4" />,
+  'Upload': <Upload className="h-4 w-4" />,
 };
 
 export const getIconComponent = (iconName: string): React.ReactNode => {
@@ -294,7 +298,7 @@ const ACTION_ICON_MAP: Record<string, string> = {
   'reportes-operativos': 'ClipboardList', reportes: 'ClipboardList', configuracion: 'Settings',
   sistema: 'Settings', sincronizacion: 'RefreshCw', notificaciones: 'Bell', solicitudes: 'ClipboardList',
   'prestamos-dinero': 'CreditCard', 'creditos-articulos': 'ShoppingBag', 'revisiones': 'ShieldCheck',
-  'conflictos-sinc': 'AlertTriangle', 'seguimiento-pdv': 'ShoppingBag',
+  'conflictos-sinc': 'AlertTriangle', 'seguimiento-pdv': 'ShoppingBag', importaciones: 'Upload',
 };
 
 const normalizePermissionId = (id: string) => String(id || '').trim().toLowerCase().replace(/\s+/g, '-').replace(/_/g, '-').replace(/[^a-z0-9-]/g, '');

@@ -1720,44 +1720,35 @@ const ModuloContableContent = () => {
                               const inicioKey = fechaInicioModal || ''
                               const finKey = fechaFinModal || ''
 
-                              const params: any = { cajaId: c.id, limit: 500 }
-                              if (inicioKey) params.fechaInicio = inicioKey
-                              if (finKey) params.fechaFin = finKey
+                              const respLedgerCaja = await getMovimientosLedger({ cajaId: c.id, limit: 5000 })
+                              const movimientosLedgerCaja = Array.isArray(respLedgerCaja?.data)
+                                ? respLedgerCaja.data
+                                : []
 
-                              const respCaja = await getTransacciones(params)
-                              const movs = (respCaja?.data || []).map(mapTransaccion)
-                              const codigoCaja = String((c as any)?.codigo || '').toUpperCase()
-
-                              let filtered = movs.filter((m: any) => {
-                                const est = String(m?.estado || '').toUpperCase()
-                                if (est === 'ANULADO' || est === 'RECHAZADO') return false
-                                const fechaM = normalizeDateKey(m.fecha)
-                                if (inicioKey && fechaM < inicioKey) return false
-                                if (finKey && fechaM > finKey) return false
-                                return true
-                              })
-
-                              if (codigoCaja === 'CAJA-PRINCIPAL' || codigoCaja === 'CAJA-BANCO') {
-                                filtered = filtered.filter((m: any) => {
-                                  const ref = String(m?.tipoReferencia || '').toUpperCase()
-                                  return ref !== 'CUOTA_INICIAL' && ref !== 'RESTAURACION_CUOTA_INICIAL' && ref !== 'ABONO_DEUDA'
-                                })
+                              const deltaCaja = (entry: ApiMovimientoLedger) => {
+                                return (entry.lineas || [])
+                                  .filter((linea) => linea.cajaId === c.id)
+                                  .reduce((acc, linea) => {
+                                    return acc + Number(linea.debitAmount || 0) - Number(linea.creditAmount || 0)
+                                  }, 0)
                               }
 
-                              const totalRegistrado = filtered.reduce((acc: number, m: any) => {
-                                const monto = Number(m?.monto || 0)
-                                if (String(m?.tipo || '').toUpperCase() === 'INGRESO') return acc + monto
-                                if (String(m?.tipo || '').toUpperCase() === 'EGRESO') return acc - monto
-                                if (String(m?.tipo || '').toUpperCase() === 'TRANSFERENCIA') {
-                                  return acc + (esTransferenciaSalida(m) ? -monto : monto)
-                                }
-                                return acc
+                              const saldoPrevio = movimientosLedgerCaja.reduce((acc, entry) => {
+                                if (!inicioKey) return acc
+                                const fechaM = normalizeDateKey(entry.fecha)
+                                return fechaM < inicioKey ? acc + deltaCaja(entry) : acc
                               }, 0)
 
-                              const saldoActual = Number(c?.saldo || 0)
+                              const totalRegistrado = movimientosLedgerCaja.reduce((acc, entry) => {
+                                const fechaM = normalizeDateKey(entry.fecha)
+                                if (inicioKey && fechaM < inicioKey) return acc
+                                if (finKey && fechaM > finKey) return acc
+                                return acc + deltaCaja(entry)
+                              }, 0)
+
                               setVerCajaRangoStats({
                                 totalRegistrado,
-                                saldoPrevio: saldoActual - totalRegistrado,
+                                saldoPrevio,
                                 inicio: inicioKey || 'HISTÓRICO',
                                 fin: finKey || 'HISTÓRICO',
                               })
