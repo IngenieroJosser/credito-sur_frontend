@@ -298,6 +298,21 @@ const ListadoPrestamosElegante = () => {
     }
   };
 
+  const handleExportImportable = async () => {
+    try {
+      showNotification('info', 'Generando Excel compatible con importaciones...', 'Exportando');
+      await exportService.exportLoans('excel', {
+        estado: filtros.estado !== 'todos' ? filtros.estado : undefined,
+        ruta: filtros.ruta !== 'todas' ? filtros.ruta : undefined,
+        search: filtros.busqueda || undefined,
+        compatibleImportacion: true,
+      });
+      showNotification('success', 'Archivo compatible con importaciones generado', 'Exportación Exitosa');
+    } catch (err) {
+      showNotification('error', 'Error al exportar. Intente de nuevo.', 'Error');
+    }
+  };
+
   const handleExportPDF = async () => {
     try {
       showNotification('info', 'Generando archivo PDF...', 'Exportando');
@@ -450,6 +465,7 @@ const ListadoPrestamosElegante = () => {
           <div className="flex items-center gap-3">
             <ExportButton
               onExportExcel={handleExportExcel}
+              onExportImportable={handleExportImportable}
               onExportPDF={handleExportPDF}
               label="Exportar"
               className="!px-4 !py-2 text-sm"
