@@ -78,12 +78,13 @@ export const exportService = {
    */
   async exportLoans(
     format: 'excel' | 'pdf',
-    filters: { estado?: string; ruta?: string; search?: string } = {},
+    filters: { estado?: string; ruta?: string; search?: string; compatibleImportacion?: boolean } = {},
   ): Promise<void> {
     const params: Record<string, string> = { format };
     if (filters.estado && filters.estado !== 'todos') params.estado = filters.estado;
     if (filters.ruta && filters.ruta !== 'todas') params.ruta = filters.ruta;
     if (filters.search) params.search = filters.search;
+    if (filters.compatibleImportacion) params.compatibleImportacion = 'true';
 
     const ext = format === 'excel' ? 'xlsx' : 'pdf';
     await this.downloadFile('loans/export', params, `listado-creditos.${ext}`);
@@ -267,12 +268,13 @@ export const exportService = {
    */
   async exportClientes(
     format: 'excel' | 'pdf',
-    filters: { nivelRiesgo?: string; ruta?: string; search?: string } = {},
+    filters: { nivelRiesgo?: string; ruta?: string; search?: string; compatibleImportacion?: boolean } = {},
   ): Promise<void> {
     const params: Record<string, string> = { format };
     if (filters.nivelRiesgo && filters.nivelRiesgo !== 'all') params.nivelRiesgo = filters.nivelRiesgo;
     if (filters.ruta) params.ruta = filters.ruta;
     if (filters.search) params.search = filters.search;
+    if (filters.compatibleImportacion) params.compatibleImportacion = 'true';
     const ext = format === 'excel' ? 'xlsx' : 'pdf';
     await this.downloadFile('clients/export', params, `clientes.${ext}`);
   },

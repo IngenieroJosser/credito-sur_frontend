@@ -23,7 +23,6 @@ import {
   Map as MapIcon,
 } from "lucide-react";
 import { formatCurrency, resolveMediaUrl } from "@/lib/utils";
-import { ExportButton } from "@/components/ui/ExportButton";
 import DetallePrestamoModal from "@/components/prestamos/DetallePrestamoModal";
 import PagoDetalleModal from "@/components/dashboards/shared/PagoDetalleModal";
 
@@ -760,12 +759,6 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
                     {pagos.length} transacciones registradas
                   </p>
                 </div>
-                {/* TODO: Exportar ficha del cliente
-                  Qué exportar: Datos personales, Historial de préstamos, Historial de pagos, Estado de cuenta
-                  Backend: Crear GET /clients/:id/export?format=excel|pdf en clients.controller.ts
-                  Backend: Método exportClientProfile() en clients.service.ts usando ExcelJS + PDFKit
-                  Frontend: Usar exportService.downloadFile(`clients/${id}/export`, { format }, 'ficha-cliente.xlsm') */}
-                <ExportButton label="Exportar" />
               </div>
 
               <div className="space-y-3">

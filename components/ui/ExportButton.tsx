@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 
 interface ExportButtonProps {
   onExportExcel?: () => void
+  onExportImportable?: () => void
   onExportPDF?: () => void
   label?: string
   className?: string
@@ -14,6 +15,7 @@ interface ExportButtonProps {
 
 export const ExportButton = ({ 
   onExportExcel, 
+  onExportImportable,
   onExportPDF, 
   label = 'Exportar',
   className
@@ -21,6 +23,7 @@ export const ExportButton = ({
   const [isOpen, setIsOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const [coords, setCoords] = useState({ top: 0, left: 0 })
+  const hasExportAction = Boolean(onExportExcel || onExportImportable || onExportPDF)
 
   useEffect(() => {
     const handleResize = () => {
@@ -87,10 +90,16 @@ export const ExportButton = ({
   return (
     <div className="relative" ref={dropdownRef}>
       <button 
-        onClick={() => setIsOpen(!isOpen)}
+        type="button"
+        disabled={!hasExportAction}
+        onClick={() => {
+          if (!hasExportAction) return
+          setIsOpen(!isOpen)
+        }}
         className={cn(
           "flex items-center space-x-1 sm:space-x-2 px-3 sm:px-6 py-2.5 sm:py-3 bg-white hover:bg-slate-50 text-slate-700 rounded-xl shadow-sm border border-slate-200 hover:border-[#08557f]/30 transition-all font-medium group",
           isOpen && "border-[#08557f]/30 bg-slate-50",
+          !hasExportAction && "opacity-50 cursor-not-allowed hover:bg-white hover:border-slate-200",
           className
         )}
       >
@@ -112,25 +121,44 @@ export const ExportButton = ({
            onClick={(e) => e.stopPropagation()}
         >
           <div className="p-1">
-            <button
-              onClick={() => handleOptionClick(onExportExcel)}
-              className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors text-left"
-            >
-              <div className="p-1.5 bg-emerald-100/50 rounded-md text-emerald-600">
-                <FileSpreadsheet className="h-4 w-4" />
-              </div>
-              <span className="font-medium">Excel</span>
-            </button>
+            {onExportExcel && (
+              <button
+                type="button"
+                onClick={() => handleOptionClick(onExportExcel)}
+                className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors text-left"
+              >
+                <div className="p-1.5 bg-emerald-100/50 rounded-md text-emerald-600">
+                  <FileSpreadsheet className="h-4 w-4" />
+                </div>
+                <span className="font-medium">Excel</span>
+              </button>
+            )}
+
+            {onExportImportable && (
+              <button
+                type="button"
+                onClick={() => handleOptionClick(onExportImportable)}
+                className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-slate-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors text-left"
+              >
+                <div className="p-1.5 bg-blue-100/50 rounded-md text-blue-600">
+                  <FileSpreadsheet className="h-4 w-4" />
+                </div>
+                <span className="font-medium">Compatible importación</span>
+              </button>
+            )}
             
-            <button
-              onClick={() => handleOptionClick(onExportPDF)}
-              className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-slate-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors text-left"
-            >
-              <div className="p-1.5 bg-rose-100/50 rounded-md text-rose-600">
-                <FileText className="h-4 w-4" />
-              </div>
-              <span className="font-medium">PDF</span>
-            </button>
+            {onExportPDF && (
+              <button
+                type="button"
+                onClick={() => handleOptionClick(onExportPDF)}
+                className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-slate-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors text-left"
+              >
+                <div className="p-1.5 bg-rose-100/50 rounded-md text-rose-600">
+                  <FileText className="h-4 w-4" />
+                </div>
+                <span className="font-medium">PDF</span>
+              </button>
+            )}
           </div>
         </div>,
         document.body
