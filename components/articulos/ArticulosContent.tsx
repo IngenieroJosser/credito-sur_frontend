@@ -289,7 +289,7 @@ export default function ArticulosContent() {
     setStockSort(null)
   }
 
-  const handleExportarInventario = async (compatibleImportacion = false) => {
+  const handleExportarInventario = async () => {
     if (exportLoading) return
     if (articulosFiltrados.length === 0) {
       showNotification('warning', 'No hay artículos para exportar con los filtros actuales.', 'Inventario')
@@ -300,16 +300,12 @@ export default function ArticulosContent() {
     try {
       await exportService.downloadFile(
         'inventory/export',
-        compatibleImportacion
-          ? { format: 'excel', compatibleImportacion: 'true' }
-          : { format: 'excel' },
-        compatibleImportacion ? 'inventario-importable.xlsx' : 'inventario.xlsx',
+        { format: 'excel' },
+        'inventario-importable.xlsx',
       )
       showNotification(
         'success',
-        compatibleImportacion
-          ? 'Archivo compatible con importaciones generado.'
-          : 'Inventario exportado correctamente.',
+        'Archivo compatible con importaciones generado.',
         'Exportación',
       )
     } catch (error) {
@@ -590,21 +586,12 @@ export default function ArticulosContent() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleExportarInventario(false)}
+                  onClick={handleExportarInventario}
                   disabled={exportLoading || articulosFiltrados.length === 0}
                   className="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all text-sm font-medium whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Download className={`w-4 h-4 ${exportLoading ? 'animate-pulse' : ''}`} />
                   {exportLoading ? 'Exportando...' : 'Exportar'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleExportarInventario(true)}
-                  disabled={exportLoading || articulosFiltrados.length === 0}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-blue-700 border border-blue-200 rounded-xl hover:bg-blue-50 hover:border-blue-300 transition-all text-sm font-medium whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Download className={`w-4 h-4 ${exportLoading ? 'animate-pulse' : ''}`} />
-                  Importable
                 </button>
               </div>
             )}

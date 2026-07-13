@@ -7,7 +7,6 @@ import { cn } from '@/lib/utils'
 
 interface ExportButtonProps {
   onExportExcel?: () => void
-  onExportImportable?: () => void
   onExportPDF?: () => void
   label?: string
   className?: string
@@ -15,7 +14,6 @@ interface ExportButtonProps {
 
 export const ExportButton = ({ 
   onExportExcel, 
-  onExportImportable,
   onExportPDF, 
   label = 'Exportar',
   className
@@ -23,7 +21,7 @@ export const ExportButton = ({
   const [isOpen, setIsOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const [coords, setCoords] = useState({ top: 0, left: 0 })
-  const hasExportAction = Boolean(onExportExcel || onExportImportable || onExportPDF)
+  const hasExportAction = Boolean(onExportExcel || onExportPDF)
 
   useEffect(() => {
     const handleResize = () => {
@@ -134,19 +132,6 @@ export const ExportButton = ({
               </button>
             )}
 
-            {onExportImportable && (
-              <button
-                type="button"
-                onClick={() => handleOptionClick(onExportImportable)}
-                className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-slate-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors text-left"
-              >
-                <div className="p-1.5 bg-blue-100/50 rounded-md text-blue-600">
-                  <FileSpreadsheet className="h-4 w-4" />
-                </div>
-                <span className="font-medium">Compatible importación</span>
-              </button>
-            )}
-            
             {onExportPDF && (
               <button
                 type="button"
