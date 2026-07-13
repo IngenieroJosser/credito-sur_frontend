@@ -374,14 +374,6 @@ export default function ClientesFeature({
                 search: searchTerm || undefined,
               })
             }
-            onExportImportable={() =>
-              exportService.exportClientes('excel', {
-                nivelRiesgo: filterRiesgo === 'LISTA_NEGRA' ? filterRiesgo : undefined,
-                ruta: filterRuta || undefined,
-                search: searchTerm || undefined,
-                compatibleImportacion: true,
-              })
-            }
             onExportPDF={() =>
               exportService.exportClientes('pdf', {
                 nivelRiesgo: filterRiesgo === 'LISTA_NEGRA' ? filterRiesgo : undefined,
