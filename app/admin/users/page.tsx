@@ -2442,6 +2442,19 @@ const UserManagementPage = () => {
                       <div className="space-y-3 w-full text-left px-2">
                         <div className="flex items-center gap-3 group">
                           <div className="p-2 bg-white rounded-lg border border-slate-200 text-slate-400 group-hover:border-blue-200 group-hover:text-blue-500 transition-colors shadow-sm">
+                            <AtSign className="w-4 h-4" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">
+                              Usuario
+                            </div>
+                            <div className="text-sm font-bold text-slate-700 break-words">
+                              {selectedUser.nombreUsuario || "No configurado"}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3 group">
+                          <div className="p-2 bg-white rounded-lg border border-slate-200 text-slate-400 group-hover:border-blue-200 group-hover:text-blue-500 transition-colors shadow-sm">
                             <Mail className="w-4 h-4" />
                           </div>
                           <div className="flex-1 min-w-0">
