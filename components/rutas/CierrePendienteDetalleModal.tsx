@@ -236,8 +236,10 @@ export function CierrePendienteDetalleModal({
           notasVisita: item.notasVisita,
           recaudadoDelDia: Number(item.recaudadoDelDia || 0),
 
+          // Lo que al cliente le falta por pagar hoy, NO la meta del día: la meta
+          // incluye lo ya recaudado, así que usarla aquí dejaría a todo cliente
+          // como si siguiera debiendo, incluso después de pagar completo.
           saldoOperativoJornada: Number(
-            item.montoMetaOperativaPendiente ??
             cuota.saldoExigibleEnFechaOperativa ??
             cuota.saldoCuota ??
             cuota.montoCuota ??
