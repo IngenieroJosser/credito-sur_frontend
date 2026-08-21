@@ -42,23 +42,57 @@ export interface ResultadoConfirmacionInventario {
   loteId: string;
   estado: string;
   articulosCreados: number;
+  articulosActualizados: number;
   articulosOmitidos: number;
+  preciosActualizados: number;
   preciosCreados: number;
   preciosOmitidos: number;
+  preciosContadoCreados: number;
+  mensajes: string[];
   resumen: ResultadoValidacion['resumen'];
 }
 
 export interface ResultadoConfirmacionClientesCreditos {
   loteId: string;
   clientesCreados: number;
+  clientesActualizados: number;
   clientesOmitidos: number;
+  clientesAsignadosARuta: number;
   creditosHistoricosCreados: number;
   creditosOperativosCreados: number;
   creditosOmitidos: number;
   creditosNoSoportados: number;
+  creditosActualizados: number;
+  creditosAvanzados: number;
+  cuotasPagadasImportadas: number;
   transaccionesCreadas: number;
   asientosCreados: number;
   cuotasCreadas: number;
   mensajes: string[];
   resumen: ResultadoValidacion['resumen'];
+}
+
+export interface LoteImportacion {
+  id: string;
+  tipo: string;
+  estado: string;
+  nombreArchivo: string;
+  totalFilas: number;
+  filasConError: number;
+  advertencias: number;
+  creadoEn: string;
+  confirmadoEn: string | null;
+  creadoPor: string | null;
+  clientesCreados: number;
+  prestamosCreados: number;
+  sePuedeDeshacer: boolean;
+  razonNoSePuedeDeshacer: string | null;
+}
+
+export interface ResultadoReversionLote {
+  loteId: string;
+  clientesEliminados: number;
+  prestamosEliminados: number;
+  cuotasEliminadas: number;
+  mensajes: string[];
 }
