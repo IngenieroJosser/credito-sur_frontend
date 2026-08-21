@@ -15,6 +15,7 @@ import {
   AlertCircle
 } from 'lucide-react'
 import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber } from '@/lib/utils'
+import FieldLabel from '@/components/ui/FieldLabel'
 import SelectCategoria from '@/components/ui/SelectCategoria'
 import { inventarioService } from '@/services/inventario-service'
 
@@ -154,9 +155,7 @@ export default function NuevoArticuloPage() {
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="md:col-span-2">
-                      <label className="block text-sm font-bold text-slate-700 mb-1">
-                        Nombre del Artículo
-                      </label>
+                      <FieldLabel required className="mb-1">Nombre del Artículo</FieldLabel>
                       <input
                         type="text"
                         required
@@ -168,9 +167,7 @@ export default function NuevoArticuloPage() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-1">
-                        Código
-                      </label>
+                      <FieldLabel required className="mb-1">Código</FieldLabel>
                       <input
                         type="text"
                         required
@@ -185,6 +182,7 @@ export default function NuevoArticuloPage() {
                       <SelectCategoria
                         tipo="ARTICULO"
                         label="Categoría"
+                        required
                         placeholder="Seleccionar..."
                         value={formData.categoriaId}
                         onChange={(val) => setFormData({ ...formData, categoriaId: val, categoria: '' })}
@@ -192,12 +190,9 @@ export default function NuevoArticuloPage() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-1">
-                        Marca
-                      </label>
+                      <FieldLabel className="mb-1">Marca</FieldLabel>
                       <input
                         type="text"
-                        required
                         value={formData.marca}
                         onChange={e => setFormData({ ...formData, marca: e.target.value })}
                         className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 placeholder:text-slate-400"
@@ -206,12 +201,9 @@ export default function NuevoArticuloPage() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-1">
-                        Modelo
-                      </label>
+                      <FieldLabel className="mb-1">Modelo</FieldLabel>
                       <input
                         type="text"
-                        required
                         value={formData.modelo}
                         onChange={e => setFormData({ ...formData, modelo: e.target.value })}
                         className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 placeholder:text-slate-400"
@@ -220,9 +212,7 @@ export default function NuevoArticuloPage() {
                     </div>
 
                     <div className="md:col-span-2">
-                      <label className="block text-sm font-bold text-slate-700 mb-1">
-                        Descripción
-                      </label>
+                      <FieldLabel className="mb-1">Descripción</FieldLabel>
                       <textarea
                         rows={3}
                         value={formData.descripcion}
@@ -248,9 +238,7 @@ export default function NuevoArticuloPage() {
                   <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 mb-6">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                       <div>
-                        <label className="block text-sm font-bold text-slate-700 mb-1">
-                          Cuotas
-                        </label>
+                        <label className="block text-sm font-bold text-slate-700 mb-1">Meses</label>
                         <select
                           value={nuevaCuota.meses}
                           onChange={e => setNuevaCuota({ ...nuevaCuota, meses: Number(e.target.value) })}
@@ -298,8 +286,8 @@ export default function NuevoArticuloPage() {
                       <table className="w-full text-sm text-left">
                         <thead className="bg-slate-50 text-slate-700 font-medium border-b border-slate-200">
                           <tr>
-                            <th className="px-4 py-3">Cuotas</th>
-                            <th className="px-4 py-3">Precio Total</th>
+                            <th className="px-4 py-3">Meses</th>
+                            <th className="px-4 py-3">Precio total</th>
                             <th className="px-4 py-3 text-right">Cuota Mensual (Aprox)</th>
                             <th className="px-4 py-3 text-right">Acciones</th>
                           </tr>
@@ -348,9 +336,7 @@ export default function NuevoArticuloPage() {
 
                   <div className="space-y-6">
                     <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">
-                        Costo Unitario
-                      </label>
+                      <FieldLabel required className="mb-2">Costo Unitario</FieldLabel>
                       <div className="relative">
                         <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                         <input
@@ -366,13 +352,10 @@ export default function NuevoArticuloPage() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">
-                        Stock Actual
-                      </label>
+                      <FieldLabel className="mb-2">Stock Actual</FieldLabel>
                       <input
                         type="text"
                         inputMode="numeric"
-                        required
                         value={formData.stock}
                         onChange={e => setFormData({ ...formData, stock: e.target.value.replace(/\D/g, '') })}
                         className="w-full px-4 py-3 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 placeholder:text-slate-400"
@@ -381,13 +364,10 @@ export default function NuevoArticuloPage() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">
-                        Stock Mínimo
-                      </label>
+                      <FieldLabel className="mb-2">Stock Mínimo</FieldLabel>
                       <input
                         type="text"
                         inputMode="numeric"
-                        required
                         value={formData.stockMinimo}
                         onChange={e => setFormData({ ...formData, stockMinimo: e.target.value.replace(/\D/g, '') })}
                         className="w-full px-4 py-3 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 placeholder:text-slate-400"
