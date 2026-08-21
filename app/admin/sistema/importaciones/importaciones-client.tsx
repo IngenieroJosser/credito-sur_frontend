@@ -11,6 +11,7 @@ import { ResultadoValidacion } from '@/types/importaciones';
 import { PlantillasCard } from './components/PlantillasCard';
 import { ArchivoValidadorCard } from './components/ArchivoValidadorCard';
 import { ValidationResult } from './components/ValidationResult';
+import { HistorialLotesCard } from './components/HistorialLotesCard';
 
 export const ImportacionesClient = () => {
   const [reporteActivo, setReporteActivo] = useState<'clientes' | 'inventario' | null>(null);
@@ -22,6 +23,8 @@ export const ImportacionesClient = () => {
   const [resultadoInventario, setResultadoInventario] = useState<ResultadoValidacion | null>(null);
   const [archivoClientes, setArchivoClientes] = useState<File | null>(null);
   const [archivoInventario, setArchivoInventario] = useState<File | null>(null);
+  // Se incrementa al confirmar, para que el historial se recargue.
+  const [versionHistorial, setVersionHistorial] = useState(0);
 
   const handleValidarClientes = async (file: File) => {
     setLoadingClientes(true);
@@ -97,17 +100,29 @@ export const ImportacionesClient = () => {
       if (reporteActivo === 'clientes') {
         setConfirmandoClientes(true);
         const res = await importacionesService.confirmarClientesCreditos(activeFile);
-        toast.success(`Importación confirmada: ${res.clientesCreados} clientes y ${res.creditosHistoricosCreados + res.creditosOperativosCreados} créditos creados.`);
+        const creditos = res.creditosHistoricosCreados + res.creditosOperativosCreados;
+        const partes = [
+          `${res.clientesCreados} cliente(s) y ${creditos} crédito(s) creados`,
+        ];
+        if (res.clientesActualizados > 0) partes.push(`${res.clientesActualizados} cliente(s) actualizados`);
+        if (res.creditosActualizados > 0) partes.push(`${res.creditosActualizados} crédito(s) actualizados`);
+        if (res.clientesAsignadosARuta > 0) partes.push(`${res.clientesAsignadosARuta} asignados a ruta`);
+        if (res.creditosAvanzados > 0) partes.push(`${res.creditosAvanzados} ya venían con abonos (${res.cuotasPagadasImportadas} cuotas pagadas)`);
+        toast.success(`Importación confirmada: ${partes.join(' · ')}.`);
         setResultadoClientes(null);
         setArchivoClientes(null);
       } else {
         setConfirmandoInventario(true);
         const res = await importacionesService.confirmarInventario(activeFile);
-        toast.success(`Inventario importado: ${res.articulosCreados} artículos y ${res.preciosCreados} precios creados.`);
+        const partesInv = [`${res.articulosCreados} artículo(s) y ${res.preciosCreados} precio(s) creados`];
+        if (res.articulosActualizados > 0) partesInv.push(`${res.articulosActualizados} artículo(s) actualizados`);
+        if (res.preciosActualizados > 0) partesInv.push(`${res.preciosActualizados} precio(s) corregidos`);
+        toast.success(`Inventario importado: ${partesInv.join(' · ')}.`);
         setResultadoInventario(null);
         setArchivoInventario(null);
       }
       setReporteActivo(null);
+      setVersionHistorial((v) => v + 1);
     } catch (error: any) {
       toast.error(error?.response?.data?.message || error?.message || 'No se pudo confirmar la importación.');
     } finally {
@@ -236,6 +251,8 @@ export const ImportacionesClient = () => {
             icon={<Package className="h-6 w-6" />}
           />
         </div>
+
+        <HistorialLotesCard recargar={versionHistorial} />
 
         {(resultadoClientes || resultadoInventario) && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

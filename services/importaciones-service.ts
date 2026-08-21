@@ -1,8 +1,10 @@
 import { apiClient } from '@/lib/api/apiClient';
 import { apiRequest } from '@/lib/api/api';
 import {
+  LoteImportacion,
   ResultadoConfirmacionClientesCreditos,
   ResultadoConfirmacionInventario,
+  ResultadoReversionLote,
   ResultadoValidacion,
 } from '@/types/importaciones';
 
@@ -58,6 +60,21 @@ async function descargarArchivo(endpoint: string, nombreFallback: string): Promi
 }
 
 export const importacionesService = {
+  /** Últimas importaciones confirmadas, con su posibilidad de deshacerse. */
+  async listarLotes(): Promise<LoteImportacion[]> {
+    return await apiRequest<LoteImportacion[]>('GET', '/importaciones/lotes', undefined, {
+      cacheTTL: 0,
+    });
+  },
+
+  /** Deshace una importación: elimina los clientes y créditos que creó. */
+  async revertirLote(loteId: string): Promise<ResultadoReversionLote> {
+    return await apiRequest<ResultadoReversionLote>(
+      'POST',
+      `/importaciones/lotes/${loteId}/revertir`,
+    );
+  },
+
   /**
    * Descarga la plantilla de clientes y créditos
    */
