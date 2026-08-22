@@ -45,6 +45,7 @@ import { inventarioService, Producto as BackendProducto, EstadisticasInventario 
 import { useNotification } from '@/components/providers/NotificationProvider'
 import { useNotificaciones } from '@/components/providers/NotificacionesProvider'
 import { categoriasService, Categoria } from '@/services/categorias-service'
+import FieldLabel from '@/components/ui/FieldLabel'
 import SelectCategoria from '@/components/ui/SelectCategoria'
 import AnimacionCarga from '@/components/ui/AnimacionCarga'
 import { usePermission } from '@/hooks/usePermission'
@@ -395,7 +396,34 @@ export default function ArticulosContent() {
     }))
   }
 
+  /**
+   * Lo que la base exige de verdad, más el precio de contado, que es del que
+   * sale la utilidad de contado y que la importación por Excel ya pedía.
+   * Antes el modal mandaba lo que hubiera y el error llegaba del backend sin
+   * decir qué campo faltaba.
+   */
+  const camposQueFaltan = () => {
+    const faltan: string[] = []
+    if (!formData.nombre.trim()) faltan.push('Nombre')
+    if (!formData.codigo.trim()) faltan.push('Código')
+    if (!formData.categoriaId && !formData.categoria) faltan.push('Categoría')
+    if (parseCOPInputToNumber(formData.costo) <= 0) faltan.push('Costo')
+    if (parseCOPInputToNumber(formData.precioContado) <= 0)
+      faltan.push('Precio de Contado')
+    return faltan
+  }
+
   const handleGuardar = async () => {
+    const faltan = camposQueFaltan()
+    if (faltan.length > 0) {
+      showNotification(
+        'error',
+        `Falta diligenciar: ${faltan.join(', ')}.`,
+        'Datos incompletos',
+      )
+      return
+    }
+
     const commonData = {
       nombre: formData.nombre,
       codigo: formData.codigo,
@@ -931,7 +959,7 @@ export default function ArticulosContent() {
             <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2 space-y-2">
-                  <label className="text-sm font-bold text-slate-700">Nombre</label>
+                  <FieldLabel required className="text-sm font-bold text-slate-700 mb-0">Nombre</FieldLabel>
                   <input
                     value={formData.nombre}
                     onChange={(e) => setFormData((p) => ({ ...p, nombre: e.target.value }))}
@@ -940,7 +968,7 @@ export default function ArticulosContent() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-slate-700">Código</label>
+                  <FieldLabel required className="text-sm font-bold text-slate-700 mb-0">Código</FieldLabel>
                   <input
                     value={formData.codigo}
                     onChange={(e) => setFormData((p) => ({ ...p, codigo: e.target.value }))}
@@ -953,6 +981,7 @@ export default function ArticulosContent() {
                   <SelectCategoria
                     tipo="ARTICULO"
                     label="Categoría"
+                    required
                     placeholder="Seleccionar..."
                     value={formData.categoriaId}
                     onChange={(val) => setFormData(p => ({ ...p, categoriaId: val, categoria: '' }))}
@@ -967,7 +996,7 @@ export default function ArticulosContent() {
                   )}
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-slate-700">Marca</label>
+                  <FieldLabel className="text-sm font-bold text-slate-700 mb-0">Marca</FieldLabel>
                   <input
                     value={formData.marca}
                     onChange={(e) => setFormData((p) => ({ ...p, marca: e.target.value }))}
@@ -976,7 +1005,7 @@ export default function ArticulosContent() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-slate-700">Modelo</label>
+                  <FieldLabel className="text-sm font-bold text-slate-700 mb-0">Modelo</FieldLabel>
                   <input
                     value={formData.modelo}
                     onChange={(e) => setFormData((p) => ({ ...p, modelo: e.target.value }))}
@@ -985,7 +1014,7 @@ export default function ArticulosContent() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-slate-700">Costo</label>
+                  <FieldLabel required className="text-sm font-bold text-slate-700 mb-0">Costo</FieldLabel>
                   <div className="relative">
                     <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
                     <input
@@ -999,7 +1028,7 @@ export default function ArticulosContent() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-blue-700">Precio de Contado</label>
+                  <FieldLabel required className="text-sm font-bold text-blue-700 mb-0">Precio de Contado</FieldLabel>
                   <div className="relative">
                     <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-blue-400" />
                     <input
@@ -1013,7 +1042,7 @@ export default function ArticulosContent() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-slate-700">Stock</label>
+                  <FieldLabel className="text-sm font-bold text-slate-700 mb-0">Stock</FieldLabel>
                   <input
                     inputMode="numeric"
                     value={formData.stock}
@@ -1023,7 +1052,7 @@ export default function ArticulosContent() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-slate-700">Stock mínimo</label>
+                  <FieldLabel className="text-sm font-bold text-slate-700 mb-0">Stock mínimo</FieldLabel>
                   <input
                     inputMode="numeric"
                     value={formData.stockMinimo}
@@ -1034,7 +1063,7 @@ export default function ArticulosContent() {
                 </div>
                 {showEditarModal && (
                   <div className="md:col-span-2 space-y-2">
-                    <label className="text-sm font-bold text-slate-700">Descripción</label>
+                    <FieldLabel className="text-sm font-bold text-slate-700 mb-0">Descripción</FieldLabel>
                     <textarea
                       value={formData.descripcion}
                       onChange={(e) => setFormData((p) => ({ ...p, descripcion: e.target.value }))}
