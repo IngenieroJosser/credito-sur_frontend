@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AlertCircle, AlertTriangle, CheckCircle, ChevronLeft, ChevronRight, FileSpreadsheet, Table2 } from 'lucide-react';
 import { ResultadoValidacion, ErrorValidacion, AdvertenciaValidacion } from '@/types/importaciones';
+import ImpactoCajaPreview from './ImpactoCajaPreview';
 
 interface ValidationResultProps {
   resultado: ResultadoValidacion;
@@ -224,6 +225,11 @@ export const ValidationResult: React.FC<ValidationResultProps> = ({ resultado, o
             <span className="text-xs font-bold text-yellow-600 uppercase tracking-wider mt-1">Advertencias</span>
           </div>
         </div>
+
+        {/* Qué le va a pasar a la caja y al inventario al confirmar */}
+        {resultado.impactoCaja && (
+          <ImpactoCajaPreview impacto={resultado.impactoCaja} />
+        )}
 
         {/* Resumen por Hoja */}
         <div>
