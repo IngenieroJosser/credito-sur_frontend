@@ -192,7 +192,7 @@ export default function DetalleReporteFinancieroPage() {
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Utilidad / Margen</p>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Utilidad / Margen sobre venta</p>
                 <p className="mt-2 text-2xl font-bold text-slate-900">{formatCurrency(utilidad)}</p>
                 <p className="mt-1 text-xs font-bold text-slate-500">{margen.toFixed(1)}%</p>
               </div>
