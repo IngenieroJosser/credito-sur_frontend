@@ -68,6 +68,16 @@ const NOTIFICATION_CONFIGS = {
   },
 };
 
+function safeInternalUrl(value) {
+  if (typeof value !== 'string' || !value.startsWith('/') || value.startsWith('//')) return '/';
+  try {
+    const url = new URL(value, self.location.origin);
+    return url.origin === self.location.origin ? `${url.pathname}${url.search}${url.hash}` : '/';
+  } catch {
+    return '/';
+  }
+}
+
 // Manejar evento push
 self.addEventListener('push', function(event) {
   console.log('[SW] Push recibido:', event);
@@ -97,7 +107,7 @@ self.addEventListener('push', function(event) {
         badge: data.badge || config.badge,
         tag: data.tag || `credisur-${tipo.toLowerCase()}-${Date.now()}`,
         data: {
-          url: data.url || data.link || data.data?.url || data.data?.link || '/',
+          url: safeInternalUrl(data.url || data.link || data.data?.url || data.data?.link),
           tipo: tipo,
           ...data.data,
         },
@@ -157,11 +167,11 @@ self.addEventListener('notificationclick', function(event) {
   // Manejar acciones específicas
   if (event.action === 'approve') {
     // Acción de aprobar - ir a la página de aprobaciones
-    urlToOpen = notifData.approveUrl || '/notificaciones';
+    urlToOpen = safeInternalUrl(notifData.approveUrl) || '/notificaciones';
     console.log('[SW] Acción: Aprobar');
   } else if (event.action === 'view') {
     // Acción de ver - ir a la URL específica
-    urlToOpen = notifData.url || notifData.link || '/';
+    urlToOpen = safeInternalUrl(notifData.url || notifData.link);
     console.log('[SW] Acción: Ver detalles');
   } else if (event.action === 'dismiss') {
     // Acción de cerrar - solo cerrar la notificación
@@ -169,7 +179,7 @@ self.addEventListener('notificationclick', function(event) {
     return;
   } else {
     // Click en el cuerpo de la notificación
-    urlToOpen = notifData.url || notifData.link || '/';
+    urlToOpen = safeInternalUrl(notifData.url || notifData.link);
     console.log('[SW] Click en notificación, navegando a:', urlToOpen);
   }
 

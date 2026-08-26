@@ -13,7 +13,7 @@ interface CachedSession {
 }
 
 const SESSION_CACHE_KEY = 'offline_session_cache';
-const SESSION_VALIDITY_DAYS = 36500; // Prácticamente no expira (100 años)
+const SESSION_VALIDITY_DAYS = 7;
 
 /**
  * Guardar sesión en caché para uso offline
@@ -22,7 +22,7 @@ export function cacheSession(token: string, user: any): void {
   try {
     if (typeof window === 'undefined') return;
     
-    // Calcular fecha de expiración (30 días desde ahora)
+    // La sesión offline tiene una ventana limitada y debe renovarse online.
     const now = new Date();
     const expiresAt = new Date(now.getTime() + SESSION_VALIDITY_DAYS * 24 * 60 * 60 * 1000);
 

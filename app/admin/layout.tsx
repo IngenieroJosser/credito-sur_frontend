@@ -54,6 +54,7 @@ import { aprobacionesService } from '@/services/aprobaciones-service';
 import { isTokenExpired } from '@/lib/auth/offlineAuth';
 import { formatRoleLabel } from '@/lib/display-labels';
 import SupervisorFloatingActionsGate from '@/components/dashboards/SupervisorFloatingActionsGate';
+import { cerrarSesion } from '@/services/autenticacion-service';
 
 interface NavigationItem {
   name: string;
@@ -378,10 +379,9 @@ export default function AdminLayout({
   } 
   */
 
-  const handleLogout = () => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
-    router.push('/login')
+  const handleLogout = async () => {
+    await cerrarSesion()
+    router.replace('/login')
   }
 
   const userRoleColor = user ? getRoleColor(user.rol) : '#2563eb'
