@@ -147,6 +147,11 @@ export default function ImpactoCajaPreview({
                     <tr key={`${m.fila}-${i}`}>
                       <td className="px-3 py-2 font-medium text-slate-500">
                         {m.fila}
+                        {m.hoja && (
+                          <span className="block text-[10px] font-normal text-slate-400">
+                            {m.hoja}
+                          </span>
+                        )}
                       </td>
                       <td className="px-3 py-2 font-medium text-slate-800">
                         {m.numeroPrestamo || m.ccCliente || '-'}
