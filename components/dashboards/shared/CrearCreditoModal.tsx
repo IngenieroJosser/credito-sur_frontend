@@ -195,6 +195,11 @@ export default function CrearCreditoModal({
   const [tasaInteresInput, setTasaInteresInput] = useState('10')
   const [cuotasPrestamoInput, setCuotasPrestamoInput] = useState('12')
   const [cuotaInicialArticuloInput, setCuotaInicialArticuloInput] = useState('')
+  // En un crédito de artículo el cliente entrega algo al llevarse la mercancía,
+  // así que la inicial es obligatoria. En una venta de contado no hay inicial
+  // que pedir: se paga todo de una vez.
+  const cuotaInicialArticuloValida =
+    parseCOPInputToNumber(cuotaInicialArticuloInput) > 0
   const [fechaCreditoInput, setFechaCreditoInput] = useState(() => {
     return toBogotaDateTimeLocalInputValue(new Date()) // YYYY-MM-DDTHH:mm
   })
@@ -689,7 +694,7 @@ export default function CrearCreditoModal({
                         </select>
                       </div>
                       <div>
-                        <FieldLabel>Cuota Inicial</FieldLabel>
+                        <FieldLabel required>Cuota Inicial</FieldLabel>
                         <div className="relative">
                           <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
                           <input
@@ -697,10 +702,19 @@ export default function CrearCreditoModal({
                             inputMode="numeric"
                             value={cuotaInicialArticuloInput}
                             onChange={(e) => setCuotaInicialArticuloInput(formatCOPInputValue(e.target.value))}
-                            className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-bold text-slate-900"
+                            className={`w-full pl-10 pr-4 py-3 rounded-xl focus:border-[#08557f] focus:ring-0 font-bold text-slate-900 ${
+                              cuotaInicialArticuloValida
+                                ? 'bg-slate-50 border border-slate-200'
+                                : 'bg-red-50 border border-red-300'
+                            }`}
                             placeholder="0"
                           />
                         </div>
+                        {!cuotaInicialArticuloValida && (
+                          <p className="mt-1 text-xs font-semibold text-red-600">
+                            Escriba lo que el cliente entrega al llevarse el artículo.
+                          </p>
+                        )}
                       </div>
                     </div>
                   )}
@@ -923,6 +937,7 @@ export default function CrearCreditoModal({
                     isSubmitting ||
                     !clienteCreditoId ||
                     (creditType === 'prestamo' ? !montoPrestamoInput : !calculoCreditoArticulo) ||
+                    (creditType === 'articulo' && !esContado && !cuotaInicialArticuloValida) ||
                     (!(creditType === 'articulo' && esContado) && !fechaPrimerCobro) ||
                     (fechaPrimerCobro ? new Date(fechaPrimerCobro + 'T12:00:00').getDay() === 0 : false) ||
                     (frecuenciaPago === 'QUINCENAL' && fechaPrimerCobro ? (() => { const d = new Date(fechaPrimerCobro + 'T12:00:00').getDate(); return d !== 15 && d !== 30 })() : false) ||
