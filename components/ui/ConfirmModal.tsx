@@ -27,10 +27,14 @@ export default function ConfirmModal({
   variant = 'info',
   icon
 }: ConfirmModalProps) {
-  // El hook va antes del `return null`. Puesto después, el modal cerrado
-  // ejecutaba cero hooks y el abierto uno: React lleva la cuenta por orden y en
-  // cuanto el número cambia entre dos renders tumba la pantalla con el error
-  // 310. Este modal lo usa medio sistema, así que era el más expuesto.
+  // El hook va antes del `return null`, no después.
+  //
+  // Medido: con cero hooks por encima del return —como estaba aquí— React no
+  // detecta el cambio y no lanza nada, así que este componente no estaba
+  // reventando. Pero es la única razón por la que no lo hacía: en cuanto
+  // alguien agregue un hook por encima del return, el de abajo empieza a
+  // ejecutarse unas veces sí y otras no, y ahí sí se cae la pantalla con el
+  // error 310. Arriba del return no depende de esa casualidad.
   const mouseDownTargetRef = useRef<EventTarget | null>(null)
 
   if (!isOpen) return null
