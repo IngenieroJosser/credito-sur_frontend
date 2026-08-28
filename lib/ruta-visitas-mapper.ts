@@ -178,11 +178,28 @@ export const mapAsignacionesToVisitasLite = (params: {
       // - Si es periodo DIA, aparece siempre.
       // - Si no, aparece cuando la próxima visita (llave) coincide con hoyKey.
 
+      // El saldo y la cuota van en la llamada, no solo el estado y la fecha.
+      //
+      // `isVisitaExigibleHoy` descarta lo que ya no tiene nada por cobrar, y
+      // para saberlo lee el saldo. Llamándola sin esos campos los leía como
+      // cero, concluía que no quedaba nada, y devolvía false siempre: el
+      // cobrador se quedaba con la ruta vacía y ningún crédito aparecía.
+      const saldoDelPrestamo = Number(
+        (prestamo as any)?.saldoPendiente ?? (prestamo as any)?.saldoTotal ?? 0,
+      )
+      const cuotaDeLaProxima = Math.max(
+        0,
+        Number((proxima as any)?.montoNominal ?? (proxima as any)?.monto ?? 0) -
+          Number((proxima as any)?.montoPagado ?? 0),
+      )
+
       const apareceHoy = isVisitaExigibleHoy(
         {
           estado: tieneMora ? 'en_mora' : 'pendiente',
           periodoRuta,
           proximaVisita: dueKey,
+          saldoPendiente: saldoDelPrestamo,
+          montoCuotaPendiente: cuotaDeLaProxima,
         },
         hoyKey,
       )

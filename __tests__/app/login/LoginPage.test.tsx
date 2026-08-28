@@ -76,8 +76,10 @@ describe('LoginPage', () => {
   it('debería renderizar el formulario de login correctamente', () => {
     render(<LoginPage />)
     
-    // Verificar elementos principales
-    expect(screen.getByPlaceholderText(/Nombre/i)).toBeInTheDocument()
+    // Verificar elementos principales.
+    // El campo pedia "Nombre de usuario" hasta que e6f4567 permitio entrar
+    // tambien con el correo y lo renombro a "Usuario o correo".
+    expect(screen.getByPlaceholderText(/Usuario o correo/i)).toBeInTheDocument()
     expect(screen.getByPlaceholderText(/Contraseña/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Acceder al Panel/i })).toBeInTheDocument()
     // El título está dividido en spans, usamos heading role que los concatena
@@ -103,7 +105,7 @@ describe('LoginPage', () => {
   it('debería permitir escribir usuario y contraseña', () => {
     render(<LoginPage />)
     
-    const userInput = screen.getByPlaceholderText(/Nombre/i)
+    const userInput = screen.getByPlaceholderText(/Usuario o correo/i)
     const passwordInput = screen.getByPlaceholderText(/Contraseña/i)
     
     fireEvent.change(userInput, { target: { value: 'admin' } })

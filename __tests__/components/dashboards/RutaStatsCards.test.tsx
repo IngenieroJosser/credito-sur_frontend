@@ -24,8 +24,11 @@ describe('RutaStatsCards', () => {
       />,
     )
 
-    expect(screen.getAllByText('1.8%').length).toBeGreaterThanOrEqual(1)
-    expect(screen.queryByText('100.0%')).not.toBeInTheDocument()
+    // 100.000 sobre una meta de 5.603.666 es 1,78%. Se muestran dos decimales
+    // desde ef60140; antes era uno solo y la prueba esperaba "1.8%".
+    expect(screen.getAllByText('1.78%').length).toBeGreaterThanOrEqual(1)
+    // Lo que importa: la eficiencia vieja que llego en los datos no se muestra.
+    expect(screen.queryByText('100.00%')).not.toBeInTheDocument()
     expect(screen.getByText(/Meta:/)).toHaveTextContent(/\$\s*5\.603\.666/)
     expect(screen.getByText(/Pendiente:/)).toHaveTextContent(/\$\s*5\.503\.666/)
   })

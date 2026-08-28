@@ -706,17 +706,38 @@ export const isVisitaExigibleHoy = (visita: any, hoyBogotaKey: string): boolean 
   );
   
   if (saldoPendiente <= 0 && montoPendiente <= 0) return false;
-  
-  // Si está en mora, aparece siempre (independientemente de la fecha)
-  if (estado === 'en_mora' || estado.includes('mora')) return true;
-  
-  // Si es ruta DIARIA, aparece siempre
-  if (String(visita?.periodoRuta || '').toUpperCase() === 'DIA') return true;
-  
-  // Determinar fecha efectiva de la cuota
+
+  // Lo que ya se cobró hoy sale de la ruta, aunque quede un resto.
+  //
+  // Si el cobrador ya pasó y recibió algo, volver a mostrarle al cliente lo
+  // manda a cobrarle dos veces el mismo día. El resto pendiente se cobra
+  // mañana, no en la misma pasada. `shouldIncludeVisitaInRutaHoyKpis` vuelve a
+  // sumar estas visitas para los indicadores, que es donde sí cuentan.
+  if (Number(visita?.recaudadoDelDia || 0) > 0) return false;
+
+  // La fecha efectiva se mira ANTES que la mora y que la ruta diaria.
+  //
+  // Estas tres comprobaciones estaban debajo de los dos atajos de abajo, así
+  // que no se ejecutaban nunca para un crédito en mora ni para una ruta
+  // diaria: la línea de la prórroga era código muerto, porque una prórroga
+  // solo existe sobre un crédito que ya venía vencido. El resultado era que el
+  // cobrador veía en su ruta de hoy clientes con fecha futura y clientes a
+  // los que se les había concedido un plazo.
+  //
+  // Con prórroga manda `fechaProrroga`: `proximaVisita` conserva la fecha
+  // original vencida, así que mirarla a ella dejaba la prórroga sin efecto.
   const proximaKey = visita?.proximaVisita ? normalizeDateKey(String(visita.proximaVisita)) : '';
-  if (visita?.enProrroga && proximaKey && proximaKey > hoyBogotaKey) return false;
-  if (proximaKey && proximaKey > hoyBogotaKey) return false;
+  const prorrogaKey = visita?.fechaProrroga ? normalizeDateKey(String(visita.fechaProrroga)) : '';
+  const fechaEfectivaKey = visita?.enProrroga ? (prorrogaKey || proximaKey) : proximaKey;
+
+  if (fechaEfectivaKey && fechaEfectivaKey > hoyBogotaKey) return false;
+
+  // Si está en mora, aparece siempre (mientras su fecha no sea futura)
+  if (estado === 'en_mora' || estado.includes('mora')) return true;
+
+  // Si es ruta DIARIA, aparece siempre (mientras su fecha no sea futura)
+  if (String(visita?.periodoRuta || '').toUpperCase() === 'DIA') return true;
+
   if (!proximaKey) return true;
   return proximaKey <= hoyBogotaKey;
 };
