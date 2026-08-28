@@ -27,6 +27,12 @@ export default function ConfirmModal({
   variant = 'info',
   icon
 }: ConfirmModalProps) {
+  // El hook va antes del `return null`. Puesto después, el modal cerrado
+  // ejecutaba cero hooks y el abierto uno: React lleva la cuenta por orden y en
+  // cuanto el número cambia entre dos renders tumba la pantalla con el error
+  // 310. Este modal lo usa medio sistema, así que era el más expuesto.
+  const mouseDownTargetRef = useRef<EventTarget | null>(null)
+
   if (!isOpen) return null
 
   const variants = {
@@ -61,7 +67,6 @@ export default function ConfirmModal({
   }
 
   const currentVariant = variants[variant]
-  const mouseDownTargetRef = useRef<EventTarget | null>(null)
 
   return (
     <Portal>

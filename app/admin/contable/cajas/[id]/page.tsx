@@ -235,6 +235,18 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
   const movimientosPorPagina = 4
   const [paginaMovimientos, setPaginaMovimientos] = useState(1)
 
+  // Va antes de los returns tempranos: puesto después, mientras la caja
+  // cargaba se ejecutaba un hook menos que ya cargada, y en cuanto el número
+  // cambia entre dos renders React tumba la pantalla con el error 310.
+  //
+  // La caja puede no estar todavía, así que la lista se protege aquí; abajo ya
+  // se sabe que existe.
+  const movimientosPaginadosMemo = useMemo(() => {
+    const movimientos = caja?.movimientos ?? []
+    const start = (paginaMovimientos - 1) * movimientosPorPagina
+    return movimientos.slice(start, start + movimientosPorPagina)
+  }, [caja?.movimientos, paginaMovimientos])
+
   if (loadingCaja) {
     return (
       <PantallaCarga />
@@ -250,10 +262,7 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
   }
 
   const totalPaginasMovimientos = Math.max(1, Math.ceil(caja.movimientos.length / movimientosPorPagina))
-  const movimientosPaginados = useMemo(() => {
-    const start = (paginaMovimientos - 1) * movimientosPorPagina
-    return caja.movimientos.slice(start, start + movimientosPorPagina)
-  }, [caja.movimientos, paginaMovimientos])
+  const movimientosPaginados = movimientosPaginadosMemo
 
   const openEditarCaja = () => {
     setEditForm({

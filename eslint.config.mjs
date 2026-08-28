@@ -21,7 +21,13 @@ const eslintConfig = defineConfig([
       "react-hooks/exhaustive-deps": "off",
       "react-hooks/set-state-in-effect": "off",
       "@next/next/no-img-element": "off",
-      "react-hooks/rules-of-hooks": "off",
+      // Encendida a propósito. Un hook debajo de un `return` temprano se
+      // ejecuta unas veces y otras no; React lleva la cuenta por orden y en
+      // cuanto el número cambia entre dos renders tumba la pantalla entera con
+      // el error 310. Pasó en producción y no lo vio ni `tsc` ni `next build`:
+      // es orden de ejecución, no tipos. Esta regla es lo único que lo detecta
+      // antes de desplegar, así que no se vuelve a apagar.
+      "react-hooks/rules-of-hooks": "error",
       "react/no-unescaped-entities": "off",
       "no-unused-disable": "off",
       "eslint-comments/no-unused-disable": "off",
