@@ -1,5 +1,7 @@
 'use client'
 
+import PantallaCarga from '@/components/ui/PantallaCarga'
+
 import { useState, type ReactNode, useMemo, useEffect, useCallback } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 
@@ -243,16 +245,7 @@ const VistaSupervisor = () => {
 
   if (loading && !dashboardData) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="flex flex-col items-center text-center">
-          <div className="relative flex items-center justify-center">
-            <div className="w-20 h-20 border-4 border-slate-200 border-t-[#08557f] rounded-full animate-spin"></div>
-          </div>
-          <p className="mt-6 text-sm font-bold text-slate-500 uppercase tracking-[0.2em]">
-            Cargando panel de supervisión...
-          </p>
-        </div>
-      </div>
+      <PantallaCarga texto="Cargando panel de supervisión..." />
     )
   }
 

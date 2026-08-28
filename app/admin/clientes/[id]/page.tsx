@@ -1,5 +1,7 @@
 'use client';
 
+import PantallaCarga from '@/components/ui/PantallaCarga'
+
 import React, { useEffect, useState } from 'react';
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { useParams } from 'next/navigation';
@@ -42,12 +44,7 @@ export default function ClienteDetallePage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
-          <p className="text-slate-500 font-medium">Cargando información del cliente...</p>
-        </div>
-      </div>
+      <PantallaCarga texto="Cargando información del cliente..." />
     );
   }
 

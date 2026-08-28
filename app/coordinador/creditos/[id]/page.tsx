@@ -1,4 +1,6 @@
 'use client'
+
+import PantallaCarga from '@/components/ui/PantallaCarga'
 import { logger } from '@/lib/logger'
 
 import { useState, useEffect, use } from 'react';
@@ -85,9 +87,7 @@ export default function PrestamoDetallePage({
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
+      <PantallaCarga />
     );
   }
 

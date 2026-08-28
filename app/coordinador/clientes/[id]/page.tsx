@@ -1,5 +1,7 @@
 'use client';
 
+import PantallaCarga from '@/components/ui/PantallaCarga'
+
 import { use, useState, useEffect } from 'react';
 import { ChevronLeft, User, Phone, CreditCard, TrendingUp, DollarSign } from 'lucide-react';
 import Link from 'next/link';
@@ -66,9 +68,7 @@ export default function DetalleClienteCoordinadorPage({
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
+      <PantallaCarga />
     );
   }
 

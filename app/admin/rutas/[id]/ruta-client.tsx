@@ -1,5 +1,7 @@
 'use client'
 
+import PantallaCarga from '@/components/ui/PantallaCarga'
+
 import { logger } from '@/lib/logger'
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
@@ -2866,17 +2868,7 @@ const RutaClient = ({ initialRuta: initialRutaProp, rutaId }: RutaClientProps) =
 
     return (
 
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-
-        <div className="flex items-center gap-2 text-slate-600 font-medium">
-
-          <Loader2 className="w-5 h-5 animate-spin" />
-
-          <span>Cargando detalle de ruta...</span>
-
-        </div>
-
-      </div>
+      <PantallaCarga />
 
     )
 

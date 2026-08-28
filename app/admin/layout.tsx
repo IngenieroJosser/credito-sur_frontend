@@ -400,27 +400,87 @@ export default function AdminLayout({
     return `${user.nombres} ${user.apellidos}`
   }
 
-  // Filtrar navegación móvil (solo 4 elementos principales)
-  const getMobileNavigation = () => {
-    if (!user) return []
-    
-    const modulos = obtenerModulos(user.rol, (user as any).sidebar)
-    
-    // Tomar los primeros 4 módulos importantes para móvil
-    const importantModules = ['dashboard', 'prestamos-dinero', 'cobranza', 'perfil']
-    
-    return modulos
-      .filter(modulo => importantModules.includes(modulo.id))
-      .slice(0, 4)
-      .map(modulo => ({
-        name: modulo.nombre,
-        href: modulo.path,
-        icon: getIconComponent(modulo.icono),
-      }))
-  }
+  // El menú de móvil se cierra al navegar y con la tecla Escape. Sin esto,
+  // tocar una opción dejaba el aside abierto encima de la pantalla nueva.
+  useEffect(() => {
+    setIsMenuOpen(false)
+  }, [pathname])
 
-  const mobileNavItems = getMobileNavigation()
+  useEffect(() => {
+    if (!isMenuOpen) return
+    const alPresionar = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsMenuOpen(false)
+    }
+    window.addEventListener('keydown', alPresionar)
+    return () => window.removeEventListener('keydown', alPresionar)
+  }, [isMenuOpen])
+
+  // ── Accesos rápidos de móvil ──────────────────────────────────────────────
+  //
+  // Antes salían de una lista fija de cuatro ids. Un usuario al que se le daba
+  // acceso a un módulo por permisos no lo veía nunca aquí abajo, y un rol cuyos
+  // módulos no estuvieran en esa lista se quedaba con la barra vacía: tenía que
+  // abrir el aside para todo.
+  //
+  // Ahora salen de la misma navegación que arma el aside, que ya viene filtrada
+  // por rol y por los permisos concedidos, así que un módulo que se le conceda
+  // a un usuario entra aquí solo.
+  const accesosRapidos = useMemo(() => {
+    // Un módulo con submódulos no tiene destino propio (su `href` es '#'), así
+    // que se baja al primero de sus hijos, que sí lleva a alguna parte.
+    const destinos: Array<{
+      id: string
+      name: string
+      href: string
+      icon: React.ReactNode
+    }> = []
+
+    navigation.forEach((item: any) => {
+      if (item.href && item.href !== '#') {
+        destinos.push({
+          id: item.id,
+          name: item.name,
+          href: item.href,
+          icon: item.icon,
+        })
+        return
+      }
+      const primero = item.submodulos?.[0]
+      if (primero?.href) {
+        destinos.push({
+          id: primero.id,
+          name: primero.name,
+          href: primero.href,
+          icon: primero.icon ?? item.icon,
+        })
+      }
+    })
+
+    // Lo que se abre todo el día va primero. Lo que no esté en esta lista
+    // conserva el orden del aside.
+    const preferencia = [
+      'dashboard', 'cobranza', 'ruta', 'rutas', 'prestamos-dinero',
+      'gestion-creditos', 'creditos', 'clientes', 'gestion-clientes',
+      'pagos', 'revisiones', 'aprobaciones', 'contable', 'articulos',
+    ]
+    const peso = (id: string) => {
+      const i = preferencia.indexOf(id)
+      return i === -1 ? preferencia.length : i
+    }
+
+    const vistos = new Set<string>()
+    return destinos
+      .filter((d) => (vistos.has(d.href) ? false : Boolean(vistos.add(d.href))))
+      .sort((a, b) => peso(a.id) - peso(b.id))
+      .slice(0, 3)
+  }, [navigation])
+
   const showSidebar = !hideSidebar && user?.rol !== 'COBRADOR' && (user?.rol !== 'PUNTO_DE_VENTA' || navigation.length > 1);
+
+  // La barra existe para ahorrarse abrir el aside, así que solo aparece donde
+  // hay aside que ahorrarse. Con menos de tres destinos el aside ya es corto y
+  // la barra solo quitaría pantalla.
+  const mostrarAccesosRapidos = showSidebar && accesosRapidos.length === 3
 
   return (
     <div className="min-h-screen bg-linear-to-br from-gray-50 to-white relative">
@@ -590,6 +650,19 @@ export default function AdminLayout({
         </div>
       </header>
 
+      {/* Fondo que cierra el menú al tocar fuera.
+          El aside se abría en móvil y solo se cerraba con el mismo botón del
+          encabezado: tocar el contenido de al lado no hacía nada, que es lo
+          primero que uno intenta. */}
+      {showSidebar && isMenuOpen && (
+        <div
+          role="presentation"
+          aria-hidden="true"
+          onClick={() => setIsMenuOpen(false)}
+          className="lg:hidden fixed inset-0 top-16 z-10 bg-slate-900/30 backdrop-blur-[1px]"
+        />
+      )}
+
       {/* Sidebar elegante para desktop */}
       {showSidebar && (
         <aside 
@@ -722,7 +795,7 @@ export default function AdminLayout({
 
       {/* Contenido principal animado */}
       <main 
-        className={`pt-16 ${showSidebar ? 'lg:pl-64' : ''} transition-all duration-700 ease-out ${(isMenuOpen && showSidebar) ? 'lg:pl-64' : ''} ${showSidebar ? 'pb-[calc(72px+env(safe-area-inset-bottom,0px))] lg:pb-0' : ''} ${isPageLoaded ? 'opacity-100 transform-none' : 'translate-y-4 opacity-0 scale-[0.99]'}`}
+        className={`pt-16 ${showSidebar ? 'lg:pl-64' : ''} transition-all duration-700 ease-out ${(isMenuOpen && showSidebar) ? 'lg:pl-64' : ''} ${mostrarAccesosRapidos ? 'pb-[calc(72px+env(safe-area-inset-bottom,0px))] lg:pb-0' : ''} ${isPageLoaded ? 'opacity-100 transform-none' : 'translate-y-4 opacity-0 scale-[0.99]'}`}
         style={{ opacity: isPageLoaded ? 1 : 0 }}
       >
         {children}
@@ -730,13 +803,13 @@ export default function AdminLayout({
 
       <SupervisorFloatingActionsGate />
 
-      {/* Sidebar móvil */}
-      {!hideSidebar && showSidebar && (
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40 shadow-lg">
+      {/* Accesos rápidos de móvil */}
+      {mostrarAccesosRapidos && (
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40 shadow-lg pb-[env(safe-area-inset-bottom,0px)]">
           <div className="flex items-center justify-around py-3 px-2">
-            {mobileNavItems.map((item) => (
+            {accesosRapidos.map((item) => (
               <Link
-                key={item.name}
+                key={item.href}
                 href={item.href}
                 onClick={() => setIsMenuOpen(false)}
                 className="flex flex-col items-center px-2 py-1 rounded-xl transition-all group"

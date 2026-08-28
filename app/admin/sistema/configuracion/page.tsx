@@ -1,5 +1,7 @@
 'use client'
 
+import PantallaCarga from '@/components/ui/PantallaCarga'
+
 import { useState, useEffect, useCallback } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { Settings, CreditCard, Bell, Shield, Users, Database, Wallet, Calculator, CheckCircle } from 'lucide-react'
@@ -44,9 +46,7 @@ const ConfiguracionSistemaPage = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
+      <PantallaCarga />
     );
   }
 

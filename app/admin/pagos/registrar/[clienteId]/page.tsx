@@ -1,5 +1,7 @@
 'use client'
 
+import PantallaCarga from '@/components/ui/PantallaCarga'
+
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import {
@@ -177,9 +179,7 @@ const RegistrarPagoClientePage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
+      <PantallaCarga />
     )
   }
 

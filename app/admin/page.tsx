@@ -1,4 +1,6 @@
 'use client'
+
+import PantallaCarga from '@/components/ui/PantallaCarga'
 import { logger } from '@/lib/logger'
 
 import { useEffect, useState, useRef, useCallback } from 'react';
@@ -507,23 +509,13 @@ export default function DashboardPage() {
 
   if (state.isLoading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Preparando tu dashboard...</p>
-        </div>
-      </div>
+      <PantallaCarga texto="Preparando tu dashboard..." />
     );
   }
 
   if (state.shouldRedirect) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-slate-50">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-gray-600 font-medium">Te estamos redirigiendo...</p>
-        </div>
-      </div>
+      <PantallaCarga texto="Te estamos redirigiendo..." />
     );
   }
 
