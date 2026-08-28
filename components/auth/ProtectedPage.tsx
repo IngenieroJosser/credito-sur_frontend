@@ -1,5 +1,7 @@
 'use client'
 
+import PantallaCarga from '@/components/ui/PantallaCarga'
+
 import { usePermission } from '@/hooks/usePermission'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
@@ -39,12 +41,7 @@ export default function ProtectedPage({ permiso, roles, children, fallback }: Pr
   // que ocurre porque rol === null hasta que localStorage se lee en el cliente.
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 border-slate-300 border-t-slate-700 rounded-full animate-spin" />
-          <span className="text-sm text-slate-400 font-medium">Verificando acceso...</span>
-        </div>
-      </div>
+      <PantallaCarga />
     )
   }
 

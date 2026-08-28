@@ -1,18 +1,14 @@
 'use client'
 
-import React from 'react'
+import PantallaCarga from './PantallaCarga'
 
-interface Props {
-  texto?: string
-}
-
-export default function AnimacionCarga({ texto = 'Cargando...' }: Props) {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50/50">
-      <div className="text-center">
-        <div className="w-16 h-16 border-4 border-slate-900 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-        <p className="text-slate-500 font-bold">{texto}</p>
-      </div>
-    </div>
-  )
+/**
+ * Nombre anterior de la pantalla de carga.
+ *
+ * Se conserva para no tocar las pantallas que ya la usaban, pero por dentro es
+ * la misma de siempre: `PantallaCarga`. En pantallas nuevas use esa
+ * directamente, o `Cargando` si lo que carga es una sección y no toda la vista.
+ */
+export default function AnimacionCarga({ texto }: { texto?: string }) {
+  return <PantallaCarga texto={texto} />
 }

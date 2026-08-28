@@ -19,6 +19,7 @@ import { resolveCurrentUserId } from '@/lib/creditos/crear-prestamo-payload';
 import { obtenerPerfil } from '@/services/autenticacion-service';
 import { TipoAmortizacion } from '@/types/enums';
 import { exportService } from '@/services/export-service';
+import FieldLabel from '@/components/ui/FieldLabel';
 
 type FrecuenciaPago = 'DIARIO' | 'SEMANAL' | 'QUINCENAL' | 'MENSUAL';
 
@@ -272,6 +273,9 @@ export default function CreacionCreditoArticulo({
   const confirmarCredito = async () => {
     if (!clienteSeleccionado) return alert('Seleccione un cliente');
     if (articulosSeleccionados.length === 0) return alert('Seleccione al menos un artículo');
+    if (!esContado && !(cuotaInicial > 0)) {
+      return alert('Escriba la cuota inicial: en un crédito de artículo es obligatoria.');
+    }
 
     try {
       setLoadingDatos(true);
@@ -671,7 +675,7 @@ export default function CreacionCreditoArticulo({
                         </div>
    
                         <div className="space-y-2">
-                          <label className="text-xs font-bold text-slate-700 uppercase">Cuota Inicial</label>
+                          <FieldLabel required className="text-xs font-bold text-slate-700 uppercase mb-0">Cuota Inicial</FieldLabel>
                           <div className="relative">
                             <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                             <input
@@ -679,9 +683,18 @@ export default function CreacionCreditoArticulo({
                               inputMode="numeric"
                               value={cuotaInicial ? formatCOPInputValue(String(cuotaInicial)) : ''}
                               onChange={(e) => setCuotaInicial(parseCOPInputToNumber(e.target.value))}
-                              className="w-full pl-10 pr-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 font-medium text-slate-900 focus:ring-2 focus:ring-blue-500/20"
+                              className={`w-full pl-10 pr-4 py-2.5 rounded-xl font-medium text-slate-900 focus:ring-2 focus:ring-blue-500/20 ${
+                                cuotaInicial > 0
+                                  ? 'border-slate-200 bg-slate-50'
+                                  : 'border-red-300 bg-red-50'
+                              }`}
                             />
                           </div>
+                          {!(cuotaInicial > 0) && (
+                            <p className="text-xs font-semibold text-red-600">
+                              Escriba lo que el cliente entrega al llevarse el artículo.
+                            </p>
+                          )}
                         </div>
                       </>
                     )}
