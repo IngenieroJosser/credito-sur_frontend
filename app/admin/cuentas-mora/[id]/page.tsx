@@ -113,6 +113,18 @@ export default function DetalleCuentaMoraPage({ params }: { params: Promise<{ id
     fetchData();
   }, [id]);
 
+  // Tiempo real: refrescar automáticamente cuando haya cambios.
+  //
+  // Va antes de los returns tempranos: puesto después, mientras cargaba se
+  // ejecutaba un hook menos que ya cargado, y en cuanto el número cambia entre
+  // dos renders React tumba la pantalla con el error 310.
+  useRealtimeData(['pagos_actualizados'], () => {
+    if (typeof window !== 'undefined') {
+      window.location.reload()
+    }
+  })
+
+
   if (loading) {
     return (
       <PantallaCarga />
@@ -126,13 +138,6 @@ export default function DetalleCuentaMoraPage({ params }: { params: Promise<{ id
       </div>
     );
   }
-
-  // Tiempo real: refrescar automáticamente cuando haya cambios
-  useRealtimeData(['pagos_actualizados'], () => {
-    if (typeof window !== 'undefined') {
-      window.location.reload()
-    }
-  })
 
   return (
     <div className="min-h-screen bg-slate-50 relative pb-8">

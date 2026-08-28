@@ -42,6 +42,18 @@ export default function ClienteDetallePage() {
     if (id) cargarCliente();
   }, [id]);
 
+  // Tiempo real: refrescar automáticamente cuando haya cambios.
+  //
+  // Va antes de los returns tempranos: puesto después, mientras cargaba se
+  // ejecutaba un hook menos que ya cargado, y en cuanto el número cambia entre
+  // dos renders React tumba la pantalla con el error 310.
+  useRealtimeData(['pagos_actualizados', 'clientes_actualizados'], () => {
+    if (typeof window !== 'undefined') {
+      window.location.reload()
+    }
+  })
+
+
   if (isLoading) {
     return (
       <PantallaCarga texto="Cargando información del cliente..." />
@@ -149,13 +161,6 @@ export default function ClienteDetallePage() {
   });
 
   const comentarios: Comentario[] = []; // Por ahora vacío hasta implementar backend
-
-  // Tiempo real: refrescar automáticamente cuando haya cambios
-  useRealtimeData(['pagos_actualizados', 'clientes_actualizados'], () => {
-    if (typeof window !== 'undefined') {
-      window.location.reload()
-    }
-  })
 
   return (
     <div className="min-h-screen bg-slate-50 relative">

@@ -160,8 +160,9 @@ export default function DetalleReporteFinancieroModal({ id, onClose }: DetalleRe
     return () => { cancelado = true }
   }, [id])
 
-  if (!id) return null
-  
+  // Estos dos hooks van antes del `return null`. Puestos después, el modal
+  // cerrado ejecutaba menos hooks que el abierto, y en cuanto el número cambia
+  // entre dos renders React tumba la pantalla con el error 310.
   const fechaReporteTexto = useMemo(() => {
     try {
       return new Date().toLocaleDateString('es-CO', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })
@@ -169,8 +170,11 @@ export default function DetalleReporteFinancieroModal({ id, onClose }: DetalleRe
       return new Date().toLocaleDateString()
     }
   }, [])
-  
+
   const [pagina, setPagina] = useState(1)
+
+  if (!id) return null
+
   const pageSize = 5
   const totalPaginas = Math.max(1, Math.ceil(rows.length / pageSize))
   const start = (pagina - 1) * pageSize

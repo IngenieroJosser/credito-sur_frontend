@@ -113,6 +113,56 @@ export default function ClienteDetalleSupervisorPage() {
     if (id) fetch()
   }, [id])
 
+  // Estos dos hooks van antes de los returns tempranos.
+  //
+  // Puestos después, mientras el cliente cargaba se ejecutaban dos hooks menos
+  // que ya cargado, y en cuanto el número cambia entre dos renders React tumba
+  // la pantalla con el error 310.
+  useEffect(() => {
+    if (metodoPago !== 'TRANSFERENCIA') {
+      setComprobanteTransferencia(null)
+      setComprobanteTransferenciaPreviewUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev)
+        return null
+      })
+      return
+    }
+
+    if (!comprobanteTransferencia) {
+      setComprobanteTransferenciaPreviewUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev)
+        return null
+      })
+      return
+    }
+
+    const isImage = comprobanteTransferencia.type.startsWith('image/')
+    if (!isImage) {
+      setComprobanteTransferenciaPreviewUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev)
+        return null
+      })
+      return
+    }
+
+    const url = URL.createObjectURL(comprobanteTransferencia)
+    setComprobanteTransferenciaPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev)
+      return url
+    })
+
+    return () => {
+      URL.revokeObjectURL(url)
+    }
+  }, [comprobanteTransferencia, metodoPago])
+
+  // Tiempo real: refrescar automáticamente cuando haya cambios
+  useRealtimeData(['pagos_actualizados', 'clientes_actualizados'], () => {
+    if (typeof window !== 'undefined') {
+      window.location.reload()
+    }
+  })
+
   if (isLoading) {
     return (
       <PantallaCarga texto="Cargando información del cliente..." />
@@ -218,43 +268,6 @@ export default function ClienteDetalleSupervisorPage() {
 
   const comentarios: Comentario[] = []
 
-  useEffect(() => {
-    if (metodoPago !== 'TRANSFERENCIA') {
-      setComprobanteTransferencia(null)
-      setComprobanteTransferenciaPreviewUrl((prev) => {
-        if (prev) URL.revokeObjectURL(prev)
-        return null
-      })
-      return
-    }
-
-    if (!comprobanteTransferencia) {
-      setComprobanteTransferenciaPreviewUrl((prev) => {
-        if (prev) URL.revokeObjectURL(prev)
-        return null
-      })
-      return
-    }
-
-    const isImage = comprobanteTransferencia.type.startsWith('image/')
-    if (!isImage) {
-      setComprobanteTransferenciaPreviewUrl((prev) => {
-        if (prev) URL.revokeObjectURL(prev)
-        return null
-      })
-      return
-    }
-
-    const url = URL.createObjectURL(comprobanteTransferencia)
-    setComprobanteTransferenciaPreviewUrl((prev) => {
-      if (prev) URL.revokeObjectURL(prev)
-      return url
-    })
-
-    return () => {
-      URL.revokeObjectURL(url)
-    }
-  }, [comprobanteTransferencia, metodoPago])
 
   const resetPagoModal = () => {
     setShowPagoModal(false)
@@ -294,13 +307,6 @@ export default function ClienteDetalleSupervisorPage() {
       comprobanteDomicilio: null,
     })
   }
-
-  // Tiempo real: refrescar automáticamente cuando haya cambios
-  useRealtimeData(['pagos_actualizados', 'clientes_actualizados'], () => {
-    if (typeof window !== 'undefined') {
-      window.location.reload()
-    }
-  })
 
   return (
     <div className="min-h-screen bg-slate-50 relative">
