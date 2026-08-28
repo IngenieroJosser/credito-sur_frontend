@@ -365,41 +365,6 @@ export default function AdminLayout({
       router.replace(roleRedirects[user.rol])
     }
   }, [authChecked, navigation, pathname, router, user?.rol])
-  // Mientras verificamos la sesión, no mostramos nada para evitar parpadeos
-  if (!authChecked) return null
-
-  // Última línea de defensa: Validación básica de rol.
-  // NOTA: Hemos relajado esta validación para permitir que el sistema de permisos granular (Feature-first)
-  // decida si el usuario puede o no ver el contenido específico.
-  // El componente de la página (ej: ClientesFeature) es responsable de mostrar "Acceso Denegado" si falta el permiso.
-  /* 
-  if (pathname && user?.rol && !tieneAcceso(user.rol, pathname)) {
-    return <NotFoundPage />
-  } 
-  */
-
-  const handleLogout = () => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
-    router.push('/login')
-  }
-
-  const userRoleColor = user ? getRoleColor(user.rol) : '#2563eb'
-  const userRoleIcon = user ? getRoleIcon(user.rol) : <Shield className="h-4 w-4" />
-  const userRoleName = user ? formatRoleName(user.rol) : 'Administrador'
-
-  function getUserInitials() {
-    if (!user) return 'U'
-    const firstInitial = user.nombres?.charAt(0) || ''
-    const lastInitial = user.apellidos?.charAt(0) || ''
-    return (firstInitial + lastInitial).toUpperCase()
-  }
-
-  function getUserFullName() {
-    if (!user) return 'Usuario'
-    return `${user.nombres} ${user.apellidos}`
-  }
-
   // El menú de móvil se cierra al navegar y con la tecla Escape. Sin esto,
   // tocar una opción dejaba el aside abierto encima de la pantalla nueva.
   useEffect(() => {
@@ -474,6 +439,49 @@ export default function AdminLayout({
       .sort((a, b) => peso(a.id) - peso(b.id))
       .slice(0, 3)
   }, [navigation])
+
+  // TODO NUEVO HOOK VA ARRIBA DE ESTA LÍNEA.
+  //
+  // De aquí para abajo hay returns tempranos, así que un hook puesto después
+  // se ejecuta unas veces y otras no. React lleva la cuenta por orden, y en
+  // cuanto el número cambia entre dos renders la pantalla se cae entera con el
+  // error 310. Pasó: los efectos del menú móvil quedaron debajo y tumbaron
+  // producción.
+
+  // Mientras verificamos la sesión, no mostramos nada para evitar parpadeos
+  if (!authChecked) return null
+
+  // Última línea de defensa: Validación básica de rol.
+  // NOTA: Hemos relajado esta validación para permitir que el sistema de permisos granular (Feature-first)
+  // decida si el usuario puede o no ver el contenido específico.
+  // El componente de la página (ej: ClientesFeature) es responsable de mostrar "Acceso Denegado" si falta el permiso.
+  /* 
+  if (pathname && user?.rol && !tieneAcceso(user.rol, pathname)) {
+    return <NotFoundPage />
+  } 
+  */
+
+  const handleLogout = () => {
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+    router.push('/login')
+  }
+
+  const userRoleColor = user ? getRoleColor(user.rol) : '#2563eb'
+  const userRoleIcon = user ? getRoleIcon(user.rol) : <Shield className="h-4 w-4" />
+  const userRoleName = user ? formatRoleName(user.rol) : 'Administrador'
+
+  function getUserInitials() {
+    if (!user) return 'U'
+    const firstInitial = user.nombres?.charAt(0) || ''
+    const lastInitial = user.apellidos?.charAt(0) || ''
+    return (firstInitial + lastInitial).toUpperCase()
+  }
+
+  function getUserFullName() {
+    if (!user) return 'Usuario'
+    return `${user.nombres} ${user.apellidos}`
+  }
 
   const showSidebar = !hideSidebar && user?.rol !== 'COBRADOR' && (user?.rol !== 'PUNTO_DE_VENTA' || navigation.length > 1);
 
