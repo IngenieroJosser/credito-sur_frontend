@@ -365,9 +365,17 @@ export default function AdminLayout({
       router.replace(roleRedirects[user.rol])
     }
   }, [authChecked, navigation, pathname, router, user?.rol])
-  // El menú de móvil se cierra al navegar y con la tecla Escape. Sin esto,
-  // tocar una opción dejaba el aside abierto encima de la pantalla nueva.
+  // El menú se cierra al navegar SOLO en móvil.
+  //
+  // En móvil el aside tapa la pantalla, así que dejarlo abierto encima de la
+  // vista nueva no sirve de nada. En escritorio es una columna fija que
+  // convive con el contenido: cerrarla al cambiar de módulo la hacía
+  // desaparecer sola, que no es lo que nadie pidió.
+  //
+  // El corte es el mismo `lg` con el que el aside pasa de cajón a columna.
   useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (window.matchMedia('(min-width: 1024px)').matches) return
     setIsMenuOpen(false)
   }, [pathname])
 

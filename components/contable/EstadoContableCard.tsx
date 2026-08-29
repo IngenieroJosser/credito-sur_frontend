@@ -53,10 +53,20 @@ interface EstadoContable {
   };
 }
 
+interface Regularizacion {
+  valorBodega: number;
+  saldoLibro: number;
+  ajuste: number;
+  articulos: number;
+  aplicado: boolean;
+}
+
 export const EstadoContableCard: React.FC = () => {
   const [estado, setEstado] = useState<EstadoContable | null>(null);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [propuesta, setPropuesta] = useState<Regularizacion | null>(null);
+  const [regularizando, setRegularizando] = useState(false);
 
   const revisar = useCallback(async () => {
     setCargando(true);
@@ -76,6 +86,50 @@ export const EstadoContableCard: React.FC = () => {
       setCargando(false);
     }
   }, []);
+
+  /**
+   * Poner la cuenta de inventario al día con la bodega.
+   *
+   * Se hace en dos tiempos a propósito: primero se calcula y se muestra la
+   * cifra, y solo después se escribe. Si el número no cuadra con lo que hay en
+   * bodega, el problema es el stock y no el libro, y escribir el asiento lo
+   * único que haría es dejar el error grabado.
+   */
+  const calcularRegularizacion = useCallback(async () => {
+    setRegularizando(true);
+    setError(null);
+    try {
+      setPropuesta(
+        await apiRequest<Regularizacion>(
+          'POST',
+          '/accounting/regularizar-inventario',
+          {},
+        ),
+      );
+    } catch (e: any) {
+      setError(e?.message || 'No se pudo calcular la regularización.');
+    } finally {
+      setRegularizando(false);
+    }
+  }, []);
+
+  const aplicarRegularizacion = useCallback(async () => {
+    setRegularizando(true);
+    setError(null);
+    try {
+      await apiRequest<Regularizacion>(
+        'POST',
+        '/accounting/regularizar-inventario',
+        { aplicar: true },
+      );
+      setPropuesta(null);
+      await revisar();
+    } catch (e: any) {
+      setError(e?.message || 'No se pudo regularizar el inventario.');
+    } finally {
+      setRegularizando(false);
+    }
+  }, [revisar]);
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -147,6 +201,63 @@ export const EstadoContableCard: React.FC = () => {
               )}
             </div>
           </div>
+
+          {/* Inventario descuadrado: se puede arreglar desde aquí */}
+          {estado.inventario.diferencia !== 0 && (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-sm font-bold text-slate-800">
+                Poner el inventario al día
+              </p>
+              <p className="mt-1 text-sm text-slate-600">
+                El libro dice{' '}
+                <b>{formatCurrency(estado.inventario.segunElLibro)}</b> y en
+                bodega hay <b>{formatCurrency(estado.inventario.enBodega)}</b>.
+                Pasa cuando se cargaron artículos antes de que el sistema
+                registrara su entrada contable.
+              </p>
+
+              {!propuesta ? (
+                <button
+                  onClick={calcularRegularizacion}
+                  disabled={regularizando}
+                  className="mt-3 rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-bold uppercase tracking-wide text-slate-700 transition-colors hover:bg-slate-100 disabled:opacity-50"
+                >
+                  {regularizando ? 'Calculando…' : 'Calcular el ajuste'}
+                </button>
+              ) : (
+                <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                  <p className="text-sm text-amber-900">
+                    Se registraría un ajuste de{' '}
+                    <b>{formatCurrency(Math.abs(propuesta.ajuste))}</b> sobre{' '}
+                    {propuesta.articulos} artículo(s), y la cuenta de
+                    inventario quedaría en{' '}
+                    <b>{formatCurrency(propuesta.valorBodega)}</b>.
+                  </p>
+                  <p className="mt-1 text-xs font-medium text-amber-800">
+                    Antes de aplicar: ¿ese es el valor real de lo que hay en
+                    bodega? Si no lo es, el problema está en el stock y hay que
+                    corregirlo ahí, no aquí.
+                  </p>
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      onClick={() => setPropuesta(null)}
+                      disabled={regularizando}
+                      className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-bold uppercase tracking-wide text-slate-600 disabled:opacity-50"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={aplicarRegularizacion}
+                      disabled={regularizando}
+                      className="rounded-xl bg-amber-600 px-4 py-2 text-xs font-bold uppercase tracking-wide text-white transition-colors hover:bg-amber-700 disabled:opacity-50"
+                    >
+                      {regularizando ? 'Aplicando…' : 'Sí, aplicar el ajuste'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Cajas: saldo contra libro */}
           <div>
