@@ -139,7 +139,8 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
     {
       id: 'sistema', nombre: 'Sistema', icono: 'Settings', path: '#', roles: ['ADMIN'],
       submodulos: [
-        T.SYNC('ADMIN', '/sistema/sincronizacion'),
+        // Sin el prefijo /admin la pantalla no existe y el enlace daba 404.
+        T.SYNC('ADMIN', '/admin/sistema/sincronizacion'),
         T.IMPORTACIONES('ADMIN', '/admin/sistema/importaciones'),
       ]
     },
