@@ -140,6 +140,7 @@ export interface CreditoDeLote {
   cliente: string;
   cedula: string;
   articulo: string | null;
+  articuloCodigo: string | null;
   monto: number;
   cuotaInicial: number;
   totalPagado: number;
@@ -153,7 +154,15 @@ export interface CreditoDeLote {
   razonNoSePuedeDeshacer: string | null;
 }
 
+/** Como estan hoy las cosas que la reversion va a tocar. */
+export interface EstadoActualLote {
+  caja: { nombre: string; saldo: number };
+  articulos: Array<{ codigo: string; nombre: string; stock: number }>;
+  creditosVivos: number;
+}
+
 export interface DetalleLoteImportacion {
+  estadoActual: EstadoActualLote;
   id: string;
   tipo: string;
   estado: string;

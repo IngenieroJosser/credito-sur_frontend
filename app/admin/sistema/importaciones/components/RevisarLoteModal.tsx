@@ -106,16 +106,44 @@ export const RevisarLoteModal: React.FC<Props> = ({
 
   // El impacto se calcula sobre lo elegido, no sobre el lote entero: es lo que
   // va a pasar de verdad al confirmar.
+  //
+  // Y no solo qué cambia, sino en cuánto queda. "Vuelven $800.000 a la caja"
+  // no le dice a nadie si el resultado tiene sentido; "de $2.400.000 pasa a
+  // $3.200.000" sí, porque se compara contra lo que uno espera tener.
   const impacto = useMemo(() => {
     const caja = elegidos.reduce((s, c) => s + c.devolucionACaja, 0);
+    const saldoAhora = detalle?.estadoActual.caja.saldo ?? 0;
+
+    // Cuántas unidades vuelven a cada artículo.
+    const porArticulo = new Map<string, number>();
+    elegidos.forEach((c) => {
+      if (!c.articuloCodigo) return;
+      porArticulo.set(
+        c.articuloCodigo,
+        (porArticulo.get(c.articuloCodigo) ?? 0) + 1,
+      );
+    });
+
+    const articulos = (detalle?.estadoActual.articulos ?? [])
+      .map((a) => ({
+        ...a,
+        devuelve: porArticulo.get(a.codigo) ?? 0,
+      }))
+      .filter((a) => a.devuelve > 0);
+
     return {
       creditos: elegidos.length,
       caja,
-      articulos: elegidos.filter((c) => c.articulo).length,
-      esTodo:
-        elegidos.length > 0 && elegidos.length === deshacibles.length,
+      cajaAhora: saldoAhora,
+      cajaDespues: saldoAhora + caja,
+      cajaNombre: detalle?.estadoActual.caja.nombre ?? 'Caja de Oficina',
+      articulos,
+      creditosAhora: detalle?.estadoActual.creditosVivos ?? 0,
+      creditosDespues:
+        (detalle?.estadoActual.creditosVivos ?? 0) - elegidos.length,
+      esTodo: elegidos.length > 0 && elegidos.length === deshacibles.length,
     };
-  }, [elegidos, deshacibles]);
+  }, [elegidos, deshacibles, detalle]);
 
   const alternar = useCallback((id: string) => {
     setSeleccion((prev) => {
@@ -333,41 +361,87 @@ export const RevisarLoteModal: React.FC<Props> = ({
                         No ha elegido ningún crédito todavía.
                       </p>
                     ) : (
-                      <ul className="space-y-0.5 text-sm text-slate-700">
-                        <li>
-                          Se borran <b>{impacto.creditos}</b> crédito(s) con sus
-                          cuotas.
-                        </li>
-                        {impacto.caja !== 0 && (
-                          <li className="flex items-center gap-1.5">
-                            <ArrowDownToLine className="h-3.5 w-3.5 text-emerald-600" />
-                            {impacto.caja > 0 ? 'Vuelven' : 'Salen'}{' '}
-                            <b
-                              className={
-                                impacto.caja > 0
-                                  ? 'text-emerald-700'
-                                  : 'text-rose-700'
-                              }
-                            >
-                              {formatCurrency(Math.abs(impacto.caja))}
-                            </b>{' '}
-                            {impacto.caja > 0 ? 'a' : 'de'} la Caja de Oficina.
-                          </li>
-                        )}
-                        {impacto.articulos > 0 && (
-                          <li className="flex items-center gap-1.5">
-                            <Package className="h-3.5 w-3.5 text-slate-500" />
-                            <b>{impacto.articulos}</b> artículo(s) vuelven al
-                            inventario.
-                          </li>
-                        )}
-                        {impacto.esTodo && (
-                          <li className="text-slate-500">
-                            Es todo lo que se puede deshacer de esta
-                            importación.
-                          </li>
-                        )}
-                      </ul>
+                      <div className="space-y-2">
+                        <p className="text-sm text-slate-700">
+                          Va a deshacer <b>{impacto.creditos}</b> crédito(s) con
+                          sus cuotas.
+                          {impacto.esTodo &&
+                            ' Es todo lo que se puede deshacer de esta importación.'}
+                        </p>
+
+                        {/* Cómo queda cada cosa después. Es lo que se compara
+                            contra lo que uno espera tener. */}
+                        <table className="text-sm">
+                          <tbody className="[&_td]:py-0.5">
+                            <tr>
+                              <td className="pr-3 text-slate-500">
+                                {impacto.cajaNombre}
+                              </td>
+                              <td className="pr-2 text-slate-500 tabular-nums">
+                                {formatCurrency(impacto.cajaAhora)}
+                              </td>
+                              <td className="pr-2 text-slate-400">→</td>
+                              <td
+                                className={`font-bold tabular-nums ${
+                                  impacto.caja > 0
+                                    ? 'text-emerald-700'
+                                    : impacto.caja < 0
+                                      ? 'text-rose-700'
+                                      : 'text-slate-700'
+                                }`}
+                              >
+                                {formatCurrency(impacto.cajaDespues)}
+                              </td>
+                              <td className="pl-2 text-xs text-slate-400">
+                                {impacto.caja !== 0 && (
+                                  <span className="inline-flex items-center gap-1">
+                                    <ArrowDownToLine className="h-3 w-3" />
+                                    {impacto.caja > 0 ? '+' : '−'}
+                                    {formatCurrency(Math.abs(impacto.caja))}
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+
+                            {impacto.articulos.map((a) => (
+                              <tr key={a.codigo}>
+                                <td className="pr-3 text-slate-500">
+                                  <span className="inline-flex items-center gap-1">
+                                    <Package className="h-3 w-3" />
+                                    {a.codigo}
+                                  </span>
+                                </td>
+                                <td className="pr-2 text-slate-500 tabular-nums">
+                                  {a.stock} und
+                                </td>
+                                <td className="pr-2 text-slate-400">→</td>
+                                <td className="font-bold tabular-nums text-emerald-700">
+                                  {a.stock + a.devuelve} und
+                                </td>
+                                <td className="pl-2 text-xs text-slate-400">
+                                  +{a.devuelve}
+                                </td>
+                              </tr>
+                            ))}
+
+                            <tr>
+                              <td className="pr-3 text-slate-500">
+                                Créditos de esta importación
+                              </td>
+                              <td className="pr-2 text-slate-500 tabular-nums">
+                                {impacto.creditosAhora}
+                              </td>
+                              <td className="pr-2 text-slate-400">→</td>
+                              <td className="font-bold tabular-nums text-slate-700">
+                                {impacto.creditosDespues}
+                              </td>
+                              <td className="pl-2 text-xs text-slate-400">
+                                −{impacto.creditos}
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
                     )}
                   </div>
 
@@ -415,13 +489,24 @@ export const RevisarLoteModal: React.FC<Props> = ({
                   Oficina
                 </>
               )}
-              {impacto.articulos > 0 && (
+              {impacto.articulos.length > 0 && (
                 <>
-                  {' '}y a devolver <b>{impacto.articulos}</b> artículo(s) al
-                  inventario
+                  {' '}y a devolver{' '}
+                  <b>
+                    {impacto.articulos.reduce((s, a) => s + a.devuelve, 0)}
+                  </b>{' '}
+                  artículo(s) al inventario
                 </>
               )}
               . Los asientos contables quedan registrados con su reversa.
+            </p>
+
+            <p className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600">
+              {impacto.cajaNombre} queda en{' '}
+              <b className="text-slate-900">
+                {formatCurrency(impacto.cajaDespues)}
+              </b>
+              .
             </p>
             <div className="mt-5 flex gap-2">
               <button
