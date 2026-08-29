@@ -238,7 +238,9 @@ export default function ArticulosContent() {
     })
   }, [articulosFiltrados, priorizarStockBajo, stockSort])
 
-  const pageSize = 10
+  // Cinco por pagina: las tarjetas del catalogo son altas y con diez habia
+  // que bajar hasta el final para llegar al paginador.
+  const pageSize = 5
   const totalPages = useMemo(() => {
     return Math.max(1, Math.ceil(articulosOrdenados.length / pageSize))
   }, [articulosOrdenados.length])

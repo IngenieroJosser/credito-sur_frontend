@@ -365,9 +365,17 @@ export default function AdminLayout({
       router.replace(roleRedirects[user.rol])
     }
   }, [authChecked, navigation, pathname, router, user?.rol])
-  // El menú de móvil se cierra al navegar y con la tecla Escape. Sin esto,
-  // tocar una opción dejaba el aside abierto encima de la pantalla nueva.
+  // El menú se cierra al navegar SOLO en móvil.
+  //
+  // En móvil el aside tapa la pantalla, así que dejarlo abierto encima de la
+  // vista nueva no sirve de nada. En escritorio es una columna fija que
+  // convive con el contenido: cerrarla al cambiar de módulo la hacía
+  // desaparecer sola, que no es lo que nadie pidió.
+  //
+  // El corte es el mismo `lg` con el que el aside pasa de cajón a columna.
   useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (window.matchMedia('(min-width: 1024px)').matches) return
     setIsMenuOpen(false)
   }, [pathname])
 
@@ -379,6 +387,32 @@ export default function AdminLayout({
     window.addEventListener('keydown', alPresionar)
     return () => window.removeEventListener('keydown', alPresionar)
   }, [isMenuOpen])
+
+  // El aside recuerda lo que estaba desplegado al cambiar de módulo.
+  //
+  // Un submenú se mostraba abierto solo mientras la ruta actual estuviera
+  // dentro de él. Al pasar de Importaciones a Inventario, "Sistema" se cerraba
+  // solo y "Administración" se abría: el menú entero se reorganizaba debajo
+  // del cursor y parecía que se hubiera cambiado de aplicación, no de página.
+  //
+  // Ahora la sección que contiene la ruta actual se marca como abierta y ahí
+  // se queda. Las demás conservan lo que el usuario haya decidido: lo que él
+  // abrió sigue abierto, y lo que cerró sigue cerrado.
+  useEffect(() => {
+    if (!pathname || navigation.length === 0) return
+
+    const seccionActiva = navigation.find((item: any) =>
+      item.submodulos?.some(
+        (sub: any) =>
+          sub.href && (pathname === sub.href || pathname.startsWith(`${sub.href}/`)),
+      ),
+    )
+
+    const id = (seccionActiva as any)?.id
+    if (!id) return
+
+    setOpenMenus((prev) => (prev[id] ? prev : { ...prev, [id]: true }))
+  }, [pathname, navigation])
 
   // ── Accesos rápidos de móvil ──────────────────────────────────────────────
   //
@@ -711,7 +745,12 @@ export default function AdminLayout({
                         (sub) => pathname === sub.href || pathname?.startsWith(`${sub.href}/`),
                       )
                     )
-                    const isOpen = isSubRouteActive || ((item.id ? openMenus[item.id] : undefined) ?? false)
+                    // Manda lo que el usuario haya decidido; si no ha tocado
+                    // esta sección, se abre cuando la ruta está dentro.
+                    const decisionDelUsuario = item.id
+                      ? openMenus[item.id]
+                      : undefined
+                    const isOpen = decisionDelUsuario ?? isSubRouteActive
 
                     if (hasSubmenu && item.id) {
                       return (
