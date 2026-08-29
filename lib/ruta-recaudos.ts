@@ -153,10 +153,18 @@ export const applyRecaudoHoyToVisitas = <T extends Record<string, any>>(
       ? Number(recaudosHoyMap[v.prestamoId] || 0)
       : 0
 
-    // Si existe prestamoId, el recaudo de HOY debe venir exclusivamente
-    // del mapa por prestamoId. No preservar recaudos agrupados por cliente.
+    // Con prestamoId, el recaudo de HOY sale del mapa por préstamo: los
+    // recaudos agrupados por cliente no se preservan, porque le atribuirían a
+    // una obligación lo que se cobró de otra.
+    //
+    // Pero el valor que la propia visita ya trae en `recaudadoDelDia` sí es de
+    // esta obligación y es autoritativo: descartarlo ponía en cero un recaudo
+    // real cada vez que el mapa llegaba vacío, y el cobrador veía como no
+    // cobrado a un cliente al que acababa de cobrarle. Se toma el mayor de los
+    // dos, y nunca el `recaudadoHoy` agrupado.
+    const recHoyPropio = Number((v as any)?.recaudadoDelDia || 0)
     const recHoy = v?.prestamoId
-      ? recHoyMap
+      ? Math.max(recHoyMap, recHoyPropio)
       : recHoyBackend
 
     const estadoFinal = shouldMarkVisitaAsPagado({
@@ -236,14 +244,44 @@ export const mergeVisitasPreservingLocalRecaudo = <T extends Record<string, any>
       Number(prevItem?.fechaUltimoPago || 0),
     )
 
+    // Conservar el recaudo sin recalcular el estado no servía de nada.
+    //
+    // Cuando el cobrador le cobra a alguien que estaba marcado como ausente y
+    // el refresco del backend llega antes de que el pago se refleje, el
+    // recaudo se conservaba pero la visita volvía a aparecer como "ausente",
+    // con su cuota otra vez pendiente. El cobrador veía sin cobrar a alguien a
+    // quien acababa de cobrarle.
+    //
+    // El estado se recalcula con la misma regla que usa el resto de la ruta, y
+    // el "ausente" se levanta en cuanto hay un pago de hoy.
+    const tienePagoHoy = recaudadoDelDia > 0
+    const estadoBase = freshItem?.estado ?? prevItem?.estado
+
+    const estado = shouldMarkVisitaAsPagado({
+      saldoTotal: freshItem?.saldoTotal,
+      recaudadoHoy: recaudadoDelDia,
+      montoCuotaExigible:
+        freshItem?.montoCuotaPendiente ?? freshItem?.montoCuota,
+      estadoActual: estadoBase,
+    })
+      ? 'pagado'
+      : estadoBase
+
+    const estadoVisitaBase = freshItem?.estadoVisita ?? prevItem?.estadoVisita
+    const estadoVisita =
+      tienePagoHoy &&
+      String(estadoVisitaBase || '').toLowerCase() === 'ausente'
+        ? undefined
+        : estadoVisitaBase
+
     return {
       ...freshItem,
 
       // Solo campos volátiles/locales permitidos:
       recaudadoDelDia,
       fechaUltimoPago,
-
-      estadoVisita: freshItem?.estadoVisita ?? prevItem?.estadoVisita,
+      estado,
+      estadoVisita,
       notasVisita: freshItem?.notasVisita ?? prevItem?.notasVisita,
     }
   })

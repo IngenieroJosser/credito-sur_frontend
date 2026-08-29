@@ -12,6 +12,7 @@ import { PlantillasCard } from './components/PlantillasCard';
 import { ArchivoValidadorCard } from './components/ArchivoValidadorCard';
 import { ValidationResult } from './components/ValidationResult';
 import { HistorialLotesCard } from './components/HistorialLotesCard';
+import EstadoContableCard from '@/components/contable/EstadoContableCard';
 
 export const ImportacionesClient = () => {
   const [reporteActivo, setReporteActivo] = useState<'clientes' | 'inventario' | null>(null);
@@ -251,6 +252,10 @@ export const ImportacionesClient = () => {
             icon={<Package className="h-6 w-6" />}
           />
         </div>
+
+        {/* Antes y despues de importar: si los numeros no cambiaron, nada
+            se rompio. Va aqui porque es donde se va a mirar. */}
+        <EstadoContableCard />
 
         <HistorialLotesCard recargar={versionHistorial} />
 

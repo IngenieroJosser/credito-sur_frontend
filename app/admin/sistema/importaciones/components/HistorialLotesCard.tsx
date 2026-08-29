@@ -1,12 +1,12 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { History, Loader2, RotateCcw, ShieldAlert } from 'lucide-react';
+import { Eye, History, Loader2, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { importacionesService } from '@/services/importaciones-service';
 import { LoteImportacion } from '@/types/importaciones';
-import ConfirmModal from '@/components/ui/ConfirmModal';
+import RevisarLoteModal from './RevisarLoteModal';
 
 const formatearFecha = (valor: string | null) => {
   if (!valor) return '—';
@@ -35,8 +35,9 @@ const ESTILO_ESTADO: Record<string, string> = {
 export const HistorialLotesCard: React.FC<{ recargar?: number }> = ({ recargar }) => {
   const [lotes, setLotes] = useState<LoteImportacion[]>([]);
   const [cargando, setCargando] = useState(true);
-  const [revirtiendo, setRevirtiendo] = useState<string | null>(null);
-  const [porConfirmar, setPorConfirmar] = useState<LoteImportacion | null>(null);
+  // El lote que se está revisando. Deshacer ya no es un botón que borra: abre
+  // la pantalla donde se ve qué se va a deshacer y se eligen los créditos.
+  const [revisando, setRevisando] = useState<string | null>(null);
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -54,28 +55,6 @@ export const HistorialLotesCard: React.FC<{ recargar?: number }> = ({ recargar }
     void cargar();
   }, [cargar, recargar]);
 
-  const confirmarReversion = async () => {
-    if (!porConfirmar) return;
-    const lote = porConfirmar;
-    setPorConfirmar(null);
-    setRevirtiendo(lote.id);
-
-    try {
-      const res = await importacionesService.revertirLote(lote.id);
-      toast.success(
-        `Importación deshecha: ${res.prestamosEliminados} crédito(s) y ${res.clientesEliminados} cliente(s) eliminados.`,
-      );
-      res.mensajes.slice(1).forEach((m) => toast.info(m));
-      await cargar();
-    } catch (error: any) {
-      toast.error(
-        error?.message || 'No se pudo deshacer la importación.',
-      );
-    } finally {
-      setRevirtiendo(null);
-    }
-  };
-
   return (
     <>
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -88,8 +67,9 @@ export const HistorialLotesCard: React.FC<{ recargar?: number }> = ({ recargar }
               Importaciones recientes
             </h2>
             <p className="text-xs font-medium text-slate-500">
-              Puede deshacer una importación mientras nadie haya registrado pagos
-              sobre esos créditos.
+              Antes de deshacer se puede revisar qué creó cada una y elegir
+              créditos concretos. Los que ya recibieron pagos quedan
+              bloqueados.
             </p>
           </div>
         </div>
@@ -156,16 +136,11 @@ export const HistorialLotesCard: React.FC<{ recargar?: number }> = ({ recargar }
                       {lote.sePuedeDeshacer ? (
                         <button
                           type="button"
-                          disabled={revirtiendo === lote.id}
-                          onClick={() => setPorConfirmar(lote)}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700 transition-colors hover:bg-red-100 disabled:opacity-50"
+                          onClick={() => setRevisando(lote.id)}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-50"
                         >
-                          {revirtiendo === lote.id ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <RotateCcw className="h-3.5 w-3.5" />
-                          )}
-                          Deshacer
+                          <Eye className="h-3.5 w-3.5" />
+                          Revisar y deshacer
                         </button>
                       ) : (
                         <span
@@ -185,20 +160,13 @@ export const HistorialLotesCard: React.FC<{ recargar?: number }> = ({ recargar }
         )}
       </section>
 
-      <ConfirmModal
-        isOpen={Boolean(porConfirmar)}
-        onClose={() => setPorConfirmar(null)}
-        onConfirm={confirmarReversion}
-        title="Deshacer esta importación"
-        message={
-          porConfirmar
-            ? `Se eliminarán ${porConfirmar.prestamosCreados} crédito(s) y ${porConfirmar.clientesCreados} cliente(s) creados por "${porConfirmar.nombreArchivo}". Los clientes que ya tengan créditos de otras importaciones se conservan. Esta acción no se puede deshacer.`
-            : ''
-        }
-        confirmText="Sí, deshacer"
-        cancelText="Cancelar"
-        variant="danger"
-      />
+      {revisando && (
+        <RevisarLoteModal
+          loteId={revisando}
+          onCerrar={() => setRevisando(null)}
+          onDeshecho={() => void cargar()}
+        />
+      )}
     </>
   );
 };

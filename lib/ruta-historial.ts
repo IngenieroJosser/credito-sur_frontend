@@ -437,11 +437,20 @@ export const buildHistorialDiaFromBackend = (params: {
     // Cruzar pagos por obligación (prestamoId + cuotaId) o por prestamoId
     const exactKey = cuotaId ? `${prestamoId}:${cuotaId}` : ''
     const recaudadoDelDia =
-      exactKey && pagosByPrestamoCuota.has(exactKey)
-        ? Number(pagosByPrestamoCuota.get(exactKey) || 0)
-        : prestamoId
-          ? Number(pagosByPrestamo.get(prestamoId) || 0)
-          : 0
+      // Se prefiere lo que digan los pagos, indexados por obligación para no
+      // mezclar créditos del mismo cliente. Pero si para esta obligación no
+      // hay ninguno, se conserva lo que el backend ya le atribuyó: cuando la
+      // lista de pagos llega vacía, poner cero borraba un recaudo real y la
+      // tarjeta aparecía sin cobrar. Es el mayor de los dos, nunca la suma,
+      // para no contar dos veces el mismo pago.
+      Math.max(
+        exactKey && pagosByPrestamoCuota.has(exactKey)
+          ? Number(pagosByPrestamoCuota.get(exactKey) || 0)
+          : prestamoId
+            ? Number(pagosByPrestamo.get(prestamoId) || 0)
+            : 0,
+        Number(item?.recaudadoDelDia || 0),
+      )
     const regularizadoDespues = prestamoId
       ? Number(regularizadoPorPrestamo[prestamoId] || 0)
       : 0
@@ -460,6 +469,11 @@ export const buildHistorialDiaFromBackend = (params: {
       ?? cuotaObjetivo?.monto
       ?? prestamo?.proximaCuota?.monto
       ?? prestamo?.montoCuota
+      // Último recurso: lo que el backend dejó por cobrar en esa obligación.
+      // Una obligación que llega sin cuota objetivo —un crédito recién
+      // asignado, por ejemplo— se quedaba con la cuota en cero y la tarjeta
+      // salía sin monto, aunque el backend sí había dicho cuánto se le debe.
+      ?? montoMetaPendiente
       ?? 0,
     )
     const saldoTotal = Number(
@@ -921,11 +935,19 @@ export const buildHistorialDiaFromBackend = (params: {
     return sum + Number(v?.recaudadoDelDia || 0)
   }, 0)
 
-  const visitados = visitasOperativas.filter((v: any) => {
+  // Los conteos van sobre todas las tarjetas del día, no solo las operativas.
+  //
+  // `visitasOperativas` deja fuera lo reprogramado y lo ausente, que es lo
+  // correcto para la meta: son plata que ya no se espera cobrar hoy. Pero el
+  // historial cuenta otra cosa —a cuántos clientes se les hizo algo— y una
+  // visita reprogramada es justamente una gestión. Contándolas sobre las
+  // operativas, un día entero de reprogramaciones salía como cero visitados,
+  // como si el cobrador no hubiera salido.
+  const visitados = filteredVisitas.filter((v: any) => {
     return Number(v?.recaudadoDelDia || 0) > 0 || hasGestionHistorial(v)
   }).length
 
-  const total = visitasOperativas.length
+  const total = filteredVisitas.length
 
   const efectividad =
     meta > 0
@@ -934,27 +956,109 @@ export const buildHistorialDiaFromBackend = (params: {
         ? 100
         : 0
 
+  // El resumen sale del backend; lo local solo puede sumar lo que él no vio.
+  //
+  // Se calculaba de cero desde las tarjetas visibles, con el recaudo contable,
+  // el regularizado y el estado de jornada fijados en cero y null. Eso borraba
+  // cifras que el frontend no puede calcular: el contable depende de la fecha
+  // real de cada pago y el regularizado de a qué jornada pertenece, y las dos
+  // solo las sabe el backend, que ve todos los pagos y no solo los de las
+  // tarjetas que quedaron a la vista.
+  //
+  // Pero el backend tampoco basta solo: su resumen es una foto, y entre esa
+  // foto y la lista de pagos que el frontend acaba de traer puede haber pagos
+  // nuevos. Pasó en el caso de tres pagos regularizados de una jornada donde el
+  // resumen traía dos: 1.767.334 contra 1.894.000 reales.
+  //
+  // Así que se toma el mayor de los dos por cada cifra: nunca se muestra menos
+  // que lo que el backend reportó, y nunca se cuenta dos veces un pago que él
+  // ya había contado.
+  const resumenBackend = ((visitasResp as any)?.resumen || {}) as any
+  const mayorQueElBackend = (clave: string, local: number) =>
+    Math.max(Number(resumenBackend?.[clave] ?? 0), Number(local || 0))
+
+  const regularizadoLocal = pagosRegularizados.reduce(
+    (sum: number, p: any) => sum + Number(p?.montoTotal || 0),
+    0,
+  )
+
+  const contableFinal = Number(resumenBackend?.recaudoContable ?? 0)
+  const regularizadoFinal = mayorQueElBackend(
+    'recaudoRegularizado',
+    regularizadoLocal,
+  )
+
+  // Al total del backend se le suma solo lo que el frontend puede demostrar
+  // que a él le faltó: los pagos regularizados que ve de más.
+  //
+  // No se rehace el total sumando contable más regularizado. Parece que
+  // debería dar lo mismo —el backend lo arma así— pero el contable puede traer
+  // pagos registrados hoy que pertenecen a otra jornada, y esos no son parte
+  // del total operativo de este día. Rehacer la suma los metería y el día
+  // aparecería con más plata de la que se recaudó.
+  const regularizadoQueFaltaba = Math.max(
+    0,
+    regularizadoFinal - Number(resumenBackend?.recaudoRegularizado ?? 0),
+  )
+
+  const recaudoFinal = Math.max(
+    Number(resumenBackend?.recaudo ?? 0) + regularizadoQueFaltaba,
+    Number(recaudo || 0),
+  )
+  const operativoFinal = Math.max(
+    Number(resumenBackend?.recaudoOperativo ?? 0) + regularizadoQueFaltaba,
+    Number(recaudo || 0),
+  )
+  const metaFinal = mayorQueElBackend('meta', meta)
+
+  // La efectividad se recalcula: la del backend corresponde a su foto, y si
+  // aquí el recaudo subió, esa cifra queda vieja.
+  const efectividadFinal =
+    metaFinal > 0
+      ? Number(((recaudoFinal / metaFinal) * 100).toFixed(1))
+      : recaudoFinal > 0
+        ? 100
+        : 0
+
   const resumenFinal: Resumen = {
-    recaudo,
-    meta,
-    efectividad,
-    visitados,
-    total,
-    recaudoOperativo: recaudo,
-    recaudoRegularizado: 0,
-    recaudoContable: 0,
-    recaudoEfectivo: 0,
-    recaudoTransferencia: 0,
-    recaudoContableEfectivo: 0,
-    recaudoContableTransferencia: 0,
-    recaudoRegularizadoEfectivo: 0,
-    recaudoRegularizadoTransferencia: 0,
-    gastos: 0,
-    netoEfectivoRuta: 0,
-    jornadaId: null,
-    jornadaEstado: null,
-    jornadaCerradaEn: null,
-    jornadaRegularizadaEn: null,
+    recaudo: recaudoFinal,
+    meta: metaFinal,
+    efectividad: efectividadFinal,
+    // Los conteos mandan desde el backend, que sabe cuántas obligaciones
+    // tenía la jornada. Aquí solo se ven las tarjetas que sobrevivieron al
+    // filtrado, que son menos, y quedarse con el mayor de los dos inflaría el
+    // día con visitas que el backend no reconoce.
+    visitados:
+      resumenBackend?.visitados != null
+        ? Number(resumenBackend.visitados)
+        : visitados,
+    total:
+      resumenBackend?.total != null ? Number(resumenBackend.total) : total,
+    recaudoOperativo: operativoFinal,
+    recaudoRegularizado: regularizadoFinal,
+    // Este el frontend no lo puede calcular: depende de la fecha real de cada
+    // pago, que el backend ya resolvió.
+    recaudoContable: contableFinal,
+    recaudoEfectivo: Number(resumenBackend?.recaudoEfectivo ?? 0),
+    recaudoTransferencia: Number(resumenBackend?.recaudoTransferencia ?? 0),
+    recaudoContableEfectivo: Number(
+      resumenBackend?.recaudoContableEfectivo ?? 0,
+    ),
+    recaudoContableTransferencia: Number(
+      resumenBackend?.recaudoContableTransferencia ?? 0,
+    ),
+    recaudoRegularizadoEfectivo: Number(
+      resumenBackend?.recaudoRegularizadoEfectivo ?? 0,
+    ),
+    recaudoRegularizadoTransferencia: Number(
+      resumenBackend?.recaudoRegularizadoTransferencia ?? 0,
+    ),
+    gastos: Number(resumenBackend?.gastos ?? 0),
+    netoEfectivoRuta: Number(resumenBackend?.netoEfectivoRuta ?? 0),
+    jornadaId: resumenBackend?.jornadaId ?? null,
+    jornadaEstado: resumenBackend?.jornadaEstado ?? null,
+    jornadaCerradaEn: resumenBackend?.jornadaCerradaEn ?? null,
+    jornadaRegularizadaEn: resumenBackend?.jornadaRegularizadaEn ?? null,
   }
 
   const badge = getHistorialJornadaBadge(resumenFinal)
