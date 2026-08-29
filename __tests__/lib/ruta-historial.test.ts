@@ -107,7 +107,10 @@ describe('buildHistorialDiaFromBackend', () => {
       cliente: 'Ana Diaz',
       estado: 'pagado',
       recaudadoDelDia: 50000,
-      nivelRiesgo: 'moderado',
+      // ROJO era 'moderado' cuando se escribio esta prueba. e6c23b1 centralizo
+      // mapNivelRiesgo y redefinio la escala contra el enum del backend: ROJO
+      // pasa a 'critico' y 'moderado' queda para RIESGO_MODERADO.
+      nivelRiesgo: 'critico',
       cuotaActual: 2,
       cuotasTotales: 30,
       saldoTotal: 900000,

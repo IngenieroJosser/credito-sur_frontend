@@ -434,10 +434,20 @@ export default function AdminLayout({
     }
 
     const vistos = new Set<string>()
-    return destinos
+    const tres = destinos
       .filter((d) => (vistos.has(d.href) ? false : Boolean(vistos.add(d.href))))
       .sort((a, b) => peso(a.id) - peso(b.id))
       .slice(0, 3)
+
+    // El dashboard va al centro. Es el botón al que más se vuelve, y en el
+    // medio queda bajo el pulgar sin estirar la mano hacia ninguna esquina.
+    const iDashboard = tres.findIndex((d) => d.id === 'dashboard')
+    if (iDashboard > -1 && tres.length === 3 && iDashboard !== 1) {
+      const [dashboard] = tres.splice(iDashboard, 1)
+      tres.splice(1, 0, dashboard)
+    }
+
+    return tres
   }, [navigation])
 
   // TODO NUEVO HOOK VA ARRIBA DE ESTA LÍNEA.
@@ -667,7 +677,11 @@ export default function AdminLayout({
           role="presentation"
           aria-hidden="true"
           onClick={() => setIsMenuOpen(false)}
-          className="lg:hidden fixed inset-0 top-16 z-10 bg-slate-900/30 backdrop-blur-[1px]"
+          // Las cuatro posiciones van sueltas y no con `inset-0 top-16`: en esa
+          // pareja el `top` de `inset-0` puede ganarle al `top-16` según el
+          // orden en que Tailwind emita las reglas, y el fondo termina tapando
+          // también el encabezado.
+          className="lg:hidden fixed top-16 left-0 right-0 bottom-0 z-10 bg-slate-900/30 backdrop-blur-[1px]"
         />
       )}
 
@@ -802,7 +816,18 @@ export default function AdminLayout({
       )}
 
       {/* Contenido principal animado */}
-      <main 
+      <main
+        // Segundo camino para cerrar el menú.
+        //
+        // El fondo de arriba debería atrapar el toque, pero depende de quedar
+        // por encima del contenido, y cualquier página que cree su propio
+        // contexto de apilamiento lo deja debajo sin que se note. Escuchando
+        // también aquí, tocar el contenido cierra el menú pase lo que pase con
+        // las capas. Solo actúa con el menú abierto, así que no estorba al uso
+        // normal.
+        onClick={() => {
+          if (isMenuOpen) setIsMenuOpen(false)
+        }}
         className={`pt-16 ${showSidebar ? 'lg:pl-64' : ''} transition-all duration-700 ease-out ${(isMenuOpen && showSidebar) ? 'lg:pl-64' : ''} ${mostrarAccesosRapidos ? 'pb-[calc(72px+env(safe-area-inset-bottom,0px))] lg:pb-0' : ''} ${isPageLoaded ? 'opacity-100 transform-none' : 'translate-y-4 opacity-0 scale-[0.99]'}`}
         style={{ opacity: isPageLoaded ? 1 : 0 }}
       >
