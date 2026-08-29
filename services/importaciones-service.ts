@@ -5,6 +5,7 @@ import {
   ResultadoConfirmacionClientesCreditos,
   ResultadoConfirmacionInventario,
   ResultadoReversionLote,
+  DetalleLoteImportacion,
   ResultadoValidacion,
 } from '@/types/importaciones';
 
@@ -67,11 +68,28 @@ export const importacionesService = {
     });
   },
 
-  /** Deshace una importación: elimina los clientes y créditos que creó. */
-  async revertirLote(loteId: string): Promise<ResultadoReversionLote> {
+  /** Todo lo que creó una importación, para revisarlo antes de deshacer nada. */
+  async detalleLote(loteId: string): Promise<DetalleLoteImportacion> {
+    return await apiRequest<DetalleLoteImportacion>(
+      'GET',
+      `/importaciones/lotes/${loteId}`,
+      undefined,
+      { cacheTTL: 0 },
+    );
+  },
+
+  /**
+   * Deshace una importación. Sin `prestamoIds` se deshace entera; con la lista,
+   * solo esos créditos.
+   */
+  async revertirLote(
+    loteId: string,
+    prestamoIds?: string[],
+  ): Promise<ResultadoReversionLote> {
     return await apiRequest<ResultadoReversionLote>(
       'POST',
       `/importaciones/lotes/${loteId}/revertir`,
+      prestamoIds?.length ? { prestamoIds } : undefined,
     );
   },
 

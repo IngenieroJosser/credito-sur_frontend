@@ -122,8 +122,53 @@ export interface LoteImportacion {
 
 export interface ResultadoReversionLote {
   loteId: string;
+  parcial: boolean;
   clientesEliminados: number;
   prestamosEliminados: number;
   cuotasEliminadas: number;
+  asientosReversados: number;
+  transaccionesReversadas: number;
+  stockDevuelto: number;
   mensajes: string[];
+}
+
+/** Un credito concreto de una importacion, para poder revisarlo antes de deshacerlo. */
+export interface CreditoDeLote {
+  id: string;
+  numeroPrestamo: string;
+  tipo: string;
+  cliente: string;
+  cedula: string;
+  articulo: string | null;
+  monto: number;
+  cuotaInicial: number;
+  totalPagado: number;
+  saldoPendiente: number;
+  estado: string;
+  fechaCredito: string | null;
+  /** Lo que volveria a la caja si se deshace este credito. */
+  devolucionACaja: number;
+  movioCaja: boolean;
+  sePuedeDeshacer: boolean;
+  razonNoSePuedeDeshacer: string | null;
+}
+
+export interface DetalleLoteImportacion {
+  id: string;
+  tipo: string;
+  estado: string;
+  nombreArchivo: string;
+  creadoEn: string;
+  confirmadoEn: string | null;
+  creadoPor: string | null;
+  creditos: CreditoDeLote[];
+  totales: {
+    creditos: number;
+    deshacibles: number;
+    bloqueados: number;
+    devolucionACaja: number;
+    articulosADevolver: number;
+  };
+  sePuede: boolean;
+  razon: string | null;
 }
