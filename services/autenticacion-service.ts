@@ -14,7 +14,8 @@
  */
 import { apiRequest } from "@/lib/api/api";
 import { AuthResponse, LoginData, UserProfile } from "@/lib/types/autenticacion-type";
-import { cacheSession, clearCachedSession } from "@/lib/auth/offlineAuth";
+import { cacheSession, clearCachedSession, programarPurgaDatosOffline } from "@/lib/auth/offlineAuth";
+import { logoutAction } from "@/app/login/actions";
 
 export async function iniciarSesion(dataLogin: LoginData) {
   const response = await apiRequest<AuthResponse>('POST', `/auth/login`, dataLogin);
@@ -44,20 +45,16 @@ export async function refreshSesion() {
 
 export async function cerrarSesion() {
   if (typeof window !== "undefined") {
+    await logoutAction();
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     clearCachedSession();
 
-    // No se borra la cache al instante: se programa una purga para 8 h
-    // despues. Asi, si el usuario vuelve a entrar (o cambia de opinion) dentro
-    // de ese margen, no pierde sus datos ni tiene que re-descargar. Si no
-    // vuelve, la cache de datos sensibles se borra al abrir la app pasadas las
-    // 8 h. La cola offline (trabajo sin enviar) nunca se toca.
-    try {
-      const { programarPurgaDatosOffline } = await import('@/lib/auth/offlineAuth');
-      programarPurgaDatosOffline();
-    } catch {
-      // no critico
-    }
+    // No se borra la cache al instante: se programa una purga completa para 8 h
+    // despues (datos offline + cache de API + caches del navegador/PWA). Asi,
+    // si el usuario vuelve a entrar dentro de ese margen, no pierde sus datos
+    // ni tiene que re-descargar. Si no vuelve, todo se limpia al abrir la app
+    // pasadas las 8 h. La cola offline (trabajo sin enviar) nunca se toca.
+    programarPurgaDatosOffline();
   }
 }

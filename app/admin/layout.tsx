@@ -54,6 +54,7 @@ import { aprobacionesService } from '@/services/aprobaciones-service';
 import { isTokenExpired } from '@/lib/auth/offlineAuth';
 import { formatRoleLabel } from '@/lib/display-labels';
 import SupervisorFloatingActionsGate from '@/components/dashboards/SupervisorFloatingActionsGate';
+import { cerrarSesion } from '@/services/autenticacion-service';
 
 interface NavigationItem {
   name: string;
@@ -514,17 +515,9 @@ export default function AdminLayout({
   */
 
   const handleLogout = async () => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
-    // No se borra la cache ahora: se programa una purga para dentro de 8 h.
-    // Si el usuario vuelve antes, se cancela; si no, se limpia al abrir la app.
-    try {
-      const { programarPurgaDatosOffline } = await import('@/lib/auth/offlineAuth')
-      programarPurgaDatosOffline()
-    } catch {
-      // no critico
-    }
-    router.push('/login')
+    // cerrarSesion programa la purga diferida (8 h) de la cache offline.
+    await cerrarSesion()
+    router.replace('/login')
   }
 
   const userRoleColor = user ? getRoleColor(user.rol) : '#2563eb'

@@ -8,6 +8,19 @@ import { trackOfflineEvent } from './offlineAnalytics';
 
 const MAX_RETRIES = 3;
 
+const getCurrentUserId = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) return null;
+    const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    const payload = JSON.parse(atob(base64 + '='.repeat((4 - (base64.length % 4)) % 4)));
+    return payload.sub || payload.id || null;
+  } catch {
+    return null;
+  }
+};
+
 export interface SyncResult {
   processed: number;
   succeeded: number;
@@ -27,11 +40,14 @@ export const syncManager = {
       return result;
     }
 
+    const currentUserId = getCurrentUserId();
+    if (!currentUserId) return result;
+
     let shouldNotifySync = false;
 
     try {
-      const pending = await offlineQueue.getPending();
-      const failed = await offlineQueue.getFailed();
+      const pending = (await offlineQueue.getPending()).filter((item) => item.userId === currentUserId);
+      const failed = (await offlineQueue.getFailed()).filter((item) => item.userId === currentUserId);
 
       // Reintentar fallidos con menos de MAX_RETRIES
       const retryable = failed.filter((item) => item.retries < MAX_RETRIES);

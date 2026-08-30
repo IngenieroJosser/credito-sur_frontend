@@ -50,8 +50,25 @@ export async function purgarDatosOfflineSiVencio(): Promise<void> {
     const deadline = Number(raw);
     if (!Number.isFinite(deadline) || Date.now() < deadline) return;
 
+    // Limpieza completa (equivale a lo que antes se hacia al instante en el
+    // logout, ahora diferido): datos offline + cache de API + caches del
+    // navegador/PWA. La cola offline (offline-queue) se conserva.
     const { offlineStore } = await import('@/lib/offline');
     await offlineStore.clearAll();
+    try {
+      const { clearCache } = await import('@/lib/api/apiCache');
+      await clearCache();
+    } catch {
+      /* apiCache no disponible */
+    }
+    try {
+      if ('caches' in window) {
+        const nombres = await caches.keys();
+        await Promise.all(nombres.map((n) => caches.delete(n)));
+      }
+    } catch {
+      /* Cache API no disponible */
+    }
     localStorage.removeItem(PURGE_DEADLINE_KEY);
     logger.log('[Offline Auth] Cache offline purgada tras el periodo de gracia');
   } catch {
@@ -67,7 +84,7 @@ export function cacheSession(token: string, user: any): void {
   try {
     if (typeof window === 'undefined') return;
     
-    // Calcular fecha de expiración (30 días desde ahora)
+    // La sesión offline tiene una ventana limitada y debe renovarse online.
     const now = new Date();
     const expiresAt = new Date(now.getTime() + SESSION_VALIDITY_DAYS * 24 * 60 * 60 * 1000);
 

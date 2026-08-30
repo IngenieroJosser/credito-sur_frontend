@@ -2,14 +2,29 @@ import { getOfflineDb, OfflineQueueItem } from './offlineDb';
 
 import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 
+const getCurrentUserId = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) return null;
+    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    return payload.sub || payload.id || null;
+  } catch {
+    return null;
+  }
+};
+
 // ─── Cola de operaciones offline ─────────────────────────────────
 
 export const offlineQueue = {
   // Agregar operación a la cola
-  async enqueue(item: Omit<OfflineQueueItem, 'id' | 'createdAt' | 'status' | 'retries'>): Promise<OfflineQueueItem> {
+  async enqueue(item: Omit<OfflineQueueItem, 'id' | 'createdAt' | 'status' | 'retries' | 'userId'>): Promise<OfflineQueueItem> {
     const db = await getOfflineDb();
+    const userId = getCurrentUserId();
+    if (!userId) throw new Error('No se puede encolar una operación sin sesión válida');
     const queueItem: OfflineQueueItem = {
       ...item,
+      userId,
       id: `offline-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       createdAt: toBogotaDateTimeOffsetIso(new Date()),
       status: 'pending',
@@ -117,6 +132,14 @@ export const offlineQueue = {
   async countCompleted(): Promise<number> {
     const db = await getOfflineDb();
     return db.countFromIndex('offline-queue', 'by-status', 'completed');
+  },
+
+  async clearAll(): Promise<void> {
+    const db = await getOfflineDb();
+    await db.clear('offline-queue');
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('offline-queue-changed'));
+    }
   },
 };
 
