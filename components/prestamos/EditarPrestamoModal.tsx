@@ -113,6 +113,8 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
     cuotaInicial: 0, fechaInicio: '', notas: '', garantia: '', 
     tipoAmortizacion: TipoAmortizacion.INTERES_SIMPLE, plazoMeses: 0
   });
+  // Versión del préstamo al cargarlo, para el control de conflictos al guardar.
+  const versionRef = useRef<number | undefined>(undefined);
 
   const tasa = Number(tasaStr) || 0;
   const cuotas = Number(cuotasStr) || 0;
@@ -185,6 +187,7 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
       setFetching(true);
       try {
         const data = await prestamosService.obtenerPrestamoPorId(id);
+        versionRef.current = (data as any)?.version;
         const cuotasData = await prestamosService.obtenerCuotas(id).catch(() => []);
         const m = Number(data.monto) || 0;
         const t = Number(data.tasaInteres) || 0;
@@ -274,6 +277,11 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
       if (garantia !== originalRef.current.garantia) payload.garantia = garantia;
       if (tipoAmortizacion !== originalRef.current.tipoAmortizacion) payload.tipoAmortizacion = tipoAmortizacion;
       if (plazoMeses !== originalRef.current.plazoMeses) payload.plazoMeses = plazoMeses;
+
+      // Control de conflictos: mandamos la versión cargada. Si el servidor tiene
+      // una más nueva (otro editó / edición offline desincronizada), el backend
+      // rechaza como conflicto (409) en vez de sobrescribir en silencio.
+      if (versionRef.current != null) payload.version = versionRef.current;
 
       await prestamosService.actualizarPrestamo(id, payload as any);
       showNotification('success', 'El crédito ha sido actualizado correctamente', 'Éxito');

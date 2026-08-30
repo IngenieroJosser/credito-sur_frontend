@@ -196,6 +196,13 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
       payload.archivos = archivos;
     }
 
+    // Control de conflictos: al editar, mandamos la versión que cargamos. Si el
+    // servidor tiene una más nueva (otro editó mientras tanto / edición offline
+    // desincronizada), el backend rechaza como conflicto en vez de sobrescribir.
+    if (esEdicion && cliente && (cliente as any).version != null) {
+      (payload as any).version = (cliente as any).version;
+    }
+
     try {
       let resultado: Cliente;
       
