@@ -1,4 +1,6 @@
 import { apiRequest } from '@/lib/api/api';
+import { syncService } from '@/lib/offline/syncService';
+import { logger } from '@/lib/logger';
 
 export interface Route {
   id: string;
@@ -229,10 +231,30 @@ export const routesService = {
     fechaOperativa: string,
     observaciones?: string,
   ) {
-    return apiRequest<any>(
-      'POST',
-      `/routes/${rutaId}/cierre-pendiente/${fechaOperativa}/cerrar`,
-      { observaciones },
-    );
+    const endpoint = `/routes/${rutaId}/cierre-pendiente/${fechaOperativa}/cerrar`;
+    try {
+      return await apiRequest<any>('POST', endpoint, { observaciones });
+    } catch (error: any) {
+      if (
+        (typeof navigator !== 'undefined' && !navigator.onLine) ||
+        error?.statusCode === 0 ||
+        error?.message?.includes('network') ||
+        error?.code === 'ERR_NETWORK'
+      ) {
+        // Seguro offline: la cola es cronológica, así que este cierre se
+        // sincroniza DESPUÉS de los pagos/gastos del día → el servidor
+        // reconcilia con el panorama completo.
+        logger.log('[Offline Mode] Guardando cierre de jornada de ruta en cola...');
+        await syncService.enqueueOperation(
+          'cierre_jornada_ruta',
+          endpoint,
+          'POST',
+          { observaciones },
+          `Cierre de jornada de ruta (${fechaOperativa})`,
+        );
+        return { esOffline: true };
+      }
+      throw error;
+    }
   },
 };

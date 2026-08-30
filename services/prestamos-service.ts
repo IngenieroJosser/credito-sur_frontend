@@ -499,15 +499,35 @@ export const prestamosService = {
   async solicitarReprogramacionCuota(
     data: SolicitarReprogramacionCuotaPayload,
   ): Promise<any> {
-    const payload = { 
-      cuotaId: data.cuotaId, 
-      nuevaFecha: data.nuevaFecha, 
+    const payload = {
+      cuotaId: data.cuotaId,
+      nuevaFecha: data.nuevaFecha,
       motivo: data.motivo,
       fechaOperativaRuta: data.fechaOperativaRuta,
       origenGestion: data.origenGestion,
       idempotencyKey: data.idempotencyKey,
     };
-    return apiRequest('POST', `/loans/${data.prestamoId}/reprogramacion`, payload);
+    try {
+      return await apiRequest('POST', `/loans/${data.prestamoId}/reprogramacion`, payload);
+    } catch (error: any) {
+      if (
+        (typeof navigator !== 'undefined' && !navigator.onLine) ||
+        error?.statusCode === 0 ||
+        error?.message?.includes('network') ||
+        error?.code === 'ERR_NETWORK'
+      ) {
+        logger.log('[Offline Mode] Guardando solicitud de reprogramacion de cuota en cola...');
+        await syncService.enqueueOperation(
+          'reprogramacion_cuota_solicitar',
+          `/loans/${data.prestamoId}/reprogramacion`,
+          'POST',
+          payload,
+          `Solicitar reprogramación de cuota (préstamo ${data.prestamoId})`
+        );
+        return { esOffline: true };
+      }
+      throw error;
+    }
   },
 
   /**

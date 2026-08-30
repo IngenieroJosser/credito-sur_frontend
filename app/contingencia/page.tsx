@@ -3,6 +3,7 @@
 import { WifiOff, AlertTriangle, RefreshCw, ArrowRight } from 'lucide-react'
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { listaPadreDeDetalle } from '@/lib/detalle-padre'
 
 // Ruta de inicio segun el rol, para "Seguir usando el sistema" sin depender del
 // historial del navegador (que puede estar vacio tras un F5 en esta pantalla).
@@ -37,11 +38,30 @@ const ContingenciaPage = () => {
     return () => window.removeEventListener('online', alVolver)
   }, [router])
 
+  // Cold-start offline sobre un detalle `[id]` nunca visitado: en vez de dejar
+  // al usuario en esta pantalla, lo reenviamos a la LISTA PADRE (página estática
+  // cacheada que sí renderiza offline). Guarda anti-bucle: solo se intenta una
+  // vez por URL (si volviéramos aquí para la misma ruta, ya no se reintenta).
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const actual = window.location.pathname
+    const padre = listaPadreDeDetalle(actual)
+    if (!padre) return
+    try {
+      const clave = `contingencia-fwd:${actual}`
+      if (sessionStorage.getItem(clave)) return
+      sessionStorage.setItem(clave, '1')
+    } catch {
+      /* si sessionStorage falla, seguimos: el peor caso es un reintento */
+    }
+    router.replace(padre)
+  }, [router])
+
   const seguirUsando = () => {
-    // Preferimos volver a donde estaba; si no hay historial util, vamos al
-    // inicio del rol. Ambos caminos usan el shell cacheado (funcionan offline).
-    const destino = rutaInicioSegunSesion()
-    router.replace(destino)
+    // Si venimos de un detalle [id], la lista padre es el mejor destino;
+    // si no, al inicio del rol. Ambos usan el shell cacheado (offline).
+    const padre = typeof window !== 'undefined' ? listaPadreDeDetalle(window.location.pathname) : null
+    router.replace(padre || rutaInicioSegunSesion())
   }
 
   return (

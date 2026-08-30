@@ -868,13 +868,27 @@ export async function registrarAbonoDeudaCobrador(
   nota: string,
   cajaIdDestino?: string,
 ): Promise<Transaccion | null> {
+  const payload = { monto, nota, cajaIdDestino };
   try {
-    return await apiRequest<Transaccion>('POST', `/accounting/deudas-cobradores/${cobradorId}/abono`, {
-      monto,
-      nota,
-      cajaIdDestino,
-    });
-  } catch (error) {
+    return await apiRequest<Transaccion>('POST', `/accounting/deudas-cobradores/${cobradorId}/abono`, payload);
+  } catch (error: any) {
+    if (
+      (typeof navigator !== 'undefined' && !navigator.onLine) ||
+      error?.statusCode === 0 ||
+      error?.message?.includes('network') ||
+      error?.code === 'ERR_NETWORK'
+    ) {
+      logger.log('[Offline Mode] Guardando abono a deuda de cobrador en cola...');
+      await syncService.enqueueOperation(
+        'abono_deuda_cobrador',
+        `/accounting/deudas-cobradores/${cobradorId}/abono`,
+        'POST',
+        payload,
+        `Abono a deuda de cobrador (${cobradorId})`,
+      );
+      // La transacción se materializa al sincronizar.
+      return null;
+    }
     logger.error('Error al registrar el abono:', error);
     throw error;
   }
