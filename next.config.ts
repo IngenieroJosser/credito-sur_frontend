@@ -6,6 +6,11 @@ const withPWA = require("@ducanh2912/next-pwa").default({
   aggressiveFrontEndNavCaching: true,
   reloadOnOnline: true,
   disable: process.env.NODE_ENV === 'development',
+  // Pagina de respaldo cuando una navegacion no esta en cache y no hay red.
+  // next-pwa la precachea y la sirve en vez del error del navegador.
+  fallbacks: {
+    document: '/offline',
+  },
   workboxOptions: {
     disableDevLogs: true,
     importScripts: ["/sw-push-handler.js"],
@@ -13,32 +18,56 @@ const withPWA = require("@ducanh2912/next-pwa").default({
     // para que checkRealConnectivity() sea preciso
     runtimeCaching: [
       {
-        urlPattern: /^\/api\/ping$/,
+        // /api/ping SIEMPRE a la red: es la sonda de conectividad real.
+        urlPattern: /\/api\/ping/,
         handler: 'NetworkOnly',
       },
       {
-        // Paginas (navegaciones/documento): red primero; si no hay conexion,
-        // se sirve la version cacheada. Asi un F5 offline sobre una pagina ya
-        // visitada (incluidas las de detalle [id]) funciona en vez de quedar
-        // en blanco.
-        urlPattern: ({ request }: { request: Request }) =>
-          request.mode === 'navigate',
+        // Peticiones RSC de Next (navegacion App Router): red primero, cache
+        // si no hay conexion.
+        urlPattern: ({ url }: { url: URL }) =>
+          url.pathname.startsWith('/_next/') === false &&
+          (url.search.includes('_rsc=') || false),
         handler: 'NetworkFirst',
         options: {
-          cacheName: 'paginas',
-          networkTimeoutSeconds: 3,
+          cacheName: 'rsc',
+          networkTimeoutSeconds: 5,
           expiration: { maxEntries: 300, maxAgeSeconds: 30 * 24 * 60 * 60 },
           cacheableResponse: { statuses: [0, 200] },
         },
       },
       {
-        // JS/CSS de Next: cache primero (se sirven offline al recargar).
-        urlPattern: /\/_next\/(static|image)\/.*/i,
+        // Documentos (F5 / apertura directa): red primero; sin red se sirve la
+        // version cacheada y, si no existe, la pagina /offline (fallback).
+        urlPattern: ({ request }: { request: Request }) =>
+          request.mode === 'navigate',
+        handler: 'NetworkFirst',
+        options: {
+          cacheName: 'paginas',
+          networkTimeoutSeconds: 5,
+          expiration: { maxEntries: 300, maxAgeSeconds: 30 * 24 * 60 * 60 },
+          cacheableResponse: { statuses: [0, 200] },
+        },
+      },
+      {
+        // JS/CSS de Next: cache primero.
+        urlPattern: /\/_next\/static\/.*/i,
         handler: 'CacheFirst',
         options: {
-          cacheName: 'next-assets',
+          cacheName: 'next-static',
           expiration: { maxEntries: 600, maxAgeSeconds: 30 * 24 * 60 * 60 },
         },
+      },
+      {
+        urlPattern: /\/_next\/image\?url=.+$/i,
+        handler: 'StaleWhileRevalidate',
+        options: { cacheName: 'next-image', expiration: { maxEntries: 300 } },
+      },
+      {
+        // Imagenes y fuentes.
+        urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp|ico|woff2?|ttf|otf|eot)$/i,
+        handler: 'StaleWhileRevalidate',
+        options: { cacheName: 'assets', expiration: { maxEntries: 400 } },
       },
     ],
   },
