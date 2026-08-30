@@ -141,6 +141,14 @@ export default function AdminLayout({
     setIsMenuOpen(false)
   }
 
+  // Al abrir la app: si hubo un logout hace mas de 8 h y no se volvio a
+  // entrar, se purga la cache offline de datos sensibles (periodo de gracia).
+  useEffect(() => {
+    import('@/lib/auth/offlineAuth')
+      .then((m) => m.purgarDatosOfflineSiVencio())
+      .catch(() => {})
+  }, [])
+
   useEffect(() => {
     if (!seenModulesStorageKey) return
     try {
@@ -508,13 +516,13 @@ export default function AdminLayout({
   const handleLogout = async () => {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
-    // Borra del dispositivo la cache offline de datos sensibles (clientes,
-    // prestamos, pagos, usuarios). Conserva la cola offline sin enviar.
+    // No se borra la cache ahora: se programa una purga para dentro de 8 h.
+    // Si el usuario vuelve antes, se cancela; si no, se limpia al abrir la app.
     try {
-      const { offlineStore } = await import('@/lib/offline')
-      await offlineStore.clearAll()
+      const { programarPurgaDatosOffline } = await import('@/lib/auth/offlineAuth')
+      programarPurgaDatosOffline()
     } catch {
-      // IndexedDB no disponible: no es critico para cerrar sesion.
+      // no critico
     }
     router.push('/login')
   }

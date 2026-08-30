@@ -13,7 +13,52 @@ interface CachedSession {
 }
 
 const SESSION_CACHE_KEY = 'offline_session_cache';
-const SESSION_VALIDITY_DAYS = 36500; // Prácticamente no expira (100 años)
+// Al cerrar sesion no se borra la cache al instante: se programa una purga
+// para 8 h despues. Si el usuario vuelve a entrar antes, se cancela.
+const PURGE_DEADLINE_KEY = 'offline_purge_deadline';
+const PURGE_GRACE_MS = 8 * 60 * 60 * 1000;
+
+/** Programa la purga de la cache offline para dentro de 8 h (al cerrar sesion). */
+export function programarPurgaDatosOffline(): void {
+  try {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(PURGE_DEADLINE_KEY, String(Date.now() + PURGE_GRACE_MS));
+  } catch {
+    /* localStorage no disponible */
+  }
+}
+
+/** Cancela una purga pendiente (al volver a iniciar sesion dentro de las 8 h). */
+export function cancelarPurgaDatosOffline(): void {
+  try {
+    if (typeof window === 'undefined') return;
+    localStorage.removeItem(PURGE_DEADLINE_KEY);
+  } catch {
+    /* localStorage no disponible */
+  }
+}
+
+/**
+ * Si hay una purga programada y ya vencio, borra la cache de datos sensibles
+ * (conservando la cola offline) y limpia la marca. Se llama al arrancar la app.
+ */
+export async function purgarDatosOfflineSiVencio(): Promise<void> {
+  try {
+    if (typeof window === 'undefined') return;
+    const raw = localStorage.getItem(PURGE_DEADLINE_KEY);
+    if (!raw) return;
+    const deadline = Number(raw);
+    if (!Number.isFinite(deadline) || Date.now() < deadline) return;
+
+    const { offlineStore } = await import('@/lib/offline');
+    await offlineStore.clearAll();
+    localStorage.removeItem(PURGE_DEADLINE_KEY);
+    logger.log('[Offline Auth] Cache offline purgada tras el periodo de gracia');
+  } catch {
+    /* IndexedDB no disponible: no es critico */
+  }
+}
+const SESSION_VALIDITY_DAYS = 30; // La sesion offline dura 30 dias
 
 /**
  * Guardar sesión en caché para uso offline
@@ -34,6 +79,9 @@ export function cacheSession(token: string, user: any): void {
     };
 
     localStorage.setItem(SESSION_CACHE_KEY, JSON.stringify(cachedSession));
+    // El usuario esta activo: si habia una purga programada por un logout
+    // anterior, se cancela.
+    cancelarPurgaDatosOffline();
     logger.log('[Offline Auth] Sesión cacheada para uso offline');
   } catch (error) {
     console.error('[Offline Auth] Error cacheando sesión:', error);

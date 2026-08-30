@@ -48,15 +48,16 @@ export async function cerrarSesion() {
     localStorage.removeItem('user');
     clearCachedSession();
 
-    // Al cerrar sesion se borra del dispositivo la cache de datos sensibles
-    // (clientes, prestamos, pagos, usuarios...). NO se toca la cola offline
-    // (offline-queue): el trabajo sin enviar se conserva, asi que no rompe el
-    // modo sin conexion. Import dinamico para no cargar IndexedDB en SSR.
+    // No se borra la cache al instante: se programa una purga para 8 h
+    // despues. Asi, si el usuario vuelve a entrar (o cambia de opinion) dentro
+    // de ese margen, no pierde sus datos ni tiene que re-descargar. Si no
+    // vuelve, la cache de datos sensibles se borra al abrir la app pasadas las
+    // 8 h. La cola offline (trabajo sin enviar) nunca se toca.
     try {
-      const { offlineStore } = await import('@/lib/offline');
-      await offlineStore.clearAll();
+      const { programarPurgaDatosOffline } = await import('@/lib/auth/offlineAuth');
+      programarPurgaDatosOffline();
     } catch {
-      // IndexedDB no disponible o ya cerrado: no es critico.
+      // no critico
     }
   }
 }
