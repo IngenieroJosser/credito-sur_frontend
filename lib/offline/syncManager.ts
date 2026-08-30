@@ -5,6 +5,14 @@ import { restoreOfflineSession } from '@/lib/auth/offlineAuth';
 import { offlineQueue } from './offlineQueue';
 import { offlineStore, OfflineCliente, OfflinePrestamo, OfflineCuota, OfflineRuta } from './offlineDb';
 import { trackOfflineEvent } from './offlineAnalytics';
+import {
+  remapearEndpoint,
+  remapearProfundo,
+  registrarMapeo,
+  extraerIdReal,
+  limpiarMapeos,
+  contieneTempIdSinResolver,
+} from './idRemap';
 
 const MAX_RETRIES = 3;
 
@@ -51,7 +59,14 @@ export const syncManager = {
 
       // Reintentar fallidos con menos de MAX_RETRIES
       const retryable = failed.filter((item) => item.retries < MAX_RETRIES);
-      const allToProcess = [...pending, ...retryable];
+      // Orden CRONOLÓGICO (por fecha de creación): garantiza que una entidad se
+      // cree antes que las operaciones que la referencian (no puedes referenciar
+      // algo antes de crearlo). Esto hace que el remapeo temp→real funcione:
+      // el `cliente_create` corre antes que el crédito que apunta a ese cliente,
+      // aunque el crédito o un pago tengan mayor prioridad.
+      const allToProcess = [...pending, ...retryable].sort(
+        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      );
 
       shouldNotifySync = allToProcess.length > 0;
 
@@ -66,7 +81,26 @@ export const syncManager = {
 
         try {
           const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-          let requestData: any = item.data;
+
+          // Remapear referencias a ids temporales por los ids reales ya conocidos
+          // (p. ej. un crédito creado offline que apunta a un cliente cuya
+          // creación ya se sincronizó). Se aplica al endpoint y al cuerpo.
+          const endpointFinal = remapearEndpoint(item.endpoint);
+          const dataRemapeada = remapearProfundo(item.data);
+
+          // Red de seguridad: si tras remapear AÚN queda una referencia a un id
+          // temporal (su creación no se ha sincronizado todavía), no enviamos la
+          // operación —fallaría con 400/404 y se marcaría como conflicto—; la
+          // dejamos pendiente para el próximo intento, cuando su prerrequisito
+          // ya tenga id real.
+          const quedaTempSinResolver = contieneTempIdSinResolver(endpointFinal, dataRemapeada);
+          if (quedaTempSinResolver) {
+            await offlineQueue.updateStatus(item.id, 'pending');
+            result.processed--;
+            continue;
+          }
+
+          let requestData: any = dataRemapeada;
           const headers: Record<string, string> = {
             Accept: 'application/json',
             ...(token && { Authorization: `Bearer ${token}` }),
@@ -76,9 +110,9 @@ export const syncManager = {
           if (item.file) {
             const formData = new FormData();
             formData.append('file', item.file, item.fileName || 'upload');
-            
-            if (item.data && typeof item.data === 'object') {
-              Object.entries(item.data as Record<string, any>).forEach(([key, value]) => {
+
+            if (dataRemapeada && typeof dataRemapeada === 'object') {
+              Object.entries(dataRemapeada as Record<string, any>).forEach(([key, value]) => {
                 formData.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
               });
             }
@@ -88,13 +122,21 @@ export const syncManager = {
             headers['Content-Type'] = 'application/json';
           }
 
-          await apiClient.request({
+          const resp = await apiClient.request({
             method: item.method,
-            url: item.endpoint,
+            url: endpointFinal,
             data: requestData,
             headers,
             timeout: 30000,
           });
+
+          // Si esta operación era una creación con id temporal, registramos el
+          // mapeo temp → real para que las operaciones dependientes que aún
+          // están en cola apunten al id correcto.
+          if (item.tempId) {
+            const idReal = extraerIdReal(resp?.data);
+            if (idReal) registrarMapeo(item.tempId, idReal);
+          }
 
           // Éxito: marcar como completado
           await offlineQueue.updateStatus(item.id, 'completed');
@@ -163,6 +205,18 @@ export const syncManager = {
         recordCount: result.processed,
         success: result.failed === 0,
       });
+
+      // Si ya no queda nada pendiente ni fallido en la cola, los mapeos de ids
+      // temporales cumplieron su función: se limpian para no acumularse.
+      try {
+        const [pend, fail] = await Promise.all([
+          offlineQueue.countPending(),
+          offlineQueue.countFailed(),
+        ]);
+        if (pend === 0 && fail === 0) limpiarMapeos();
+      } catch {
+        /* el conteo es best-effort; no afecta el resultado del sync */
+      }
 
       return result;
     } finally {

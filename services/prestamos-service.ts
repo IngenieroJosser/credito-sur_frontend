@@ -230,7 +230,9 @@ export const prestamosService = {
            '/loans',
            'POST',
            payload,
-           `Nuevo Préstamo (Offline): $${payload.monto}`
+           `Nuevo Préstamo (Offline): $${payload.monto}`,
+           undefined,
+           tempId,
          );
 
          // Retornar objeto temporal

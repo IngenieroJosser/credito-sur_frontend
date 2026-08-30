@@ -179,7 +179,9 @@ export const clientesService = {
           '/clients',
           'POST',
           payload,
-          `Crear cliente: ${payload.nombres} ${payload.apellidos}`
+          `Crear cliente: ${payload.nombres} ${payload.apellidos}`,
+          undefined,
+          tempId,
         );
 
         // Retornar objeto temporal para UI optimista
