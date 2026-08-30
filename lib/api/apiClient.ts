@@ -31,6 +31,9 @@ const secondaryBase = normalizeUrl(secondaryUrl);
 export const apiClient = axios.create({
   baseURL: `${primaryBase}/`,
   timeout: 30000, // Aumentado a 30s para dar tiempo al cold start de Render
+  // Envia la cookie httpOnly 'token' al backend (cross-site). El header
+  // Authorization se sigue mandando: ambos caminos valen, no rompe nada.
+  withCredentials: true,
 });
 
 // Implementación de failover automático (Opción A de la propuesta)
