@@ -505,9 +505,17 @@ export default function AdminLayout({
   } 
   */
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
+    // Borra del dispositivo la cache offline de datos sensibles (clientes,
+    // prestamos, pagos, usuarios). Conserva la cola offline sin enviar.
+    try {
+      const { offlineStore } = await import('@/lib/offline')
+      await offlineStore.clearAll()
+    } catch {
+      // IndexedDB no disponible: no es critico para cerrar sesion.
+    }
     router.push('/login')
   }
 
