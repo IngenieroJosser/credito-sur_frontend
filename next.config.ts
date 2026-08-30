@@ -16,6 +16,30 @@ const withPWA = require("@ducanh2912/next-pwa").default({
         urlPattern: /^\/api\/ping$/,
         handler: 'NetworkOnly',
       },
+      {
+        // Paginas (navegaciones/documento): red primero; si no hay conexion,
+        // se sirve la version cacheada. Asi un F5 offline sobre una pagina ya
+        // visitada (incluidas las de detalle [id]) funciona en vez de quedar
+        // en blanco.
+        urlPattern: ({ request }: { request: Request }) =>
+          request.mode === 'navigate',
+        handler: 'NetworkFirst',
+        options: {
+          cacheName: 'paginas',
+          networkTimeoutSeconds: 3,
+          expiration: { maxEntries: 300, maxAgeSeconds: 30 * 24 * 60 * 60 },
+          cacheableResponse: { statuses: [0, 200] },
+        },
+      },
+      {
+        // JS/CSS de Next: cache primero (se sirven offline al recargar).
+        urlPattern: /\/_next\/(static|image)\/.*/i,
+        handler: 'CacheFirst',
+        options: {
+          cacheName: 'next-assets',
+          expiration: { maxEntries: 600, maxAgeSeconds: 30 * 24 * 60 * 60 },
+        },
+      },
     ],
   },
 });
