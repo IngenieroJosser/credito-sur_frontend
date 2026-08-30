@@ -16,7 +16,15 @@ export type VentaContadoResponse = {
 }
 
 export const salesService = {
-  async registrarVentaContado(data: VentaContadoPayload): Promise<VentaContadoResponse> {
+  async registrarVentaContado(dataEntrada: VentaContadoPayload): Promise<VentaContadoResponse> {
+    // Clave de idempotencia: misma clave online y offline, para que un reintento
+    // (tras sincronizar) no duplique el movimiento de dinero.
+    const data = {
+      ...dataEntrada,
+      idempotencyKey:
+        (dataEntrada as any).idempotencyKey ||
+        `venta-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+    }
     try {
       return await apiRequest<VentaContadoResponse>('POST', '/sales/cash', data)
     } catch (error: any) {

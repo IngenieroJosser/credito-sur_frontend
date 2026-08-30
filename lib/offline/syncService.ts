@@ -52,6 +52,8 @@ export const syncService = {
       'cliente_actualizar',
       'prestamo_create',
       'prestamo_crear',
+      'venta_contado',
+      'abono_deuda_cobrador',
     ]);
     const data =
       idempotentTypes.has(type) && payload && typeof payload === 'object' && !(payload instanceof FormData)

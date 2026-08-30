@@ -877,7 +877,13 @@ export async function registrarAbonoDeudaCobrador(
   nota: string,
   cajaIdDestino?: string,
 ): Promise<Transaccion | null> {
-  const payload = { monto, nota, cajaIdDestino };
+  const payload = {
+    monto,
+    nota,
+    cajaIdDestino,
+    // Misma clave online y offline: un reintento tras sincronizar no duplica.
+    idempotencyKey: `abono-${cobradorId}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+  };
   try {
     return await apiRequest<Transaccion>('POST', `/accounting/deudas-cobradores/${cobradorId}/abono`, payload);
   } catch (error: any) {
