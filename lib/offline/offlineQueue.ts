@@ -141,6 +141,32 @@ export const offlineQueue = {
       window.dispatchEvent(new CustomEvent('offline-queue-changed'));
     }
   },
+
+  /**
+   * Recupera operaciones interrumpidas por un cierre abrupto (p. ej. apagón
+   * mientras sincronizaba): un ítem quedó en 'syncing' pero el proceso nunca
+   * terminó. Al arrancar la app las volvemos a 'pending' para que se reintenten.
+   * Es seguro llamarlo SOLO al inicio (no hay sync en vuelo recién cargada la app).
+   * Devuelve cuántas recuperó.
+   */
+  async recoverInterrupted(): Promise<number> {
+    const db = await getOfflineDb();
+    const tx = db.transaction('offline-queue', 'readwrite');
+    let recuperadas = 0;
+    let cursor = await tx.store.openCursor();
+    while (cursor) {
+      if (cursor.value.status === 'syncing') {
+        await cursor.update({ ...cursor.value, status: 'pending' });
+        recuperadas++;
+      }
+      cursor = await cursor.continue();
+    }
+    await tx.done;
+    if (recuperadas > 0 && typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('offline-queue-changed'));
+    }
+    return recuperadas;
+  },
 };
 
 // ─── Helpers para encolar operaciones específicas ────────────────

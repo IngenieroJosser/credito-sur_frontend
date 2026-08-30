@@ -1,5 +1,6 @@
 import { apiRequest } from '@/lib/api/api';
 import { syncService } from '@/lib/offline/syncService';
+import { conRespaldoOffline } from '@/lib/offline/conRespaldoOffline';
 import { logger } from '@/lib/logger';
 
 export interface Route {
@@ -146,22 +147,39 @@ export const routesService = {
 
   // Crear una nueva ruta
   async create(data: CreateRouteDto) {
-    return apiRequest<Route>('POST', '/routes', data);
+    const tempId = `temp-${Date.now()}`;
+    return conRespaldoOffline(
+      () => apiRequest<Route>('POST', '/routes', data),
+      { type: 'ruta_crear', endpoint: '/routes', method: 'POST', data, description: `Crear ruta`, tempId },
+      { id: tempId, ...(data as any) } as Route,
+    );
   },
 
   // Actualizar una ruta
   async update(id: string, data: UpdateRouteDto) {
-    return apiRequest<Route>('PATCH', `/routes/${id}`, data);
+    return conRespaldoOffline(
+      () => apiRequest<Route>('PATCH', `/routes/${id}`, data),
+      { type: 'ruta_actualizar', endpoint: `/routes/${id}`, method: 'PATCH', data, description: `Actualizar ruta ${id}` },
+      { id, ...(data as any) } as Route,
+    );
   },
 
   // Eliminar una ruta (soft delete)
   async delete(id: string) {
-    return apiRequest<void>('DELETE', `/routes/${id}`);
+    return conRespaldoOffline(
+      () => apiRequest<void>('DELETE', `/routes/${id}`),
+      { type: 'ruta_eliminar', endpoint: `/routes/${id}`, method: 'DELETE', description: `Eliminar ruta ${id}` },
+      undefined,
+    );
   },
 
   // Activar/desactivar una ruta
   async toggleActive(id: string) {
-    return apiRequest<Route>('PATCH', `/routes/${id}/toggle-active`);
+    return conRespaldoOffline(
+      () => apiRequest<Route>('PATCH', `/routes/${id}/toggle-active`),
+      { type: 'ruta_toggle_activa', endpoint: `/routes/${id}/toggle-active`, method: 'PATCH', description: `Cambiar estado de ruta ${id}` },
+      { id } as Route,
+    );
   },
 
   async getActivacionHoy(id: string) {
@@ -174,11 +192,15 @@ export const routesService = {
   },
 
   async activarHoy(id: string) {
-    return apiRequest<{ rutaId: string; activadaHoy: boolean; operableHoy?: boolean; diaNoLaboral?: boolean; message?: string }>(
-      'POST',
-      `/routes/${id}/activar-hoy`,
-      undefined,
-      { cacheTTL: 0 }
+    return conRespaldoOffline(
+      () => apiRequest<{ rutaId: string; activadaHoy: boolean; operableHoy?: boolean; diaNoLaboral?: boolean; message?: string }>(
+        'POST',
+        `/routes/${id}/activar-hoy`,
+        undefined,
+        { cacheTTL: 0 }
+      ),
+      { type: 'ruta_activar_hoy', endpoint: `/routes/${id}/activar-hoy`, method: 'POST', description: `Activar ruta hoy ${id}` },
+      { rutaId: id, activadaHoy: true, operableHoy: true },
     );
   },
 
@@ -207,22 +229,38 @@ export const routesService = {
 
   // Asignar cliente a ruta
   async assignClient(rutaId: string, clienteId: string, cobradorId: string) {
-    return apiRequest<any>('POST', `/routes/${rutaId}/assign-client`, { clienteId, cobradorId });
+    return conRespaldoOffline(
+      () => apiRequest<any>('POST', `/routes/${rutaId}/assign-client`, { clienteId, cobradorId }),
+      { type: 'ruta_asignar_cliente', endpoint: `/routes/${rutaId}/assign-client`, method: 'POST', data: { clienteId, cobradorId }, description: `Asignar cliente a ruta ${rutaId}` },
+      { esOffline: true },
+    );
   },
 
   // Remover cliente de ruta
   async removeClient(rutaId: string, clienteId: string) {
-    return apiRequest<void>('DELETE', `/routes/${rutaId}/remove-client/${clienteId}`);
+    return conRespaldoOffline(
+      () => apiRequest<void>('DELETE', `/routes/${rutaId}/remove-client/${clienteId}`),
+      { type: 'ruta_remover_cliente', endpoint: `/routes/${rutaId}/remove-client/${clienteId}`, method: 'DELETE', description: `Remover cliente de ruta ${rutaId}` },
+      undefined,
+    );
   },
 
   // Mover cliente entre rutas
   async moveClient(clienteId: string, fromRutaId: string, toRutaId: string) {
-    return apiRequest<any>('POST', '/routes/move-client', { clienteId, fromRutaId, toRutaId });
+    return conRespaldoOffline(
+      () => apiRequest<any>('POST', '/routes/move-client', { clienteId, fromRutaId, toRutaId }),
+      { type: 'ruta_mover_cliente', endpoint: '/routes/move-client', method: 'POST', data: { clienteId, fromRutaId, toRutaId }, description: `Mover cliente entre rutas` },
+      { esOffline: true },
+    );
   },
 
   // Asignar un crédito específico a otra ruta (agrega el cliente a la ruta destino)
   async moveLoan(prestamoId: string, toRutaId: string) {
-    return apiRequest<any>('POST', '/routes/move-loan', { prestamoId, toRutaId });
+    return conRespaldoOffline(
+      () => apiRequest<any>('POST', '/routes/move-loan', { prestamoId, toRutaId }),
+      { type: 'ruta_mover_credito', endpoint: '/routes/move-loan', method: 'POST', data: { prestamoId, toRutaId }, description: `Mover crédito a otra ruta` },
+      { esOffline: true },
+    );
   },
 
   // Cerrar una jornada regularizada (cierre pendiente)

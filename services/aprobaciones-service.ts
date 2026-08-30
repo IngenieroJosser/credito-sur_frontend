@@ -1,4 +1,5 @@
 import { apiRequest } from '@/lib/api/api';
+import { conRespaldoOffline, esErrorDeRed } from '@/lib/offline/conRespaldoOffline';
 import { TipoAprobacion, EstadoAprobacion } from '@/types/enums';
 
 export interface Aprobacion {
@@ -127,28 +128,49 @@ export const aprobacionesService = {
    * Aprobar un item pendiente
    */
   async aprobar(id: string, data: AprobarDto): Promise<any> {
-    return apiRequest('POST', `/approvals/${id}/approve`, data);
+    // La validación cuatro-ojos y de estado la hace el SERVIDOR al reproducir;
+    // encolar offline no la salta. Si al sincronizar ya no procede, va a conflictos.
+    return conRespaldoOffline(
+      () => apiRequest('POST', `/approvals/${id}/approve`, data),
+      { type: 'aprobacion_aprobar', endpoint: `/approvals/${id}/approve`, method: 'POST', data, description: `Aprobar solicitud ${id}` },
+      { esOffline: true },
+    );
   },
 
   /**
    * Rechazar un item pendiente
    */
   async rechazar(id: string, data: RechazarDto): Promise<any> {
-    return apiRequest('POST', `/approvals/${id}/reject`, data);
+    return conRespaldoOffline(
+      () => apiRequest('POST', `/approvals/${id}/reject`, data),
+      { type: 'aprobacion_rechazar', endpoint: `/approvals/${id}/reject`, method: 'POST', data, description: `Rechazar solicitud ${id}` },
+      { esOffline: true },
+    );
   },
 
   /**
    * Confirmar o revertir un rechazo (solo SuperAdmin)
    */
   async confirmarAccionSuperadmin(id: string, accion: 'CONFIRMAR' | 'REVERTIR', notas?: string): Promise<any> {
-    return apiRequest('POST', `/approvals/${id}/confirm-deletion`, { accion, notas });
+    return conRespaldoOffline(
+      () => apiRequest('POST', `/approvals/${id}/confirm-deletion`, { accion, notas }),
+      { type: 'aprobacion_confirmar_superadmin', endpoint: `/approvals/${id}/confirm-deletion`, method: 'POST', data: { accion, notas }, description: `Confirmar acción superadmin ${id}` },
+      { esOffline: true },
+    );
   },
 
   /**
    * Obtener historial de aprobaciones de una entidad
    */
   async getHistorial(entidadId: string, tabla: string): Promise<Aprobacion[]> {
-    return apiRequest<Aprobacion[]>('POST', '/approvals/history', { entidadId, tabla });
+    // Es una LECTURA (aunque use POST): offline no se encola (no hay nada que
+    // sincronizar); devolvemos vacío para no romper la vista.
+    try {
+      return await apiRequest<Aprobacion[]>('POST', '/approvals/history', { entidadId, tabla });
+    } catch (error: any) {
+      if (esErrorDeRed(error)) return [];
+      throw error;
+    }
   }
 };
 

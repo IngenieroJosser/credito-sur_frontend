@@ -1,6 +1,7 @@
 import { logger } from '@/lib/logger'
 import { apiRequest } from '@/lib/api/api';
 import { syncService } from '@/lib/offline/syncService';
+import { conRespaldoOffline } from '@/lib/offline/conRespaldoOffline';
 import { EstadoPrestamo, FrecuenciaPago, EstadoCuota, TipoAmortizacion } from '@/types/enums';
 import type { Prestamo } from '@/types/domain';
 import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
@@ -174,7 +175,11 @@ export const prestamosService = {
    * Restaurar un préstamo eliminado
    */
   async restaurarPrestamo(id: string): Promise<Prestamo> {
-    return apiRequest<Prestamo>('PATCH', `/loans/${id}/restore`, {});
+    return conRespaldoOffline(
+      () => apiRequest<Prestamo>('PATCH', `/loans/${id}/restore`, {}),
+      { type: 'prestamo_restaurar', endpoint: `/loans/${id}/restore`, method: 'PATCH', data: {}, description: `Restaurar préstamo ${id}` },
+      { id } as Prestamo,
+    );
   },
 
   /**
@@ -544,13 +549,21 @@ export const prestamosService = {
    * Aprobar una solicitud de reprogramación.
    */
   async aprobarReprogramacion(aprobacionId: string): Promise<any> {
-    return apiRequest('PATCH', `/loans/reprogramaciones/${aprobacionId}/aprobar`, {});
+    return conRespaldoOffline(
+      () => apiRequest('PATCH', `/loans/reprogramaciones/${aprobacionId}/aprobar`, {}),
+      { type: 'reprogramacion_aprobar', endpoint: `/loans/reprogramaciones/${aprobacionId}/aprobar`, method: 'PATCH', data: {}, description: `Aprobar reprogramación ${aprobacionId}` },
+      { esOffline: true },
+    );
   },
 
   /**
    * Rechazar una solicitud de reprogramación.
    */
   async rechazarReprogramacion(aprobacionId: string, comentarios?: string): Promise<any> {
-    return apiRequest('PATCH', `/loans/reprogramaciones/${aprobacionId}/rechazar`, { comentarios });
+    return conRespaldoOffline(
+      () => apiRequest('PATCH', `/loans/reprogramaciones/${aprobacionId}/rechazar`, { comentarios }),
+      { type: 'reprogramacion_rechazar', endpoint: `/loans/reprogramaciones/${aprobacionId}/rechazar`, method: 'PATCH', data: { comentarios }, description: `Rechazar reprogramación ${aprobacionId}` },
+      { esOffline: true },
+    );
   },
 };

@@ -1,6 +1,7 @@
 import { logger } from '@/lib/logger'
 import { apiRequest } from '@/lib/api/api';
 import { syncService } from '@/lib/offline/syncService';
+import { conRespaldoOffline } from '@/lib/offline/conRespaldoOffline';
 import { offlineStore } from '@/lib/offline/offlineDb';
 import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 
@@ -775,11 +776,19 @@ export async function registrarGasto(data: {
 }
 
 export async function dryRunMigracionLedger(): Promise<any> {
-  return apiRequest('POST', '/accounting/migration-ledger/dry-run');
+  return conRespaldoOffline(
+    () => apiRequest('POST', '/accounting/migration-ledger/dry-run'),
+    { type: 'migracion_ledger_dryrun', endpoint: '/accounting/migration-ledger/dry-run', method: 'POST', description: `Simulación de migración de ledger` },
+    { esOffline: true },
+  );
 }
 
 export async function aplicarMigracionLedger(): Promise<any> {
-  return apiRequest('POST', '/accounting/migration-ledger/apply');
+  return conRespaldoOffline(
+    () => apiRequest('POST', '/accounting/migration-ledger/apply'),
+    { type: 'migracion_ledger_apply', endpoint: '/accounting/migration-ledger/apply', method: 'POST', description: `Aplicar migración de ledger` },
+    { esOffline: true },
+  );
 }
 
 export async function solicitarBase(data: { 

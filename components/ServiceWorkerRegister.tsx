@@ -43,12 +43,22 @@ export default function ServiceWorkerRegister() {
     // Descargar datos para offline si hay sesión activa
     const token = localStorage.getItem('token');
     if (token) {
-      checkRealConnectivity().then((isOnline) => {
-        if (isOnline) {
-          syncManager.downloadAll().catch(() => {});
-          syncManager.processQueue().catch(() => {});
-        }
-      });
+      // Recuperación ante cierre abrupto (apagón): reactivar operaciones que
+      // quedaron a medio sincronizar. Se hace ANTES de procesar la cola.
+      import('@/lib/offline/offlineQueue')
+        .then(({ offlineQueue }) => offlineQueue.recoverInterrupted())
+        .then((recuperadas) => {
+          if (recuperadas > 0) logger.log(`[Offline] ${recuperadas} operación(es) recuperada(s) tras cierre abrupto.`);
+        })
+        .catch(() => {})
+        .finally(() => {
+          checkRealConnectivity().then((isOnline) => {
+            if (isOnline) {
+              syncManager.downloadAll().catch(() => {});
+              syncManager.processQueue().catch(() => {});
+            }
+          });
+        });
     }
 
     // Verificar y notificar si la sesión offline está por expirar

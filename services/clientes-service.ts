@@ -1,6 +1,7 @@
 import { logger } from '@/lib/logger'
 import { apiRequest } from "@/lib/api/api";
 import { syncService } from '@/lib/offline/syncService';
+import { conRespaldoOffline } from '@/lib/offline/conRespaldoOffline';
 import { NivelRiesgo, EstadoAprobacion } from '@/types/enums';
 import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 
@@ -265,7 +266,11 @@ export const clientesService = {
    * Restaurar un cliente eliminado
    */
   async restaurar(id: string): Promise<Cliente> {
-    return apiRequest<Cliente>('PATCH', `/clients/${id}/restore`, {});
+    return conRespaldoOffline(
+      () => apiRequest<Cliente>('PATCH', `/clients/${id}/restore`, {}),
+      { type: 'cliente_restaurar', endpoint: `/clients/${id}/restore`, method: 'PATCH', data: {}, description: `Restaurar cliente ${id}` },
+      { id } as Cliente,
+    );
   },
 
   /**

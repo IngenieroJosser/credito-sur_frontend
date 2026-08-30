@@ -1,4 +1,5 @@
 import { apiRequest } from '@/lib/api/api';
+import { conRespaldoOffline } from '@/lib/offline/conRespaldoOffline';
 import { AxiosRequestConfig } from 'axios';
 
 export interface DashboardMetrics {
@@ -79,11 +80,19 @@ export const dashboardService = {
   },
 
   handleApprove: async (id: string, type: string) => {
-    return apiRequest('POST', `/approvals/${id}/approve`, { type });
+    return conRespaldoOffline(
+      () => apiRequest('POST', `/approvals/${id}/approve`, { type }),
+      { type: 'aprobacion_aprobar', endpoint: `/approvals/${id}/approve`, method: 'POST', data: { type }, description: `Aprobar ${type} ${id}` },
+      { esOffline: true },
+    );
   },
 
   handleReject: async (id: string, type: string) => {
-    return apiRequest('POST', `/approvals/${id}/reject`, { type });
+    return conRespaldoOffline(
+      () => apiRequest('POST', `/approvals/${id}/reject`, { type }),
+      { type: 'aprobacion_rechazar', endpoint: `/approvals/${id}/reject`, method: 'POST', data: { type }, description: `Rechazar ${type} ${id}` },
+      { esOffline: true },
+    );
   },
 };
 
