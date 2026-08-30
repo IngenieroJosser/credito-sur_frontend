@@ -603,7 +603,7 @@ export default function AdminLayout({
 
                   {/* Panel de notificaciones */}
                   {showNotifications && (
-                    <div className="absolute right-0 mt-3 w-full sm:w-80 max-w-sm bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200 z-[60]" ref={notificationRef}>
+                    <div className="fixed top-16 inset-x-3 sm:inset-x-auto sm:absolute sm:top-auto sm:right-0 sm:mt-3 w-auto sm:w-80 max-w-sm mx-auto sm:mx-0 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200 z-[60]" ref={notificationRef}>
                       <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
                         <h3 className="font-bold text-gray-900">Notificaciones</h3>
                         <span className="px-2 py-0.5 bg-blue-100 text-blue-600 text-[10px] font-bold rounded-full">{unreadCount} NUEVAS</span>

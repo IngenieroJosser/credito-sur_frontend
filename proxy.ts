@@ -16,15 +16,22 @@ const ADMIN_CLEAN_ROUTES = [
 ];
 
 /**
- * Content-Security-Policy con nonce por petición (defensa real contra XSS).
+ * Content-Security-Policy (defensa en profundidad).
  *
- * Cada respuesta HTML lleva un nonce único; solo se ejecutan los scripts con
- * ese nonce o los que ellos carguen (`strict-dynamic`). Aunque se inyectara un
- * <script> por XSS, el navegador no lo ejecutaría. Next.js aplica el nonce a
- * sus propios scripts en línea al leerlo de la cabecera de la petición.
+ * NO usa nonce/strict-dynamic: esta app es una PWA offline-first con paginas
+ * prerenderizadas en build (shell estatico), y un nonce por-peticion no se
+ * puede inyectar en HTML estatico sin forzar render dinamico, lo que romperia
+ * el offline. Se comprobo levantando el server: con strict-dynamic los scripts
+ * de Next quedaban sin nonce y el navegador los bloqueaba (app en blanco).
  *
- * `'unsafe-inline'` y `https:` en script-src son SOLO respaldo para navegadores
- * viejos: los que soportan `strict-dynamic` los ignoran.
+ * Lo que SI protege esta CSP:
+ *  - connect-src: la exfiltracion de datos solo puede ir al backend/servicios
+ *    permitidos, no a un dominio del atacante (mitigacion real anti-robo).
+ *  - script-src 'self' 'unsafe-inline': bloquea cargar scripts externos de
+ *    otros dominios (p. ej. <script src=evil.com>). No bloquea inline, pero no
+ *    hay ningun XSS inline en el codigo (React escapa por defecto).
+ *  - object-src 'none', base-uri 'self', frame-ancestors, form-action:
+ *    clickjacking, inyeccion de <base>, y envio de formularios a terceros.
  *
  * Si algo se rompe al probar (p. ej. el service worker de la PWA), pon
  * CSP_REPORT_ONLY = true: la CSP pasa a "solo informar" (no bloquea nada, solo
@@ -37,14 +44,14 @@ const BACKEND = 'https://credito-sur-backend.onrender.com';
 const BACKEND_WS = 'wss://credito-sur-backend.onrender.com';
 const BACKEND_ALT = 'https://credito-sur-frontend.onrender.com';
 
-function construirCsp(nonce: string): string {
+function construirCsp(): string {
   return `
     default-src 'self';
-    script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-inline' https:;
+    script-src 'self' 'unsafe-inline';
     style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
     img-src 'self' data: blob: https://res.cloudinary.com https:;
     font-src 'self' data: https://fonts.gstatic.com;
-    connect-src 'self' ${BACKEND} ${BACKEND_WS} ${BACKEND_ALT} https://fcm.googleapis.com https://res.cloudinary.com;
+    connect-src 'self' ${BACKEND} ${BACKEND_WS} ${BACKEND_ALT} https://fcm.googleapis.com https://res.cloudinary.com http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*;
     worker-src 'self' blob:;
     manifest-src 'self';
     media-src 'self' https://res.cloudinary.com data: blob:;
@@ -52,7 +59,7 @@ function construirCsp(nonce: string): string {
     base-uri 'self';
     form-action 'self';
     object-src 'none';
-    upgrade-insecure-requests;
+
   `
     .replace(/\s{2,}/g, ' ')
     .trim();
@@ -75,8 +82,7 @@ function aplicarCabecerasSeguridad(res: NextResponse, csp: string) {
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
-  const csp = construirCsp(nonce);
+  const csp = construirCsp();
 
   // Redirección de rutas limpias de admin (lógica original), ahora con las
   // cabeceras de seguridad.
@@ -89,15 +95,11 @@ export function proxy(request: NextRequest) {
     }
   }
 
-  // Resto de páginas: se pasa el nonce a Next por la cabecera de la petición
-  // para que lo aplique a sus scripts en línea, y se fija la CSP en la
-  // respuesta.
-  const requestHeaders = new Headers(request.headers);
-  requestHeaders.set('x-nonce', nonce);
-  requestHeaders.set('Content-Security-Policy', csp);
-
-  const response = NextResponse.next({ request: { headers: requestHeaders } });
-  return aplicarCabecerasSeguridad(response, csp);
+  // Resto de páginas: se fija la CSP en la respuesta. No se usa nonce porque
+  // las paginas prerenderizadas (shell offline) se generan en build y no
+  // pueden llevar un nonce por-peticion; se usa 'self' + 'unsafe-inline' en
+  // script-src, que si es compatible.
+  return aplicarCabecerasSeguridad(NextResponse.next(), csp);
 }
 
 export const config = {

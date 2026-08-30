@@ -1,8 +1,19 @@
 'use client'
 
 import { WifiOff, AlertTriangle, RefreshCw } from 'lucide-react'
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 
 const ContingenciaPage = () => {
+  const router = useRouter()
+
+  // Al volver la conexion, regresa a la pantalla anterior automaticamente.
+  useEffect(() => {
+    const alVolver = () => router.back()
+    window.addEventListener('online', alVolver)
+    return () => window.removeEventListener('online', alVolver)
+  }, [router])
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-gray-100 px-4 py-8">
       <div className="mx-auto flex max-w-lg flex-col items-center gap-8 text-center">
@@ -32,7 +43,10 @@ const ContingenciaPage = () => {
           </p>
         </div>
 
-        <button className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-xs text-gray-700 hover:border-gray-300">
+        <button
+          onClick={() => (typeof window !== 'undefined' && navigator.onLine ? router.back() : window.location.reload())}
+          className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-xs text-gray-700 hover:border-gray-300"
+        >
           <RefreshCw className="h-4 w-4" />
           <span>Reintentar conexión</span>
         </button>
