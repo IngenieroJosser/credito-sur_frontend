@@ -1,8 +1,31 @@
 'use client'
 
-import { WifiOff, AlertTriangle, RefreshCw } from 'lucide-react'
+import { WifiOff, AlertTriangle, RefreshCw, ArrowRight } from 'lucide-react'
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+
+// Ruta de inicio segun el rol, para "Seguir usando el sistema" sin depender del
+// historial del navegador (que puede estar vacio tras un F5 en esta pantalla).
+const INICIO_POR_ROL: Record<string, string> = {
+  SUPER_ADMINISTRADOR: '/admin',
+  ADMIN: '/admin',
+  COORDINADOR: '/coordinador',
+  SUPERVISOR: '/supervisor',
+  COBRADOR: '/cobranzas',
+  CONTADOR: '/contador/contable',
+  PUNTO_DE_VENTA: '/punto-de-venta',
+}
+
+const rutaInicioSegunSesion = (): string => {
+  if (typeof window === 'undefined') return '/login'
+  try {
+    const raw = localStorage.getItem('user')
+    const rol = raw ? JSON.parse(raw)?.rol : null
+    return (rol && INICIO_POR_ROL[rol]) || '/login'
+  } catch {
+    return '/login'
+  }
+}
 
 const ContingenciaPage = () => {
   const router = useRouter()
@@ -13,6 +36,13 @@ const ContingenciaPage = () => {
     window.addEventListener('online', alVolver)
     return () => window.removeEventListener('online', alVolver)
   }, [router])
+
+  const seguirUsando = () => {
+    // Preferimos volver a donde estaba; si no hay historial util, vamos al
+    // inicio del rol. Ambos caminos usan el shell cacheado (funcionan offline).
+    const destino = rutaInicioSegunSesion()
+    router.replace(destino)
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-gray-100 px-4 py-8">
@@ -43,13 +73,25 @@ const ContingenciaPage = () => {
           </p>
         </div>
 
-        <button
-          onClick={() => (typeof window !== 'undefined' && navigator.onLine ? router.back() : window.location.reload())}
-          className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-xs text-gray-700 hover:border-gray-300"
-        >
-          <RefreshCw className="h-4 w-4" />
-          <span>Reintentar conexión</span>
-        </button>
+        <div className="flex flex-col items-center gap-3 w-full sm:flex-row sm:justify-center">
+          <button
+            onClick={seguirUsando}
+            className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-full bg-[#08557f] px-6 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#064063]"
+          >
+            <span>Seguir usando el sistema</span>
+            <ArrowRight className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => (typeof window !== 'undefined' && navigator.onLine ? router.back() : window.location.reload())}
+            className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-3 text-xs text-gray-700 hover:border-gray-300"
+          >
+            <RefreshCw className="h-4 w-4" />
+            <span>Reintentar conexión</span>
+          </button>
+        </div>
+        <p className="text-[11px] text-gray-400 -mt-4">
+          Puedes seguir trabajando sin conexión; los cambios se sincronizan al volver la red.
+        </p>
       </div>
     </div>
   )

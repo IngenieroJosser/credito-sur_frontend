@@ -1,6 +1,7 @@
 'use client'
 
 import PantallaCarga from '@/components/ui/PantallaCarga'
+import { logger } from '@/lib/logger'
 
 
 
@@ -836,7 +837,7 @@ const VistaCobrador = () => {
 
       // Priorizar ruta actual + buildRutaHoyOperativa en lugar de endpoint legacy
       if (rutaActual?.id) {
-        console.log('[Mis clientes] Usando ruta actual + buildRutaHoyOperativa:', rutaActual.id)
+        logger.log('[Mis clientes] Usando ruta actual + buildRutaHoyOperativa:', rutaActual.id)
         const hoyBogota = hoyBogotaKey
         const resp = await rutasService.obtenerVisitasDelDia(rutaActual.id, hoyBogota)
         const pagosResp = await pagosService.obtenerPagos({ limit: 5000 })
@@ -858,7 +859,7 @@ const VistaCobrador = () => {
       const resp = await rutasService.obtenerCreditosAsignadosACobrador(cobradorId)
 
       if (process.env.NODE_ENV !== 'production') {
-        console.log('[Mis clientes] cobradorId:', cobradorId, 'resp:', JSON.stringify(resp)?.substring(0, 500))
+        logger.log('[Mis clientes] cobradorId:', cobradorId, 'resp:', JSON.stringify(resp)?.substring(0, 500))
       }
 
       const raw = (resp as any)?.data
@@ -1862,7 +1863,7 @@ const VistaCobrador = () => {
           ;(Array.isArray(visitasEnriquecidas) ? visitasEnriquecidas : []).forEach((v: any) => {
             const nombre = String(v?.cliente || '').toLowerCase()
             if (!nombre.includes(debugRutaClienteQuery)) return
-            console.log('[DEBUG VISITA]', {
+            logger.log('[DEBUG VISITA]', {
               id: v?.id,
               cliente: v?.cliente,
               tipoPrestamo: (v as any)?.tipoPrestamo,
@@ -2815,7 +2816,7 @@ const VistaCobrador = () => {
       ''
     ).trim();
 
-    console.log('[REPROGRAMACION DEBUG]', {
+    logger.log('[REPROGRAMACION DEBUG]', {
       prestamoId: visitaReprogramar.prestamoId,
       clienteId: visitaReprogramar.clienteId,
       cuotaId,
@@ -3497,7 +3498,7 @@ const VistaCobrador = () => {
 
 
   const handleAbrirClienteInfo = useCallback((visita: VisitaRuta) => {
-    console.log('[VistaCobrador] abrir ClienteInfoModal', {
+    logger.log('[VistaCobrador] abrir ClienteInfoModal', {
       id: visita.id,
       clienteId: visita.clienteId,
       prestamoId: visita.prestamoId,
@@ -4890,7 +4891,7 @@ const VistaCobrador = () => {
 
             onClienteCreado={(nuevo) => {
 
-              console.log('Nuevo cliente creado:', nuevo)
+              logger.log('Nuevo cliente creado:', nuevo)
 
               setShowNewClientModal(false)
 
@@ -4909,7 +4910,7 @@ const VistaCobrador = () => {
               setClientToEdit(null);
             }}
             onClienteCreado={(updatedClient) => {
-              console.log('Cliente actualizado:', updatedClient);
+              logger.log('Cliente actualizado:', updatedClient);
               setShowEditClientModal(false);
               setClientToEdit(null);
               // Recargar clientes asignados
@@ -5154,7 +5155,7 @@ const VistaCobrador = () => {
 
                 const saldo = await obtenerSaldoDisponibleRuta(rutaActual.id, hoyClave);
 
-                console.log('[GASTO][SALDO DESPUÉS DE REGISTRAR]', saldo)
+                logger.log('[GASTO][SALDO DESPUÉS DE REGISTRAR]', saldo)
 
                 const saldoCajaBackend = Number(
                   (saldo as any)?.saldoCaja ??

@@ -45,7 +45,15 @@ apiClient.interceptors.response.use(
 
     // Si el error es de red (desconexión, timeout) y no hemos reintentado ya
     if (!config._retry && (!error.response || error.code === 'ECONNABORTED' || error.message === 'Network Error')) {
-      
+
+      // Si el navegador está offline, NO tiene sentido conmutar al servidor de
+      // contingencia: ese intento solo produce un error de red extra (o un
+      // error de CORS al golpear el backend público desde localhost). Se
+      // rechaza directo y las capas superiores usan la caché offline.
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        return Promise.reject(error);
+      }
+
       // Evitar reintento si la URL secundaria es idéntica a la primaria
       if (primaryBase === secondaryBase) {
         return Promise.reject(error);

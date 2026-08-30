@@ -1,4 +1,5 @@
 import { isPagoCierrePendiente } from '@/lib/ruta-recaudos'
+import { logger } from '@/lib/logger'
 import { getPagoBogotaDateKey, shouldExcludeVisitaFromOperationalMeta } from '@/lib/rutas-core'
 import { mapNivelRiesgo, type VisitaRuta } from '@/lib/types/cobranza'
 import { resolveRiesgoObligacion } from '@/lib/rutas/riesgo-obligacion'
@@ -412,9 +413,9 @@ export const buildHistorialDiaFromBackend = (params: {
 
   // LOGS DE AUDITORÍA: Ver qué devuelve el backend
   if (process.env.NODE_ENV !== 'production') {
-    console.log(`[buildHistorialDiaFromBackend] Fecha: ${fechaClave}`)
-    console.log(`[buildHistorialDiaFromBackend] Obligaciones: ${obligacionesRaw.length}`)
-    console.log(`[buildHistorialDiaFromBackend] Visitas: ${Array.isArray((visitasResp as any)?.visitas) ? (visitasResp as any).visitas.length : 0}`)
+    logger.log(`[buildHistorialDiaFromBackend] Fecha: ${fechaClave}`)
+    logger.log(`[buildHistorialDiaFromBackend] Obligaciones: ${obligacionesRaw.length}`)
+    logger.log(`[buildHistorialDiaFromBackend] Visitas: ${Array.isArray((visitasResp as any)?.visitas) ? (visitasResp as any).visitas.length : 0}`)
     console.table((pagosOperativos || []).map((p: any) => ({
       tipo: 'PAGO_HISTORIAL',
       id: p.id,
@@ -1082,7 +1083,7 @@ export const buildHistorialDiaFromBackend = (params: {
       nivelRiesgo: v.nivelRiesgo,
       nivelRiesgoObligacion: v.nivelRiesgoObligacion,
     })))
-    console.log('[HISTORIAL_RESUMEN_FINAL]', resumenFinal)
+    logger.log('[HISTORIAL_RESUMEN_FINAL]', resumenFinal)
   }
 
   return { resumen: resumenFinal, visitas: filteredVisitas }
