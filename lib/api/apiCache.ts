@@ -32,7 +32,9 @@ const getDb = async () => {
 };
 
 export const getCacheKey = (method: string, url: string, params?: Record<string, unknown>) => {
-  const base = `${method.toUpperCase()}:${url}`;
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+  const sessionNamespace = token ? hashSessionToken(token) : 'anonymous';
+  const base = `${sessionNamespace}:${method.toUpperCase()}:${url}`;
   if (!params || Object.keys(params).length === 0) return base;
   // Serializar params ordenados para que el mismo conjunto de filtros genere la misma clave
   const sorted = Object.keys(params).sort().reduce<Record<string, unknown>>((acc, k) => {
@@ -41,6 +43,15 @@ export const getCacheKey = (method: string, url: string, params?: Record<string,
   }, {});
   if (Object.keys(sorted).length === 0) return base;
   return `${base}?${JSON.stringify(sorted)}`;
+};
+
+const hashSessionToken = (token: string): string => {
+  let hash = 2166136261;
+  for (let index = 0; index < token.length; index += 1) {
+    hash ^= token.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(16);
 };
 
 
@@ -89,6 +100,8 @@ export const invalidateCache = async () => {
     console.error('Error clearing cache:', error);
   }
 };
+
+export const clearCache = invalidateCache;
 
 // Opcional: limpiar entradas expiradas manualmente (puedes llamarla periódicamente)
 export const cleanExpired = async () => {

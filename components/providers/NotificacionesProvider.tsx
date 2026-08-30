@@ -105,6 +105,7 @@ export function NotificacionesProvider({ children }: { children: React.ReactNode
       reconnectionAttempts: 10,
       reconnectionDelay: 1000,
       withCredentials: true,
+      auth: { token },
     })
 
     let hasLoggedError = false;

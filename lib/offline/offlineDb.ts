@@ -77,6 +77,7 @@ export interface OfflineQueueItem {
   retries: number;
   lastError?: string;
   priority: 'high' | 'normal' | 'low';
+  userId: string;
 }
 
 export interface SyncMeta {
@@ -267,7 +268,7 @@ export const offlineStore = {
     await db.clear(store);
   },
 
-  // Limpiar todos los datos locales (excepto la cola de operaciones)
+  // Limpiar todos los datos locales al cerrar sesión o cambiar de cuenta
   async clearAll(): Promise<void> {
     const db = await getOfflineDb();
     await Promise.all([
@@ -278,6 +279,7 @@ export const offlineStore = {
       db.clear('productos'),
       db.clear('cajas'),
       db.clear('usuarios'),
+      db.clear('offline-queue'),
       db.clear('sync-meta'),
     ]);
   },

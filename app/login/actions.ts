@@ -25,7 +25,8 @@ export async function setAuthCookiesAction(token: string, rol: string): Promise<
     cookieStore.set('token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      maxAge: 60 * 60 * 24 * 365 * 100, // 100 años (Prácticamente nunca expira)
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 8,
       path: '/',
     });
     
@@ -33,6 +34,9 @@ export async function setAuthCookiesAction(token: string, rol: string): Promise<
     if (rol) {
       cookieStore.set('user_role', rol, {
         httpOnly: false,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 8,
         path: '/',
       });
     }
