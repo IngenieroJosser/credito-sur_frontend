@@ -9,7 +9,7 @@ const withPWA = require("@ducanh2912/next-pwa").default({
   // Pagina de respaldo cuando una navegacion no esta en cache y no hay red.
   // next-pwa la precachea y la sirve en vez del error del navegador.
   fallbacks: {
-    document: '/offline',
+    document: '/contingencia',
   },
   workboxOptions: {
     disableDevLogs: true,
