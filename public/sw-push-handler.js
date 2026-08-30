@@ -214,4 +214,5 @@ self.addEventListener('notificationclose', function(event) {
   console.log('[SW] Notificación cerrada:', event);
 });
 
-console.log('[SW] Push handler cargado');
+// Log de carga silenciado para no ensuciar la consola en cada init del SW.
+// console.log('[SW] Push handler cargado');
