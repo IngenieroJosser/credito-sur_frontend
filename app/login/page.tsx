@@ -22,7 +22,8 @@ import { Eye, EyeOff, Lock, User, ChevronRight, WifiOff } from 'lucide-react';
 import { LoginData } from '@/lib/types/autenticacion-type';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
-import { restoreOfflineSession, hasValidOfflineSession, getOfflineSessionDaysRemaining, isTokenExpired, cacheSession } from '@/lib/auth/offlineAuth';
+import { restoreOfflineSession, hasValidOfflineSession, getOfflineSessionDaysRemaining, isTokenExpired, cacheSession, guardarHashCredencial, verificarCredencialOffline, hayCredencialOffline } from '@/lib/auth/offlineAuth';
+import { esErrorDeRed } from '@/lib/offline/conRespaldoOffline';
 import { setAuthCookiesAction } from './actions';
 import { apiClient } from '@/lib/api/apiClient';
 import { formatRoleLabel } from '@/lib/display-labels';
@@ -168,41 +169,43 @@ const LoginPage = () => {
     });
   };
 
-  // Acceso offline con sesión cacheada
-  const handleOfflineAccess = () => {
+  // Acceso offline con sesión cacheada, VERIFICANDO la contraseña contra el
+  // hash local (ya no hay acceso offline sin contraseña).
+  const handleOfflineAccess = async () => {
     if (!hasValidOfflineSession()) {
       showToast('No hay sesión offline disponible', '', 'error');
       return;
     }
-
+    const identificador = formData.nombres.trim();
+    if (!identificador || !formData.password.trim()) {
+      setError('Ingresa tu usuario y contraseña para entrar sin conexión.');
+      return;
+    }
+    if (hayCredencialOffline()) {
+      const ok = await verificarCredencialOffline(identificador, formData.password.trim());
+      if (!ok) {
+        setError('Contraseña incorrecta (modo sin conexión).');
+        showToast('Contraseña incorrecta', 'Modo sin conexión', 'error');
+        return;
+      }
+    }
     const restored = restoreOfflineSession();
     if (!restored) {
       showToast('Error al restaurar sesión offline', '', 'error');
       return;
     }
-
     const user = restored.user;
     const roleRedirects: Record<string, string> = {
-      'COBRADOR': '/cobranzas',
-      'COORDINADOR': '/coordinador',
-      'SUPER_ADMINISTRADOR': '/admin',
-      'ADMINISTRADOR': '/admin',
-      'SUPERVISOR': '/supervisor',
-      'CONTADOR': '/contador/contable',
-      'PUNTO_DE_VENTA': '/punto-de-venta'
+      COBRADOR: '/cobranzas', COORDINADOR: '/coordinador', SUPER_ADMINISTRADOR: '/admin',
+      ADMINISTRADOR: '/admin', SUPERVISOR: '/supervisor', CONTADOR: '/contador/contable',
+      PUNTO_DE_VENTA: '/punto-de-venta',
     };
-
-    const redirectPath = roleRedirects[user.rol] || '/admin';
-    const userName = user.nombres || 'Usuario';
-    
-    showToast('Modo Offline', `${userName} (${formatRoleLabel(user.rol)})`, 'success');
-    
+    const redirectPath = roleRedirects[user?.rol] || '/admin';
+    showToast('Modo sin conexión', `${user?.nombres || 'Usuario'} (${formatRoleLabel(user?.rol || 'Usuario')})`, 'success');
     setTimeout(() => {
       setIsRedirecting(true);
-      setTimeout(() => {
-        window.location.href = redirectPath;
-      }, 500);
-    }, 800);
+      setTimeout(() => { window.location.href = redirectPath; }, 400);
+    }, 600);
   };
 
   // Lógica principal de inicio de sesión
@@ -254,6 +257,9 @@ const LoginPage = () => {
           localStorage.setItem('token', result.access_token);
           // Cachear sesión para que el modo offline funcione cuando no hay internet
           cacheSession(result.access_token, userData);
+          // Guardar hash de la contraseña para poder VERIFICAR el login offline
+          // (p. ej. tras un apagón, sin internet). No guarda la contraseña.
+          guardarHashCredencial(formData.nombres.trim(), formData.password.trim()).catch(() => {});
         }
       }
 
@@ -311,15 +317,59 @@ const LoginPage = () => {
       // mientras cambiamos de página, previniendo doble click y saltos visuales.
 
     } catch (err: any) {
+      // ── LOGIN OFFLINE ────────────────────────────────────────────────────
+      // Si el fallo es por falta de red (p. ej. tras un apagón en Quibdó, el
+      // equipo reinicia y sigue sin internet) intentamos entrar con la sesión
+      // cacheada, verificando la contraseña contra el hash local. Así el usuario
+      // recupera el acceso y su cola pendiente sin depender del servidor.
+      if (esErrorDeRed(err) && hasValidOfflineSession()) {
+        const identificador = formData.nombres.trim();
+        let permitido = false;
+        if (hayCredencialOffline()) {
+          permitido = await verificarCredencialOffline(identificador, formData.password.trim());
+          if (!permitido) {
+            setError('Contraseña incorrecta (modo sin conexión).');
+            showToast('Contraseña incorrecta', 'Modo sin conexión', 'error');
+            setIsLoading(false);
+            return;
+          }
+        } else {
+          // Compatibilidad: sesión cacheada de antes de esta función (sin hash).
+          // Se permite el acceso para no bloquear a quien ya tenía sesión.
+          permitido = true;
+        }
+
+        if (permitido) {
+          const restored = restoreOfflineSession();
+          if (restored) {
+            const user = restored.user;
+            const roleRedirects: Record<string, string> = {
+              COBRADOR: '/cobranzas', COORDINADOR: '/coordinador', SUPER_ADMINISTRADOR: '/admin',
+              ADMINISTRADOR: '/admin', SUPERVISOR: '/supervisor', CONTADOR: '/contador/contable',
+              PUNTO_DE_VENTA: '/punto-de-venta',
+            };
+            const redirectPath = roleRedirects[user?.rol] || '/admin';
+            showToast('Modo sin conexión', `${user?.nombres || 'Usuario'} (${formatRoleLabel(user?.rol || 'Usuario')})`, 'success');
+            setTimeout(() => {
+              setIsRedirecting(true);
+              setTimeout(() => { window.location.href = redirectPath; }, 400);
+            }, 600);
+            return; // No mostramos error: entramos en modo offline
+          }
+        }
+      }
+
       console.error('Error en login:', err);
       // Manejamos el error de forma amigable (axios data vs generic error)
       const axiosMsg = err?.response?.data?.message;
       let msg = axiosMsg || (err instanceof Error ? err.message : 'Error al iniciar sesión');
-      
+
       if (err?.response?.status === 401) {
         msg = 'Credenciales incorrectas';
       } else if (err?.code === 'ECONNABORTED' || msg.includes('timeout')) {
         msg = 'El servidor está iniciando (Cold Start). Sigue intentando un momento más.';
+      } else if (esErrorDeRed(err)) {
+        msg = 'Sin conexión y sin sesión offline en este equipo. Conéctate al menos una vez para poder trabajar sin internet.';
       }
 
       setError(msg);
