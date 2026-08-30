@@ -83,6 +83,14 @@ const LoginPage = () => {
   const currentYear = new Date().getFullYear();
 
   // Este efecto oculta la notificación automáticamente después de 3 segundos
+  // Si el dispositivo estuvo deslogueado mas de 8 h, purga la cache offline
+  // de datos sensibles (periodo de gracia tras cerrar sesion).
+  useEffect(() => {
+    import('@/lib/auth/offlineAuth')
+      .then((m) => m.purgarDatosOfflineSiVencio())
+      .catch(() => {})
+  }, [])
+
   useEffect(() => {
     if (toast.show) {
       const timer = setTimeout(() => {

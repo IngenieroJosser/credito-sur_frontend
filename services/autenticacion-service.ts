@@ -14,9 +14,7 @@
  */
 import { apiRequest } from "@/lib/api/api";
 import { AuthResponse, LoginData, UserProfile } from "@/lib/types/autenticacion-type";
-import { cacheSession, clearCachedSession } from "@/lib/auth/offlineAuth";
-import { clearCache } from "@/lib/api/apiCache";
-import { offlineStore } from "@/lib/offline/offlineDb";
+import { cacheSession, clearCachedSession, programarPurgaDatosOffline } from "@/lib/auth/offlineAuth";
 import { logoutAction } from "@/app/login/actions";
 
 export async function iniciarSesion(dataLogin: LoginData) {
@@ -51,11 +49,12 @@ export async function cerrarSesion() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     clearCachedSession();
-    await clearCache();
-    await offlineStore.clearAll();
-    if ('caches' in window) {
-      const cacheNames = await caches.keys();
-      await Promise.all(cacheNames.map((cacheName) => caches.delete(cacheName)));
-    }
+
+    // No se borra la cache al instante: se programa una purga completa para 8 h
+    // despues (datos offline + cache de API + caches del navegador/PWA). Asi,
+    // si el usuario vuelve a entrar dentro de ese margen, no pierde sus datos
+    // ni tiene que re-descargar. Si no vuelve, todo se limpia al abrir la app
+    // pasadas las 8 h. La cola offline (trabajo sin enviar) nunca se toca.
+    programarPurgaDatosOffline();
   }
 }

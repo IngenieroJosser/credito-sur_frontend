@@ -142,6 +142,14 @@ export default function AdminLayout({
     setIsMenuOpen(false)
   }
 
+  // Al abrir la app: si hubo un logout hace mas de 8 h y no se volvio a
+  // entrar, se purga la cache offline de datos sensibles (periodo de gracia).
+  useEffect(() => {
+    import('@/lib/auth/offlineAuth')
+      .then((m) => m.purgarDatosOfflineSiVencio())
+      .catch(() => {})
+  }, [])
+
   useEffect(() => {
     if (!seenModulesStorageKey) return
     try {
@@ -507,6 +515,7 @@ export default function AdminLayout({
   */
 
   const handleLogout = async () => {
+    // cerrarSesion programa la purga diferida (8 h) de la cache offline.
     await cerrarSesion()
     router.replace('/login')
   }
