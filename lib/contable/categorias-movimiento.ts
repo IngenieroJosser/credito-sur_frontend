@@ -25,55 +25,55 @@ export interface CategoriaMovimiento {
 export const CATEGORIAS_INGRESO: CategoriaMovimiento[] = [
   {
     code: 'APORTE_CAPITAL',
-    label: 'Aporte de Capital',
+    label: 'Dinero que pone el dueño',
     cuenta: '2.1',
     cuentaNombre: 'Capital del Propietario',
-    efecto: 'Entra como capital del dueño (patrimonio). NO cuenta como ganancia.',
+    efecto: 'Plata que el dueño mete al negocio para trabajar. No es una ganancia.',
   },
   {
     code: 'AJUSTE_POSITIVO',
-    label: 'Ajuste de Caja (+)',
+    label: 'Sobrante de caja',
     cuenta: '2.4',
     cuentaNombre: 'Ajustes Pendientes',
-    efecto: 'Entra como un ajuste por explicar después. NO es ganancia operativa.',
+    efecto: 'Apareció dinero de más en la caja y la cuadras. Queda por explicar; no es ganancia.',
   },
   {
     code: 'OTROS_INGRESOS',
-    label: 'Otros Ingresos',
+    label: 'Otra entrada (ganancia)',
     cuenta: '3.3',
     cuentaNombre: 'Otros Ingresos',
-    efecto: 'Entra como un ingreso operativo (SÍ cuenta como ganancia).',
+    efecto: 'Cualquier otra entrada de dinero que SÍ es ganancia del negocio.',
   },
 ];
 
 export const CATEGORIAS_EGRESO: CategoriaMovimiento[] = [
   {
     code: 'GASTO_OPERATIVO',
-    label: 'Gasto Operativo (Transporte, Comida)',
+    label: 'Gasto del día a día',
     cuenta: '4.1',
     cuentaNombre: 'Gastos Operativos',
-    efecto: 'Sale como gasto operativo (reduce la utilidad).',
+    efecto: 'Transporte, comida, combustible… lo que se gasta operando la ruta.',
   },
   {
     code: 'GASTO_ADMINISTRATIVO',
-    label: 'Gasto Administrativo (Papelería, Servicios)',
+    label: 'Gasto de oficina',
     cuenta: '4.2',
     cuentaNombre: 'Gastos Administrativos',
-    efecto: 'Sale como gasto administrativo (reduce la utilidad).',
+    efecto: 'Papelería, servicios, arriendo… gastos de administración.',
   },
   {
     code: 'BASE_COBRADOR',
-    label: 'Entrega Base a Cobrador',
+    label: 'Entregar base a un cobrador',
     cuenta: '1.4.1',
     cuentaNombre: 'Deuda de Cobradores',
-    efecto: 'Sale de la caja y queda como deuda del cobrador. NO es un gasto.',
+    efecto: 'Le das dinero al cobrador para prestar. Queda como su deuda, no es un gasto.',
   },
   {
     code: 'RETIRO_UTILIDADES',
-    label: 'Retiro de Utilidades',
+    label: 'El dueño saca ganancias',
     cuenta: '2.2',
     cuentaNombre: 'Retiro de Utilidades',
-    efecto: 'Sale del patrimonio (retiro del dueño). NO es un gasto.',
+    efecto: 'El dueño retira ganancias del negocio. No es un gasto.',
   },
 ];
 

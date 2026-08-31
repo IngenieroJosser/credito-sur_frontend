@@ -13,6 +13,7 @@ import { createTransaccion, getCajaById, getMovimientosLedger, type MovimientoLe
 import { usuariosService } from '@/services/usuarios-service'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { formatRoleLabel } from '@/lib/display-labels'
+import { categoriasPorTipo } from '@/lib/contable/categorias-movimiento'
 
 interface CajaDetalle {
   id: string
@@ -198,18 +199,14 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
     }
   }
 
-  const [categoriasIngreso, setCategoriasIngreso] = useState([
-    { id: 'APORTE_CAPITAL', label: 'Aporte de Capital' },
-    { id: 'AJUSTE_POSITIVO', label: 'Ajuste de Caja (+)' },
-    { id: 'OTROS_INGRESOS', label: 'Otros Ingresos' },
-  ])
+  // Mismos nombres claros que el panel general (fuente única).
+  const [categoriasIngreso, setCategoriasIngreso] = useState(
+    categoriasPorTipo('INGRESO').map((c) => ({ id: c.code, label: c.label })),
+  )
 
-  const [categoriasEgreso, setCategoriasEgreso] = useState([
-    { id: 'GASTO_OPERATIVO', label: 'Gasto Operativo (Transporte, Comida)' },
-    { id: 'GASTO_ADMINISTRATIVO', label: 'Gasto Administrativo (Papelería, Servicios)' },
-    { id: 'BASE_COBRADOR', label: 'Entrega Base a Cobrador' },
-    { id: 'RETIRO_UTILIDADES', label: 'Retiro de Utilidades' },
-  ])
+  const [categoriasEgreso, setCategoriasEgreso] = useState(
+    categoriasPorTipo('EGRESO').map((c) => ({ id: c.code, label: c.label })),
+  )
 
   // Estado para crear nueva categoría inline
   const [nuevaCategoria, setNuevaCategoria] = useState('')

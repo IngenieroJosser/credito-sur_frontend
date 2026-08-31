@@ -2261,39 +2261,50 @@ const ModuloContableContent = () => {
                 )}
 
                 {/* Detalles Financieros */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {movimientoForm.origen === 'EMPRESA' && (
-                  <div className="space-y-1.5 flex flex-col justify-end">
-                    <FieldLabel required className="text-xs font-bold text-slate-500 uppercase ml-1 mb-1.5">Categoría</FieldLabel>
-                    {/* Categorías PREDEFINIDAS con su código contable: se manda el
-                        código (p. ej. APORTE_CAPITAL), no un id, para que el
-                        backend asigne la cuenta correcta (capital, no ganancia). */}
-                    <select
-                      value={movimientoForm.categoriaId}
-                      onChange={(e) => setMovimientoForm(p => ({ ...p, categoriaId: e.target.value, categoria: e.target.value }))}
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-sm font-semibold text-slate-700 focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none transition-all shadow-sm"
-                    >
-                      <option value="">Seleccionar...</option>
-                      {categoriasPorTipo(movimientoForm.tipo === 'INGRESO' ? 'INGRESO' : 'EGRESO').map((c) => (
-                        <option key={c.code} value={c.code}>{c.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                  )}
-
+                {/* Categoría: tarjetas con nombre claro + explicación de qué hace
+                    cada una. Se manda el CÓDIGO (p. ej. APORTE_CAPITAL), no un id,
+                    para que el backend asigne la cuenta correcta. */}
+                {movimientoForm.origen === 'EMPRESA' && (
                   <div className="space-y-1.5">
-                    <FieldLabel required className="text-xs font-bold text-slate-500 uppercase ml-1 mb-1.5">Monto de Operación</FieldLabel>
-                    <div className="relative">
-                      <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        value={movimientoForm.montoInput}
-                        onChange={(e) => setMovimientoForm((p) => ({ ...p, montoInput: formatCOPInputValue(e.target.value) }))}
-                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white font-bold text-slate-900 placeholder:text-slate-300 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
-                        placeholder="0"
-                      />
+                    <FieldLabel required className="text-xs font-bold text-slate-500 uppercase ml-1 mb-1.5">
+                      ¿Qué tipo de {movimientoForm.tipo === 'INGRESO' ? 'entrada' : 'salida'} es?
+                    </FieldLabel>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {categoriasPorTipo(movimientoForm.tipo === 'INGRESO' ? 'INGRESO' : 'EGRESO').map((c) => {
+                        const activa = movimientoForm.categoriaId === c.code
+                        return (
+                          <button
+                            key={c.code}
+                            type="button"
+                            onClick={() => setMovimientoForm(p => ({ ...p, categoriaId: c.code, categoria: c.code }))}
+                            className={cn(
+                              'text-left rounded-xl border p-3 transition-all min-w-0',
+                              activa
+                                ? 'border-blue-400 bg-blue-50 ring-2 ring-blue-100'
+                                : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50',
+                            )}
+                          >
+                            <div className="text-sm font-bold text-slate-900 break-words">{c.label}</div>
+                            <div className="text-[11px] text-slate-500 mt-0.5 leading-snug break-words">{c.efecto}</div>
+                          </button>
+                        )
+                      })}
                     </div>
+                  </div>
+                )}
+
+                <div className="space-y-1.5">
+                  <FieldLabel required className="text-xs font-bold text-slate-500 uppercase ml-1 mb-1.5">Monto de Operación</FieldLabel>
+                  <div className="relative">
+                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={movimientoForm.montoInput}
+                      onChange={(e) => setMovimientoForm((p) => ({ ...p, montoInput: formatCOPInputValue(e.target.value) }))}
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white font-bold text-slate-900 placeholder:text-slate-300 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
+                      placeholder="0"
+                    />
                   </div>
                 </div>
 
