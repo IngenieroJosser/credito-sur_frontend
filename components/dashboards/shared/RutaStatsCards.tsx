@@ -89,13 +89,13 @@ export function RutaStatsCards({ rutaStats, periodo = 'HOY', userRol }: RutaStat
 
       {/* Tarjeta 1: Recaudo */}
       <StatCard>
-        <div className="flex justify-between items-start mb-4">
-          <div>
+        <div className="flex justify-between items-start mb-4 gap-3">
+          <div className="min-w-0 flex-1">
             <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
               Recaudo {labelPeriodo(periodo, 'capital')}
             </p>
-            <div className="flex items-baseline gap-2 mt-2">
-              <h3 className="text-2xl font-bold text-slate-900">
+            <div className="flex items-baseline gap-2 mt-2 min-w-0 flex-wrap">
+              <h3 className="text-2xl font-bold text-slate-900 tabular-nums break-words min-w-0">
                 {formatCurrency(recaudo)}
               </h3>
               <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
@@ -103,7 +103,7 @@ export function RutaStatsCards({ rutaStats, periodo = 'HOY', userRol }: RutaStat
               </span>
             </div>
           </div>
-          <div className="p-3 bg-blue-50/50 rounded-xl border border-blue-100 group-hover:scale-110 transition-transform">
+          <div className="p-3 bg-blue-50/50 rounded-xl border border-blue-100 group-hover:scale-110 transition-transform shrink-0">
             <DollarSign className="h-5 w-5 text-blue-600" />
           </div>
         </div>
@@ -114,13 +114,13 @@ export function RutaStatsCards({ rutaStats, periodo = 'HOY', userRol }: RutaStat
 
       {/* Tarjeta 2: Efectividad */}
       <StatCard>
-        <div className="flex justify-between items-start mb-4">
-          <div>
+        <div className="flex justify-between items-start mb-4 gap-3">
+          <div className="min-w-0 flex-1">
             <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
               Efectividad
             </p>
-            <div className="flex items-baseline gap-2 mt-2">
-              <h3 className="text-2xl font-bold text-slate-900">
+            <div className="flex items-baseline gap-2 mt-2 min-w-0 flex-wrap">
+              <h3 className="text-2xl font-bold text-slate-900 tabular-nums break-words min-w-0">
                 {eficienciaShown}%
               </h3>
               <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${ef.clase}`}>
@@ -128,7 +128,7 @@ export function RutaStatsCards({ rutaStats, periodo = 'HOY', userRol }: RutaStat
               </span>
             </div>
           </div>
-          <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100 group-hover:scale-110 transition-transform">
+          <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100 group-hover:scale-110 transition-transform shrink-0">
             <Target className="h-5 w-5 text-emerald-600" />
           </div>
         </div>
@@ -145,18 +145,18 @@ export function RutaStatsCards({ rutaStats, periodo = 'HOY', userRol }: RutaStat
 
       {/* Tarjeta 3: Gastos */}
       <StatCard>
-        <div className="flex justify-between items-start mb-4">
-          <div>
+        <div className="flex justify-between items-start mb-4 gap-3">
+          <div className="min-w-0 flex-1">
             <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
               Gastos {labelPeriodo(periodo, 'capital')}
             </p>
-            <div className="flex items-baseline gap-2 mt-2">
-              <h3 className="text-2xl font-bold text-slate-900">
+            <div className="flex items-baseline gap-2 mt-2 min-w-0 flex-wrap">
+              <h3 className="text-2xl font-bold text-slate-900 tabular-nums break-words min-w-0">
                 {formatCurrency(rutaStats.gastos)}
               </h3>
             </div>
           </div>
-          <div className="p-3 bg-rose-50 rounded-xl border border-rose-100 group-hover:scale-110 transition-transform">
+          <div className="p-3 bg-rose-50 rounded-xl border border-rose-100 group-hover:scale-110 transition-transform shrink-0">
             <Receipt className="h-5 w-5 text-rose-600" />
           </div>
         </div>
@@ -170,18 +170,18 @@ export function RutaStatsCards({ rutaStats, periodo = 'HOY', userRol }: RutaStat
 
       {/* Tarjeta 4: Base Efectivo */}
       <StatCard>
-        <div className="flex justify-between items-start mb-4">
-          <div>
+        <div className="flex justify-between items-start mb-4 gap-3">
+          <div className="min-w-0 flex-1">
             <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
               {baseLabel}
             </p>
-            <div className="flex items-baseline gap-2 mt-2">
-              <h3 className="text-2xl font-bold text-slate-900">
+            <div className="flex items-baseline gap-2 mt-2 min-w-0 flex-wrap">
+              <h3 className="text-2xl font-bold text-slate-900 tabular-nums break-words min-w-0">
                 {formatCurrency(rutaStats.base)}
               </h3>
             </div>
           </div>
-          <div className="p-3 bg-amber-50 rounded-xl border border-amber-100 group-hover:scale-110 transition-transform">
+          <div className="p-3 bg-amber-50 rounded-xl border border-amber-100 group-hover:scale-110 transition-transform shrink-0">
             <Wallet className="h-5 w-5 text-amber-600" />
           </div>
         </div>
