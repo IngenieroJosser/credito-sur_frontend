@@ -86,7 +86,7 @@ import {
 import { toast } from 'sonner'
 import { rutasService, type Ruta as ApiRuta } from '@/services/rutas-service'
 import { exportService } from '@/services/export-service'
-import SelectCategoria from '@/components/ui/SelectCategoria'
+import { categoriasPorTipo, mensajeEfectoMovimiento } from '@/lib/contable/categorias-movimiento'
 import AnimacionCarga from '@/components/ui/AnimacionCarga'
 import Link from 'next/link'
 import DeudorasCobradorCard from '@/components/contable/DeudorasCobradorCard'
@@ -2262,18 +2262,24 @@ const ModuloContableContent = () => {
 
                 {/* Detalles Financieros */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {movimientoForm.origen === 'EMPRESA' && (
                   <div className="space-y-1.5 flex flex-col justify-end">
-                    <SelectCategoria
-                        tipo={movimientoForm.tipo === 'INGRESO' ? 'INGRESO' : 'GASTO'}
-                        label="Categoría"
-                        required
-                        placeholder="Seleccionar..."
-                        value={movimientoForm.categoriaId}
-                        onChange={(val) => setMovimientoForm(p => ({ ...p, categoriaId: val, categoria: '' }))}
-                        // Forzamos un valor por defecto visual si no hay selección (aunque SelectCategoria maneja su estado)
-                        // La idea es que el componente SelectCategoria debería permitir seleccionar "INGRESO" o "EGRESO" base
-                    />
+                    <FieldLabel required className="text-xs font-bold text-slate-500 uppercase ml-1 mb-1.5">Categoría</FieldLabel>
+                    {/* Categorías PREDEFINIDAS con su código contable: se manda el
+                        código (p. ej. APORTE_CAPITAL), no un id, para que el
+                        backend asigne la cuenta correcta (capital, no ganancia). */}
+                    <select
+                      value={movimientoForm.categoriaId}
+                      onChange={(e) => setMovimientoForm(p => ({ ...p, categoriaId: e.target.value, categoria: e.target.value }))}
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-sm font-semibold text-slate-700 focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none transition-all shadow-sm"
+                    >
+                      <option value="">Seleccionar...</option>
+                      {categoriasPorTipo(movimientoForm.tipo === 'INGRESO' ? 'INGRESO' : 'EGRESO').map((c) => (
+                        <option key={c.code} value={c.code}>{c.label}</option>
+                      ))}
+                    </select>
                   </div>
+                  )}
 
                   <div className="space-y-1.5">
                     <FieldLabel required className="text-xs font-bold text-slate-500 uppercase ml-1 mb-1.5">Monto de Operación</FieldLabel>
@@ -2291,9 +2297,29 @@ const ModuloContableContent = () => {
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-xs font-semibold text-blue-800">
-                  La cuenta contable se asigna automáticamente por el sistema según el tipo de movimiento, caja y categoría.
-                </div>
+                {/* Mensaje DINÁMICO: explica exactamente qué hará este movimiento
+                    con la categoría elegida (a qué cuenta va, si es ganancia o no). */}
+                {(() => {
+                  if (movimientoForm.origen === 'COBRADOR') {
+                    return (
+                      <div className="rounded-2xl border border-orange-100 bg-orange-50/70 px-4 py-3 text-xs font-semibold text-orange-800">
+                        Transferencia entre cajas: el dinero se mueve de una caja a otra. No cuenta como ingreso ni como gasto del negocio.
+                      </div>
+                    );
+                  }
+                  const cajaNombre = cajas.find(c => c.id === movimientoForm.cajaId)?.nombre;
+                  const { texto, alerta } = mensajeEfectoMovimiento({
+                    tipo: movimientoForm.tipo === 'INGRESO' ? 'INGRESO' : 'EGRESO',
+                    categoriaCode: movimientoForm.categoriaId,
+                    montoFmt: movimientoForm.montoInput ? `$${movimientoForm.montoInput}` : undefined,
+                    cajaNombre,
+                  });
+                  return (
+                    <div className={`rounded-2xl border px-4 py-3 text-xs font-semibold ${alerta ? 'border-amber-200 bg-amber-50/70 text-amber-800' : 'border-blue-100 bg-blue-50/70 text-blue-800'}`}>
+                      {texto}
+                    </div>
+                  );
+                })()}
 
                 {/* Alerta de fondos insuficientes */}
                 {(() => {
