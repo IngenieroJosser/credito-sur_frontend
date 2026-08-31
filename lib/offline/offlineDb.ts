@@ -78,6 +78,12 @@ export interface OfflineQueueItem {
   lastError?: string;
   priority: 'high' | 'normal' | 'low';
   userId: string;
+  /**
+   * Id temporal (`temp-...`) que esta operación de creación genera para la UI.
+   * Al sincronizarse con éxito, se mapea al id real del servidor para reescribir
+   * las referencias en operaciones dependientes (p. ej. crédito → cliente).
+   */
+  tempId?: string;
 }
 
 export interface SyncMeta {

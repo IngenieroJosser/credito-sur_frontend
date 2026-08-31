@@ -37,7 +37,10 @@ export const syncService = {
     method: 'POST' | 'PUT' | 'DELETE' | 'PATCH',
     payload: unknown,
     description: string,
-    file?: Blob
+    file?: Blob,
+    // Id temporal que la UI generó para esta creación (para remapear luego al
+    // id real del servidor en operaciones dependientes).
+    tempId?: string
   ) {
     const idempotentTypes = new Set([
       'pago',
@@ -49,6 +52,8 @@ export const syncService = {
       'cliente_actualizar',
       'prestamo_create',
       'prestamo_crear',
+      'venta_contado',
+      'abono_deuda_cobrador',
     ]);
     const data =
       idempotentTypes.has(type) && payload && typeof payload === 'object' && !(payload instanceof FormData)
@@ -70,6 +75,7 @@ export const syncService = {
       fileName: file ? `upload_${Date.now()}` : undefined,
       description,
       priority: 'normal',
+      tempId,
     });
 
     logger.log(`[SyncService] Operacion encolada: ${description}`);

@@ -1,6 +1,7 @@
 'use client'
 
 import React, { ReactNode } from 'react'
+import { logger } from '@/lib/logger'
 import { createPortal } from 'react-dom'
 import { MapPin, Eye, Phone, GripVertical, XCircle, ChevronDown, Timer, CheckCircle2 } from 'lucide-react'
 import { useSortable } from '@dnd-kit/sortable'
@@ -241,7 +242,7 @@ function VisitaCardContent({
           onClickCapture={(e) => {
             e.stopPropagation()
 
-            console.log('[StaticVisitaItem] click capture ojo', {
+            logger.log('[StaticVisitaItem] click capture ojo', {
               id: visita.id,
               clienteId: visita.clienteId,
               prestamoId: visita.prestamoId,

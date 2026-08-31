@@ -8,6 +8,7 @@ import { renewOfflineSession, hasValidOfflineSession, shouldShowExpirationWarnin
 import { checkRealConnectivity } from '@/lib/offline/connectivity';
 import { subscribeToPush } from '@/lib/push/pushNotifications';
 import { savePushSubscription } from '@/lib/push/pushService';
+import { logger } from '@/lib/logger';
 
 export default function ServiceWorkerRegister() {
   useEffect(() => {
@@ -21,13 +22,13 @@ export default function ServiceWorkerRegister() {
         navigator.serviceWorker.getRegistrations().then(registrations => {
           for (const registration of registrations) {
             registration.unregister();
-            console.log('Service Worker desregistrado en desarrollo.');
+            logger.log('Service Worker desregistrado en desarrollo.');
           }
         });
       } else {
         navigator.serviceWorker.register("/sw.js")
           .then(reg => {
-            console.log('Service Worker registrado con éxito:', reg.scope);
+            logger.log('Service Worker registrado con éxito:', reg.scope);
           })
           .catch(err => {
             console.error('Error al registrar Service Worker:', err);
@@ -42,12 +43,22 @@ export default function ServiceWorkerRegister() {
     // Descargar datos para offline si hay sesión activa
     const token = localStorage.getItem('token');
     if (token) {
-      checkRealConnectivity().then((isOnline) => {
-        if (isOnline) {
-          syncManager.downloadAll().catch(() => {});
-          syncManager.processQueue().catch(() => {});
-        }
-      });
+      // Recuperación ante cierre abrupto (apagón): reactivar operaciones que
+      // quedaron a medio sincronizar. Se hace ANTES de procesar la cola.
+      import('@/lib/offline/offlineQueue')
+        .then(({ offlineQueue }) => offlineQueue.recoverInterrupted())
+        .then((recuperadas) => {
+          if (recuperadas > 0) logger.log(`[Offline] ${recuperadas} operación(es) recuperada(s) tras cierre abrupto.`);
+        })
+        .catch(() => {})
+        .finally(() => {
+          checkRealConnectivity().then((isOnline) => {
+            if (isOnline) {
+              syncManager.downloadAll().catch(() => {});
+              syncManager.processQueue().catch(() => {});
+            }
+          });
+        });
     }
 
     // Verificar y notificar si la sesión offline está por expirar
@@ -72,10 +83,10 @@ export default function ServiceWorkerRegister() {
           const sub = await subscribeToPush();
           if (sub) {
             await savePushSubscription(sub);
-            console.log('[Push] Suscripción sincronizada automáticamente');
+            logger.log('[Push] Suscripción sincronizada automáticamente');
           }
         } catch (err) {
-          console.warn('[Push] Error en sincronización automática:', err);
+          logger.warn('[Push] Error en sincronización automática:', err);
         }
       };
       // Pequeño delay para no interferir con la carga inicial

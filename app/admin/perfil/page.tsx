@@ -9,6 +9,7 @@ import { usuariosService, type Usuario } from '@/services/usuarios-service'
 import { obtenerPerfil } from '@/services/autenticacion-service'
 import { formatRoleName, getRoleColor, getRoleIcon } from '@/components/ui/UserDropdownMenu'
 import PushNotificationManager from '@/components/push/PushNotificationManager'
+import { logger } from '@/lib/logger'
 
 const VOLVER_RUTAS: Record<string, string> = {
   'SUPER_ADMINISTRADOR': '/admin',
@@ -71,7 +72,11 @@ const PerfilUsuarioPage = () => {
       setIsLoading(true)
       const perfil = await obtenerPerfil()
       let fullUser: Usuario | null = null
-      if (perfil.id) {
+      // Solo pedimos el perfil completo a la BD si hay red. Offline nos
+      // quedamos con lo del token/caché (evita la petición fallida y el
+      // failover CORS en consola). Online sí trae los datos completos.
+      const hayRed = typeof navigator === 'undefined' || navigator.onLine
+      if (perfil.id && hayRed) {
         try { fullUser = await usuariosService.obtenerPorId(perfil.id) } catch {}
       }
       setBackendUser(fullUser || {
@@ -105,12 +110,12 @@ const PerfilUsuarioPage = () => {
           localStorage.setItem('user', JSON.stringify(updated))
           window.dispatchEvent(new Event('userUpdated'))
         } catch (e) {
-          console.error('Error sincronizando profile sync:', e)
+          logger.warn('Error sincronizando datos de perfil en caché.')
         }
       }
       setError(null)
     } catch (err) {
-      console.error('Error cargando perfil:', err)
+      logger.warn('Perfil: usando datos locales (sin red o backend no disponible).')
       try {
         const userStr = localStorage.getItem('user')
         if (userStr) {

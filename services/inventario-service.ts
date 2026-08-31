@@ -1,6 +1,7 @@
 import { logger } from '@/lib/logger'
 import { apiRequest } from '@/lib/api/api';
 import { syncService } from '@/lib/offline/syncService';
+import { conRespaldoOffline } from '@/lib/offline/conRespaldoOffline';
 import { offlineStore } from '@/lib/offline/offlineDb';
 
 export interface PrecioProducto {
@@ -194,13 +195,21 @@ export const inventarioService = {
    * Restaurar un producto archivado
    */
   async restaurarProducto(id: string): Promise<Producto> {
-    return apiRequest<Producto>('PATCH', `/inventory/${id}/restore`, {});
+    return conRespaldoOffline(
+      () => apiRequest<Producto>('PATCH', `/inventory/${id}/restore`, {}),
+      { type: 'producto_restaurar', endpoint: `/inventory/${id}/restore`, method: 'PATCH', data: {}, description: `Restaurar producto ${id}` },
+      { id } as Producto,
+    );
   },
 
   /**
    * Ocultar un producto archivado
    */
   async ocultarProductoArchivado(id: string): Promise<Producto> {
-    return apiRequest<Producto>('PATCH', `/inventory/${id}/hide-archived`, {});
+    return conRespaldoOffline(
+      () => apiRequest<Producto>('PATCH', `/inventory/${id}/hide-archived`, {}),
+      { type: 'producto_ocultar_archivado', endpoint: `/inventory/${id}/hide-archived`, method: 'PATCH', data: {}, description: `Ocultar producto archivado ${id}` },
+      { id } as Producto,
+    );
   },
 };

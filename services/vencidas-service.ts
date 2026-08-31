@@ -1,4 +1,5 @@
 import { apiRequest, ApiRequestConfig } from '@/lib/api/api';
+import { conRespaldoOffline, esErrorDeRed } from '@/lib/offline/conRespaldoOffline';
 
 export type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA';
 export type EstadoPrestamo = 'EN_MORA' | 'INCUMPLIDO' | 'PERDIDA';
@@ -86,18 +87,29 @@ export const vencidasService = {
 
   // Procesar decisión de castigo
   async procesarDecision(decision: DecisionCastigoRequest): Promise<DecisionCastigoResponse> {
-    return apiRequest<DecisionCastigoResponse>('POST', 'reports/cuentas-vencidas/decision', decision);
+    return conRespaldoOffline(
+      () => apiRequest<DecisionCastigoResponse>('POST', 'reports/cuentas-vencidas/decision', decision),
+      { type: 'vencidas_decision', endpoint: 'reports/cuentas-vencidas/decision', method: 'POST', data: decision, description: `Decisión sobre cuenta vencida` },
+      { esOffline: true } as any,
+    );
   },
 
-  // Exportar reporte
+  // Exportar reporte (el servidor genera el archivo: requiere conexión).
   async exportarReporteVencidas(
     formato: 'excel' | 'pdf',
     filtros?: CuentasVencidasFiltros
   ) {
-    return apiRequest('POST', 'reports/cuentas-vencidas/exportar', {
-      formato,
-      filtros
-    });
+    try {
+      return await apiRequest('POST', 'reports/cuentas-vencidas/exportar', {
+        formato,
+        filtros
+      });
+    } catch (error: any) {
+      if (esErrorDeRed(error)) {
+        throw new Error('La exportación de reportes requiere conexión. Vuelve a intentarlo cuando tengas red.');
+      }
+      throw error;
+    }
   },
 
   // Calcular interés sugerido (15% del saldo pendiente)

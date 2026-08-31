@@ -42,6 +42,15 @@ let lastResult: boolean =
 export async function checkRealConnectivity(): Promise<boolean> {
   if (typeof window === 'undefined') return true;
 
+  // Si el navegador ya sabe que no hay red, no hacemos el fetch: evita el
+  // "Failed to load resource: ERR_INTERNET_DISCONNECTED" que ensucia la
+  // consola en cada chequeo mientras estamos offline.
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    lastCheckAt = Date.now();
+    lastResult = false;
+    return false;
+  }
+
   // Cache: si el check es reciente, devolver el último resultado
   const now = Date.now();
   if (now - lastCheckAt < CACHE_DURATION_MS) {

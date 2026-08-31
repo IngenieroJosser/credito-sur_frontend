@@ -1,4 +1,5 @@
 import { apiRequest } from '@/lib/api/api';
+import { conRespaldoOffline } from '@/lib/offline/conRespaldoOffline';
 
 export interface RegistroAuditoria {
   id: string;
@@ -70,7 +71,12 @@ export const auditoriaService = {
    * Crear un registro de auditoria
    */
   async crear(data: CrearAuditoriaDto): Promise<RegistroAuditoria> {
-    return apiRequest<RegistroAuditoria>('POST', '/audit', data);
+    const tempId = `temp-${Date.now()}`;
+    return conRespaldoOffline(
+      () => apiRequest<RegistroAuditoria>('POST', '/audit', data),
+      { type: 'auditoria_crear', endpoint: '/audit', method: 'POST', data, description: `Registro de auditoría`, tempId },
+      { id: tempId, ...(data as any) } as RegistroAuditoria,
+    );
   },
 
   async obtenerOcultosArchivados(): Promise<ArchivadoOcultoKey[]> {
@@ -78,7 +84,11 @@ export const auditoriaService = {
   },
 
   async ocultarArchivado(entidad: string, entidadId: string) {
-    return apiRequest('POST', '/audit/hide-archived', { entidad, entidadId });
+    return conRespaldoOffline(
+      () => apiRequest('POST', '/audit/hide-archived', { entidad, entidadId }),
+      { type: 'auditoria_ocultar_archivado', endpoint: '/audit/hide-archived', method: 'POST', data: { entidad, entidadId }, description: `Ocultar archivado ${entidad}` },
+      { esOffline: true },
+    );
   },
 };
 

@@ -1,6 +1,7 @@
 import { logger } from '@/lib/logger'
 import { apiRequest } from '@/lib/api/api';
 import { syncService } from '@/lib/offline/syncService';
+import { conRespaldoOffline } from '@/lib/offline/conRespaldoOffline';
 import { offlineStore } from '@/lib/offline/offlineDb';
 import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 
@@ -775,11 +776,19 @@ export async function registrarGasto(data: {
 }
 
 export async function dryRunMigracionLedger(): Promise<any> {
-  return apiRequest('POST', '/accounting/migration-ledger/dry-run');
+  return conRespaldoOffline(
+    () => apiRequest('POST', '/accounting/migration-ledger/dry-run'),
+    { type: 'migracion_ledger_dryrun', endpoint: '/accounting/migration-ledger/dry-run', method: 'POST', description: `Simulación de migración de ledger` },
+    { esOffline: true },
+  );
 }
 
 export async function aplicarMigracionLedger(): Promise<any> {
-  return apiRequest('POST', '/accounting/migration-ledger/apply');
+  return conRespaldoOffline(
+    () => apiRequest('POST', '/accounting/migration-ledger/apply'),
+    { type: 'migracion_ledger_apply', endpoint: '/accounting/migration-ledger/apply', method: 'POST', description: `Aplicar migración de ledger` },
+    { esOffline: true },
+  );
 }
 
 export async function solicitarBase(data: { 
@@ -868,13 +877,33 @@ export async function registrarAbonoDeudaCobrador(
   nota: string,
   cajaIdDestino?: string,
 ): Promise<Transaccion | null> {
+  const payload = {
+    monto,
+    nota,
+    cajaIdDestino,
+    // Misma clave online y offline: un reintento tras sincronizar no duplica.
+    idempotencyKey: `abono-${cobradorId}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+  };
   try {
-    return await apiRequest<Transaccion>('POST', `/accounting/deudas-cobradores/${cobradorId}/abono`, {
-      monto,
-      nota,
-      cajaIdDestino,
-    });
-  } catch (error) {
+    return await apiRequest<Transaccion>('POST', `/accounting/deudas-cobradores/${cobradorId}/abono`, payload);
+  } catch (error: any) {
+    if (
+      (typeof navigator !== 'undefined' && !navigator.onLine) ||
+      error?.statusCode === 0 ||
+      error?.message?.includes('network') ||
+      error?.code === 'ERR_NETWORK'
+    ) {
+      logger.log('[Offline Mode] Guardando abono a deuda de cobrador en cola...');
+      await syncService.enqueueOperation(
+        'abono_deuda_cobrador',
+        `/accounting/deudas-cobradores/${cobradorId}/abono`,
+        'POST',
+        payload,
+        `Abono a deuda de cobrador (${cobradorId})`,
+      );
+      // La transacción se materializa al sincronizar.
+      return null;
+    }
     logger.error('Error al registrar el abono:', error);
     throw error;
   }

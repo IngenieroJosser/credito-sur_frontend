@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { formatShortDateTime } from "@/lib/utils/format";
 import { showLocalNotification } from '@/lib/push/pushNotifications'
 import { refreshSesion } from '@/services/autenticacion-service'
+import { logger } from '@/lib/logger'
 
 interface NotificacionesContextProps {
   socket: Socket | null;
@@ -77,8 +78,11 @@ export function NotificacionesProvider({ children }: { children: React.ReactNode
     // Solo intentar conectar y descargar si hay sesión
     if (!token) return;
 
-    // Carga inicial de notificaciones
-    fetchNotificaciones()
+    // Carga inicial de notificaciones (solo si hay red; offline se omite para
+    // no generar peticiones fallidas en consola)
+    if (typeof navigator === 'undefined' || navigator.onLine) {
+      fetchNotificaciones()
+    }
 
     let currentUserId: string | null = null
 
@@ -97,22 +101,41 @@ export function NotificacionesProvider({ children }: { children: React.ReactNode
     const rawBaseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://127.0.0.1:3001'
     const baseUrl = rawBaseUrl.replace(/\/api-credisur\/?$/, '') // Socket.io suele ir a la raíz o /socket.io
 
-    console.log(`[Socket] Intentando conectar a: ${baseUrl}`);
-    
+    logger.log(`[Socket] Intentando conectar a: ${baseUrl}`);
+
+    // autoConnect: false → controlamos nosotros CUÁNDO conectar. Offline no se
+    // conecta (evita el bombardeo de "WebSocket connection failed" en consola);
+    // al volver la red se conecta solo.
     const newSocket = io(baseUrl, {
       transports: ['websocket', 'polling'],
-      autoConnect: true,
+      autoConnect: false,
       reconnectionAttempts: 10,
       reconnectionDelay: 1000,
       withCredentials: true,
       auth: { token },
     })
 
+    const conectarSiHayRed = () => {
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+      if (!newSocket.connected) newSocket.connect();
+    };
+
+    const alRecuperarRed = () => conectarSiHayRed();
+    const alPerderRed = () => {
+      if (newSocket.connected) newSocket.disconnect();
+    };
+
+    window.addEventListener('online', alRecuperarRed);
+    window.addEventListener('offline', alPerderRed);
+
+    // Intento inicial (solo si hay red)
+    conectarSiHayRed();
+
     let hasLoggedError = false;
 
     newSocket.on('connect', () => {
       hasLoggedError = false;
-      console.log(`[Socket] Conectado con ID: ${newSocket.id}`);
+      logger.log(`[Socket] Conectado con ID: ${newSocket.id}`);
       if (currentUserId) {
         newSocket.emit('register', { userId: currentUserId })
       }
@@ -154,14 +177,14 @@ export function NotificacionesProvider({ children }: { children: React.ReactNode
 
     newSocket.on('connect_error', (error) => {
       if (!hasLoggedError) {
-        console.warn(`[Socket] Desconectado o esperando backend... (${error.message})`);
+        logger.warn(`[Socket] Desconectado o esperando backend... (${error.message})`);
         hasLoggedError = true;
       }
     })
 
     newSocket.on('disconnect', (reason) => {
       if (reason !== 'io client disconnect') {
-        console.warn(`[Socket] Desconectado: ${reason}. Reintentando...`);
+        logger.warn(`[Socket] Desconectado: ${reason}. Reintentando...`);
       }
     })
 
@@ -201,6 +224,8 @@ export function NotificacionesProvider({ children }: { children: React.ReactNode
     setSocket(newSocket)
 
     return () => {
+      window.removeEventListener('online', alRecuperarRed)
+      window.removeEventListener('offline', alPerderRed)
       newSocket.disconnect()
       if (bellTimerRef.current) clearTimeout(bellTimerRef.current)
     }

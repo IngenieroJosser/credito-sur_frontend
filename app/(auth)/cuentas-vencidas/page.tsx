@@ -34,6 +34,7 @@ import ProcesarCastigoModal from '@/components/contable/ProcesarCastigoModal'
 import ProtectedPage from '@/components/auth/ProtectedPage'
 import { usePermission } from '@/hooks/usePermission'
 import { apiRequest } from '@/lib/api/api'
+import { conRespaldoOffline } from '@/lib/offline/conRespaldoOffline'
 import {
   vencidasService,
   type CuentaVencida,
@@ -170,13 +171,19 @@ function CuentasVencidasContent() {
     try {
       if (!selectedCuenta) return
 
-      // Llamar al endpoint de gestion vencida
-      await apiRequest('POST', `loans/${selectedCuenta.id}/gestion-vencida`, {
+      // Llamar al endpoint de gestion vencida (con respaldo offline: si no hay
+      // red, se encola y se sincroniza luego; el servidor valida al reproducir).
+      const payloadGestion = {
         decision: data.decision,
         montoInteres: data.montoInteres,
         diasGracia: data.diasGracia ?? 0,
         comentarios: data.comentarios,
-      })
+      }
+      await conRespaldoOffline(
+        () => apiRequest('POST', `loans/${selectedCuenta.id}/gestion-vencida`, payloadGestion),
+        { type: 'gestion_vencida', endpoint: `loans/${selectedCuenta.id}/gestion-vencida`, method: 'POST', data: payloadGestion, description: `Gestión de cuenta vencida ${selectedCuenta.id}` },
+        { esOffline: true },
+      )
 
       const LABEL: Record<string, string> = {
         PRORROGAR: 'Prorroga',

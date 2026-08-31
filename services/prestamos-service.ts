@@ -1,6 +1,7 @@
 import { logger } from '@/lib/logger'
 import { apiRequest } from '@/lib/api/api';
 import { syncService } from '@/lib/offline/syncService';
+import { conRespaldoOffline } from '@/lib/offline/conRespaldoOffline';
 import { EstadoPrestamo, FrecuenciaPago, EstadoCuota, TipoAmortizacion } from '@/types/enums';
 import type { Prestamo } from '@/types/domain';
 import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
@@ -174,7 +175,11 @@ export const prestamosService = {
    * Restaurar un préstamo eliminado
    */
   async restaurarPrestamo(id: string): Promise<Prestamo> {
-    return apiRequest<Prestamo>('PATCH', `/loans/${id}/restore`, {});
+    return conRespaldoOffline(
+      () => apiRequest<Prestamo>('PATCH', `/loans/${id}/restore`, {}),
+      { type: 'prestamo_restaurar', endpoint: `/loans/${id}/restore`, method: 'PATCH', data: {}, description: `Restaurar préstamo ${id}` },
+      { id } as Prestamo,
+    );
   },
 
   /**
@@ -230,7 +235,9 @@ export const prestamosService = {
            '/loans',
            'POST',
            payload,
-           `Nuevo Préstamo (Offline): $${payload.monto}`
+           `Nuevo Préstamo (Offline): $${payload.monto}`,
+           undefined,
+           tempId,
          );
 
          // Retornar objeto temporal
@@ -497,15 +504,35 @@ export const prestamosService = {
   async solicitarReprogramacionCuota(
     data: SolicitarReprogramacionCuotaPayload,
   ): Promise<any> {
-    const payload = { 
-      cuotaId: data.cuotaId, 
-      nuevaFecha: data.nuevaFecha, 
+    const payload = {
+      cuotaId: data.cuotaId,
+      nuevaFecha: data.nuevaFecha,
       motivo: data.motivo,
       fechaOperativaRuta: data.fechaOperativaRuta,
       origenGestion: data.origenGestion,
       idempotencyKey: data.idempotencyKey,
     };
-    return apiRequest('POST', `/loans/${data.prestamoId}/reprogramacion`, payload);
+    try {
+      return await apiRequest('POST', `/loans/${data.prestamoId}/reprogramacion`, payload);
+    } catch (error: any) {
+      if (
+        (typeof navigator !== 'undefined' && !navigator.onLine) ||
+        error?.statusCode === 0 ||
+        error?.message?.includes('network') ||
+        error?.code === 'ERR_NETWORK'
+      ) {
+        logger.log('[Offline Mode] Guardando solicitud de reprogramacion de cuota en cola...');
+        await syncService.enqueueOperation(
+          'reprogramacion_cuota_solicitar',
+          `/loans/${data.prestamoId}/reprogramacion`,
+          'POST',
+          payload,
+          `Solicitar reprogramación de cuota (préstamo ${data.prestamoId})`
+        );
+        return { esOffline: true };
+      }
+      throw error;
+    }
   },
 
   /**
@@ -522,13 +549,21 @@ export const prestamosService = {
    * Aprobar una solicitud de reprogramación.
    */
   async aprobarReprogramacion(aprobacionId: string): Promise<any> {
-    return apiRequest('PATCH', `/loans/reprogramaciones/${aprobacionId}/aprobar`, {});
+    return conRespaldoOffline(
+      () => apiRequest('PATCH', `/loans/reprogramaciones/${aprobacionId}/aprobar`, {}),
+      { type: 'reprogramacion_aprobar', endpoint: `/loans/reprogramaciones/${aprobacionId}/aprobar`, method: 'PATCH', data: {}, description: `Aprobar reprogramación ${aprobacionId}` },
+      { esOffline: true },
+    );
   },
 
   /**
    * Rechazar una solicitud de reprogramación.
    */
   async rechazarReprogramacion(aprobacionId: string, comentarios?: string): Promise<any> {
-    return apiRequest('PATCH', `/loans/reprogramaciones/${aprobacionId}/rechazar`, { comentarios });
+    return conRespaldoOffline(
+      () => apiRequest('PATCH', `/loans/reprogramaciones/${aprobacionId}/rechazar`, { comentarios }),
+      { type: 'reprogramacion_rechazar', endpoint: `/loans/reprogramaciones/${aprobacionId}/rechazar`, method: 'PATCH', data: { comentarios }, description: `Rechazar reprogramación ${aprobacionId}` },
+      { esOffline: true },
+    );
   },
 };

@@ -13,6 +13,8 @@ interface CachedSession {
 }
 
 const SESSION_CACHE_KEY = 'offline_session_cache';
+const CREDENTIAL_KEY = 'offline_credential';
+const PBKDF2_ITERACIONES = 100_000;
 // Al cerrar sesion no se borra la cache al instante: se programa una purga
 // para 8 h despues. Si el usuario vuelve a entrar antes, se cancela.
 const PURGE_DEADLINE_KEY = 'offline_purge_deadline';
@@ -76,6 +78,96 @@ export async function purgarDatosOfflineSiVencio(): Promise<void> {
   }
 }
 const SESSION_VALIDITY_DAYS = 30; // La sesion offline dura 30 dias
+
+// ─── Login offline seguro (verificación de contraseña sin servidor) ──────────
+//
+// Para permitir volver a entrar sin conexión (p. ej. tras un apagón en Quibdó)
+// SIN guardar la contraseña en claro, al hacer login ONLINE guardamos un hash
+// PBKDF2 (salado) de la contraseña. Offline, verificamos la contraseña ingresada
+// contra ese hash. La contraseña nunca se almacena; el hash no es reversible.
+
+const bytesABase64 = (bytes: Uint8Array): string => {
+  let bin = '';
+  bytes.forEach((b) => (bin += String.fromCharCode(b)));
+  return btoa(bin);
+};
+
+const base64ABytes = (b64: string): Uint8Array => {
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+};
+
+/** Compara dos strings en tiempo (casi) constante para no filtrar por timing. */
+const igualConstante = (a: string, b: string): boolean => {
+  if (a.length !== b.length) return false;
+  let dif = 0;
+  for (let i = 0; i < a.length; i++) dif |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return dif === 0;
+};
+
+async function derivarHash(password: string, salt: Uint8Array): Promise<string> {
+  const enc = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    enc.encode(password),
+    'PBKDF2',
+    false,
+    ['deriveBits'],
+  );
+  const bits = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', salt: salt as BufferSource, iterations: PBKDF2_ITERACIONES, hash: 'SHA-256' },
+    keyMaterial,
+    256,
+  );
+  return bytesABase64(new Uint8Array(bits));
+}
+
+/**
+ * Guarda (tras un login ONLINE exitoso) un hash salado de la contraseña para
+ * poder verificarla offline. No guarda la contraseña.
+ */
+export async function guardarHashCredencial(identificador: string, password: string): Promise<void> {
+  try {
+    if (typeof window === 'undefined' || !crypto?.subtle) return;
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const hash = await derivarHash(password, salt);
+    localStorage.setItem(
+      CREDENTIAL_KEY,
+      JSON.stringify({ identificador: identificador.trim().toLowerCase(), salt: bytesABase64(salt), hash }),
+    );
+  } catch {
+    /* Web Crypto no disponible: el login offline por contraseña quedará inactivo */
+  }
+}
+
+/**
+ * Verifica offline el identificador + contraseña contra el hash guardado.
+ * Devuelve true solo si coinciden ambos.
+ */
+export async function verificarCredencialOffline(identificador: string, password: string): Promise<boolean> {
+  try {
+    if (typeof window === 'undefined' || !crypto?.subtle) return false;
+    const raw = localStorage.getItem(CREDENTIAL_KEY);
+    if (!raw) return false;
+    const cred = JSON.parse(raw) as { identificador: string; salt: string; hash: string };
+    if (cred.identificador !== identificador.trim().toLowerCase()) return false;
+    const hash = await derivarHash(password, base64ABytes(cred.salt));
+    return igualConstante(hash, cred.hash);
+  } catch {
+    return false;
+  }
+}
+
+/** ¿Hay una credencial offline guardada (para saber si se puede ofrecer login offline)? */
+export function hayCredencialOffline(): boolean {
+  try {
+    return typeof window !== 'undefined' && !!localStorage.getItem(CREDENTIAL_KEY);
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Guardar sesión en caché para uso offline
@@ -150,6 +242,7 @@ export function clearCachedSession(): void {
     if (typeof window === 'undefined') return;
     
     localStorage.removeItem(SESSION_CACHE_KEY);
+    localStorage.removeItem(CREDENTIAL_KEY);
     logger.log('[Offline Auth] Sesión offline limpiada');
   } catch (error) {
     console.error('[Offline Auth] Error limpiando sesión:', error);

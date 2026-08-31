@@ -1,4 +1,5 @@
 import { apiRequest } from '@/lib/api/api';
+import { conRespaldoOffline } from '@/lib/offline/conRespaldoOffline';
 import { TipoGasto } from '@/types/enums';
 
 export interface Gasto {
@@ -51,21 +52,34 @@ export const gastosService = {
    * Crear un nuevo gasto
    */
   async crearGasto(data: CrearGastoDto): Promise<Gasto> {
-    return apiRequest<Gasto>('POST', '/accounting', data);
+    const tempId = `temp-${Date.now()}`;
+    return conRespaldoOffline(
+      () => apiRequest<Gasto>('POST', '/accounting', data),
+      { type: 'gasto_crear', endpoint: '/accounting', method: 'POST', data, description: `Crear gasto: $${data.monto}`, tempId },
+      { id: tempId, ...(data as any), aprobadoPorId: null, numComprobante: data.numComprobante ?? null, estadoAprobacion: 'PENDIENTE', creadoEn: new Date().toISOString(), actualizadoEn: new Date().toISOString() } as Gasto,
+    );
   },
 
   /**
    * Actualizar un gasto
    */
   async actualizarGasto(id: string, data: ActualizarGastoDto): Promise<Gasto> {
-    return apiRequest<Gasto>('PATCH', `/accounting/${id}`, data);
+    return conRespaldoOffline(
+      () => apiRequest<Gasto>('PATCH', `/accounting/${id}`, data),
+      { type: 'gasto_actualizar', endpoint: `/accounting/${id}`, method: 'PATCH', data, description: `Actualizar gasto ${id}` },
+      { id, ...(data as any) } as Gasto,
+    );
   },
 
   /**
    * Eliminar un gasto
    */
   async eliminarGasto(id: string): Promise<void> {
-    return apiRequest<void>('DELETE', `/accounting/${id}`);
+    return conRespaldoOffline(
+      () => apiRequest<void>('DELETE', `/accounting/${id}`),
+      { type: 'gasto_eliminar', endpoint: `/accounting/${id}`, method: 'DELETE', description: `Eliminar gasto ${id}` },
+      undefined,
+    );
   }
 };
 
