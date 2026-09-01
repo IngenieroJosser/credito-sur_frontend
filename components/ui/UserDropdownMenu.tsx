@@ -303,7 +303,7 @@ export default function UserDropdownMenu({ user, onLogout }: UserDropdownMenuPro
 
                 {isAdmin && (
                   <Link
-                    href="/admin/sistema/configuracion"
+                    href="/sistema/configuracion"
                     className="flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors group"
                     onClick={() => setShowMenu(false)}
                   >

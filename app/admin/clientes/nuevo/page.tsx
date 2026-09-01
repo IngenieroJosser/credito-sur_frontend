@@ -466,7 +466,7 @@ const ClienteFormPage = () => {
 
               <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-200 flex justify-end space-x-3">
                 <Link
-                  href="/admin/clientes"
+                  href="/clientes"
                   className="px-4 py-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors text-sm font-medium"
                 >
                   Cancelar

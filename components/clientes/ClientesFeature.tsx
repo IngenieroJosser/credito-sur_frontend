@@ -74,10 +74,13 @@ export default function ClientesFeature({
 
   useEffect(() => {
     if (initialClientes.length === 0) {
+      // Precarga desde caché para pintar algo al instante. NO se marca como
+      // "offline": todavía no se ha intentado la petición online. Marcarlo aquí
+      // hacía parpadear el aviso "Mostrando datos guardados localmente" en cada
+      // carga, aun con conexión. El aviso solo debe salir si la petición falla.
       offlineStore.getAll<ClienteAdmin>('clientes').then((offlineData) => {
         if (offlineData.length > 0) {
           setClientes(offlineData);
-          setDataSource('offline');
         }
       }).catch(() => {});
     } else {
