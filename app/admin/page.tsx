@@ -318,21 +318,21 @@ export default function DashboardPage() {
             icon: <Wallet className="h-5 w-5" />,
             color: '#10b981',
             badge: dashboard?.metrics.delinquentAccounts || undefined,
-            href: '/admin/pagos/registro'
+            href: '/pagos/registro'
           },
           {
             title: 'Clientes',
             subtitle: 'Base de datos',
             icon: <Users className="h-5 w-5" />,
             color: '#6366f1',
-            href: '/admin/clientes'
+            href: '/clientes'
           },
           {
             title: 'Análisis',
             subtitle: 'Reportes avanzados',
             icon: <PieChart className="h-5 w-5" />,
             color: '#f59e0b',
-            href: '/admin/reportes/operativos'
+            href: '/reportes/operativos'
           },
           {
             title: 'Tesorería',

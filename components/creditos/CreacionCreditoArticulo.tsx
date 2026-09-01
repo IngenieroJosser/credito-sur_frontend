@@ -351,7 +351,7 @@ export default function CreacionCreditoArticulo({
         return;
       }
 
-      router.push('/admin/prestamos');
+      router.push('/prestamos');
     } catch (error: any) {
       console.error('Error al crear crédito de artículo:', error);
       showNotification('error', error.message || 'No se pudo crear el crédito. Verifique los datos.');

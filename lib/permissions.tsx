@@ -395,10 +395,33 @@ export const buildSidebarFromApi = (sidebarData: SidebarModulo[]): ModuloPermiso
 
 export const obtenerModulos = (rol: Rol, sidebarData?: SidebarModulo[]): ModuloPermiso[] => {
   const getRolePrefix = (r: Rol) => ({ COBRADOR: 'cobranzas', COORDINADOR: 'coordinador', SUPERVISOR: 'supervisor', CONTADOR: 'contador', PUNTO_DE_VENTA: 'punto-de-venta' } as any)[r] || null;
+  // Rutas que el proxy REDIRIGE quitando el prefijo /admin. Si el menú enlaza a
+  // la versión con /admin, cada clic dispara una redirección de servidor, que es
+  // una navegación COMPLETA: se recarga toda la vista (el aside se remonta y se
+  // cierran los submenús) y además el resaltado del módulo activo nunca coincide.
+  // Para admin/superadmin enlazamos directo a la URL final y así la navegación
+  // es del lado del cliente: solo cambia el contenido.
+  const RUTAS_LIMPIAS_ADMIN = [
+    '/admin/creditos',
+    '/admin/clientes',
+    '/admin/prestamos',
+    '/admin/rutas',
+    '/admin/users',
+    '/admin/archivados',
+    '/admin/pagos',
+    '/admin/solicitudes',
+    '/admin/sistema',
+    '/admin/reportes/operativos',
+    '/admin/aprobaciones',
+  ];
+
   const aliasPath = (p: string) => {
     if (!p || p === '#') return p;
     const prefix = getRolePrefix(rol);
-    if (!prefix) return p;
+    if (!prefix) {
+      const limpia = RUTAS_LIMPIAS_ADMIN.find((c) => p === c || p.startsWith(`${c}/`));
+      return limpia ? p.slice('/admin'.length) : p;
+    }
     if (p === '/admin/sistema/backups') return `/${prefix}/backups`;
     if (p === '/admin/pagos/historial') return '/admin/pagos/historial';
     if (p === '/admin') return `/${prefix}`;
