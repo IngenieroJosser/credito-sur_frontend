@@ -719,12 +719,14 @@ const UserManagementPage = () => {
 
     let permisosIniciales: string[]
     if (user.rol === RolUsuario.SUPER_ADMINISTRADOR) {
+      // El superadmin tiene todo: se muestran todos los módulos marcados.
       permisosIniciales = permisosDefaultRol
     } else {
-      const permisosGuardadosExpandidos = expandGroupIds(permisosGuardados)
-      permisosIniciales = Array.from(
-        new Set([...permisosDefaultRol, ...permisosGuardadosExpandidos]),
-      )
+      // El estado marcado refleja EXACTAMENTE lo que el usuario tiene según el
+      // backend (rol + personalizados ya fusionados en `user.permisos`). Antes
+      // se forzaban los defaults del frontend, que podían marcar módulos que el
+      // usuario no tenía realmente y otorgárselos al guardar.
+      permisosIniciales = expandGroupIds(permisosGuardados)
     }
 
     setSelectedUser(user);
