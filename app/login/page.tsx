@@ -652,7 +652,7 @@ const LoginPage = () => {
                 onClick={handleVersionClick}
                 title=""
               >
-                Versión Alpha 1.0
+                Versión Alpha 1.5
               </span>
             </div>
           </div>
