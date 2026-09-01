@@ -29,6 +29,8 @@ const BackupsSistemaPage = () => {
   const [loading, setLoading] = useState(true)
   const [running, setRunning] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [checkingIntegrity, setCheckingIntegrity] = useState(false)
+  const [integrity, setIntegrity] = useState<{ todoEnOrden: boolean; problemas: string[]; revisadoEn?: string } | null>(null)
 
   const lastRun = status?.lastRun ?? null
 
@@ -127,6 +129,24 @@ const BackupsSistemaPage = () => {
     }
   }, [loadAll])
 
+  const verificarIntegridad = useCallback(async () => {
+    setCheckingIntegrity(true)
+    setError(null)
+    try {
+      const res = await apiRequest<{ todoEnOrden: boolean; problemas: string[]; revisadoEn: string }>(
+        'GET',
+        '/accounting/integridad',
+        undefined,
+        { cacheTTL: 0 },
+      )
+      setIntegrity(res)
+    } catch (e: any) {
+      setError(e?.message || 'No se pudo verificar la integridad contable')
+    } finally {
+      setCheckingIntegrity(false)
+    }
+  }, [])
+
   return (
     <div className="min-h-screen bg-slate-50/50 relative">
       {/* Background */}
@@ -217,10 +237,42 @@ const BackupsSistemaPage = () => {
                 </div>
               </div>
 
-              <button className="w-full py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 transition-all duration-300 flex items-center justify-center gap-2">
-                <Cloud className="h-4 w-4" />
-                Verificar integridad
+              <button
+                onClick={verificarIntegridad}
+                disabled={checkingIntegrity}
+                className="w-full py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-60"
+              >
+                <Cloud className={`h-4 w-4 ${checkingIntegrity ? 'animate-pulse' : ''}`} />
+                {checkingIntegrity ? 'Verificando…' : 'Verificar integridad'}
               </button>
+
+              {integrity && (
+                <div
+                  className={`rounded-xl border p-3 text-xs ${
+                    integrity.todoEnOrden
+                      ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                      : 'border-amber-200 bg-amber-50 text-amber-800'
+                  }`}
+                >
+                  {integrity.todoEnOrden ? (
+                    <div className="font-bold flex items-center gap-2">
+                      <ShieldCheck className="h-4 w-4 shrink-0" />
+                      <span>Contabilidad íntegra: el libro cuadra y las cajas coinciden.</span>
+                    </div>
+                  ) : (
+                    <div className="min-w-0">
+                      <div className="font-bold mb-1">
+                        Se encontraron {integrity.problemas.length} problema(s):
+                      </div>
+                      <ul className="list-disc pl-4 space-y-0.5 break-words">
+                        {integrity.problemas.map((p, i) => (
+                          <li key={i}>{p}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>

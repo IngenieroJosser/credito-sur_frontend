@@ -791,11 +791,11 @@ export default function AdminLayout({
                                   <Link
                                     key={subItem.id}
                                     href={subItem.href}
-                                    className={`flex items-center justify-between gap-3 px-3 py-2 rounded-lg transition-all duration-75 group ${
-                                      isSubActive 
-                                        ? 'text-[#08557f] bg-blue-50 font-medium' 
+                                    className={`flex items-center justify-between gap-3 px-3 py-2 rounded-lg transition-all duration-75 group border border-transparent ${
+                                      isSubActive
+                                        ? 'text-[#08557f] bg-blue-50 font-medium'
                                         : 'text-gray-500 hover:text-blue-600 hover:bg-gray-50'
-                                    }`}
+                                    } ${isNew ? 'modulo-nuevo-glow' : ''}`}
                                     onClick={() => handleModuleClick(subItem.id, subItem.isNew)}
                                   >
                                     <div className="flex items-center gap-3">
@@ -825,10 +825,10 @@ export default function AdminLayout({
                         key={item.id || item.name}
                         href={item.href}
                         className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl transition-all duration-75 border group ${
-                          isActive 
-                            ? 'text-[#08557f] bg-gray-50/50 font-bold border-gray-200 shadow-sm' 
+                          isActive
+                            ? 'text-[#08557f] bg-gray-50/50 font-bold border-gray-200 shadow-sm'
                             : 'text-gray-600 border-transparent hover:text-[#08557f] hover:bg-gray-50 hover:border-gray-200'
-                        }`}
+                        } ${isNew ? 'modulo-nuevo-glow' : ''}`}
                         onClick={() => handleModuleClick(item.id, item.isNew)}
                       >
                         <div className="flex items-center gap-3">
