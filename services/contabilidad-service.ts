@@ -587,7 +587,7 @@ export async function getHistorialCierresFiltrado(filtros?: {
 export async function getArqueoPreview(cajaId: string, fechaOperativa?: string): Promise<any> {
   try {
     const params = fechaOperativa ? `?fechaOperativa=${fechaOperativa}` : '';
-    console.log('[getArqueoPreview] Requesting:', `/cajas/${cajaId}/arqueo/preview${params}`);
+    logger.log('[getArqueoPreview] Requesting:', `/cajas/${cajaId}/arqueo/preview${params}`);
     return await apiRequest<any>('GET', `/cajas/${cajaId}/arqueo/preview${params}`);
   } catch (error: any) {
     console.error('[getArqueoPreview] Full error:', {

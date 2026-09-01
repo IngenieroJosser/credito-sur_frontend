@@ -16,6 +16,7 @@
  */
 
 import { useState } from 'react';
+import { logger } from '@/lib/logger'
 import MediaUpload from '@/components/ui/MediaUpload';
 import { User, FileText, Camera } from 'lucide-react';
 
@@ -48,8 +49,8 @@ export default function ExampleClienteForm({ cliente, esEdicion = false }: Examp
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    console.log('📤 Datos del formulario:', formData);
-    console.log('📸 Archivos adjuntos:', archivos);
+    logger.log('📤 Datos del formulario:', formData);
+    logger.log('📸 Archivos adjuntos:', archivos);
     
     // Aquí iría la lógica de envío al backend
     const formDataToSend = new FormData();

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { logger } from '@/lib/logger'
 import { X, Percent, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 interface ModificarInteresModalProps {
@@ -44,7 +45,7 @@ export default function ModificarInteresModal({
       // TODO: Implement API call
       await new Promise(resolve => setTimeout(resolve, 1000)); // Simulación
       
-      console.log('Modificando interés del préstamo:', {
+      logger.log('Modificando interés del préstamo:', {
         prestamoId,
         tasaAnterior: tasaActual,
         tasaNueva: tasaNumero,

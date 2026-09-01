@@ -2160,7 +2160,7 @@ const RutaClientLoaded = ({
                 ''
               ).trim();
 
-              console.log('[REPROGRAMACION DEBUG]', {
+              logger.log('[REPROGRAMACION DEBUG]', {
                 prestamoId: visitaReprogramar.prestamoId,
                 clienteId: visitaReprogramar.clienteId,
                 cuotaId,

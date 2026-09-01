@@ -170,8 +170,8 @@ export const pagosService = {
         }
         
         if (process.env.NODE_ENV !== 'production') {
-          console.log('[pagosService.registrarPago] FormData keys:', Array.from((formData as any).keys()));
-          console.log('[pagosService.registrarPago] Comprobante:', payload.comprobante ? {
+          logger.log('[pagosService.registrarPago] FormData keys:', Array.from((formData as any).keys()));
+          logger.log('[pagosService.registrarPago] Comprobante:', payload.comprobante ? {
             name: payload.comprobante.name,
             size: payload.comprobante.size,
             type: payload.comprobante.type

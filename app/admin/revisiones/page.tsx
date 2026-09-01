@@ -18,6 +18,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react'
+import { logger } from '@/lib/logger'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import {
   ShieldCheck,
@@ -768,7 +769,7 @@ export default function RevisionesPage() {
           const capital = Number(datos.monto || 0) || Number(item.montoSolicitud || 0);
           const porcentaje = Number(datos.porcentaje || datos.tasaInteres || 0);
 
-          console.log('[Revisiones][NUEVO_PRESTAMO] datos:', JSON.stringify({
+          logger.log('[Revisiones][NUEVO_PRESTAMO] datos:', JSON.stringify({
             tipoAmortizacion: datos.tipoAmortizacion,
             monto: datos.monto,
             montoTotal: datos.montoTotal,

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
+import { logger } from '@/lib/logger'
 import {
   DollarSign, Percent, Clock,
   CheckCircle,
@@ -192,7 +193,7 @@ const CreacionPrestamoElegante = ({ initialClienteId, isModal }: { initialClient
   })
 
   // Prevent unused variable warning while keeping state for future implementation
-  if (creandoPrestamo && !documentosRespaldo) console.log(setDocumentosRespaldo);
+  if (creandoPrestamo && !documentosRespaldo) logger.log(setDocumentosRespaldo);
   
   const [busquedaCliente, setBusquedaCliente] = useState('');
   const [filtroRiesgo, setFiltroRiesgo] = useState<NivelRiesgo | 'TODOS'>('TODOS');

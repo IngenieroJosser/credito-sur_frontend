@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { logger } from '@/lib/logger'
 import Link from 'next/link'
 import { ArrowLeft, CheckCircle2, AlertCircle, Calculator, Wallet, Receipt, Eye } from 'lucide-react'
 import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber, cn } from '@/lib/utils'
@@ -141,8 +142,8 @@ export default function CierreCajaPage() {
       
       // Detailed debug: log all caja fields (only in dev)
       if (process.env.NODE_ENV === 'development') {
-        console.log('[loadCierreCaja] Starting load...')
-        console.log('[loadCierreCaja] Fetched data:', { res, cierresResp, cajasResp })
+        logger.log('[loadCierreCaja] Starting load...')
+        logger.log('[loadCierreCaja] Fetched data:', { res, cierresResp, cajasResp })
         console.table(cajasList.map((c: any) => ({
           id: c.id,
           nombre: c.nombre,
@@ -152,8 +153,8 @@ export default function CierreCajaPage() {
           balance: c.balance,
           monto: c.monto,
         })))
-        console.log('[loadCierreCaja] Selected principal caja:', principal)
-        console.log('[loadCierreCaja] Ruta cajas:', rutas)
+        logger.log('[loadCierreCaja] Selected principal caja:', principal)
+        logger.log('[loadCierreCaja] Ruta cajas:', rutas)
       }
 
       if (principal?.id) {

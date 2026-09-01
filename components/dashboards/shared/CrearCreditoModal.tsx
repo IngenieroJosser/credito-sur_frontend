@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect, useRef } from 'react'
+import { logger } from '@/lib/logger'
 import {
   X,
   DollarSign,
@@ -924,7 +925,7 @@ export default function CrearCreditoModal({
                             notas: notasInput.trim() || undefined,
                           }
                       
-                      console.log('[CrearCreditoModal] payload to send:', payload);
+                      logger.log('[CrearCreditoModal] payload to send:', payload);
                       await onConfirm(payload as any)
                       handleReset()
                     } catch (error) {
