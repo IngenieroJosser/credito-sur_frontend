@@ -282,7 +282,7 @@ export default function NuevoArticuloPage() {
                       <p>No se han configurado precios a crédito</p>
                     </div>
                   ) : (
-                    <div className="overflow-hidden rounded-lg border border-slate-200">
+                    <div className="overflow-x-auto rounded-lg border border-slate-200">
                       <table className="w-full text-sm text-left">
                         <thead className="bg-slate-50 text-slate-700 font-medium border-b border-slate-200">
                           <tr>

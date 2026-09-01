@@ -264,8 +264,8 @@ const PerfilUsuarioPage = () => {
                     </div>
                   </div>
                   
-                  <h2 className="text-xl font-bold text-slate-900">{userFullName}</h2>
-                  <p className="text-sm text-slate-500 font-medium mb-4">{backendUser.correo}</p>
+                  <h2 className="text-xl font-bold text-slate-900 break-words max-w-full">{userFullName}</h2>
+                  <p className="text-sm text-slate-500 font-medium mb-4 break-all max-w-full" title={backendUser.correo || undefined}>{backendUser.correo}</p>
                   
                   <div className="w-full pt-6 border-t border-slate-100 space-y-4">
                     <div className="flex items-center justify-between text-sm">
@@ -316,9 +316,9 @@ const PerfilUsuarioPage = () => {
                       <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
                         Correo Electrónico
                       </label>
-                      <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
-                        <div className="h-4 w-4 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-600">@</div>
-                        <span className="text-sm font-bold text-slate-900">{backendUser.correo}</span>
+                      <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100 min-w-0">
+                        <div className="h-4 w-4 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-600 shrink-0">@</div>
+                        <span className="text-sm font-bold text-slate-900 truncate" title={backendUser.correo || undefined}>{backendUser.correo}</span>
                       </div>
                     </div>
                   </div>
