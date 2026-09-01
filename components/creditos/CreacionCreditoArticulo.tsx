@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import { logger } from '@/lib/logger'
 import { useRouter, usePathname } from 'next/navigation';
 import {
   ArrowLeft, Package, CheckCircle2, Search,
@@ -332,7 +333,7 @@ export default function CreacionCreditoArticulo({
 
         const loanId = typeof loanIdRaw === 'string' || typeof loanIdRaw === 'number' ? String(loanIdRaw) : '';
 
-        console.log('ID rescatado para el PDF: ', loanId);
+        logger.log('ID rescatado para el PDF: ', loanId);
         const esOffline = Boolean(creado?.esOffline) || String(loanId || '').startsWith('temp-loan-');
         if (loanId && !esOffline && !esContado) {
           await exportService.exportContrato(loanId);

@@ -150,7 +150,7 @@ export default function DetalleClienteCoordinadorPage({
                         </div>
                         <div>
                            <p className="text-[10px] font-bold text-slate-400 uppercase">Dirección Principal</p>
-                           <p className="text-sm font-medium text-slate-700">{cliente.direccion}</p>
+                           <p className="text-sm font-medium text-slate-700 break-words">{cliente.direccion}</p>
                            <p className="text-xs text-slate-500">{cliente.ciudad}</p>
                         </div>
                     </div>

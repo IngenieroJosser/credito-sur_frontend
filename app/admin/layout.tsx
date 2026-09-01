@@ -159,27 +159,11 @@ export default function AdminLayout({
       setSeenModules([])
     }
   }, [seenModulesStorageKey])
-  useEffect(() => {
-    if (!seenModulesStorageKey || navigation.length === 0) return
-
-    const collectNewModuleIds = (items: NavigationItem[]): string[] =>
-      items.flatMap((item) => [
-        ...(item.isNew && item.id ? [item.id] : []),
-        ...(item.submodulos ? collectNewModuleIds(item.submodulos) : []),
-      ])
-
-    const ids = collectNewModuleIds(navigation)
-    if (ids.length === 0) return
-
-    try {
-      const stored = localStorage.getItem(seenModulesStorageKey) || localStorage.getItem('seenModules')
-      const current = stored ? JSON.parse(stored) : []
-      const next = Array.from(new Set([...(Array.isArray(current) ? current : []), ...ids]))
-      localStorage.setItem(seenModulesStorageKey, JSON.stringify(next))
-    } catch {
-      // Si localStorage falla, no bloqueamos la navegación.
-    }
-  }, [navigation, seenModulesStorageKey])
+  // NOTA: aquí había un efecto que marcaba TODOS los módulos nuevos como "ya
+  // vistos" apenas cargaba el menú, sin que el usuario entrara en ellos. Eso
+  // mataba el indicador: al recargar, ningún módulo volvía a resaltarse nunca.
+  // Un módulo nuevo debe resaltarse HASTA que el usuario entre en él, y eso ya
+  // lo hace `handleModuleClick`. Por eso el auto-marcado se eliminó.
   // Cierra los menús flotantes si haces clic fuera de ellos
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -791,21 +775,25 @@ export default function AdminLayout({
                                   <Link
                                     key={subItem.id}
                                     href={subItem.href}
-                                    className={`flex items-center justify-between gap-3 px-3 py-2 rounded-lg transition-all duration-75 group ${
-                                      isSubActive 
-                                        ? 'text-[#08557f] bg-blue-50 font-medium' 
+                                    className={`flex items-center justify-between gap-3 px-3 py-2 rounded-lg transition-all duration-75 group border border-transparent ${
+                                      isSubActive
+                                        ? 'text-[#08557f] bg-blue-50 font-medium'
                                         : 'text-gray-500 hover:text-blue-600 hover:bg-gray-50'
-                                    }`}
+                                    } ${isNew ? 'modulo-nuevo-glow' : ''}`}
                                     onClick={() => handleModuleClick(subItem.id, subItem.isNew)}
                                   >
-                                    <div className="flex items-center gap-3">
-                                      <div className={`transition-colors ${isSubActive ? 'text-[#08557f]' : 'text-gray-300 group-hover:text-[#08557f]'}`}>
+                                    <div className="flex items-center gap-3 min-w-0">
+                                      <div className={`transition-colors shrink-0 ${
+                                        isNew ? 'text-orange-500' : isSubActive ? 'text-[#08557f]' : 'text-gray-300 group-hover:text-[#08557f]'
+                                      }`}>
                                         {subItem.icon}
                                       </div>
-                                      <span className="text-sm">{subItem.name}</span>
+                                      <span className={`text-sm truncate ${isNew ? 'text-orange-600 font-bold' : ''}`}>
+                                        {subItem.name}
+                                      </span>
                                     </div>
                                     {isNew && (
-                                      <span className="px-1.5 py-0.5 rounded-md bg-orange-100 text-[8px] font-black text-orange-600 uppercase border border-orange-200">
+                                      <span className="px-1.5 py-0.5 rounded-md bg-orange-100 text-[8px] font-black text-orange-600 uppercase border border-orange-200 shrink-0 whitespace-nowrap">
                                         NUEVO
                                       </span>
                                     )}
@@ -825,17 +813,23 @@ export default function AdminLayout({
                         key={item.id || item.name}
                         href={item.href}
                         className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl transition-all duration-75 border group ${
-                          isActive 
-                            ? 'text-[#08557f] bg-gray-50/50 font-bold border-gray-200 shadow-sm' 
+                          isActive
+                            ? 'text-[#08557f] bg-gray-50/50 font-bold border-gray-200 shadow-sm'
                             : 'text-gray-600 border-transparent hover:text-[#08557f] hover:bg-gray-50 hover:border-gray-200'
-                        }`}
+                        } ${isNew ? 'modulo-nuevo-glow' : ''}`}
                         onClick={() => handleModuleClick(item.id, item.isNew)}
                       >
-                        <div className="flex items-center gap-3">
-                          <div className={`transition-colors ${isActive ? 'text-[#08557f]' : 'text-gray-400 group-hover:text-[#08557f]'}`}>
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className={`transition-colors shrink-0 ${
+                            isNew ? 'text-orange-500' : isActive ? 'text-[#08557f]' : 'text-gray-400 group-hover:text-[#08557f]'
+                          }`}>
                             {item.icon}
                           </div>
-                          <span className="text-sm">{item.name}</span>
+                          {/* Módulo nuevo: el NOMBRE también va resaltado, porque
+                              el badge "NUEVO" se recorta con el ancho del aside. */}
+                          <span className={`text-sm truncate ${isNew ? 'text-orange-600 font-bold' : ''}`}>
+                            {item.name}
+                          </span>
                         </div>
                         {/* Badge revisiones pendientes */}
                         {typeof item.href === 'string' && item.href.includes('/revisiones') && pendingRevisiones > 0 ? (
@@ -843,7 +837,7 @@ export default function AdminLayout({
                             {pendingRevisiones > 99 ? '99+' : pendingRevisiones}
                           </span>
                         ) : isNew ? (
-                          <span className="text-[10px] font-bold text-white bg-gradient-to-r from-pink-500 to-rose-500 px-1.5 py-0.5 rounded-full shadow-sm animate-pulse">
+                          <span className="text-[10px] font-bold text-white bg-gradient-to-r from-pink-500 to-rose-500 px-1.5 py-0.5 rounded-full shadow-sm animate-pulse shrink-0 whitespace-nowrap">
                             NUEVO
                           </span>
                         ) : null}
@@ -855,7 +849,7 @@ export default function AdminLayout({
               
               <div className="mt-8 px-4 pb-4 border-t border-gray-50 pt-4">
                 <p className="text-[10px] text-gray-400 font-medium text-center uppercase tracking-widest bg-gray-50/50 py-1 rounded-full">
-                  Versión Alpha 1.0
+                  Versión Alpha 1.5
                 </p>
               </div>
             </div>

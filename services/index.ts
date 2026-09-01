@@ -25,8 +25,6 @@ export { pagosService } from './pagos-service';
 export type { Pago, CrearPagoDto, ResultadoPago, DescomposicionPago, PagosResponse } from './pagos-service';
 export type { MetodoPago } from './pagos-service';
 
-export { gastosService } from './gastos-service';
-export type { Gasto, CrearGastoDto, ActualizarGastoDto } from './gastos-service';
 
 export { aprobacionesService } from './aprobaciones-service';
 export type { Aprobacion, AprobarDto, RechazarDto } from './aprobaciones-service';

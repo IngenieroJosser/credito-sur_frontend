@@ -1,6 +1,7 @@
 'use client'
 
 import PantallaCarga from '@/components/ui/PantallaCarga'
+import { logger } from '@/lib/logger'
 
 
 /**
@@ -1332,7 +1333,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
       ''
     ).trim();
 
-    console.log('[REPROGRAMACION DEBUG]', {
+    logger.log('[REPROGRAMACION DEBUG]', {
       prestamoId: visitaReprogramar.prestamoId,
       clienteId: visitaReprogramar.clienteId,
       cuotaId,
@@ -3253,7 +3254,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
             onClienteCreado={(nuevo) => {
 
-              console.log('Nuevo cliente creado:', nuevo)
+              logger.log('Nuevo cliente creado:', nuevo)
 
               setShowNewClientModal(false)
 

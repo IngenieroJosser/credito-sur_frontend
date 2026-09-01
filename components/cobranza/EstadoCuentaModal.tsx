@@ -367,7 +367,7 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
                         <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
                             <History className="w-4 h-4" /> Recopilación de Pagos
                         </h4>
-                        <div className="border border-slate-200 rounded-2xl overflow-hidden text-xs shadow-sm">
+                        <div className="border border-slate-200 rounded-2xl overflow-x-auto text-xs shadow-sm">
                             <table className="w-full">
                                 <thead className="bg-slate-50 text-[10px] font-bold text-slate-500 uppercase border-b border-slate-200">
                                     <tr>

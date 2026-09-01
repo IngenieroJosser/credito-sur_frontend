@@ -719,12 +719,14 @@ const UserManagementPage = () => {
 
     let permisosIniciales: string[]
     if (user.rol === RolUsuario.SUPER_ADMINISTRADOR) {
+      // El superadmin tiene todo: se muestran todos los módulos marcados.
       permisosIniciales = permisosDefaultRol
     } else {
-      const permisosGuardadosExpandidos = expandGroupIds(permisosGuardados)
-      permisosIniciales = Array.from(
-        new Set([...permisosDefaultRol, ...permisosGuardadosExpandidos]),
-      )
+      // El estado marcado refleja EXACTAMENTE lo que el usuario tiene según el
+      // backend (rol + personalizados ya fusionados en `user.permisos`). Antes
+      // se forzaban los defaults del frontend, que podían marcar módulos que el
+      // usuario no tenía realmente y otorgárselos al guardar.
+      permisosIniciales = expandGroupIds(permisosGuardados)
     }
 
     setSelectedUser(user);
@@ -1451,9 +1453,9 @@ const UserManagementPage = () => {
                                 <div className="font-bold text-slate-900">
                                   {user.nombres} {user.apellidos}
                                 </div>
-                                <div className="text-xs text-slate-500 flex items-center gap-1 mt-0.5 font-medium">
-                                  <Mail className="h-3 w-3" />
-                                  {user.correo}
+                                <div className="text-xs text-slate-500 flex items-center gap-1 mt-0.5 font-medium min-w-0">
+                                  <Mail className="h-3 w-3 shrink-0" />
+                                  <span className="truncate" title={user.correo || undefined}>{user.correo}</span>
                                 </div>
                               </div>
                             </div>
@@ -1639,7 +1641,7 @@ const UserManagementPage = () => {
                           <h3 className="font-bold text-slate-900 line-clamp-1">
                             {user.nombres} {user.apellidos}
                           </h3>
-                          <p className="text-xs text-slate-500 font-medium">
+                          <p className="text-xs text-slate-500 font-medium truncate" title={user.correo || undefined}>
                             {user.correo}
                           </p>
                         </div>

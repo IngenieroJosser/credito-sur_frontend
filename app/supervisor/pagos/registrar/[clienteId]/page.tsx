@@ -234,7 +234,7 @@ export default function RegistrarPagoClienteSupervisorPage() {
             <div className="pt-3 border-t border-slate-100 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs text-slate-500 font-bold uppercase">Dirección</span>
-                <span className="text-sm font-medium text-slate-900">{cliente.direccion}</span>
+                <span className="text-sm font-medium text-slate-900 break-words">{cliente.direccion}</span>
               </div>
             </div>
           </div>

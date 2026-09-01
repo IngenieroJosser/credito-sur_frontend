@@ -462,9 +462,9 @@ export default function ClientesClient({ initialClientes }: ClientesClientProps)
                             {cliente.telefono}
                           </div>
                           {cliente.correo && (
-                            <div className="flex items-center text-xs font-medium text-slate-500">
-                              <Mail className="h-3 w-3 mr-2 text-slate-400" />
-                              {cliente.correo}
+                            <div className="flex items-center text-xs font-medium text-slate-500 min-w-0">
+                              <Mail className="h-3 w-3 mr-2 text-slate-400 shrink-0" />
+                              <span className="truncate" title={cliente.correo || undefined}>{cliente.correo}</span>
                             </div>
                           )}
                         </div>

@@ -38,6 +38,8 @@ export default function ArchivadosPage() {
   const [mounted, setMounted] = useState(false)
   const [items, setItems] = useState<ArchivedItem[]>([])
   const [loading, setLoading] = useState(true)
+  // Permite que el boton 'Actualizar' vuelva a cargar los datos.
+  const [refreshKey, setRefreshKey] = useState(0)
 
   useEffect(() => {
     setMounted(true)
@@ -111,7 +113,7 @@ export default function ArchivadosPage() {
     
     // Carga inicial
     fetchItems();
-  }, [])
+  }, [refreshKey])
 
   // Tiempo real: cuando se archive/elimine/restaure algo vía otro módulo, actualizar lista
   useRealtimeData(['prestamos_actualizados', 'clientes_actualizados', 'inventario_actualizado', 'usuarios_actualizados', 'dashboards_actualizados'], () => {
@@ -238,8 +240,11 @@ export default function ArchivadosPage() {
           </div>
 
           <div className="flex items-center gap-3">
-             <button className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm ring-1 ring-slate-200 hover:bg-slate-50 hover:text-slate-900 transition-all">
-              <RefreshCw className="w-4 h-4" />
+             <button
+              onClick={() => setRefreshKey((k) => k + 1)}
+              disabled={loading}
+              className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm ring-1 ring-slate-200 hover:bg-slate-50 hover:text-slate-900 transition-all disabled:opacity-60">
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
               <span>Actualizar</span>
             </button>
           </div>

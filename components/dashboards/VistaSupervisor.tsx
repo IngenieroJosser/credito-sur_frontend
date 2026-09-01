@@ -1,6 +1,7 @@
 'use client'
 
 import PantallaCarga from '@/components/ui/PantallaCarga'
+import { logger } from '@/lib/logger'
 
 import { useState, type ReactNode, useMemo, useEffect, useCallback } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
@@ -133,7 +134,7 @@ const VistaSupervisor = () => {
     comprobante: File | null;
     isAbono: boolean;
   }) => {
-    console.log('Pago confirmado en Supervisor:', data)
+    logger.log('Pago confirmado en Supervisor:', data)
     setShowPagoModal(false)
     setSelectedVisitaForPago(undefined)
   }
@@ -161,11 +162,11 @@ const VistaSupervisor = () => {
   // Backend: Reutilizar GET /reports/operational/export filtrado por supervisor
   // Frontend: Usar exportService.exportOperationalReport(format, { period })
   const handleExportExcel = () => {
-    console.log('TODO: Exportar resumen supervisor en Excel')
+    logger.log('TODO: Exportar resumen supervisor en Excel')
   }
 
   const handleExportPDF = () => {
-    console.log('TODO: Exportar resumen supervisor en PDF')
+    logger.log('TODO: Exportar resumen supervisor en PDF')
   }
 
   const handleRefresh = () => {

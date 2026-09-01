@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { logger } from '@/lib/logger'
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -969,7 +970,7 @@ const ListadoPrestamosElegante = () => {
             const backendData = buildCrearPrestamoPayload(data)
 
             const response = await prestamosService.crearPrestamo(backendData);
-            console.log('[CREDITO_CREADO] Respuesta del backend:', response);
+            logger.log('[CREDITO_CREADO] Respuesta del backend:', response);
             
             showNotification('success', 'El crédito ha sido creado exitosamente', 'Crédito Creado');
             setShowCrearCreditoModal(false);
@@ -979,7 +980,7 @@ const ListadoPrestamosElegante = () => {
               try {
                 // response puede venir estructurado de varias formas, intentamos extraer el ID
                 const loanId = response?.data?.id || response?.id || (response?.prestamo && response?.prestamo?.id) || response?.data?.prestamo?.id;
-                console.log('ID rescatado para contrato:', loanId);
+                logger.log('ID rescatado para contrato:', loanId);
                 
                 if (loanId) {
                   const exportService = (await import('../../services/export-service')).exportService;

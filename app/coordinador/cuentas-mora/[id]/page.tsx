@@ -173,7 +173,7 @@ export default function DetalleCuentaMoraPage({
                             <MapPin className="w-4 h-4 text-slate-400 mt-1" />
                             <div>
                                 <p className="text-[10px] font-bold text-slate-400 uppercase">Dirección</p>
-                                <p className="font-bold text-slate-900">{cuenta.cliente.direccion}</p>
+                                <p className="font-bold text-slate-900 break-words">{cuenta.cliente.direccion}</p>
                                 <p className="text-xs text-slate-500">{cuenta.cliente.referencia}</p>
                             </div>
                         </div>
