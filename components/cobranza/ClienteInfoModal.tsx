@@ -289,7 +289,7 @@ export default function ClienteInfoModal({
                       <MapPin className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
                       <div>
                         <p className="text-[10px] font-bold text-slate-400 uppercase mb-0.5">Dirección</p>
-                        <p className="text-sm font-bold text-slate-800">{visita.direccion}</p>
+                        <p className="text-sm font-bold text-slate-800 break-words">{visita.direccion}</p>
                       </div>
                     </div>
                   )}

@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { Settings, CreditCard, Bell, Shield, Users, Database, Wallet, Calculator, CheckCircle } from 'lucide-react'
 import { configuracionService, ConfiguracionSistema } from '@/services/configuracion-service'
+import { apiRequest } from '@/lib/api/api'
 import { Toaster, toast } from 'sonner'
 
 const ConfiguracionSistemaPage = () => {
@@ -15,6 +16,25 @@ const ConfiguracionSistemaPage = () => {
     autoAprobarClientes: false,
     autoAprobarCreditos: false,
   });
+
+  const [respaldando, setRespaldando] = useState(false);
+
+  // El botón "Realizar Respaldo Manual" no tenía onClick (no hacía nada).
+  // Ahora dispara el mismo backup real que usa la pantalla de Backups.
+  const realizarRespaldoManual = useCallback(async () => {
+    setRespaldando(true);
+    try {
+      await apiRequest('POST', '/backup/run', undefined, {
+        cacheTTL: 0,
+        timeout: 15 * 60 * 1000,
+      });
+      toast.success('Respaldo generado correctamente');
+    } catch (error: any) {
+      toast.error(error?.message || 'No se pudo generar el respaldo');
+    } finally {
+      setRespaldando(false);
+    }
+  }, []);
 
   const fetchConfig = useCallback(async () => {
     try {
@@ -109,9 +129,13 @@ const ConfiguracionSistemaPage = () => {
                 </button>
               </div>
 
-              <button className="w-full py-2.5 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/20 flex items-center justify-center gap-2">
-                <Database className="h-4 w-4" />
-                Realizar Respaldo Manual
+              <button
+                onClick={realizarRespaldoManual}
+                disabled={respaldando}
+                className="w-full py-2.5 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/20 flex items-center justify-center gap-2 disabled:opacity-60"
+              >
+                <Database className={`h-4 w-4 ${respaldando ? 'animate-pulse' : ''}`} />
+                {respaldando ? 'Generando respaldo…' : 'Realizar Respaldo Manual'}
               </button>
             </div>
           </section>

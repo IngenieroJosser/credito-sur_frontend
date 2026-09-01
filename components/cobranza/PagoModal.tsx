@@ -137,7 +137,7 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm, montoCuota
               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-1">
                 <p className="text-sm text-slate-500">Cliente</p>
                 <p className="font-bold text-slate-900 text-lg">{visita.cliente}</p>
-                <p className="text-xs text-slate-500">{visita.direccion}</p>
+                <p className="text-xs text-slate-500 break-words">{visita.direccion}</p>
                 <p className="text-xs text-slate-400">Cuota esperada: ${formatMilesCOP(montoCuotaEsperado)}</p>
               </div>
 
