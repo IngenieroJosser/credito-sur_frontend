@@ -85,7 +85,7 @@ export default function ProcesarCastigoModal({ cuenta, onClose, onConfirm }: Pro
                <div className="flex justify-between items-start mb-4">
                   <div>
                     <div className="text-[10px] font-black text-rose-600 uppercase tracking-widest mb-1">Saldo a Castigar</div>
-                    <div className="text-3xl font-black text-rose-700">{formatCurrency(cuenta.saldoPendiente)}</div>
+                    <div className="text-3xl font-black text-rose-700 break-words tabular-nums">{formatCurrency(cuenta.saldoPendiente)}</div>
                   </div>
                   <AlertTriangle className="w-8 h-8 text-rose-400 opacity-50" />
                </div>

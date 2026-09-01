@@ -219,7 +219,7 @@ export default function ConsolidacionCajasModal({ isOpen, onClose, onSuccess }: 
                             {/* Total saldo */}
                             <div className="flex flex-col items-center justify-center py-4 bg-slate-50 rounded-xl mb-4 border border-slate-100">
                               <span className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-1">Saldo Total</span>
-                              <span className="text-3xl font-black text-slate-900">{formatCurrency(caja.saldo)}</span>
+                              <span className="text-3xl font-black text-slate-900 break-words min-w-0 tabular-nums">{formatCurrency(caja.saldo)}</span>
                             </div>
 
                             {/* Desglose efectivo vs transferencia */}
