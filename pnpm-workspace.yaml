@@ -1,0 +1,8 @@
+# pnpm 10+ bloquea por defecto los scripts de instalacion, y dejar uno sin
+# decidir hace que `pnpm install` termine con error (rompe el despliegue).
+#
+#   sharp         : modulo nativo que Next.js usa para optimizar imagenes.
+#   unrs-resolver : resolvedor nativo que usa la configuracion de ESLint.
+allowBuilds:
+  sharp: true
+  unrs-resolver: true
