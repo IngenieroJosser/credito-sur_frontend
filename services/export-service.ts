@@ -62,7 +62,12 @@ export const exportService = {
     }
 
     // Trigger browser download
-    const blob = new Blob([response.data], { type: response.headers['content-type'] });
+    // axios tipa las cabeceras como AxiosHeaderValue (puede no ser string),
+    // y Blob solo acepta string: se coacciona explicitamente.
+    const tipoContenido = response.headers['content-type'];
+    const blob = new Blob([response.data], {
+      type: typeof tipoContenido === 'string' ? tipoContenido : undefined,
+    });
     const downloadUrl = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = downloadUrl;
@@ -136,7 +141,12 @@ export const exportService = {
       if (match) filename = match[1];
     }
 
-    const blob = new Blob([response.data], { type: response.headers['content-type'] });
+    // axios tipa las cabeceras como AxiosHeaderValue (puede no ser string),
+    // y Blob solo acepta string: se coacciona explicitamente.
+    const tipoContenido = response.headers['content-type'];
+    const blob = new Blob([response.data], {
+      type: typeof tipoContenido === 'string' ? tipoContenido : undefined,
+    });
     const downloadUrl = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = downloadUrl;
