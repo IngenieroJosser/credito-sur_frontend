@@ -54,6 +54,7 @@ import { getCajas, consolidarCaja, obtenerSaldoDisponibleRuta, Caja } from '@/se
 import { prestamosService } from '@/services/prestamos-service';
 import { formatRoleLabel } from '@/lib/display-labels';
 import { buildCrearPrestamoPayload } from '@/lib/creditos/crear-prestamo-payload';
+import Paginador from '@/components/ui/Paginador'
 
 interface Ruta {
   id: string;
@@ -1636,26 +1637,15 @@ export const RutasPageView = ({
           )}
 
           {/* Paginación Elegante Estandarizada */}
-          <div className="p-4 border-t border-slate-100 bg-slate-50/30 flex justify-between items-center text-xs text-slate-500 font-medium rounded-2xl">
-            <span>
-              Mostrando {currentRutas.length} de {rutasFiltradas.length} resultados
-            </span>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                className="px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-bold flex items-center gap-1 transition-colors text-slate-700"
-              >
-                <ChevronLeft className="h-3 w-3" /> Anterior
-              </button>
-              <button
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages || totalPages === 0}
-                className="px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-bold flex items-center gap-1 transition-colors text-slate-700"
-              >
-                Siguiente <ChevronRight className="h-3 w-3" />
-              </button>
-            </div>
+          {/* Paginación Elegante Estandarizada */}
+          <div className="p-4 border-t border-slate-100 bg-slate-50/30 rounded-2xl">
+            <Paginador
+              pagina={currentPage}
+              totalPaginas={totalPages}
+              onCambiar={setCurrentPage}
+              resumen={`Mostrando ${currentRutas.length} de ${rutasFiltradas.length} resultados`}
+              className="mt-0"
+            />
           </div>
         </div>
       </div>

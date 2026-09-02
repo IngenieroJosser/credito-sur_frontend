@@ -1,5 +1,7 @@
 'use client';
 
+
+import Paginador from '@/components/ui/Paginador'
 import React, { useState, useEffect, useCallback } from 'react';
 import { logger } from '@/lib/logger'
 import Link from 'next/link';
@@ -749,26 +751,15 @@ const ListadoPrestamosElegante = () => {
           </div>
 
           {/* Paginación */}
-          <div className="p-4 border-t border-slate-100 bg-slate-50/30 flex justify-between items-center text-xs text-slate-500 font-medium">
-            <span>
-              Mostrando {Math.min(prestamosPaginados.length, prestamosPorPagina)} de {totalPrestamos} resultados
-            </span>
-            <div className="flex gap-2">
-              <button 
-                onClick={() => cambiarPagina(paginaActual - 1)}
-                disabled={paginaActual === 1 || cargando}
-                className="px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-bold flex items-center gap-1 transition-colors text-slate-700"
-              >
-                <ChevronLeft className="h-3 w-3" /> Anterior
-              </button>
-              <button 
-                onClick={() => cambiarPagina(paginaActual + 1)}
-                disabled={paginaActual === totalPaginas || totalPaginas === 0 || cargando}
-                className="px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-bold flex items-center gap-1 transition-colors text-slate-700"
-              >
-                Siguiente <ChevronRightIcon className="h-3 w-3" />
-              </button>
-            </div>
+          <div className="p-4 border-t border-slate-100 bg-slate-50/30">
+            <Paginador
+              pagina={paginaActual}
+              totalPaginas={totalPaginas}
+              onCambiar={cambiarPagina}
+              cargando={cargando}
+              resumen={`Mostrando ${Math.min(prestamosPaginados.length, prestamosPorPagina)} de ${totalPrestamos} resultados`}
+              className="mt-0"
+            />
           </div>
         </div>
 

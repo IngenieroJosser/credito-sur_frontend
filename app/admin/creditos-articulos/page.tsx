@@ -1,5 +1,7 @@
 'use client'
 
+
+import Paginador from '@/components/ui/Paginador'
 import { useState, useEffect, useCallback } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { usePathname } from 'next/navigation'
@@ -592,27 +594,13 @@ export default function CreditosArticulosPage() {
           {/* Paginación Móvil */}
           {!isLoading && filteredCreditos.length > 0 && (
             <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4">
-              <div className="flex flex-col sm:flex-row justify-between items-center gap-3 text-xs text-slate-500 font-medium">
-                <span className="text-center">
-                  Mostrando {indicePrimero + 1} a {Math.min(indiceUltimo, filteredCreditos.length)} de {filteredCreditos.length}
-                </span>
-                <div className="flex gap-2 w-full sm:w-auto">
-                  <button
-                    onClick={() => cambiarPagina(paginaActual - 1)}
-                    disabled={paginaActual === 1}
-                    className="flex-1 sm:flex-none px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-bold flex items-center justify-center gap-1 transition-colors text-slate-700"
-                  >
-                    <ChevronLeft className="h-3 w-3" /> Anterior
-                  </button>
-                  <button
-                    onClick={() => cambiarPagina(paginaActual + 1)}
-                    disabled={paginaActual === totalPaginas}
-                    className="flex-1 sm:flex-none px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-bold flex items-center justify-center gap-1 transition-colors text-slate-700"
-                  >
-                    Siguiente <ChevronRight className="h-3 w-3" />
-                  </button>
-                </div>
-              </div>
+              <Paginador
+                pagina={paginaActual}
+                totalPaginas={totalPaginas}
+                onCambiar={cambiarPagina}
+                resumen={`Mostrando ${indicePrimero + 1} a ${Math.min(indiceUltimo, filteredCreditos.length)} de ${filteredCreditos.length}`}
+                className="mt-0"
+              />
             </div>
           )}
         </div>

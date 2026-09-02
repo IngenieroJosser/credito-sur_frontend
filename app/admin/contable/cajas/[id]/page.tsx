@@ -1,5 +1,7 @@
 'use client'
 
+
+import Paginador from '@/components/ui/Paginador'
 import PantallaCarga from '@/components/ui/PantallaCarga'
 
 import { createPortal } from 'react-dom'
@@ -444,30 +446,13 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
             ))}
           </div>
 
-          <div className="p-4 border-t border-slate-100 bg-white flex items-center justify-between">
-            <p className="text-xs font-medium text-slate-500">
-              Página {paginaMovimientos} de {totalPaginasMovimientos}
-            </p>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setPaginaMovimientos((p) => Math.max(1, p - 1))}
-                disabled={paginaMovimientos <= 1}
-                className="inline-flex items-center gap-1 px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <ChevronLeft className="h-4 w-4" />
-                Anterior
-              </button>
-              <button
-                type="button"
-                onClick={() => setPaginaMovimientos((p) => Math.min(totalPaginasMovimientos, p + 1))}
-                disabled={paginaMovimientos >= totalPaginasMovimientos}
-                className="inline-flex items-center gap-1 px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                Siguiente
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </div>
+          <div className="p-4 border-t border-slate-100 bg-white">
+            <Paginador
+              pagina={paginaMovimientos}
+              totalPaginas={totalPaginasMovimientos}
+              onCambiar={setPaginaMovimientos}
+              className="mt-0"
+            />
           </div>
         </div>
 

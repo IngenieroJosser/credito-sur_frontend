@@ -1,5 +1,7 @@
 'use client'
 
+
+import Paginador from '@/components/ui/Paginador'
 /**
  * ============================================================================
  * ARTÍCULOS / INVENTARIO - COMPONENTE COMPARTIDO
@@ -772,26 +774,14 @@ export default function ArticulosContent() {
           </div>
           
           {/* Pagination */}
-          <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/30 flex items-center justify-between">
-            <div className="text-sm text-slate-500">
-              Mostrando <span className="font-medium text-slate-900">{showingFrom}</span> a <span className="font-medium text-slate-900">{showingTo}</span> de <span className="font-medium text-slate-900">{articulosOrdenados.length}</span> resultados
-            </div>
-            <div className="flex gap-2">
-              <button
-                className="px-3 py-1 text-sm border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 text-slate-600"
-                disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-              >
-                Anterior
-              </button>
-              <button
-                className="px-3 py-1 text-sm border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 text-slate-600"
-                disabled={page >= totalPages}
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              >
-                Siguiente
-              </button>
-            </div>
+          <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/30">
+            <Paginador
+              pagina={page}
+              totalPaginas={totalPages}
+              onCambiar={setPage}
+              resumen={`Mostrando ${showingFrom} a ${showingTo} de ${articulosOrdenados.length} resultados`}
+              className="mt-0"
+            />
           </div>
         </div>
 

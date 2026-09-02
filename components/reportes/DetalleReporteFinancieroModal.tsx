@@ -5,6 +5,7 @@ import { X, Calendar, TrendingUp, TrendingDown, Eye, LineChart } from 'lucide-re
 import { formatCurrency } from '@/lib/utils'
 import { getMovimientosLedger } from '@/services/contabilidad-service'
 import { buildBogotaOffsetIsoFromKey, getBogotaDateKey, normalizeDateKey } from '@/lib/rutas-core'
+import Paginador from '@/components/ui/Paginador'
 
 interface DetalleReporteFinancieroModalProps {
   id: string
@@ -305,24 +306,13 @@ export default function DetalleReporteFinancieroModal({ id, onClose }: DetalleRe
                 </tbody>
               </table>
             </div>
-            <div className="flex items-center justify-between px-6 py-4 bg-white border-t border-slate-100">
-              <span className="text-xs font-bold text-slate-500">Página {pagina} de {totalPaginas}</span>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setPagina(p => Math.max(1, p - 1))}
-                  disabled={pagina === 1}
-                  className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-all ${pagina === 1 ? 'text-slate-300 border-slate-200 bg-slate-50 cursor-not-allowed' : 'text-slate-600 border-slate-200 hover:bg-slate-50'}`}
-                >
-                  Anterior
-                </button>
-                <button
-                  onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))}
-                  disabled={pagina === totalPaginas}
-                  className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-all ${pagina === totalPaginas ? 'text-slate-300 border-slate-200 bg-slate-50 cursor-not-allowed' : 'text-slate-600 border-slate-200 hover:bg-slate-50'}`}
-                >
-                  Siguiente
-                </button>
-              </div>
+            <div className="px-6 py-4 bg-white border-t border-slate-100">
+              <Paginador
+                pagina={pagina}
+                totalPaginas={totalPaginas}
+                onCambiar={setPagina}
+                className="mt-0"
+              />
             </div>
           </section>
         </div>

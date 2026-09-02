@@ -16,6 +16,7 @@ import {
   X,
   Laptop
 } from 'lucide-react'
+import Paginador from '@/components/ui/Paginador'
 import { auditoriaService, type RegistroAuditoria } from '@/services/auditoria-service'
 import { routesService, type Route } from '@/services/routes-service'
 import { cn } from '@/lib/utils'
@@ -430,47 +431,15 @@ const AuditoriaSistemaPage = () => {
             </div>
           )}
           
-          {/* Paginador */}
-          <div className="p-4 border-t border-slate-100 bg-slate-50/30 flex flex-col sm:flex-row justify-between items-center gap-3 text-xs text-slate-500 font-medium">
-            <span>
-              Mostrando <strong className="text-slate-700">{logs.length}</strong> de <strong className="text-slate-700">{totalRegistros}</strong> registros
-              {totalPaginas > 1 && <> · Página <strong className="text-slate-700">{pagina}</strong> de <strong className="text-slate-700">{totalPaginas}</strong></>}
-            </span>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setPagina(p => Math.max(1, p - 1))}
-                disabled={pagina <= 1 || loading}
-                className="px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold transition-colors flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <ChevronLeft className="h-3 w-3" /> Anterior
-              </button>
-              {/* Botones de página visibles */}
-              {Array.from({ length: Math.min(5, totalPaginas) }, (_, i) => {
-                const start = Math.max(1, pagina - 2)
-                const p = start + i
-                if (p > totalPaginas) return null
-                return (
-                  <button
-                    key={p}
-                    onClick={() => setPagina(p)}
-                    className={`w-9 h-9 rounded-lg border font-bold text-xs transition-colors ${
-                      p === pagina
-                        ? 'bg-slate-900 text-white border-slate-900'
-                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                    }`}
-                  >
-                    {p}
-                  </button>
-                )
-              })}
-              <button
-                onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))}
-                disabled={pagina >= totalPaginas || loading}
-                className="px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold transition-colors flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                Siguiente <ChevronRight className="h-3 w-3" />
-              </button>
-            </div>
+          <div className="p-4 border-t border-slate-100 bg-slate-50/30">
+            <Paginador
+              pagina={pagina}
+              totalPaginas={totalPaginas}
+              onCambiar={setPagina}
+              cargando={loading}
+              resumen={`Mostrando ${logs.length} de ${totalRegistros} registros`}
+              className="mt-0"
+            />
           </div>
         </section>
       </div>

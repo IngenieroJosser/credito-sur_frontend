@@ -1,5 +1,7 @@
 'use client'
 
+import Paginador from '@/components/ui/Paginador'
+
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Database, Cloud, RefreshCw, HardDrive, ShieldCheck, Clock, Download } from 'lucide-react'
 import { apiRequest } from '@/lib/api/api'
@@ -351,28 +353,13 @@ const BackupsSistemaPage = () => {
           </div>
 
           {!loading && history.length > 0 && (
-            <div className="p-4 border-t border-slate-100 flex items-center justify-between">
-              <div className="text-xs font-bold text-slate-500">
-                Página {Math.min(page, totalPages)} de {totalPages}
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page <= 1}
-                  className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 transition-all disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-slate-600 disabled:hover:border-slate-200"
-                >
-                  Anterior
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={page >= totalPages}
-                  className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 transition-all disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-slate-600 disabled:hover:border-slate-200"
-                >
-                  Siguiente
-                </button>
-              </div>
+            <div className="p-4 border-t border-slate-100">
+              <Paginador
+                pagina={Math.min(page, totalPages)}
+                totalPaginas={totalPages}
+                onCambiar={setPage}
+                className="mt-0"
+              />
             </div>
           )}
         </section>
@@ -453,28 +440,13 @@ const BackupsSistemaPage = () => {
           )}
 
           {!loading && history.length > 0 && (
-            <div className="bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 p-4 flex items-center justify-between">
-              <div className="text-xs font-bold text-slate-500">
-                Página {Math.min(page, totalPages)} de {totalPages}
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page <= 1}
-                  className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 transition-all disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-slate-600 disabled:hover:border-slate-200"
-                >
-                  Anterior
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={page >= totalPages}
-                  className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 transition-all disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-slate-600 disabled:hover:border-slate-200"
-                >
-                  Siguiente
-                </button>
-              </div>
+            <div className="bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 p-4">
+              <Paginador
+                pagina={Math.min(page, totalPages)}
+                totalPaginas={totalPages}
+                onCambiar={setPage}
+                className="mt-0"
+              />
             </div>
           )}
         </section>

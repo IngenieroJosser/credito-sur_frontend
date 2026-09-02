@@ -1,5 +1,7 @@
 'use client';
 
+
+import Paginador from '@/components/ui/Paginador'
 import { useState } from 'react';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { clientesService, Cliente } from '@/services/clientes-service';
@@ -539,27 +541,14 @@ export default function ClientesClient({ initialClientes }: ClientesClientProps)
             </table>
           </div>
 
-          {/* Paginación Elegante */}
-          <div className="p-4 border-t border-slate-100 bg-slate-50/30 flex justify-between items-center text-xs text-slate-500 font-medium">
-             <span>
-                Mostrando {currentItems.length} de {filteredClientes.length} resultados
-             </span>
-             <div className="flex gap-2">
-               <button 
-                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                 disabled={currentPage === 1}
-                 className="px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-bold flex items-center gap-1 transition-colors text-slate-700"
-               >
-                 <ChevronLeft className="h-3 w-3" /> Anterior
-               </button>
-               <button 
-                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                 disabled={currentPage === totalPages || totalPages === 0}
-                 className="px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-bold flex items-center gap-1 transition-colors text-slate-700"
-               >
-                 Siguiente <ChevronRight className="h-3 w-3" />
-               </button>
-             </div>
+          <div className="p-4 border-t border-slate-100 bg-slate-50/30">
+            <Paginador
+              pagina={currentPage}
+              totalPaginas={totalPages}
+              onCambiar={setCurrentPage}
+              resumen={`Mostrando ${currentItems.length} de ${filteredClientes.length} resultados`}
+              className="mt-0"
+            />
           </div>
         </div>
       </div>
