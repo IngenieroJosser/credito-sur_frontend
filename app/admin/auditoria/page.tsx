@@ -39,7 +39,9 @@ const AuditoriaSistemaPage = () => {
   const [pagina, setPagina] = useState(1)
   const [totalPaginas, setTotalPaginas] = useState(1)
   const [totalRegistros, setTotalRegistros] = useState(0)
-  const LIMITE = 50
+  // Registros por pagina. El listado es de lectura y cada fila es ancha:
+  // cinco caben sin desbordar la tarjeta ni obligar a desplazar la pagina.
+  const LIMITE = 5
 
   interface LogItem {
     id: string

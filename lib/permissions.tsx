@@ -401,6 +401,48 @@ export const obtenerModulos = (rol: Rol, sidebarData?: SidebarModulo[]): ModuloP
   // cierran los submenús) y además el resaltado del módulo activo nunca coincide.
   // Para admin/superadmin enlazamos directo a la URL final y así la navegación
   // es del lado del cliente: solo cambia el contenido.
+/**
+ * Rutas que ya no tienen pantalla propia: solo reenvian a la real.
+ *
+ * Enlazarlas desde el menu obliga a montar una pantalla vacia, redirigir en el
+ * cliente y montar otra. Como origen y destino viven en arboles de layout
+ * distintos, el shell entero (aside incluido) se remonta y parece una recarga.
+ * El menu debe apuntar SIEMPRE al destino final.
+ *
+ * Se indexa por la ruta del catalogo (siempre /admin/...) para que el arreglo
+ * valga de una vez para TODOS los roles: se resuelve antes de traducir el
+ * prefijo, asi que ni ADMIN ni COORDINADOR ni CONTADOR llegan al reenvio.
+ */
+const PREFIJOS_DE_ROL = [
+  'admin',
+  'coordinador',
+  'supervisor',
+  'contador',
+  'cobranzas',
+  'punto-de-venta',
+];
+
+/**
+ * Pantallas que ya solo existen una vez, compartidas por todos los roles.
+ *
+ * La variante por rol (/coordinador/articulos, /contador/cuentas-mora, ...) ya
+ * no tiene contenido: monta un componente vacio que redirige en el cliente a la
+ * compartida. Como cada rol vive en un arbol de layout distinto del compartido,
+ * ese salto remonta el shell entero y parece que la aplicacion se recarga.
+ *
+ * Se comparan por el nombre final para que valga igual venga la ruta del
+ * catalogo como /admin/... o ya con el prefijo del rol.
+ */
+const PANTALLAS_COMPARTIDAS = ['articulos', 'cuentas-mora', 'cuentas-vencidas'];
+
+function destinoCompartido(p: string): string | null {
+  const partes = p.split('/').filter(Boolean);
+  if (partes.length !== 2) return null;
+  const [prefijo, nombre] = partes;
+  if (!PREFIJOS_DE_ROL.includes(prefijo)) return null;
+  return PANTALLAS_COMPARTIDAS.includes(nombre) ? `/${nombre}` : null;
+}
+
   const RUTAS_LIMPIAS_ADMIN = [
     '/admin/creditos',
     '/admin/clientes',
@@ -417,6 +459,10 @@ export const obtenerModulos = (rol: Rol, sidebarData?: SidebarModulo[]): ModuloP
 
   const aliasPath = (p: string) => {
     if (!p || p === '#') return p;
+    // Antes que nada: si la ruta del catalogo es solo un reenvio, se sustituye
+    // por su destino real. Asi ningun rol acaba pasando por la pantalla puente.
+    const compartida = destinoCompartido(p);
+    if (compartida) return compartida;
     const prefix = getRolePrefix(rol);
     if (!prefix) {
       const limpia = RUTAS_LIMPIAS_ADMIN.find((c) => p === c || p.startsWith(`${c}/`));

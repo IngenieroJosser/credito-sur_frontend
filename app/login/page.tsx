@@ -24,7 +24,6 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { restoreOfflineSession, hasValidOfflineSession, getOfflineSessionDaysRemaining, isTokenExpired, cacheSession, guardarHashCredencial, verificarCredencialOffline, hayCredencialOffline } from '@/lib/auth/offlineAuth';
 import { esErrorDeRed } from '@/lib/offline/conRespaldoOffline';
-import { setAuthCookiesAction } from './actions';
 import { apiClient } from '@/lib/api/apiClient';
 import { formatRoleLabel } from '@/lib/display-labels';
 
@@ -239,9 +238,17 @@ const LoginPage = () => {
         throw new Error('Respuesta inválida del servidor');
       }
 
-      // 2. Usamos Server Action muy rápida solo para inyectar Cookies seguras
-      const cookieRes = await setAuthCookiesAction(result.access_token, result.usuario?.rol);
-      if (!cookieRes.success) {
+      // 2. Ruta interna muy rapida solo para inyectar las cookies seguras.
+      // Se usa un route handler y no una Server Action: su URL no cambia entre
+      // despliegues, asi que un cliente servido desde la cache de la PWA no
+      // puede quedar apuntando a un identificador que ya no existe.
+      const respuestaSesion = await fetch('/api/sesion', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: result.access_token, rol: result.usuario?.rol }),
+      });
+      const cookieRes = await respuestaSesion.json().catch(() => ({ success: false }));
+      if (!respuestaSesion.ok || !cookieRes.success) {
         throw new Error(cookieRes.error || 'Error seteando sesión');
       }
 

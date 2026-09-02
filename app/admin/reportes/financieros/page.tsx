@@ -571,12 +571,12 @@ const ReportesFinancierosPage = () => {
         {/* KPI Cards - Estilo Ultra Clean */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-6">
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-            <div className="flex justify-between items-start mb-4">
-              <div>
+            <div className="flex justify-between items-start gap-3 mb-4">
+              <div className="min-w-0">
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Flujo Neto de Caja</p>
-                <h3 className="text-2xl font-bold text-slate-900 mt-2">{formatCurrency(summary.entradasCaja)}</h3>
+                <h3 className="text-2xl font-bold text-slate-900 mt-2 break-words leading-tight">{formatCurrency(summary.entradasCaja)}</h3>
               </div>
-              <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100">
+              <div className="shrink-0 p-3 bg-emerald-50 rounded-xl border border-emerald-100">
                 <TrendingUp className="h-5 w-5 text-emerald-600" />
               </div>
             </div>
@@ -584,18 +584,18 @@ const ReportesFinancierosPage = () => {
           </div>
 
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-            <div className="flex justify-between items-start mb-4">
-              <div>
+            <div className="flex justify-between items-start gap-3 mb-4">
+              <div className="min-w-0">
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Ingresos de Cartera</p>
-                <h3 className="text-2xl font-bold text-slate-900 mt-2">{formatCurrency(summary.ingresos)}</h3>
+                <h3 className="text-2xl font-bold text-slate-900 mt-2 break-words leading-tight">{formatCurrency(summary.ingresos)}</h3>
               </div>
-              <div className="p-3 bg-teal-50 rounded-xl border border-teal-100">
+              <div className="shrink-0 p-3 bg-teal-50 rounded-xl border border-teal-100">
                 <DollarSign className="h-5 w-5 text-teal-600" />
               </div>
             </div>
             {trendIngresos !== null && (
-              <div className={`flex items-center text-xs font-bold w-fit px-2 py-1 rounded-full border ${trendIngresos >= 0 ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-rose-600 bg-rose-50 border-rose-100'}`}>
-                <ArrowUpRight className="h-3 w-3 mr-1" />
+              <div className={`flex items-center text-xs font-bold w-fit max-w-full px-2 py-1 rounded-full border ${trendIngresos >= 0 ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-rose-600 bg-rose-50 border-rose-100'}`}>
+                <ArrowUpRight className="h-3 w-3 mr-1 shrink-0" />
                 <span>{trendIngresos >= 0 ? `+${trendIngresos}%` : `${trendIngresos}%`} vs periodo anterior</span>
               </div>
             )}
@@ -603,48 +603,48 @@ const ReportesFinancierosPage = () => {
           </div>
 
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-            <div className="flex justify-between items-start mb-4">
-              <div>
+            <div className="flex justify-between items-start gap-3 mb-4">
+              <div className="min-w-0">
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Cobros de Cuotas</p>
-                <h3 className="text-2xl font-bold text-slate-900 mt-2">{formatCurrency(summary.cobros)}</h3>
+                <h3 className="text-2xl font-bold text-slate-900 mt-2 break-words leading-tight">{formatCurrency(summary.cobros)}</h3>
               </div>
-              <div className="p-3 bg-blue-50 rounded-xl border border-blue-100">
+              <div className="shrink-0 p-3 bg-blue-50 rounded-xl border border-blue-100">
                 <DollarSign className="h-5 w-5 text-blue-600" />
               </div>
             </div>
             {trendCobros !== null && (
-              <div className={`flex items-center text-xs font-bold w-fit px-2 py-1 rounded-full border ${trendCobros >= 0 ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-rose-600 bg-rose-50 border-rose-100'}`}>
-                <ArrowUpRight className="h-3 w-3 mr-1" />
+              <div className={`flex items-center text-xs font-bold w-fit max-w-full px-2 py-1 rounded-full border ${trendCobros >= 0 ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-rose-600 bg-rose-50 border-rose-100'}`}>
+                <ArrowUpRight className="h-3 w-3 mr-1 shrink-0" />
                 <span>{trendCobros >= 0 ? `+${trendCobros}%` : `${trendCobros}%`} vs periodo anterior</span>
               </div>
             )}
           </div>
 
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-            <div className="flex justify-between items-start mb-4">
-              <div>
+            <div className="flex justify-between items-start gap-3 mb-4">
+              <div className="min-w-0">
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Gastos Operativos</p>
-                <h3 className="text-2xl font-bold text-slate-900 mt-2">{formatCurrency(summary.egresos)}</h3>
+                <h3 className="text-2xl font-bold text-slate-900 mt-2 break-words leading-tight">{formatCurrency(summary.egresos)}</h3>
               </div>
-              <div className="p-3 bg-rose-50 rounded-xl border border-rose-100">
+              <div className="shrink-0 p-3 bg-rose-50 rounded-xl border border-rose-100">
                 <TrendingDown className="h-5 w-5 text-rose-600" />
               </div>
             </div>
             {trendEgresos !== null && (
-              <div className={`flex items-center text-xs font-bold w-fit px-2 py-1 rounded-full border ${trendEgresos >= 0 ? 'text-rose-600 bg-rose-50 border-rose-100' : 'text-emerald-600 bg-emerald-50 border-emerald-100'}`}>
-                <ArrowUpRight className="h-3 w-3 mr-1" />
+              <div className={`flex items-center text-xs font-bold w-fit max-w-full px-2 py-1 rounded-full border ${trendEgresos >= 0 ? 'text-rose-600 bg-rose-50 border-rose-100' : 'text-emerald-600 bg-emerald-50 border-emerald-100'}`}>
+                <ArrowUpRight className="h-3 w-3 mr-1 shrink-0" />
                 <span>{trendEgresos >= 0 ? `+${trendEgresos}%` : `${trendEgresos}%`} vs periodo anterior</span>
               </div>
             )}
           </div>
 
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-            <div className="flex justify-between items-start mb-4">
-              <div>
+            <div className="flex justify-between items-start gap-3 mb-4">
+              <div className="min-w-0">
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Utilidad Operativa</p>
-                <h3 className="text-2xl font-bold text-slate-900 mt-2">{formatCurrency(summary.utilidadOperativa)}</h3>
+                <h3 className="text-2xl font-bold text-slate-900 mt-2 break-words leading-tight">{formatCurrency(summary.utilidadOperativa)}</h3>
               </div>
-              <div className="p-3 bg-blue-50 rounded-xl border border-blue-100">
+              <div className="shrink-0 p-3 bg-blue-50 rounded-xl border border-blue-100">
                 <DollarSign className="h-5 w-5 text-blue-600" />
               </div>
             </div>
@@ -652,12 +652,12 @@ const ReportesFinancierosPage = () => {
           </div>
 
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-            <div className="flex justify-between items-start mb-4">
-              <div>
+            <div className="flex justify-between items-start gap-3 mb-4">
+              <div className="min-w-0">
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Provisión de Cartera</p>
-                <h3 className="text-2xl font-bold text-slate-900 mt-2">{formatCurrency(summary.provisionCartera)}</h3>
+                <h3 className="text-2xl font-bold text-slate-900 mt-2 break-words leading-tight">{formatCurrency(summary.provisionCartera)}</h3>
               </div>
-              <div className="p-3 bg-amber-50 rounded-xl border border-amber-100">
+              <div className="shrink-0 p-3 bg-amber-50 rounded-xl border border-amber-100">
                 <PieChart className="h-5 w-5 text-amber-600" />
               </div>
             </div>
@@ -665,34 +665,34 @@ const ReportesFinancierosPage = () => {
           </div>
 
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-            <div className="flex justify-between items-start mb-4">
-              <div>
+            <div className="flex justify-between items-start gap-3 mb-4">
+              <div className="min-w-0">
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Utilidad Neta Estimada</p>
-                <h3 className="text-2xl font-bold text-slate-900 mt-2">{formatCurrency(summary.utilidadNeta)}</h3>
+                <h3 className="text-2xl font-bold text-slate-900 mt-2 break-words leading-tight">{formatCurrency(summary.utilidadNeta)}</h3>
               </div>
-              <div className="p-3 bg-purple-50 rounded-xl border border-purple-100">
+              <div className="shrink-0 p-3 bg-purple-50 rounded-xl border border-purple-100">
                 <DollarSign className="h-5 w-5 text-purple-600" />
               </div>
             </div>
-            <div className={`flex items-center text-xs font-bold w-fit px-2 py-1 rounded-full border ${summary.utilidadNeta >= 0 ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-rose-600 bg-rose-50 border-rose-100'}`}>
-              <ArrowUpRight className="h-3 w-3 mr-1" />
+            <div className={`flex items-center text-xs font-bold w-fit max-w-full px-2 py-1 rounded-full border ${summary.utilidadNeta >= 0 ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-rose-600 bg-rose-50 border-rose-100'}`}>
+              <ArrowUpRight className="h-3 w-3 mr-1 shrink-0" />
               <span>{summary.utilidadNeta >= 0 ? 'Rentable' : 'No rentable'}</span>
             </div>
           </div>
 
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-            <div className="flex justify-between items-start mb-4">
-              <div>
+            <div className="flex justify-between items-start gap-3 mb-4">
+              <div className="min-w-0">
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Margen Promedio</p>
-                <h3 className="text-2xl font-bold text-slate-900 mt-2">{summary.margen.toFixed(1)}%</h3>
+                <h3 className="text-2xl font-bold text-slate-900 mt-2 break-words leading-tight">{summary.margen.toFixed(1)}%</h3>
               </div>
-              <div className="p-3 bg-purple-50 rounded-xl border border-purple-100">
+              <div className="shrink-0 p-3 bg-purple-50 rounded-xl border border-purple-100">
                 <PieChart className="h-5 w-5 text-purple-600" />
               </div>
             </div>
             {metaMargen !== null && (
-              <div className={`flex items-center text-xs font-bold w-fit px-2 py-1 rounded-full border ${summary.margen >= metaMargen ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-amber-700 bg-amber-50 border-amber-100'}`}>
-                <Target className="h-3 w-3 mr-1" />
+              <div className={`flex items-center text-xs font-bold w-fit max-w-full px-2 py-1 rounded-full border ${summary.margen >= metaMargen ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-amber-700 bg-amber-50 border-amber-100'}`}>
+                <Target className="h-3 w-3 mr-1 shrink-0" />
                 <span>Meta {metaMargen.toFixed(1)}%</span>
               </div>
             )}

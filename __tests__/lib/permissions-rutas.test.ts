@@ -78,3 +78,46 @@ describe('Rutas del menú: ninguna dispara la redirección del proxy', () => {
     }
   });
 });
+
+/**
+ * Algunas rutas ya no tienen pantalla propia: solo montan un componente vacio
+ * que redirige en el cliente a la real. Si el menu enlaza a una de ellas, el
+ * usuario monta una pantalla, salta a otra y —como origen y destino viven en
+ * arboles de layout distintos— el shell entero se remonta: parece que la
+ * aplicacion se recarga hasta el aside.
+ */
+const PAGINAS_SOLO_REENVIO = [
+  '/admin/articulos',
+  '/admin/cuentas-mora',
+  '/admin/cuentas-vencidas',
+  '/admin/rutas/asignacion',
+  '/admin/solicitudes',
+  '/coordinador/articulos',
+  '/coordinador/cuentas-mora',
+  '/coordinador/cuentas-vencidas',
+  '/coordinador/notificaciones',
+  '/contador/cuentas-mora',
+  '/supervisor/auditoria',
+  '/supervisor/clientes/nuevo',
+  '/supervisor/creditos-articulos/nuevo',
+  '/cobranzas/auditoria',
+  '/cobranzas/perfil',
+];
+
+describe('El menu nunca enlaza a una pantalla que solo reenvia', () => {
+  it.each(ROLES)('rol %s', (rol) => {
+    const paths = recolectarPaths(obtenerModulos(rol));
+    const reenvios = paths.filter((p) => PAGINAS_SOLO_REENVIO.includes(p));
+    expect({ rol, reenvios }).toEqual({ rol, reenvios: [] });
+  });
+
+  it('las pantallas compartidas se enlazan sin prefijo de rol', () => {
+    for (const rol of ROLES) {
+      const paths = recolectarPaths(obtenerModulos(rol));
+      const conPrefijo = paths.filter((p) =>
+        /^\/[a-z-]+\/(articulos|cuentas-mora|cuentas-vencidas)$/.test(p),
+      );
+      expect({ rol, conPrefijo }).toEqual({ rol, conPrefijo: [] });
+    }
+  });
+});

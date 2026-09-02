@@ -77,6 +77,29 @@ interface Usuario {
   ciudad?: string
 }
 
+/**
+ * Raices de cada rol: son el escritorio, y de ellas cuelga TODO lo demas.
+ *
+ * Por eso solo pueden coincidir de forma exacta. Comparandolas por prefijo,
+ * entrar en /admin/revisiones dejaba tambien marcado el Dashboard, porque
+ * /admin/revisiones empieza por /admin.
+ */
+const RAICES_DE_ROL = new Set([
+  '/admin',
+  '/coordinador',
+  '/supervisor',
+  '/contador',
+  '/cobranzas',
+  '/punto-de-venta',
+]);
+
+/** Un enlace esta activo si la ruta actual es la suya o cuelga de ella. */
+function esRutaActiva(href: string | undefined, actual: string | null | undefined): boolean {
+  if (!href || !actual || href === '#') return false;
+  if (RAICES_DE_ROL.has(href)) return actual === href;
+  return actual === href || actual.startsWith(`${href}/`);
+}
+
 export default function AdminLayout({
   children,
 }: {
@@ -397,7 +420,7 @@ export default function AdminLayout({
     const seccionActiva = navigation.find((item: any) =>
       item.submodulos?.some(
         (sub: any) =>
-          sub.href && (pathname === sub.href || pathname.startsWith(`${sub.href}/`)),
+          sub.href && esRutaActiva(sub.href, pathname),
       ),
     )
 
@@ -730,12 +753,12 @@ export default function AdminLayout({
                 <div className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-4">Principal</div>
                 <div className="space-y-1">
                   {navigation.map((item) => {
-                    const isActive = pathname === item.href || pathname?.startsWith(`${item.href}/`)
+                    const isActive = esRutaActiva(item.href, pathname)
                     const hasSubmenu = item.submodulos && item.submodulos.length > 0
                     const isSubRouteActive = !!(
                       hasSubmenu &&
                       item.submodulos?.some(
-                        (sub) => pathname === sub.href || pathname?.startsWith(`${sub.href}/`),
+                        (sub) => esRutaActiva(sub.href, pathname),
                       )
                     )
                     // Manda lo que el usuario haya decidido; si no ha tocado

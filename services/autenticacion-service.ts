@@ -15,7 +15,6 @@
 import { apiRequest } from "@/lib/api/api";
 import { AuthResponse, LoginData, UserProfile } from "@/lib/types/autenticacion-type";
 import { cacheSession, clearCachedSession, programarPurgaDatosOffline } from "@/lib/auth/offlineAuth";
-import { logoutAction } from "@/app/login/actions";
 
 export async function iniciarSesion(dataLogin: LoginData) {
   const response = await apiRequest<AuthResponse>('POST', `/auth/login`, dataLogin);
@@ -45,7 +44,10 @@ export async function refreshSesion() {
 
 export async function cerrarSesion() {
   if (typeof window !== "undefined") {
-    await logoutAction();
+    // Borrado de las cookies de sesion. Se ignora el fallo a proposito: sin
+    // conexion la peticion no sale, y aun asi el cierre de sesion local debe
+    // completarse en vez de abortar dejando la sesion a medias.
+    await fetch('/api/sesion', { method: 'DELETE' }).catch(() => undefined);
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     clearCachedSession();
