@@ -5,23 +5,7 @@ import Paginador from '@/components/ui/Paginador'
 import { useState, useEffect, useCallback } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { usePathname } from 'next/navigation'
-import {
-  Search,
-  Filter,
-  ShoppingBag,
-  TrendingUp,
-  AlertCircle,
-  ChevronLeft,
-  ChevronRight,
-  Plus,
-  Tv,
-  Smartphone,
-  Armchair,
-  Calendar,
-  CreditCard,
-  Package,
-  Eye
-} from 'lucide-react'
+import { AlertCircle, Armchair, Calendar, ChevronLeft, ChevronRight, CreditCard, Eye, Filter, MapPin, Package, Plus, Search, ShoppingBag, Smartphone, TrendingUp, Tv } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { EstadoPrestamo, NivelRiesgo, type Prestamo } from '@/components/prestamos/data'
 import AnimacionCarga from '@/components/ui/AnimacionCarga'
@@ -42,6 +26,7 @@ export default function CreditosArticulosPage() {
   const pathname = usePathname()
   const { showNotification } = useNotification()
   const [searchTerm, setSearchTerm] = useState('')
+  const [rutaFiltro, setRutaFiltro] = useState('todas')
   const [estadoFiltro, setEstadoFiltro] = useState('todos')
   const [riesgoFiltro, setRiesgoFiltro] = useState('todos')
   const [creditos, setCreditos] = useState<CreditoArticuloRow[]>([])
@@ -158,13 +143,21 @@ export default function CreditosArticulosPage() {
     return <ShoppingBag className="w-5 h-5" />
   }
 
+  // Rutas que aparecen en los creditos cargados. No hace falta pedirlas al
+  // servidor: cada credito ya trae la suya, y asi el desplegable solo ofrece
+  // rutas que de verdad tienen algo que mostrar.
+  const rutasDisponibles = Array.from(
+    new Set(creditos.map((c) => c.ruta).filter((r): r is string => Boolean(r))),
+  ).sort((a, b) => a.localeCompare(b))
+
   const filteredCreditos = creditos.filter(credito => {
     const matchesSearch = credito.cliente.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          credito.producto.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          credito.id.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesEstado = estadoFiltro === 'todos' || credito.estado === estadoFiltro
     const matchesRiesgo = riesgoFiltro === 'todos' || credito.riesgo === riesgoFiltro
-    return matchesSearch && matchesEstado && matchesRiesgo
+    const matchesRuta = rutaFiltro === 'todas' || credito.ruta === rutaFiltro
+    return matchesSearch && matchesEstado && matchesRiesgo && matchesRuta
   })
 
   // Lógica de paginación
@@ -283,6 +276,26 @@ export default function CreditosArticulosPage() {
           </div>
 
           <div className="flex flex-wrap gap-3 w-full md:w-auto">
+            {/* Filtro de Ruta: es el corte con el que se trabaja a diario */}
+            {rutasDisponibles.length > 1 && (
+              <div className="flex items-center gap-1.5 bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
+                <MapPin className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                <select
+                  value={rutaFiltro}
+                  onChange={(e) => {
+                    setRutaFiltro(e.target.value)
+                    cambiarPagina(1)
+                  }}
+                  className="min-w-0 max-w-[11rem] truncate bg-transparent text-xs font-bold text-slate-700 outline-none"
+                >
+                  <option value="todas">Todas las rutas</option>
+                  {rutasDisponibles.map((r) => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             {/* Filtro de Estado */}
             <div className="flex items-center gap-1.5 flex-wrap bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
               <Filter className="h-3.5 w-3.5 text-slate-400 shrink-0 mr-1" />
