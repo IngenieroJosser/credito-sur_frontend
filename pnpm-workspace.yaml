@@ -1,0 +1,14 @@
+# pnpm 10+ bloquea por defecto los scripts de instalacion, y dejar uno sin
+# decidir hace que `pnpm install` termine con error (rompe el despliegue).
+# Por eso cada modulo nativo se decide aqui de forma explicita: true lo compila,
+# false lo descarta a proposito.
+#
+#   sharp           : modulo nativo que Next.js usa para optimizar imagenes.
+#   unrs-resolver   : resolvedor nativo que usa la configuracion de ESLint.
+#   @parcel/watcher : lo arrastra Jest (devDependency) para `jest --watch`.
+#                     El despliegue no corre pruebas, y Jest funciona sin el
+#                     usando el vigilante de Node, asi que no se compila.
+allowBuilds:
+  sharp: true
+  unrs-resolver: true
+  '@parcel/watcher': false
