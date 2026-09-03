@@ -341,7 +341,16 @@ export default function DetalleCuentaMoraPage({ params }: { params: Promise<{ id
                                     placeholder="Agregar nueva nota de gestión..."
                                     className="flex-1 bg-white border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all resize-none h-16 text-slate-900 placeholder:text-slate-400"
                                 />
-                                <button className="self-end px-4 py-2 bg-blue-600 text-white rounded-xl font-bold text-sm hover:bg-blue-700 transition-colors flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    disabled={!nota.trim()}
+                                    onClick={() =>
+                                      // Sin endpoint para persistir notas de
+                                      // gestión: el botón no guardaba nada.
+                                      // Se avisa en vez de aparentar que sí.
+                                      alert('Guardar notas de gestión aún no está disponible. Esta función está pendiente de habilitar.')
+                                    }
+                                    className="self-end px-4 py-2 bg-blue-600 text-white rounded-xl font-bold text-sm hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
                                     <MessageSquare className="w-4 h-4" />
                                     Guardar
                                 </button>
