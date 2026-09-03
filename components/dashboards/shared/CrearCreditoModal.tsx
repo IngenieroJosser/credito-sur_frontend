@@ -144,9 +144,11 @@ const calcularPrestamoPreview = (params: {
     // Interés plano (nuevo) / Amortización
     const intereses = Math.round(monto * (tasa / 100))
     const total = monto + intereses
-    const valorCuota = Math.floor(total / cuotas)
+    // Protegido contra cuotas=0 (el campo puede estar vacío mientras se
+    // escribe): sin esto la división da Infinity y el preview muestra "$∞".
+    const valorCuota = cuotas > 0 ? Math.floor(total / cuotas) : 0
     // La última cuota absorbe el residuo
-    const residuo = total - valorCuota * cuotas
+    const residuo = cuotas > 0 ? total - valorCuota * cuotas : 0
 
     return {
       meses: params.meses,
