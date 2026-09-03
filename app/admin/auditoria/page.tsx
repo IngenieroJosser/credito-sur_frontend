@@ -423,7 +423,7 @@ const AuditoriaSistemaPage = () => {
             
           {logsFiltrados.length === 0 && (
             <div className="py-16 text-center">
-              <div className="inline-flex p-4 rounded-full bg-slate-50 mb-4 border border-slate-100">
+              <div className="shrink-0 inline-flex p-4 rounded-full bg-slate-50 mb-4 border border-slate-100">
                 <Search className="h-8 w-8 text-slate-300" />
               </div>
               <h3 className="text-lg font-bold text-slate-900">No se encontraron registros</h3>
@@ -456,7 +456,7 @@ const AuditoriaSistemaPage = () => {
               </h3>
               <button 
                 onClick={() => setSelectedLog(null)}
-                className="p-2 hover:bg-slate-200/50 rounded-full transition-colors"
+                className="shrink-0 p-2 hover:bg-slate-200/50 rounded-full transition-colors"
               >
                 <X className="h-5 w-5 text-slate-400" />
               </button>

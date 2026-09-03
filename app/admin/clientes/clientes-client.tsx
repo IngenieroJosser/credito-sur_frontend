@@ -578,7 +578,7 @@ export default function ClientesClient({ initialClientes }: ClientesClientProps)
         }
       >
         <div className="flex items-center gap-4">
-          <div className="p-3 bg-rose-50 rounded-full">
+          <div className="shrink-0 p-3 bg-rose-50 rounded-full">
             <AlertTriangle className="w-6 h-6 text-rose-600" />
           </div>
           <div>

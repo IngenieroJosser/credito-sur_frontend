@@ -663,7 +663,7 @@ export default function NotificacionDetalleModal({
           <div className="flex flex-col bg-white rounded-2xl max-h-[90vh] w-[95vw] max-w-3xl overflow-hidden">
             <div className="flex items-center justify-between p-4 border-b border-slate-100">
               <div className="flex items-center gap-2">
-                <div className="p-2 rounded-xl bg-amber-50 text-amber-600">
+                <div className="shrink-0 p-2 rounded-xl bg-amber-50 text-amber-600">
                   <Calendar className="h-5 w-5" />
                 </div>
                 <div>
@@ -677,7 +677,7 @@ export default function NotificacionDetalleModal({
               </div>
               <button
                 onClick={onClose}
-                className="p-2 rounded-full hover:bg-slate-100 transition-colors"
+                className="shrink-0 p-2 rounded-full hover:bg-slate-100 transition-colors"
               >
                 <X className="h-5 w-5 text-slate-500" />
               </button>
@@ -1567,7 +1567,7 @@ export default function NotificacionDetalleModal({
             </div>
             <button 
               onClick={handleClose}
-              className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400"
+              className="shrink-0 p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400"
             >
               <X className="h-5 w-5" />
             </button>

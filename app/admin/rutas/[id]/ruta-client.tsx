@@ -1277,7 +1277,7 @@ const RutaClientLoaded = ({
         <RutaHeader
           backHref="/rutas"
           backContent={
-            <div className="p-2 bg-white rounded-full shadow-sm hover:bg-slate-100 transition-colors">
+            <div className="shrink-0 p-2 bg-white rounded-full shadow-sm hover:bg-slate-100 transition-colors">
               <ArrowLeft className="h-5 w-5 text-slate-600" />
             </div>
           }

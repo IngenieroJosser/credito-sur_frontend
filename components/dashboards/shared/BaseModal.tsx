@@ -96,7 +96,7 @@ export default function BaseModal({ isOpen, onClose, onConfirm }: BaseModalProps
               />
             </div>
 
-            <div className="p-4 bg-amber-50 rounded-2xl flex items-start gap-3 border border-amber-100">
+            <div className="shrink-0 p-4 bg-amber-50 rounded-2xl flex items-start gap-3 border border-amber-100">
               <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
               <div className="text-xs text-amber-800 leading-relaxed font-medium">
                 Esta solicitud será enviada al coordinador para su aprobación inmediata. Una vez aprobada, se sumará a su saldo de &quot;Base Disponible&quot;.

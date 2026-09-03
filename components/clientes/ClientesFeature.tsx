@@ -666,7 +666,7 @@ export default function ClientesFeature({
                           {puedeEliminar && (
                             <button
                               onClick={() => handleDeleteClick(cliente)}
-                              className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg"
+                              className="shrink-0 p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg"
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>

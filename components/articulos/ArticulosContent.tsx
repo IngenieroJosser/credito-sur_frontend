@@ -520,7 +520,7 @@ export default function ArticulosContent() {
         <div className={`grid grid-cols-1 ${esReadOnly ? 'md:grid-cols-3' : 'md:grid-cols-4'} gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-100`}>
           <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 group">
             <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-slate-50 text-slate-600 rounded-xl group-hover:scale-110 transition-transform duration-300">
+              <div className="shrink-0 p-3 bg-slate-50 text-slate-600 rounded-xl group-hover:scale-110 transition-transform duration-300">
                 <Package className="w-6 h-6" />
               </div>
             </div>
@@ -530,7 +530,7 @@ export default function ArticulosContent() {
 
           <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 group">
             <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl group-hover:scale-110 transition-transform duration-300">
+              <div className="shrink-0 p-3 bg-emerald-50 text-emerald-600 rounded-xl group-hover:scale-110 transition-transform duration-300">
                 <Tag className="w-6 h-6" />
               </div>
               {!esReadOnly && (
@@ -545,7 +545,7 @@ export default function ArticulosContent() {
 
           <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 group">
             <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-amber-50 text-amber-600 rounded-xl group-hover:scale-110 transition-transform duration-300">
+              <div className="shrink-0 p-3 bg-amber-50 text-amber-600 rounded-xl group-hover:scale-110 transition-transform duration-300">
                 <AlertCircle className="w-6 h-6" />
               </div>
               {!esReadOnly && (
@@ -561,7 +561,7 @@ export default function ArticulosContent() {
           {!esReadOnly && (
             <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 group">
               <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl group-hover:scale-110 transition-transform duration-300">
+                <div className="shrink-0 p-3 bg-emerald-50 text-emerald-600 rounded-xl group-hover:scale-110 transition-transform duration-300">
                   <DollarSign className="w-6 h-6" />
                 </div>
                 {deltaInventarioPorcentaje != null && (
@@ -942,7 +942,7 @@ export default function ArticulosContent() {
                   setShowEditarModal(false)
                   setArticuloSeleccionado(null)
                 }}
-                className="p-2 rounded-xl hover:bg-slate-100 text-slate-500"
+                className="shrink-0 p-2 rounded-xl hover:bg-slate-100 text-slate-500"
               >
                 <XCircle className="h-5 w-5" />
               </button>
@@ -1119,7 +1119,7 @@ export default function ArticulosContent() {
                             <button
                               type="button"
                               onClick={() => removePrecioCuota(idx)}
-                              className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                              className="shrink-0 p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50"
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>
@@ -1224,7 +1224,7 @@ export default function ArticulosContent() {
                   setShowDetalleModal(false)
                   setArticuloSeleccionado(null)
                 }}
-                className="p-2 rounded-xl hover:bg-slate-100 text-slate-500"
+                className="shrink-0 p-2 rounded-xl hover:bg-slate-100 text-slate-500"
               >
                 <XCircle className="h-5 w-5" />
               </button>

@@ -66,7 +66,7 @@ export default function SolicitudDetalleModal({ isOpen, onClose, solicitud, onRe
              </div>
              <button 
                onClick={handleClose}
-               className="p-2 hover:bg-slate-100 rounded-full transition-colors"
+               className="shrink-0 p-2 hover:bg-slate-100 rounded-full transition-colors"
              >
                <X className="h-5 w-5 text-slate-400" />
              </button>

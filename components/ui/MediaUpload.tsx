@@ -402,7 +402,7 @@ export default function MediaUpload({
               <h3 className="text-lg font-bold text-slate-900">Archivo muy grande</h3>
               <button
                 onClick={() => setShowErrorModal(false)}
-                className="p-2 -mr-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+                className="shrink-0 p-2 -mr-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>

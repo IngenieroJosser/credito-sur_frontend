@@ -467,7 +467,7 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
                 <button
                   type="button"
                   onClick={() => setShowEditarCajaModal(false)}
-                  className="p-2 rounded-xl hover:bg-slate-100 text-slate-500"
+                  className="shrink-0 p-2 rounded-xl hover:bg-slate-100 text-slate-500"
                 >
                   <XCircle className="h-5 w-5" />
                 </button>
@@ -549,7 +549,7 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
                 <button
                   type="button"
                   onClick={() => setShowRegistrarMovimientoModal(false)}
-                  className="p-2 rounded-xl hover:bg-slate-100 text-slate-500"
+                  className="shrink-0 p-2 rounded-xl hover:bg-slate-100 text-slate-500"
                 >
                   <XCircle className="h-5 w-5" />
                 </button>
@@ -598,14 +598,14 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
                              <button
                                 type="button" 
                                 onClick={handleCrearCategoria}
-                                className="p-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
+                                className="shrink-0 p-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
                              >
                                 <CheckCircle2 className="h-5 w-5" />
                              </button>
                              <button 
                                 type="button"
                                 onClick={() => setIsCreatingCategory(false)}
-                                className="p-3 bg-slate-100 text-slate-500 rounded-xl hover:bg-slate-200 transition-colors"
+                                className="shrink-0 p-3 bg-slate-100 text-slate-500 rounded-xl hover:bg-slate-200 transition-colors"
                              >
                                 <X className="h-5 w-5" />
                              </button>

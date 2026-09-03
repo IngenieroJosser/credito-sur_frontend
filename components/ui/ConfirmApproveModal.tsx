@@ -67,7 +67,7 @@ export default function ConfirmApproveModal({
                 <p className="text-xs text-slate-600">Se generarán los movimientos correspondientes y se notificará al solicitante.</p>
               </div>
             </div>
-            <button onClick={handleClose} className="p-2 hover:bg-slate-100 rounded-full">
+            <button onClick={handleClose} className="shrink-0 p-2 hover:bg-slate-100 rounded-full">
               <X className="h-5 w-5 text-slate-400" />
             </button>
           </div>

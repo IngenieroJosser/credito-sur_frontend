@@ -85,7 +85,7 @@ export default function CreacionUnificada({ isModal, initialClienteId, onClose }
                 </div>
                 <h2 className="font-bold text-slate-900">Nueva Operación</h2>
              </div>
-             <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
+             <button onClick={onClose} className="shrink-0 p-2 hover:bg-slate-200 rounded-full transition-colors">
                 <X className="w-5 h-5 text-slate-500" />
              </button>
           </div>

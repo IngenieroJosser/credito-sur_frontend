@@ -176,7 +176,7 @@ export default function ClienteDetallePage() {
                 <ChevronLeft className="w-5 h-5" />
               </Link>
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-slate-100 text-slate-900 border border-slate-200">
+                <div className="shrink-0 p-2 rounded-xl bg-slate-100 text-slate-900 border border-slate-200">
                   <BarChart3 className="w-5 h-5" />
                 </div>
                 <div>

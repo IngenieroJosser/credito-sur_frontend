@@ -89,7 +89,7 @@ export default function PushNotificationPrompt() {
       <div className="max-w-sm bg-white rounded-3xl shadow-2xl border border-blue-50 overflow-hidden group">
         <div className="p-5 flex items-start gap-4">
           <div className="relative">
-            <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl group-hover:scale-110 transition-transform duration-500">
+            <div className="shrink-0 p-3 bg-blue-50 text-blue-600 rounded-2xl group-hover:scale-110 transition-transform duration-500">
               <BellRing className="h-6 w-6" />
             </div>
             <div className="absolute -top-1 -right-1 w-3 h-3 bg-orange-500 border-2 border-white rounded-full animate-ping"></div>
@@ -102,7 +102,7 @@ export default function PushNotificationPrompt() {
               </h4>
               <button 
                 onClick={handleDismiss}
-                className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-all"
+                className="shrink-0 p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-all"
               >
                 <X className="h-4 w-4" />
               </button>

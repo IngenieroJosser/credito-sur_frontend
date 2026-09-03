@@ -1313,7 +1313,7 @@ export const RutasPageView = ({
                   onClick={handleCreateClick}
                   className="group flex flex-col items-center justify-center p-8 rounded-2xl border-2 border-dashed border-slate-300 hover:border-slate-900 hover:bg-slate-50 transition-all duration-300 min-h-[400px]"
                 >
-                  <div className="p-6 rounded-full bg-slate-100 group-hover:bg-white group-hover:shadow-md transition-all mb-6 duration-300 border border-slate-200">
+                  <div className="shrink-0 p-6 rounded-full bg-slate-100 group-hover:bg-white group-hover:shadow-md transition-all mb-6 duration-300 border border-slate-200">
                     <Plus className="h-8 w-8 text-slate-400 group-hover:text-slate-900" />
                   </div>
                   <h3 className="text-xl font-bold text-slate-900">Crear nueva ruta</h3>
@@ -1659,7 +1659,7 @@ export const RutasPageView = ({
             <div className="flex flex-col h-full max-h-[90vh]">
               <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50 sticky top-0 z-10 backdrop-blur-sm shrink-0">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-blue-50 text-orange-500 rounded-lg">
+                  <div className="shrink-0 p-2 bg-blue-50 text-orange-500 rounded-lg">
                     <Route className="h-5 w-5" />
                   </div>
                   <div>
@@ -1673,7 +1673,7 @@ export const RutasPageView = ({
                 </div>
                 <button
                   onClick={() => setShowModal(false)}
-                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                  className="shrink-0 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -1895,7 +1895,7 @@ export const RutasPageView = ({
                                 setIsAddingCliente(false)
                                 setClienteSearch('')
                               }}
-                              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors"
+                              className="shrink-0 absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors"
                             >
                               <X className="h-4 w-4" />
                             </button>
@@ -1938,7 +1938,7 @@ export const RutasPageView = ({
                                     ))}
                                 </div>
                               ) : !loadingClientes && (
-                                <div className="p-8 text-center bg-slate-50">
+                                <div className="shrink-0 p-8 text-center bg-slate-50">
                                   <Search className="h-8 w-8 text-slate-200 mx-auto mb-2" />
                                   <p className="text-xs text-slate-500 font-medium">No se encontraron clientes disponibles</p>
                                 </div>
@@ -2106,7 +2106,7 @@ export const RutasPageView = ({
               </div>
 
               {errorRecolectar && (
-                <div className="flex items-start gap-2 p-3 bg-rose-50 rounded-xl border border-rose-200">
+                <div className="shrink-0 flex items-start gap-2 p-3 bg-rose-50 rounded-xl border border-rose-200">
                   <XCircle className="h-4 w-4 text-rose-500 mt-0.5 flex-shrink-0" />
                   <p className="text-sm text-rose-700">{errorRecolectar}</p>
                 </div>
@@ -2138,7 +2138,7 @@ export const RutasPageView = ({
                 <Wallet className="h-5 w-5 text-blue-600" />
                 <h3 className="text-sm font-bold text-slate-900">Seleccionar Caja Principal</h3>
               </div>
-              <button onClick={() => setShowSelectPrincipalModal(false)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+              <button onClick={() => setShowSelectPrincipalModal(false)} className="shrink-0 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
                 <X className="h-5 w-5" />
               </button>
             </div>

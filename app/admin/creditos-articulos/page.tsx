@@ -193,7 +193,7 @@ export default function CreditosArticulosPage() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4 duration-500">
           <div className="min-w-0">
             <div className="flex items-center gap-2 mb-2">
-              <div className="p-2 bg-blue-600 rounded-lg shadow-md shadow-blue-600/20">
+              <div className="shrink-0 p-2 bg-blue-600 rounded-lg shadow-md shadow-blue-600/20">
                 <Package className="w-6 h-6 text-white" />
               </div>
               <h1 className="text-3xl font-bold tracking-tight">
@@ -219,7 +219,7 @@ export default function CreditosArticulosPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100">
           <div className="bg-white/80 backdrop-blur-sm p-5 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 group">
             <div className="flex items-center justify-between mb-4">
-              <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl group-hover:bg-blue-600 group-hover:text-white transition-all duration-300 border border-blue-100">
+              <div className="shrink-0 p-2.5 bg-blue-50 text-blue-600 rounded-xl group-hover:bg-blue-600 group-hover:text-white transition-all duration-300 border border-blue-100">
                 <ShoppingBag className="w-5 h-5" />
               </div>
               <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded-full border border-slate-200">Total</span>
@@ -230,7 +230,7 @@ export default function CreditosArticulosPage() {
 
           <div className="bg-white/80 backdrop-blur-sm p-5 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 group">
             <div className="flex items-center justify-between mb-4">
-              <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl group-hover:bg-emerald-600 group-hover:text-white transition-all duration-300 border border-emerald-100">
+              <div className="shrink-0 p-2.5 bg-emerald-50 text-emerald-600 rounded-xl group-hover:bg-emerald-600 group-hover:text-white transition-all duration-300 border border-emerald-100">
                 <TrendingUp className="w-5 h-5" />
               </div>
               <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100">Activos</span>
@@ -241,7 +241,7 @@ export default function CreditosArticulosPage() {
 
           <div className="bg-white/80 backdrop-blur-sm p-5 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 group">
             <div className="flex items-center justify-between mb-4">
-              <div className="p-2.5 bg-rose-50 text-rose-600 rounded-xl group-hover:bg-rose-600 group-hover:text-white transition-all duration-300 border border-rose-100">
+              <div className="shrink-0 p-2.5 bg-rose-50 text-rose-600 rounded-xl group-hover:bg-rose-600 group-hover:text-white transition-all duration-300 border border-rose-100">
                 <AlertCircle className="w-5 h-5" />
               </div>
               <span className="text-xs font-bold text-rose-600 bg-rose-50 px-2 py-1 rounded-full border border-rose-100">Atención</span>
@@ -252,7 +252,7 @@ export default function CreditosArticulosPage() {
 
           <div className="bg-white/80 backdrop-blur-sm p-5 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 group">
             <div className="flex items-center justify-between mb-4">
-              <div className="p-2.5 bg-violet-50 text-violet-600 rounded-xl group-hover:bg-violet-600 group-hover:text-white transition-all duration-300 border border-violet-100">
+              <div className="shrink-0 p-2.5 bg-violet-50 text-violet-600 rounded-xl group-hover:bg-violet-600 group-hover:text-white transition-all duration-300 border border-violet-100">
                 <CreditCard className="w-5 h-5" />
               </div>
               <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded-full border border-slate-200">Cartera</span>
@@ -595,7 +595,7 @@ export default function CreditosArticulosPage() {
           ) : (
             <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8">
               <div className="flex flex-col items-center gap-3 text-center">
-                <div className="inline-flex p-4 rounded-full bg-slate-50">
+                <div className="shrink-0 inline-flex p-4 rounded-full bg-slate-50">
                   <Package className="h-8 w-8 text-slate-300" />
                 </div>
                 <h3 className="text-lg font-bold text-slate-900">No se encontraron artículos</h3>

@@ -151,7 +151,7 @@ export default function DetalleCuentaMoraPage({ params }: { params: Promise<{ id
       <header className="sticky top-0 z-20 bg-white/80 backdrop-blur-sm border-b border-slate-200">
         <div className="px-6 py-3 w-full mx-auto flex items-center justify-between">
             <div className="flex items-center gap-4">
-                <Link href="/cuentas-mora" className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors">
+                <Link href="/cuentas-mora" className="shrink-0 p-2 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors">
                     <ChevronLeft className="w-5 h-5" />
                 </Link>
                 <div>

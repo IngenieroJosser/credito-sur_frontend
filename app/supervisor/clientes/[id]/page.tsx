@@ -322,7 +322,7 @@ export default function ClienteDetalleSupervisorPage() {
                 <ChevronLeft className="w-5 h-5" />
               </Link>
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-slate-100 text-slate-900 border border-slate-200">
+                <div className="shrink-0 p-2 rounded-xl bg-slate-100 text-slate-900 border border-slate-200">
                   <BarChart3 className="w-5 h-5" />
                 </div>
                 <div>
@@ -586,7 +586,7 @@ export default function ClienteDetalleSupervisorPage() {
                       type="button"
                       disabled
                       title="Los créditos de artículo requieren seleccionar producto y plan desde el modal completo."
-                      className="p-4 rounded-xl border-2 border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed transition-all"
+                      className="shrink-0 p-4 rounded-xl border-2 border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed transition-all"
                     >
                       <ShoppingBag className="h-6 w-6 mx-auto mb-2" />
                       <div className="font-bold text-sm">Crédito por Artículo</div>

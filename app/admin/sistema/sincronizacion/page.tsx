@@ -494,7 +494,7 @@ const SyncStatusPage = () => {
 
               {queueItems.length === 0 ? (
                 <div className="p-12 text-center">
-                  <div className="p-4 rounded-3xl bg-emerald-50 border border-emerald-100 inline-block mb-4">
+                  <div className="shrink-0 p-4 rounded-3xl bg-emerald-50 border border-emerald-100 inline-block mb-4">
                     <CheckCircle className="h-8 w-8 text-emerald-500" />
                   </div>
                   <h3 className="text-sm font-bold text-slate-700 mb-1">¡Todo sincronizado!</h3>

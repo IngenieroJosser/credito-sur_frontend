@@ -307,7 +307,7 @@ const PerfilUsuarioPage = () => {
                       <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
                         Teléfono Móvil
                       </label>
-                      <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                      <div className="shrink-0 flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
                         <Phone className="h-4 w-4 text-slate-400" />
                         <span className="text-sm font-bold text-slate-900">{backendUser.telefono || 'No registrado'}</span>
                       </div>
@@ -402,7 +402,7 @@ const PerfilUsuarioPage = () => {
           <div className="bg-white rounded-2xl w-full max-w-lg border border-slate-200 shadow-2xl p-8 transform scale-100 animate-in zoom-in-95 duration-200 relative">
             <button 
               onClick={() => setIsPasswordModalOpen(false)}
-              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+              className="shrink-0 absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
             >
               <X className="h-5 w-5" />
             </button>
@@ -477,7 +477,7 @@ const PerfilUsuarioPage = () => {
                 </div>
               )}
               {passwordSuccess && (
-                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-sm text-emerald-700 font-medium flex items-center gap-2">
+                <div className="shrink-0 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-sm text-emerald-700 font-medium flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4" /> Contraseña actualizada correctamente
                 </div>
               )}

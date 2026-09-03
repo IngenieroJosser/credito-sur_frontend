@@ -347,7 +347,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
           {/* Información rápida */}
           <div className="mt-8 grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="flex items-center gap-4 p-5 bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-              <div className="p-3 rounded-xl bg-slate-100 border border-slate-200">
+              <div className="shrink-0 p-3 rounded-xl bg-slate-100 border border-slate-200">
                 <Phone className="w-5 h-5 text-slate-600" />
               </div>
               <div>
@@ -359,7 +359,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
             </div>
 
             <div className="flex items-center gap-4 p-5 bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-              <div className="p-3 rounded-xl bg-slate-100 border border-slate-200">
+              <div className="shrink-0 p-3 rounded-xl bg-slate-100 border border-slate-200">
                 <Mail className="w-5 h-5 text-slate-600" />
               </div>
               <div>
@@ -373,7 +373,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
             </div>
 
             <div className="flex items-center gap-4 p-5 bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-              <div className="p-3 rounded-xl bg-slate-100 border border-slate-200">
+              <div className="shrink-0 p-3 rounded-xl bg-slate-100 border border-slate-200">
                 <MapPin className="w-5 h-5 text-slate-600" />
               </div>
               <div className="min-w-0 flex-1">
@@ -387,7 +387,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
             </div>
 
             <div className="flex items-center gap-4 p-5 bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-              <div className="p-3 rounded-xl bg-slate-100 border border-slate-200">
+              <div className="shrink-0 p-3 rounded-xl bg-slate-100 border border-slate-200">
                 <MapIcon className="w-5 h-5 text-slate-600" />
               </div>
               <div>
@@ -451,18 +451,18 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-4">
             {/* Tarjeta de crédito total */}
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-              <div className="flex items-center justify-between mb-4">
-                <div className="min-w-0">
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+              <div className="mb-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="shrink-0 p-1.5 rounded-lg bg-blue-50 border border-blue-100">
+                    <DollarSign className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <p className="min-w-0 truncate text-xs font-bold text-slate-400 uppercase tracking-wider">
                     Crédito Total
                   </p>
-                  <p className="text-3xl font-bold text-slate-900 mt-2">
-                    {formatCurrency(totales.totalPrestamos)}
-                  </p>
                 </div>
-                <div className="p-3 rounded-xl bg-blue-50 border border-blue-100">
-                  <DollarSign className="w-6 h-6 text-blue-600" />
-                </div>
+                <p className="whitespace-nowrap text-[clamp(1.5rem,3vw,1.875rem)] font-bold leading-tight text-slate-900">
+                  {formatCurrency(totales.totalPrestamos)}
+                </p>
               </div>
               <div className="flex items-center justify-between">
                 <span
@@ -475,18 +475,18 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
 
             {/* Tarjeta de saldo pendiente */}
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-              <div className="flex items-center justify-between mb-4">
-                <div className="min-w-0">
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+              <div className="mb-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="shrink-0 p-1.5 rounded-lg bg-amber-50 border border-amber-100">
+                    <FileText className="w-4 h-4 text-amber-600" />
+                  </div>
+                  <p className="min-w-0 truncate text-xs font-bold text-slate-400 uppercase tracking-wider">
                     Saldo Pendiente
                   </p>
-                  <p className="text-3xl font-bold text-slate-900 mt-2">
-                    {formatCurrency(totales.totalPendiente)}
-                  </p>
                 </div>
-                <div className="p-3 rounded-xl bg-amber-50 border border-amber-100">
-                  <FileText className="w-6 h-6 text-amber-600" />
-                </div>
+                <p className="whitespace-nowrap text-[clamp(1.5rem,3vw,1.875rem)] font-bold leading-tight text-slate-900">
+                  {formatCurrency(totales.totalPendiente)}
+                </p>
               </div>
               <div className="flex items-center justify-between">
                 <div className="text-xs text-slate-500 flex items-center font-medium">
@@ -513,18 +513,18 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
 
             {/* Tarjeta de préstamos activos */}
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-              <div className="flex items-center justify-between mb-4">
-                <div className="min-w-0">
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+              <div className="mb-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="shrink-0 p-1.5 rounded-lg bg-green-50 border border-green-100">
+                    <TrendingUp className="w-4 h-4 text-green-600" />
+                  </div>
+                  <p className="min-w-0 truncate text-xs font-bold text-slate-400 uppercase tracking-wider">
                     Préstamos Activos
                   </p>
-                  <p className="text-3xl font-bold text-slate-900 mt-2">
-                    {totales.prestamosActivos}
-                  </p>
                 </div>
-                <div className="p-3 rounded-xl bg-green-50 border border-green-100">
-                  <TrendingUp className="w-6 h-6 text-green-600" />
-                </div>
+                <p className="whitespace-nowrap text-[clamp(1.5rem,3vw,1.875rem)] font-bold leading-tight text-slate-900">
+                  {totales.prestamosActivos}
+                </p>
               </div>
               <div className="flex items-center justify-between">
                 <span
@@ -543,18 +543,18 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
 
             {/* Tarjeta de mora acumulada */}
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-              <div className="flex items-center justify-between mb-4">
-                <div className="min-w-0">
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+              <div className="mb-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="shrink-0 p-1.5 rounded-lg bg-red-50 border border-red-100">
+                    <AlertCircle className="w-4 h-4 text-red-600" />
+                  </div>
+                  <p className="min-w-0 truncate text-xs font-bold text-slate-400 uppercase tracking-wider">
                     Mora Acumulada
                   </p>
-                  <p className="text-3xl font-bold text-red-600 mt-2">
-                    {formatCurrency(totales.totalMoraInteres)}
-                  </p>
                 </div>
-                <div className="p-3 rounded-xl bg-red-50 border border-red-100">
-                  <AlertCircle className="w-6 h-6 text-red-600" />
-                </div>
+                <p className="whitespace-nowrap text-[clamp(1.5rem,3vw,1.875rem)] font-bold leading-tight text-red-600">
+                  {formatCurrency(totales.totalMoraInteres)}
+                </p>
               </div>
               <div className="text-xs font-medium text-slate-500">
                 {totales.totalCuotasVencidas} cuotas con retraso

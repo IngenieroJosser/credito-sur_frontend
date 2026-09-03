@@ -198,7 +198,7 @@ const RegistrarPagoClientePage = () => {
           <div className="flex items-center gap-4">
             <button 
               onClick={() => router.back()}
-              className="p-2 bg-white rounded-full shadow-sm hover:bg-slate-100 transition-colors"
+              className="shrink-0 p-2 bg-white rounded-full shadow-sm hover:bg-slate-100 transition-colors"
             >
               <ArrowLeft className="h-5 w-5 text-slate-600" />
             </button>
@@ -392,7 +392,7 @@ const RegistrarPagoClientePage = () => {
         <div className="flex items-center gap-4">
           <button 
             onClick={() => router.back()}
-            className="p-2 bg-white rounded-full shadow-sm hover:bg-slate-100 transition-colors"
+            className="shrink-0 p-2 bg-white rounded-full shadow-sm hover:bg-slate-100 transition-colors"
           >
             <ArrowLeft className="h-5 w-5 text-slate-600" />
           </button>

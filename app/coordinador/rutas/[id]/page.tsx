@@ -1338,7 +1338,7 @@ const LegacyDetalleRutaPage = () => {
 
             <div className="flex items-center gap-4">
 
-               <Link href="/coordinador/rutas" className="p-2 bg-white rounded-full shadow-sm hover:bg-slate-100 transition-colors">
+               <Link href="/coordinador/rutas" className="shrink-0 p-2 bg-white rounded-full shadow-sm hover:bg-slate-100 transition-colors">
 
                   <ArrowLeft className="h-5 w-5 text-slate-600" />
 
@@ -2734,7 +2734,7 @@ function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose:
 
             onClick={onClose}
 
-            className="p-2 bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all active:scale-90"
+            className="shrink-0 p-2 bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all active:scale-90"
 
           >
 

@@ -284,7 +284,7 @@ export default function PagoDetalleModal({
             </div>
             <button
               onClick={handleClose}
-              className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400"
+              className="shrink-0 p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400"
             >
               <X className="h-5 w-5" />
             </button>
@@ -303,7 +303,7 @@ export default function PagoDetalleModal({
 
             {/* Error no fatal (se siguen mostrando datos de la metadata) */}
             {error && !loading && (
-              <div className="flex items-start gap-3 p-4 bg-amber-50 rounded-2xl border border-amber-100">
+              <div className="shrink-0 flex items-start gap-3 p-4 bg-amber-50 rounded-2xl border border-amber-100">
                 <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
                 <div>
                   <p className="text-xs font-black text-amber-700">Datos parciales</p>
@@ -327,7 +327,7 @@ export default function PagoDetalleModal({
               </p>
 
               {quedoPagado && (
-                <div className="flex items-center gap-2 p-3 bg-emerald-50 rounded-xl border border-emerald-100">
+                <div className="shrink-0 flex items-center gap-2 p-3 bg-emerald-50 rounded-xl border border-emerald-100">
                   <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
                   <p className="text-[11px] font-black text-emerald-700 uppercase tracking-wide">
                     ¡Préstamo saldado completamente!

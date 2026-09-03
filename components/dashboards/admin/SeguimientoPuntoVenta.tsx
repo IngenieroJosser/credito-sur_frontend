@@ -728,7 +728,7 @@ export default function SeguimientoPuntoVenta() {
                             <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
                             {cfg.label}
                           </span>
-                          <button onClick={() => abrirDetalle(venta)} className="p-1.5 rounded-lg bg-slate-50 hover:bg-orange-50 text-slate-400 hover:text-orange-600 transition-colors">
+                          <button onClick={() => abrirDetalle(venta)} className="shrink-0 p-1.5 rounded-lg bg-slate-50 hover:bg-orange-50 text-slate-400 hover:text-orange-600 transition-colors">
                             <Eye className="h-4 w-4" />
                           </button>
                         </div>

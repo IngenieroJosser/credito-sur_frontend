@@ -99,7 +99,7 @@ const ConfiguracionSistemaPage = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <section className="group bg-white p-6 rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300">
             <div className="flex items-center gap-4 mb-6">
-              <div className="p-3 bg-blue-50 text-blue-600 rounded-xl group-hover:scale-110 transition-transform duration-300">
+              <div className="shrink-0 p-3 bg-blue-50 text-blue-600 rounded-xl group-hover:scale-110 transition-transform duration-300">
                 <Database className="h-6 w-6" />
               </div>
               <div>
@@ -143,7 +143,7 @@ const ConfiguracionSistemaPage = () => {
           {/* NUEVA SECCIÓN DE APROBACIONES */}
           <section className="group bg-white p-6 rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300">
             <div className="flex items-center gap-4 mb-6">
-              <div className="p-3 bg-blue-50 text-blue-600 rounded-xl group-hover:scale-110 transition-transform duration-300">
+              <div className="shrink-0 p-3 bg-blue-50 text-blue-600 rounded-xl group-hover:scale-110 transition-transform duration-300">
                 <CheckCircle className="h-6 w-6" />
               </div>
               <div>

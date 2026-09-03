@@ -325,7 +325,7 @@ export default function EditarArticuloPage({ params }: { params: Promise<{ id: s
                           <button
                             type="button"
                             onClick={() => removePrecioCuota(index)}
-                            className="text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded-md transition-colors"
+                            className="shrink-0 text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded-md transition-colors"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>

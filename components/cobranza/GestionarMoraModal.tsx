@@ -138,7 +138,7 @@ export default function GestionarMoraModal({ cuenta, onClose, onConfirm }: Gesti
 
           {/* Si ya tiene mora asignada */}
           {(cuenta.interesActual ?? 0) > 0 && (
-            <div className="flex items-center gap-3 p-3 bg-rose-50 rounded-2xl border border-rose-100">
+            <div className="shrink-0 flex items-center gap-3 p-3 bg-rose-50 rounded-2xl border border-rose-100">
               <Info className="h-4 w-4 text-rose-500 shrink-0" />
               <div className="text-xs text-rose-700 font-medium">
                 Ya tiene <strong>{formatCurrency(cuenta.interesActual)}</strong> de mora asignada.
@@ -290,7 +290,7 @@ export default function GestionarMoraModal({ cuenta, onClose, onConfirm }: Gesti
           </div>
 
           {/* Info box */}
-          <div className="flex items-start gap-2 p-3 bg-blue-50/60 rounded-xl border border-blue-100">
+          <div className="shrink-0 flex items-start gap-2 p-3 bg-blue-50/60 rounded-xl border border-blue-100">
             <Info className="h-3.5 w-3.5 text-blue-500 shrink-0 mt-0.5" />
             <p className="text-[10px] text-blue-700 font-medium leading-relaxed">
               El cliente tendrá <strong>{diasGracia || '?'} días</strong> para pagar{' '}

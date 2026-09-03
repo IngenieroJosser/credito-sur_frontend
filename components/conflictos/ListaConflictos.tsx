@@ -178,7 +178,7 @@ export default function ListaConflictos() {
               </h2>
               <button
                 onClick={() => setSelectedConflict(null)}
-                className="p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-400 hover:text-slate-600"
+                className="shrink-0 p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-400 hover:text-slate-600"
               >
                 <XCircle className="w-6 h-6" />
               </button>

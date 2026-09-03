@@ -530,7 +530,7 @@ export default function CrearCreditoModal({
                     <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 space-y-4 animate-in zoom-in-95 duration-200">
                       <div className="flex justify-between items-center pb-3 border-b border-blue-200/50">
                         <div className="flex items-center gap-2">
-                          <div className="p-1.5 bg-blue-500 rounded-lg text-white">
+                          <div className="shrink-0 p-1.5 bg-blue-500 rounded-lg text-white">
                             <Calculator className="w-3.5 h-3.5" />
                           </div>
                           <span className="text-[10px] font-black text-blue-800 uppercase tracking-widest">Resumen Financiero</span>
@@ -740,7 +740,7 @@ export default function CrearCreditoModal({
                     <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-5 space-y-4 animate-in zoom-in-95 duration-200">
                       <div className="flex justify-between items-center pb-3 border-b border-emerald-200/50">
                         <div className="flex items-center gap-2">
-                          <div className="p-1.5 bg-emerald-500 rounded-lg text-white">
+                          <div className="shrink-0 p-1.5 bg-emerald-500 rounded-lg text-white">
                             <CheckCircle2 className="w-3.5 h-3.5" />
                           </div>
                           <span className="text-[10px] font-black text-emerald-800 uppercase tracking-widest">{esContado ? 'Precio Contado' : 'A Financiar'}</span>

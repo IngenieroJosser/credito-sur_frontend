@@ -308,7 +308,7 @@ export default function NuevoArticuloPage() {
                                 <button
                                   type="button"
                                   onClick={() => removePrecioCuota(index)}
-                                  className="text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded-md transition-colors"
+                                  className="shrink-0 text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded-md transition-colors"
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </button>
@@ -382,7 +382,7 @@ export default function NuevoArticuloPage() {
 
           {/* Error de guardado */}
           {saveError && (
-            <div className="flex items-center gap-3 p-4 rounded-xl bg-rose-50 border border-rose-200">
+            <div className="shrink-0 flex items-center gap-3 p-4 rounded-xl bg-rose-50 border border-rose-200">
               <AlertCircle className="h-5 w-5 text-rose-600 shrink-0" />
               <p className="text-sm font-bold text-rose-700">{saveError}</p>
             </div>

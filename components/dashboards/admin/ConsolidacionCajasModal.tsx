@@ -211,7 +211,7 @@ export default function ConsolidacionCajasModal({ isOpen, onClose, onSuccess }: 
                                 <h3 className="font-bold text-lg text-slate-900">{caja.nombre}</h3>
                                 <p className="text-sm text-slate-500 font-medium">Responsable: {caja.responsable}</p>
                               </div>
-                              <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
+                              <div className="shrink-0 p-3 bg-blue-50 text-blue-600 rounded-xl">
                                 <Wallet className="h-6 w-6" />
                               </div>
                             </div>

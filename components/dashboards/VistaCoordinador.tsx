@@ -596,7 +596,7 @@ const VistaCoordinador = () => {
                 </div>
               ) : (
                 <div className="text-center py-12">
-                  <div className="p-4 rounded-3xl bg-slate-50 border border-slate-100 inline-block mb-4">
+                  <div className="shrink-0 p-4 rounded-3xl bg-slate-50 border border-slate-100 inline-block mb-4">
                     <CheckCircle className="h-8 w-8 text-slate-400" />
                   </div>
                   <h3 className="text-lg font-bold text-slate-700 mb-2">¡Todo al día!</h3>
@@ -759,7 +759,7 @@ const VistaCoordinador = () => {
                 </div>
               ) : (
                 <div className="text-center py-8">
-                  <div className="p-4 rounded-3xl bg-emerald-50 border border-emerald-100 inline-block mb-4">
+                  <div className="shrink-0 p-4 rounded-3xl bg-emerald-50 border border-emerald-100 inline-block mb-4">
                     <CheckCircle className="h-8 w-8 text-emerald-500" />
                   </div>
                   <h3 className="text-sm font-bold text-slate-700 mb-1">¡Excelente!</h3>

@@ -1834,7 +1834,7 @@ const UserManagementPage = () => {
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="flex items-center gap-3 mb-8">
-                    <div className="p-2 bg-blue-50 text-orange-500 rounded-lg">
+                    <div className="shrink-0 p-2 bg-blue-50 text-orange-500 rounded-lg">
                       <UserPlus className="h-6 w-6" />
                     </div>
                     <div>
@@ -2031,7 +2031,7 @@ const UserManagementPage = () => {
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="flex items-center gap-3 mb-8">
-                    <div className="p-2 bg-amber-50 text-amber-500 rounded-lg">
+                    <div className="shrink-0 p-2 bg-amber-50 text-amber-500 rounded-lg">
                       <Edit2 className="h-6 w-6" />
                     </div>
                     <div>
@@ -2235,7 +2235,7 @@ const UserManagementPage = () => {
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="flex items-center gap-3 mb-6 shrink-0">
-                    <div className="p-2 bg-blue-50 text-orange-600 rounded-lg">
+                    <div className="shrink-0 p-2 bg-blue-50 text-orange-600 rounded-lg">
                       <Key className="h-6 w-6" />
                     </div>
                     <div>
@@ -2489,7 +2489,7 @@ const UserManagementPage = () => {
                   <div className="flex-1 min-w-0 p-6 lg:p-8 xl:p-10 overflow-y-auto bg-white relative text-slate-900">
                     <button
                       onClick={() => setIsDetailModalOpen(false)}
-                      className="absolute top-6 right-6 p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-900 transition-all z-20"
+                      className="shrink-0 absolute top-6 right-6 p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-900 transition-all z-20"
                     >
                       <XCircle className="w-6 h-6" />
                     </button>

@@ -81,7 +81,7 @@ export default function DetalleReporteOperativoModal({ id, onClose }: DetalleRep
         {/* Header Summary */}
         <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 flex flex-col md:flex-row justify-between md:items-center gap-4">
             <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-200">
+                <div className="shrink-0 p-2.5 rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-200">
                     <Calendar className="w-5 h-5" />
                 </div>
                 <div>
@@ -106,7 +106,7 @@ export default function DetalleReporteOperativoModal({ id, onClose }: DetalleRep
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm md:col-span-2">
             <div className="flex justify-between items-start mb-2">
               <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Recaudo Total</p>
-              <div className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg">
+              <div className="shrink-0 p-1.5 bg-emerald-50 text-emerald-600 rounded-lg">
                 <TrendingUp className="w-4 h-4" />
               </div>
             </div>

@@ -103,7 +103,7 @@ export function RutaStatsCards({ rutaStats, periodo = 'HOY', userRol }: RutaStat
               </span>
             </div>
           </div>
-          <div className="p-3 bg-blue-50/50 rounded-xl border border-blue-100 group-hover:scale-110 transition-transform shrink-0">
+          <div className="shrink-0 p-3 bg-blue-50/50 rounded-xl border border-blue-100 group-hover:scale-110 transition-transform shrink-0">
             <DollarSign className="h-5 w-5 text-blue-600" />
           </div>
         </div>

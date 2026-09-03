@@ -547,7 +547,7 @@ export default function CreacionCreditoArticulo({
                         {productosFiltrados.map((prod) => (
                           <div key={prod.id} className="p-4 border border-slate-200 rounded-xl hover:border-blue-300 hover:shadow-md transition-all group bg-white">
                             <div className="flex justify-between items-start mb-2">
-                              <div className="p-2 bg-slate-100 rounded-lg text-slate-500 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
+                              <div className="shrink-0 p-2 bg-slate-100 rounded-lg text-slate-500 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
                                 <Package className="w-5 h-5" />
                               </div>
                               <span className="text-[10px] font-bold px-2 py-1 bg-slate-100 rounded-full text-slate-500">{prod.categoria}</span>

@@ -203,7 +203,7 @@ const RegistroPagoPage = () => {
         <header className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between animate-in fade-in slide-in-from-bottom-4 duration-700">
           <div className="min-w-0">
             <div className="flex items-center gap-2 mb-2">
-              <div className="p-2 bg-blue-600 rounded-lg shadow-md shadow-blue-600/20">
+              <div className="shrink-0 p-2 bg-blue-600 rounded-lg shadow-md shadow-blue-600/20">
                 <Wallet className="w-6 h-6 text-white" />
               </div>
               <h1 className="text-3xl font-bold tracking-tight">
@@ -257,7 +257,7 @@ const RegistroPagoPage = () => {
                 <div className="absolute top-0 right-0 w-24 h-24 bg-slate-100 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110" />
                 <div className="relative">
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2.5 bg-slate-100 rounded-xl text-slate-600">
+                    <div className="shrink-0 p-2.5 bg-slate-100 rounded-xl text-slate-600">
                       <User className="w-5 h-5" />
                     </div>
                     <div>
@@ -280,7 +280,7 @@ const RegistroPagoPage = () => {
                 <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110" />
                 <div className="relative">
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2.5 bg-emerald-50 rounded-xl text-emerald-600">
+                    <div className="shrink-0 p-2.5 bg-emerald-50 rounded-xl text-emerald-600">
                       <CreditCard className="w-5 h-5" />
                     </div>
                     <div>

@@ -105,12 +105,12 @@ export default function PrestamoDetallePage() {
             <div className="flex items-center gap-4">
               <Link 
                 href="/prestamos" 
-                className="p-2 rounded-lg hover:bg-slate-100 transition-colors text-slate-500 hover:text-slate-900"
+                className="shrink-0 p-2 rounded-lg hover:bg-slate-100 transition-colors text-slate-500 hover:text-slate-900"
               >
                 <ChevronLeft className="w-5 h-5" />
               </Link>
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-orange-100 text-orange-600">
+                <div className="shrink-0 p-2 rounded-xl bg-orange-100 text-orange-600">
                   <BarChart3 className="w-5 h-5" />
                 </div>
                 <div>

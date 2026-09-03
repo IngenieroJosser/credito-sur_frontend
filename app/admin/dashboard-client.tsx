@@ -147,7 +147,7 @@ export function DashboardClient({ data }: DashboardClientProps) {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-6 animate-in fade-in slide-in-from-top-4 duration-500">
           <div className="min-w-0">
             <div className="flex items-center gap-2 mb-2">
-              <div className="p-2 bg-blue-600 rounded-lg shadow-md shadow-blue-600/20">
+              <div className="shrink-0 p-2 bg-blue-600 rounded-lg shadow-md shadow-blue-600/20">
                 <LayoutDashboard className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
               <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">

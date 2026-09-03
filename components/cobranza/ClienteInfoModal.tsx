@@ -248,7 +248,7 @@ export default function ClienteInfoModal({
             </div>
             <button
               onClick={onClose}
-              className="ml-3 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors shrink-0"
+              className="shrink-0 ml-3 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors shrink-0"
             >
               <X className="h-5 w-5" />
             </button>
@@ -560,7 +560,7 @@ export default function ClienteInfoModal({
                 type="button"
                 disabled={alertaSubmitting}
                 onClick={() => setAlertaOpen(false)}
-                className="rounded-full bg-slate-100 p-2 text-slate-500 transition hover:bg-slate-200 disabled:opacity-60"
+                className="shrink-0 rounded-full bg-slate-100 p-2 text-slate-500 transition hover:bg-slate-200 disabled:opacity-60"
               >
                 <X className="h-5 w-5" />
               </button>

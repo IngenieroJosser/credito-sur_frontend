@@ -861,7 +861,7 @@ export default function RevisionesPage() {
           </div>
 
           <div className="flex gap-2">
-            <button onClick={() => handleOpenDetail(item)} disabled={isProcessing} className="p-2 border border-slate-200 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors">
+            <button onClick={() => handleOpenDetail(item)} disabled={isProcessing} className="shrink-0 p-2 border border-slate-200 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors">
               <Eye className="h-4 w-4" />
             </button>
             {!isReviewMode ? (

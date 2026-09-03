@@ -1901,7 +1901,7 @@ const ModuloContableContent = () => {
                 <button
                   type="button"
                   onClick={() => setShowCrearCajaModal(false)}
-                  className="p-2 rounded-2xl hover:bg-slate-100 text-slate-500"
+                  className="shrink-0 p-2 rounded-2xl hover:bg-slate-100 text-slate-500"
                 >
                   <XCircle className="h-5 w-5" />
                 </button>
@@ -2010,7 +2010,7 @@ const ModuloContableContent = () => {
                     setShowEditarCajaModal(false)
                     setCajaSeleccionada(null)
                   }}
-                  className="p-2 rounded-2xl hover:bg-slate-100 text-slate-500"
+                  className="shrink-0 p-2 rounded-2xl hover:bg-slate-100 text-slate-500"
                 >
                   <XCircle className="h-5 w-5" />
                 </button>
@@ -2137,7 +2137,7 @@ const ModuloContableContent = () => {
                 <button
                   type="button"
                   onClick={() => setShowRegistrarMovimientoModal(false)}
-                  className="p-2 rounded-2xl hover:bg-slate-100 text-slate-500"
+                  className="shrink-0 p-2 rounded-2xl hover:bg-slate-100 text-slate-500"
                 >
                   <XCircle className="h-5 w-5" />
                 </button>
@@ -2346,7 +2346,7 @@ const ModuloContableContent = () => {
                     const sourceCaja = cajas.find(c => c.id === sourceCajaId);
                     if (sourceCajaId && sourceCaja && montoValue > sourceCaja.saldo) {
                         return (
-                            <div className="mt-4 p-3 rounded-xl bg-red-50 border border-red-100 flex items-center gap-2 animate-pulse">
+                            <div className="shrink-0 mt-4 p-3 rounded-xl bg-red-50 border border-red-100 flex items-center gap-2 animate-pulse">
                                 <AlertTriangle className="h-4 w-4 text-red-600" />
                                 <span className="text-xs font-bold text-red-600 uppercase tracking-tight leading-none">
                                     Fondos Insuficientes en {sourceCaja.nombre}
@@ -2407,7 +2407,7 @@ const ModuloContableContent = () => {
                 </div>
                 <button
                   onClick={() => setShowVerMovimientoModal(false)}
-                  className="p-2 rounded-2xl hover:bg-slate-100 text-slate-500"
+                  className="shrink-0 p-2 rounded-2xl hover:bg-slate-100 text-slate-500"
                 >
                   <XCircle className="h-5 w-5" />
                 </button>
@@ -2585,7 +2585,7 @@ const ModuloContableContent = () => {
                 </div>
                 <button
                   onClick={() => setShowVerCajaModal(false)}
-                  className="p-2 rounded-2xl hover:bg-slate-100 text-slate-500"
+                  className="shrink-0 p-2 rounded-2xl hover:bg-slate-100 text-slate-500"
                 >
                   <XCircle className="h-5 w-5" />
                 </button>
@@ -2854,7 +2854,7 @@ const ModuloContableContent = () => {
                 </div>
                 <button
                   onClick={() => { setShowDetalleModal(false); setMovimientosDetalle([]); setCajaSeleccionada(null); setSaldoRutaSeleccionada(null); }}
-                  className="p-2 rounded-2xl hover:bg-slate-100 text-slate-500 transition-colors"
+                  className="shrink-0 p-2 rounded-2xl hover:bg-slate-100 text-slate-500 transition-colors"
                 >
                   <XCircle className="h-6 w-6" />
                 </button>
@@ -3617,7 +3617,7 @@ const ModuloContableContent = () => {
             <div className="w-full max-w-xl rounded-[2.5rem] bg-white border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300" onClick={(e) => e.stopPropagation()}>
                 <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-50 to-white">
                     <div className="flex items-center gap-4">
-                        <div className="p-3 bg-blue-600 rounded-2xl text-white shadow-lg shadow-blue-200 ring-4 ring-blue-50">
+                        <div className="shrink-0 p-3 bg-blue-600 rounded-2xl text-white shadow-lg shadow-blue-200 ring-4 ring-blue-50">
                             <History className="h-6 w-6" />
                         </div>
                         <div>
@@ -3630,7 +3630,7 @@ const ModuloContableContent = () => {
                     </div>
                     <button 
                         onClick={() => setShowVerArqueoModal(false)} 
-                        className="p-2.5 rounded-full hover:bg-slate-100 text-slate-400 transition-all active:scale-90"
+                        className="shrink-0 p-2.5 rounded-full hover:bg-slate-100 text-slate-400 transition-all active:scale-90"
                     >
                         <XCircle className="h-7 w-7" />
                     </button>

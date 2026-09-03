@@ -222,7 +222,7 @@ function CuentasVencidasContent() {
           </div>
         ) : cuentasFiltradas.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-2xl border border-slate-200 border-dashed">
-            <div className="inline-flex p-4 rounded-full bg-slate-100 mb-4">
+            <div className="shrink-0 inline-flex p-4 rounded-full bg-slate-100 mb-4">
               <Archive className="h-8 w-8 text-slate-400" />
             </div>
             <h3 className="text-lg font-bold text-slate-900 mb-1">Sin cuentas vencidas</h3>

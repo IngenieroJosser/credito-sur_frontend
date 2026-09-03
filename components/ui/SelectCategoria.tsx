@@ -122,7 +122,7 @@ export default function SelectCategoria({
           <button
             type="button"
             onClick={() => setShowCreate(false)}
-            className="p-2 bg-slate-100 text-slate-500 rounded-lg hover:bg-slate-200 transition-colors"
+            className="shrink-0 p-2 bg-slate-100 text-slate-500 rounded-lg hover:bg-slate-200 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>

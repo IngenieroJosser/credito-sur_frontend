@@ -125,7 +125,7 @@ export const ExportButton = ({
                 onClick={() => handleOptionClick(onExportExcel)}
                 className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors text-left"
               >
-                <div className="p-1.5 bg-emerald-100/50 rounded-md text-emerald-600">
+                <div className="shrink-0 p-1.5 bg-emerald-100/50 rounded-md text-emerald-600">
                   <FileSpreadsheet className="h-4 w-4" />
                 </div>
                 <span className="font-medium">Excel</span>
@@ -138,7 +138,7 @@ export const ExportButton = ({
                 onClick={() => handleOptionClick(onExportPDF)}
                 className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-slate-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors text-left"
               >
-                <div className="p-1.5 bg-rose-100/50 rounded-md text-rose-600">
+                <div className="shrink-0 p-1.5 bg-rose-100/50 rounded-md text-rose-600">
                   <FileText className="h-4 w-4" />
                 </div>
                 <span className="font-medium">PDF</span>

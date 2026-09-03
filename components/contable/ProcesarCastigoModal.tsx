@@ -63,7 +63,7 @@ export default function ProcesarCastigoModal({ cuenta, onClose, onConfirm }: Pro
           {/* Header */}
           <div className="p-6 border-b border-slate-100 flex items-start justify-between bg-slate-50/50">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-slate-900 rounded-xl">
+              <div className="shrink-0 p-2 bg-slate-900 rounded-xl">
                 <Archive className="w-6 h-6 text-white" />
               </div>
               <div>

@@ -439,7 +439,7 @@ const ListadoPrestamosElegante = () => {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="min-w-0">
             <div className="flex items-center gap-2 mb-2">
-              <div className="p-2 bg-blue-600 rounded-lg shadow-md shadow-blue-600/20">
+              <div className="shrink-0 p-2 bg-blue-600 rounded-lg shadow-md shadow-blue-600/20">
                 <CreditCard className="w-6 h-6 text-white" />
               </div>
               <h1 className="text-3xl font-bold tracking-tight">
@@ -738,7 +738,7 @@ const ListadoPrestamosElegante = () => {
                 ) : (
                   <tr>
                     <td colSpan={7} className="py-16 text-center">
-                      <div className="inline-flex p-4 rounded-full bg-slate-50 mb-4">
+                      <div className="shrink-0 inline-flex p-4 rounded-full bg-slate-50 mb-4">
                         <Search className="h-8 w-8 text-slate-300" />
                       </div>
                       <h3 className="text-lg font-bold text-slate-900">No se encontraron préstamos</h3>
@@ -895,7 +895,7 @@ const ListadoPrestamosElegante = () => {
           ) : (
             <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8">
               <div className="flex flex-col items-center gap-3 text-center">
-                <div className="inline-flex p-4 rounded-full bg-slate-50">
+                <div className="shrink-0 inline-flex p-4 rounded-full bg-slate-50">
                   <Search className="h-8 w-8 text-slate-300" />
                 </div>
                 <h3 className="text-lg font-bold text-slate-900">No se encontraron préstamos</h3>

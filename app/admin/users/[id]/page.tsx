@@ -231,7 +231,7 @@ export default function DetalleUsuarioPage({ params }: { params: Promise<{ id: s
                     </div>
                     <div className="p-4 space-y-2">
                         {user.permisos.map((permiso, idx) => (
-                            <div key={idx} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100 text-sm">
+                            <div key={idx} className="shrink-0 flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100 text-sm">
                                 <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
                                 <span className="font-medium text-slate-700">{permiso.replace('_', ' ').toUpperCase()}</span>
                             </div>

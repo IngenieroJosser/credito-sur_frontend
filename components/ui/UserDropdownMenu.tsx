@@ -354,7 +354,7 @@ export default function UserDropdownMenu({ user, onLogout }: UserDropdownMenuPro
                     if (isLoggingOut) return
                     setShowLogoutConfirm(false)
                   }}
-                  className="p-2 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200"
+                  className="shrink-0 p-2 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200"
                 >
                   <X className="h-5 w-5" />
                 </button>

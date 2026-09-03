@@ -184,7 +184,7 @@ export default function ReprogramarCuotaModal({
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-blue-100 text-blue-600">
+              <div className="shrink-0 p-2 rounded-xl bg-blue-100 text-blue-600">
                 <Calendar className="w-5 h-5" />
               </div>
               <div>
@@ -196,7 +196,7 @@ export default function ReprogramarCuotaModal({
             </div>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+              className="shrink-0 p-2 hover:bg-slate-100 rounded-lg transition-colors"
             >
               <X className="w-5 h-5 text-slate-400" />
             </button>
@@ -331,14 +331,14 @@ export default function ReprogramarCuotaModal({
 
             {/* Error Message */}
             {error && (
-              <div className="flex items-center gap-2 p-3 bg-rose-50 border border-rose-200 rounded-xl">
+              <div className="shrink-0 flex items-center gap-2 p-3 bg-rose-50 border border-rose-200 rounded-xl">
                 <AlertCircle className="w-5 h-5 text-rose-600 flex-shrink-0" />
                 <p className="text-sm font-medium text-rose-700">{error}</p>
               </div>
             )}
 
             {/* Información Importante */}
-            <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+            <div className="shrink-0 flex items-start gap-3 p-4 bg-blue-50 border border-blue-200 rounded-xl">
               <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
               <div className="text-sm">
                 <p className="font-bold text-blue-900 mb-1">Importante</p>

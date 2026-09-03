@@ -469,7 +469,7 @@ export default function CuentasMoraFeature() {
           </div>
         ) : cuentas.length === 0 ? (
           <div className="col-span-full text-center py-16 bg-white rounded-2xl border border-slate-200 border-dashed">
-            <div className="inline-flex p-4 rounded-full bg-emerald-50 mb-4">
+            <div className="shrink-0 inline-flex p-4 rounded-full bg-emerald-50 mb-4">
               <CheckCircle className="h-8 w-8 text-emerald-500" />
             </div>
             <h3 className="text-lg font-bold text-slate-900 mb-1">Todo en orden</h3>
