@@ -1278,7 +1278,7 @@ const ModuloContableContent = () => {
         </header>
 
         {/* Tarjetas de Resumen — Fila financiera + Fila operativa */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
 
           {/* 1 · Total Ingresos */}
           <div
@@ -1435,7 +1435,7 @@ const ModuloContableContent = () => {
             <div className="rounded-2xl bg-white/80 backdrop-blur-sm border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
             <div className="p-5 border-b border-slate-100 space-y-4">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
+                <div className="min-w-0">
                   <h1 className="text-3xl font-black text-slate-900 tracking-tight">Panel Contable</h1>
                   <p className="text-slate-500 mt-1 font-medium">Control total de movimientos, cajas y cierres.</p>
                 </div>
@@ -1891,17 +1891,17 @@ const ModuloContableContent = () => {
 
 
         {showCrearCajaModal && renderInPortal(
-          <div className="fixed inset-0 z-[2147483646] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setShowCrearCajaModal(false)}>
+          <div className="fixed inset-0 z-[2147483646] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none" onClick={() => setShowCrearCajaModal(false)}>
             <div className="w-full max-w-xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-                <div>
+                <div className="min-w-0">
                   <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Cajas</p>
                   <h3 className="text-lg font-bold text-slate-900">Crear Caja</h3>
                 </div>
                 <button
                   type="button"
                   onClick={() => setShowCrearCajaModal(false)}
-                  className="p-2 rounded-2xl hover:bg-slate-100 text-slate-500"
+                  className="shrink-0 p-2 rounded-2xl hover:bg-slate-100 text-slate-500"
                 >
                   <XCircle className="h-5 w-5" />
                 </button>
@@ -1997,10 +1997,10 @@ const ModuloContableContent = () => {
         )}
 
         {showEditarCajaModal && cajaSeleccionada && renderInPortal(
-          <div className="fixed inset-0 z-[2147483646] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setShowEditarCajaModal(false)}>
+          <div className="fixed inset-0 z-[2147483646] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none" onClick={() => setShowEditarCajaModal(false)}>
             <div className="w-full max-w-xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-                <div>
+                <div className="min-w-0">
                   <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Cajas</p>
                   <h3 className="text-lg font-bold text-slate-900">Editar Caja</h3>
                 </div>
@@ -2010,7 +2010,7 @@ const ModuloContableContent = () => {
                     setShowEditarCajaModal(false)
                     setCajaSeleccionada(null)
                   }}
-                  className="p-2 rounded-2xl hover:bg-slate-100 text-slate-500"
+                  className="shrink-0 p-2 rounded-2xl hover:bg-slate-100 text-slate-500"
                 >
                   <XCircle className="h-5 w-5" />
                 </button>
@@ -2127,17 +2127,17 @@ const ModuloContableContent = () => {
         )}
 
         {showRegistrarMovimientoModal && renderInPortal(
-          <div className="fixed inset-0 z-[2147483646] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setShowRegistrarMovimientoModal(false)}>
+          <div className="fixed inset-0 z-[2147483646] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none" onClick={() => setShowRegistrarMovimientoModal(false)}>
             <div className="w-full max-w-2xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-                <div>
+                <div className="min-w-0">
                   <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Movimientos</p>
                   <h3 className="text-lg font-bold text-slate-900">Registrar Movimiento</h3>
                 </div>
                 <button
                   type="button"
                   onClick={() => setShowRegistrarMovimientoModal(false)}
-                  className="p-2 rounded-2xl hover:bg-slate-100 text-slate-500"
+                  className="shrink-0 p-2 rounded-2xl hover:bg-slate-100 text-slate-500"
                 >
                   <XCircle className="h-5 w-5" />
                 </button>
@@ -2346,7 +2346,7 @@ const ModuloContableContent = () => {
                     const sourceCaja = cajas.find(c => c.id === sourceCajaId);
                     if (sourceCajaId && sourceCaja && montoValue > sourceCaja.saldo) {
                         return (
-                            <div className="mt-4 p-3 rounded-xl bg-red-50 border border-red-100 flex items-center gap-2 animate-pulse">
+                            <div className="shrink-0 mt-4 p-3 rounded-xl bg-red-50 border border-red-100 flex items-center gap-2 animate-pulse">
                                 <AlertTriangle className="h-4 w-4 text-red-600" />
                                 <span className="text-xs font-bold text-red-600 uppercase tracking-tight leading-none">
                                     Fondos Insuficientes en {sourceCaja.nombre}
@@ -2398,16 +2398,16 @@ const ModuloContableContent = () => {
 
 
         {showVerMovimientoModal && movimientoSeleccionado && renderInPortal(
-          <div className="fixed inset-0 z-[2147483646] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setShowVerMovimientoModal(false)}>
+          <div className="fixed inset-0 z-[2147483646] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none" onClick={() => setShowVerMovimientoModal(false)}>
             <div className="w-full max-w-lg rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-                <div>
+                <div className="min-w-0">
                   <h3 className="text-lg font-bold text-slate-900">Detalle de Movimiento</h3>
                   {/* ID Oculto por solicitud del usuario */}
                 </div>
                 <button
                   onClick={() => setShowVerMovimientoModal(false)}
-                  className="p-2 rounded-2xl hover:bg-slate-100 text-slate-500"
+                  className="shrink-0 p-2 rounded-2xl hover:bg-slate-100 text-slate-500"
                 >
                   <XCircle className="h-5 w-5" />
                 </button>
@@ -2415,7 +2415,7 @@ const ModuloContableContent = () => {
 
               <div className="p-6 space-y-5">
                 <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-100">
-                  <div>
+                  <div className="min-w-0">
                     <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Monto Operación</div>
                     <MoneyAmount value={movimientoSeleccionado.monto} amountClassName="text-2xl font-black text-slate-900" />
                   </div>
@@ -2576,16 +2576,16 @@ const ModuloContableContent = () => {
 
 
         {showVerCajaModal && cajaSeleccionada && renderInPortal(
-          <div className="fixed inset-0 z-[2147483646] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setShowVerCajaModal(false)}>
+          <div className="fixed inset-0 z-[2147483646] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none" onClick={() => setShowVerCajaModal(false)}>
             <div className="w-full max-w-lg rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-                <div>
+                <div className="min-w-0">
                     <h3 className="text-lg font-bold text-slate-900">Detalle de Caja</h3>
                     {/* <p className="text-xs font-bold text-slate-500">{cajaSeleccionada.id}</p> */}
                 </div>
                 <button
                   onClick={() => setShowVerCajaModal(false)}
-                  className="p-2 rounded-2xl hover:bg-slate-100 text-slate-500"
+                  className="shrink-0 p-2 rounded-2xl hover:bg-slate-100 text-slate-500"
                 >
                   <XCircle className="h-5 w-5" />
                 </button>
@@ -2827,11 +2827,11 @@ const ModuloContableContent = () => {
         
         {/* Modal de Detalle */}
         {showDetalleModal && renderInPortal(
-          <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => { setShowDetalleModal(false); setMovimientosDetalle([]); setCajaSeleccionada(null); setSaldoRutaSeleccionada(null); }}>
+          <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none" onClick={() => { setShowDetalleModal(false); setMovimientosDetalle([]); setCajaSeleccionada(null); setSaldoRutaSeleccionada(null); }}>
             <div className="w-full max-w-2xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
               {/* Modal Header */}
               <div className="p-6 border-b border-slate-100 flex items-center justify-between shrink-0">
-                <div>
+                <div className="min-w-0">
                    <h3 className="text-lg font-bold text-slate-900">
                       {detalleTipo === 'INGRESOS'
                         ? 'Historial de Ingresos'
@@ -2854,7 +2854,7 @@ const ModuloContableContent = () => {
                 </div>
                 <button
                   onClick={() => { setShowDetalleModal(false); setMovimientosDetalle([]); setCajaSeleccionada(null); setSaldoRutaSeleccionada(null); }}
-                  className="p-2 rounded-2xl hover:bg-slate-100 text-slate-500 transition-colors"
+                  className="shrink-0 p-2 rounded-2xl hover:bg-slate-100 text-slate-500 transition-colors"
                 >
                   <XCircle className="h-6 w-6" />
                 </button>
@@ -3617,7 +3617,7 @@ const ModuloContableContent = () => {
             <div className="w-full max-w-xl rounded-[2.5rem] bg-white border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300" onClick={(e) => e.stopPropagation()}>
                 <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-50 to-white">
                     <div className="flex items-center gap-4">
-                        <div className="p-3 bg-blue-600 rounded-2xl text-white shadow-lg shadow-blue-200 ring-4 ring-blue-50">
+                        <div className="shrink-0 p-3 bg-blue-600 rounded-2xl text-white shadow-lg shadow-blue-200 ring-4 ring-blue-50">
                             <History className="h-6 w-6" />
                         </div>
                         <div>
@@ -3630,7 +3630,7 @@ const ModuloContableContent = () => {
                     </div>
                     <button 
                         onClick={() => setShowVerArqueoModal(false)} 
-                        className="p-2.5 rounded-full hover:bg-slate-100 text-slate-400 transition-all active:scale-90"
+                        className="shrink-0 p-2.5 rounded-full hover:bg-slate-100 text-slate-400 transition-all active:scale-90"
                     >
                         <XCircle className="h-7 w-7" />
                     </button>

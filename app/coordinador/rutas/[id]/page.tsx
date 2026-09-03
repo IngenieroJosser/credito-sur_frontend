@@ -1338,7 +1338,7 @@ const LegacyDetalleRutaPage = () => {
 
             <div className="flex items-center gap-4">
 
-               <Link href="/coordinador/rutas" className="p-2 bg-white rounded-full shadow-sm hover:bg-slate-100 transition-colors">
+               <Link href="/coordinador/rutas" className="shrink-0 p-2 bg-white rounded-full shadow-sm hover:bg-slate-100 transition-colors">
 
                   <ArrowLeft className="h-5 w-5 text-slate-600" />
 
@@ -1384,7 +1384,7 @@ const LegacyDetalleRutaPage = () => {
 
                <div className="flex justify-between items-end mb-4">
 
-                <div>
+                <div className="min-w-0">
 
                   <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Recaudado Hoy</p>
 
@@ -2055,7 +2055,7 @@ const LegacyDetalleRutaPage = () => {
 
       {isGastoModalOpen && (
 
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm" onClick={() => setIsGastoModalOpen(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none" onClick={() => setIsGastoModalOpen(false)}>
 
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
 
@@ -2165,7 +2165,7 @@ const LegacyDetalleRutaPage = () => {
 
               <div className="p-3 bg-blue-50 rounded-xl flex items-start gap-3 border border-blue-100">
 
-                <div className="p-1.5 bg-blue-100 rounded-lg text-blue-600 mt-0.5">
+                <div className="shrink-0 p-1.5 bg-blue-100 rounded-lg text-blue-600 mt-0.5">
 
                   <Banknote className="h-4 w-4" />
 
@@ -2722,7 +2722,7 @@ function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose:
 
         <div className="px-5 sm:px-8 pt-4 sm:pt-8 pb-3 sm:pb-4 flex justify-between items-center shrink-0">
 
-          <div>
+          <div className="min-w-0">
 
             <h3 className="font-black text-xl sm:text-2xl text-slate-900 tracking-tight">Expediente</h3>
 
@@ -2734,7 +2734,7 @@ function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose:
 
             onClick={onClose}
 
-            className="p-2 bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all active:scale-90"
+            className="shrink-0 p-2 bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all active:scale-90"
 
           >
 

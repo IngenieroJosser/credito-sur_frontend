@@ -63,11 +63,11 @@ export default function ModificarInteresModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-      <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none">
+      <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl animate-in fade-in zoom-in-95 duration-200 ease-out motion-reduce:animate-none">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-blue-100 text-blue-600">
+            <div className="shrink-0 p-2 rounded-xl bg-blue-100 text-blue-600">
               <Percent className="w-5 h-5" />
             </div>
             <div>
@@ -77,7 +77,7 @@ export default function ModificarInteresModal({
           </div>
           <button 
             onClick={onClose}
-            className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+            className="shrink-0 p-2 hover:bg-slate-100 rounded-lg transition-colors"
           >
             <X className="w-5 h-5 text-slate-400" />
           </button>
@@ -130,14 +130,14 @@ export default function ModificarInteresModal({
 
           {/* Error Message */}
           {error && (
-            <div className="flex items-center gap-2 p-3 bg-rose-50 border border-rose-200 rounded-xl">
+            <div className="shrink-0 flex items-center gap-2 p-3 bg-rose-50 border border-rose-200 rounded-xl">
               <AlertCircle className="w-5 h-5 text-rose-600 flex-shrink-0" />
               <p className="text-sm font-medium text-rose-700">{error}</p>
             </div>
           )}
 
           {/* Advertencia */}
-          <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+          <div className="shrink-0 flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
             <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
             <div className="text-sm">
               <p className="font-bold text-amber-900 mb-1">Acción Crítica</p>

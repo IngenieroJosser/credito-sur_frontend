@@ -243,7 +243,7 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
             <div className="p-0">
                 {/* Header Original */}
                 <div className="p-6 border-b border-slate-100 flex items-start justify-between bg-slate-50/50">
-                <div>
+                <div className="min-w-0">
                     <h3 className="text-xl font-bold text-slate-900">Estado de Cuenta</h3>
                     <div className="flex items-center gap-2 mt-1">
                         <span className="text-sm font-bold text-slate-500">{visita.cliente}</span>
@@ -256,7 +256,7 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
                         </span>
                     </div>
                 </div>
-                <button onClick={onClose} className="p-2 bg-white border border-slate-200 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-colors">
+                <button onClick={onClose} className="shrink-0 p-2 bg-white border border-slate-200 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-colors">
                     <X className="h-5 w-5" />
                 </button>
                 </div>
@@ -283,7 +283,7 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
                     {/* Próxima Cuota (Diseño Original) */}
                     <div className="bg-orange-50 border border-orange-100 p-4 rounded-2xl">
                         <div className="flex justify-between items-center">
-                            <div>
+                            <div className="min-w-0">
                                 <span className="text-[10px] font-bold text-orange-600 uppercase tracking-widest">Próxima Cuota</span>
                                 <div className="text-lg font-black text-slate-900 uppercase">{info.nextPaymentDate}</div>
                             </div>
@@ -339,7 +339,7 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
                     {/* Balance (Diseño Original) */}
                     <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
                         <div className="flex justify-between items-end mb-4">
-                            <div>
+                            <div className="min-w-0">
                                 <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Progreso de Pago</div>
                                 <div className="text-2xl font-black text-slate-900 tracking-tight">
                                     ${formatMilesCOP(info.totalPaid)} <span className="text-lg text-slate-300 font-medium">/ ${formatMilesCOP(info.totalValue)}</span>

@@ -314,7 +314,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
         {/* Header minimalista */}
         <div className="mb-8">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-4 mb-2">
                 <div
                   className={`w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-primary/20 ${cliente.avatarColor || "bg-primary"}`}
@@ -347,7 +347,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
           {/* Información rápida */}
           <div className="mt-8 grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="flex items-center gap-4 p-5 bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-              <div className="p-3 rounded-xl bg-slate-100 border border-slate-200">
+              <div className="shrink-0 p-3 rounded-xl bg-slate-100 border border-slate-200">
                 <Phone className="w-5 h-5 text-slate-600" />
               </div>
               <div>
@@ -359,7 +359,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
             </div>
 
             <div className="flex items-center gap-4 p-5 bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-              <div className="p-3 rounded-xl bg-slate-100 border border-slate-200">
+              <div className="shrink-0 p-3 rounded-xl bg-slate-100 border border-slate-200">
                 <Mail className="w-5 h-5 text-slate-600" />
               </div>
               <div>
@@ -373,7 +373,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
             </div>
 
             <div className="flex items-center gap-4 p-5 bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-              <div className="p-3 rounded-xl bg-slate-100 border border-slate-200">
+              <div className="shrink-0 p-3 rounded-xl bg-slate-100 border border-slate-200">
                 <MapPin className="w-5 h-5 text-slate-600" />
               </div>
               <div className="min-w-0 flex-1">
@@ -387,7 +387,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
             </div>
 
             <div className="flex items-center gap-4 p-5 bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-              <div className="p-3 rounded-xl bg-slate-100 border border-slate-200">
+              <div className="shrink-0 p-3 rounded-xl bg-slate-100 border border-slate-200">
                 <MapIcon className="w-5 h-5 text-slate-600" />
               </div>
               <div>
@@ -448,21 +448,21 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
 
         {/* Métricas principales */}
         <div className="mb-8">
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-4">
             {/* Tarjeta de crédito total */}
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+              <div className="mb-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="shrink-0 p-1.5 rounded-lg bg-blue-50 border border-blue-100">
+                    <DollarSign className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <p className="min-w-0 truncate text-xs font-bold text-slate-400 uppercase tracking-wider">
                     Crédito Total
                   </p>
-                  <p className="text-3xl font-bold text-slate-900 mt-2">
-                    {formatCurrency(totales.totalPrestamos)}
-                  </p>
                 </div>
-                <div className="p-3 rounded-xl bg-blue-50 border border-blue-100">
-                  <DollarSign className="w-6 h-6 text-blue-600" />
-                </div>
+                <p className="whitespace-nowrap text-[clamp(1.5rem,3vw,1.875rem)] font-bold leading-tight text-slate-900">
+                  {formatCurrency(totales.totalPrestamos)}
+                </p>
               </div>
               <div className="flex items-center justify-between">
                 <span
@@ -475,18 +475,18 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
 
             {/* Tarjeta de saldo pendiente */}
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+              <div className="mb-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="shrink-0 p-1.5 rounded-lg bg-amber-50 border border-amber-100">
+                    <FileText className="w-4 h-4 text-amber-600" />
+                  </div>
+                  <p className="min-w-0 truncate text-xs font-bold text-slate-400 uppercase tracking-wider">
                     Saldo Pendiente
                   </p>
-                  <p className="text-3xl font-bold text-slate-900 mt-2">
-                    {formatCurrency(totales.totalPendiente)}
-                  </p>
                 </div>
-                <div className="p-3 rounded-xl bg-amber-50 border border-amber-100">
-                  <FileText className="w-6 h-6 text-amber-600" />
-                </div>
+                <p className="whitespace-nowrap text-[clamp(1.5rem,3vw,1.875rem)] font-bold leading-tight text-slate-900">
+                  {formatCurrency(totales.totalPendiente)}
+                </p>
               </div>
               <div className="flex items-center justify-between">
                 <div className="text-xs text-slate-500 flex items-center font-medium">
@@ -513,18 +513,18 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
 
             {/* Tarjeta de préstamos activos */}
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+              <div className="mb-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="shrink-0 p-1.5 rounded-lg bg-green-50 border border-green-100">
+                    <TrendingUp className="w-4 h-4 text-green-600" />
+                  </div>
+                  <p className="min-w-0 truncate text-xs font-bold text-slate-400 uppercase tracking-wider">
                     Préstamos Activos
                   </p>
-                  <p className="text-3xl font-bold text-slate-900 mt-2">
-                    {totales.prestamosActivos}
-                  </p>
                 </div>
-                <div className="p-3 rounded-xl bg-green-50 border border-green-100">
-                  <TrendingUp className="w-6 h-6 text-green-600" />
-                </div>
+                <p className="whitespace-nowrap text-[clamp(1.5rem,3vw,1.875rem)] font-bold leading-tight text-slate-900">
+                  {totales.prestamosActivos}
+                </p>
               </div>
               <div className="flex items-center justify-between">
                 <span
@@ -543,18 +543,18 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
 
             {/* Tarjeta de mora acumulada */}
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+              <div className="mb-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="shrink-0 p-1.5 rounded-lg bg-red-50 border border-red-100">
+                    <AlertCircle className="w-4 h-4 text-red-600" />
+                  </div>
+                  <p className="min-w-0 truncate text-xs font-bold text-slate-400 uppercase tracking-wider">
                     Mora Acumulada
                   </p>
-                  <p className="text-3xl font-bold text-red-600 mt-2">
-                    {formatCurrency(totales.totalMoraInteres)}
-                  </p>
                 </div>
-                <div className="p-3 rounded-xl bg-red-50 border border-red-100">
-                  <AlertCircle className="w-6 h-6 text-red-600" />
-                </div>
+                <p className="whitespace-nowrap text-[clamp(1.5rem,3vw,1.875rem)] font-bold leading-tight text-red-600">
+                  {formatCurrency(totales.totalMoraInteres)}
+                </p>
               </div>
               <div className="text-xs font-medium text-slate-500">
                 {totales.totalCuotasVencidas} cuotas con retraso
@@ -619,7 +619,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
           {activeTab === "prestamos" && (
             <div className="p-8">
               <div className="flex items-center justify-between mb-8">
-                <div>
+                <div className="min-w-0">
                   <h2 className="text-xl font-bold text-slate-900 mb-2">
                     Préstamos Activos
                   </h2>
@@ -751,7 +751,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
           {activeTab === "pagos" && (
             <div className="p-8">
               <div className="flex items-center justify-between mb-8">
-                <div>
+                <div className="min-w-0">
                   <h2 className="text-xl font-bold text-slate-900 mb-2">
                     Historial de Pagos
                   </h2>
@@ -831,7 +831,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
           {activeTab === "comentarios" && (
             <div className="p-8">
               <div className="flex items-center justify-between mb-8">
-                <div>
+                <div className="min-w-0">
                   <h2 className="text-xl font-bold text-slate-900 mb-2">
                     Seguimiento y Comentarios
                   </h2>
@@ -904,7 +904,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
           {activeTab === "fotos" && (
             <div className="p-8">
               <div className="flex items-center justify-between mb-8">
-                <div>
+                <div className="min-w-0">
                   <h2 className="text-xl font-bold text-slate-900 mb-2">
                     Galería del Cliente
                   </h2>
@@ -913,7 +913,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
                   </p>
                 </div>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
                 {cliente.fotos && cliente.fotos.length > 0 ? (
                   cliente.fotos.map((foto, idx) => {
                     const isVideo = foto.match(/\.(mp4|webm|ogg|mov)$/i);
@@ -996,7 +996,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
                 typeof document !== "undefined" &&
                 createPortal(
                   <div
-                    className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+                    className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200 motion-reduce:animate-none"
                     style={{ zIndex: 2147483647 }}
                     onClick={() => {
                       setLightboxIndex(null);
@@ -1004,7 +1004,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
                     }}
                   >
                     <div
-                      className="relative w-full max-w-4xl bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden"
+                      className="relative w-full max-w-4xl bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200 ease-out motion-reduce:animate-none"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50/50">
@@ -1110,7 +1110,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
 
       {/* Modal de Nuevo Comentario */}
       {isNoteModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 scrollbar-hide">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 scrollbar-hide animate-in fade-in duration-200 motion-reduce:animate-none">
           <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="p-6 border-b border-slate-100">
               <h3 className="text-xl font-bold text-slate-900">

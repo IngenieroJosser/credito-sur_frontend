@@ -1,5 +1,7 @@
 'use client'
 
+
+import Paginador from '@/components/ui/Paginador'
 import React, { useState, useEffect } from 'react'
 
 import { useRouter } from 'next/navigation'
@@ -540,7 +542,7 @@ export default function NotificacionesPage() {
         {/* Header */}
         <div className="pb-8 pt-10 px-8 w-full">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div>
+            <div className="min-w-0">
               <button
                 type="button"
                 onClick={() => router.back()}
@@ -819,28 +821,14 @@ export default function NotificacionesPage() {
               )}
             </div>
             
-            {/* Footer Paginación */}
-            <div className="p-4 border-t border-slate-100 bg-slate-50/30 flex justify-between items-center text-xs text-slate-500 font-medium">
-              <span>Mostrando {paginatedNotificaciones.length} de {notificaciones.length} notificaciones</span>
-              <div className="flex items-center gap-3">
-                <span className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Página {currentPage} de {totalPages || 1}</span>
-                <div className="flex gap-2">
-                  <button 
-                    disabled={currentPage === 1}
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    className="px-4 py-2 rounded-lg border border-slate-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed font-bold flex items-center gap-1 hover:bg-slate-50 transition-colors shadow-sm"
-                  >
-                    <ChevronLeft className="h-3 w-3" /> Anterior
-                  </button>
-                  <button 
-                    disabled={currentPage >= totalPages}
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                    className="px-4 py-2 rounded-lg border border-slate-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed font-bold flex items-center gap-1 hover:bg-slate-50 transition-colors shadow-sm"
-                  >
-                    Siguiente <ChevronRight className="h-3 w-3" />
-                  </button>
-                </div>
-              </div>
+            <div className="p-4 border-t border-slate-100 bg-slate-50/30">
+              <Paginador
+                pagina={currentPage}
+                totalPaginas={totalPages || 1}
+                onCambiar={setCurrentPage}
+                resumen={`Mostrando ${paginatedNotificaciones.length} de ${notificaciones.length} notificaciones`}
+                className="mt-0"
+              />
             </div>
           </div>
         </div>

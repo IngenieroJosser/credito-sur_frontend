@@ -1,11 +1,12 @@
 'use client'
 
-import { Archive, Search, Filter, RefreshCw, RotateCcw, Trash2, Eye } from 'lucide-react'
+import { Archive, Search, Filter, RefreshCw, RotateCcw, Trash2, Eye, MapPin } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { createPortal } from 'react-dom'
 import { cn } from '@/lib/utils'
 import { auditoriaService } from '@/services/auditoria-service'
+import { archivadosService } from '@/services/archivados-service'
 import { clientesService } from '@/services/clientes-service'
 import { prestamosService } from '@/services/prestamos-service'
 import { usuariosService } from '@/services/usuarios-service'
@@ -23,11 +24,15 @@ interface ArchivedItem {
   fechaEliminacion: string
   motivo: string
   usuarioEliminador: string
+  /** Ruta a la que pertenecia. Null cuando la entidad no tiene ruta. */
+  ruta: string | null
 }
 
 export default function ArchivadosPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [tipoFiltro, setTipoFiltro] = useState('todos')
+  // 'todas' | 'sin-ruta' | nombre de la ruta
+  const [rutaFiltro, setRutaFiltro] = useState('todas')
   const [isRestoreModalOpen, setIsRestoreModalOpen] = useState(false)
   const [selectedItem, setSelectedItem] = useState<ArchivedItem | null>(null)
   const [isHideModalOpen, setIsHideModalOpen] = useState(false)
@@ -48,58 +53,36 @@ export default function ArchivadosPage() {
       try {
         const ocultos = await auditoriaService.obtenerOcultosArchivados().catch(() => [])
         const ocultosKey = new Set(
-          (Array.isArray(ocultos) ? ocultos : []).map((o: any) => `${String(o.entidad || '').toLowerCase()}::${String(o.entidadId || '')}`),
+          (Array.isArray(ocultos) ? ocultos : []).map(
+            (o: any) => `${String(o.entidad || '').toLowerCase()}::${String(o.entidadId || '')}`,
+          ),
         )
 
-        const registros = await auditoriaService.obtenerRegistros()
-        const restauracionesPorEntidad = new Map<string, number>()
-        ;(Array.isArray(registros) ? registros : []).forEach((r: any) => {
-          const accion = String(r.accion || '').toUpperCase()
-          if (!accion.includes('RESTAURAR') && !accion.includes('RESTORE')) return
-          const key = `${String(r.entidad || '').toLowerCase()}::${String(r.entidadId || '')}`
-          const timestamp = new Date(r.creadoEn || 0).getTime()
-          restauracionesPorEntidad.set(key, Math.max(restauracionesPorEntidad.get(key) || 0, timestamp))
-        })
-
-        const eliminaciones = registros
-          .filter((r: any) => {
-            const accion = (r.accion || '').toUpperCase();
-            const esArchivado = accion.includes('ELIMINAR') || 
-                   accion.includes('DELETE') || 
-                   accion.includes('ARCHIVAR') || 
-                   accion.includes('RECHAZAR');
-            if (!esArchivado) return false
-
-            const key = `${String(r.entidad || '').toLowerCase()}::${String(r.entidadId || '')}`
-            const restauradoEn = restauracionesPorEntidad.get(key) || 0
-            const archivadoEn = new Date(r.creadoEn || 0).getTime()
-            return restauradoEn <= archivadoEn
-          })
-          .map((r: any) => ({
-            id: r.id,
-            entidadId: r.entidadId,
-            tipo: (r.entidad || 'desconocido').toLowerCase(),
-            nombre: r.valoresAnteriores?.nombres
-              ? `${r.valoresAnteriores.nombres} ${r.valoresAnteriores.apellidos || ''}`
-              : r.valoresAnteriores?.nombre || r.valoresAnteriores?.numeroPrestamo || `${r.entidad} #${r.entidadId?.slice(0, 8)}`,
-            fechaEliminacion: r.creadoEn,
-            motivo: r.cambios?.motivo || r.valoresNuevos?.motivo || r.valoresAnteriores?.motivo || r.endpoint || 'Eliminación',
-            usuarioEliminador: r.usuario ? `${r.usuario.nombres} ${r.usuario.apellidos}` : 'Sistema',
+        // El listado lo arma el backend leyendo las entidades archivadas, que
+        // si conocen su ruta. Antes se deducia del registro de auditoria
+        // buscando palabras en los nombres de las acciones: bastaba renombrar
+        // una para que dejaran de aparecer registros, y una entrada de bitacora
+        // no sabe a que ruta pertenecia el cliente.
+        const archivados = await archivadosService.listar()
+        const filas: ArchivedItem[] = (Array.isArray(archivados) ? archivados : [])
+          .filter(
+            (a) =>
+              !ocultosKey.has(
+                `${String(a.tipo || '').toLowerCase()}::${String(a.entidadId || '')}`,
+              ),
+          )
+          .map((a) => ({
+            id: a.id,
+            entidadId: a.entidadId,
+            tipo: a.tipo,
+            nombre: a.nombre,
+            fechaEliminacion: a.fechaEliminacion || '',
+            motivo: a.motivo,
+            usuarioEliminador: a.usuarioEliminador,
+            ruta: a.ruta,
           }))
-          .filter((i: any) => !ocultosKey.has(`${String(i.tipo || '').toLowerCase()}::${String(i.entidadId || '')}`))
-        const productosArchivados = await inventarioService.obtenerProductosArchivados().catch(() => [])
-        const productos = (Array.isArray(productosArchivados) ? productosArchivados : []).map((p: any) => ({
-          id: `producto-${p.id}`,
-          entidadId: p.id,
-          tipo: 'producto',
-          nombre: p.nombre || p.codigo || `Producto #${String(p.id).slice(0, 8)}`,
-          fechaEliminacion: p.eliminadoEn || p.actualizadoEn || p.creadoEn,
-          motivo: 'Archivado en inventario',
-          usuarioEliminador: 'Sistema',
-        }))
-        .filter((i: any) => !ocultosKey.has(`${String(i.tipo || '').toLowerCase()}::${String(i.entidadId || '')}`))
 
-        setItems([...eliminaciones, ...productos])
+        setItems(filas)
       } catch (err) {
         console.error('Error cargando archivados:', err)
         setItems([])
@@ -208,11 +191,24 @@ export default function ArchivadosPage() {
     }
   }
 
+  // Rutas presentes en lo archivado. Se sacan de los propios datos para no
+  // ofrecer rutas que no filtrarian nada, y se ordenan alfabeticamente.
+  const rutasDisponibles = Array.from(
+    new Set(items.map(i => i.ruta).filter((r): r is string => !!r)),
+  ).sort((a, b) => a.localeCompare(b))
+
+  // Cuantos elementos no pertenecen a ninguna ruta (productos y usuarios nunca
+  // la tienen). Se dice de forma explicita para que nadie crea que se perdieron.
+  const sinRuta = items.filter(i => !i.ruta).length
+
   const filteredItems = items.filter(item => {
     const matchesSearch = item.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          item.motivo.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesType = tipoFiltro === 'todos' || item.tipo === tipoFiltro
-    return matchesSearch && matchesType
+    const matchesRuta =
+      rutaFiltro === 'todas' ||
+      (rutaFiltro === 'sin-ruta' ? !item.ruta : item.ruta === rutaFiltro)
+    return matchesSearch && matchesType && matchesRuta
   })
 
   return (
@@ -262,6 +258,28 @@ export default function ArchivadosPage() {
               className="buscador-3d-input"
             />
           </div>
+          {/* Filtro por ruta. Solo aparece si hay rutas que ofrecer: en una
+              lista de productos y usuarios archivados no filtraria nada. */}
+          {rutasDisponibles.length > 0 && (
+            <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-slate-200 shadow-sm shrink-0">
+              <MapPin className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+              <select
+                value={rutaFiltro}
+                onChange={(e) => setRutaFiltro(e.target.value)}
+                className="min-w-0 max-w-[13rem] truncate bg-transparent text-[11px] font-bold text-slate-600 outline-none"
+              >
+                <option value="todas">Todas las rutas</option>
+                {rutasDisponibles.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+                {sinRuta > 0 && (
+                  <option value="sin-ruta">Sin ruta ({sinRuta})</option>
+                )}
+              </select>
+            </div>
+          )}
           <div className="flex items-center gap-1.5 flex-wrap bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
             <Filter className="h-3.5 w-3.5 text-slate-400 shrink-0 mr-1" />
             
@@ -296,6 +314,7 @@ export default function ArchivadosPage() {
                   <tr>
                     <th className="px-8 py-5 font-bold tracking-wider">Elemento</th>
                     <th className="px-6 py-5 font-bold tracking-wider">Tipo</th>
+                    <th className="px-6 py-5 font-bold tracking-wider">Ruta</th>
                     <th className="px-6 py-5 font-bold tracking-wider">Fecha Eliminación</th>
                     <th className="px-6 py-5 font-bold tracking-wider">Motivo</th>
                     <th className="px-6 py-5 font-bold tracking-wider">Eliminado Por</th>
@@ -327,6 +346,17 @@ export default function ArchivadosPage() {
                         )}>
                           {item.tipo.charAt(0).toUpperCase() + item.tipo.slice(1)}
                         </span>
+                      </td>
+                      <td className="px-6 py-5 text-slate-600 font-medium">
+                        {item.ruta ? (
+                          <span className="inline-flex max-w-[12rem] items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-bold">
+                            <MapPin className="h-3 w-3 shrink-0 text-slate-400" />
+                            <span className="truncate">{item.ruta}</span>
+                          </span>
+                        ) : (
+                          // Productos y usuarios no pertenecen a ninguna ruta.
+                          <span className="text-xs font-medium text-slate-400">—</span>
+                        )}
                       </td>
                       <td className="px-6 py-5 whitespace-nowrap text-slate-600 font-medium">
                         {new Date(item.fechaEliminacion).toLocaleDateString()}

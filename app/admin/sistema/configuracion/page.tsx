@@ -81,7 +81,7 @@ const ConfiguracionSistemaPage = () => {
 
       <div className="relative z-10 w-full p-8 space-y-8">
         <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between animate-in fade-in slide-in-from-bottom-4 duration-700">
-          <div>
+          <div className="min-w-0">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-xs text-slate-600 tracking-wide font-bold border border-slate-200 mb-2">
               <Settings className="h-3.5 w-3.5" />
 
@@ -99,7 +99,7 @@ const ConfiguracionSistemaPage = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <section className="group bg-white p-6 rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300">
             <div className="flex items-center gap-4 mb-6">
-              <div className="p-3 bg-blue-50 text-blue-600 rounded-xl group-hover:scale-110 transition-transform duration-300">
+              <div className="shrink-0 p-3 bg-blue-50 text-blue-600 rounded-xl group-hover:scale-110 transition-transform duration-300">
                 <Database className="h-6 w-6" />
               </div>
               <div>
@@ -110,7 +110,7 @@ const ConfiguracionSistemaPage = () => {
 
             <div className="space-y-4">
               <div className="flex items-center justify-between p-4 bg-slate-50/50 rounded-xl border border-slate-100">
-                <div>
+                <div className="min-w-0">
                   <div className="text-sm font-bold text-slate-900">Respaldo Local</div>
                   <div className="text-xs text-slate-500 mt-0.5 font-medium">Frecuencia automática</div>
                 </div>
@@ -120,7 +120,7 @@ const ConfiguracionSistemaPage = () => {
               </div>
 
               <div className="flex items-center justify-between p-4 bg-slate-50/50 rounded-xl border border-slate-100">
-                <div>
+                <div className="min-w-0">
                   <div className="text-sm font-bold text-slate-900">Sincronización Nube (VPS)</div>
                   <div className="text-xs text-slate-500 mt-0.5 font-medium">Respaldo remoto automático</div>
                 </div>
@@ -143,7 +143,7 @@ const ConfiguracionSistemaPage = () => {
           {/* NUEVA SECCIÓN DE APROBACIONES */}
           <section className="group bg-white p-6 rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300">
             <div className="flex items-center gap-4 mb-6">
-              <div className="p-3 bg-blue-50 text-blue-600 rounded-xl group-hover:scale-110 transition-transform duration-300">
+              <div className="shrink-0 p-3 bg-blue-50 text-blue-600 rounded-xl group-hover:scale-110 transition-transform duration-300">
                 <CheckCircle className="h-6 w-6" />
               </div>
               <div>
@@ -154,7 +154,7 @@ const ConfiguracionSistemaPage = () => {
 
             <div className="space-y-4">
               <div className="flex items-center justify-between p-4 bg-slate-50/50 rounded-xl border border-slate-100">
-                <div>
+                <div className="min-w-0">
                   <div className="text-sm font-bold text-slate-900">Auto-Aprobar Clientes</div>
                   <div className="text-xs text-slate-500 mt-0.5 font-medium">Bypass flujo de aprobación inicial</div>
                 </div>
@@ -167,7 +167,7 @@ const ConfiguracionSistemaPage = () => {
               </div>
 
               <div className="flex items-center justify-between p-4 bg-slate-50/50 rounded-xl border border-slate-100">
-                <div>
+                <div className="min-w-0">
                   <div className="text-sm font-bold text-slate-900">Auto-Aprobar Créditos</div>
                   <div className="text-xs text-slate-500 mt-0.5 font-medium">Aprobar préstamos automáticamente</div>
                 </div>

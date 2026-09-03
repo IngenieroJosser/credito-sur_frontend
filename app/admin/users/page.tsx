@@ -1,4 +1,6 @@
 "use client";
+
+import Paginador from '@/components/ui/Paginador'
 import { logger } from '@/lib/logger'
 
 import React, { useState, useEffect } from "react";
@@ -1277,7 +1279,7 @@ const UserManagementPage = () => {
                 className="group relative overflow-hidden bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300"
               >
                 <div className="flex items-start justify-between">
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                       {stat.label}
                     </p>
@@ -1620,7 +1622,7 @@ const UserManagementPage = () => {
           {(viewMode === "grid" || true) && (
             <div
               className={cn(
-                "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500",
+                "grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500",
                 viewMode === "list" && "md:hidden",
               )}
             >
@@ -1805,29 +1807,14 @@ const UserManagementPage = () => {
             </div>
           )}
 
-          {/* Paginación */}
-          <div className="p-4 border-t border-slate-100 bg-white/50 flex justify-between items-center text-xs text-slate-500 font-medium rounded-2xl mt-4">
-            <span>
-              Mostrando {currentUsers.length} de {filteredUsers.length} usuarios
-            </span>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                className="px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-bold flex items-center gap-1 transition-colors text-slate-700"
-              >
-                <ChevronLeft className="h-3 w-3" /> Anterior
-              </button>
-              <button
-                onClick={() =>
-                  setCurrentPage((p) => Math.min(totalPages, p + 1))
-                }
-                disabled={currentPage === totalPages || totalPages === 0}
-                className="px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-bold flex items-center gap-1 transition-colors text-slate-700"
-              >
-                Siguiente <ChevronRight className="h-3 w-3" />
-              </button>
-            </div>
+          <div className="p-4 border-t border-slate-100 bg-white/50 rounded-2xl mt-4">
+            <Paginador
+              pagina={currentPage}
+              totalPaginas={totalPages}
+              onCambiar={setCurrentPage}
+              resumen={`Mostrando ${currentUsers.length} de ${filteredUsers.length} usuarios`}
+              className="mt-0"
+            />
           </div>
         </div>
       </div>
@@ -1847,7 +1834,7 @@ const UserManagementPage = () => {
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="flex items-center gap-3 mb-8">
-                    <div className="p-2 bg-blue-50 text-orange-500 rounded-lg">
+                    <div className="shrink-0 p-2 bg-blue-50 text-orange-500 rounded-lg">
                       <UserPlus className="h-6 w-6" />
                     </div>
                     <div>
@@ -2044,7 +2031,7 @@ const UserManagementPage = () => {
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="flex items-center gap-3 mb-8">
-                    <div className="p-2 bg-amber-50 text-amber-500 rounded-lg">
+                    <div className="shrink-0 p-2 bg-amber-50 text-amber-500 rounded-lg">
                       <Edit2 className="h-6 w-6" />
                     </div>
                     <div>
@@ -2248,7 +2235,7 @@ const UserManagementPage = () => {
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="flex items-center gap-3 mb-6 shrink-0">
-                    <div className="p-2 bg-blue-50 text-orange-600 rounded-lg">
+                    <div className="shrink-0 p-2 bg-blue-50 text-orange-600 rounded-lg">
                       <Key className="h-6 w-6" />
                     </div>
                     <div>
@@ -2502,7 +2489,7 @@ const UserManagementPage = () => {
                   <div className="flex-1 min-w-0 p-6 lg:p-8 xl:p-10 overflow-y-auto bg-white relative text-slate-900">
                     <button
                       onClick={() => setIsDetailModalOpen(false)}
-                      className="absolute top-6 right-6 p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-900 transition-all z-20"
+                      className="shrink-0 absolute top-6 right-6 p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-900 transition-all z-20"
                     >
                       <XCircle className="w-6 h-6" />
                     </button>

@@ -861,7 +861,7 @@ export default function RevisionesPage() {
           </div>
 
           <div className="flex gap-2">
-            <button onClick={() => handleOpenDetail(item)} disabled={isProcessing} className="p-2 border border-slate-200 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors">
+            <button onClick={() => handleOpenDetail(item)} disabled={isProcessing} className="shrink-0 p-2 border border-slate-200 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors">
               <Eye className="h-4 w-4" />
             </button>
             {!isReviewMode ? (
@@ -1085,7 +1085,7 @@ export default function RevisionesPage() {
           <p className="font-medium">Cargando datos...</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {activeTab === 'alertas-clientes' ? (
             filteredAlertasCliente.length > 0 ? (
               filteredAlertasCliente.map(renderAlertaClienteCard)
@@ -1159,7 +1159,7 @@ export default function RevisionesPage() {
       />
 
       {resolveAlertaCliente && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none">
           <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
             <div className="mb-5">
               <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600">
@@ -1221,7 +1221,7 @@ export default function RevisionesPage() {
       )}
 
       {confirmModal && confirmModal.type !== 'REJECT' && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-in fade-in duration-200 motion-reduce:animate-none">
            <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl animate-in zoom-in-95 duration-200">
               <h3 className="text-lg font-bold text-slate-900 mb-2">
                 {confirmModal.type === 'APPROVE' ? 'Aprobar Solicitud' :

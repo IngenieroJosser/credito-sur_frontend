@@ -85,7 +85,7 @@ export default function DetalleArticuloPage({ params }: { params: Promise<{ id: 
         {/* Header */}
         <div className="max-w-[1600px] mx-auto mb-8 animate-in fade-in slide-in-from-top-4 duration-500">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
+            <div className="min-w-0">
               <button 
                 onClick={() => router.back()}
                 className="mb-4 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-900"

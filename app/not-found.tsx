@@ -237,7 +237,7 @@ const NotFoundPage = () => {
                       )}
                       
                       <div className="flex items-center justify-between">
-                        <div>
+                        <div className="min-w-0">
                           <div className="text-sm font-medium text-gray-800 group-hover:text-primary transition-colors duration-300 mb-0.5">
                             {module.label}
                           </div>

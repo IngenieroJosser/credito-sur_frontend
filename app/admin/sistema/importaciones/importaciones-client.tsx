@@ -134,7 +134,7 @@ export const ImportacionesClient = () => {
 
   const reporteModal = reporteActivo && activeResult && typeof document !== 'undefined' ? createPortal(
     <div
-      className="fixed inset-0 z-[2147483646] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[2147483646] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none"
       onClick={closeReporte}
     >
       <div
@@ -217,7 +217,7 @@ export const ImportacionesClient = () => {
 
       <div className="relative z-10 w-full p-8 space-y-8">
         <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between animate-in fade-in slide-in-from-bottom-4 duration-700">
-          <div>
+          <div className="min-w-0">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-xs text-slate-600 tracking-wide font-bold border border-slate-200 mb-2">
               <Settings className="h-3.5 w-3.5" />
               <span>Sistema / Configuración</span>
@@ -231,7 +231,7 @@ export const ImportacionesClient = () => {
           </div>
         </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
           <PlantillasCard />
 
           <ArchivoValidadorCard

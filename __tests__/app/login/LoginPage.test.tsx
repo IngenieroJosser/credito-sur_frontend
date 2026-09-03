@@ -36,20 +36,16 @@ jest.mock('lucide-react', () => ({
   ChevronRight: () => <div data-testid="icon-chevron" />,
 }))
 
-// 4. Mock del Server Action (Import dinámico)
-// Como el componente hace `await import('./actions')`, necesitamos mockear ese módulo
-jest.mock('@/app/login/actions', () => ({
-  loginAction: jest.fn().mockResolvedValue({
-    success: true,
-    user: { nombres: 'Test', apellidos: 'User', rol: 'ADMINISTRADOR' },
-    redirectTo: '/admin',
-  }),
-}))
+// 4. La sesion ya no se establece con una Server Action sino con POST
+// /api/sesion, asi que basta con el mock de fetch de mas abajo.
 
 describe('LoginPage', () => {
   beforeEach(() => {
     jest.clearAllMocks()
-    global.fetch = jest.fn().mockResolvedValue({ ok: true }) as jest.Mock
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true }),
+    }) as jest.Mock
     
     // Mock de localStorage
     const localStorageMock = (function() {

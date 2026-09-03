@@ -237,7 +237,7 @@ export default function DetalleMoraModal({
                 onClick={() => { onClose(); onAsignarMora?.() }}
                 className="flex items-center gap-4 p-4 bg-white rounded-2xl border-2 border-amber-200 hover:border-amber-400 hover:bg-amber-50 transition-all group shadow-sm"
               >
-                <div className="p-2.5 bg-amber-100 rounded-xl text-amber-600 group-hover:bg-amber-200 transition-colors">
+                <div className="shrink-0 p-2.5 bg-amber-100 rounded-xl text-amber-600 group-hover:bg-amber-200 transition-colors">
                   <DollarSign className="h-5 w-5" />
                 </div>
                 <div className="text-left">
@@ -258,7 +258,7 @@ export default function DetalleMoraModal({
                 onClick={() => { onClose(); onRegistrarPago?.() }}
                 className="flex items-center gap-4 p-4 bg-white rounded-2xl border-2 border-emerald-200 hover:border-emerald-400 hover:bg-emerald-50 transition-all group shadow-sm"
               >
-                <div className="p-2.5 bg-emerald-100 rounded-xl text-emerald-600 group-hover:bg-emerald-200 transition-colors">
+                <div className="shrink-0 p-2.5 bg-emerald-100 rounded-xl text-emerald-600 group-hover:bg-emerald-200 transition-colors">
                   <Banknote className="h-5 w-5" />
                 </div>
                 <div className="text-left">

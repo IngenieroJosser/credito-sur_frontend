@@ -497,7 +497,7 @@ export default function CreacionCreditoArticulo({
 
             {step === 2 && (
               <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
                   <div className="lg:col-span-2 space-y-4">
                     <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
                       <div className="flex flex-col gap-4 mb-4">
@@ -547,7 +547,7 @@ export default function CreacionCreditoArticulo({
                         {productosFiltrados.map((prod) => (
                           <div key={prod.id} className="p-4 border border-slate-200 rounded-xl hover:border-blue-300 hover:shadow-md transition-all group bg-white">
                             <div className="flex justify-between items-start mb-2">
-                              <div className="p-2 bg-slate-100 rounded-lg text-slate-500 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
+                              <div className="shrink-0 p-2 bg-slate-100 rounded-lg text-slate-500 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
                                 <Package className="w-5 h-5" />
                               </div>
                               <span className="text-[10px] font-bold px-2 py-1 bg-slate-100 rounded-full text-slate-500">{prod.categoria}</span>

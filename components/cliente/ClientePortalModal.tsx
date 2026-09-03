@@ -218,7 +218,7 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
   if (!clienteData) {
     return (
       <Portal>
-        <div className="fixed inset-0 z-[2147483600] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[2147483600] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none">
            <div className="bg-white p-8 rounded-2xl flex flex-col items-center gap-4">
               <BarChart3 className="w-10 h-10 text-red-500" />
               <p className="font-bold text-slate-800">Cliente no encontrado</p>
@@ -244,7 +244,7 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
           <div className="absolute top-6 right-6 z-[60]">
             <button 
               onClick={onClose}
-              className="p-3 bg-white/80 backdrop-blur-xl border border-slate-200 rounded-2xl text-slate-400 hover:text-slate-900 shadow-xl hover:scale-110 transition-all active:scale-95"
+              className="p-3 bg-white/80 backdrop-blur-xl border border-slate-200 rounded-2xl text-slate-400 hover:text-slate-900 shadow-xl hover:scale-110 transition-all active:scale-95 animate-in fade-in zoom-in-95 duration-200 ease-out motion-reduce:animate-none"
             >
               <X className="w-6 h-6" />
             </button>

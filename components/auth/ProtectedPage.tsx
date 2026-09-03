@@ -62,7 +62,7 @@ export default function ProtectedPage({ permiso, roles, children, fallback }: Pr
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center max-w-md mx-auto px-6">
-          <div className="inline-flex p-4 rounded-full bg-slate-100 mb-6">
+          <div className="shrink-0 inline-flex p-4 rounded-full bg-slate-100 mb-6">
             <Shield className="h-12 w-12 text-slate-400" />
           </div>
           <h2 className="text-2xl font-bold text-slate-900 mb-2">Acceso restringido</h2>

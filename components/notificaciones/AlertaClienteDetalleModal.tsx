@@ -227,7 +227,7 @@ export default function AlertaClienteDetalleModal({
   return (
     <Portal>
       <div
-        className="fixed inset-0 flex items-end justify-center bg-slate-950/65 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+        className="fixed inset-0 flex items-end justify-center bg-slate-950/65 p-0 backdrop-blur-sm sm:items-center sm:p-4 animate-in fade-in duration-200 motion-reduce:animate-none"
         style={{ zIndex: MODAL_Z_INDEX + 30 }}
         onMouseDown={(event) => {
           if (event.target === event.currentTarget) onClose()
@@ -263,13 +263,13 @@ export default function AlertaClienteDetalleModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-2xl bg-slate-100 p-2 text-slate-500 transition hover:bg-slate-200 hover:text-slate-900"
+                className="shrink-0 rounded-2xl bg-slate-100 p-2 text-slate-500 transition hover:bg-slate-200 hover:text-slate-900"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-2 xl:grid-cols-4">
               <Stat
                 label="Saldo cartera activa"
                 value={money(metricas.saldoPendienteTotal)}

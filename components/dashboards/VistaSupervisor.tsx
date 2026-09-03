@@ -281,9 +281,9 @@ const VistaSupervisor = () => {
       <div className="relative z-10 p-4 sm:p-6 lg:p-8">
         <div className="mb-8">
           <div className="flex items-start justify-between gap-4">
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-2 mb-2">
-                <div className="p-2 bg-blue-600 rounded-lg shadow-md shadow-blue-600/20">
+                <div className="shrink-0 p-2 bg-blue-600 rounded-lg shadow-md shadow-blue-600/20">
                   <Eye className="h-6 w-6 text-white" />
                 </div>
                 <div>
@@ -310,7 +310,7 @@ const VistaSupervisor = () => {
           />
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-8 mb-8">
           {mainMetrics.map((metric, index) => (
             <div
               key={index}
@@ -362,7 +362,7 @@ const VistaSupervisor = () => {
         <div className="mb-8">
           <div className="bg-white border border-gray-100 rounded-xl p-6 shadow-sm">
             <div className="flex items-center justify-between mb-8">
-              <div>
+              <div className="min-w-0">
                 <h2 className="text-xl font-bold text-slate-900 tracking-tight">Tendencia de Cobros</h2>
                 <p className="text-sm text-slate-500 font-medium">Período seleccionado</p>
               </div>

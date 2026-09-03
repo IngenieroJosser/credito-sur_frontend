@@ -68,19 +68,19 @@ function AbonoModal({ cobrador, onClose, onConfirm, cajas }: AbonoModalProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200 motion-reduce:animate-none"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-3xl shadow-2xl w-full max-w-sm border border-slate-100 overflow-hidden"
+        className="bg-white rounded-3xl shadow-2xl w-full max-w-sm border border-slate-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200 ease-out motion-reduce:animate-none"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="px-6 pt-6 pb-4 flex items-center justify-between border-b border-slate-100">
-          <div>
+          <div className="min-w-0">
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Registrar Abono</p>
             <h3 className="text-sm font-black text-slate-900 mt-0.5">{cobrador.nombreCobrador}</h3>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+          <button onClick={onClose} className="shrink-0 p-2 hover:bg-slate-100 rounded-full transition-colors">
             <X className="h-4 w-4 text-slate-400" />
           </button>
         </div>
@@ -197,11 +197,11 @@ function DetalleDeudaModal({ cobrador, onClose }: DetalleDeudaModalProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/50 backdrop-blur-sm p-0 sm:p-4"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/50 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200 motion-reduce:animate-none"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-2xl border border-slate-100 overflow-hidden max-h-[92vh] flex flex-col"
+        className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-2xl border border-slate-100 overflow-hidden max-h-[92vh] flex flex-col animate-in fade-in zoom-in-95 duration-200 ease-out motion-reduce:animate-none"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="px-5 sm:px-6 pt-5 pb-4 flex items-start justify-between border-b border-slate-100 shrink-0">
@@ -210,7 +210,7 @@ function DetalleDeudaModal({ cobrador, onClose }: DetalleDeudaModalProps) {
             <h3 className="text-base sm:text-lg font-black text-slate-900 mt-0.5 truncate">{cobrador.nombreCobrador}</h3>
             <p className="text-xs font-bold text-slate-500 mt-1">{cobrador.rol.replace('_', ' ')} · {cobrador.totalEventos} evento(s)</p>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors shrink-0">
+          <button onClick={onClose} className="shrink-0 p-2 hover:bg-slate-100 rounded-full transition-colors shrink-0">
             <X className="h-5 w-5 text-slate-400" />
           </button>
         </div>
@@ -485,7 +485,7 @@ export default function DeudorasCobradorCard() {
               </div>
             ) : deudoresActivos.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 gap-3">
-                <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
+                <div className="shrink-0 p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
                   <ShieldAlert className="h-7 w-7 text-emerald-400" />
                 </div>
                 <p className="text-sm font-black text-slate-500">Todos los cobradores están al día</p>

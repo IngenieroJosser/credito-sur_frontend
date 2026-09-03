@@ -571,31 +571,31 @@ const ReportesFinancierosPage = () => {
         {/* KPI Cards - Estilo Ultra Clean */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-6">
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Flujo Neto de Caja</p>
-                <h3 className="text-2xl font-bold text-slate-900 mt-2">{formatCurrency(summary.entradasCaja)}</h3>
+            <div className="mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="shrink-0 p-1.5 bg-emerald-50 border border-emerald-100 rounded-lg">
+                  <TrendingUp className="h-4 w-4 text-emerald-600" />
+                </div>
+                <p className="min-w-0 truncate text-xs font-bold text-slate-500 uppercase tracking-wider">Flujo Neto de Caja</p>
               </div>
-              <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100">
-                <TrendingUp className="h-5 w-5 text-emerald-600" />
-              </div>
+              <h3 className="whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold text-slate-900 mt-2 leading-tight">{formatCurrency(summary.entradasCaja)}</h3>
             </div>
             <p className="text-xs font-semibold text-slate-400">Entradas menos salidas/reversos de caja del periodo</p>
           </div>
 
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Ingresos de Cartera</p>
-                <h3 className="text-2xl font-bold text-slate-900 mt-2">{formatCurrency(summary.ingresos)}</h3>
+            <div className="mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="shrink-0 p-1.5 bg-teal-50 border border-teal-100 rounded-lg">
+                  <DollarSign className="h-4 w-4 text-teal-600" />
+                </div>
+                <p className="min-w-0 truncate text-xs font-bold text-slate-500 uppercase tracking-wider">Ingresos de Cartera</p>
               </div>
-              <div className="p-3 bg-teal-50 rounded-xl border border-teal-100">
-                <DollarSign className="h-5 w-5 text-teal-600" />
-              </div>
+              <h3 className="whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold text-slate-900 mt-2 leading-tight">{formatCurrency(summary.ingresos)}</h3>
             </div>
             {trendIngresos !== null && (
-              <div className={`flex items-center text-xs font-bold w-fit px-2 py-1 rounded-full border ${trendIngresos >= 0 ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-rose-600 bg-rose-50 border-rose-100'}`}>
-                <ArrowUpRight className="h-3 w-3 mr-1" />
+              <div className={`flex items-center text-xs font-bold w-fit max-w-full px-2 py-1 rounded-full border ${trendIngresos >= 0 ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-rose-600 bg-rose-50 border-rose-100'}`}>
+                <ArrowUpRight className="h-3 w-3 mr-1 shrink-0" />
                 <span>{trendIngresos >= 0 ? `+${trendIngresos}%` : `${trendIngresos}%`} vs periodo anterior</span>
               </div>
             )}
@@ -603,96 +603,96 @@ const ReportesFinancierosPage = () => {
           </div>
 
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Cobros de Cuotas</p>
-                <h3 className="text-2xl font-bold text-slate-900 mt-2">{formatCurrency(summary.cobros)}</h3>
+            <div className="mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="shrink-0 p-1.5 bg-blue-50 border border-blue-100 rounded-lg">
+                  <DollarSign className="h-4 w-4 text-blue-600" />
+                </div>
+                <p className="min-w-0 truncate text-xs font-bold text-slate-500 uppercase tracking-wider">Cobros de Cuotas</p>
               </div>
-              <div className="p-3 bg-blue-50 rounded-xl border border-blue-100">
-                <DollarSign className="h-5 w-5 text-blue-600" />
-              </div>
+              <h3 className="whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold text-slate-900 mt-2 leading-tight">{formatCurrency(summary.cobros)}</h3>
             </div>
             {trendCobros !== null && (
-              <div className={`flex items-center text-xs font-bold w-fit px-2 py-1 rounded-full border ${trendCobros >= 0 ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-rose-600 bg-rose-50 border-rose-100'}`}>
-                <ArrowUpRight className="h-3 w-3 mr-1" />
+              <div className={`flex items-center text-xs font-bold w-fit max-w-full px-2 py-1 rounded-full border ${trendCobros >= 0 ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-rose-600 bg-rose-50 border-rose-100'}`}>
+                <ArrowUpRight className="h-3 w-3 mr-1 shrink-0" />
                 <span>{trendCobros >= 0 ? `+${trendCobros}%` : `${trendCobros}%`} vs periodo anterior</span>
               </div>
             )}
           </div>
 
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Gastos Operativos</p>
-                <h3 className="text-2xl font-bold text-slate-900 mt-2">{formatCurrency(summary.egresos)}</h3>
+            <div className="mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="shrink-0 p-1.5 bg-rose-50 border border-rose-100 rounded-lg">
+                  <TrendingDown className="h-4 w-4 text-rose-600" />
+                </div>
+                <p className="min-w-0 truncate text-xs font-bold text-slate-500 uppercase tracking-wider">Gastos Operativos</p>
               </div>
-              <div className="p-3 bg-rose-50 rounded-xl border border-rose-100">
-                <TrendingDown className="h-5 w-5 text-rose-600" />
-              </div>
+              <h3 className="whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold text-slate-900 mt-2 leading-tight">{formatCurrency(summary.egresos)}</h3>
             </div>
             {trendEgresos !== null && (
-              <div className={`flex items-center text-xs font-bold w-fit px-2 py-1 rounded-full border ${trendEgresos >= 0 ? 'text-rose-600 bg-rose-50 border-rose-100' : 'text-emerald-600 bg-emerald-50 border-emerald-100'}`}>
-                <ArrowUpRight className="h-3 w-3 mr-1" />
+              <div className={`flex items-center text-xs font-bold w-fit max-w-full px-2 py-1 rounded-full border ${trendEgresos >= 0 ? 'text-rose-600 bg-rose-50 border-rose-100' : 'text-emerald-600 bg-emerald-50 border-emerald-100'}`}>
+                <ArrowUpRight className="h-3 w-3 mr-1 shrink-0" />
                 <span>{trendEgresos >= 0 ? `+${trendEgresos}%` : `${trendEgresos}%`} vs periodo anterior</span>
               </div>
             )}
           </div>
 
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Utilidad Operativa</p>
-                <h3 className="text-2xl font-bold text-slate-900 mt-2">{formatCurrency(summary.utilidadOperativa)}</h3>
+            <div className="mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="shrink-0 p-1.5 bg-blue-50 border border-blue-100 rounded-lg">
+                  <DollarSign className="h-4 w-4 text-blue-600" />
+                </div>
+                <p className="min-w-0 truncate text-xs font-bold text-slate-500 uppercase tracking-wider">Utilidad Operativa</p>
               </div>
-              <div className="p-3 bg-blue-50 rounded-xl border border-blue-100">
-                <DollarSign className="h-5 w-5 text-blue-600" />
-              </div>
+              <h3 className="whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold text-slate-900 mt-2 leading-tight">{formatCurrency(summary.utilidadOperativa)}</h3>
             </div>
             <p className="text-xs font-semibold text-slate-400">Interés + mora + margen de artículos menos gastos</p>
           </div>
 
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Provisión de Cartera</p>
-                <h3 className="text-2xl font-bold text-slate-900 mt-2">{formatCurrency(summary.provisionCartera)}</h3>
+            <div className="mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="shrink-0 p-1.5 bg-amber-50 border border-amber-100 rounded-lg">
+                  <PieChart className="h-4 w-4 text-amber-600" />
+                </div>
+                <p className="min-w-0 truncate text-xs font-bold text-slate-500 uppercase tracking-wider">Provisión de Cartera</p>
               </div>
-              <div className="p-3 bg-amber-50 rounded-xl border border-amber-100">
-                <PieChart className="h-5 w-5 text-amber-600" />
-              </div>
+              <h3 className="whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold text-slate-900 mt-2 leading-tight">{formatCurrency(summary.provisionCartera)}</h3>
             </div>
             <p className="text-xs font-semibold text-slate-400">Reserva para préstamos en mora/incumplimiento</p>
           </div>
 
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Utilidad Neta Estimada</p>
-                <h3 className="text-2xl font-bold text-slate-900 mt-2">{formatCurrency(summary.utilidadNeta)}</h3>
+            <div className="mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="shrink-0 p-1.5 bg-purple-50 border border-purple-100 rounded-lg">
+                  <DollarSign className="h-4 w-4 text-purple-600" />
+                </div>
+                <p className="min-w-0 truncate text-xs font-bold text-slate-500 uppercase tracking-wider">Utilidad Neta Estimada</p>
               </div>
-              <div className="p-3 bg-purple-50 rounded-xl border border-purple-100">
-                <DollarSign className="h-5 w-5 text-purple-600" />
-              </div>
+              <h3 className="whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold text-slate-900 mt-2 leading-tight">{formatCurrency(summary.utilidadNeta)}</h3>
             </div>
-            <div className={`flex items-center text-xs font-bold w-fit px-2 py-1 rounded-full border ${summary.utilidadNeta >= 0 ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-rose-600 bg-rose-50 border-rose-100'}`}>
-              <ArrowUpRight className="h-3 w-3 mr-1" />
+            <div className={`flex items-center text-xs font-bold w-fit max-w-full px-2 py-1 rounded-full border ${summary.utilidadNeta >= 0 ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-rose-600 bg-rose-50 border-rose-100'}`}>
+              <ArrowUpRight className="h-3 w-3 mr-1 shrink-0" />
               <span>{summary.utilidadNeta >= 0 ? 'Rentable' : 'No rentable'}</span>
             </div>
           </div>
 
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Margen Promedio</p>
-                <h3 className="text-2xl font-bold text-slate-900 mt-2">{summary.margen.toFixed(1)}%</h3>
+            <div className="mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="shrink-0 p-1.5 bg-purple-50 border border-purple-100 rounded-lg">
+                  <PieChart className="h-4 w-4 text-purple-600" />
+                </div>
+                <p className="min-w-0 truncate text-xs font-bold text-slate-500 uppercase tracking-wider">Margen Promedio</p>
               </div>
-              <div className="p-3 bg-purple-50 rounded-xl border border-purple-100">
-                <PieChart className="h-5 w-5 text-purple-600" />
-              </div>
+              <h3 className="whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold text-slate-900 mt-2 leading-tight">{summary.margen.toFixed(1)}%</h3>
             </div>
             {metaMargen !== null && (
-              <div className={`flex items-center text-xs font-bold w-fit px-2 py-1 rounded-full border ${summary.margen >= metaMargen ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-amber-700 bg-amber-50 border-amber-100'}`}>
-                <Target className="h-3 w-3 mr-1" />
+              <div className={`flex items-center text-xs font-bold w-fit max-w-full px-2 py-1 rounded-full border ${summary.margen >= metaMargen ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-amber-700 bg-amber-50 border-amber-100'}`}>
+                <Target className="h-3 w-3 mr-1 shrink-0" />
                 <span>Meta {metaMargen.toFixed(1)}%</span>
               </div>
             )}
@@ -736,7 +736,7 @@ const ReportesFinancierosPage = () => {
         <div className="grid grid-cols-1 gap-8">
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 md:p-8">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6 md:mb-8">
-              <div>
+              <div className="min-w-0">
                 <h3 className="text-base md:text-lg font-bold text-slate-900">Tendencia de Cobros</h3>
                 <p className="text-xs md:text-sm text-slate-400 font-medium">Cobranza contable registrada en ledger como PAGO</p>
               </div>
@@ -758,7 +758,7 @@ const ReportesFinancierosPage = () => {
           {/* Main Chart: Monthly Trends */}
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 md:p-8">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6 md:mb-8">
-              <div>
+              <div className="min-w-0">
                 <h3 className="text-base md:text-lg font-bold text-slate-900">Evolución Financiera</h3>
                 <p className="text-xs md:text-sm text-slate-400 font-medium">Comportamiento por periodo seleccionado de ingresos de cartera y gastos operativos</p>
               </div>

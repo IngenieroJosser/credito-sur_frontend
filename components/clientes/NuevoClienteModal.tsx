@@ -23,6 +23,18 @@ interface NuevoClienteModalProps {
 
 import { useAuth } from '@/hooks/useAuth';
 
+/**
+ * Estilo unico de los campos del formulario.
+ *
+ * Antes cada campo repetia la clase entera, y todos llevaban `focus:ring-0`,
+ * que borra el indicador de foco: navegando con el teclado no se veia en que
+ * campo estabas. Ahora el campo enfocado se marca con el azul de la marca.
+ */
+const CLASE_CAMPO =
+  'w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 font-medium text-slate-900 transition-colors placeholder:text-slate-400 focus:border-primary focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20';
+
+
+
 export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = null, esEdicion = false }: NuevoClienteModalProps) {
   const { showNotification } = useNotification();
   const { user: currentUser } = useAuth();
@@ -283,102 +295,105 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
         }}
       >
         <div
-          className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto"
+          className="flex w-full max-w-4xl max-h-[90vh] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl animate-in zoom-in-95 duration-200"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="p-6 md:p-8">
-            <div className="flex items-center justify-between mb-8">
-              <div>
-                <h3 className="text-2xl font-bold text-slate-900">{esEdicion ? 'Editar Cliente' : 'Nuevo Cliente'}</h3>
-                <p className="text-slate-500">{esEdicion ? 'Modifique la información necesaria del cliente' : 'Complete la información para registrar un cliente'}</p>
-              </div>
-              <button
-                type="button"
-                onClick={onClose}
-                className="p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
-              >
-                <X className="h-6 w-6" />
-              </button>
+          {/* Cabecera sobria: un rótulo gris sobre el título, como en el resto
+              de modales de gestión. Va fuera del área que se desplaza para que
+              el título siga a la vista al bajar por el formulario, que es largo. */}
+          <div className="flex shrink-0 items-center justify-between gap-4 border-b border-slate-100 px-6 py-4 md:px-8">
+            <div className="min-w-0">
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Gestión de clientes</p>
+              <h3 className="text-lg font-bold text-slate-900">{esEdicion ? 'Editar cliente' : 'Nuevo cliente'}</h3>
             </div>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Cerrar"
+              className="shrink-0 rounded-xl p-2 text-slate-500 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <FieldLabel required>CC o Documento</FieldLabel>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={formulario.dni}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/\D/g, '');
-                      setFormulario(prev => ({ ...prev, dni: val }));
-                    }}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
-                    placeholder="Solo números"
-                    required
-                  />
-                </div>
-                <div>
-                  <FieldLabel required>Teléfono</FieldLabel>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={formulario.telefono}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/\D/g, '');
-                      setFormulario(prev => ({ ...prev, telefono: val }));
-                    }}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
-                    placeholder="Solo números"
-                    required
-                  />
+          <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+            <div className="min-h-0 flex-1 space-y-6 overflow-y-auto p-6 md:p-8">
+              {/* Datos personales */}
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                <p className="mb-4 text-xs font-bold uppercase tracking-wider text-slate-500">Datos personales</p>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div>
+                    <FieldLabel required>CC o Documento</FieldLabel>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={formulario.dni}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, '');
+                        setFormulario(prev => ({ ...prev, dni: val }));
+                      }}
+                      className={CLASE_CAMPO}
+                      placeholder="Solo números"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <FieldLabel required>Teléfono</FieldLabel>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={formulario.telefono}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, '');
+                        setFormulario(prev => ({ ...prev, telefono: val }));
+                      }}
+                      className={CLASE_CAMPO}
+                      placeholder="Solo números"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <FieldLabel required>Nombres</FieldLabel>
+                    <input
+                      value={formulario.nombres}
+                      onChange={(e) => setFormulario(prev => ({ ...prev, nombres: e.target.value }))}
+                      className={CLASE_CAMPO}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <FieldLabel required>Apellidos</FieldLabel>
+                    <input
+                      value={formulario.apellidos}
+                      onChange={(e) => setFormulario(prev => ({ ...prev, apellidos: e.target.value }))}
+                      className={CLASE_CAMPO}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <FieldLabel>Correo (Opcional)</FieldLabel>
+                    <input
+                      type="email"
+                      value={formulario.correo}
+                      onChange={(e) => setFormulario(prev => ({ ...prev, correo: e.target.value }))}
+                      className={CLASE_CAMPO}
+                      placeholder="correo@dominio.com"
+                    />
+                  </div>
+                  <div>
+                    <FieldLabel required>Dirección</FieldLabel>
+                    <input
+                      value={formulario.direccion}
+                      onChange={(e) => setFormulario(prev => ({ ...prev, direccion: e.target.value }))}
+                      className={CLASE_CAMPO}
+                      placeholder="Dirección del cliente"
+                      required
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <FieldLabel required>Nombres</FieldLabel>
-                  <input
-                    value={formulario.nombres}
-                    onChange={(e) => setFormulario(prev => ({ ...prev, nombres: e.target.value }))}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
-                    required
-                  />
-                </div>
-                <div>
-                  <FieldLabel required>Apellidos</FieldLabel>
-                  <input
-                    value={formulario.apellidos}
-                    onChange={(e) => setFormulario(prev => ({ ...prev, apellidos: e.target.value }))}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <FieldLabel>Correo (Opcional)</FieldLabel>
-                <input
-                  type="email"
-                  value={formulario.correo}
-                  onChange={(e) => setFormulario(prev => ({ ...prev, correo: e.target.value }))}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900 placeholder:text-slate-400"
-                  placeholder="correo@dominio.com"
-                />
-              </div>
-
-              <div>
-                <FieldLabel required>Dirección</FieldLabel>
-                <input
-                  value={formulario.direccion}
-                  onChange={(e) => setFormulario(prev => ({ ...prev, direccion: e.target.value }))}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900 placeholder:text-slate-400"
-                  placeholder="Dirección del cliente"
-                  required
-                />
-              </div>
-
-              <div className="border-t border-slate-100 pt-4">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
                 <FieldLabel className="mb-1">Referencias Personales</FieldLabel>
                 <p className="text-xs text-slate-400 mb-4">Complete el nombre completo y teléfono de cada referencia</p>
 
@@ -394,7 +409,7 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
                       <input
                         value={formulario.referencia1Nombre}
                         onChange={(e) => setFormulario(prev => ({ ...prev, referencia1Nombre: e.target.value }))}
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900 placeholder:text-slate-400"
+                        className={CLASE_CAMPO}
                         placeholder="Ej: María López"
                         required
                       />
@@ -406,7 +421,7 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
                         inputMode="numeric"
                         value={formulario.referencia1Telefono}
                         onChange={(e) => setFormulario(prev => ({ ...prev, referencia1Telefono: e.target.value.replace(/\D/g, '') }))}
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900 placeholder:text-slate-400"
+                        className={CLASE_CAMPO}
                         placeholder="Ej: 3001234567"
                         required
                       />
@@ -426,7 +441,7 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
                       <input
                         value={formulario.referencia2Nombre}
                         onChange={(e) => setFormulario(prev => ({ ...prev, referencia2Nombre: e.target.value }))}
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900 placeholder:text-slate-400"
+                        className={CLASE_CAMPO}
                         placeholder="Ej: Carlos Martínez"
                         required
                       />
@@ -438,7 +453,7 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
                         inputMode="numeric"
                         value={formulario.referencia2Telefono}
                         onChange={(e) => setFormulario(prev => ({ ...prev, referencia2Telefono: e.target.value.replace(/\D/g, '') }))}
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900 placeholder:text-slate-400"
+                        className={CLASE_CAMPO}
                         placeholder="Ej: 3109876543"
                         required
                       />
@@ -449,7 +464,7 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
 
               {esEdicion && (
                 <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between">
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-sm font-bold text-slate-700">Lista Negra</p>
                     <p className="text-xs text-slate-500">Activa o desactiva la restricción para este cliente</p>
                   </div>
@@ -470,11 +485,13 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
               )}
 
               {/* Sección de Fotos */}
-              <div className="space-y-4 border-t border-slate-200 pt-6">
-                <h4 className="text-sm font-bold text-slate-700 uppercase tracking-wide">Documentos y Fotos (Opcionales)</h4>
-                <p className="text-xs text-slate-500 font-medium">
-                  Formatos soportados: JPG, JPEG, PNG, WEBP. (Comprobante: también MP4, WEBM)
-                </p>
+              <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">Documentos y fotos (opcionales)</h4>
+                  <p className="mt-1 text-xs font-medium text-slate-400">
+                    Formatos soportados: JPG, JPEG, PNG, WEBP. (Comprobante: también MP4, WEBM)
+                  </p>
+                </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <MediaUpload
@@ -563,32 +580,35 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
                 </div>
               </div>
 
-              <div className="flex gap-4 pt-4 border-t border-slate-100 mt-6">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  disabled={isSubmitting}
-                  className="flex-1 bg-white border border-slate-200 text-slate-700 font-bold py-3.5 rounded-xl hover:bg-slate-50 transition-all disabled:opacity-50"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="flex-1 bg-[#08557f] text-white font-bold py-3.5 rounded-xl shadow-xl shadow-[#08557f]/20 hover:bg-[#063a58] active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      Procesando...
-                    </>
-                  ) : (
-                    esEdicion ? 'Guardar Cambios' : 'Registrar Cliente'
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
+            </div>
+
+            {/* Los botones tampoco se desplazan: en un formulario largo obligaba
+                a bajar hasta el final para encontrar el de guardar. */}
+            <div className="flex shrink-0 gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4 md:px-8">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={isSubmitting}
+                className="flex-1 rounded-xl border border-slate-300 bg-white py-3 font-bold text-slate-700 transition-all hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary py-3 font-bold text-white shadow-lg shadow-primary/25 transition-all hover:bg-primary-dark active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-50"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Procesando...
+                  </>
+                ) : (
+                  esEdicion ? 'Guardar cambios' : 'Registrar cliente'
+                )}
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </Portal>

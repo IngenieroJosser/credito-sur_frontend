@@ -1,5 +1,7 @@
 'use client'
 
+import Paginador from '@/components/ui/Paginador'
+
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Database, Cloud, RefreshCw, HardDrive, ShieldCheck, Clock, Download } from 'lucide-react'
 import { apiRequest } from '@/lib/api/api'
@@ -157,7 +159,7 @@ const BackupsSistemaPage = () => {
 
       <div className="p-8 space-y-8 max-w-[1600px] mx-auto relative z-10">
         <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between animate-in fade-in slide-in-from-bottom-4 duration-700">
-          <div>
+          <div className="min-w-0">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-xs text-slate-600 tracking-wide font-bold border border-slate-200 mb-2">
               <Database className="h-3.5 w-3.5" />
               <span>Gestión de backups</span>
@@ -171,7 +173,7 @@ const BackupsSistemaPage = () => {
           <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 group">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-4">
-                <div className="p-3 bg-slate-100 text-slate-600 rounded-xl group-hover:scale-110 transition-transform duration-300">
+                <div className="shrink-0 p-3 bg-slate-100 text-slate-600 rounded-xl group-hover:scale-110 transition-transform duration-300">
                   <HardDrive className="h-6 w-6" />
                 </div>
                 <div>
@@ -211,7 +213,7 @@ const BackupsSistemaPage = () => {
           <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 group">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-4">
-                <div className="p-3 bg-sky-50 text-sky-600 rounded-xl group-hover:scale-110 transition-transform duration-300">
+                <div className="shrink-0 p-3 bg-sky-50 text-sky-600 rounded-xl group-hover:scale-110 transition-transform duration-300">
                   <Cloud className="h-6 w-6" />
                 </div>
                 <div>
@@ -351,28 +353,13 @@ const BackupsSistemaPage = () => {
           </div>
 
           {!loading && history.length > 0 && (
-            <div className="p-4 border-t border-slate-100 flex items-center justify-between">
-              <div className="text-xs font-bold text-slate-500">
-                Página {Math.min(page, totalPages)} de {totalPages}
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page <= 1}
-                  className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 transition-all disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-slate-600 disabled:hover:border-slate-200"
-                >
-                  Anterior
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={page >= totalPages}
-                  className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 transition-all disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-slate-600 disabled:hover:border-slate-200"
-                >
-                  Siguiente
-                </button>
-              </div>
+            <div className="p-4 border-t border-slate-100">
+              <Paginador
+                pagina={Math.min(page, totalPages)}
+                totalPaginas={totalPages}
+                onCambiar={setPage}
+                className="mt-0"
+              />
             </div>
           )}
         </section>
@@ -405,7 +392,7 @@ const BackupsSistemaPage = () => {
             return (
               <div key={r.id} className="bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 p-4">
                 <div className="flex items-start justify-between mb-3 pb-3 border-b border-slate-100">
-                  <div>
+                  <div className="min-w-0">
                     <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Fecha</div>
                     <div className="font-bold text-slate-900">{formatDateTime(r.finishedAt || r.startedAt)}</div>
                   </div>
@@ -453,28 +440,13 @@ const BackupsSistemaPage = () => {
           )}
 
           {!loading && history.length > 0 && (
-            <div className="bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 p-4 flex items-center justify-between">
-              <div className="text-xs font-bold text-slate-500">
-                Página {Math.min(page, totalPages)} de {totalPages}
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page <= 1}
-                  className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 transition-all disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-slate-600 disabled:hover:border-slate-200"
-                >
-                  Anterior
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={page >= totalPages}
-                  className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 transition-all disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-slate-600 disabled:hover:border-slate-200"
-                >
-                  Siguiente
-                </button>
-              </div>
+            <div className="bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 p-4">
+              <Paginador
+                pagina={Math.min(page, totalPages)}
+                totalPaginas={totalPages}
+                onCambiar={setPage}
+                className="mt-0"
+              />
             </div>
           )}
         </section>

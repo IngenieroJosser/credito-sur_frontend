@@ -129,14 +129,14 @@ export const ValidationResult: React.FC<ValidationResultProps> = ({ resultado, o
           <button
             onClick={() => setPage(Math.max(1, currentPage - 1))}
             disabled={currentPage === 1}
-            className="p-1 rounded-md hover:bg-slate-200 disabled:opacity-50 transition-colors"
+            className="shrink-0 p-1 rounded-md hover:bg-slate-200 disabled:opacity-50 transition-colors"
           >
             <ChevronLeft className="h-5 w-5" />
           </button>
           <button
             onClick={() => setPage(Math.min(totalPages, currentPage + 1))}
             disabled={currentPage === totalPages}
-            className="p-1 rounded-md hover:bg-slate-200 disabled:opacity-50 transition-colors"
+            className="shrink-0 p-1 rounded-md hover:bg-slate-200 disabled:opacity-50 transition-colors"
           >
             <ChevronRight className="h-5 w-5" />
           </button>

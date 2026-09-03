@@ -248,7 +248,7 @@ export default function ClienteInfoModal({
             </div>
             <button
               onClick={onClose}
-              className="ml-3 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors shrink-0"
+              className="shrink-0 ml-3 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors shrink-0"
             >
               <X className="h-5 w-5" />
             </button>
@@ -383,7 +383,7 @@ export default function ClienteInfoModal({
 
                 {/* Cuota proyectada */}
                 <div className="bg-white border border-slate-200 p-4 rounded-2xl flex justify-between items-center shadow-sm">
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-[10px] text-slate-500 font-black uppercase mb-0.5">Cuota normal</p>
                     <p className="text-slate-900 font-black text-lg">
                       {formatCurrency(cuotaProyectada)}
@@ -521,7 +521,7 @@ export default function ClienteInfoModal({
       {/* Visor de foto expandida */}
       {fotoExpandida && (
         <div
-          className="fixed inset-0 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4"
+          className="fixed inset-0 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-in fade-in duration-200 motion-reduce:animate-none"
           style={{ zIndex: MODAL_Z_INDEX + 10 }}
           onClick={() => setFotoExpandida(null)}
         >
@@ -542,7 +542,7 @@ export default function ClienteInfoModal({
 
       {alertaOpen && (
         <div
-          className="fixed inset-0 flex items-end justify-center bg-slate-900/70 p-4 sm:items-center"
+          className="fixed inset-0 flex items-end justify-center bg-slate-900/70 p-4 sm:items-center animate-in fade-in duration-200 motion-reduce:animate-none"
           style={{ zIndex: MODAL_Z_INDEX + 20 }}
           onClick={() => !alertaSubmitting && setAlertaOpen(false)}
         >
@@ -551,7 +551,7 @@ export default function ClienteInfoModal({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-4">
-              <div>
+              <div className="min-w-0">
                 <p className="text-[10px] font-black uppercase tracking-widest text-amber-600">Alerta operativa</p>
                 <h4 className="mt-1 text-lg font-black text-slate-900">Cliente no ubicado</h4>
                 <p className="mt-1 text-xs font-semibold text-slate-500">{visita.cliente}</p>
@@ -560,7 +560,7 @@ export default function ClienteInfoModal({
                 type="button"
                 disabled={alertaSubmitting}
                 onClick={() => setAlertaOpen(false)}
-                className="rounded-full bg-slate-100 p-2 text-slate-500 transition hover:bg-slate-200 disabled:opacity-60"
+                className="shrink-0 rounded-full bg-slate-100 p-2 text-slate-500 transition hover:bg-slate-200 disabled:opacity-60"
               >
                 <X className="h-5 w-5" />
               </button>

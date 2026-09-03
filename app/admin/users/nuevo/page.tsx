@@ -86,13 +86,13 @@ export default function NuevoUsuarioPage() {
           {/* Información Personal */}
           <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-6">
             <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
-              <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+              <div className="shrink-0 p-2 bg-blue-50 text-blue-600 rounded-lg">
                 <User className="h-5 w-5" />
               </div>
               <h2 className="text-lg font-bold text-slate-900">Información Personal</h2>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
               <div className="space-y-2">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nombres</label>
                 <input
@@ -155,7 +155,7 @@ export default function NuevoUsuarioPage() {
           {/* Seguridad y Rol */}
           <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-6">
             <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
-              <div className="p-2 bg-orange-50 text-orange-600 rounded-lg">
+              <div className="shrink-0 p-2 bg-orange-50 text-orange-600 rounded-lg">
                 <Shield className="h-5 w-5" />
               </div>
               <h2 className="text-lg font-bold text-slate-900">Seguridad y Acceso</h2>

@@ -16,6 +16,7 @@ import {
   X,
   Laptop
 } from 'lucide-react'
+import Paginador from '@/components/ui/Paginador'
 import { auditoriaService, type RegistroAuditoria } from '@/services/auditoria-service'
 import { routesService, type Route } from '@/services/routes-service'
 import { cn } from '@/lib/utils'
@@ -39,7 +40,9 @@ const AuditoriaSistemaPage = () => {
   const [pagina, setPagina] = useState(1)
   const [totalPaginas, setTotalPaginas] = useState(1)
   const [totalRegistros, setTotalRegistros] = useState(0)
-  const LIMITE = 50
+  // Registros por pagina. El listado es de lectura y cada fila es ancha:
+  // cinco caben sin desbordar la tarjeta ni obligar a desplazar la pagina.
+  const LIMITE = 5
 
   interface LogItem {
     id: string
@@ -215,7 +218,7 @@ const AuditoriaSistemaPage = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 group">
             <div className="flex items-center gap-4">
-              <div className="p-3 bg-blue-50 rounded-xl text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-all duration-300 border border-blue-100">
+              <div className="shrink-0 p-3 bg-blue-50 rounded-xl text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-all duration-300 border border-blue-100">
                 <Clock className="h-6 w-6" />
               </div>
               <div>
@@ -226,7 +229,7 @@ const AuditoriaSistemaPage = () => {
           </div>
           <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 group">
             <div className="flex items-center gap-4">
-              <div className="p-3 bg-rose-50 rounded-xl text-rose-600 group-hover:bg-rose-600 group-hover:text-white transition-all duration-300 border border-rose-100">
+              <div className="shrink-0 p-3 bg-rose-50 rounded-xl text-rose-600 group-hover:bg-rose-600 group-hover:text-white transition-all duration-300 border border-rose-100">
                 <AlertCircle className="h-6 w-6" />
               </div>
               <div>
@@ -237,7 +240,7 @@ const AuditoriaSistemaPage = () => {
           </div>
           <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 group">
             <div className="flex items-center gap-4">
-              <div className="p-3 bg-purple-50 rounded-xl text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-all duration-300 border border-purple-100">
+              <div className="shrink-0 p-3 bg-purple-50 rounded-xl text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-all duration-300 border border-purple-100">
                 <User className="h-6 w-6" />
               </div>
               <div>
@@ -420,7 +423,7 @@ const AuditoriaSistemaPage = () => {
             
           {logsFiltrados.length === 0 && (
             <div className="py-16 text-center">
-              <div className="inline-flex p-4 rounded-full bg-slate-50 mb-4 border border-slate-100">
+              <div className="shrink-0 inline-flex p-4 rounded-full bg-slate-50 mb-4 border border-slate-100">
                 <Search className="h-8 w-8 text-slate-300" />
               </div>
               <h3 className="text-lg font-bold text-slate-900">No se encontraron registros</h3>
@@ -428,47 +431,15 @@ const AuditoriaSistemaPage = () => {
             </div>
           )}
           
-          {/* Paginador */}
-          <div className="p-4 border-t border-slate-100 bg-slate-50/30 flex flex-col sm:flex-row justify-between items-center gap-3 text-xs text-slate-500 font-medium">
-            <span>
-              Mostrando <strong className="text-slate-700">{logs.length}</strong> de <strong className="text-slate-700">{totalRegistros}</strong> registros
-              {totalPaginas > 1 && <> · Página <strong className="text-slate-700">{pagina}</strong> de <strong className="text-slate-700">{totalPaginas}</strong></>}
-            </span>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setPagina(p => Math.max(1, p - 1))}
-                disabled={pagina <= 1 || loading}
-                className="px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold transition-colors flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <ChevronLeft className="h-3 w-3" /> Anterior
-              </button>
-              {/* Botones de página visibles */}
-              {Array.from({ length: Math.min(5, totalPaginas) }, (_, i) => {
-                const start = Math.max(1, pagina - 2)
-                const p = start + i
-                if (p > totalPaginas) return null
-                return (
-                  <button
-                    key={p}
-                    onClick={() => setPagina(p)}
-                    className={`w-9 h-9 rounded-lg border font-bold text-xs transition-colors ${
-                      p === pagina
-                        ? 'bg-slate-900 text-white border-slate-900'
-                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                    }`}
-                  >
-                    {p}
-                  </button>
-                )
-              })}
-              <button
-                onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))}
-                disabled={pagina >= totalPaginas || loading}
-                className="px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold transition-colors flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                Siguiente <ChevronRight className="h-3 w-3" />
-              </button>
-            </div>
+          <div className="p-4 border-t border-slate-100 bg-slate-50/30">
+            <Paginador
+              pagina={pagina}
+              totalPaginas={totalPaginas}
+              onCambiar={setPagina}
+              cargando={loading}
+              resumen={`Mostrando ${logs.length} de ${totalRegistros} registros`}
+              className="mt-0"
+            />
           </div>
         </section>
       </div>
@@ -485,7 +456,7 @@ const AuditoriaSistemaPage = () => {
               </h3>
               <button 
                 onClick={() => setSelectedLog(null)}
-                className="p-2 hover:bg-slate-200/50 rounded-full transition-colors"
+                className="shrink-0 p-2 hover:bg-slate-200/50 rounded-full transition-colors"
               >
                 <X className="h-5 w-5 text-slate-400" />
               </button>

@@ -138,7 +138,7 @@ export const TransactionalHighDetailChart = ({
         className="w-full flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50/60"
         style={{ height }}
       >
-        <div className="p-4 rounded-2xl bg-slate-100">
+        <div className="shrink-0 p-4 rounded-2xl bg-slate-100">
           <BarChart2 className="w-8 h-8 text-slate-300" />
         </div>
         <div className="text-center px-4">

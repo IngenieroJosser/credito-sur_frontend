@@ -63,7 +63,7 @@ export default function ProcesarCastigoModal({ cuenta, onClose, onConfirm }: Pro
           {/* Header */}
           <div className="p-6 border-b border-slate-100 flex items-start justify-between bg-slate-50/50">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-slate-900 rounded-xl">
+              <div className="shrink-0 p-2 bg-slate-900 rounded-xl">
                 <Archive className="w-6 h-6 text-white" />
               </div>
               <div>
@@ -83,7 +83,7 @@ export default function ProcesarCastigoModal({ cuenta, onClose, onConfirm }: Pro
             {/* Resumen de la cuenta */}
             <div className="p-5 bg-rose-50 rounded-2xl border border-rose-100">
                <div className="flex justify-between items-start mb-4">
-                  <div>
+                  <div className="min-w-0">
                     <div className="text-[10px] font-black text-rose-600 uppercase tracking-widest mb-1">Saldo a Castigar</div>
                     <div className="text-3xl font-black text-rose-700 break-words tabular-nums">{formatCurrency(cuenta.saldoPendiente)}</div>
                   </div>

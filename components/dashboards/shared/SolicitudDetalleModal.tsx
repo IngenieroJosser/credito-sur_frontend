@@ -60,13 +60,13 @@ export default function SolicitudDetalleModal({ isOpen, onClose, solicitud, onRe
         >
           {/* Header simple estilo coordinador */}
           <div className="p-6 border-b border-slate-100 flex justify-between items-center">
-             <div>
+             <div className="min-w-0">
                <h3 className="font-bold text-slate-900 text-lg">Detalle de Notificación</h3>
                <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mt-1">{solicitud.titulo}</p>
              </div>
              <button 
                onClick={handleClose}
-               className="p-2 hover:bg-slate-100 rounded-full transition-colors"
+               className="shrink-0 p-2 hover:bg-slate-100 rounded-full transition-colors"
              >
                <X className="h-5 w-5 text-slate-400" />
              </button>
@@ -76,7 +76,7 @@ export default function SolicitudDetalleModal({ isOpen, onClose, solicitud, onRe
               {/* Información Principal Card */}
               <div className="p-5 bg-slate-50 rounded-xl border border-slate-100">
                   <div className="flex justify-between items-start mb-4">
-                     <div>
+                     <div className="min-w-0">
                         <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Origen / Solicitante</p>
                         <p className="font-bold text-slate-900 text-base">{solicitud.solicitante}</p>
                         <p className="text-sm text-slate-500 mt-0.5">{solicitud.tipo}</p>

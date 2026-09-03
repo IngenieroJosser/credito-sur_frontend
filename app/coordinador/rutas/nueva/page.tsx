@@ -104,7 +104,7 @@ const NuevaRutaPage = () => {
           <div className="flex items-center gap-4">
             <Link 
               href="/coordinador/rutas"
-              className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-500 hover:text-slate-900"
+              className="shrink-0 p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-500 hover:text-slate-900"
             >
               <ArrowLeft className="h-5 w-5" />
             </Link>

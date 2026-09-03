@@ -362,7 +362,7 @@ const HistorialPagosPage = () => {
         <button
           onClick={() => setPaginaActual((prev) => Math.max(1, prev - 1))}
           disabled={paginaSegura === 1}
-          className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 transition-all"
+          className="shrink-0 p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 transition-all"
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
@@ -372,7 +372,7 @@ const HistorialPagosPage = () => {
         <button
           onClick={() => setPaginaActual((prev) => Math.min(totalPages, prev + 1))}
           disabled={paginaSegura >= totalPages}
-          className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 transition-all"
+          className="shrink-0 p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 transition-all"
         >
           <ChevronRight className="h-4 w-4" />
         </button>
@@ -592,7 +592,7 @@ const HistorialPagosPage = () => {
                 onClick={() => openDetallePago(pago.pagoId)}
               >
                 <div className="flex justify-between items-start mb-3">
-                  <div>
+                  <div className="min-w-0">
                     <h3 className="font-bold text-sm text-slate-900 line-clamp-1">{pago.cliente}</h3>
                     <p className="text-[11px] text-slate-500">{pago.id} • {formatFechaPago(pago.fecha)}</p>
                     {regularizadoBadge(pago)}
@@ -666,7 +666,7 @@ const HistorialPagosPage = () => {
               </div>
             ) : gastosPorCobradorFiltrado.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 gap-3">
-                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                <div className="shrink-0 p-4 bg-slate-50 rounded-2xl border border-slate-100">
                   <ReceiptText className="h-7 w-7 text-slate-300" />
                 </div>
                 <p className="text-sm font-bold text-slate-400">No hay gastos registrados</p>
@@ -749,8 +749,8 @@ const HistorialPagosPage = () => {
         {/* Modal Detalle Gasto */}
         {gastoDetalle && (
           <Portal>
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4" onClick={() => setGastoDetalle(null)}>
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md border border-slate-100 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200 motion-reduce:animate-none" onClick={() => setGastoDetalle(null)}>
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md border border-slate-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200 ease-out motion-reduce:animate-none" onClick={(e) => e.stopPropagation()}>
               <div className="px-6 pt-6 pb-4 flex items-center justify-between border-b border-slate-100">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-rose-50 border border-rose-100 flex items-center justify-center">
@@ -761,7 +761,7 @@ const HistorialPagosPage = () => {
                     <h3 className="text-sm font-black text-slate-900">{gastoDetalle.numero}</h3>
                   </div>
                 </div>
-                <button onClick={() => setGastoDetalle(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+                <button onClick={() => setGastoDetalle(null)} className="shrink-0 p-2 hover:bg-slate-100 rounded-full transition-colors">
                   <X className="h-4 w-4 text-slate-400" />
                 </button>
               </div>

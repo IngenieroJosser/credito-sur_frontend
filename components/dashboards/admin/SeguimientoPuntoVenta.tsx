@@ -587,7 +587,7 @@ export default function SeguimientoPuntoVenta() {
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
           {/* Subtítulo */}
           <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-            <div>
+            <div className="min-w-0">
               <h2 className="text-base font-black text-slate-900">Créditos Artículo</h2>
               <p className="text-xs text-slate-500 font-medium mt-0.5">{ventasFiltradas.length} registros encontrados</p>
             </div>
@@ -728,7 +728,7 @@ export default function SeguimientoPuntoVenta() {
                             <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
                             {cfg.label}
                           </span>
-                          <button onClick={() => abrirDetalle(venta)} className="p-1.5 rounded-lg bg-slate-50 hover:bg-orange-50 text-slate-400 hover:text-orange-600 transition-colors">
+                          <button onClick={() => abrirDetalle(venta)} className="shrink-0 p-1.5 rounded-lg bg-slate-50 hover:bg-orange-50 text-slate-400 hover:text-orange-600 transition-colors">
                             <Eye className="h-4 w-4" />
                           </button>
                         </div>

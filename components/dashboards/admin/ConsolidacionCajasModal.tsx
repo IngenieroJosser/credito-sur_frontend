@@ -132,9 +132,9 @@ export default function ConsolidacionCajasModal({ isOpen, onClose, onSuccess }: 
 
           {/* Header */}
           <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
-            <div>
+            <div className="min-w-0">
               <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-3">
-                <div className="p-2.5 bg-blue-50 rounded-xl text-blue-600">
+                <div className="shrink-0 p-2.5 bg-blue-50 rounded-xl text-blue-600">
                   <Wallet className="h-6 w-6" />
                 </div>
                 Gestión de Fondos
@@ -145,7 +145,7 @@ export default function ConsolidacionCajasModal({ isOpen, onClose, onSuccess }: 
             </div>
             <button
               onClick={onClose}
-              className="p-2 bg-slate-50 rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+              className="shrink-0 p-2 bg-slate-50 rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
             >
               <X className="h-6 w-6" />
             </button>
@@ -207,11 +207,11 @@ export default function ConsolidacionCajasModal({ isOpen, onClose, onSuccess }: 
                         <div key={caja.id} className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-md transition-shadow">
                           <div className="p-6">
                             <div className="flex justify-between items-start mb-4">
-                              <div>
+                              <div className="min-w-0">
                                 <h3 className="font-bold text-lg text-slate-900">{caja.nombre}</h3>
                                 <p className="text-sm text-slate-500 font-medium">Responsable: {caja.responsable}</p>
                               </div>
-                              <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
+                              <div className="shrink-0 p-3 bg-blue-50 text-blue-600 rounded-xl">
                                 <Wallet className="h-6 w-6" />
                               </div>
                             </div>

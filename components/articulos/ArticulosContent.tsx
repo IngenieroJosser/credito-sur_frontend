@@ -1,5 +1,7 @@
 'use client'
 
+
+import Paginador from '@/components/ui/Paginador'
 /**
  * ============================================================================
  * ARTÍCULOS / INVENTARIO - COMPONENTE COMPARTIDO
@@ -477,7 +479,7 @@ export default function ArticulosContent() {
       <div className="relative z-10 px-6 md:px-8 py-8 space-y-8">
         {/* Header */}
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4 duration-500">
-            <div>
+            <div className="min-w-0">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-xs text-slate-600 tracking-wide font-bold border border-slate-200 mb-2">
                 <Package className="h-3.5 w-3.5" />
                 <span>{headerLabel}</span>
@@ -518,7 +520,7 @@ export default function ArticulosContent() {
         <div className={`grid grid-cols-1 ${esReadOnly ? 'md:grid-cols-3' : 'md:grid-cols-4'} gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-100`}>
           <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 group">
             <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-slate-50 text-slate-600 rounded-xl group-hover:scale-110 transition-transform duration-300">
+              <div className="shrink-0 p-3 bg-slate-50 text-slate-600 rounded-xl group-hover:scale-110 transition-transform duration-300">
                 <Package className="w-6 h-6" />
               </div>
             </div>
@@ -528,7 +530,7 @@ export default function ArticulosContent() {
 
           <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 group">
             <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl group-hover:scale-110 transition-transform duration-300">
+              <div className="shrink-0 p-3 bg-emerald-50 text-emerald-600 rounded-xl group-hover:scale-110 transition-transform duration-300">
                 <Tag className="w-6 h-6" />
               </div>
               {!esReadOnly && (
@@ -543,7 +545,7 @@ export default function ArticulosContent() {
 
           <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 group">
             <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-amber-50 text-amber-600 rounded-xl group-hover:scale-110 transition-transform duration-300">
+              <div className="shrink-0 p-3 bg-amber-50 text-amber-600 rounded-xl group-hover:scale-110 transition-transform duration-300">
                 <AlertCircle className="w-6 h-6" />
               </div>
               {!esReadOnly && (
@@ -559,7 +561,7 @@ export default function ArticulosContent() {
           {!esReadOnly && (
             <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 group">
               <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl group-hover:scale-110 transition-transform duration-300">
+                <div className="shrink-0 p-3 bg-emerald-50 text-emerald-600 rounded-xl group-hover:scale-110 transition-transform duration-300">
                   <DollarSign className="w-6 h-6" />
                 </div>
                 {deltaInventarioPorcentaje != null && (
@@ -772,26 +774,14 @@ export default function ArticulosContent() {
           </div>
           
           {/* Pagination */}
-          <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/30 flex items-center justify-between">
-            <div className="text-sm text-slate-500">
-              Mostrando <span className="font-medium text-slate-900">{showingFrom}</span> a <span className="font-medium text-slate-900">{showingTo}</span> de <span className="font-medium text-slate-900">{articulosOrdenados.length}</span> resultados
-            </div>
-            <div className="flex gap-2">
-              <button
-                className="px-3 py-1 text-sm border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 text-slate-600"
-                disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-              >
-                Anterior
-              </button>
-              <button
-                className="px-3 py-1 text-sm border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 text-slate-600"
-                disabled={page >= totalPages}
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              >
-                Siguiente
-              </button>
-            </div>
+          <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/30">
+            <Paginador
+              pagina={page}
+              totalPaginas={totalPages}
+              onCambiar={setPage}
+              resumen={`Mostrando ${showingFrom} a ${showingTo} de ${articulosOrdenados.length} resultados`}
+              className="mt-0"
+            />
           </div>
         </div>
 
@@ -927,7 +917,7 @@ export default function ArticulosContent() {
       {/* Modal Crear/Editar - Solo roles con permisos */}
       {(puedeCrear || puedeEditar) && (showNuevoModal || showEditarModal) && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm"
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none"
           onClick={() => {
             setShowNuevoModal(false)
             setShowEditarModal(false)
@@ -939,7 +929,7 @@ export default function ArticulosContent() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-              <div>
+              <div className="min-w-0">
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Inventario</p>
                 <h3 className="text-lg font-bold text-slate-900">
                   {showEditarModal ? 'Editar Artículo' : 'Nuevo Artículo'}
@@ -952,7 +942,7 @@ export default function ArticulosContent() {
                   setShowEditarModal(false)
                   setArticuloSeleccionado(null)
                 }}
-                className="p-2 rounded-xl hover:bg-slate-100 text-slate-500"
+                className="shrink-0 p-2 rounded-xl hover:bg-slate-100 text-slate-500"
               >
                 <XCircle className="h-5 w-5" />
               </button>
@@ -1078,7 +1068,7 @@ export default function ArticulosContent() {
 
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
                 <div className="flex items-center justify-between gap-3 mb-4">
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Precios a crédito</p>
                     <p className="text-sm font-bold text-slate-900">Opciones de cuotas</p>
                   </div>
@@ -1129,7 +1119,7 @@ export default function ArticulosContent() {
                             <button
                               type="button"
                               onClick={() => removePrecioCuota(idx)}
-                              className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                              className="shrink-0 p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50"
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>
@@ -1169,7 +1159,7 @@ export default function ArticulosContent() {
       {/* Modal Eliminar - Solo roles con permiso */}
       {puedeEliminar && showEliminarModal && articuloSeleccionado && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm"
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none"
           onClick={() => {
             setShowEliminarModal(false)
             setArticuloSeleccionado(null)
@@ -1213,7 +1203,7 @@ export default function ArticulosContent() {
       {/* Modal Detalle - Todos los roles */}
       {showDetalleModal && articuloSeleccionado && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm"
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none"
           onClick={() => {
             setShowDetalleModal(false)
             setArticuloSeleccionado(null)
@@ -1224,7 +1214,7 @@ export default function ArticulosContent() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-              <div>
+              <div className="min-w-0">
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">{esReadOnly ? 'Catálogo' : 'Inventario'}</p>
                 <h3 className="text-lg font-bold text-slate-900">{esReadOnly ? 'Detalles del Artículo' : 'Detalle del Artículo'}</h3>
               </div>
@@ -1234,7 +1224,7 @@ export default function ArticulosContent() {
                   setShowDetalleModal(false)
                   setArticuloSeleccionado(null)
                 }}
-                className="p-2 rounded-xl hover:bg-slate-100 text-slate-500"
+                className="shrink-0 p-2 rounded-xl hover:bg-slate-100 text-slate-500"
               >
                 <XCircle className="h-5 w-5" />
               </button>
@@ -1242,7 +1232,7 @@ export default function ArticulosContent() {
 
             <div className="p-6 space-y-5">
               <div className="flex items-start justify-between gap-4">
-                <div>
+                <div className="min-w-0">
                   <div className="text-xs font-bold text-slate-500 uppercase">Artículo</div>
                   <div className="text-xl font-bold text-slate-900">{articuloSeleccionado.nombre}</div>
                   <div className="text-xs text-slate-500 font-mono">SKU: {articuloSeleccionado.codigo}</div>

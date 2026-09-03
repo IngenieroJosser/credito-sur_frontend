@@ -358,7 +358,7 @@ const SyncStatusPage = () => {
 
       <div className="relative z-10 p-6 md:p-8 space-y-8 max-w-[1600px] mx-auto">
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-2 mb-2">
               <div className="p-2 bg-blue-600 rounded-lg shadow-md shadow-blue-600/20">
                 <RefreshCw className={`w-4 h-4 text-white ${isSyncing ? 'animate-spin' : ''}`} />
@@ -405,7 +405,7 @@ const SyncStatusPage = () => {
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
           <div className="lg:col-span-1 space-y-6">
             <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
               <h2 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
@@ -450,7 +450,7 @@ const SyncStatusPage = () => {
               <div className="space-y-4">
                 {(['clientes', 'prestamos', 'cuotas', 'rutas'] as const).map((store) => (
                   <div key={store} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
-                    <div>
+                    <div className="min-w-0">
                       <span className="text-sm font-bold text-slate-700 capitalize">{store}</span>
                       <p className="text-[10px] text-slate-400">{formatSyncTime(syncMeta[store]?.lastSyncAt)}</p>
                     </div>
@@ -494,7 +494,7 @@ const SyncStatusPage = () => {
 
               {queueItems.length === 0 ? (
                 <div className="p-12 text-center">
-                  <div className="p-4 rounded-3xl bg-emerald-50 border border-emerald-100 inline-block mb-4">
+                  <div className="shrink-0 p-4 rounded-3xl bg-emerald-50 border border-emerald-100 inline-block mb-4">
                     <CheckCircle className="h-8 w-8 text-emerald-500" />
                   </div>
                   <h3 className="text-sm font-bold text-slate-700 mb-1">¡Todo sincronizado!</h3>

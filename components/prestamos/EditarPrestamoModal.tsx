@@ -325,7 +325,7 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
   if (!mounted) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/50 backdrop-blur-sm" onClick={handleClose}>
+    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none" onClick={handleClose}>
       <div
         className={`bg-white shadow-2xl w-full overflow-hidden border border-slate-100 transition-all duration-300 h-[100dvh] sm:h-auto sm:max-h-[92vh] rounded-none sm:rounded-[2rem] sm:max-w-2xl ${visible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
         onClick={(e) => e.stopPropagation()}

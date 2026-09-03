@@ -397,7 +397,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
           <Package className="w-5 h-5 text-blue-600" />
           Resumen de la Cuenta
         </h3>
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4">
           <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between h-28">
              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{isArticle ? 'Valor del Artículo' : 'Monto Prestado'}</span>
              <p className="text-2xl font-bold text-slate-900 tracking-tight">{formatCurrency(isArticle ? valorArticuloTotal : prestamo.montoPrestamo)}</p>

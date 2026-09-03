@@ -93,12 +93,12 @@ export default function DetalleClienteCoordinadorPage({
             <div className="flex items-center gap-4">
               <Link 
                 href="/coordinador/clientes" 
-                className="p-2 rounded-lg hover:bg-slate-100 transition-colors text-slate-500 hover:text-slate-900"
+                className="shrink-0 p-2 rounded-lg hover:bg-slate-100 transition-colors text-slate-500 hover:text-slate-900"
               >
                 <ChevronLeft className="w-5 h-5" />
               </Link>
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-blue-100 text-blue-600">
+                <div className="shrink-0 p-2 rounded-xl bg-blue-100 text-blue-600">
                   <User className="w-5 h-5" />
                 </div>
                 <div>
@@ -112,7 +112,7 @@ export default function DetalleClienteCoordinadorPage({
       </header>
 
       <main className="relative z-10 px-6 lg:px-8 py-8 max-w-7xl mx-auto space-y-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
             {/* Sidebar con Info Básica */}
             <div className="space-y-6">
                 <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm text-center">

@@ -34,7 +34,7 @@ export const PlantillasCard = () => {
   return (
     <section className="group bg-white p-6 rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300">
       <div className="flex items-center gap-4 mb-6">
-        <div className="p-3 bg-blue-50 text-blue-600 rounded-xl group-hover:scale-110 transition-transform duration-300">
+        <div className="shrink-0 p-3 bg-blue-50 text-blue-600 rounded-xl group-hover:scale-110 transition-transform duration-300">
           <FileSpreadsheet className="h-6 w-6" />
         </div>
         <div>
@@ -45,7 +45,7 @@ export const PlantillasCard = () => {
 
       <div className="space-y-4">
         <div className="flex items-center justify-between p-4 bg-slate-50/50 rounded-xl border border-slate-100">
-          <div>
+          <div className="min-w-0">
             <div className="text-sm font-bold text-slate-900">Clientes y Créditos</div>
             <div className="text-xs text-slate-500 mt-0.5 font-medium">Plantilla con reglas de negocio</div>
           </div>
@@ -64,7 +64,7 @@ export const PlantillasCard = () => {
         </div>
 
         <div className="flex items-center justify-between p-4 bg-slate-50/50 rounded-xl border border-slate-100">
-          <div>
+          <div className="min-w-0">
             <div className="text-sm font-bold text-slate-900">Inventario y Precios</div>
             <div className="text-xs text-slate-500 mt-0.5 font-medium">Plantilla de catálogo de productos</div>
           </div>

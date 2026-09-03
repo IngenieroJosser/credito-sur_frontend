@@ -229,7 +229,7 @@ export default function PagoRegularizadoNotifModal({
                   Saldo del crédito
                 </p>
                 <div className="mt-2 flex items-center justify-between gap-3">
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-[10px] font-bold text-slate-400">Anterior</p>
                     <p className="text-base font-black text-slate-700">{formatCurrency(saldoAnterior)}</p>
                   </div>

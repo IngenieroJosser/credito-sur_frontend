@@ -261,16 +261,16 @@ const ReportesOperativosPage = () => {
         </header>
 
         {/* KPIs del Día */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           <div className="group relative overflow-hidden bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Recaudo Total</p>
-                <h3 className="text-2xl font-bold text-slate-900 mt-2">{formatCurrency(totalRecaudo)}</h3>
+            <div className="mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="shrink-0 p-1.5 bg-emerald-50 group-hover:scale-110 transition-transform border border-emerald-100 rounded-lg">
+                  <DollarSign className="h-4 w-4 text-emerald-600" />
+                </div>
+                <p className="min-w-0 truncate text-xs font-bold text-slate-500 uppercase tracking-wider">Recaudo Total</p>
               </div>
-              <div className="p-3 bg-emerald-50 rounded-xl group-hover:scale-110 transition-transform border border-emerald-100">
-                <DollarSign className="h-5 w-5 text-emerald-600" />
-              </div>
+              <h3 className="whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold text-slate-900 mt-2 leading-tight">{formatCurrency(totalRecaudo)}</h3>
             </div>
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100">
@@ -282,14 +282,14 @@ const ReportesOperativosPage = () => {
           </div>
 
           <div className="group relative overflow-hidden bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Préstamos Nuevos</p>
-                <h3 className="text-2xl font-bold text-slate-900 mt-2">{data.totalPrestamosNuevos}</h3>
+            <div className="mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="shrink-0 p-1.5 bg-blue-50 group-hover:scale-110 transition-transform border border-blue-100 rounded-lg">
+                  <FilePlus className="h-4 w-4 text-blue-600" />
+                </div>
+                <p className="min-w-0 truncate text-xs font-bold text-slate-500 uppercase tracking-wider">Préstamos Nuevos</p>
               </div>
-              <div className="p-3 bg-blue-50 rounded-xl group-hover:scale-110 transition-transform border border-blue-100">
-                <FilePlus className="h-5 w-5 text-blue-600" />
-              </div>
+              <h3 className="whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold text-slate-900 mt-2 leading-tight">{data.totalPrestamosNuevos}</h3>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-medium text-slate-500">
@@ -299,14 +299,14 @@ const ReportesOperativosPage = () => {
           </div>
 
           <div className="group relative overflow-hidden bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Clientes Nuevos</p>
-                <h3 className="text-2xl font-bold text-slate-900 mt-2">{data.totalAfiliaciones}</h3>
+            <div className="mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="shrink-0 p-1.5 bg-purple-50 group-hover:scale-110 transition-transform border border-purple-100 rounded-lg">
+                  <Users className="h-4 w-4 text-purple-600" />
+                </div>
+                <p className="min-w-0 truncate text-xs font-bold text-slate-500 uppercase tracking-wider">Clientes Nuevos</p>
               </div>
-              <div className="p-3 bg-purple-50 rounded-xl group-hover:scale-110 transition-transform border border-purple-100">
-                <Users className="h-5 w-5 text-purple-600" />
-              </div>
+              <h3 className="whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold text-slate-900 mt-2 leading-tight">{data.totalAfiliaciones}</h3>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs text-slate-500 font-medium">En {data.rendimientoRutas.filter((r: RoutePerformance) => r.nuevosClientes > 0).length} rutas diferentes</span>
@@ -314,14 +314,14 @@ const ReportesOperativosPage = () => {
           </div>
 
           <div className="group relative overflow-hidden bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Efectividad Global</p>
-                <h3 className="text-2xl font-bold text-slate-900 mt-2">{data.efectividadPromedio}%</h3>
+            <div className="mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="shrink-0 p-1.5 bg-amber-50 group-hover:scale-110 transition-transform border border-amber-100 rounded-lg">
+                  <TrendingUp className="h-4 w-4 text-amber-600" />
+                </div>
+                <p className="min-w-0 truncate text-xs font-bold text-slate-500 uppercase tracking-wider">Efectividad Global</p>
               </div>
-              <div className="p-3 bg-amber-50 rounded-xl group-hover:scale-110 transition-transform border border-amber-100">
-                <TrendingUp className="h-5 w-5 text-amber-600" />
-              </div>
+              <h3 className="whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold text-slate-900 mt-2 leading-tight">{data.efectividadPromedio}%</h3>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs text-slate-500 font-medium">Promedio rutas</span>

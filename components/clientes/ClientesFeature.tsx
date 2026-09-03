@@ -1,5 +1,7 @@
 'use client';
 
+
+import Paginador from '@/components/ui/Paginador'
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { clientesService, Cliente } from '@/services/clientes-service';
@@ -183,6 +185,27 @@ export default function ClientesFeature({
   const getDiasMoraCliente = (cliente: ClienteAdmin) =>
     Number(diasMoraByClientId[String((cliente as any)?.id || '')] ?? (cliente as any)?.diasMora ?? 0)
 
+  /**
+   * Días de mora, o null si TODAVÍA no se conocen.
+   *
+   * La lista se pinta antes de saber la mora real: el backend no siempre la
+   * manda y el frontend la calcula después, cliente por cliente. Mientras tanto
+   * no se puede afirmar "Al día", porque un cliente crítico se mostraría en
+   * verde hasta que llega el cálculo. Devolver null permite pintar un estado
+   * neutro de "calculando" en vez de una afirmación que puede ser falsa.
+   *
+   * Se distingue "sin dato" de "cero": un 0 que viene del backend o del cálculo
+   * es un "Al día" real y sí se muestra; solo el hueco previo queda neutro.
+   */
+  const getDiasMoraOrNull = (cliente: ClienteAdmin): number | null => {
+    const id = String((cliente as any)?.id || '')
+    const calculado = diasMoraByClientId[id]
+    if (calculado !== undefined) return Number(calculado)
+    const delBackend = (cliente as any)?.diasMora
+    if (delBackend !== undefined && delBackend !== null) return Number(delBackend)
+    return null
+  }
+
   const getEstadoCuentaFiltro = (cliente: ClienteAdmin) => {
     if (cliente.nivelRiesgo === 'LISTA_NEGRA') return 'LISTA_NEGRA'
 
@@ -351,7 +374,7 @@ export default function ClientesFeature({
       
       <div className="relative z-10 px-6 md:px-8 py-8 space-y-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4 duration-500">
-          <div>
+          <div className="min-w-0">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-xs text-primary tracking-wide font-bold border border-primary/20 mb-2">
               <User className="h-3.5 w-3.5" />
               <span>Gestión de Clientes</span>
@@ -504,6 +527,7 @@ export default function ClientesFeature({
                   currentItems.map((cliente, index) => {
                     const isPending = cliente.estadoAprobacion === 'PENDIENTE' || cliente.id?.includes('offline') || cliente.id?.includes('temp');
                     const diasMoraUI = getDiasMoraCliente(cliente)
+                    const diasMoraConocidos = getDiasMoraOrNull(cliente)
                     const estadoCuenta = getEstadoCuentaFiltro(cliente)
                     return (
                     <tr
@@ -556,13 +580,21 @@ export default function ClientesFeature({
 
                       <td className="px-6 py-4">
                         <div className="space-y-1">
-                          <div
-                            className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset ${getEstadoMoraColor(
-                              estadoCuenta === 'LISTA_NEGRA' ? 'lista_negra' : calcularNivelMora(diasMoraUI)
-                            )}`}
-                          >
-                            {estadoCuenta === 'LISTA_NEGRA' ? 'Lista Negra' : getEstadoMoraLabel(calcularNivelMora(diasMoraUI))}
-                          </div>
+                          {estadoCuenta === 'LISTA_NEGRA' ? (
+                            <div className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset ${getEstadoMoraColor('lista_negra')}`}>
+                              Lista Negra
+                            </div>
+                          ) : diasMoraConocidos === null ? (
+                            // Aún no se sabe la mora: estado neutro, no "Al día".
+                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset text-slate-500 bg-slate-50 ring-slate-600/20">
+                              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-slate-400" />
+                              Calculando…
+                            </div>
+                          ) : (
+                            <div className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset ${getEstadoMoraColor(calcularNivelMora(diasMoraUI))}`}>
+                              {getEstadoMoraLabel(calcularNivelMora(diasMoraUI))}
+                            </div>
+                          )}
                         </div>
                       </td>
 
@@ -634,7 +666,7 @@ export default function ClientesFeature({
                           {puedeEliminar && (
                             <button
                               onClick={() => handleDeleteClick(cliente)}
-                              className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg"
+                              className="shrink-0 p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg"
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>
@@ -655,12 +687,14 @@ export default function ClientesFeature({
             </table>
           </div>
 
-          <div className="p-4 border-t border-slate-100 bg-slate-50/30 flex justify-between items-center text-xs text-slate-500">
-             <span>Mostrando {currentItems.length} de {filteredClientes.length} resultados</span>
-             <div className="flex gap-2">
-               <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-4 py-2 rounded-lg border bg-white disabled:opacity-50">Anterior</button>
-               <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages || totalPages === 0} className="px-4 py-2 rounded-lg border bg-white disabled:opacity-50">Siguiente</button>
-             </div>
+          <div className="p-4 border-t border-slate-100 bg-slate-50/30">
+            <Paginador
+              pagina={currentPage}
+              totalPaginas={totalPages}
+              onCambiar={setCurrentPage}
+              resumen={`Mostrando ${currentItems.length} de ${filteredClientes.length} resultados`}
+              className="mt-0"
+            />
           </div>
         </div>
 
@@ -668,6 +702,7 @@ export default function ClientesFeature({
           {currentItems.map((cliente, index) => {
             const isPending = cliente.estadoAprobacion === 'PENDIENTE' || cliente.id?.includes('offline') || cliente.id?.includes('temp');
             const diasMoraUI = Number(diasMoraByClientId[String((cliente as any)?.id || '')] ?? (cliente as any)?.diasMora ?? 0)
+            const diasMoraConocidos = getDiasMoraOrNull(cliente)
             return (
             <div 
               key={cliente.id || `client-${index}`} 
@@ -696,12 +731,17 @@ export default function ClientesFeature({
                    </div>
                 </div>
                 <div className={cn(
-                  "px-2 py-1 rounded-lg text-[10px] font-bold",
+                  "px-2 py-1 rounded-lg text-[10px] font-bold inline-flex items-center gap-1",
                   isPending
                     ? "bg-amber-200/50 text-amber-700"
-                    : getEstadoMoraColor(calcularNivelMora(diasMoraUI))
+                    : diasMoraConocidos === null
+                      ? "bg-slate-50 text-slate-500"
+                      : getEstadoMoraColor(calcularNivelMora(diasMoraUI))
                 )}>
-                  {isPending ? 'PENDIENTE' : getEstadoMoraLabel(calcularNivelMora(diasMoraUI))}
+                  {isPending ? 'PENDIENTE' : diasMoraConocidos === null ? (
+                    // Aún no se conoce la mora: neutro, no "Al día".
+                    <><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-slate-400" />Calculando…</>
+                  ) : getEstadoMoraLabel(calcularNivelMora(diasMoraUI))}
                 </div>
               </div>
               <div className="flex justify-between items-center pt-3 border-t border-slate-100">

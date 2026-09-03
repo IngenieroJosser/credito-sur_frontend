@@ -1,25 +1,11 @@
 'use client'
 
+
+import Paginador from '@/components/ui/Paginador'
 import { useState, useEffect, useCallback } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { usePathname } from 'next/navigation'
-import {
-  Search,
-  Filter,
-  ShoppingBag,
-  TrendingUp,
-  AlertCircle,
-  ChevronLeft,
-  ChevronRight,
-  Plus,
-  Tv,
-  Smartphone,
-  Armchair,
-  Calendar,
-  CreditCard,
-  Package,
-  Eye
-} from 'lucide-react'
+import { AlertCircle, Armchair, Calendar, ChevronLeft, ChevronRight, CreditCard, Eye, Filter, MapPin, Package, Plus, Search, ShoppingBag, Smartphone, TrendingUp, Tv } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { EstadoPrestamo, NivelRiesgo, type Prestamo } from '@/components/prestamos/data'
 import AnimacionCarga from '@/components/ui/AnimacionCarga'
@@ -40,6 +26,7 @@ export default function CreditosArticulosPage() {
   const pathname = usePathname()
   const { showNotification } = useNotification()
   const [searchTerm, setSearchTerm] = useState('')
+  const [rutaFiltro, setRutaFiltro] = useState('todas')
   const [estadoFiltro, setEstadoFiltro] = useState('todos')
   const [riesgoFiltro, setRiesgoFiltro] = useState('todos')
   const [creditos, setCreditos] = useState<CreditoArticuloRow[]>([])
@@ -156,13 +143,21 @@ export default function CreditosArticulosPage() {
     return <ShoppingBag className="w-5 h-5" />
   }
 
+  // Rutas que aparecen en los creditos cargados. No hace falta pedirlas al
+  // servidor: cada credito ya trae la suya, y asi el desplegable solo ofrece
+  // rutas que de verdad tienen algo que mostrar.
+  const rutasDisponibles = Array.from(
+    new Set(creditos.map((c) => c.ruta).filter((r): r is string => Boolean(r))),
+  ).sort((a, b) => a.localeCompare(b))
+
   const filteredCreditos = creditos.filter(credito => {
     const matchesSearch = credito.cliente.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          credito.producto.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          credito.id.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesEstado = estadoFiltro === 'todos' || credito.estado === estadoFiltro
     const matchesRiesgo = riesgoFiltro === 'todos' || credito.riesgo === riesgoFiltro
-    return matchesSearch && matchesEstado && matchesRiesgo
+    const matchesRuta = rutaFiltro === 'todas' || credito.ruta === rutaFiltro
+    return matchesSearch && matchesEstado && matchesRiesgo && matchesRuta
   })
 
   // Lógica de paginación
@@ -196,9 +191,9 @@ export default function CreditosArticulosPage() {
       <div className="relative z-10 px-6 md:px-8 py-8 space-y-8">
         {/* Header Standard */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4 duration-500">
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-2 mb-2">
-              <div className="p-2 bg-blue-600 rounded-lg shadow-md shadow-blue-600/20">
+              <div className="shrink-0 p-2 bg-blue-600 rounded-lg shadow-md shadow-blue-600/20">
                 <Package className="w-6 h-6 text-white" />
               </div>
               <h1 className="text-3xl font-bold tracking-tight">
@@ -221,10 +216,10 @@ export default function CreditosArticulosPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100">
           <div className="bg-white/80 backdrop-blur-sm p-5 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 group">
             <div className="flex items-center justify-between mb-4">
-              <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl group-hover:bg-blue-600 group-hover:text-white transition-all duration-300 border border-blue-100">
+              <div className="shrink-0 p-2.5 bg-blue-50 text-blue-600 rounded-xl group-hover:bg-blue-600 group-hover:text-white transition-all duration-300 border border-blue-100">
                 <ShoppingBag className="w-5 h-5" />
               </div>
               <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded-full border border-slate-200">Total</span>
@@ -235,7 +230,7 @@ export default function CreditosArticulosPage() {
 
           <div className="bg-white/80 backdrop-blur-sm p-5 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 group">
             <div className="flex items-center justify-between mb-4">
-              <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl group-hover:bg-emerald-600 group-hover:text-white transition-all duration-300 border border-emerald-100">
+              <div className="shrink-0 p-2.5 bg-emerald-50 text-emerald-600 rounded-xl group-hover:bg-emerald-600 group-hover:text-white transition-all duration-300 border border-emerald-100">
                 <TrendingUp className="w-5 h-5" />
               </div>
               <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100">Activos</span>
@@ -246,7 +241,7 @@ export default function CreditosArticulosPage() {
 
           <div className="bg-white/80 backdrop-blur-sm p-5 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 group">
             <div className="flex items-center justify-between mb-4">
-              <div className="p-2.5 bg-rose-50 text-rose-600 rounded-xl group-hover:bg-rose-600 group-hover:text-white transition-all duration-300 border border-rose-100">
+              <div className="shrink-0 p-2.5 bg-rose-50 text-rose-600 rounded-xl group-hover:bg-rose-600 group-hover:text-white transition-all duration-300 border border-rose-100">
                 <AlertCircle className="w-5 h-5" />
               </div>
               <span className="text-xs font-bold text-rose-600 bg-rose-50 px-2 py-1 rounded-full border border-rose-100">Atención</span>
@@ -257,7 +252,7 @@ export default function CreditosArticulosPage() {
 
           <div className="bg-white/80 backdrop-blur-sm p-5 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 group">
             <div className="flex items-center justify-between mb-4">
-              <div className="p-2.5 bg-violet-50 text-violet-600 rounded-xl group-hover:bg-violet-600 group-hover:text-white transition-all duration-300 border border-violet-100">
+              <div className="shrink-0 p-2.5 bg-violet-50 text-violet-600 rounded-xl group-hover:bg-violet-600 group-hover:text-white transition-all duration-300 border border-violet-100">
                 <CreditCard className="w-5 h-5" />
               </div>
               <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded-full border border-slate-200">Cartera</span>
@@ -281,6 +276,26 @@ export default function CreditosArticulosPage() {
           </div>
 
           <div className="flex flex-wrap gap-3 w-full md:w-auto">
+            {/* Filtro de Ruta: es el corte con el que se trabaja a diario */}
+            {rutasDisponibles.length > 1 && (
+              <div className="flex items-center gap-1.5 bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
+                <MapPin className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                <select
+                  value={rutaFiltro}
+                  onChange={(e) => {
+                    setRutaFiltro(e.target.value)
+                    cambiarPagina(1)
+                  }}
+                  className="min-w-0 max-w-[11rem] truncate bg-transparent text-xs font-bold text-slate-700 outline-none"
+                >
+                  <option value="todas">Todas las rutas</option>
+                  {rutasDisponibles.map((r) => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             {/* Filtro de Estado */}
             <div className="flex items-center gap-1.5 flex-wrap bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
               <Filter className="h-3.5 w-3.5 text-slate-400 shrink-0 mr-1" />
@@ -580,7 +595,7 @@ export default function CreditosArticulosPage() {
           ) : (
             <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8">
               <div className="flex flex-col items-center gap-3 text-center">
-                <div className="inline-flex p-4 rounded-full bg-slate-50">
+                <div className="shrink-0 inline-flex p-4 rounded-full bg-slate-50">
                   <Package className="h-8 w-8 text-slate-300" />
                 </div>
                 <h3 className="text-lg font-bold text-slate-900">No se encontraron artículos</h3>
@@ -592,27 +607,13 @@ export default function CreditosArticulosPage() {
           {/* Paginación Móvil */}
           {!isLoading && filteredCreditos.length > 0 && (
             <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4">
-              <div className="flex flex-col sm:flex-row justify-between items-center gap-3 text-xs text-slate-500 font-medium">
-                <span className="text-center">
-                  Mostrando {indicePrimero + 1} a {Math.min(indiceUltimo, filteredCreditos.length)} de {filteredCreditos.length}
-                </span>
-                <div className="flex gap-2 w-full sm:w-auto">
-                  <button
-                    onClick={() => cambiarPagina(paginaActual - 1)}
-                    disabled={paginaActual === 1}
-                    className="flex-1 sm:flex-none px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-bold flex items-center justify-center gap-1 transition-colors text-slate-700"
-                  >
-                    <ChevronLeft className="h-3 w-3" /> Anterior
-                  </button>
-                  <button
-                    onClick={() => cambiarPagina(paginaActual + 1)}
-                    disabled={paginaActual === totalPaginas}
-                    className="flex-1 sm:flex-none px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-bold flex items-center justify-center gap-1 transition-colors text-slate-700"
-                  >
-                    Siguiente <ChevronRight className="h-3 w-3" />
-                  </button>
-                </div>
-              </div>
+              <Paginador
+                pagina={paginaActual}
+                totalPaginas={totalPaginas}
+                onCambiar={cambiarPagina}
+                resumen={`Mostrando ${indicePrimero + 1} a ${Math.min(indiceUltimo, filteredCreditos.length)} de ${filteredCreditos.length}`}
+                className="mt-0"
+              />
             </div>
           )}
         </div>

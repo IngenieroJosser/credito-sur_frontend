@@ -1,5 +1,7 @@
 'use client';
 
+
+import Paginador from '@/components/ui/Paginador'
 import React, { useState, useEffect, useCallback } from 'react';
 import { logger } from '@/lib/logger'
 import Link from 'next/link';
@@ -435,9 +437,9 @@ const ListadoPrestamosElegante = () => {
       <div className="relative z-10">
         <div className="sticky top-0 z-30 backdrop-blur-xl bg-white/80 border-b border-slate-200 px-6 py-4 md:px-8 supports-[backdrop-filter]:bg-white/60">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-2 mb-2">
-              <div className="p-2 bg-blue-600 rounded-lg shadow-md shadow-blue-600/20">
+              <div className="shrink-0 p-2 bg-blue-600 rounded-lg shadow-md shadow-blue-600/20">
                 <CreditCard className="w-6 h-6 text-white" />
               </div>
               <h1 className="text-3xl font-bold tracking-tight">
@@ -496,7 +498,7 @@ const ListadoPrestamosElegante = () => {
         )}
 
         {/* Estadísticas */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
           <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Créditos (visibles)</p>
             <div className="flex items-baseline gap-2">
@@ -736,7 +738,7 @@ const ListadoPrestamosElegante = () => {
                 ) : (
                   <tr>
                     <td colSpan={7} className="py-16 text-center">
-                      <div className="inline-flex p-4 rounded-full bg-slate-50 mb-4">
+                      <div className="shrink-0 inline-flex p-4 rounded-full bg-slate-50 mb-4">
                         <Search className="h-8 w-8 text-slate-300" />
                       </div>
                       <h3 className="text-lg font-bold text-slate-900">No se encontraron préstamos</h3>
@@ -749,26 +751,15 @@ const ListadoPrestamosElegante = () => {
           </div>
 
           {/* Paginación */}
-          <div className="p-4 border-t border-slate-100 bg-slate-50/30 flex justify-between items-center text-xs text-slate-500 font-medium">
-            <span>
-              Mostrando {Math.min(prestamosPaginados.length, prestamosPorPagina)} de {totalPrestamos} resultados
-            </span>
-            <div className="flex gap-2">
-              <button 
-                onClick={() => cambiarPagina(paginaActual - 1)}
-                disabled={paginaActual === 1 || cargando}
-                className="px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-bold flex items-center gap-1 transition-colors text-slate-700"
-              >
-                <ChevronLeft className="h-3 w-3" /> Anterior
-              </button>
-              <button 
-                onClick={() => cambiarPagina(paginaActual + 1)}
-                disabled={paginaActual === totalPaginas || totalPaginas === 0 || cargando}
-                className="px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-bold flex items-center gap-1 transition-colors text-slate-700"
-              >
-                Siguiente <ChevronRightIcon className="h-3 w-3" />
-              </button>
-            </div>
+          <div className="p-4 border-t border-slate-100 bg-slate-50/30">
+            <Paginador
+              pagina={paginaActual}
+              totalPaginas={totalPaginas}
+              onCambiar={cambiarPagina}
+              cargando={cargando}
+              resumen={`Mostrando ${Math.min(prestamosPaginados.length, prestamosPorPagina)} de ${totalPrestamos} resultados`}
+              className="mt-0"
+            />
           </div>
         </div>
 
@@ -904,7 +895,7 @@ const ListadoPrestamosElegante = () => {
           ) : (
             <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8">
               <div className="flex flex-col items-center gap-3 text-center">
-                <div className="inline-flex p-4 rounded-full bg-slate-50">
+                <div className="shrink-0 inline-flex p-4 rounded-full bg-slate-50">
                   <Search className="h-8 w-8 text-slate-300" />
                 </div>
                 <h3 className="text-lg font-bold text-slate-900">No se encontraron préstamos</h3>

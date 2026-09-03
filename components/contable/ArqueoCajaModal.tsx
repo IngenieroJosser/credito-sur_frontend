@@ -61,7 +61,7 @@ export default function ArqueoCajaModal({ onClose, cajaData, hayColaOffline = fa
         
         {/* Lateral Fijo (Desktop) */}
         <div className="bg-slate-50/50 border-r border-slate-100 p-8 sm:w-[35%] flex flex-col justify-between hidden sm:flex">
-          <div>
+          <div className="min-w-0">
             <div className="w-12 h-12 bg-white shadow-sm ring-1 ring-slate-200/50 text-blue-600 rounded-[1rem] flex items-center justify-center mb-8">
               <Wallet className="h-6 w-6" />
             </div>
@@ -89,7 +89,7 @@ export default function ArqueoCajaModal({ onClose, cajaData, hayColaOffline = fa
           
           {hayColaOffline && (
             <div className="bg-white border border-amber-100 shadow-sm rounded-2xl p-4 flex items-start gap-3 mt-8">
-              <div className="p-2 bg-amber-50 rounded-xl shrink-0">
+              <div className="shrink-0 p-2 bg-amber-50 rounded-xl shrink-0">
                 <WifiOff className="h-4 w-4 text-amber-600" />
               </div>
               <div>
@@ -104,18 +104,18 @@ export default function ArqueoCajaModal({ onClose, cajaData, hayColaOffline = fa
         <div className="flex-1 flex flex-col h-[85vh] sm:h-auto bg-white">
           {/* Header Mobile Only */}
           <div className="flex sm:hidden items-center justify-between p-6 border-b border-slate-100">
-            <div>
+            <div className="min-w-0">
               <h2 className="text-xl font-black text-slate-900 tracking-tight">Arqueo de Caja</h2>
               <p className="text-xs font-medium text-slate-500 mt-0.5">{cajaData.nombre}</p>
             </div>
-            <button onClick={onClose} className="p-2 bg-slate-50 rounded-full text-slate-400 hover:text-slate-600 transition-colors">
+            <button onClick={onClose} className="shrink-0 p-2 bg-slate-50 rounded-full text-slate-400 hover:text-slate-600 transition-colors">
               <X className="h-5 w-5" />
             </button>
           </div>
 
           {/* Close button Desktop Only */}
           <div className="hidden sm:flex justify-end p-6 pb-0 absolute top-0 right-0 z-10">
-            <button onClick={onClose} className="p-2 bg-slate-50 rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors">
+            <button onClick={onClose} className="shrink-0 p-2 bg-slate-50 rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors">
               <X className="h-5 w-5" />
             </button>
           </div>

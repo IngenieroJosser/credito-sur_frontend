@@ -656,14 +656,14 @@ export default function NotificacionDetalleModal({
     return (
       <Portal>
         <div
-          className="fixed inset-0 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm"
+          className="fixed inset-0 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none"
           style={{ zIndex: 9999 }}
           onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
         >
           <div className="flex flex-col bg-white rounded-2xl max-h-[90vh] w-[95vw] max-w-3xl overflow-hidden">
             <div className="flex items-center justify-between p-4 border-b border-slate-100">
               <div className="flex items-center gap-2">
-                <div className="p-2 rounded-xl bg-amber-50 text-amber-600">
+                <div className="shrink-0 p-2 rounded-xl bg-amber-50 text-amber-600">
                   <Calendar className="h-5 w-5" />
                 </div>
                 <div>
@@ -677,7 +677,7 @@ export default function NotificacionDetalleModal({
               </div>
               <button
                 onClick={onClose}
-                className="p-2 rounded-full hover:bg-slate-100 transition-colors"
+                className="shrink-0 p-2 rounded-full hover:bg-slate-100 transition-colors"
               >
                 <X className="h-5 w-5 text-slate-500" />
               </button>
@@ -1567,7 +1567,7 @@ export default function NotificacionDetalleModal({
             </div>
             <button 
               onClick={handleClose}
-              className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400"
+              className="shrink-0 p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400"
             >
               <X className="h-5 w-5" />
             </button>
@@ -1597,7 +1597,7 @@ export default function NotificacionDetalleModal({
 
             {isNuevoCliente && (
               <div className="bg-slate-50 rounded-2xl border border-slate-100 p-5 space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
                   <ClientInfoField label="Nombre" value={clientRequestDetails.nombreCompleto} className="sm:col-span-2" />
                   <ClientInfoField label="CC" value={clientRequestDetails.dni} />
                   <ClientInfoField label="Teléfono" value={clientRequestDetails.telefono} />
@@ -1721,7 +1721,7 @@ export default function NotificacionDetalleModal({
                 </div>
                 <div className="space-y-3">
                   <div className="flex justify-between items-end">
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-[9px] text-slate-400 uppercase font-bold mb-0.5">Revisado por</p>
                       <p className="text-sm font-black text-slate-900">{safeMeta.revisadoPor || 'Administrador'}</p>
                     </div>

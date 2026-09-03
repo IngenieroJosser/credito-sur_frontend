@@ -199,7 +199,7 @@ export default function RegistrarPagoClienteSupervisorPage() {
 
       <div className="relative z-10 p-6 md:p-8 space-y-8">
         <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-          <div>
+          <div className="min-w-0">
             <button
               onClick={() => router.back()}
               className="mb-3 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 shadow-sm hover:bg-slate-50"
@@ -218,10 +218,10 @@ export default function RegistrarPagoClienteSupervisorPage() {
           </div>
         </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
             <div className="flex items-center gap-3">
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+              <div className="shrink-0 p-3 rounded-xl bg-slate-50 border border-slate-200">
                 <User className="h-5 w-5 text-slate-600" />
               </div>
               <div>
@@ -415,7 +415,7 @@ export default function RegistrarPagoClienteSupervisorPage() {
               </div>
 
               {estadoEnvio === 'exito' && (
-                <div className="mt-4 p-4 rounded-xl border border-emerald-100 bg-emerald-50 flex items-center gap-3">
+                <div className="shrink-0 mt-4 p-4 rounded-xl border border-emerald-100 bg-emerald-50 flex items-center gap-3">
                   <CheckCircle2 className="h-5 w-5 text-emerald-600" />
                   <div>
                     <div className="text-sm font-bold text-emerald-800">Pago registrado</div>

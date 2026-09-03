@@ -1277,7 +1277,7 @@ const RutaClientLoaded = ({
         <RutaHeader
           backHref="/rutas"
           backContent={
-            <div className="p-2 bg-white rounded-full shadow-sm hover:bg-slate-100 transition-colors">
+            <div className="shrink-0 p-2 bg-white rounded-full shadow-sm hover:bg-slate-100 transition-colors">
               <ArrowLeft className="h-5 w-5 text-slate-600" />
             </div>
           }
@@ -1319,7 +1319,7 @@ const RutaClientLoaded = ({
 
                 <div className="flex items-start justify-between">
 
-                  <div>
+                  <div className="min-w-0">
 
                     <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Efectivo Entregado</p>
 
@@ -1906,7 +1906,7 @@ const RutaClientLoaded = ({
 
       {isGastoModalOpen && (
 
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none">
 
            <form onSubmit={handleGuardarGasto} className="p-6 space-y-4 bg-white rounded-lg">
 

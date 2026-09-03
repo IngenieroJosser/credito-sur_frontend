@@ -192,7 +192,7 @@ export default function UserDropdownMenu({ user, onLogout }: UserDropdownMenuPro
         {showMenu && (
           <>
             <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
-            <div className="fixed sm:absolute right-0 sm:right-0 left-0 sm:left-auto top-16 sm:top-auto sm:mt-2 w-full sm:w-96 max-w-full sm:max-w-96 bg-white rounded-none sm:rounded-xl shadow-xl border-t sm:border border-gray-100 py-2 z-50 animate-in fade-in slide-in-from-top-2 max-h-[calc(100vh-4rem)] sm:max-h-[600px] overflow-y-auto">
+            <div className="fixed sm:absolute right-0 sm:right-0 left-0 sm:left-auto top-16 sm:top-auto sm:mt-2 w-full sm:w-96 max-w-full sm:max-w-96 bg-white rounded-none sm:rounded-xl shadow-xl border-t sm:border border-gray-100 py-2 z-50 origin-top animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-200 ease-out motion-reduce:animate-none max-h-[calc(100vh-4rem)] sm:max-h-[600px] overflow-y-auto">
               {/* Header */}
               <div className="px-6 py-6 bg-gradient-to-r from-slate-50 to-white border-b border-gray-100">
                 <div className="flex flex-col items-center text-center gap-3">
@@ -340,11 +340,11 @@ export default function UserDropdownMenu({ user, onLogout }: UserDropdownMenuPro
 
       {/* Logout Confirmation Modal — portaled to body to escape header stacking context */}
       {showLogoutConfirm && typeof document !== 'undefined' && createPortal(
-        <div className="fixed inset-0 z-[2147483600] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[2147483600] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none">
           <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl overflow-hidden">
             <div className="p-6">
               <div className="flex items-start justify-between gap-3">
-                <div>
+                <div className="min-w-0">
                   <h3 className="text-lg font-bold text-slate-900">Cerrar sesión</h3>
                   <p className="mt-1 text-sm text-slate-600">¿Seguro que deseas cerrar sesión?</p>
                 </div>
@@ -354,7 +354,7 @@ export default function UserDropdownMenu({ user, onLogout }: UserDropdownMenuPro
                     if (isLoggingOut) return
                     setShowLogoutConfirm(false)
                   }}
-                  className="p-2 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200"
+                  className="shrink-0 p-2 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200"
                 >
                   <X className="h-5 w-5" />
                 </button>

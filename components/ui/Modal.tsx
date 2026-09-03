@@ -61,38 +61,42 @@ export const Modal: React.FC<ModalProps> = ({
         mouseDownTargetRef.current = null
       } : undefined}
     >
-      {/* Backdrop */}
-      <div 
-        className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" 
+      {/* Backdrop: entra con un desvanecido suave */}
+      <div
+        className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none"
         aria-hidden="true"
       />
 
-      {/* Modal Content */}
-      <div 
-        className={`relative w-full ${sizeClasses[size]} bg-white rounded-2xl shadow-2xl transform transition-all flex flex-col max-h-[90vh]`}
+      {/* Modal Content: aparece con escala y un leve ascenso, en vez de surgir
+          de golpe. Respeta prefers-reduced-motion. */}
+      <div
+        className={`relative w-full ${sizeClasses[size]} bg-white rounded-2xl shadow-2xl flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-200 ease-out motion-reduce:animate-none`}
         role="dialog"
         aria-modal="true"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-          <h3 className="text-lg font-bold text-slate-900">{title}</h3>
+        {/* Cabecera con el azul de la marca: da identidad al dialogo y separa
+            con claridad el titulo del contenido, que antes eran dos bloques de
+            texto oscuro sobre el mismo blanco. */}
+        <div className="flex shrink-0 items-center justify-between gap-4 rounded-t-2xl bg-gradient-to-r from-primary to-primary-dark px-6 py-4">
+          <h3 className="min-w-0 truncate text-lg font-bold text-white">{title}</h3>
           <button
             onClick={onClose}
-            className="p-2 -mr-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+            aria-label="Cerrar"
+            className="shrink-0 rounded-full bg-white/10 p-2 text-white/80 transition-colors hover:bg-white/20 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Body */}
-        <div className="p-6 overflow-y-auto">
+        <div className="min-h-0 flex-1 overflow-y-auto p-6">
           {children}
         </div>
 
         {/* Footer */}
         {footer && (
-          <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 rounded-b-2xl flex justify-end gap-3">
+          <div className="shrink-0 px-6 py-4 bg-slate-50 border-t border-slate-200 rounded-b-2xl flex justify-end gap-3">
             {footer}
           </div>
         )}

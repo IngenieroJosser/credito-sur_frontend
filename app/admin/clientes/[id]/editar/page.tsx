@@ -203,7 +203,7 @@ const EditarClientePage = () => {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-8">
              <div className="lg:col-span-1 space-y-6">
             <div className="bg-white/80 backdrop-blur-sm border border-slate-200 rounded-2xl p-2 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
               {sections.map((section) => (

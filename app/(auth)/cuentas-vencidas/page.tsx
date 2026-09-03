@@ -245,7 +245,7 @@ function CuentasVencidasContent() {
 
         {/* ── Header ── */}
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between animate-in fade-in slide-in-from-top-4 duration-500">
-          <div>
+          <div className="min-w-0">
             <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700 mb-2 border border-slate-200">
               <CalendarX className="h-3.5 w-3.5" />
               <span>{esContador ? 'Contabilidad / Cartera Castigada' : 'Cuentas Vencidas — Contrato Expirado'}</span>
@@ -276,7 +276,7 @@ function CuentasVencidasContent() {
         </div>
 
         {/* ── Métricas ── */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-4">
           {[
             { label: 'Capital Vencido', value: formatCurrency(totales.totalVencido), icon: <TrendingDown className="h-5 w-5 text-rose-600" />, bg: 'bg-rose-50' },
             { label: 'Días Prom. Vencido', value: `${totales.diasPromedioVencimiento} días`, icon: <Clock className="h-5 w-5 text-amber-600" />, bg: 'bg-amber-50' },
@@ -369,7 +369,7 @@ function CuentasVencidasContent() {
           </div>
         ) : cuentasFiltradas.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-2xl border border-slate-200 border-dashed">
-            <div className="inline-flex p-4 rounded-full bg-slate-100 mb-4">
+            <div className="shrink-0 inline-flex p-4 rounded-full bg-slate-100 mb-4">
               <Archive className="h-8 w-8 text-slate-400" />
             </div>
             <h3 className="text-lg font-bold text-slate-900 mb-1">Sin cuentas vencidas</h3>
@@ -454,7 +454,7 @@ function CuentasVencidasContent() {
         ) : (
 
           /* ── GRID ── */
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {cuentasFiltradas.map(cuenta => {
               const severidad = severidadVencida(cuenta.diasVencidos)
               return (
@@ -462,7 +462,7 @@ function CuentasVencidasContent() {
                   <div className={cn('h-1.5 w-full', severidad.barColor)} />
                   <div className="p-5 flex-1 space-y-4">
                     <div className="flex justify-between items-start">
-                      <div>
+                      <div className="min-w-0">
                         <div className="font-black text-slate-900 group-hover:text-primary transition-colors">
                           {cuenta.numeroPrestamo}
                         </div>

@@ -54,6 +54,7 @@ import { getCajas, consolidarCaja, obtenerSaldoDisponibleRuta, Caja } from '@/se
 import { prestamosService } from '@/services/prestamos-service';
 import { formatRoleLabel } from '@/lib/display-labels';
 import { buildCrearPrestamoPayload } from '@/lib/creditos/crear-prestamo-payload';
+import Paginador from '@/components/ui/Paginador'
 
 interface Ruta {
   id: string;
@@ -930,7 +931,7 @@ export const RutasPageView = ({
       <div className="relative z-10 px-6 md:px-8 py-8 space-y-8">
         {/* Header Standard */}
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between animate-in fade-in slide-in-from-top-4 duration-500">
-          <div>
+          <div className="min-w-0">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-xs text-slate-600 tracking-wide font-bold border border-slate-200 mb-2">
               <Route className="h-3.5 w-3.5" />
               <span>Gestión de Territorios</span>
@@ -1112,7 +1113,7 @@ export const RutasPageView = ({
 
           {/* Contenido Principal */}
           {vista === 'grid' ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
               {currentRutas.map((ruta) => (
                 <div
                   key={ruta.id}
@@ -1178,7 +1179,7 @@ export const RutasPageView = ({
 
                     <div className="space-y-4 pt-2">
                       <div className="flex items-center gap-4 group/item">
-                        <div className="p-2 bg-slate-50 rounded-lg text-slate-400 group-hover/item:bg-blue-50 group-hover/item:text-blue-600 transition-colors">
+                        <div className="shrink-0 p-2 bg-slate-50 rounded-lg text-slate-400 group-hover/item:bg-blue-50 group-hover/item:text-blue-600 transition-colors">
                           <User className="h-4 w-4" />
                         </div>
                         <div>
@@ -1188,7 +1189,7 @@ export const RutasPageView = ({
                       </div>
 
                       <div className="flex items-center gap-4 group/item">
-                        <div className="p-2 bg-slate-50 rounded-lg text-slate-400 group-hover/item:bg-blue-50 group-hover/item:text-blue-600 transition-colors">
+                        <div className="shrink-0 p-2 bg-slate-50 rounded-lg text-slate-400 group-hover/item:bg-blue-50 group-hover/item:text-blue-600 transition-colors">
                           <Users className="h-4 w-4" />
                         </div>
                         <div>
@@ -1198,7 +1199,7 @@ export const RutasPageView = ({
                       </div>
 
                       <div className="flex items-center gap-4 group/item">
-                        <div className="p-2 bg-slate-50 rounded-lg text-slate-400 group-hover/item:bg-blue-50 group-hover/item:text-blue-600 transition-colors">
+                        <div className="shrink-0 p-2 bg-slate-50 rounded-lg text-slate-400 group-hover/item:bg-blue-50 group-hover/item:text-blue-600 transition-colors">
                           <Clock className="h-4 w-4" />
                         </div>
                         <div>
@@ -1212,7 +1213,7 @@ export const RutasPageView = ({
                     {ruta.estado === 'ACTIVA' && (
                       <div className="pt-6 border-t border-slate-100">
                         <div className="flex justify-between items-end mb-2">
-                          <div>
+                          <div className="min-w-0">
                             <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">Recaudo Diario</p>
                             <p className="font-bold text-slate-900">{formatCurrency(getRecaudoOperativoRuta(ruta))}</p>
                             {Number(ruta.recaudoRegularizadoHoy || 0) > 0 && (
@@ -1312,7 +1313,7 @@ export const RutasPageView = ({
                   onClick={handleCreateClick}
                   className="group flex flex-col items-center justify-center p-8 rounded-2xl border-2 border-dashed border-slate-300 hover:border-slate-900 hover:bg-slate-50 transition-all duration-300 min-h-[400px]"
                 >
-                  <div className="p-6 rounded-full bg-slate-100 group-hover:bg-white group-hover:shadow-md transition-all mb-6 duration-300 border border-slate-200">
+                  <div className="shrink-0 p-6 rounded-full bg-slate-100 group-hover:bg-white group-hover:shadow-md transition-all mb-6 duration-300 border border-slate-200">
                     <Plus className="h-8 w-8 text-slate-400 group-hover:text-slate-900" />
                   </div>
                   <h3 className="text-xl font-bold text-slate-900">Crear nueva ruta</h3>
@@ -1636,26 +1637,15 @@ export const RutasPageView = ({
           )}
 
           {/* Paginación Elegante Estandarizada */}
-          <div className="p-4 border-t border-slate-100 bg-slate-50/30 flex justify-between items-center text-xs text-slate-500 font-medium rounded-2xl">
-            <span>
-              Mostrando {currentRutas.length} de {rutasFiltradas.length} resultados
-            </span>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                className="px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-bold flex items-center gap-1 transition-colors text-slate-700"
-              >
-                <ChevronLeft className="h-3 w-3" /> Anterior
-              </button>
-              <button
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages || totalPages === 0}
-                className="px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-bold flex items-center gap-1 transition-colors text-slate-700"
-              >
-                Siguiente <ChevronRight className="h-3 w-3" />
-              </button>
-            </div>
+          {/* Paginación Elegante Estandarizada */}
+          <div className="p-4 border-t border-slate-100 bg-slate-50/30 rounded-2xl">
+            <Paginador
+              pagina={currentPage}
+              totalPaginas={totalPages}
+              onCambiar={setCurrentPage}
+              resumen={`Mostrando ${currentRutas.length} de ${rutasFiltradas.length} resultados`}
+              className="mt-0"
+            />
           </div>
         </div>
       </div>
@@ -1669,7 +1659,7 @@ export const RutasPageView = ({
             <div className="flex flex-col h-full max-h-[90vh]">
               <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50 sticky top-0 z-10 backdrop-blur-sm shrink-0">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-blue-50 text-orange-500 rounded-lg">
+                  <div className="shrink-0 p-2 bg-blue-50 text-orange-500 rounded-lg">
                     <Route className="h-5 w-5" />
                   </div>
                   <div>
@@ -1683,7 +1673,7 @@ export const RutasPageView = ({
                 </div>
                 <button
                   onClick={() => setShowModal(false)}
-                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                  className="shrink-0 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -1905,7 +1895,7 @@ export const RutasPageView = ({
                                 setIsAddingCliente(false)
                                 setClienteSearch('')
                               }}
-                              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors"
+                              className="shrink-0 absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors"
                             >
                               <X className="h-4 w-4" />
                             </button>
@@ -1948,7 +1938,7 @@ export const RutasPageView = ({
                                     ))}
                                 </div>
                               ) : !loadingClientes && (
-                                <div className="p-8 text-center bg-slate-50">
+                                <div className="shrink-0 p-8 text-center bg-slate-50">
                                   <Search className="h-8 w-8 text-slate-200 mx-auto mb-2" />
                                   <p className="text-xs text-slate-500 font-medium">No se encontraron clientes disponibles</p>
                                 </div>
@@ -2063,8 +2053,8 @@ export const RutasPageView = ({
       
       {/* Modal de Recolectar Dinero con monto personalizable */}
       {showRecolectarModal && routeForTransfer && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={() => setShowRecolectarModal(false)}>
-          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200 motion-reduce:animate-none" onClick={() => setShowRecolectarModal(false)}>
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 ease-out motion-reduce:animate-none" onClick={e => e.stopPropagation()}>
             <div className="bg-emerald-600 px-6 py-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Wallet className="h-5 w-5 text-white" />
@@ -2116,7 +2106,7 @@ export const RutasPageView = ({
               </div>
 
               {errorRecolectar && (
-                <div className="flex items-start gap-2 p-3 bg-rose-50 rounded-xl border border-rose-200">
+                <div className="shrink-0 flex items-start gap-2 p-3 bg-rose-50 rounded-xl border border-rose-200">
                   <XCircle className="h-4 w-4 text-rose-500 mt-0.5 flex-shrink-0" />
                   <p className="text-sm text-rose-700">{errorRecolectar}</p>
                 </div>
@@ -2148,14 +2138,14 @@ export const RutasPageView = ({
                 <Wallet className="h-5 w-5 text-blue-600" />
                 <h3 className="text-sm font-bold text-slate-900">Seleccionar Caja Principal</h3>
               </div>
-              <button onClick={() => setShowSelectPrincipalModal(false)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+              <button onClick={() => setShowSelectPrincipalModal(false)} className="shrink-0 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
                 <X className="h-5 w-5" />
               </button>
             </div>
             <div className="p-6 space-y-3">
               {principalOptions.map((caja) => (
                 <div key={caja.id} className="flex items-center justify-between p-3 rounded-xl border border-slate-200">
-                  <div>
+                  <div className="min-w-0">
                     <div className="text-sm font-bold text-slate-900">{caja.nombre}</div>
                     <div className="text-xs text-slate-500 font-medium">Saldo: {formatCurrency(caja.saldo)}</div>
                   </div>

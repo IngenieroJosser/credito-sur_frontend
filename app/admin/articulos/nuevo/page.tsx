@@ -120,7 +120,7 @@ export default function NuevoArticuloPage() {
         {/* Header */}
         <div className="max-w-[1600px] mx-auto mb-8 animate-in fade-in slide-in-from-top-4 duration-500">
           <div className="flex items-center justify-between">
-            <div>
+            <div className="min-w-0">
               <button 
                 onClick={() => router.back()}
                 className="mb-4 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-900"
@@ -147,7 +147,7 @@ export default function NuevoArticuloPage() {
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                 <div className="p-8">
                   <h3 className="text-xl font-bold text-slate-900 flex items-center gap-3 pb-6 border-b border-slate-100 mb-8">
-                    <div className="p-2.5 bg-blue-50 rounded-xl text-blue-600">
+                    <div className="shrink-0 p-2.5 bg-blue-50 rounded-xl text-blue-600">
                       <Layers className="h-6 w-6" />
                     </div>
                     Información Básica
@@ -229,7 +229,7 @@ export default function NuevoArticuloPage() {
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                 <div className="p-8">
                   <h3 className="text-xl font-bold text-slate-900 flex items-center gap-3 pb-6 border-b border-slate-100 mb-8">
-                    <div className="p-2.5 bg-blue-50 rounded-xl text-blue-600">
+                    <div className="shrink-0 p-2.5 bg-blue-50 rounded-xl text-blue-600">
                       <Tag className="h-6 w-6" />
                     </div>
                     Precios a Crédito
@@ -308,7 +308,7 @@ export default function NuevoArticuloPage() {
                                 <button
                                   type="button"
                                   onClick={() => removePrecioCuota(index)}
-                                  className="text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded-md transition-colors"
+                                  className="shrink-0 text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded-md transition-colors"
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </button>
@@ -328,7 +328,7 @@ export default function NuevoArticuloPage() {
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden sticky top-6">
                 <div className="p-8">
                   <h3 className="text-xl font-bold text-slate-900 flex items-center gap-3 pb-6 border-b border-slate-100 mb-8">
-                    <div className="p-2.5 bg-orange-50 rounded-xl text-orange-600">
+                    <div className="shrink-0 p-2.5 bg-orange-50 rounded-xl text-orange-600">
                       <Box className="h-6 w-6" />
                     </div>
                     Inventario y Costos
@@ -382,7 +382,7 @@ export default function NuevoArticuloPage() {
 
           {/* Error de guardado */}
           {saveError && (
-            <div className="flex items-center gap-3 p-4 rounded-xl bg-rose-50 border border-rose-200">
+            <div className="shrink-0 flex items-center gap-3 p-4 rounded-xl bg-rose-50 border border-rose-200">
               <AlertCircle className="h-5 w-5 text-rose-600 shrink-0" />
               <p className="text-sm font-bold text-rose-700">{saveError}</p>
             </div>
