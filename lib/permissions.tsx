@@ -191,8 +191,12 @@ export const permisosPorRol: Record<Rol, ModuloPermiso[]> = {
   ],
   COBRADOR: [
     T.DASHBOARD('COBRADOR', '/cobranzas'),
-    T.PRESTAMO_DINERO('COBRADOR', '/cobranzas/prestamos/nuevo'),
-    T.CLIENTES('COBRADOR', '/cobranzas/clientes/nuevo'),
+    // Aqui habia 'Solicitar Credito' y 'Clientes'. Las pantallas que abrian ya
+    // no existen: crear credito y crear cliente pasaron a hacerse desde el
+    // boton flotante del escritorio (CobradorFloatingActions), asi que las dos
+    // entradas solo devolvian al escritorio. El cobrador no pierde nada: ese
+    // boton esta siempre visible, y sus clientes los ve en "Mis clientes"
+    // dentro del propio escritorio.
     T.NOTIF('COBRADOR', '/notificaciones'),
     T.SOLICITUDES('COBRADOR', '/cobranzas/solicitudes'),
   ],
