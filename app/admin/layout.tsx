@@ -93,6 +93,16 @@ const RAICES_DE_ROL = new Set([
   '/punto-de-venta',
 ]);
 
+/**
+ * Módulos que el cobrador tiene siempre, sin permisos extra.
+ *
+ * Su escritorio (VistaCobrador) es a pantalla completa y no necesita menú
+ * lateral. Pero si desde la matriz de permisos se le activan otros módulos
+ * (clientes, rutas, contable...), aparecen fuera de este conjunto y entonces sí
+ * hace falta el menú —y su botón hamburguesa— para poder navegar hasta ellos.
+ */
+const MODULOS_BASE_COBRADOR = new Set(['dashboard', 'notificaciones', 'solicitudes']);
+
 /** Un enlace esta activo si la ruta actual es la suya o cuelga de ella. */
 function esRutaActiva(href: string | undefined, actual: string | null | undefined): boolean {
   if (!href || !actual || href === '#') return false;
@@ -543,7 +553,16 @@ export default function AdminLayout({
     return `${user.nombres} ${user.apellidos}`
   }
 
-  const showSidebar = !hideSidebar && user?.rol !== 'COBRADOR' && (user?.rol !== 'PUNTO_DE_VENTA' || navigation.length > 1);
+  // El cobrador solo ve el menú lateral (y su hamburguesa) si le activaron
+  // módulos más allá de su conjunto base; si no, su escritorio ocupa todo.
+  const cobradorConModulosExtra =
+    user?.rol === 'COBRADOR' &&
+    navigation.some((m) => !MODULOS_BASE_COBRADOR.has(m.id ?? ''));
+
+  const showSidebar =
+    !hideSidebar &&
+    ((user?.rol !== 'COBRADOR' && (user?.rol !== 'PUNTO_DE_VENTA' || navigation.length > 1)) ||
+      cobradorConModulosExtra);
 
   // La barra existe para ahorrarse abrir el aside, así que solo aparece donde
   // hay aside que ahorrarse. Con menos de tres destinos el aside ya es corto y
