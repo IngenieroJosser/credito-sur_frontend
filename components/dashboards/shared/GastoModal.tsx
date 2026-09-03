@@ -144,14 +144,14 @@ export default function GastoModal({ isOpen, onClose, onConfirm, cobradorId, rut
         >
           <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
             <div className="flex items-center gap-2">
-              <div className="p-2 bg-rose-100 rounded-lg text-rose-600">
+              <div className="shrink-0 p-2 bg-rose-100 rounded-lg text-rose-600">
                 <Receipt className="h-5 w-5" />
               </div>
               <h3 className="font-bold text-lg text-slate-900">Registrar Gasto</h3>
             </div>
             <button
               onClick={handleReset}
-              className="p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
+              className="shrink-0 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
             >
               <X className="h-5 w-5" />
             </button>
@@ -306,7 +306,7 @@ export default function GastoModal({ isOpen, onClose, onConfirm, cobradorId, rut
 
             {esPersonal ? (
               <div className="p-3 bg-blue-50 rounded-xl flex items-start gap-3 border border-blue-100 mt-2">
-                <div className="p-1.5 bg-blue-100 rounded-lg text-blue-600 mt-0.5">
+                <div className="shrink-0 p-1.5 bg-blue-100 rounded-lg text-blue-600 mt-0.5">
                   <Banknote className="h-4 w-4" />
                 </div>
                 <div className="text-[10px] text-blue-800 leading-tight">
@@ -316,7 +316,7 @@ export default function GastoModal({ isOpen, onClose, onConfirm, cobradorId, rut
               </div>
             ) : (
               <div className="p-3 bg-amber-50 rounded-xl flex items-start gap-3 border border-amber-100 mt-2">
-                <div className="p-1.5 bg-amber-100 rounded-lg text-amber-600 mt-0.5">
+                <div className="shrink-0 p-1.5 bg-amber-100 rounded-lg text-amber-600 mt-0.5">
                   <AlertCircle className="h-4 w-4" />
                 </div>
                 <div className="text-[10px] text-amber-800 leading-tight">

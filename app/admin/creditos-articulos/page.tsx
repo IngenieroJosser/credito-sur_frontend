@@ -191,7 +191,7 @@ export default function CreditosArticulosPage() {
       <div className="relative z-10 px-6 md:px-8 py-8 space-y-8">
         {/* Header Standard */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4 duration-500">
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-2 mb-2">
               <div className="p-2 bg-blue-600 rounded-lg shadow-md shadow-blue-600/20">
                 <Package className="w-6 h-6 text-white" />
@@ -216,7 +216,7 @@ export default function CreditosArticulosPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100">
           <div className="bg-white/80 backdrop-blur-sm p-5 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 group">
             <div className="flex items-center justify-between mb-4">
               <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl group-hover:bg-blue-600 group-hover:text-white transition-all duration-300 border border-blue-100">

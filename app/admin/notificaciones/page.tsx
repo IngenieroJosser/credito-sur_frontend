@@ -542,7 +542,7 @@ export default function NotificacionesPage() {
         {/* Header */}
         <div className="pb-8 pt-10 px-8 w-full">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div>
+            <div className="min-w-0">
               <button
                 type="button"
                 onClick={() => router.back()}

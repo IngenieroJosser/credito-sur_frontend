@@ -73,7 +73,7 @@ export default function DetalleProductoModal({ id, onClose }: DetalleProductoMod
           ) : producto ? (
             <div className="space-y-6">
               <div className="flex items-start justify-between gap-4">
-                <div>
+                <div className="min-w-0">
                   <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Inventario</p>
                   <h3 className="text-2xl font-black text-slate-900 mt-1">{producto.nombre}</h3>
                   <p className="text-xs text-slate-500 font-mono mt-1">SKU: {producto.codigo}</p>

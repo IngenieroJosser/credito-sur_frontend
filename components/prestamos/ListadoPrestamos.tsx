@@ -437,7 +437,7 @@ const ListadoPrestamosElegante = () => {
       <div className="relative z-10">
         <div className="sticky top-0 z-30 backdrop-blur-xl bg-white/80 border-b border-slate-200 px-6 py-4 md:px-8 supports-[backdrop-filter]:bg-white/60">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-2 mb-2">
               <div className="p-2 bg-blue-600 rounded-lg shadow-md shadow-blue-600/20">
                 <CreditCard className="w-6 h-6 text-white" />
@@ -498,7 +498,7 @@ const ListadoPrestamosElegante = () => {
         )}
 
         {/* Estadísticas */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
           <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Créditos (visibles)</p>
             <div className="flex items-baseline gap-2">

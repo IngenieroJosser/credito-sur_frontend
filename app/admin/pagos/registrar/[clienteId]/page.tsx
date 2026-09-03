@@ -406,13 +406,13 @@ const RegistrarPagoClientePage = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
           {/* Columna Izquierda: Información */}
           <div className="space-y-6">
             {/* Tarjeta Cliente */}
             <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
               <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-slate-100 rounded-lg">
+                <div className="shrink-0 p-2 bg-slate-100 rounded-lg">
                   <User className="h-5 w-5 text-slate-600" />
                 </div>
                 <div>
@@ -497,7 +497,7 @@ const RegistrarPagoClientePage = () => {
                       type="button"
                       className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-slate-900 bg-slate-50 text-slate-900"
                     >
-                      <div className="p-2 bg-slate-900 rounded-full text-white">
+                      <div className="shrink-0 p-2 bg-slate-900 rounded-full text-white">
                         <Wallet className="h-5 w-5" />
                       </div>
                       <div className="text-left">

@@ -76,7 +76,7 @@ function AbonoModal({ cobrador, onClose, onConfirm, cajas }: AbonoModalProps) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="px-6 pt-6 pb-4 flex items-center justify-between border-b border-slate-100">
-          <div>
+          <div className="min-w-0">
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Registrar Abono</p>
             <h3 className="text-sm font-black text-slate-900 mt-0.5">{cobrador.nombreCobrador}</h3>
           </div>

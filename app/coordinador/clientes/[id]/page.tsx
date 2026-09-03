@@ -112,7 +112,7 @@ export default function DetalleClienteCoordinadorPage({
       </header>
 
       <main className="relative z-10 px-6 lg:px-8 py-8 max-w-7xl mx-auto space-y-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
             {/* Sidebar con Info Básica */}
             <div className="space-y-6">
                 <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm text-center">

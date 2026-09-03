@@ -53,14 +53,14 @@ export default function BaseModal({ isOpen, onClose, onConfirm }: BaseModalProps
         >
           <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
             <div className="flex items-center gap-2">
-              <div className="p-2 bg-emerald-100 rounded-lg text-emerald-600">
+              <div className="shrink-0 p-2 bg-emerald-100 rounded-lg text-emerald-600">
                 <Wallet className="h-5 w-5" />
               </div>
               <h3 className="font-bold text-lg text-slate-900">Pedir Base</h3>
             </div>
             <button
               onClick={handleReset}
-              className="p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
+              className="shrink-0 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
             >
               <X className="h-5 w-5" />
             </button>

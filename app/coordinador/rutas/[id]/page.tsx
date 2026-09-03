@@ -1384,7 +1384,7 @@ const LegacyDetalleRutaPage = () => {
 
                <div className="flex justify-between items-end mb-4">
 
-                <div>
+                <div className="min-w-0">
 
                   <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Recaudado Hoy</p>
 
@@ -2165,7 +2165,7 @@ const LegacyDetalleRutaPage = () => {
 
               <div className="p-3 bg-blue-50 rounded-xl flex items-start gap-3 border border-blue-100">
 
-                <div className="p-1.5 bg-blue-100 rounded-lg text-blue-600 mt-0.5">
+                <div className="shrink-0 p-1.5 bg-blue-100 rounded-lg text-blue-600 mt-0.5">
 
                   <Banknote className="h-4 w-4" />
 
@@ -2722,7 +2722,7 @@ function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose:
 
         <div className="px-5 sm:px-8 pt-4 sm:pt-8 pb-3 sm:pb-4 flex justify-between items-center shrink-0">
 
-          <div>
+          <div className="min-w-0">
 
             <h3 className="font-black text-xl sm:text-2xl text-slate-900 tracking-tight">Expediente</h3>
 

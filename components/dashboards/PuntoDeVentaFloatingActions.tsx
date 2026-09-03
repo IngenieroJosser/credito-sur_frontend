@@ -303,7 +303,7 @@ export default function PuntoDeVentaFloatingActions() {
           <div className="w-full max-w-2xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[92vh]" onClick={(e) => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white flex-shrink-0">
               <div className="flex items-center justify-between">
-                <div>
+                <div className="min-w-0">
                   <h3 className="font-bold text-slate-900 flex items-center gap-2 text-lg">
                     <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center"><Users className="h-4 w-4 text-emerald-600" /></div>
                     Clientes Registrados
@@ -376,7 +376,7 @@ export default function PuntoDeVentaFloatingActions() {
           <div className="w-full max-w-2xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[92vh]" onClick={(e) => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white flex-shrink-0">
               <div className="flex items-center justify-between">
-                <div>
+                <div className="min-w-0">
                   <h3 className="font-bold text-slate-900 flex items-center gap-2 text-lg"><div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center"><Clock className="h-4 w-4 text-orange-600" /></div>Ventas Recientes</h3>
                   <p className="text-xs text-slate-500 mt-1 ml-10">Historial de créditos de artículos del punto de venta</p>
                 </div>
@@ -439,7 +439,7 @@ export default function PuntoDeVentaFloatingActions() {
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm" onClick={() => setShowVentaDetalle(null)}>
           <div className="w-full max-w-md rounded-2xl bg-white border border-slate-200 shadow-2xl p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between mb-5">
-              <div><h3 className="font-black text-slate-900">Detalle de venta</h3><p className="text-xs text-slate-500 font-mono">{showVentaDetalle.id}</p></div>
+              <div className="min-w-0"><h3 className="font-black text-slate-900">Detalle de venta</h3><p className="text-xs text-slate-500 font-mono">{showVentaDetalle.id}</p></div>
               <button onClick={() => setShowVentaDetalle(null)} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400"><X className="h-5 w-5" /></button>
             </div>
             <div className="space-y-3 text-sm">

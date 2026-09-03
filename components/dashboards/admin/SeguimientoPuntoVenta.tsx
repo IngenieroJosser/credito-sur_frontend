@@ -587,7 +587,7 @@ export default function SeguimientoPuntoVenta() {
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
           {/* Subtítulo */}
           <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-            <div>
+            <div className="min-w-0">
               <h2 className="text-base font-black text-slate-900">Créditos Artículo</h2>
               <p className="text-xs text-slate-500 font-medium mt-0.5">{ventasFiltradas.length} registros encontrados</p>
             </div>

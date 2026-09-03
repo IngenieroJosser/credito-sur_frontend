@@ -136,7 +136,7 @@ export default function DetalleCuentaMoraPage({
         <section className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
             <div className="p-8">
                 <div className="flex justify-between items-start mb-6">
-                    <div>
+                    <div className="min-w-0">
                         <span className="px-3 py-1 rounded-full bg-rose-50 text-rose-700 text-[10px] font-bold border border-rose-100 uppercase tracking-widest mb-4 inline-block">
                            Estado Crítico - {cuenta.nivelRiesgo}
                         </span>

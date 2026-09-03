@@ -1278,7 +1278,7 @@ const ModuloContableContent = () => {
         </header>
 
         {/* Tarjetas de Resumen — Fila financiera + Fila operativa */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
 
           {/* 1 · Total Ingresos */}
           <div
@@ -1435,7 +1435,7 @@ const ModuloContableContent = () => {
             <div className="rounded-2xl bg-white/80 backdrop-blur-sm border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
             <div className="p-5 border-b border-slate-100 space-y-4">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
+                <div className="min-w-0">
                   <h1 className="text-3xl font-black text-slate-900 tracking-tight">Panel Contable</h1>
                   <p className="text-slate-500 mt-1 font-medium">Control total de movimientos, cajas y cierres.</p>
                 </div>
@@ -1894,7 +1894,7 @@ const ModuloContableContent = () => {
           <div className="fixed inset-0 z-[2147483646] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setShowCrearCajaModal(false)}>
             <div className="w-full max-w-xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-                <div>
+                <div className="min-w-0">
                   <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Cajas</p>
                   <h3 className="text-lg font-bold text-slate-900">Crear Caja</h3>
                 </div>
@@ -2000,7 +2000,7 @@ const ModuloContableContent = () => {
           <div className="fixed inset-0 z-[2147483646] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setShowEditarCajaModal(false)}>
             <div className="w-full max-w-xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-                <div>
+                <div className="min-w-0">
                   <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Cajas</p>
                   <h3 className="text-lg font-bold text-slate-900">Editar Caja</h3>
                 </div>
@@ -2130,7 +2130,7 @@ const ModuloContableContent = () => {
           <div className="fixed inset-0 z-[2147483646] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setShowRegistrarMovimientoModal(false)}>
             <div className="w-full max-w-2xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-                <div>
+                <div className="min-w-0">
                   <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Movimientos</p>
                   <h3 className="text-lg font-bold text-slate-900">Registrar Movimiento</h3>
                 </div>
@@ -2401,7 +2401,7 @@ const ModuloContableContent = () => {
           <div className="fixed inset-0 z-[2147483646] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setShowVerMovimientoModal(false)}>
             <div className="w-full max-w-lg rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-                <div>
+                <div className="min-w-0">
                   <h3 className="text-lg font-bold text-slate-900">Detalle de Movimiento</h3>
                   {/* ID Oculto por solicitud del usuario */}
                 </div>
@@ -2415,7 +2415,7 @@ const ModuloContableContent = () => {
 
               <div className="p-6 space-y-5">
                 <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-100">
-                  <div>
+                  <div className="min-w-0">
                     <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Monto Operación</div>
                     <MoneyAmount value={movimientoSeleccionado.monto} amountClassName="text-2xl font-black text-slate-900" />
                   </div>
@@ -2579,7 +2579,7 @@ const ModuloContableContent = () => {
           <div className="fixed inset-0 z-[2147483646] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setShowVerCajaModal(false)}>
             <div className="w-full max-w-lg rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-                <div>
+                <div className="min-w-0">
                     <h3 className="text-lg font-bold text-slate-900">Detalle de Caja</h3>
                     {/* <p className="text-xs font-bold text-slate-500">{cajaSeleccionada.id}</p> */}
                 </div>
@@ -2831,7 +2831,7 @@ const ModuloContableContent = () => {
             <div className="w-full max-w-2xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
               {/* Modal Header */}
               <div className="p-6 border-b border-slate-100 flex items-center justify-between shrink-0">
-                <div>
+                <div className="min-w-0">
                    <h3 className="text-lg font-bold text-slate-900">
                       {detalleTipo === 'INGRESOS'
                         ? 'Historial de Ingresos'

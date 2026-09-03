@@ -367,7 +367,7 @@ export default function ClienteDetalleSupervisorPage() {
                   <button
                     type="button"
                     onClick={resetPagoModal}
-                    className="p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
+                    className="shrink-0 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
                   >
                     <X className="h-5 w-5" />
                   </button>
@@ -561,7 +561,7 @@ export default function ClienteDetalleSupervisorPage() {
                   <button
                     type="button"
                     onClick={resetCreditoModal}
-                    className="p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
+                    className="shrink-0 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
                   >
                     <X className="h-5 w-5" />
                   </button>
@@ -783,7 +783,7 @@ export default function ClienteDetalleSupervisorPage() {
                   <button
                     type="button"
                     onClick={resetNuevoClienteForm}
-                    className="p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
+                    className="shrink-0 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
                   >
                     <X className="h-5 w-5" />
                   </button>

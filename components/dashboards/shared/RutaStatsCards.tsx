@@ -85,7 +85,7 @@ export function RutaStatsCards({ rutaStats, periodo = 'HOY', userRol }: RutaStat
   const baseSublabel = esSupervisor ? 'Caja propia del supervisor' : 'Asignada por coordinador'
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
 
       {/* Tarjeta 1: Recaudo */}
       <StatCard>
@@ -128,7 +128,7 @@ export function RutaStatsCards({ rutaStats, periodo = 'HOY', userRol }: RutaStat
               </span>
             </div>
           </div>
-          <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100 group-hover:scale-110 transition-transform shrink-0">
+          <div className="shrink-0 p-3 bg-emerald-50 rounded-xl border border-emerald-100 group-hover:scale-110 transition-transform shrink-0">
             <Target className="h-5 w-5 text-emerald-600" />
           </div>
         </div>
@@ -156,7 +156,7 @@ export function RutaStatsCards({ rutaStats, periodo = 'HOY', userRol }: RutaStat
               </h3>
             </div>
           </div>
-          <div className="p-3 bg-rose-50 rounded-xl border border-rose-100 group-hover:scale-110 transition-transform shrink-0">
+          <div className="shrink-0 p-3 bg-rose-50 rounded-xl border border-rose-100 group-hover:scale-110 transition-transform shrink-0">
             <Receipt className="h-5 w-5 text-rose-600" />
           </div>
         </div>
@@ -181,7 +181,7 @@ export function RutaStatsCards({ rutaStats, periodo = 'HOY', userRol }: RutaStat
               </h3>
             </div>
           </div>
-          <div className="p-3 bg-amber-50 rounded-xl border border-amber-100 group-hover:scale-110 transition-transform shrink-0">
+          <div className="shrink-0 p-3 bg-amber-50 rounded-xl border border-amber-100 group-hover:scale-110 transition-transform shrink-0">
             <Wallet className="h-5 w-5 text-amber-600" />
           </div>
         </div>

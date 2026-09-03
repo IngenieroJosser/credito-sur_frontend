@@ -92,7 +92,7 @@ export default function NuevoUsuarioPage() {
               <h2 className="text-lg font-bold text-slate-900">Información Personal</h2>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
               <div className="space-y-2">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nombres</label>
                 <input

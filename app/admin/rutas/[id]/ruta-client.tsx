@@ -1319,7 +1319,7 @@ const RutaClientLoaded = ({
 
                 <div className="flex items-start justify-between">
 
-                  <div>
+                  <div className="min-w-0">
 
                     <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Efectivo Entregado</p>
 

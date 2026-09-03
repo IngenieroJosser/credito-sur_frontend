@@ -592,7 +592,7 @@ const HistorialPagosPage = () => {
                 onClick={() => openDetallePago(pago.pagoId)}
               >
                 <div className="flex justify-between items-start mb-3">
-                  <div>
+                  <div className="min-w-0">
                     <h3 className="font-bold text-sm text-slate-900 line-clamp-1">{pago.cliente}</h3>
                     <p className="text-[11px] text-slate-500">{pago.id} • {formatFechaPago(pago.fecha)}</p>
                     {regularizadoBadge(pago)}

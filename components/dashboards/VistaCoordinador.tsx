@@ -401,7 +401,7 @@ const VistaCoordinador = () => {
         )}
 
         {/* Métricas principales */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-10">
           {loading && !dashboardData ? (
             // Skeleton para métricas
             Array(4).fill(0).map((_, i) => (
@@ -457,14 +457,14 @@ const VistaCoordinador = () => {
         </div>
 
         {/* Layout en Dos Columnas (2/3 - 1/3) */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
           {/* Columna Izquierda (2/3) */}
           <div className="lg:col-span-2 space-y-8">
             
             {/* Gráfico de Tendencia (Premium) */}
             <div className="bg-white border border-slate-100 rounded-[2.5rem] p-8 shadow-sm">
                 <div className="flex items-center justify-between mb-8">
-                  <div>
+                  <div className="min-w-0">
                     <h2 className="text-xl font-black text-slate-900 tracking-tight">Tendencia de Cobros</h2>
                     <p className="text-sm text-slate-500 font-medium">Rendimiento semanal</p>
                   </div>
@@ -490,7 +490,7 @@ const VistaCoordinador = () => {
             {/* Bandeja de Aprobaciones */}
             <div className="bg-white border border-slate-100 rounded-[2.5rem] p-8 shadow-sm">
               <div className="flex items-center justify-between mb-8">
-                <div>
+                <div className="min-w-0">
                   <h2 className="text-xl font-black text-slate-900 tracking-tight">Bandeja de Aprobaciones</h2>
                   <p className="text-sm text-slate-500 font-medium">Solicitudes pendientes de validación</p>
                 </div>
@@ -746,7 +746,7 @@ const VistaCoordinador = () => {
                           </span>
                       </div>
                       <div className="flex justify-between items-end">
-                          <div>
+                          <div className="min-w-0">
                             <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Saldo Pendiente</p>
                             <p className="text-base font-black text-rose-600">{formatCurrency(account.amountDue)}</p>
                           </div>

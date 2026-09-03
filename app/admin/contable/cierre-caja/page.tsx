@@ -1080,7 +1080,7 @@ export default function CierreCajaPage() {
                     </div>
                   </div>
                   
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
                     <div className="bg-white border border-slate-200 rounded-2xl px-4 py-4 shadow-sm">
                       <div className="text-[10px] font-bold text-slate-500 uppercase">Saldo Esperado</div>
                       <div className="text-lg font-bold text-slate-900 mt-1">{formatCurrency(Number(arqueoResult.saldoEsperado || 0))}</div>
@@ -1177,7 +1177,7 @@ export default function CierreCajaPage() {
           <div className="fixed inset-0 flex items-end sm:items-center justify-center p-3 sm:p-6 md:p-8 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300" style={{ zIndex: MODAL_Z_INDEX }} onClick={() => setShowHistorialModal(false)}>
             <div className="w-full max-w-5xl 2xl:max-w-6xl max-h-[92vh] bg-white rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
               <div className="p-4 sm:p-6 md:p-7 border-b border-slate-100 bg-slate-50/60 flex items-center justify-between">
-                <div>
+                <div className="min-w-0">
                   <h3 className="text-xl font-bold text-slate-900 leading-tight">Historial de Cierres</h3>
                   <div className="text-sm font-medium text-slate-500 mt-1">
                     Filtra por tipo, estado y fechas
@@ -1354,7 +1354,7 @@ export default function CierreCajaPage() {
           <div className="fixed inset-0 flex items-end sm:items-center justify-center p-3 sm:p-6 md:p-8 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300" style={{ zIndex: MODAL_Z_INDEX }} onClick={() => setShowDetalleCierreModal(false)}>
             <div className="w-full max-w-4xl max-h-[92vh] bg-white rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
               <div className="p-4 sm:p-6 md:p-7 border-b border-slate-100 bg-slate-50/60 flex justify-between items-center gap-3">
-                <div>
+                <div className="min-w-0">
                   <h3 className="text-xl font-bold text-slate-900">
                     {selectedCierre.numeroComprobanteTraslado ? 'Detalle de Arqueo' : 'Detalle de Cierre'}
                   </h3>
@@ -1452,7 +1452,7 @@ export default function CierreCajaPage() {
                   {(selectedCierre.saldoEsperado || selectedCierre.saldoSistema) && (
                     <div>
                       <div className="text-[10px] font-bold text-slate-400 uppercase mb-3">Resumen del arqueo</div>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-4 gap-3">
                         <div className="bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3">
                           <div className="text-[10px] font-bold text-slate-500 uppercase">Saldo esperado</div>
                           <div className="text-sm font-bold text-slate-900">
@@ -1502,7 +1502,7 @@ export default function CierreCajaPage() {
                   {(selectedCierre.responsable || selectedCierre.creadoPor || selectedCierre.recibidoPor) && (
                     <div>
                       <div className="text-[10px] font-bold text-slate-400 uppercase mb-3">Responsables</div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
                         {selectedCierre.responsable && (
                           <div className="bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3">
                             <div className="text-[10px] font-bold text-slate-500 uppercase">Responsable de caja</div>

@@ -145,7 +145,7 @@ export function DashboardClient({ data }: DashboardClientProps) {
       <div className="relative z-10 p-6 lg:p-16 space-y-20 max-w-[1600px] mx-auto">
         {/* Encabezado Principal */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-6 animate-in fade-in slide-in-from-top-4 duration-500">
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-2 mb-2">
               <div className="p-2 bg-blue-600 rounded-lg shadow-md shadow-blue-600/20">
                 <LayoutDashboard className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
@@ -181,7 +181,7 @@ export function DashboardClient({ data }: DashboardClientProps) {
         </div>
 
         {/* Métricas principales - Optimizadas para evitar saturación */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-8">
           {data.mainMetrics.map((metric, index) => (
             <div
               key={index}
@@ -233,7 +233,7 @@ export function DashboardClient({ data }: DashboardClientProps) {
             {/* Gráfico Principal: Tendencia de Cobros */}
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
               <div className="flex items-center justify-between mb-6">
-                <div>
+                <div className="min-w-0">
                   <h3 className="text-lg font-bold text-slate-800">Tendencia de Cobros</h3>
                   <p className="text-slate-500 text-sm">Período seleccionado</p>
                 </div>

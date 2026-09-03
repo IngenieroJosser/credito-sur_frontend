@@ -64,7 +64,7 @@ export default function ListaConflictos() {
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
       <div className="p-4 md:p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <h2 className="text-base md:text-lg font-bold text-slate-900 flex items-center gap-2">
             <AlertTriangle className="w-5 h-5 text-amber-500" />
             Conflictos en Servidor

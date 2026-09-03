@@ -189,7 +189,7 @@ export default function DetalleCuentaMoraPage({ params }: { params: Promise<{ id
       <main className="px-6 py-6 w-full mx-auto space-y-4">
         
         {/* Top Cards: Client & Debt Summary */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
             
             {/* Client Card */}
             <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm relative overflow-hidden">
@@ -261,7 +261,7 @@ export default function DetalleCuentaMoraPage({ params }: { params: Promise<{ id
         </div>
 
         {/* Detailed Info & Tabs */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
             {/* Loan Details */}
             <div className="bg-white rounded-2xl border border-slate-200 p-5 h-fit">
                  <h3 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">

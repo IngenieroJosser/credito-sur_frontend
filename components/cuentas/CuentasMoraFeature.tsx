@@ -340,7 +340,7 @@ export default function CuentasMoraFeature() {
 
         {/* Header */}
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between animate-in fade-in slide-in-from-top-4 duration-500">
-          <div>
+          <div className="min-w-0">
             <div className="inline-flex items-center gap-2 rounded-full bg-rose-50 px-3 py-1 text-xs font-bold text-rose-700 mb-2 border border-rose-100">
               <AlertCircle className="h-3.5 w-3.5" />
               <span>Seguimiento de Cartera en Mora</span>
@@ -369,7 +369,7 @@ export default function CuentasMoraFeature() {
         </div>
 
         {/* Metricas */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-4">
           {[
             { label: 'Interes de Mora', value: formatCurrency(totalMora), icon: <DollarSign className="h-5 w-5 text-rose-600" />, bg: 'bg-rose-50' },
             { label: 'Deuda Total Cartera', value: formatCurrency(totalDeuda), icon: <AlertCircle className="h-5 w-5 text-amber-600" />, bg: 'bg-amber-50' },
@@ -568,7 +568,7 @@ export default function CuentasMoraFeature() {
         ) : (
 
           /* GRID */
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {cuentas.map(cuenta => {
               const nivel = (cuenta.etiquetaMora || calcularNivelMora(cuenta)) as NivelMoraKey
               const cfg = NIVEL_COLORS[nivel]
@@ -579,7 +579,7 @@ export default function CuentasMoraFeature() {
 
                   <div className="p-5 flex-1 space-y-4">
                     <div className="flex items-start justify-between">
-                      <div>
+                      <div className="min-w-0">
                         <div className="font-black text-slate-900 group-hover:text-primary transition-colors">{cuenta.cliente.nombre}</div>
                         <div className="text-xs text-slate-500 font-mono">{cuenta.cliente.documento}</div>
                       </div>

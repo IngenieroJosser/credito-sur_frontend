@@ -363,7 +363,7 @@ export default function CrearCreditoModal({
         >
           <div className="p-6">
             <div className="flex justify-between items-start mb-6">
-              <div>
+              <div className="min-w-0">
                 <h3 className="text-xl font-bold text-slate-900">
                   {creditType === 'articulo' && esContado ? 'Registrar Venta' : 'Crear Nuevo Crédito'}
                 </h3>

@@ -83,7 +83,7 @@ export default function ProcesarCastigoModal({ cuenta, onClose, onConfirm }: Pro
             {/* Resumen de la cuenta */}
             <div className="p-5 bg-rose-50 rounded-2xl border border-rose-100">
                <div className="flex justify-between items-start mb-4">
-                  <div>
+                  <div className="min-w-0">
                     <div className="text-[10px] font-black text-rose-600 uppercase tracking-widest mb-1">Saldo a Castigar</div>
                     <div className="text-3xl font-black text-rose-700 break-words tabular-nums">{formatCurrency(cuenta.saldoPendiente)}</div>
                   </div>

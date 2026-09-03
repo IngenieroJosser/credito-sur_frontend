@@ -931,7 +931,7 @@ export const RutasPageView = ({
       <div className="relative z-10 px-6 md:px-8 py-8 space-y-8">
         {/* Header Standard */}
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between animate-in fade-in slide-in-from-top-4 duration-500">
-          <div>
+          <div className="min-w-0">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-xs text-slate-600 tracking-wide font-bold border border-slate-200 mb-2">
               <Route className="h-3.5 w-3.5" />
               <span>Gestión de Territorios</span>
@@ -1113,7 +1113,7 @@ export const RutasPageView = ({
 
           {/* Contenido Principal */}
           {vista === 'grid' ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
               {currentRutas.map((ruta) => (
                 <div
                   key={ruta.id}
@@ -1179,7 +1179,7 @@ export const RutasPageView = ({
 
                     <div className="space-y-4 pt-2">
                       <div className="flex items-center gap-4 group/item">
-                        <div className="p-2 bg-slate-50 rounded-lg text-slate-400 group-hover/item:bg-blue-50 group-hover/item:text-blue-600 transition-colors">
+                        <div className="shrink-0 p-2 bg-slate-50 rounded-lg text-slate-400 group-hover/item:bg-blue-50 group-hover/item:text-blue-600 transition-colors">
                           <User className="h-4 w-4" />
                         </div>
                         <div>
@@ -1189,7 +1189,7 @@ export const RutasPageView = ({
                       </div>
 
                       <div className="flex items-center gap-4 group/item">
-                        <div className="p-2 bg-slate-50 rounded-lg text-slate-400 group-hover/item:bg-blue-50 group-hover/item:text-blue-600 transition-colors">
+                        <div className="shrink-0 p-2 bg-slate-50 rounded-lg text-slate-400 group-hover/item:bg-blue-50 group-hover/item:text-blue-600 transition-colors">
                           <Users className="h-4 w-4" />
                         </div>
                         <div>
@@ -1199,7 +1199,7 @@ export const RutasPageView = ({
                       </div>
 
                       <div className="flex items-center gap-4 group/item">
-                        <div className="p-2 bg-slate-50 rounded-lg text-slate-400 group-hover/item:bg-blue-50 group-hover/item:text-blue-600 transition-colors">
+                        <div className="shrink-0 p-2 bg-slate-50 rounded-lg text-slate-400 group-hover/item:bg-blue-50 group-hover/item:text-blue-600 transition-colors">
                           <Clock className="h-4 w-4" />
                         </div>
                         <div>
@@ -1213,7 +1213,7 @@ export const RutasPageView = ({
                     {ruta.estado === 'ACTIVA' && (
                       <div className="pt-6 border-t border-slate-100">
                         <div className="flex justify-between items-end mb-2">
-                          <div>
+                          <div className="min-w-0">
                             <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">Recaudo Diario</p>
                             <p className="font-bold text-slate-900">{formatCurrency(getRecaudoOperativoRuta(ruta))}</p>
                             {Number(ruta.recaudoRegularizadoHoy || 0) > 0 && (
@@ -2145,7 +2145,7 @@ export const RutasPageView = ({
             <div className="p-6 space-y-3">
               {principalOptions.map((caja) => (
                 <div key={caja.id} className="flex items-center justify-between p-3 rounded-xl border border-slate-200">
-                  <div>
+                  <div className="min-w-0">
                     <div className="text-sm font-bold text-slate-900">{caja.nombre}</div>
                     <div className="text-xs text-slate-500 font-medium">Saldo: {formatCurrency(caja.saldo)}</div>
                   </div>

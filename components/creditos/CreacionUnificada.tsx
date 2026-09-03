@@ -93,7 +93,7 @@ export default function CreacionUnificada({ isModal, initialClienteId, onClose }
 
         {/* Title & Type Selector */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
-            <div>
+            <div className="min-w-0">
                 <div className="flex items-center gap-3 mb-2">
                     <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/30 text-white">
                         {tipoCredito === 'DINERO' ? <DollarSign className="w-6 h-6" /> : <ShoppingBag className="w-6 h-6" />}

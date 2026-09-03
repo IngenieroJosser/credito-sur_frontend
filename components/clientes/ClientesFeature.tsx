@@ -353,7 +353,7 @@ export default function ClientesFeature({
       
       <div className="relative z-10 px-6 md:px-8 py-8 space-y-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4 duration-500">
-          <div>
+          <div className="min-w-0">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-xs text-primary tracking-wide font-bold border border-primary/20 mb-2">
               <User className="h-3.5 w-3.5" />
               <span>Gestión de Clientes</span>

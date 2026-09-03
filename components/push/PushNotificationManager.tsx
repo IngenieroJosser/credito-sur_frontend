@@ -248,7 +248,7 @@ export default function PushNotificationManager() {
       {permission === 'denied' && (
         <div className="p-5 bg-rose-50/80 backdrop-blur-sm border border-rose-200 rounded-2xl shadow-sm">
           <div className="flex items-start gap-3">
-            <div className="p-2 bg-rose-100 rounded-lg">
+            <div className="shrink-0 p-2 bg-rose-100 rounded-lg">
               <Shield className="h-5 w-5 text-rose-600" />
             </div>
             <div>

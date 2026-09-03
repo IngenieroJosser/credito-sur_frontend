@@ -1279,7 +1279,7 @@ const UserManagementPage = () => {
                 className="group relative overflow-hidden bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300"
               >
                 <div className="flex items-start justify-between">
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                       {stat.label}
                     </p>
@@ -1622,7 +1622,7 @@ const UserManagementPage = () => {
           {(viewMode === "grid" || true) && (
             <div
               className={cn(
-                "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500",
+                "grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500",
                 viewMode === "list" && "md:hidden",
               )}
             >

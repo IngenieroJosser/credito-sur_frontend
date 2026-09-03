@@ -134,7 +134,7 @@ const ReportesCoordinador = () => {
 
       <div className="relative z-10 w-full p-8 space-y-8">
         <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between animate-in fade-in slide-in-from-top-4 duration-500">
-          <div>
+          <div className="min-w-0">
             <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600 border border-slate-200 mb-2">
               <BarChart3 className="h-3.5 w-3.5" />
               <span>Análisis de Operaciones</span>
@@ -158,7 +158,7 @@ const ReportesCoordinador = () => {
           </div>
         </header>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm transition-all hover:shadow-md">
             <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Recaudo Total</p>
             <h3 className="text-2xl font-bold text-slate-900 mt-1">{formatCurrency(totalRecaudo)}</h3>

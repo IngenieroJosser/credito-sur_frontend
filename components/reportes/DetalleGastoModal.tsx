@@ -65,7 +65,7 @@ import Paginador from '@/components/ui/Paginador'
       <div className="bg-white rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200 flex flex-col" onClick={(e) => e.stopPropagation()}>
          
          <div className="px-8 py-6 border-b border-slate-100 flex items-start justify-between bg-slate-50/50 sticky top-0 backdrop-blur-md z-10">
-           <div>
+           <div className="min-w-0">
              <div className="inline-flex items-center gap-2 rounded-full bg-purple-50 px-3 py-1 text-xs font-bold text-purple-700 border border-purple-100 mb-2">
                <Receipt className="h-3.5 w-3.5" />
                <span>Detalle de Gasto</span>

@@ -417,7 +417,7 @@ export default function PagoDetalleModal({
                   </p>
                 </div>
                 <div className="flex items-center justify-between">
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-[10px] text-emerald-600 font-bold uppercase mb-1">Interés Recaudado</p>
                     <p className="text-3xl font-black text-emerald-700 tabular-nums">{formatCurrency(interesRec)}</p>
                     <p className="text-[10px] text-emerald-500 font-medium mt-1">

@@ -610,7 +610,7 @@ export function SeleccionClienteModal({
             <h3 className="font-bold text-lg text-slate-900 flex-1">{titulo}</h3>
             <button
               onClick={onClose}
-              className="p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
+              className="shrink-0 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
             >
               <XCircle className="h-5 w-5" />
             </button>

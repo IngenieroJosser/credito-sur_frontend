@@ -74,25 +74,28 @@ export const Modal: React.FC<ModalProps> = ({
         aria-modal="true"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-          <h3 className="text-lg font-bold text-slate-900">{title}</h3>
+        {/* Cabecera con el azul de la marca: da identidad al dialogo y separa
+            con claridad el titulo del contenido, que antes eran dos bloques de
+            texto oscuro sobre el mismo blanco. */}
+        <div className="flex shrink-0 items-center justify-between gap-4 rounded-t-2xl bg-gradient-to-r from-primary to-primary-dark px-6 py-4">
+          <h3 className="min-w-0 truncate text-lg font-bold text-white">{title}</h3>
           <button
             onClick={onClose}
-            className="p-2 -mr-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+            aria-label="Cerrar"
+            className="shrink-0 rounded-full bg-white/10 p-2 text-white/80 transition-colors hover:bg-white/20 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Body */}
-        <div className="p-6 overflow-y-auto">
+        <div className="min-h-0 flex-1 overflow-y-auto p-6">
           {children}
         </div>
 
         {/* Footer */}
         {footer && (
-          <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 rounded-b-2xl flex justify-end gap-3">
+          <div className="shrink-0 px-6 py-4 bg-slate-50 border-t border-slate-200 rounded-b-2xl flex justify-end gap-3">
             {footer}
           </div>
         )}

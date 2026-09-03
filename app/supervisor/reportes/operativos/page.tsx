@@ -92,14 +92,14 @@ const ReportesOperativosSupervisorPage = () => {
           </div>
         </header>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           <div className="group relative overflow-hidden bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300">
             <div className="flex justify-between items-start mb-4">
-              <div>
+              <div className="min-w-0">
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Recaudo Total</p>
                 <h3 className="text-2xl font-bold text-slate-900 mt-2">{formatCurrency(totalRecaudo)}</h3>
               </div>
-              <div className="p-3 bg-emerald-50 rounded-xl group-hover:scale-110 transition-transform border border-emerald-100">
+              <div className="shrink-0 p-3 bg-emerald-50 rounded-xl group-hover:scale-110 transition-transform border border-emerald-100">
                 <DollarSign className="h-5 w-5 text-emerald-600" />
               </div>
             </div>
@@ -114,11 +114,11 @@ const ReportesOperativosSupervisorPage = () => {
 
           <div className="group relative overflow-hidden bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300">
             <div className="flex justify-between items-start mb-4">
-              <div>
+              <div className="min-w-0">
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Préstamos Nuevos</p>
                 <h3 className="text-2xl font-bold text-slate-900 mt-2">3</h3>
               </div>
-              <div className="p-3 bg-blue-50 rounded-xl group-hover:scale-110 transition-transform border border-blue-100">
+              <div className="shrink-0 p-3 bg-blue-50 rounded-xl group-hover:scale-110 transition-transform border border-blue-100">
                 <FilePlus className="h-5 w-5 text-blue-600" />
               </div>
             </div>
@@ -131,11 +131,11 @@ const ReportesOperativosSupervisorPage = () => {
 
           <div className="group relative overflow-hidden bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300">
             <div className="flex justify-between items-start mb-4">
-              <div>
+              <div className="min-w-0">
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Clientes Nuevos</p>
                 <h3 className="text-2xl font-bold text-slate-900 mt-2">3</h3>
               </div>
-              <div className="p-3 bg-purple-50 rounded-xl group-hover:scale-110 transition-transform border border-purple-100">
+              <div className="shrink-0 p-3 bg-purple-50 rounded-xl group-hover:scale-110 transition-transform border border-purple-100">
                 <Users className="h-5 w-5 text-purple-600" />
               </div>
             </div>
@@ -146,11 +146,11 @@ const ReportesOperativosSupervisorPage = () => {
 
           <div className="group relative overflow-hidden bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300">
             <div className="flex justify-between items-start mb-4">
-              <div>
+              <div className="min-w-0">
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Efectividad Global</p>
                 <h3 className="text-2xl font-bold text-slate-900 mt-2">{porcentajeGlobal}%</h3>
               </div>
-              <div className="p-3 bg-amber-50 rounded-xl group-hover:scale-110 transition-transform border border-amber-100">
+              <div className="shrink-0 p-3 bg-amber-50 rounded-xl group-hover:scale-110 transition-transform border border-amber-100">
                 <TrendingUp className="h-5 w-5 text-amber-600" />
               </div>
             </div>

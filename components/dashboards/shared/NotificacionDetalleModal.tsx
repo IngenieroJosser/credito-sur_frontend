@@ -1597,7 +1597,7 @@ export default function NotificacionDetalleModal({
 
             {isNuevoCliente && (
               <div className="bg-slate-50 rounded-2xl border border-slate-100 p-5 space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
                   <ClientInfoField label="Nombre" value={clientRequestDetails.nombreCompleto} className="sm:col-span-2" />
                   <ClientInfoField label="CC" value={clientRequestDetails.dni} />
                   <ClientInfoField label="Teléfono" value={clientRequestDetails.telefono} />
@@ -1721,7 +1721,7 @@ export default function NotificacionDetalleModal({
                 </div>
                 <div className="space-y-3">
                   <div className="flex justify-between items-end">
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-[9px] text-slate-400 uppercase font-bold mb-0.5">Revisado por</p>
                       <p className="text-sm font-black text-slate-900">{safeMeta.revisadoPor || 'Administrador'}</p>
                     </div>

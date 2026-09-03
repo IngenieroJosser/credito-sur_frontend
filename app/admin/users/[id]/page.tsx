@@ -133,7 +133,7 @@ export default function DetalleUsuarioPage({ params }: { params: Promise<{ id: s
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
             {/* Tarjeta Principal */}
             <div className="lg:col-span-2 space-y-6">
                 <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">

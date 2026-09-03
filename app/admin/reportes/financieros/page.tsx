@@ -736,7 +736,7 @@ const ReportesFinancierosPage = () => {
         <div className="grid grid-cols-1 gap-8">
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 md:p-8">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6 md:mb-8">
-              <div>
+              <div className="min-w-0">
                 <h3 className="text-base md:text-lg font-bold text-slate-900">Tendencia de Cobros</h3>
                 <p className="text-xs md:text-sm text-slate-400 font-medium">Cobranza contable registrada en ledger como PAGO</p>
               </div>
@@ -758,7 +758,7 @@ const ReportesFinancierosPage = () => {
           {/* Main Chart: Monthly Trends */}
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 md:p-8">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6 md:mb-8">
-              <div>
+              <div className="min-w-0">
                 <h3 className="text-base md:text-lg font-bold text-slate-900">Evolución Financiera</h3>
                 <p className="text-xs md:text-sm text-slate-400 font-medium">Comportamiento por periodo seleccionado de ingresos de cartera y gastos operativos</p>
               </div>

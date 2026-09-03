@@ -320,7 +320,7 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
           <div className="md:col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
             <div className="flex justify-between items-start mb-6">
               <div className="flex items-center gap-3">
-                <div className="p-3 bg-blue-50 rounded-xl">
+                <div className="shrink-0 p-3 bg-blue-50 rounded-xl">
                   <Wallet className="h-6 w-6 text-blue-600" />
                 </div>
                 <div>
@@ -354,7 +354,7 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
             <div className="grid grid-cols-2 gap-4 pt-6 border-t border-slate-100">
               <div className="p-4 bg-green-50 rounded-xl border border-green-100">
                 <div className="flex items-center gap-2 mb-2">
-                  <div className="p-1.5 bg-green-100 rounded-lg">
+                  <div className="shrink-0 p-1.5 bg-green-100 rounded-lg">
                     <TrendingUp className="h-4 w-4 text-green-600" />
                   </div>
                   <span className="text-sm font-medium text-green-700">Ingresos Hoy</span>
@@ -363,7 +363,7 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
               </div>
               <div className="p-4 bg-red-50 rounded-xl border border-red-100">
                 <div className="flex items-center gap-2 mb-2">
-                  <div className="p-1.5 bg-red-100 rounded-lg">
+                  <div className="shrink-0 p-1.5 bg-red-100 rounded-lg">
                     <TrendingDown className="h-4 w-4 text-red-600" />
                   </div>
                   <span className="text-sm font-medium text-red-700">Egresos Hoy</span>
@@ -460,7 +460,7 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
           <div className="fixed inset-0 z-[2147483646] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
             <div className="w-full max-w-xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden">
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-                <div>
+                <div className="min-w-0">
                   <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Caja</p>
                   <h3 className="text-lg font-bold text-slate-900">Editar Configuración</h3>
                 </div>
@@ -542,7 +542,7 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
           <div className="fixed inset-0 z-[2147483646] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
             <div className="w-full max-w-2xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden">
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-                <div>
+                <div className="min-w-0">
                   <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Movimientos</p>
                   <h3 className="text-lg font-bold text-slate-900">Registrar Movimiento</h3>
                 </div>

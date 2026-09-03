@@ -19,7 +19,7 @@ export default function NuevoCreditoSupervisorUnificadoPage() {
     <div className="min-h-screen bg-slate-50">
       <div className="px-6 md:px-8 pt-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
+          <div className="min-w-0">
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
               <span className="text-blue-600">Nuevo</span> <span className="text-orange-500">Crédito</span>
             </h1>

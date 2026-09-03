@@ -111,7 +111,7 @@ export default function RutaProvisionalModal({
         <div className="bg-white rounded-[2rem] w-full max-w-lg shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh] overflow-hidden">
           {/* Header */}
           <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 shrink-0">
-            <div>
+            <div className="min-w-0">
               <h3 className="font-bold text-lg text-slate-900">Ruta Provisional</h3>
               <p className="text-xs text-slate-500 mt-1">
                 Ordena los clientes y exporta la ruta como archivo de texto.
@@ -119,7 +119,7 @@ export default function RutaProvisionalModal({
             </div>
             <button
               onClick={onClose}
-              className="p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors shrink-0"
+              className="shrink-0 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors shrink-0"
             >
               <X className="h-5 w-5" />
             </button>

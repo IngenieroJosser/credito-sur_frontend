@@ -188,7 +188,7 @@ export default function DetalleReporteFinancieroModal({ id, onClose }: DetalleRe
         
         {/* Header */}
         <div className="px-8 py-6 border-b border-slate-100 flex items-start justify-between bg-slate-50/50 sticky top-0 backdrop-blur-md z-10">
-          <div>
+          <div className="min-w-0">
             <div className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-600 border border-blue-100 mb-2">
               <LineChart className="h-3.5 w-3.5" />
               <span>Detalle de Transacción</span>

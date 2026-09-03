@@ -45,7 +45,7 @@ export const PlantillasCard = () => {
 
       <div className="space-y-4">
         <div className="flex items-center justify-between p-4 bg-slate-50/50 rounded-xl border border-slate-100">
-          <div>
+          <div className="min-w-0">
             <div className="text-sm font-bold text-slate-900">Clientes y Créditos</div>
             <div className="text-xs text-slate-500 mt-0.5 font-medium">Plantilla con reglas de negocio</div>
           </div>
@@ -64,7 +64,7 @@ export const PlantillasCard = () => {
         </div>
 
         <div className="flex items-center justify-between p-4 bg-slate-50/50 rounded-xl border border-slate-100">
-          <div>
+          <div className="min-w-0">
             <div className="text-sm font-bold text-slate-900">Inventario y Precios</div>
             <div className="text-xs text-slate-500 mt-0.5 font-medium">Plantilla de catálogo de productos</div>
           </div>

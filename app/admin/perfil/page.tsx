@@ -221,7 +221,7 @@ const PerfilUsuarioPage = () => {
         ) : backendUser && (
           <>
             <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between animate-in fade-in slide-in-from-bottom-4 duration-700">
-              <div>
+              <div className="min-w-0">
                 <button
                   type="button"
                   onClick={() => router.push(volverRuta)}
@@ -245,7 +245,7 @@ const PerfilUsuarioPage = () => {
               </div>
             </header>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
               {/* Columna Izquierda: Tarjeta Principal */}
               <div className="lg:col-span-1 space-y-6">
                 <div className="rounded-2xl border border-slate-200 bg-white/80 backdrop-blur-sm p-8 shadow-sm flex flex-col items-center text-center">

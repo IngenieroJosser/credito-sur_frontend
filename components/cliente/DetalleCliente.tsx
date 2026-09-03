@@ -314,7 +314,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
         {/* Header minimalista */}
         <div className="mb-8">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-4 mb-2">
                 <div
                   className={`w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-primary/20 ${cliente.avatarColor || "bg-primary"}`}
@@ -448,11 +448,11 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
 
         {/* Métricas principales */}
         <div className="mb-8">
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-4">
             {/* Tarjeta de crédito total */}
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
               <div className="flex items-center justify-between mb-4">
-                <div>
+                <div className="min-w-0">
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
                     Crédito Total
                   </p>
@@ -476,7 +476,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
             {/* Tarjeta de saldo pendiente */}
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
               <div className="flex items-center justify-between mb-4">
-                <div>
+                <div className="min-w-0">
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
                     Saldo Pendiente
                   </p>
@@ -514,7 +514,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
             {/* Tarjeta de préstamos activos */}
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
               <div className="flex items-center justify-between mb-4">
-                <div>
+                <div className="min-w-0">
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
                     Préstamos Activos
                   </p>
@@ -544,7 +544,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
             {/* Tarjeta de mora acumulada */}
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
               <div className="flex items-center justify-between mb-4">
-                <div>
+                <div className="min-w-0">
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
                     Mora Acumulada
                   </p>
@@ -619,7 +619,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
           {activeTab === "prestamos" && (
             <div className="p-8">
               <div className="flex items-center justify-between mb-8">
-                <div>
+                <div className="min-w-0">
                   <h2 className="text-xl font-bold text-slate-900 mb-2">
                     Préstamos Activos
                   </h2>
@@ -751,7 +751,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
           {activeTab === "pagos" && (
             <div className="p-8">
               <div className="flex items-center justify-between mb-8">
-                <div>
+                <div className="min-w-0">
                   <h2 className="text-xl font-bold text-slate-900 mb-2">
                     Historial de Pagos
                   </h2>
@@ -831,7 +831,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
           {activeTab === "comentarios" && (
             <div className="p-8">
               <div className="flex items-center justify-between mb-8">
-                <div>
+                <div className="min-w-0">
                   <h2 className="text-xl font-bold text-slate-900 mb-2">
                     Seguimiento y Comentarios
                   </h2>
@@ -904,7 +904,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
           {activeTab === "fotos" && (
             <div className="p-8">
               <div className="flex items-center justify-between mb-8">
-                <div>
+                <div className="min-w-0">
                   <h2 className="text-xl font-bold text-slate-900 mb-2">
                     Galería del Cliente
                   </h2>
@@ -913,7 +913,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
                   </p>
                 </div>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
                 {cliente.fotos && cliente.fotos.length > 0 ? (
                   cliente.fotos.map((foto, idx) => {
                     const isVideo = foto.match(/\.(mp4|webm|ogg|mov)$/i);

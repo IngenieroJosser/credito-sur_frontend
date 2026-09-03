@@ -263,7 +263,7 @@ export const RevisarLoteModal: React.FC<Props> = ({
         <div className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
           {/* Encabezado */}
           <div className="flex items-start justify-between border-b border-slate-100 px-6 py-4">
-            <div>
+            <div className="min-w-0">
               <h2 className="text-lg font-black text-slate-900">
                 Revisar antes de deshacer
               </h2>

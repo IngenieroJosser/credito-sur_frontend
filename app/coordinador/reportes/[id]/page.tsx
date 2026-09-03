@@ -146,7 +146,7 @@ export default function DetalleReporteOperativoPage({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-4">
             <section className="bg-white rounded-xl border border-slate-100 overflow-hidden shadow-sm">
               <div className="px-5 py-3 border-b border-slate-50 flex justify-between items-center bg-slate-50/30">

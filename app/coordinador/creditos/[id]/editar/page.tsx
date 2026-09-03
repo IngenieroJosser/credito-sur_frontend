@@ -57,7 +57,7 @@ export default function EditarPrestamoPage() {
         </div>
 
         <div className="w-full bg-white/80 backdrop-blur-sm border border-slate-200 rounded-2xl p-6 shadow-sm">
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
             <div>
               <label className="block text-sm font-bold text-slate-700 mb-1">Monto Original</label>
               <div className="relative">

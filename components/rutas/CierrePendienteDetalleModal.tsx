@@ -380,7 +380,7 @@ export function CierrePendienteDetalleModal({
                 {/* Grupo A - Header de jornada */}
                 <div className="rounded-2xl border border-slate-200 bg-white p-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-xs font-bold uppercase text-slate-400">
                         Jornada seleccionada
                       </p>
@@ -514,7 +514,7 @@ export function CierrePendienteDetalleModal({
                 {/* Grupo D - Caja y conciliación */}
                 <div className="space-y-3">
                   <p className="text-xs font-bold uppercase text-slate-400">Caja y conciliación</p>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
                     <div className="rounded-xl bg-emerald-50 p-3 border border-emerald-100">
                       <p className="text-[10px] font-bold uppercase text-emerald-600">
                         Efectivo ruta

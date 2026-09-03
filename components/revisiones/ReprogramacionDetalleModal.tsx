@@ -351,7 +351,7 @@ export default function ReprogramacionDetalleModal({
           return (
             <div key={credito.id} className={`rounded-2xl border p-4 ${isTarget ? 'border-orange-300 bg-orange-50' : 'border-slate-200 bg-white'}`}>
               <div className="flex items-start justify-between gap-3">
-                <div>
+                <div className="min-w-0">
                   <p className="text-sm font-black text-slate-900">{credito.numeroPrestamo}</p>
                   <div className="flex flex-wrap items-center gap-2 mt-2">
                     <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-black text-slate-600">
