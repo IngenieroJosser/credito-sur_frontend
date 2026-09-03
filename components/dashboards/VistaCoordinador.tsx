@@ -28,7 +28,6 @@ import {
 } from 'lucide-react';
 import { Rol } from '@/lib/permissions';
 import { formatCurrency } from '@/lib/utils';
-import { Sparkline } from '@/components/ui/PremiumCharts';
 import { TransactionalHighDetailChart } from '@/components/ui/TransactionalHighDetailChart'
 import { dashboardService, type DashboardData } from '@/services/dashboard-coordinador-service'
 import { formatErrorForComponent } from '@/lib/api/api'
@@ -59,7 +58,7 @@ interface MetricCard {
   change: number | null;
   icon: React.ReactNode;
   color: string;
-  trendData: number[];
+  trendData?: number[];
 }
 
 interface QuickAccessItem {
@@ -224,32 +223,28 @@ const VistaCoordinador = () => {
       value: dashboardData.metrics.pendingApprovals.toString(),
       change: null, // El backend no provee variación vs período anterior
       icon: <Bell className="h-4 w-4" />,
-      color: '#08557f',
-      trendData: [65, 70, 75, 78, 82, 85, 88, 90, 92, 95, 96, 98]
+      color: '#08557f'
     },
     {
       title: 'Cuentas en Mora',
       value: dashboardData.metrics.delinquentAccounts.toString(),
       change: null,
       icon: <AlertCircle className="h-4 w-4" />,
-      color: '#ef4444',
-      trendData: [12, 11, 10, 9, 8, 7, 6, 5.5, 5, 4.8, 4.5, 4.5]
+      color: '#ef4444'
     },
     {
       title: 'Base Solicitada',
       value: formatCurrency(dashboardData.metrics.requestedBase),
       change: null,
       icon: <Wallet className="h-4 w-4" />,
-      color: '#fb851b',
-      trendData: [85, 87, 88, 89, 90, 91, 92, 93, 93.5, 94, 94.2, 94.2]
+      color: '#fb851b'
     },
     {
       title: 'Eficiencia',
       value: `${(dashboardData.metrics?.efficiency ?? 0).toFixed(1)}%`,
       change: null,
       icon: <Target className="h-4 w-4" />,
-      color: '#10b981',
-      trendData: [80, 81, 82, 83, 84, 85, 86, 86.5, 87, 87.2, 87.3, 87.3]
+      color: '#10b981'
     }
   ] : [];
 
@@ -440,7 +435,6 @@ const VistaCoordinador = () => {
                          {metric.change >= 0 ? '+' : ''}{metric.change}%
                        </div>
                      )}
-                     <Sparkline data={metric.trendData} color={metric.color} height={30} />
                   </div>
                 </div>
                 <div className="space-y-1">
