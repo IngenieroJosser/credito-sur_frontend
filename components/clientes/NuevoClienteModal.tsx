@@ -295,22 +295,22 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
         }}
       >
         <div
-          className="flex w-full max-w-2xl max-h-[90vh] flex-col overflow-hidden rounded-3xl bg-white shadow-2xl animate-in zoom-in-95 duration-200"
+          className="flex w-full max-w-4xl max-h-[90vh] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl animate-in zoom-in-95 duration-200"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Cabecera con el azul de la marca. Va fuera del area que se
-              desplaza para que el titulo siga a la vista al bajar por el
-              formulario, que es largo. */}
-          <div className="flex shrink-0 items-start justify-between gap-4 bg-gradient-to-r from-primary to-primary-dark px-6 py-5 md:px-8">
+          {/* Cabecera sobria: un rótulo gris sobre el título, como en el resto
+              de modales de gestión. Va fuera del área que se desplaza para que
+              el título siga a la vista al bajar por el formulario, que es largo. */}
+          <div className="flex shrink-0 items-center justify-between gap-4 border-b border-slate-100 px-6 py-4 md:px-8">
             <div className="min-w-0">
-              <h3 className="text-xl font-bold text-white md:text-2xl">{esEdicion ? 'Editar cliente' : 'Nuevo cliente'}</h3>
-              <p className="mt-0.5 text-sm text-white/75">{esEdicion ? 'Modifique la información necesaria del cliente' : 'Complete la información para registrar un cliente'}</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Gestión de clientes</p>
+              <h3 className="text-lg font-bold text-slate-900">{esEdicion ? 'Editar cliente' : 'Nuevo cliente'}</h3>
             </div>
             <button
               type="button"
               onClick={onClose}
               aria-label="Cerrar"
-              className="shrink-0 rounded-full bg-white/10 p-2 text-white/80 transition-colors hover:bg-white/20 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+              className="shrink-0 rounded-xl p-2 text-slate-500 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
             >
               <X className="h-5 w-5" />
             </button>
@@ -318,83 +318,82 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
 
           <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
             <div className="min-h-0 flex-1 space-y-6 overflow-y-auto p-6 md:p-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <FieldLabel required>CC o Documento</FieldLabel>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={formulario.dni}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/\D/g, '');
-                      setFormulario(prev => ({ ...prev, dni: val }));
-                    }}
-                    className={CLASE_CAMPO}
-                    placeholder="Solo números"
-                    required
-                  />
-                </div>
-                <div>
-                  <FieldLabel required>Teléfono</FieldLabel>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={formulario.telefono}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/\D/g, '');
-                      setFormulario(prev => ({ ...prev, telefono: val }));
-                    }}
-                    className={CLASE_CAMPO}
-                    placeholder="Solo números"
-                    required
-                  />
+              {/* Datos personales */}
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                <p className="mb-4 text-xs font-bold uppercase tracking-wider text-slate-500">Datos personales</p>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div>
+                    <FieldLabel required>CC o Documento</FieldLabel>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={formulario.dni}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, '');
+                        setFormulario(prev => ({ ...prev, dni: val }));
+                      }}
+                      className={CLASE_CAMPO}
+                      placeholder="Solo números"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <FieldLabel required>Teléfono</FieldLabel>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={formulario.telefono}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, '');
+                        setFormulario(prev => ({ ...prev, telefono: val }));
+                      }}
+                      className={CLASE_CAMPO}
+                      placeholder="Solo números"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <FieldLabel required>Nombres</FieldLabel>
+                    <input
+                      value={formulario.nombres}
+                      onChange={(e) => setFormulario(prev => ({ ...prev, nombres: e.target.value }))}
+                      className={CLASE_CAMPO}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <FieldLabel required>Apellidos</FieldLabel>
+                    <input
+                      value={formulario.apellidos}
+                      onChange={(e) => setFormulario(prev => ({ ...prev, apellidos: e.target.value }))}
+                      className={CLASE_CAMPO}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <FieldLabel>Correo (Opcional)</FieldLabel>
+                    <input
+                      type="email"
+                      value={formulario.correo}
+                      onChange={(e) => setFormulario(prev => ({ ...prev, correo: e.target.value }))}
+                      className={CLASE_CAMPO}
+                      placeholder="correo@dominio.com"
+                    />
+                  </div>
+                  <div>
+                    <FieldLabel required>Dirección</FieldLabel>
+                    <input
+                      value={formulario.direccion}
+                      onChange={(e) => setFormulario(prev => ({ ...prev, direccion: e.target.value }))}
+                      className={CLASE_CAMPO}
+                      placeholder="Dirección del cliente"
+                      required
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <FieldLabel required>Nombres</FieldLabel>
-                  <input
-                    value={formulario.nombres}
-                    onChange={(e) => setFormulario(prev => ({ ...prev, nombres: e.target.value }))}
-                    className={CLASE_CAMPO}
-                    required
-                  />
-                </div>
-                <div>
-                  <FieldLabel required>Apellidos</FieldLabel>
-                  <input
-                    value={formulario.apellidos}
-                    onChange={(e) => setFormulario(prev => ({ ...prev, apellidos: e.target.value }))}
-                    className={CLASE_CAMPO}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <FieldLabel>Correo (Opcional)</FieldLabel>
-                <input
-                  type="email"
-                  value={formulario.correo}
-                  onChange={(e) => setFormulario(prev => ({ ...prev, correo: e.target.value }))}
-                  className={CLASE_CAMPO}
-                  placeholder="correo@dominio.com"
-                />
-              </div>
-
-              <div>
-                <FieldLabel required>Dirección</FieldLabel>
-                <input
-                  value={formulario.direccion}
-                  onChange={(e) => setFormulario(prev => ({ ...prev, direccion: e.target.value }))}
-                  className={CLASE_CAMPO}
-                  placeholder="Dirección del cliente"
-                  required
-                />
-              </div>
-
-              <div className="border-t border-slate-100 pt-4">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
                 <FieldLabel className="mb-1">Referencias Personales</FieldLabel>
                 <p className="text-xs text-slate-400 mb-4">Complete el nombre completo y teléfono de cada referencia</p>
 
@@ -486,11 +485,13 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
               )}
 
               {/* Sección de Fotos */}
-              <div className="space-y-4 border-t border-slate-200 pt-6">
-                <h4 className="text-sm font-bold text-slate-700 uppercase tracking-wide">Documentos y Fotos (Opcionales)</h4>
-                <p className="text-xs text-slate-500 font-medium">
-                  Formatos soportados: JPG, JPEG, PNG, WEBP. (Comprobante: también MP4, WEBM)
-                </p>
+              <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">Documentos y fotos (opcionales)</h4>
+                  <p className="mt-1 text-xs font-medium text-slate-400">
+                    Formatos soportados: JPG, JPEG, PNG, WEBP. (Comprobante: también MP4, WEBM)
+                  </p>
+                </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <MediaUpload

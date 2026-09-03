@@ -185,6 +185,27 @@ export default function ClientesFeature({
   const getDiasMoraCliente = (cliente: ClienteAdmin) =>
     Number(diasMoraByClientId[String((cliente as any)?.id || '')] ?? (cliente as any)?.diasMora ?? 0)
 
+  /**
+   * Días de mora, o null si TODAVÍA no se conocen.
+   *
+   * La lista se pinta antes de saber la mora real: el backend no siempre la
+   * manda y el frontend la calcula después, cliente por cliente. Mientras tanto
+   * no se puede afirmar "Al día", porque un cliente crítico se mostraría en
+   * verde hasta que llega el cálculo. Devolver null permite pintar un estado
+   * neutro de "calculando" en vez de una afirmación que puede ser falsa.
+   *
+   * Se distingue "sin dato" de "cero": un 0 que viene del backend o del cálculo
+   * es un "Al día" real y sí se muestra; solo el hueco previo queda neutro.
+   */
+  const getDiasMoraOrNull = (cliente: ClienteAdmin): number | null => {
+    const id = String((cliente as any)?.id || '')
+    const calculado = diasMoraByClientId[id]
+    if (calculado !== undefined) return Number(calculado)
+    const delBackend = (cliente as any)?.diasMora
+    if (delBackend !== undefined && delBackend !== null) return Number(delBackend)
+    return null
+  }
+
   const getEstadoCuentaFiltro = (cliente: ClienteAdmin) => {
     if (cliente.nivelRiesgo === 'LISTA_NEGRA') return 'LISTA_NEGRA'
 
@@ -506,6 +527,7 @@ export default function ClientesFeature({
                   currentItems.map((cliente, index) => {
                     const isPending = cliente.estadoAprobacion === 'PENDIENTE' || cliente.id?.includes('offline') || cliente.id?.includes('temp');
                     const diasMoraUI = getDiasMoraCliente(cliente)
+                    const diasMoraConocidos = getDiasMoraOrNull(cliente)
                     const estadoCuenta = getEstadoCuentaFiltro(cliente)
                     return (
                     <tr
@@ -558,13 +580,21 @@ export default function ClientesFeature({
 
                       <td className="px-6 py-4">
                         <div className="space-y-1">
-                          <div
-                            className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset ${getEstadoMoraColor(
-                              estadoCuenta === 'LISTA_NEGRA' ? 'lista_negra' : calcularNivelMora(diasMoraUI)
-                            )}`}
-                          >
-                            {estadoCuenta === 'LISTA_NEGRA' ? 'Lista Negra' : getEstadoMoraLabel(calcularNivelMora(diasMoraUI))}
-                          </div>
+                          {estadoCuenta === 'LISTA_NEGRA' ? (
+                            <div className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset ${getEstadoMoraColor('lista_negra')}`}>
+                              Lista Negra
+                            </div>
+                          ) : diasMoraConocidos === null ? (
+                            // Aún no se sabe la mora: estado neutro, no "Al día".
+                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset text-slate-500 bg-slate-50 ring-slate-600/20">
+                              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-slate-400" />
+                              Calculando…
+                            </div>
+                          ) : (
+                            <div className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset ${getEstadoMoraColor(calcularNivelMora(diasMoraUI))}`}>
+                              {getEstadoMoraLabel(calcularNivelMora(diasMoraUI))}
+                            </div>
+                          )}
                         </div>
                       </td>
 
@@ -672,6 +702,7 @@ export default function ClientesFeature({
           {currentItems.map((cliente, index) => {
             const isPending = cliente.estadoAprobacion === 'PENDIENTE' || cliente.id?.includes('offline') || cliente.id?.includes('temp');
             const diasMoraUI = Number(diasMoraByClientId[String((cliente as any)?.id || '')] ?? (cliente as any)?.diasMora ?? 0)
+            const diasMoraConocidos = getDiasMoraOrNull(cliente)
             return (
             <div 
               key={cliente.id || `client-${index}`} 
@@ -700,12 +731,17 @@ export default function ClientesFeature({
                    </div>
                 </div>
                 <div className={cn(
-                  "px-2 py-1 rounded-lg text-[10px] font-bold",
+                  "px-2 py-1 rounded-lg text-[10px] font-bold inline-flex items-center gap-1",
                   isPending
                     ? "bg-amber-200/50 text-amber-700"
-                    : getEstadoMoraColor(calcularNivelMora(diasMoraUI))
+                    : diasMoraConocidos === null
+                      ? "bg-slate-50 text-slate-500"
+                      : getEstadoMoraColor(calcularNivelMora(diasMoraUI))
                 )}>
-                  {isPending ? 'PENDIENTE' : getEstadoMoraLabel(calcularNivelMora(diasMoraUI))}
+                  {isPending ? 'PENDIENTE' : diasMoraConocidos === null ? (
+                    // Aún no se conoce la mora: neutro, no "Al día".
+                    <><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-slate-400" />Calculando…</>
+                  ) : getEstadoMoraLabel(calcularNivelMora(diasMoraUI))}
                 </div>
               </div>
               <div className="flex justify-between items-center pt-3 border-t border-slate-100">
