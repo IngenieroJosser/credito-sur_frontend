@@ -245,7 +245,7 @@ const VistaCoordinador = () => {
     },
     {
       title: 'Eficiencia',
-      value: `${dashboardData.metrics.efficiency.toFixed(1)}%`,
+      value: `${(dashboardData.metrics?.efficiency ?? 0).toFixed(1)}%`,
       change: null,
       icon: <Target className="h-4 w-4" />,
       color: '#10b981',

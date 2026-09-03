@@ -39,27 +39,17 @@ export default function ModificarInteresModal({
       return;
     }
 
-    setLoading(true);
-
-    try {
-      // TODO: Implement API call
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulación
-      
-      logger.log('Modificando interés del préstamo:', {
-        prestamoId,
-        tasaAnterior: tasaActual,
-        tasaNueva: tasaNumero,
-        motivo
-      });
-
-      alert(`Interés modificado exitosamente de ${tasaActual}% a ${tasaNumero}%`);
-      onSuccess();
-    } catch (err) {
-      setError('Error al modificar el interés. Intente nuevamente.');
-      console.error('Error:', err);
-    } finally {
-      setLoading(false);
-    }
+    // Esta operación todavía no tiene endpoint en el backend: modificar la tasa
+    // de un préstamo activo exige recalcular cuotas, saldo y asientos, y aún no
+    // está implementado. Antes el modal SIMULABA el guardado (setTimeout) y
+    // avisaba "Interés modificado exitosamente" sin cambiar nada: un falso éxito
+    // sobre una cifra de dinero. Mientras no exista el endpoint, se informa con
+    // honestidad y NO se llama onSuccess (que refrescaría como si hubiera
+    // cambiado algo).
+    setError(
+      'La modificación de la tasa de interés aún no está disponible. ' +
+        'Esta operación requiere recalcular las cuotas y está pendiente de habilitar.',
+    );
   };
 
   return (
