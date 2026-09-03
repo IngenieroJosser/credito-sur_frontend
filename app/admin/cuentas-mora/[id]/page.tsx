@@ -451,7 +451,15 @@ export default function DetalleCuentaMoraPage({ params }: { params: Promise<{ id
                             </div>
 
                              <div className="flex justify-end pt-2">
-                                <button className="px-6 py-2.5 bg-rose-600 text-white font-bold rounded-xl hover:bg-rose-700 shadow-lg shadow-rose-600/20 transition-all flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                      // El botón no tenía acción: escalar a
+                                      // supervisión aún no tiene endpoint. Se
+                                      // avisa en vez de aparentar que funciona.
+                                      alert('Escalar el caso a supervisión aún no está disponible. Esta función está pendiente de habilitar.')
+                                    }
+                                    className="px-6 py-2.5 bg-rose-600 text-white font-bold rounded-xl hover:bg-rose-700 shadow-lg shadow-rose-600/20 transition-all flex items-center gap-2">
                                     <Send className="w-4 h-4" />
                                     Escalar Caso
                                 </button>
