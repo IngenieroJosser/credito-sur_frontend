@@ -285,7 +285,7 @@ export function CierrePendienteDetalleModal({
 
   return (
     <div
-      className="fixed inset-0 z-[90] flex items-end justify-center bg-slate-950/60 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+      className="fixed inset-0 z-[90] flex items-end justify-center bg-slate-950/60 p-0 backdrop-blur-sm sm:items-center sm:p-4 animate-in fade-in duration-200 motion-reduce:animate-none"
       onClick={() => {
         if (!processingCierre) onClose()
       }}
@@ -1106,7 +1106,7 @@ export function CierrePendienteDetalleModal({
               {/* Modal de observación obligatoria */}
               {showObservacionCierre && (
                 <div
-                  className="fixed inset-0 z-[70] flex items-end bg-black/40 p-0 sm:items-center sm:p-4"
+                  className="fixed inset-0 z-[70] flex items-end bg-black/40 p-0 sm:items-center sm:p-4 animate-in fade-in duration-200 motion-reduce:animate-none"
                   onClick={() => setShowObservacionCierre(false)}
                 >
                   <div

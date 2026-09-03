@@ -68,11 +68,11 @@ function AbonoModal({ cobrador, onClose, onConfirm, cajas }: AbonoModalProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200 motion-reduce:animate-none"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-3xl shadow-2xl w-full max-w-sm border border-slate-100 overflow-hidden"
+        className="bg-white rounded-3xl shadow-2xl w-full max-w-sm border border-slate-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200 ease-out motion-reduce:animate-none"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="px-6 pt-6 pb-4 flex items-center justify-between border-b border-slate-100">
@@ -197,11 +197,11 @@ function DetalleDeudaModal({ cobrador, onClose }: DetalleDeudaModalProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/50 backdrop-blur-sm p-0 sm:p-4"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/50 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200 motion-reduce:animate-none"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-2xl border border-slate-100 overflow-hidden max-h-[92vh] flex flex-col"
+        className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-2xl border border-slate-100 overflow-hidden max-h-[92vh] flex flex-col animate-in fade-in zoom-in-95 duration-200 ease-out motion-reduce:animate-none"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="px-5 sm:px-6 pt-5 pb-4 flex items-start justify-between border-b border-slate-100 shrink-0">

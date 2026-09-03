@@ -259,7 +259,7 @@ export const RevisarLoteModal: React.FC<Props> = ({
 
   return (
     <Portal>
-      <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
+      <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none">
         <div className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
           {/* Encabezado */}
           <div className="flex items-start justify-between border-b border-slate-100 px-6 py-4">
@@ -470,7 +470,7 @@ export const RevisarLoteModal: React.FC<Props> = ({
 
       {/* Segunda confirmación: se está devolviendo dinero. */}
       {confirmando && detalle && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none">
           <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
             <div className="mb-3 flex items-center gap-3">
               <div className="rounded-2xl bg-rose-50 p-2.5 text-rose-600">

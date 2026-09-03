@@ -61,15 +61,16 @@ export const Modal: React.FC<ModalProps> = ({
         mouseDownTargetRef.current = null
       } : undefined}
     >
-      {/* Backdrop */}
-      <div 
-        className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" 
+      {/* Backdrop: entra con un desvanecido suave */}
+      <div
+        className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none"
         aria-hidden="true"
       />
 
-      {/* Modal Content */}
-      <div 
-        className={`relative w-full ${sizeClasses[size]} bg-white rounded-2xl shadow-2xl transform transition-all flex flex-col max-h-[90vh]`}
+      {/* Modal Content: aparece con escala y un leve ascenso, en vez de surgir
+          de golpe. Respeta prefers-reduced-motion. */}
+      <div
+        className={`relative w-full ${sizeClasses[size]} bg-white rounded-2xl shadow-2xl flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-200 ease-out motion-reduce:animate-none`}
         role="dialog"
         aria-modal="true"
         onClick={(e) => e.stopPropagation()}

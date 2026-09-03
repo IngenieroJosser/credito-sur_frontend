@@ -63,8 +63,8 @@ export default function ModificarInteresModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-      <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none">
+      <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl animate-in fade-in zoom-in-95 duration-200 ease-out motion-reduce:animate-none">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <div className="shrink-0 p-2 rounded-xl bg-blue-100 text-blue-600">

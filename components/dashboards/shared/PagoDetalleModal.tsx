@@ -662,7 +662,7 @@ export default function PagoDetalleModal({
       {/* ── Lightbox de imagen expandida ──────────────────────────────────────── */}
       {imgExpanded && (
         <div
-          className="fixed inset-0 z-[2147483630] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm"
+          className="fixed inset-0 z-[2147483630] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none"
           onClick={() => setImgExpanded(false)}
         >
           <img

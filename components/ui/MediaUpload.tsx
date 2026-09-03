@@ -386,13 +386,13 @@ export default function MediaUpload({
         >
           {/* Backdrop */}
           <div 
-            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" 
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity animate-in fade-in duration-200 motion-reduce:animate-none" 
             aria-hidden="true"
           />
           
           {/* Modal Content */}
           <div 
-            className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl transform transition-all"
+            className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl transform transition-all animate-in fade-in zoom-in-95 duration-200 ease-out motion-reduce:animate-none"
             role="dialog"
             aria-modal="true"
             onClick={(e) => e.stopPropagation()}

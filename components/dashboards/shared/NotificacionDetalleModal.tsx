@@ -656,7 +656,7 @@ export default function NotificacionDetalleModal({
     return (
       <Portal>
         <div
-          className="fixed inset-0 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm"
+          className="fixed inset-0 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none"
           style={{ zIndex: 9999 }}
           onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
         >

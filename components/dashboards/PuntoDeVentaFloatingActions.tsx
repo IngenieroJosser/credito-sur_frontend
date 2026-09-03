@@ -436,7 +436,7 @@ export default function PuntoDeVentaFloatingActions() {
       )}
 
       {showVentaDetalle && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm" onClick={() => setShowVentaDetalle(null)}>
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none" onClick={() => setShowVentaDetalle(null)}>
           <div className="w-full max-w-md rounded-2xl bg-white border border-slate-200 shadow-2xl p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between mb-5">
               <div className="min-w-0"><h3 className="font-black text-slate-900">Detalle de venta</h3><p className="text-xs text-slate-500 font-mono">{showVentaDetalle.id}</p></div>

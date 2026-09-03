@@ -43,7 +43,7 @@ export default function ConfirmApproveModal({
   return (
     <Portal>
       <div
-        className="fixed inset-0 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+        className="fixed inset-0 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none"
         style={{ zIndex: MODAL_Z_INDEX }}
         onMouseDown={(e) => { mouseDownTargetRef.current = e.target }}
         onMouseUp={(e) => {

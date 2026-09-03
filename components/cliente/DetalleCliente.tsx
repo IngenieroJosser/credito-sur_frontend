@@ -996,7 +996,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
                 typeof document !== "undefined" &&
                 createPortal(
                   <div
-                    className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+                    className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200 motion-reduce:animate-none"
                     style={{ zIndex: 2147483647 }}
                     onClick={() => {
                       setLightboxIndex(null);
@@ -1004,7 +1004,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
                     }}
                   >
                     <div
-                      className="relative w-full max-w-4xl bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden"
+                      className="relative w-full max-w-4xl bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200 ease-out motion-reduce:animate-none"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50/50">
@@ -1110,7 +1110,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
 
       {/* Modal de Nuevo Comentario */}
       {isNoteModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 scrollbar-hide">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 scrollbar-hide animate-in fade-in duration-200 motion-reduce:animate-none">
           <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="p-6 border-b border-slate-100">
               <h3 className="text-xl font-bold text-slate-900">

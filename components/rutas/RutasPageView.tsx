@@ -2053,8 +2053,8 @@ export const RutasPageView = ({
       
       {/* Modal de Recolectar Dinero con monto personalizable */}
       {showRecolectarModal && routeForTransfer && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={() => setShowRecolectarModal(false)}>
-          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200 motion-reduce:animate-none" onClick={() => setShowRecolectarModal(false)}>
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 ease-out motion-reduce:animate-none" onClick={e => e.stopPropagation()}>
             <div className="bg-emerald-600 px-6 py-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Wallet className="h-5 w-5 text-white" />

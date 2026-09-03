@@ -917,7 +917,7 @@ export default function ArticulosContent() {
       {/* Modal Crear/Editar - Solo roles con permisos */}
       {(puedeCrear || puedeEditar) && (showNuevoModal || showEditarModal) && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm"
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none"
           onClick={() => {
             setShowNuevoModal(false)
             setShowEditarModal(false)
@@ -1159,7 +1159,7 @@ export default function ArticulosContent() {
       {/* Modal Eliminar - Solo roles con permiso */}
       {puedeEliminar && showEliminarModal && articuloSeleccionado && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm"
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none"
           onClick={() => {
             setShowEliminarModal(false)
             setArticuloSeleccionado(null)
@@ -1203,7 +1203,7 @@ export default function ArticulosContent() {
       {/* Modal Detalle - Todos los roles */}
       {showDetalleModal && articuloSeleccionado && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm"
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none"
           onClick={() => {
             setShowDetalleModal(false)
             setArticuloSeleccionado(null)

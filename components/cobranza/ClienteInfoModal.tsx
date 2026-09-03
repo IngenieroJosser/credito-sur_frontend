@@ -521,7 +521,7 @@ export default function ClienteInfoModal({
       {/* Visor de foto expandida */}
       {fotoExpandida && (
         <div
-          className="fixed inset-0 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4"
+          className="fixed inset-0 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-in fade-in duration-200 motion-reduce:animate-none"
           style={{ zIndex: MODAL_Z_INDEX + 10 }}
           onClick={() => setFotoExpandida(null)}
         >
@@ -542,7 +542,7 @@ export default function ClienteInfoModal({
 
       {alertaOpen && (
         <div
-          className="fixed inset-0 flex items-end justify-center bg-slate-900/70 p-4 sm:items-center"
+          className="fixed inset-0 flex items-end justify-center bg-slate-900/70 p-4 sm:items-center animate-in fade-in duration-200 motion-reduce:animate-none"
           style={{ zIndex: MODAL_Z_INDEX + 20 }}
           onClick={() => !alertaSubmitting && setAlertaOpen(false)}
         >
