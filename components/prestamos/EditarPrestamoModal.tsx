@@ -126,6 +126,18 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
   const [planIndex, setPlanIndex] = useState<number | null>(null);
   const [autoCuotas, setAutoCuotas] = useState(true);
 
+  // Vista previa del plan de cuotas (proyección del backend con la MISMA fórmula
+  // que la creación real: coincide al peso con lo que se guardaría).
+  const [planPreview, setPlanPreview] = useState<Array<{
+    numeroCuota: number;
+    fechaVencimiento: string;
+    monto: number;
+    montoCapital: number;
+    montoInteres: number;
+  }>>([]);
+  const [planLoading, setPlanLoading] = useState(false);
+  const [verPlanCompleto, setVerPlanCompleto] = useState(false);
+
   const hasChanges = monto !== originalRef.current.monto 
     || tasa !== originalRef.current.tasa 
     || cuotas !== originalRef.current.cuotas 
@@ -262,6 +274,69 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
     if (c > 0 && autoCuotas && c !== cuotas) setCuotasStr(String(c));
   }, [plazoMeses, frecuencia, isArticle, autoCuotas, cuotas]);
 
+  // Proyección del plan de cuotas: se pide al backend con debounce cada vez que
+  // cambia un parámetro que afecta las cuotas. Así la tabla muestra exactamente
+  // lo que se guardaría, sin reimplementar la fórmula en el front (que fue justo
+  // la fuente de divergencias en pesos que ya se corrigió).
+  useEffect(() => {
+    if (fetching) return;
+    if (!(monto > 0) || !(cuotas > 0)) {
+      setPlanPreview([]);
+      return;
+    }
+    let cancelado = false;
+    setPlanLoading(true);
+    const t = setTimeout(async () => {
+      try {
+        const sim = await prestamosService.simularPlan({
+          tipoAmortizacion,
+          monto,
+          tasaInteres: tasa,
+          cantidadCuotas: cuotas,
+          plazoMeses,
+          frecuenciaPago: frecuencia,
+          fechaInicio: fechaInicio || undefined,
+          tipoPrestamo,
+          cuotaInicial,
+        });
+        if (!cancelado) setPlanPreview(sim.cuotas || []);
+      } catch {
+        if (!cancelado) setPlanPreview([]);
+      } finally {
+        if (!cancelado) setPlanLoading(false);
+      }
+    }, 400);
+    return () => { cancelado = true; clearTimeout(t); };
+  }, [fetching, monto, tasa, cuotas, plazoMeses, frecuencia, tipoAmortizacion, tipoPrestamo, cuotaInicial, fechaInicio]);
+
+  // Cambios pendientes campo por campo (antes → después), para ver el impacto
+  // real antes de guardar. Solo aparecen los que de verdad cambiaron.
+  const cambios: Array<{ label: string; antes: string; despues: string }> = [];
+  {
+    const o = originalRef.current;
+    const money = (v: number) => formatCurrency(v);
+    if (monto !== o.monto) cambios.push({ label: 'Capital', antes: money(o.monto), despues: money(monto) });
+    if (!isArticle && tasa !== o.tasa) cambios.push({ label: 'Tasa de interés', antes: `${o.tasa}%`, despues: `${tasa}%` });
+    if (cuotas !== o.cuotas) cambios.push({ label: 'N° de cuotas', antes: String(o.cuotas), despues: String(cuotas) });
+    if (plazoMeses !== o.plazoMeses) cambios.push({ label: 'Plazo (meses)', antes: String(o.plazoMeses), despues: String(plazoMeses) });
+    if (frecuencia !== o.frecuencia) cambios.push({ label: 'Frecuencia', antes: o.frecuencia, despues: frecuencia });
+    if (!isArticle && tipoAmortizacion !== o.tipoAmortizacion) {
+      const nombreTipo = (t: TipoAmortizacion) => t === TipoAmortizacion.FRANCESA ? 'Francesa (histórico)' : t === TipoAmortizacion.INTERES_PLANO ? 'Amortización' : 'Interés simple';
+      cambios.push({ label: 'Tipo de interés', antes: nombreTipo(o.tipoAmortizacion), despues: nombreTipo(tipoAmortizacion) });
+    }
+    if (isArticle && cuotaInicial !== o.cuotaInicial) cambios.push({ label: 'Cuota inicial', antes: money(o.cuotaInicial), despues: money(cuotaInicial) });
+    if (estado !== o.estado) cambios.push({ label: 'Estado', antes: o.estado.replace(/_/g, ' '), despues: estado.replace(/_/g, ' ') });
+    if (garantia !== o.garantia) cambios.push({ label: 'Garantía', antes: o.garantia || '—', despues: garantia || '—' });
+  }
+
+  const fmtFechaCorta = (iso: string) => {
+    if (!iso) return '—';
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+    if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+    const d = new Date(iso);
+    return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('es-CO');
+  };
+
   const handleClose = () => {
     setVisible(false);
     setTimeout(onClose, 200);
@@ -333,7 +408,7 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
   return createPortal(
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none" onClick={handleClose}>
       <div
-        className={`flex flex-col bg-white shadow-2xl w-full overflow-hidden border border-slate-200 transition-all duration-300 h-[100dvh] sm:h-auto sm:max-h-[92vh] rounded-none sm:rounded-2xl sm:max-w-3xl ${visible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
+        className={`flex flex-col bg-white shadow-2xl w-full overflow-hidden border border-slate-200 transition-all duration-300 h-[100dvh] sm:h-auto sm:max-h-[92vh] rounded-none sm:rounded-2xl sm:max-w-5xl ${visible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header: mismo estilo claro que el modal de usuario — icono en
@@ -381,6 +456,7 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
               <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Sincronizando datos...</p>
             </div>
           ) : (
+          <>
           <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* LEFT COLUMN: Cliente + Estado + Resumen */}
             <div className="space-y-6">
@@ -463,13 +539,25 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
                 </div>
               </div>
 
-              {/* Changes indicator */}
-              {hasChanges && (
-                <div className={`p-4 rounded-2xl border-2 border-dashed flex items-center justify-center gap-3 animate-pulse ${isArticle ? 'bg-orange-50 border-orange-200' : 'bg-blue-50 border-blue-200'}`}>
-                  <div className={`w-2 h-2 rounded-full ${isArticle ? 'bg-orange-500' : 'bg-blue-600'}`}></div>
-                  <p className={`text-[10px] font-black uppercase tracking-widest ${isArticle ? 'text-orange-700' : 'text-blue-700'}`}>
-                    Cambios Pendientes
+              {/* Cambios pendientes: antes → después, campo por campo */}
+              {hasChanges && cambios.length > 0 && (
+                <div className={`p-5 rounded-3xl border-2 border-dashed ${isArticle ? 'bg-orange-50/60 border-orange-200' : 'bg-blue-50/60 border-blue-200'}`}>
+                  <p className={`text-[9px] font-black uppercase tracking-[0.15em] mb-3 flex items-center gap-2 ${isArticle ? 'text-orange-700' : 'text-blue-700'}`}>
+                    <span className={`w-2 h-2 rounded-full animate-pulse ${isArticle ? 'bg-orange-500' : 'bg-blue-600'}`}></span>
+                    Cambios pendientes ({cambios.length})
                   </p>
+                  <div className="space-y-2">
+                    {cambios.map((c) => (
+                      <div key={c.label} className="flex items-center justify-between gap-3 text-[11px]">
+                        <span className="font-bold text-slate-500 shrink-0">{c.label}</span>
+                        <span className="flex items-center gap-1.5 min-w-0 justify-end">
+                          <span className="font-bold text-slate-400 line-through truncate">{c.antes}</span>
+                          <span className="text-slate-300">→</span>
+                          <span className={`font-black truncate ${isArticle ? 'text-orange-700' : 'text-blue-700'}`}>{c.despues}</span>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -674,6 +762,23 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
                     </div>
                   </div>
 
+                  {!isArticle && (
+                    <div className="space-y-1">
+                      <label className="text-[8px] text-slate-400 font-black uppercase tracking-widest block">Garantía / Respaldo</label>
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          value={garantia}
+                          onChange={(e) => setGarantia(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-100 text-slate-900 rounded-2xl px-4 py-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500/10 focus:bg-white"
+                          placeholder="Sin garantía registrada..."
+                        />
+                      ) : (
+                        <p className="text-xs font-bold text-slate-700 bg-slate-50 px-3 py-2 rounded-2xl">{garantia || 'Sin garantía.'}</p>
+                      )}
+                    </div>
+                  )}
+
                   <div className="space-y-1">
                     <label className="text-[8px] text-slate-400 font-black uppercase tracking-widest block">Notas / Observaciones</label>
                     {isEditing ? (
@@ -692,6 +797,74 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
               </div>
             </div>
           </div>
+
+          {/* Plan de cuotas proyectado (full-width). Viene del backend con la
+              misma fórmula de la creación: coincide al peso con lo que se guarda. */}
+          <div className="px-6 pb-6">
+            <div className="rounded-3xl border border-slate-100 bg-white shadow-sm overflow-hidden">
+              <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-white ${isArticle ? 'bg-orange-500' : 'bg-blue-600'}`}>
+                    <Clock className="w-3.5 h-3.5" />
+                  </span>
+                  <div>
+                    <p className="text-[11px] font-black text-slate-800 leading-none">Plan de cuotas proyectado</p>
+                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                      {hasChanges ? 'Con los cambios aplicados' : 'Plan actual'}
+                    </p>
+                  </div>
+                </div>
+                {planLoading && (
+                  <span className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" /> Calculando...
+                  </span>
+                )}
+              </div>
+
+              {planPreview.length === 0 && !planLoading ? (
+                <div className="px-5 py-8 text-center text-[11px] font-bold text-slate-400">
+                  Ingresa capital y número de cuotas para ver el plan.
+                </div>
+              ) : (
+                <>
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[520px] text-left text-[11px]">
+                      <thead className="bg-slate-50 text-[9px] font-black uppercase tracking-wider text-slate-400">
+                        <tr>
+                          <th className="px-4 py-2.5">N°</th>
+                          <th className="px-4 py-2.5">Vencimiento</th>
+                          <th className="px-4 py-2.5 text-right">Capital</th>
+                          {!isArticle && <th className="px-4 py-2.5 text-right">Interés</th>}
+                          <th className="px-4 py-2.5 text-right">Cuota</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-50">
+                        {(verPlanCompleto ? planPreview : planPreview.slice(0, 5)).map((c) => (
+                          <tr key={c.numeroCuota} className="hover:bg-slate-50/70">
+                            <td className="px-4 py-2.5 font-black text-slate-700">{c.numeroCuota}</td>
+                            <td className="px-4 py-2.5 font-bold text-slate-500 tabular-nums">{fmtFechaCorta(c.fechaVencimiento)}</td>
+                            <td className="px-4 py-2.5 text-right font-bold text-slate-700 tabular-nums">{formatCurrency(c.montoCapital)}</td>
+                            {!isArticle && <td className="px-4 py-2.5 text-right font-bold text-slate-500 tabular-nums">{formatCurrency(c.montoInteres)}</td>}
+                            <td className={`px-4 py-2.5 text-right font-black tabular-nums ${isArticle ? 'text-orange-700' : 'text-blue-700'}`}>{formatCurrency(c.monto)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {planPreview.length > 5 && (
+                    <button
+                      type="button"
+                      onClick={() => setVerPlanCompleto((v) => !v)}
+                      className="w-full py-2.5 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:bg-slate-50 border-t border-slate-100 transition-colors"
+                    >
+                      {verPlanCompleto ? 'Ver menos' : `Ver las ${planPreview.length} cuotas`}
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+          </>
           )}
         </div>
 

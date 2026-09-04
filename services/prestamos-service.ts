@@ -292,6 +292,36 @@ export const prestamosService = {
   },
 
   /**
+   * Simular el plan de cuotas sin guardar. El backend usa exactamente la misma
+   * fórmula que la creación, así que la vista previa del modal de edición
+   * coincide al peso con lo que se guardaría.
+   */
+  async simularPlan(payload: {
+    tipoAmortizacion?: string;
+    monto: number;
+    tasaInteres: number;
+    cantidadCuotas: number;
+    plazoMeses: number;
+    frecuenciaPago: string;
+    fechaInicio?: string;
+    tipoPrestamo?: string;
+    cuotaInicial?: number;
+  }): Promise<{
+    interesTotal: number;
+    totalFinal: number;
+    cuotaProyectada: number;
+    cuotas: Array<{
+      numeroCuota: number;
+      fechaVencimiento: string;
+      monto: number;
+      montoCapital: number;
+      montoInteres: number;
+    }>;
+  }> {
+    return apiRequest('POST', '/loans/simular', payload);
+  },
+
+  /**
    * Aprobar un préstamo
    */
   async aprobarPrestamo(id: string, aprobadoPorId: string): Promise<any> {
