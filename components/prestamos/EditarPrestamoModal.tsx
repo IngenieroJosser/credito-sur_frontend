@@ -153,7 +153,7 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
         ? Number(previewAmortizacion?.interesTotal || 0)
         : tipoAmortizacion === TipoAmortizacion.INTERES_PLANO
         ? Number(previewInteresPlano?.interesTotal || 0)
-        : (monto * tasa * (plazoMeses || 1)) / 100))
+        : Math.round((monto * tasa * Math.max(1, plazoMeses || 0)) / 100)))
     : backendInteresTotal;
 
   const totalRecaudar = hasChanges
