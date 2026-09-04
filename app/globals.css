@@ -28,12 +28,11 @@
   --color-info: var(--info);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/* La app es exclusivamente de tema claro: no hay ni una sola variante `dark:`
+   en todo el código y las tarjetas son bg-white fijo. El bloque de modo oscuro
+   que traía la plantilla de Next.js volvía el texto casi blanco en móviles con
+   el SO en oscuro, dejándolo invisible sobre las tarjetas. Se elimina y se
+   fija el esquema claro (ver colorScheme en app/layout.tsx). */
 
 body {
   background: var(--background);
