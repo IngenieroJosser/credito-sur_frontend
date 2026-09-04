@@ -61,7 +61,8 @@ const calcularInteresPlanoPreview = (
     return { cuotaFija: 0, interesTotal: 0, total: 0 };
   }
   
-  const interesTotal = Math.round(capital * (tasaTotal / 100));
+  // Interés plano truncado (Math.trunc), como el backend.
+  const interesTotal = Math.trunc(capital * (tasaTotal / 100));
   const total = capital + interesTotal;
   const cuotaFija = Math.floor(total / numCuotas);
   return { cuotaFija, interesTotal, total };
@@ -153,7 +154,8 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
         ? Number(previewAmortizacion?.interesTotal || 0)
         : tipoAmortizacion === TipoAmortizacion.INTERES_PLANO
         ? Number(previewInteresPlano?.interesTotal || 0)
-        : Math.round((monto * tasa * Math.max(1, plazoMeses || 0)) / 100)))
+        // Interés simple truncado (Math.trunc), igual que el backend.
+        : Math.trunc((monto * tasa * Math.max(1, plazoMeses || 0)) / 100)))
     : backendInteresTotal;
 
   const totalRecaudar = hasChanges
