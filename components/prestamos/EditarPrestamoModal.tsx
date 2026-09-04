@@ -457,11 +457,11 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
             </div>
           ) : (
           <>
-          <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-5">
             {/* LEFT COLUMN: Cliente + Estado + Resumen */}
-            <div className="space-y-6">
+            <div className="space-y-4">
               {/* Bloque Cliente */}
-              <div className="p-5 rounded-3xl border bg-white border-slate-100 shadow-sm relative overflow-hidden group">
+              <div className="p-4 rounded-3xl border bg-white border-slate-100 shadow-sm relative overflow-hidden group">
                 <div className={`absolute top-0 right-0 w-24 h-24 -mr-8 -mt-8 rounded-full opacity-[0.03] transition-transform duration-700 group-hover:scale-150 ${isArticle ? 'bg-orange-500' : 'bg-blue-500'}`}></div>
                 <p className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 mb-4 flex items-center gap-2">
                   <User className={`w-3 h-3 ${isArticle ? 'text-orange-500' : 'text-blue-500'}`} />
@@ -486,7 +486,7 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
               </div>
 
               {/* Estado Block */}
-              <div className={`p-5 rounded-3xl border transition-all duration-300 ${isEditing ? 'bg-white border-orange-200 shadow-xl' : 'bg-white border-slate-100 shadow-sm'}`}>
+              <div className={`p-4 rounded-3xl border transition-all duration-300 ${isEditing ? 'bg-white border-orange-200 shadow-xl' : 'bg-white border-slate-100 shadow-sm'}`}>
                 <p className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 mb-4 flex items-center gap-2">
                   <Clock className={`w-3 h-3 ${isArticle ? 'text-orange-500' : 'text-blue-500'}`} />
                   Estado del Crédito
@@ -517,7 +517,7 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
               </div>
 
                {/* Resumen Proyectado (Nueva Ubicación) */}
-               <div className={`p-5 rounded-[2rem] border-2 border-dashed shadow-inner ${isArticle ? 'bg-orange-50/50 border-orange-100' : 'bg-emerald-50/50 border-emerald-100'}`}>
+               <div className={`p-4 rounded-[2rem] border-2 border-dashed shadow-inner ${isArticle ? 'bg-orange-50/50 border-orange-100' : 'bg-emerald-50/50 border-emerald-100'}`}>
                 <div className="flex flex-col gap-4">
                   <div className="flex justify-between items-start border-b border-black/5 pb-3">
                     <div className="space-y-1 min-w-0 flex-1">
@@ -541,7 +541,7 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
 
               {/* Cambios pendientes: antes → después, campo por campo */}
               {hasChanges && cambios.length > 0 && (
-                <div className={`p-5 rounded-3xl border-2 border-dashed ${isArticle ? 'bg-orange-50/60 border-orange-200' : 'bg-blue-50/60 border-blue-200'}`}>
+                <div className={`p-4 rounded-3xl border-2 border-dashed ${isArticle ? 'bg-orange-50/60 border-orange-200' : 'bg-blue-50/60 border-blue-200'}`}>
                   <p className={`text-[9px] font-black uppercase tracking-[0.15em] mb-3 flex items-center gap-2 ${isArticle ? 'text-orange-700' : 'text-blue-700'}`}>
                     <span className={`w-2 h-2 rounded-full animate-pulse ${isArticle ? 'bg-orange-500' : 'bg-blue-600'}`}></span>
                     Cambios pendientes ({cambios.length})
@@ -563,13 +563,13 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
             </div>
 
             {/* RIGHT COLUMN: Financial Block */}
-            <div className="space-y-6">
-              <div className={`p-5 rounded-3xl border transition-all duration-300 ${isEditing ? 'bg-white border-blue-200 shadow-xl' : 'bg-white border-slate-100 shadow-sm'}`}>
-                <p className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 mb-4 flex items-center gap-2">
+            <div className="space-y-4">
+              <div className={`p-4 rounded-3xl border transition-all duration-300 ${isEditing ? 'bg-white border-blue-200 shadow-xl' : 'bg-white border-slate-100 shadow-sm'}`}>
+                <p className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 mb-3 flex items-center gap-2">
                   <span className={`w-3 h-3 rounded-full flex items-center justify-center text-[8px] text-white ${isArticle ? 'bg-orange-500' : 'bg-blue-600'}`}>$</span>
                   Parámetros del Crédito
                 </p>
-                <div className="space-y-4">
+                <div className="space-y-3">
                   <div className="space-y-1">
                     <label className={`text-[8px] font-black uppercase tracking-widest block ${isArticle ? 'text-orange-500' : 'text-blue-600'}`}>Capital</label>
                     {isEditing ? (
@@ -626,105 +626,119 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
                     )}
                   </div>
 
-                  {!isArticle && (
-                    <div className="space-y-1">
-                      <label className="text-[8px] text-slate-400 font-black uppercase tracking-widest block">Tipo de Interés</label>
+                  {/* Fila compacta: Tipo de interés (préstamo) + Frecuencia */}
+                  <div className="grid grid-cols-2 gap-3">
+                    {!isArticle && (
+                      <div className="space-y-1">
+                        <label className="text-[8px] text-slate-400 font-black uppercase tracking-widest block">Tipo de Interés</label>
+                        {isEditing ? (
+                          <select
+                            value={tipoAmortizacion}
+                            onChange={(e) => setTipoAmortizacion(e.target.value as TipoAmortizacion)}
+                            className="w-full bg-slate-50 border border-slate-100 text-slate-900 rounded-2xl px-3 py-2 text-xs font-black outline-none focus:ring-2 focus:ring-blue-500/10 focus:bg-white"
+                          >
+                            <option value={TipoAmortizacion.INTERES_SIMPLE}>Interés Simple</option>
+                            <option value={TipoAmortizacion.INTERES_PLANO}>Amortización (cuota fija)</option>
+                            <option value={TipoAmortizacion.FRANCESA}>Amortización Francesa (Histórico)</option>
+                          </select>
+                        ) : (
+                          <p className="text-xs font-black text-slate-900">
+                            {tipoAmortizacion === TipoAmortizacion.FRANCESA
+                              ? 'Amortización Francesa'
+                              : tipoAmortizacion === TipoAmortizacion.INTERES_PLANO
+                              ? 'Amortización (cuota fija)'
+                              : 'Interés Simple'}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                    <div className={`space-y-1 ${isArticle ? 'col-span-2' : ''}`}>
+                      <label className="text-[8px] text-slate-400 font-black uppercase tracking-widest block">Frecuencia de Pago</label>
                       {isEditing ? (
                         <select
-                          value={tipoAmortizacion}
-                          onChange={(e) => setTipoAmortizacion(e.target.value as TipoAmortizacion)}
-                          className="w-full bg-slate-50 border border-slate-100 text-slate-900 rounded-2xl px-4 py-2.5 text-base font-black outline-none focus:ring-2 focus:ring-blue-500/10 focus:bg-white"
+                          value={frecuencia}
+                          onChange={(e) => { setFrecuencia(e.target.value); setAutoCuotas(true); }}
+                          className="w-full bg-slate-50 border border-slate-100 text-slate-900 rounded-2xl px-3 py-2 text-xs font-black outline-none focus:ring-2 focus:ring-blue-500/10 focus:bg-white"
                         >
-                          <option value={TipoAmortizacion.INTERES_SIMPLE}>Interés Simple</option>
-                          <option value={TipoAmortizacion.INTERES_PLANO}>Amortización (cuota fija)</option>
-                          <option value={TipoAmortizacion.FRANCESA}>Amortización Francesa (Histórico)</option>
+                          <option value="DIARIO">DIARIO</option>
+                          <option value="SEMANAL">SEMANAL</option>
+                          <option value="QUINCENAL">QUINCENAL</option>
+                          <option value="MENSUAL">MENSUAL</option>
                         </select>
                       ) : (
-                        <p className="text-sm font-black text-slate-900">
-                          {tipoAmortizacion === TipoAmortizacion.FRANCESA
-                            ? 'Amortización Francesa (Histórico)'
-                            : tipoAmortizacion === TipoAmortizacion.INTERES_PLANO
-                            ? 'Amortización (cuota fija)'
-                            : 'Interés Simple'}
-                        </p>
+                        <p className="text-xs font-black text-blue-600 uppercase tracking-wider">{frecuencia}</p>
                       )}
                     </div>
-                  )}
-
-                  <div className="space-y-1">
-                    <label className="text-[8px] text-slate-400 font-black uppercase tracking-widest block">Plazo Total (Meses)</label>
-                    {isEditing ? (
-                      isArticle && opcionesCuotas.length > 0 ? (
-                        <select
-                          value={planIndex !== null ? planIndex : ''}
-                          onChange={(e) => {
-                            const idx = e.target.value ? parseInt(e.target.value) : null;
-                            setPlanIndex(idx);
-                            if (idx !== null) {
-                              const op = opcionesCuotas[idx];
-                              const meses = Number(op.numeroCuotas);
-                              const precioTotal = Number(op.precioTotal);
-                              setPlazoMeses(meses);
-                              setMonto(Math.max(0, precioTotal - cuotaInicial));
-                              setAutoCuotas(true);
-                            }
-                          }}
-                          className="w-full bg-slate-50 border border-slate-100 text-slate-900 rounded-2xl px-4 py-2.5 text-base font-black outline-none focus:ring-2 focus:ring-blue-500/10 focus:bg-white"
-                        >
-                          <option value="">Seleccionar plazo...</option>
-                          {opcionesCuotas.map((op: any, i: number) => {
-                            const meses = Number(op.numeroCuotas);
-                            if (isNaN(meses)) return null;
-                            return (
-                              <option key={i} value={i}>
-                                {meses} {meses === 1 ? 'Mes' : 'Meses'} - Total: {formatCurrency(op.precioTotal)}
-                              </option>
-                            );
-                          })}
-                        </select>
-                      ) : (
-                        <input
-                          type="number"
-                          min="1"
-                          value={plazoMeses}
-                          onChange={(e) => setPlazoMeses(Math.max(1, parseInt(e.target.value) || 0))}
-                          className="w-full bg-slate-50 border border-slate-100 text-slate-900 rounded-2xl px-4 py-2.5 text-base font-black outline-none focus:ring-2 focus:ring-blue-500/10 focus:bg-white"
-                        />
-                      )
-                    ) : (
-                      <p className="text-lg font-black text-slate-900">
-                        {formatLoanTerm({
-                          plazoMeses,
-                          cantidadCuotas: cuotas,
-                          frecuenciaPago: frecuencia,
-                        })}
-                      </p>
-                    )}
                   </div>
 
-                  {/* Sistema Amortización removido por requerimiento */}
-
-                  <div className="space-y-1">
-                    <label className="text-[8px] text-slate-400 font-black uppercase tracking-widest block">Frecuencia de Pago</label>
-                    {isEditing ? (
+                  {/* Plazo (artículo con plan: ancho completo por el texto largo) */}
+                  {isEditing && isArticle && opcionesCuotas.length > 0 ? (
+                    <div className="space-y-1">
+                      <label className="text-[8px] text-slate-400 font-black uppercase tracking-widest block">Plazo Total (Meses)</label>
                       <select
-                        value={frecuencia}
-                        onChange={(e) => { setFrecuencia(e.target.value); setAutoCuotas(true); }}
-                        className="w-full bg-slate-50 border border-slate-100 text-slate-900 rounded-2xl px-4 py-2.5 text-xs font-black outline-none focus:ring-2 focus:ring-blue-500/10 focus:bg-white"
+                        value={planIndex !== null ? planIndex : ''}
+                        onChange={(e) => {
+                          const idx = e.target.value ? parseInt(e.target.value) : null;
+                          setPlanIndex(idx);
+                          if (idx !== null) {
+                            const op = opcionesCuotas[idx];
+                            const meses = Number(op.numeroCuotas);
+                            const precioTotal = Number(op.precioTotal);
+                            setPlazoMeses(meses);
+                            setMonto(Math.max(0, precioTotal - cuotaInicial));
+                            setAutoCuotas(true);
+                          }
+                        }}
+                        className="w-full bg-slate-50 border border-slate-100 text-slate-900 rounded-2xl px-3 py-2 text-xs font-black outline-none focus:ring-2 focus:ring-blue-500/10 focus:bg-white"
                       >
-                        <option value="DIARIO">DIARIO</option>
-                        <option value="SEMANAL">SEMANAL</option>
-                        <option value="QUINCENAL">QUINCENAL</option>
-                        <option value="MENSUAL">MENSUAL</option>
+                        <option value="">Seleccionar plazo...</option>
+                        {opcionesCuotas.map((op: any, i: number) => {
+                          const meses = Number(op.numeroCuotas);
+                          if (isNaN(meses)) return null;
+                          return (
+                            <option key={i} value={i}>
+                              {meses} {meses === 1 ? 'Mes' : 'Meses'} - Total: {formatCurrency(op.precioTotal)}
+                            </option>
+                          );
+                        })}
                       </select>
-                    ) : (
-                      <p className="text-xs font-black text-blue-600 uppercase tracking-wider">{frecuencia}</p>
+                    </div>
+                  ) : null}
+
+                  {/* Fila compacta: Plazo (préstamo/número) + Fecha inicio */}
+                  <div className="grid grid-cols-2 gap-3">
+                    {!(isEditing && isArticle && opcionesCuotas.length > 0) && (
+                      <div className="space-y-1">
+                        <label className="text-[8px] text-slate-400 font-black uppercase tracking-widest block">Plazo Total (Meses)</label>
+                        {isEditing ? (
+                          <input
+                            type="number"
+                            min="1"
+                            value={plazoMeses}
+                            onChange={(e) => setPlazoMeses(Math.max(1, parseInt(e.target.value) || 0))}
+                            className="w-full bg-slate-50 border border-slate-100 text-slate-900 rounded-2xl px-3 py-2 text-xs font-black outline-none focus:ring-2 focus:ring-blue-500/10 focus:bg-white"
+                          />
+                        ) : (
+                          <p className="text-sm font-black text-slate-900">
+                            {formatLoanTerm({ plazoMeses, cantidadCuotas: cuotas, frecuenciaPago: frecuencia })}
+                          </p>
+                        )}
+                      </div>
                     )}
+                    <div className="space-y-1">
+                      <label className="text-[8px] text-slate-400 font-black uppercase tracking-widest block">Fecha Inicio</label>
+                      <input
+                        type="date"
+                        value={fechaInicio}
+                        readOnly
+                        className="w-full bg-slate-100 border border-slate-200 text-slate-500 rounded-2xl px-3 py-2 text-xs font-black outline-none cursor-not-allowed"
+                      />
+                    </div>
                   </div>
 
                   {isArticle && (
-                    <div className="p-4 bg-orange-50/50 rounded-2xl border border-orange-100 space-y-3">
-                      <div className="flex items-center gap-2 mb-1">
+                    <div className="p-4 bg-orange-50/50 rounded-2xl border border-orange-100">
+                      <div className="flex items-center gap-2 mb-2">
                          <Package className="w-3 h-3 text-orange-500" />
                          <span className="text-[9px] font-black text-orange-600 uppercase">Detalles de Venta</span>
                       </div>
@@ -750,18 +764,7 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
                     </div>
                   )}
 
-                  <div className="pt-4 border-t border-slate-100">
-                    <div className="space-y-1">
-                      <label className="text-[8px] text-slate-400 font-black uppercase tracking-widest block">Fecha Inicio</label>
-                      <input
-                        type="date"
-                        value={fechaInicio}
-                        readOnly
-                        className="w-full bg-slate-100 border border-slate-200 text-slate-500 rounded-2xl px-3 py-2 text-xs font-black outline-none cursor-not-allowed"
-                      />
-                    </div>
-                  </div>
-
+                  {/* Fila compacta: Garantía (préstamo) + Notas comparten renglón cuando caben */}
                   {!isArticle && (
                     <div className="space-y-1">
                       <label className="text-[8px] text-slate-400 font-black uppercase tracking-widest block">Garantía / Respaldo</label>
@@ -770,7 +773,7 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
                           type="text"
                           value={garantia}
                           onChange={(e) => setGarantia(e.target.value)}
-                          className="w-full bg-slate-50 border border-slate-100 text-slate-900 rounded-2xl px-4 py-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500/10 focus:bg-white"
+                          className="w-full bg-slate-50 border border-slate-100 text-slate-900 rounded-2xl px-3 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500/10 focus:bg-white"
                           placeholder="Sin garantía registrada..."
                         />
                       ) : (
@@ -786,7 +789,7 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
                         value={notas}
                         onChange={(e) => setNotas(e.target.value)}
                         rows={2}
-                        className="w-full bg-slate-50 border border-slate-100 text-slate-900 rounded-2xl p-4 text-xs font-medium outline-none focus:ring-2 focus:ring-blue-500/10 focus:bg-white resize-none"
+                        className="w-full bg-slate-50 border border-slate-100 text-slate-900 rounded-2xl p-3 text-xs font-medium outline-none focus:ring-2 focus:ring-blue-500/10 focus:bg-white resize-none"
                         placeholder="Sin notas registradas..."
                       />
                     ) : (
