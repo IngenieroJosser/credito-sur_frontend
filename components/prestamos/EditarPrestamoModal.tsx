@@ -327,26 +327,29 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
   return createPortal(
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none" onClick={handleClose}>
       <div
-        className={`bg-white shadow-2xl w-full overflow-hidden border border-slate-100 transition-all duration-300 h-[100dvh] sm:h-auto sm:max-h-[92vh] rounded-none sm:rounded-[2rem] sm:max-w-2xl ${visible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
+        className={`flex flex-col bg-white shadow-2xl w-full overflow-hidden border border-slate-200 transition-all duration-300 h-[100dvh] sm:h-auto sm:max-h-[92vh] rounded-none sm:rounded-2xl sm:max-w-3xl ${visible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className={`px-6 py-4 border-b flex justify-between items-center transition-colors duration-500 ${isArticle ? 'bg-orange-50/50 border-orange-100' : 'bg-blue-50/50 border-blue-100'}`}>
-          <div className="flex items-center gap-3">
-            <div className={`w-8 h-8 rounded-xl flex items-center justify-center shadow-sm ${isArticle ? 'bg-orange-500 text-white' : 'bg-blue-600 text-white'}`}>
-              {isArticle ? <Package className="h-4 w-4" /> : <Edit3 className="h-4 w-4" />}
+        {/* Header: mismo estilo claro que el modal de usuario — icono en
+            recuadro, título grande bicolor y subtítulo legible. */}
+        <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-100 px-6 py-5 md:px-8">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className={`shrink-0 rounded-xl p-2.5 ${isArticle ? 'bg-orange-50 text-orange-500' : 'bg-blue-50 text-blue-600'}`}>
+              {isArticle ? <Package className="h-6 w-6" /> : <Edit3 className="h-6 w-6" />}
             </div>
-            <div>
-              <h3 className="text-[10px] font-black text-slate-900 uppercase tracking-[0.2em] leading-none mb-1">
-                {isArticle ? 'Editar Crédito de Artículo' : 'Editar Préstamo de Dinero'}
-              </h3>
-              <span className="text-[10px] font-bold text-slate-400">{numeroPrestamo || id}</span>
+            <div className="min-w-0">
+              <h2 className="truncate text-xl font-bold tracking-tight md:text-2xl">
+                <span className="text-blue-600">Editar </span>
+                <span className="text-orange-500">{isArticle ? 'Crédito de Artículo' : 'Préstamo'}</span>
+              </h2>
+              <p className="truncate text-xs font-medium text-slate-500">{numeroPrestamo || id}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             <button
+              type="button"
               onClick={() => setIsEditing(!isEditing)}
-              className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${
+              className={`rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${
                 isEditing
                   ? 'bg-slate-900 text-white shadow-lg'
                   : `bg-white border text-${themeColor}-600 border-${themeColor}-200 hover:bg-${themeColor}-50`
@@ -355,11 +358,11 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
               {isEditing ? (
                 <span className="flex items-center gap-1.5"><Lock className="h-3 w-3" /> Bloquear</span>
               ) : (
-                <span className="flex items-center gap-1.5"><Edit3 className="h-3 w-3" /> Habilitar Edición</span>
+                <span className="flex items-center gap-1.5"><Edit3 className="h-3 w-3" /> Habilitar edición</span>
               )}
             </button>
-            <button onClick={handleClose} className="p-2 hover:bg-white rounded-full transition-colors text-slate-400">
-              <X className="h-4 w-4" />
+            <button type="button" onClick={handleClose} aria-label="Cerrar" className="rounded-xl p-2 text-slate-500 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400">
+              <X className="h-5 w-5" />
             </button>
           </div>
         </div>
