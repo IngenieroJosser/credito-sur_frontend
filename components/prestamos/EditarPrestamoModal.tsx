@@ -124,7 +124,7 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
   const cuotas = Number(cuotasStr) || 0;
   const [opcionesCuotas, setOpcionesCuotas] = useState<any[]>([]);
   const [planIndex, setPlanIndex] = useState<number | null>(null);
-  const [autoCuotas, setAutoCuotas] = useState(true);
+  const [autoCuotas, setAutoCuotas] = useState(false);
 
   // Vista previa del plan de cuotas (proyección del backend con la MISMA fórmula
   // que la creación real: coincide al peso con lo que se guardaría).
@@ -234,8 +234,11 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
         setClienteNombre(data.cliente ? `${data.cliente.nombres || ''} ${data.cliente.apellidos || ''}`.trim() : '');
         setClienteDni(data.cliente?.dni || '');
         setClienteTelefono(data.cliente?.telefono || '');
-        const isArticleNext = (data.tipoPrestamo || '').toUpperCase() === 'ARTICULO';
-        setAutoCuotas(isArticleNext);
+        // Al cargar NO se auto-derivan las cuotas: se respeta la cantidad guardada.
+        // La derivación automática (plazo × frecuencia) solo debe activarse cuando
+        // el usuario cambia el plazo o la frecuencia; si no, un artículo QUINCENAL
+        // de 1 mes se abría mostrando 2 cuotas (y un cambio pendiente falso).
+        setAutoCuotas(false);
         if (data.producto?.id) {
           const art = await articulosService.obtenerArticuloPorId(String(data.producto.id));
           const ops = art?.opcionesCuotas || [];
