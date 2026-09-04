@@ -8,11 +8,62 @@ interface ValidationResultProps {
   onClose: () => void;
 }
 
+// Una fecha viaja como ISO (2026-08-07T00:00:00.000Z). Se lee día/mes/año
+// directo del texto para no correr un día por la zona horaria.
+const ISO_FECHA = /^(\d{4})-(\d{2})-(\d{2})T/;
+
 const formatValor = (valor: unknown): string => {
   if (valor === null || valor === undefined || valor === '') return '-';
   if (valor instanceof Date) return valor.toLocaleDateString('es-CO');
+  if (typeof valor === 'string') {
+    const m = ISO_FECHA.exec(valor);
+    if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+    return valor;
+  }
   if (typeof valor === 'object') return JSON.stringify(valor);
   return String(valor);
+};
+
+// Los mensajes traen la clave técnica de la columna (fecha_ultimo_pago). Aquí se
+// muestra con el nombre que la persona ve en la plantilla, sin guiones bajos.
+const CAMPO_LABELS: Record<string, string> = {
+  cc: 'Cédula',
+  cc_cliente: 'Cédula del cliente',
+  dni: 'Cédula',
+  numero_prestamo: 'Número de préstamo',
+  codigo_importacion_credito: 'Código de importación (crédito)',
+  codigo_importacion_cliente: 'Código de importación (cliente)',
+  fecha_credito: 'Fecha del crédito',
+  fecha_primer_cobro: 'Fecha del primer cobro',
+  fecha_ultimo_pago: 'Fecha del último pago',
+  descontar_dinero_de_caja: 'Descontar dinero de caja',
+  total_abonado: 'Total abonado',
+  abono_adicional: 'Abono adicional',
+  cuotas_pagadas: 'Cuotas pagadas',
+  cantidad_cuotas: 'Cantidad de cuotas',
+  cuota_inicial: 'Cuota inicial',
+  tipo_carga: 'Tipo de carga',
+  tipo_credito: 'Tipo de crédito',
+  tipo_prestamo: 'Tipo de préstamo',
+  tipo_amortizacion: 'Tipo de amortización',
+  tasa_interes: 'Tasa de interés',
+  tasa_interes_mora: 'Tasa de interés por mora',
+  plazo_meses: 'Plazo (meses)',
+  frecuencia_pago: 'Frecuencia de pago',
+  nivel_riesgo: 'Nivel de riesgo',
+  ruta_codigo: 'Código de ruta',
+  producto_codigo: 'Código de producto',
+  codigo_producto: 'Código de producto',
+  precio_contado: 'Precio de contado',
+  stock_minimo: 'Stock mínimo',
+  opciones_plazo: 'Opciones de plazo',
+};
+
+const humanizarCampo = (campo: string): string => {
+  if (!campo) return '-';
+  if (CAMPO_LABELS[campo]) return CAMPO_LABELS[campo];
+  const texto = campo.replace(/_/g, ' ').trim();
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
 };
 
 type PreviewColumn = {
@@ -293,7 +344,7 @@ export const ValidationResult: React.FC<ValidationResultProps> = ({ resultado, o
                       <tr key={idx} className="hover:bg-red-50/50 transition-colors">
                         <td className="px-4 py-3 font-medium text-slate-700">{err.hoja}</td>
                         <td className="px-4 py-3 font-bold text-slate-900">{err.fila > 0 ? err.fila : '-'}</td>
-                        <td className="px-4 py-3 font-medium text-red-600">{err.campo}</td>
+                        <td className="px-4 py-3 font-medium text-red-600">{humanizarCampo(err.campo)}</td>
                         <td className="px-4 py-3 text-slate-600">{err.mensaje}</td>
                         <td className="px-4 py-3 text-slate-500 font-mono text-xs">{formatValor(err.valor)}</td>
                       </tr>
@@ -330,7 +381,7 @@ export const ValidationResult: React.FC<ValidationResultProps> = ({ resultado, o
                       <tr key={idx} className="hover:bg-yellow-50/50 transition-colors">
                         <td className="px-4 py-3 font-medium text-slate-700">{warn.hoja}</td>
                         <td className="px-4 py-3 font-bold text-slate-900">{warn.fila > 0 ? warn.fila : '-'}</td>
-                        <td className="px-4 py-3 font-medium text-yellow-600">{warn.campo}</td>
+                        <td className="px-4 py-3 font-medium text-yellow-600">{humanizarCampo(warn.campo)}</td>
                         <td className="px-4 py-3 text-slate-600">{warn.mensaje}</td>
                         <td className="px-4 py-3 text-slate-500 font-mono text-xs">{formatValor(warn.valor)}</td>
                       </tr>

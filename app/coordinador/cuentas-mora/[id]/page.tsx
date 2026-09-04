@@ -111,9 +111,10 @@ export default function DetalleCuentaMoraPage({
             <div className="flex items-center gap-2">
                  <button
                    onClick={() => {
-                     if (confirm('¿Está seguro de pasar esta cuenta a revisión del supervisor?')) {
-                       toast.success('Cuenta enviada al supervisor para revisión');
-                     }
+                     // No hay endpoint para escalar a supervisión: antes hacía
+                     // toast.success sin llamar a nada (falso éxito). Se informa
+                     // con honestidad hasta que exista el backend.
+                     toast('Enviar cuentas a supervisión aún no está disponible.', { icon: 'ℹ️' });
                    }}
                    className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-orange-200 text-orange-600 font-black rounded-xl hover:bg-orange-50 transition-all text-xs shadow-sm hover:shadow-md active:scale-95"
                  >

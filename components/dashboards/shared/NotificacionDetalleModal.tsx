@@ -1492,11 +1492,12 @@ export default function NotificacionDetalleModal({
                             if (tipoAmort === 'FRANCESA' && monto > 0) {
                               const interes = interesTotal > 0 ? interesTotal : Math.round(monto * (tasa / 100))
                               const total = monto + interes
-                              return formatCurrency(Math.floor(total / cuotas))
+                              return formatCurrency(cuotas > 0 ? Math.floor(total / cuotas) : 0)
                             }
 
                             const valorCuota = Math.trunc(montoTotal / cuotas)
-                            return formatCurrency(isNaN(valorCuota) ? 0 : valorCuota)
+                            // isFinite, no isNaN: division por 0 da Infinity, que isNaN no atrapa.
+                            return formatCurrency(Number.isFinite(valorCuota) ? valorCuota : 0)
                           })()}
                         </p>
                       </div>

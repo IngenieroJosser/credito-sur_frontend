@@ -1,16 +1,24 @@
 'use client'
 
 /**
- * @description Ruta unificada para editar crédito artículo.
- * @migration Permission-Based Routing
+ * @deprecated Ruta legacy. La edición se hace desde el detalle (modal). Antes
+ * envolvía una página que SIMULABA el guardado sin persistir. Redirige al
+ * detalle del crédito de artículo.
  */
-import ProtectedPage from '@/components/auth/ProtectedPage'
-import AdminEditarCreditoArticuloPage from '@/app/admin/creditos-articulos/[id]/editar/page'
+import { use, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 
-export default function EditarCreditoArticuloPage() {
-  return (
-    <ProtectedPage permiso="CREDITOS_ARTICULOS_VIEW">
-      <AdminEditarCreditoArticuloPage />
-    </ProtectedPage>
-  )
+export default function EditarCreditoArticuloRedirect({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const router = useRouter()
+  const { id } = use(params)
+
+  useEffect(() => {
+    router.replace(`/creditos-articulos/${id}`)
+  }, [router, id])
+
+  return null
 }

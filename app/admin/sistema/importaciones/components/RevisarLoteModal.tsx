@@ -371,7 +371,8 @@ export const RevisarLoteModal: React.FC<Props> = ({
 
                         {/* Cómo queda cada cosa después. Es lo que se compara
                             contra lo que uno espera tener. */}
-                        <table className="text-sm">
+                        <div className="overflow-x-auto">
+                        <table className="w-full min-w-[280px] text-sm">
                           <tbody className="[&_td]:py-0.5">
                             <tr>
                               <td className="pr-3 text-slate-500">
@@ -441,6 +442,7 @@ export const RevisarLoteModal: React.FC<Props> = ({
                             </tr>
                           </tbody>
                         </table>
+                        </div>
                       </div>
                     )}
                   </div>

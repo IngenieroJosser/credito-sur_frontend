@@ -1,5 +1,12 @@
 'use client'
 
+/**
+ * @deprecated NO USAR. Componente huérfano (ningún archivo lo importa) que NO
+ * persiste el arqueo: su "handleArqueo" solo espera 1,5 s y avanza de paso, sin
+ * llamar al backend, pese a decir "asentar el arqueo definitivamente". El
+ * arqueo real vive en app/admin/contable/cierre-caja/page.tsx. Se conserva solo
+ * para no romper imports desconocidos; no reactivar sin conectar la API.
+ */
 import React, { useState } from 'react'
 import {
   X,

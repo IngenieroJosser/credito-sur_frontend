@@ -3,12 +3,11 @@
 import PantallaCarga from '@/components/ui/PantallaCarga'
 import { logger } from '@/lib/logger'
 
-import { useState, useEffect, use } from 'react';
-import { ChevronLeft, BarChart3, Pencil, UserCog, Percent } from 'lucide-react';
+import { useState, useEffect, use, useCallback } from 'react';
+import { ChevronLeft, BarChart3, Pencil, UserCog } from 'lucide-react';
 import Link from 'next/link';
 import DetallePrestamo, { PrestamoDetalle } from '@/components/prestamos/DetallePrestamo';
 import EditarPrestamoModal from '@/components/prestamos/EditarPrestamoModal';
-import ModificarInteresModal from '@/components/prestamos/ModificarInteresModal';
 import { prestamosService } from '@/services/prestamos-service';
 import { formatLoanTerm } from '@/lib/utils';
 
@@ -21,10 +20,8 @@ export default function PrestamoDetallePage({
   const [prestamo, setPrestamo] = useState<PrestamoDetalle | null>(null);
   const [loading, setLoading] = useState(true);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isModifyInterestModalOpen, setIsModifyInterestModalOpen] = useState(false);
 
-  useEffect(() => {
-    const fetchData = async () => {
+  const fetchData = useCallback(async () => {
       setLoading(true);
       try {
         const data = await prestamosService.obtenerPrestamoPorId(id);
@@ -70,21 +67,22 @@ export default function PrestamoDetallePage({
       } finally {
         setLoading(false);
       }
-    };
-    fetchData();
   }, [id]);
-  
-  const handlePassToSupervisor = () => {
-    if (confirm('¿Está seguro de pasar esta cuenta a revisión del supervisor?')) {
-      logger.log('Pasando cuenta', id, 'al supervisor');
-      alert('Cuenta enviada al supervisor para revisión');
-    }
-  };
-  
-  const handleModifyInterest = () => {
-    setIsModifyInterestModalOpen(true);
-  };
 
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const handlePassToSupervisor = () => {
+    // Aún no hay endpoint para escalar una cuenta a supervisión. Antes esto
+    // avisaba "Cuenta enviada al supervisor" sin hacer nada: un falso éxito. Se
+    // informa con honestidad hasta que exista el backend.
+    alert(
+      'Enviar cuentas a supervisión todavía no está disponible. ' +
+        'Esta función está pendiente de habilitar.',
+    );
+  };
+  
   if (loading) {
     return (
       <PantallaCarga />
@@ -142,14 +140,9 @@ export default function PrestamoDetallePage({
                 Pasar a Supervisión
               </button>
               
-              <button
-                onClick={handleModifyInterest}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-blue-200 text-blue-600 font-black rounded-xl hover:bg-blue-50 transition-all text-sm shadow-sm hover:shadow-md active:scale-95"
-              >
-                <Percent className="w-4 h-4" />
-                Modificar Interés
-              </button>
-              
+              {/* El botón "Modificar Interés" se quitó: la tasa se cambia desde
+                  "Editar Préstamo", que además recalcula las cuotas. Aquel modal
+                  era un flujo aparte que no persistía nada. */}
               <button
                 onClick={() => setIsEditModalOpen(true)}
                 className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-50 transition-all text-sm shadow-sm hover:shadow-md"
@@ -167,26 +160,18 @@ export default function PrestamoDetallePage({
       </main>
 
       {isEditModalOpen && (
-        <EditarPrestamoModal 
-          id={id} 
-          onClose={() => setIsEditModalOpen(false)} 
+        <EditarPrestamoModal
+          id={id}
+          onClose={() => setIsEditModalOpen(false)}
           onSuccess={() => {
-            // Recargar datos o actualizar estado
+            // Tras editar (p. ej. cambiar la tasa), recargar para ver las
+            // cuotas y el saldo recalculados por el backend.
+            setIsEditModalOpen(false);
+            fetchData();
           }}
         />
       )}
       
-      {isModifyInterestModalOpen && (
-        <ModificarInteresModal 
-          prestamoId={id} 
-          tasaActual={prestamo.tasaInteres}
-          onClose={() => setIsModifyInterestModalOpen(false)} 
-          onSuccess={() => {
-            setIsModifyInterestModalOpen(false);
-            // Recargar datos
-          }}
-        />
-      )}
     </div>
   );
 }

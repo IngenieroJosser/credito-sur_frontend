@@ -150,6 +150,13 @@ export default function CreditosArticulosPage() {
     new Set(creditos.map((c) => c.ruta).filter((r): r is string => Boolean(r))),
   ).sort((a, b) => a.localeCompare(b))
 
+  // Al cambiar cualquier filtro se vuelve a la página 1: si no, tras filtrar a
+  // menos resultados uno podía quedar en una página que ya no existe (lista
+  // vacía con "Página 3 de 1").
+  useEffect(() => {
+    setPaginaActual(1)
+  }, [searchTerm, rutaFiltro, estadoFiltro, riesgoFiltro])
+
   const filteredCreditos = creditos.filter(credito => {
     const matchesSearch = credito.cliente.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          credito.producto.toLowerCase().includes(searchTerm.toLowerCase()) ||

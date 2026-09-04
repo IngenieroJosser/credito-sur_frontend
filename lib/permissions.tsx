@@ -515,8 +515,14 @@ export const tieneAcceso = (rol: Rol, path: string, permisos?: string[]): boolea
   if (['/perfil', '/notificaciones', '/perfil/notificaciones'].includes(norm)) return true;
   if (rol === 'SUPER_ADMINISTRADOR') return true;
 
-  // 1. Prioridad Absoluta: Si el módulo está en la lista del rol, TIENE ACCESO.
-  const modulos = obtenerModulosPorRol(rol);
+  // 1. Prioridad Absoluta: si el módulo está en el MENÚ del rol, tiene acceso.
+  //
+  // Se usa obtenerModulos (el menú ya con sus alias y rutas compartidas
+  // resueltas), no el catálogo crudo: si no, un rol que ve "/articulos" o
+  // "/cuentas-mora" en su menú —rutas compartidas sin prefijo— quedaba fuera,
+  // porque el catálogo crudo las guarda como "/admin/articulos". Menú y control
+  // de acceso deben mirar exactamente los mismos paths.
+  const modulos = obtenerModulos(rol);
   const allowed = modulos.flatMap(m => [m.path, ...(m.submodulos?.map(s => s.path) || [])]).filter(p => !!p && p !== '#');
   
   if (allowed.includes(norm) || allowed.some(a => a !== '/' && (norm + '/').startsWith(a + '/'))) {

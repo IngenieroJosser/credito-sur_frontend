@@ -565,10 +565,10 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
 
         {/* Navegación elegante por pestañas */}
         <div className="mb-8">
-          <div className="flex space-x-1 bg-slate-100/50 backdrop-blur-sm p-1.5 rounded-2xl border border-slate-200 max-w-2xl">
+          <div className="flex gap-1 overflow-x-auto bg-slate-100/50 backdrop-blur-sm p-1.5 rounded-2xl border border-slate-200 max-w-2xl [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
             <button
               onClick={() => setActiveTab("prestamos")}
-              className={`px-6 py-3 rounded-xl text-sm font-bold transition-all duration-200 flex items-center gap-2 flex-1 justify-center ${
+              className={`shrink-0 sm:flex-1 whitespace-nowrap px-4 sm:px-6 py-3 rounded-xl text-sm font-bold transition-all duration-200 flex items-center gap-2 justify-center ${
                 activeTab === "prestamos"
                   ? "bg-white text-slate-900 shadow-sm ring-1 ring-black/5"
                   : "text-slate-500 hover:text-slate-900 hover:bg-white/50"
@@ -579,7 +579,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
             </button>
             <button
               onClick={() => setActiveTab("pagos")}
-              className={`px-6 py-3 rounded-xl text-sm font-bold transition-all duration-200 flex items-center gap-2 flex-1 justify-center ${
+              className={`shrink-0 sm:flex-1 whitespace-nowrap px-4 sm:px-6 py-3 rounded-xl text-sm font-bold transition-all duration-200 flex items-center gap-2 justify-center ${
                 activeTab === "pagos"
                   ? "bg-white text-slate-900 shadow-sm ring-1 ring-black/5"
                   : "text-slate-500 hover:text-slate-900 hover:bg-white/50"
@@ -590,7 +590,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
             </button>
             <button
               onClick={() => setActiveTab("comentarios")}
-              className={`px-6 py-3 rounded-xl text-sm font-bold transition-all duration-200 flex items-center gap-2 flex-1 justify-center ${
+              className={`shrink-0 sm:flex-1 whitespace-nowrap px-4 sm:px-6 py-3 rounded-xl text-sm font-bold transition-all duration-200 flex items-center gap-2 justify-center ${
                 activeTab === "comentarios"
                   ? "bg-white text-slate-900 shadow-sm ring-1 ring-black/5"
                   : "text-slate-500 hover:text-slate-900 hover:bg-white/50"
@@ -601,7 +601,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
             </button>
             <button
               onClick={() => setActiveTab("fotos")}
-              className={`px-6 py-3 rounded-xl text-sm font-bold transition-all duration-200 flex items-center gap-2 flex-1 justify-center ${
+              className={`shrink-0 sm:flex-1 whitespace-nowrap px-4 sm:px-6 py-3 rounded-xl text-sm font-bold transition-all duration-200 flex items-center gap-2 justify-center ${
                 activeTab === "fotos"
                   ? "bg-white text-slate-900 shadow-sm ring-1 ring-black/5"
                   : "text-slate-500 hover:text-slate-900 hover:bg-white/50"

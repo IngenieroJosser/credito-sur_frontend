@@ -93,9 +93,19 @@ const calcularCuotasYResumen = (form: FormularioPrestamo) => {
   let totalInteres = 0;
 
   if (form.tipoInteres === TipoAmortizacion.INTERES_SIMPLE) {
-    const interesTotalCalculado = montoFinanciado * tasaMensual * mesesCalculo;
+    // Se replica EXACTO el backend: interés TRUNCADO con meses mínimo 1, y la
+    // cuota reparte capital e interés truncados por separado. Antes divergía
+    // (sin redondeo, sin mínimo de meses y con división directa), de modo que el
+    // preview mostraba una cuota distinta a la que se guardaba.
+    const mesesInteres = Math.max(1, mesesCalculo);
+    // Tasa en centésimas (base entera): usar tasaMensual (= tasa/100) y truncar
+    // arrastra el error binario (monto*(29/100) = 28.999999996 -> 28 en vez de 29).
+    const tasaCent = Math.round(form.tasaInteres * 100);
+    const interesTotalCalculado = Math.trunc((montoFinanciado * tasaCent * mesesInteres) / 10000);
     const totalPagarCalculado = montoFinanciado + interesTotalCalculado;
-    cuotaFija = totalPagarCalculado / cuotasTotales;
+    cuotaFija = cuotasTotales > 0
+      ? Math.floor((totalPagarCalculado - interesTotalCalculado) / cuotasTotales) + Math.floor(interesTotalCalculado / cuotasTotales)
+      : 0;
   } else {
     if (tasaPeriodo > 0) {
       cuotaFija = (montoFinanciado * tasaPeriodo) / (1 - Math.pow(1 + tasaPeriodo, -cuotasTotales));

@@ -41,7 +41,10 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
-  // colorScheme: "light", // opcional
+  // La app es de tema claro (todas las tarjetas son bg-white con textos oscuros).
+  // Sin esto, un móvil con el SO en modo oscuro fuerza el foreground a casi
+  // blanco y los textos sin color explícito quedan invisibles sobre las tarjetas.
+  colorScheme: "light",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
