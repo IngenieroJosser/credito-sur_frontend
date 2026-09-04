@@ -162,11 +162,16 @@ const calcularPrestamoPreview = (params: {
     }
   }
 
-  // INTERES_SIMPLE
+  // INTERES_SIMPLE. Se redondea igual que el backend (Math.round): si no, el
+  // preview mostraba decimales que el sistema no guarda, y la cifra no cuadraba.
   const mesesInteres = Math.max(1, params.meses)
-  const intereses = (monto * tasa * mesesInteres) / 100
+  const intereses = Math.round((monto * tasa * mesesInteres) / 100)
   const total = monto + intereses
-  const valorCuota = cuotas > 0 ? total / cuotas : 0
+  // Reparto como el backend en interés simple: trunca capital e interés por
+  // separado (la última cuota absorbe el residuo), no una división directa.
+  const valorCuota = cuotas > 0
+    ? Math.floor((total - intereses) / cuotas) + Math.floor(intereses / cuotas)
+    : 0
 
   return {
     meses: params.meses,
