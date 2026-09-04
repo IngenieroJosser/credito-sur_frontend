@@ -329,7 +329,6 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
     }
     if (isArticle && cuotaInicial !== o.cuotaInicial) cambios.push({ label: 'Cuota inicial', antes: money(o.cuotaInicial), despues: money(cuotaInicial) });
     if (estado !== o.estado) cambios.push({ label: 'Estado', antes: o.estado.replace(/_/g, ' '), despues: estado.replace(/_/g, ' ') });
-    if (garantia !== o.garantia) cambios.push({ label: 'Garantía', antes: o.garantia || '—', despues: garantia || '—' });
   }
 
   const fmtFechaCorta = (iso: string) => {
@@ -764,24 +763,6 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
                           <p className="text-[11px] font-bold text-orange-700 uppercase leading-tight mt-1">{productoNombre || 'ARTÍCULO SIN NOMBRE'}</p>
                         </div>
                       </div>
-                    </div>
-                  )}
-
-                  {/* Fila compacta: Garantía (préstamo) + Notas comparten renglón cuando caben */}
-                  {!isArticle && (
-                    <div className="space-y-1">
-                      <label className="text-[8px] text-slate-400 font-black uppercase tracking-widest block">Garantía / Respaldo</label>
-                      {isEditing ? (
-                        <input
-                          type="text"
-                          value={garantia}
-                          onChange={(e) => setGarantia(e.target.value)}
-                          className="w-full bg-slate-50 border border-slate-100 text-slate-900 rounded-2xl px-3 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500/10 focus:bg-white"
-                          placeholder="Sin garantía registrada..."
-                        />
-                      ) : (
-                        <p className="text-xs font-bold text-slate-700 bg-slate-50 px-3 py-2 rounded-2xl">{garantia || 'Sin garantía.'}</p>
-                      )}
                     </div>
                   )}
 
