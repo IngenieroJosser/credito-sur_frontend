@@ -721,7 +721,7 @@ export default function ClientesFeature({
                      {isPending ? <Clock className="h-5 w-5" /> : (cliente.nombres?.charAt(0) || '?')}
                    </div>
                    <div>
-                     <div className="font-bold flex items-center gap-2">
+                     <div className="font-bold text-slate-900 flex items-center gap-2">
                        {cliente.nombres} {cliente.apellidos}
                        {isPending && (
                          <span className="px-1.5 py-0.5 rounded-md bg-amber-100 text-[8px] font-black text-amber-700 uppercase tracking-tighter">OFFLINE</span>
@@ -745,7 +745,7 @@ export default function ClientesFeature({
                 </div>
               </div>
               <div className="flex justify-between items-center pt-3 border-t border-slate-100">
-                 <div className="text-sm font-bold">{formatCurrency(cliente.montoTotal ?? 0)}</div>
+                 <div className="text-sm font-bold text-slate-900">{formatCurrency(cliente.montoTotal ?? 0)}</div>
                  <div className="flex gap-2" onClick={e => e.stopPropagation()}>
                     <button 
                       onClick={(e) => { 
