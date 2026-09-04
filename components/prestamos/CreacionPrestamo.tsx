@@ -98,7 +98,10 @@ const calcularCuotasYResumen = (form: FormularioPrestamo) => {
     // (sin redondeo, sin mínimo de meses y con división directa), de modo que el
     // preview mostraba una cuota distinta a la que se guardaba.
     const mesesInteres = Math.max(1, mesesCalculo);
-    const interesTotalCalculado = Math.trunc(montoFinanciado * tasaMensual * mesesInteres);
+    // Tasa en centésimas (base entera): usar tasaMensual (= tasa/100) y truncar
+    // arrastra el error binario (monto*(29/100) = 28.999999996 -> 28 en vez de 29).
+    const tasaCent = Math.round(form.tasaInteres * 100);
+    const interesTotalCalculado = Math.trunc((montoFinanciado * tasaCent * mesesInteres) / 10000);
     const totalPagarCalculado = montoFinanciado + interesTotalCalculado;
     cuotaFija = cuotasTotales > 0
       ? Math.floor((totalPagarCalculado - interesTotalCalculado) / cuotasTotales) + Math.floor(interesTotalCalculado / cuotasTotales)

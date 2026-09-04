@@ -61,8 +61,11 @@ const calcularInteresPlanoPreview = (
     return { cuotaFija: 0, interesTotal: 0, total: 0 };
   }
   
-  // Interés plano truncado (Math.trunc), como el backend.
-  const interesTotal = Math.trunc(capital * (tasaTotal / 100));
+  // Interés plano truncado (Math.trunc), como el backend. La tasa va en
+  // centésimas (base entera) para no arrastrar el error binario de dividir /100
+  // antes de truncar: capital*(29/100) = 28.999999996 -> 28 en vez de 29.
+  const tasaCent = Math.round(tasaTotal * 100);
+  const interesTotal = Math.trunc((capital * tasaCent) / 10000);
   const total = capital + interesTotal;
   const cuotaFija = Math.floor(total / numCuotas);
   return { cuotaFija, interesTotal, total };
@@ -154,8 +157,9 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
         ? Number(previewAmortizacion?.interesTotal || 0)
         : tipoAmortizacion === TipoAmortizacion.INTERES_PLANO
         ? Number(previewInteresPlano?.interesTotal || 0)
-        // Interés simple truncado (Math.trunc), igual que el backend.
-        : Math.trunc((monto * tasa * Math.max(1, plazoMeses || 0)) / 100)))
+        // Interés simple truncado (Math.trunc), igual que el backend. Tasa en
+        // centésimas (base entera) para no arrastrar el error de coma flotante.
+        : Math.trunc((monto * Math.round(tasa * 100) * Math.max(1, plazoMeses || 0)) / 10000)))
     : backendInteresTotal;
 
   const totalRecaudar = hasChanges
