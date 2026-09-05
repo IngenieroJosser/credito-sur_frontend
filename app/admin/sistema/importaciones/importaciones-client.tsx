@@ -253,12 +253,9 @@ export const ImportacionesClient = () => {
           />
         </div>
 
-        {/* Antes y despues de importar: si los numeros no cambiaron, nada
-            se rompio. Va aqui porque es donde se va a mirar. */}
-        <EstadoContableCard />
-
-        <HistorialLotesCard recargar={versionHistorial} />
-
+        {/* Resultado de la última validación: justo debajo de las tarjetas de
+            carga, para verlo de inmediato al validar un archivo (antes quedaba
+            hasta el final de la página, después del historial). */}
         {(resultadoClientes || resultadoInventario) && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {resultadoClientes && (
@@ -304,6 +301,12 @@ export const ImportacionesClient = () => {
             )}
           </div>
         )}
+
+        {/* Antes y despues de importar: si los numeros no cambiaron, nada
+            se rompio. Va aqui porque es donde se va a mirar. */}
+        <EstadoContableCard />
+
+        <HistorialLotesCard recargar={versionHistorial} />
 
         {reporteModal}
       </div>
