@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AlertCircle, AlertTriangle, CheckCircle, ChevronLeft, ChevronRight, FileSpreadsheet, Table2 } from 'lucide-react';
 import { ResultadoValidacion, ErrorValidacion, AdvertenciaValidacion } from '@/types/importaciones';
+import { formatCurrency } from '@/lib/utils';
 import ImpactoCajaPreview from './ImpactoCajaPreview';
 
 interface ValidationResultProps {
@@ -12,7 +13,7 @@ interface ValidationResultProps {
 // directo del texto para no correr un día por la zona horaria.
 const ISO_FECHA = /^(\d{4})-(\d{2})-(\d{2})T/;
 
-const formatValor = (valor: unknown): string => {
+const formatValor = (valor: unknown, esMoneda = false): string => {
   if (valor === null || valor === undefined || valor === '') return '-';
   if (valor instanceof Date) return valor.toLocaleDateString('es-CO');
   if (typeof valor === 'string') {
@@ -20,6 +21,7 @@ const formatValor = (valor: unknown): string => {
     if (m) return `${m[3]}/${m[2]}/${m[1]}`;
     return valor;
   }
+  if (esMoneda && typeof valor === 'number') return formatCurrency(valor);
   if (typeof valor === 'object') return JSON.stringify(valor);
   return String(valor);
 };
@@ -69,6 +71,8 @@ const humanizarCampo = (campo: string): string => {
 type PreviewColumn = {
   key: string;
   label: string;
+  // Columnas en pesos: se muestran con el formato $ 1.234.567 en vez del número pelado.
+  money?: boolean;
 };
 
 type PreviewSection = {
@@ -105,11 +109,11 @@ const getPreviewSections = (resultado: ResultadoValidacion): PreviewSection[] =>
           { key: 'numeroPrestamo', label: 'Préstamo' },
           { key: 'ccCliente', label: 'CC cliente' },
           { key: 'tipoPrestamo', label: 'Tipo' },
-          { key: 'monto', label: 'Monto' },
+          { key: 'monto', label: 'Monto', money: true },
           { key: 'cantidadCuotas', label: 'Cuotas' },
           { key: 'cuotasPagadas', label: 'Pagadas' },
-          { key: 'totalAbonado', label: 'Abonado' },
-          { key: 'saldoPendiente', label: 'Saldo' },
+          { key: 'totalAbonado', label: 'Abonado', money: true },
+          { key: 'saldoPendiente', label: 'Saldo', money: true },
           { key: 'tipoCarga', label: 'Carga' },
           { key: 'descontarCaja', label: 'Caja' },
         ],
@@ -127,8 +131,8 @@ const getPreviewSections = (resultado: ResultadoValidacion): PreviewSection[] =>
         { key: 'codigo', label: 'Código' },
         { key: 'nombre', label: 'Nombre' },
         { key: 'categoria', label: 'Categoría' },
-        { key: 'costo', label: 'Costo' },
-        { key: 'precioContado', label: 'Contado' },
+        { key: 'costo', label: 'Costo', money: true },
+        { key: 'precioContado', label: 'Contado', money: true },
         { key: 'opcionesPrecio', label: 'Opciones' },
         { key: 'stock', label: 'Stock' },
         { key: 'stockMinimo', label: 'Mínimo' },
@@ -147,8 +151,8 @@ const getPreviewSections = (resultado: ResultadoValidacion): PreviewSection[] =>
         { key: 'fila', label: 'Fila' },
         { key: 'codigoProducto', label: 'Producto' },
         { key: 'meses', label: 'Plazo' },
-        { key: 'precio', label: 'Precio' },
-        { key: 'utilidad', label: 'Utilidad' },
+        { key: 'precio', label: 'Precio', money: true },
+        { key: 'utilidad', label: 'Utilidad', money: true },
         { key: 'activo', label: 'Activo' },
       ],
     },
@@ -226,7 +230,7 @@ export const ValidationResult: React.FC<ValidationResultProps> = ({ resultado, o
                 <tr key={`${section.title}-${idx}`} className="hover:bg-slate-50/70 transition-colors">
                   {section.columns.map((column) => (
                     <td key={column.key} className="px-4 py-3 text-slate-700">
-                      <span className="line-clamp-2 break-words">{formatValor(row[column.key])}</span>
+                      <span className="line-clamp-2 break-words">{formatValor(row[column.key], column.money)}</span>
                     </td>
                   ))}
                 </tr>
