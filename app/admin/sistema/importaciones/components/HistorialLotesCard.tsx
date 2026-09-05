@@ -120,6 +120,8 @@ export const HistorialLotesCard: React.FC<{ recargar?: number }> = ({ recargar }
                     <td className="py-3 pr-3 text-slate-600">
                       {lote.tipo === 'CLIENTES_CREDITOS'
                         ? `${lote.clientesCreados} cliente(s) · ${lote.prestamosCreados} crédito(s)`
+                        : lote.tipo === 'INVENTARIO' && lote.articulosCreados !== null
+                        ? `${lote.articulosCreados} artículo(s) · ${lote.preciosCreados} precio(s)`
                         : '—'}
                     </td>
                     <td className="py-3 pr-3">

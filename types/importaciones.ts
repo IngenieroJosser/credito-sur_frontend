@@ -116,6 +116,10 @@ export interface LoteImportacion {
   creadoPor: string | null;
   clientesCreados: number;
   prestamosCreados: number;
+  // null cuando el lote es anterior a que se guardara este conteo (no significa
+  // que se hayan creado 0 artículos/precios: simplemente no quedó registrado).
+  articulosCreados: number | null;
+  preciosCreados: number | null;
   sePuedeDeshacer: boolean;
   razonNoSePuedeDeshacer: string | null;
 }
