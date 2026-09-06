@@ -1,12 +1,15 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Eye, History, Loader2, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { importacionesService } from '@/services/importaciones-service';
 import { LoteImportacion } from '@/types/importaciones';
 import RevisarLoteModal from './RevisarLoteModal';
+import Paginador from '@/components/ui/Paginador';
+
+const LOTES_POR_PAGINA = 5;
 
 const formatearFecha = (valor: string | null) => {
   if (!valor) return '—';
@@ -38,6 +41,7 @@ export const HistorialLotesCard: React.FC<{ recargar?: number }> = ({ recargar }
   // El lote que se está revisando. Deshacer ya no es un botón que borra: abre
   // la pantalla donde se ve qué se va a deshacer y se eligen los créditos.
   const [revisando, setRevisando] = useState<string | null>(null);
+  const [pagina, setPagina] = useState(1);
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -54,6 +58,22 @@ export const HistorialLotesCard: React.FC<{ recargar?: number }> = ({ recargar }
   useEffect(() => {
     void cargar();
   }, [cargar, recargar]);
+
+  // Al recargar (nueva importación confirmada) el más reciente queda primero:
+  // se vuelve a la página 1 para que se vea sin tener que navegar hacia atrás.
+  useEffect(() => {
+    setPagina(1);
+  }, [recargar]);
+
+  const totalPaginas = Math.max(
+    1,
+    Math.ceil(lotes.length / LOTES_POR_PAGINA),
+  );
+  const paginaSegura = Math.min(pagina, totalPaginas);
+  const lotesPagina = useMemo(() => {
+    const inicio = (paginaSegura - 1) * LOTES_POR_PAGINA;
+    return lotes.slice(inicio, inicio + LOTES_POR_PAGINA);
+  }, [lotes, paginaSegura]);
 
   return (
     <>
@@ -101,7 +121,7 @@ export const HistorialLotesCard: React.FC<{ recargar?: number }> = ({ recargar }
                 </tr>
               </thead>
               <tbody>
-                {lotes.map((lote) => (
+                {lotesPagina.map((lote) => (
                   <tr key={lote.id} className="border-b border-slate-100 last:border-0">
                     <td className="max-w-[220px] py-3 pr-3">
                       <p className="truncate font-semibold text-slate-800">
@@ -158,6 +178,12 @@ export const HistorialLotesCard: React.FC<{ recargar?: number }> = ({ recargar }
                 ))}
               </tbody>
             </table>
+            <Paginador
+              pagina={paginaSegura}
+              totalPaginas={totalPaginas}
+              onCambiar={setPagina}
+              resumen={`${lotes.length} importación(es)`}
+            />
           </div>
         )}
       </section>
