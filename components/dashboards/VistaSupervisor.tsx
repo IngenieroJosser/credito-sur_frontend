@@ -148,7 +148,16 @@ const VistaSupervisor = () => {
       toast.success('Crédito Creado', { description: 'El crédito ha sido registrado exitosamente.' });
       setShowCreditoTipoModal(false);
       if (isArticulo && prestamo?.id) {
-        try { await exportService.exportContrato(prestamo.id); } catch (err) {}
+        // El crédito ya quedó creado: si falla la descarga del contrato no se
+        // deshace nada, pero hay que decirlo. Antes el catch vacío lo ocultaba
+        // y la persona se quedaba esperando un contrato que nunca bajó.
+        try {
+          await exportService.exportContrato(prestamo.id);
+        } catch {
+          toast.warning('El crédito quedó creado, pero no se pudo descargar el contrato', {
+            description: 'Descárguelo desde el detalle del crédito.',
+          });
+        }
       }
       loadDashboardData();
     } catch (error: any) {
@@ -157,17 +166,29 @@ const VistaSupervisor = () => {
   }
 
 
-  // TODO: Exportar resumen de supervisión
-  // Qué exportar: Rutas supervisadas, Eficiencia por cobrador, Alertas, Resumen de recaudo
-  // Backend: Reutilizar GET /reports/operational/export filtrado por supervisor
-  // Frontend: Usar exportService.exportOperationalReport(format, { period })
-  const handleExportExcel = () => {
-    logger.log('TODO: Exportar resumen supervisor en Excel')
+  // Exporta el reporte operativo del período que se está viendo. El backend ya
+  // filtra por jurisdicción según quién pide, así que un supervisor recibe solo
+  // sus rutas. Antes estos dos botones solo escribían un TODO en consola: se
+  // veían habilitados y no pasaba nada, que es peor que no tenerlos.
+  const [exportando, setExportando] = useState(false)
+
+  const exportarResumen = async (format: 'excel' | 'pdf') => {
+    if (exportando) return
+    setExportando(true)
+    try {
+      await exportService.exportOperationalReport(format, { period: timeFilter })
+      toast.success(`Resumen exportado en ${format === 'excel' ? 'Excel' : 'PDF'}`)
+    } catch (error: any) {
+      toast.error('No se pudo exportar el resumen', {
+        description: error?.message || 'Intente de nuevo en un momento.',
+      })
+    } finally {
+      setExportando(false)
+    }
   }
 
-  const handleExportPDF = () => {
-    logger.log('TODO: Exportar resumen supervisor en PDF')
-  }
+  const handleExportExcel = () => void exportarResumen('excel')
+  const handleExportPDF = () => void exportarResumen('pdf')
 
   const handleRefresh = () => {
     setRefreshing(true)

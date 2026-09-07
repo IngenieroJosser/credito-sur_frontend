@@ -13,6 +13,7 @@ import {
   Loader2
 } from 'lucide-react'
 import { formatCOPInputValue, formatCurrency, formatLoanTerm, parseCOPInputToNumber } from '@/lib/utils'
+import { calcularInteresPlano, calcularInteresSimple } from '@/lib/interes'
 import { Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
 import { clientesService, Cliente } from '@/services/clientes-service'
 import { articulosService, Articulo } from '@/services/articulos-service'
@@ -141,11 +142,8 @@ const calcularPrestamoPreview = (params: {
   }
 
   if (params.tipoInteres === TipoAmortizacion.INTERES_PLANO || params.tipoInteres === TipoAmortizacion.FRANCESA) {
-    // Interés plano (nuevo) / Amortización. Truncado, como el backend. La tasa
-    // va en centésimas (base entera) para no arrastrar el error binario de
-    // dividir /100 antes de truncar: monto*(29/100) = 28.999999996 -> 28 en vez de 29.
-    const tasaCent = Math.round(tasa * 100)
-    const intereses = Math.trunc((monto * tasaCent) / 10000)
+    // Interés plano (nuevo) / Amortización.
+    const intereses = calcularInteresPlano(monto, tasa)
     const total = monto + intereses
     // Protegido contra cuotas=0 (el campo puede estar vacío mientras se
     // escribe): sin esto la división da Infinity y el preview muestra "$∞".
@@ -165,11 +163,9 @@ const calcularPrestamoPreview = (params: {
     }
   }
 
-  // INTERES_SIMPLE. Se trunca igual que el backend (Math.trunc): si no, el
-  // preview mostraba decimales que el sistema no guarda, y la cifra no cuadraba.
+  // INTERES_SIMPLE: la tasa se aplica por cada mes de plazo.
   const mesesInteres = Math.max(1, params.meses)
-  const tasaCent = Math.round(tasa * 100)
-  const intereses = Math.trunc((monto * tasaCent * mesesInteres) / 10000)
+  const intereses = calcularInteresSimple(monto, tasa, mesesInteres)
   const total = monto + intereses
   // Reparto como el backend en interés simple: trunca capital e interés por
   // separado (la última cuota absorbe el residuo), no una división directa.

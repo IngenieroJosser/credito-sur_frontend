@@ -6,6 +6,7 @@ import { createPortal } from 'react-dom';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { useNotificaciones } from '@/components/providers/NotificacionesProvider';
 import { formatCurrency, formatLoanTerm, formatMilesCOP } from '@/lib/utils';
+import { calcularInteresPlano, calcularInteresSimple } from '@/lib/interes';
 import { prestamosService } from '@/services/prestamos-service';
 import { formatErrorForComponent } from '@/lib/api/api';
 import { articulosService } from '@/services/articulos-service';
@@ -61,11 +62,7 @@ const calcularInteresPlanoPreview = (
     return { cuotaFija: 0, interesTotal: 0, total: 0 };
   }
   
-  // Interés plano truncado (Math.trunc), como el backend. La tasa va en
-  // centésimas (base entera) para no arrastrar el error binario de dividir /100
-  // antes de truncar: capital*(29/100) = 28.999999996 -> 28 en vez de 29.
-  const tasaCent = Math.round(tasaTotal * 100);
-  const interesTotal = Math.trunc((capital * tasaCent) / 10000);
+  const interesTotal = calcularInteresPlano(capital, tasaTotal);
   const total = capital + interesTotal;
   const cuotaFija = Math.floor(total / numCuotas);
   return { cuotaFija, interesTotal, total };
@@ -169,9 +166,7 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
         ? Number(previewAmortizacion?.interesTotal || 0)
         : tipoAmortizacion === TipoAmortizacion.INTERES_PLANO
         ? Number(previewInteresPlano?.interesTotal || 0)
-        // Interés simple truncado (Math.trunc), igual que el backend. Tasa en
-        // centésimas (base entera) para no arrastrar el error de coma flotante.
-        : Math.trunc((monto * Math.round(tasa * 100) * Math.max(1, plazoMeses || 0)) / 10000)))
+        : calcularInteresSimple(monto, tasa, plazoMeses)))
     : backendInteresTotal;
 
   const totalRecaudar = hasChanges
