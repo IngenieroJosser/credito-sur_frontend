@@ -259,7 +259,24 @@ export const mapObligacionToRutaListVisita = (
   }
 }
 
-export const RutasPageView = ({ 
+/**
+ * Llave para que una recolección no se registre dos veces si se reintenta.
+ *
+ * Vive fuera del componente a propósito: usa `Date.now()` y `Math.random()`, y
+ * declararla dentro del render hacía que React la tratara como código de render
+ * impuro (el resultado cambiaría en cada pintado). Aquí solo depende de su
+ * argumento y se llama desde el manejador del botón, no al pintar.
+ */
+const buildRecolectarIdempotencyKey = (cajaRutaId: string) => {
+  const random =
+    typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : Math.random().toString(36).slice(2, 12)
+
+  return `RECOLECCION:${cajaRutaId}:${Date.now()}:${random}`
+}
+
+export const RutasPageView = ({
   readOnly = false, 
   rutasBasePath = '/admin/rutas', 
   rutas = [],
@@ -328,15 +345,6 @@ export const RutasPageView = ({
   const [dailySummaries, setDailySummaries] = useState<Record<string, any>>({});
 
   const recolectarIdempotencyKeyRef = useRef<string | null>(null)
-
-  const buildRecolectarIdempotencyKey = (cajaRutaId: string) => {
-    const random =
-      typeof crypto !== 'undefined' && 'randomUUID' in crypto
-        ? crypto.randomUUID()
-        : Math.random().toString(36).slice(2, 12)
-
-    return `RECOLECCION:${cajaRutaId}:${Date.now()}:${random}`
-  }
 
   const fetchDailySummaries = useCallback(async (rutas: Ruta[]) => {
     if (!rutas || rutas.length === 0) return
