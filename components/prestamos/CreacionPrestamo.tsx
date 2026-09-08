@@ -247,6 +247,13 @@ const CreacionPrestamoElegante = ({ initialClienteId, isModal }: { initialClient
   });
 
   // Efecto para sugerir cantidad de cuotas según plazo y frecuencia
+  // Declarados aquí y no más abajo: el efecto de sugerencia de cuotas usa
+  // setCuotasCantidadInput, y tenerlos después dejaba una lectura anterior a
+  // la declaración.
+  const [montoTotalInput, setMontoTotalInput] = useState('')
+  const [plazoMesesInput, setPlazoMesesInput] = useState('1')
+  const [cuotasCantidadInput, setCuotasCantidadInput] = useState('')
+
   useEffect(() => {
     const factorFrecuencia = {
       DIARIO: 30,
@@ -268,10 +275,6 @@ const CreacionPrestamoElegante = ({ initialClienteId, isModal }: { initialClient
       setStep(2);
     }
   }, [initialClienteId]);
-
-  const [montoTotalInput, setMontoTotalInput] = useState('')
-  const [plazoMesesInput, setPlazoMesesInput] = useState('1')
-  const [cuotasCantidadInput, setCuotasCantidadInput] = useState('')
 
   const { resumenPrestamo } = useMemo(() => calcularCuotasYResumen(form), [form]);
 

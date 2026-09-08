@@ -162,6 +162,17 @@ const RutaClientLoaded = ({
 
   const [gastos] = useState<GastoRuta[]>([])
 
+  // Reloj para saber si una prórroga ya venció. Antes se llamaba a `Date.now()`
+  // dentro del JSX (en `disabled`, `title` y `className`), y leer el reloj al
+  // pintar hace que el resultado cambie solo entre renders. Guardarlo en estado
+  // lo vuelve predecible y, de paso, arregla algo real: al vencer la prórroga el
+  // botón se habilita solo, sin esperar a que otra cosa provoque un repintado.
+  const [ahora, setAhora] = useState(() => Date.now())
+  useEffect(() => {
+    const t = setInterval(() => setAhora(Date.now()), 30_000)
+    return () => clearInterval(t)
+  }, [])
+
   const [isGastoModalOpen, setIsGastoModalOpen] = useState(false)
   const [nuevoGasto, setNuevoGasto] = useState({ tipo: 'OPERATIVO', descripcion: '', valor: '' })
 
@@ -714,9 +725,9 @@ const RutaClientLoaded = ({
             setVisitaReprogramar(visita)
           }
         }}
-        disabled={!rutaOperable || (!!visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now()))}
-        title={!rutaOperable ? (rutaCompletada ? 'Jornada completada' : 'Jornada sin activar') : (visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now()) ? 'No se puede reprogramar con prorroga activa' : 'Solicitar reprogramacion')}
-        className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border transition-all font-bold text-[11px] shadow-sm ${!rutaOperable || (visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now())) ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 active:scale-95'}`}
+        disabled={!rutaOperable || (!!visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < ahora))}
+        title={!rutaOperable ? (rutaCompletada ? 'Jornada completada' : 'Jornada sin activar') : (visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < ahora) ? 'No se puede reprogramar con prorroga activa' : 'Solicitar reprogramacion')}
+        className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border transition-all font-bold text-[11px] shadow-sm ${!rutaOperable || (visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < ahora)) ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 active:scale-95'}`}
       >
         <Calendar className="h-3.5 w-3.5 text-slate-400" />
         Repro.

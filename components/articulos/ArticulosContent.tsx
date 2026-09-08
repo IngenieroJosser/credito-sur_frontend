@@ -129,23 +129,6 @@ export default function ArticulosContent() {
     cargar()
   }, [])
 
-  useEffect(() => {
-    if (!socket) return
-
-    const handleUpdate = () => {
-      fetchArticulos()
-      if (!esReadOnly) {
-        fetchStats()
-      }
-    }
-
-    socket.on('inventario_actualizado', handleUpdate)
-
-    return () => {
-      socket.off('inventario_actualizado', handleUpdate)
-    }
-  }, [socket, esReadOnly])
-
   const fetchArticulos = async () => {
     try {
       const data = await inventarioService.obtenerProductos();
@@ -195,6 +178,26 @@ export default function ArticulosContent() {
       console.error('Error fetching inventory stats:', error)
     }
   }
+
+  // Este efecto va DESPUES de fetchArticulos/fetchStats a proposito. Estaba
+  // arriba y llamaba a funciones declaradas mas abajo: se quedaba con la
+  // version del primer render y no se actualizaba al cambiar.
+  useEffect(() => {
+    if (!socket) return
+
+    const handleUpdate = () => {
+      fetchArticulos()
+      if (!esReadOnly) {
+        fetchStats()
+      }
+    }
+
+    socket.on('inventario_actualizado', handleUpdate)
+
+    return () => {
+      socket.off('inventario_actualizado', handleUpdate)
+    }
+  }, [socket, esReadOnly])
 
   const [showNuevoModal, setShowNuevoModal] = useState(false)
   const [showEditarModal, setShowEditarModal] = useState(false)
