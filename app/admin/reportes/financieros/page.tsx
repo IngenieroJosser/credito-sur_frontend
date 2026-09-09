@@ -674,9 +674,12 @@ const ReportesFinancierosPage = () => {
               </div>
               <h3 className={`whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold mt-2 leading-tight ${summary.utilidadNeta < 0 ? 'text-rose-600' : 'text-slate-900'}`}>{formatCurrency(summary.utilidadNeta)}</h3>
             </div>
-            <div className={`flex items-center text-xs font-bold w-fit max-w-full px-2 py-1 rounded-full border ${summary.utilidadNeta >= 0 ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-rose-600 bg-rose-50 border-rose-100'}`}>
+            {/* Cero no es "Rentable": es que no hubo movimiento en el periodo.
+                Antes cualquier valor >= 0 se etiquetaba como rentable y un dia
+                sin actividad aparecia en verde como si se hubiera ganado algo. */}
+            <div className={`flex items-center text-xs font-bold w-fit max-w-full px-2 py-1 rounded-full border ${summary.utilidadNeta > 0 ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : summary.utilidadNeta < 0 ? 'text-rose-600 bg-rose-50 border-rose-100' : 'text-slate-500 bg-slate-50 border-slate-200'}`}>
               <ArrowUpRight className="h-3 w-3 mr-1 shrink-0" />
-              <span>{summary.utilidadNeta >= 0 ? 'Rentable' : 'No rentable'}</span>
+              <span>{summary.utilidadNeta > 0 ? 'Rentable' : summary.utilidadNeta < 0 ? 'No rentable' : 'Sin movimiento'}</span>
             </div>
           </div>
 
