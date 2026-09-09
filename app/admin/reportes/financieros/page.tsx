@@ -576,9 +576,9 @@ const ReportesFinancierosPage = () => {
                 <div className="shrink-0 p-1.5 bg-emerald-50 border border-emerald-100 rounded-lg">
                   <TrendingUp className="h-4 w-4 text-emerald-600" />
                 </div>
-                <p className="min-w-0 truncate text-xs font-bold text-slate-500 uppercase tracking-wider">Flujo Neto de Caja</p>
+                <p className="min-w-0 text-xs font-bold text-slate-500 uppercase tracking-wider leading-tight">Flujo Neto de Caja</p>
               </div>
-              <h3 className="whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold text-slate-900 mt-2 leading-tight">{formatCurrency(summary.entradasCaja)}</h3>
+              <h3 className={`whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold mt-2 leading-tight ${summary.entradasCaja < 0 ? 'text-rose-600' : 'text-slate-900'}`}>{formatCurrency(summary.entradasCaja)}</h3>
             </div>
             <p className="text-xs font-semibold text-slate-400">Entradas menos salidas/reversos de caja del periodo</p>
           </div>
@@ -589,7 +589,7 @@ const ReportesFinancierosPage = () => {
                 <div className="shrink-0 p-1.5 bg-teal-50 border border-teal-100 rounded-lg">
                   <DollarSign className="h-4 w-4 text-teal-600" />
                 </div>
-                <p className="min-w-0 truncate text-xs font-bold text-slate-500 uppercase tracking-wider">Ingresos de Cartera</p>
+                <p className="min-w-0 text-xs font-bold text-slate-500 uppercase tracking-wider leading-tight">Ingresos de Cartera</p>
               </div>
               <h3 className="whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold text-slate-900 mt-2 leading-tight">{formatCurrency(summary.ingresos)}</h3>
             </div>
@@ -608,7 +608,7 @@ const ReportesFinancierosPage = () => {
                 <div className="shrink-0 p-1.5 bg-blue-50 border border-blue-100 rounded-lg">
                   <DollarSign className="h-4 w-4 text-blue-600" />
                 </div>
-                <p className="min-w-0 truncate text-xs font-bold text-slate-500 uppercase tracking-wider">Cobros de Cuotas</p>
+                <p className="min-w-0 text-xs font-bold text-slate-500 uppercase tracking-wider leading-tight">Cobros de Cuotas</p>
               </div>
               <h3 className="whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold text-slate-900 mt-2 leading-tight">{formatCurrency(summary.cobros)}</h3>
             </div>
@@ -626,7 +626,7 @@ const ReportesFinancierosPage = () => {
                 <div className="shrink-0 p-1.5 bg-rose-50 border border-rose-100 rounded-lg">
                   <TrendingDown className="h-4 w-4 text-rose-600" />
                 </div>
-                <p className="min-w-0 truncate text-xs font-bold text-slate-500 uppercase tracking-wider">Gastos Operativos</p>
+                <p className="min-w-0 text-xs font-bold text-slate-500 uppercase tracking-wider leading-tight">Gastos Operativos</p>
               </div>
               <h3 className="whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold text-slate-900 mt-2 leading-tight">{formatCurrency(summary.egresos)}</h3>
             </div>
@@ -644,9 +644,9 @@ const ReportesFinancierosPage = () => {
                 <div className="shrink-0 p-1.5 bg-blue-50 border border-blue-100 rounded-lg">
                   <DollarSign className="h-4 w-4 text-blue-600" />
                 </div>
-                <p className="min-w-0 truncate text-xs font-bold text-slate-500 uppercase tracking-wider">Utilidad Operativa</p>
+                <p className="min-w-0 text-xs font-bold text-slate-500 uppercase tracking-wider leading-tight">Utilidad Operativa</p>
               </div>
-              <h3 className="whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold text-slate-900 mt-2 leading-tight">{formatCurrency(summary.utilidadOperativa)}</h3>
+              <h3 className={`whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold mt-2 leading-tight ${summary.utilidadOperativa < 0 ? 'text-rose-600' : 'text-slate-900'}`}>{formatCurrency(summary.utilidadOperativa)}</h3>
             </div>
             <p className="text-xs font-semibold text-slate-400">Interés + mora + margen de artículos menos gastos</p>
           </div>
@@ -657,7 +657,7 @@ const ReportesFinancierosPage = () => {
                 <div className="shrink-0 p-1.5 bg-amber-50 border border-amber-100 rounded-lg">
                   <PieChart className="h-4 w-4 text-amber-600" />
                 </div>
-                <p className="min-w-0 truncate text-xs font-bold text-slate-500 uppercase tracking-wider">Provisión de Cartera</p>
+                <p className="min-w-0 text-xs font-bold text-slate-500 uppercase tracking-wider leading-tight">Provisión de Cartera</p>
               </div>
               <h3 className="whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold text-slate-900 mt-2 leading-tight">{formatCurrency(summary.provisionCartera)}</h3>
             </div>
@@ -670,9 +670,9 @@ const ReportesFinancierosPage = () => {
                 <div className="shrink-0 p-1.5 bg-purple-50 border border-purple-100 rounded-lg">
                   <DollarSign className="h-4 w-4 text-purple-600" />
                 </div>
-                <p className="min-w-0 truncate text-xs font-bold text-slate-500 uppercase tracking-wider">Utilidad Neta Estimada</p>
+                <p className="min-w-0 text-xs font-bold text-slate-500 uppercase tracking-wider leading-tight">Utilidad Neta Estimada</p>
               </div>
-              <h3 className="whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold text-slate-900 mt-2 leading-tight">{formatCurrency(summary.utilidadNeta)}</h3>
+              <h3 className={`whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold mt-2 leading-tight ${summary.utilidadNeta < 0 ? 'text-rose-600' : 'text-slate-900'}`}>{formatCurrency(summary.utilidadNeta)}</h3>
             </div>
             <div className={`flex items-center text-xs font-bold w-fit max-w-full px-2 py-1 rounded-full border ${summary.utilidadNeta >= 0 ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-rose-600 bg-rose-50 border-rose-100'}`}>
               <ArrowUpRight className="h-3 w-3 mr-1 shrink-0" />
@@ -686,7 +686,7 @@ const ReportesFinancierosPage = () => {
                 <div className="shrink-0 p-1.5 bg-purple-50 border border-purple-100 rounded-lg">
                   <PieChart className="h-4 w-4 text-purple-600" />
                 </div>
-                <p className="min-w-0 truncate text-xs font-bold text-slate-500 uppercase tracking-wider">Margen Promedio</p>
+                <p className="min-w-0 text-xs font-bold text-slate-500 uppercase tracking-wider leading-tight">Margen Promedio</p>
               </div>
               <h3 className="whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold text-slate-900 mt-2 leading-tight">{summary.margen.toFixed(1)}%</h3>
             </div>
