@@ -43,6 +43,49 @@ export interface NotificacionDetalleModalProps {
   userRol?: string
 }
 
+const countValue = (value: any) => {
+  if (Array.isArray(value)) return value.length
+  const n = Number(value)
+  return Number.isFinite(n) ? n : 0
+}
+
+/**
+ * Estas tres tarjetas se definían dentro del componente. Un componente declarado
+ * dentro de otro es un tipo nuevo en cada render: React desmonta y vuelve a
+ * montar el subárbol, perdiendo foco y estado de lo que haya dentro. Como solo
+ * dependen de sus props, viven aquí y el problema desaparece.
+ */
+const Metric = ({ label, value }: { label: string; value: any }) => (
+  <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+    <p className="text-[10px] font-black uppercase text-slate-500">{label}</p>
+    <p className="mt-1 text-lg font-black text-slate-900">{countValue(value)}</p>
+  </div>
+)
+
+const MetricMoney = ({ label, value }: { label: string; value: any }) => (
+  <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+    <p className="text-[10px] font-black uppercase text-slate-500">{label}</p>
+    <p className="mt-1 text-lg font-black text-slate-900">{formatCurrency(Number(value || 0))}</p>
+  </div>
+)
+
+const ClientInfoField = ({
+  label,
+  value,
+  className = '',
+}: {
+  label: string
+  value?: string
+  className?: string
+}) => (
+  <div className={`min-w-0 rounded-xl border border-slate-200 bg-white p-3 ${className}`}>
+    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</p>
+    <p className="mt-1 break-words text-sm font-black leading-snug text-slate-900">
+      {value || 'No registrado'}
+    </p>
+  </div>
+)
+
 export default function NotificacionDetalleModal({
   isOpen,
   onClose,
@@ -85,12 +128,6 @@ export default function NotificacionDetalleModal({
     if (value && typeof value === 'object') return fallback
     const str = String(value ?? '').trim()
     return str && str !== 'undefined' && str !== 'null' ? str : fallback
-  }
-
-  const countValue = (value: any) => {
-    if (Array.isArray(value)) return value.length
-    const n = Number(value)
-    return Number.isFinite(n) ? n : 0
   }
 
   const listItemText = (value: any) => {
@@ -638,21 +675,6 @@ export default function NotificacionDetalleModal({
     (notificacion.titulo || '').toLowerCase().includes('jornada pendiente regularizada')
   if (esJornadaPendienteCerrada) {
     if (!isOpen || !notificacion) return null
-    // Componentes auxiliares
-    const Metric = ({ label, value }: { label: string; value: any }) => (
-      <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-        <p className="text-[10px] font-black uppercase text-slate-500">{label}</p>
-        <p className="mt-1 text-lg font-black text-slate-900">{countValue(value)}</p>
-      </div>
-    )
-
-    const MetricMoney = ({ label, value }: { label: string; value: any }) => (
-      <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-        <p className="text-[10px] font-black uppercase text-slate-500">{label}</p>
-        <p className="mt-1 text-lg font-black text-slate-900">{formatCurrency(Number(value || 0))}</p>
-      </div>
-    )
-
     return (
       <Portal>
         <div
@@ -874,23 +896,6 @@ export default function NotificacionDetalleModal({
     referencia2Nombre: pickString(editedDetails?.referencia2Nombre, safeMeta?.referencia2Nombre),
     referencia2Telefono: pickString(editedDetails?.referencia2Telefono, safeMeta?.referencia2Telefono),
   }
-
-  const ClientInfoField = ({
-    label,
-    value,
-    className = '',
-  }: {
-    label: string
-    value?: string
-    className?: string
-  }) => (
-    <div className={`min-w-0 rounded-xl border border-slate-200 bg-white p-3 ${className}`}>
-      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</p>
-      <p className="mt-1 break-words text-sm font-black leading-snug text-slate-900">
-        {value || 'No registrado'}
-      </p>
-    </div>
-  )
 
   const handleClose = () => {
     setIsEditingMode(false)

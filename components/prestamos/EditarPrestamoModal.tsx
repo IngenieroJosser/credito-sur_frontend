@@ -6,6 +6,7 @@ import { createPortal } from 'react-dom';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { useNotificaciones } from '@/components/providers/NotificacionesProvider';
 import { formatCurrency, formatLoanTerm, formatMilesCOP } from '@/lib/utils';
+import { calcularInteresPlano, calcularInteresSimple } from '@/lib/interes';
 import { prestamosService } from '@/services/prestamos-service';
 import { formatErrorForComponent } from '@/lib/api/api';
 import { articulosService } from '@/services/articulos-service';
@@ -61,11 +62,7 @@ const calcularInteresPlanoPreview = (
     return { cuotaFija: 0, interesTotal: 0, total: 0 };
   }
   
-  // Interés plano truncado (Math.trunc), como el backend. La tasa va en
-  // centésimas (base entera) para no arrastrar el error binario de dividir /100
-  // antes de truncar: capital*(29/100) = 28.999999996 -> 28 en vez de 29.
-  const tasaCent = Math.round(tasaTotal * 100);
-  const interesTotal = Math.trunc((capital * tasaCent) / 10000);
+  const interesTotal = calcularInteresPlano(capital, tasaTotal);
   const total = capital + interesTotal;
   const cuotaFija = Math.floor(total / numCuotas);
   return { cuotaFija, interesTotal, total };
@@ -108,13 +105,17 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
   const [garantia, setGarantia] = useState('');
 
   // Original values for comparison
-  const originalRef = useRef<{ 
-    monto: number, tasa: number, cuotas: number, frecuencia: string, estado: string,
-    cuotaInicial: number, fechaInicio: string, notas: string, garantia: string, 
-    tipoAmortizacion: TipoAmortizacion, plazoMeses: number
-  }>({ 
+  // Valores tal como se cargaron, para saber qué cambió. Va en estado y no en un
+  // ref porque se lee durante el render (hasChanges y la lista de cambios), y
+  // leer un ref en render es justo lo que React marca como incorrecto: cambiarlo
+  // no vuelve a pintar y el compilador no puede seguirlo.
+  const [original, setOriginal] = useState<{
+    monto: number; tasa: number; cuotas: number; frecuencia: string; estado: string;
+    cuotaInicial: number; fechaInicio: string; notas: string; garantia: string;
+    tipoAmortizacion: TipoAmortizacion; plazoMeses: number;
+  }>({
     monto: 0, tasa: 0, cuotas: 0, frecuencia: 'MENSUAL', estado: 'ACTIVO',
-    cuotaInicial: 0, fechaInicio: '', notas: '', garantia: '', 
+    cuotaInicial: 0, fechaInicio: '', notas: '', garantia: '',
     tipoAmortizacion: TipoAmortizacion.INTERES_SIMPLE, plazoMeses: 0
   });
   // Versión del préstamo al cargarlo, para el control de conflictos al guardar.
@@ -138,17 +139,17 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
   const [planLoading, setPlanLoading] = useState(false);
   const [verPlanCompleto, setVerPlanCompleto] = useState(false);
 
-  const hasChanges = monto !== originalRef.current.monto 
-    || tasa !== originalRef.current.tasa 
-    || cuotas !== originalRef.current.cuotas 
-    || frecuencia !== originalRef.current.frecuencia 
-    || estado !== originalRef.current.estado
-    || cuotaInicial !== originalRef.current.cuotaInicial
-    || fechaInicio !== originalRef.current.fechaInicio
-    || notas !== originalRef.current.notas
-    || garantia !== originalRef.current.garantia
-    || tipoAmortizacion !== originalRef.current.tipoAmortizacion
-    || plazoMeses !== originalRef.current.plazoMeses;
+  const hasChanges = monto !== original.monto 
+    || tasa !== original.tasa 
+    || cuotas !== original.cuotas 
+    || frecuencia !== original.frecuencia 
+    || estado !== original.estado
+    || cuotaInicial !== original.cuotaInicial
+    || fechaInicio !== original.fechaInicio
+    || notas !== original.notas
+    || garantia !== original.garantia
+    || tipoAmortizacion !== original.tipoAmortizacion
+    || plazoMeses !== original.plazoMeses;
 
   const isArticle = tipoPrestamo?.toUpperCase() === 'ARTICULO';
   const themeColor = isArticle ? 'orange' : 'blue';
@@ -169,9 +170,7 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
         ? Number(previewAmortizacion?.interesTotal || 0)
         : tipoAmortizacion === TipoAmortizacion.INTERES_PLANO
         ? Number(previewInteresPlano?.interesTotal || 0)
-        // Interés simple truncado (Math.trunc), igual que el backend. Tasa en
-        // centésimas (base entera) para no arrastrar el error de coma flotante.
-        : Math.trunc((monto * Math.round(tasa * 100) * Math.max(1, plazoMeses || 0)) / 10000)))
+        : calcularInteresSimple(monto, tasa, plazoMeses)))
     : backendInteresTotal;
 
   const totalRecaudar = hasChanges
@@ -247,11 +246,11 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
           setPlanIndex(idx >= 0 ? idx : null);
         }
         
-        originalRef.current = { 
+        setOriginal({
           monto: m, tasa: t, cuotas: c, frecuencia: f, estado: e,
           cuotaInicial: ci, fechaInicio: fi, notas: n, garantia: g,
           tipoAmortizacion: ta, plazoMeses: p
-        };
+        });
       } catch (err) {
         console.error('Error cargando préstamo para editar:', err);
         showNotification('error', 'No se pudo cargar el préstamo', 'Error');
@@ -316,7 +315,7 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
   // real antes de guardar. Solo aparecen los que de verdad cambiaron.
   const cambios: Array<{ label: string; antes: string; despues: string }> = [];
   {
-    const o = originalRef.current;
+    const o = original;
     const money = (v: number) => formatCurrency(v);
     if (monto !== o.monto) cambios.push({ label: 'Capital', antes: money(o.monto), despues: money(monto) });
     if (!isArticle && tasa !== o.tasa) cambios.push({ label: 'Tasa de interés', antes: `${o.tasa}%`, despues: `${tasa}%` });
@@ -349,17 +348,17 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
     try {
       const payload: any = {};
 
-      if (monto !== originalRef.current.monto) payload.monto = monto;
-      if (tasa !== originalRef.current.tasa) payload.tasaInteres = tasa;
-      if (cuotas !== originalRef.current.cuotas) payload.cantidadCuotas = cuotas;
-      if (frecuencia !== originalRef.current.frecuencia) payload.frecuenciaPago = frecuencia;
-      if (estado !== originalRef.current.estado) payload.estado = estado;
-      if (cuotaInicial !== originalRef.current.cuotaInicial) payload.cuotaInicial = cuotaInicial;
-      if (fechaInicio !== originalRef.current.fechaInicio) payload.fechaInicio = fechaInicio;
-      if (notas !== originalRef.current.notas) payload.notas = notas;
-      if (garantia !== originalRef.current.garantia) payload.garantia = garantia;
-      if (tipoAmortizacion !== originalRef.current.tipoAmortizacion) payload.tipoAmortizacion = tipoAmortizacion;
-      if (plazoMeses !== originalRef.current.plazoMeses) payload.plazoMeses = plazoMeses;
+      if (monto !== original.monto) payload.monto = monto;
+      if (tasa !== original.tasa) payload.tasaInteres = tasa;
+      if (cuotas !== original.cuotas) payload.cantidadCuotas = cuotas;
+      if (frecuencia !== original.frecuencia) payload.frecuenciaPago = frecuencia;
+      if (estado !== original.estado) payload.estado = estado;
+      if (cuotaInicial !== original.cuotaInicial) payload.cuotaInicial = cuotaInicial;
+      if (fechaInicio !== original.fechaInicio) payload.fechaInicio = fechaInicio;
+      if (notas !== original.notas) payload.notas = notas;
+      if (garantia !== original.garantia) payload.garantia = garantia;
+      if (tipoAmortizacion !== original.tipoAmortizacion) payload.tipoAmortizacion = tipoAmortizacion;
+      if (plazoMeses !== original.plazoMeses) payload.plazoMeses = plazoMeses;
 
       // Control de conflictos: mandamos la versión cargada. Si el servidor tiene
       // una más nueva (otro editó / edición offline desincronizada), el backend

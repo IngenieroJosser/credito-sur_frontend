@@ -263,6 +263,20 @@ const LegacyDetalleRutaPage = () => {
 
 
 
+  // Declarada antes de cargarMisCreditos a proposito: la usa mas abajo y
+  // tenerla despues dejaba una lectura anterior a la declaracion.
+  const mapDailyVisitsResponseToVisitasCoordinador = useCallback((resp: any, cobradorId: string): VisitaRuta[] => {
+    const hoyBogotaKey = getBogotaDateKey(new Date())
+    return ordenarVisitasRutaActual(mapDailyVisitsResponseToVisitasShared({
+      resp,
+      hoyBogotaKey,
+      rutaData: { cobradorId },
+      initialRuta: { cobradorId },
+      modo: 'LIVE' as MapMode,
+      fechaOperativa: hoyBogotaKey,
+    }))
+  }, [])
+
   const cargarMisCreditos = useCallback(async () => {
 
     const cobradorId = rutaActual?.cobradorId
@@ -302,25 +316,7 @@ const LegacyDetalleRutaPage = () => {
 
 
 
-  // Tiempo real: recarga visitas COMPLETAS cuando se registran pagos/préstamos,
 
-  // para que las cuotas de todos los clientes se reflejen sin recargar la página.
-
-  useRealtimeData(['pagos_actualizados', 'prestamos_actualizados', 'rutas_actualizadas'], async () => {
-
-    // Recargar la lista principal de visitas (cuotas pueden haber cambiado)
-
-    await cargarRuta();
-
-    // Recargar misCreditos solo si el panel está abierto
-
-    if (showMisClientes) {
-
-      await cargarMisCreditos();
-
-    }
-
-  })
 
 
 
@@ -438,17 +434,7 @@ const LegacyDetalleRutaPage = () => {
 
   }, [setClienteDetalle]);
 
-  const mapDailyVisitsResponseToVisitasCoordinador = useCallback((resp: any, cobradorId: string): VisitaRuta[] => {
-    const hoyBogotaKey = getBogotaDateKey(new Date())
-    return ordenarVisitasRutaActual(mapDailyVisitsResponseToVisitasShared({
-      resp,
-      hoyBogotaKey,
-      rutaData: { cobradorId },
-      initialRuta: { cobradorId },
-      modo: 'LIVE' as MapMode,
-      fechaOperativa: hoyBogotaKey,
-    }))
-  }, [])
+
 
 
 
@@ -851,6 +837,26 @@ const LegacyDetalleRutaPage = () => {
     }
 
   }, [rutaId]);
+
+  // Tiempo real: recarga visitas COMPLETAS cuando se registran pagos/préstamos,
+
+  // para que las cuotas de todos los clientes se reflejen sin recargar la página.
+
+  useRealtimeData(['pagos_actualizados', 'prestamos_actualizados', 'rutas_actualizadas'], async () => {
+
+    // Recargar la lista principal de visitas (cuotas pueden haber cambiado)
+
+    await cargarRuta();
+
+    // Recargar misCreditos solo si el panel está abierto
+
+    if (showMisClientes) {
+
+      await cargarMisCreditos();
+
+    }
+
+  })
 
 
 

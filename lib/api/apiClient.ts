@@ -8,15 +8,19 @@ const primaryUrl =
     ? "https://credito-sur-backend.onrender.com"
     : "http://127.0.0.1:3001");
 
-// URL de Contingencia (Servidor Físico en LAN local)
-const getSecondaryUrl = () => {
-  const envUrl = process.env.NEXT_PUBLIC_LOCAL_URL;
-  if (envUrl) return envUrl;
-
-  // Forzamos HTTPS para el fallback de Render para evitar problemas de Mixed Content
-  // y asegurar compatibilidad con el servidor en la nube.
-  return "https://credito-sur-backend.onrender.com";
-};
+// URL de Contingencia (Servidor Físico en LAN local).
+//
+// Solo existe si se configura NEXT_PUBLIC_LOCAL_URL. Antes, cuando no estaba
+// definida, se caía por defecto al backend de Render (PRODUCCION): si el backend
+// local tardaba o fallaba un instante, la misma pantalla pasaba a leer la base de
+// produccion sin avisar. Eso hacia que un cliente recien importado en local
+// saliera como "Cliente no encontrado" (no existe alla) y que algunas listas
+// mostraran datos que no eran los de esta maquina.
+//
+// Ademas de confuso era peligroso: una escritura podia terminar en produccion.
+// El failover es para el servidor de la oficina en LAN, no para produccion.
+const getSecondaryUrl = (): string | null =>
+  process.env.NEXT_PUBLIC_LOCAL_URL || null;
 
 const secondaryUrl = getSecondaryUrl();
 
@@ -26,7 +30,7 @@ const normalizeUrl = (url: string) => {
 };
 
 const primaryBase = normalizeUrl(primaryUrl);
-const secondaryBase = normalizeUrl(secondaryUrl);
+const secondaryBase = secondaryUrl ? normalizeUrl(secondaryUrl) : null;
 
 export const apiClient = axios.create({
   baseURL: `${primaryBase}/`,
@@ -54,8 +58,9 @@ apiClient.interceptors.response.use(
         return Promise.reject(error);
       }
 
-      // Evitar reintento si la URL secundaria es idéntica a la primaria
-      if (primaryBase === secondaryBase) {
+      // Sin servidor de contingencia configurado no hay a donde conmutar, y si
+      // es el mismo que el principal el reintento no aporta nada.
+      if (!secondaryBase || primaryBase === secondaryBase) {
         return Promise.reject(error);
       }
 

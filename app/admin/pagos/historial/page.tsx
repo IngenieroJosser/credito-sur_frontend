@@ -30,6 +30,10 @@ import { TimeFilter, TimeFilterPeriod } from '@/components/ui/TimeFilter'
 import AnimacionCarga from '@/components/ui/AnimacionCarga'
 import PagoDetalleModal from '@/components/dashboards/shared/PagoDetalleModal'
 import FiltroRuta from '@/components/filtros/FiltroRuta'
+// Se usa el paginador compartido en vez de uno propio: el de aquí estaba
+// declarado dentro del componente, así que React lo trataba como un tipo nuevo
+// en cada render y remontaba la tabla entera.
+import PaginadorCompartido from '@/components/ui/Paginador'
 
 type EstadoPago = 'completado' | 'pendiente' | 'fallido' | 'en_revision'
 
@@ -352,34 +356,6 @@ const HistorialPagosPage = () => {
     setShowDetallePago(true)
   }
 
-  const Paginador = () => (
-    <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3 bg-white">
-      <div className="text-xs font-medium text-slate-500">
-        Mostrando <span className="font-bold text-slate-900">{pagosPaginados.length}</span> de{' '}
-        <span className="font-bold text-slate-900">{pagosFiltrados.length}</span>
-      </div>
-      <div className="flex items-center gap-2">
-        <button
-          onClick={() => setPaginaActual((prev) => Math.max(1, prev - 1))}
-          disabled={paginaSegura === 1}
-          className="shrink-0 p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 transition-all"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </button>
-        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">
-          Página {paginaSegura} de {totalPages}
-        </span>
-        <button
-          onClick={() => setPaginaActual((prev) => Math.min(totalPages, prev + 1))}
-          disabled={paginaSegura >= totalPages}
-          className="shrink-0 p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 transition-all"
-        >
-          <ChevronRight className="h-4 w-4" />
-        </button>
-      </div>
-    </div>
-  )
-
   return (
     <div className="min-h-screen bg-slate-50 relative" style={{
       backgroundImage: `
@@ -578,7 +554,7 @@ const HistorialPagosPage = () => {
                 </tbody>
               </table>
             </div>
-            {pagosFiltrados.length > 0 && <Paginador />}
+            {pagosFiltrados.length > 0 && <PaginadorCompartido pagina={paginaSegura} totalPaginas={totalPages} onCambiar={setPaginaActual} resumen={`Mostrando ${pagosPaginados.length} de ${pagosFiltrados.length}`} className="px-4 py-3" />}
           </div>
           )}
 
@@ -633,7 +609,7 @@ const HistorialPagosPage = () => {
 
             {pagosFiltrados.length > 0 && (
               <div className="mt-2 rounded-xl overflow-hidden border border-slate-200">
-                <Paginador />
+                <PaginadorCompartido pagina={paginaSegura} totalPaginas={totalPages} onCambiar={setPaginaActual} resumen={`Mostrando ${pagosPaginados.length} de ${pagosFiltrados.length}`} className="px-4 py-3" />
               </div>
             )}
           </div>

@@ -883,6 +883,11 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         return result
       })
     } else {
+      // El compilador de React marca escribir este ref aquí. Se deja a
+      // propósito: sincronizar ref y estado en el mismo paso es justo lo que
+      // corrige la carrera descrita arriba. Seguir la regla al pie volvería a
+      // dejar que una lectura inmediata del ref viera datos viejos.
+      // eslint-disable-next-line react-hooks/immutability
       visitasBaseRef.current = Array.isArray(next) ? next : []
       setVisitasBase(next)
     }
@@ -1692,11 +1697,15 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
   }, [showMoraModal, visitaMoraSeleccionada, userSession])
 
+  // El id sale a una variable porque la lista de dependencias de un hook solo
+  // admite expresiones simples, no un cast como (rutaInfo as any)?.id.
+  const rutaInfoId = (rutaInfo as any)?.id
+
   useEffect(() => {
 
     let cancelled = false
 
-    const rutaIdToCheck = (rutaInfo as any)?.id || rutaId
+    const rutaIdToCheck = rutaInfoId || rutaId
 
     if (!rutaIdToCheck) return
 
@@ -1728,12 +1737,12 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
     }
 
-  }, [rutaId, (rutaInfo as any)?.id])
+  }, [rutaId, rutaInfoId])
 
 
 
   const refreshActivacionHoy = useCallback(async () => {
-    const rutaIdToCheck = (rutaInfo as any)?.id || rutaId
+    const rutaIdToCheck = rutaInfoId || rutaId
     if (!rutaIdToCheck) return
 
     try {
@@ -1744,7 +1753,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     } finally {
       setIsCheckingActivacion(false)
     }
-  }, [rutaId, (rutaInfo as any)?.id])
+  }, [rutaId, rutaInfoId])
 
   useEffect(() => {
     void refreshActivacionHoy()

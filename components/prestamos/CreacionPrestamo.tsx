@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { formatCurrency, cn, formatMilesCOP } from '@/lib/utils';
+import { calcularInteresSimple } from '@/lib/interes';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal';
 import { clientesService, Cliente } from '@/services/clientes-service';
@@ -98,10 +99,11 @@ const calcularCuotasYResumen = (form: FormularioPrestamo) => {
     // (sin redondeo, sin mínimo de meses y con división directa), de modo que el
     // preview mostraba una cuota distinta a la que se guardaba.
     const mesesInteres = Math.max(1, mesesCalculo);
-    // Tasa en centésimas (base entera): usar tasaMensual (= tasa/100) y truncar
-    // arrastra el error binario (monto*(29/100) = 28.999999996 -> 28 en vez de 29).
-    const tasaCent = Math.round(form.tasaInteres * 100);
-    const interesTotalCalculado = Math.trunc((montoFinanciado * tasaCent * mesesInteres) / 10000);
+    const interesTotalCalculado = calcularInteresSimple(
+      montoFinanciado,
+      form.tasaInteres,
+      mesesInteres,
+    );
     const totalPagarCalculado = montoFinanciado + interesTotalCalculado;
     cuotaFija = cuotasTotales > 0
       ? Math.floor((totalPagarCalculado - interesTotalCalculado) / cuotasTotales) + Math.floor(interesTotalCalculado / cuotasTotales)
@@ -245,6 +247,13 @@ const CreacionPrestamoElegante = ({ initialClienteId, isModal }: { initialClient
   });
 
   // Efecto para sugerir cantidad de cuotas según plazo y frecuencia
+  // Declarados aquí y no más abajo: el efecto de sugerencia de cuotas usa
+  // setCuotasCantidadInput, y tenerlos después dejaba una lectura anterior a
+  // la declaración.
+  const [montoTotalInput, setMontoTotalInput] = useState('')
+  const [plazoMesesInput, setPlazoMesesInput] = useState('1')
+  const [cuotasCantidadInput, setCuotasCantidadInput] = useState('')
+
   useEffect(() => {
     const factorFrecuencia = {
       DIARIO: 30,
@@ -266,10 +275,6 @@ const CreacionPrestamoElegante = ({ initialClienteId, isModal }: { initialClient
       setStep(2);
     }
   }, [initialClienteId]);
-
-  const [montoTotalInput, setMontoTotalInput] = useState('')
-  const [plazoMesesInput, setPlazoMesesInput] = useState('1')
-  const [cuotasCantidadInput, setCuotasCantidadInput] = useState('')
 
   const { resumenPrestamo } = useMemo(() => calcularCuotasYResumen(form), [form]);
 
