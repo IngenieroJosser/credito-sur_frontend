@@ -31,9 +31,14 @@ const parseCurrencyLikeValue = (amount: number | string | null | undefined) => {
   return Number(cleaned.replace(/\./g, ''))
 }
 
+// Math.trunc(-0.4) devuelve -0, y Intl pinta el cero negativo como "-$ 0": salia
+// un signo menos sobre un valor que en realidad es cero (un residuo de centavos).
+// Sumar 0 lo normaliza a 0 sin tocar ningun otro valor.
+const sinCeroNegativo = (n: number) => (n === 0 ? 0 : n)
+
 export const formatCurrency = (amount: number | string | null | undefined) => {
   const numeric = parseCurrencyLikeValue(amount)
-  const safe = Number.isFinite(numeric) ? Math.trunc(numeric) : 0
+  const safe = sinCeroNegativo(Number.isFinite(numeric) ? Math.trunc(numeric) : 0)
   return new Intl.NumberFormat('es-CO', {
     style: 'currency',
     currency: 'COP',
@@ -43,7 +48,7 @@ export const formatCurrency = (amount: number | string | null | undefined) => {
 }
 
 export const formatMilesCOP = (amount: number) => {
-  const safe = Number.isFinite(amount) ? Math.trunc(amount) : 0
+  const safe = sinCeroNegativo(Number.isFinite(amount) ? Math.trunc(amount) : 0)
   return new Intl.NumberFormat('es-CO', {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
@@ -106,7 +111,7 @@ export const formatLoanTerm = ({
 }
 
 export const formatMilesCOPDecimal = (amount: number) => {
-  const safe = Number.isFinite(amount) ? Math.trunc(amount * 100) / 100 : 0
+  const safe = sinCeroNegativo(Number.isFinite(amount) ? Math.trunc(amount * 100) / 100 : 0)
   return new Intl.NumberFormat('es-CO', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
