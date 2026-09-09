@@ -172,7 +172,13 @@ const ReportesFinancierosPage = () => {
       const totalEgresosPeriodo = Number(resumenPeriodo?.egresosHoy || 0)
       const utilidadPeriodo = Number((resumenPeriodo as any)?.utilidadReal ?? (resumenPeriodo as any)?.gananciaNeta ?? (totalIngresosPeriodo - totalEgresosPeriodo))
       const utilidadOperativaPeriodo = Number((resumenPeriodo as any)?.utilidadOperativa ?? utilidadPeriodo)
-      const provisionCarteraPeriodo = Number((resumenPeriodo as any)?.provisionCarteraTotal ?? 0)
+      const provisionCarteraPeriodo = Number(
+        // El gasto del periodo, no el saldo acumulado de la cartera: si no, se
+        // restaba lo mismo en Hoy, Mes y Anio, y se repetia cada dia.
+        (resumenPeriodo as any)?.provisionCarteraPeriodo ??
+          (resumenPeriodo as any)?.provisionCarteraTotal ??
+          0,
+      )
       const utilidadNetaPeriodo = utilidadPeriodo
 
       const margenPeriodo = totalIngresosDevengadosPeriodo > 0 ? (utilidadOperativaPeriodo / totalIngresosDevengadosPeriodo) * 100 : 0
@@ -339,7 +345,11 @@ const ReportesFinancierosPage = () => {
             .reduce((acc, movimiento: any) => acc + Number(movimiento?.impactoCaja || 0), 0)
           const utilidad7 = Number((resumen7 as any)?.utilidadReal ?? (resumen7 as any)?.gananciaNeta ?? (totalIngresos7 - totalEgresos7))
           const utilidadOperativa7 = Number((resumen7 as any)?.utilidadOperativa ?? utilidad7)
-          const provisionCartera7 = Number((resumen7 as any)?.provisionCarteraTotal ?? 0)
+          const provisionCartera7 = Number(
+            (resumen7 as any)?.provisionCarteraPeriodo ??
+              (resumen7 as any)?.provisionCarteraTotal ??
+              0,
+          )
           const utilidadNeta7 = utilidad7
           const margen7 = ingresosDevengados7 > 0 ? (utilidadOperativa7 / ingresosDevengados7) * 100 : 0
           setSummary({
