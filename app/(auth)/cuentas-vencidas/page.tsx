@@ -47,6 +47,7 @@ import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 import { toast } from 'sonner'
 import { offlineStore } from '@/lib/offline/offlineDb'
 import { resolveRiesgoObligacion } from '@/lib/rutas/riesgo-obligacion'
+import Paginador from '@/components/ui/Paginador'
 
 type ViewMode = 'list' | 'grid'
 
@@ -98,6 +99,7 @@ function CuentasVencidasContent() {
   const [selectedCuenta, setSelectedCuenta] = useState<CuentaVencida | null>(null)
   const [filtroRuta, setFiltroRuta] = useState<string | null>(null)
   const [filtroSeveridad, setFiltroSeveridad] = useState<string>('TODOS')
+  const [paginaVencidas, setPaginaVencidas] = useState(1)
   const [totales, setTotales] = useState({ totalVencido: 0, diasPromedioVencimiento: 0 })
 
   const rolesConGestion = ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'CONTADOR']
@@ -233,6 +235,15 @@ function CuentasVencidasContent() {
   })
 
   const totalCapital = cuentasFiltradas.reduce((a, c) => a + c.saldoPendiente, 0)
+  // Paginacion local, 5 por pagina.
+  const CUENTAS_POR_PAGINA = 5
+  const totalPaginas = Math.max(1, Math.ceil(cuentasFiltradas.length / CUENTAS_POR_PAGINA))
+  const paginaSegura = Math.min(paginaVencidas, totalPaginas)
+  const cuentasPagina = cuentasFiltradas.slice(
+    (paginaSegura - 1) * CUENTAS_POR_PAGINA,
+    paginaSegura * CUENTAS_POR_PAGINA,
+  )
+
 
   return (
     <div className="min-h-screen bg-slate-50 relative">
@@ -393,7 +404,7 @@ function CuentasVencidasContent() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {cuentasFiltradas.map(c => {
+                  {cuentasPagina.map(c => {
                     const severidad = severidadVencida(c.diasVencidos)
                     return (
                       <tr key={c.id} className="hover:bg-slate-50/50 transition-colors group">
@@ -449,13 +460,20 @@ function CuentasVencidasContent() {
                 </tbody>
               </table>
             </div>
+            <Paginador
+              pagina={paginaSegura}
+              totalPaginas={totalPaginas}
+              onCambiar={setPaginaVencidas}
+              resumen={`${cuentasFiltradas.length} contrato(s) vencido(s)`}
+              className="px-6 pb-4"
+            />
           </div>
 
         ) : (
-
+          <>
           /* ── GRID ── */
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {cuentasFiltradas.map(cuenta => {
+            {cuentasPagina.map(cuenta => {
               const severidad = severidadVencida(cuenta.diasVencidos)
               return (
                 <div key={cuenta.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col group">
@@ -516,6 +534,13 @@ function CuentasVencidasContent() {
               )
             })}
           </div>
+          <Paginador
+            pagina={paginaSegura}
+            totalPaginas={totalPaginas}
+            onCambiar={setPaginaVencidas}
+            resumen={`${cuentasFiltradas.length} contrato(s) vencido(s)`}
+          />
+          </>
         )}
       </div>
 

@@ -27,6 +27,7 @@ import { formatCurrency, cn } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
 import FiltroRuta from '@/components/filtros/FiltroRuta'
 import ClientePortalModal from '@/components/cliente/ClientePortalModal'
+import Paginador from '@/components/ui/Paginador'
 import { usePermission } from '@/hooks/usePermission'
 import { apiRequest } from '@/lib/api/api'
 import { formatErrorForComponent } from '@/lib/api/api'
@@ -217,6 +218,9 @@ export default function CuentasMoraFeature() {
   const [filtroNivel, setFiltroNivel] = useState<string>('TODOS')
   const [viewMode, setViewMode] = useState<ViewMode>('list')
 
+  // Paginacion local: la consulta ya trae un tope, esto solo parte lo que se ve.
+  const CUENTAS_POR_PAGINA = 5
+  const [pagina, setPagina] = useState(1)
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null)
   const [isClientModalOpen, setIsClientModalOpen] = useState(false)
 
@@ -295,6 +299,13 @@ export default function CuentasMoraFeature() {
   )
 
   usePageFocusRefresh(() => { fetchData(); fetchEstadisticas() })
+
+  const totalPaginas = Math.max(1, Math.ceil(cuentas.length / CUENTAS_POR_PAGINA))
+  const paginaSegura = Math.min(pagina, totalPaginas)
+  const cuentasPagina = cuentas.slice(
+    (paginaSegura - 1) * CUENTAS_POR_PAGINA,
+    paginaSegura * CUENTAS_POR_PAGINA,
+  )
 
   const handleVerCliente = (id?: string) => {
     const clientId = id || ''
@@ -493,7 +504,7 @@ export default function CuentasMoraFeature() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {cuentas.map(cuenta => {
+                  {cuentasPagina.map(cuenta => {
                     const nivel = (cuenta.etiquetaMora || calcularNivelMora(cuenta)) as NivelMoraKey
                     const cfg = NIVEL_COLORS[nivel]
                     const cuotasVencidasUI = Number(cuenta.cuotasVencidas || 0)
@@ -563,13 +574,20 @@ export default function CuentasMoraFeature() {
                 </tbody>
               </table>
             </div>
+            <Paginador
+              pagina={paginaSegura}
+              totalPaginas={totalPaginas}
+              onCambiar={setPagina}
+              resumen={`${cuentas.length} cuenta(s) en mora`}
+              className="px-6 pb-4"
+            />
           </div>
 
         ) : (
-
+          <>
           /* GRID */
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {cuentas.map(cuenta => {
+            {cuentasPagina.map(cuenta => {
               const nivel = (cuenta.etiquetaMora || calcularNivelMora(cuenta)) as NivelMoraKey
               const cfg = NIVEL_COLORS[nivel]
               const cuotasVencidasUI = Number(cuenta.cuotasVencidas || 0)
@@ -638,6 +656,13 @@ export default function CuentasMoraFeature() {
               )
             })}
           </div>
+          <Paginador
+            pagina={paginaSegura}
+            totalPaginas={totalPaginas}
+            onCambiar={setPagina}
+            resumen={`${cuentas.length} cuenta(s) en mora`}
+          />
+          </>
         )}
       </div>
 
