@@ -104,7 +104,11 @@ export default function ClientesFeature({
     });
     try {
       const fresh = await clientesService.obtenerTodos();
-      if (Array.isArray(fresh) && fresh.length > 0) {
+      // Una respuesta vacia es una respuesta valida: puede que de verdad no haya
+      // clientes. Antes se exigia length > 0 y al borrarlos todos se caia al
+      // cache, mostrando "datos guardados localmente" con la conexion intacta y
+      // repintando clientes que ya no existen.
+      if (Array.isArray(fresh)) {
         setClientes(fresh as ClienteAdmin[]);
         offlineStore.saveMany('clientes', fresh as ClienteAdmin[]).catch(() => {});
         setDataSource('online');

@@ -418,9 +418,12 @@ export const RutasPageView = ({
         ? payload
         : (Array.isArray((payload as any)?.data) ? (payload as any).data : [])
 
-      if (Array.isArray(data) && data.length > 0) {
+      // Se acepta la respuesta aunque venga vacía: cero rutas es un resultado
+      // válido (un supervisor sin rutas asignadas, o todas dadas de baja).
+      // Exigir length > 0 dejaba en pantalla las rutas de la consulta anterior.
+      if (Array.isArray(data)) {
         // La lista base viene de routesService.getAll, pero las métricas operativas de HOY
-  // se recalculan con obtenerVisitasDelDia y dailySummaries.
+        // se recalculan con obtenerVisitasDelDia y dailySummaries.
         // No se mezcla con saldo de caja porque ahí entran regularizaciones,
         // bases y movimientos contables que no son productividad de HOY.
         setRutasList(data as Ruta[]);
