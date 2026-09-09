@@ -73,6 +73,11 @@ export default function ClientesFeature({
   
   const [clientes, setClientes] = useState<ClienteAdmin[]>(initialClientes);
   const [dataSource, setDataSource] = useState<'online' | 'offline'>('online');
+  // Sin esto la lista no avisaba que estaba trayendo datos: tras una
+  // importacion se quedaba mostrando 'No se encontraron resultados' y de golpe
+  // aparecian los clientes, como si no se hubiera actualizado. El listado de
+  // creditos ya usaba este patron.
+  const [cargando, setCargando] = useState(initialClientes.length === 0);
 
   useEffect(() => {
     if (initialClientes.length === 0) {
@@ -91,6 +96,12 @@ export default function ClientesFeature({
   }, [initialClientes]);
 
   const refetch = useCallback(async () => {
+    // Solo se muestra el esqueleto si no hay nada en pantalla; en un refresco de
+    // fondo con datos ya visibles haria parpadear la tabla.
+    setClientes((actuales) => {
+      if (actuales.length === 0) setCargando(true);
+      return actuales;
+    });
     try {
       const fresh = await clientesService.obtenerTodos();
       if (Array.isArray(fresh) && fresh.length > 0) {
@@ -105,6 +116,8 @@ export default function ClientesFeature({
       offlineStore.getAll<ClienteAdmin>('clientes').then((cached) => {
         if (cached.length > 0) { setClientes(cached); setDataSource('offline'); }
       }).catch(() => {});
+    } finally {
+      setCargando(false);
     }
   }, []);
 
@@ -523,7 +536,18 @@ export default function ClientesFeature({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {currentItems.length > 0 ? (
+                {cargando ? (
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <tr key={i} className="animate-pulse">
+                      <td className="px-6 py-4"><div className="h-10 w-48 rounded-lg bg-slate-100" /></td>
+                      <td className="px-6 py-4"><div className="h-6 w-24 rounded-full bg-slate-100" /></td>
+                      <td className="px-6 py-4"><div className="h-4 w-28 rounded bg-slate-100" /></td>
+                      <td className="px-6 py-4"><div className="h-4 w-20 rounded bg-slate-100" /></td>
+                      <td className="px-6 py-4"><div className="h-4 w-32 rounded bg-slate-100" /></td>
+                      <td className="px-6 py-4"><div className="ml-auto h-8 w-16 rounded bg-slate-100" /></td>
+                    </tr>
+                  ))
+                ) : currentItems.length > 0 ? (
                   currentItems.map((cliente, index) => {
                     const isPending = cliente.estadoAprobacion === 'PENDIENTE' || cliente.id?.includes('offline') || cliente.id?.includes('temp');
                     const diasMoraUI = getDiasMoraCliente(cliente)
@@ -699,7 +723,18 @@ export default function ClientesFeature({
         </div>
 
         <div className="md:hidden space-y-4">
-          {currentItems.map((cliente, index) => {
+          {cargando &&
+            Array.from({ length: 3 }).map((_, i) => (
+              <div
+                key={i}
+                className="animate-pulse rounded-2xl border border-slate-100 bg-white p-4"
+              >
+                <div className="h-5 w-40 rounded bg-slate-100" />
+                <div className="mt-3 h-4 w-28 rounded bg-slate-100" />
+                <div className="mt-3 h-4 w-24 rounded bg-slate-100" />
+              </div>
+            ))}
+          {!cargando && currentItems.map((cliente, index) => {
             const isPending = cliente.estadoAprobacion === 'PENDIENTE' || cliente.id?.includes('offline') || cliente.id?.includes('temp');
             const diasMoraUI = Number(diasMoraByClientId[String((cliente as any)?.id || '')] ?? (cliente as any)?.diasMora ?? 0)
             const diasMoraConocidos = getDiasMoraOrNull(cliente)
