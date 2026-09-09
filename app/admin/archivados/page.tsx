@@ -15,6 +15,7 @@ import { toast } from 'sonner'
 import ClientePortalModal from '@/components/cliente/ClientePortalModal'
 import DetallePrestamoModal from '@/components/prestamos/DetallePrestamoModal'
 import DetalleProductoModal from '@/components/articulos/DetalleProductoModal'
+import Paginador from '@/components/ui/Paginador'
 
 interface ArchivedItem {
   id: string
@@ -201,6 +202,8 @@ export default function ArchivadosPage() {
   // la tienen). Se dice de forma explicita para que nadie crea que se perdieron.
   const sinRuta = items.filter(i => !i.ruta).length
 
+  const [paginaArchivados, setPaginaArchivados] = useState(1)
+
   const filteredItems = items.filter(item => {
     const matchesSearch = item.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          item.motivo.toLowerCase().includes(searchTerm.toLowerCase())
@@ -210,6 +213,18 @@ export default function ArchivadosPage() {
       (rutaFiltro === 'sin-ruta' ? !item.ruta : item.ruta === rutaFiltro)
     return matchesSearch && matchesType && matchesRuta
   })
+
+  // Paginacion local, 5 por pagina.
+  const ARCHIVADOS_POR_PAGINA = 5
+  const totalPaginasArchivados = Math.max(
+    1,
+    Math.ceil(filteredItems.length / ARCHIVADOS_POR_PAGINA),
+  )
+  const paginaSeguraArchivados = Math.min(paginaArchivados, totalPaginasArchivados)
+  const itemsPagina = filteredItems.slice(
+    (paginaSeguraArchivados - 1) * ARCHIVADOS_POR_PAGINA,
+    paginaSeguraArchivados * ARCHIVADOS_POR_PAGINA,
+  )
 
   return (
     <div className="min-h-screen bg-slate-50 relative">
@@ -322,7 +337,7 @@ export default function ArchivadosPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filteredItems.map((item) => (
+                  {itemsPagina.map((item) => (
                       <tr key={item.id} className="hover:bg-slate-50/50 transition-colors group">
                         <td className="px-8 py-5 whitespace-nowrap">
                           <div className="flex items-center gap-4">
@@ -412,6 +427,13 @@ export default function ArchivadosPage() {
                   ))}
                 </tbody>
               </table>
+              <Paginador
+                pagina={paginaSeguraArchivados}
+                totalPaginas={totalPaginasArchivados}
+                onCambiar={setPaginaArchivados}
+                resumen={`${filteredItems.length} elemento(s) archivado(s)`}
+                className="px-6 pb-4"
+              />
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-24 px-4 text-center animate-in fade-in zoom-in-95 duration-500">
