@@ -141,6 +141,17 @@ interface OfflineDB extends DBSchema {
 }
 
 const DB_NAME = 'creditsur-offline';
+
+/**
+ * Versión del esquema de IndexedDB. Subirla dispara `upgrade` en cada
+ * dispositivo la próxima vez que abre la app.
+ *
+ * OJO al cambiar el esquema: `upgrade` de abajo solo CREA los stores que no
+ * existen. Agregar un índice a un store que ya existe, o cambiar su keyPath,
+ * no se aplica solo con subir la versión: hay que migrarlo explícitamente
+ * usando `oldVersion`, o los celulares que ya tenían la base se quedan con el
+ * esquema viejo y las consultas por ese índice fallan.
+ */
 const DB_VERSION = 2;
 
 let dbPromise: Promise<IDBPDatabase<OfflineDB>> | null = null;
@@ -222,7 +233,9 @@ export const offlineStore = {
     
     if (overwrite) {
       await db.clear(store);
-      // Si borramos préstamos, también borramos cuontas para reincronizar
+      // Si se reemplazan los préstamos también se borran las cuotas: son hijas
+      // de los préstamos, y sin esto quedarían cuotas de créditos que ya no
+      // están en la copia local.
       if (store === 'prestamos') {
         await db.clear('cuotas');
       }
