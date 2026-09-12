@@ -287,7 +287,21 @@ export const offlineStore = {
     await db.clear(store);
   },
 
-  // Limpiar todos los datos locales al cerrar sesión o cambiar de cuenta
+  /**
+   * Borra la copia local de los datos del servidor (clientes, préstamos,
+   * cuotas, rutas, productos, cajas, usuarios) y su metadata de sincronización.
+   *
+   * NO borra la cola offline (`offline-queue`): ahí están las operaciones que
+   * todavía no llegaron al servidor (pagos, créditos, visitas hechas sin red).
+   * Antes sí la borraba y esas operaciones se perdían sin aviso, aunque los dos
+   * llamadores esperan lo contrario: la purga tras cerrar sesión promete
+   * conservarla, y "Limpiar caché local" promete una resincronización, que no
+   * existe si se tiran operaciones sin enviar.
+   *
+   * Conservarla al cambiar de cuenta es seguro: cada operación está sellada con
+   * su usuario y `syncManager` solo envía las del usuario con sesión. Para
+   * vaciar la cola a propósito existe `offlineQueue.clearAll()`.
+   */
   async clearAll(): Promise<void> {
     const db = await getOfflineDb();
     await Promise.all([
@@ -298,7 +312,6 @@ export const offlineStore = {
       db.clear('productos'),
       db.clear('cajas'),
       db.clear('usuarios'),
-      db.clear('offline-queue'),
       db.clear('sync-meta'),
     ]);
   },
