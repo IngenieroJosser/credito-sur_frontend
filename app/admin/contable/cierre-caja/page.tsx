@@ -723,7 +723,7 @@ export default function CierreCajaPage() {
         setArqueoResult(result)
       }
       setStep(3)
-      // Reload all data after successful arqueo!
+      // Recargar todos los datos despues de un arqueo exitoso
       await loadCierreCaja()
     } catch (e) {
       console.error('Error confirming arqueo:', e)

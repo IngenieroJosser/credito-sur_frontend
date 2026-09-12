@@ -90,7 +90,7 @@ export const computeOperationalMetaTotalForTimeFilter = async (
           return Number(summary.meta || 0)
         }
         
-        // Otherwise, use original logic
+        // Si no, usar la logica original
         const asignaciones = Array.isArray(rutaCompleta?.asignaciones) ? rutaCompleta.asignaciones : []
 
         const asigsConCuotas = await Promise.all(
@@ -253,7 +253,7 @@ export const computeOperationalMetaByRouteIdsForTimeFilter = async (
           return
         }
         
-        // Otherwise, use original logic
+        // Si no, usar la logica original
         const asignaciones = Array.isArray(rutaCompleta?.asignaciones) ? rutaCompleta.asignaciones : []
 
         const asigsConCuotas = await Promise.all(

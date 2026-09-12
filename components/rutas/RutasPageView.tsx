@@ -592,7 +592,7 @@ export const RutasPageView = ({
       
       setShowModal(false);
       
-      // Refresh list client-side to ensure UI updates immediately
+      // Refrescar la lista en el cliente para que la UI se actualice de inmediato
       try {
         await fetchRutas();
       } catch (e) { /* Error refreshing routes */ }

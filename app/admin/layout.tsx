@@ -384,7 +384,7 @@ export default function AdminLayout({
       const allHrefs = navigation.flatMap((n) => [n.href, ...(n.submodulos?.map((s) => s.href) ?? [])])
       const allowedAdminBases = allHrefs.filter((h) => typeof h === 'string' && h.startsWith('/admin'))
 
-      // Also check if the current /admin path has a matching clean URL in the sidebar
+      // Revisar tambien si la ruta /admin actual tiene una URL limpia equivalente en el menu lateral
       // e.g. /admin/creditos is allowed if /creditos is in the sidebar (via rewrites)
       const cleanPath = pathname.replace(/^\/admin/, '')
       const allowedCleanBases = allHrefs.filter((h) => typeof h === 'string' && !h.startsWith('/admin') && h !== '#' && h !== '/')
