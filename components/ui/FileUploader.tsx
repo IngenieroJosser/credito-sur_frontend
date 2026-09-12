@@ -140,7 +140,7 @@ export const FileUploader: React.FC<FileUploaderProps> = ({
     if (e.target.files) {
       const selectedFiles = Array.from(e.target.files);
       handleFiles(selectedFiles);
-      // Reset input value to allow selecting the same file again if needed
+      // Limpiar el valor del input para poder volver a seleccionar el mismo archivo
       e.target.value = '';
     }
   };

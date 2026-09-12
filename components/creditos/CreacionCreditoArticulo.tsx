@@ -56,7 +56,7 @@ export default function CreacionCreditoArticulo({
   // Configuración del Crédito (Basado en número de pagos según Mock)
   const [numeroCuotas, setNumeroCuotas] = useState<number>(12);
 
-  // If initialClienteId is provided, move to step 2 automatically if we are in step 1
+  // Si llega initialClienteId, saltar automáticamente al paso 2 cuando se está en el paso 1
   React.useEffect(() => {
      if (initialClienteId && step === 1) {
        setStep(2);

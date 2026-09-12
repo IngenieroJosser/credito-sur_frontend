@@ -129,7 +129,7 @@ const ReportesOperativosPage = () => {
     return () => clearTimeout(timer)
   }, [])
 
-  // Fetch Data Reintegration
+  // Recarga de datos del reporte
   useEffect(() => {
     if (mounted) {
       fetchOperationalReport({

@@ -570,7 +570,7 @@ const RutaClientLoaded = ({
         6,
       );
 
-      // Merge selectivo: actualizadas es la fuente base, solo preservar campos locales específicos
+      // Fusión selectiva: 'actualizadas' es la fuente base y solo se conservan campos locales puntuales
       const merged = actualizadas.map((actualizada: any) => {
         const local = visitasCobradorRef.current.find((v: any) =>
           v.id === actualizada.id || v.prestamoId === actualizada.prestamoId

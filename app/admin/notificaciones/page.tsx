@@ -239,8 +239,8 @@ export default function NotificacionesPage() {
       }
     }
     
-    // We only load map logic if globalNotifs has data, and we don't spam if it's empty during init.
-    // If it's validly empty, we show empty state.
+    // Solo se arma el mapeo cuando globalNotifs trae datos; si viene vacío de verdad
+    // se muestra el estado vacío en lugar de reintentar.
     cargarNotificaciones()
   }, [globalNotifs])
 

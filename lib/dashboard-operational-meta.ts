@@ -84,7 +84,7 @@ export const computeOperationalMetaTotalForTimeFilter = async (
           }
         }
         
-        // If we have dailyVisits, use resolveRutaDailySummary
+        // Si hay dailyVisits, usar resolveRutaDailySummary
         if (timeFilter === 'today' && dailyVisits) {
           const summary = resolveRutaDailySummary(rutaCompleta, dailyVisits)
           return Number(summary.meta || 0)
@@ -246,7 +246,7 @@ export const computeOperationalMetaByRouteIdsForTimeFilter = async (
           }
         }
         
-        // If we have dailyVisits, use resolveRutaDailySummary
+        // Si hay dailyVisits, usar resolveRutaDailySummary
         if (timeFilter === 'today' && dailyVisits) {
           const summary = resolveRutaDailySummary(rutaCompleta, dailyVisits)
           out[routeId] = Number(summary.meta || 0)
