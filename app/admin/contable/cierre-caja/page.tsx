@@ -123,7 +123,7 @@ export default function CierreCajaPage() {
       const list = Array.isArray(cierresResp) ? cierresResp : []
       setCierres(list)
       setUltimoCierre(list.length ? list[0] : null)
-      // Load cajas with support for different response structures (with type assertions)
+      // Cargar las cajas soportando distintas formas de respuesta del backend
       const cajasRespAny = cajasResp as any
       const cajasList = Array.isArray(cajasRespAny)
         ? cajasRespAny
@@ -250,7 +250,7 @@ export default function CierreCajaPage() {
     let data = arqueo ?? arqueoResult;
     if (!data) return;
 
-    // If we're using an item from the historial and it doesn't have full fields, fetch it by ID
+    // Si el item viene del historial y no trae todos los campos, se pide completo por ID
     if (arqueo && !arqueo.cajaOrigen && arqueo.id) {
       try {
         const fullArqueo = await getArqueoById(arqueo.id);
@@ -266,10 +266,10 @@ export default function CierreCajaPage() {
     const creadoPor = getNombreUsuario(data.creadoPor);
     const recibidoPor = getNombreUsuario(data.recibidoPor);
 
-    // Get full URL for logo to fix loading in new window
+    // URL absoluta del logo para que cargue en la ventana nueva
     const logoUrl = `${window.location.origin}/logo.png`;
 
-    // Unique document name
+    // Nombre único del documento
     const codigoComprobante =
       data.numeroComprobanteTraslado ??
       `ARQ-${new Date().getTime()}`;
@@ -723,7 +723,7 @@ export default function CierreCajaPage() {
         setArqueoResult(result)
       }
       setStep(3)
-      // Reload all data after successful arqueo!
+      // Recargar todos los datos despues de un arqueo exitoso
       await loadCierreCaja()
     } catch (e) {
       console.error('Error confirming arqueo:', e)

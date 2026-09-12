@@ -49,7 +49,6 @@ import NotFoundPage from '../not-found'
 import { notificacionesService, type Notificacion } from '@/services/notificaciones-service'
 import UserDropdownMenu, { formatRoleName, getRoleColor, getRoleIcon } from '@/components/ui/UserDropdownMenu'
 import { useNotificaciones } from '@/components/providers/NotificacionesProvider';
-import PushNotificationPrompt from '@/components/push/PushNotificationPrompt';
 import { aprobacionesService } from '@/services/aprobaciones-service';
 import { isTokenExpired } from '@/lib/auth/offlineAuth';
 import { formatRoleLabel } from '@/lib/display-labels';
@@ -384,7 +383,7 @@ export default function AdminLayout({
       const allHrefs = navigation.flatMap((n) => [n.href, ...(n.submodulos?.map((s) => s.href) ?? [])])
       const allowedAdminBases = allHrefs.filter((h) => typeof h === 'string' && h.startsWith('/admin'))
 
-      // Also check if the current /admin path has a matching clean URL in the sidebar
+      // Revisar tambien si la ruta /admin actual tiene una URL limpia equivalente en el menu lateral
       // e.g. /admin/creditos is allowed if /creditos is in the sidebar (via rewrites)
       const cleanPath = pathname.replace(/^\/admin/, '')
       const allowedCleanBases = allHrefs.filter((h) => typeof h === 'string' && !h.startsWith('/admin') && h !== '#' && h !== '/')
@@ -1025,8 +1024,6 @@ export default function AdminLayout({
         </div>,
         document.body
       )}
-      {/* Aviso de suscripción a notificaciones push */}
-      <PushNotificationPrompt />
     </div>
   )
 }

@@ -84,13 +84,13 @@ export const computeOperationalMetaTotalForTimeFilter = async (
           }
         }
         
-        // If we have dailyVisits, use resolveRutaDailySummary
+        // Si hay dailyVisits, usar resolveRutaDailySummary
         if (timeFilter === 'today' && dailyVisits) {
           const summary = resolveRutaDailySummary(rutaCompleta, dailyVisits)
           return Number(summary.meta || 0)
         }
         
-        // Otherwise, use original logic
+        // Si no, usar la logica original
         const asignaciones = Array.isArray(rutaCompleta?.asignaciones) ? rutaCompleta.asignaciones : []
 
         const asigsConCuotas = await Promise.all(
@@ -246,14 +246,14 @@ export const computeOperationalMetaByRouteIdsForTimeFilter = async (
           }
         }
         
-        // If we have dailyVisits, use resolveRutaDailySummary
+        // Si hay dailyVisits, usar resolveRutaDailySummary
         if (timeFilter === 'today' && dailyVisits) {
           const summary = resolveRutaDailySummary(rutaCompleta, dailyVisits)
           out[routeId] = Number(summary.meta || 0)
           return
         }
         
-        // Otherwise, use original logic
+        // Si no, usar la logica original
         const asignaciones = Array.isArray(rutaCompleta?.asignaciones) ? rutaCompleta.asignaciones : []
 
         const asigsConCuotas = await Promise.all(

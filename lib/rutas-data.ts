@@ -92,7 +92,7 @@ export async function getRutasList(): Promise<Ruta[]> {
 
     const apiUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
 
-    // Fetch routes with a safer limit to avoid timeouts
+    // Traer las rutas con un límite prudente para evitar timeouts
     const res = await fetch(`${apiUrl}/api-credisur/routes?limit=20`, { 
       headers: {
         'Authorization': `Bearer ${token}`,

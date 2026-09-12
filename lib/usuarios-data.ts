@@ -28,7 +28,7 @@ export async function getUsuariosByRol(rol: RolUsuario): Promise<Usuario[]> {
     }
     
     const usuarios: Usuario[] = await res.json();
-    // Filter on client side (server component) since fetch brings all users
+    // Se filtra aquí (componente de servidor) porque el fetch trae todos los usuarios
     return usuarios.filter(u => u.rol === rol && u.estado === 'ACTIVO');
   } catch (err) {
     console.error('[SSR usuarios-data] Error in getUsuariosByRol:', err);

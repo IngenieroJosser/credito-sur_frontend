@@ -10,6 +10,21 @@ const toNumber = (v: unknown) => {
   return Number.isFinite(n) ? n : 0;
 };
 
+/**
+ * Los dos totales de un credito, que NO son lo mismo.
+ *
+ *  - `totalFinanciado` = monto + interes. Es lo que el cliente queda debiendo y
+ *    lo que se reparte en cuotas.
+ *  - `totalContrato`   = lo anterior mas la cuota inicial, pero SOLO en creditos
+ *    de articulo. Es el valor del negocio completo.
+ *
+ * La diferencia esta en la cuota inicial de un articulo: el cliente ya la pago,
+ * asi que no se financia (no entra en `totalFinanciado`) pero si forma parte de
+ * lo que costo el articulo (si entra en `totalContrato`).
+ *
+ * Usar uno donde va el otro infla o desinfla la cartera en pantalla: por eso se
+ * calculan aqui una sola vez y no en cada componente.
+ */
 export const getLoanAmounts = (loan: LoanLike) => {
   const tipo = String(loan?.tipoPrestamo ?? '').toUpperCase();
   const isArticulo = tipo === 'ARTICULO';

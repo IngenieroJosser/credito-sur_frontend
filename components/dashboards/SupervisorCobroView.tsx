@@ -1116,7 +1116,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
           }
         });
 
-        // Sync ref ANTES de que cargarEstadisticasRuta lo lea (evita stale ref)
+        // Sincronizar la ref ANTES de que cargarEstadisticasRuta la lea (evita leer una ref vieja)
         setVisitasBaseAndRef(merged as any[])
         setVisitasOrden((merged as any[]).map((v: any) => v.id));
       }

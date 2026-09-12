@@ -10,6 +10,23 @@ export type MovimientoClasificable = {
   impactoCaja?: number | null
 }
 
+/**
+ * Movimientos que entran plata a una caja pero NO son ingreso contable.
+ *
+ * La distincion es la que separa el flujo de caja del estado de resultados: que
+ * entre dinero no significa que se haya ganado. Aqui caen tres familias:
+ *
+ *  - Movimientos de un bolsillo a otro (APERTURA_CAJA, TRANSFERENCIA_INTERNA,
+ *    CIERRE_RUTA, ACTIVACION_RUTA, SOLICITUD_BASE): la plata cambia de caja, la
+ *    empresa no gano nada. Contarlos inflaria los ingresos cada vez que un
+ *    cobrador recibe su base.
+ *  - Recuperacion de una cuenta por cobrar (ABONO_DEUDA): el cobrador pagando la
+ *    deuda que quedo de un cierre descuadrado. Esa plata ya era de la empresa y
+ *    estaba registrada como deuda suya; cobrarla cancela la cuenta, no genera
+ *    ganancia.
+ *  - La cuota inicial y la venta de articulo, que se reconocen por su propio
+ *    camino (margen de articulos) y se contarian dos veces si entraran aqui.
+ */
 const REFERENCIAS_NO_INGRESO = new Set([
   'CUOTA_INICIAL',
   'RESTAURACION_CUOTA_INICIAL',
@@ -28,6 +45,18 @@ const REFERENCIAS_NO_INGRESO = new Set([
   'ACTIVACION_RUTA',
 ])
 
+/**
+ * Movimientos que sacan plata de una caja pero NO son gasto.
+ *
+ * Mismo criterio que `REFERENCIAS_NO_INGRESO` al reves. El caso que mas confunde
+ * es PRESTAMO/DESEMBOLSO: desembolsar vacia la caja, pero no es un gasto, es
+ * convertir efectivo en cartera. El activo sigue siendo de la empresa, solo
+ * cambio de forma. Tratarlo como gasto haria que un dia de muchos desembolsos
+ * apareciera como un dia de perdidas enormes.
+ *
+ * DEUDA_COBRADOR tampoco es gasto: es una cuenta por cobrar contra el cobrador
+ * que no cuadro su cierre, no plata perdida.
+ */
 const REFERENCIAS_NO_EGRESO = new Set([
   'AJUSTE',
   'VENTA_ARTICULO',

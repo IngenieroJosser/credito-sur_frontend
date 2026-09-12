@@ -311,7 +311,7 @@ export default function OfflineIndicator() {
     if (result) {
       setShowResult(true);
       setTimeout(() => setShowResult(false), 5000);
-      // Refresh queue items
+      // Refrescar los elementos de la cola
       const items = await offlineQueue.getAll();
       setQueueItems(items);
     }

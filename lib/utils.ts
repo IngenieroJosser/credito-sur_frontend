@@ -5,6 +5,27 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+/**
+ * Lee un numero a partir de un texto de dinero, sin saber de antemano si viene
+ * en formato colombiano o ingles.
+ *
+ * El problema: en Colombia el punto separa miles y la coma decimales
+ * (`1.234,56`), pero al sistema llegan cifras de las dos formas —del backend en
+ * JSON, de inputs escritos a mano, de celdas de Excel importadas—. `"1.234"`
+ * puede querer decir mil doscientos treinta y cuatro o uno con 234.
+ *
+ * Las reglas, en orden:
+ *  1. Si hay COMA, es formato colombiano: los puntos son miles y la coma es el
+ *     decimal.
+ *  2. Si hay MAS DE UN punto, tienen que ser separadores de miles (`1.234.567`),
+ *     porque un numero no lleva dos decimales.
+ *  3. Un solo punto con una o dos cifras detras (`1234.56`) es decimal ingles.
+ *  4. Cualquier otro caso con un solo punto se trata como separador de miles:
+ *     `1.234` son mil doscientos treinta y cuatro, que es lo que significa en
+ *     el 99% de las cifras de esta aplicacion.
+ *
+ * Interpretar mal esto no falla: muestra un credito de 1.200.000 como 1,2.
+ */
 const parseCurrencyLikeValue = (amount: number | string | null | undefined) => {
   if (typeof amount !== 'string') return Number(amount)
   const cleaned = amount.trim().replace(/[^\d.,-]/g, '')
