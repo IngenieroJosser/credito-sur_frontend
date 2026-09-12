@@ -5,6 +5,7 @@ import "./globals.css";
 import { NotificationProvider } from "@/components/providers/NotificationProvider";
 import { NotificacionesProvider } from "@/components/providers/NotificacionesProvider";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
+import AvisosApp from "@/components/pwa/AvisosApp";
 import OfflineIndicatorWrapper from "../components/offline/OfflineIndicatorWrapper";
 import { Toaster } from "sonner";
 
@@ -66,6 +67,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </NotificacionesProvider>
         </NotificationProvider>
         <ServiceWorkerRegister />
+        {/* Modales propios para instalar la app y activar notificaciones */}
+        <AvisosApp />
       </body>
     </html>
   );

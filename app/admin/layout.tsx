@@ -49,7 +49,6 @@ import NotFoundPage from '../not-found'
 import { notificacionesService, type Notificacion } from '@/services/notificaciones-service'
 import UserDropdownMenu, { formatRoleName, getRoleColor, getRoleIcon } from '@/components/ui/UserDropdownMenu'
 import { useNotificaciones } from '@/components/providers/NotificacionesProvider';
-import PushNotificationPrompt from '@/components/push/PushNotificationPrompt';
 import { aprobacionesService } from '@/services/aprobaciones-service';
 import { isTokenExpired } from '@/lib/auth/offlineAuth';
 import { formatRoleLabel } from '@/lib/display-labels';
@@ -1025,8 +1024,6 @@ export default function AdminLayout({
         </div>,
         document.body
       )}
-      {/* Aviso de suscripción a notificaciones push */}
-      <PushNotificationPrompt />
     </div>
   )
 }

@@ -40,6 +40,22 @@ export function isPushSupported(): boolean {
 }
 
 /**
+ * Registro del service worker, sin quedarse esperando si no hay ninguno.
+ *
+ * `navigator.serviceWorker.ready` nunca se resuelve cuando no hay service worker
+ * (en desarrollo se desregistra a propósito): quien lo espera se queda colgado.
+ * `getRegistration` responde de inmediato con el registro o con `undefined`.
+ */
+export async function obtenerRegistroServiceWorker(): Promise<ServiceWorkerRegistration | null> {
+  if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return null;
+  try {
+    return (await navigator.serviceWorker.getRegistration()) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Obtiene el estado actual de permisos de notificación
  */
 export function getNotificationPermission(): NotificationPermission {
