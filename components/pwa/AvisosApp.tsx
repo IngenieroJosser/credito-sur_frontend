@@ -2,21 +2,22 @@
 
 import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
-import InstalarAppModal from '@/components/pwa/InstalarAppModal'
-import ActivarNotificacionesModal from '@/components/push/ActivarNotificacionesModal'
+import InstalarAppAviso from '@/components/pwa/InstalarAppAviso'
+import ActivarNotificacionesAviso from '@/components/push/ActivarNotificacionesAviso'
 import { decidirAviso, type AvisoApp } from '@/lib/pwa/decidirAviso'
 import { hayInstalacionNativa, suscribirCambiosInstalacion } from '@/lib/pwa/instalacion'
 
 /** Pantallas sin sesión o de emergencia: ahí no se interrumpe con avisos. */
 const RUTAS_SIN_AVISOS = ['/login', '/recuperar-contrasena', '/contingencia', '/test']
 
-/** Espera antes de mostrar un aviso, para no tapar la pantalla mientras carga. */
+/** Espera antes de mostrar un aviso, para no aparecer mientras la pantalla carga. */
 const ESPERA_MS = 2500
 
 /**
  * Orquesta los avisos de instalar la app y activar notificaciones para todos
- * los roles (va en el layout raíz). Muestra uno a la vez: cuando se cierra
- * uno, vuelve a decidir y puede seguir el otro. Ver `decidirAviso`.
+ * los roles (va en el layout raíz). Son avisos pequeños abajo, no modales, y
+ * se muestra uno a la vez: cuando se cierra uno, vuelve a decidir y puede
+ * seguir el otro. Ver `decidirAviso`.
  */
 export default function AvisosApp() {
   const pathname = usePathname()
@@ -24,7 +25,7 @@ export default function AvisosApp() {
   const [cambiosInstalacion, setCambiosInstalacion] = useState(0)
 
   // El navegador puede ofrecer instalar en cualquier momento, o la app puede
-  // instalarse con el modal abierto: en ambos casos se vuelve a decidir.
+  // instalarse con el aviso visible: en ambos casos se vuelve a decidir.
   useEffect(() => suscribirCambiosInstalacion(() => setCambiosInstalacion((n) => n + 1)), [])
 
   useEffect(() => {
@@ -54,12 +55,12 @@ export default function AvisosApp() {
 
   return (
     <>
-      <InstalarAppModal
+      <InstalarAppAviso
         abierto={aviso === 'instalar-nativo' || aviso === 'instalar-ios'}
         modo={aviso === 'instalar-ios' ? 'ios' : 'nativo'}
         onCerrar={() => setAviso(null)}
       />
-      <ActivarNotificacionesModal abierto={aviso === 'notificaciones'} onCerrar={() => setAviso(null)} />
+      <ActivarNotificacionesAviso abierto={aviso === 'notificaciones'} onCerrar={() => setAviso(null)} />
     </>
   )
 }
