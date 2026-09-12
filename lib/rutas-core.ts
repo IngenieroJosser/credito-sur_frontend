@@ -1,6 +1,17 @@
 import { mapFrecuenciaToPeriodo, type PeriodoRuta } from '@/lib/types/cobranza';
 import type { ClienteCierrePendiente } from '@/types/rutas/cierre-pendiente';
 
+/**
+ * Saca el id de la cuota objetivo de un objeto de visita.
+ *
+ * La cascada es larga porque el mismo dato llega con nombre distinto segun de
+ * donde venga la pantalla (lista de ruta, detalle, cierre pendiente, respuesta
+ * de pago). El orden va de lo mas especifico a lo mas generico: primero lo que
+ * la visita trae resuelto, despues lo que cuelga del prestamo.
+ *
+ * Devuelve cadena vacia si no encuentra ninguno, nunca `undefined`, para que
+ * quien llama pueda comparar sin normalizar antes.
+ */
 export const resolveCuotaIdFromVisitaLike = (source: any, prestamo?: any, cuota?: any) => {
   return String(
     source?.cuotaId ??
@@ -33,6 +44,16 @@ export const resolveCuotaIdFromVisitaLike = (source: any, prestamo?: any, cuota?
 
 const BOGOTA_TZ = 'America/Bogota';
 
+/**
+ * Cuota NORMAL del periodo: lo que toca pagar hoy si el cliente esta al dia.
+ *
+ * Va en pareja con `resolveCuotaAcumuladaOperativa`, y la distincion es una
+ * regla del negocio, no un detalle de pantalla: la ruta cobra y muestra la cuota
+ * del periodo, mientras que lo vencido de antes se lleva aparte como cartera
+ * acumulada. Sumarlas en la cuota principal haria que un cliente con tres meses
+ * de atraso apareciera con una cuota enorme que nadie va a pagar de un golpe, y
+ * descuadraria la meta del cobrador.
+ */
 export const resolveCuotaNormalOperativa = (visita: any): number => {
   return Number(
     visita?.montoCuotaNormal ??
@@ -44,6 +65,12 @@ export const resolveCuotaNormalOperativa = (visita: any): number => {
   );
 };
 
+/**
+ * Cartera vencida acumulada: lo que el cliente arrastra de periodos anteriores.
+ *
+ * Es dato financiero, no la cuota que la ruta sale a cobrar
+ * (ver `resolveCuotaNormalOperativa`).
+ */
 export const resolveCuotaAcumuladaOperativa = (visita: any): number => {
   return Number(
     visita?.montoMoraAcumulada ??
@@ -106,6 +133,18 @@ const nonOperativePrestamoStates = new Set([
   'REVERTIDO',
 ]);
 
+/**
+ * ESPEJO de `isPrestamoOperativoRuta` del backend
+ * (`src/routes/ruta-operational-rules.ts`).
+ *
+ * Existe duplicado a proposito: la app funciona offline y tiene que poder
+ * decidir que sale en la ruta sin preguntarle al servidor. El precio es que las
+ * dos copias pueden divergir, y cuando divergen el sintoma es feo y dificil de
+ * rastrear —un credito que aparece en el celular del cobrador y no en el panel
+ * del admin, o al reves—.
+ *
+ * Cualquier cambio en las reglas de aqui hay que aplicarlo tambien alla.
+ */
 export const isPrestamoOperativo = (prestamo: any): boolean => {
   if (!prestamo) return false;
   if (prestamo?.eliminadoEn) return false;
@@ -122,6 +161,13 @@ export const isPrestamoOperativo = (prestamo: any): boolean => {
   return true;
 };
 
+/**
+ * ESPEJO de `isCuotaOperativaParaFechaRuta` del backend. Ver la nota de
+ * duplicacion en `isPrestamoOperativo`.
+ *
+ * La comparacion es `<=` y no `===`: la ruta de hoy arrastra lo que vencio antes
+ * y sigue impago.
+ */
 export const isCuotaOperativaParaFecha = (cuota: any, fechaOperativaKey: string): boolean => {
   if (!cuota || !fechaOperativaKey) return false;
 
