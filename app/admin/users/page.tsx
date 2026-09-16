@@ -180,7 +180,7 @@ const UserManagementPage = () => {
   // --- ESTADO DE USUARIOS ---
   const [users, setUsers] = useState<User[]>([]);
 
-  /* Removed early return */
+  /* Se quitó el return anticipado */
   const [loading, setLoading] = useState(true);
 
   const fetchUsers = async () => {
@@ -480,7 +480,7 @@ const UserManagementPage = () => {
   const currentUsers = filteredUsers.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
 
-  // Reset de página movido a los manejadores de eventos directos
+  // El reinicio de página se movió a los manejadores de eventos directos
 
   const handleOpenCreateModal = () => {
     setFormData({
@@ -1072,11 +1072,8 @@ const UserManagementPage = () => {
   };
 
   // Obtener la estructura de módulos basada en el rol del usuario seleccionado
-  // We removed the useEffect that was causing the infinite loop.
-  // availableModules is now calculated via useMemo above.
-  /* 
-  const [availableModules, setAvailableModules] = useState... // Removed to prevent re-renders
-  */
+  // Se quitó el useEffect que causaba el bucle infinito: availableModules ahora
+  // se calcula con el useMemo de arriba.
 
   const handleTogglePermission = (permissionId: string) => {
     setSelectedPermissions((prev) =>

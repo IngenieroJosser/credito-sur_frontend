@@ -53,7 +53,7 @@ export const exportService = {
       throw new Error(mensajeError);
     }
 
-    // Extract filename from Content-Disposition header or use fallback
+    // Tomar el nombre del archivo del header Content-Disposition o usar uno por defecto
     const contentDisposition = response.headers['content-disposition'];
     let filename = fallbackFilename;
     if (contentDisposition) {
@@ -61,7 +61,7 @@ export const exportService = {
       if (match) filename = match[1];
     }
 
-    // Trigger browser download
+    // Disparar la descarga en el navegador
     // axios tipa las cabeceras como AxiosHeaderValue (puede no ser string),
     // y Blob solo acepta string: se coacciona explicitamente.
     const tipoContenido = response.headers['content-type'];

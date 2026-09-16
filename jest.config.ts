@@ -2,21 +2,21 @@ import type { Config } from 'jest'
 import nextJest from 'next/jest.js'
 
 const createJestConfig = nextJest({
-  // Provide the path to your Next.js app to load next.config.js and .env files in your test environment
+  // Ruta de la app Next.js para cargar next.config.js y los .env en el entorno de pruebas
   dir: './',
 })
 
-// Add any custom config to be passed to Jest
+// Configuración propia que se le pasa a Jest
 const config: Config = {
   coverageProvider: 'v8',
   testEnvironment: 'jsdom',
-  // Add more setup options before each test is run
+  // Opciones que se ejecutan antes de cada prueba
   setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
-  // Handle module aliases (this will be automatically configured for you soon)
+  // Alias de módulos
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
   },
 }
 
-// createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is async
+// Se exporta así para que next/jest pueda cargar la configuración de Next.js, que es asíncrona
 export default createJestConfig(config)

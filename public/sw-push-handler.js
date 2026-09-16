@@ -97,7 +97,12 @@ self.addEventListener('push', function(event) {
   if (event.data) {
     try {
       const data = event.data.json();
-      const tipo = data.tipo || data.type || data.data?.tipo || data.data?.type || 'SISTEMA';
+      const tipoCrudo = String(data.tipo || data.type || data.data?.tipo || data.data?.type || 'SISTEMA').toUpperCase();
+      // El backend manda subtipos (p. ej. MORA_NIVEL): se agrupan en su familia
+      // (MORA) para usar sus acciones y su vibración en vez de la genérica.
+      const tipo = NOTIFICATION_CONFIGS[tipoCrudo]
+        ? tipoCrudo
+        : Object.keys(NOTIFICATION_CONFIGS).find((familia) => tipoCrudo.startsWith(familia + '_')) || tipoCrudo;
       const config = NOTIFICATION_CONFIGS[tipo] || NOTIFICATION_CONFIGS.SISTEMA;
 
       notificationData = {
@@ -105,7 +110,11 @@ self.addEventListener('push', function(event) {
         body: data.body || data.message || data.mensaje || notificationData.body,
         icon: data.icon || config.icon,
         badge: data.badge || config.badge,
-        tag: data.tag || `credisur-${tipo.toLowerCase()}-${Date.now()}`,
+        // Tag único salvo que el mensaje traiga uno propio. Con el mismo tag cada
+        // notificación reemplaza a la anterior: el backend mandaba siempre
+        // 'general' y de varios avisos solo quedaba el último. Se ignora
+        // 'general' por si llega de un backend todavía sin actualizar.
+        tag: data.tag && data.tag !== 'general' ? data.tag : `credisur-${tipo.toLowerCase()}-${Date.now()}`,
         data: {
           url: safeInternalUrl(data.url || data.link || data.data?.url || data.data?.link),
           tipo: tipo,

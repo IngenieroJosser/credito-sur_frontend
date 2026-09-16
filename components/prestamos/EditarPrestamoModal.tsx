@@ -198,7 +198,7 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
     return () => { document.body.style.overflow = 'unset'; };
   }, []);
 
-  // Fetch real loan data from backend
+  // Traer los datos reales del préstamo desde el backend
   useEffect(() => {
     const fetchLoan = async () => {
       setFetching(true);

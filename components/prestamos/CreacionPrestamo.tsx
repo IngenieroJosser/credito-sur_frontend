@@ -204,7 +204,7 @@ const CreacionPrestamoElegante = ({ initialClienteId, isModal }: { initialClient
     comprobanteDomicilio: null as File | null,
   })
 
-  // Prevent unused variable warning while keeping state for future implementation
+  // Evita el aviso de variable sin usar y conserva el estado para una implementación futura
   if (creandoPrestamo && !documentosRespaldo) logger.log(setDocumentosRespaldo);
   
   const [busquedaCliente, setBusquedaCliente] = useState('');
@@ -269,7 +269,7 @@ const CreacionPrestamoElegante = ({ initialClienteId, isModal }: { initialClient
     setCuotasCantidadInput(sugerencia.toString());
   }, [form.duracionMeses, form.frecuenciaPago]);
 
-  // If initialClienteId is provided, move to step 2 automatically if we are in step 1
+  // Si llega initialClienteId, saltar automáticamente al paso 2 cuando se está en el paso 1
   useEffect(() => {
     if (initialClienteId && step === 1) {
       setStep(2);

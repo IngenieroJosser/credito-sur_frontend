@@ -93,7 +93,7 @@ interface ClienteSelection {
   nombre?: string;
   codigo?: string;
   prestamos?: PrestamoResumen[];
-  // Allow other properties to avoid tight coupling with backend response in this view
+  // Se permiten otras propiedades para no acoplar esta vista a la forma exacta de la respuesta del backend
   [key: string]: unknown;
 }
 
@@ -324,7 +324,7 @@ export const RutasPageView = ({
   const [loadingClientes, setLoadingClientes] = useState(false)
   const [isAddingCliente, setIsAddingCliente] = useState(false)
   
-  // Use state for routes to allow client-side updates
+  // Las rutas se guardan en estado para poder actualizarlas desde el cliente
   const [rutasList, setRutasList] = useState<Ruta[]>(rutas as Ruta[]);
   
   const displayRutas: Ruta[] = rutasList;
@@ -592,7 +592,7 @@ export const RutasPageView = ({
       
       setShowModal(false);
       
-      // Refresh list client-side to ensure UI updates immediately
+      // Refrescar la lista en el cliente para que la UI se actualice de inmediato
       try {
         await fetchRutas();
       } catch (e) { /* Error refreshing routes */ }
@@ -606,10 +606,10 @@ export const RutasPageView = ({
     try {
       await routesService.toggleActive(id);
       
-      // Update local state optimistic or fetch
+      // Refrescar el estado local desde el backend
       try {
          await fetchRutas();
-      } catch (e) { /* Error loading routes */ }
+      } catch (e) { /* Error al recargar las rutas */ }
 
       showNotification('success', 'Estado de la ruta actualizado', 'Éxito');
     } catch (error) {
@@ -783,14 +783,14 @@ export const RutasPageView = ({
   const currentRutas = rutasFiltradas.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(rutasFiltradas.length / itemsPerPage);
 
-  // Reset página al filtrar
+  // Reiniciar la página al filtrar
   useEffect(() => {
     if (currentPage > totalPages && totalPages > 0) {
       setCurrentPage(1)
     }
   }, [currentPage, totalPages])
 
-  // Force list view for Coordinador, Admin and Supervisor
+  // Forzar la vista de lista para Coordinador, Admin y Supervisor
   useEffect(() => {
     const shouldForceList =
       rutasBasePath.includes('/coordinador') ||

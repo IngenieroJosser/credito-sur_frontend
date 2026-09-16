@@ -1165,7 +1165,7 @@ const ModuloContableContent = () => {
         showNotification('error', 'Debe seleccionar una caja', 'Validación');
         return;
     }
-    // For movements, we relax the requirement for 'responsableId' if it's not strictly needed by the backend for manual entry
+    // En movimientos manuales no se exige 'responsableId' cuando el backend no lo necesita
     // or if the backend infers it from the session.
     // if (!movimientoForm.responsableId) { ... } // Removed validation as per request
 
@@ -3719,7 +3719,7 @@ const ModuloContableContent = () => {
   )
 }
 
-// Wrap in Suspense to avoid de-opting entire page
+// Envuelto en Suspense para que no se desoptimice la pagina completa
 const ModuloContablePage = () => {
   return (
     <Suspense fallback={<div>Cargando...</div>}>

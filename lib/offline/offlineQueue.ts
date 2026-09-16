@@ -17,7 +17,16 @@ const getCurrentUserId = (): string | null => {
 // ─── Cola de operaciones offline ─────────────────────────────────
 
 export const offlineQueue = {
-  // Agregar operación a la cola
+  /**
+   * Guarda una operacion hecha sin red para enviarla despues.
+   *
+   * Se sella con el usuario de la sesion: en un celular compartido cada cobrador
+   * sincroniza solo lo suyo (ver `syncManager.processQueue`). Sin sesion valida no
+   * se encola, porque despues no habria a nombre de quien enviarla.
+   *
+   * Emite `offline-queue-changed` para que el indicador de pendientes se
+   * actualice sin tener que consultar la base local.
+   */
   async enqueue(item: Omit<OfflineQueueItem, 'id' | 'createdAt' | 'status' | 'retries' | 'userId'>): Promise<OfflineQueueItem> {
     const db = await getOfflineDb();
     const userId = getCurrentUserId();
@@ -40,7 +49,14 @@ export const offlineQueue = {
     return queueItem;
   },
 
-  // Obtener todas las operaciones pendientes (ordenadas por fecha)
+  /**
+   * Operaciones pendientes, ordenadas por prioridad y despues por fecha.
+   *
+   * OJO: ese orden sirve para mostrarlas, pero NO es el orden en que se
+   * sincronizan. `syncManager.processQueue` las reordena cronologicamente, porque
+   * una creacion tiene que subir antes que la operacion que la referencia aunque
+   * esta tenga mas prioridad (un pago de un credito creado offline).
+   */
   async getPending(): Promise<OfflineQueueItem[]> {
     const db = await getOfflineDb();
     const all = await db.getAllFromIndex('offline-queue', 'by-status', 'pending');

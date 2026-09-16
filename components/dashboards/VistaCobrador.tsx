@@ -1261,7 +1261,7 @@ const VistaCobrador = () => {
           saldo = await obtenerSaldoDisponibleRuta(rutaCompleta.id, undefined, cardInicio, cardFin);
           
           if (periodoCardsRef.current === 'HOY' && dailyVisits) {
-            // Use shared helper con la variable local (actualizada inmediatamente)
+            // Usar el helper compartido con la variable local (actualizada de inmediato)
             const dailySummary = resolveRutaDailySummary(rutaCompletaAutoritativa, dailyVisits);
             setRutaStats(prev => ({
               ...prev,

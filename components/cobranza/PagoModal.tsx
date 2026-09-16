@@ -32,7 +32,7 @@ interface PagoModalProps {
 
 export default function PagoModal({ visita, tipo, onClose, onConfirm, montoCuotaEsperadoOverride, cuotaNumeroEsperadaOverride }: PagoModalProps) {
   const montoCuotaEsperado = (() => {
-    // Use override if provided (for cierre pendiente)
+    // Usar el valor forzado si viene (caso de cierre pendiente)
     if (montoCuotaEsperadoOverride != null) {
       return montoCuotaEsperadoOverride
     }

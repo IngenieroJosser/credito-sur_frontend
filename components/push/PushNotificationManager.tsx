@@ -13,6 +13,7 @@ import {
   savePushSubscription,
   deletePushSubscription,
   sendTestNotification,
+  mensajeResultadoPrueba,
 } from '@/lib/push/pushService';
 
 export default function PushNotificationManager() {
@@ -98,10 +99,11 @@ export default function PushNotificationManager() {
     setMessage(null);
 
     try {
-      await sendTestNotification();
-      setMessage({ type: 'success', text: 'Notificación de prueba enviada' });
+      // El backend dice a cuántos dispositivos llegó: se muestra eso en vez de
+      // un "enviada" que salía aunque no hubiera ningún dispositivo registrado.
+      setMessage(mensajeResultadoPrueba(await sendTestNotification()));
     } catch (error) {
-      setMessage({ type: 'error', text: 'Error al enviar notificación de prueba' });
+      setMessage(mensajeResultadoPrueba(null));
     } finally {
       setLoading(false);
     }

@@ -14,8 +14,25 @@ import {
   contieneTempIdSinResolver,
 } from './idRemap';
 
+/**
+ * Cuantas veces se reintenta una operacion fallida antes de dejarla como
+ * conflicto para que alguien la revise a mano. No se reintenta indefinidamente:
+ * una operacion que falla siempre (un 400 por datos invalidos) bloquearia la
+ * cola detras de ella.
+ */
 const MAX_RETRIES = 3;
 
+/**
+ * Id del usuario sacado del propio token, sin llamar al servidor.
+ *
+ * Hace falta leerlo asi porque esto corre justo cuando no hay red. Se usa para
+ * filtrar la cola: en un celular compartido entre cobradores, cada uno sincroniza
+ * solo lo suyo y nadie sube las operaciones que otro dejo pendientes.
+ *
+ * El `catch` vacio es intencional: si el token esta corrupto o vencido se
+ * devuelve `null` y la sincronizacion simplemente no corre. No es un error que
+ * haya que reportar.
+ */
 const getCurrentUserId = (): string | null => {
   if (typeof window === 'undefined') return null;
   try {
@@ -39,7 +56,25 @@ export interface SyncResult {
 // ─── Procesar cola de operaciones pendientes ─────────────────────
 
 export const syncManager = {
-  // Procesar todas las operaciones pendientes
+  /**
+   * Sube al servidor todo lo que se hizo sin conexion.
+   *
+   * Lo dificil no es reenviar las peticiones, es que las operaciones offline se
+   * referencian entre si con ids que todavia no existen. Un cobrador puede crear
+   * un cliente y acto seguido un credito para ese cliente: el credito apunta a un
+   * id temporal (`temp-...`) que el servidor no conoce.
+   *
+   * De ahi las tres piezas que trabajan juntas:
+   *  1. Orden cronologico, para que la creacion vaya antes que quien la usa.
+   *  2. Remapeo temp -> real, con el id que devolvio la creacion ya sincronizada.
+   *  3. Una guarda final: si tras remapear todavia queda un id temporal, la
+   *     operacion se devuelve a pendiente en vez de enviarse. Mandarla daria un
+   *     400/404 y la marcaria como conflicto, cuando en realidad solo le faltaba
+   *     esperar su turno.
+   *
+   * Sale sin hacer nada si no hay red o no hay sesion. Nunca lanza: los fallos se
+   * acumulan en `result.errors` para que la UI los muestre sin romperse.
+   */
   async processQueue(): Promise<SyncResult> {
     const startTime = Date.now();
     const result: SyncResult = { processed: 0, succeeded: 0, failed: 0, errors: [] };

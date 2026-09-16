@@ -165,7 +165,7 @@ export default function DashboardPage() {
   // Contador de peticiones para identificar la más reciente
   const requestCounterRef = useRef(0);
   
-  // Map para asociar cada requestId con su período solicitado
+  // Mapa para asociar cada requestId con su período solicitado
   const requestPeriodMapRef = useRef<Map<number, TimeFilterPeriod>>(new Map());
 
   const [state, setState] = useState<{
@@ -231,7 +231,7 @@ export default function DashboardPage() {
         // Calcular fechas según el período para usar en resumen financiero
         const { fechaInicio, fechaFin } = calculateDatesFromPeriod(requestedPeriod);
 
-        // Fetch real data from backend in parallel (siempre para el período que pedimos)
+        // Traer los datos reales del backend en paralelo (siempre para el período pedido)
         const [backendData, prestamosData, resumenFinanciero] = await Promise.allSettled([
           dashboardService.getDashboardData(TIME_FILTER_MAP[requestedPeriod]),
           prestamosService.obtenerPrestamos({ limit: 5 }),
@@ -302,7 +302,7 @@ export default function DashboardPage() {
           }
         ];
 
-        // Build quick access (static, no mock data needed)
+        // Armar los accesos rápidos (estáticos, no dependen de datos)
         const quickAccess: QuickAccessItem[] = [
           {
             title: 'Nuevo Crédito',
@@ -343,7 +343,7 @@ export default function DashboardPage() {
           }
         ];
 
-        // Build recent loans from real prestamos data
+        // Armar los créditos recientes con los préstamos reales
         const recentLoans = (prestamos?.prestamos || []).slice(0, 5).map((p: any) => {
           const clientName = p.cliente
             ? `${p.cliente.nombres || ''} ${p.cliente.apellidos || ''}`.trim()
@@ -382,7 +382,7 @@ export default function DashboardPage() {
           };
         });
 
-        // Build top collectors from real backend data
+        // Armar el top de cobradores con los datos reales del backend
         const topCollectors = (dashboard?.topCollectors || []).map(c => ({
           name: c.name,
           collected: c.collected,
