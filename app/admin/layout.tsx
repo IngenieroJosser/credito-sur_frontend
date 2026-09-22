@@ -754,14 +754,14 @@ export default function AdminLayout({
           // pareja el `top` de `inset-0` puede ganarle al `top-16` según el
           // orden en que Tailwind emita las reglas, y el fondo termina tapando
           // también el encabezado.
-          className="lg:hidden fixed top-16 left-0 right-0 bottom-0 z-10 bg-slate-900/30 backdrop-blur-[1px]"
+          className="lg:hidden fixed top-16 left-0 right-0 bottom-0 z-[65] bg-slate-900/30 backdrop-blur-[1px]"
         />
       )}
 
       {/* Sidebar elegante para desktop */}
       {showSidebar && (
         <aside 
-          className={`fixed left-0 top-16 bottom-0 w-64 bg-white border-r border-gray-100 transition-all duration-300 z-20 ${
+          className={`fixed left-0 top-16 bottom-0 w-64 bg-white border-r border-gray-100 transition-all duration-300 z-[70] ${
             isMenuOpen ? 'translate-x-0' : '-translate-x-full'
           } lg:translate-x-0 lg:block ${isPageLoaded ? 'opacity-100' : 'opacity-0'}`}
           style={{ opacity: isPageLoaded ? 1 : 0 }}
