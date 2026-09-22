@@ -26,7 +26,7 @@ export interface MovimientoPrevisto {
   hoja?: string;
   numeroPrestamo?: string;
   ccCliente?: string;
-  tipo: 'EFECTIVO' | 'ARTICULO';
+  tipo: "EFECTIVO" | "ARTICULO";
   concepto: string;
   porque: string;
   salidaEfectivo: number;
@@ -51,7 +51,7 @@ export interface ImpactoCaja {
 }
 
 export interface ResultadoValidacion {
-  tipo: 'clientes-creditos' | 'inventario';
+  tipo: "clientes-creditos" | "inventario";
   archivo: string;
   resumen: {
     totalFilas: number;
@@ -80,7 +80,7 @@ export interface ResultadoConfirmacionInventario {
   preciosOmitidos: number;
   preciosContadoCreados: number;
   mensajes: string[];
-  resumen: ResultadoValidacion['resumen'];
+  resumen: ResultadoValidacion["resumen"];
 }
 
 export interface ResultadoConfirmacionClientesCreditos {
@@ -100,7 +100,7 @@ export interface ResultadoConfirmacionClientesCreditos {
   asientosCreados: number;
   cuotasCreadas: number;
   mensajes: string[];
-  resumen: ResultadoValidacion['resumen'];
+  resumen: ResultadoValidacion["resumen"];
 }
 
 export interface LoteImportacion {
@@ -133,7 +133,25 @@ export interface ResultadoReversionLote {
   asientosReversados: number;
   transaccionesReversadas: number;
   stockDevuelto: number;
+  articulosEliminados?: number;
+  articulosRestaurados?: number;
+  preciosEliminados?: number;
+  preciosRestaurados?: number;
   mensajes: string[];
+}
+
+export interface ArticuloDeLote {
+  id: string;
+  codigo: string;
+  nombre: string;
+  accion: "CREADO" | "ACTUALIZADO" | "EXISTENTE";
+  stockAntes: number | null;
+  stockImportado: number;
+  stockActual: number | null;
+  preciosCreados: number;
+  preciosActualizados: number;
+  sePuedeDeshacer: boolean;
+  razonNoSePuedeDeshacer: string | null;
 }
 
 /** Un credito concreto de una importacion, para poder revisarlo antes de deshacerlo. */
@@ -175,6 +193,7 @@ export interface DetalleLoteImportacion {
   confirmadoEn: string | null;
   creadoPor: string | null;
   creditos: CreditoDeLote[];
+  articulosImportados?: ArticuloDeLote[];
   totales: {
     creditos: number;
     deshacibles: number;
