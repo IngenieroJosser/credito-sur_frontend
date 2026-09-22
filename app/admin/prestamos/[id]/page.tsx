@@ -1,6 +1,6 @@
 'use client';
 
-import PantallaCarga from '@/components/ui/PantallaCarga'
+import { SkeletonDetalle } from '@/components/ui/Skeleton'
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
@@ -80,7 +80,7 @@ export default function PrestamoDetallePage() {
 
   if (loading) {
     return (
-      <PantallaCarga />
+      <SkeletonDetalle />
     );
   }
 

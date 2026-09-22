@@ -1,6 +1,6 @@
 'use client'
 
-import PantallaCarga from '@/components/ui/PantallaCarga'
+import { SkeletonDetalle } from '@/components/ui/Skeleton'
 
 import { logger } from '@/lib/logger'
 
@@ -166,7 +166,7 @@ export default function ClienteDetalleSupervisorPage() {
 
   if (isLoading) {
     return (
-      <PantallaCarga texto="Cargando información del cliente..." />
+      <SkeletonDetalle />
     )
   }
 

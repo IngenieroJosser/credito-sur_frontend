@@ -1,6 +1,6 @@
 'use client';
 
-import PantallaCarga from '@/components/ui/PantallaCarga'
+import { SkeletonDetalle } from '@/components/ui/Skeleton'
 
 import React, { useEffect, useState } from 'react';
 import { useRealtimeData } from '@/hooks/useRealtimeData'
@@ -56,7 +56,7 @@ export default function ClienteDetallePage() {
 
   if (isLoading) {
     return (
-      <PantallaCarga texto="Cargando información del cliente..." />
+      <SkeletonDetalle />
     );
   }
 

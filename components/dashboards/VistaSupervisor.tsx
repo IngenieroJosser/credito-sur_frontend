@@ -1,6 +1,5 @@
 'use client'
 
-import PantallaCarga from '@/components/ui/PantallaCarga'
 import { logger } from '@/lib/logger'
 
 import { useState, type ReactNode, useMemo, useEffect, useCallback } from 'react'
@@ -40,6 +39,7 @@ import { exportService } from '@/services/export-service'
 import { toast } from 'sonner'
 import { useAuth } from '@/hooks/useAuth'
 import { buildCrearPrestamoPayload } from '@/lib/creditos/crear-prestamo-payload'
+import { SkeletonDetalle } from '@/components/ui/Skeleton'
 
 
 interface MetricCard {
@@ -267,7 +267,7 @@ const VistaSupervisor = () => {
 
   if (loading && !dashboardData) {
     return (
-      <PantallaCarga texto="Cargando panel de supervisión..." />
+      <SkeletonDetalle />
     )
   }
 

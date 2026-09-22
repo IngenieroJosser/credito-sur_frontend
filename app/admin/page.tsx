@@ -24,6 +24,7 @@ import { prestamosService } from '@/services/prestamos-service';
 import { getResumenFinanciero } from '@/services/contabilidad-service';
 import { formatCurrency } from '@/lib/utils';
 import { computeOperationalMetaTotalForTimeFilter } from '@/lib/dashboard-operational-meta'
+import { SkeletonDetalle } from '@/components/ui/Skeleton'
 
 interface UserData {
   id: string;
@@ -509,7 +510,7 @@ export default function DashboardPage() {
 
   if (state.isLoading) {
     return (
-      <PantallaCarga texto="Preparando tu dashboard..." />
+      <SkeletonDetalle />
     );
   }
 

@@ -21,6 +21,7 @@ import { resolveCuotaAcumuladaOperativa, resolveCuotaNormalOperativa } from '@/l
 import { clientesService } from '@/services/clientes-service'
 import { rutasService, type HistorialVisitaCliente } from '@/services/rutas-service'
 import { alertasClientesService } from '@/services/alertas-clientes-service'
+import { Skeleton } from '@/components/ui/Skeleton'
 
 // ── Tipos ──────────────────────────────────────────────────────────────────────
 
@@ -319,9 +320,11 @@ export default function ClienteInfoModal({
                   </div>
 
                   {loadingFotos ? (
-                    <div className="flex flex-col items-center py-8 text-slate-400">
-                      <Loader2 className="w-8 h-8 animate-spin mb-2" />
-                      <span className="text-xs font-medium">Cargando fotos...</span>
+                    <div className="grid grid-cols-3 gap-2 py-2" aria-busy="true">
+                      <span className="sr-only">Cargando fotos…</span>
+                      {[0, 1, 2].map((i) => (
+                        <Skeleton key={i} className="aspect-square rounded-xl" />
+                      ))}
                     </div>
                   ) : archivos.filter(isImage).length === 0 ? (
                     <div className="flex flex-col items-center py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">

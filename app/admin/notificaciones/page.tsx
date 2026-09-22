@@ -36,6 +36,7 @@ import { TipoAprobacion } from '@/types/enums'
 import NotificacionDetalleModal from '@/components/dashboards/shared/NotificacionDetalleModal'
 import { formatCurrency, formatMilesCOP } from '@/lib/utils'
 import BotonAccion from '@/components/ui/BotonAccion'
+import { Skeleton } from '@/components/ui/Skeleton'
 
 // MOCKS ELIMINADOS - La aplicación solo funciona con datos reales del backend
 
@@ -720,9 +721,18 @@ export default function NotificacionesPage() {
             {/* Lista */}
             <div className="divide-y divide-slate-100">
               {isLoading ? (
-                <div className="p-16 text-center">
-                  <div className="animate-spin mx-auto mb-4 h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full"></div>
-                  <p className="text-slate-500 text-sm font-medium">Cargando notificaciones...</p>
+                <div className="divide-y divide-slate-100" aria-busy="true">
+                  <span className="sr-only">Cargando notificaciones…</span>
+                  {[0, 1, 2, 3, 4].map((i) => (
+                    <div key={i} className="flex items-start gap-4 p-5">
+                      <Skeleton className="h-10 w-10 shrink-0 rounded-xl" />
+                      <div className="min-w-0 flex-1 space-y-2">
+                        <Skeleton className="h-3.5 w-1/3" />
+                        <Skeleton className="h-3 w-2/3" />
+                      </div>
+                      <Skeleton className="h-3 w-16 shrink-0" />
+                    </div>
+                  ))}
                 </div>
               ) : error ? (
                 <div className="p-16 text-center">

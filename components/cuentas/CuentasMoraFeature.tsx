@@ -585,7 +585,7 @@ export default function CuentasMoraFeature() {
 
         ) : (
           <>
-          /* GRID */
+          {/* GRID */}
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {cuentasPagina.map(cuenta => {
               const nivel = (cuenta.etiquetaMora || calcularNivelMora(cuenta)) as NivelMoraKey

@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { aprobacionesService, type ApprovalContext } from '@/services/aprobaciones-service'
+import { Skeleton, SkeletonTexto } from '@/components/ui/Skeleton'
 
 export interface ReprogramacionData {
   id: string
@@ -238,9 +239,10 @@ export default function ReprogramacionDetalleModal({
   const metricas = context?.metricas
 
   const renderLoading = () => (
-    <div className="py-8 text-center text-slate-400">
-      <Loader2 className="h-6 w-6 animate-spin mx-auto mb-3" />
-      <p className="text-xs font-bold">Cargando contexto...</p>
+    <div className="space-y-3 py-4" aria-busy="true">
+      <span className="sr-only">Cargando contexto…</span>
+      <Skeleton className="h-4 w-1/3" />
+      <SkeletonTexto lineas={3} />
     </div>
   )
 

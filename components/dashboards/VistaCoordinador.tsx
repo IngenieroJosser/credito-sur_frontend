@@ -1,6 +1,5 @@
 'use client'
 
-import PantallaCarga from '@/components/ui/PantallaCarga'
 
 import Link from 'next/link';
 import { useState, useEffect, useCallback } from 'react';
@@ -39,6 +38,7 @@ import { prestamosService } from '@/services/prestamos-service';
 import { exportService } from '@/services/export-service';
 import { buildCrearPrestamoPayload } from '@/lib/creditos/crear-prestamo-payload';
 import { toast } from 'sonner';
+import { SkeletonDetalle } from '@/components/ui/Skeleton'
 
 interface Usuario {
   id?: string
@@ -313,7 +313,7 @@ const VistaCoordinador = () => {
   // Estado de carga inicial
   if (loading && !dashboardData) {
     return (
-      <PantallaCarga texto="Cargando panel de coordinación..." />
+      <SkeletonDetalle />
     )
   }
 

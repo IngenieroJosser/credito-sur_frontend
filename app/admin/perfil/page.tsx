@@ -10,6 +10,7 @@ import { obtenerPerfil } from '@/services/autenticacion-service'
 import { formatRoleName, getRoleColor, getRoleIcon } from '@/components/ui/UserDropdownMenu'
 import PushNotificationManager from '@/components/push/PushNotificationManager'
 import { logger } from '@/lib/logger'
+import { Skeleton, SkeletonTexto } from '@/components/ui/Skeleton'
 
 const VOLVER_RUTAS: Record<string, string> = {
   'SUPER_ADMINISTRADOR': '/admin',
@@ -206,9 +207,19 @@ const PerfilUsuarioPage = () => {
 
       <div className="relative z-10 w-full px-6 md:px-8 py-8 space-y-8">
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-32">
-            <Loader2 className="h-10 w-10 text-blue-600 animate-spin mb-4" />
-            <p className="text-slate-500 font-medium">Cargando perfil...</p>
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3" aria-busy="true">
+            <span className="sr-only">Cargando perfil…</span>
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="flex flex-col items-center gap-3">
+                <Skeleton className="h-20 w-20 rounded-full" />
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-3 w-24" />
+              </div>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
+              <Skeleton className="h-4 w-40" />
+              <SkeletonTexto lineas={6} className="mt-5" />
+            </div>
           </div>
         ) : error ? (
           <div className="flex flex-col items-center justify-center py-32">

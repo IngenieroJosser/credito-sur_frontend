@@ -44,6 +44,7 @@ import {
 import { Portal } from '@/components/dashboards/shared/CobradorElements'
 import { formatCurrency, resolveMediaUrl } from '@/lib/utils'
 import { pagosService, Pago } from '@/services/pagos-service'
+import { Skeleton, SkeletonTexto } from '@/components/ui/Skeleton'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -295,9 +296,13 @@ export default function PagoDetalleModal({
 
             {/* Spinner de carga */}
             {loading && (
-              <div className="flex flex-col items-center justify-center py-12 gap-3">
-                <RefreshCw className="h-7 w-7 text-slate-300 animate-spin" />
-                <p className="text-xs text-slate-400 font-medium">Cargando detalle del pago...</p>
+              <div className="space-y-4 py-2" aria-busy="true">
+                <span className="sr-only">Cargando detalle del pago…</span>
+                <div className="grid grid-cols-2 gap-3">
+                  <Skeleton className="h-16 rounded-2xl" />
+                  <Skeleton className="h-16 rounded-2xl" />
+                </div>
+                <SkeletonTexto lineas={3} />
               </div>
             )}
 

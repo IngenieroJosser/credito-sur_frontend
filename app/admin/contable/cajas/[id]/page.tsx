@@ -2,7 +2,7 @@
 
 
 import Paginador from '@/components/ui/Paginador'
-import PantallaCarga from '@/components/ui/PantallaCarga'
+import { SkeletonDetalle } from '@/components/ui/Skeleton'
 
 import { createPortal } from 'react-dom'
 import { use, useCallback, useMemo, useState, useEffect } from 'react'
@@ -248,7 +248,7 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
 
   if (loadingCaja) {
     return (
-      <PantallaCarga />
+      <SkeletonDetalle />
     )
   }
 
