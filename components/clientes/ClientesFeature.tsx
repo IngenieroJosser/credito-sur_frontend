@@ -125,6 +125,14 @@ export default function ClientesFeature({
     }
   }, []);
 
+  // Carga inicial. Sin esto la lista solo se llenaba cuando llegaba un evento
+  // de tiempo real o al volver el foco a la pestana: al entrar se quedaba
+  // vacia y habia que recargar la pagina. El listado de creditos si tenia esta
+  // carga de montaje; este no.
+  useEffect(() => {
+    refetch();
+  }, [refetch]);
+
   // Tiempo real: refresca ante cualquier cambio del backend
   useRealtimeData(
     ['clientes_actualizados', 'prestamos_actualizados', 'pagos_actualizados', 'rutas_actualizadas', 'dashboards_actualizados'],

@@ -55,6 +55,7 @@ import { prestamosService } from '@/services/prestamos-service';
 import { formatRoleLabel } from '@/lib/display-labels';
 import { buildCrearPrestamoPayload } from '@/lib/creditos/crear-prestamo-payload';
 import Paginador from '@/components/ui/Paginador'
+import { normalizarCodigoRuta } from '@/lib/rutas/codigo-ruta'
 
 interface Ruta {
   id: string;
@@ -65,6 +66,7 @@ interface Ruta {
   cobrador: string;
   cobradorId?: string;
   supervisorId?: string;
+  coordinadorId?: string;
   clientesAsignados: number;
   clientesNuevos: number;
   cobranzaDelDia: number;
@@ -312,6 +314,7 @@ export const RutasPageView = ({
     estado: 'ACTIVA',
     cobradorId: '',
     supervisorId: '',
+    coordinadorId: '',
     descripcion: ''
   })
   
@@ -332,6 +335,9 @@ export const RutasPageView = ({
   // State for lists with fallback fetching
   const [cobradoresList, setCobradoresList] = useState(cobradores);
   const [supervisoresList, setSupervisoresList] = useState(supervisores);
+  const [coordinadoresList, setCoordinadoresList] = useState<
+    { id: string; nombre: string; rol?: string }[]
+  >([]);
   const [showSelectPrincipalModal, setShowSelectPrincipalModal] = useState(false)
   const [principalOptions, setPrincipalOptions] = useState<Caja[]>([])
   const [processingTransfer, setProcessingTransfer] = useState(false)
@@ -454,6 +460,10 @@ export const RutasPageView = ({
           const fetchedSupervisores = await routesService.getSupervisores();
           setSupervisoresList(fetchedSupervisores);
         }
+        if (coordinadoresList.length === 0) {
+          const fetchedCoordinadores = await routesService.getCoordinadores();
+          setCoordinadoresList(fetchedCoordinadores);
+        }
         await fetchRutas();
       } catch (error) { /* offline handled inside fetchRutas */ }
     };
@@ -528,6 +538,7 @@ export const RutasPageView = ({
       estado: 'ACTIVA',
       cobradorId: '',
       supervisorId: '',
+      coordinadorId: '',
       descripcion: ''
     })
     setShowModal(true)
@@ -544,6 +555,7 @@ export const RutasPageView = ({
       estado: ruta.estado || 'ACTIVA',
       cobradorId: ruta.cobradorId || '',
       supervisorId: ruta.supervisorId || '',
+      coordinadorId: ruta.coordinadorId || '',
       descripcion: ruta.descripcion || ''
     })
     
@@ -574,6 +586,7 @@ export const RutasPageView = ({
           zona: formData.zona,
           cobradorId: formData.cobradorId,
           supervisorId: formData.supervisorId || undefined,
+          coordinadorId: formData.coordinadorId || undefined,
           descripcion: formData.descripcion,
           activa: formData.estado === 'ACTIVA'
         });
@@ -585,6 +598,7 @@ export const RutasPageView = ({
           zona: formData.zona,
           cobradorId: formData.cobradorId,
           supervisorId: formData.supervisorId || undefined,
+          coordinadorId: formData.coordinadorId || undefined,
           descripcion: formData.descripcion
         });
         showNotification('success', 'Ruta creada correctamente', 'Éxito');
@@ -1746,6 +1760,14 @@ export const RutasPageView = ({
                           className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 placeholder:text-slate-400"
                           required
                         />
+                        {formData.codigo.trim() && (
+                        <p className="text-xs font-medium text-slate-500">
+                          Se guardará como{' '}
+                          <span className="font-bold text-slate-700">
+                            {normalizarCodigoRuta(formData.codigo)}
+                          </span>
+                        </p>
+                      )}
                       </div>
 
                       <div className="space-y-2">
@@ -1797,6 +1819,26 @@ export const RutasPageView = ({
                           >
                             <option value="">Seleccione un supervisor</option>
                             {supervisoresList.map((s) => (
+                              <option key={s.id} value={s.id}>
+                                {s.nombre} {s.rol ? `(${formatRoleLabel(s.rol)})` : ''}
+                              </option>
+                            ))}
+                          </select>
+                          <CheckCircle2 className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-xs uppercase tracking-wider font-bold text-slate-500">Asignar coordinador</label>
+                        <div className="relative">
+                          <select
+                            name="coordinadorId"
+                            value={formData.coordinadorId}
+                            onChange={handleInputChange}
+                            className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 appearance-none"
+                          >
+                            <option value="">Seleccione un coordinador</option>
+                            {coordinadoresList.map((s) => (
                               <option key={s.id} value={s.id}>
                                 {s.nombre} {s.rol ? `(${formatRoleLabel(s.rol)})` : ''}
                               </option>

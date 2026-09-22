@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   ArrowDownToLine,
@@ -8,14 +8,14 @@ import {
   RotateCcw,
   Search,
   X,
-} from 'lucide-react';
-import { toast } from 'sonner';
+} from "lucide-react";
+import { toast } from "sonner";
 
-import { importacionesService } from '@/services/importaciones-service';
-import { CreditoDeLote, DetalleLoteImportacion } from '@/types/importaciones';
-import { formatCurrency } from '@/lib/utils';
-import Portal from '@/components/ui/Portal';
-import { Cargando } from '@/components/ui/PantallaCarga';
+import { importacionesService } from "@/services/importaciones-service";
+import { CreditoDeLote, DetalleLoteImportacion } from "@/types/importaciones";
+import { formatCurrency } from "@/lib/utils";
+import Portal from "@/components/ui/Portal";
+import { Cargando } from "@/components/ui/PantallaCarga";
 
 /**
  * Revisar antes de deshacer.
@@ -31,13 +31,13 @@ import { Cargando } from '@/components/ui/PantallaCarga';
  */
 
 const formatearFecha = (valor: string | null) => {
-  if (!valor) return '—';
+  if (!valor) return "—";
   const fecha = new Date(valor);
-  if (Number.isNaN(fecha.getTime())) return '—';
-  return fecha.toLocaleDateString('es-CO', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
+  if (Number.isNaN(fecha.getTime())) return "—";
+  return fecha.toLocaleDateString("es-CO", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
   });
 };
 
@@ -56,9 +56,11 @@ export const RevisarLoteModal: React.FC<Props> = ({
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [seleccion, setSeleccion] = useState<Set<string>>(new Set());
-  const [busqueda, setBusqueda] = useState('');
+  const [busqueda, setBusqueda] = useState("");
   const [confirmando, setConfirmando] = useState(false);
   const [deshaciendo, setDeshaciendo] = useState(false);
+  const esInventario = detalle?.tipo === "INVENTARIO";
+  const articulosInventario = detalle?.articulosImportados ?? [];
 
   useEffect(() => {
     let vivo = true;
@@ -72,7 +74,7 @@ export const RevisarLoteModal: React.FC<Props> = ({
         // sistema. Marcar todo por defecto invita a confirmar sin mirar.
         setSeleccion(new Set());
       } catch (e: any) {
-        if (vivo) setError(e?.message || 'No se pudo cargar la importación.');
+        if (vivo) setError(e?.message || "No se pudo cargar la importación.");
       } finally {
         if (vivo) setCargando(false);
       }
@@ -92,8 +94,8 @@ export const RevisarLoteModal: React.FC<Props> = ({
     const todos = detalle?.creditos ?? [];
     if (!q) return todos;
     return todos.filter((c) =>
-      [c.cliente, c.cedula, c.numeroPrestamo, c.articulo ?? '']
-        .join(' ')
+      [c.cliente, c.cedula, c.numeroPrestamo, c.articulo ?? ""]
+        .join(" ")
         .toLowerCase()
         .includes(q),
     );
@@ -136,7 +138,7 @@ export const RevisarLoteModal: React.FC<Props> = ({
       caja,
       cajaAhora: saldoAhora,
       cajaDespues: saldoAhora + caja,
-      cajaNombre: detalle?.estadoActual.caja.nombre ?? 'Caja de Oficina',
+      cajaNombre: detalle?.estadoActual.caja.nombre ?? "Caja de Oficina",
       articulos,
       creditosAhora: detalle?.estadoActual.creditosVivos ?? 0,
       creditosDespues:
@@ -163,20 +165,20 @@ export const RevisarLoteModal: React.FC<Props> = ({
   }, [deshacibles]);
 
   const deshacer = async () => {
-    if (!detalle || elegidos.length === 0) return;
+    if (!detalle || (!esInventario && elegidos.length === 0)) return;
     setDeshaciendo(true);
     try {
       const res = await importacionesService.revertirLote(
         detalle.id,
         // Si van todos, se manda sin lista: el lote queda cancelado entero.
-        impacto.esTodo ? undefined : elegidos.map((c) => c.id),
+        esInventario || impacto.esTodo ? undefined : elegidos.map((c) => c.id),
       );
-      toast.success(res.mensajes[0] ?? 'Importación deshecha.');
+      toast.success(res.mensajes[0] ?? "Importación deshecha.");
       res.mensajes.slice(1).forEach((m) => toast.info(m));
       onDeshecho();
       onCerrar();
     } catch (e: any) {
-      toast.error(e?.message || 'No se pudo deshacer la importación.');
+      toast.error(e?.message || "No se pudo deshacer la importación.");
     } finally {
       setDeshaciendo(false);
       setConfirmando(false);
@@ -191,10 +193,10 @@ export const RevisarLoteModal: React.FC<Props> = ({
         onClick={() => c.sePuedeDeshacer && alternar(c.id)}
         className={`border-b border-slate-100 transition-colors ${
           !c.sePuedeDeshacer
-            ? 'bg-slate-50/70 text-slate-400'
+            ? "bg-slate-50/70 text-slate-400"
             : elegido
-              ? 'bg-rose-50/60 cursor-pointer'
-              : 'hover:bg-slate-50 cursor-pointer'
+              ? "bg-rose-50/60 cursor-pointer"
+              : "hover:bg-slate-50 cursor-pointer"
         }`}
       >
         <td className="px-3 py-2.5">
@@ -244,9 +246,9 @@ export const RevisarLoteModal: React.FC<Props> = ({
         <td className="px-3 py-2.5 text-right">
           {c.movioCaja ? (
             <span
-              className={`font-bold ${c.devolucionACaja >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}
+              className={`font-bold ${c.devolucionACaja >= 0 ? "text-emerald-700" : "text-rose-700"}`}
             >
-              {c.devolucionACaja >= 0 ? '+' : '−'}
+              {c.devolucionACaja >= 0 ? "+" : "−"}
               {formatCurrency(Math.abs(c.devolucionACaja))}
             </span>
           ) : (
@@ -268,8 +270,10 @@ export const RevisarLoteModal: React.FC<Props> = ({
                 Revisar antes de deshacer
               </h2>
               <p className="mt-0.5 text-sm text-slate-500">
-                {detalle?.nombreArchivo ?? 'Cargando…'}
-                {detalle?.creadoPor ? ` · importado por ${detalle.creadoPor}` : ''}
+                {detalle?.nombreArchivo ?? "Cargando…"}
+                {detalle?.creadoPor
+                  ? ` · importado por ${detalle.creadoPor}`
+                  : ""}
               </p>
             </div>
             <button
@@ -281,7 +285,9 @@ export const RevisarLoteModal: React.FC<Props> = ({
             </button>
           </div>
 
-          {cargando && <Cargando texto="Buscando lo que creó esta importación…" />}
+          {cargando && (
+            <Cargando texto="Buscando lo que creó esta importación…" />
+          )}
 
           {error && (
             <div className="px-6 py-10 text-center text-sm font-medium text-rose-600">
@@ -291,177 +297,274 @@ export const RevisarLoteModal: React.FC<Props> = ({
 
           {detalle && !cargando && (
             <>
-              {/* Buscador y selección */}
-              <div className="flex flex-wrap items-center gap-3 border-b border-slate-100 px-6 py-3">
-                <div className="relative flex-1 min-w-[220px]">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  <input
-                    value={busqueda}
-                    onChange={(e) => setBusqueda(e.target.value)}
-                    placeholder="Buscar por cliente, cédula o número de crédito"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm focus:border-slate-400 focus:outline-none"
-                  />
-                </div>
-                <button
-                  onClick={alternarTodos}
-                  disabled={deshacibles.length === 0}
-                  className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold uppercase tracking-wide text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-40"
-                >
-                  {seleccion.size === deshacibles.length && deshacibles.length > 0
-                    ? 'Quitar todo'
-                    : `Elegir los ${deshacibles.length} que se pueden`}
-                </button>
-              </div>
-
-              {/* Tabla */}
-              <div className="flex-1 overflow-auto">
-                <table className="w-full text-left text-sm">
-                  <thead className="sticky top-0 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-                    <tr>
-                      <th className="w-10 px-3 py-2" />
-                      <th className="px-3 py-2">Cliente y crédito</th>
-                      <th className="px-3 py-2">Qué es</th>
-                      <th className="px-3 py-2 text-right">Monto</th>
-                      <th className="px-3 py-2 text-right">Vuelve a caja</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {visibles.map(fila)}
-                    {visibles.length === 0 && (
-                      <tr>
-                        <td
-                          colSpan={5}
-                          className="px-3 py-10 text-center text-sm text-slate-500"
-                        >
-                          Ningún crédito coincide con la búsqueda.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Lo que va a pasar */}
-              <div className="border-t border-slate-100 bg-slate-50/70 px-6 py-4">
-                {detalle.totales.bloqueados > 0 && (
-                  <p className="mb-3 flex items-start gap-2 text-xs font-medium text-amber-700">
-                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                    {detalle.totales.bloqueados} crédito(s) no se pueden
-                    deshacer y quedan como están. Aparecen en gris.
-                  </p>
-                )}
-
-                <div className="flex flex-wrap items-end justify-between gap-4">
-                  <div className="space-y-1">
-                    <div className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                      Al confirmar
+              {esInventario && (
+                <>
+                  <div className="flex-1 overflow-auto px-6 py-4">
+                    <div className="mb-4 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+                      Se deshará el lote completo. Los artículos nuevos se
+                      eliminarán y los actualizados volverán exactamente al
+                      estado anterior a la importación.
                     </div>
-                    {impacto.creditos === 0 ? (
-                      <p className="text-sm text-slate-500">
-                        No ha elegido ningún crédito todavía.
-                      </p>
-                    ) : (
-                      <div className="space-y-2">
-                        <p className="text-sm text-slate-700">
-                          Va a deshacer <b>{impacto.creditos}</b> crédito(s) con
-                          sus cuotas.
-                          {impacto.esTodo &&
-                            ' Es todo lo que se puede deshacer de esta importación.'}
-                        </p>
-
-                        {/* Cómo queda cada cosa después. Es lo que se compara
-                            contra lo que uno espera tener. */}
-                        <div className="overflow-x-auto">
-                        <table className="w-full min-w-[280px] text-sm">
-                          <tbody className="[&_td]:py-0.5">
-                            <tr>
-                              <td className="pr-3 text-slate-500">
-                                {impacto.cajaNombre}
+                    <div className="overflow-hidden rounded-2xl border border-slate-200">
+                      <table className="w-full text-left text-sm">
+                        <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                          <tr>
+                            <th className="px-4 py-3">Artículo</th>
+                            <th className="px-4 py-3">Qué hizo el lote</th>
+                            <th className="px-4 py-3 text-right">Stock</th>
+                            <th className="px-4 py-3">Estado</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {articulosInventario.map((articulo) => (
+                            <tr
+                              key={articulo.id}
+                              className="border-t border-slate-100"
+                            >
+                              <td className="px-4 py-3">
+                                <div className="font-bold text-slate-800">
+                                  {articulo.nombre}
+                                </div>
+                                <div className="text-xs text-slate-500">
+                                  {articulo.codigo}
+                                </div>
                               </td>
-                              <td className="pr-2 text-slate-500 tabular-nums">
-                                {formatCurrency(impacto.cajaAhora)}
+                              <td className="px-4 py-3 text-slate-600">
+                                {articulo.accion === "CREADO"
+                                  ? "Artículo creado"
+                                  : articulo.accion === "ACTUALIZADO"
+                                    ? "Artículo actualizado"
+                                    : "Precios agregados"}
+                                <div className="text-xs text-slate-400">
+                                  {articulo.preciosCreados} precio(s) creados
+                                  {articulo.preciosActualizados > 0 &&
+                                    ` · ${articulo.preciosActualizados} actualizados`}
+                                </div>
                               </td>
-                              <td className="pr-2 text-slate-400">→</td>
-                              <td
-                                className={`font-bold tabular-nums ${
-                                  impacto.caja > 0
-                                    ? 'text-emerald-700'
-                                    : impacto.caja < 0
-                                      ? 'text-rose-700'
-                                      : 'text-slate-700'
-                                }`}
-                              >
-                                {formatCurrency(impacto.cajaDespues)}
+                              <td className="px-4 py-3 text-right tabular-nums text-slate-700">
+                                {articulo.stockAntes !== null
+                                  ? `${articulo.stockAntes} → ${articulo.stockImportado}`
+                                  : articulo.stockImportado}
                               </td>
-                              <td className="pl-2 text-xs text-slate-400">
-                                {impacto.caja !== 0 && (
-                                  <span className="inline-flex items-center gap-1">
-                                    <ArrowDownToLine className="h-3 w-3" />
-                                    {impacto.caja > 0 ? '+' : '−'}
-                                    {formatCurrency(Math.abs(impacto.caja))}
+                              <td className="px-4 py-3">
+                                {articulo.sePuedeDeshacer ? (
+                                  <span className="font-semibold text-emerald-700">
+                                    Listo para deshacer
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex max-w-sm items-start gap-1 text-xs font-semibold text-amber-700">
+                                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                                    {articulo.razonNoSePuedeDeshacer}
                                   </span>
                                 )}
                               </td>
                             </tr>
-
-                            {impacto.articulos.map((a) => (
-                              <tr key={a.codigo}>
-                                <td className="pr-3 text-slate-500">
-                                  <span className="inline-flex items-center gap-1">
-                                    <Package className="h-3 w-3" />
-                                    {a.codigo}
-                                  </span>
-                                </td>
-                                <td className="pr-2 text-slate-500 tabular-nums">
-                                  {a.stock} und
-                                </td>
-                                <td className="pr-2 text-slate-400">→</td>
-                                <td className="font-bold tabular-nums text-emerald-700">
-                                  {a.stock + a.devuelve} und
-                                </td>
-                                <td className="pl-2 text-xs text-slate-400">
-                                  +{a.devuelve}
-                                </td>
-                              </tr>
-                            ))}
-
-                            <tr>
-                              <td className="pr-3 text-slate-500">
-                                Créditos de esta importación
-                              </td>
-                              <td className="pr-2 text-slate-500 tabular-nums">
-                                {impacto.creditosAhora}
-                              </td>
-                              <td className="pr-2 text-slate-400">→</td>
-                              <td className="font-bold tabular-nums text-slate-700">
-                                {impacto.creditosDespues}
-                              </td>
-                              <td className="pl-2 text-xs text-slate-400">
-                                −{impacto.creditos}
-                              </td>
-                            </tr>
-                          </tbody>
-                        </table>
-                        </div>
-                      </div>
-                    )}
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
 
-                  <div className="flex gap-2">
-                    <button
-                      onClick={onCerrar}
-                      className="rounded-2xl border border-slate-200 bg-white px-5 py-2.5 text-xs font-bold uppercase tracking-wide text-slate-600 transition-colors hover:bg-slate-50"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      onClick={() => setConfirmando(true)}
-                      disabled={impacto.creditos === 0 || deshaciendo}
-                      className="flex items-center gap-2 rounded-2xl bg-rose-600 px-5 py-2.5 text-xs font-bold uppercase tracking-wide text-white shadow-lg shadow-rose-600/20 transition-all hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      <RotateCcw className="h-4 w-4" />
-                      Deshacer {impacto.creditos || ''}
-                    </button>
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 bg-slate-50/70 px-6 py-4">
+                    <p className="max-w-2xl text-sm text-slate-600">
+                      {detalle.sePuede
+                        ? `Se pueden restaurar los ${articulosInventario.length} artículo(s) porque no han sido usados ni modificados después.`
+                        : detalle.razon}
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={onCerrar}
+                        className="rounded-2xl border border-slate-200 bg-white px-5 py-2.5 text-xs font-bold uppercase tracking-wide text-slate-600 hover:bg-slate-50"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        onClick={() => setConfirmando(true)}
+                        disabled={!detalle.sePuede || deshaciendo}
+                        className="flex items-center gap-2 rounded-2xl bg-rose-600 px-5 py-2.5 text-xs font-bold uppercase tracking-wide text-white shadow-lg shadow-rose-600/20 hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        <RotateCcw className="h-4 w-4" />
+                        Deshacer lote
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <div className={esInventario ? "hidden" : "contents"}>
+                {/* Buscador y selección */}
+                <div className="flex flex-wrap items-center gap-3 border-b border-slate-100 px-6 py-3">
+                  <div className="relative flex-1 min-w-[220px]">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <input
+                      value={busqueda}
+                      onChange={(e) => setBusqueda(e.target.value)}
+                      placeholder="Buscar por cliente, cédula o número de crédito"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm focus:border-slate-400 focus:outline-none"
+                    />
+                  </div>
+                  <button
+                    onClick={alternarTodos}
+                    disabled={deshacibles.length === 0}
+                    className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold uppercase tracking-wide text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-40"
+                  >
+                    {seleccion.size === deshacibles.length &&
+                    deshacibles.length > 0
+                      ? "Quitar todo"
+                      : `Elegir los ${deshacibles.length} que se pueden`}
+                  </button>
+                </div>
+
+                {/* Tabla */}
+                <div className="flex-1 overflow-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead className="sticky top-0 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                      <tr>
+                        <th className="w-10 px-3 py-2" />
+                        <th className="px-3 py-2">Cliente y crédito</th>
+                        <th className="px-3 py-2">Qué es</th>
+                        <th className="px-3 py-2 text-right">Monto</th>
+                        <th className="px-3 py-2 text-right">Vuelve a caja</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {visibles.map(fila)}
+                      {visibles.length === 0 && (
+                        <tr>
+                          <td
+                            colSpan={5}
+                            className="px-3 py-10 text-center text-sm text-slate-500"
+                          >
+                            Ningún crédito coincide con la búsqueda.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Lo que va a pasar */}
+                <div className="border-t border-slate-100 bg-slate-50/70 px-6 py-4">
+                  {detalle.totales.bloqueados > 0 && (
+                    <p className="mb-3 flex items-start gap-2 text-xs font-medium text-amber-700">
+                      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                      {detalle.totales.bloqueados} crédito(s) no se pueden
+                      deshacer y quedan como están. Aparecen en gris.
+                    </p>
+                  )}
+
+                  <div className="flex flex-wrap items-end justify-between gap-4">
+                    <div className="space-y-1">
+                      <div className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                        Al confirmar
+                      </div>
+                      {impacto.creditos === 0 ? (
+                        <p className="text-sm text-slate-500">
+                          No ha elegido ningún crédito todavía.
+                        </p>
+                      ) : (
+                        <div className="space-y-2">
+                          <p className="text-sm text-slate-700">
+                            Va a deshacer <b>{impacto.creditos}</b> crédito(s)
+                            con sus cuotas.
+                            {impacto.esTodo &&
+                              " Es todo lo que se puede deshacer de esta importación."}
+                          </p>
+
+                          {/* Cómo queda cada cosa después. Es lo que se compara
+                            contra lo que uno espera tener. */}
+                          <div className="overflow-x-auto">
+                            <table className="w-full min-w-[280px] text-sm">
+                              <tbody className="[&_td]:py-0.5">
+                                <tr>
+                                  <td className="pr-3 text-slate-500">
+                                    {impacto.cajaNombre}
+                                  </td>
+                                  <td className="pr-2 text-slate-500 tabular-nums">
+                                    {formatCurrency(impacto.cajaAhora)}
+                                  </td>
+                                  <td className="pr-2 text-slate-400">→</td>
+                                  <td
+                                    className={`font-bold tabular-nums ${
+                                      impacto.caja > 0
+                                        ? "text-emerald-700"
+                                        : impacto.caja < 0
+                                          ? "text-rose-700"
+                                          : "text-slate-700"
+                                    }`}
+                                  >
+                                    {formatCurrency(impacto.cajaDespues)}
+                                  </td>
+                                  <td className="pl-2 text-xs text-slate-400">
+                                    {impacto.caja !== 0 && (
+                                      <span className="inline-flex items-center gap-1">
+                                        <ArrowDownToLine className="h-3 w-3" />
+                                        {impacto.caja > 0 ? "+" : "−"}
+                                        {formatCurrency(Math.abs(impacto.caja))}
+                                      </span>
+                                    )}
+                                  </td>
+                                </tr>
+
+                                {impacto.articulos.map((a) => (
+                                  <tr key={a.codigo}>
+                                    <td className="pr-3 text-slate-500">
+                                      <span className="inline-flex items-center gap-1">
+                                        <Package className="h-3 w-3" />
+                                        {a.codigo}
+                                      </span>
+                                    </td>
+                                    <td className="pr-2 text-slate-500 tabular-nums">
+                                      {a.stock} und
+                                    </td>
+                                    <td className="pr-2 text-slate-400">→</td>
+                                    <td className="font-bold tabular-nums text-emerald-700">
+                                      {a.stock + a.devuelve} und
+                                    </td>
+                                    <td className="pl-2 text-xs text-slate-400">
+                                      +{a.devuelve}
+                                    </td>
+                                  </tr>
+                                ))}
+
+                                <tr>
+                                  <td className="pr-3 text-slate-500">
+                                    Créditos de esta importación
+                                  </td>
+                                  <td className="pr-2 text-slate-500 tabular-nums">
+                                    {impacto.creditosAhora}
+                                  </td>
+                                  <td className="pr-2 text-slate-400">→</td>
+                                  <td className="font-bold tabular-nums text-slate-700">
+                                    {impacto.creditosDespues}
+                                  </td>
+                                  <td className="pl-2 text-xs text-slate-400">
+                                    −{impacto.creditos}
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button
+                        onClick={onCerrar}
+                        className="rounded-2xl border border-slate-200 bg-white px-5 py-2.5 text-xs font-bold uppercase tracking-wide text-slate-600 transition-colors hover:bg-slate-50"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        onClick={() => setConfirmando(true)}
+                        disabled={impacto.creditos === 0 || deshaciendo}
+                        className="flex items-center gap-2 rounded-2xl bg-rose-600 px-5 py-2.5 text-xs font-bold uppercase tracking-wide text-white shadow-lg shadow-rose-600/20 transition-all hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        <RotateCcw className="h-4 w-4" />
+                        Deshacer {impacto.creditos || ""}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -483,33 +586,50 @@ export const RevisarLoteModal: React.FC<Props> = ({
               </h3>
             </div>
             <p className="text-sm text-slate-600">
-              Se van a borrar <b>{impacto.creditos}</b> crédito(s)
-              {impacto.caja !== 0 && (
+              {esInventario ? (
                 <>
-                  {' '}y a mover{' '}
-                  <b>{formatCurrency(Math.abs(impacto.caja))}</b> en la Caja de
-                  Oficina
+                  Se va a deshacer el lote completo de{" "}
+                  <b>{articulosInventario.length} artículo(s)</b>. Los nuevos se
+                  eliminarán y los actualizados recuperarán sus datos, stock y
+                  precios anteriores. Los asientos contables quedarán
+                  registrados con su reversa.
+                </>
+              ) : (
+                <>
+                  Se van a borrar <b>{impacto.creditos}</b> crédito(s)
+                  {impacto.caja !== 0 && (
+                    <>
+                      {" "}
+                      y a mover <b>
+                        {formatCurrency(Math.abs(impacto.caja))}
+                      </b>{" "}
+                      en la Caja de Oficina
+                    </>
+                  )}
+                  {impacto.articulos.length > 0 && (
+                    <>
+                      {" "}
+                      y a devolver{" "}
+                      <b>
+                        {impacto.articulos.reduce((s, a) => s + a.devuelve, 0)}
+                      </b>{" "}
+                      artículo(s) al inventario
+                    </>
+                  )}
+                  . Los asientos contables quedan registrados con su reversa.
                 </>
               )}
-              {impacto.articulos.length > 0 && (
-                <>
-                  {' '}y a devolver{' '}
-                  <b>
-                    {impacto.articulos.reduce((s, a) => s + a.devuelve, 0)}
-                  </b>{' '}
-                  artículo(s) al inventario
-                </>
-              )}
-              . Los asientos contables quedan registrados con su reversa.
             </p>
 
-            <p className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600">
-              {impacto.cajaNombre} queda en{' '}
-              <b className="text-slate-900">
-                {formatCurrency(impacto.cajaDespues)}
-              </b>
-              .
-            </p>
+            {!esInventario && (
+              <p className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                {impacto.cajaNombre} queda en{" "}
+                <b className="text-slate-900">
+                  {formatCurrency(impacto.cajaDespues)}
+                </b>
+                .
+              </p>
+            )}
             <div className="mt-5 flex gap-2">
               <button
                 onClick={() => setConfirmando(false)}
@@ -523,7 +643,7 @@ export const RevisarLoteModal: React.FC<Props> = ({
                 disabled={deshaciendo}
                 className="flex-1 rounded-2xl bg-rose-600 py-3 text-xs font-bold uppercase tracking-wide text-white hover:bg-rose-700 disabled:opacity-50"
               >
-                {deshaciendo ? 'Deshaciendo…' : 'Sí, deshacer'}
+                {deshaciendo ? "Deshaciendo…" : "Sí, deshacer"}
               </button>
             </div>
           </div>

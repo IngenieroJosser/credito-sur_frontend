@@ -68,6 +68,7 @@ export interface CreateRouteDto {
   zona: string;
   cobradorId: string;
   supervisorId?: string;
+  coordinadorId?: string;
 }
 
 export interface UpdateRouteDto {
@@ -77,6 +78,7 @@ export interface UpdateRouteDto {
   zona?: string;
   cobradorId?: string;
   supervisorId?: string;
+  coordinadorId?: string;
   activa?: boolean;
 }
 
@@ -221,6 +223,15 @@ export const routesService = {
   // Obtener supervisores
   async getSupervisores() {
     const users = await apiRequest<any[]>('GET', '/routes/supervisores', undefined, { cacheTTL: 120000 });
+    return users.map(u => ({
+      ...u,
+      nombre: u.nombre || `${u.nombres} ${u.apellidos}`.trim()
+    })) as Supervisor[];
+  },
+
+  // Obtener coordinadores, para asignar el de la ruta
+  async getCoordinadores() {
+    const users = await apiRequest<any[]>('GET', '/routes/coordinadores', undefined, { cacheTTL: 120000 });
     return users.map(u => ({
       ...u,
       nombre: u.nombre || `${u.nombres} ${u.apellidos}`.trim()
