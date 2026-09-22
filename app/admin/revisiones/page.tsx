@@ -56,6 +56,7 @@ import AlertaClienteDetalleModal from '@/components/notificaciones/AlertaCliente
 import ProrrogaDetalleModal, { type ProrrogaData } from '@/components/revisiones/ProrrogaDetalleModal'
 import ReprogramacionDetalleModal, { type ReprogramacionData } from '@/components/revisiones/ReprogramacionDetalleModal'
 import ConfirmRejectModal from '@/components/ui/ConfirmRejectModal'
+import { SkeletonTarjetas } from '@/components/ui/Skeleton'
 
 // Configuración de categorías con meta visual
 const CATEGORIAS: Record<string, { label: string; icon: any; color: string; bgColor: string; borderColor: string; tipoNotif: string }> = {
@@ -1080,10 +1081,9 @@ export default function RevisionesPage() {
       </div>
 
       {loading ? (
-        <div className="py-20 text-center text-slate-500">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p className="font-medium">Cargando datos...</p>
-        </div>
+        // Esqueleto con la forma de las tarjetas que van a llegar: la pantalla
+        // no salta al cargar y se ve que hay contenido en camino.
+        <SkeletonTarjetas cantidad={6} />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {activeTab === 'alertas-clientes' ? (

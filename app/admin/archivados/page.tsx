@@ -16,6 +16,7 @@ import ClientePortalModal from '@/components/cliente/ClientePortalModal'
 import DetallePrestamoModal from '@/components/prestamos/DetallePrestamoModal'
 import DetalleProductoModal from '@/components/articulos/DetalleProductoModal'
 import Paginador from '@/components/ui/Paginador'
+import { SkeletonTabla } from '@/components/ui/Skeleton'
 
 interface ArchivedItem {
   id: string
@@ -322,7 +323,19 @@ export default function ArchivadosPage() {
 
         {/* Content */}
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
-          {filteredItems.length > 0 ? (
+          {loading ? (
+
+            // Antes, mientras cargaba, se veia el mensaje de 'No hay elementos
+
+            // archivados', que decia justo lo contrario de lo que pasaba.
+
+            <div className="p-4">
+
+              <SkeletonTabla filas={5} columnas={6} />
+
+            </div>
+
+          ) : filteredItems.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-left">
                 <thead className="text-xs text-slate-500 uppercase bg-slate-50/50 border-b border-slate-200">

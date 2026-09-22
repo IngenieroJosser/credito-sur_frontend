@@ -34,6 +34,7 @@ import FiltroRuta from '@/components/filtros/FiltroRuta'
 // declarado dentro del componente, así que React lo trataba como un tipo nuevo
 // en cada render y remontaba la tabla entera.
 import PaginadorCompartido from '@/components/ui/Paginador'
+import { Skeleton, SkeletonTabla } from '@/components/ui/Skeleton'
 
 type EstadoPago = 'completado' | 'pendiente' | 'fallido' | 'en_revision'
 
@@ -288,7 +289,14 @@ const HistorialPagosPage = () => {
   const totalGastos = useMemo(() => gastosFiltrados.reduce((s, g) => s + Number(g.monto || 0), 0), [gastosFiltrados])
 
   if (isLoading) {
-    return <AnimacionCarga texto="Cargando historial de pagos..." />
+    // Antes era una animacion a pantalla completa: tapaba la pantalla entera y
+    // al terminar todo aparecia de golpe. El esqueleto mantiene el sitio.
+    return (
+      <div className="p-4 sm:p-6 space-y-4">
+        <Skeleton className="h-8 w-64" />
+        <SkeletonTabla filas={8} columnas={6} />
+      </div>
+    )
   }
 
   const getEstadoChipClasses = (estado: EstadoPago) => {
