@@ -7,6 +7,7 @@
  import type { Gasto } from '@/services/contabilidad-service'
  import { TipoGasto } from '@/types/enums'
 import Paginador from '@/components/ui/Paginador'
+import { Skeleton } from '@/components/ui/Skeleton'
  
  interface DetalleGastoModalProps {
    categoria: string
@@ -149,9 +150,15 @@ import Paginador from '@/components/ui/Paginador'
                  </thead>
                  <tbody className="divide-y divide-slate-100 bg-white">
                    {loading ? (
-                     <tr>
-                       <td className="px-6 py-4 text-slate-500" colSpan={5}>Cargando...</td>
-                     </tr>
+                     <>
+                       {[0, 1, 2, 3].map((i) => (
+                         <tr key={i} aria-busy="true">
+                           <td className="px-6 py-4" colSpan={5}>
+                             <Skeleton className="h-3.5 w-full" />
+                           </td>
+                         </tr>
+                       ))}
+                     </>
                    ) : error ? (
                      <tr>
                        <td className="px-6 py-4 text-rose-600 font-bold" colSpan={5}>{error}</td>

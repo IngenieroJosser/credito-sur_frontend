@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import { X, Loader2 } from 'lucide-react'
 import { inventarioService, Producto } from '@/services/inventario-service'
 import { formatCurrency } from '@/lib/utils'
+import { Skeleton, SkeletonTexto, SkeletonTabla } from '@/components/ui/Skeleton'
 
 interface DetalleProductoModalProps {
   id: string
@@ -66,9 +67,17 @@ export default function DetalleProductoModal({ id, onClose }: DetalleProductoMod
 
         <div className="flex-1 overflow-y-auto sm:rounded-2xl p-6">
           {loading ? (
-            <div className="flex flex-col items-center justify-center min-h-[40vh] gap-3">
-              <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
-              <p className="text-sm font-medium text-slate-500">Cargando detalle del artículo...</p>
+            <div className="space-y-6" aria-busy="true">
+              <span className="sr-only">Cargando detalle del artículo…</span>
+              <div className="flex items-start gap-4">
+                <Skeleton className="h-16 w-16 rounded-2xl" />
+                <div className="min-w-0 flex-1 space-y-2">
+                  <Skeleton className="h-5 w-2/3" />
+                  <Skeleton className="h-3.5 w-1/3" />
+                </div>
+              </div>
+              <SkeletonTexto lineas={3} />
+              <SkeletonTabla filas={4} columnas={3} />
             </div>
           ) : producto ? (
             <div className="space-y-6">

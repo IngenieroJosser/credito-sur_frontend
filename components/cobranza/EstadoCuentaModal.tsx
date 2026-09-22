@@ -9,6 +9,7 @@ import { prestamosService } from '@/services/prestamos-service'
 import { pagosService } from '@/services/pagos-service'
 import { getLoanAmounts } from '@/lib/loan-calculations'
 import { normalizeDateKey, resolveNextPagoFromPrestamo } from '@/lib/rutas-core'
+import { Skeleton, SkeletonTabla } from '@/components/ui/Skeleton'
 
 interface EstadoCuentaModalProps {
   visita: VisitaRuta
@@ -229,9 +230,14 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
           onClick={(e) => e.stopPropagation()}
         >
           {loading ? (
-             <div className="py-20 flex flex-col items-center justify-center space-y-4">
-                <Loader2 className="w-10 h-10 text-[#08557f] animate-spin" />
-                <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Sincronizando con Backend...</p>
+             <div className="space-y-5 p-5" aria-busy="true">
+                <span className="sr-only">Cargando el estado de cuenta…</span>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <Skeleton className="h-20 rounded-2xl" />
+                  <Skeleton className="h-20 rounded-2xl" />
+                  <Skeleton className="h-20 rounded-2xl" />
+                </div>
+                <SkeletonTabla filas={6} columnas={4} />
              </div>
           ) : error && !loanData ? (
             <div className="p-10 text-center space-y-4 font-bold">

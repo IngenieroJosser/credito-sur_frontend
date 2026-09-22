@@ -10,8 +10,8 @@ import FiltroRuta from '@/components/filtros/FiltroRuta'
 import DetalleReporteOperativoModal from '@/components/reportes/DetalleReporteOperativoModal'
 import { TimeFilter, TimeFilterPeriod } from '@/components/ui/TimeFilter'
 import { useReportesCoordinador } from '@/hooks/useReportesCoordinador'
-import AnimacionCarga from '@/components/ui/AnimacionCarga'
 import { toast } from 'sonner'
+import { Skeleton, SkeletonTabla } from '@/components/ui/Skeleton'
 
 const ReportesCoordinador = () => {
   const router = useRouter()
@@ -114,7 +114,18 @@ const ReportesCoordinador = () => {
   }
 
   if (!mounted || loading) {
-    return <AnimacionCarga texto="Cargando reportes operativos..." />
+    return (
+      <div className="space-y-4 p-4 sm:p-6" aria-busy="true">
+        <span className="sr-only">Cargando reportes operativos…</span>
+        <Skeleton className="h-8 w-72" />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-28 rounded-2xl" />
+          ))}
+        </div>
+        <SkeletonTabla filas={6} columnas={5} />
+      </div>
+    )
   }
 
   const rendimientoRutas = reportData?.rendimientoRutas || []

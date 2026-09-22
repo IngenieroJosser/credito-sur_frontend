@@ -15,7 +15,6 @@ import {
 import { formatCurrency } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
 import { TransactionalHighDetailChart } from '@/components/ui/TransactionalHighDetailChart'
-import AnimacionCarga from '@/components/ui/AnimacionCarga'
 import { getMonthlyEvolution, getFinancialTargets } from '@/services/reportes-service'
 import { getResumenFinanciero, getMovimientosLedger } from '@/services/contabilidad-service'
 import { exportService } from '@/services/export-service'
@@ -27,6 +26,7 @@ import {
   normalizeDateKey,
   toBogotaDateTimeOffsetIso,
 } from '@/lib/rutas-core'
+import { Skeleton, SkeletonTabla } from '@/components/ui/Skeleton'
 
 // Interfaces
 interface FinancialSummary {
@@ -528,7 +528,16 @@ const ReportesFinancierosPage = () => {
 
   if (loading) {
     return (
-      <AnimacionCarga texto="Cargando reportes financieros..." />
+      <div className="space-y-4 p-4 sm:p-6" aria-busy="true">
+        <span className="sr-only">Cargando reportes financieros…</span>
+        <Skeleton className="h-8 w-72" />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-28 rounded-2xl" />
+          ))}
+        </div>
+        <SkeletonTabla filas={6} columnas={5} />
+      </div>
     )
   }
 

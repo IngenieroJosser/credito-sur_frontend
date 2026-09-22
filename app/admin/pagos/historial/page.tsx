@@ -27,7 +27,6 @@ import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 import { toast } from 'sonner'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { TimeFilter, TimeFilterPeriod } from '@/components/ui/TimeFilter'
-import AnimacionCarga from '@/components/ui/AnimacionCarga'
 import PagoDetalleModal from '@/components/dashboards/shared/PagoDetalleModal'
 import FiltroRuta from '@/components/filtros/FiltroRuta'
 // Se usa el paginador compartido en vez de uno propio: el de aquí estaba

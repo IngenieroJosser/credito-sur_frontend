@@ -12,6 +12,7 @@ import { normalizeDateKey } from '@/lib/rutas-core';
 import { formatLoanTerm } from '@/lib/utils';
 import { toast } from 'sonner';
 
+import { Skeleton, SkeletonTexto, SkeletonTabla } from '@/components/ui/Skeleton'
 interface DetallePrestamoModalProps {
   id: string;
   onClose: () => void;
@@ -272,9 +273,15 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto sm:rounded-2xl">
           {loading ? (
-            <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3">
-              <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
-              <p className="text-sm font-medium text-slate-500">Cargando detalle del crédito...</p>
+            <div className="space-y-6 p-1" aria-busy="true">
+              <span className="sr-only">Cargando detalle del crédito…</span>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <Skeleton className="h-20 rounded-2xl" />
+                <Skeleton className="h-20 rounded-2xl" />
+                <Skeleton className="h-20 rounded-2xl" />
+              </div>
+              <SkeletonTexto lineas={3} />
+              <SkeletonTabla filas={6} columnas={5} />
             </div>
           ) : prestamo ? (
             <DetallePrestamo prestamo={prestamo} />

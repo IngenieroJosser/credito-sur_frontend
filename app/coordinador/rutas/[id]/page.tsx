@@ -88,7 +88,6 @@ import PagoModal from '@/components/cobranza/PagoModal'
 
 import EstadoCuentaModal from '@/components/cobranza/EstadoCuentaModal'
 
-import AnimacionCarga from '@/components/ui/AnimacionCarga'
 
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
 
@@ -115,6 +114,7 @@ import { obtenerSaldoDisponibleRuta } from '@/services/contabilidad-service'
 
 
 import { useRealtimeData } from '@/hooks/useRealtimeData'
+import { Skeleton, SkeletonTabla } from '@/components/ui/Skeleton'
 
 
 
@@ -1318,7 +1318,18 @@ const LegacyDetalleRutaPage = () => {
 
   if (isLoading) {
 
-    return <AnimacionCarga texto="Cargando detalle de ruta..." />
+    return (
+      <div className="space-y-4 p-4 sm:p-6" aria-busy="true">
+        <span className="sr-only">Cargando detalle de ruta…</span>
+        <Skeleton className="h-8 w-64" />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} className="h-24 rounded-2xl" />
+          ))}
+        </div>
+        <SkeletonTabla filas={6} columnas={4} />
+      </div>
+    )
 
   }
 

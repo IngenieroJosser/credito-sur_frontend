@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { AlertTriangle, CheckCircle, XCircle, Eye, AlertCircle, RefreshCw } from "lucide-react";
 import { apiRequest } from "@/lib/api/api";
 import { toast } from "sonner";
+import { SkeletonTabla } from '@/components/ui/Skeleton'
 
 interface SyncConflict {
   id: string;
@@ -84,9 +85,9 @@ export default function ListaConflictos() {
 
       <div className="bg-white">
         {loading ? (
-          <div className="p-8 text-center text-slate-500 flex flex-col items-center">
-            <RefreshCw className="w-8 h-8 animate-spin mb-4 text-brand-500" />
-            <p>Cargando conflictos...</p>
+          <div className="p-4" aria-busy="true">
+            <span className="sr-only">Cargando conflictos…</span>
+            <SkeletonTabla filas={4} columnas={4} />
           </div>
         ) : conflictos.length === 0 ? (
           <div className="p-12 text-center flex flex-col items-center">

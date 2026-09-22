@@ -18,6 +18,7 @@ import { Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorEl
 import { Caja, getCajas, consolidarCaja, getTransacciones, Transaccion, getDesglosePagosCaja } from '@/services/contabilidad-service'
 import { formatCurrency } from '@/lib/utils'
 import { useNotification } from '@/components/providers/NotificationProvider'
+import { Skeleton } from '@/components/ui/Skeleton'
 
 interface DesgloseCaja {
   efectivo: number
@@ -224,9 +225,12 @@ export default function ConsolidacionCajasModal({ isOpen, onClose, onSuccess }: 
 
                             {/* Desglose efectivo vs transferencia */}
                             {desglose?.cargando ? (
-                              <div className="flex items-center justify-center gap-2 py-3 text-slate-400">
-                                <RefreshCw className="h-4 w-4 animate-spin" />
-                                <span className="text-xs font-medium">Calculando desglose...</span>
+                              <div className="grid grid-cols-2 gap-3 py-1" aria-busy="true">
+                                <span className="sr-only">Calculando desglose…</span>
+                                <Skeleton className="h-14 rounded-xl" />
+                                <Skeleton className="h-14 rounded-xl" />
+                                <Skeleton className="h-14 rounded-xl" />
+                                <Skeleton className="h-14 rounded-xl" />
                               </div>
                             ) : desglose && desglose.total > 0 ? (
                               <div className="grid grid-cols-2 gap-3 mb-4">
