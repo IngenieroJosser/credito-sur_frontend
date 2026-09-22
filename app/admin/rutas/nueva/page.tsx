@@ -14,6 +14,7 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { rutasService } from '@/services/rutas-service';
+import { normalizarCodigoRuta } from '@/lib/rutas/codigo-ruta'
 
 interface RutaFormData {
   nombre: string;
@@ -177,6 +178,14 @@ const NuevaRutaPage = () => {
                         className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900"
                         required
                       />
+                      {formData.codigo.trim() && (
+                        <p className="text-xs font-medium text-slate-500">
+                          Se guardará como{' '}
+                          <span className="font-bold text-slate-700">
+                            {normalizarCodigoRuta(formData.codigo)}
+                          </span>
+                        </p>
+                      )}
                     </div>
 
                     <div className="col-span-full space-y-2">
