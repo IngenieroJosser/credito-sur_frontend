@@ -365,25 +365,27 @@ export default function CrearCreditoModal({
         }}
       >
         <div
-          className="w-full bg-white shadow-2xl animate-in zoom-in-95 duration-200 h-[100dvh] sm:h-auto sm:max-h-[90vh] rounded-none sm:rounded-3xl sm:max-w-2xl overflow-y-auto"
+          className="flex w-full flex-col overflow-hidden bg-white shadow-2xl animate-in zoom-in-95 duration-200 h-[100dvh] sm:h-auto sm:max-h-[90vh] rounded-none sm:rounded-3xl sm:max-w-2xl"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="p-6">
-            <div className="flex justify-between items-start mb-6">
-              <div className="min-w-0">
-                <h3 className="text-xl font-bold text-slate-900">
-                  {creditType === 'articulo' && esContado ? 'Registrar Venta' : 'Crear Nuevo Crédito'}
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={handleReset}
-                className="p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
-                title="Cerrar modal"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
+          {/* Encabezado fijo: antes se iba con el scroll y en el celular se
+              perdia el titulo y la X al bajar por el formulario. */}
+          <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-100 p-4 sm:p-6">
+            <h3 className="min-w-0 text-lg font-bold text-slate-900 sm:text-xl">
+              {creditType === 'articulo' && esContado ? 'Registrar Venta' : 'Crear Nuevo Crédito'}
+            </h3>
+            <button
+              type="button"
+              onClick={handleReset}
+              className="shrink-0 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
+              title="Cerrar modal"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          {/* Lo unico que se desplaza */}
+          <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
 
             {!hideTypeSelector ? (
               <div className="mb-6">
@@ -447,7 +449,7 @@ export default function CrearCreditoModal({
 
               {creditType === 'prestamo' ? (
                 <>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <FieldLabel required>Monto del Préstamo</FieldLabel>
                       <div className="relative">
@@ -474,7 +476,7 @@ export default function CrearCreditoModal({
                       </select>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <FieldLabel required>Tasa de Interés (%)</FieldLabel>
                       <input
@@ -498,7 +500,7 @@ export default function CrearCreditoModal({
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <FieldLabel required>Frecuencia de Pago</FieldLabel>
                       <select
@@ -544,7 +546,7 @@ export default function CrearCreditoModal({
                         </div>
                         <span className="font-black text-blue-900 text-xl">{formatCurrency(calculoPrestamo.total)}</span>
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="bg-white/50 p-3 rounded-xl border border-blue-100">
                           <div className="text-[10px] text-blue-800 font-bold uppercase mb-1 flex items-center gap-1.5">
                             <Calculator className="w-3 h-3" />
@@ -754,7 +756,7 @@ export default function CrearCreditoModal({
                         </div>
                         <span className="font-black text-emerald-900 text-xl">{formatCurrency(esContado ? calculoCreditoArticulo.precioTotal : calculoCreditoArticulo.aFinanciar)}</span>
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="bg-white/50 p-3 rounded-xl border border-emerald-100">
                           <div className="text-[10px] text-emerald-800 font-bold uppercase mb-1 flex items-center gap-1.5">
                             <Calendar className="w-3 h-3" />
@@ -877,7 +879,11 @@ export default function CrearCreditoModal({
                   )}
                 </div>
               </div>
-              <div className="flex gap-3 pt-6 mt-6 border-t border-slate-100">
+          </div>
+
+          {/* Acciones fijas: en el celular quedan siempre a la vista, sin tener
+              que bajar hasta el final del formulario. */}
+          <div className="flex shrink-0 gap-3 border-t border-slate-100 p-4 sm:p-6 pb-[max(1rem,env(safe-area-inset-bottom))]">
                 <button
                   onClick={handleReset}
                   className="flex-1 bg-white border border-slate-200 text-slate-700 font-bold py-4 rounded-2xl hover:bg-slate-50 transition-all uppercase tracking-widest text-xs"
@@ -961,8 +967,7 @@ export default function CrearCreditoModal({
                   )}
                   {isSubmitting ? 'Procesando...' : (creditType === 'articulo' && esContado ? 'Registrar Venta' : 'Crear Crédito')}
                 </button>
-              </div>
-            </div>
+          </div>
           </div>
         </div>
       </div>
