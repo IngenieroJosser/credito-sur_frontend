@@ -189,6 +189,8 @@ export interface Ruta {
 
   supervisorId: string | null;
 
+  coordinadorId: string | null;
+
   creadoEn: string;
 
   actualizadoEn: string;
@@ -215,6 +217,8 @@ export interface CrearRutaDto {
 
   supervisorId?: string;
 
+  coordinadorId?: string;
+
 }
 
 
@@ -232,6 +236,8 @@ export interface ActualizarRutaDto {
   cobradorId?: string;
 
   supervisorId?: string;
+
+  coordinadorId?: string;
 
   activa?: boolean;
 
@@ -252,6 +258,8 @@ export interface FiltrosRutas {
   cobradorId?: string;
 
   supervisorId?: string;
+
+  coordinadorId?: string;
 
 }
 
@@ -378,6 +386,20 @@ export const rutasService = {
   async obtenerSupervisores(): Promise<Cobrador[]> {
 
     return apiRequest<Cobrador[]>('GET', '/routes/supervisores');
+
+  },
+
+
+
+  /**
+
+   * Obtener los coordinadores activos, para asignar el de la ruta
+
+   */
+
+  async obtenerCoordinadores(): Promise<Cobrador[]> {
+
+    return apiRequest<Cobrador[]>('GET', '/routes/coordinadores');
 
   },
 

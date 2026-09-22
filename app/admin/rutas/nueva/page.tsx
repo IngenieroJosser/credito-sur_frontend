@@ -21,6 +21,7 @@ interface RutaFormData {
   codigo: string;
   cobradorId: string;
   supervisorId: string;
+  coordinadorId: string;
   frecuenciaVisita: 'DIARIO' | 'SEMANAL' | 'QUINCENAL';
   estado: 'ACTIVA' | 'INACTIVA';
   descripcion: string;
@@ -34,6 +35,7 @@ const NuevaRutaPage = () => {
     codigo: '',
     cobradorId: '',
     supervisorId: '',
+    coordinadorId: '',
     frecuenciaVisita: 'DIARIO',
     estado: 'ACTIVA',
     descripcion: ''
@@ -41,13 +43,15 @@ const NuevaRutaPage = () => {
 
   const [cobradores, setCobradores] = useState<Array<{id: string; nombre: string}>>([]);
   const [supervisores, setSupervisores] = useState<Array<{id: string; nombre: string}>>([]);
+  const [coordinadores, setCoordinadores] = useState<Array<{id: string; nombre: string}>>([]);
 
   useEffect(() => {
     const loadSelects = async () => {
       try {
-        const [cobRes, supRes] = await Promise.all([
+        const [cobRes, supRes, coordRes] = await Promise.all([
           rutasService.obtenerCobradores().catch(() => []),
           rutasService.obtenerSupervisores().catch(() => []),
+          rutasService.obtenerCoordinadores().catch(() => []),
         ]);
         setCobradores((cobRes as any[]).map((c: any) => ({
           id: c.id,
@@ -56,6 +60,10 @@ const NuevaRutaPage = () => {
         setSupervisores((supRes as any[]).map((s: any) => ({
           id: s.id,
           nombre: s.nombre || `${s.nombres || ''} ${s.apellidos || ''}`.trim(),
+        })));
+        setCoordinadores((coordRes as any[]).map((c: any) => ({
+          id: c.id,
+          nombre: c.nombre || `${c.nombres || ''} ${c.apellidos || ''}`.trim(),
         })));
       } catch (err) {
         console.error('Error cargando selects:', err);
@@ -78,6 +86,7 @@ const NuevaRutaPage = () => {
         codigo: formData.codigo,
         cobradorId: formData.cobradorId || undefined,
         supervisorId: formData.supervisorId || undefined,
+        coordinadorId: formData.coordinadorId || undefined,
         frecuenciaVisita: formData.frecuenciaVisita,
         estado: formData.estado,
         descripcion: formData.descripcion,
@@ -243,6 +252,24 @@ const NuevaRutaPage = () => {
                         >
                           <option value="">Seleccione un supervisor</option>
                           {supervisores.map(s => (
+                            <option key={s.id} value={s.id}>{s.nombre}</option>
+                          ))}
+                        </select>
+                        <CheckCircle2 className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-bold text-slate-700">Asignar coordinador</label>
+                      <div className="relative">
+                        <select
+                          name="coordinadorId"
+                          value={formData.coordinadorId}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 appearance-none"
+                        >
+                          <option value="">Seleccione un coordinador</option>
+                          {coordinadores.map(s => (
                             <option key={s.id} value={s.id}>{s.nombre}</option>
                           ))}
                         </select>
