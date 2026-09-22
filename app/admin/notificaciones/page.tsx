@@ -35,6 +35,7 @@ import { aprobacionesService } from '@/services/aprobaciones-service'
 import { TipoAprobacion } from '@/types/enums'
 import NotificacionDetalleModal from '@/components/dashboards/shared/NotificacionDetalleModal'
 import { formatCurrency, formatMilesCOP } from '@/lib/utils'
+import BotonAccion from '@/components/ui/BotonAccion'
 
 // MOCKS ELIMINADOS - La aplicación solo funciona con datos reales del backend
 
@@ -789,7 +790,7 @@ export default function NotificacionesPage() {
                         </button>
 
                          {!notif.leida && (
-                           <button
+                           <BotonAccion
                              onClick={async () => {
                                try {
                                  await notificacionesService.marcarComoLeida(notif.id)
@@ -804,7 +805,7 @@ export default function NotificacionesPage() {
                              title="Marcar como leída"
                            >
                              <CheckCircle2 className="h-4 w-4" />
-                           </button>
+                           </BotonAccion>
                          )}
                       </div>
                     </div>

@@ -16,6 +16,7 @@ import { RolUsuario, EstadoUsuario } from "@/types/enums";
 import { apiRequest, formatErrorForComponent } from "@/lib/api/api";
 import { formatShortDateTime, formatShortDate } from "@/lib/utils/format";
 import { buildBogotaOffsetIsoFromKey, normalizeDateKey } from '@/lib/rutas-core'
+import BotonAccion from '@/components/ui/BotonAccion'
 
 import {
   Search,
@@ -2659,7 +2660,7 @@ const UserManagementPage = () => {
                                     setFiltroFechaFin(e.target.value)
                                   }
                                 />
-                                <button
+                                <BotonAccion
                                   className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded-md border border-blue-200 hover:bg-blue-100"
                                   onClick={async () => {
                                     if (!selectedUser) return;
@@ -2668,7 +2669,7 @@ const UserManagementPage = () => {
                                   }}
                                 >
                                   Aplicar
-                                </button>
+                                </BotonAccion>
                               </div>
                             </div>
                             <div className="bg-white p-0">

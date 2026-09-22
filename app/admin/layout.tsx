@@ -55,6 +55,7 @@ import { formatRoleLabel } from '@/lib/display-labels';
 import SupervisorFloatingActionsGate from '@/components/dashboards/SupervisorFloatingActionsGate';
 import { cerrarSesion } from '@/services/autenticacion-service';
 import { useAnchoAside } from '@/hooks/useAnchoAside'
+import BotonAccion from '@/components/ui/BotonAccion'
 
 interface NavigationItem {
   name: string;
@@ -1031,7 +1032,7 @@ export default function AdminLayout({
               </p>
               
               <div className="mt-8 flex flex-col gap-2">
-                <button
+                <BotonAccion
                   type="button"
                   onClick={async () => {
                     await marcarTodasComoLeidas();
@@ -1040,7 +1041,7 @@ export default function AdminLayout({
                   className="w-full rounded-2xl bg-blue-600 py-4 text-sm font-bold text-white hover:bg-blue-700 shadow-xl shadow-blue-600/20 transition-all active:scale-[0.98]"
                 >
                   Sí, marcar todas
-                </button>
+                </BotonAccion>
                 <button
                   type="button"
                   onClick={() => setShowMarkAllConfirm(false)}

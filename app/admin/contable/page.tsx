@@ -91,6 +91,7 @@ import AnimacionCarga from '@/components/ui/AnimacionCarga'
 import Link from 'next/link'
 import DeudorasCobradorCard from '@/components/contable/DeudorasCobradorCard'
 import FieldLabel from '@/components/ui/FieldLabel'
+import BotonAccion from '@/components/ui/BotonAccion'
 
 // --- TIPOS DE DATOS ---
 // Definimos la estructura de nuestras "Cajas".
@@ -1720,7 +1721,7 @@ const ModuloContableContent = () => {
                       </div>
                       <MoneyAmount value={c.saldo} amountClassName="text-sm font-extrabold text-slate-900" />
                       <div className="flex items-center gap-2">
-                        <button
+                        <BotonAccion
                           onClick={async () => {
                             setCajaSeleccionada(c)
                             setVerCajaRangoStats(null)
@@ -1878,7 +1879,7 @@ const ModuloContableContent = () => {
                         >
                           <Eye className="h-3.5 w-3.5" />
                           Ver
-                        </button>
+                        </BotonAccion>
                         <button
                           onClick={() => openEditarCaja(c)}
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 text-xs font-bold hover:bg-blue-100 transition-colors"

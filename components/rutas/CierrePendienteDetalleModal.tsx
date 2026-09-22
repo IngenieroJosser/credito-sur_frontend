@@ -9,6 +9,7 @@ import {
   formatFechaHumanaBogota,
 } from '@/lib/format-date'
 import type { CierrePendienteDetalle } from '@/types/rutas/cierre-pendiente'
+import BotonAccion from '@/components/ui/BotonAccion'
 
 // Helper para formato de fecha compacto (ej: 18 may)
 function formatFechaDiaMes(value?: string | Date | null) {
@@ -758,7 +759,7 @@ export function CierrePendienteDetalleModal({
                             return (
                               <>
                                 {puedeRegistrarPagoRegularizado && permissions?.canRegistrarPago && onRegistrarPago && (
-                                  <button
+                                  <BotonAccion
                                     type="button"
                                     onClick={async () => {
                                       const cuota = cliente.cuotaObjetivo
@@ -798,11 +799,11 @@ export function CierrePendienteDetalleModal({
                                     className="w-full rounded-xl bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                                   >
                                     {processingCliente === clienteId ? 'Procesando...' : 'Registrar pago regularizado'}
-                                  </button>
+                                  </BotonAccion>
                                 )}
 
                                 {puedeRegistrarPagoRegularizado && permissions?.canRegistrarPago && onRegistrarAbono && (
-                                  <button
+                                  <BotonAccion
                                     type="button"
                                     onClick={async () => {
                                       const cuota = cliente.cuotaObjetivo
@@ -842,11 +843,11 @@ export function CierrePendienteDetalleModal({
                                     className="w-full rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                                   >
                                     {processingCliente === clienteId ? 'Procesando...' : 'Registrar abono regularizado'}
-                                  </button>
+                                  </BotonAccion>
                                 )}
 
                                 {puedeReprogramarRegularizado && permissions?.canReprogramar && onReprogramar && (
-                                  <button
+                                  <BotonAccion
                                     type="button"
                                     onClick={async () => {
                                       const cuota = cliente.cuotaObjetivo
@@ -886,7 +887,7 @@ export function CierrePendienteDetalleModal({
                                     className="w-full rounded-xl border border-orange-300 bg-orange-50 px-3 py-2 text-xs font-bold text-orange-800 hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                                   >
                                     {processingCliente === clienteId ? 'Procesando...' : 'Reprogramar cuota'}
-                                  </button>
+                                  </BotonAccion>
                                 )}
 
                                 {puedeMarcarAusente && permissions?.canMarcarAusente && onMarcarAusente && (

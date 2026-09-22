@@ -38,6 +38,7 @@ import { resolveCurrentUserId } from '@/lib/creditos/crear-prestamo-payload'
 import { useNotification } from '@/components/providers/NotificationProvider'
 import { formatCurrency, formatCOPInputValue, formatMilesCOP, parseCOPInputToNumber } from '@/lib/utils'
 import { TipoAmortizacion } from '@/types/enums'
+import BotonAccion from '@/components/ui/BotonAccion'
 
 const MODAL_Z_INDEX = 2147483647
 
@@ -495,7 +496,7 @@ export default function ClienteDetalleSupervisorPage() {
                     </div>
                   )}
 
-                  <button
+                  <BotonAccion
                     type="button"
                     onClick={async () => {
                       if (isSaving) return;
@@ -536,7 +537,7 @@ export default function ClienteDetalleSupervisorPage() {
                   >
                     {isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <CheckCircle className="h-5 w-5" />}
                     {isSaving ? 'Registrando...' : 'Confirmar Pago'}
-                  </button>
+                  </BotonAccion>
                 </div>
               </div>
             </div>

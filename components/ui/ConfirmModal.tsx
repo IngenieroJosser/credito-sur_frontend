@@ -3,6 +3,7 @@
 import { ReactNode, useRef } from 'react'
 import { AlertTriangle, Info, XCircle, CheckCircle2 } from 'lucide-react'
 import Portal, { ALERT_Z_INDEX } from '@/components/ui/Portal'
+import BotonAccion from '@/components/ui/BotonAccion'
 
 interface ConfirmModalProps {
   isOpen: boolean
@@ -110,14 +111,13 @@ export default function ConfirmModal({
                 {cancelText}
               </button>
             )}
-            <button
-              onClick={async () => {
-                await onConfirm()
-              }}
+            <BotonAccion
+              onClick={() => onConfirm()}
+              textoCargando="Procesando…"
               className={`px-6 py-2.5 rounded-xl text-white text-sm font-bold transition-all shadow-lg ${currentVariant.buttonBg}`}
             >
               {confirmText}
-            </button>
+            </BotonAccion>
           </div>
         </div>
       </div>
