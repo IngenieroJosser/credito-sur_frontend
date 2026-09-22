@@ -371,14 +371,19 @@ export default function CrearCreditoModal({
           {/* Encabezado fijo: antes se iba con el scroll y en el celular se
               perdia el titulo y la X al bajar por el formulario. */}
           <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-100 p-4 sm:p-6">
-            <h3 className="min-w-0 text-lg font-bold text-slate-900 sm:text-xl">
-              {creditType === 'articulo' && esContado ? 'Registrar Venta' : 'Crear Nuevo Crédito'}
-            </h3>
+            <div className="min-w-0">
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                {creditType === 'articulo' && esContado ? 'Punto de venta' : 'Gestión de créditos'}
+              </p>
+              <h3 className="text-lg font-bold text-slate-900">
+                {creditType === 'articulo' && esContado ? 'Registrar venta' : 'Nuevo crédito'}
+              </h3>
+            </div>
             <button
               type="button"
               onClick={handleReset}
-              className="shrink-0 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
-              title="Cerrar modal"
+              aria-label="Cerrar"
+              className="shrink-0 rounded-xl p-2 text-slate-500 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
             >
               <X className="h-5 w-5" />
             </button>
@@ -388,7 +393,7 @@ export default function CrearCreditoModal({
           <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
 
             {!hideTypeSelector ? (
-              <div className="mb-6">
+              <div className="mb-6 rounded-2xl border border-slate-200 bg-slate-50 p-5">
                 <FieldLabel required className="mb-3">Tipo de Crédito</FieldLabel>
                 <div className="grid grid-cols-2 gap-3">
                   <button
@@ -430,7 +435,7 @@ export default function CrearCreditoModal({
               </div>
             )}
 
-            <div className="space-y-4">
+            <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-5">
               <div>
                 <FieldLabel required>Cliente</FieldLabel>
                 <select
@@ -883,10 +888,12 @@ export default function CrearCreditoModal({
 
           {/* Acciones fijas: en el celular quedan siempre a la vista, sin tener
               que bajar hasta el final del formulario. */}
-          <div className="flex shrink-0 gap-3 border-t border-slate-100 p-4 sm:p-6 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <div className="flex shrink-0 gap-3 border-t border-slate-200 bg-slate-50 px-4 py-4 sm:px-6 pb-[max(1rem,env(safe-area-inset-bottom))]">
                 <button
+                  type="button"
                   onClick={handleReset}
-                  className="flex-1 bg-white border border-slate-200 text-slate-700 font-bold py-4 rounded-2xl hover:bg-slate-50 transition-all uppercase tracking-widest text-xs"
+                  disabled={isSubmitting}
+                  className="flex-1 rounded-xl border border-slate-300 bg-white py-3 font-bold text-slate-700 transition-all hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 disabled:opacity-50"
                 >
                   Cancelar
                 </button>
@@ -958,14 +965,14 @@ export default function CrearCreditoModal({
                     (fechaPrimerCobro ? fechaPrimerCobro < fechaCreditoKey : false) ||
                     (!puedeUsarFechaAntiguaCredito && fechaPrimerCobro ? fechaPrimerCobro < hoyBogotaKey : false)
                   }
-                  className="flex-1 bg-slate-900 text-white font-bold py-4 rounded-2xl shadow-xl shadow-slate-200 hover:bg-slate-800 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-widest text-xs"
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary py-3 font-bold text-white shadow-lg shadow-primary/25 transition-all hover:bg-primary-dark active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {isSubmitting ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <Loader2 className="h-5 w-5 animate-spin" />
                   ) : (
-                    <Plus className="w-4 h-4" />
+                    <Plus className="h-5 w-5" />
                   )}
-                  {isSubmitting ? 'Procesando...' : (creditType === 'articulo' && esContado ? 'Registrar Venta' : 'Crear Crédito')}
+                  {isSubmitting ? 'Procesando...' : (creditType === 'articulo' && esContado ? 'Registrar venta' : 'Crear crédito')}
                 </button>
           </div>
           </div>

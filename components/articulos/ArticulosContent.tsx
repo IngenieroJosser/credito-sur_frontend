@@ -41,7 +41,7 @@ import {
   Pencil,
   XCircle,
   Bell
-} from 'lucide-react'
+, Loader2} from 'lucide-react'
 import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber } from '@/lib/utils'
 import { inventarioService, Producto as BackendProducto, EstadisticasInventario } from '@/services/inventario-service'
 import { useNotification } from '@/components/providers/NotificationProvider'
@@ -420,7 +420,12 @@ export default function ArticulosContent() {
     return faltan
   }
 
+  const [guardandoArticulo, setGuardandoArticulo] = useState(false)
+
   const handleGuardar = async () => {
+    // El boton no se bloqueaba ni mostraba nada al guardar: a fuerza de clics
+    // se creaba el mismo articulo varias veces.
+    if (guardandoArticulo) return
     const faltan = camposQueFaltan()
     if (faltan.length > 0) {
       showNotification(
@@ -447,6 +452,7 @@ export default function ArticulosContent() {
     }
 
     try {
+      setGuardandoArticulo(true)
       if (articuloSeleccionado) {
          await inventarioService.actualizarProducto(articuloSeleccionado.id, commonData)
          showNotification('success', 'Artículo actualizado correctamente', 'Éxito')
@@ -462,6 +468,8 @@ export default function ArticulosContent() {
       console.error('Error saving:', error)
       const errorMsg = error.response?.data?.message || 'Error al guardar el artículo. Verifique el código o los datos.'
       showNotification('error', errorMsg, 'Error')
+    } finally {
+      setGuardandoArticulo(false)
     }
   }
 
@@ -1150,9 +1158,11 @@ export default function ArticulosContent() {
               <button
                 type="button"
                 onClick={handleGuardar}
-                className="px-6 py-3 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700"
+                disabled={guardandoArticulo}
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                Guardar
+                {guardandoArticulo && <Loader2 className="h-4 w-4 animate-spin" />}
+                {guardandoArticulo ? 'Guardando...' : 'Guardar'}
               </button>
             </div>
           </div>

@@ -60,7 +60,7 @@ import {
   ChevronRight,
   ArrowRightLeft,
   Search,
-} from 'lucide-react'
+ Loader2,} from 'lucide-react'
 
 import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber, cn, formatMilesCOP } from '@/lib/utils'
 import MoneyAmount from '@/components/contable/MoneyAmount'
@@ -1033,7 +1033,12 @@ const ModuloContableContent = () => {
 
 
 
+  const [creandoCaja, setCreandoCaja] = useState(false)
+
   const handleCrearCaja = async () => {
+    // Sin bloqueo el boton no mostraba nada mientras guardaba y se podian crear
+    // cajas repetidas a fuerza de clics.
+    if (creandoCaja) return
     const saldo = parseCOPInputToNumber(crearCajaForm.saldoInicialInput)
     const ruta = rutasDisponibles.find((r) => r.id === crearCajaForm.rutaId)
     const respId = crearCajaForm.responsableId;
@@ -1044,6 +1049,7 @@ const ModuloContableContent = () => {
     }
 
     try {
+      setCreandoCaja(true)
       await apiCreateCaja({
         nombre: crearCajaForm.nombre.trim() || (crearCajaForm.tipo === 'PRINCIPAL' ? 'Caja Principal' : `Caja ${ruta?.nombre ?? 'Ruta'}`),
         tipo: crearCajaForm.tipo,
@@ -1058,6 +1064,8 @@ const ModuloContableContent = () => {
     } catch (error) {
       console.error('Error creating caja:', error)
       showNotification('error', 'No se pudo crear la caja', 'Error')
+    } finally {
+      setCreandoCaja(false)
     }
   }
 
@@ -1987,9 +1995,11 @@ const ModuloContableContent = () => {
                 <button
                   type="button"
                   onClick={handleCrearCaja}
-                  className="px-6 py-3 rounded-2xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700"
+                  disabled={creandoCaja}
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  Crear Caja
+                  {creandoCaja && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {creandoCaja ? 'Creando...' : 'Crear Caja'}
                 </button>
               </div>
             </div>

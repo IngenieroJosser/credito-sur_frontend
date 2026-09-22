@@ -244,6 +244,9 @@ const UserManagementPage = () => {
   const [userAction, setUserAction] = useState<"toggle" | "archive" | "restore" | "hide">("toggle");
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isSavingUser, setIsSavingUser] = useState(false);
+  // Sin esto el boton de crear no se bloqueaba ni mostraba nada mientras
+  // guardaba: se podia hacer clic varias veces y crear el usuario repetido.
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [actividadPage, setActividadPage] = useState(1);
   const actividadPerPage = 3;
@@ -791,6 +794,7 @@ const UserManagementPage = () => {
   };
 
   const handleCreateUser = async () => {
+    if (isCreatingUser) return;
     try {
       // Validar campos mínimos
       if (
@@ -823,6 +827,7 @@ const UserManagementPage = () => {
         return;
       }
 
+      setIsCreatingUser(true);
       await usuariosService.crear({
         ...formData,
         correo: formData.correo.trim().toLowerCase(),
@@ -845,6 +850,8 @@ const UserManagementPage = () => {
           : error?.error?.message) ||
         "No se pudo crear el usuario";
       showNotification("error", backendMsg, "Error al crear usuario");
+    } finally {
+      setIsCreatingUser(false);
     }
   };
 
@@ -2000,16 +2007,21 @@ const UserManagementPage = () => {
                     <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-slate-100">
                       <button
                         onClick={() => setIsCreateModalOpen(false)}
-                        className="px-5 py-2.5 text-sm font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-2xl transition-colors"
+                        disabled={isCreatingUser}
+                        className="px-5 py-2.5 text-sm font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-2xl transition-colors disabled:opacity-50"
                       >
                         Cancelar
                       </button>
                       <button
                         onClick={handleCreateUser}
-                        className="px-5 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-2xl shadow-lg shadow-blue-600/20 transition-all transform active:scale-95 flex items-center gap-2"
+                        disabled={isCreatingUser}
+                        className="px-5 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-2xl shadow-lg shadow-blue-600/20 transition-all transform active:scale-95 flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-blue-600 disabled:scale-100"
                       >
-                        <UserPlus className="h-4 w-4" />
-                        <span>Crear Usuario</span>
+                        {isCreatingUser ? (
+                          <><svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg> Creando...</>
+                        ) : (
+                          <><UserPlus className="h-4 w-4" /><span>Crear Usuario</span></>
+                        )}
                       </button>
                     </div>
                   </div>
