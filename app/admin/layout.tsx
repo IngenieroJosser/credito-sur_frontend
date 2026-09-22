@@ -54,6 +54,7 @@ import { isTokenExpired } from '@/lib/auth/offlineAuth';
 import { formatRoleLabel } from '@/lib/display-labels';
 import SupervisorFloatingActionsGate from '@/components/dashboards/SupervisorFloatingActionsGate';
 import { cerrarSesion } from '@/services/autenticacion-service';
+import { useAnchoAside } from '@/hooks/useAnchoAside'
 
 interface NavigationItem {
   name: string;
@@ -122,6 +123,13 @@ export default function AdminLayout({
 }) {
   const hideSidebar = false;
   // Manejo de estado visual (menú lateral, notificaciones, confirmaciones)
+  const {
+    ancho: anchoAside,
+    ajustando: ajustandoAside,
+    iniciarAjuste: iniciarAjusteAside,
+    restablecer: restablecerAside,
+    ajustarConTeclado: ajustarAsideConTeclado,
+  } = useAnchoAside()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isPageLoaded, setIsPageLoaded] = useState(false) // Efecto visual de entrada suave
   
@@ -574,7 +582,12 @@ export default function AdminLayout({
   const mostrarAccesosRapidos = showSidebar && accesosRapidos.length === 3
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-gray-50 to-white relative">
+    <div
+      className="min-h-screen bg-linear-to-br from-gray-50 to-white relative"
+      // El ancho del menu lateral lo decide cada usuario (ver useAnchoAside).
+      // Va como variable CSS para que el aside y el contenido lo compartan.
+      style={{ ['--ancho-aside' as string]: `${anchoAside}px` }}
+    >
 
       {/* Header ultra minimalista */}
       <header 
@@ -761,11 +774,28 @@ export default function AdminLayout({
       {/* Sidebar elegante para desktop */}
       {showSidebar && (
         <aside 
-          className={`fixed left-0 top-16 bottom-0 w-64 bg-white border-r border-gray-100 transition-all duration-300 z-[70] ${
+          className={`fixed left-0 top-16 bottom-0 w-64 lg:w-[var(--ancho-aside)] bg-white border-r border-gray-100 duration-300 z-[70] ${
+            ajustandoAside ? '' : 'transition-all'
+          } ${
             isMenuOpen ? 'translate-x-0' : '-translate-x-full'
           } lg:translate-x-0 lg:block ${isPageLoaded ? 'opacity-100' : 'opacity-0'}`}
           style={{ opacity: isPageLoaded ? 1 : 0 }}
         >
+          {/* Borde para ajustar el ancho. Solo en pantallas grandes: en movil el
+              aside es un cajon deslizante y cambiarle el ancho no aporta. */}
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Ajustar ancho del menu"
+            tabIndex={0}
+            onPointerDown={iniciarAjusteAside}
+            onDoubleClick={restablecerAside}
+            onKeyDown={ajustarAsideConTeclado}
+            title="Arrastra para ajustar. Doble clic para restablecer."
+            className={`hidden lg:block absolute inset-y-0 -right-1 w-2 cursor-col-resize focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+              ajustandoAside ? 'bg-blue-500/40' : 'hover:bg-blue-500/20'
+            }`}
+          />
           <nav className="p-6 h-full overflow-y-auto custom-scrollbar">
             <div className="space-y-6">
               {/* Info del usuario en sidebar móvil */}
@@ -916,7 +946,7 @@ export default function AdminLayout({
         onClick={() => {
           if (isMenuOpen) setIsMenuOpen(false)
         }}
-        className={`pt-16 ${showSidebar ? 'lg:pl-64' : ''} transition-all duration-700 ease-out ${(isMenuOpen && showSidebar) ? 'lg:pl-64' : ''} ${mostrarAccesosRapidos ? 'pb-[calc(72px+env(safe-area-inset-bottom,0px))] lg:pb-0' : ''} ${isPageLoaded ? 'opacity-100 transform-none' : 'translate-y-4 opacity-0 scale-[0.99]'}`}
+        className={`pt-16 ${showSidebar ? 'lg:pl-[var(--ancho-aside)]' : ''} transition-all duration-700 ease-out ${(isMenuOpen && showSidebar) ? 'lg:pl-[var(--ancho-aside)]' : ''} ${mostrarAccesosRapidos ? 'pb-[calc(72px+env(safe-area-inset-bottom,0px))] lg:pb-0' : ''} ${isPageLoaded ? 'opacity-100 transform-none' : 'translate-y-4 opacity-0 scale-[0.99]'}`}
         style={{ opacity: isPageLoaded ? 1 : 0 }}
       >
         {children}
