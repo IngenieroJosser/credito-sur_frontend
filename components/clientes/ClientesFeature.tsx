@@ -326,7 +326,7 @@ export default function ClientesFeature({
 
     const run = async () => {
       const visibles = (Array.isArray(currentItems) ? currentItems : [])
-        .map((c) => ({ id: String((c as any)?.id || ''), isPending: (c as any)?.estadoAprobacion === 'PENDIENTE' }))
+        .map((c) => ({ id: String((c)?.id || ''), isPending: (c)?.estadoAprobacion === 'PENDIENTE' }))
         .filter((c) => !!c.id && !c.id.includes('offline') && !c.id.includes('temp') && !c.isPending)
 
       if (visibles.length === 0) return

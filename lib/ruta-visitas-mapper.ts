@@ -185,7 +185,7 @@ export const mapAsignacionesToVisitasLite = (params: {
       // cero, concluía que no quedaba nada, y devolvía false siempre: el
       // cobrador se quedaba con la ruta vacía y ningún crédito aparecía.
       const saldoDelPrestamo = Number(
-        (prestamo as any)?.saldoPendiente ?? (prestamo as any)?.saldoTotal ?? 0,
+        (prestamo)?.saldoPendiente ?? (prestamo)?.saldoTotal ?? 0,
       )
       const cuotaDeLaProxima = Math.max(
         0,
@@ -212,7 +212,7 @@ export const mapAsignacionesToVisitasLite = (params: {
       const montoNominalProxima = Number((proxima as any)?.montoNominal ?? (proxima as any)?.monto ?? 0)
       const montoPagadoProxima = Number((proxima as any)?.montoPagado ?? 0)
       const montoPendienteProxima = Math.max(0, montoNominalProxima - montoPagadoProxima)
-      const montoNominalPrestamo = Number((prestamo as any)?.valorCuota ?? (prestamo as any)?.montoCuota ?? 0)
+      const montoNominalPrestamo = Number((prestamo)?.valorCuota ?? (prestamo)?.montoCuota ?? 0)
       const montoCuotaBase = esArticulo
         ? Math.max(montoNominalProxima, montoNominalPrestamo)
         : (montoNominalPrestamo > 0 ? montoNominalPrestamo : montoNominalProxima)
@@ -249,9 +249,9 @@ export const mapAsignacionesToVisitasLite = (params: {
       // lo enriquece (ej: llamada a daily-visits). Se preserva para que la UI lo muestre.
       const estadoVisitaRaw = String(asig?.estadoVisita || '')
       const recaudadoDelDia = Number(
-        (prestamo as any)?.recaudadoDelDia ??
-        (prestamo as any)?.recaudadoHoy ??
-        (asig as any)?.recaudadoDelDia ??
+        (prestamo)?.recaudadoDelDia ??
+        (prestamo)?.recaudadoHoy ??
+        (asig)?.recaudadoDelDia ??
         0,
       )
 

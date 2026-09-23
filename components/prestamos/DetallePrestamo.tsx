@@ -227,7 +227,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
     })
 
     const keys = unpaid
-      .map((c: any) => normalizeDateKey(String((c as any)?.fecha || (c as any)?.fechaVencimiento || '')))
+      .map((c: any) => normalizeDateKey(String((c)?.fecha || (c)?.fechaVencimiento || '')))
       .filter(Boolean) as string[]
 
     const vencidas = keys.filter((k) => !!hoyBogotaKey && k < hoyBogotaKey)

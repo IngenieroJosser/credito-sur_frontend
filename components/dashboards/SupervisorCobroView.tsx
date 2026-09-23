@@ -758,7 +758,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
             pendiente: Math.max(0, meta - recaudo),
             pendientes: Math.max(0, meta - recaudo),
             gastos: Number(saldo?.gastosDelDia ?? prev.gastos ?? 0),
-            gastosProvisionales: Number((saldo as any)?.egresosProvisionales ?? prev.gastosProvisionales ?? 0),
+            gastosProvisionales: Number((saldo)?.egresosProvisionales ?? prev.gastosProvisionales ?? 0),
             base: Number(saldo?.saldoCaja ?? saldo?.baseEfectivo ?? prev.base ?? 0),
           }
         }
@@ -791,7 +791,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
           eficiencia: shouldUpdateOperationalKpis ? eficiencia : prev.eficiencia,
           pendiente: shouldUpdateOperationalKpis ? statsAutoritativas.pendiente : prev.pendiente,
           gastos: Number(saldo?.gastosDelDia ?? prev.gastos ?? 0),
-          gastosProvisionales: Number((saldo as any)?.egresosProvisionales ?? prev.gastosProvisionales ?? 0),
+          gastosProvisionales: Number((saldo)?.egresosProvisionales ?? prev.gastosProvisionales ?? 0),
           base: Number(saldo?.saldoCaja ?? saldo?.baseEfectivo ?? prev.base ?? 0),
         }
       })
@@ -1019,7 +1019,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
           }) as any[]
         }
 
-        const { totalHistoricoByPrestamoId, ultimoPagoDateByPrestamoId } = indexPagosByPrestamoId(pagosRecientes as any)
+        const { totalHistoricoByPrestamoId, ultimoPagoDateByPrestamoId } = indexPagosByPrestamoId(pagosRecientes)
 
         let finales = visitasRaw.map((v: any) => {
           const pid = v?.prestamoId
@@ -1417,12 +1417,12 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
             estadoVisita: 'reprogramado',
             proximaVisita: fecha,
             cuotaObjetivo: {
-              ...(v as any).cuotaObjetivo,
+              ...(v).cuotaObjetivo,
               fechaVencimiento: fecha,
               fechaEfectiva: fecha,
             },
             proximaCuota: {
-              ...(v as any).proximaCuota,
+              ...(v).proximaCuota,
               fechaVencimiento: fecha,
               fechaEfectiva: fecha,
             },
@@ -1959,8 +1959,8 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
           const cuota = Number(v.montoCuota || 0)
           const cuotaCompletada = esVisitaPagada && cuota > 0 && recNuevoVisita >= cuota - 1
           const montoCuotaPendiente = esVisitaPagada
-            ? computeMontoCuotaPendienteDespuesDeRecaudo(v as any, recNuevoVisita)
-            : (v as any)?.montoCuotaPendiente
+            ? computeMontoCuotaPendienteDespuesDeRecaudo(v, recNuevoVisita)
+            : (v)?.montoCuotaPendiente
 
           return {
             ...v,
@@ -2047,7 +2047,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     try {
       setIsLoading(true)
 
-      const esContado = Boolean((data as any).ventaContado)
+      const esContado = Boolean((data).ventaContado)
       const isArticulo = data.creditType === 'articulo'
       const payload = buildCrearPrestamoPayload(data, userSession?.id)
 
@@ -2191,11 +2191,11 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
       try {
         const detalle = await prestamosService.obtenerPrestamoPorId(visitaClienteSeleccionada.prestamoId)
-        const backendProx = (detalle as any)?.proximaCuota ?? null
+        const backendProx = (detalle)?.proximaCuota ?? null
         const backendFecha = backendProx
           ? (backendProx?.fechaVencimientoProrroga || backendProx?.fechaVencimiento || null)
           : null
-        const backendMonto = backendProx ? Number(backendProx?.montoNominal ?? backendProx?.monto ?? 0) : null
+        const backendMonto = backendProx ? Number((backendProx as any)?.montoNominal ?? backendProx?.monto ?? 0) : null
 
         setNextPagoFecha(backendFecha)
         setNextPagoMonto(typeof backendMonto === 'number' ? backendMonto : null)
@@ -2205,8 +2205,8 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
           if (!prev) return prev
           return {
             ...prev,
-            cuotaActual: prog.cuotaActual ?? (prev as any).cuotaActual,
-            cuotasTotales: prog.cuotasTotales ?? (prev as any).cuotasTotales,
+            cuotaActual: prog.cuotaActual ?? (prev).cuotaActual,
+            cuotasTotales: prog.cuotasTotales ?? (prev).cuotasTotales,
           } as any
         })
       } catch {

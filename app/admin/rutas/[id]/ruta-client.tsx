@@ -306,8 +306,8 @@ const RutaClientLoaded = ({
       
       const cuotaId = resolveCuotaIdFromVisitaLike(
         v,
-        (v as any)?.prestamo,
-        (v as any)?.cuotaObjetivo || (v as any)?.proximaCuota,
+        (v)?.prestamo,
+        (v)?.cuotaObjetivo || (v)?.proximaCuota,
       )
       
       return [
@@ -489,7 +489,7 @@ const RutaClientLoaded = ({
 
             // 2. Usar valores ya enriquecidos por el helper compartido
             let montoCuotaReal = v.montoCuota;
-            let montoCuotaPendienteReal = Number((v as any)?.montoCuotaPendiente ?? v.montoCuota ?? 0);
+            let montoCuotaPendienteReal = Number((v)?.montoCuotaPendiente ?? v.montoCuota ?? 0);
             let fechaReal = v.proximaVisita;
             let cuotaActual = v.cuotaActual
             let cuotasTotales = v.cuotasTotales
@@ -549,9 +549,9 @@ const RutaClientLoaded = ({
               cuotaActual,
               cuotasTotales,
               estado: nuevoEstado,
-              cuotaId: v?.cuotaObjetivo?.id || (v as any)?.cuotaId,
-              cuotaObjetivoId: v?.cuotaObjetivo?.id || (v as any)?.cuotaObjetivoId,
-              cuotaObjetivoPrestamoId: v?.cuotaObjetivo?.id || (v as any)?.cuotaObjetivoPrestamoId,
+              cuotaId: v?.cuotaObjetivo?.id || (v)?.cuotaId,
+              cuotaObjetivoId: v?.cuotaObjetivo?.id || (v)?.cuotaObjetivoId,
+              cuotaObjetivoPrestamoId: v?.cuotaObjetivo?.id || (v)?.cuotaObjetivoPrestamoId,
               proximaCuota: v?.cuotaObjetivo,
               cuotaObjetivo: v?.cuotaObjetivo,
               // Usar valores normalizados del mapper compartido
@@ -634,7 +634,7 @@ const RutaClientLoaded = ({
 
       if (!matchesSearch) return false
 
-      return shouldShowVisitaEnRutaHoy(v as any, hoyBogota);
+      return shouldShowVisitaEnRutaHoy(v, hoyBogota);
     });
 
     if (periodoRutaFiltro !== 'TODOS') {
@@ -1058,7 +1058,7 @@ const RutaClientLoaded = ({
           eficiencia,
           pendiente: pendienteHoy,
           gastos: Number(saldo?.gastosDelDia ?? 0),
-          gastosProvisionales: Number((saldo as any)?.egresosProvisionales ?? 0),
+          gastosProvisionales: Number((saldo)?.egresosProvisionales ?? 0),
           base: Number(saldo?.saldoCaja ?? saldo?.baseEfectivo ?? 0)
         } as any)
       } catch {
@@ -1253,7 +1253,7 @@ const RutaClientLoaded = ({
       setVisitasCobrador((prev: VisitaRuta[]) =>
         prev.map((v) =>
           v.clienteId === clienteIdVisita
-            ? { ...v, estado: estadoVisitaPayload as any, estadoVisita: estadoVisitaPayload as any, notasVisita: notasVisitaPayload ?? (v as any).notasVisita }
+            ? { ...v, estado: estadoVisitaPayload as any, estadoVisita: estadoVisitaPayload as any, notasVisita: notasVisitaPayload ?? (v).notasVisita }
             : v,
         ),
       )
@@ -2093,7 +2093,7 @@ const RutaClientLoaded = ({
                         : v.estado
 
                     const recaudadoDelDia = Number(v?.recaudadoDelDia || 0) + Number(monto || 0)
-                    const montoCuotaPendiente = computeMontoCuotaPendienteDespuesDeRecaudo(v as any, recaudadoDelDia)
+                    const montoCuotaPendiente = computeMontoCuotaPendienteDespuesDeRecaudo(v, recaudadoDelDia)
                     const estado = shouldMarkVisitaAsPagado({
                       saldoTotal: v?.saldoTotal,
                       recaudadoHoy: recaudadoDelDia,

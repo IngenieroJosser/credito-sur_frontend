@@ -161,12 +161,12 @@ const ListadoPrestamosElegante = () => {
         const moraResp: any = await apiRequest<any>('GET', '/reports/prestamos-mora', undefined, { params } as any)
         const raw: any[] = Array.isArray(moraResp)
           ? moraResp
-          : Array.isArray((moraResp as any)?.prestamos)
-            ? (moraResp as any).prestamos
-            : Array.isArray((moraResp as any)?.data)
-              ? (moraResp as any).data
+          : Array.isArray((moraResp)?.prestamos)
+            ? (moraResp).prestamos
+            : Array.isArray((moraResp)?.data)
+              ? (moraResp).data
               : []
-        moraReportCount = Number((moraResp as any)?.total ?? (moraResp as any)?.totales?.totalRegistros ?? raw.length)
+        moraReportCount = Number((moraResp)?.total ?? (moraResp)?.totales?.totalRegistros ?? raw.length)
 
         moraMap = new Map(
           raw

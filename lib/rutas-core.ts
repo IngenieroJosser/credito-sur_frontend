@@ -646,8 +646,8 @@ export const resolveNextPagoFromPrestamo = (prestamo: any): { monto: number | nu
   // Se usa para mostrar "próximo pago" en UI.
   const { cuota, fechaEfectiva } = resolveProximaCuotaFromPrestamo(prestamo);
   if (!cuota) return { monto: null, fecha: null, cuota: null, fechaEfectiva: '' };
-  const monto = Number((cuota as any)?.montoNominal ?? (cuota as any)?.monto ?? 0);
-  const fecha = String(fechaEfectiva || (cuota as any)?.fechaVencimiento || '') || null;
+  const monto = Number((cuota)?.montoNominal ?? (cuota)?.monto ?? 0);
+  const fecha = String(fechaEfectiva || (cuota)?.fechaVencimiento || '') || null;
   return { monto, fecha, cuota, fechaEfectiva: String(fechaEfectiva || '') };
 };
 
@@ -812,7 +812,7 @@ export const shouldMarkVisitaAsPagado = (params: {
 export const shouldIncludeVisitaInRutaHoyKpis = (visita: any, hoyBogotaKey: string): boolean => {
   if (!visita) return false;
   if (isVisitaExigibleHoy(visita, hoyBogotaKey)) return true;
-  return Number((visita as any)?.recaudadoDelDia ?? (visita as any)?.recaudadoPeriodo ?? 0) > 0;
+  return Number((visita)?.recaudadoDelDia ?? (visita)?.recaudadoPeriodo ?? 0) > 0;
 };
 export const shouldExcludeVisitaFromOperationalMeta = (
   visita: any,
@@ -846,7 +846,7 @@ export const shouldExcludeVisitaFromOperationalMeta = (
 
   const recaudadoHoy = recaudadoHoyOverride !== undefined
     ? Number(recaudadoHoyOverride || 0)
-    : Number((visita as any)?.recaudadoDelDia ?? (visita as any)?.recaudadoPeriodo ?? 0);
+    : Number((visita)?.recaudadoDelDia ?? (visita)?.recaudadoPeriodo ?? 0);
 
   return !(Number.isFinite(recaudadoHoy) && recaudadoHoy > 0);
 };
@@ -864,12 +864,12 @@ export const computeMetaHoyFromVisitas = (visitas: any[], hoyBogotaKey: string):
   return visitas.reduce((sum: number, v: any) => {
     if (!isVisitaExigibleHoy(v, hoyBogotaKey)) return sum;
     if (String(v?.estado || '').toLowerCase() === 'pagado') return sum;
-    if (Number((v as any)?.recaudadoDelDia || 0) > 0) return sum;
-    const saldo = Number((v as any)?.saldoTotal ?? 0);
+    if (Number((v)?.recaudadoDelDia || 0) > 0) return sum;
+    const saldo = Number((v)?.saldoTotal ?? 0);
     if (saldo <= 0) return sum;
 
     const cuotaBase = resolveCuotaNormalOperativa(v);
-    const recHoy = Number((v as any)?.recaudadoDelDia || 0);
+    const recHoy = Number((v)?.recaudadoDelDia || 0);
     const cuotaPendiente = Math.max(0, cuotaBase - recHoy);
     const cuotaUI = Math.min(cuotaPendiente, saldo > 0 ? saldo : cuotaPendiente);
     return sum + Number(cuotaUI || 0);
@@ -885,11 +885,11 @@ export const computeRutaHoyUiStatsFromVisitas = (
     if (!v) return sum;
     const estadoLower = String(v?.estado || '').toLowerCase().replace(/\s+/g, '_');
     if (estadoLower === 'pagado') return sum;
-    if (Number((v as any)?.recaudadoDelDia || 0) > 0) return sum;
+    if (Number((v)?.recaudadoDelDia || 0) > 0) return sum;
 
     const cuotaBase = resolveCuotaNormalOperativa(v);
-    const recHoy = Number((v as any)?.recaudadoDelDia || 0);
-    const saldo = Number((v as any)?.saldoTotal || 0);
+    const recHoy = Number((v)?.recaudadoDelDia || 0);
+    const saldo = Number((v)?.saldoTotal || 0);
 
     const cuotaPendiente = Math.max(0, cuotaBase - recHoy);
     const cuotaUI = Math.min(cuotaPendiente, saldo > 0 ? saldo : cuotaPendiente);
@@ -897,7 +897,7 @@ export const computeRutaHoyUiStatsFromVisitas = (
   }, 0);
 
   const recaudoDeVisitas = visitasSeguras.reduce(
-    (sum: number, v: any) => sum + Number((v as any)?.recaudadoDelDia || 0),
+    (sum: number, v: any) => sum + Number((v)?.recaudadoDelDia || 0),
     0,
   );
   const recaudo = Math.max(Number(recaudoFallback || 0), recaudoDeVisitas);
@@ -1031,10 +1031,10 @@ export const computeMontoExigibleHastaHoyFromCuotas = (cuotas: any[], hoyBogotaK
     if (!vtoKey) return sum;
     if (vtoKey > hoyBogotaKey) return sum;
 
-    const montoDirecto = (c as any)?.montoNominal ?? (c as any)?.monto
-    const montoFallback = Number((c as any)?.montoCapital || 0) + Number((c as any)?.montoInteres || 0)
+    const montoDirecto = (c)?.montoNominal ?? (c)?.monto
+    const montoFallback = Number((c)?.montoCapital || 0) + Number((c)?.montoInteres || 0)
     const monto = Number(montoDirecto ?? montoFallback ?? 0)
-    const pagado = Number((c as any)?.montoPagado ?? 0)
+    const pagado = Number((c)?.montoPagado ?? 0)
     const pendiente = monto - pagado
     return sum + (pendiente > 0 ? pendiente : 0);
   }, 0);
@@ -1051,8 +1051,8 @@ export const computeMontoNominalHastaHoyFromCuotas = (cuotas: any[], hoyBogotaKe
     if (!vtoKey) return sum;
     if (vtoKey > hoyBogotaKey) return sum;
 
-    const montoDirecto = (c as any)?.montoNominal ?? (c as any)?.monto;
-    const montoFallback = Number((c as any)?.montoCapital || 0) + Number((c as any)?.montoInteres || 0);
+    const montoDirecto = (c)?.montoNominal ?? (c)?.monto;
+    const montoFallback = Number((c)?.montoCapital || 0) + Number((c)?.montoInteres || 0);
     const monto = Number(montoDirecto ?? montoFallback ?? 0);
     return sum + (monto > 0 ? monto : 0);
   }, 0);

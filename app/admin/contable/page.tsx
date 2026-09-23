@@ -277,7 +277,7 @@ const mapMovimientoLedger = (m: ApiMovimientoLedger): MovimientoContable => {
 }
 
 const esMovimientoPagoRegularizado = (m: Pick<MovimientoContable, 'origenGestion' | 'tipoReferencia'> | ApiMovimientoLedger) => {
-  const origenGestion = String((m as any).origenGestion || '').toUpperCase()
+  const origenGestion = String((m).origenGestion || '').toUpperCase()
   const tipo = String((m as any).tipo || '').toUpperCase()
   const tipoReferencia = String((m as any).tipoReferencia || '').toUpperCase()
   return origenGestion === 'CIERRE_PENDIENTE' && (tipo === 'PAGO' || tipoReferencia === 'PAGO')
@@ -424,13 +424,13 @@ const ModuloContableContent = () => {
 
   const esTransferenciaSalida = (m: any) => {
     if (String(m?.tipo || '').toUpperCase() !== 'TRANSFERENCIA') return false
-    const numero = String((m as any)?.numero || (m as any)?.numeroTransaccion || '')
+    const numero = String((m)?.numero || (m)?.numeroTransaccion || '')
     return numero.toUpperCase().startsWith('TRX-OUT')
   }
 
   const esTransferenciaEntrada = (m: any) => {
     if (String(m?.tipo || '').toUpperCase() !== 'TRANSFERENCIA') return false
-    const numero = String((m as any)?.numero || (m as any)?.numeroTransaccion || '')
+    const numero = String((m)?.numero || (m)?.numeroTransaccion || '')
     return numero.toUpperCase().startsWith('TRX-IN')
   }
 
@@ -1833,7 +1833,7 @@ const ModuloContableContent = () => {
                                 const params = { cajaId: c.id, fechaInicio: hoyClave, limit: 500 }
                                 const resp = await getTransacciones(params)
                                 if (resp && Array.isArray(resp.data)) {
-                                  const codigoCaja = String((c as any)?.codigo || '').toUpperCase()
+                                  const codigoCaja = String((c)?.codigo || '').toUpperCase()
                                   const omitRefs = codigoCaja === 'CAJA-PRINCIPAL' || codigoCaja === 'CAJA-BANCO'
 
                                   const base = resp.data.filter((m: any) => {
@@ -2958,7 +2958,7 @@ const ModuloContableContent = () => {
                                         })
                                         .filter(m => {
                                             if (cajaSeleccionada && detalleCajaFocus) {
-                                              const conc = String((m as any).descripcion || m.concepto || '').toUpperCase()
+                                              const conc = String(m.concepto || '').toUpperCase()
                                               const ref = String(m.tipoReferencia || '').toUpperCase()
                                               const tipoMovimiento = String(m.tipo || '').toUpperCase()
                                               const esTransferencia = tipoMovimiento === 'TRANSFERENCIA'
@@ -2994,7 +2994,7 @@ const ModuloContableContent = () => {
                                               const esIngresoRecoleccion =
                                                 m.tipo === 'TRANSFERENCIA' &&
                                                 String(m.tipoReferencia || '').toUpperCase() === 'RECOLECCION' &&
-                                                String((m as any).descripcion || m.concepto || '').toUpperCase().includes('RECIBIDA')
+                                                String(m.concepto || '').toUpperCase().includes('RECIBIDA')
                                               return esIngresoRecoleccion || esEgresoOperativo(m)
                                             } else {
                                               return esEgresoOperativo(m);
@@ -3026,8 +3026,8 @@ const ModuloContableContent = () => {
                                       if (detalleTipo === 'CAJA_TODOS') {
                                         return filtered.reduce((acc, m) => {
                                           const monto = Number(m.monto || 0)
-                                          const tipo = String((m as any)?.tipo || '').toUpperCase()
-                                          const numero = String((m as any)?.numero || (m as any)?.numeroTransaccion || '')
+                                          const tipo = String((m)?.tipo || '').toUpperCase()
+                                          const numero = String((m)?.numero || (m as any)?.numeroTransaccion || '')
                                           if (tipo === 'INGRESO') return acc + monto
                                           if (tipo === 'EGRESO') return acc - monto
                                           if (tipo === 'TRANSFERENCIA') {
@@ -3044,7 +3044,7 @@ const ModuloContableContent = () => {
                                         .filter((m) =>
                                           m.tipo === 'TRANSFERENCIA' &&
                                           String(m.tipoReferencia || '').toUpperCase() === 'RECOLECCION' &&
-                                          String((m as any).descripcion || m.concepto || '').toUpperCase().includes('RECIBIDA')
+                                          String(m.concepto || '').toUpperCase().includes('RECIBIDA')
                                         )
                                         .reduce((acc, m) => acc + m.monto, 0)
                                       const egresos = filtered
@@ -3214,7 +3214,7 @@ const ModuloContableContent = () => {
                                        })
                                        .filter(m => {
                                          if (cajaSeleccionada && detalleCajaFocus) {
-                                          const conc = String((m as any).descripcion || m.concepto || '').toUpperCase();
+                                          const conc = String(m.concepto || '').toUpperCase();
                                           const ref = String(m.tipoReferencia || '').toUpperCase();
 
                                           const esTransferencia = String(m.tipo || '').toUpperCase() === 'TRANSFERENCIA'
@@ -3251,7 +3251,7 @@ const ModuloContableContent = () => {
                                           const esIngresoRecoleccion =
                                             m.tipo === 'TRANSFERENCIA' &&
                                             String(m.tipoReferencia || '').toUpperCase() === 'RECOLECCION' &&
-                                            String((m as any).descripcion || m.concepto || '').toUpperCase().includes('RECIBIDA')
+                                            String(m.concepto || '').toUpperCase().includes('RECIBIDA')
                                            return esIngresoRecoleccion || esEgresoOperativo(m)
                                          } else {
                                            return esEgresoOperativo(m);
@@ -3392,7 +3392,7 @@ const ModuloContableContent = () => {
                             .filter(m => {
                               if (!cajaSeleccionada && m.categoria === 'CONSOLIDACION') return false;
                               if (cajaSeleccionada && detalleCajaFocus) {
-                                const conc = String((m as any).descripcion || m.concepto || '').toUpperCase();
+                                const conc = String(m.concepto || '').toUpperCase();
                                 const ref = String(m.tipoReferencia || '').toUpperCase();
 
                                 const esTransferencia = String(m.tipo || '').toUpperCase() === 'TRANSFERENCIA'
@@ -3428,7 +3428,7 @@ const ModuloContableContent = () => {
                                 const esIngresoRecoleccion =
                                   m.tipo === 'TRANSFERENCIA' &&
                                   String(m.tipoReferencia || '').toUpperCase() === 'RECOLECCION' &&
-                                  String((m as any).descripcion || m.concepto || '').toUpperCase().includes('RECIBIDA')
+                                  String(m.concepto || '').toUpperCase().includes('RECIBIDA')
                                 return esIngresoRecoleccion || esEgresoOperativo(m)
                               } else {
                                 return esEgresoOperativo(m);
@@ -3457,7 +3457,7 @@ const ModuloContableContent = () => {
                                 if (m.tipo === 'TRANSFERENCIA') {
                                   const ref = String(m.tipoReferencia || '').toUpperCase()
                                   if (ref === 'TRANSFERENCIA_INTERNA') return true
-                                  const conc = String((m as any).descripcion || m.concepto || '').toUpperCase()
+                                  const conc = String(m.concepto || '').toUpperCase()
                                   if (detalleTipo === 'INGRESOS') {
                                     return conc.includes('RECIBIDA')
                                   }
@@ -3474,7 +3474,7 @@ const ModuloContableContent = () => {
                               const esIngresoRecoleccion =
                                 m.tipo === 'TRANSFERENCIA' &&
                                 String(m.tipoReferencia || '').toUpperCase() === 'RECOLECCION' &&
-                                String((m as any).descripcion || m.concepto || '').toUpperCase().includes('RECIBIDA')
+                                String(m.concepto || '').toUpperCase().includes('RECIBIDA')
 
                               const isPositivo = (() => {
                                 if (detalleTipo === 'INGRESOS') return true
@@ -3486,7 +3486,7 @@ const ModuloContableContent = () => {
                                 if (detalleTipo === 'CAJA_TODOS') {
                                   if (m.tipo === 'EGRESO') return false
                                   if (m.tipo === 'TRANSFERENCIA') {
-                                    const numero = String((m as any).numero || '')
+                                    const numero = String((m).numero || '')
                                     const esSalida = numero.toUpperCase().startsWith('TRX-OUT')
                                     return !esSalida
                                   }

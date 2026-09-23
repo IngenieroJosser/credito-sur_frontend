@@ -563,7 +563,7 @@ const LegacyDetalleRutaPage = () => {
 
                        const montoReal = Number(pendiente.monto || (pendiente.montoCapital + pendiente.montoInteres) || 0);
                        const montoNormal = Number(
-                         (v as any).montoCuotaNormal ??
+                         (v).montoCuotaNormal ??
                          (pendiente as any).montoNominal ??
                          (pendiente as any).montoCuota ??
                          pendiente.monto ??
@@ -578,7 +578,7 @@ const LegacyDetalleRutaPage = () => {
 
                          montoCuota: montoNormal,
                          montoCuotaNormal: montoNormal,
-                         montoCuotaPendiente: montoPendiente > 0 ? montoPendiente : (v as any).montoCuotaPendiente,
+                         montoCuotaPendiente: montoPendiente > 0 ? montoPendiente : (v).montoCuotaPendiente,
 
                          proximaVisita: (pendiente.estado === 'PRORROGADA' && pendiente.fechaVencimientoProrroga)
 
@@ -596,9 +596,9 @@ const LegacyDetalleRutaPage = () => {
 
                          fechaOriginalVencimiento: pendiente.fechaVencimiento || undefined,
 
-                         cuotaId: pendiente?.id || (v as any)?.cuotaId,
-                         cuotaObjetivoId: pendiente?.id || (v as any)?.cuotaObjetivoId,
-                         cuotaObjetivoPrestamoId: pendiente?.id || (v as any)?.cuotaObjetivoPrestamoId,
+                         cuotaId: pendiente?.id || (v)?.cuotaId,
+                         cuotaObjetivoId: pendiente?.id || (v)?.cuotaObjetivoId,
+                         cuotaObjetivoPrestamoId: pendiente?.id || (v)?.cuotaObjetivoPrestamoId,
                          proximaCuota: pendiente,
                          cuotaObjetivo: pendiente,
 
@@ -612,7 +612,7 @@ const LegacyDetalleRutaPage = () => {
                    const pAny = p as any;
 
                    const proxima = (pAny.proximaCuota ?? {}) as any;
-                   const cuotaIdFromP = String(proxima?.id || pAny?.cuotaObjetivo?.id || pAny?.cuotaId || (v as any)?.cuotaId || '').trim();
+                   const cuotaIdFromP = String(proxima?.id || pAny?.cuotaObjetivo?.id || pAny?.cuotaId || (v)?.cuotaId || '').trim();
 
                    const montoP = Number(proxima.montoCuota || proxima.montoNominal || proxima.monto || p.montoCuota || p.valorCuota || 0);
 
@@ -697,7 +697,7 @@ const LegacyDetalleRutaPage = () => {
 
               const saldoHoy = Number(v.recaudadoDelDia || 0);
 
-              const cuota = Number((v as any).montoCuotaPendiente ?? v.montoCuota ?? 0);
+              const cuota = Number((v).montoCuotaPendiente ?? v.montoCuota ?? 0);
 
               if (saldoHoy >= (cuota - 1) && saldoHoy > 0) return 'pagado';
 
@@ -2384,7 +2384,7 @@ const LegacyDetalleRutaPage = () => {
 
             try {
 
-              const esContado = Boolean((data as any).ventaContado);
+              const esContado = Boolean((data).ventaContado);
 
               const payload: any = {
 

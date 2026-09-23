@@ -414,8 +414,8 @@ const ReportesOperativosPage = () => {
               {rendimientoFiltrado.map((item: RoutePerformance, idx: number) => (
                 <div key={idx} className="space-y-2">
                   {(() => {
-                    const meta = Number((item as any).meta || 0)
-                    const recaudado = Number((item as any).recaudado || 0)
+                    const meta = Number((item).meta || 0)
+                    const recaudado = Number((item).recaudado || 0)
                     const pct = meta > 0 ? Math.min((recaudado / meta) * 100, 100) : 0
                     return (
                       <>
@@ -470,8 +470,8 @@ const ReportesOperativosPage = () => {
                       className="bg-slate-900 h-2 rounded-full transition-all duration-1000 ease-out"
                       style={{
                         width: `${(() => {
-                          const meta = Number((item as any).meta || 0)
-                          const recaudado = Number((item as any).recaudado || 0)
+                          const meta = Number((item).meta || 0)
+                          const recaudado = Number((item).recaudado || 0)
                           return meta > 0 ? Math.min((recaudado / meta) * 100, 100) : 0
                         })()}%`,
                       }}

@@ -429,7 +429,7 @@ const VistaCobrador = () => {
     const pagado = shouldMarkVisitaAsPagado({
       saldoTotal: v.saldoTotal,
       recaudadoHoy: v.recaudadoDelDia,
-      montoCuotaExigible: (v as any).montoCuotaPendiente ?? v.montoCuota,
+      montoCuotaExigible: (v).montoCuotaPendiente ?? v.montoCuota,
       estadoActual: v.estado,
     });
 
@@ -743,13 +743,12 @@ const VistaCobrador = () => {
           : Number(saldo?.recaudoDelDia ?? 0),
 
         gastos: Number(saldo?.gastosDelDia ?? 0),
-        gastosProvisionales: Number((saldo as any)?.egresosProvisionales ?? 0),
+        gastosProvisionales: Number((saldo)?.egresosProvisionales ?? 0),
 
         base: Number(
-          (saldo as any)?.saldoCaja ??
-          (saldo as any)?.baseEfectivo ??
-          (saldo as any)?.saldoDisponible ??
-          (saldo as any)?.saldo ??
+          (saldo)?.saldoCaja ??
+          (saldo)?.baseEfectivo ??
+          (saldo)?.saldoDisponible ??
           prev.base ??
           0
         ),
@@ -893,7 +892,7 @@ const VistaCobrador = () => {
 
         // Asegurar cuotas autoritativas para calcular exigible (incluye abonos).
         try {
-          const cuotasEmb = Array.isArray((prestamoAutoritativo as any)?.cuotas) ? (prestamoAutoritativo as any).cuotas : []
+          const cuotasEmb = Array.isArray((prestamoAutoritativo)?.cuotas) ? (prestamoAutoritativo).cuotas : []
           const faltanAbonos = cuotasEmb.some((c: any) => c && c.montoPagado === undefined)
           if (p?.id && (cuotasEmb.length === 0 || faltanAbonos)) {
             const cuotas = await prestamosService.obtenerCuotas(p.id)
@@ -915,7 +914,7 @@ const VistaCobrador = () => {
 
         const nombreCredito = esArticulo ? (p?.articulo || 'Artículo') : 'Préstamo'
         const { cuotaActual, cuotasTotales } = resolveCuotaProgressFromPrestamo(prestamoAutoritativo)
-        const cuotasForMonto = Array.isArray((prestamoAutoritativo as any)?.cuotas) ? (prestamoAutoritativo as any).cuotas : []
+        const cuotasForMonto = Array.isArray((prestamoAutoritativo)?.cuotas) ? (prestamoAutoritativo).cuotas : []
         const montoMoraAcumulada = computeMontoExigibleHastaHoyFromCuotas(cuotasForMonto as any, hoyBogotaKey)
         const montoNominalProx = Number((prox as any)?.montoNominal ?? (prox as any)?.montoCuota ?? (prox as any)?.monto ?? 0)
         const montoPagadoProx = Number((prox as any)?.montoPagado ?? 0)
@@ -923,14 +922,14 @@ const VistaCobrador = () => {
         const montoCuotaNormal = montoNominalProx
         const montoCuotaPendiente = pendienteProx
         const saldoTotalPrestamo = Number(
-          (prestamoAutoritativo as any)?.saldoPendiente ??
+          (prestamoAutoritativo)?.saldoPendiente ??
             p?.saldoPendiente ??
             0,
         )
         const proximaVisitaV = fechaEfectiva || (prox as any)?.fechaVencimiento || row?.prestamo?.fechaEfectiva || hoyBogotaKey
 
         const hoyBogota = hoyBogotaKey
-        const cuotasForEstado = Array.isArray((prestamoAutoritativo as any)?.cuotas) ? (prestamoAutoritativo as any).cuotas : []
+        const cuotasForEstado = Array.isArray((prestamoAutoritativo)?.cuotas) ? (prestamoAutoritativo).cuotas : []
         const tieneMora = (() => {
           const byCuotas = (Array.isArray(cuotasForEstado) ? cuotasForEstado : []).some((c: any) => {
             if (!c || !isCuotaNoPagada(c)) return false
@@ -1759,7 +1758,7 @@ const VistaCobrador = () => {
             async (v: any) => {
               if (!v?.prestamoId) return v
               const cuotas = await getCuotasByPrestamoId(String(v.prestamoId))
-              const tipoPrestamo = String((v as any)?.tipoPrestamo || '').toUpperCase()
+              const tipoPrestamo = String((v)?.tipoPrestamo || '').toUpperCase()
               const baseCuota = Number(v?.montoCuota || 0)
               const saldoPendiente = Number(v?.saldoTotal || 0)
               const tieneMora = (Array.isArray(cuotas) ? cuotas : []).some((c: any) => {
@@ -1773,7 +1772,7 @@ const VistaCobrador = () => {
                 const exigiblePendiente = computeMontoExigibleHastaHoyFromCuotas(cuotas as any, hoyKey)
                 const pendiente = (Array.isArray(cuotas) ? cuotas : []).find((c: any) => isCuotaNoPagada(c))
                 const cuotaNormal = Number(
-                  (v as any)?.montoCuotaNormal ??
+                  (v)?.montoCuotaNormal ??
                     pendiente?.montoNominal ??
                     pendiente?.montoCuota ??
                     pendiente?.monto ??
@@ -1783,15 +1782,15 @@ const VistaCobrador = () => {
                   ...v,
                   montoCuota: cuotaNormal,
                   montoCuotaNormal: cuotaNormal,
-                  montoCuotaPendiente: exigiblePendiente > 0 ? exigiblePendiente : (v as any)?.montoCuotaPendiente,
+                  montoCuotaPendiente: exigiblePendiente > 0 ? exigiblePendiente : (v)?.montoCuotaPendiente,
                   estado: (saldoPendiente <= 0 ? 'pagado' : (tieneMora ? 'en_mora' : v.estado)) as any,
                   proximaVisita:
                     resolveFechaEfectivaCuota(pendiente) ||
                     pendiente?.fechaVencimiento ||
-                    (v as any)?.proximaVisita,
-                  cuotaId: pendiente?.id || (v as any)?.cuotaId,
-                  cuotaObjetivoId: pendiente?.id || (v as any)?.cuotaObjetivoId,
-                  cuotaObjetivoPrestamoId: pendiente?.id || (v as any)?.cuotaObjetivoPrestamoId,
+                    (v)?.proximaVisita,
+                  cuotaId: pendiente?.id || (v)?.cuotaId,
+                  cuotaObjetivoId: pendiente?.id || (v)?.cuotaObjetivoId,
+                  cuotaObjetivoPrestamoId: pendiente?.id || (v)?.cuotaObjetivoPrestamoId,
                   cuotaObjetivo: pendiente,
                   proximaCuota: pendiente,
                 }
@@ -1801,7 +1800,7 @@ const VistaCobrador = () => {
               const exigiblePendiente = computeMontoExigibleHastaHoyFromCuotas(cuotas as any, hoyKey)
               const pendienteArticulo = (Array.isArray(cuotas) ? cuotas : []).find((c: any) => isCuotaNoPagada(c))
               const cuotaNormalArticulo = Number(
-                (v as any)?.montoCuotaNormal ??
+                (v)?.montoCuotaNormal ??
                   pendienteArticulo?.montoNominal ??
                   pendienteArticulo?.montoCuota ??
                   pendienteArticulo?.monto ??
@@ -1818,10 +1817,10 @@ const VistaCobrador = () => {
                     proximaVisita:
                       resolveFechaEfectivaCuota(pendienteArticulo) ||
                       pendienteArticulo?.fechaVencimiento ||
-                      (v as any)?.proximaVisita,
-                    cuotaId: pendienteArticulo?.id || (v as any)?.cuotaId,
-                    cuotaObjetivoId: pendienteArticulo?.id || (v as any)?.cuotaObjetivoId,
-                    cuotaObjetivoPrestamoId: pendienteArticulo?.id || (v as any)?.cuotaObjetivoPrestamoId,
+                      (v)?.proximaVisita,
+                    cuotaId: pendienteArticulo?.id || (v)?.cuotaId,
+                    cuotaObjetivoId: pendienteArticulo?.id || (v)?.cuotaObjetivoId,
+                    cuotaObjetivoPrestamoId: pendienteArticulo?.id || (v)?.cuotaObjetivoPrestamoId,
                     cuotaObjetivo: pendienteArticulo,
                     proximaCuota: pendienteArticulo,
                   }
@@ -1837,10 +1836,10 @@ const VistaCobrador = () => {
                 proximaVisita:
                   resolveFechaEfectivaCuota(pendienteArticulo) ||
                   pendienteArticulo?.fechaVencimiento ||
-                  (v as any)?.proximaVisita,
-                cuotaId: pendienteArticulo?.id || (v as any)?.cuotaId,
-                cuotaObjetivoId: pendienteArticulo?.id || (v as any)?.cuotaObjetivoId,
-                cuotaObjetivoPrestamoId: pendienteArticulo?.id || (v as any)?.cuotaObjetivoPrestamoId,
+                  (v)?.proximaVisita,
+                cuotaId: pendienteArticulo?.id || (v)?.cuotaId,
+                cuotaObjetivoId: pendienteArticulo?.id || (v)?.cuotaObjetivoId,
+                cuotaObjetivoPrestamoId: pendienteArticulo?.id || (v)?.cuotaObjetivoPrestamoId,
                 cuotaObjetivo: pendienteArticulo,
                 proximaCuota: pendienteArticulo,
               }
@@ -1866,9 +1865,9 @@ const VistaCobrador = () => {
             logger.log('[DEBUG VISITA]', {
               id: v?.id,
               cliente: v?.cliente,
-              tipoPrestamo: (v as any)?.tipoPrestamo,
+              tipoPrestamo: (v)?.tipoPrestamo,
               montoCuota: v?.montoCuota,
-              montoCuotaPendiente: (v as any)?.montoCuotaPendiente,
+              montoCuotaPendiente: (v)?.montoCuotaPendiente,
               saldoTotal: v?.saldoTotal,
               estado: v?.estado,
               recaudadoDelDia: v?.recaudadoDelDia,
@@ -2134,7 +2133,7 @@ const VistaCobrador = () => {
       setVisitasBase((prev) => {
         const nextVisitas = prev.map((v) =>
           v.clienteId === clienteIdVisita
-            ? { ...v, estado: estadoVisitaPayload as any, estadoVisita: estadoVisitaPayload as any, notasVisita: notasVisitaPayload ?? (v as any).notasVisita }
+            ? { ...v, estado: estadoVisitaPayload as any, estadoVisita: estadoVisitaPayload as any, notasVisita: notasVisitaPayload ?? (v).notasVisita }
             : v,
         )
         visitasBaseRef.current = nextVisitas
@@ -2197,7 +2196,7 @@ const VistaCobrador = () => {
               });
               const metaEstableRealtime = cuotasVencidasHoy.reduce((s, c) => s + Number(c.monto || 0), 0);
               const cuotaNormal = Number(
-                (v as any).montoCuotaNormal ??
+                (v).montoCuotaNormal ??
                   (prox as any)?.montoNominal ??
                   (prox as any)?.montoCuota ??
                   (prox as any)?.monto ??
@@ -2206,7 +2205,7 @@ const VistaCobrador = () => {
               )
               const metaOperativa = Number(
                 metaEstableRealtime ||
-                  (v as any).montoCuotaPendiente ||
+                  (v).montoCuotaPendiente ||
                   cuotaNormal ||
                   0,
               )
@@ -2223,7 +2222,7 @@ const VistaCobrador = () => {
                 recaudadoDelDia: Math.max(Number(v?.recaudadoDelDia || 0), Number(totalHoy || 0)),
               };
 
-              baseV.estado = ajustarEstadoConPago(baseV as any) as any;
+              baseV.estado = ajustarEstadoConPago(baseV) as any;
 
             return baseV;
           }
@@ -2978,7 +2977,7 @@ const VistaCobrador = () => {
 
       setIsLoadingAction(true)
 
-      const esContado = Boolean((data as any).ventaContado)
+      const esContado = Boolean((data).ventaContado)
       const isArticulo = data.creditType === 'articulo'
       const payload = buildCrearPrestamoPayload(data, userSession?.id)
 
@@ -3326,7 +3325,7 @@ const VistaCobrador = () => {
 
             if (!esVisitaPagada) return v
 
-            const recaudadoPrev = Number((v as any).recaudadoDelDia || 0)
+            const recaudadoPrev = Number((v).recaudadoDelDia || 0)
             const recaudadoNuevo = recaudadoPrev + Number(monto || 0)
 
             const estadoBase = shouldExcludeVisitaFromOperationalMeta(v)
@@ -3336,7 +3335,7 @@ const VistaCobrador = () => {
             const nextEstado = esAbonoSnapshot
               ? estadoBase
               : ajustarEstadoConPago({
-                  ...(v as any),
+                  ...(v),
                   estado: estadoBase,
                   estadoVisita: undefined,
                   recaudadoDelDia: recaudadoNuevo,
@@ -3346,7 +3345,7 @@ const VistaCobrador = () => {
               ...v,
               recaudadoDelDia: recaudadoNuevo,
               montoCuotaPendiente: computeMontoCuotaPendienteDespuesDeRecaudo(
-                v as any,
+                v,
                 recaudadoNuevo,
               ),
               estado: nextEstado as any,
@@ -5169,17 +5168,16 @@ const VistaCobrador = () => {
                 logger.log('[GASTO][SALDO DESPUÉS DE REGISTRAR]', saldo)
 
                 const saldoCajaBackend = Number(
-                  (saldo as any)?.saldoCaja ??
-                  (saldo as any)?.baseEfectivo ??
-                  (saldo as any)?.saldoDisponible ??
-                  (saldo as any)?.saldo ??
+                  (saldo)?.saldoCaja ??
+                  (saldo)?.baseEfectivo ??
+                  (saldo)?.saldoDisponible ??
                   NaN
                 )
 
                 setRutaStats(prev => ({
                   ...prev,
                   gastos: Number(saldo?.gastosDelDia ?? prev.gastos ?? 0),
-                  gastosProvisionales: Number((saldo as any)?.egresosProvisionales ?? prev.gastosProvisionales ?? 0),
+                  gastosProvisionales: Number((saldo)?.egresosProvisionales ?? prev.gastosProvisionales ?? 0),
                   base: Number.isFinite(saldoCajaBackend)
                     ? saldoCajaBackend
                     : Math.max(0, Number(prev.base || 0) - Number(data.valor || 0)),

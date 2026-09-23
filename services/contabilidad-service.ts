@@ -142,6 +142,12 @@ export interface SaldoDisponibleRuta {
   desembolsos: number;
   netoPeriodo: number;
   saldoCaja?: number;
+  /** Gastos aun sin aprobar. El backend los manda; el tipo no los declaraba. */
+  egresosProvisionales?: number;
+  /** Todas las salidas reales de caja del periodo. */
+  totalEgresosCaja?: number;
+  /** Recaudo desglosado por referencia; solo lo trae el saldo por ruta. */
+  recaudosPorReferencia?: Record<string, number>;
   mensaje?: string;
   fechaInicio?: string;
   fechaFin?: string;
@@ -170,7 +176,7 @@ export async function getCajas(): Promise<Caja[]> {
       const cached = await offlineStore.getAll<Caja>('cajas');
       if (cached.length > 0) return cached;
     }
-    const err: any = error as any;
+    const err: any = error;
     const statusCode = err?.statusCode;
     if (statusCode === 401 || statusCode === 403) {
       logger.log('[Contabilidad] getCajas omitido por permisos.');
@@ -200,7 +206,7 @@ export async function getCajaById(id: string): Promise<Caja | null> {
        const cached = await offlineStore.getById<Caja>('cajas', id);
        if (cached) return cached;
     }
-    const err: any = error as any;
+    const err: any = error;
     const statusCode = err?.statusCode;
     if (statusCode === 401 || statusCode === 403) {
       logger.log('[Contabilidad] getCajaById omitido por permisos.');
@@ -366,7 +372,7 @@ export async function getTransacciones(filtros?: {
     
     return await apiRequest<PaginatedResponse<Transaccion>>('GET', url);
   } catch (error) {
-    const e: any = error as any;
+    const e: any = error;
     console.error('Error fetching transacciones:', {
       urlRequested: (() => {
         try {
@@ -499,7 +505,7 @@ export async function getResumenFinanciero(fechaInicio?: string, fechaFin?: stri
     
     return await apiRequest<ResumenFinanciero>('GET', url);
   } catch (error) {
-    const err: any = error as any
+    const err: any = error
     const statusCode = err?.statusCode
     if (statusCode === 401 || statusCode === 403) {
       logger.log('[Contabilidad] getResumenFinanciero omitido por permisos.')
@@ -850,7 +856,7 @@ export async function getDeudoresCobrador(): Promise<DeudaCobrador[]> {
   try {
     return await apiRequest<DeudaCobrador[]>('GET', '/accounting/deudas-cobradores');
   } catch (error) {
-    const err: any = error as any
+    const err: any = error
     const statusCode = err?.statusCode
     if (statusCode === 401 || statusCode === 403) {
       logger.log('[Contabilidad] getDeudoresCobrador omitido por permisos.')

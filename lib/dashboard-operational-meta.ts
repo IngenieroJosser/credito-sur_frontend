@@ -107,7 +107,7 @@ export const computeOperationalMetaByRouteIdsForTimeFilter = async (
   if (timeFilter === 'today') {
     try {
       const pagosResp: any = await apiRequest<any>('GET', '/payments?limit=5000', undefined, { cacheTTL: 0 } as any)
-      const pagosData = (pagosResp as any)?.pagos || (pagosResp as any)?.data?.pagos || pagosResp || []
+      const pagosData = (pagosResp)?.pagos || (pagosResp)?.data?.pagos || pagosResp || []
       recaudosHoyMap = buildRecaudosHoyMapByPrestamoId(
         (Array.isArray(pagosData) ? pagosData : []) as any,
         endKey,
@@ -197,9 +197,9 @@ export const computeOperationalMetaByRouteIdsForTimeFilter = async (
           const recHoy = timeFilter === 'today' ? Number((recaudosHoyMap as any)?.[pid] || 0) : 0
           if (shouldExcludeVisitaFromOperationalMeta(v, recHoy)) return sum
 
-          if (timeFilter === 'today' && !isVisitaExigibleHoy(v as any, endKey)) return sum
+          if (timeFilter === 'today' && !isVisitaExigibleHoy(v, endKey)) return sum
 
-          const esArticulo = String((v as any)?.tipoPrestamo || '').toUpperCase() === 'ARTICULO'
+          const esArticulo = String((v)?.tipoPrestamo || '').toUpperCase() === 'ARTICULO'
           const untilEnd = esArticulo
             ? computeMontoExigibleHastaHoyFromCuotas(cuotas, endKey)
             : computeMontoExigibleHastaHoyFromCuotas(cuotas, endKey)
@@ -214,12 +214,12 @@ export const computeOperationalMetaByRouteIdsForTimeFilter = async (
           if (timeFilter === 'today') {
             const saldoRealDesdeCuotas = (Array.isArray(cuotas) ? cuotas : []).reduce((s: number, c: any) => {
               if (!c || !isCuotaNoPagada(c)) return s
-              const monto = Number((c as any)?.montoNominal ?? (c as any)?.monto ?? 0)
-              const pagado = Number((c as any)?.montoPagado ?? 0)
+              const monto = Number((c)?.montoNominal ?? (c)?.monto ?? 0)
+              const pagado = Number((c)?.montoPagado ?? 0)
               return s + Math.max(0, monto - pagado)
             }, 0)
 
-            const saldoTotal = Number((v as any)?.saldoTotal || 0)
+            const saldoTotal = Number((v)?.saldoTotal || 0)
             const saldoParaTope = saldoRealDesdeCuotas > 0 ? saldoRealDesdeCuotas : saldoTotal
             if (Number.isFinite(saldoParaTope) && saldoParaTope > 0) {
               dueInPeriod = Math.min(dueInPeriod, saldoParaTope)

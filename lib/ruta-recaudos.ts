@@ -144,8 +144,8 @@ export const applyRecaudoHoyToVisitas = <T extends Record<string, any>>(
     }
 
     const recHoyBackend = Number(
-      (v as any)?.recaudadoDelDia ??
-      (v as any)?.recaudadoHoy ??
+      (v)?.recaudadoDelDia ??
+      (v)?.recaudadoHoy ??
       0
     )
 
@@ -162,7 +162,7 @@ export const applyRecaudoHoyToVisitas = <T extends Record<string, any>>(
     // real cada vez que el mapa llegaba vacío, y el cobrador veía como no
     // cobrado a un cliente al que acababa de cobrarle. Se toma el mayor de los
     // dos, y nunca el `recaudadoHoy` agrupado.
-    const recHoyPropio = Number((v as any)?.recaudadoDelDia || 0)
+    const recHoyPropio = Number((v)?.recaudadoDelDia || 0)
     const recHoy = v?.prestamoId
       ? Math.max(recHoyMap, recHoyPropio)
       : recHoyBackend

@@ -367,7 +367,7 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
       // rechaza como conflicto (409) en vez de sobrescribir en silencio.
       if (versionRef.current != null) payload.version = versionRef.current;
 
-      await prestamosService.actualizarPrestamo(id, payload as any);
+      await prestamosService.actualizarPrestamo(id, payload);
       showNotification('success', 'El crédito ha sido actualizado correctamente', 'Éxito');
       
       // Intentar descargar contrato si es artículo a cuotas tras la edición

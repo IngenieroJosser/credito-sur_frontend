@@ -137,7 +137,7 @@ const VistaSupervisor = () => {
 
   const handleCreditoConfirm = async (data: any) => {
     try {
-      const esContado = Boolean((data as any).ventaContado)
+      const esContado = Boolean((data).ventaContado)
       const isArticulo = data.creditType === 'articulo'
       const payload = buildCrearPrestamoPayload(data, user?.id)
       const prestamo = await prestamosService.crearPrestamo(payload);

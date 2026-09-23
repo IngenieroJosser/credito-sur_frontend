@@ -27,8 +27,8 @@ export async function enrichRutaHistorialRiesgo({
   const expectedSource = esHistorialDeHoy ? 'ruta-hoy-v1' : 'cuotas-historicas-v2'
   const yaEnriquecido = visitasConPrestamo.length > 0
     && visitasConPrestamo.every((v: any) =>
-      (v as any)?.riesgoHistoricoUiCalculado === true &&
-      (v as any)?.riesgoHistoricoUiSource === expectedSource
+      (v)?.riesgoHistoricoUiCalculado === true &&
+      (v)?.riesgoHistoricoUiSource === expectedSource
     )
   
   if (yaEnriquecido) return visitas
@@ -136,7 +136,7 @@ export async function enrichRutaHistorialRiesgo({
       const diasMoraFinal = computeDiasMoraFromCuotas(
         cuotasArray as any,
         fechaClave,
-        (v as any)?.frecuenciaPago || (v as any)?.periodoRuta || 'DIARIO',
+        (v)?.frecuenciaPago || (v)?.periodoRuta || 'DIARIO',
       )
 
       // Determinar si tiene mora histórica
@@ -146,8 +146,8 @@ export async function enrichRutaHistorialRiesgo({
         Number(montoVencidoFinal || 0) > 0
 
       // Calcular cuota normal y recaudo del día
-      const cuotaNormal = Number((v as any)?.montoCuotaNormal ?? (v as any)?.montoCuota ?? 0)
-      const recaudadoDelDia = Number((v as any)?.recaudadoDelDia || 0)
+      const cuotaNormal = Number((v)?.montoCuotaNormal ?? (v)?.montoCuota ?? 0)
+      const recaudadoDelDia = Number((v)?.recaudadoDelDia || 0)
 
       // Determinar si pagó la cuota completa
       const pagoCompletaCuota =
@@ -195,12 +195,12 @@ export async function enrichRutaHistorialRiesgo({
 
       const nivelRiesgoRaw = resolveRiesgoObligacion({
         row: rowRiesgo,
-        prestamo: (v as any)?.prestamo || {},
-        cuotaObjetivo: (v as any)?.cuotaObjetivo || (v as any)?.proximaCuota || {},
+        prestamo: (v)?.prestamo || {},
+        cuotaObjetivo: (v)?.cuotaObjetivo || (v)?.proximaCuota || {},
         estadoCalculado: estadoHistorico,
         diasMora: diasMoraFinal,
         cuotasVencidas: cuotasVencidasFinal,
-        esProvisional: Boolean((v as any)?.esProvisional),
+        esProvisional: Boolean((v)?.esProvisional),
       })
 
       const nivelRiesgo = resolveNivelRiesgoUi(nivelRiesgoRaw)
@@ -208,7 +208,7 @@ export async function enrichRutaHistorialRiesgo({
       return {
         ...v,
         estado: estadoHistorico,
-        montoCuotaPendiente: montoVencidoFinal > 0 ? montoVencidoFinal : (v as any)?.montoCuotaPendiente,
+        montoCuotaPendiente: montoVencidoFinal > 0 ? montoVencidoFinal : (v)?.montoCuotaPendiente,
         montoVencidoAcumulado: montoVencidoFinal,
         saldoVencidoAcumulado: montoVencidoFinal,
         montoMoraAcumulada: montoVencidoFinal,
