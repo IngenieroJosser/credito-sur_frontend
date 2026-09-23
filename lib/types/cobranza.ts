@@ -1,6 +1,70 @@
 export type EstadoVisita = 'pendiente' | 'pagado' | 'en_mora' | 'ausente' | 'reprogramado' | 'en_prorroga' | 'gestionado'
 export type PeriodoRuta = 'DIA' | 'SEMANA' | 'QUINCENA' | 'MES'
 
+/**
+ * La cuota que toca cobrar, tal y como la devuelve el endpoint de rutas.
+ *
+ * NO es la cuota de la base de datos (`Cuota` en types/domain.ts). El servidor
+ * la enriquece antes de mandarla: le calcula el saldo exigible en la fecha
+ * operativa, los dias de mora, lo vencido acumulado y la fecha efectiva, que
+ * son las cifras con las que trabaja el cobrador en la calle. Por eso tiene
+ * tipo propio: confundirla con la de la base lleva a leer `monto` donde hay
+ * que leer `saldoExigibleEnFechaOperativa`.
+ *
+ * Se arma en RoutesService (routes.service.ts, "Step 5: Enrich cuota objetivo")
+ * y el propio backend la marca como "fuente autoritativa para frontend".
+ *
+ * Todo es opcional, incluido el `id`: no todos los endpoints enriquecen igual,
+ * y hay codigo que la reconstruye con `{ ...visita.cuotaObjetivo, ... }` sobre
+ * una visita que puede no traerla. Declararlo obligatorio seria mentir.
+ */
+export interface CuotaOperativa {
+  id?: string
+  numeroCuota?: number
+
+  /** Valor de la cuota. `montoNominal` es el valor sin mora ni recargos. */
+  monto?: number
+  montoCuota?: number
+  montoNominal?: number
+  montoCuotaNormal?: number
+  montoPagado?: number
+
+  /**
+   * Lo que queda por cobrar en la fecha operativa. Es el numero que se le
+   * pide al cliente, no `monto`.
+   */
+  saldoExigibleEnFechaOperativa?: number
+
+  estado?: string
+  /** Estado recalculado por el servidor; manda sobre `estado` si viene. */
+  estadoActual?: string
+
+  fechaVencimiento?: string
+  fechaVencimientoProrroga?: string | null
+  /** Fecha que cuenta de verdad: la prorrogada si la hay, si no la original. */
+  fechaEfectiva?: string
+  enProrroga?: boolean
+
+  // Mora y vencido, calculados por el servidor sobre la fecha operativa.
+  diasMora?: number
+  diasMoraEnFecha?: number
+  enMoraEnFechaOperativa?: boolean
+  cuotasVencidas?: number
+  cuotasVencidasEnFecha?: number
+  numeroCuotasVencidas?: number
+  montoMoraAcumulada?: number
+  montoVencidoAcumulado?: number
+  montoVencidoAcumuladoEnFecha?: number
+  saldoVencidoAcumulado?: number
+
+  // Reprogramacion y bloqueos de la jornada.
+  esCuotaReprogramadaJornada?: boolean
+  nuevaFechaReprogramada?: string | null
+  cubiertaPorPagoJornada?: boolean
+  motivoBloqueoPago?: string | null
+  motivoBloqueoReprogramacion?: string | null
+}
+
 export interface VisitaRuta {
   id: string
   cliente: string
@@ -49,6 +113,10 @@ export interface VisitaRuta {
   esRevertido?: boolean
   etiquetaRevision?: string | null
   fechaUltimoPago?: number      // Timestamp del último pago realizado para ordenamiento rápido
+  /** La cuota que toca cobrar hoy, ya enriquecida por el servidor. */
+  cuotaObjetivo?: CuotaOperativa | null
+  /** La siguiente cuota; misma forma que la objetivo. */
+  proximaCuota?: CuotaOperativa | null
 }
 
 export interface HistorialDia {

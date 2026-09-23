@@ -2245,12 +2245,12 @@ const RutaClientLoaded = ({
                       estado: 'reprogramado' as any,
                       proximaVisita: fecha,
                       cuotaObjetivo: {
-                        ...(v as any).cuotaObjetivo,
+                        ...v.cuotaObjetivo,
                         fechaVencimiento: fecha,
                         fechaEfectiva: fecha,
                       },
                       proximaCuota: {
-                        ...(v as any).proximaCuota,
+                        ...v.proximaCuota,
                         fechaVencimiento: fecha,
                         fechaEfectiva: fecha,
                       },
