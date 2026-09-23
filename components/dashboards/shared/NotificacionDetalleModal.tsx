@@ -31,6 +31,7 @@ import CierreRutaNotifModal from '@/components/dashboards/shared/CierreRutaNotif
 import PagoRegularizadoNotifModal from '@/components/dashboards/shared/PagoRegularizadoNotifModal'
 import AlertaClienteDetalleModal from '@/components/notificaciones/AlertaClienteDetalleModal'
 import { alertasClientesService } from '@/services/alertas-clientes-service'
+import { logger } from '@/lib/logger'
 
 export interface NotificacionDetalleModalProps {
   isOpen: boolean
@@ -534,7 +535,11 @@ export default function NotificacionDetalleModal({
           )
           setPlanIndex(idx >= 0 ? idx : null)
         }
-      } catch {}
+      } catch (error) {
+        // El articulo es informacion de apoyo: sin el se muestra el resto.
+        // Se avisa solo en desarrollo, que es donde sirve.
+        logger.warn('No se pudo enlazar el articulo de la notificacion', error)
+      }
     })()
   }, [isOpen, notificacion, editedDetails?.plazoMeses])
 

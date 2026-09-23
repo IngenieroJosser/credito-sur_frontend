@@ -56,6 +56,7 @@ import { formatRoleLabel } from '@/lib/display-labels';
 import { buildCrearPrestamoPayload } from '@/lib/creditos/crear-prestamo-payload';
 import Paginador from '@/components/ui/Paginador'
 import { normalizarCodigoRuta } from '@/lib/rutas/codigo-ruta'
+import { logger } from '@/lib/logger'
 
 interface Ruta {
   id: string;
@@ -445,7 +446,11 @@ export const RutasPageView = ({
             clientesAsignados: 0, clientesNuevos: 0, cobranzaDelDia: 0, metaDelDia: 0,
           } as Ruta)));
         }
-      } catch {}
+      } catch (error) {
+        // Es el respaldo sin conexion: si no hay nada guardado, no hay nada que mostrar.
+        // Se avisa solo en desarrollo, que es donde sirve.
+        logger.warn('No se pudieron leer las rutas guardadas sin conexion', error)
+      }
     }
   }, [currentUser?.id, rutasBasePath])
 
@@ -730,7 +735,11 @@ export const RutasPageView = ({
       
       try {
         await fetchRutas();
-      } catch {}
+      } catch (error) {
+        // El refresco es secundario: la accion ya se hizo.
+        // Se avisa solo en desarrollo, que es donde sirve.
+        logger.warn('Fallo el refresco del listado de rutas', error)
+      }
     } catch (error) {
       showNotification('error', 'No se pudo mover el cliente', 'Error');
     }
@@ -768,7 +777,11 @@ export const RutasPageView = ({
       
       try {
         await fetchRutas();
-      } catch {}
+      } catch (error) {
+        // El refresco es secundario: la accion ya se hizo.
+        // Se avisa solo en desarrollo, que es donde sirve.
+        logger.warn('Fallo el refresco del listado de rutas', error)
+      }
     } catch (error) {
       showNotification('error', 'No se pudo asignar el cliente', 'Error');
     }
@@ -2233,7 +2246,11 @@ export const RutasPageView = ({
             setShowCrearCreditoModal(false);
             try {
               await fetchRutas();
-            } catch {}
+            } catch (error) {
+              // El refresco es secundario: la accion ya se hizo.
+              // Se avisa solo en desarrollo, que es donde sirve.
+              logger.warn('Fallo el refresco del listado de rutas', error)
+            }
           } catch (error) {
             console.error('Error al crear crédito:', error);
             showNotification('error', 'No se pudo crear el crédito', 'Error');

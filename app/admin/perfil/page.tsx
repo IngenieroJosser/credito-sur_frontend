@@ -78,7 +78,11 @@ const PerfilUsuarioPage = () => {
       // failover CORS en consola). Online sí trae los datos completos.
       const hayRed = typeof navigator === 'undefined' || navigator.onLine
       if (perfil.id && hayRed) {
-        try { fullUser = await usuariosService.obtenerPorId(perfil.id) } catch {}
+        try { fullUser = await usuariosService.obtenerPorId(perfil.id) } catch (error) {
+          // El perfil completo es un extra: si no llega, se muestra el basico.
+          // Se avisa solo en desarrollo, que es donde sirve.
+          logger.warn('No se pudo traer el perfil completo; se usa el de la sesion', error)
+        }
       }
       setBackendUser(fullUser || {
         id: perfil.id,

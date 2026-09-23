@@ -2297,7 +2297,11 @@ const LegacyDetalleRutaPage = () => {
                     if (showMisClientes) {
                       await cargarMisCreditos();
                     }
-                  } catch {}
+                  } catch (error) {
+                    // El refresco es secundario: la accion ya se hizo.
+                    // Se avisa solo en desarrollo, que es donde sirve.
+                    logger.warn('Fallo el refresco de la ruta tras la accion', error)
+                  }
 
                 } catch (e: any) {
                   const message =
@@ -2505,7 +2509,11 @@ const LegacyDetalleRutaPage = () => {
 
                 await cargarRuta();
 
-              } catch {}
+              } catch (error) {
+                // El refresco es secundario: la accion ya se hizo.
+                // Se avisa solo en desarrollo, que es donde sirve.
+                logger.warn('Fallo el refresco de la ruta tras la accion', error)
+              }
 
               setShowNuevoCreditoModal(false);
 

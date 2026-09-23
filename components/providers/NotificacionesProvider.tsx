@@ -96,7 +96,11 @@ export function NotificacionesProvider({ children }: { children: React.ReactNode
         const payload = JSON.parse(atob(base64 + padding));
         currentUserId = payload.sub || payload.id
       }
-    } catch(e) {}
+    } catch (error) {
+      // Un token ilegible solo significa que no se conoce al usuario aqui.
+      // Se avisa solo en desarrollo, que es donde sirve.
+      logger.warn('No se pudo leer el token para identificar al usuario', error)
+    }
 
     // Inicialización del socket
     const baseUrl = raizBackend() // Socket.io va a la raíz, sin /api-credisur

@@ -1436,7 +1436,11 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         await cargarVisitasRuta()
         await cargarEstadisticasRuta()
         if (showMisClientes) await cargarMisCreditos()
-      } catch {}
+      } catch (error) {
+        // El refresco es secundario: la accion ya se hizo.
+        // Se avisa solo en desarrollo, que es donde sirve.
+        logger.warn('Fallo el refresco de la ruta tras la accion', error)
+      }
 
       toast.success('Solicitud de reprogramación enviada exitosamente', {
         description: `La cuota será revisada para reprogramarse al ${fechaLabel}`
@@ -1980,7 +1984,11 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         await cargarVisitasRuta()
         await cargarEstadisticasRuta()
         if (showMisClientes) await cargarMisCreditos()
-      } catch {}
+      } catch (error) {
+        // El refresco es secundario: la accion ya se hizo.
+        // Se avisa solo en desarrollo, que es donde sirve.
+        logger.warn('Fallo el refresco de la ruta tras la accion', error)
+      }
 
       setShowPaymentModal(false)
 
@@ -1996,7 +2004,11 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
           await cargarVisitasRuta()
           await cargarEstadisticasRuta()
           if (showMisClientes) await cargarMisCreditos()
-        } catch {}
+        } catch (error) {
+          // El refresco es secundario: la accion ya se hizo.
+          // Se avisa solo en desarrollo, que es donde sirve.
+          logger.warn('Fallo el refresco de la ruta tras la accion', error)
+        }
       }
 
       toast.error(mensaje)
@@ -2110,7 +2122,11 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         await cargarEstadisticasRuta()
         if (showMisClientes) await cargarMisCreditos()
         refreshHistorialOperativo()
-      } catch {}
+      } catch (error) {
+        // El refresco es secundario: la accion ya se hizo.
+        // Se avisa solo en desarrollo, que es donde sirve.
+        logger.warn('Fallo el refresco de la ruta tras la accion', error)
+      }
 
       setModalAlerta({
         titulo: 'Crédito Creado',

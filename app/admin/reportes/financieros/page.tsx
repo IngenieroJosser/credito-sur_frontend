@@ -27,6 +27,7 @@ import {
   toBogotaDateTimeOffsetIso,
 } from '@/lib/rutas-core'
 import { Skeleton, SkeletonTabla } from '@/components/ui/Skeleton'
+import { logger } from '@/lib/logger'
 
 // Interfaces
 interface FinancialSummary {
@@ -149,7 +150,11 @@ const ReportesFinancierosPage = () => {
         } else {
           setMetaMargen(null)
         }
-      } catch {}
+      } catch (error) {
+        // Sin metas configuradas la pantalla funciona igual, sin la referencia.
+        // Se avisa solo en desarrollo, que es donde sirve.
+        logger.warn('No se pudieron leer las metas financieras', error)
+      }
       const ahora = new Date()
       const { inicio: startDate, fin: endDate } = getBogotaRangeForFinancialPeriod(
         periodo as any,

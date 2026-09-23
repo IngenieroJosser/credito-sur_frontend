@@ -2923,7 +2923,11 @@ const VistaCobrador = () => {
 
       try {
         await cargarDatosRuta(true)
-      } catch {}
+      } catch (error) {
+        // El refresco es secundario: la accion ya se hizo.
+        // Se avisa solo en desarrollo, que es donde sirve.
+        logger.warn('Fallo el refresco de la ruta tras la accion', error)
+      }
 
       toast.success('Solicitud de reprogramación enviada exitosamente', {
         description: `La cuota será revisada para reprogramarse al ${formatearFechaISO(fecha)}`
@@ -3382,7 +3386,11 @@ const VistaCobrador = () => {
         if (showMisClientes && userSession?.id) {
           await cargarMisCreditosAsignados(userSession.id)
         }
-      } catch {}
+      } catch (error) {
+        // El refresco es secundario: la accion ya se hizo.
+        // Se avisa solo en desarrollo, que es donde sirve.
+        logger.warn('Fallo el refresco de la ruta tras la accion', error)
+      }
 
     } catch (error: any) {
 
@@ -3396,7 +3404,11 @@ const VistaCobrador = () => {
           if (showMisClientes && userSession?.id) {
             await cargarMisCreditosAsignados(userSession.id)
           }
-        } catch {}
+        } catch (error) {
+          // El refresco es secundario: la accion ya se hizo.
+          // Se avisa solo en desarrollo, que es donde sirve.
+          logger.warn('Fallo el refresco de la ruta tras la accion', error)
+        }
       }
 
       setModalAlerta({

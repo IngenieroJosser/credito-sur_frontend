@@ -13,6 +13,7 @@ import { articulosService } from '@/services/articulos-service';
 import { normalizeDateKey } from '@/lib/rutas-core';
 import { TipoAmortizacion } from '@/types/enums';
 import { Skeleton, SkeletonTexto } from '@/components/ui/Skeleton'
+import { logger } from '@/lib/logger'
 
 interface EditarPrestamoModalProps {
   id: string;
@@ -382,7 +383,11 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
 
       try {
         refreshNotificaciones();
-      } catch {}
+      } catch (error) {
+        // El refresco es secundario: la accion ya se hizo.
+        // Se avisa solo en desarrollo, que es donde sirve.
+        logger.warn('Fallo el refresco de notificaciones tras editar el credito', error)
+      }
       if (onSuccess) onSuccess();
       handleClose();
     } catch (err) {

@@ -29,6 +29,7 @@ import NuevoClienteModal from '@/components/clientes/NuevoClienteModal'
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
 import ClientePortalModal from '@/components/cliente/ClientePortalModal'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { logger } from '@/lib/logger'
 
 interface VentaReciente {
   id: string
@@ -110,7 +111,11 @@ export default function PuntoDeVentaFloatingActions() {
     try {
       const userData = localStorage.getItem('user')
       if (userData) setUserSession(JSON.parse(userData))
-    } catch {}
+    } catch (error) {
+      // Sin sesion guardada la pantalla pide iniciar sesion por su cuenta.
+      // Se avisa solo en desarrollo, que es donde sirve.
+      logger.warn('No se pudo leer la sesion guardada', error)
+    }
   }, [])
 
   const fetchVentasRecientes = useCallback(async () => {
@@ -251,7 +256,18 @@ export default function PuntoDeVentaFloatingActions() {
       })
       setShowCreditoModal(false)
       if (isArticulo && !esContado && prestamo?.id) {
-        try { await exportService.exportContrato(prestamo.id) } catch {}
+        try {
+          await exportService.exportContrato(prestamo.id)
+        } catch (error) {
+          // El credito SI quedo creado: el aviso de exito ya se mostro. Lo que
+          // fallo es la descarga automatica del contrato, y hasta ahora se caia
+          // en silencio: el usuario se quedaba esperando un archivo que nunca
+          // llegaba, sin saber si tenia que volver a intentarlo.
+          logger.warn('No se pudo descargar el contrato del credito', error)
+          toast.warning('El credito se creo, pero no se pudo descargar el contrato', {
+            description: 'Puedes descargarlo despues desde el detalle del credito.',
+          })
+        }
       }
     } catch (error: any) {
       const esContado = Boolean(data?.ventaContado)

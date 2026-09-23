@@ -1980,7 +1980,11 @@ const RutaClientLoaded = ({
             setEnrichNonce((n) => n + 1);
             try {
               await onRutaRefresh?.();
-            } catch {}
+            } catch (error) {
+              // El refresco es secundario: la accion ya se hizo.
+              // Se avisa solo en desarrollo, que es donde sirve.
+              logger.warn('Fallo el refresco de la ruta tras la accion', error)
+            }
           }}
         />
       )}
@@ -2119,7 +2123,11 @@ const RutaClientLoaded = ({
               setEnrichNonce((n) => n + 1)
               try {
                 await onRutaRefresh?.(pagoActual.visita.prestamoId);
-              } catch {}
+              } catch (error) {
+                // El refresco es secundario: la accion ya se hizo.
+                // Se avisa solo en desarrollo, que es donde sirve.
+                logger.warn('Fallo el refresco de la ruta tras registrar el pago', error)
+              }
             } catch (error) {
               console.error('Error registrando pago/abono:', error);
               const apiError = error as any;
@@ -2129,7 +2137,11 @@ const RutaClientLoaded = ({
                 setEnrichNonce((n) => n + 1);
                 try {
                   await onRutaRefresh?.(pagoVisita?.visita?.prestamoId);
-                } catch {}
+                } catch (error) {
+                  // El refresco es secundario: la accion ya se hizo.
+                  // Se avisa solo en desarrollo, que es donde sirve.
+                  logger.warn('Fallo el refresco de la ruta tras registrar el pago', error)
+                }
               }
               showNotification('error', mensaje, isConflict ? 'La cuota cambió' : 'Error');
             } finally {
@@ -2304,7 +2316,11 @@ const RutaClientLoaded = ({
 
                 try {
                   await onRutaRefresh?.();
-                } catch {}
+                } catch (error) {
+                  // El refresco es secundario: la accion ya se hizo.
+                  // Se avisa solo en desarrollo, que es donde sirve.
+                  logger.warn('Fallo el refresco de la ruta tras la accion', error)
+                }
 
               } catch (error: any) {
                 const message =
@@ -2548,7 +2564,11 @@ const RutaClientLoaded = ({
 
                 await onRutaRefresh?.();
 
-              } catch {}
+              } catch (error) {
+                // El refresco es secundario: la accion ya se hizo.
+                // Se avisa solo en desarrollo, que es donde sirve.
+                logger.warn('Fallo el refresco de la ruta tras la accion', error)
+              }
 
               setShowCrearCreditoModal(false);
 
