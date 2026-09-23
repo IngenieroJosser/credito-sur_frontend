@@ -29,6 +29,11 @@ export interface Caja {
   estado: 'ABIERTA' | 'CERRADA';
   transacciones?: number;
   ultimaActualizacion: string;
+  /**
+   * Rutas que supervisa esta caja. Solo viene en las cajas de tipo RUTA
+   * sin ruta propia, es decir, las de un supervisor con varias a cargo.
+   */
+  rutasSupervisadas?: Array<{ id: string; nombre: string; codigo: string }>;
 }
 
 export interface Transaccion {

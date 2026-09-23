@@ -424,13 +424,13 @@ const ModuloContableContent = () => {
 
   const esTransferenciaSalida = (m: any) => {
     if (String(m?.tipo || '').toUpperCase() !== 'TRANSFERENCIA') return false
-    const numero = String((m)?.numero || (m)?.numeroTransaccion || '')
+    const numero = String(m?.numero || '')
     return numero.toUpperCase().startsWith('TRX-OUT')
   }
 
   const esTransferenciaEntrada = (m: any) => {
     if (String(m?.tipo || '').toUpperCase() !== 'TRANSFERENCIA') return false
-    const numero = String((m)?.numero || (m)?.numeroTransaccion || '')
+    const numero = String(m?.numero || '')
     return numero.toUpperCase().startsWith('TRX-IN')
   }
 
@@ -754,7 +754,7 @@ const ModuloContableContent = () => {
           saldo: c.saldo,
           estado: c.estado,
           ultimaActualizacion: c.ultimaActualizacion,
-          rutasSupervisadas: (c as any).rutasSupervisadas
+          rutasSupervisadas: c.rutasSupervisadas
         })));
       }
 
@@ -1798,7 +1798,7 @@ const ModuloContableContent = () => {
                                   const ingresos = movimientosCaja
                                     .filter((m: any) => {
                                       const tipo = String(m.tipo || '').toUpperCase()
-                                      const numero = String((m.numero || m.numeroTransaccion || '')).toUpperCase()
+                                      const numero = String(m.numero || '').toUpperCase()
 
                                       if (tipo === 'INGRESO') return true
                                       if (tipo === 'TRANSFERENCIA') return numero.startsWith('TRX-IN')
@@ -1810,7 +1810,7 @@ const ModuloContableContent = () => {
                                   const egresos = movimientosCaja
                                     .filter((m: any) => {
                                       const tipo = String(m.tipo || '').toUpperCase()
-                                      const numero = String((m.numero || m.numeroTransaccion || '')).toUpperCase()
+                                      const numero = String(m.numero || '').toUpperCase()
 
                                       if (tipo === 'EGRESO') return true
                                       if (tipo === 'TRANSFERENCIA') return numero.startsWith('TRX-OUT')
@@ -1846,7 +1846,7 @@ const ModuloContableContent = () => {
                                     .filter((m: any) => m.tipo === 'INGRESO' || m.tipo === 'TRANSFERENCIA')
                                     .filter((m: any) => {
                                       if (m.tipo === 'TRANSFERENCIA') {
-                                        const num = String(m.numeroTransaccion || '').toUpperCase()
+                                        const num = String(m.numero || '').toUpperCase()
                                         return num.startsWith('TRX-IN')
                                       }
                                       return true
@@ -1857,7 +1857,7 @@ const ModuloContableContent = () => {
                                     .filter((m: any) => m.tipo === 'EGRESO' || m.tipo === 'TRANSFERENCIA')
                                     .filter((m: any) => {
                                       if (m.tipo === 'TRANSFERENCIA') {
-                                        const num = String(m.numeroTransaccion || '').toUpperCase()
+                                        const num = String(m.numero || '').toUpperCase()
                                         return num.startsWith('TRX-OUT')
                                       }
                                       return true
@@ -3027,7 +3027,7 @@ const ModuloContableContent = () => {
                                         return filtered.reduce((acc, m) => {
                                           const monto = Number(m.monto || 0)
                                           const tipo = String((m)?.tipo || '').toUpperCase()
-                                          const numero = String((m)?.numero || (m as any)?.numeroTransaccion || '')
+                                          const numero = String(m?.numero || '')
                                           if (tipo === 'INGRESO') return acc + monto
                                           if (tipo === 'EGRESO') return acc - monto
                                           if (tipo === 'TRANSFERENCIA') {
