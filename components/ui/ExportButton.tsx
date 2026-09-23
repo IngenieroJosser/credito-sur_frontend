@@ -105,7 +105,7 @@ export const ExportButton = ({
 
       {isOpen && typeof document !== 'undefined' && createPortal(
         <div 
-           className="export-dropdown-portal fixed z-[9999] w-48 origin-top overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl shadow-slate-900/10 animate-in fade-in zoom-in-95 slide-in-from-top-1 duration-200 ease-out motion-reduce:animate-none"
+           className="export-dropdown-portal fixed z-[60] w-48 origin-top overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl shadow-slate-900/10 animate-in fade-in zoom-in-95 slide-in-from-top-1 duration-200 ease-out motion-reduce:animate-none"
            style={{
              top: coords.top,
              left: coords.left,

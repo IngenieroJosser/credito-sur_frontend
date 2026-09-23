@@ -340,7 +340,7 @@ export default function OfflineIndicator() {
 
   return (
     <>
-      <div className="fixed left-1/2 top-[calc(env(safe-area-inset-top)+0.75rem)] z-[80] w-[min(94vw,48rem)] -translate-x-1/2 pointer-events-none">
+      <div className="fixed left-1/2 top-[calc(env(safe-area-inset-top)+0.75rem)] z-[60] w-[min(94vw,48rem)] -translate-x-1/2 pointer-events-none">
         {/* Resultado de sync */}
         {showResult && lastSyncResult && (
           <div className="relative mb-2 overflow-hidden rounded-[1.6rem] border border-white/20 bg-white/[0.08] p-3 shadow-[0_24px_80px_rgba(15,23,42,0.18)] ring-1 ring-white/15 backdrop-blur-[34px] backdrop-saturate-[1.9] animate-in fade-in slide-in-from-top-2 duration-300 pointer-events-auto">
