@@ -92,49 +92,6 @@ export enum TipoAprobacion {
   REPROGRAMACION_CUOTA = 'REPROGRAMACION_CUOTA',
 }
 
-export enum TipoGasto {
-  OPERATIVO = 'OPERATIVO',
-  TRANSPORTE = 'TRANSPORTE',
-  OTRO = 'OTRO'
-}
-
-export enum TipoCaja {
-  PRINCIPAL = 'PRINCIPAL',
-  RUTA = 'RUTA'
-}
-
-export enum TipoTransaccion {
-  INGRESO = 'INGRESO',
-  EGRESO = 'EGRESO',
-  TRANSFERENCIA = 'TRANSFERENCIA'
-}
-
-export enum EstadoSincronizacion {
-  PENDIENTE = 'PENDIENTE',
-  SINCRONIZADO = 'SINCRONIZADO',
-  CONFLICTO = 'CONFLICTO',
-  ERROR = 'ERROR'
-}
-
-export enum TipoContenidoMultimedia {
-  FOTO_PERFIL = 'FOTO_PERFIL',
-  DOCUMENTO_IDENTIDAD_FRENTE = 'DOCUMENTO_IDENTIDAD_FRENTE',
-  DOCUMENTO_IDENTIDAD_REVERSO = 'DOCUMENTO_IDENTIDAD_REVERSO',
-  COMPROBANTE_DOMICILIO = 'COMPROBANTE_DOMICILIO',
-  FIRMA_DIGITAL = 'FIRMA_DIGITAL',
-  FOTO_PRODUCTO = 'FOTO_PRODUCTO',
-  RECIBO_PAGO = 'RECIBO_PAGO',
-  EVIDENCIA_GASTO = 'EVIDENCIA_GASTO',
-  CONTRATO_PRESTAMO = 'CONTRATO_PRESTAMO',
-  OTRO_DOCUMENTO = 'OTRO_DOCUMENTO'
-}
-
-export enum EstadoMultimedia {
-  TEMPORAL = 'TEMPORAL',
-  ACTIVO = 'ACTIVO',
-  ELIMINADO = 'ELIMINADO'
-}
-
 // Type exports para compatibilidad con codigo existente
 export type RolUsuarioType = keyof typeof RolUsuario;
 export type EstadoUsuarioType = keyof typeof EstadoUsuario;
@@ -145,6 +102,3 @@ export type FrecuenciaPagoType = keyof typeof FrecuenciaPago;
 export type MetodoPagoType = keyof typeof MetodoPago;
 export type EstadoAprobacionType = keyof typeof EstadoAprobacion;
 export type TipoAprobacionType = keyof typeof TipoAprobacion;
-export type TipoGastoType = keyof typeof TipoGasto;
-export type TipoCajaType = keyof typeof TipoCaja;
-export type TipoTransaccionType = keyof typeof TipoTransaccion;
