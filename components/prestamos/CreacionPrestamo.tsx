@@ -306,7 +306,7 @@ const CreacionPrestamoElegante = ({ initialClienteId, isModal }: { initialClient
 
   const handleCrearPrestamo = async () => {
     if (!clienteSeleccionado) {
-      alert('Por favor, seleccione un cliente.');
+      showNotification('warning', 'Por favor, seleccione un cliente.');
       return;
     }
 

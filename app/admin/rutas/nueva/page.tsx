@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { rutasService } from '@/services/rutas-service';
 import { normalizarCodigoRuta } from '@/lib/rutas/codigo-ruta'
+import { toast } from 'sonner';
 
 interface RutaFormData {
   nombre: string;
@@ -94,7 +95,7 @@ const NuevaRutaPage = () => {
       router.push('/rutas');
     } catch (err) {
       console.error('Error creando ruta:', err);
-      alert('Error al crear la ruta');
+      toast.error('Error al crear la ruta');
     } finally {
       setLoading(false);
     }

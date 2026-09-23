@@ -17,6 +17,7 @@ import {
 import { formatCOPInputValue, formatCurrency, formatMilesCOP, parseCOPInputToNumber } from '@/lib/utils'
 import SelectCategoria from '@/components/ui/SelectCategoria'
 import { inventarioService } from '@/services/inventario-service'
+import { toast } from 'sonner'
 
 // Types
 interface PrecioCuota {
@@ -102,7 +103,7 @@ export default function EditarArticuloPage({ params }: { params: Promise<{ id: s
       router.push('/admin/articulos')
     } catch (err) {
       console.error('Error guardando artículo:', err)
-      alert('Error al guardar el artículo')
+      toast.error('Error al guardar el artículo')
     } finally {
       setLoading(false)
     }

@@ -11,6 +11,7 @@ import { Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorEl
 import { getBogotaDateKey } from '@/lib/rutas-core'
 import { getEntradaCajaFisica, getSalidaCajaFisica } from '@/lib/contabilidad-clasificacion'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
+import { toast } from 'sonner';
 
 const parseSaldoCaja = (raw: any): number => {
   if (typeof raw === 'number') return Number.isFinite(raw) ? raw : 0
@@ -701,7 +702,9 @@ export default function CierreCajaPage() {
     const printWindow = window.open('', '_blank', 'width=950,height=850');
 
     if (!printWindow) {
-      alert('El navegador bloqueó la ventana de impresión. Permite ventanas emergentes para imprimir el comprobante.');
+      toast.error(
+        'El navegador bloqueó la ventana de impresión. Permite ventanas emergentes para imprimir el comprobante.',
+      );
       return;
     }
 

@@ -251,8 +251,10 @@ export default function CreacionCreditoArticulo({
   };
 
   const siguientePaso = () => {
-    if (step === 1 && !clienteId) return alert('Seleccione un cliente');
-    if (step === 2 && articulosSeleccionados.length === 0) return alert('Seleccione al menos un artículo');
+    if (step === 1 && !clienteId)
+      return showNotification('warning', 'Seleccione un cliente');
+    if (step === 2 && articulosSeleccionados.length === 0)
+      return showNotification('warning', 'Seleccione al menos un artículo');
     
     setAnimating(true);
     setTimeout(() => {
@@ -272,10 +274,15 @@ export default function CreacionCreditoArticulo({
   };
 
   const confirmarCredito = async () => {
-    if (!clienteSeleccionado) return alert('Seleccione un cliente');
-    if (articulosSeleccionados.length === 0) return alert('Seleccione al menos un artículo');
+    if (!clienteSeleccionado)
+      return showNotification('warning', 'Seleccione un cliente');
+    if (articulosSeleccionados.length === 0)
+      return showNotification('warning', 'Seleccione al menos un artículo');
     if (!esContado && !(cuotaInicial > 0)) {
-      return alert('Escriba la cuota inicial: en un crédito de artículo es obligatoria.');
+      return showNotification(
+        'warning',
+        'Escriba la cuota inicial: en un crédito de artículo es obligatoria.',
+      );
     }
 
     try {
