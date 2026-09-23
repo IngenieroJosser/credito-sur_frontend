@@ -365,7 +365,7 @@ describe('shouldShowVisitaEnRutaHoy', () => {
         {
           estado: 'pendiente',
           estadoGestion: 'PENDIENTE',
-          periodoRuta: 'SEMANAL',
+          periodoRuta: 'SEMANA',
           proximaVisita: '2026-06-20',
           saldoPendiente: 1900000,
         },

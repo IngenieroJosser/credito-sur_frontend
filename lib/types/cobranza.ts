@@ -79,6 +79,8 @@ export interface VisitaRuta {
   recaudadoPeriodo?: number  // Total pagado en el período actual (semana/quincena/mes/día)
   estado: EstadoVisita
   estadoVisita?: string      // Estado de la visita del día registrado (ej: 'ausente')
+  /** Como quedo gestionada la obligacion: PENDIENTE, REPROGRAMADO, AUSENTE… */
+  estadoGestion?: string
   notasVisita?: string | null // Nota/justificación registrada al marcar ausencia
   proximaVisita: string
   targetVencimiento?: string
@@ -101,6 +103,12 @@ export interface VisitaRuta {
   diasMora?: number
   montoCuotaNormal?: number
   montoCuotaPendiente?: number
+  /** Lo que queda por cobrar del periodo segun el servidor. */
+  montoMetaOperativaPendiente?: number
+  /** Saldo del prestamo completo, no de la cuota. */
+  saldoPendiente?: number
+  /** El prestamo, cuando la respuesta lo trae anidado. */
+  prestamo?: { saldoPendiente?: number; [clave: string]: unknown } | null
   montoMoraAcumulada?: number
   montoVencidoAcumulado?: number
   saldoVencidoAcumulado?: number
@@ -119,6 +127,17 @@ export interface VisitaRuta {
   proximaCuota?: CuotaOperativa | null
 }
 
+
+/**
+ * Una visita con lo que haya llegado.
+ *
+ * Las funciones del nucleo (`lib/rutas-core`) deciden cosas como si una visita
+ * es exigible hoy leyendo cuatro o cinco campos, y se defienden solas de lo que
+ * falte (`String(v?.campo || '')`). Se las llama con visitas completas, pero
+ * tambien con objetos a medio armar mientras se enriquecen, y con fragmentos en
+ * las pruebas. Pedirles una VisitaRuta entera seria pedir mas de lo que usan.
+ */
+export type VisitaParcial = Partial<VisitaRuta>
 export interface HistorialDia {
   resumen: {
     recaudo: number;

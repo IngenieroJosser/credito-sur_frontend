@@ -1,5 +1,6 @@
 import { mapFrecuenciaToPeriodo, type PeriodoRuta } from '@/lib/types/cobranza';
 import type { ClienteCierrePendiente } from '@/types/rutas/cierre-pendiente';
+import type { CuotaOperativa, VisitaParcial } from '@/lib/types/cobranza';
 
 /**
  * Saca el id de la cuota objetivo de un objeto de visita.
@@ -54,7 +55,7 @@ const BOGOTA_TZ = 'America/Bogota';
  * de atraso apareciera con una cuota enorme que nadie va a pagar de un golpe, y
  * descuadraria la meta del cobrador.
  */
-export const resolveCuotaNormalOperativa = (visita: any): number => {
+export const resolveCuotaNormalOperativa = (visita: VisitaParcial | null | undefined): number => {
   return Number(
     visita?.montoCuotaNormal ??
       visita?.cuotaObjetivo?.montoCuota ??
@@ -71,7 +72,7 @@ export const resolveCuotaNormalOperativa = (visita: any): number => {
  * Es dato financiero, no la cuota que la ruta sale a cobrar
  * (ver `resolveCuotaNormalOperativa`).
  */
-export const resolveCuotaAcumuladaOperativa = (visita: any): number => {
+export const resolveCuotaAcumuladaOperativa = (visita: VisitaParcial | null | undefined): number => {
   return Number(
     visita?.montoMoraAcumulada ??
       visita?.saldoVencidoAcumulado ??
@@ -168,7 +169,7 @@ export const isPrestamoOperativo = (prestamo: any): boolean => {
  * La comparacion es `<=` y no `===`: la ruta de hoy arrastra lo que vencio antes
  * y sigue impago.
  */
-export const isCuotaOperativaParaFecha = (cuota: any, fechaOperativaKey: string): boolean => {
+export const isCuotaOperativaParaFecha = (cuota: CuotaOperativa, fechaOperativaKey: string): boolean => {
   if (!cuota || !fechaOperativaKey) return false;
 
   const estado = normalizeUpper(cuota?.estado ?? cuota?.estadoActual);
@@ -586,7 +587,7 @@ export const frecuenciaToPeriodoRuta = (frecuencia: string | null | undefined): 
   return mapFrecuenciaToPeriodo(String(frecuencia || '').toUpperCase());
 };
 
-export const resolveFechaEfectivaCuota = (cuota: any): string => {
+export const resolveFechaEfectivaCuota = (cuota: CuotaOperativa): string => {
   // Determina la "fecha efectiva" de una cuota.
   // Si la cuota está PRORROGADA y trae fechaVencimientoProrroga, esa fecha manda.
   // En caso contrario usa fechaVencimiento.
@@ -696,7 +697,7 @@ export const getPagoBogotaDateKey = (raw: unknown): string => {
   }
 };
 
-export const isVisitaExigibleHoy = (visita: any, hoyBogotaKey: string): boolean => {
+export const isVisitaExigibleHoy = (visita: VisitaParcial | null | undefined, hoyBogotaKey: string): boolean => {
   // Regla compartida: determina si una "visita" debe aparecer hoy.
   // - Si la fecha efectiva de la próxima cuota está en el futuro, no aparece hoy
   //   aunque el préstamo conserve temporalmente estado de mora.
@@ -809,7 +810,7 @@ export const shouldMarkVisitaAsPagado = (params: {
 };
 
 
-export const shouldIncludeVisitaInRutaHoyKpis = (visita: any, hoyBogotaKey: string): boolean => {
+export const shouldIncludeVisitaInRutaHoyKpis = (visita: VisitaParcial | null | undefined, hoyBogotaKey: string): boolean => {
   if (!visita) return false;
   if (isVisitaExigibleHoy(visita, hoyBogotaKey)) return true;
   return Number((visita)?.recaudadoDelDia ?? (visita)?.recaudadoPeriodo ?? 0) > 0;
@@ -851,13 +852,13 @@ export const shouldExcludeVisitaFromOperationalMeta = (
   return !(Number.isFinite(recaudadoHoy) && recaudadoHoy > 0);
 };
 
-export const shouldShowVisitaEnRutaHoy = (visita: any, hoyBogotaKey: string): boolean => {
+export const shouldShowVisitaEnRutaHoy = (visita: VisitaParcial | null | undefined, hoyBogotaKey: string): boolean => {
   // Regla unificada para las vistas de ruta: usar isVisitaExigibleHoy
   // que ya maneja todos los casos: mora, fecha vencida, gestionado, etc.
   return isVisitaExigibleHoy(visita, hoyBogotaKey);
 };
 
-export const computeMetaHoyFromVisitas = (visitas: any[], hoyBogotaKey: string): number => {
+export const computeMetaHoyFromVisitas = (visitas: VisitaParcial[], hoyBogotaKey: string): number => {
   // Calcula la meta visual del día como suma de una cuota normal por obligación.
   // La mora/acumulado vencido vive aparte y no debe inflar la cuota principal.
   if (!Array.isArray(visitas) || visitas.length === 0) return 0;
@@ -932,7 +933,7 @@ export const resolveRutaHoyKpiStats = (
   return { meta, pendiente, recaudo, eficiencia };
 };
 
-export const isCuotaNoPagada = (cuota: any): boolean => {
+export const isCuotaNoPagada = (cuota: CuotaOperativa): boolean => {
   // Predicado normalizado de "cuota no pagada" (incluye pendientes, vencidas, prorrogadas, etc.).
   const st = String(cuota?.estado || '').toUpperCase();
   return st !== 'PAGADA' && st !== 'PAGADO' && st !== 'ANULADA' && st !== 'ANULADO';
@@ -1014,7 +1015,7 @@ export const computeDiasMoraFromCuotaObjetivo = (
   );
 };
 
-export const computeMontoExigibleHastaHoyFromCuotas = (cuotas: any[], hoyBogotaKey: string): number => {
+export const computeMontoExigibleHastaHoyFromCuotas = (cuotas: CuotaOperativa[], hoyBogotaKey: string): number => {
   // Regla de negocio clave (mora / abonos parciales):
   // Devuelve el total exigible acumulado hasta HOY (inclusive):
   // suma de todas las cuotas NO PAGADAS cuyo vencimiento efectivo <= hoyBogotaKey.
@@ -1040,7 +1041,7 @@ export const computeMontoExigibleHastaHoyFromCuotas = (cuotas: any[], hoyBogotaK
   }, 0);
 };
 
-export const computeMontoNominalHastaHoyFromCuotas = (cuotas: any[], hoyBogotaKey: string): number => {
+export const computeMontoNominalHastaHoyFromCuotas = (cuotas: CuotaOperativa[], hoyBogotaKey: string): number => {
   if (!Array.isArray(cuotas) || cuotas.length === 0) return 0;
   if (!hoyBogotaKey) return 0;
 
