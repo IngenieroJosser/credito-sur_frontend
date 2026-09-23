@@ -20,6 +20,7 @@ import { dashboardService } from '@/services/dashboard-coordinador-service';
 import { prestamosService } from '@/services/prestamos-service';
 import { computeOperationalMetaTotalForTimeFilter } from '@/lib/dashboard-operational-meta';
 import { useRealtimeData } from '@/hooks/useRealtimeData';
+import { logger } from '@/lib/logger';
 
 interface UserData {
   id: string;
@@ -257,7 +258,11 @@ export default function CoordinadorPage() {
         let metaOperativaTotal = 0
         try {
           metaOperativaTotal = await computeOperationalMetaTotalForTimeFilter(period as any)
-        } catch {
+        } catch (error) {
+          // OJO: al fallar, el panel enseña "Meta: $0", que se lee igual que
+          // "hoy no hay nada que cobrar". Se mantiene el 0 para no cambiar lo
+          // que ve la gente sin decidirlo, pero queda el rastro del fallo.
+          logger.warn('No se pudo calcular la meta operativa', error)
           metaOperativaTotal = 0
         }
 

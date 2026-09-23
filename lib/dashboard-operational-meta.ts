@@ -203,7 +203,11 @@ export const computeOperationalMetaTotalForTimeFilter = async (
         }, 0)
 
         return Number(metaRuta || 0)
-      } catch {
+      } catch (error) {
+        // Se devuelve 0 para no tumbar el total entero por una ruta, pero un 0
+        // aqui suma como "esta ruta no tiene nada que cobrar", que es lo
+        // contrario de lo que paso.
+        logger.warn('No se pudo calcular la meta de una ruta', error)
         return 0
       }
     }),

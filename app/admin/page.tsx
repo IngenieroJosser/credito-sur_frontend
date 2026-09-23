@@ -362,7 +362,11 @@ export default function DashboardPage() {
         let metaOperativaTotal = 0
         try {
           metaOperativaTotal = await computeOperationalMetaTotalForTimeFilter(requestedPeriod)
-        } catch {
+        } catch (error) {
+          // OJO: al fallar, el panel enseña "Meta: $0", que se lee igual que
+          // "hoy no hay nada que cobrar". Se mantiene el 0 para no cambiar lo
+          // que ve la gente sin decidirlo, pero queda el rastro del fallo.
+          logger.warn('No se pudo calcular la meta operativa', error)
           metaOperativaTotal = 0
         }
 
