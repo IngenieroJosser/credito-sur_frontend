@@ -612,7 +612,7 @@ export const resolveProximaCuotaFromPrestamo = (prestamo: any): { cuota: any | n
   // 2) primera cuota no pagada del array prestamo.cuotas (ordenadas por fecha efectiva)
   if (!prestamo) return { cuota: null, fechaEfectiva: '' };
 
-  const noPagada = (c: any) => {
+  const noPagada = (c: CuotaOperativa) => {
     const s = String(c?.estado || '').toUpperCase();
     return s !== 'PAGADA' && s !== 'PAGADO' && s !== 'ANULADA' && s !== 'ANULADO';
   };
@@ -661,7 +661,7 @@ export const resolveCuotaProgressFromPrestamo = (prestamo: any): { cuotaActual: 
   const cuotas = Array.isArray(prestamo?.cuotas) ? prestamo.cuotas : [];
   const cuotasTotales = Number(prestamo?.cantidadCuotas ?? cuotas.length ?? 0) || null;
 
-  const noPagada = (c: any) => {
+  const noPagada = (c: CuotaOperativa) => {
     const s = String(c?.estado || '').toUpperCase();
     return s !== 'PAGADA' && s !== 'PAGADO' && s !== 'ANULADA' && s !== 'ANULADO';
   };
@@ -949,8 +949,8 @@ export const computeDiasMoraFromCuotas = (
 
   const frecuencia = String(frecuenciaPagoRaw || '').toUpperCase();
   const vencidasKeys = (cuotas || [])
-    .filter((c: any) => c && isCuotaNoPagada(c))
-    .map((c: any) => normalizeDateKey(resolveFechaEfectivaCuota(c) || String(c?.fechaVencimiento || '')))
+    .filter((c: CuotaOperativa) => c && isCuotaNoPagada(c))
+    .map((c: CuotaOperativa) => normalizeDateKey(resolveFechaEfectivaCuota(c) || String(c?.fechaVencimiento || '')))
     .filter((k: any) => !!k && k < hoyBogotaKey) as string[];
 
   if (vencidasKeys.length === 0) return 0;

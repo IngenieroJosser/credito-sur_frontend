@@ -44,7 +44,7 @@ export interface NotificacionDetalleModalProps {
   userRol?: string
 }
 
-const countValue = (value: any) => {
+const countValue = (value: unknown) => {
   if (Array.isArray(value)) return value.length
   const n = Number(value)
   return Number.isFinite(n) ? n : 0
@@ -124,7 +124,7 @@ export default function NotificacionDetalleModal({
     return ''
   }
 
-  const scalarText = (value: any, fallback = 'No disponible') => {
+  const scalarText = (value: unknown, fallback = 'No disponible') => {
     if (Array.isArray(value)) return String(value.length)
     if (value && typeof value === 'object') return fallback
     const str = String(value ?? '').trim()
@@ -143,7 +143,7 @@ export default function NotificacionDetalleModal({
     )
   }
 
-  const cierrePendienteLabel = (tipoCierre: any) => {
+  const cierrePendienteLabel = (tipoCierre: unknown) => {
     const tipo = scalarText(tipoCierre, '')
     const labels: Record<string, string> = {
       ADMINISTRATIVO_CON_OBSERVACION: 'Cierre administrativo con observación',

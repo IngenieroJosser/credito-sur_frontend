@@ -56,7 +56,7 @@ const text = (...values: any[]) => {
   return ''
 }
 
-const money = (value: any) => formatCurrency(Number(value || 0))
+const money = (value: unknown) => formatCurrency(Number(value || 0))
 
 const formatDate = (value: any) => {
   const raw = text(
