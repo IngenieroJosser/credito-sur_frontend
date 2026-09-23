@@ -299,7 +299,7 @@ const RutaClientLoaded = ({
     }) as any[]
 
     const idsProcesados = new Set<string>()
-    const firstPass = visitasRaw.flatMap((v: any) => {
+    const firstPass = visitasRaw.flatMap((v: VisitaRuta) => {
       const uniqueKey = v?.prestamoId ? `loan-${v.prestamoId}` : `client-${v.clienteId}`
       if (idsProcesados.has(uniqueKey)) return []
       idsProcesados.add(uniqueKey)
@@ -322,8 +322,8 @@ const RutaClientLoaded = ({
       ]
     })
 
-    const clientesConPrestamo = new Set(firstPass.filter((v: any) => v.prestamoId).map((v: any) => v.clienteId))
-    return firstPass.filter((v: any) => {
+    const clientesConPrestamo = new Set(firstPass.filter((v: VisitaRuta) => v.prestamoId).map((v: VisitaRuta) => v.clienteId))
+    return firstPass.filter((v: VisitaRuta) => {
       if (!v.prestamoId && clientesConPrestamo.has(v.clienteId)) return false
       return true
     }) as VisitaRuta[]
@@ -433,7 +433,7 @@ const RutaClientLoaded = ({
 
     const enrichKey = JSON.stringify({
       nonce: enrichNonce,
-      items: visitasCobrador.map((v: any) => ({
+      items: visitasCobrador.map((v: VisitaRuta) => ({
         id: v?.id,
         prestamoId: v?.prestamoId,
         recaudo: v?.recaudadoDelDia,
@@ -478,7 +478,7 @@ const RutaClientLoaded = ({
 
       const actualizadas = await mapWithConcurrency(
         visitasEnriquecidasConCuotas,
-        async (v: any) => {
+        async (v: VisitaRuta) => {
           if (!v.clienteId || !v.prestamoId) return { ...v, recaudadoDelDia: 0, recaudadoTotalClient: 0 };
 
           try {
@@ -496,8 +496,8 @@ const RutaClientLoaded = ({
 
             // El helper ya calculó estos valores, usarlos directamente
             if (v.cuotaObjetivo) {
-              montoCuotaReal = v.montoCuotaNormal
-              montoCuotaPendienteReal = v.montoCuotaPendiente
+              montoCuotaReal = v.montoCuotaNormal as number
+              montoCuotaPendienteReal = v.montoCuotaPendiente as number
               fechaReal = v.proximaVisita
               cuotaActual = v.cuotaActual
               cuotasTotales = v.cuotasTotales
@@ -571,7 +571,7 @@ const RutaClientLoaded = ({
 
       // Fusión selectiva: 'actualizadas' es la fuente base y solo se conservan campos locales puntuales
       const merged = actualizadas.map((actualizada: any) => {
-        const local = visitasCobradorRef.current.find((v: any) =>
+        const local = visitasCobradorRef.current.find((v: VisitaRuta) =>
           v.id === actualizada.id || v.prestamoId === actualizada.prestamoId
         )
 
@@ -762,7 +762,7 @@ const RutaClientLoaded = ({
           v.direccion.toLowerCase().includes(searchQuery.toLowerCase())
         return matchesSearch
       })
-      console.table(filtradas.map((v: any) => ({
+      console.table(filtradas.map((v: VisitaRuta) => ({
         cliente: v.cliente,
         cuotaActual: v.cuotaActual,
         estado: v.estado,
@@ -969,7 +969,7 @@ const RutaClientLoaded = ({
             ? visitasRutaHoyKpi
             : Array.isArray(visitasCobrador)
               ? visitasCobrador
-                  .filter((v: any) => {
+                  .filter((v: VisitaRuta) => {
                     const recaudado = Number(v?.recaudadoDelDia || 0)
                     const metaPendiente = Number(v?.montoCuotaPendiente || 0)
                     const cuotaNormal = Number(v?.montoCuotaNormal ?? v?.montoCuota ?? 0)
@@ -982,7 +982,7 @@ const RutaClientLoaded = ({
                       estadoGestion.includes('PAGO')
                     )
                   })
-                  .filter((v: any) => !isAusente(v))
+                  .filter((v: VisitaRuta) => !isAusente(v))
               : []
 
         const statsUiHoy = computeRutaHoyUiStatsFromVisitas(fuenteKpiHoy, 0)
@@ -1072,7 +1072,7 @@ const RutaClientLoaded = ({
             ? visitasRutaHoyKpi
             : Array.isArray(visitasCobrador)
               ? visitasCobrador
-                  .filter((v: any) => {
+                  .filter((v: VisitaRuta) => {
                     const recaudado = Number(v?.recaudadoDelDia || 0)
                     const metaPendiente = Number(v?.montoCuotaPendiente || 0)
                     const cuotaNormal = Number(v?.montoCuotaNormal ?? v?.montoCuota ?? 0)
@@ -1085,7 +1085,7 @@ const RutaClientLoaded = ({
                       estadoGestion.includes('PAGO')
                     )
                   })
-                  .filter((v: any) => !isAusente(v))
+                  .filter((v: VisitaRuta) => !isAusente(v))
               : []
 
         const statsHoy = computeRutaHoyUiStatsFromVisitas(
@@ -2072,7 +2072,7 @@ const RutaClientLoaded = ({
                 const prestamoIdPago = String(prestamoIdFinal || pagoActual.visita.prestamoId || '')
                 const visitaIdPago = String(pagoActual.visita.id || '')
                 setVisitasCobrador((prev) => {
-                  const next = (prev || []).map((v: any) => {
+                  const next = (prev || []).map((v: VisitaRuta) => {
                     const esVisitaPagada =
                       String(v?.prestamoId || '') === prestamoIdPago ||
                       String(v?.id || '') === visitaIdPago
@@ -2260,7 +2260,7 @@ const RutaClientLoaded = ({
 
                 // Recalcular KPI inmediatamente
                 setRutaStatsCards((prev) => {
-                  const visitasActualizadas = visitasCobrador.map((v: any) => {
+                  const visitasActualizadas = visitasCobrador.map((v: VisitaRuta) => {
                     if (v.id !== visitaReprogramar.id) return v
 
                     return {
@@ -2275,7 +2275,7 @@ const RutaClientLoaded = ({
                     visitasRutaHoyKpi.length > 0
                       ? visitasRutaHoyKpi
                       : visitasActualizadas
-                          .filter((v: any) => {
+                          .filter((v) => {
                             const recaudado = Number(v?.recaudadoDelDia || 0)
                             const metaPendiente = Number(v?.montoCuotaPendiente || 0)
                             const cuotaNormal = Number(v?.montoCuotaNormal ?? v?.montoCuota ?? 0)
@@ -2288,7 +2288,7 @@ const RutaClientLoaded = ({
                               estadoGestion.includes('PAGO')
                             )
                           })
-                          .filter((v: any) => !shouldExcludeVisitaFromOperationalMeta(v))
+                          .filter((v) => !shouldExcludeVisitaFromOperationalMeta(v))
 
                   const statsHoy = computeRutaHoyUiStatsFromVisitas(fuenteKpiHoy, 0)
                   const recaudo = Number(prev.recaudo || 0)
