@@ -24,6 +24,19 @@ export interface Caja {
   responsable: string;
   responsableId: string;
   saldo: number;
+  /**
+   * Alias del saldo que el codigo acepta y el backend NO manda. Se
+   * comprobo endpoint por endpoint: la respuesta expone `saldo`, y
+   * `saldoActual` es solo el nombre de la columna en Prisma, que nunca
+   * sale tal cual. La cadena `saldoActual ?? saldo ?? ...` resuelve por
+   * el segundo eslabon, asi que no estorban; se declaran para que se
+   * sepa que de ahi no viene el dato.
+   */
+  saldoActual?: number;
+  saldoCaja?: number;
+  balance?: number;
+  monto?: number;
+  total?: number;
   saldoMinimo?: number;
   saldoMaximo?: number;
   estado: 'ABIERTA' | 'CERRADA';

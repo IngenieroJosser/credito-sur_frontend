@@ -7,6 +7,7 @@ import { ArrowLeft, CheckCircle2, AlertCircle, Calculator, Wallet, Receipt, Eye 
 import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber, cn } from '@/lib/utils'
 import MoneyAmount from '@/components/contable/MoneyAmount'
 import { getResumenFinanciero, getHistorialCierres, getHistorialCierresFiltrado, getCajas, getMovimientosLedger, getArqueoPreview, confirmarArqueo, getArqueoById } from '@/services/contabilidad-service';
+import type { Caja } from '@/services/contabilidad-service'
 import { Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
 import { getBogotaDateKey } from '@/lib/rutas-core'
 import { getEntradaCajaFisica, getSalidaCajaFisica } from '@/lib/contabilidad-clasificacion'
@@ -36,15 +37,15 @@ const getCajaPrincipal = (cajas: any[]) => {
 
   return (
     cajas.find(
-      (c: any) => 
+      (c: Caja) => 
         String(c?.codigo || '').trim().toUpperCase() === 'CAJA-PRINCIPAL'
     ) || 
     cajas.find(
-      (c: any) => 
+      (c: Caja) => 
         String(c?.nombre || '').trim().toUpperCase() === 'CAJA PRINCIPAL'
     ) || 
     cajas.find(
-      (c: any) => 
+      (c: Caja) => 
         String(c?.tipo || '').trim().toUpperCase() === 'PRINCIPAL' && 
         String(c?.nombre || '').trim().toUpperCase() !== 'CAJA BANCO' && 
         String(c?.nombre || '').trim().toUpperCase() !== 'CAJA DE OFICINA'
@@ -54,7 +55,7 @@ const getCajaPrincipal = (cajas: any[]) => {
 };
 
 // Helper to get saldo from various fields using parseSaldoCaja
-const getSaldoCaja = (caja: any) => {
+const getSaldoCaja = (caja: Caja) => {
   if (!caja) return 0;
 
   const raw = 
@@ -138,14 +139,14 @@ export default function CierreCajaPage() {
       const principal = getCajaPrincipal(cajasList)
       setPrincipalCaja(principal)
       
-      const rutas = cajasList.filter((c: any) => String(c?.tipo || '').trim().toUpperCase() === 'RUTA')
+      const rutas = cajasList.filter((c: Caja) => String(c?.tipo || '').trim().toUpperCase() === 'RUTA')
       setRutaCajas(rutas)
       
       // Detailed debug: log all caja fields (only in dev)
       if (process.env.NODE_ENV === 'development') {
         logger.log('[loadCierreCaja] Starting load...')
         logger.log('[loadCierreCaja] Fetched data:', { res, cierresResp, cajasResp })
-        console.table(cajasList.map((c: any) => ({
+        console.table(cajasList.map((c: Caja) => ({
           id: c.id,
           nombre: c.nombre,
           tipo: c.tipo,
@@ -177,7 +178,7 @@ export default function CierreCajaPage() {
     }
   }, [])
 
-  const selectRutaCaja = useCallback(async (caja: any) => {
+  const selectRutaCaja = useCallback(async (caja: Caja) => {
     setSelectedRutaCaja(caja)
     setForm((prev) => ({
       ...prev,
@@ -202,7 +203,7 @@ export default function CierreCajaPage() {
   useRealtimeData(['dashboards_actualizados', 'pagos_actualizados', 'prestamos_actualizados', 'rutas_actualizadas'], loadCierreCaja)
   
   const rutasPendientesCount = useMemo(() => {
-    return rutaCajas.filter((caja: any) => getSaldoCaja(caja) > 0).length
+    return rutaCajas.filter((caja: Caja) => getSaldoCaja(caja) > 0).length
   }, [rutaCajas])
 
   useEffect(() => {
@@ -828,7 +829,7 @@ export default function CierreCajaPage() {
                 <div className="p-6">
                   {rutaCajas.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                      {rutaCajas.map((caja: any) => (
+                      {rutaCajas.map((caja: Caja) => (
                         <button
                           key={caja.id}
                           type="button"
