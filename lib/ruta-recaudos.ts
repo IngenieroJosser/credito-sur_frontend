@@ -190,10 +190,10 @@ export const computeMontoCuotaPendienteDespuesDeRecaudo = (
   visita: Record<string, any>,
   recaudadoDelDia: unknown,
 ): number => {
-  const cuotaPendienteActualRaw = (visita as any)?.montoCuotaPendiente
+  const cuotaPendienteActualRaw = (visita)?.montoCuotaPendiente
   const tieneCuotaPendiente = cuotaPendienteActualRaw !== undefined && cuotaPendienteActualRaw !== null
-  const cuotaNominal = Number((visita as any)?.montoCuota || 0)
-  const recaudadoPrev = Number((visita as any)?.recaudadoDelDia || 0)
+  const cuotaNominal = Number((visita)?.montoCuota || 0)
+  const recaudadoPrev = Number((visita)?.recaudadoDelDia || 0)
   const recaudadoNext = Number(recaudadoDelDia || 0)
   const deltaRecaudo = Math.max(0, recaudadoNext - recaudadoPrev)
 

@@ -253,7 +253,7 @@ export async function buildRutaHoyOperativa({
       { includeCierrePendiente: false },
     )
 
-    const { ultimoPagoDateByPrestamoId } = indexPagosByPrestamoId(pagosData as any)
+    const { ultimoPagoDateByPrestamoId } = indexPagosByPrestamoId(pagosData)
 
     visitasOperativasConPagos = applyRecaudoHoyToVisitas(
       visitasOperativasVivas.map((v: any) => ({

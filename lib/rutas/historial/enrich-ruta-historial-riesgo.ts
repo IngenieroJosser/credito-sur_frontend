@@ -1,13 +1,14 @@
 import { prestamosService } from '@/services/prestamos-service'
+import type { VisitaRuta } from '@/lib/types/cobranza'
 import { resolveFechaEfectivaCuota, normalizeDateKey, isCuotaNoPagada, computeMontoExigibleHastaHoyFromCuotas, computeDiasMoraFromCuotas } from '@/lib/rutas-core'
 import { resolveRiesgoObligacion, resolveNivelRiesgoUi } from '@/lib/rutas/riesgo-obligacion'
 import { mapWithConcurrency, memoizePromiseByKey } from '@/lib/async-utils'
 
 interface EnrichRutaHistorialRiesgoOptions {
-  visitas: any[]
+  visitas: VisitaRuta[]
   fechaClave: string
   hoyBogotaKey?: string
-  visitasHoy?: any[]
+  visitasHoy?: VisitaRuta[]
 }
 
 /**
@@ -21,7 +22,7 @@ export async function enrichRutaHistorialRiesgo({
   fechaClave,
   hoyBogotaKey,
   visitasHoy,
-}: EnrichRutaHistorialRiesgoOptions): Promise<any[]> {
+}: EnrichRutaHistorialRiesgoOptions): Promise<VisitaRuta[]> {
   const visitasConPrestamo = visitas.filter((v: any) => !!String(v?.prestamoId || ''))
   const esHistorialDeHoy = fechaClave === hoyBogotaKey
   const expectedSource = esHistorialDeHoy ? 'ruta-hoy-v1' : 'cuotas-historicas-v2'
@@ -58,26 +59,26 @@ export async function enrichRutaHistorialRiesgo({
         ...v,
         estado: live.estado,
         nivelRiesgo: live.nivelRiesgo,
-        nivelRiesgoObligacion: (live as any).nivelRiesgoObligacion,
+        nivelRiesgoObligacion: (live).nivelRiesgoObligacion,
         montoCuota: live.montoCuota,
-        montoCuotaNormal: (live as any).montoCuotaNormal ?? live.montoCuota,
-        montoCuotaPendiente: (live as any).montoCuotaPendiente,
-        montoVencidoAcumulado: (live as any).montoVencidoAcumulado,
-        saldoVencidoAcumulado: (live as any).saldoVencidoAcumulado,
-        montoMoraAcumulada: (live as any).montoMoraAcumulada,
-        cuotasVencidas: (live as any).cuotasVencidas,
-        diasMora: (live as any).diasMora,
-        cuotaActual: (live as any).cuotaActual,
-        cuotasTotales: (live as any).cuotasTotales,
-        cuotaId: (live as any).cuotaId,
-        cuotaObjetivoId: (live as any).cuotaObjetivoId,
-        cuotaObjetivoPrestamoId: (live as any).cuotaObjetivoPrestamoId,
-        cuotaObjetivo: (live as any).cuotaObjetivo,
-        proximaCuota: (live as any).proximaCuota,
+        montoCuotaNormal: (live).montoCuotaNormal ?? live.montoCuota,
+        montoCuotaPendiente: (live).montoCuotaPendiente,
+        montoVencidoAcumulado: (live).montoVencidoAcumulado,
+        saldoVencidoAcumulado: (live).saldoVencidoAcumulado,
+        montoMoraAcumulada: (live).montoMoraAcumulada,
+        cuotasVencidas: (live).cuotasVencidas,
+        diasMora: (live).diasMora,
+        cuotaActual: (live).cuotaActual,
+        cuotasTotales: (live).cuotasTotales,
+        cuotaId: (live).cuotaId,
+        cuotaObjetivoId: (live).cuotaObjetivoId,
+        cuotaObjetivoPrestamoId: (live).cuotaObjetivoPrestamoId,
+        cuotaObjetivo: (live).cuotaObjetivo,
+        proximaCuota: (live).proximaCuota,
         enMoraHistorico:
           live.estado === 'en_mora' ||
-          Number((live as any).montoVencidoAcumulado || 0) > 0 ||
-          Number((live as any).diasMora || 0) > 0,
+          Number((live).montoVencidoAcumulado || 0) > 0 ||
+          Number((live).diasMora || 0) > 0,
         riesgoHistoricoUiCalculado: true,
         riesgoHistoricoUiSource: 'ruta-hoy-v1',
       }

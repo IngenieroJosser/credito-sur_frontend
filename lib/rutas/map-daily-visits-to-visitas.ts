@@ -61,13 +61,13 @@ export const mapDailyVisitsResponseToVisitas = ({
   modo = 'LIVE',
   fechaOperativa = hoyBogotaKey,
 }: MapDailyVisitsToVisitasParams): VisitaRuta[] => {
-  const obligaciones = Array.isArray((resp as any)?.obligaciones)
-    ? (resp as any).obligaciones
+  const obligaciones = Array.isArray((resp)?.obligaciones)
+    ? (resp).obligaciones
     : []
 
   const rows = obligaciones.length > 0
     ? obligaciones
-    : (Array.isArray((resp as any)?.visitas) ? (resp as any).visitas : [])
+    : (Array.isArray((resp)?.visitas) ? (resp).visitas : [])
 
   const mapped = rows.map((row: any, idx: number) => {
     const visita = row?.visita || row || {}
@@ -253,7 +253,7 @@ export const mapDailyVisitsResponseToVisitas = ({
       prioridad: nivel === 'ROJO' || nivel === 'LISTA_NEGRA' ? 'alta' : 'media' as any,
       diasMora,
       cobradorId: rutaData?.cobradorId || initialRuta?.cobradorId || '',
-      periodoRuta: mapFrecuenciaToPeriodo(frecuencia as any) as any,
+      periodoRuta: mapFrecuenciaToPeriodo(frecuencia) as any,
       clienteId: c?.id || visita?.clienteId || '',
       prestamoId: p?.id || row?.prestamoId || '',
       tipoPrestamo: esArticulo ? 'ARTICULO' : 'EFECTIVO',
