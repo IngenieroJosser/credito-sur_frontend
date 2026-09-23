@@ -47,6 +47,8 @@ import { WifiOff } from 'lucide-react';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import { useRealtimeData } from '@/hooks/useRealtimeData';
 import { usePageFocusRefresh } from '@/hooks/usePageFocusRefresh';
+import type { Prestamo } from '@/types/domain'
+import type { EstadoPrestamo } from '@/types/enums'
 
 interface Filtros {
   estado: string;
@@ -170,8 +172,8 @@ const ListadoPrestamosElegante = () => {
 
         moraMap = new Map(
           raw
-            .filter((p: any) => p && p.id)
-            .map((p: any) => [
+            .filter((p: Prestamo) => p && p.id)
+            .map((p: Prestamo) => [
               String(p.id),
               {
                 diasMora: Number(p?.diasMora || 0),
@@ -184,7 +186,7 @@ const ListadoPrestamosElegante = () => {
         moraMap = new Map()
       }
 
-      const nextPrestamos = nextPrestamosBase.map((p: any) => {
+      const nextPrestamos = nextPrestamosBase.map((p: Prestamo) => {
         const m = moraMap.get(String(p?.id || ''))
         if (!m) return p
         return {
@@ -192,14 +194,14 @@ const ListadoPrestamosElegante = () => {
           diasMora: Number(m.diasMora || 0),
           cuotasVencidas: Number(m.cuotasVencidas || 0),
           // Si el backend de /loans no marca EN_MORA pero el reporte sí, lo reflejamos.
-          estado: String(m?.estado || p?.estado || ''),
+          estado: String(m?.estado || p?.estado || '') as EstadoPrestamo,
         }
       })
 
       setPrestamos(nextPrestamos);
 
       // Respaldo local si el backend no envía estadísticas de mora.
-      const moraCount = nextPrestamos.filter((p: any) => {
+      const moraCount = nextPrestamos.filter((p: Prestamo) => {
         const diasMora = Number(p?.diasMora || 0)
         const cuotasVencidas = Number(p?.cuotasVencidas || 0)
         const estado = String(p?.estado || '').toUpperCase()

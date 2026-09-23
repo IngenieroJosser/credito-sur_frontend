@@ -10,6 +10,7 @@ import { pagosService } from '@/services/pagos-service'
 import { getLoanAmounts } from '@/lib/loan-calculations'
 import { normalizeDateKey, resolveNextPagoFromPrestamo } from '@/lib/rutas-core'
 import { Skeleton, SkeletonTabla } from '@/components/ui/Skeleton'
+import type { Pago, Prestamo } from '@/types/domain'
 
 interface EstadoCuentaModalProps {
   visita: VisitaRuta
@@ -73,7 +74,7 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
           })
           if (response.prestamos && response.prestamos.length > 0) {
             const clientLoan = visita.clienteId 
-                ? response.prestamos.find((p: any) => p.clienteId === visita.clienteId)
+                ? response.prestamos.find((p: Prestamo) => p.clienteId === visita.clienteId)
                 : response.prestamos[0];
             
             if (clientLoan) {
@@ -179,7 +180,7 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
     }
 
     const ordered = [...source].sort((a, b) => new Date(b.fechaPago).getTime() - new Date(a.fechaPago).getTime())
-    const rows = ordered.flatMap((p: any) => {
+    const rows = ordered.flatMap((p: Pago) => {
       const detalles = Array.isArray(p?.detalles) ? p.detalles : []
       if (detalles.length > 0) {
         return detalles.map((d: any) => {
@@ -385,7 +386,7 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100 bg-white">
-                                {historialPagos.length > 0 ? historialPagos.map((p: any, i: number) => (
+                                {historialPagos.length > 0 ? historialPagos.map((p, i: number) => (
                                     <tr key={i} className="hover:bg-slate-50 transition-colors">
                                         <td className="px-4 py-3">
                                             <div className="font-black text-slate-900 uppercase">{p.fecha}</div>

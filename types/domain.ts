@@ -82,6 +82,12 @@ export interface Prestamo {
   cuotas?: Cuota[];
   extensiones?: Extension[];
   proximaCuota?: Cuota | null;
+  /**
+   * Cuotas vencidas, calculadas por el servidor y adjuntadas al
+   * prestamo (alertas-clientes.service). No es columna. `diasMora`, su
+   * pareja, ya estaba declarado mas abajo.
+   */
+  cuotasVencidas?: number;
   /** Estado de la revision del credito (columna del modelo). */
   estadoAprobacion?: string;
   /** Efecto provisional aplicado mientras se aprueba. */
@@ -204,6 +210,15 @@ export interface Pago {
   fechaPago: string;
   comprobante?: string | null;
   notas?: string | null;
+  /** Numero de recibo o referencia (columna del modelo). */
+  numeroReferencia?: string | null;
+  /**
+   * Alias que el codigo acepta y el backend NO manda: `monto` por
+   * `montoTotal` y `referencia` por `numeroReferencia`. Van siempre en
+   * una cadena `a || b` junto al nombre bueno.
+   */
+  monto?: number;
+  referencia?: string | null;
   /** Fecha operativa de la ruta a la que se imputa el pago (columna del modelo). */
   fechaOperativaRuta?: string | null;
   /**

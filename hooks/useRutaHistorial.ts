@@ -6,6 +6,7 @@ import { applyPagosDelDiaToHistorialVisitas } from '@/lib/ruta-historial'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 
 import type { HistorialDia, VisitaRuta } from '@/lib/types/cobranza'
+import type { Pago } from '@/types/domain'
 
 type ResumenBase = {
   recaudo: number
@@ -100,7 +101,7 @@ export const useRutaHistorial = (params: UseRutaHistorialParams) => {
         const keys = Object.keys(next)
 
         const cobradorIdActual = cobradorIdRef.current
-        const pagosFiltrados = (Array.isArray(pagosData) ? pagosData : []).filter((p: any) => {
+        const pagosFiltrados = (Array.isArray(pagosData) ? pagosData : []).filter((p: Pago) => {
           const cobradorMatch = cobradorIdActual ? (p?.cobradorId === cobradorIdActual) : true
           return cobradorMatch
         })
@@ -110,7 +111,7 @@ export const useRutaHistorial = (params: UseRutaHistorialParams) => {
         for (const k of keys) {
           if (next[k]?.loaded) continue
 
-          const pagosOperativosDelDia = pagosFiltrados.filter((p: any) => {
+          const pagosOperativosDelDia = pagosFiltrados.filter((p: Pago) => {
             if (isPagoCierrePendiente(p)) return false
 
             const fechaOperativa = String(p?.fechaOperativaRuta || '').slice(0, 10)
@@ -127,7 +128,7 @@ export const useRutaHistorial = (params: UseRutaHistorialParams) => {
             { includeCierrePendiente: false },
           )
           const visitadosKeys = new Set<string>()
-          pagosOperativosDelDia.forEach((p: any) => {
+          pagosOperativosDelDia.forEach((p: Pago) => {
             const pid = String(p?.prestamoId || p?.prestamo?.id || '')
             const cid = String(p?.clienteId || p?.cliente?.id || '')
             const key = pid ? `loan-${pid}` : (cid ? `client-${cid}` : String(p?.id || ''))
@@ -182,7 +183,7 @@ export const useRutaHistorial = (params: UseRutaHistorialParams) => {
           const pagosResp = await fetchPagosRef.current()
           const pagosData = (pagosResp as any)?.pagos || pagosResp || []
           const cobradorIdActual = cobradorIdRef.current
-          pagosDelDia = (Array.isArray(pagosData) ? pagosData : []).filter((p: any) => {
+          pagosDelDia = (Array.isArray(pagosData) ? pagosData : []).filter((p: Pago) => {
             const raw = p?.fechaPago || p?.creadoEn
             if (!raw) return false
             const pk = getPagoBogotaDateKey(raw)
