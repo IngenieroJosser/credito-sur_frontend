@@ -109,6 +109,11 @@ export interface VisitaRuta {
   nuevaFechaPago?: string | null
   aprobacionEstado?: string
   efectoProvisionalEstado?: string | null
+  /** Frecuencia de cobro del prestamo (routes.service:769). */
+  frecuenciaPago?: string
+  /** Banderas que deja el enriquecedor de riesgo del historial. */
+  riesgoHistoricoUiCalculado?: boolean
+  riesgoHistoricoUiSource?: string
   /** Lo marca el frontend al enriquecer el historial: hubo mora ese dia. */
   enMoraHistorico?: boolean
   notasVisita?: string | null // Nota/justificación registrada al marcar ausencia
