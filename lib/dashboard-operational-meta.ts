@@ -1,4 +1,5 @@
 import { apiRequest } from '@/lib/api/api'
+import { logger } from '@/lib/logger'
 import {
   computeMontoExigibleHastaHoyFromCuotas,
   getBogotaDateKey,
@@ -17,7 +18,24 @@ import { prestamosService } from '@/services/prestamos-service'
 
 export type OperationalMetaTimeFilter = 'today' | 'week' | 'month' | 'year'
 
-const metaByRouteCache = new Map<string, Record<string, number>>()
+/**
+ * Meta por ruta ya calculada, para no repetir el calculo al alternar filtros.
+ *
+ * Caduca a los 60 segundos. El autor ya habia visto el problema -por eso
+ * "hoy" no se cachea, "ya que cambian constantemente"- pero los rangos de
+ * semana, mes y año TAMBIEN terminan hoy: son lunes-a-hoy, dia-1-a-hoy y
+ * enero-a-hoy. Y lo que se guarda aqui no es un objetivo fijo, es lo que
+ * queda por cobrar: descuenta las cuotas pagadas y los recaudos del dia.
+ *
+ * Sin caducidad, quien dejaba el reporte operativo abierto con "Sem" o "Mes"
+ * veia la misma cifra el resto de la jornada por mucho que se cobrara.
+ */
+const VIGENCIA_CACHE_MS = 60_000
+
+const metaByRouteCache = new Map<
+  string,
+  { calculadaEn: number; metas: Record<string, number> }
+>()
 
 const toBackendRangePeriod = (timeFilter: OperationalMetaTimeFilter): 'HOY' | 'SEM' | 'MES' | 'AÑO' => {
   if (timeFilter === 'week') return 'SEM'
@@ -212,7 +230,10 @@ export const computeOperationalMetaByRouteIdsForTimeFilter = async (
   // No cachear datos de hoy, ya que cambian constantemente
   if (timeFilter !== 'today') {
     const cached = metaByRouteCache.get(cacheKey)
-    if (cached) return cached
+    if (cached && Date.now() - cached.calculadaEn < VIGENCIA_CACHE_MS) {
+      return cached.metas
+    }
+    if (cached) metaByRouteCache.delete(cacheKey)
   }
 
   const beforeStartKey = getBeforeStartKey(timeFilter, startKey)
@@ -348,7 +369,11 @@ export const computeOperationalMetaByRouteIdsForTimeFilter = async (
         }, 0)
 
         out[routeId] = Number(metaRuta || 0)
-      } catch {
+      } catch (error) {
+        // Se deja en 0 para no romper el reporte entero por una ruta, pero un
+        // 0 aqui se lee igual que "esta ruta no tiene nada que cobrar hoy",
+        // que es justo lo contrario de lo que paso.
+        logger.warn(`No se pudo calcular la meta de la ruta ${routeId}`, error)
         out[routeId] = 0
       }
     }),
@@ -356,7 +381,7 @@ export const computeOperationalMetaByRouteIdsForTimeFilter = async (
 
   // No guardar en cache datos de hoy
   if (timeFilter !== 'today') {
-    metaByRouteCache.set(cacheKey, out)
+    metaByRouteCache.set(cacheKey, { calculadaEn: Date.now(), metas: out })
   }
   return out
 }
