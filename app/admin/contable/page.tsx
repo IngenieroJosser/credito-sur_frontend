@@ -2125,13 +2125,14 @@ const ModuloContableContent = () => {
                 >
                   Cancelar
                 </button>
-                <button
+                <BotonAccion
                   type="button"
                   onClick={handleEditarCaja}
+                  textoCargando="Guardando…"
                   className="px-6 py-3 rounded-2xl bg-amber-600 text-white text-sm font-bold hover:bg-amber-700"
                 >
                   Guardar
-                </button>
+                </BotonAccion>
               </div>
             </div>
           </div>

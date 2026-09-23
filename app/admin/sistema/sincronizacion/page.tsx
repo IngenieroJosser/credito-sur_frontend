@@ -17,6 +17,7 @@ import { offlineStore } from '@/lib/offline/offlineDb'
 import { syncManager } from '@/lib/offline/syncManager'
 import type { OfflineQueueItem, SyncMeta } from '@/lib/offline/offlineDb'
 import ListaConflictos from '@/components/conflictos/ListaConflictos'
+import BotonAccion from '@/components/ui/BotonAccion'
 
 const SyncStatusPage = () => {
   const { isOnline, pendingOps, failedOps, isSyncing, syncNow, downloadForOffline } = useOffline()
@@ -482,12 +483,13 @@ const SyncStatusPage = () => {
                     </div>
                   </div>
                   {queueItems.length > 0 && (
-                    <button
+                    <BotonAccion
                       onClick={handleClearCompleted}
+                      textoCargando="Limpiando…"
                       className="text-xs font-bold text-slate-500 hover:text-slate-700 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors"
                     >
                       Limpiar
-                    </button>
+                    </BotonAccion>
                   )}
                 </div>
               </div>

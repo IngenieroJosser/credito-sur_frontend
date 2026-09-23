@@ -26,6 +26,7 @@ import { restoreOfflineSession, hasValidOfflineSession, getOfflineSessionDaysRem
 import { esErrorDeRed } from '@/lib/offline/conRespaldoOffline';
 import { apiClient } from '@/lib/api/apiClient';
 import { formatRoleLabel } from '@/lib/display-labels';
+import { rutaDeRol } from '@/lib/auth/rutaPorRol';
 
 interface LoginFormData {
   nombres: string;
@@ -132,16 +133,7 @@ const LoginPage = () => {
 
       try {
         const user = JSON.parse(userStr);
-        const roleRedirects: Record<string, string> = {
-          'COBRADOR': '/cobranzas',
-          'COORDINADOR': '/coordinador',
-          'SUPER_ADMINISTRADOR': '/admin',
-          'ADMINISTRADOR': '/admin',
-          'SUPERVISOR': '/supervisor',
-          'CONTADOR': '/contador/contable',
-          'PUNTO_DE_VENTA': '/punto-de-venta'
-        };
-        const redirectPath = roleRedirects[user.rol] || '/admin';
+        const redirectPath = rutaDeRol(user.rol);
         router.replace(redirectPath);
       } catch {
         localStorage.removeItem('token');
@@ -194,12 +186,7 @@ const LoginPage = () => {
       return;
     }
     const user = restored.user;
-    const roleRedirects: Record<string, string> = {
-      COBRADOR: '/cobranzas', COORDINADOR: '/coordinador', SUPER_ADMINISTRADOR: '/admin',
-      ADMINISTRADOR: '/admin', SUPERVISOR: '/supervisor', CONTADOR: '/contador/contable',
-      PUNTO_DE_VENTA: '/punto-de-venta',
-    };
-    const redirectPath = roleRedirects[user?.rol] || '/admin';
+    const redirectPath = rutaDeRol(user?.rol);
     showToast('Modo sin conexión', `${user?.nombres || 'Usuario'} (${formatRoleLabel(user?.rol || 'Usuario')})`, 'success');
     setTimeout(() => {
       setIsRedirecting(true);
@@ -350,12 +337,7 @@ const LoginPage = () => {
           const restored = restoreOfflineSession();
           if (restored) {
             const user = restored.user;
-            const roleRedirects: Record<string, string> = {
-              COBRADOR: '/cobranzas', COORDINADOR: '/coordinador', SUPER_ADMINISTRADOR: '/admin',
-              ADMINISTRADOR: '/admin', SUPERVISOR: '/supervisor', CONTADOR: '/contador/contable',
-              PUNTO_DE_VENTA: '/punto-de-venta',
-            };
-            const redirectPath = roleRedirects[user?.rol] || '/admin';
+            const redirectPath = rutaDeRol(user?.rol);
             showToast('Modo sin conexión', `${user?.nombres || 'Usuario'} (${formatRoleLabel(user?.rol || 'Usuario')})`, 'success');
             setTimeout(() => {
               setIsRedirecting(true);

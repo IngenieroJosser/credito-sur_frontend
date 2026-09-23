@@ -17,6 +17,7 @@ import DetallePrestamoModal from '@/components/prestamos/DetallePrestamoModal'
 import DetalleProductoModal from '@/components/articulos/DetalleProductoModal'
 import Paginador from '@/components/ui/Paginador'
 import { SkeletonTabla } from '@/components/ui/Skeleton'
+import BotonAccion from '@/components/ui/BotonAccion'
 
 interface ArchivedItem {
   id: string
@@ -489,12 +490,13 @@ export default function ArchivadosPage() {
                 >
                   Cancelar
                 </button>
-                <button
+                <BotonAccion
                   onClick={handleRestore}
+                  textoCargando="Restaurando…"
                   className="flex-1 px-4 py-2.5 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-lg shadow-emerald-600/20 transition-all transform active:scale-95"
                 >
                   Restaurar
-                </button>
+                </BotonAccion>
               </div>
             </div>
           </div>
@@ -522,12 +524,13 @@ export default function ArchivadosPage() {
                 >
                   Cancelar
                 </button>
-                <button
+                <BotonAccion
                   onClick={handleHideArchived}
+                  textoCargando="Quitando…"
                   className="flex-1 px-4 py-2.5 text-sm font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow-lg shadow-rose-600/20 transition-all transform active:scale-95"
                 >
                   Quitar
-                </button>
+                </BotonAccion>
               </div>
             </div>
           </div>

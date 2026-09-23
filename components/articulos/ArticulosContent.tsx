@@ -55,6 +55,7 @@ import { useRouter } from 'next/navigation'
 import IngresoMercanciaModal from '@/components/articulos/IngresoMercanciaModal'
 import { exportService } from '@/services/export-service'
 import { formatErrorForComponent } from '@/lib/api/api'
+import BotonAccion from '@/components/ui/BotonAccion'
 
 // Interfaces
 interface PrecioCuota {
@@ -1201,13 +1202,14 @@ export default function ArticulosContent() {
               >
                 Cancelar
               </button>
-              <button
+              <BotonAccion
                 type="button"
                 onClick={confirmarEliminar}
+                textoCargando="Archivando…"
                 className="px-6 py-2.5 rounded-xl bg-rose-500 text-white text-sm font-bold hover:bg-rose-600 active:bg-rose-700 transition-all duration-200 shadow-sm shadow-rose-200"
               >
                 Sí, archivar
-              </button>
+              </BotonAccion>
             </div>
           </div>
         </div>

@@ -76,7 +76,9 @@ export default function ListaConflictos() {
         </div>
         <button
           onClick={loadConflictos}
-          className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-colors text-sm"
+          disabled={loading}
+          aria-busy={loading}
+          className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-colors text-sm disabled:cursor-not-allowed disabled:opacity-60"
         >
           <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
           Actualizar

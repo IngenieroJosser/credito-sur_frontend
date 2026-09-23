@@ -2325,13 +2325,14 @@ const UserManagementPage = () => {
                     >
                       Cancelar
                     </button>
-                    <button
+                    <BotonAccion
                       onClick={handleUpdatePermissions}
+                      textoCargando="Guardando…"
+                      icono={<Save className="h-4 w-4" />}
                       className="px-5 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-2xl shadow-lg shadow-blue-600/20 transition-all transform active:scale-95 flex items-center gap-2"
                     >
-                      <Save className="h-4 w-4" />
                       <span>Guardar Cambios</span>
-                    </button>
+                    </BotonAccion>
                   </div>
                 </div>
               </div>
@@ -2372,15 +2373,16 @@ const UserManagementPage = () => {
                       >
                         Cancelar
                       </button>
-                      <button
+                      <BotonAccion
                         onClick={handleConfirmUserAction}
+                        textoCargando="Procesando…"
                         className={cn(
                           "flex-1 px-4 py-2.5 text-sm font-bold text-white rounded-2xl shadow-lg transition-all transform active:scale-95",
                           config.button,
                         )}
                       >
                         {config.confirm}
-                      </button>
+                      </BotonAccion>
                     </div>
                   </div>
                     )
