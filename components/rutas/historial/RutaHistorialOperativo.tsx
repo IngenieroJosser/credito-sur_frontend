@@ -8,6 +8,7 @@ import { normalizeVisitaHistorial, computeHistorialResumenCompartido, hasGestion
 import { formatMilesCOP } from '@/lib/utils'
 import type { VisitaRuta, EstadoVisita } from '@/lib/types/cobranza'
 import { StaticVisitaItem } from '@/components/dashboards/shared/CobradorElements'
+import { Skeleton } from '@/components/ui/Skeleton'
 
 type RutaHistorialOperativoProps = {
   rutaId?: string
@@ -210,9 +211,11 @@ export default function RutaHistorialOperativo({
                     </div>
                     <div>
                       {!data.loaded ? (
-                        <div className="flex flex-col items-center justify-center py-8 text-slate-400">
-                          <div className="w-6 h-6 border-2 border-slate-300 border-t-[#08557f] rounded-full animate-spin mb-2" />
-                          <span className="text-xs font-medium">Cargando detalles...</span>
+                        <div className="space-y-2" aria-busy="true">
+                          <span className="sr-only">Cargando…</span>
+                          {Array.from({ length: 3 }).map((_, i) => (
+                            <Skeleton key={i} className="h-10 rounded-xl" />
+                          ))}
                         </div>
                       ) : visitasHistorialFiltradas.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-10 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
@@ -389,9 +392,11 @@ export default function RutaHistorialOperativo({
                                 </div>
                                 <div>
                                   {!dayData.loaded ? (
-                                    <div className="flex flex-col items-center justify-center py-8 text-slate-400">
-                                      <div className="w-6 h-6 border-2 border-slate-300 border-t-[#08557f] rounded-full animate-spin mb-2" />
-                                      <span className="text-xs font-medium">Cargando detalles...</span>
+                                    <div className="space-y-2" aria-busy="true">
+                                      <span className="sr-only">Cargando…</span>
+                                      {Array.from({ length: 3 }).map((_, i) => (
+                                        <Skeleton key={i} className="h-10 rounded-xl" />
+                                      ))}
                                     </div>
                                   ) : visitasHistorialFiltradas.length === 0 ? (
                                     <div className="flex flex-col items-center justify-center py-10 bg-slate-50 rounded-2xl border border-dashed border-slate-200">

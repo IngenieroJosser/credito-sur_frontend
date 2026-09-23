@@ -1,6 +1,6 @@
 'use client'
 
-import { SkeletonDetalle } from '@/components/ui/Skeleton'
+import { Skeleton, SkeletonDetalle } from '@/components/ui/Skeleton'
 
 import { logger } from '@/lib/logger'
 
@@ -37,7 +37,6 @@ import {
   CalendarDays,
   Star,
   History,
-  Loader2,
   ChevronDown,
   FileDown,
   Eye,
@@ -1681,12 +1680,11 @@ const RutaClientLoaded = ({
 
                 {loadingMisCreditos ? (
 
-                  <div className="flex flex-col items-center justify-center py-10 text-slate-400">
-
-                    <Loader2 className="w-6 h-6 animate-spin mb-2 opacity-20" />
-
-                    <span className="text-xs font-medium">Cargando clientes...</span>
-
+                  <div className="space-y-2" aria-busy="true">
+                    <span className="sr-only">Cargando…</span>
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <Skeleton key={i} className="h-12 rounded-xl" />
+                    ))}
                   </div>
 
                 ) : (() => {

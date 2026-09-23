@@ -10,7 +10,7 @@ import {
 
 import { apiRequest } from '@/lib/api/api';
 import { formatCurrency } from '@/lib/utils';
-import { Cargando } from '@/components/ui/PantallaCarga';
+import { Skeleton, SkeletonTexto } from '@/components/ui/Skeleton';
 
 /**
  * Revisión del estado contable, desde la pantalla.
@@ -159,7 +159,13 @@ export const EstadoContableCard: React.FC = () => {
         </button>
       </div>
 
-      {cargando && !estado && <Cargando texto="Revisando el libro…" />}
+      {cargando && !estado && (
+        <div className="space-y-3 py-4" aria-busy="true">
+          <span className="sr-only">Revisando el libro…</span>
+          <Skeleton className="h-4 w-48" />
+          <SkeletonTexto lineas={3} />
+        </div>
+      )}
 
       {error && (
         <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">

@@ -186,9 +186,11 @@ export default function ConsolidacionCajasModal({ isOpen, onClose, onSuccess }: 
           {/* Content */}
           <div className="flex-1 overflow-y-auto p-8 bg-slate-50">
             {loading && cajas.length === 0 && historial.length === 0 ? (
-              <div className="h-64 flex flex-col items-center justify-center text-slate-400">
-                <div className="w-10 h-10 border-4 border-slate-200 border-t-blue-500 rounded-full animate-spin mb-4" />
-                <p className="font-medium">Cargando información...</p>
+              <div className="space-y-2" aria-busy="true">
+                <span className="sr-only">Cargando…</span>
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="h-16 rounded-xl" />
+                ))}
               </div>
             ) : activeTab === 'consolidar' ? (
               <div className="space-y-6">

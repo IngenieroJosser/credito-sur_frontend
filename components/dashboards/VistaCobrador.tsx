@@ -262,6 +262,7 @@ import { pagosService } from '@/services/pagos-service'
 import { TipoAmortizacion, MetodoPago } from '@/types/enums'
 
 import { toast } from 'sonner'
+import { Skeleton } from '@/components/ui/Skeleton'
 
 const normalizePeriodoRuta = (raw: any): any => {
   const v = String(raw || '').toUpperCase()
@@ -4355,12 +4356,11 @@ const VistaCobrador = () => {
 
                           return (
 
-                            <div className="flex flex-col items-center justify-center py-10 text-slate-400">
-
-                              <div className="w-6 h-6 border-2 border-slate-300 border-t-[#08557f] rounded-full animate-spin mb-2" />
-
-                              <span className="text-xs font-medium">Cargando clientes...</span>
-
+                            <div className="space-y-2" aria-busy="true">
+                              <span className="sr-only">Cargando…</span>
+                              {Array.from({ length: 4 }).map((_, i) => (
+                                <Skeleton key={i} className="h-12 rounded-xl" />
+                              ))}
                             </div>
 
                           )

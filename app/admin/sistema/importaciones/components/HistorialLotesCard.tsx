@@ -1,13 +1,18 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Eye, History, Loader2, ShieldAlert } from 'lucide-react';
+import {
+  Eye,
+  History,
+  ShieldAlert
+} from 'lucide-react';
 import { toast } from 'sonner';
 
 import { importacionesService } from '@/services/importaciones-service';
 import { LoteImportacion } from '@/types/importaciones';
 import RevisarLoteModal from './RevisarLoteModal';
 import Paginador from '@/components/ui/Paginador';
+import { Skeleton } from '@/components/ui/Skeleton'
 
 const LOTES_POR_PAGINA = 5;
 
@@ -95,9 +100,11 @@ export const HistorialLotesCard: React.FC<{ recargar?: number }> = ({ recargar }
         </div>
 
         {cargando && (
-          <div className="flex items-center gap-2 py-6 text-sm text-slate-500">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Cargando historial…
+          <div className="space-y-2" aria-busy="true">
+            <span className="sr-only">Cargando…</span>
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-12 rounded-xl" />
+            ))}
           </div>
         )}
 

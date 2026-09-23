@@ -15,7 +15,7 @@ import { importacionesService } from "@/services/importaciones-service";
 import { CreditoDeLote, DetalleLoteImportacion } from "@/types/importaciones";
 import { formatCurrency } from "@/lib/utils";
 import Portal from "@/components/ui/Portal";
-import { Cargando } from "@/components/ui/PantallaCarga";
+import { SkeletonTabla } from "@/components/ui/Skeleton";
 
 /**
  * Revisar antes de deshacer.
@@ -286,7 +286,12 @@ export const RevisarLoteModal: React.FC<Props> = ({
           </div>
 
           {cargando && (
-            <Cargando texto="Buscando lo que creó esta importación…" />
+            <div className="space-y-3 px-6 py-6" aria-busy="true">
+              <span className="sr-only">
+                Buscando lo que creó esta importación…
+              </span>
+              <SkeletonTabla filas={4} columnas={4} />
+            </div>
           )}
 
           {error && (

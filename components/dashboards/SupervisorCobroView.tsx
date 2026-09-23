@@ -154,6 +154,7 @@ import { SafePointerSensor } from '@/components/dashboards/shared/safe-pointer-s
 import RutaProvisionalModal from '@/components/dashboards/shared/RutaProvisionalModal'
 
 import { toast } from 'sonner'
+import { Skeleton } from '@/components/ui/Skeleton'
 
 const isUuid = (value?: string | null) => {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
@@ -2617,12 +2618,11 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
                           return (
 
-                            <div className="flex flex-col items-center justify-center py-10 text-slate-400">
-
-                              <div className="w-6 h-6 border-2 border-slate-300 border-t-[#08557f] rounded-full animate-spin mb-2" />
-
-                              <span className="text-xs font-medium">Cargando clientes...</span>
-
+                            <div className="space-y-2" aria-busy="true">
+                              <span className="sr-only">Cargando…</span>
+                              {Array.from({ length: 4 }).map((_, i) => (
+                                <Skeleton key={i} className="h-12 rounded-xl" />
+                              ))}
                             </div>
 
                           )

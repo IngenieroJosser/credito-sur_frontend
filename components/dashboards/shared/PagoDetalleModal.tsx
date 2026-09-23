@@ -546,10 +546,7 @@ export default function PagoDetalleModal({
 
                 {/* Esperando carga */}
                 {loading && (
-                  <div className="text-center py-8">
-                    <RefreshCw className="h-6 w-6 text-slate-300 animate-spin mx-auto mb-2" />
-                    <p className="text-xs text-slate-400 font-medium">Cargando...</p>
-                  </div>
+                  <SkeletonTexto lineas={3} className="py-4" />
                 )}
 
                 {/* Sin comprobante */}

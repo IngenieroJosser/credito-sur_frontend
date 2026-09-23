@@ -11,7 +11,6 @@ import {
   Banknote,
   ChevronLeft,
   ChevronRight,
-  AlertCircle,
   Receipt,
   ReceiptText,
   X
@@ -643,9 +642,11 @@ const HistorialPagosPage = () => {
 
             {/* Lista de cobradores con gastos */}
             {isLoadingGastos ? (
-              <div className="flex items-center justify-center py-12 gap-2 text-slate-400">
-                <AlertCircle className="h-4 w-4 animate-spin" />
-                <span className="text-xs font-bold">Cargando gastos...</span>
+              <div className="space-y-2" aria-busy="true">
+                <span className="sr-only">Cargando…</span>
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="h-12 rounded-xl" />
+                ))}
               </div>
             ) : gastosPorCobradorFiltrado.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 gap-3">

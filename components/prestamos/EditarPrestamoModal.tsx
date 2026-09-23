@@ -12,6 +12,7 @@ import { formatErrorForComponent } from '@/lib/api/api';
 import { articulosService } from '@/services/articulos-service';
 import { normalizeDateKey } from '@/lib/rutas-core';
 import { TipoAmortizacion } from '@/types/enums';
+import { Skeleton, SkeletonTexto } from '@/components/ui/Skeleton'
 
 interface EditarPrestamoModalProps {
   id: string;
@@ -452,9 +453,11 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
         {/* Content */}
         <div className="flex-1 overflow-y-auto bg-white/50">
           {fetching ? (
-            <div className="flex flex-col items-center justify-center py-16 gap-3">
-              <Loader2 className={`w-8 h-8 text-${themeColor}-600 animate-spin`} />
-              <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Sincronizando datos...</p>
+            <div className="space-y-4 p-6" aria-busy="true">
+              <span className="sr-only">Cargando el préstamo…</span>
+              <Skeleton className="h-4 w-40" />
+              <SkeletonTexto lineas={5} />
+              <Skeleton className="h-24 w-full rounded-2xl" />
             </div>
           ) : (
           <>

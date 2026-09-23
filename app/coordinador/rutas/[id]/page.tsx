@@ -15,45 +15,24 @@ const isUuid = (value?: string | null) => {
 }
 
 import {
-
   CheckCircle2,
-
   XCircle,
-
   Banknote,
-
   ArrowLeft,
-
   Save,
-
   Search,
-
   FileText as FileTextIcon,
-
   History,
-
-  Loader2,
-
   User,
-
   Fingerprint,
-
   Star,
-
   CalendarDays,
-
   Phone,
-
   MapPin,
-
   Calendar,
-
   ChevronDown,
-
   Plus,
-
   CreditCard
-
 } from 'lucide-react'
 
 import { formatCOPInputValue, formatCurrency, formatMilesCOP } from '@/lib/utils'
@@ -1806,12 +1785,11 @@ const LegacyDetalleRutaPage = () => {
 
                                     {!data.loaded ? (
 
-                                      <div className="flex flex-col items-center justify-center py-8 text-slate-400">
-
-                                        <Loader2 className="w-6 h-6 animate-spin mb-2 opacity-20" />
-
-                                        <span className="text-xs font-medium">Cargando detalles...</span>
-
+                                      <div className="space-y-2" aria-busy="true">
+                                        <span className="sr-only">Cargando…</span>
+                                        {Array.from({ length: 3 }).map((_, i) => (
+                                          <Skeleton key={i} className="h-12 rounded-xl" />
+                                        ))}
                                       </div>
 
                                     ) : data.visitas.length === 0 ? (
@@ -2769,12 +2747,11 @@ function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose:
 
           {loading ? (
 
-            <div className="py-16 flex flex-col items-center justify-center gap-4">
-
-              <Loader2 className="w-10 h-10 text-[#08557f] animate-spin" />
-
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sincronizando...</p>
-
+            <div className="space-y-2" aria-busy="true">
+              <span className="sr-only">Cargando…</span>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-12 rounded-xl" />
+              ))}
             </div>
 
           ) : (

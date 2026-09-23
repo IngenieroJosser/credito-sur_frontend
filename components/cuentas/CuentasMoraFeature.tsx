@@ -34,6 +34,7 @@ import { formatErrorForComponent } from '@/lib/api/api'
 import { exportService } from '@/services/export-service'
 import { toast } from 'sonner'
 import { resolveRiesgoObligacion } from '@/lib/rutas/riesgo-obligacion'
+import { SkeletonTarjetas } from '@/components/ui/Skeleton'
 
 type NivelRiesgo = 'VERDE' | 'LEVE' | 'PRECAUCION' | 'ROJO' | 'LISTA_NEGRA'
 type EstadoPrestamo = 'EN_MORA' | 'INCUMPLIDO' | 'PERDIDA'
@@ -474,10 +475,7 @@ export default function CuentasMoraFeature() {
 
         {/* Contenido */}
         {isDataLoading ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <RefreshCw className="h-10 w-10 animate-spin text-primary mb-4" />
-            <p className="text-slate-500 font-medium">Cargando cuentas en mora...</p>
-          </div>
+          <SkeletonTarjetas cantidad={6} />
         ) : cuentas.length === 0 ? (
           <div className="col-span-full text-center py-16 bg-white rounded-2xl border border-slate-200 border-dashed">
             <div className="shrink-0 inline-flex p-4 rounded-full bg-emerald-50 mb-4">
