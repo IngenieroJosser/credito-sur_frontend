@@ -55,166 +55,27 @@ const getBeforeStartKey = (timeFilter: OperationalMetaTimeFilter, startKey: stri
   return subtractOneDayBogotaKey(startKey)
 }
 
-export const computeOperationalMetaTotalForTimeFilter = async (
-  timeFilter: OperationalMetaTimeFilter,
-): Promise<number> => {
-  const range = getBogotaRangeByPeriod(toBackendRangePeriod(timeFilter))
-  const startKey = normalizeDateKey(range.inicio)
-  const endKey = normalizeDateKey(range.fin)
-  if (!startKey || !endKey) return 0
-
-  const beforeStartKey = getBeforeStartKey(timeFilter, startKey)
-
-  let recaudosHoyMap: Record<string, number> = {}
-  if (timeFilter === 'today') {
-    try {
-      const pagosResp: any = await apiRequest<any>('GET', '/payments?limit=5000', undefined, { cacheTTL: 0 } as any)
-      const pagosData = (pagosResp as any)?.pagos || (pagosResp as any)?.data?.pagos || pagosResp || []
-      recaudosHoyMap = buildRecaudosHoyMapByPrestamoId(
-        (Array.isArray(pagosData) ? pagosData : []) as any,
-        endKey,
-        { includeCierrePendiente: false },
-      )
-    } catch {
-      recaudosHoyMap = {}
-    }
-  }
-
-  const rutasResp: any = await routesService.getAll({ limit: 500 } as any)
-  const rutasPayload = (rutasResp as any)?.data ?? rutasResp
-  const rutasArr: any[] = Array.isArray(rutasPayload)
-    ? rutasPayload
-    : (Array.isArray((rutasPayload as any)?.data) ? (rutasPayload as any).data : [])
-
-  const rutasActivas = rutasArr.filter((r: any) => r && r.estado === 'ACTIVA' && r.id)
-  if (rutasActivas.length === 0) return 0
-
-  const metas = await Promise.all(
-    rutasActivas.map(async (r: any) => {
-      try {
-        const rutaCompleta: any = await rutasService.obtenerRutaPorId(String(r.id))
-        let dailyVisits: any = null
-        if (timeFilter === 'today') {
-          try {
-            dailyVisits = await rutasService.obtenerVisitasDelDia(String(r.id), endKey)
-          } catch {
-            dailyVisits = null
-          }
-        }
-        
-        // Si hay dailyVisits, usar resolveRutaDailySummary
-        if (timeFilter === 'today' && dailyVisits) {
-          const summary = resolveRutaDailySummary(rutaCompleta, dailyVisits)
-          return Number(summary.meta || 0)
-        }
-        
-        // Si no, usar la logica original
-        const asignaciones = Array.isArray(rutaCompleta?.asignaciones) ? rutaCompleta.asignaciones : []
-
-        const asigsConCuotas = await Promise.all(
-          asignaciones.map(async (asig: any) => {
-            const cliente = asig?.cliente || null
-            if (!cliente) return asig
-            const prestamosRaw = Array.isArray(cliente?.prestamos) ? cliente.prestamos : []
-            const prestamosValidos = prestamosRaw.filter((p: any) => p && (p.estado === 'ACTIVO' || p.estado === 'EN_MORA'))
-            const prestamos = await Promise.all(
-              prestamosValidos.map(async (p: any) => {
-                if (!p?.id) return p
-                const cuotasEmbebidas = Array.isArray(p?.cuotas) ? p.cuotas : []
-                const cuotas = await prestamosService.obtenerCuotas(p.id).catch(() => cuotasEmbebidas)
-                return { ...p, cuotas }
-              }),
-            )
-            return { ...asig, cliente: { ...cliente, prestamos } }
-          }),
-        )
-
-        const visitasLite = mapAsignacionesToVisitasLite({
-          asignaciones: asigsConCuotas as any,
-          hoyKey: endKey,
-          cobradorId: String(rutaCompleta?.cobradorId || r?.cobradorId || ''),
-        }) as any[]
-
-        const idsProcesados = new Set<string>()
-        const firstPass = (Array.isArray(visitasLite) ? visitasLite : []).flatMap((v: any) => {
-          const uniqueKey = v?.prestamoId ? `loan-${v.prestamoId}` : `client-${v.clienteId}`
-          if (idsProcesados.has(uniqueKey)) return []
-          idsProcesados.add(uniqueKey)
-          return [v]
-        })
-        const clientesConPrestamo = new Set(firstPass.filter((v: any) => v?.prestamoId).map((v: any) => v?.clienteId))
-        const visitasDedupe = firstPass.filter((v: any) => {
-          if (!v?.prestamoId && clientesConPrestamo.has(v?.clienteId)) return false
-          return true
-        })
-
-        const cuotasMap = new Map<string, any[]>()
-        for (const asig of asigsConCuotas as any[]) {
-          for (const p of asig?.cliente?.prestamos || []) {
-            if (p?.id && Array.isArray(p?.cuotas)) cuotasMap.set(String(p.id), p.cuotas)
-          }
-        }
-
-        const metaRuta = visitasDedupe.reduce((sum: number, v: any) => {
-          const pid = String(v?.prestamoId || '')
-          if (!pid) return sum
-          const cuotas = cuotasMap.get(pid)
-          if (!cuotas || cuotas.length === 0) return sum
-
-          const tieneCuotaPendiente = cuotas.some((c: any) => c && isCuotaNoPagada(c))
-          if (!tieneCuotaPendiente) return sum
-          const recHoy = timeFilter === 'today' ? Number((recaudosHoyMap as any)?.[pid] || 0) : 0
-          if (shouldExcludeVisitaFromOperationalMeta(v, recHoy)) return sum
-
-          if (timeFilter === 'today' && !isVisitaExigibleHoy(v as any, endKey)) return sum
-
-          const esArticulo = String((v as any)?.tipoPrestamo || '').toUpperCase() === 'ARTICULO'
-          const untilEnd = esArticulo
-            ? computeMontoExigibleHastaHoyFromCuotas(cuotas, endKey)
-            : computeMontoExigibleHastaHoyFromCuotas(cuotas, endKey)
-          const untilBeforeStart = timeFilter === 'today'
-            ? 0
-            : (esArticulo
-              ? computeMontoExigibleHastaHoyFromCuotas(cuotas, beforeStartKey)
-              : computeMontoExigibleHastaHoyFromCuotas(cuotas, beforeStartKey))
-
-          let dueInPeriod = Math.max(0, Number(untilEnd || 0) - Number(untilBeforeStart || 0))
-
-          if (timeFilter === 'today') {
-            const saldoRealDesdeCuotas = (Array.isArray(cuotas) ? cuotas : []).reduce((s: number, c: any) => {
-              if (!c || !isCuotaNoPagada(c)) return s
-              const monto = Number((c as any)?.montoNominal ?? (c as any)?.monto ?? 0)
-              const pagado = Number((c as any)?.montoPagado ?? 0)
-              return s + Math.max(0, monto - pagado)
-            }, 0)
-
-            const saldoTotal = Number((v as any)?.saldoTotal || 0)
-            const saldoParaTope = saldoRealDesdeCuotas > 0 ? saldoRealDesdeCuotas : saldoTotal
-            if (Number.isFinite(saldoParaTope) && saldoParaTope > 0) {
-              dueInPeriod = Math.min(dueInPeriod, saldoParaTope)
-            }
-
-            if (Number.isFinite(recHoy) && recHoy > 0) {
-              dueInPeriod = Math.max(0, dueInPeriod - recHoy)
-            }
-          }
-
-          return sum + dueInPeriod
-        }, 0)
-
-        return Number(metaRuta || 0)
-      } catch (error) {
-        // Se devuelve 0 para no tumbar el total entero por una ruta, pero un 0
-        // aqui suma como "esta ruta no tiene nada que cobrar", que es lo
-        // contrario de lo que paso.
-        logger.warn('No se pudo calcular la meta de una ruta', error)
-        return 0
-      }
-    }),
-  )
-
-  return metas.reduce((a, b) => a + Number(b || 0), 0)
-}
+/*
+ * Aqui vivia `computeOperationalMetaTotalForTimeFilter`: una sola cifra con lo
+ * que quedaba por cobrar en todo el periodo, para todas las rutas.
+ *
+ * Se usaba para pisar el `target` de cada punto del grafico de tendencia, y
+ * eso estaba mal: `Sem` y `Mes` agrupan POR DIA, asi que cada barra necesita
+ * su propia meta. Con una cifra unica, la eficiencia de cada dia salia
+ * dividida entre el numero de barras.
+ *
+ * La decision se tomo en 247aec2 ("usar target especifico por punto del
+ * backend en lugar de meta global"), pero solo llego al panel del
+ * administrador y a VistaCoordinador, un componente que no renderiza nadie.
+ * El coordinador y el supervisor siguieron con la cifra global hasta que se
+ * termino de aplicar.
+ *
+ * El backend ya manda el target por punto en `trend[].target` ("meta nominal
+ * diaria", DashboardService.getTrendData). Esa es la cifra buena: usala.
+ *
+ * Para la meta POR RUTA -que es otra cosa y si se sigue necesitando- esta
+ * `computeOperationalMetaByRouteIdsForTimeFilter`, justo debajo.
+ */
 
 export const computeOperationalMetaByRouteIdsForTimeFilter = async (
   timeFilter: OperationalMetaTimeFilter,

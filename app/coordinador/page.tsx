@@ -18,7 +18,6 @@ import {
 } from 'lucide-react';
 import { dashboardService } from '@/services/dashboard-coordinador-service';
 import { prestamosService } from '@/services/prestamos-service';
-import { computeOperationalMetaTotalForTimeFilter } from '@/lib/dashboard-operational-meta';
 import { useRealtimeData } from '@/hooks/useRealtimeData';
 import { logger } from '@/lib/logger';
 
@@ -255,21 +254,17 @@ export default function CoordinadorPage() {
           };
         });
 
-        let metaOperativaTotal = 0
-        try {
-          metaOperativaTotal = await computeOperationalMetaTotalForTimeFilter(period as any)
-        } catch (error) {
-          // OJO: al fallar, el panel enseña "Meta: $0", que se lee igual que
-          // "hoy no hay nada que cobrar". Se mantiene el 0 para no cambiar lo
-          // que ve la gente sin decidirlo, pero queda el rastro del fallo.
-          logger.warn('No se pudo calcular la meta operativa', error)
-          metaOperativaTotal = 0
-        }
-
+        // El target lo manda el backend POR PUNTO del grafico ("meta nominal
+        // diaria"), que es lo que hace falta: `Sem` y `Mes` agrupan por dia, asi
+        // que cada barra tiene su propia meta. Aqui se pisaba con una sola cifra
+        // global del periodo, y la eficiencia de cada dia salia dividida entre
+        // el numero de barras. Se decidio asi en 247aec2 ("usar target
+        // especifico por punto del backend en lugar de meta global"), pero ese
+        // arreglo se aplico a VistaCoordinador, que no lo renderiza nadie.
         const chartData = (dashboard?.trend || []).map((t) => ({
           label: t.label,
           value: t.value,
-          target: metaOperativaTotal > 0 ? metaOperativaTotal : t.target,
+          target: Number(t.target || 0),
         }));
 
         const topCollectors = (dashboard?.topCollectors || []).slice(0, 5).map((c: any) => ({

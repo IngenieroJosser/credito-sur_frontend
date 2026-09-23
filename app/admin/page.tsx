@@ -23,7 +23,6 @@ import { dashboardService } from '@/services/dashboard-coordinador-service';
 import { prestamosService } from '@/services/prestamos-service';
 import { getResumenFinanciero } from '@/services/contabilidad-service';
 import { formatCurrency } from '@/lib/utils';
-import { computeOperationalMetaTotalForTimeFilter } from '@/lib/dashboard-operational-meta'
 import { SkeletonDetalle } from '@/components/ui/Skeleton'
 
 interface UserData {
@@ -358,17 +357,6 @@ export default function DashboardPage() {
             date: dateStr,
           };
         });
-
-        let metaOperativaTotal = 0
-        try {
-          metaOperativaTotal = await computeOperationalMetaTotalForTimeFilter(requestedPeriod)
-        } catch (error) {
-          // OJO: al fallar, el panel enseña "Meta: $0", que se lee igual que
-          // "hoy no hay nada que cobrar". Se mantiene el 0 para no cambiar lo
-          // que ve la gente sin decidirlo, pero queda el rastro del fallo.
-          logger.warn('No se pudo calcular la meta operativa', error)
-          metaOperativaTotal = 0
-        }
 
         const chartData = (dashboard?.trend || []).map((t: any) => {
           const value = Number(t?.value || 0);

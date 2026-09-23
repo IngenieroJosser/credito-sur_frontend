@@ -29,7 +29,6 @@ import { Sparkline } from '@/components/ui/PremiumCharts'
 import { TransactionalHighDetailChart } from '@/components/ui/TransactionalHighDetailChart'
 import { dashboardService, type DashboardData } from '@/services/dashboard-coordinador-service'
 import { formatErrorForComponent } from '@/lib/api/api'
-import { computeOperationalMetaTotalForTimeFilter } from '@/lib/dashboard-operational-meta'
 
 import PagoModal from '@/components/dashboards/shared/PagoModal'
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
@@ -81,21 +80,18 @@ const VistaSupervisor = () => {
     try {
       if (!refreshing) setLoading(true)
       setError(null)
-      const [data, metaOperativa] = await Promise.all([
-        dashboardService.getDashboardData(timeFilter),
-        computeOperationalMetaTotalForTimeFilter(timeFilter as any).catch(() => 0),
-      ])
-      const meta = Number(metaOperativa || 0)
-      const next = meta > 0
-        ? ({
-            ...(data as any),
-            trend: (Array.isArray((data as any)?.trend) ? (data as any).trend : []).map((t: any) => ({
-              ...t,
-              target: meta,
-            })),
-          } as any)
-        : data
-      setDashboardData(next)
+      // El target de cada punto lo manda el backend ("meta nominal diaria") y
+      // se usa tal cual. Antes se pisaba el de TODOS los puntos con una sola
+      // cifra global del periodo: como `Sem` y `Mes` agrupan por dia, cada
+      // barra quedaba con la meta del periodo entero y su eficiencia salia
+      // dividida entre el numero de barras (en un mes, ~30 veces menor).
+      //
+      // Es la misma decision de 247aec2 ("usar target especifico por punto del
+      // backend en lugar de meta global"), que se aplico solo al panel del
+      // administrador y a VistaCoordinador, un componente que no renderiza
+      // nadie. Aqui nunca llego.
+      const data = await dashboardService.getDashboardData(timeFilter)
+      setDashboardData(data)
     } catch (err) {
       setError(formatErrorForComponent(err))
     } finally {
