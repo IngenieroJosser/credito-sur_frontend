@@ -8,6 +8,7 @@ import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import AvisosApp from "@/components/pwa/AvisosApp";
 import OfflineIndicatorWrapper from "../components/offline/OfflineIndicatorWrapper";
 import { Toaster } from "sonner";
+import { TOAST_Z_INDEX } from "@/components/ui/Portal";
 
 const sora = Sora({
   variable: "--font-setting",
@@ -63,7 +64,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <NotificacionesProvider>
             {children}
             <OfflineIndicatorWrapper />
-            <Toaster position="top-right" richColors closeButton />
+            {/* Sonner trae z-index 999.999.999, menos que cualquier modal
+                del sistema: sus avisos quedaban detras del modal desde el
+                que se lanzaban. Se sube a la capa de avisos. */}
+            <Toaster
+              position="top-right"
+              richColors
+              closeButton
+              style={{ zIndex: TOAST_Z_INDEX }}
+            />
           </NotificacionesProvider>
         </NotificationProvider>
         <ServiceWorkerRegister />
