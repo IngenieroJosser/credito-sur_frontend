@@ -7,7 +7,6 @@ import { ChevronLeft, AlertCircle, Calendar, Phone, MapPin, User, ArrowRight, Do
 import Link from 'next/link';
 import { formatCurrency, cn } from '@/lib/utils';
 import { prestamosService } from '@/services/prestamos-service';
-import { toast } from 'sonner';
 
 interface CuentaMora {
   id: string;
@@ -109,18 +108,7 @@ export default function DetalleCuentaMoraPage({
               </div>
             </div>
             <div className="flex items-center gap-2">
-                 <button
-                   onClick={() => {
-                     // No hay endpoint para escalar a supervisión: antes hacía
-                     // toast.success sin llamar a nada (falso éxito). Se informa
-                     // con honestidad hasta que exista el backend.
-                     toast('Enviar cuentas a supervisión aún no está disponible.', { icon: 'ℹ️' });
-                   }}
-                   className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-orange-200 text-orange-600 font-black rounded-xl hover:bg-orange-50 transition-all text-xs shadow-sm hover:shadow-md active:scale-95"
-                 >
-                   Pasar a Supervisión
-                 </button>
-                 
+                 {/* Aqui habia un "Pasar a Supervisión" sin endpoint detras. */}
                  <Link 
                    href={`/coordinador/creditos/${id}`} 
                    className="px-4 py-2 text-sm font-bold text-blue-600 hover:bg-blue-50 rounded-xl transition-all"

@@ -4,7 +4,11 @@ import { SkeletonDetalle } from '@/components/ui/Skeleton'
 import { logger } from '@/lib/logger'
 
 import { useState, useEffect, use, useCallback } from 'react';
-import { ChevronLeft, BarChart3, Pencil, UserCog } from 'lucide-react';
+import {
+  ChevronLeft,
+  BarChart3,
+  Pencil
+} from 'lucide-react';
 import Link from 'next/link';
 import DetallePrestamo, { PrestamoDetalle } from '@/components/prestamos/DetallePrestamo';
 import EditarPrestamoModal from '@/components/prestamos/EditarPrestamoModal';
@@ -73,16 +77,6 @@ export default function PrestamoDetallePage({
     fetchData();
   }, [fetchData]);
 
-  const handlePassToSupervisor = () => {
-    // Aún no hay endpoint para escalar una cuenta a supervisión. Antes esto
-    // avisaba "Cuenta enviada al supervisor" sin hacer nada: un falso éxito. Se
-    // informa con honestidad hasta que exista el backend.
-    alert(
-      'Enviar cuentas a supervisión todavía no está disponible. ' +
-        'Esta función está pendiente de habilitar.',
-    );
-  };
-  
   if (loading) {
     return (
       <SkeletonDetalle />
@@ -132,14 +126,10 @@ export default function PrestamoDetallePage({
             </div>
             
             <div className="flex items-center gap-3">
-              <button
-                onClick={handlePassToSupervisor}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-orange-200 text-orange-600 font-black rounded-xl hover:bg-orange-50 transition-all text-sm shadow-sm hover:shadow-md active:scale-95"
-              >
-                <UserCog className="w-4 h-4" />
-                Pasar a Supervisión
-              </button>
-              
+              {/* No hay "Pasar a Supervisión": nunca existio el endpoint para
+                  escalar una cuenta, y el boton solo avisaba de que no estaba
+                  disponible. Un boton que solo sirve para decir que no sirve
+                  ocupa lugar y hace dudar de si el sistema fallo. */}
               {/* El botón "Modificar Interés" se quitó: la tasa se cambia desde
                   "Editar Préstamo", que además recalcula las cuotas. Aquel modal
                   era un flujo aparte que no persistía nada. */}
