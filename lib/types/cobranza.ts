@@ -41,6 +41,8 @@ export interface CuotaOperativa {
 
   fechaVencimiento?: string
   fechaVencimientoProrroga?: string | null
+  /** Cuando se pago, si se pago. */
+  fechaPago?: string | null
   /** Fecha que cuenta de verdad: la prorrogada si la hay, si no la original. */
   fechaEfectiva?: string
   enProrroga?: boolean
@@ -81,6 +83,10 @@ export interface VisitaRuta {
   estadoVisita?: string      // Estado de la visita del día registrado (ej: 'ausente')
   /** Como quedo gestionada la obligacion: PENDIENTE, REPROGRAMADO, AUSENTE… */
   estadoGestion?: string
+  /** Estado del prestamo completo (routes.service: estadoPrestamo: p.estado). */
+  estadoPrestamo?: string
+  /** Lo marca el frontend al enriquecer el historial: hubo mora ese dia. */
+  enMoraHistorico?: boolean
   notasVisita?: string | null // Nota/justificación registrada al marcar ausencia
   proximaVisita: string
   targetVencimiento?: string
@@ -91,6 +97,10 @@ export interface VisitaRuta {
   periodoRuta: PeriodoRuta
   clienteId: string
   prestamoId?: string
+  /** Identificadores de la cuota que toca cobrar, sueltos. */
+  cuotaId?: string
+  cuotaObjetivoId?: string
+  cuotaObjetivoPrestamoId?: string
   tipoPrestamo?: 'EFECTIVO' | 'ARTICULO'
   articuloNombre?: string
   // Prórroga activa
