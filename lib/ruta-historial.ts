@@ -1,7 +1,7 @@
 import { isPagoCierrePendiente } from '@/lib/ruta-recaudos'
 import { logger } from '@/lib/logger'
 import { getPagoBogotaDateKey, shouldExcludeVisitaFromOperationalMeta } from '@/lib/rutas-core'
-import { mapNivelRiesgo, type VisitaRuta } from '@/lib/types/cobranza'
+import { mapNivelRiesgo, type VisitaParcial, type VisitaRuta } from '@/lib/types/cobranza'
 import { resolveRiesgoObligacion } from '@/lib/rutas/riesgo-obligacion'
 
 type Resumen = {
@@ -79,7 +79,7 @@ export const isEstadoVisitaGestionadoHistorial = (raw: any) => {
   )
 }
 
-export const hasGestionHistorial = (visita: any) => {
+export const hasGestionHistorial = (visita: VisitaParcial) => {
   return (
     Number(visita?.recaudadoDelDia || 0) > 0 ||
     Number(visita?.recaudadoRegularizadoDespues || 0) > 0 ||
@@ -87,7 +87,7 @@ export const hasGestionHistorial = (visita: any) => {
   )
 }
 
-export const isReprogramadoHistorial = (v: any): boolean => {
+export const isReprogramadoHistorial = (v: VisitaParcial): boolean => {
   const estado = String(
     v?.estado ||
     v?.estadoVisita ||
@@ -104,7 +104,7 @@ export const isReprogramadoHistorial = (v: any): boolean => {
   )
 }
 
-export const isGestionHistorial = (v: any): boolean => {
+export const isGestionHistorial = (v: VisitaParcial): boolean => {
   const estado = String(
     v?.estado ||
     v?.estadoVisita ||
@@ -123,7 +123,7 @@ export const isGestionHistorial = (v: any): boolean => {
   )
 }
 
-export const normalizeVisitaHistorial = (v: any): any => {
+export const normalizeVisitaHistorial = (v: VisitaParcial): any => {
   if (isReprogramadoHistorial(v)) {
     return {
       ...v,
@@ -164,7 +164,7 @@ export function computeHistorialResumenCompartido(visitas: any[], resumenBase?: 
   const normalizadas = (visitas || []).map(normalizeVisitaHistorial)
 
   // Filtrar visitas que deben excluirse de la meta operativa (ausentes, etc.)
-  const visitasOperativas = normalizadas.filter((v: any) => {
+  const visitasOperativas = normalizadas.filter((v: VisitaParcial) => {
     try {
       return !shouldExcludeVisitaFromOperationalMeta(v)
     } catch {
@@ -174,7 +174,7 @@ export function computeHistorialResumenCompartido(visitas: any[], resumenBase?: 
 
   const total = visitasOperativas.length
 
-  const visitados = visitasOperativas.filter((v: any) => {
+  const visitados = visitasOperativas.filter((v: VisitaParcial) => {
     const estado = String(
       v?.estadoGestion ||
         v?.estadoVisita ||
@@ -221,7 +221,7 @@ export function computeHistorialResumenCompartido(visitas: any[], resumenBase?: 
   }
 }
 
-export const isVisitadoHistorial = (visita: any) => {
+export const isVisitadoHistorial = (visita: VisitaParcial) => {
   return hasGestionHistorial(visita) || isGestionHistorial(visita) || String(visita?.estado || '').toLowerCase() === 'pagado'
 }
 
@@ -270,7 +270,7 @@ export const applyPagosDelDiaToHistorialVisitas = (params: {
   })
 
   const existentes = new Set<string>()
-  const visitasActualizadas = (Array.isArray(visitas) ? visitas : []).map((v: any) => {
+  const visitasActualizadas = (Array.isArray(visitas) ? visitas : []).map((v: VisitaParcial) => {
     const pid = String(v?.prestamoId || '')
     if (pid) existentes.add(`loan-${pid}`)
 
@@ -318,7 +318,7 @@ export const applyPagosDelDiaToHistorialVisitas = (params: {
   const finalVisitas = [...visitasActualizadas, ...sinteticos]
 
   // Ocultar saldados (pagado y saldo <= 0) que NO tuvieron gestión real en este día.
-  const filteredVisitas = finalVisitas.filter((v: any) => {
+  const filteredVisitas = finalVisitas.filter((v: VisitaParcial) => {
     const isSaldado = String(v.estado || '').toLowerCase() === 'pagado' && Number(v.saldoTotal || 0) <= 0;
     return !(isSaldado && !hasGestionHistorial(v));
   });
@@ -569,7 +569,7 @@ export const buildHistorialDiaFromBackend = (params: {
   })
 
   // Calcular riesgo de obligación para todas las visitas
-  const visitasConRiesgo = visitasDesdeObligaciones.map((visita: any) => {
+  const visitasConRiesgo = visitasDesdeObligaciones.map((visita: VisitaParcial) => {
     const nivelRiesgoRaw = resolveRiesgoObligacion({
       row: visita,
       prestamo: visita.prestamo || {},
@@ -896,7 +896,7 @@ export const buildHistorialDiaFromBackend = (params: {
 
   // LOGS DE AUDITORÍA: Ver las visitas finales
   if (process.env.NODE_ENV !== 'production') {
-    console.table(todasVisitas.map((v: any) => ({
+    console.table(todasVisitas.map((v: VisitaParcial) => ({
       tipo: 'VISITA_HISTORIAL',
       cliente: v.cliente,
       clienteId: v.clienteId,
@@ -918,14 +918,14 @@ export const buildHistorialDiaFromBackend = (params: {
   }
 
   // Ocultar saldados (pagado y saldo <= 0) que NO tuvieron gestión real en este día.
-  const filteredVisitas = todasVisitas.filter((v: any) => {
+  const filteredVisitas = todasVisitas.filter((v: VisitaParcial) => {
     const isSaldado = String(v.estado || '').toLowerCase() === 'pagado' && Number(v.saldoTotal || 0) <= 0;
     return !(isSaldado && !isGestionHistorial(v));
   });
 
   // 5) Resumen: calcular desde visitas finales, no desde backend viejo
   const visitasOperativas = filteredVisitas.filter(
-    (v: any) => !shouldExcludeVisitaFromOperationalMeta(v),
+    (v: VisitaParcial) => !shouldExcludeVisitaFromOperationalMeta(v),
   )
 
   const meta = visitasOperativas.reduce((sum: number, v: any) => {
@@ -944,7 +944,7 @@ export const buildHistorialDiaFromBackend = (params: {
   // visita reprogramada es justamente una gestión. Contándolas sobre las
   // operativas, un día entero de reprogramaciones salía como cero visitados,
   // como si el cobrador no hubiera salido.
-  const visitados = filteredVisitas.filter((v: any) => {
+  const visitados = filteredVisitas.filter((v: VisitaParcial) => {
     return Number(v?.recaudadoDelDia || 0) > 0 || hasGestionHistorial(v)
   }).length
 
@@ -1070,7 +1070,7 @@ export const buildHistorialDiaFromBackend = (params: {
 
   // Logs de validación para historial final
   if (process.env.NODE_ENV !== 'production') {
-    console.table(filteredVisitas.map((v: any) => ({
+    console.table(filteredVisitas.map((v: VisitaParcial) => ({
       tipo: 'HISTORIAL_FINAL',
       cliente: v.cliente,
       prestamoId: v.prestamoId,

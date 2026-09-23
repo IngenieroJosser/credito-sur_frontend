@@ -85,6 +85,30 @@ export interface VisitaRuta {
   estadoGestion?: string
   /** Estado del prestamo completo (routes.service: estadoPrestamo: p.estado). */
   estadoPrestamo?: string
+  /** Lo calcula el frontend al armar la ruta del dia. */
+  nivelRiesgoObligacion?: string
+  /** Cuanto se ha pagado de la obligacion. */
+  montoPagado?: number
+  /** Aprobacion que respalda una reprogramacion (routes.service:4761). */
+  aprobacionReprogramacionId?: string | null
+
+  // ───────────────────────────────────────────────────────────────────────
+  // Nombres que `ruta-historial` acepta pero que HOY no manda ningun
+  // endpoint: se buscaron en todo el backend y no aparecen ni una vez.
+  //
+  // No se quitan del codigo porque no molestan: cada uno esta en una cadena
+  // `a || b || c` junto a un nombre que si llega (estadoGestion,
+  // aprobacionReprogramacionId, estadoAprobacion), asi que la decision se
+  // toma igual y quitarlos no cambiaria ningun resultado.
+  //
+  // Se declaran aqui para que quede dicho: si algun dia hay que tocar esas
+  // cadenas, estos cuatro no son de donde viene el dato.
+  // ───────────────────────────────────────────────────────────────────────
+  tipoGestion?: string
+  fechaReprogramada?: string | null
+  nuevaFechaPago?: string | null
+  aprobacionEstado?: string
+  efectoProvisionalEstado?: string | null
   /** Lo marca el frontend al enriquecer el historial: hubo mora ese dia. */
   enMoraHistorico?: boolean
   notasVisita?: string | null // Nota/justificación registrada al marcar ausencia
