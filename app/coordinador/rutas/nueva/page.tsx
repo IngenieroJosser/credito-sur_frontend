@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { rutasService } from '@/services/rutas-service';
 import { toast } from 'sonner';
+import CampoCodigoRuta from '@/components/rutas/CampoCodigoRuta'
 import {
   MapPin,
   Save,
@@ -166,18 +167,10 @@ const NuevaRutaPage = () => {
                       />
                     </div>
                     
-                    <div className="space-y-2">
-                      <label className="text-sm font-bold text-slate-700">Código Identificador</label>
-                      <input
-                        type="text"
-                        name="codigo"
-                        value={formData.codigo}
-                        onChange={handleInputChange}
-                        placeholder="Ej: RT-CEN-01"
-                        className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900"
-                        required
-                      />
-                    </div>
+                    <CampoCodigoRuta
+                      value={formData.codigo}
+                      onChange={handleInputChange}
+                    />
 
                     <div className="col-span-full space-y-2">
                       <label className="text-sm font-bold text-slate-700">Descripción</label>
