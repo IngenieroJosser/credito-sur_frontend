@@ -1,4 +1,5 @@
 import { cookies } from 'next/headers';
+import { raizBackend } from '@/lib/api/baseUrl';
 
 export interface RutaEstadisticas {
   clientesAsignados: number;
@@ -36,7 +37,7 @@ export async function getRutaDetalle(id: string): Promise<RutaDetalleMock | null
     if (!token) {
       return null;
     }
-    const apiUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
+    const apiUrl = raizBackend();
 
     const res = await fetch(`${apiUrl}/api-credisur/routes/${id}`, {
       headers: {
@@ -90,7 +91,7 @@ export async function getRutasList(): Promise<Ruta[]> {
       return [];
     }
 
-    const apiUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
+    const apiUrl = raizBackend();
 
     // Traer las rutas con un límite prudente para evitar timeouts
     const res = await fetch(`${apiUrl}/api-credisur/routes?limit=20`, { 

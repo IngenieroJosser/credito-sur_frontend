@@ -1,12 +1,9 @@
 import { logger } from '@/lib/logger'
 import axios from "axios";
+import { baseApi, conPrefijoApi } from '@/lib/api/baseUrl';
 
-// URL Principal (VPS en la nube o servidor por defecto)
-const primaryUrl =
-  process.env.NEXT_PUBLIC_BASE_URL ||
-  (process.env.NODE_ENV === "production"
-    ? "https://credito-sur-backend.onrender.com"
-    : "http://127.0.0.1:3001");
+// La URL principal ya no se calcula aqui: la decide lib/api/baseUrl, que es
+// el unico sitio del proyecto que sabe a que backend se apunta.
 
 // URL de Contingencia (Servidor Físico en LAN local).
 //
@@ -24,13 +21,8 @@ const getSecondaryUrl = (): string | null =>
 
 const secondaryUrl = getSecondaryUrl();
 
-const normalizeUrl = (url: string) => {
-  const normalized = url.replace(/\/$/, "");
-  return normalized.endsWith("/api-credisur") ? normalized : `${normalized}/api-credisur`;
-};
-
-const primaryBase = normalizeUrl(primaryUrl);
-const secondaryBase = secondaryUrl ? normalizeUrl(secondaryUrl) : null;
+const primaryBase = baseApi();
+const secondaryBase = secondaryUrl ? conPrefijoApi(secondaryUrl) : null;
 
 export const apiClient = axios.create({
   baseURL: `${primaryBase}/`,

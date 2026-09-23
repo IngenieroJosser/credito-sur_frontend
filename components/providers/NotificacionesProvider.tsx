@@ -8,6 +8,7 @@ import { formatShortDateTime } from "@/lib/utils/format";
 import { showLocalNotification } from '@/lib/push/pushNotifications'
 import { refreshSesion } from '@/services/autenticacion-service'
 import { logger } from '@/lib/logger'
+import { raizBackend } from '@/lib/api/baseUrl'
 
 interface NotificacionesContextProps {
   socket: Socket | null;
@@ -98,8 +99,7 @@ export function NotificacionesProvider({ children }: { children: React.ReactNode
     } catch(e) {}
 
     // Inicialización del socket
-    const rawBaseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://127.0.0.1:3001'
-    const baseUrl = rawBaseUrl.replace(/\/api-credisur\/?$/, '') // Socket.io suele ir a la raíz o /socket.io
+    const baseUrl = raizBackend() // Socket.io va a la raíz, sin /api-credisur
 
     logger.log(`[Socket] Intentando conectar a: ${baseUrl}`);
 

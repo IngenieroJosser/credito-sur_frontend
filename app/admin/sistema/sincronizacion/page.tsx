@@ -18,6 +18,7 @@ import { syncManager } from '@/lib/offline/syncManager'
 import type { OfflineQueueItem, SyncMeta } from '@/lib/offline/offlineDb'
 import ListaConflictos from '@/components/conflictos/ListaConflictos'
 import BotonAccion from '@/components/ui/BotonAccion'
+import { baseApi } from '@/lib/api/baseUrl'
 
 const SyncStatusPage = () => {
   const { isOnline, pendingOps, failedOps, isSyncing, syncNow, downloadForOffline } = useOffline()
@@ -48,16 +49,7 @@ const SyncStatusPage = () => {
   >([])
   const [expandedServerJobId, setExpandedServerJobId] = useState<string | null>(null)
 
-  const bullBoardUrl = (() => {
-    const rawBase = process.env.NEXT_PUBLIC_BASE_URL ||
-      (process.env.NODE_ENV === 'production'
-        ? 'https://credito-sur-backend.onrender.com'
-        : 'http://127.0.0.1:3001')
-
-    const normalized = rawBase.replace(/\/$/, '')
-    const base = normalized.endsWith('/api-credisur') ? normalized : `${normalized}/api-credisur`
-    return `${base}/configuracion/colas`
-  })()
+  const bullBoardUrl = `${baseApi()}/configuracion/colas`
 
   const loadServerQueueStatus = useCallback(async () => {
     if (rol !== 'SUPER_ADMINISTRADOR' || !isOnline) {
