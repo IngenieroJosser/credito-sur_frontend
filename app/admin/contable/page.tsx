@@ -417,18 +417,18 @@ const ModuloContableContent = () => {
     saldoPerdida: number
   } | null>(null)
 
-  const esReferenciaCobranza = (m: any) => {
+  const esReferenciaCobranza = (m: MovimientoContable) => {
     const ref = String(m?.tipoReferencia || '').toUpperCase()
     return ref === 'PAGO' || ref === 'ABONO' || ref === 'CUOTA_INICIAL' || ref === 'RESTAURACION_CUOTA_INICIAL'
   }
 
-  const esTransferenciaSalida = (m: any) => {
+  const esTransferenciaSalida = (m: MovimientoContable) => {
     if (String(m?.tipo || '').toUpperCase() !== 'TRANSFERENCIA') return false
     const numero = String(m?.numero || '')
     return numero.toUpperCase().startsWith('TRX-OUT')
   }
 
-  const esTransferenciaEntrada = (m: any) => {
+  const esTransferenciaEntrada = (m: MovimientoContable) => {
     if (String(m?.tipo || '').toUpperCase() !== 'TRANSFERENCIA') return false
     const numero = String(m?.numero || '')
     return numero.toUpperCase().startsWith('TRX-IN')
@@ -438,11 +438,11 @@ const ModuloContableContent = () => {
     return caja?.tipo === 'RUTA' && !caja?.rutaId;
   }
 
-  const esIngresoContable = (m: any) => {
+  const esIngresoContable = (m: MovimientoContable) => {
     return esIngresoContableGeneral(m)
   }
 
-  const esEgresoOperativo = (m: any) => {
+  const esEgresoOperativo = (m: MovimientoContable) => {
     return esEgresoOperativoContable(m)
   }
 
@@ -571,7 +571,7 @@ const ModuloContableContent = () => {
 
         const codigoCaja = String((cajaSeleccionada as any)?.codigo || '').toUpperCase()
         if (codigoCaja === 'CAJA-PRINCIPAL' || codigoCaja === 'CAJA-BANCO') {
-          next = next.filter((m: any) => {
+          next = next.filter((m: MovimientoContable) => {
             const ref = String(m?.tipoReferencia || '').toUpperCase()
             return ref !== 'CUOTA_INICIAL' && ref !== 'RESTAURACION_CUOTA_INICIAL' && ref !== 'ABONO_DEUDA'
           })
@@ -1006,10 +1006,10 @@ const ModuloContableContent = () => {
     const cumpleEstado = filtroEstado === 'TODOS' || mov.estado === filtroEstado
     const cajaRutaId = filtroRuta === 'TODOS'
       ? null
-      : (cajas.find((c: any) => c?.rutaId === filtroRuta)?.id ?? null)
+      : (cajas.find((c: Caja) => c?.rutaId === filtroRuta)?.id ?? null)
 
     const rutaObj = filtroRuta === 'TODOS' ? null : (rutasDisponibles.find((r: any) => r?.id === filtroRuta) as any)
-    const cajaRuta = filtroRuta === 'TODOS' ? null : (cajas.find((c: any) => c?.rutaId === filtroRuta) as any)
+    const cajaRuta = filtroRuta === 'TODOS' ? null : (cajas.find((c: Caja) => c?.rutaId === filtroRuta) as any)
     const rutaKeywordRaw = String(
       rutaObj?.nombre ||
       (cajaRuta as any)?.rutaNombre ||
@@ -1117,7 +1117,7 @@ const ModuloContableContent = () => {
   const openRegistrarMovimiento = () => {
     // Buscamos el ID real de la caja principal para el admin.
     // Importante: Caja Banco también puede ser PRINCIPAL. Preferimos CAJA-PRINCIPAL si existe.
-    const cajaPrincipal = cajas.find((c: any) => c.codigo === 'CAJA-PRINCIPAL') || cajas.find(c => c.tipo === 'PRINCIPAL');
+    const cajaPrincipal = cajas.find((c: Caja) => c.codigo === 'CAJA-PRINCIPAL') || cajas.find(c => c.tipo === 'PRINCIPAL');
     const defaultCaja = (userRole === 'ADMIN' || userRole === 'SUPER_ADMINISTRADOR') 
         ? (cajaPrincipal?.id || '') 
         : (cajas.find(c => c.tipo === 'RUTA')?.id || '')
@@ -1142,7 +1142,7 @@ const ModuloContableContent = () => {
   const openRegistrarTransferencia = () => {
     // Buscamos el ID real de la caja principal para el admin.
     // Importante: Caja Banco también puede ser PRINCIPAL. Preferimos CAJA-PRINCIPAL si existe.
-    const cajaPrincipal = cajas.find((c: any) => c.codigo === 'CAJA-PRINCIPAL') || cajas.find(c => c.tipo === 'PRINCIPAL');
+    const cajaPrincipal = cajas.find((c: Caja) => c.codigo === 'CAJA-PRINCIPAL') || cajas.find(c => c.tipo === 'PRINCIPAL');
     const defaultCaja = (userRole === 'ADMIN' || userRole === 'SUPER_ADMINISTRADOR') 
         ? (cajaPrincipal?.id || '') 
         : (cajas.find(c => c.tipo === 'RUTA')?.id || '')
@@ -1796,7 +1796,7 @@ const ModuloContableContent = () => {
                                     : []
 
                                   const ingresos = movimientosCaja
-                                    .filter((m: any) => {
+                                    .filter((m: MovimientoContable) => {
                                       const tipo = String(m.tipo || '').toUpperCase()
                                       const numero = String(m.numero || '').toUpperCase()
 
@@ -1808,7 +1808,7 @@ const ModuloContableContent = () => {
                                     .reduce((acc: number, m: any) => acc + Number(m.monto || 0), 0)
 
                                   const egresos = movimientosCaja
-                                    .filter((m: any) => {
+                                    .filter((m: MovimientoContable) => {
                                       const tipo = String(m.tipo || '').toUpperCase()
                                       const numero = String(m.numero || '').toUpperCase()
 
@@ -1836,15 +1836,15 @@ const ModuloContableContent = () => {
                                   const codigoCaja = String((c)?.codigo || '').toUpperCase()
                                   const omitRefs = codigoCaja === 'CAJA-PRINCIPAL' || codigoCaja === 'CAJA-BANCO'
 
-                                  const base = resp.data.filter((m: any) => {
+                                  const base = resp.data.filter((m: ApiTransaccion) => {
                                     if (!omitRefs) return true
                                     const ref = String(m?.tipoReferencia || '').toUpperCase()
                                     return ref !== 'CUOTA_INICIAL' && ref !== 'RESTAURACION_CUOTA_INICIAL' && ref !== 'ABONO_DEUDA'
                                   })
 
                                   const ingresos = base
-                                    .filter((m: any) => m.tipo === 'INGRESO' || m.tipo === 'TRANSFERENCIA')
-                                    .filter((m: any) => {
+                                    .filter((m: ApiTransaccion) => m.tipo === 'INGRESO' || m.tipo === 'TRANSFERENCIA')
+                                    .filter((m: ApiTransaccion) => {
                                       if (m.tipo === 'TRANSFERENCIA') {
                                         const num = String(m.numero || '').toUpperCase()
                                         return num.startsWith('TRX-IN')
@@ -1854,8 +1854,8 @@ const ModuloContableContent = () => {
                                     .reduce((acc: number, m: any) => acc + Number(m.monto), 0)
 
                                   const egresos = base
-                                    .filter((m: any) => m.tipo === 'EGRESO' || m.tipo === 'TRANSFERENCIA')
-                                    .filter((m: any) => {
+                                    .filter((m: ApiTransaccion) => m.tipo === 'EGRESO' || m.tipo === 'TRANSFERENCIA')
+                                    .filter((m: ApiTransaccion) => {
                                       if (m.tipo === 'TRANSFERENCIA') {
                                         const num = String(m.numero || '').toUpperCase()
                                         return num.startsWith('TRX-OUT')

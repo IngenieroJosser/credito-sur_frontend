@@ -52,6 +52,10 @@ export interface Transaccion {
   cajaId: string;
   cajaOrigenId?: string;
   cajaSaldo?: number;
+  /** Que origino la transaccion: CUOTA_INICIAL, ABONO_DEUDA, CIERRE_RUTA… */
+  tipoReferencia?: string;
+  /** Id de eso que la origino. */
+  referenciaId?: string;
   direction?: 'IN' | 'OUT';
   impactoCaja?: number;
   impactoResultado?: number;
