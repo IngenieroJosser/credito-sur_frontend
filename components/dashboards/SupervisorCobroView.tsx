@@ -26,6 +26,7 @@ import { formatMilesCOP } from '@/lib/utils'
 import { buildRutaHoyOperativa } from '@/lib/rutas/build-ruta-hoy-operativa'
 import { formatRoleLabel } from '@/lib/display-labels'
 import { computeDiasMoraFromCuotas } from '@/lib/rutas-core'
+import type { CuotaOperativa, VisitaParcial } from '@/lib/types/cobranza'
 
 import {
   DndContext,
@@ -767,7 +768,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         const visitasActuales = visitasBaseRef.current
         const hasVisitasActuales = Array.isArray(visitasActuales) && visitasActuales.length > 0
         const visitasParaMeta = Array.isArray(visitasActuales)
-          ? visitasActuales.filter((v: any) => !isAusente(v))
+          ? visitasActuales.filter((v: VisitaParcial) => !isAusente(v))
           : []
         const statsHoy = computeRutaHoyUiStatsFromVisitas(visitasParaMeta, 0)
         const statsAutoritativas = {
@@ -969,20 +970,20 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
           // Aplicar lógica específica de SupervisorCobroView (prorrogas, targetVencimiento, etc.)
           const visitasConLogicaSupervisor = await mapWithConcurrency(
             helperResult.kpiItems,
-            async (v: any) => {
+            async (v: VisitaParcial) => {
               if (!v.prestamoId || !v.cuotaObjetivo) return v
 
               const pendiente = v.cuotaObjetivo
               const hoyBogota = hoyBogotaKey
 
-              const getCuotaVtoKey = (c: any): string => {
+              const getCuotaVtoKey = (c: CuotaOperativa): string => {
                 if (!c) return ''
                 const raw = resolveFechaEfectivaCuota(c) || c?.fechaVencimiento
                 if (!raw) return ''
                 return normalizeDateKey(String(raw))
               }
 
-              const cuotasExigibles = (await getCuotasByPrestamoId(v.prestamoId)).filter((c: any) => {
+              const cuotasExigibles = (await getCuotasByPrestamoId(v.prestamoId)).filter((c: CuotaOperativa) => {
                 if (!isCuotaNoPagada(c)) return false
                 const vtoKey = getCuotaVtoKey(c)
                 return vtoKey && vtoKey <= hoyBogota
@@ -1021,7 +1022,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
         const { totalHistoricoByPrestamoId, ultimoPagoDateByPrestamoId } = indexPagosByPrestamoId(pagosRecientes)
 
-        let finales = visitasRaw.map((v: any) => {
+        let finales = visitasRaw.map((v: VisitaParcial) => {
           const pid = v?.prestamoId
           if (!pid) return v
           return {
@@ -1043,13 +1044,13 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         visitasRutaHoyKpiRef.current = visitasBaseParaKpi
 
         const prevByKey = new Map(
-          (visitasBaseRef.current || []).map((v: any) => [
+          (visitasBaseRef.current || []).map((v: VisitaParcial) => [
             String(v?.prestamoId || v?.clienteId || v?.id || ''),
             v,
           ]),
         )
 
-        const merged = visitasVisibles.map((v: any) => {
+        const merged = visitasVisibles.map((v: VisitaParcial) => {
           const key = String(v?.prestamoId || v?.clienteId || v?.id || '')
           const prev = prevByKey.get(key)
 
@@ -1088,7 +1089,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
           }
 
           const isAusente = shouldExcludeVisitaFromOperationalMeta
-          const finalesSinAusentes = (merged || []).filter((v: any) => !isAusente(v))
+          const finalesSinAusentes = (merged || []).filter((v: VisitaParcial) => !isAusente(v))
           const statsHoy = computeRutaHoyUiStatsFromVisitas(finalesSinAusentes as any[], 0)
           const rutaStatsBackend = (ruta as any)?.estadisticas || {}
           const recaudoBackendHoy = Math.max(
@@ -1119,7 +1120,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
         // Sincronizar la ref ANTES de que cargarEstadisticasRuta la lea (evita leer una ref vieja)
         setVisitasBaseAndRef(merged as any[])
-        setVisitasOrden((merged as any[]).map((v: any) => v.id));
+        setVisitasOrden((merged as any[]).map((v: VisitaRuta) => v.id));
       }
     } catch (error) {
       console.error('Error al cargar visitas de ruta (supervisor):', error);
@@ -1298,7 +1299,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     )
 
 
-    const filtered = searched.filter((v: any) => {
+    const filtered = searched.filter((v: VisitaParcial) => {
       return shouldShowVisitaEnRutaHoy(v, hoyBogotaKey)
     })
 
@@ -1409,7 +1410,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
       })()
 
       setVisitasBaseAndRef((prev: any[]) =>
-        prev.map((v: any) => {
+        prev.map((v: VisitaParcial) => {
           if (v.id !== visitaReprogramar.id) return v
           return {
             ...v,
@@ -1567,7 +1568,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
         const cuotas = await prestamosService.obtenerCuotas(prestamoId).catch(() => [])
 
-        const vencidas = (cuotas || []).filter((c: any) => c.estado === 'VENCIDA')
+        const vencidas = (cuotas || []).filter((c: CuotaOperativa) => c.estado === 'VENCIDA')
 
         const cuotasVencidas = vencidas.length
 
@@ -1933,7 +1934,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
       const clienteIdPago = visita.clienteId
 
       if (!esCierrePendiente) {
-        setVisitasBaseAndRef((prev: any[]) => prev.map((v: any) => {
+        setVisitasBaseAndRef((prev: any[]) => prev.map((v: VisitaParcial) => {
           if (v.clienteId !== clienteIdPago) return v
 
           const esVisitaPagada = v.id === visitaId
@@ -2803,7 +2804,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                         return isTodayOrPastBogota(dateStr);
                       };
 
-                      const filterByDate = (v: any) => searchQuery || Number(v.montoCuota) > 0 || isTodayOrMora(v.proximaVisita);
+                      const filterByDate = (v: VisitaRuta) => searchQuery || Number(v.montoCuota) > 0 || isTodayOrMora(v.proximaVisita);
 
                       const porPeriodo = {
                         DIA: visitasCobrador.filter(v => v.periodoRuta === 'DIA' && filterByDate(v)),
@@ -3199,7 +3200,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
           <RutaProvisionalModal
 
-            visitas={visitasCobrador.filter((v: any) => {
+            visitas={visitasCobrador.filter((v: VisitaParcial) => {
               const pending = ['pendiente', 'en_mora'].includes(String(v?.estado || '').toLowerCase())
               if (!pending) return false
               const hoyBogota = hoyBogotaKey
@@ -3222,7 +3223,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
           <PagoModal
 
-            visita={visitaPagoRegularizada || visitasCobrador.find((v: any) => v.id === visitaPagoSeleccionadaId)!}
+            visita={visitaPagoRegularizada || visitasCobrador.find((v: VisitaParcial) => v.id === visitaPagoSeleccionadaId)!}
 
             tipo={pagoInitialIsAbono ? 'ABONO' : 'PAGO'}
 
