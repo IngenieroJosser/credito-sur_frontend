@@ -318,6 +318,7 @@ export function CierrePendienteDetalleModal({
             onClick={onClose}
             disabled={processingCierre}
             className="shrink-0 rounded-xl p-2 text-slate-400 hover:bg-white hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+            aria-label="Cerrar"
           >
             <X className="h-5 w-5" />
           </button>

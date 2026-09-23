@@ -700,6 +700,7 @@ export default function NotificacionDetalleModal({
               <button
                 onClick={onClose}
                 className="shrink-0 p-2 rounded-full hover:bg-slate-100 transition-colors"
+                aria-label="Cerrar"
               >
                 <X className="h-5 w-5 text-slate-500" />
               </button>
@@ -1574,6 +1575,7 @@ export default function NotificacionDetalleModal({
             <button 
               onClick={handleClose}
               className="shrink-0 p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400"
+              aria-label="Cerrar"
             >
               <X className="h-5 w-5" />
             </button>

@@ -264,6 +264,7 @@ export default function AlertaClienteDetalleModal({
                 type="button"
                 onClick={onClose}
                 className="shrink-0 rounded-2xl bg-slate-100 p-2 text-slate-500 transition hover:bg-slate-200 hover:text-slate-900"
+                aria-label="Cerrar"
               >
                 <X className="h-5 w-5" />
               </button>

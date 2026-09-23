@@ -45,6 +45,7 @@ export default function AusenteModal({ visita, onClose, onConfirm }: AusenteModa
             <button
               onClick={onClose}
               className="shrink-0 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
+              aria-label="Cerrar"
             >
               <X className="h-5 w-5" />
             </button>

@@ -61,6 +61,7 @@ export default function BaseModal({ isOpen, onClose, onConfirm }: BaseModalProps
             <button
               onClick={handleReset}
               className="shrink-0 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
+              aria-label="Cerrar"
             >
               <X className="h-5 w-5" />
             </button>

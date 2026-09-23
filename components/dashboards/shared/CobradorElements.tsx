@@ -611,6 +611,7 @@ export function SeleccionClienteModal({
             <button
               onClick={onClose}
               className="shrink-0 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
+              aria-label="Cerrar"
             >
               <XCircle className="h-5 w-5" />
             </button>

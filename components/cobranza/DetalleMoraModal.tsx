@@ -106,6 +106,7 @@ export default function DetalleMoraModal({
             <button
               onClick={onClose}
               className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all"
+              aria-label="Cerrar"
             >
               <X className="h-5 w-5" />
             </button>

@@ -81,7 +81,9 @@ function AbonoModal({ cobrador, onClose, onConfirm, cajas }: AbonoModalProps) {
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Registrar Abono</p>
             <h3 className="text-sm font-black text-slate-900 mt-0.5">{cobrador.nombreCobrador}</h3>
           </div>
-          <button onClick={onClose} className="shrink-0 p-2 hover:bg-slate-100 rounded-full transition-colors">
+          <button onClick={onClose} className="shrink-0 p-2 hover:bg-slate-100 rounded-full transition-colors"
+            aria-label="Cerrar"
+          >
             <X className="h-4 w-4 text-slate-400" />
           </button>
         </div>
@@ -211,7 +213,9 @@ function DetalleDeudaModal({ cobrador, onClose }: DetalleDeudaModalProps) {
             <h3 className="text-base sm:text-lg font-black text-slate-900 mt-0.5 truncate">{cobrador.nombreCobrador}</h3>
             <p className="text-xs font-bold text-slate-500 mt-1">{cobrador.rol.replace('_', ' ')} · {cobrador.totalEventos} evento(s)</p>
           </div>
-          <button onClick={onClose} className="shrink-0 p-2 hover:bg-slate-100 rounded-full transition-colors shrink-0">
+          <button onClick={onClose} className="shrink-0 p-2 hover:bg-slate-100 rounded-full transition-colors shrink-0"
+            aria-label="Cerrar"
+          >
             <X className="h-5 w-5 text-slate-400" />
           </button>
         </div>

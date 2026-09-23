@@ -61,6 +61,7 @@ export default function DetalleProductoModal({ id, onClose }: DetalleProductoMod
         <button
           onClick={handleClose}
           className="absolute top-4 right-4 z-20 p-2 bg-white/80 backdrop-blur-sm rounded-full shadow-sm border border-slate-200 text-slate-400 hover:text-slate-900 hover:bg-white transition-all"
+          aria-label="Cerrar"
         >
           <X className="w-5 h-5" />
         </button>

@@ -245,6 +245,7 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
             <button 
               onClick={onClose}
               className="p-3 bg-white/80 backdrop-blur-xl border border-slate-200 rounded-2xl text-slate-400 hover:text-slate-900 shadow-xl hover:scale-110 transition-all active:scale-95 animate-in fade-in zoom-in-95 duration-200 ease-out motion-reduce:animate-none"
+              aria-label="Cerrar"
             >
               <X className="w-6 h-6" />
             </button>

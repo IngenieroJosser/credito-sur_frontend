@@ -599,6 +599,7 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
                                 type="button" 
                                 onClick={handleCrearCategoria}
                                 className="shrink-0 p-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
+                               aria-label="Confirmar"
                              >
                                 <CheckCircle2 className="h-5 w-5" />
                              </button>

@@ -74,6 +74,7 @@ export default function ProcesarCastigoModal({ cuenta, onClose, onConfirm }: Pro
             <button 
               onClick={onClose}
               className="p-2 bg-white border border-slate-200 rounded-full text-slate-400 hover:text-slate-700 transition-all active:scale-95 shadow-sm"
+              aria-label="Cerrar"
             >
               <X className="h-5 w-5" />
             </button>

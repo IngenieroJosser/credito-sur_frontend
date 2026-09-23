@@ -2730,7 +2730,7 @@ function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose:
             onClick={onClose}
 
             className="shrink-0 p-2 bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all active:scale-90"
-
+            aria-label="Cerrar"
           >
 
             <XCircle className="h-6 w-6" />

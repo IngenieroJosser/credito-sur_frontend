@@ -262,7 +262,9 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
                         </span>
                     </div>
                 </div>
-                <button onClick={onClose} className="shrink-0 p-2 bg-white border border-slate-200 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-colors">
+                <button onClick={onClose} className="shrink-0 p-2 bg-white border border-slate-200 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-colors"
+                  aria-label="Cerrar"
+                >
                     <X className="h-5 w-5" />
                 </button>
                 </div>

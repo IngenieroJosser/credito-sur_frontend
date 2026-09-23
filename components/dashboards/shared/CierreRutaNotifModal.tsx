@@ -109,6 +109,7 @@ export default function CierreRutaNotifModal({
             <button
               onClick={onClose}
               className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition-colors text-white"
+              aria-label="Cerrar"
             >
               <X className="h-4 w-4" />
             </button>
