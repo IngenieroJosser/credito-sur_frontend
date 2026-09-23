@@ -171,6 +171,23 @@ export interface Pago {
   fechaPago: string;
   comprobante?: string | null;
   notas?: string | null;
+  /** Fecha operativa de la ruta a la que se imputa el pago (columna del modelo). */
+  fechaOperativaRuta?: string | null;
+  /**
+   * Que cuotas cubrio este pago. Es el UNICO sitio donde vive el vinculo
+   * pago->cuota: el modelo Pago no tiene columna `cuotaId`, la tiene
+   * DetallePago. El listado de pagos los devuelve con la cuota anidada
+   * (payments.service, findAll).
+   */
+  detalles?: Array<{
+    id: string;
+    cuotaId: string;
+    monto: number;
+    montoCapital?: number;
+    montoInteres?: number;
+    montoInteresMora?: number;
+    cuota?: Pick<Cuota, 'id' | 'numeroCuota' | 'monto' | 'montoPagado' | 'estado'>;
+  }>;
   creadoEn: string;
 }
 

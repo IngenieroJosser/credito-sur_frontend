@@ -3,6 +3,7 @@ import { logger } from '@/lib/logger'
 import { getPagoBogotaDateKey, shouldExcludeVisitaFromOperationalMeta } from '@/lib/rutas-core'
 import { mapNivelRiesgo, type VisitaParcial, type VisitaRuta } from '@/lib/types/cobranza'
 import { resolveRiesgoObligacion } from '@/lib/rutas/riesgo-obligacion'
+import type { Pago, Prestamo } from '@/types/domain'
 
 type Resumen = {
   recaudo: number
@@ -248,7 +249,7 @@ export const applyPagosDelDiaToHistorialVisitas = (params: {
 }) => {
   const { fechaClave, visitas, pagosDelDia } = params
   const pagosOperativos = (Array.isArray(pagosDelDia) ? pagosDelDia : [])
-    .filter((p: any) => !isPagoCierrePendiente(p))
+    .filter((p: Pago) => !isPagoCierrePendiente(p))
   const recaudadoPorPrestamo: Record<string, number> = {}
   const pagosPorKey = new Map<string, { pago: any; total: number; index: number }>()
 
@@ -350,15 +351,28 @@ export const buildHistorialDiaFromBackend = (params: {
 }) => {
   const { fechaClave, visitasResp, saldo, pagosDelDia } = params
   const pagos = Array.isArray(pagosDelDia) ? pagosDelDia : []
-  const pagosOperativos = pagos.filter((p: any) => !isPagoCierrePendiente(p))
-  const pagosRegularizados = pagos.filter((p: any) =>
+  const pagosOperativos = pagos.filter((p: Pago) => !isPagoCierrePendiente(p))
+  const pagosRegularizados = pagos.filter((p: Pago) =>
     isPagoCierrePendiente(p) && String(p?.fechaOperativaRuta || '').slice(0, 10) === fechaClave
   )
 
   // 1) Índice de pagos por obligación (prestamoId + cuotaId) para evitar contaminación entre créditos del mismo cliente.
   // El recaudo histórico debe salir ÚNICAMENTE de pagosDelDia, indexado por prestamoId y opcionalmente prestamoId:cuotaId.
-  const getPagoPrestamoId = (p: any) => String(p?.prestamoId || p?.prestamo?.id || '').trim()
-  const getPagoCuotaId = (p: any) => String(p?.cuotaId || p?.cuota?.id || '').trim()
+  const getPagoPrestamoId = (p: Pago) => String(p?.prestamoId || p?.prestamo?.id || '').trim()
+  // OJO: esto devuelve SIEMPRE cadena vacia. Un Pago no tiene `cuotaId` ni
+  // relacion `cuota`: el vinculo pago->cuota vive en DetallePago, y el listado
+  // lo manda en `p.detalles[].cuotaId` (con la cuota anidada). El dato llega;
+  // aqui se busca donde no esta.
+  //
+  // Consecuencia: `pagosByPrestamoCuota` nunca se llena, asi que el reparto
+  // por cuota de mas abajo cae siempre al total del prestamo. Con dos cuotas
+  // cobradas el mismo dia, el recaudo se atribuye al monton en vez de a cada
+  // una.
+  //
+  // No se arregla aqui a proposito: cambiarlo mueve cifras de dinero en
+  // pantalla y eso se decide mirandolo, no de paso.
+  const getPagoCuotaId = (p: Pago) =>
+    String((p as any)?.cuotaId || (p as any)?.cuota?.id || '').trim()
 
   const pagosByPrestamo = new Map<string, number>()
   const pagosByPrestamoCuota = new Map<string, number>()
@@ -416,12 +430,12 @@ export const buildHistorialDiaFromBackend = (params: {
     logger.log(`[buildHistorialDiaFromBackend] Fecha: ${fechaClave}`)
     logger.log(`[buildHistorialDiaFromBackend] Obligaciones: ${obligacionesRaw.length}`)
     logger.log(`[buildHistorialDiaFromBackend] Visitas: ${Array.isArray((visitasResp as any)?.visitas) ? (visitasResp as any).visitas.length : 0}`)
-    console.table((pagosOperativos || []).map((p: any) => ({
+    console.table((pagosOperativos || []).map((p: Pago) => ({
       tipo: 'PAGO_HISTORIAL',
       id: p.id,
       clienteId: p.clienteId,
       prestamoId: p.prestamoId,
-      cuotaId: p.cuotaId,
+      cuotaId: (p as any).cuotaId,   // siempre vacia: vive en p.detalles[]
       montoTotal: p.montoTotal,
       fechaPago: p.fechaPago || p.creadoEn,
     })))
@@ -629,12 +643,12 @@ export const buildHistorialDiaFromBackend = (params: {
 
     const prestamoPreferidoId = String(
       item?.prestamoId
-        || (prestamos.find((p: any) => Number(p?.saldoPendiente || 0) > 0)?.id || '')
+        || (prestamos.find((p: Prestamo) => Number(p?.saldoPendiente || 0) > 0)?.id || '')
         || (prestamos[0]?.id || ''),
     )
 
     const prestamosSeleccionados = prestamoPreferidoId
-      ? prestamos.filter((p: any) => String(p?.id || '') === prestamoPreferidoId)
+      ? prestamos.filter((p: Prestamo) => String(p?.id || '') === prestamoPreferidoId)
       : prestamos
 
     const lista = (prestamosSeleccionados.length > 0 ? prestamosSeleccionados : [prestamos[0]]).filter(Boolean)
