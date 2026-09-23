@@ -1,3 +1,4 @@
+import type { PrestamoParcial } from '@/types/domain'
 export type EstadoVisita = 'pendiente' | 'pagado' | 'en_mora' | 'ausente' | 'reprogramado' | 'en_prorroga' | 'gestionado'
 export type PeriodoRuta = 'DIA' | 'SEMANA' | 'QUINCENA' | 'MES'
 
@@ -147,7 +148,7 @@ export interface VisitaRuta {
   /** Saldo del prestamo completo, no de la cuota. */
   saldoPendiente?: number
   /** El prestamo, cuando la respuesta lo trae anidado. */
-  prestamo?: { saldoPendiente?: number; [clave: string]: unknown } | null
+  prestamo?: PrestamoParcial | null
   montoMoraAcumulada?: number
   montoVencidoAcumulado?: number
   saldoVencidoAcumulado?: number

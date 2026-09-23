@@ -1,3 +1,4 @@
+import type { CuotaOperativa } from '@/lib/types/cobranza';
 /**
  * types/domain.ts
  *
@@ -81,6 +82,26 @@ export interface Prestamo {
   cuotas?: Cuota[];
   extensiones?: Extension[];
   proximaCuota?: Cuota | null;
+  /** Estado de la revision del credito (columna del modelo). */
+  estadoAprobacion?: string;
+  /** Efecto provisional aplicado mientras se aprueba. */
+  efectoProvisional?: { estado?: string } | null;
+  /** Marca de archivado; si viene, el prestamo no es operativo. */
+  eliminadoEn?: string | null;
+  /** Venta de contado: se paga en el momento y no se cobra en ruta. */
+  esContado?: boolean;
+  /** Id de la cuota que toca cobrar (routes.service:784). */
+  cuotaObjetivoId?: string;
+  /**
+   * Alias que el codigo acepta y el backend NO manda: `cuotaId` por
+   * `cuotaObjetivoId` y `tipo` por `tipoPrestamo`. Cada uno esta en una
+   * cadena `a ?? b` junto al nombre bueno, asi que no estorban; se
+   * declaran para que se sepa que de ahi no viene el dato.
+   */
+  cuotaId?: string;
+  tipo?: string;
+  /** La cuota objetivo ya enriquecida, cuando la respuesta la trae. */
+  cuotaObjetivo?: CuotaOperativa | null;
   creadoEn: string;
   actualizadoEn: string;
   // ── Campos calculados / enriquecidos que devuelve el backend ───────────────
@@ -129,6 +150,18 @@ export interface Prestamo {
   tipoProducto?: string | null;
 }
 
+
+/**
+ * Un prestamo con lo que haya llegado.
+ *
+ * Las funciones del nucleo (`lib/rutas-core`) deciden si un prestamo es
+ * operativo mirando tres o cuatro campos -estado, estadoAprobacion,
+ * eliminadoEn- y se defienden solas de lo que falte. Se las llama con
+ * prestamos completos, pero tambien con fragmentos: mientras se enriquece una
+ * visita, y en las pruebas. Pedirles el prestamo entero seria pedir mas de lo
+ * que usan.
+ */
+export type PrestamoParcial = Partial<Prestamo>;
 export interface Cuota {
   id: string;
   prestamoId: string;

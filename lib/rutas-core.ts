@@ -1,6 +1,7 @@
 import { mapFrecuenciaToPeriodo, type PeriodoRuta } from '@/lib/types/cobranza';
 import type { ClienteCierrePendiente } from '@/types/rutas/cierre-pendiente';
 import type { CuotaOperativa, VisitaParcial } from '@/lib/types/cobranza';
+import type { PrestamoParcial } from '@/types/domain';
 
 /**
  * Saca el id de la cuota objetivo de un objeto de visita.
@@ -13,7 +14,7 @@ import type { CuotaOperativa, VisitaParcial } from '@/lib/types/cobranza';
  * Devuelve cadena vacia si no encuentra ninguno, nunca `undefined`, para que
  * quien llama pueda comparar sin normalizar antes.
  */
-export const resolveCuotaIdFromVisitaLike = (source: any, prestamo?: any, cuota?: any) => {
+export const resolveCuotaIdFromVisitaLike = (source: any, prestamo?: PrestamoParcial | null, cuota?: any) => {
   return String(
     source?.cuotaId ??
     source?.cuotaObjetivoId ??
@@ -119,7 +120,7 @@ export const getEstadoRevisionOperacion = (source: any) => {
   };
 };
 
-export const isPrestamoRevertido = (prestamo: any): boolean => {
+export const isPrestamoRevertido = (prestamo: PrestamoParcial): boolean => {
   return getEstadoRevisionOperacion(prestamo).esRevertido;
 };
 
@@ -146,7 +147,7 @@ const nonOperativePrestamoStates = new Set([
  *
  * Cualquier cambio en las reglas de aqui hay que aplicarlo tambien alla.
  */
-export const isPrestamoOperativo = (prestamo: any): boolean => {
+export const isPrestamoOperativo = (prestamo: PrestamoParcial): boolean => {
   if (!prestamo) return false;
   if (prestamo?.eliminadoEn) return false;
 
@@ -169,7 +170,7 @@ export const isPrestamoOperativo = (prestamo: any): boolean => {
  * La comparacion es `<=` y no `===`: la ruta de hoy arrastra lo que vencio antes
  * y sigue impago.
  */
-export const isCuotaOperativaParaFecha = (cuota: CuotaOperativa, fechaOperativaKey: string): boolean => {
+export const isCuotaOperativaParaFecha = (cuota: CuotaOperativa | null | undefined, fechaOperativaKey: string): boolean => {
   if (!cuota || !fechaOperativaKey) return false;
 
   const estado = normalizeUpper(cuota?.estado ?? cuota?.estadoActual);
@@ -188,7 +189,11 @@ export const isCuotaOperativaParaFecha = (cuota: CuotaOperativa, fechaOperativaK
 };
 
 export const isObligacionOperativaRuta = (
-  obligacion: { prestamo?: any; cuota?: any; cuotaObjetivo?: any },
+  obligacion: PrestamoParcial & {
+    prestamo?: PrestamoParcial | null
+    cuota?: CuotaOperativa | null
+    cuotaObjetivo?: CuotaOperativa | null
+  },
   fechaOperativaKey: string,
 ): boolean => {
   const prestamo = obligacion?.prestamo ?? obligacion;
@@ -587,7 +592,7 @@ export const frecuenciaToPeriodoRuta = (frecuencia: string | null | undefined): 
   return mapFrecuenciaToPeriodo(String(frecuencia || '').toUpperCase());
 };
 
-export const resolveFechaEfectivaCuota = (cuota: CuotaOperativa): string => {
+export const resolveFechaEfectivaCuota = (cuota: CuotaOperativa | null | undefined): string => {
   // Determina la "fecha efectiva" de una cuota.
   // Si la cuota está PRORROGADA y trae fechaVencimientoProrroga, esa fecha manda.
   // En caso contrario usa fechaVencimiento.
@@ -605,7 +610,7 @@ export const resolveFechaEfectivaCuota = (cuota: CuotaOperativa): string => {
   return raw ? String(raw) : '';
 };
 
-export const resolveProximaCuotaFromPrestamo = (prestamo: any): { cuota: any | null; fechaEfectiva: string } => {
+export const resolveProximaCuotaFromPrestamo = (prestamo: PrestamoParcial): { cuota: any | null; fechaEfectiva: string } => {
   // Resuelve la próxima cuota exigible de un préstamo.
   // Preferencia:
   // 1) prestamo.proximaCuota (si el backend la entrega)
@@ -642,7 +647,7 @@ export const resolveProximaCuotaFromPrestamo = (prestamo: any): { cuota: any | n
   return { cuota, fechaEfectiva };
 };
 
-export const resolveNextPagoFromPrestamo = (prestamo: any): { monto: number | null; fecha: string | null; cuota: any | null; fechaEfectiva: string } => {
+export const resolveNextPagoFromPrestamo = (prestamo: PrestamoParcial): { monto: number | null; fecha: string | null; cuota: any | null; fechaEfectiva: string } => {
   // Wrapper que devuelve (monto, fecha) de la cuota próxima, más la cuota y su fecha efectiva.
   // Se usa para mostrar "próximo pago" en UI.
   const { cuota, fechaEfectiva } = resolveProximaCuotaFromPrestamo(prestamo);
@@ -652,7 +657,7 @@ export const resolveNextPagoFromPrestamo = (prestamo: any): { monto: number | nu
   return { monto, fecha, cuota, fechaEfectiva: String(fechaEfectiva || '') };
 };
 
-export const resolveCuotaProgressFromPrestamo = (prestamo: any): { cuotaActual: number | null; cuotasTotales: number | null } => {
+export const resolveCuotaProgressFromPrestamo = (prestamo: PrestamoParcial): { cuotaActual: number | null; cuotasTotales: number | null } => {
   // Devuelve el progreso del plan de pagos:
   // - cuotaActual: número de la primera cuota no pagada (o la primera cuota si no hay estado)
   // - cuotasTotales: cantidad total de cuotas (preferencia: prestamo.cantidadCuotas)
@@ -933,7 +938,7 @@ export const resolveRutaHoyKpiStats = (
   return { meta, pendiente, recaudo, eficiencia };
 };
 
-export const isCuotaNoPagada = (cuota: CuotaOperativa): boolean => {
+export const isCuotaNoPagada = (cuota: CuotaOperativa | null | undefined): boolean => {
   // Predicado normalizado de "cuota no pagada" (incluye pendientes, vencidas, prorrogadas, etc.).
   const st = String(cuota?.estado || '').toUpperCase();
   return st !== 'PAGADA' && st !== 'PAGADO' && st !== 'ANULADA' && st !== 'ANULADO';

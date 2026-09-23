@@ -14,19 +14,20 @@ import {
   resolveCobradorIdForRouteAction,
   shouldShowVisitaEnRutaHoy,
 } from '@/lib/rutas-core'
+import type { PrestamoParcial } from '@/types/domain'
 
 describe('validez operativa provisional', () => {
   it('permite prestamos pendientes como provisionales y excluye rechazados/revertidos', () => {
-    const pendiente = {
+    const pendiente: PrestamoParcial = {
       estado: 'PENDIENTE_APROBACION',
       estadoAprobacion: 'PENDIENTE',
       efectoProvisional: { estado: 'PENDIENTE_REVISION' },
     }
-    const rechazado = {
+    const rechazado: PrestamoParcial = {
       estado: 'PENDIENTE_APROBACION',
       estadoAprobacion: 'RECHAZADO',
     }
-    const revertido = {
+    const revertido: PrestamoParcial = {
       estado: 'PENDIENTE_APROBACION',
       estadoAprobacion: 'PENDIENTE',
       efectoProvisional: { estado: 'REVERTIDO' },
