@@ -359,18 +359,26 @@ export const buildHistorialDiaFromBackend = (params: {
   // 1) Índice de pagos por obligación (prestamoId + cuotaId) para evitar contaminación entre créditos del mismo cliente.
   // El recaudo histórico debe salir ÚNICAMENTE de pagosDelDia, indexado por prestamoId y opcionalmente prestamoId:cuotaId.
   const getPagoPrestamoId = (p: Pago) => String(p?.prestamoId || p?.prestamo?.id || '').trim()
-  // OJO: esto devuelve SIEMPRE cadena vacia. Un Pago no tiene `cuotaId` ni
-  // relacion `cuota`: el vinculo pago->cuota vive en DetallePago, y el listado
-  // lo manda en `p.detalles[].cuotaId` (con la cuota anidada). El dato llega;
-  // aqui se busca donde no esta.
+  // Esto devuelve SIEMPRE cadena vacia, y esta bien que lo haga.
   //
-  // Consecuencia: `pagosByPrestamoCuota` nunca se llena, asi que el reparto
-  // por cuota de mas abajo cae siempre al total del prestamo. Con dos cuotas
-  // cobradas el mismo dia, el recaudo se atribuye al monton en vez de a cada
-  // una.
+  // Un Pago no tiene `cuotaId` ni relacion `cuota`: el vinculo pago->cuota vive
+  // en DetallePago y el listado lo manda en `p.detalles[].cuotaId`. Asi que
+  // `pagosByPrestamoCuota` nunca se llena y el cruce de mas abajo cae siempre
+  // al total por prestamo.
   //
-  // No se arregla aqui a proposito: cambiarlo mueve cifras de dinero en
-  // pantalla y eso se decide mirandolo, no de paso.
+  // Parece un reparto perdido y no lo es. El historial tiene UNA FILA POR
+  // PRESTAMO, no por cuota: el backend arma las obligaciones con
+  // `visitas.flatMap(v => v.prestamos.map(...))` y aqui se deduplica con
+  // `loan-${prestamoId}`. Como la fila abarca el prestamo entero, lo que le
+  // corresponde mostrar es TODO lo cobrado de ese prestamo en el dia, que es
+  // justo lo que da `pagosByPrestamo`.
+  //
+  // Activar el cruce por cuota enseñaria SOLO la parte imputada a la cuota
+  // objetivo: si un cliente se pone al dia pagando dos cuotas del mismo
+  // prestamo, la fila mostraria de menos. Seria un retroceso, no un arreglo.
+  //
+  // Se deja como esta. Si algun dia el historial pasa a una fila por cuota,
+  // entonces si hara falta, y el dato esta en `p.detalles[]`.
   const getPagoCuotaId = (p: Pago) =>
     String((p as any)?.cuotaId || (p as any)?.cuota?.id || '').trim()
 
