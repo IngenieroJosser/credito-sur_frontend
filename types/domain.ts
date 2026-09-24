@@ -230,9 +230,21 @@ export interface Pago {
   rutaId?: string | null;
   cobradorId?: string | null;
   montoTotal: number;
-  montoCapital: number;
-  montoInteres: number;
-  montoMora: number;
+
+  /**
+   * El pago NO lleva su propio desglose: el modelo Pago solo tiene
+   * `montoTotal` (schema.prisma). Capital, interes y mora viven en
+   * `detalles[]`, una fila por cuota cubierta, porque un mismo pago puede
+   * repartirse entre varias.
+   *
+   * Estaban declarados aqui como obligatorios, asi que el tipo prometia un
+   * `number` donde en ejecucion siempre llegaba `undefined`. Se dejan
+   * opcionales y anotados para que quien los lea sepa que tiene que sumar
+   * `detalles`, no confiar en esto.
+   */
+  montoCapital?: number;
+  montoInteres?: number;
+  montoMora?: number;
   metodoPago: MetodoPago;
   fechaPago: string;
   comprobante?: string | null;
@@ -264,6 +276,22 @@ export interface Pago {
     cuota?: Pick<Cuota, 'id' | 'numeroCuota' | 'monto' | 'montoPagado' | 'estado'>;
   }>;
   creadoEn: string;
+
+  /**
+   * Quien cobro y en que ruta. El backend los incluye en el listado
+   * (payments.service: cobrador con nombres/apellidos/rol, ruta con
+   * id/nombre/codigo). Parciales porque cada endpoint selecciona lo suyo.
+   */
+  cobrador?: Partial<Usuario> | null;
+  ruta?: Partial<Ruta> | null;
+
+  /**
+   * NO existe en el modelo: el pago no tiene estado propio. Lo que hay es
+   * `estadoSincronizacion`, que es otra cosa -si ya se replico al espejo-.
+   * El codigo lo lee como `p.estado || 'completado'`, asi que siempre
+   * resuelve a completado, que es correcto: un pago registrado esta hecho.
+   */
+  estado?: string | null;
 
   /** Consecutivo del recibo. Lo genera el backend (payments.service). */
   numeroPago?: string | null;
