@@ -1,7 +1,7 @@
 import { logger } from '@/lib/logger'
 import { apiRequest } from '@/lib/api/api';
 import { syncService } from '@/lib/offline/syncService';
-import { conRespaldoOffline } from '@/lib/offline/conRespaldoOffline';
+import { conRespaldoOffline, esErrorDeRed } from '@/lib/offline/conRespaldoOffline';
 import { offlineStore } from '@/lib/offline/offlineDb';
 import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 
@@ -259,12 +259,7 @@ export async function createCaja(data: {
   try {
     return await apiRequest<Caja>('POST', '/accounting/cajas', data);
   } catch (error: any) {
-    if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+    if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando creacion de caja en cola...');
         await syncService.enqueueOperation(
           'caja_crear',
@@ -288,12 +283,7 @@ export async function updateCaja(id: string, data: {
   try {
     return await apiRequest<Caja>('PATCH', `/accounting/cajas/${id}`, data);
   } catch (error: any) {
-    if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+    if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando actualizacion de caja en cola...');
         await syncService.enqueueOperation(
           'caja_actualizar',
@@ -331,12 +321,7 @@ export async function consolidarCaja(cajaId: string, monto?: number, idempotency
       idempotencyKey: key 
     });
   } catch (error: any) {
-    if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+    if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando consolidacion de caja en cola...');
         await syncService.enqueueOperation(
           'caja_consolidar',
@@ -472,12 +457,7 @@ export async function createTransaccion(data: {
   try {
     return await apiRequest<Transaccion>('POST', '/accounting/transacciones', payload);
   } catch (error: any) {
-    if (
-      (typeof navigator !== 'undefined' && !navigator.onLine) ||
-      error?.statusCode === 0 || 
-      error?.message?.includes('network') ||
-      error?.code === 'ERR_NETWORK'
-    ) {
+    if (esErrorDeRed(error)) {
       logger.log('[Offline Mode] Guardando transacción en cola...');
       await syncService.enqueueOperation(
         'transaccion_crear', // Tipo más descriptivo
@@ -654,12 +634,7 @@ export async function confirmarArqueo(cajaId: string, data: {
   try {
     return await apiRequest<any>('POST', `/cajas/${cajaId}/arqueos`, data);
   } catch (error: any) {
-    if (
-      (typeof navigator !== 'undefined' && !navigator.onLine) ||
-      error?.statusCode === 0 || 
-      error?.message?.includes('network') ||
-      error?.code === 'ERR_NETWORK'
-    ) {
+    if (esErrorDeRed(error)) {
       logger.log('[Offline Mode] Guardando arqueo en cola...');
       await syncService.enqueueOperation(
         'arqueo_registrar',
@@ -684,12 +659,7 @@ export async function registrarArqueo(cajaId: string, data: {
   try {
     return await apiRequest<any>('POST', `/accounting/cajas/${cajaId}/arqueos`, data);
   } catch (error: any) {
-    if (
-      (typeof navigator !== 'undefined' && !navigator.onLine) ||
-      error?.statusCode === 0 || 
-      error?.message?.includes('network') ||
-      error?.code === 'ERR_NETWORK'
-    ) {
+    if (esErrorDeRed(error)) {
       logger.log('[Offline Mode] Guardando arqueo en cola...');
       await syncService.enqueueOperation(
         'arqueo_registrar',
@@ -768,12 +738,7 @@ export async function registrarGasto(data: {
 
     return await apiRequest('POST', '/accounting/gastos', payload);
   } catch (error: any) {
-    if (
-      (typeof navigator !== 'undefined' && !navigator.onLine) ||
-      error?.statusCode === 0 || 
-      error?.message?.includes('network') ||
-      error?.code === 'ERR_NETWORK'
-    ) {
+    if (esErrorDeRed(error)) {
       logger.log('[Offline Mode] Guardando gasto en cola...');
       
       const payload: any = {
@@ -828,12 +793,7 @@ export async function solicitarBase(data: {
   try {
     return await apiRequest('POST', '/accounting/base-requests', data);
   } catch (error: any) {
-    if (
-      (typeof navigator !== 'undefined' && !navigator.onLine) ||
-      error?.statusCode === 0 || 
-      error?.message?.includes('network') ||
-      error?.code === 'ERR_NETWORK'
-    ) {
+    if (esErrorDeRed(error)) {
       logger.log('[Offline Mode] Guardando solicitud de base en cola...');
       await syncService.enqueueOperation(
         'base_solicitar',
@@ -915,12 +875,7 @@ export async function registrarAbonoDeudaCobrador(
   try {
     return await apiRequest<Transaccion>('POST', `/accounting/deudas-cobradores/${cobradorId}/abono`, payload);
   } catch (error: any) {
-    if (
-      (typeof navigator !== 'undefined' && !navigator.onLine) ||
-      error?.statusCode === 0 ||
-      error?.message?.includes('network') ||
-      error?.code === 'ERR_NETWORK'
-    ) {
+    if (esErrorDeRed(error)) {
       logger.log('[Offline Mode] Guardando abono a deuda de cobrador en cola...');
       await syncService.enqueueOperation(
         'abono_deuda_cobrador',

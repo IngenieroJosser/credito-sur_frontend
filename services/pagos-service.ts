@@ -3,6 +3,7 @@ import { apiRequest } from '@/lib/api/api';
 import { syncService } from '@/lib/offline/syncService';
 import { MetodoPago } from '@/types/enums';
 import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
+import { esErrorDeRed } from '@/lib/offline/conRespaldoOffline'
 
 export type { MetodoPago };
 
@@ -184,12 +185,7 @@ export const pagosService = {
       // Si es efectivo sin archivos, envío JSON normal
       return await apiRequest<ResultadoPago>('POST', '/payments', payload);
     } catch (error: any) {
-       if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+       if (esErrorDeRed(error)) {
          logger.log('[Offline Mode] Guardando pago en cola...');
          const tempId = `temp-pay-${Date.now()}`;
          

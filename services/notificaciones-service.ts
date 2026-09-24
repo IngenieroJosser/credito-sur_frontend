@@ -1,6 +1,7 @@
 import { logger } from '@/lib/logger'
 import { apiRequest } from '@/lib/api/api';
 import { syncService } from '@/lib/offline/syncService';
+import { esErrorDeRed } from '@/lib/offline/conRespaldoOffline';
 
 export interface Notificacion {
   id: string;
@@ -53,12 +54,7 @@ export const notificacionesService = {
     try {
       return await apiRequest<Notificacion>('PATCH', `/notificaciones/${id}/read`);
     } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+      if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando marcar notificacion como leida en cola...');
         await syncService.enqueueOperation(
           'notificacion_leer',

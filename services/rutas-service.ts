@@ -3,6 +3,7 @@ import { logger } from '@/lib/logger'
 import { apiRequest } from '@/lib/api/api';
 
 import { syncService } from '@/lib/offline/syncService';
+import { esErrorDeRed } from '@/lib/offline/conRespaldoOffline';
 
 
 
@@ -465,17 +466,7 @@ export const rutasService = {
 
     } catch (error: any) {
 
-      if (
-
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-
-        error?.statusCode === 0 || 
-
-        error?.message?.includes('network') ||
-
-        error?.code === 'ERR_NETWORK'
-
-      ) {
+      if (esErrorDeRed(error)) {
 
         logger.log('[Offline Mode] Guardando creacion de ruta en cola...');
 
@@ -517,17 +508,7 @@ export const rutasService = {
 
     } catch (error: any) {
 
-      if (
-
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-
-        error?.statusCode === 0 || 
-
-        error?.message?.includes('network') ||
-
-        error?.code === 'ERR_NETWORK'
-
-      ) {
+      if (esErrorDeRed(error)) {
 
         logger.log('[Offline Mode] Guardando actualizacion de ruta en cola...');
 
@@ -569,17 +550,7 @@ export const rutasService = {
 
     } catch (error: any) {
 
-      if (
-
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-
-        error?.statusCode === 0 || 
-
-        error?.message?.includes('network') ||
-
-        error?.code === 'ERR_NETWORK'
-
-      ) {
+      if (esErrorDeRed(error)) {
 
         logger.log('[Offline Mode] Guardando eliminacion de ruta en cola...');
 
@@ -623,17 +594,7 @@ export const rutasService = {
 
     } catch (error: any) {
 
-      if (
-
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-
-        error?.statusCode === 0 || 
-
-        error?.message?.includes('network') ||
-
-        error?.code === 'ERR_NETWORK'
-
-      ) {
+      if (esErrorDeRed(error)) {
 
         logger.log('[Offline Mode] Guardando cambio de estado de ruta en cola...');
 
@@ -681,17 +642,7 @@ export const rutasService = {
 
     } catch (error: any) {
 
-      if (
-
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-
-        error?.statusCode === 0 || 
-
-        error?.message?.includes('network') ||
-
-        error?.code === 'ERR_NETWORK'
-
-      ) {
+      if (esErrorDeRed(error)) {
 
         logger.log('[Offline Mode] Guardando asignacion de cliente a ruta en cola...');
 
@@ -735,17 +686,7 @@ export const rutasService = {
 
     } catch (error: any) {
 
-      if (
-
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-
-        error?.statusCode === 0 || 
-
-        error?.message?.includes('network') ||
-
-        error?.code === 'ERR_NETWORK'
-
-      ) {
+      if (esErrorDeRed(error)) {
 
         logger.log('[Offline Mode] Guardando remocion de cliente de ruta en cola...');
 
@@ -797,17 +738,7 @@ export const rutasService = {
 
     } catch (error: any) {
 
-      if (
-
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-
-        error?.statusCode === 0 || 
-
-        error?.message?.includes('network') ||
-
-        error?.code === 'ERR_NETWORK'
-
-      ) {
+      if (esErrorDeRed(error)) {
 
         logger.log('[Offline Mode] Guardando movimiento de cliente entre rutas en cola...');
 
@@ -881,17 +812,7 @@ export const rutasService = {
 
     } catch (error: any) {
 
-      if (
-
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-
-        error?.statusCode === 0 || 
-
-        error?.message?.includes('network') ||
-
-        error?.code === 'ERR_NETWORK'
-
-      ) {
+      if (esErrorDeRed(error)) {
 
         logger.log('[Offline Mode] Guardando reordenamiento de clientes en cola...');
 
@@ -942,12 +863,7 @@ export const rutasService = {
     try {
       await apiRequest<void>('POST', `/routes/${rutaId}/clientes/${clienteId}/visita`, payload);
     } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 ||
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+      if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando registro de visita en cola...');
         await syncService.enqueueOperation(
           'ruta_registrar_visita',

@@ -1,6 +1,7 @@
 import { logger } from '@/lib/logger'
 import { apiRequest } from '@/lib/api/api';
 import { syncService } from '@/lib/offline/syncService';
+import { esErrorDeRed } from '@/lib/offline/conRespaldoOffline';
 
 export interface CreateCreditDto {
   clienteId: string;
@@ -72,12 +73,7 @@ class CreditosService {
       const response = await apiRequest<any>('POST', 'loans', creditData);
       return response;
     } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+      if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando creacion de credito en cola...');
         return await syncService.enqueueOperation(
           'prestamo_crear',
@@ -139,12 +135,7 @@ class CreditosService {
       });
       return response;
     } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+      if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando aprobacion de credito en cola...');
         return await syncService.enqueueOperation(
           'prestamo_aprobar',
@@ -167,12 +158,7 @@ class CreditosService {
       });
       return response;
     } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+      if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando rechazo de credito en cola...');
         return await syncService.enqueueOperation(
           'prestamo_rechazar',
@@ -204,12 +190,7 @@ class CreditosService {
       });
       return response;
     } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+      if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando eliminacion de credito en cola...');
         return await syncService.enqueueOperation(
           'prestamo_eliminar',
@@ -231,12 +212,7 @@ class CreditosService {
       });
       return response;
     } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+      if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando restauracion de credito en cola...');
         return await syncService.enqueueOperation(
           'prestamo_restaurar',

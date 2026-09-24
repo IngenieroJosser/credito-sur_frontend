@@ -2,6 +2,7 @@ import { apiRequest } from '@/lib/api/api'
 import { syncService } from '@/lib/offline/syncService'
 import { logger } from '@/lib/logger'
 import type { VentaContadoPayload } from '@/lib/creditos/crear-prestamo-payload'
+import { esErrorDeRed } from '@/lib/offline/conRespaldoOffline'
 
 export type VentaContadoResponse = {
   success: boolean
@@ -28,12 +29,7 @@ export const salesService = {
     try {
       return await apiRequest<VentaContadoResponse>('POST', '/sales/cash', data)
     } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 ||
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+      if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando venta de contado en cola...')
         await syncService.enqueueOperation(
           'venta_contado',

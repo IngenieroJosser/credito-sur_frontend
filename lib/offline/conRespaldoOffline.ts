@@ -11,16 +11,33 @@
 import { logger } from '@/lib/logger';
 import { syncService } from './syncService';
 
-/** ¿El error indica falta de conectividad (no una respuesta HTTP del servidor)? */
-export function esErrorDeRed(error: any): boolean {
-  // Mismo criterio probado que ya usaban los servicios: NO tratar un error HTTP
-  // (403, 409, 500…) como falta de red, para no encolar algo que el servidor
-  // rechazó de verdad.
+/**
+ * ¿El error indica falta de conectividad, y no una respuesta del servidor?
+ *
+ * Distinguirlo importa: si el servidor contestó 403 o 409, la operación se
+ * rechazó de verdad y encolarla para reintentarla offline solo repetiría el
+ * rechazo. Solo se encola cuando la petición no llegó a salir.
+ *
+ * El criterio que de verdad decide es `statusCode === 0`: `apiRequest`
+ * normaliza ahí cualquier fallo de red de axios (lib/api/api.ts, donde mira
+ * ERR_NETWORK, ECONNREFUSED y ETIMEDOUT) antes de relanzarlo. Los otros tres
+ * se conservan por si el error llega sin pasar por ahí.
+ *
+ * Nota sobre el tercero: `includes('network')` va en minúscula y el mensaje
+ * de axios es "Network Error", así que NO casa. No se quita porque tampoco
+ * estorba y sí cubre un mensaje escrito a mano; quien lo lea, que sepa que no
+ * es el que atrapa los errores de axios: ese lo atrapa `statusCode === 0`.
+ */
+export function esErrorDeRed(error: unknown): boolean {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return true;
+
+  if (!error || typeof error !== 'object') return false;
+  const e = error as { statusCode?: unknown; message?: unknown; code?: unknown };
+
   return (
-    (typeof navigator !== 'undefined' && navigator.onLine === false) ||
-    error?.statusCode === 0 ||
-    (typeof error?.message === 'string' && error.message.includes('network')) ||
-    error?.code === 'ERR_NETWORK'
+    e.statusCode === 0 ||
+    (typeof e.message === 'string' && e.message.includes('network')) ||
+    e.code === 'ERR_NETWORK'
   );
 }
 

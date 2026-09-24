@@ -1,7 +1,7 @@
 import { logger } from '@/lib/logger'
 import { apiRequest } from '@/lib/api/api';
 import { syncService } from '@/lib/offline/syncService';
-import { conRespaldoOffline } from '@/lib/offline/conRespaldoOffline';
+import { conRespaldoOffline, esErrorDeRed } from '@/lib/offline/conRespaldoOffline';
 import { EstadoPrestamo, FrecuenciaPago, EstadoCuota, TipoAmortizacion } from '@/types/enums';
 import type { Prestamo } from '@/types/domain';
 import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
@@ -189,12 +189,7 @@ export const prestamosService = {
     try {
       return await apiRequest('POST', `/loans/${prestamoId}/archive`, data);
     } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+      if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando archivado de prestamo en cola...');
         await syncService.enqueueOperation(
           'prestamo_archivar',
@@ -221,12 +216,7 @@ export const prestamosService = {
     try {
       return await apiRequest('POST', '/loans', payload);
     } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+      if (esErrorDeRed(error)) {
          logger.log('[Offline Mode] Guardando creacion de préstamo en cola...');
          const tempId = `temp-loan-${Date.now()}`;
          
@@ -264,12 +254,7 @@ export const prestamosService = {
     try {
       return await apiRequest<void>('DELETE', `/loans/${id}`, { userId });
     } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+      if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando eliminacion de prestamo en cola...');
         await syncService.enqueueOperation(
           'prestamo_eliminar',
@@ -328,12 +313,7 @@ export const prestamosService = {
     try {
       return await apiRequest('POST', `/loans/${id}/approve`, { aprobadoPorId });
     } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+      if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando aprobacion de prestamo en cola...');
         await syncService.enqueueOperation(
           'prestamo_aprobar',
@@ -358,12 +338,7 @@ export const prestamosService = {
         motivo 
       });
     } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+      if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando rechazo de prestamo en cola...');
         await syncService.enqueueOperation(
           'prestamo_rechazar',
@@ -410,12 +385,7 @@ export const prestamosService = {
       
       return await apiRequest('POST', '/payments', formData);
     } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+      if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando pago en cola...');
         
         const payload = {
@@ -467,12 +437,7 @@ export const prestamosService = {
     try {
       return await apiRequest('POST', `/loans/${prestamoId}/reprogramacion`, payload);
     } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+      if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando reprogramacion de prestamo en cola...');
         await syncService.enqueueOperation(
           'prestamo_reprogramar',
@@ -508,12 +473,7 @@ export const prestamosService = {
     try {
       return await apiRequest('PATCH', `/loans/${id}`, data);
     } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+      if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando actualizacion de prestamo en cola...');
         await syncService.enqueueOperation(
           'prestamo_actualizar',
@@ -545,12 +505,7 @@ export const prestamosService = {
     try {
       return await apiRequest('POST', `/loans/${data.prestamoId}/reprogramacion`, payload);
     } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 ||
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+      if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando solicitud de reprogramacion de cuota en cola...');
         await syncService.enqueueOperation(
           'reprogramacion_cuota_solicitar',

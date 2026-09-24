@@ -1,6 +1,7 @@
 import { logger } from '@/lib/logger'
 import { apiRequest } from "@/lib/api/api";
 import { syncService } from '@/lib/offline/syncService';
+import { esErrorDeRed } from '@/lib/offline/conRespaldoOffline';
 
 export interface Categoria {
   id: string;
@@ -29,12 +30,7 @@ export const categoriasService = {
     try {
       return await apiRequest<Categoria>('POST', '/categorias', data);
     } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+      if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando creacion de categoria en cola...');
         return await syncService.enqueueOperation(
           'categoria_crear',
@@ -52,12 +48,7 @@ export const categoriasService = {
     try {
       return await apiRequest<void>('DELETE', `/categorias/${id}`);
     } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+      if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando eliminacion de categoria en cola...');
         await syncService.enqueueOperation(
           'categoria_eliminar',

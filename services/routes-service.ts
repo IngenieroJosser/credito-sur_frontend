@@ -1,6 +1,6 @@
 import { apiRequest } from '@/lib/api/api';
 import { syncService } from '@/lib/offline/syncService';
-import { conRespaldoOffline } from '@/lib/offline/conRespaldoOffline';
+import { conRespaldoOffline, esErrorDeRed } from '@/lib/offline/conRespaldoOffline';
 import { logger } from '@/lib/logger';
 
 export interface Route {
@@ -284,12 +284,7 @@ export const routesService = {
     try {
       return await apiRequest<any>('POST', endpoint, { observaciones });
     } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 ||
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+      if (esErrorDeRed(error)) {
         // Seguro offline: la cola es cronológica, así que este cierre se
         // sincroniza DESPUÉS de los pagos/gastos del día → el servidor
         // reconcilia con el panorama completo.

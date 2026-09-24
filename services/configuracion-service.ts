@@ -1,6 +1,7 @@
 import { logger } from '@/lib/logger'
 import { apiRequest } from "@/lib/api/api";
 import { syncService } from '@/lib/offline/syncService';
+import { esErrorDeRed } from '@/lib/offline/conRespaldoOffline';
 
 export interface ConfiguracionSistema {
   id: string;
@@ -30,12 +31,7 @@ class ConfiguracionService {
     try {
       return await apiRequest<ConfiguracionSistema>('PUT', '/configuracion', data);
     } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+      if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando actualizacion de configuracion en cola...');
         return await syncService.enqueueOperation(
           'configuracion_actualizar',

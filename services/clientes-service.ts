@@ -1,7 +1,7 @@
 import { logger } from '@/lib/logger'
 import { apiRequest } from "@/lib/api/api";
 import { syncService } from '@/lib/offline/syncService';
-import { conRespaldoOffline } from '@/lib/offline/conRespaldoOffline';
+import { conRespaldoOffline, esErrorDeRed } from '@/lib/offline/conRespaldoOffline';
 import { NivelRiesgo, EstadoAprobacion } from '@/types/enums';
 import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 
@@ -165,12 +165,7 @@ export const clientesService = {
 
       return result;
     } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 ||
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+      if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando creacion de cliente en cola...');
         // Usar un ID temporal
         const tempId = `temp-${Date.now()}`;
@@ -215,12 +210,7 @@ export const clientesService = {
     try {
       return await apiRequest<Cliente>('PUT', `/clients/${id}`, data);
     } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 ||
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+      if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando actualizacion de cliente en cola...');
         await syncService.enqueueOperation(
           'cliente_update',
@@ -242,12 +232,7 @@ export const clientesService = {
     try {
       return await apiRequest<void>('DELETE', `/clients/${id}`);
     } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 ||
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+      if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando eliminacion de cliente en cola...');
         await syncService.enqueueOperation(
           'cliente_delete',
@@ -283,12 +268,7 @@ export const clientesService = {
         datosAprobados
       });
     } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 ||
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+      if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando aprobacion de cliente en cola...');
         return await syncService.enqueueOperation(
           'cliente_aprobar',
@@ -309,12 +289,7 @@ export const clientesService = {
     try {
       return await apiRequest<Cliente>('POST', `/clients/${id}/blacklist`, data);
     } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 ||
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+      if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando agregar a lista negra en cola...');
         return await syncService.enqueueOperation(
           'cliente_blacklist_add',
@@ -335,12 +310,7 @@ export const clientesService = {
     try {
       return await apiRequest<Cliente>('DELETE', `/clients/${id}/blacklist`);
     } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 ||
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+      if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando remover de lista negra en cola...');
         return await syncService.enqueueOperation(
           'cliente_blacklist_remove',
@@ -361,12 +331,7 @@ export const clientesService = {
     try {
       return await apiRequest<void>('POST', `/clients/${clienteId}/assign-route`, data);
     } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 ||
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+      if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando asignacion de ruta en cola...');
         await syncService.enqueueOperation(
           'cliente_assign_route',

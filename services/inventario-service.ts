@@ -1,7 +1,7 @@
 import { logger } from '@/lib/logger'
 import { apiRequest } from '@/lib/api/api';
 import { syncService } from '@/lib/offline/syncService';
-import { conRespaldoOffline } from '@/lib/offline/conRespaldoOffline';
+import { conRespaldoOffline, esErrorDeRed } from '@/lib/offline/conRespaldoOffline';
 import { offlineStore } from '@/lib/offline/offlineDb';
 
 export interface PrecioProducto {
@@ -112,12 +112,7 @@ export const inventarioService = {
     try {
       return await apiRequest<Producto>('POST', '/inventory', data);
     } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+      if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando creacion de producto en cola...');
         return await syncService.enqueueOperation(
           'producto_crear',
@@ -138,12 +133,7 @@ export const inventarioService = {
     try {
       return await apiRequest<Producto>('PATCH', `/inventory/${id}`, data);
     } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+      if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando actualizacion de producto en cola...');
         return await syncService.enqueueOperation(
           'producto_actualizar',
@@ -164,12 +154,7 @@ export const inventarioService = {
     try {
       return await apiRequest<void>('DELETE', `/inventory/${id}`);
     } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+      if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando eliminacion de producto en cola...');
         await syncService.enqueueOperation(
           'producto_eliminar',
