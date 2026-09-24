@@ -12,6 +12,7 @@ import {
   User,
   Clock,
   Eye,
+  Loader2,
   Plus,
   Search,
   TrendingUp,
@@ -761,12 +762,19 @@ export const RutasPageView = ({
     }
   }
 
+  /** Que cliente se esta asignando a la ruta ahora mismo, si alguno. */
+  const [asignandoClienteId, setAsignandoClienteId] = useState<string | null>(null);
+
   const confirmAddCliente = async (cliente: ClienteSelection) => {
     if (!editingId || !formData.cobradorId) {
       showNotification('warning', 'Seleccione un cobrador para la ruta primero', 'Atención');
       return;
     }
+    // Asignar son tres viajes al servidor seguidos; sin esto la lista se
+    // quedaba quieta y se podia pulsar otro cliente encima.
+    if (asignandoClienteId) return;
 
+    setAsignandoClienteId(cliente.id);
     try {
       await routesService.assignClient(editingId, cliente.id, formData.cobradorId);
       showNotification('success', `Cliente ${cliente.nombre} asignado a la ruta`, 'Éxito');
@@ -784,6 +792,8 @@ export const RutasPageView = ({
       }
     } catch (error) {
       showNotification('error', 'No se pudo asignar el cliente', 'Error');
+    } finally {
+      setAsignandoClienteId(null);
     }
   }
   const [activeTab, setActiveTab] = useState<'info' | 'clientes'>('info')
@@ -1990,7 +2000,9 @@ export const RutasPageView = ({
                                       <button
                                         key={cliente.id}
                                         onClick={() => confirmAddCliente(cliente)}
-                                        className="w-full text-left px-4 py-3 hover:bg-blue-50 transition-colors group flex items-center justify-between"
+                                        disabled={asignandoClienteId !== null}
+                                        aria-busy={asignandoClienteId === cliente.id}
+                                        className="w-full text-left px-4 py-3 hover:bg-blue-50 transition-colors group flex items-center justify-between disabled:opacity-60 disabled:hover:bg-transparent"
                                       >
                                         <div className="flex-1 min-w-0">
                                           <p className="font-bold text-sm text-slate-900 group-hover:text-blue-700 truncate">{String(cliente.nombre || 'Sin nombre')}</p>
@@ -1999,7 +2011,11 @@ export const RutasPageView = ({
                                             <span className="truncate">{String(cliente.direccion || 'Sin dirección')}</span>
                                           </div>
                                         </div>
-                                        <Plus className="h-4 w-4 text-slate-300 group-hover:text-blue-500 flex-shrink-0 ml-2" />
+                                        {asignandoClienteId === cliente.id ? (
+                                          <Loader2 className="h-4 w-4 text-blue-500 animate-spin flex-shrink-0 ml-2" aria-hidden="true" />
+                                        ) : (
+                                          <Plus className="h-4 w-4 text-slate-300 group-hover:text-blue-500 flex-shrink-0 ml-2" />
+                                        )}
                                       </button>
                                     ))}
                                 </div>

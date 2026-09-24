@@ -2058,7 +2058,12 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         try {
           await exportService.exportContrato(prestamo.id)
         } catch (err) {
-          console.error('Error al descargar contrato:', err)
+          // El credito SI quedo creado: lo que fallo es la descarga del
+          // contrato, y en silencio parecia que no se habia creado nada.
+          logger.error('No se pudo descargar el contrato del credito', err)
+          toast.warning('El credito se creo, pero no se pudo descargar el contrato', {
+            description: 'Puedes descargarlo despues desde el detalle del credito.',
+          })
         }
       }
 

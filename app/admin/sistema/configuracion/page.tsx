@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { Settings, CreditCard, Bell, Shield, Users, Database, Wallet, Calculator, CheckCircle } from 'lucide-react'
 import { configuracionService, ConfiguracionSistema } from '@/services/configuracion-service'
+import Tooltip from '@/components/ui/Tooltip'
 import { apiRequest } from '@/lib/api/api'
 import { Toaster, toast } from 'sonner'
 
@@ -158,12 +159,18 @@ const ConfiguracionSistemaPage = () => {
                   <div className="text-sm font-bold text-slate-900">Auto-Aprobar Clientes</div>
                   <div className="text-xs text-slate-500 mt-0.5 font-medium">Bypass flujo de aprobación inicial</div>
                 </div>
-                <button 
-                  onClick={() => updateConfig('autoAprobarClientes', !config.autoAprobarClientes)}
-                  className={`w-11 h-6 rounded-full relative transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${config.autoAprobarClientes ? 'bg-emerald-500 focus:ring-emerald-500' : 'bg-slate-300 focus:ring-slate-400'}`}
-                >
-                  <span className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform shadow-sm ${config.autoAprobarClientes ? 'translate-x-5' : 'translate-x-0'}`}></span>
-                </button>
+                <Tooltip texto="Los clientes nuevos entran aprobados, sin pasar por revision">
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={config.autoAprobarClientes}
+                    aria-label="Auto-aprobar clientes"
+                    onClick={() => updateConfig('autoAprobarClientes', !config.autoAprobarClientes)}
+                    className={`w-11 h-6 rounded-full relative transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${config.autoAprobarClientes ? 'bg-emerald-500 focus:ring-emerald-500' : 'bg-slate-300 focus:ring-slate-400'}`}
+                  >
+                    <span className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform shadow-sm ${config.autoAprobarClientes ? 'translate-x-5' : 'translate-x-0'}`}></span>
+                  </button>
+                </Tooltip>
               </div>
 
               <div className="flex items-center justify-between p-4 bg-slate-50/50 rounded-xl border border-slate-100">
@@ -171,12 +178,18 @@ const ConfiguracionSistemaPage = () => {
                   <div className="text-sm font-bold text-slate-900">Auto-Aprobar Créditos</div>
                   <div className="text-xs text-slate-500 mt-0.5 font-medium">Aprobar préstamos automáticamente</div>
                 </div>
-                <button 
-                  onClick={() => updateConfig('autoAprobarCreditos', !config.autoAprobarCreditos)}
-                  className={`w-11 h-6 rounded-full relative transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${config.autoAprobarCreditos ? 'bg-emerald-500 focus:ring-emerald-500' : 'bg-slate-300 focus:ring-slate-400'}`}
-                >
-                  <span className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform shadow-sm ${config.autoAprobarCreditos ? 'translate-x-5' : 'translate-x-0'}`}></span>
-                </button>
+                <Tooltip texto="Los creditos nuevos quedan aprobados sin que nadie los revise">
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={config.autoAprobarCreditos}
+                    aria-label="Auto-aprobar créditos"
+                    onClick={() => updateConfig('autoAprobarCreditos', !config.autoAprobarCreditos)}
+                    className={`w-11 h-6 rounded-full relative transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${config.autoAprobarCreditos ? 'bg-emerald-500 focus:ring-emerald-500' : 'bg-slate-300 focus:ring-slate-400'}`}
+                  >
+                    <span className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform shadow-sm ${config.autoAprobarCreditos ? 'translate-x-5' : 'translate-x-0'}`}></span>
+                  </button>
+                </Tooltip>
               </div>
               
               <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">

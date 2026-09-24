@@ -378,7 +378,14 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
           const { exportService } = await import('@/services/export-service');
           await exportService.exportContrato(id);
         } catch (err) {
-          console.error('Error al descargar contrato tras edición:', err);
+          // La edición SI se guardó: lo que falló es volver a bajar el
+          // contrato, y callarlo dejaba al usuario esperando el archivo.
+          logger.error('No se pudo descargar el contrato tras la edición', err);
+          showNotification(
+            'warning',
+            'Los cambios se guardaron, pero no se pudo descargar el contrato actualizado. Puedes descargarlo desde el detalle del crédito.',
+            'Contrato',
+          );
         }
       }
 

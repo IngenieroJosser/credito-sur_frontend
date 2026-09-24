@@ -3003,17 +3003,21 @@ const VistaCobrador = () => {
       // Descarga inmediata del contrato si es ARTICULO
 
       if (isArticulo && prestamo?.id) {
-
+        // `isLoadingAction` no se lee en ninguna parte del render, asi que
+        // mientras el servidor arma el contrato la pantalla no decia nada y
+        // el cobrador se quedaba esperando sin saber si habia pasado algo.
+        const avisoContrato = toast.loading('Generando el contrato...')
         try {
-
           await exportService.exportContrato(prestamo.id)
-
+          toast.success('Contrato descargado', { id: avisoContrato })
         } catch (err) {
-
-          console.error('Error al descargar contrato:', err)
-
+          // El credito SI quedo creado. Lo que fallo es la descarga.
+          logger.error('No se pudo descargar el contrato del credito', err)
+          toast.warning('El credito se creo, pero no se pudo descargar el contrato', {
+            id: avisoContrato,
+            description: 'Puedes descargarlo despues desde el detalle del credito.',
+          })
         }
-
       }
 
       
