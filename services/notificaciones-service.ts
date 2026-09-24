@@ -53,7 +53,7 @@ export const notificacionesService = {
   async marcarComoLeida(id: string): Promise<Notificacion> {
     try {
       return await apiRequest<Notificacion>('PATCH', `/notificaciones/${id}/read`);
-    } catch (error: any) {
+    } catch (error) {
       if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando marcar notificacion como leida en cola...');
         await syncService.enqueueOperation(

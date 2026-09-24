@@ -188,7 +188,7 @@ export const prestamosService = {
   async archivarPrestamo(prestamoId: string, data: { motivo: string; notas?: string }) {
     try {
       return await apiRequest('POST', `/loans/${prestamoId}/archive`, data);
-    } catch (error: any) {
+    } catch (error) {
       if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando archivado de prestamo en cola...');
         await syncService.enqueueOperation(
@@ -215,7 +215,7 @@ export const prestamosService = {
 
     try {
       return await apiRequest('POST', '/loans', payload);
-    } catch (error: any) {
+    } catch (error) {
       if (esErrorDeRed(error)) {
          logger.log('[Offline Mode] Guardando creacion de préstamo en cola...');
          const tempId = `temp-loan-${Date.now()}`;
@@ -253,7 +253,7 @@ export const prestamosService = {
   async eliminarPrestamo(id: string, userId: string): Promise<void> {
     try {
       return await apiRequest<void>('DELETE', `/loans/${id}`, { userId });
-    } catch (error: any) {
+    } catch (error) {
       if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando eliminacion de prestamo en cola...');
         await syncService.enqueueOperation(
@@ -312,7 +312,7 @@ export const prestamosService = {
   async aprobarPrestamo(id: string, aprobadoPorId: string): Promise<any> {
     try {
       return await apiRequest('POST', `/loans/${id}/approve`, { aprobadoPorId });
-    } catch (error: any) {
+    } catch (error) {
       if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando aprobacion de prestamo en cola...');
         await syncService.enqueueOperation(
@@ -337,7 +337,7 @@ export const prestamosService = {
         rechazadoPorId, 
         motivo 
       });
-    } catch (error: any) {
+    } catch (error) {
       if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando rechazo de prestamo en cola...');
         await syncService.enqueueOperation(
@@ -384,7 +384,7 @@ export const prestamosService = {
       }
       
       return await apiRequest('POST', '/payments', formData);
-    } catch (error: any) {
+    } catch (error) {
       if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando pago en cola...');
         
@@ -436,7 +436,7 @@ export const prestamosService = {
     };
     try {
       return await apiRequest('POST', `/loans/${prestamoId}/reprogramacion`, payload);
-    } catch (error: any) {
+    } catch (error) {
       if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando reprogramacion de prestamo en cola...');
         await syncService.enqueueOperation(
@@ -472,7 +472,7 @@ export const prestamosService = {
   }): Promise<any> {
     try {
       return await apiRequest('PATCH', `/loans/${id}`, data);
-    } catch (error: any) {
+    } catch (error) {
       if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando actualizacion de prestamo en cola...');
         await syncService.enqueueOperation(
@@ -504,7 +504,7 @@ export const prestamosService = {
     };
     try {
       return await apiRequest('POST', `/loans/${data.prestamoId}/reprogramacion`, payload);
-    } catch (error: any) {
+    } catch (error) {
       if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando solicitud de reprogramacion de cuota en cola...');
         await syncService.enqueueOperation(

@@ -30,7 +30,7 @@ class ConfiguracionService {
   async updateConfiguracion(data: Partial<ConfiguracionSistema>): Promise<ConfiguracionSistema> {
     try {
       return await apiRequest<ConfiguracionSistema>('PUT', '/configuracion', data);
-    } catch (error: any) {
+    } catch (error) {
       if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando actualizacion de configuracion en cola...');
         return await syncService.enqueueOperation(

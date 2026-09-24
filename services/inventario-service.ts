@@ -111,7 +111,7 @@ export const inventarioService = {
   async crearProducto(data: CrearProductoDto): Promise<Producto> {
     try {
       return await apiRequest<Producto>('POST', '/inventory', data);
-    } catch (error: any) {
+    } catch (error) {
       if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando creacion de producto en cola...');
         return await syncService.enqueueOperation(
@@ -132,7 +132,7 @@ export const inventarioService = {
   async actualizarProducto(id: string, data: ActualizarProductoDto): Promise<Producto> {
     try {
       return await apiRequest<Producto>('PATCH', `/inventory/${id}`, data);
-    } catch (error: any) {
+    } catch (error) {
       if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando actualizacion de producto en cola...');
         return await syncService.enqueueOperation(
@@ -153,7 +153,7 @@ export const inventarioService = {
   async eliminarProducto(id: string): Promise<void> {
     try {
       return await apiRequest<void>('DELETE', `/inventory/${id}`);
-    } catch (error: any) {
+    } catch (error) {
       if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando eliminacion de producto en cola...');
         await syncService.enqueueOperation(

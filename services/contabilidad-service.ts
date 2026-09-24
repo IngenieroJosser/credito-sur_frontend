@@ -258,7 +258,7 @@ export async function createCaja(data: {
 }): Promise<Caja | null> {
   try {
     return await apiRequest<Caja>('POST', '/accounting/cajas', data);
-  } catch (error: any) {
+  } catch (error) {
     if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando creacion de caja en cola...');
         await syncService.enqueueOperation(
@@ -282,7 +282,7 @@ export async function updateCaja(id: string, data: {
 }): Promise<Caja | null> {
   try {
     return await apiRequest<Caja>('PATCH', `/accounting/cajas/${id}`, data);
-  } catch (error: any) {
+  } catch (error) {
     if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando actualizacion de caja en cola...');
         await syncService.enqueueOperation(
@@ -320,7 +320,7 @@ export async function consolidarCaja(cajaId: string, monto?: number, idempotency
       monto, 
       idempotencyKey: key 
     });
-  } catch (error: any) {
+  } catch (error) {
     if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando consolidacion de caja en cola...');
         await syncService.enqueueOperation(
@@ -456,7 +456,7 @@ export async function createTransaccion(data: {
 
   try {
     return await apiRequest<Transaccion>('POST', '/accounting/transacciones', payload);
-  } catch (error: any) {
+  } catch (error) {
     if (esErrorDeRed(error)) {
       logger.log('[Offline Mode] Guardando transacción en cola...');
       await syncService.enqueueOperation(
@@ -597,14 +597,11 @@ export async function getArqueoPreview(cajaId: string, fechaOperativa?: string):
     const params = fechaOperativa ? `?fechaOperativa=${fechaOperativa}` : '';
     logger.log('[getArqueoPreview] Requesting:', `/cajas/${cajaId}/arqueo/preview${params}`);
     return await apiRequest<any>('GET', `/cajas/${cajaId}/arqueo/preview${params}`);
-  } catch (error: any) {
-    console.error('[getArqueoPreview] Full error:', {
-      message: error?.message,
-      statusCode: error?.statusCode,
-      error: error?.error,
-      stack: error?.stack,
-      fullError: JSON.stringify(error, null, 2)
-    });
+  } catch (error) {
+    // Se registra el error entero: desglosarlo en campos sueltos obligaba a
+    // tipar el catch como `any`, y el JSON.stringify de abajo ya volcaba lo
+    // mismo. Por logger y no por console, como el resto del sistema.
+    logger.error('[getArqueoPreview] Fallo la peticion', error);
     throw error;
   }
 }
@@ -612,14 +609,11 @@ export async function getArqueoPreview(cajaId: string, fechaOperativa?: string):
 export async function getArqueoById(arqueoId: string): Promise<any> {
   try {
     return await apiRequest<any>('GET', `/cajas/arqueos/${arqueoId}`);
-  } catch (error: any) {
-    console.error('[getArqueoById] Full error:', {
-      message: error?.message,
-      statusCode: error?.statusCode,
-      error: error?.error,
-      stack: error?.stack,
-      fullError: JSON.stringify(error, null, 2)
-    });
+  } catch (error) {
+    // Se registra el error entero: desglosarlo en campos sueltos obligaba a
+    // tipar el catch como `any`, y el JSON.stringify de abajo ya volcaba lo
+    // mismo. Por logger y no por console, como el resto del sistema.
+    logger.error('[getArqueoById] Fallo la peticion', error);
     throw error;
   }
 }
@@ -633,7 +627,7 @@ export async function confirmarArqueo(cajaId: string, data: {
 }): Promise<any> {
   try {
     return await apiRequest<any>('POST', `/cajas/${cajaId}/arqueos`, data);
-  } catch (error: any) {
+  } catch (error) {
     if (esErrorDeRed(error)) {
       logger.log('[Offline Mode] Guardando arqueo en cola...');
       await syncService.enqueueOperation(
@@ -658,7 +652,7 @@ export async function registrarArqueo(cajaId: string, data: {
 }): Promise<any> {
   try {
     return await apiRequest<any>('POST', `/accounting/cajas/${cajaId}/arqueos`, data);
-  } catch (error: any) {
+  } catch (error) {
     if (esErrorDeRed(error)) {
       logger.log('[Offline Mode] Guardando arqueo en cola...');
       await syncService.enqueueOperation(
@@ -737,7 +731,7 @@ export async function registrarGasto(data: {
     };
 
     return await apiRequest('POST', '/accounting/gastos', payload);
-  } catch (error: any) {
+  } catch (error) {
     if (esErrorDeRed(error)) {
       logger.log('[Offline Mode] Guardando gasto en cola...');
       
@@ -792,7 +786,7 @@ export async function solicitarBase(data: {
 }): Promise<any> {
   try {
     return await apiRequest('POST', '/accounting/base-requests', data);
-  } catch (error: any) {
+  } catch (error) {
     if (esErrorDeRed(error)) {
       logger.log('[Offline Mode] Guardando solicitud de base en cola...');
       await syncService.enqueueOperation(
@@ -874,7 +868,7 @@ export async function registrarAbonoDeudaCobrador(
   };
   try {
     return await apiRequest<Transaccion>('POST', `/accounting/deudas-cobradores/${cobradorId}/abono`, payload);
-  } catch (error: any) {
+  } catch (error) {
     if (esErrorDeRed(error)) {
       logger.log('[Offline Mode] Guardando abono a deuda de cobrador en cola...');
       await syncService.enqueueOperation(

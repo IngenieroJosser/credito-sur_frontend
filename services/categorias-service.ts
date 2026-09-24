@@ -29,7 +29,7 @@ export const categoriasService = {
   async crear(data: CrearCategoriaDto): Promise<Categoria> {
     try {
       return await apiRequest<Categoria>('POST', '/categorias', data);
-    } catch (error: any) {
+    } catch (error) {
       if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando creacion de categoria en cola...');
         return await syncService.enqueueOperation(
@@ -47,7 +47,7 @@ export const categoriasService = {
   async eliminar(id: string): Promise<void> {
     try {
       return await apiRequest<void>('DELETE', `/categorias/${id}`);
-    } catch (error: any) {
+    } catch (error) {
       if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando eliminacion de categoria en cola...');
         await syncService.enqueueOperation(

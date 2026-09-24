@@ -464,7 +464,7 @@ export const rutasService = {
 
       return await apiRequest<Ruta>('POST', '/routes', data);
 
-    } catch (error: any) {
+    } catch (error) {
 
       if (esErrorDeRed(error)) {
 
@@ -506,7 +506,7 @@ export const rutasService = {
 
       return await apiRequest<Ruta>('PATCH', `/routes/${id}`, data);
 
-    } catch (error: any) {
+    } catch (error) {
 
       if (esErrorDeRed(error)) {
 
@@ -548,7 +548,7 @@ export const rutasService = {
 
       return await apiRequest<void>('DELETE', `/routes/${id}`);
 
-    } catch (error: any) {
+    } catch (error) {
 
       if (esErrorDeRed(error)) {
 
@@ -592,7 +592,7 @@ export const rutasService = {
 
       return await apiRequest<Ruta>('PATCH', `/routes/${id}/toggle-active`);
 
-    } catch (error: any) {
+    } catch (error) {
 
       if (esErrorDeRed(error)) {
 
@@ -640,7 +640,7 @@ export const rutasService = {
 
       });
 
-    } catch (error: any) {
+    } catch (error) {
 
       if (esErrorDeRed(error)) {
 
@@ -684,7 +684,7 @@ export const rutasService = {
 
       return await apiRequest<void>('DELETE', `/routes/${rutaId}/remove-client/${clienteId}`);
 
-    } catch (error: any) {
+    } catch (error) {
 
       if (esErrorDeRed(error)) {
 
@@ -736,7 +736,7 @@ export const rutasService = {
 
       });
 
-    } catch (error: any) {
+    } catch (error) {
 
       if (esErrorDeRed(error)) {
 
@@ -810,7 +810,7 @@ export const rutasService = {
 
       return await apiRequest('PATCH', `/routes/${rutaId}/reorder`, { orden });
 
-    } catch (error: any) {
+    } catch (error) {
 
       if (esErrorDeRed(error)) {
 
@@ -862,7 +862,7 @@ export const rutasService = {
   async marcarVisitaAusente(rutaId: string, clienteId: string, payload: { estadoVisita: string, notas: string, fechaOperativa?: string, origenGestion?: string }): Promise<void> {
     try {
       await apiRequest<void>('POST', `/routes/${rutaId}/clientes/${clienteId}/visita`, payload);
-    } catch (error: any) {
+    } catch (error) {
       if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando registro de visita en cola...');
         await syncService.enqueueOperation(

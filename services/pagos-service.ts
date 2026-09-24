@@ -184,7 +184,7 @@ export const pagosService = {
 
       // Si es efectivo sin archivos, envío JSON normal
       return await apiRequest<ResultadoPago>('POST', '/payments', payload);
-    } catch (error: any) {
+    } catch (error) {
        if (esErrorDeRed(error)) {
          logger.log('[Offline Mode] Guardando pago en cola...');
          const tempId = `temp-pay-${Date.now()}`;

@@ -164,7 +164,7 @@ export const clientesService = {
       logSyncActivity(`Crear cliente: ${payload.nombres} ${payload.apellidos}`);
 
       return result;
-    } catch (error: any) {
+    } catch (error) {
       if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando creacion de cliente en cola...');
         // Usar un ID temporal
@@ -209,7 +209,7 @@ export const clientesService = {
   async actualizar(id: string, data: ActualizarClienteDto): Promise<Cliente> {
     try {
       return await apiRequest<Cliente>('PUT', `/clients/${id}`, data);
-    } catch (error: any) {
+    } catch (error) {
       if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando actualizacion de cliente en cola...');
         await syncService.enqueueOperation(
@@ -231,7 +231,7 @@ export const clientesService = {
   async eliminar(id: string): Promise<void> {
     try {
       return await apiRequest<void>('DELETE', `/clients/${id}`);
-    } catch (error: any) {
+    } catch (error) {
       if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando eliminacion de cliente en cola...');
         await syncService.enqueueOperation(
@@ -267,7 +267,7 @@ export const clientesService = {
         aprobadoPorId,
         datosAprobados
       });
-    } catch (error: any) {
+    } catch (error) {
       if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando aprobacion de cliente en cola...');
         return await syncService.enqueueOperation(
@@ -288,7 +288,7 @@ export const clientesService = {
   async agregarListaNegra(id: string, data: AgregarListaNegraDto): Promise<Cliente> {
     try {
       return await apiRequest<Cliente>('POST', `/clients/${id}/blacklist`, data);
-    } catch (error: any) {
+    } catch (error) {
       if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando agregar a lista negra en cola...');
         return await syncService.enqueueOperation(
@@ -309,7 +309,7 @@ export const clientesService = {
   async removerListaNegra(id: string): Promise<Cliente> {
     try {
       return await apiRequest<Cliente>('DELETE', `/clients/${id}/blacklist`);
-    } catch (error: any) {
+    } catch (error) {
       if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando remover de lista negra en cola...');
         return await syncService.enqueueOperation(
@@ -330,7 +330,7 @@ export const clientesService = {
   async asignarRuta(clienteId: string, data: AsignarRutaDto): Promise<void> {
     try {
       return await apiRequest<void>('POST', `/clients/${clienteId}/assign-route`, data);
-    } catch (error: any) {
+    } catch (error) {
       if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando asignacion de ruta en cola...');
         await syncService.enqueueOperation(

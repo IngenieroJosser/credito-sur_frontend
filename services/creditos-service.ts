@@ -72,7 +72,7 @@ class CreditosService {
     try {
       const response = await apiRequest<any>('POST', 'loans', creditData);
       return response;
-    } catch (error: any) {
+    } catch (error) {
       if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando creacion de credito en cola...');
         return await syncService.enqueueOperation(
@@ -134,7 +134,7 @@ class CreditosService {
         aprobadoPorId
       });
       return response;
-    } catch (error: any) {
+    } catch (error) {
       if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando aprobacion de credito en cola...');
         return await syncService.enqueueOperation(
@@ -157,7 +157,7 @@ class CreditosService {
         motivo
       });
       return response;
-    } catch (error: any) {
+    } catch (error) {
       if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando rechazo de credito en cola...');
         return await syncService.enqueueOperation(
@@ -189,7 +189,7 @@ class CreditosService {
         userId
       });
       return response;
-    } catch (error: any) {
+    } catch (error) {
       if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando eliminacion de credito en cola...');
         return await syncService.enqueueOperation(
@@ -211,7 +211,7 @@ class CreditosService {
         userId
       });
       return response;
-    } catch (error: any) {
+    } catch (error) {
       if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando restauracion de credito en cola...');
         return await syncService.enqueueOperation(

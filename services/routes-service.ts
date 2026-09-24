@@ -283,7 +283,7 @@ export const routesService = {
     const endpoint = `/routes/${rutaId}/cierre-pendiente/${fechaOperativa}/cerrar`;
     try {
       return await apiRequest<any>('POST', endpoint, { observaciones });
-    } catch (error: any) {
+    } catch (error) {
       if (esErrorDeRed(error)) {
         // Seguro offline: la cola es cronológica, así que este cierre se
         // sincroniza DESPUÉS de los pagos/gastos del día → el servidor

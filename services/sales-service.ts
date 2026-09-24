@@ -28,7 +28,7 @@ export const salesService = {
     }
     try {
       return await apiRequest<VentaContadoResponse>('POST', '/sales/cash', data)
-    } catch (error: any) {
+    } catch (error) {
       if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando venta de contado en cola...')
         await syncService.enqueueOperation(
