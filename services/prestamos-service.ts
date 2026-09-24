@@ -5,6 +5,7 @@ import { conRespaldoOffline, esErrorDeRed } from '@/lib/offline/conRespaldoOffli
 import { EstadoPrestamo, FrecuenciaPago, EstadoCuota, TipoAmortizacion } from '@/types/enums';
 import type { Prestamo } from '@/types/domain';
 import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
+import type { PrestamoDelListado } from '@/types/domain';
 
 const generarIdempotencyKey = (prefix: string) => {
   const random =
@@ -79,7 +80,14 @@ export interface EstadisticasPrestamos {
 }
 
 export interface RespuestaPrestamos {
-  prestamos: Prestamo[];
+  /**
+   * Ojo: NO son modelos `Prestamo`. GET /loans devuelve una vista ya
+   * calculada, con otro vocabulario -`montoTotal`, `montoPendiente`,
+   * `cuotasTotales`- y el cliente y la ruta aplanados a texto. Decir aqui
+   * `Prestamo[]` hacia que las pantallas del listado tuvieran que tratar cada
+   * fila como `any` para poder leerla.
+   */
+  prestamos: PrestamoDelListado[];
   estadisticas: EstadisticasPrestamos;
   paginacion: {
     total: number;

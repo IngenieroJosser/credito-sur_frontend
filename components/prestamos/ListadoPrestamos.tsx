@@ -49,6 +49,7 @@ import { useRealtimeData } from '@/hooks/useRealtimeData';
 import { usePageFocusRefresh } from '@/hooks/usePageFocusRefresh';
 import type { Prestamo } from '@/types/domain'
 import type { EstadoPrestamo } from '@/types/enums'
+import type { PrestamoDelListado } from '@/types/domain'
 
 interface Filtros {
   estado: string;
@@ -72,7 +73,9 @@ const ListadoPrestamosElegante = () => {
   const permitido = can('CREDITOS_VIEW') || can('LOANS_VIEW') || canForPath(baseRoute);
   const puedeCrear = can('CREDITOS_CREATE') || can('LOANS_CREATE') || canForPath(baseRoute);
   
-  const [prestamos, setPrestamos] = useState<Loan[]>([]);
+  // Son filas del LISTADO, no modelos: `Loan` es un alias de `Prestamo` y esa
+  // no es la forma que devuelve GET /loans.
+  const [prestamos, setPrestamos] = useState<PrestamoDelListado[]>([]);
   const [estadisticas, setEstadisticas] = useState({
     total: 0,
     activos: 0,
@@ -186,7 +189,7 @@ const ListadoPrestamosElegante = () => {
         moraMap = new Map()
       }
 
-      const nextPrestamos = nextPrestamosBase.map((p: Prestamo) => {
+      const nextPrestamos = nextPrestamosBase.map((p: PrestamoDelListado) => {
         const m = moraMap.get(String(p?.id || ''))
         if (!m) return p
         return {
@@ -201,7 +204,7 @@ const ListadoPrestamosElegante = () => {
       setPrestamos(nextPrestamos);
 
       // Respaldo local si el backend no envía estadísticas de mora.
-      const moraCount = nextPrestamos.filter((p: Prestamo) => {
+      const moraCount = nextPrestamos.filter((p: PrestamoDelListado) => {
         const diasMora = Number(p?.diasMora || 0)
         const cuotasVencidas = Number(p?.cuotasVencidas || 0)
         const estado = String(p?.estado || '').toUpperCase()
@@ -222,7 +225,7 @@ const ListadoPrestamosElegante = () => {
     } catch (err) {
       // Fallback offline
       try {
-        const offData = await offlineStore.getAll<Loan>('prestamos');
+        const offData = await offlineStore.getAll<PrestamoDelListado>('prestamos');
         if (offData.length > 0) {
           setPrestamos(offData);
           setTotalPrestamos(offData.length);

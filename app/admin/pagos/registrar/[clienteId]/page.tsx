@@ -76,7 +76,9 @@ const RegistrarPagoClientePage = () => {
         const prestamo = prestamosResp?.prestamos?.[0]
         if (prestamo) {
           const tipoPrestamoRaw = prestamo.tipoPrestamo || prestamo.producto || ''
-          const tipoPrestamo: string = typeof tipoPrestamoRaw === 'string' ? tipoPrestamoRaw : (tipoPrestamoRaw)?.nombre || ''
+          // `tipoPrestamo` y `producto` llegan siempre como texto en el
+          // listado, asi que la rama del objeto no se alcanzaba nunca.
+          const tipoPrestamo: string = String(tipoPrestamoRaw || '')
           const esArticulo = tipoPrestamo.toLowerCase() !== 'efectivo' && tipoPrestamo.toLowerCase() !== 'préstamo'
           setProducto({
             id: prestamo.id,

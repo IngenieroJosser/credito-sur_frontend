@@ -181,6 +181,88 @@ export interface PrestamoCamposLeidos {
   frecuenciaRuta?: string | null;
 }
 
+/**
+ * La forma con la que el LISTADO devuelve un credito.
+ *
+ * `Prestamo` describe el modelo: `monto`, `saldoPendiente`, `cantidadCuotas`.
+ * Pero GET /loans no devuelve eso: devuelve una vista ya calculada, con otro
+ * vocabulario -`montoTotal`, `montoPendiente`, `cuotasTotales`- mas los datos
+ * del cliente y la ruta aplanados. Comprobado leyendo el mapeador entero
+ * (loans.service, findAll), no suponiendolo.
+ *
+ * Tenerlas aqui es lo que permite que las pantallas del listado dejen de
+ * recibir el credito como `any`.
+ */
+export interface PrestamoDelListado {
+  id: string;
+  numeroPrestamo: string;
+  clienteId: string;
+  /** El nombre ya compuesto, no el objeto cliente. */
+  cliente: string;
+  clienteDni: string;
+  clienteTelefono: string;
+  producto: string;
+  tipoProducto: string;
+  tipoPrestamo: string;
+  estado: string;
+  montoTotal: number;
+  montoPrestado: number;
+  montoPagado: number;
+  montoPendiente: number;
+  interesTotal: number;
+  moraAcumulada: number;
+  cuotaInicial: number;
+  valorCuota: number;
+  cuotasTotales: number;
+  cuotasPagadas: number;
+  cuotasVencidas: number;
+  /** Porcentaje ya calculado: cuotasPagadas / cuotasTotales. */
+  progreso: number;
+  tasaInteres: number;
+  frecuenciaPago: string;
+  riesgo: string;
+  ruta: string;
+  rutaNombre: string;
+  vendedor: string;
+  vendedorRol: string;
+  creadoPorRol: string;
+  fechaInicio: string;
+  fechaFin: string;
+  creadoEn: string;
+
+  /**
+   * Lo que el codigo lee de una fila del listado y el backend NO manda.
+   * Comprobado uno por uno buscandolos en src/: cero apariciones. Se declaran
+   * para que el tipo describa lo que el codigo espera, y anotados para que no
+   * se confunda con un dato que llega.
+   *
+   *   prestamoId       el credito ES el prestamo; su id es `id`
+   *   saldoPendiente   el listado manda `montoPendiente`
+   *   fechaVencimiento el listado manda `fechaFin`
+   *   proximoPago      no existe en el backend; la columna sale vacia
+   *   diasMora         no existe; lo mas parecido es `diasEnMora`, en
+   *                    mora.service, y no llega hasta aqui
+   *   cobradorId       no llega, pero da igual: el backend deriva el cobrador
+   *                    de la asignacion activa de la ruta y pisa lo que se le
+   *                    mande (payments.service)
+   *
+   * Todos van dentro de cadenas `a || b` que resuelven por el nombre bueno,
+   * salvo `proximoPago` y `diasMora`, que se quedan en vacio y cero.
+   */
+  prestamoId?: string;
+  saldoPendiente?: number;
+  fechaVencimiento?: string;
+  proximoPago?: string;
+  diasMora?: number;
+  cobradorId?: string;
+  /** Alias de `cliente`, que el listado ya manda compuesto. */
+  clienteNombre?: string;
+  /** Nombre del modelo; el listado manda `montoPrestado` y `montoTotal`. */
+  monto?: number;
+}
+
+export type PrestamoDelListadoParcial = Partial<PrestamoDelListado>;
+
 export type PrestamoParcial = Partial<Prestamo & PrestamoCamposLeidos>;
 export interface Cuota {
   id: string;

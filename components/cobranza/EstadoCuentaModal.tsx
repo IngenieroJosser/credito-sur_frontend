@@ -12,6 +12,7 @@ import { normalizeDateKey, resolveNextPagoFromPrestamo } from '@/lib/rutas-core'
 import { Skeleton, SkeletonTabla } from '@/components/ui/Skeleton'
 import type { Pago, Prestamo } from '@/types/domain'
 import Tooltip from '@/components/ui/Tooltip'
+import type { PrestamoDelListado } from '@/types/domain'
 
 interface EstadoCuentaModalProps {
   visita: VisitaRuta
@@ -75,7 +76,7 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
           })
           if (response.prestamos && response.prestamos.length > 0) {
             const clientLoan = visita.clienteId 
-                ? response.prestamos.find((p: Prestamo) => p.clienteId === visita.clienteId)
+                ? response.prestamos.find((p: PrestamoDelListado) => p.clienteId === visita.clienteId)
                 : response.prestamos[0];
             
             if (clientLoan) {
