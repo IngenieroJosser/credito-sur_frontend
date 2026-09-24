@@ -1,5 +1,7 @@
 'use client'
 
+import Portal, { ACCION_Z_INDEX } from '@/components/ui/Portal'
+
 /**
  * La única pantalla de carga del sistema.
  *
@@ -81,5 +83,49 @@ export default function PantallaCarga({
         <p className="text-sm font-medium text-slate-500">{texto}</p>
       </div>
     </div>
+  )
+}
+
+/**
+ * Una acción en curso que no se puede interrumpir.
+ *
+ * Distinta de las de arriba: aquí ya hay contenido en pantalla y sigue estando
+ * detrás. Lo que hace falta es decir qué se está haciendo **y** que no se pueda
+ * volver a pulsar mientras dura.
+ *
+ * Por qué bloquea de verdad y no es solo un aviso: al registrar un pago, el
+ * modal se cierra antes de que salga la petición, y la visita sigue apareciendo
+ * como no pagada hasta que responden dos llamadas seguidas. En esa ventana se
+ * podía tocar el mismo cliente otra vez. Cada toque genera su propia
+ * `idempotencyKey`, así que el backend los toma como dos pagos distintos y el
+ * único arreglo es un reverso administrativo. Por eso tapa: es dinero.
+ *
+ * Va encima del modal que la lanzó y por debajo de los avisos, para que el
+ * mensaje de cómo salió la cosa se lea cuando esto desaparece.
+ *
+ * `texto` es lo que se está haciendo, en gerundio y en concreto ("Registrando
+ * el pago…"), no un "Cargando" que no dice nada. Con `null` no se dibuja nada,
+ * así que sirve directamente el estado de la acción.
+ */
+export function CapaAccion({ texto }: { texto?: string | null }) {
+  if (!texto) return null
+
+  return (
+    <Portal>
+      <div
+        role="alert"
+        aria-live="assertive"
+        aria-busy="true"
+        style={{ zIndex: ACCION_Z_INDEX }}
+        className="fixed inset-0 flex items-center justify-center bg-white/70 backdrop-blur-sm"
+      >
+        <div className="flex flex-col items-center gap-4 rounded-2xl bg-white px-8 py-6 shadow-xl border border-slate-200">
+          <Spinner tamano="lg" />
+          <p className="text-sm font-bold text-slate-700 text-center max-w-[15rem]">
+            {texto}
+          </p>
+        </div>
+      </div>
+    </Portal>
   )
 }

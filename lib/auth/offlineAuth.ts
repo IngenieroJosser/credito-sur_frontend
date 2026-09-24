@@ -193,7 +193,7 @@ export function cacheSession(token: string, user: any): void {
     cancelarPurgaDatosOffline();
     logger.log('[Offline Auth] Sesión cacheada para uso offline');
   } catch (error) {
-    console.error('[Offline Auth] Error cacheando sesión:', error);
+    logger.error('[Offline Auth] Error cacheando sesión:', error);
   }
 }
 
@@ -221,7 +221,7 @@ export function getCachedSession(): CachedSession | null {
 
     return session;
   } catch (error) {
-    console.error('[Offline Auth] Error obteniendo sesión cacheada:', error);
+    logger.error('[Offline Auth] Error obteniendo sesión cacheada:', error);
     return null;
   }
 }
@@ -245,7 +245,7 @@ export function clearCachedSession(): void {
     localStorage.removeItem(CREDENTIAL_KEY);
     logger.log('[Offline Auth] Sesión offline limpiada');
   } catch (error) {
-    console.error('[Offline Auth] Error limpiando sesión:', error);
+    logger.error('[Offline Auth] Error limpiando sesión:', error);
   }
 }
 
@@ -289,7 +289,7 @@ export function isTokenExpired(token: string): boolean {
     const now = Math.floor(Date.now() / 1000);
     return payload.exp < now;
   } catch (error) {
-    console.error('[Offline Auth] Error verificando expiración de token:', error);
+    logger.error('[Offline Auth] Error verificando expiración de token:', error);
     return true; // Si hay error, asumimos que está expirado
   }
 }
@@ -307,7 +307,7 @@ export function decodeToken(token: string): any {
     const padding = '='.repeat((4 - (base64.length % 4)) % 4);
     return JSON.parse(atob(base64 + padding));
   } catch (error) {
-    console.error('[Offline Auth] Error decodificando token:', error);
+    logger.error('[Offline Auth] Error decodificando token:', error);
     return null;
   }
 }
@@ -371,7 +371,7 @@ export function renewOfflineSession(): boolean {
     logger.log('[Offline Auth] Sesión offline renovada');
     return true;
   } catch (error) {
-    console.error('[Offline Auth] Error renovando sesión:', error);
+    logger.error('[Offline Auth] Error renovando sesión:', error);
     return false;
   }
 }

@@ -14,6 +14,9 @@ import { createPortal } from 'react-dom'
  *
  *   MODAL            un modal normal
  *   MODAL_ENCIMA     un modal que se abre sobre otro modal
+ *   ACCION           una accion en curso que no se puede interrumpir: tapa
+ *                    tambien el modal desde el que se lanzo, porque su razon
+ *                    de ser es que no se pueda volver a pulsar
  *   TOOLTIP          la ayuda que explica un boton: encima del modal que
  *                    la contiene, debajo de los avisos
  *   TOAST            los avisos (sonner y los propios): SIEMPRE visibles
@@ -30,6 +33,7 @@ import { createPortal } from 'react-dom'
  */
 export const MODAL_Z_INDEX = 2147483600
 export const MODAL_ENCIMA_Z_INDEX = 2147483610
+export const ACCION_Z_INDEX = 2147483615
 export const TOOLTIP_Z_INDEX = 2147483620
 export const TOAST_Z_INDEX = 2147483640
 export const ALERT_Z_INDEX = 2147483647

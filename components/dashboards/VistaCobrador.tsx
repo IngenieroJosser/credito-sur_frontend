@@ -1,6 +1,6 @@
 'use client'
 
-import PantallaCarga from '@/components/ui/PantallaCarga'
+import PantallaCarga, { CapaAccion } from '@/components/ui/PantallaCarga'
 import { logger } from '@/lib/logger'
 
 
@@ -555,7 +555,17 @@ const VistaCobrador = () => {
 
   const [isLoading, setIsLoading] = useState(true)
 
-  const [isLoadingAction, setIsLoadingAction] = useState(false) // New state for actions
+  /**
+   * Que se esta haciendo ahora mismo, en gerundio, o null si nada.
+   *
+   * Antes era `isLoadingAction`, un booleano que se escribia en cinco
+   * funciones y no se leia en ningun sitio del render: no tapaba nada. Lo
+   * grave era el pago, porque el modal se cierra antes de que salga la
+   * peticion y la visita sigue apareciendo sin pagar hasta que responden dos
+   * llamadas seguidas; en esa ventana se podia tocar el mismo cliente otra
+   * vez y quedaban dos pagos, cada uno con su propia idempotencyKey.
+   */
+  const [accionEnCurso, setAccionEnCurso] = useState<string | null>(null)
 
 
 
@@ -2827,7 +2837,7 @@ const VistaCobrador = () => {
 
     try {
 
-      setIsLoadingAction(true)
+      setAccionEnCurso('Guardando la reprogramación…')
 
       if (!visitaReprogramar?.prestamoId) {
 
@@ -2958,7 +2968,7 @@ const VistaCobrador = () => {
       })
     } finally {
 
-      setIsLoadingAction(false)
+      setAccionEnCurso(null)
 
     }
 
@@ -2976,7 +2986,7 @@ const VistaCobrador = () => {
 
     try {
 
-      setIsLoadingAction(true)
+      setAccionEnCurso('Creando el crédito…')
 
       const esContado = Boolean((data).ventaContado)
       const isArticulo = data.creditType === 'articulo'
@@ -2985,6 +2995,12 @@ const VistaCobrador = () => {
       const prestamo = await prestamosService.crearPrestamo(payload)
 
       
+
+      // El credito ya existe: se suelta la capa aqui y no al final del try,
+      // porque lo que queda -avisar y bajar el contrato- ya no se puede
+      // duplicar, y si no la capa diria "Creando el credito" detras de una
+      // alerta que dice que ya esta creado.
+      setAccionEnCurso(null)
 
       setModalAlerta({
 
@@ -3003,9 +3019,9 @@ const VistaCobrador = () => {
       // Descarga inmediata del contrato si es ARTICULO
 
       if (isArticulo && prestamo?.id) {
-        // `isLoadingAction` no se lee en ninguna parte del render, asi que
-        // mientras el servidor arma el contrato la pantalla no decia nada y
-        // el cobrador se quedaba esperando sin saber si habia pasado algo.
+        // El aviso va aparte de la capa de la accion: aqui el credito YA esta
+        // creado y lo que sigue -bajar el contrato- puede fallar sin que eso
+        // deshaga nada, asi que no debe tapar la pantalla.
         const avisoContrato = toast.loading('Generando el contrato...')
         try {
           await exportService.exportContrato(prestamo.id)
@@ -3046,7 +3062,7 @@ const VistaCobrador = () => {
 
     } finally {
 
-      setIsLoadingAction(false)
+      setAccionEnCurso(null)
 
     }
 
@@ -3155,7 +3171,7 @@ const VistaCobrador = () => {
 
     try {
 
-      setIsLoadingAction(true)
+      setAccionEnCurso('Registrando el pago…')
 
       if (!visitaSnapshot.prestamoId) {
 
@@ -3432,7 +3448,7 @@ const VistaCobrador = () => {
       }
 
       clearRegularizacionContext()
-      setIsLoadingAction(false)
+      setAccionEnCurso(null)
 
     }
 
@@ -3924,6 +3940,13 @@ const VistaCobrador = () => {
   return (
 
     <div className="min-h-screen bg-slate-50 relative">
+
+      {/*
+        Lo que se esté haciendo ahora: tapa mientras dura, para que no se pueda
+        volver a tocar el mismo cliente y quedar dos pagos. Se dibuja en un
+        portal, así que no le afecta el `relative` de aquí.
+      */}
+      <CapaAccion texto={accionEnCurso} />
 
       {/* Fondo arquitectónico ultra sutil */}
 
@@ -5150,7 +5173,7 @@ const VistaCobrador = () => {
 
             try {
 
-              setIsLoadingAction(true)
+              setAccionEnCurso('Registrando el gasto…')
 
               await registrarGasto({
                 descripcion: data.descripcion,
@@ -5233,7 +5256,7 @@ const VistaCobrador = () => {
 
             } finally {
 
-              setIsLoadingAction(false)
+              setAccionEnCurso(null)
 
             }
 
@@ -5255,7 +5278,7 @@ const VistaCobrador = () => {
 
             try {
 
-              setIsLoadingAction(true)
+              setAccionEnCurso('Solicitando la base…')
 
               await solicitarBase({
 
@@ -5297,7 +5320,7 @@ const VistaCobrador = () => {
 
             } finally {
 
-              setIsLoadingAction(false)
+              setAccionEnCurso(null)
 
             }
 
