@@ -69,7 +69,7 @@ import ReprogramarModal from '@/components/cobranza/ReprogramarModal'
 
 import AusenteModal from '@/components/cobranza/AusenteModal'
 
-import { VisitaRuta, EstadoVisita } from '@/lib/types/cobranza'
+import { VisitaRuta, EstadoVisita, VisitaParcial } from '@/lib/types/cobranza'
 
 import { StaticVisitaItem, SeleccionClienteModal, Portal } from '@/components/dashboards/shared/CobradorElements'
 
@@ -2260,7 +2260,7 @@ const RutaClientLoaded = ({
 
                 // Recalcular KPI inmediatamente
                 setRutaStatsCards((prev) => {
-                  const visitasActualizadas = visitasCobrador.map((v: VisitaRuta) => {
+                  const visitasActualizadas = visitasCobrador.map((v: VisitaRuta): VisitaParcial => {
                     if (v.id !== visitaReprogramar.id) return v
 
                     return {

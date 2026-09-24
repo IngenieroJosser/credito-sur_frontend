@@ -14,7 +14,11 @@ import type { PrestamoParcial } from '@/types/domain';
  * Devuelve cadena vacia si no encuentra ninguno, nunca `undefined`, para que
  * quien llama pueda comparar sin normalizar antes.
  */
-export const resolveCuotaIdFromVisitaLike = (source: any, prestamo?: PrestamoParcial | null, cuota?: any) => {
+export const resolveCuotaIdFromVisitaLike = (
+  source: VisitaParcial | null | undefined,
+  prestamo?: PrestamoParcial | null,
+  cuota?: CuotaOperativa | null,
+) => {
   return String(
     source?.cuotaId ??
     source?.cuotaObjetivoId ??
@@ -610,7 +614,7 @@ export const resolveFechaEfectivaCuota = (cuota: CuotaOperativa | null | undefin
   return raw ? String(raw) : '';
 };
 
-export const resolveProximaCuotaFromPrestamo = (prestamo: PrestamoParcial): { cuota: any | null; fechaEfectiva: string } => {
+export const resolveProximaCuotaFromPrestamo = (prestamo: PrestamoParcial): { cuota: CuotaOperativa | null; fechaEfectiva: string } => {
   // Resuelve la próxima cuota exigible de un préstamo.
   // Preferencia:
   // 1) prestamo.proximaCuota (si el backend la entrega)
@@ -647,7 +651,7 @@ export const resolveProximaCuotaFromPrestamo = (prestamo: PrestamoParcial): { cu
   return { cuota, fechaEfectiva };
 };
 
-export const resolveNextPagoFromPrestamo = (prestamo: PrestamoParcial): { monto: number | null; fecha: string | null; cuota: any | null; fechaEfectiva: string } => {
+export const resolveNextPagoFromPrestamo = (prestamo: PrestamoParcial): { monto: number | null; fecha: string | null; cuota: CuotaOperativa | null; fechaEfectiva: string } => {
   // Wrapper que devuelve (monto, fecha) de la cuota próxima, más la cuota y su fecha efectiva.
   // Se usa para mostrar "próximo pago" en UI.
   const { cuota, fechaEfectiva } = resolveProximaCuotaFromPrestamo(prestamo);
@@ -821,7 +825,7 @@ export const shouldIncludeVisitaInRutaHoyKpis = (visita: VisitaParcial | null | 
   return Number((visita)?.recaudadoDelDia ?? (visita)?.recaudadoPeriodo ?? 0) > 0;
 };
 export const shouldExcludeVisitaFromOperationalMeta = (
-  visita: any,
+  visita: VisitaParcial,
   recaudadoHoyOverride?: unknown,
 ): boolean => {
   const estadoVisita = String(visita?.estadoVisita || '').toLowerCase().replace(/\s+/g, '_');
@@ -883,7 +887,7 @@ export const computeMetaHoyFromVisitas = (visitas: VisitaParcial[], hoyBogotaKey
 };
 
 export const computeRutaHoyUiStatsFromVisitas = (
-  visitas: any[],
+  visitas: VisitaParcial[],
   recaudoFallback = 0,
 ): { meta: number; pendiente: number; recaudo: number } => {
   const visitasSeguras = Array.isArray(visitas) ? visitas : [];
@@ -945,7 +949,7 @@ export const isCuotaNoPagada = (cuota: CuotaOperativa | null | undefined): boole
 };
 
 export const computeDiasMoraFromCuotas = (
-  cuotas: any[],
+  cuotas: CuotaOperativa[],
   hoyBogotaKey: string,
   frecuenciaPagoRaw?: string | null,
 ): number => {

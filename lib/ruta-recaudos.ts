@@ -1,4 +1,5 @@
 import { getPagoBogotaDateKey, shouldMarkVisitaAsPagado } from '@/lib/rutas-core'
+import type { PagoParcial } from '@/types/domain'
 
 // ============================================================================
 // Helpers compartidos de recaudo (pagos) para vistas de Ruta.
@@ -18,12 +19,12 @@ type PagoFilterOptions = {
   includeCierrePendiente?: boolean
 }
 
-export const isPagoCierrePendiente = (pago: any): boolean => {
+export const isPagoCierrePendiente = (pago: PagoParcial | null | undefined): boolean => {
   return String(pago?.origenGestion || '').toUpperCase() === 'CIERRE_PENDIENTE'
 }
 
 const shouldIncludePagoForOperationalToday = (
-  pago: any,
+  pago: PagoParcial | null | undefined,
   options?: PagoFilterOptions,
 ): boolean => {
   if (options?.includeCierrePendiente) return true
@@ -62,7 +63,7 @@ export const buildRecaudosHoyMapByPrestamoId = (
 }
 
 export const sumMontoTotalPagosByBogotaDateKey = (
-  pagos: any[],
+  pagos: PagoParcial[],
   targetBogotaKey: string,
   options?: PagoFilterOptions,
 ): number => {
@@ -81,14 +82,14 @@ export const sumMontoTotalPagosByBogotaDateKey = (
   }, 0)
 }
 
-export const sumMontoTotalPagosHistorico = (pagos: any[]): number => {
+export const sumMontoTotalPagosHistorico = (pagos: PagoParcial[]): number => {
   // Suma total histórica de una lista de pagos (sin filtro por fecha).
   return (Array.isArray(pagos) ? pagos : []).reduce((sum: number, p: any) => {
     return sum + Number(p?.montoTotal ?? p?.monto ?? p?.valor ?? 0)
   }, 0)
 }
 
-export const indexPagosByPrestamoId = (pagos: any[]) => {
+export const indexPagosByPrestamoId = (pagos: PagoParcial[]) => {
   // Construye índices en memoria para evitar filtros O(N) por cada visita.
   //
   // Retorna:

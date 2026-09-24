@@ -1,3 +1,4 @@
+import type { VisitaParcial } from '@/lib/types/cobranza'
 import {
   applyRecaudoHoyToVisitas,
   buildRecaudosHoyMapByPrestamoId,
@@ -120,7 +121,7 @@ describe('ruta-recaudos', () => {
   })
 
   it('preserva recaudo de un ausente pagado aunque el refresh cambie el id visual de la visita', () => {
-    const local = [
+    const local: VisitaParcial[] = [
       {
         id: 'asig-anterior-prestamo-1',
         prestamoId: 'prestamo-1',
@@ -144,7 +145,7 @@ describe('ruta-recaudos', () => {
       },
     ]
 
-    const backendRefresh = [
+    const backendRefresh: VisitaParcial[] = [
       {
         id: 'asig-nueva-prestamo-1',
         prestamoId: 'prestamo-1',

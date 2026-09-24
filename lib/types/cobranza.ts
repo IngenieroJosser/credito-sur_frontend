@@ -20,6 +20,10 @@ export type PeriodoRuta = 'DIA' | 'SEMANA' | 'QUINCENA' | 'MES'
  * una visita que puede no traerla. Declararlo obligatorio seria mentir.
  */
 export interface CuotaOperativa {
+  /** Reparto de la cuota. Columnas del modelo Cuota en el backend. */
+  montoCapital?: number | null
+  montoInteres?: number | null
+  montoInteresMora?: number | null
   id?: string
   numeroCuota?: number
 
@@ -177,7 +181,16 @@ export interface VisitaRuta {
  * tambien con objetos a medio armar mientras se enriquecen, y con fragmentos en
  * las pruebas. Pedirles una VisitaRuta entera seria pedir mas de lo que usan.
  */
-export type VisitaParcial = Partial<VisitaRuta>
+/**
+ * `fechaVencimientoProrroga` al nivel de la visita: el backend la manda en la
+ * cuota (`cuotaObjetivo.fechaVencimientoProrroga`), no aqui. Se lee dentro de
+ * una cadena que termina en la cuota, asi que resuelve por ese eslabon.
+ */
+export interface VisitaCamposLeidos {
+  fechaVencimientoProrroga?: string | null
+}
+
+export type VisitaParcial = Partial<VisitaRuta & VisitaCamposLeidos>
 export interface HistorialDia {
   resumen: {
     recaudo: number;

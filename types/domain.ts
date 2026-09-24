@@ -167,7 +167,21 @@ export interface Prestamo {
  * visita, y en las pruebas. Pedirles el prestamo entero seria pedir mas de lo
  * que usan.
  */
-export type PrestamoParcial = Partial<Prestamo>;
+/**
+ * Campos que el codigo lee del prestamo y no estaban declarados.
+ *
+ *   articulo             el backend SI lo manda (83 sitios en src/)
+ *   frecuenciaRuta       NO existe en el backend; va en la cadena
+ *                        `frecuenciaRuta || frecuenciaPago || frecuencia`,
+ *                        asi que resuelve por el segundo eslabon
+ */
+export interface PrestamoCamposLeidos {
+  articulo?: string | { nombre?: string } | null;
+  descripcionArticulo?: string | null;
+  frecuenciaRuta?: string | null;
+}
+
+export type PrestamoParcial = Partial<Prestamo & PrestamoCamposLeidos>;
 export interface Cuota {
   id: string;
   prestamoId: string;
@@ -197,9 +211,22 @@ export interface Extension {
 export interface Pago {
   id: string;
   prestamoId: string;
-  prestamo?: Pick<Prestamo, 'id' | 'clienteId' | 'cliente'>;
+  /**
+   * El backend manda un subconjunto distinto en cada endpoint: unas veces
+   * `{id, saldoPendiente}`, otras `{id, numeroPrestamo}` y en el export
+   * solo `{numeroPrestamo}` (payments.service). Por eso va parcial: pedir
+   * siempre `clienteId` describia algo que no llega nunca.
+   */
+  prestamo?: PrestamoParcial | null;
   clienteId?: string | null;
-  cliente?: Pick<Cliente, 'id' | 'nombres' | 'apellidos'>;
+  /**
+   * Lo que el backend selecciona aqui es `{id, nombres, apellidos, dni}` y
+   * nada mas: comprobadas las siete variantes de payments.service. El codigo
+   * lee ademas `direccion`, `telefono` y `nivelRiesgo`, que NO llegan nunca y
+   * hoy resuelven a cadena vacia o al valor por defecto. Va parcial para
+   * describir eso sin mentir en ninguna de las dos direcciones.
+   */
+  cliente?: Partial<Cliente> | null;
   rutaId?: string | null;
   cobradorId?: string | null;
   montoTotal: number;
@@ -237,7 +264,46 @@ export interface Pago {
     cuota?: Pick<Cuota, 'id' | 'numeroCuota' | 'monto' | 'montoPagado' | 'estado'>;
   }>;
   creadoEn: string;
+
+  /** Consecutivo del recibo. Lo genera el backend (payments.service). */
+  numeroPago?: string | null;
+  /** De dónde salió la gestión: CIERRE_PENDIENTE y similares. */
+  origenGestion?: string | null;
+  /** Cuánto se esperaba de la cuota cuando se cobró. */
+  montoCuotaEsperado?: number | null;
+  /** Saldo del crédito después de aplicar este pago. */
+  saldoNuevo?: number | null;
+
+  /**
+   * Alias que el código lee y el backend NO manda nunca. Comprobado buscando
+   * cada nombre en src/payments y en el esquema: cero apariciones. Van siempre
+   * dentro de una cadena `a || b` junto al nombre bueno, así que hoy no rompen
+   * nada; se declaran para que el tipo describa lo que el código lee de verdad
+   * y no haya que taparlo con `any`.
+   *
+   *   cuotaAfectada / cuotaNumero  →  el vínculo vive en `detalles[].cuota`
+   *   nuevoSaldo                   →  el backend manda `saldoNuevo`
+   *   valor                        →  el backend manda `montoTotal`
+   */
+  cuotaAfectada?: unknown;
+  /** Alias en singular de `detalles`. El backend manda siempre el plural. */
+  detalle?: { cuota?: Partial<Cuota> | null } | null;
+  /** Cuota suelta: el vinculo real vive en `detalles[].cuota`. */
+  cuota?: Partial<Cuota> | null;
+  cuotaNumero?: number | null;
+  nuevoSaldo?: number | null;
+  valor?: number | null;
 }
+
+/**
+ * Un pago del que solo se leen algunos campos.
+ *
+ * Igual que [[PrestamoParcial]]: las funciones del núcleo de rutas reciben lo
+ * que venga del listado, del historial o de la cola offline, y cada origen trae
+ * un subconjunto distinto. Se defienden con `pago?.campo`, así que pedirles el
+ * `Pago` entero sería mentir sobre lo que necesitan.
+ */
+export type PagoParcial = Partial<Pago>;
 
 // ─── RUTA ────────────────────────────────────────────────────────────────────
 

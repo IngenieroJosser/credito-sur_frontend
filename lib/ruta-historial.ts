@@ -3,7 +3,7 @@ import { logger } from '@/lib/logger'
 import { getPagoBogotaDateKey, shouldExcludeVisitaFromOperationalMeta } from '@/lib/rutas-core'
 import { mapNivelRiesgo, type VisitaParcial, type VisitaRuta } from '@/lib/types/cobranza'
 import { resolveRiesgoObligacion } from '@/lib/rutas/riesgo-obligacion'
-import type { Pago, Prestamo } from '@/types/domain'
+import type { Pago, PagoParcial, Prestamo } from '@/types/domain'
 
 type Resumen = {
   recaudo: number
@@ -50,7 +50,7 @@ export const getHistorialJornadaBadge = (resumen: Partial<Resumen> | undefined) 
   return null
 }
 
-export const isPagoForHistorialFecha = (pago: any, fechaClave: string) => {
+export const isPagoForHistorialFecha = (pago: PagoParcial | null | undefined, fechaClave: string) => {
   if (isPagoCierrePendiente(pago)) {
     return String(pago?.fechaOperativaRuta || '').slice(0, 10) === fechaClave
   }
@@ -60,14 +60,14 @@ export const isPagoForHistorialFecha = (pago: any, fechaClave: string) => {
   return getPagoBogotaDateKey(String(raw)) === fechaClave
 }
 
-export const normalizeEstadoVisitaHistorial = (raw: any) =>
+export const normalizeEstadoVisitaHistorial = (raw: unknown) =>
   String(raw || '')
     .trim()
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
 
-export const isEstadoVisitaGestionadoHistorial = (raw: any) => {
+export const isEstadoVisitaGestionadoHistorial = (raw: unknown) => {
   const estado = normalizeEstadoVisitaHistorial(raw)
   return (
     estado === 'ausente' ||
@@ -137,7 +137,10 @@ export const normalizeVisitaHistorial = (v: VisitaParcial): any => {
   return v
 }
 
-export const buildResumenHistorialCompartido = (visitas: any[], resumenBase?: any) => {
+export const buildResumenHistorialCompartido = (
+  visitas: VisitaParcial[],
+  resumenBase?: Partial<Resumen>,
+): Partial<Resumen> & Pick<Resumen, 'recaudo' | 'total' | 'visitados' | 'efectividad'> => {
   const normalizadas = (visitas || []).map(normalizeVisitaHistorial)
 
   const total = normalizadas.length
@@ -161,7 +164,10 @@ export const buildResumenHistorialCompartido = (visitas: any[], resumenBase?: an
   }
 }
 
-export function computeHistorialResumenCompartido(visitas: any[], resumenBase?: any) {
+export function computeHistorialResumenCompartido(
+  visitas: VisitaParcial[],
+  resumenBase?: Partial<Resumen>,
+): Partial<Resumen> & Pick<Resumen, 'recaudo' | 'total' | 'visitados' | 'efectividad'> {
   const normalizadas = (visitas || []).map(normalizeVisitaHistorial)
 
   // Filtrar visitas que deben excluirse de la meta operativa (ausentes, etc.)
@@ -251,7 +257,7 @@ export const applyPagosDelDiaToHistorialVisitas = (params: {
   const pagosOperativos = (Array.isArray(pagosDelDia) ? pagosDelDia : [])
     .filter((p: Pago) => !isPagoCierrePendiente(p))
   const recaudadoPorPrestamo: Record<string, number> = {}
-  const pagosPorKey = new Map<string, { pago: any; total: number; index: number }>()
+  const pagosPorKey = new Map<string, { pago: PagoParcial; total: number; index: number }>()
 
   pagosOperativos.forEach((p: any, index: number) => {
     const monto = Number(p?.montoTotal ?? p?.monto ?? p?.valor ?? 0)
@@ -785,7 +791,7 @@ export const buildHistorialDiaFromBackend = (params: {
   // 4) Visitas sintéticas:
   // Si hubo un pago en el día para un cliente que no aparece en `visitasResp.visitas`,
   // lo agregamos al historial para que el recaudo y el "visitados" cuadre con la realidad.
-  const pagosSinteticosPorKey = new Map<string, { pago: any; total: number; index: number }>()
+  const pagosSinteticosPorKey = new Map<string, { pago: PagoParcial; total: number; index: number }>()
   for (const [i, p] of pagosOperativos.entries()) {
     const cid = p?.clienteId || p?.cliente?.id
     const pid = String(p?.prestamoId || p?.prestamo?.id || '')
