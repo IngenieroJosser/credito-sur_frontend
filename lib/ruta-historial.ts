@@ -1,9 +1,10 @@
+import type { CuotaOperativa } from '@/lib/types/cobranza'
 import { isPagoCierrePendiente } from '@/lib/ruta-recaudos'
 import { logger } from '@/lib/logger'
 import { getPagoBogotaDateKey, shouldExcludeVisitaFromOperationalMeta } from '@/lib/rutas-core'
 import { mapNivelRiesgo, type VisitaParcial, type VisitaRuta } from '@/lib/types/cobranza'
 import { resolveRiesgoObligacion } from '@/lib/rutas/riesgo-obligacion'
-import type { Pago, PagoParcial, Prestamo } from '@/types/domain'
+import type { Cliente, Pago, PagoParcial, Prestamo, PrestamoParcial } from '@/types/domain'
 
 type Resumen = {
   recaudo: number
@@ -456,8 +457,8 @@ export const buildHistorialDiaFromBackend = (params: {
   }
 
   const visitasDesdeObligaciones: VisitaRuta[] = obligacionesRaw.map((item: any, index: number) => {
-    const cliente = item?.cliente || item?.visita?.cliente || {}
-    const prestamo = item?.prestamo || {}
+    const cliente: Partial<Cliente> = item?.cliente || item?.visita?.cliente || {}
+    const prestamo: PrestamoParcial = item?.prestamo || {}
     const cuotaObjetivo = item?.cuotaObjetivo || prestamo?.cuotaObjetivo || null
     const prestamoId = String(item?.prestamoId || prestamo?.id || '')
     const clienteId = String(cliente?.id || item?.clienteId || '')
@@ -622,7 +623,7 @@ export const buildHistorialDiaFromBackend = (params: {
   const visitas: VisitaRuta[] = visitasConRiesgo.length > 0
     ? visitasConRiesgo
     : ((visitasResp as any)?.visitas || []).flatMap((item: any, index: number) => {
-    const cliente = item?.cliente || {}
+    const cliente: Partial<Cliente> = item?.cliente || {}
     const prestamos = Array.isArray(item?.prestamos) ? item.prestamos : []
 
     // Si no hay préstamos, caer a una sola visita por cliente como antes.
@@ -683,7 +684,7 @@ export const buildHistorialDiaFromBackend = (params: {
         ? Number(regularizadoPorPrestamo[prestamoId] || 0)
         : (cliente?.id ? Number(regularizadoPorCliente[cliente.id] || 0) : 0)
 
-      const proximaCuota = p?.proximaCuota || {}
+      const proximaCuota: CuotaOperativa = p?.proximaCuota || {}
       const montoCuotaBase = Number(p?.montoCuota ?? proximaCuota?.monto ?? 0)
       const montoGestionado = recaudadoDelDia + regularizadoDespues
       const montoCuotaDisplay = montoGestionado > 0 ? Math.max(montoCuotaBase, montoGestionado) : montoCuotaBase
@@ -834,8 +835,8 @@ export const buildHistorialDiaFromBackend = (params: {
     const pid = String(p?.prestamoId || p?.prestamo?.id || '')
     const primerDetalle = Array.isArray(p?.detalles) ? p.detalles[0] : undefined
     const cuotaDetalle = primerDetalle?.cuota || p?.cuota || undefined
-    const prestamo = p?.prestamo || {}
-    const cliente = p?.cliente || {}
+    const prestamo: PrestamoParcial = p?.prestamo || {}
+    const cliente: Partial<Cliente> = p?.cliente || {}
     const nombreCliente = cliente
       ? `${cliente.nombres || ''} ${cliente.apellidos || ''}`.trim()
       : ''

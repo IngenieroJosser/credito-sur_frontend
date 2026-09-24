@@ -187,6 +187,27 @@ export interface Prestamo {
  *                        asi que resuelve por el segundo eslabon
  */
 export interface PrestamoCamposLeidos {
+  /**
+   * Campos de la OBLIGACION que el historial lee como respaldo del prestamo,
+   * en cadenas `item?.x || prestamo?.x`. El bueno es siempre el primero: el
+   * item que devuelve la ruta. Se declaran para que el tipo describa lo que
+   * el codigo lee y no haya que apagarlo con `any`.
+   *
+   * De estos, el backend SI manda montoMetaOperativaPendiente (14 sitios),
+   * estadoGestion (28) y estadoVisita; NO manda nivelRiesgoObligacion ni
+   * riesgoOperativo (cero apariciones), que resuelven por el otro eslabon.
+   */
+  estadoVisita?: string | null;
+  notasVisita?: string | null;
+  estadoGestion?: string | null;
+  montoCuotaNormal?: number | null;
+  montoMetaOperativaPendiente?: number | null;
+  saldoTotal?: number | null;
+  esProvisional?: boolean | null;
+  nivelRiesgoCredito?: string | null;
+  nivelRiesgoObligacion?: string | null;
+  riesgoCredito?: string | null;
+  riesgoOperativo?: string | null;
   articulo?: string | { nombre?: string } | null;
   descripcionArticulo?: string | null;
   frecuenciaRuta?: string | null;
@@ -284,6 +305,14 @@ export interface Cuota {
   montoCapital: number;
   montoInteres: number;
   montoInteresMora: number;
+  /**
+   * El backend los manda: montoNominal en 15 sitios, estadoActual en 16.
+   * Sin `| null` para que un `Cuota` siga encajando donde se espera un
+   * `CuotaOperativa`, que es el tipo permisivo del nucleo de rutas.
+   */
+  montoNominal?: number;
+  estadoActual?: string;
+  montoCuota?: number;
   estado: EstadoCuota;
   montoPagado: number;
   fechaPago?: string | null;

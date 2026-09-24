@@ -1,3 +1,5 @@
+import type { VisitaParcial } from '@/lib/types/cobranza'
+import type { Cliente } from '@/types/domain'
 /**
  * Mapper compartido para convertir DailyVisitsResponse en VisitaRuta[].
  * Centraliza la normalización de obligaciones operativas para todas las vistas:
@@ -70,8 +72,9 @@ export const mapDailyVisitsResponseToVisitas = ({
     : (Array.isArray((resp)?.visitas) ? (resp).visitas : [])
 
   const mapped = rows.map((row: any, idx: number) => {
-    const visita = row?.visita || row || {}
-    const c = row?.cliente || visita?.cliente || {}
+    // Anotadas por el mismo motivo: sin tipo, el `|| {}` las deja en `{}`.
+    const visita: VisitaParcial = row?.visita || row || {}
+    const c: Partial<Cliente> = row?.cliente || visita?.cliente || {}
     const p = row?.prestamo || visita?.prestamo || visita?.prestamos?.[0] || {}
     const cuotaObjetivo =
       row?.cuotaObjetivo ||

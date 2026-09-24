@@ -1,3 +1,4 @@
+import type { PrestamoParcial } from '@/types/domain'
 import { getBogotaDateKey } from '@/lib/rutas-core'
 import { resolveRutaDailySummary, shouldShowVisitaEnRutaHoy, shouldExcludeVisitaFromOperationalMeta, resolveCuotaIdFromVisitaLike, resolveFechaEfectivaCuota, computeDiasMoraFromCuotaObjetivo } from '@/lib/rutas-core'
 import { resolveNivelRiesgoVisita } from '@/lib/rutas/resolve-riesgo-visita'
@@ -53,7 +54,9 @@ export async function buildRutaHoyOperativa({
   // 2. Convertir obligaciones en formato VisitaRuta
   const visitasOperativas = obligacionesJornada.map((o: any, idx: number) => {
     const clienteObj = typeof o.cliente === 'object' && o.cliente ? o.cliente : null
-    const prestamo = o.prestamo || {}
+    // El `|| {}` mete un objeto vacio en la union y el compilador deja de
+    // ver los campos. Se anota lo que estas variables contienen.
+    const prestamo: PrestamoParcial = o.prestamo || {}
 
     const clienteNombre =
       o.clienteNombre ||

@@ -187,6 +187,10 @@ export interface VisitaRuta {
  * una cadena que termina en la cuota, asi que resuelve por ese eslabon.
  */
 export interface VisitaCamposLeidos {
+  /** Id de la asignacion de la que salio la visita. */
+  asignacionId?: string | null
+  /** Los creditos del cliente, cuando la visita viene del detalle de ruta. */
+  prestamos?: unknown[]
   fechaVencimientoProrroga?: string | null
 }
 
