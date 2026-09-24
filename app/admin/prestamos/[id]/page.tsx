@@ -31,6 +31,9 @@ export default function PrestamoDetallePage() {
           clienteDni: data.cliente?.dni || '',
           clienteTelefono: data.cliente?.telefono || '',
           clienteDireccion: data.cliente?.direccion || '',
+          // Marca de cartera vieja: el detalle avisa de que las cuotas pagadas
+          // de este credito no tienen pagos detras.
+          cargaHistoricaEn: data.cargaHistoricaEn ?? null,
           montoPrestamo: data.monto || 0,
           montoTotal: data.montoTotal || (Number(data.monto || 0) + Number(data.interesTotal || 0)),
           saldoPendiente: data.saldoPendiente || data.montoPendiente || 0,

@@ -96,6 +96,17 @@ export interface Prestamo {
   eliminadoEn?: string | null;
   /** Venta de contado: se paga en el momento y no se cobra en ruta. */
   esContado?: boolean;
+
+  /**
+   * Cuando se cargo este credito desde cartera vieja, si fue asi.
+   *
+   * Un credito de carga HISTORICA es cartera que ya se venia cobrando antes
+   * de que existiera el sistema. Sus cuotas pagadas se marcan como tales pero
+   * NO tienen Pago ni recibo detras, y no movieron caja ni generaron asientos:
+   * ese dinero se recibio antes y registrarlo hoy descuadraria la
+   * contabilidad. La pantalla del credito lo avisa cuando esto no es null.
+   */
+  cargaHistoricaEn?: string | null;
   /** Id de la cuota que toca cobrar (routes.service:784). */
   cuotaObjetivoId?: string;
   /**

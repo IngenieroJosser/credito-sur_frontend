@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Calendar, User, FileText, TrendingUp, Package, Image as ImageIcon, ChevronRight, ChevronLeft, Clock, BarChart3, AlertTriangle } from 'lucide-react';
+import { Calendar, User, FileText, TrendingUp, Package, Image as ImageIcon, ChevronRight, ChevronLeft, Clock, BarChart3, AlertTriangle, History } from 'lucide-react';
 import { formatCurrency, cn, resolveMediaUrl } from '@/lib/utils';
 import ClientePortalModal from '@/components/cliente/ClientePortalModal';
 import { getBogotaDateKey, normalizeDateKey } from '@/lib/rutas-core'
@@ -43,6 +43,11 @@ export interface PrestamoDetalle {
   clienteDni: string;
   clienteTelefono?: string;
   clienteDireccion?: string;
+  /**
+   * Cuando se cargo este credito desde cartera vieja, si fue asi.
+   * Null o ausente = credito nacido en el sistema.
+   */
+  cargaHistoricaEn?: string | null;
   montoPrestamo: number;
   montoTotal: number;
   saldoPendiente: number;
@@ -614,6 +619,32 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
       <div className="min-h-[300px]">
         {activeTab === 'cuotas' && (
           <div className="space-y-4">
+            {/*
+              Sin esto, un credito traido de cartera vieja se ve exactamente
+              igual que uno normal: cuotas en PAGADA y ni un recibo detras.
+              Quien lo mire va a pensar que se perdieron pagos.
+            */}
+            {prestamo.cargaHistoricaEn ? (
+              <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <History className="h-5 w-5 shrink-0 text-amber-600 mt-0.5" aria-hidden="true" />
+                <div className="min-w-0 text-sm text-amber-900">
+                  <p className="font-bold">Crédito cargado desde el histórico</p>
+                  <p className="mt-1 leading-relaxed">
+                    Se importó el{' '}
+                    {formatDate(prestamo.cargaHistoricaEn)} como cartera que ya se venía
+                    cobrando. Las cuotas marcadas como pagadas vienen de esa carga:{' '}
+                    <strong>no tienen pagos ni recibos en el sistema</strong>, porque se
+                    cobraron antes de que existiera. Tampoco aparecen en el recaudo de
+                    días anteriores ni en los movimientos de caja.
+                  </p>
+                  <p className="mt-1 leading-relaxed">
+                    El saldo, las cuotas pendientes y el estado del crédito sí son
+                    correctos: es a partir de aquí que se cobra.
+                  </p>
+                </div>
+              </div>
+            ) : null}
+
             {/* Tarjeta de Amortización - Cuota Actual */}
             {cuotaActual && (
               <div className="bg-white border-2 border-blue-100 rounded-2xl p-5 relative overflow-hidden shadow-sm">
