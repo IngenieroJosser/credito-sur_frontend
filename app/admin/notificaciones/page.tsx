@@ -36,6 +36,7 @@ import { TipoAprobacion } from '@/types/enums'
 import NotificacionDetalleModal from '@/components/dashboards/shared/NotificacionDetalleModal'
 import { formatCurrency, formatMilesCOP } from '@/lib/utils'
 import BotonAccion from '@/components/ui/BotonAccion'
+import { CapaAccion } from '@/components/ui/PantallaCarga'
 import { Skeleton } from '@/components/ui/Skeleton'
 
 // MOCKS ELIMINADOS - La aplicación solo funciona con datos reales del backend
@@ -257,7 +258,14 @@ export default function NotificacionesPage() {
   const [prestamoModalOpen, setPrestamoModalOpen] = useState(false)
   const [selectedPrestamoId, setSelectedPrestamoId] = useState<string | null>(null)
   const [feedbackModal, setFeedbackModal] = useState<{titulo: string, mensaje: string, tipo: 'success' | 'danger'} | null>(null)
-  const [isProcessing, setIsProcessing] = useState(false)
+  /**
+   * Que decision se esta aplicando ahora, o null.
+   *
+   * Era `isProcessing`, un booleano que se escribia al aprobar y al rechazar
+   * y no se leia en ningun sitio: no bloqueaba nada. Aprobar no es
+   * idempotente, asi que dos pulsaciones son dos decisiones.
+   */
+  const [decisionEnCurso, setDecisionEnCurso] = useState<string | null>(null)
   
   // Paginación
   const [currentPage, setCurrentPage] = useState(1);
@@ -371,7 +379,8 @@ export default function NotificacionesPage() {
       return
     }
 
-    setIsProcessing(true)
+    if (decisionEnCurso) return
+    setDecisionEnCurso('Aprobando la solicitud…')
 
     try {
       await aprobacionesService.aprobar(entidadId, {
@@ -405,7 +414,7 @@ export default function NotificacionesPage() {
         tipo: 'danger'
       })
     } finally {
-      setIsProcessing(false)
+      setDecisionEnCurso(null)
     }
 
     setShowApproveModalList(false)
@@ -426,7 +435,8 @@ export default function NotificacionesPage() {
       setShowRejectModalList(false)
       return
     }
-    setIsProcessing(true)
+    if (decisionEnCurso) return
+    setDecisionEnCurso('Rechazando la solicitud…')
     try {
       await aprobacionesService.rechazar(entidadId, {
         type: approvalType as any,
@@ -457,7 +467,7 @@ export default function NotificacionesPage() {
         tipo: 'danger'
       })
     } finally {
-      setIsProcessing(false)
+      setDecisionEnCurso(null)
       setShowRejectModalList(false)
       setSelectedNotif(null)
     }
@@ -534,6 +544,8 @@ export default function NotificacionesPage() {
 
   return (
     <div className="min-h-screen relative bg-white">
+      <CapaAccion texto={decisionEnCurso} />
+
       {/* Fondo Arquitectónico */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />

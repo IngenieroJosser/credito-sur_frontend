@@ -91,7 +91,6 @@ function CuentasVencidasContent() {
 
   const [cuentas, setCuentas] = useState<CuentaVencida[]>([])
   const [loading, setLoading] = useState(true)
-  const [exportLoading, setExportLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [busqueda, setBusqueda] = useState('')
   const [viewMode, setViewMode] = useState<ViewMode>('list')
@@ -151,15 +150,15 @@ function CuentasVencidasContent() {
     }
   }, [busqueda, filtroRuta])
 
+  // El aviso de progreso lo pone <ExportButton>: espera a que termine la
+  // promesa, ensena "Generando Excel…" y se bloquea mientras dura.
   const handleExportExcel = async () => {
-    setExportLoading(true)
     try { await exportService.exportCuentasVencidas('excel', { busqueda: busqueda || undefined }); toast.success('Reporte descargado') }
-    catch { toast.error('Error al exportar') } finally { setExportLoading(false) }
+    catch { toast.error('Error al exportar') }
   }
   const handleExportPDF = async () => {
-    setExportLoading(true)
     try { await exportService.exportCuentasVencidas('pdf', { busqueda: busqueda || undefined }); toast.success('Reporte descargado') }
-    catch { toast.error('Error al exportar') } finally { setExportLoading(false) }
+    catch { toast.error('Error al exportar') }
   }
 
   const handleAccion = (cuenta: CuentaVencida) => {

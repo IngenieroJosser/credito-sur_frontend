@@ -70,33 +70,28 @@ const ReportesOperativosPage = () => {
    * redirigiendo a cada uno a su sección correcta sin "sacarlos" de su layout.
    */
   const [basePath, setBasePath] = useState('')
-  const [exporting, setExporting] = useState(false)
 
   // Filtro específico para ver el rendimiento de una sola ruta
   const [filterRuta, setFilterRuta] = useState<string | null>(null);
   const [metaByRuta, setMetaByRuta] = useState<Record<string, number>>({})
 
+  // El aviso de progreso lo pone <ExportButton>: espera a que termine la
+  // promesa, ensena "Generando Excel…" y se bloquea mientras dura.
   const handleExportExcel = async () => {
-    setExporting(true)
     try {
       await exportReport({ period, routeId: filterRuta || undefined }, 'excel')
       toast.success('Reporte Excel exportado correctamente')
     } catch (error) {
       toast.error('Error al exportar el reporte')
-    } finally {
-      setExporting(false)
     }
   }
 
   const handleExportPDF = async () => {
-    setExporting(true)
     try {
       await exportReport({ period, routeId: filterRuta || undefined }, 'pdf')
       toast.success('Reporte PDF exportado correctamente')
     } catch (error) {
       toast.error('Error al exportar el reporte')
-    } finally {
-      setExporting(false)
     }
   }
 
