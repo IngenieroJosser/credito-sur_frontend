@@ -33,6 +33,7 @@ import FiltroRuta from '@/components/filtros/FiltroRuta'
 // en cada render y remontaba la tabla entera.
 import PaginadorCompartido from '@/components/ui/Paginador'
 import { Skeleton, SkeletonTabla } from '@/components/ui/Skeleton'
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 
 type EstadoPago = 'completado' | 'pendiente' | 'fallido' | 'en_revision'
 
@@ -115,8 +116,7 @@ const HistorialPagosPage = () => {
     try {
       await exportService.downloadFile('accounting/gastos/export', { format: 'excel' }, 'gastos.xlsx')
       toast.success('Gastos Excel descargado')
-    } catch {
-      toast.error('Error al exportar gastos')
+    } catch (error) { toast.error(mensajeDeError(error, 'Error al exportar gastos'))
     }
   }
 
@@ -124,8 +124,7 @@ const HistorialPagosPage = () => {
     try {
       await exportService.downloadFile('accounting/gastos/export', { format: 'pdf' }, 'gastos.pdf')
       toast.success('Gastos PDF descargado')
-    } catch {
-      toast.error('Error al exportar gastos PDF')
+    } catch (error) { toast.error(mensajeDeError(error, 'Error al exportar gastos PDF'))
     }
   }
 

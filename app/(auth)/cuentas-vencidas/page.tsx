@@ -49,6 +49,7 @@ import { offlineStore } from '@/lib/offline/offlineDb'
 import { resolveRiesgoObligacion } from '@/lib/rutas/riesgo-obligacion'
 import Paginador from '@/components/ui/Paginador'
 import { SkeletonTabla } from '@/components/ui/Skeleton'
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 
 type ViewMode = 'list' | 'grid'
 
@@ -154,11 +155,11 @@ function CuentasVencidasContent() {
   // promesa, ensena "Generando Excel…" y se bloquea mientras dura.
   const handleExportExcel = async () => {
     try { await exportService.exportCuentasVencidas('excel', { busqueda: busqueda || undefined }); toast.success('Reporte descargado') }
-    catch { toast.error('Error al exportar') }
+    catch (error) { toast.error(mensajeDeError(error, 'Error al exportar')) }
   }
   const handleExportPDF = async () => {
     try { await exportService.exportCuentasVencidas('pdf', { busqueda: busqueda || undefined }); toast.success('Reporte descargado') }
-    catch { toast.error('Error al exportar') }
+    catch (error) { toast.error(mensajeDeError(error, 'Error al exportar')) }
   }
 
   const handleAccion = (cuenta: CuentaVencida) => {

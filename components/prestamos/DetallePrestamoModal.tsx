@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 
 import { Skeleton, SkeletonTexto, SkeletonTabla } from '@/components/ui/Skeleton'
 import Tooltip from '@/components/ui/Tooltip'
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 interface DetallePrestamoModalProps {
   id: string;
   onClose: () => void;
@@ -45,8 +46,7 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
     try {
       await exportService.exportContrato(id);
       toast.success('Contrato descargado');
-    } catch {
-      toast.error('Error al descargar contrato');
+    } catch (error) { toast.error(mensajeDeError(error, 'Error al descargar contrato'));
     } finally {
       setDownloadingContract(false);
     }

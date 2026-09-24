@@ -21,6 +21,7 @@ import { exportService } from '@/services/export-service';
 import { toast } from 'sonner';
 import { prestamosService } from '@/services/prestamos-service';
 import { buildCrearPrestamoPayload } from '@/lib/creditos/crear-prestamo-payload';
+import { mensajeDeError } from '@/lib/mensaje-de-error';
 
 interface MetricItem {
   title: string;
@@ -110,16 +111,14 @@ export function DashboardClient({ data }: DashboardClientProps) {
   const handleExportExcel = async () => {
     try {
       await exportService.exportOperationalReport('excel', { period: activePeriod });
-    } catch {
-      toast.error('Error al exportar. Intenta de nuevo.');
+    } catch (error) { toast.error(mensajeDeError(error, 'Error al exportar. Intenta de nuevo.'));
     }
   };
 
   const handleExportPDF = async () => {
     try {
       await exportService.exportOperationalReport('pdf', { period: activePeriod });
-    } catch {
-      toast.error('Error al exportar. Intenta de nuevo.');
+    } catch (error) { toast.error(mensajeDeError(error, 'Error al exportar. Intenta de nuevo.'));
     }
   };
 

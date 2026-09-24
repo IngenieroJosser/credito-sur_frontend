@@ -35,6 +35,7 @@ import { exportService } from '@/services/export-service'
 import { toast } from 'sonner'
 import { resolveRiesgoObligacion } from '@/lib/rutas/riesgo-obligacion'
 import { SkeletonTarjetas } from '@/components/ui/Skeleton'
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 
 type NivelRiesgo = 'VERDE' | 'LEVE' | 'PRECAUCION' | 'ROJO' | 'LISTA_NEGRA'
 type EstadoPrestamo = 'EN_MORA' | 'INCUMPLIDO' | 'PERDIDA'
@@ -319,14 +320,14 @@ export default function CuentasMoraFeature() {
     try {
       await exportService.exportMora('excel', { busqueda, nivelRiesgo: filtroRiesgo !== 'TODOS' ? filtroRiesgo : undefined, rutaId: filtroRuta || undefined })
       toast.success('Reporte descargado')
-    } catch { toast.error('Error al exportar') }
+    } catch (error) { toast.error(mensajeDeError(error, 'Error al exportar')) }
   }
 
   const handleExportPDF = async () => {
     try {
       await exportService.exportMora('pdf', { busqueda, nivelRiesgo: filtroRiesgo !== 'TODOS' ? filtroRiesgo : undefined, rutaId: filtroRuta || undefined })
       toast.success('Reporte descargado')
-    } catch { toast.error('Error al exportar') }
+    } catch (error) { toast.error(mensajeDeError(error, 'Error al exportar')) }
   }
 
   const totalMora = estadisticas?.totalMora ?? cuentas.reduce((a, c) => a + c.montoMora, 0)
