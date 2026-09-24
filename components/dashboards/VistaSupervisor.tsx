@@ -1,5 +1,6 @@
 'use client'
 
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 import { logger } from '@/lib/logger'
 
 import { useState, type ReactNode, useMemo, useEffect, useCallback } from 'react'
@@ -157,7 +158,7 @@ const VistaSupervisor = () => {
       }
       loadDashboardData();
     } catch (error: any) {
-      toast.error('Error al crear crédito', { description: error?.message || 'Ocurrió un error inesperado.' });
+      toast.error('Error al crear crédito', { description: mensajeDeError(error, 'Ocurrió un error inesperado.') });
     }
   }
 
@@ -176,7 +177,7 @@ const VistaSupervisor = () => {
       toast.success(`Resumen exportado en ${format === 'excel' ? 'Excel' : 'PDF'}`)
     } catch (error: any) {
       toast.error('No se pudo exportar el resumen', {
-        description: error?.message || 'Intente de nuevo en un momento.',
+        description: mensajeDeError(error, 'Intente de nuevo en un momento.'),
       })
     } finally {
       setExportando(false)

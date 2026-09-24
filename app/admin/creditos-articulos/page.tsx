@@ -1,6 +1,7 @@
 'use client'
 
 
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 import Paginador from '@/components/ui/Paginador'
 import { useState, useEffect, useCallback } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
@@ -697,7 +698,7 @@ export default function CreditosArticulosPage() {
                 }
               }
             } catch (err: any) {
-              const msg = err?.response?.data?.message || err?.message || 'No se pudo crear el crédito de artículo.'
+              const msg = mensajeDeError(err, 'No se pudo crear el crédito de artículo.')
               showNotification('error', Array.isArray(msg) ? msg.join(', ') : msg, 'Error al crear crédito')
             }
           }}

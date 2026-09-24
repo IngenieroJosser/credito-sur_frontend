@@ -1,6 +1,7 @@
 'use client';
 
 
+import { mensajeDeError } from '@/lib/mensaje-de-error';
 import Paginador from '@/components/ui/Paginador'
 import React, { useState, useEffect, useCallback } from 'react';
 import { logger } from '@/lib/logger'
@@ -286,7 +287,7 @@ const ListadoPrestamosElegante = () => {
       setPrestamoAEliminar(null);
       handleRefresh();
     } catch (error: any) {
-      const msg = error?.response?.data?.message || error?.message || 'No se pudo archivar el préstamo';
+      const msg = mensajeDeError(error, 'No se pudo archivar el préstamo');
       showNotification('error', Array.isArray(msg) ? msg.join(', ') : msg, 'Error al Archivar');
     }
   };
@@ -999,7 +1000,7 @@ const ListadoPrestamosElegante = () => {
               setPaginaActual(1);
             }
           } catch (error: any) {
-            const msg = error?.response?.data?.message || error?.message || 'No se pudo crear el crédito';
+            const msg = mensajeDeError(error, 'No se pudo crear el crédito');
             showNotification('error', Array.isArray(msg) ? msg.join(', ') : msg, 'Error al Crear Crédito');
           }
         }}

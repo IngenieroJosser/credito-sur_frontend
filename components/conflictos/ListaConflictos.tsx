@@ -1,5 +1,6 @@
 "use client";
 
+import { mensajeDeError } from '@/lib/mensaje-de-error';
 import { useState, useEffect } from "react";
 import { AlertTriangle, CheckCircle, XCircle, Eye, AlertCircle, RefreshCw } from "lucide-react";
 import { apiRequest } from "@/lib/api/api";
@@ -48,7 +49,7 @@ export default function ListaConflictos() {
       setSelectedConflict(null);
       loadConflictos();
     } catch (error: any) {
-      toast.error(error?.message || "Hubo un error al aplicar la acción");
+      toast.error(mensajeDeError(error, "Hubo un error al aplicar la acción"));
     }
   };
 

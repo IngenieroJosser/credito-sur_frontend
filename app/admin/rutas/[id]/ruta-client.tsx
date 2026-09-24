@@ -1,5 +1,6 @@
 'use client'
 
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 import { Skeleton, SkeletonDetalle } from '@/components/ui/Skeleton'
 
 import { logger } from '@/lib/logger'
@@ -881,7 +882,7 @@ const RutaClientLoaded = ({
       setLoadingActivacionHoy(true)
       const resp = await routesService.activarHoy(initialRuta.id)
       setRutaActivadaHoy(Boolean(resp?.operableHoy ?? resp?.activadaHoy))
-      showNotification('success', resp?.message || 'Ruta activada para hoy correctamente', 'Éxito')
+      showNotification('success', mensajeDeError(resp, 'Ruta activada para hoy correctamente'), 'Éxito')
     } catch (error: any) {
       console.error('Error activando ruta del día:', error)
       
@@ -2737,7 +2738,7 @@ const RutaClientLoaded = ({
             ])
           } catch (error: any) {
             toast.error(
-              error?.response?.data?.message || error?.message || 'No se pudo cerrar la jornada regularizada.',
+              mensajeDeError(error, 'No se pudo cerrar la jornada regularizada.'),
             )
           }
         }}

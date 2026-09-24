@@ -1,3 +1,4 @@
+import { mensajeDeError } from '@/lib/mensaje-de-error';
 import { logger } from '@/lib/logger'
 // app/lib/api/api.ts
 import { AxiosRequestConfig, Method, AxiosError } from "axios";
@@ -245,7 +246,7 @@ export const formatErrorForComponent = (error: any): string => {
       case 500:
         return "Error interno del servidor. Por favor, intente más tarde.";
       default:
-        return `Error ${error.statusCode}: ${error.message || 'Error desconocido'}`;
+        return `Error ${error.statusCode}: ${mensajeDeError(error, 'Error desconocido')}`;
     }
   }
   

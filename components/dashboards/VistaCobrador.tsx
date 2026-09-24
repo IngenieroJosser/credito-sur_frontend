@@ -1,5 +1,6 @@
 'use client'
 
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 import PantallaCarga, { CapaAccion } from '@/components/ui/PantallaCarga'
 import { logger } from '@/lib/logger'
 
@@ -3054,7 +3055,7 @@ const VistaCobrador = () => {
 
         titulo: 'Error',
 
-        mensaje: error.message || 'No se pudo crear el crédito. Por favor verifique los datos e intente de nuevo.',
+        mensaje: mensajeDeError(error, 'No se pudo crear el crédito. Por favor verifique los datos e intente de nuevo.'),
 
         tipo: 'error'
 
@@ -3490,7 +3491,7 @@ const VistaCobrador = () => {
 
     }, (response: any) => {
       if (!response?.success) {
-        toast.error(response?.message || 'No se pudo cerrar la ruta.')
+        toast.error(mensajeDeError(response, 'No se pudo cerrar la ruta.'))
         return
       }
 
@@ -5242,7 +5243,7 @@ const VistaCobrador = () => {
 
                   ? 'No se encontró una caja de ruta asociada para registrar el gasto. Informe al coordinador para que configure la caja de ruta en el módulo contable.'
 
-                  : (error?.message || 'Error al registrar el gasto. Intente nuevamente.')
+                  : (mensajeDeError(error, 'Error al registrar el gasto. Intente nuevamente.'))
 
               setModalAlerta({
 
@@ -5312,7 +5313,7 @@ const VistaCobrador = () => {
 
                 titulo: 'Error',
 
-                mensaje: error.message || 'No se pudo enviar la solicitud de base.',
+                mensaje: mensajeDeError(error, 'No se pudo enviar la solicitud de base.'),
 
                 tipo: 'error'
 
@@ -5565,7 +5566,7 @@ const VistaCobrador = () => {
               ])
             } catch (error: any) {
               toast.error(
-                error?.message || 'No se pudo cerrar la jornada regularizada.',
+                mensajeDeError(error, 'No se pudo cerrar la jornada regularizada.'),
               )
             }
           }}

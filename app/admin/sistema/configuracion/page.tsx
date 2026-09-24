@@ -1,5 +1,6 @@
 'use client'
 
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 import { SkeletonDetalle } from '@/components/ui/Skeleton'
 
 import { useState, useEffect, useCallback } from 'react'
@@ -32,7 +33,7 @@ const ConfiguracionSistemaPage = () => {
       });
       toast.success('Respaldo generado correctamente');
     } catch (error: any) {
-      toast.error(error?.message || 'No se pudo generar el respaldo');
+      toast.error(mensajeDeError(error, 'No se pudo generar el respaldo'));
     } finally {
       setRespaldando(false);
     }

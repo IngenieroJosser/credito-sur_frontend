@@ -1,5 +1,6 @@
 'use client';
 
+import { mensajeDeError } from '@/lib/mensaje-de-error';
 import React, { useState, useMemo, useEffect } from 'react';
 import { logger } from '@/lib/logger'
 import {
@@ -354,7 +355,7 @@ const CreacionPrestamoElegante = ({ initialClienteId, isModal }: { initialClient
 
     } catch (error: any) {
       console.error('Error al crear el préstamo:', error);
-      showNotification('error', error.message || 'Ocurrió un error al intentar crear el préstamo', 'Error');
+      showNotification('error', mensajeDeError(error, 'Ocurrió un error al intentar crear el préstamo'), 'Error');
     } finally {
       setCreandoPrestamo(false);
     }

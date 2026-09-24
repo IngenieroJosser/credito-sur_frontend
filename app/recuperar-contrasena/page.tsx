@@ -1,5 +1,6 @@
 'use client'
 
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Mail, Lock, ArrowLeft, CheckCircle, Loader2, Eye, EyeOff, ChevronRight } from 'lucide-react'
@@ -54,7 +55,7 @@ export default function RecuperarContrasenaPage() {
       })
       setPaso('listo')
     } catch (err: any) {
-      const msg = err?.response?.data?.message || err?.message || 'Código incorrecto o expirado'
+      const msg = mensajeDeError(err, 'Código incorrecto o expirado')
       setError(msg)
     } finally {
       setCargando(false)

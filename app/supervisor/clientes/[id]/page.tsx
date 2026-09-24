@@ -1,5 +1,6 @@
 'use client'
 
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 import { SkeletonDetalle } from '@/components/ui/Skeleton'
 
 import { logger } from '@/lib/logger'
@@ -527,7 +528,7 @@ export default function ClienteDetalleSupervisorPage() {
                         resetPagoModal();
                       } catch (err: any) {
                         console.error('Error al registrar pago:', err);
-                        showNotification('error', err.message || 'No se pudo registrar el pago');
+                        showNotification('error', mensajeDeError(err, 'No se pudo registrar el pago'));
                       } finally {
                         setIsSaving(false);
                       }
@@ -756,7 +757,7 @@ export default function ClienteDetalleSupervisorPage() {
                           resetCreditoModal();
                         } catch (err: any) {
                           console.error('Error al crear crédito:', err);
-                          showNotification('error', err.message || 'No se pudo crear el crédito');
+                          showNotification('error', mensajeDeError(err, 'No se pudo crear el crédito'));
                         } finally {
                           setIsSaving(false);
                         }

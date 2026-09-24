@@ -1,5 +1,6 @@
 'use client';
 
+import { mensajeDeError } from '@/lib/mensaje-de-error';
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { CheckCircle2, FileSpreadsheet, Package, Settings, UploadCloud, Users, XCircle } from 'lucide-react';
@@ -42,7 +43,7 @@ export const ImportacionesClient = () => {
         toast.success('El archivo pasó la validación');
       }
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || error?.message || 'El archivo no es un Excel válido o está dañado.');
+      toast.error(mensajeDeError(error, 'El archivo no es un Excel válido o está dañado.'));
     } finally {
       setLoadingClientes(false);
     }
@@ -63,7 +64,7 @@ export const ImportacionesClient = () => {
         toast.success('El archivo pasó la validación');
       }
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || error?.message || 'El archivo no es un Excel válido o está dañado.');
+      toast.error(mensajeDeError(error, 'El archivo no es un Excel válido o está dañado.'));
     } finally {
       setLoadingInventario(false);
     }
@@ -125,7 +126,7 @@ export const ImportacionesClient = () => {
       setReporteActivo(null);
       setVersionHistorial((v) => v + 1);
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || error?.message || 'No se pudo confirmar la importación.');
+      toast.error(mensajeDeError(error, 'No se pudo confirmar la importación.'));
     } finally {
       setConfirmandoClientes(false);
       setConfirmandoInventario(false);

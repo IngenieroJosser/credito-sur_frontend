@@ -1,5 +1,6 @@
 'use client';
 
+import { mensajeDeError } from '@/lib/mensaje-de-error';
 import React, { useCallback, useState } from 'react';
 import {
   AlertTriangle,
@@ -81,7 +82,7 @@ export const EstadoContableCard: React.FC = () => {
         ),
       );
     } catch (e: any) {
-      setError(e?.message || 'No se pudo revisar el estado contable.');
+      setError(mensajeDeError(e, 'No se pudo revisar el estado contable.'));
     } finally {
       setCargando(false);
     }
@@ -107,7 +108,7 @@ export const EstadoContableCard: React.FC = () => {
         ),
       );
     } catch (e: any) {
-      setError(e?.message || 'No se pudo calcular la regularización.');
+      setError(mensajeDeError(e, 'No se pudo calcular la regularización.'));
     } finally {
       setRegularizando(false);
     }
@@ -125,7 +126,7 @@ export const EstadoContableCard: React.FC = () => {
       setPropuesta(null);
       await revisar();
     } catch (e: any) {
-      setError(e?.message || 'No se pudo regularizar el inventario.');
+      setError(mensajeDeError(e, 'No se pudo regularizar el inventario.'));
     } finally {
       setRegularizando(false);
     }

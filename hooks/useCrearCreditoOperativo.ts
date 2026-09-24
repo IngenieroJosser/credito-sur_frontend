@@ -1,3 +1,4 @@
+import { mensajeDeError } from '@/lib/mensaje-de-error';
 import { useCallback } from 'react';
 import { toast } from 'sonner';
 import { buildCrearPrestamoPayload } from '@/lib/creditos/crear-prestamo-payload';
@@ -93,7 +94,7 @@ export function useCrearCreditoOperativo({
       onSuccess?.();
     } catch (error: any) {
       console.error('Error al crear crédito:', error);
-      toast.error(error?.message || 'No se pudo crear el crédito. Inténtelo de nuevo.');
+      toast.error(mensajeDeError(error, 'No se pudo crear el crédito. Inténtelo de nuevo.'));
       onError?.(error);
     }
   }, [userId, rutaId, cobradorId, onSuccess, onError]);

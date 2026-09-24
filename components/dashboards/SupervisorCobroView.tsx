@@ -1,5 +1,6 @@
 'use client'
 
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 import PantallaCarga from '@/components/ui/PantallaCarga'
 import { logger } from '@/lib/logger'
 
@@ -2116,8 +2117,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
             console.error('Error al asignar cliente a la ruta:', assignError)
 
             toast.warning(
-              assignError?.message ||
-                'El crédito se creó, pero no se pudo confirmar la asignación del cliente a la ruta.',
+              mensajeDeError(assignError, 'El crédito se creó, pero no se pudo confirmar la asignación del cliente a la ruta.'),
             )
           }
         }
@@ -2149,8 +2149,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
       setModalAlerta({
         titulo: 'Error',
         mensaje:
-          error?.message ||
-          'No se pudo crear el crédito. Inténtelo de nuevo.',
+          mensajeDeError(error, 'No se pudo crear el crédito. Inténtelo de nuevo.'),
         tipo: 'error',
       })
     } finally {
@@ -3416,7 +3415,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
               setShowGastoModal(false)
             } catch (e: any) {
               console.error('Error al registrar gasto (SupervisorCobroView):', e)
-              const msg = e?.message || 'No se pudo registrar el gasto'
+              const msg = mensajeDeError(e, 'No se pudo registrar el gasto')
               setModalAlerta({ titulo: 'Error', mensaje: msg, tipo: 'error' })
             } finally {
               setIsLoading(false)
@@ -3469,7 +3468,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
               setModalAlerta({
                 titulo: 'Error',
-                mensaje: error.message || 'No se pudo enviar la solicitud de base.',
+                mensaje: mensajeDeError(error, 'No se pudo enviar la solicitud de base.'),
                 tipo: 'error'
               })
             } finally {
@@ -3760,7 +3759,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
               ])
             } catch (error: any) {
               toast.error(
-                error?.message || 'No se pudo cerrar la jornada regularizada.',
+                mensajeDeError(error, 'No se pudo cerrar la jornada regularizada.'),
               )
             }
           }}

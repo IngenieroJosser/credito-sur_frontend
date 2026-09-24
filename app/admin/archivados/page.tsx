@@ -1,5 +1,6 @@
 'use client'
 
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 import { Archive, Search, Filter, RefreshCw, RotateCcw, Trash2, Eye, MapPin } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
@@ -144,7 +145,7 @@ export default function ArchivadosPage() {
       }
     } catch (error: any) {
       console.error('Error al restaurar:', error)
-      toast.error(error.message || 'Error al restaurar el elemento', { id: toastId })
+      toast.error(mensajeDeError(error, 'Error al restaurar el elemento'), { id: toastId })
     }
   }
 

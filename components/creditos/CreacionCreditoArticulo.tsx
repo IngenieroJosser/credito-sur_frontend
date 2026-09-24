@@ -1,5 +1,6 @@
 'use client';
 
+import { mensajeDeError } from '@/lib/mensaje-de-error';
 import React, { useState, useMemo } from 'react';
 import { logger } from '@/lib/logger'
 import { useRouter, usePathname } from 'next/navigation';
@@ -361,7 +362,7 @@ export default function CreacionCreditoArticulo({
       router.push('/prestamos');
     } catch (error: any) {
       console.error('Error al crear crédito de artículo:', error);
-      showNotification('error', error.message || 'No se pudo crear el crédito. Verifique los datos.');
+      showNotification('error', mensajeDeError(error, 'No se pudo crear el crédito. Verifique los datos.'));
     } finally {
       setLoadingDatos(false);
     }

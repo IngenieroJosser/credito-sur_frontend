@@ -313,7 +313,7 @@ export function DashboardClient({ data }: DashboardClientProps) {
             setShowCrearCreditoModal(false);
             router.refresh();
           } catch (err: any) {
-            const msg = err?.response?.data?.message || err?.message || 'No se pudo crear el crédito.';
+            const msg = mensajeDeError(err, 'No se pudo crear el crédito.');
             toast.error(Array.isArray(msg) ? msg.join(', ') : msg);
           }
         }}

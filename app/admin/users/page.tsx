@@ -1,5 +1,6 @@
 "use client";
 
+import { mensajeDeError } from '@/lib/mensaje-de-error';
 import Paginador from '@/components/ui/Paginador'
 import { logger } from '@/lib/logger'
 
@@ -995,7 +996,7 @@ const UserManagementPage = () => {
       setSelectedUser(null);
       await fetchUsers();
     } catch (error: any) {
-      const errorMsg = error?.response?.data?.message || error?.message || 'Error desconocido';
+      const errorMsg = mensajeDeError(error, 'Error desconocido');
       if (formData.password && formData.password.trim() !== '') {
         showNotification('warning', `Contraseña cambiada, pero falló la actualización de datos: ${errorMsg}`, 'Actualización Parcial');
       } else {

@@ -1,5 +1,6 @@
 'use client'
 
+import { mensajeDeError } from '@/lib/mensaje-de-error';
 import { useState, ChangeEvent, FormEvent, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { usePageFocusRefresh } from '@/hooks/usePageFocusRefresh'
@@ -694,7 +695,7 @@ export const RutasPageView = ({
 
       await fetchRutas()
     } catch (e: any) {
-      setErrorRecolectar(e?.message || 'No se pudo recolectar. Intenta de nuevo.')
+      setErrorRecolectar(mensajeDeError(e, 'No se pudo recolectar. Intenta de nuevo.'))
     } finally {
       setProcessingTransfer(false)
     }

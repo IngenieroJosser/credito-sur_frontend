@@ -1,5 +1,6 @@
 'use client'
 
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 import React, { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
@@ -216,7 +217,7 @@ export default function ReprogramacionDetalleModal({
       .catch((error) => {
         if (!cancelled) {
           setContext(null)
-          setContextError(error?.message || 'No se pudo cargar el contexto')
+          setContextError(mensajeDeError(error, 'No se pudo cargar el contexto'))
         }
       })
       .finally(() => {

@@ -1,5 +1,6 @@
 'use client'
 
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ChevronLeft,
@@ -272,7 +273,7 @@ export default function PuntoDeVentaFloatingActions() {
     } catch (error: any) {
       const esContado = Boolean(data?.ventaContado)
       toast.error(esContado ? 'Error al registrar venta' : 'Error al crear crédito', {
-        description: error?.message || 'Ocurrió un error inesperado.',
+        description: mensajeDeError(error, 'Ocurrió un error inesperado.'),
       })
     }
   }

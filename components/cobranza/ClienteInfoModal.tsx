@@ -1,5 +1,6 @@
 'use client'
 
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 /**
  * Modal de Información del Cliente — Vista Cobrador
  *
@@ -190,7 +191,7 @@ export default function ClienteInfoModal({
         observacionesReportante: '',
       })
     } catch (error: any) {
-      toast.error(error?.message || 'No se pudo crear la alerta.')
+      toast.error(mensajeDeError(error, 'No se pudo crear la alerta.'))
     } finally {
       setAlertaSubmitting(false)
     }

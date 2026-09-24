@@ -1,5 +1,6 @@
 'use client';
 
+import { mensajeDeError } from '@/lib/mensaje-de-error';
 import { useState, useEffect, useRef } from 'react';
 import { X, Loader2 } from 'lucide-react';
 import { useNotification } from '@/components/providers/NotificationProvider';
@@ -275,7 +276,7 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
       if (error?.statusCode === 409) {
         showNotification('warning', error.message || `Ya existe un cliente con el documento: ${formulario.dni}`, 'Conflicto de Datos');
       } else {
-        showNotification('error', error.message || 'No se pudo procesar la solicitud del cliente', 'Error Interno');
+        showNotification('error', mensajeDeError(error, 'No se pudo procesar la solicitud del cliente'), 'Error Interno');
       }
     } finally {
       setIsSubmitting(false);

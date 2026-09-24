@@ -1,5 +1,6 @@
 'use client'
 
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 /**
  * ============================================================================
  * MÓDULO DE REVISIONES - Centro de Aprobaciones
@@ -529,7 +530,7 @@ export default function RevisionesPage() {
       setMotivoResolucionAlerta('')
       await loadData()
     } catch (error: any) {
-      toast.error(error?.message || 'Error al resolver la alerta')
+      toast.error(mensajeDeError(error, 'Error al resolver la alerta'))
     } finally {
       setResolvingAlertaId(null)
     }
@@ -557,7 +558,7 @@ export default function RevisionesPage() {
       closeAllDetailModals()
       await loadData()
     } catch (error: any) {
-      toast.error(error?.message || 'Error al aprobar')
+      toast.error(mensajeDeError(error, 'Error al aprobar'))
     } finally {
       setProcessingId(null)
     }
@@ -590,7 +591,7 @@ export default function RevisionesPage() {
       setConfirmModal(null)
       await loadData()
     } catch (error: any) {
-      toast.error(error?.message || 'Error al aprobar')
+      toast.error(mensajeDeError(error, 'Error al aprobar'))
     } finally {
       setProcessingId(null)
     }
@@ -640,7 +641,7 @@ export default function RevisionesPage() {
       setConfirmModal(null)
       await loadData()
     } catch (error: any) {
-      toast.error(error?.message || 'Error al rechazar')
+      toast.error(mensajeDeError(error, 'Error al rechazar'))
     } finally {
       setProcessingId(null)
     }
@@ -660,7 +661,7 @@ export default function RevisionesPage() {
       setNotaSuperadmin('')
       await loadData()
     } catch (error: any) {
-      toast.error(error?.message || 'Error al procesar')
+      toast.error(mensajeDeError(error, 'Error al procesar'))
     } finally {
       setProcessingId(null)
     }

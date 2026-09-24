@@ -1,3 +1,4 @@
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 import { AlertTriangle, CalendarClock, User, RefreshCw } from 'lucide-react'
 import type { CierrePendienteRuta } from '@/types/rutas/cierre-pendiente'
 import {
@@ -88,8 +89,7 @@ export function CierrePendienteBanner({
                 isDanger ? 'text-red-800' : 'text-amber-800',
               ].join(' ')}
             >
-              {cierrePendiente.message ||
-                'La ruta tiene una jornada anterior pendiente de cierre.'}
+              {mensajeDeError(cierrePendiente, 'La ruta tiene una jornada anterior pendiente de cierre.')}
             </p>
           </div>
 

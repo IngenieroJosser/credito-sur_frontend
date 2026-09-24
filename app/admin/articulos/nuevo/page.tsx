@@ -1,4 +1,5 @@
 'use client'
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 import { logger } from '@/lib/logger'
 
 import { useState } from 'react'
@@ -84,7 +85,7 @@ export default function NuevoArticuloPage() {
       router.push('/admin/articulos')
     } catch (err: any) {
       logger.error('Error creando artículo:', err)
-      setSaveError(err?.message || 'No se pudo guardar el artículo. Verifica los datos e intenta nuevamente.')
+      setSaveError(mensajeDeError(err, 'No se pudo guardar el artículo. Verifica los datos e intenta nuevamente.'))
     } finally {
       setLoading(false)
     }

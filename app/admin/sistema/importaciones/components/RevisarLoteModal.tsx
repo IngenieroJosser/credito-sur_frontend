@@ -1,5 +1,6 @@
 "use client";
 
+import { mensajeDeError } from '@/lib/mensaje-de-error';
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
@@ -75,7 +76,7 @@ export const RevisarLoteModal: React.FC<Props> = ({
         // sistema. Marcar todo por defecto invita a confirmar sin mirar.
         setSeleccion(new Set());
       } catch (e: any) {
-        if (vivo) setError(e?.message || "No se pudo cargar la importación.");
+        if (vivo) setError(mensajeDeError(e, "No se pudo cargar la importación."));
       } finally {
         if (vivo) setCargando(false);
       }
@@ -179,7 +180,7 @@ export const RevisarLoteModal: React.FC<Props> = ({
       onDeshecho();
       onCerrar();
     } catch (e: any) {
-      toast.error(e?.message || "No se pudo deshacer la importación.");
+      toast.error(mensajeDeError(e, "No se pudo deshacer la importación."));
     } finally {
       setDeshaciendo(false);
       setConfirmando(false);

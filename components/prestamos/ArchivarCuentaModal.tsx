@@ -1,5 +1,6 @@
 'use client';
 
+import { mensajeDeError } from '@/lib/mensaje-de-error';
 import { useState } from 'react';
 import { AlertTriangle, X, FileText } from 'lucide-react'
 import { formatMilesCOP } from '@/lib/utils'
@@ -49,7 +50,7 @@ export default function ArchivarCuentaModal({
       onSuccess();
       onClose();
     } catch (err: any) {
-      setError(err.message || 'Error al archivar la cuenta');
+      setError(mensajeDeError(err, 'Error al archivar la cuenta'));
     } finally {
       setLoading(false);
     }

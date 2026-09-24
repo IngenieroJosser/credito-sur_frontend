@@ -1,6 +1,7 @@
 'use client'
 
 
+import { mensajeDeError } from '@/lib/mensaje-de-error';
 import Paginador from '@/components/ui/Paginador'
 import React, { useState, useEffect } from 'react'
 
@@ -410,7 +411,7 @@ export default function NotificacionesPage() {
       console.error('Error procesando aprobación/rechazo:', err)
       setFeedbackModal({
         titulo: 'Error al procesar',
-        mensaje: err?.message || 'Ocurrió un error al procesar la solicitud. Verifique su conexión e intente de nuevo.',
+        mensaje: mensajeDeError(err, 'Ocurrió un error al procesar la solicitud. Verifique su conexión e intente de nuevo.'),
         tipo: 'danger'
       })
     } finally {
@@ -463,7 +464,7 @@ export default function NotificacionesPage() {
       console.error('Error procesando rechazo:', err)
       setFeedbackModal({
         titulo: 'Error al procesar',
-        mensaje: err?.message || 'Ocurrió un error al procesar el rechazo.',
+        mensaje: mensajeDeError(err, 'Ocurrió un error al procesar el rechazo.'),
         tipo: 'danger'
       })
     } finally {

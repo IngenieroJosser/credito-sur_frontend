@@ -1,5 +1,6 @@
 'use client'
 
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 import React, { useState } from 'react'
 import { VisitaRuta } from '@/lib/types/cobranza'
 import { Portal } from '@/components/dashboards/shared/CobradorElements'
@@ -29,7 +30,7 @@ export default function AusenteModal({ visita, onClose, onConfirm }: AusenteModa
     try {
       await onConfirm(notas)
     } catch (err: any) {
-      setError(err.message || 'Error al registrar la visita')
+      setError(mensajeDeError(err, 'Error al registrar la visita'))
       setLoading(false)
     }
   }

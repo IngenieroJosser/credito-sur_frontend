@@ -1,5 +1,6 @@
 'use client'
 
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 import { User, Lock, Phone, Calendar, Clock, FileText, CheckCircle2, X, Eye, EyeOff, ChevronLeft, Loader2, AlertCircle } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
@@ -188,7 +189,7 @@ const PerfilUsuarioPage = () => {
       setPasswordSuccess(true)
       setTimeout(() => setIsPasswordModalOpen(false), 1500)
     } catch (err: any) {
-      setPasswordError(err?.message || 'Error al cambiar la contraseña. Verifica tu contraseña actual.')
+      setPasswordError(mensajeDeError(err, 'Error al cambiar la contraseña. Verifica tu contraseña actual.'))
     } finally {
       setIsSavingPassword(false)
     }

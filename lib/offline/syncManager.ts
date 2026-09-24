@@ -1,3 +1,4 @@
+import { mensajeDeError } from '@/lib/mensaje-de-error';
 import { logger } from '@/lib/logger'
 import { apiClient } from '@/lib/api/apiClient';
 import { apiRequest } from '@/lib/api/api';
@@ -183,7 +184,7 @@ export const syncManager = {
           }, 3000);
         } catch (err: any) {
           const status = err?.response?.status;
-          const errorMsg = err?.response?.data?.message || err?.message || 'Error desconocido';
+          const errorMsg = mensajeDeError(err, 'Error desconocido');
 
           const newRetries = (item.retries || 0) + 1;
 

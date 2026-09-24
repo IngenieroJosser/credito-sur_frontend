@@ -1,5 +1,6 @@
 'use client'
 
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 /**
  * ============================================================================
  * PagoDetalleModal
@@ -142,7 +143,7 @@ export default function PagoDetalleModal({
     pagosService
       .obtenerPagoPorId(id)
       .then(data => setPago(data))
-      .catch(err  => setError(err?.message || 'No se pudo cargar el pago'))
+      .catch(err  => setError(mensajeDeError(err, 'No se pudo cargar el pago')))
       .finally(()  => setLoading(false))
   }, [isOpen, metadata?.pagoId])
 
