@@ -14,6 +14,8 @@ import { createPortal } from 'react-dom'
  *
  *   MODAL            un modal normal
  *   MODAL_ENCIMA     un modal que se abre sobre otro modal
+ *   TOOLTIP          la ayuda que explica un boton: encima del modal que
+ *                    la contiene, debajo de los avisos
  *   TOAST            los avisos (sonner y los propios): SIEMPRE visibles
  *   ALERTA           confirmar / cancelar, que exige una respuesta
  *
@@ -28,6 +30,7 @@ import { createPortal } from 'react-dom'
  */
 export const MODAL_Z_INDEX = 2147483600
 export const MODAL_ENCIMA_Z_INDEX = 2147483610
+export const TOOLTIP_Z_INDEX = 2147483620
 export const TOAST_Z_INDEX = 2147483640
 export const ALERT_Z_INDEX = 2147483647
 
