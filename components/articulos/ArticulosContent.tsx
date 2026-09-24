@@ -2,7 +2,12 @@
 
 
 import Paginador from '@/components/ui/Paginador'
-import { PLAZOS_ARTICULO_MESES } from '@/lib/plazos-articulo'
+import {
+  PLAZOS_ARTICULO_MESES,
+  opcionesDeMesesParaPlazo,
+  plazosRepetidos,
+  problemasDeOpcionesDeCredito,
+} from '@/lib/plazos-articulo'
 /**
  * ============================================================================
  * ARTÍCULOS / INVENTARIO - COMPONENTE COMPARTIDO
@@ -43,7 +48,7 @@ import {
   XCircle,
   Bell
 , Loader2} from 'lucide-react'
-import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber } from '@/lib/utils'
+import { formatCOPInputValue, formatCurrency, formatMilesCOP, parseCOPInputToNumber } from '@/lib/utils'
 import { inventarioService, Producto as BackendProducto, EstadisticasInventario } from '@/services/inventario-service'
 import { useNotification } from '@/components/providers/NotificationProvider'
 import { useNotificaciones } from '@/components/providers/NotificacionesProvider'
@@ -406,6 +411,30 @@ export default function ArticulosContent() {
   }
 
   /**
+   * Corrige una opción ya agregada en su sitio.
+   *
+   * Antes las filas eran texto con un botón de borrar: cambiar una cifra
+   * obligaba a borrar la opción y volver a escribirla entera, y en el modal de
+   * editar eso significaba borrar un precio que ya estaba guardado para
+   * reponerlo a mano.
+   *
+   * NO reordena. `addPrecioCuota` sí ordena al agregar, pero hacerlo aquí movía
+   * la fila mientras se elegía el plazo: se pasa de 3 a 8 meses y la fila salta
+   * a otro sitio con el cursor dentro. El orden no cambia nada al guardar,
+   * porque lo que se manda es el plazo de cada opción.
+   */
+  const actualizarPrecioCuota = (index: number, cambio: Partial<PrecioCuota>) => {
+    setFormData((prev) => ({
+      ...prev,
+      precios: prev.precios.map((p, i) => (i === index ? { ...p, ...cambio } : p)),
+    }))
+  }
+
+  // Los plazos que quedaron repetidos tras editar uno: se pintan en rojo.
+  const repetidos = plazosRepetidos(formData.precios)
+  const problemasDeLosPrecios = problemasDeOpcionesDeCredito(formData.precios)
+
+  /**
    * Lo que la base exige de verdad, más el precio de contado, que es del que
    * sale la utilidad de contado y que la importación por Excel ya pedía.
    * Antes el modal mandaba lo que hubiera y el error llegaba del backend sin
@@ -435,6 +464,11 @@ export default function ArticulosContent() {
         `Falta diligenciar: ${faltan.join(', ')}.`,
         'Datos incompletos',
       )
+      return
+    }
+
+    if (problemasDeLosPrecios.length > 0) {
+      showNotification('error', problemasDeLosPrecios.join(' '), 'Revisa los precios a crédito')
       return
     }
 
@@ -1108,10 +1142,21 @@ export default function ArticulosContent() {
                         placeholder="0"
                       />
                     </div>
+                    {/*
+                      Sin precio el botón no hacía nada y no decía por qué:
+                      `addPrecioCuota` sale sin agregar si el precio es 0. Queda
+                      deshabilitado, que es lo mismo pero visible.
+                    */}
                     <button
                       type="button"
                       onClick={addPrecioCuota}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-orange-500 text-white text-sm font-bold hover:bg-orange-600"
+                      disabled={parseCOPInputToNumber(nuevaCuota.precio) <= 0}
+                      title={
+                        parseCOPInputToNumber(nuevaCuota.precio) <= 0
+                          ? 'Escribe el precio total de esa opción para agregarla'
+                          : undefined
+                      }
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-orange-500 text-white text-sm font-bold hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-orange-500"
                     >
                       <Plus className="h-4 w-4" />
                       Agregar
@@ -1124,23 +1169,67 @@ export default function ArticulosContent() {
                 ) : (
                   <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
                     <div className="divide-y divide-slate-100">
-                      {formData.precios.map((p, idx) => (
-                        <div key={`${p.meses}-${idx}`} className="flex items-center justify-between px-4 py-3">
-                          <div className="text-sm font-bold text-slate-900">{p.meses} meses</div>
-                          <div className="flex items-center gap-3">
-                            <div className="text-sm font-bold text-slate-900">{formatCurrency(p.precio)}</div>
-                            <button
-                              type="button"
-                              onClick={() => removePrecioCuota(idx)}
-                              className="shrink-0 p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                      {formData.precios.map((p, idx) => {
+                        const repetido = repetidos.has(p.meses)
+                        const sinPrecio = p.precio <= 0
+                        return (
+                          <div
+                            key={idx}
+                            className={`flex items-center justify-between gap-3 px-4 py-3 ${
+                              repetido || sinPrecio ? 'bg-rose-50' : ''
+                            }`}
+                          >
+                            <select
+                              value={p.meses}
+                              onChange={(e) => actualizarPrecioCuota(idx, { meses: Number(e.target.value) })}
+                              aria-label={`Plazo de la opción ${idx + 1}`}
+                              className={`rounded-xl border bg-white px-3 py-2 text-sm font-bold text-slate-900 ${
+                                repetido ? 'border-rose-400' : 'border-slate-200'
+                              }`}
                             >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
+                              {opcionesDeMesesParaPlazo(p.meses).map((m) => (
+                                <option key={m} value={m}>
+                                  {m} mes{m > 1 ? 'es' : ''}
+                                </option>
+                              ))}
+                            </select>
+                            <div className="flex items-center gap-3">
+                              <div className="relative">
+                                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  value={p.precio > 0 ? formatMilesCOP(p.precio) : ''}
+                                  onChange={(e) =>
+                                    actualizarPrecioCuota(idx, { precio: parseCOPInputToNumber(e.target.value) })
+                                  }
+                                  aria-label={`Precio de la opción a ${p.meses} meses`}
+                                  className={`w-40 pl-10 pr-4 py-2 rounded-xl border bg-white text-sm font-bold text-slate-900 ${
+                                    sinPrecio ? 'border-rose-400' : 'border-slate-200'
+                                  }`}
+                                  placeholder="0"
+                                />
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => removePrecioCuota(idx)}
+                                aria-label={`Quitar la opción a ${p.meses} meses`}
+                                className="shrink-0 p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   </div>
+                )}
+
+                {problemasDeLosPrecios.length > 0 && (
+                  <p className="mt-3 text-sm font-bold text-rose-600">
+                    {problemasDeLosPrecios.join(' ')}
+                  </p>
                 )}
               </div>
             </div>
