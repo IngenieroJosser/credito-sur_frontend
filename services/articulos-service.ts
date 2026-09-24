@@ -1,4 +1,5 @@
 import { apiRequest } from '@/lib/api/api';
+import { PLAZOS_ARTICULO_MESES } from '@/lib/plazos-articulo';
 
 /**
  * El precio tal y como llega del servidor, antes de convertirlo en
@@ -50,7 +51,7 @@ class ArticulosService {
     // Estas son opciones de respaldo si NO hay data en la DB.
     // Usamos el precioBase (contado) como referencia sin intereses automáticos aquí,
     // ya que el usuario prefiere que se tome lo que dice la DB.
-    const mesesEstandar = [1, 2, 3, 4, 6, 12];
+    const mesesEstandar = PLAZOS_ARTICULO_MESES;
 
     return mesesEstandar.map(m => {
         return {

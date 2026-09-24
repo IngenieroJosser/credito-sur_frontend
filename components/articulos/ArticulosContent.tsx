@@ -2,6 +2,7 @@
 
 
 import Paginador from '@/components/ui/Paginador'
+import { PLAZOS_ARTICULO_MESES } from '@/lib/plazos-articulo'
 /**
  * ============================================================================
  * ARTÍCULOS / INVENTARIO - COMPONENTE COMPARTIDO
@@ -222,7 +223,7 @@ export default function ArticulosContent() {
     precios: [] as PrecioCuota[],
   })
 
-  const [nuevaCuota, setNuevaCuota] = useState({ meses: 1, precio: '' })
+  const [nuevaCuota, setNuevaCuota] = useState({ meses: PLAZOS_ARTICULO_MESES[0], precio: '' })
 
   const articulosFiltrados = articulos.filter((a) => {
     const q = busqueda.toLowerCase()
@@ -357,7 +358,7 @@ export default function ArticulosContent() {
       stockMinimo: '',
       precios: [],
     })
-    setNuevaCuota({ meses: 1, precio: '' })
+    setNuevaCuota({ meses: PLAZOS_ARTICULO_MESES[0], precio: '' })
     setShowNuevoModal(true)
   }
 
@@ -382,7 +383,7 @@ export default function ArticulosContent() {
       stockMinimo: String(articulo.stockMinimo),
       precios: [...articulo.precios],
     })
-    setNuevaCuota({ meses: 1, precio: '' })
+    setNuevaCuota({ meses: PLAZOS_ARTICULO_MESES[0], precio: '' })
     setShowEditarModal(true)
   }
 
@@ -393,7 +394,7 @@ export default function ArticulosContent() {
         ...prev,
         precios: [...prev.precios, { meses: nuevaCuota.meses, precio }].sort((a, b) => a.meses - b.meses),
       }))
-      setNuevaCuota({ meses: 1, precio: '' })
+      setNuevaCuota({ meses: PLAZOS_ARTICULO_MESES[0], precio: '' })
     }
   }
 
@@ -1090,7 +1091,7 @@ export default function ArticulosContent() {
                       onChange={(e) => setNuevaCuota((p) => ({ ...p, meses: Number(e.target.value) }))}
                       className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-900"
                     >
-                      {[1, 2, 3, 4, 5, 6, 9, 12, 18, 24].map((m) => (
+                      {PLAZOS_ARTICULO_MESES.map((m) => (
                         <option key={m} value={m}>
                           {m} mes{m > 1 ? 'es' : ''}
                         </option>
