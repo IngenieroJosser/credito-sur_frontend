@@ -104,7 +104,7 @@ export const vencidasService = {
         formato,
         filtros
       });
-    } catch (error: any) {
+    } catch (error) {
       if (esErrorDeRed(error)) {
         throw new Error('La exportación de reportes requiere conexión. Vuelve a intentarlo cuando tengas red.');
       }

@@ -56,7 +56,7 @@ export default function PrestamoDetallePage({
           producto: data.tipoPrestamo || 'Préstamo Personal',
           garantia: data.garantia || '',
           fotos: data.fotos || [],
-          cuotas: cuotasData.map((c: any) => ({
+          cuotas: cuotasData.map((c) => ({
             numero: c.numeroCuota,
             fecha: c.fechaVencimiento,
             monto: c.monto,

@@ -156,7 +156,7 @@ export default function PagoDetalleModal({
   if (!isOpen) return null
 
   // ── Datos combinados: API primero, metadata como fallback ─────────────────
-  const detallesAfectados = (pago?.detalles ?? []).filter((d: any) => {
+  const detallesAfectados = (pago?.detalles ?? []).filter((d) => {
     const capital = Number(d?.montoCapital || 0)
     const interes = Number(d?.montoInteres || 0)
     const mora = Number(d?.montoInteresMora || 0)
@@ -164,12 +164,12 @@ export default function PagoDetalleModal({
     return capital + interes + mora > 0 || monto > 0
   })
 
-  const computedCapital = detallesAfectados.reduce((s: number, d: any) => s + Number(d.montoCapital || 0), 0)
-  const computedInteres = detallesAfectados.reduce((s: number, d: any) => s + Number(d.montoInteres || 0), 0)
-  const computedMora = detallesAfectados.reduce((s: number, d: any) => s + Number(d.montoInteresMora || 0), 0)
+  const computedCapital = detallesAfectados.reduce((s: number, d) => s + Number(d.montoCapital || 0), 0)
+  const computedInteres = detallesAfectados.reduce((s: number, d) => s + Number(d.montoInteres || 0), 0)
+  const computedMora = detallesAfectados.reduce((s: number, d) => s + Number(d.montoInteresMora || 0), 0)
   const computedCuotasAfectadas = detallesAfectados.length
 
-  const computedMontoAplicado = detallesAfectados.reduce((s: number, d: any) => s + Number(d.monto || 0), 0)
+  const computedMontoAplicado = detallesAfectados.reduce((s: number, d) => s + Number(d.monto || 0), 0)
 
   const monto = (() => {
     const apiTotal = Number(pago?.montoTotal ?? 0)

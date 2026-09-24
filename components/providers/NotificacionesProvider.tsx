@@ -147,7 +147,7 @@ export function NotificacionesProvider({ children }: { children: React.ReactNode
 
     // Cuando un admin actualiza permisos de un usuario, el backend emite usuarios_actualizados.
     // Si aplica a este usuario, refrescamos sesión (token + permisos + sidebar) sin requerir re-login.
-    newSocket.on('usuarios_actualizados', async (payload: any) => {
+    newSocket.on('usuarios_actualizados', async (payload) => {
       try {
         if (!currentUserId) return;
         if (payload?.accion !== 'PERMISOS_ACTUALIZADOS') return;

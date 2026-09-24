@@ -156,7 +156,7 @@ export const useRutaHistorial = (params: UseRutaHistorialParams) => {
 
   const deriveVisitadosFromVisitas = useCallback((visitas: VisitaRuta[]) => {
     if (!Array.isArray(visitas) || visitas.length === 0) return 0
-    return visitas.reduce((count: number, v: any) => {
+    return visitas.reduce((count: number, v) => {
       const rec = Number(v?.recaudadoDelDia || 0)
       const estado = String(v?.estado || '')
       if (rec > 0 || estado === 'pagado') return count + 1
@@ -201,7 +201,7 @@ export const useRutaHistorial = (params: UseRutaHistorialParams) => {
           pagosDelDia,
         })
 
-        setHistorialRutas((prev: any) => {
+        setHistorialRutas((prev) => {
           const prevDia = (prev || {})[fechaClave] || {}
           const totalPrevio = Number((prevDia.resumen || {})?.total || 0)
           const visitadosPrevios = Number((prevDia.resumen || {})?.visitados || 0)
@@ -237,7 +237,7 @@ export const useRutaHistorial = (params: UseRutaHistorialParams) => {
     try {
       const data = await loadDay(fechaClave)
 
-      setHistorialRutas((prev: any) => {
+      setHistorialRutas((prev) => {
         const prevDia = (prev || {})[fechaClave] || {}
         const baseResumen = prevDia.resumen || { recaudo: 0, gastos: 0, efectividad: 0, visitados: 0, total: 0 }
 
@@ -270,7 +270,7 @@ export const useRutaHistorial = (params: UseRutaHistorialParams) => {
         }
       })
     } catch {
-      setHistorialRutas((prev: any) => {
+      setHistorialRutas((prev) => {
         if ((prev || {})[fechaClave]?.loaded) return prev
         return {
           ...(prev || {}),

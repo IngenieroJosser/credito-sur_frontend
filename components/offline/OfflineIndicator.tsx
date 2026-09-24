@@ -68,11 +68,11 @@ export default function OfflineIndicator() {
   };
 
   // Separar actividades activas de completadas
-  const activeManualActivities = manualActivities.filter((activity: any) => {
+  const activeManualActivities = manualActivities.filter((activity) => {
     return !isCompletedStatus(activity?.status);
   });
 
-  const completedManualActivities = manualActivities.filter((activity: any) => {
+  const completedManualActivities = manualActivities.filter((activity) => {
     return isCompletedStatus(activity?.status);
   });
 
@@ -330,7 +330,7 @@ export default function OfflineIndicator() {
   };
 
   // Filtrar items visibles (excluir completados)
-  const visibleQueueItems = queueItems.filter((item: any) => {
+  const visibleQueueItems = queueItems.filter((item) => {
     return !isCompletedStatus(item?.status);
   });
 

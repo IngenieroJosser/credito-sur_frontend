@@ -44,7 +44,7 @@ const AsignacionCobradoresPage = () => {
         rutasService.obtenerCobradores().catch(() => []),
         rutasService.obtenerRutas().catch(() => ({ data: [] })),
       ])
-      setCobradores((cobradoresRes as any[]).map((c: any) => ({
+      setCobradores((cobradoresRes as any[]).map((c) => ({
         id: c.id,
         nombre: c.nombre || `${c.nombres || ''} ${c.apellidos || ''}`.trim(),
         rutasAsignadas: c.rutasAsignadas || 0,
@@ -52,7 +52,7 @@ const AsignacionCobradoresPage = () => {
         capacidadMaxima: c.capacidadMaxima || 120,
       })))
       const rutasList = (rutasRes as any)?.data || rutasRes || []
-      setRutas((rutasList as any[]).map((r: any) => ({
+      setRutas((rutasList as any[]).map((r) => ({
         id: r.id,
         nombre: r.nombre || '',
         codigo: r.codigo || '',

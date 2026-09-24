@@ -41,7 +41,7 @@ export async function conRespaldoOffline<T>(
 ): Promise<T> {
   try {
     return await ejecutar();
-  } catch (error: any) {
+  } catch (error) {
     if (esErrorDeRed(error)) {
       logger.log(`[Offline Mode] Encolando: ${spec.description}`);
       await syncService.enqueueOperation(

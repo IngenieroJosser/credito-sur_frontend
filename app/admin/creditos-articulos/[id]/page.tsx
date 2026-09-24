@@ -55,7 +55,7 @@ export default function CreditoDetallePage() {
           producto: data.producto?.nombre || data.tipoPrestamo || 'Crédito Artículo',
           garantia: data.garantia || 'Prenda sobre artículo',
           fotos: data.fotos || [],
-          cuotas: cuotasData.map((c: any) => ({
+          cuotas: cuotasData.map((c) => ({
             numero: c.numeroCuota,
             fecha: c.fechaVencimiento,
             monto: c.monto,

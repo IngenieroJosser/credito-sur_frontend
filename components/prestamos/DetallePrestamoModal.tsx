@@ -70,7 +70,7 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
             return st !== 'PAGADA' && st !== 'PAGADO' && st !== 'ANULADA' && st !== 'ANULADO';
           };
 
-          const sorted = [...cuotasArr].sort((a: any, b: any) => {
+          const sorted = [...cuotasArr].sort((a, b: any) => {
             const ak = normalizeDateKey(String(a?.fechaVencimiento || ''));
             const bk = normalizeDateKey(String(b?.fechaVencimiento || ''));
             if (ak && bk) return ak.localeCompare(bk);
@@ -106,18 +106,18 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
           ? data.fotos
           : Array.isArray(data.archivos) && data.archivos.length > 0
             ? data.archivos
-              .map((a: any) => a?.url || a?.path || a?.ruta)
+              .map((a) => a?.url || a?.path || a?.ruta)
               .filter(Boolean)
             : Array.isArray(data?.cliente?.archivos)
               ? data.cliente.archivos
-                .map((a: any) => a?.url || a?.path || a?.ruta)
+                .map((a) => a?.url || a?.path || a?.ruta)
                 .filter(Boolean)
               : [];
 
         const fotos: string[] = Array.from(
           new Set(
             (rawFotos || [])
-              .map((u: any) => String(u || '').trim())
+              .map((u) => String(u || '').trim())
               .filter(Boolean)
               // filtrar entradas rotas tipo "oxz...jpg" sin ruta/publicId ni URL
               .filter((u: string) => u.startsWith('http://') || u.startsWith('https://') || u.includes('/'))
@@ -162,7 +162,7 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
           garantia: data.garantia || '',
           notas: data.notas || '',
           fotos,
-          cuotas: cuotasData.map((c: any) => ({
+          cuotas: cuotasData.map((c) => ({
             numero: c.numeroCuota,
             fecha: c.fechaVencimiento,
             monto: c.monto,
@@ -207,7 +207,7 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
               producto: offP.tipoPrestamo || 'Préstamo',
               garantia: '',
               fotos: [],
-              cuotas: offCuotas.map((c: any) => ({
+              cuotas: offCuotas.map((c) => ({
                 numero: c.numeroCuota,
                 fecha: c.fechaVencimiento,
                 monto: c.monto,

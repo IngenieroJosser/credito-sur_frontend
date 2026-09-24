@@ -37,7 +37,7 @@ export default function DetalleCierrePage({ params }: { params: Promise<{ id: st
       setLoading(true)
       try {
         const cierres = await getHistorialCierres()
-        const found: any = cierres.find((c: any) => c.id === id)
+        const found: any = cierres.find((c) => c.id === id)
         if (found) {
           setCierre({
             id: found.id,

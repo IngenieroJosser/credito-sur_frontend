@@ -99,7 +99,7 @@ export default function ClienteDetallePage() {
 
     const hoyKey = getBogotaDateKey(new Date())
     const frecuencia = String(p.frecuenciaPago || 'DIARIO').toUpperCase()
-    const cuotasVencidas = (Array.isArray(cuotas) ? cuotas : []).filter((c: any) => {
+    const cuotasVencidas = (Array.isArray(cuotas) ? cuotas : []).filter((c) => {
       if (!c || !isCuotaNoPagada(c)) return false
       const raw = resolveFechaEfectivaCuota(c) || String(c?.fechaVencimiento || '')
       const k = normalizeDateKey(raw)

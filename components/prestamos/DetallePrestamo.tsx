@@ -220,7 +220,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
 
   const { cuotaVencidaDesdeKey, proximoPagoProgramadoKey } = useMemo(() => {
     const cuotas = Array.isArray(prestamo?.cuotas) ? prestamo.cuotas : []
-    const unpaid = cuotas.filter((c: any) => {
+    const unpaid = cuotas.filter((c) => {
       const st = String(c?.estado || '').toUpperCase()
       if (st === 'PAGADA' || st === 'PAGADO' || st === 'ANULADA' || st === 'ANULADO') return false
       return true
@@ -303,7 +303,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
   }, [prestamo.estado, diasMora])
 
   const cuotasConSaldoUI = useMemo(() => {
-    return (cuotasConSaldo || []).map((c: any) => {
+    return (cuotasConSaldo || []).map((c) => {
       const st = String(c?.estado || '').toUpperCase()
       const vtoKey = normalizeDateKey(c?.fecha)
       const esNoPagada = st !== 'PAGADA' && st !== 'PAGADO' && st !== 'ANULADA' && st !== 'ANULADO'
@@ -704,7 +704,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-slate-100">
-                {cuotasConSaldoUI.map((cuota: any) => {
+                {cuotasConSaldoUI.map((cuota) => {
                     const esCuotaActual = cuotaActual && cuota.numero === cuotaActual.numero;
                     const montoPagado = Number(cuota?.montoPagado ?? 0)
                     const montoCuota = Number(

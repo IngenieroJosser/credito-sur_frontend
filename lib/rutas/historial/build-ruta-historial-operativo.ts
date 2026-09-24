@@ -232,7 +232,7 @@ export const mergePagosDelDiaIntoHistorialDia = ({
 
   // Calcular visitados considerando múltiples estados
   const visitados = Math.max(
-    visitasFusionadas.filter((v: any) => {
+    visitasFusionadas.filter((v) => {
       const estado = String(v?.estado || v?.estadoVisita || '').toLowerCase()
       return estado === 'pagado' || estado === 'gestionado' || Number(v?.recaudadoDelDia || 0) > 0
     }).length,
@@ -246,7 +246,7 @@ export const mergePagosDelDiaIntoHistorialDia = ({
   )
 
   const recaudoPorVisitas = visitasFusionadas.reduce(
-    (acc, v: any) => acc + Number(v?.recaudadoDelDia || 0),
+    (acc, v) => acc + Number(v?.recaudadoDelDia || 0),
     0,
   )
 
@@ -286,7 +286,7 @@ export const filterPagosDelDiaByRuta = ({
   rutaCobradorId?: string
   isPagoForHistorialFecha: (pago: PagoHistorial, fecha: string) => boolean
 }): any[] => {
-  return (Array.isArray(pagosData) ? pagosData : []).filter((p: any) => {
+  return (Array.isArray(pagosData) ? pagosData : []).filter((p) => {
     if (!isPagoForHistorialFecha(p, fechaClave)) return false;
 
     const pagoRutaId = String(

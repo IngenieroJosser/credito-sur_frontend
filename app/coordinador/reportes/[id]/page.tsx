@@ -48,7 +48,7 @@ export default function DetalleReporteOperativoPage({
           nuevosClientes: 0,
           gastosDia: 0,
           novedades: '',
-          movimientos: (data.pagosRecientes || []).map((p: any) => ({
+          movimientos: (data.pagosRecientes || []).map((p) => ({
             id: p.id,
             cliente: p.cliente || '',
             tipo: 'COBRO',

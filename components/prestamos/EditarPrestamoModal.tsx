@@ -245,7 +245,7 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
           const art = await articulosService.obtenerArticuloPorId(String(data.producto.id));
           const ops = art?.opcionesCuotas || [];
           setOpcionesCuotas(ops);
-          const idx = ops.findIndex((op: any) => Number(op.numeroCuotas) === Number(p));
+          const idx = ops.findIndex((op) => Number(op.numeroCuotas) === Number(p));
           setPlanIndex(idx >= 0 ? idx : null);
         }
         
@@ -711,7 +711,7 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
                         className="w-full bg-slate-50 border border-slate-100 text-slate-900 rounded-2xl px-3 py-2 text-xs font-black outline-none focus:ring-2 focus:ring-blue-500/10 focus:bg-white"
                       >
                         <option value="">Seleccionar plazo...</option>
-                        {opcionesCuotas.map((op: any, i: number) => {
+                        {opcionesCuotas.map((op, i: number) => {
                           const meses = Number(op.numeroCuotas);
                           if (isNaN(meses)) return null;
                           return (

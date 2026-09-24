@@ -121,7 +121,7 @@ export const mapAsignacionesToVisitasLite = (params: {
   const asignaciones = Array.isArray(params.asignaciones) ? params.asignaciones : []
   const hoyKey = params.hoyKey ?? getBogotaDateKey(new Date())
 
-  const visitasRaw: VisitaRutaLite[] = asignaciones.flatMap((asig: any, index: number) => {
+  const visitasRaw: VisitaRutaLite[] = asignaciones.flatMap((asig, index: number) => {
     const cliente = asig?.cliente || {}
 
     const prestamos = Array.isArray(cliente?.prestamos) ? cliente.prestamos : []
@@ -135,14 +135,14 @@ export const mapAsignacionesToVisitasLite = (params: {
 
     return lista.flatMap((prestamo: any, subIdx: number) => {
       const cuotas = Array.isArray(prestamo?.cuotas) ? prestamo.cuotas : []
-      const cuotasOrdenadas = [...cuotas].sort((a: any, b: any) => {
+      const cuotasOrdenadas = [...cuotas].sort((a, b: any) => {
         const ak = getCuotaEffectiveVtoKey(a)
         const bk = getCuotaEffectiveVtoKey(b)
         if (ak && bk) return ak.localeCompare(bk)
         return 0
       })
 
-      const proxima = cuotasOrdenadas.find((c: any) => c && !isPagada(c) && !isAnulada(c)) || (prestamo?.proximaCuota ?? null)
+      const proxima = cuotasOrdenadas.find((c) => c && !isPagada(c) && !isAnulada(c)) || (prestamo?.proximaCuota ?? null)
       const esObligacionOperativa = isObligacionOperativaRuta(
         { prestamo, cuota: proxima },
         hoyKey,
@@ -158,7 +158,7 @@ export const mapAsignacionesToVisitasLite = (params: {
       const diasMora = computeDiasMoraFromCuotas(cuotasOrdenadas, hoyKey, frecuencia)
 
       const tieneMora = (() => {
-        const byCuotas = cuotasOrdenadas.some((c: any) => {
+        const byCuotas = cuotasOrdenadas.some((c) => {
           if (!c || isPagada(c) || isAnulada(c)) return false
           const vtoKey = getCuotaEffectiveVtoKey(c)
           return !!vtoKey && !!hoyKey && vtoKey < hoyKey

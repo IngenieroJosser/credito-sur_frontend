@@ -54,15 +54,15 @@ const NuevaRutaPage = () => {
           rutasService.obtenerSupervisores().catch(() => []),
           rutasService.obtenerCoordinadores().catch(() => []),
         ]);
-        setCobradores((cobRes as any[]).map((c: any) => ({
+        setCobradores((cobRes as any[]).map((c) => ({
           id: c.id,
           nombre: c.nombre || `${c.nombres || ''} ${c.apellidos || ''}`.trim(),
         })));
-        setSupervisores((supRes as any[]).map((s: any) => ({
+        setSupervisores((supRes as any[]).map((s) => ({
           id: s.id,
           nombre: s.nombre || `${s.nombres || ''} ${s.apellidos || ''}`.trim(),
         })));
-        setCoordinadores((coordRes as any[]).map((c: any) => ({
+        setCoordinadores((coordRes as any[]).map((c) => ({
           id: c.id,
           nombre: c.nombre || `${c.nombres || ''} ${c.apellidos || ''}`.trim(),
         })));

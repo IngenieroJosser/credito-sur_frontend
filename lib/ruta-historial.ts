@@ -259,7 +259,7 @@ export const applyPagosDelDiaToHistorialVisitas = (params: {
   const recaudadoPorPrestamo: Record<string, number> = {}
   const pagosPorKey = new Map<string, { pago: PagoParcial; total: number; index: number }>()
 
-  pagosOperativos.forEach((p: any, index: number) => {
+  pagosOperativos.forEach((p, index: number) => {
     const monto = Number(p?.montoTotal ?? p?.monto ?? p?.valor ?? 0)
     if (!(monto > 0)) return
 
@@ -330,7 +330,7 @@ export const applyPagosDelDiaToHistorialVisitas = (params: {
     return !(isSaldado && !hasGestionHistorial(v));
   });
 
-  const recaudo = filteredVisitas.reduce((sum: number, v: any) => sum + Number(v?.recaudadoDelDia || 0), 0)
+  const recaudo = filteredVisitas.reduce((sum: number, v) => sum + Number(v?.recaudadoDelDia || 0), 0)
   const visitados = filteredVisitas.filter(isVisitadoHistorial).length
 
   return { visitas: filteredVisitas, recaudo, visitados }
@@ -956,11 +956,11 @@ export const buildHistorialDiaFromBackend = (params: {
     (v: VisitaParcial) => !shouldExcludeVisitaFromOperationalMeta(v),
   )
 
-  const meta = visitasOperativas.reduce((sum: number, v: any) => {
+  const meta = visitasOperativas.reduce((sum: number, v) => {
     return sum + Number(v?.montoCuotaNormal ?? v?.montoCuota ?? 0)
   }, 0)
 
-  const recaudo = visitasOperativas.reduce((sum: number, v: any) => {
+  const recaudo = visitasOperativas.reduce((sum: number, v) => {
     return sum + Number(v?.recaudadoDelDia || 0)
   }, 0)
 
@@ -1007,7 +1007,7 @@ export const buildHistorialDiaFromBackend = (params: {
     Math.max(Number(resumenBackend?.[clave] ?? 0), Number(local || 0))
 
   const regularizadoLocal = pagosRegularizados.reduce(
-    (sum: number, p: any) => sum + Number(p?.montoTotal || 0),
+    (sum: number, p) => sum + Number(p?.montoTotal || 0),
     0,
   )
 

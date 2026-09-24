@@ -123,9 +123,9 @@ function CuentasVencidasContent() {
         const offPrestamos = await offlineStore.getAll<any>('prestamos')
         const offClientes = await offlineStore.getAll<any>('clientes')
         const vencidas: CuentaVencida[] = offPrestamos
-          .filter((p: any) => p.estado === 'EN_MORA' || p.estado === 'INCUMPLIDO')
-          .map((p: any) => {
-            const cli = offClientes.find((c: any) => c.id === p.clienteId)
+          .filter((p) => p.estado === 'EN_MORA' || p.estado === 'INCUMPLIDO')
+          .map((p) => {
+            const cli = offClientes.find((c) => c.id === p.clienteId)
             const diasVencidos = diasVencidosDesde(p.fechaFin || toBogotaDateTimeOffsetIso(new Date()))
             const nivelRiesgo = resolveRiesgoObligacion({
               row: p,
@@ -205,8 +205,8 @@ function CuentasVencidasContent() {
       )
       setShowGestionarModal(false); setShowCastigoModal(false); setSelectedCuenta(null)
       fetchCuentasVencidas()
-    } catch (e: any) {
-      toast.error(e?.message || 'Error al procesar la decision')
+    } catch (e) {
+      toast.error(mensajeDeError(e, 'Error al procesar la decision'))
     }
   }
 

@@ -364,7 +364,7 @@ export default function DeudorasCobradorCard() {
       try {
         const arr = await getCajas()
         if (!mounted) return
-        setCajas((Array.isArray(arr) ? arr : []).map((c: any) => ({
+        setCajas((Array.isArray(arr) ? arr : []).map((c) => ({
           id: c.id,
           nombre: c.nombre,
           codigo: c.codigo,

@@ -84,7 +84,7 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
 
                     const hoyKey = getBogotaDateKey(new Date())
                     const frecuencia = String(p.frecuenciaPago || 'DIARIO').toUpperCase()
-                    const cuotasVencidas = (Array.isArray(cuotas) ? cuotas : []).filter((c: any) => {
+                    const cuotasVencidas = (Array.isArray(cuotas) ? cuotas : []).filter((c) => {
                       if (!c || !isCuotaNoPagada(c)) return false
                       const raw = resolveFechaEfectivaCuota(c) || String(c?.fechaVencimiento || '')
                       const k = normalizeDateKey(raw)
@@ -170,7 +170,7 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
                 });
                 // Cargar préstamos offline
                 const offPrestamos = await offlineStore.getByIndex<any>('prestamos', 'by-clienteId', clientId);
-                setPrestamos(offPrestamos.map((p: any) => ({
+                setPrestamos(offPrestamos.map((p) => ({
                   id: p.id,
                   producto: p.tipoPrestamo === 'ARTICULO' ? 'Artículo' : 'Préstamo Efectivo',
                   montoTotal: Number(p.montoTotal || p.monto || 0),

@@ -871,7 +871,7 @@ export const computeMetaHoyFromVisitas = (visitas: VisitaParcial[], hoyBogotaKey
   // Calcula la meta visual del día como suma de una cuota normal por obligación.
   // La mora/acumulado vencido vive aparte y no debe inflar la cuota principal.
   if (!Array.isArray(visitas) || visitas.length === 0) return 0;
-  return visitas.reduce((sum: number, v: any) => {
+  return visitas.reduce((sum: number, v) => {
     if (!isVisitaExigibleHoy(v, hoyBogotaKey)) return sum;
     if (String(v?.estado || '').toLowerCase() === 'pagado') return sum;
     if (Number((v)?.recaudadoDelDia || 0) > 0) return sum;
@@ -891,7 +891,7 @@ export const computeRutaHoyUiStatsFromVisitas = (
   recaudoFallback = 0,
 ): { meta: number; pendiente: number; recaudo: number } => {
   const visitasSeguras = Array.isArray(visitas) ? visitas : [];
-  const pendiente = visitasSeguras.reduce((sum: number, v: any) => {
+  const pendiente = visitasSeguras.reduce((sum: number, v) => {
     if (!v) return sum;
     const estadoLower = String(v?.estado || '').toLowerCase().replace(/\s+/g, '_');
     if (estadoLower === 'pagado') return sum;
@@ -907,7 +907,7 @@ export const computeRutaHoyUiStatsFromVisitas = (
   }, 0);
 
   const recaudoDeVisitas = visitasSeguras.reduce(
-    (sum: number, v: any) => sum + Number((v)?.recaudadoDelDia || 0),
+    (sum: number, v) => sum + Number((v)?.recaudadoDelDia || 0),
     0,
   );
   const recaudo = Math.max(Number(recaudoFallback || 0), recaudoDeVisitas);
@@ -960,7 +960,7 @@ export const computeDiasMoraFromCuotas = (
   const vencidasKeys = (cuotas || [])
     .filter((c: CuotaOperativa) => c && isCuotaNoPagada(c))
     .map((c: CuotaOperativa) => normalizeDateKey(resolveFechaEfectivaCuota(c) || String(c?.fechaVencimiento || '')))
-    .filter((k: any) => !!k && k < hoyBogotaKey) as string[];
+    .filter((k) => !!k && k < hoyBogotaKey) as string[];
 
   if (vencidasKeys.length === 0) return 0;
   const oldestKey = vencidasKeys.reduce((min, k) => (k < min ? k : min), vencidasKeys[0]);
@@ -1034,7 +1034,7 @@ export const computeMontoExigibleHastaHoyFromCuotas = (cuotas: CuotaOperativa[],
   if (!Array.isArray(cuotas) || cuotas.length === 0) return 0;
   if (!hoyBogotaKey) return 0;
 
-  return cuotas.reduce((sum: number, c: any) => {
+  return cuotas.reduce((sum: number, c) => {
     if (!c || !isCuotaNoPagada(c)) return sum;
     const vtoRaw = resolveFechaEfectivaCuota(c) || String(c?.fechaVencimiento || '');
     const vtoKey = normalizeDateKey(vtoRaw);
@@ -1054,7 +1054,7 @@ export const computeMontoNominalHastaHoyFromCuotas = (cuotas: CuotaOperativa[], 
   if (!Array.isArray(cuotas) || cuotas.length === 0) return 0;
   if (!hoyBogotaKey) return 0;
 
-  return cuotas.reduce((sum: number, c: any) => {
+  return cuotas.reduce((sum: number, c) => {
     if (!c || !isCuotaNoPagada(c)) return sum;
     const vtoRaw = resolveFechaEfectivaCuota(c) || String(c?.fechaVencimiento || '');
     const vtoKey = normalizeDateKey(vtoRaw);

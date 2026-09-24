@@ -37,7 +37,7 @@ export default function FiltroRuta({
     setLoading(true)
     try {
       const response = await routesService.getAll({ limit: 100 })
-      const rutasData: RutaOption[] = (response?.data || []).map((r: any) => ({
+      const rutasData: RutaOption[] = (response?.data || []).map((r) => ({
         id: r.id,
         nombre: r.nombre,
         codigo: r.codigo,
@@ -49,7 +49,7 @@ export default function FiltroRuta({
       console.error('Error cargando rutas:', err)
       try {
         const offlineRutas = await offlineStore.getAll<any>('rutas')
-        setRutas(offlineRutas.map((r: any) => ({ id: r.id, nombre: r.nombre, codigo: r.codigo })))
+        setRutas(offlineRutas.map((r) => ({ id: r.id, nombre: r.nombre, codigo: r.codigo })))
       } catch {
         setRutas([])
       }

@@ -50,11 +50,11 @@ const NuevaRutaPage = () => {
           rutasService.obtenerCobradores().catch(() => []),
           rutasService.obtenerSupervisores().catch(() => []),
         ]);
-        setCobradores((cobRes as any[]).map((c: any) => ({
+        setCobradores((cobRes as any[]).map((c) => ({
           id: c.id,
           nombre: c.nombre || `${c.nombres || ''} ${c.apellidos || ''}`.trim(),
         })));
-        setSupervisores((supRes as any[]).map((s: any) => ({
+        setSupervisores((supRes as any[]).map((s) => ({
           id: s.id,
           nombre: s.nombre || `${s.nombres || ''} ${s.apellidos || ''}`.trim(),
         })));

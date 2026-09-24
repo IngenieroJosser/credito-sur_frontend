@@ -101,7 +101,7 @@ export default function CierreCajaPage() {
     const total = cierres.length
     let cuadradas = 0
     let descuadradas = 0
-    cierres.forEach((c: any) => {
+    cierres.forEach((c) => {
       if (String(c.estado) === 'DESCUADRADA') descuadradas++
       else cuadradas++
     })
@@ -168,8 +168,8 @@ export default function CierreCajaPage() {
           limit: 1000,
         })
         const data = Array.isArray(movimientosCaja?.data) ? movimientosCaja.data : []
-        setIngresosHoyCalc(data.reduce((acc: number, m: any) => acc + getEntradaCajaFisica(m), 0))
-        setEgresosHoyCalc(data.reduce((acc: number, m: any) => acc + getSalidaCajaFisica(m), 0))
+        setIngresosHoyCalc(data.reduce((acc: number, m) => acc + getEntradaCajaFisica(m), 0))
+        setEgresosHoyCalc(data.reduce((acc: number, m) => acc + getSalidaCajaFisica(m), 0))
       } else {
         setIngresosHoyCalc(0)
         setEgresosHoyCalc(0)

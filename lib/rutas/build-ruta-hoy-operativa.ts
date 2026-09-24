@@ -256,7 +256,7 @@ export async function buildRutaHoyOperativa({
     const { ultimoPagoDateByPrestamoId } = indexPagosByPrestamoId(pagosData)
 
     visitasOperativasConPagos = applyRecaudoHoyToVisitas(
-      visitasOperativasVivas.map((v: any) => ({
+      visitasOperativasVivas.map((v) => ({
         ...v,
         recaudadoDelDia: 0,
         recaudadoTotalClient: 0,
@@ -266,7 +266,7 @@ export async function buildRutaHoyOperativa({
         hoyBogotaKey,
         recaudosHoyMap,
       },
-    ).map((v: any) => {
+    ).map((v) => {
       const pid = String(v?.prestamoId || '')
       return {
         ...v,
@@ -279,7 +279,7 @@ export async function buildRutaHoyOperativa({
 
   // 5. Construir lista completa para KPI
   const kpiItems = visitasOperativasConPagos
-    .filter((v: any) => {
+    .filter((v) => {
       const recaudado = Number(v?.recaudadoDelDia || 0)
       const cuotaNormal = Number(v?.montoCuotaNormal ?? v?.montoCuota ?? 0)
       const metaPendiente = Number(v?.montoCuotaPendiente || 0)
@@ -293,18 +293,18 @@ export async function buildRutaHoyOperativa({
         estadoGestion.includes('ABONO')
       )
     })
-    .filter((v: any) => !shouldExcludeVisitaFromOperationalMeta(v))
+    .filter((v) => !shouldExcludeVisitaFromOperationalMeta(v))
 
   // 6. Construir lista visible
   const visibleItems = kpiItems
-    .filter((v: any) => shouldShowVisitaEnRutaHoy(v, hoyBogotaKey))
+    .filter((v) => shouldShowVisitaEnRutaHoy(v, hoyBogotaKey))
 
   // 7. Calcular KPI exacto
-  const recaudo = kpiItems.reduce((sum: number, v: any) => {
+  const recaudo = kpiItems.reduce((sum: number, v) => {
     return sum + Number(v?.recaudadoDelDia || 0)
   }, 0)
 
-  const meta = kpiItems.reduce((sum: number, v: any) => {
+  const meta = kpiItems.reduce((sum: number, v) => {
     return sum + Number(v?.montoCuotaNormal ?? v?.montoCuota ?? 0)
   }, 0)
 
@@ -318,7 +318,7 @@ export async function buildRutaHoyOperativa({
         : 0
 
   // Logs de validación
-  console.table(kpiItems.map((v: any) => ({
+  console.table(kpiItems.map((v) => ({
     tipo: 'KPI',
     cliente: v.cliente,
     prestamoId: v.prestamoId,
@@ -330,7 +330,7 @@ export async function buildRutaHoyOperativa({
     estado: v.estado,
   })))
 
-  console.table(visibleItems.map((v: any) => ({
+  console.table(visibleItems.map((v) => ({
     tipo: 'VISIBLE',
     cliente: v.cliente,
     prestamoId: v.prestamoId,

@@ -167,14 +167,14 @@ export const computeOperationalMetaByRouteIdsForTimeFilter = async (
         }) as any[]
 
         const idsProcesados = new Set<string>()
-        const firstPass = (Array.isArray(visitasLite) ? visitasLite : []).flatMap((v: any) => {
+        const firstPass = (Array.isArray(visitasLite) ? visitasLite : []).flatMap((v) => {
           const uniqueKey = v?.prestamoId ? `loan-${v.prestamoId}` : `client-${v.clienteId}`
           if (idsProcesados.has(uniqueKey)) return []
           idsProcesados.add(uniqueKey)
           return [v]
         })
-        const clientesConPrestamo = new Set(firstPass.filter((v: any) => v?.prestamoId).map((v: any) => v?.clienteId))
-        const visitasDedupe = firstPass.filter((v: any) => {
+        const clientesConPrestamo = new Set(firstPass.filter((v) => v?.prestamoId).map((v) => v?.clienteId))
+        const visitasDedupe = firstPass.filter((v) => {
           if (!v?.prestamoId && clientesConPrestamo.has(v?.clienteId)) return false
           return true
         })
@@ -186,13 +186,13 @@ export const computeOperationalMetaByRouteIdsForTimeFilter = async (
           }
         }
 
-        const metaRuta = visitasDedupe.reduce((sum: number, v: any) => {
+        const metaRuta = visitasDedupe.reduce((sum: number, v) => {
           const pid = String(v?.prestamoId || '')
           if (!pid) return sum
           const cuotas = cuotasMap.get(pid)
           if (!cuotas || cuotas.length === 0) return sum
 
-          const tieneCuotaPendiente = cuotas.some((c: any) => c && isCuotaNoPagada(c))
+          const tieneCuotaPendiente = cuotas.some((c) => c && isCuotaNoPagada(c))
           if (!tieneCuotaPendiente) return sum
           const recHoy = timeFilter === 'today' ? Number((recaudosHoyMap)?.[pid] || 0) : 0
           if (shouldExcludeVisitaFromOperationalMeta(v, recHoy)) return sum
@@ -212,7 +212,7 @@ export const computeOperationalMetaByRouteIdsForTimeFilter = async (
           let dueInPeriod = Math.max(0, Number(untilEnd || 0) - Number(untilBeforeStart || 0))
 
           if (timeFilter === 'today') {
-            const saldoRealDesdeCuotas = (Array.isArray(cuotas) ? cuotas : []).reduce((s: number, c: any) => {
+            const saldoRealDesdeCuotas = (Array.isArray(cuotas) ? cuotas : []).reduce((s: number, c) => {
               if (!c || !isCuotaNoPagada(c)) return s
               const monto = Number((c)?.montoNominal ?? (c)?.monto ?? 0)
               const pagado = Number((c)?.montoPagado ?? 0)

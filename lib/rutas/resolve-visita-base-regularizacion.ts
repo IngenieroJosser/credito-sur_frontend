@@ -22,7 +22,7 @@ export function resolveVisitaBaseRegularizacion(
   )
 
   // Primero buscar por prestamoId y cuotaId
-  const byPrestamoAndCuota = visitasBase.find((v: any) => {
+  const byPrestamoAndCuota = visitasBase.find((v) => {
     const visitaPrestamoId = String(v?.prestamoId || '')
     const visitaCuotaId = String(
       v?.cuotaId ||
@@ -42,14 +42,14 @@ export function resolveVisitaBaseRegularizacion(
   if (byPrestamoAndCuota) return byPrestamoAndCuota
 
   // Segundo buscar solo por prestamoId
-  const byPrestamo = visitasBase.find((v: any) =>
+  const byPrestamo = visitasBase.find((v) =>
     prestamoId && String(v?.prestamoId || '') === prestamoId
   )
 
   if (byPrestamo) return byPrestamo
 
   // Fallback legacy por clienteId
-  return visitasBase.find((v: any) =>
+  return visitasBase.find((v) =>
     String(v?.clienteId || '') === String(cliente?.clienteId || '')
   )
 }

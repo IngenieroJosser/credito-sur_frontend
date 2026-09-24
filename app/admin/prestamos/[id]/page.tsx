@@ -58,7 +58,7 @@ export default function PrestamoDetallePage() {
           } : undefined,
           garantia: data.garantia || '',
           fotos: data.fotos || [],
-          cuotas: cuotasData.map((c: any) => ({
+          cuotas: cuotasData.map((c) => ({
             numero: c.numeroCuota,
             fecha: c.fechaVencimiento,
             monto: c.monto,

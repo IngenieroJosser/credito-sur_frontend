@@ -171,7 +171,7 @@ const ReportesFinancierosPage = () => {
       const movimientosPeriodo = await getMovimientosLedger({ fechaInicio: startDate, fechaFin: endDate, limit: 10000 })
       const totalIngresosPeriodo = Number(resumenPeriodo?.ingresosHoy || 0)
       const totalEntradasCajaPeriodo = (Array.isArray(movimientosPeriodo?.data) ? movimientosPeriodo.data : [])
-        .reduce((acc, movimiento: any) => acc + Number(movimiento?.impactoCaja || 0), 0)
+        .reduce((acc, movimiento) => acc + Number(movimiento?.impactoCaja || 0), 0)
       const totalIngresosDevengadosPeriodo = Number((resumenPeriodo)?.ingresosDevengadosHoy ?? totalIngresosPeriodo)
       const totalCobrosPeriodo = Number((resumenPeriodo)?.cobranzaHoy || 0)
       const totalEgresosPeriodo = Number(resumenPeriodo?.egresosHoy || 0)
@@ -305,7 +305,7 @@ const ReportesFinancierosPage = () => {
           if (dias[key]) dias[key].ingresos += getIngresoOperativoMovimiento(t)
         })
         cobroRes.data
-          .filter((t: any) => String(t.origenGestion || '').toUpperCase() !== 'CIERRE_PENDIENTE')
+          .filter((t) => String(t.origenGestion || '').toUpperCase() !== 'CIERRE_PENDIENTE')
           .forEach(t => {
             const key = normalizeDateKey(t.fecha)
             if (dias[key]) dias[key].cobros += getCobroMovimiento(t)
@@ -347,7 +347,7 @@ const ReportesFinancierosPage = () => {
           const resumen7 = await getResumenFinanciero(desde7Key, nowKey7)
           const ingresosDevengados7 = Number((resumen7)?.ingresosDevengadosHoy ?? totalIngresos7)
           const entradasCaja7 = (Array.isArray(movimientos7Res?.data) ? movimientos7Res.data : [])
-            .reduce((acc, movimiento: any) => acc + Number(movimiento?.impactoCaja || 0), 0)
+            .reduce((acc, movimiento) => acc + Number(movimiento?.impactoCaja || 0), 0)
           const utilidad7 = Number((resumen7)?.utilidadReal ?? (resumen7)?.gananciaNeta ?? (totalIngresos7 - totalEgresos7))
           const utilidadOperativa7 = Number((resumen7 as any)?.utilidadOperativa ?? utilidad7)
           const provisionCartera7 = Number(
@@ -403,7 +403,7 @@ const ReportesFinancierosPage = () => {
             ])
             const prevIng7 = prevIng7Res.data.filter(isIngresoOperativoMovimiento).reduce((acc, t) => acc + getIngresoOperativoMovimiento(t), 0)
             const prevCobro7 = prevCobro7Res.data
-              .filter((t: any) => String(t.origenGestion || '').toUpperCase() !== 'CIERRE_PENDIENTE')
+              .filter((t) => String(t.origenGestion || '').toUpperCase() !== 'CIERRE_PENDIENTE')
               .reduce((acc, t) => acc + getCobroMovimiento(t), 0)
             const prevEgr7 = prevEgre7Res.data.reduce((acc, t) => acc + Number(t.totalDebito || 0), 0)
             const ingresosPerc7 = prevIng7 > 0 ? ((totalIngresos7 - prevIng7) / prevIng7) * 100 : (totalIngresos7 > 0 ? 100 : 0)
@@ -440,7 +440,7 @@ const ReportesFinancierosPage = () => {
             if (dayMap[key]) dayMap[key].ingresos += getIngresoOperativoMovimiento(t)
           })
           cobroResAll.data
-            .filter((t: any) => String(t.origenGestion || '').toUpperCase() !== 'CIERRE_PENDIENTE')
+            .filter((t) => String(t.origenGestion || '').toUpperCase() !== 'CIERRE_PENDIENTE')
             .forEach(t => {
               const key = normalizeDateKey(t.fecha)
               if (dayMap[key]) dayMap[key].cobros += getCobroMovimiento(t)
@@ -483,7 +483,7 @@ const ReportesFinancierosPage = () => {
             if (monthMap[key]) monthMap[key].ingresos += getIngresoOperativoMovimiento(t)
           })
           cobroResAll.data
-            .filter((t: any) => String(t.origenGestion || '').toUpperCase() !== 'CIERRE_PENDIENTE')
+            .filter((t) => String(t.origenGestion || '').toUpperCase() !== 'CIERRE_PENDIENTE')
             .forEach(t => {
               const d = new Date(t.fecha)
               const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`
