@@ -135,15 +135,15 @@ export default function GastoModal({ isOpen, onClose, onConfirm, cobradorId, rut
   return (
     <Portal>
       <div
-        className="fixed inset-0 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
+        className="fixed inset-0 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
         style={{ zIndex: MODAL_Z_INDEX }}
         onClick={handleReset}
       >
         <div
-          className="w-full max-w-md bg-white rounded-3xl shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden"
+          className="flex w-full flex-col overflow-hidden bg-white shadow-2xl animate-in zoom-in-95 duration-200 h-[100dvh] sm:h-auto sm:max-h-[90vh] rounded-none sm:rounded-3xl sm:max-w-md"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+          <div className="shrink-0 px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
             <div className="flex items-center gap-2">
               <div className="shrink-0 p-2 bg-rose-100 rounded-lg text-rose-600">
                 <Receipt className="h-5 w-5" />
@@ -161,7 +161,12 @@ export default function GastoModal({ isOpen, onClose, onConfirm, cobradorId, rut
             </Tooltip>
           </div>
 
-          <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {/* El formulario es la columna; dentro, el cuerpo hace scroll y los
+              botones se quedan abajo. Antes la caja tenia overflow-hidden y
+              ningun tope de alto: en un movil el boton de guardar quedaba
+              recortado fuera de la pantalla. */}
+          <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+            <div className="min-h-0 flex-1 overflow-y-auto p-6 space-y-4">
             {/* Saldo disponible */}
             {loadingSaldo ? (
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-sm text-blue-800">
@@ -330,7 +335,9 @@ export default function GastoModal({ isOpen, onClose, onConfirm, cobradorId, rut
               </div>
             )}
 
-            <div className="flex gap-3 pt-2">
+            </div>
+
+            <div className="shrink-0 flex gap-3 border-t border-slate-100 p-6">
               <button
                 type="button"
                 onClick={handleReset}

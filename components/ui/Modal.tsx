@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { X } from 'lucide-react';
 import { createPortal } from 'react-dom';
+import { MODAL_Z_INDEX } from '@/components/ui/Portal';
 import Tooltip from '@/components/ui/Tooltip';
 
 interface ModalProps {
@@ -53,7 +54,8 @@ export const Modal: React.FC<ModalProps> = ({
 
   return createPortal(
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
+      className="fixed inset-0 flex items-center justify-center p-4 sm:p-6"
+      style={{ zIndex: MODAL_Z_INDEX }}
       onMouseDown={backdropClosable ? (e) => { mouseDownTargetRef.current = e.target } : undefined}
       onMouseUp={backdropClosable ? (e) => {
         if (e.target === e.currentTarget && mouseDownTargetRef.current === e.currentTarget) {
