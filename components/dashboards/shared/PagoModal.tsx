@@ -15,6 +15,7 @@ import { formatCOPInputValue, formatMilesCOP, getDisplayedCOPInteger, isSameDisp
 import { Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
 import { clientesService, Cliente } from '@/services/clientes-service'
 import { offlineStore } from '@/lib/offline/offlineDb'
+import Tooltip from '@/components/ui/Tooltip'
 
 interface Visita {
   id: string
@@ -133,14 +134,16 @@ export default function PagoModal({
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold text-slate-900">{isAbono ? 'Registrar Abono' : 'Registrar Pago'}</h3>
-              <button
-                type="button"
-                onClick={handleReset}
-                className="p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
-                aria-label="Cerrar"
-              >
-                <X className="h-5 w-5" />
-              </button>
+              <Tooltip texto="Cerrar">
+                <button
+                  type="button"
+                  onClick={handleReset}
+                  className="p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
+                  aria-label="Cerrar"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </Tooltip>
             </div>
 
             <div className="space-y-6">

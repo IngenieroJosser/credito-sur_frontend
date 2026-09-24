@@ -6,6 +6,7 @@ import { VisitaRuta } from '@/lib/types/cobranza'
 import Portal, { MODAL_Z_INDEX } from '@/components/ui/Portal'
 import FieldLabel from '@/components/ui/FieldLabel'
 import { getBogotaDateKey } from '@/lib/rutas-core'
+import Tooltip from '@/components/ui/Tooltip'
 
 interface ReprogramarModalProps {
   visita: VisitaRuta
@@ -111,14 +112,16 @@ export default function ReprogramarModal({ visita, onClose, onConfirm }: Reprogr
                   <p className="text-xs text-slate-500 font-medium mt-0.5">{visita.cliente}</p>
                 </div>
               </div>
-              <button
-                onClick={onClose}
-                className="p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
-                type="button"
-                aria-label="Cerrar"
-              >
-                <X className="h-5 w-5" />
-              </button>
+              <Tooltip texto="Cerrar">
+                <button
+                  onClick={onClose}
+                  className="p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
+                  type="button"
+                  aria-label="Cerrar"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </Tooltip>
             </div>
           </div>
 

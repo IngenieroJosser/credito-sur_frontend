@@ -22,6 +22,7 @@ import { TipoAmortizacion } from '@/types/enums'
 import { getBogotaDateKey, toBogotaDateTimeLocalInputValue } from '@/lib/rutas-core'
 import FieldLabel from '@/components/ui/FieldLabel'
 import { useAuth } from '@/hooks/useAuth'
+import Tooltip from '@/components/ui/Tooltip'
 
 interface CrearCreditoModalProps {
   isOpen: boolean
@@ -379,14 +380,16 @@ export default function CrearCreditoModal({
                 {creditType === 'articulo' && esContado ? 'Registrar venta' : 'Nuevo crédito'}
               </h3>
             </div>
-            <button
-              type="button"
-              onClick={handleReset}
-              aria-label="Cerrar"
-              className="shrink-0 rounded-xl p-2 text-slate-500 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
-            >
-              <X className="h-5 w-5" />
-            </button>
+            <Tooltip texto="Cerrar">
+              <button
+                type="button"
+                onClick={handleReset}
+                aria-label="Cerrar"
+                className="shrink-0 rounded-xl p-2 text-slate-500 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </Tooltip>
           </div>
 
           {/* Lo unico que se desplaza */}

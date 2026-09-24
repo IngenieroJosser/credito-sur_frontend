@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { AlertTriangle, X, FileText } from 'lucide-react'
 import { formatMilesCOP } from '@/lib/utils'
 import { prestamosService } from '@/services/prestamos-service';
+import Tooltip from '@/components/ui/Tooltip';
 
 interface ArchivarCuentaModalProps {
   prestamoId: string;
@@ -68,13 +69,15 @@ export default function ArchivarCuentaModal({
               <p className="text-sm text-gray-500">Esta acción es irreversible</p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-            aria-label="Cerrar"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <Tooltip texto="Cerrar">
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+              aria-label="Cerrar"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </Tooltip>
         </div>
 
         {/* Content */}

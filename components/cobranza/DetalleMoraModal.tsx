@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import { createPortal } from 'react-dom'
+import Tooltip from '@/components/ui/Tooltip'
 
 interface DetalleMoraModalProps {
   cuenta: {
@@ -103,13 +104,15 @@ export default function DetalleMoraModal({
                 </p>
               </div>
             </div>
-            <button
-              onClick={onClose}
-              className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all"
-              aria-label="Cerrar"
-            >
-              <X className="h-5 w-5" />
-            </button>
+            <Tooltip texto="Cerrar">
+              <button
+                onClick={onClose}
+                className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all"
+                aria-label="Cerrar"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </Tooltip>
           </div>
         </div>
 

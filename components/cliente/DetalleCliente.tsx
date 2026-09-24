@@ -25,6 +25,7 @@ import {
 import { formatCurrency, resolveMediaUrl } from "@/lib/utils";
 import DetallePrestamoModal from "@/components/prestamos/DetallePrestamoModal";
 import PagoDetalleModal from "@/components/dashboards/shared/PagoDetalleModal";
+import Tooltip from '@/components/ui/Tooltip';
 
 
 // Interfaces alineadas con Prisma y el Dominio
@@ -1013,50 +1014,56 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
                           {lightboxIndex != null ? lightboxIndex + 1 : 1} de{" "}
                           {fotosArr.length}
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => setLightboxIndex(null)}
-                          className="w-9 h-9 rounded-full bg-white border border-slate-200 text-slate-900 font-black shadow-sm hover:bg-slate-50"
-                          aria-label="Cerrar"
-                        >
-                          ×
-                        </button>
+                        <Tooltip texto="Cerrar">
+                          <button
+                            type="button"
+                            onClick={() => setLightboxIndex(null)}
+                            className="w-9 h-9 rounded-full bg-white border border-slate-200 text-slate-900 font-black shadow-sm hover:bg-slate-50"
+                            aria-label="Cerrar"
+                          >
+                            ×
+                          </button>
+                        </Tooltip>
                       </div>
 
                       <div
                         className={`relative bg-black flex items-center justify-center ${isZoomed ? "overflow-auto" : "overflow-hidden"} max-h-[78vh]`}
                       >
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (!fotosArr.length) return;
-                            setLightboxIndex((prev) => {
-                              if (prev == null) return prev;
-                              return (
-                                (prev - 1 + fotosArr.length) % fotosArr.length
-                              );
-                            });
-                          }}
-                          className="absolute left-3 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white/20 border border-white/30 text-white font-black backdrop-blur-sm"
-                          aria-label="Anterior"
-                        >
-                          ‹
-                        </button>
+                        <Tooltip texto="Anterior">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!fotosArr.length) return;
+                              setLightboxIndex((prev) => {
+                                if (prev == null) return prev;
+                                return (
+                                  (prev - 1 + fotosArr.length) % fotosArr.length
+                                );
+                              });
+                            }}
+                            className="absolute left-3 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white/20 border border-white/30 text-white font-black backdrop-blur-sm"
+                            aria-label="Anterior"
+                          >
+                            ‹
+                          </button>
+                        </Tooltip>
 
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (!fotosArr.length) return;
-                            setLightboxIndex((prev) => {
-                              if (prev == null) return prev;
-                              return (prev + 1) % fotosArr.length;
-                            });
-                          }}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white/20 border border-white/30 text-white font-black backdrop-blur-sm"
-                          aria-label="Siguiente"
-                        >
-                          ›
-                        </button>
+                        <Tooltip texto="Siguiente">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!fotosArr.length) return;
+                              setLightboxIndex((prev) => {
+                                if (prev == null) return prev;
+                                return (prev + 1) % fotosArr.length;
+                              });
+                            }}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white/20 border border-white/30 text-white font-black backdrop-blur-sm"
+                            aria-label="Siguiente"
+                          >
+                            ›
+                          </button>
+                        </Tooltip>
 
                         {/\.(mp4|webm|ogg|mov)$/i.test(lightboxItem) ? (
                           <video

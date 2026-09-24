@@ -16,6 +16,7 @@ import {
 import { Portal } from '@/components/dashboards/shared/CobradorElements'
 import { formatCurrency } from '@/lib/utils'
 import PagoDetalleModal from '@/components/dashboards/shared/PagoDetalleModal'
+import Tooltip from '@/components/ui/Tooltip'
 
 export interface PagoRegularizadoNotifModalProps {
   isOpen: boolean
@@ -114,13 +115,15 @@ export default function PagoRegularizadoNotifModal({
       >
         <div className="flex max-h-[100dvh] w-full flex-col overflow-hidden rounded-t-3xl border border-slate-100 bg-white shadow-2xl sm:max-h-[92vh] sm:max-w-3xl sm:rounded-[2rem]">
           <div className="relative overflow-hidden bg-slate-950 px-6 pb-6 pt-7 text-white">
-            <button
-              onClick={onClose}
-              className="absolute right-4 top-4 rounded-full bg-white/10 p-2 text-white transition-colors hover:bg-white/20"
-              aria-label="Cerrar"
-            >
-              <X className="h-5 w-5" />
-            </button>
+            <Tooltip texto="Cerrar">
+              <button
+                onClick={onClose}
+                className="absolute right-4 top-4 rounded-full bg-white/10 p-2 text-white transition-colors hover:bg-white/20"
+                aria-label="Cerrar"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </Tooltip>
 
             <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/20 bg-white/10">

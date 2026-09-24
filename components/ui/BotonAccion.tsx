@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from 'react'
 import { Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import Tooltip from '@/components/ui/Tooltip'
 
 /**
  * Botón para acciones que hacen algo contra el servidor.
@@ -29,6 +30,13 @@ interface BotonAccionProps
   textoCargando?: string
   /** Ícono a la izquierda cuando NO está cargando. */
   icono?: ReactNode
+  /**
+   * Texto de ayuda al pasar por encima, enfocar o mantener pulsado.
+   *
+   * Mientras la acción corre no se muestra: en ese momento el propio botón ya
+   * dice lo que está pasando ("Guardando…") y tapárselo con una ayuda estorba.
+   */
+  ayuda?: string | null
   children?: ReactNode
 }
 
@@ -36,6 +44,7 @@ export default function BotonAccion({
   onClick,
   textoCargando,
   icono,
+  ayuda,
   children,
   disabled,
   className,
@@ -70,7 +79,7 @@ export default function BotonAccion({
     [onClick],
   )
 
-  return (
+  const boton = (
     <button
       {...resto}
       type={type}
@@ -90,4 +99,6 @@ export default function BotonAccion({
       {enCurso && textoCargando ? textoCargando : children}
     </button>
   )
+
+  return <Tooltip texto={enCurso ? null : ayuda}>{boton}</Tooltip>
 }

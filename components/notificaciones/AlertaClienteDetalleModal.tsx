@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import Portal, { MODAL_Z_INDEX } from '@/components/ui/Portal'
 import { formatCurrency, resolveMediaUrl } from '@/lib/utils'
+import Tooltip from '@/components/ui/Tooltip'
 
 interface AlertaClienteDetalleModalProps {
   alerta: any
@@ -260,14 +261,16 @@ export default function AlertaClienteDetalleModal({
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={onClose}
-                className="shrink-0 rounded-2xl bg-slate-100 p-2 text-slate-500 transition hover:bg-slate-200 hover:text-slate-900"
-                aria-label="Cerrar"
-              >
-                <X className="h-5 w-5" />
-              </button>
+              <Tooltip texto="Cerrar">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="shrink-0 rounded-2xl bg-slate-100 p-2 text-slate-500 transition hover:bg-slate-200 hover:text-slate-900"
+                  aria-label="Cerrar"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </Tooltip>
             </div>
 
             <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-2 xl:grid-cols-4">

@@ -12,6 +12,7 @@ import { resolveCuotaNormalOperativa } from '@/lib/rutas-core'
 import { formatCOPInputValue, parseCOPInputToNumber, formatMilesCOP, getDisplayedCOPInteger, isSameDisplayedCOPAmount } from '@/lib/utils'
 import FieldLabel from '@/components/ui/FieldLabel'
 import Portal, { MODAL_Z_INDEX } from '@/components/ui/Portal'
+import Tooltip from '@/components/ui/Tooltip'
 
 const MONTO_MINIMO_ABONO_COP = 1000
 
@@ -124,14 +125,16 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm, montoCuota
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold text-slate-900">{tipo === 'ABONO' ? 'Registrar Abono' : 'Registrar Pago'}</h3>
-              <button 
-                onClick={onClose}
-                className="p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
-                type="button"
-                aria-label="Cerrar"
-              >
-                <X className="h-5 w-5" />
-              </button>
+              <Tooltip texto="Cerrar">
+                <button 
+                  onClick={onClose}
+                  className="p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
+                  type="button"
+                  aria-label="Cerrar"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </Tooltip>
             </div>
             
             <div className="space-y-6">

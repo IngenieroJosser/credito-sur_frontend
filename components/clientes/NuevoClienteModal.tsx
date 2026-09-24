@@ -22,6 +22,7 @@ interface NuevoClienteModalProps {
 }
 
 import { useAuth } from '@/hooks/useAuth';
+import Tooltip from '@/components/ui/Tooltip';
 
 /**
  * Estilo unico de los campos del formulario.
@@ -306,14 +307,16 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
               <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Gestión de clientes</p>
               <h3 className="text-lg font-bold text-slate-900">{esEdicion ? 'Editar cliente' : 'Nuevo cliente'}</h3>
             </div>
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Cerrar"
-              className="shrink-0 rounded-xl p-2 text-slate-500 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
-            >
-              <X className="h-5 w-5" />
-            </button>
+            <Tooltip texto="Cerrar">
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Cerrar"
+                className="shrink-0 rounded-xl p-2 text-slate-500 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </Tooltip>
           </div>
 
           <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">

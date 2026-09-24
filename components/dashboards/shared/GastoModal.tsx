@@ -9,6 +9,7 @@ import { obtenerSaldoDisponibleRuta } from '@/services/contabilidad-service'
 import type { SaldoDisponibleRuta } from '@/services/contabilidad-service'
 import { rutasService } from '@/services/rutas-service'
 import { getBogotaDateKey } from '@/lib/rutas-core'
+import Tooltip from '@/components/ui/Tooltip'
 
 interface GastoModalProps {
   isOpen: boolean
@@ -149,13 +150,15 @@ export default function GastoModal({ isOpen, onClose, onConfirm, cobradorId, rut
               </div>
               <h3 className="font-bold text-lg text-slate-900">Registrar Gasto</h3>
             </div>
-            <button
-              onClick={handleReset}
-              className="shrink-0 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
-              aria-label="Cerrar"
-            >
-              <X className="h-5 w-5" />
-            </button>
+            <Tooltip texto="Cerrar">
+              <button
+                onClick={handleReset}
+                className="shrink-0 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
+                aria-label="Cerrar"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </Tooltip>
           </div>
 
           <form onSubmit={handleSubmit} className="p-6 space-y-4">

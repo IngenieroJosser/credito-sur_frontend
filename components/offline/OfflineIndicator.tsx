@@ -22,6 +22,7 @@ import { useAutoSync } from '@/hooks/use-auto-sync';
 import { offlineQueue } from '@/lib/offline/offlineQueue';
 import { OfflineQueueItem } from '@/lib/offline/offlineDb';
 import { hasValidOfflineSession, getOfflineSessionDaysRemaining, isSessionExpiringSoon } from '@/lib/auth/offlineAuth';
+import Tooltip from '@/components/ui/Tooltip';
 
 export default function OfflineIndicator() {
   const {
@@ -356,14 +357,16 @@ export default function OfflineIndicator() {
                 </span>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setShowResult(false)}
-                className="rounded-full p-1 text-slate-500 transition hover:bg-white/30 hover:text-slate-800"
-                aria-label="Cerrar resultado de sincronización"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
+              <Tooltip texto="Cerrar resultado de sincronización">
+                <button
+                  type="button"
+                  onClick={() => setShowResult(false)}
+                  className="rounded-full p-1 text-slate-500 transition hover:bg-white/30 hover:text-slate-800"
+                  aria-label="Cerrar resultado de sincronización"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </Tooltip>
             </div>
           </div>
         )}
@@ -403,14 +406,16 @@ export default function OfflineIndicator() {
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={handleExpand}
-                  className="absolute right-3 top-3 rounded-full p-1.5 text-slate-500 transition hover:bg-white/30 hover:text-slate-800 md:static"
-                  aria-label="Contraer estado del sistema"
-                >
-                  <ChevronUp className="h-4 w-4" />
-                </button>
+                <Tooltip texto="Contraer estado del sistema">
+                  <button
+                    type="button"
+                    onClick={handleExpand}
+                    className="absolute right-3 top-3 rounded-full p-1.5 text-slate-500 transition hover:bg-white/30 hover:text-slate-800 md:static"
+                    aria-label="Contraer estado del sistema"
+                  >
+                    <ChevronUp className="h-4 w-4" />
+                  </button>
+                </Tooltip>
               </div>
 
               {hasOfflineSession && (

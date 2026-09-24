@@ -6,6 +6,7 @@ import { formatCurrency } from '@/lib/utils'
 import { getMovimientosLedger } from '@/services/contabilidad-service'
 import { buildBogotaOffsetIsoFromKey, getBogotaDateKey, normalizeDateKey } from '@/lib/rutas-core'
 import Paginador from '@/components/ui/Paginador'
+import Tooltip from '@/components/ui/Tooltip'
 
 interface DetalleReporteFinancieroModalProps {
   id: string
@@ -201,13 +202,15 @@ export default function DetalleReporteFinancieroModal({ id, onClose }: DetalleRe
               </p>
             </div>
           </div>
-          <button 
-            onClick={onClose}
-            className="shrink-0 p-2 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors"
-            aria-label="Cerrar"
-          >
-            <X className="h-5 w-5" />
-          </button>
+          <Tooltip texto="Cerrar">
+            <button 
+              onClick={onClose}
+              className="shrink-0 p-2 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors"
+              aria-label="Cerrar"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </Tooltip>
         </div>
 
         {/* Content */}

@@ -14,6 +14,7 @@ import { normalizeDateKey } from '@/lib/rutas-core';
 import { TipoAmortizacion } from '@/types/enums';
 import { Skeleton, SkeletonTexto } from '@/components/ui/Skeleton'
 import { logger } from '@/lib/logger'
+import Tooltip from '@/components/ui/Tooltip'
 
 interface EditarPrestamoModalProps {
   id: string;
@@ -449,9 +450,11 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
                 <span className="flex items-center gap-1.5"><Edit3 className="h-3 w-3" /> Habilitar edición</span>
               )}
             </button>
-            <button type="button" onClick={handleClose} aria-label="Cerrar" className="rounded-xl p-2 text-slate-500 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400">
-              <X className="h-5 w-5" />
-            </button>
+            <Tooltip texto="Cerrar">
+              <button type="button" onClick={handleClose} aria-label="Cerrar" className="rounded-xl p-2 text-slate-500 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400">
+                <X className="h-5 w-5" />
+              </button>
+            </Tooltip>
           </div>
         </div>
 

@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react'
 import { X, AlertTriangle } from 'lucide-react'
 import { Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
+import Tooltip from '@/components/ui/Tooltip'
 
 interface ConfirmRejectModalProps {
   isOpen: boolean
@@ -73,11 +74,13 @@ export default function ConfirmRejectModal({
                 <p className="text-xs text-slate-600">Esta acción detendrá el proceso y se notificará al solicitante.</p>
               </div>
             </div>
-            <button onClick={handleClose} className="shrink-0 p-2 hover:bg-slate-100 rounded-full"
-              aria-label="Cerrar"
-            >
-              <X className="h-5 w-5 text-slate-400" />
-            </button>
+            <Tooltip texto="Cerrar">
+              <button onClick={handleClose} className="shrink-0 p-2 hover:bg-slate-100 rounded-full"
+                aria-label="Cerrar"
+              >
+                <X className="h-5 w-5 text-slate-400" />
+              </button>
+            </Tooltip>
           </div>
 
           <div className="p-6 space-y-4">

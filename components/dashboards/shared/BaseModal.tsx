@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { X, Wallet, Save, AlertCircle, Loader2 } from 'lucide-react'
 import { formatCOPInputValue } from '@/lib/utils'
 import { Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
+import Tooltip from '@/components/ui/Tooltip'
 
 interface BaseModalProps {
   isOpen: boolean
@@ -58,13 +59,15 @@ export default function BaseModal({ isOpen, onClose, onConfirm }: BaseModalProps
               </div>
               <h3 className="font-bold text-lg text-slate-900">Pedir Base</h3>
             </div>
-            <button
-              onClick={handleReset}
-              className="shrink-0 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
-              aria-label="Cerrar"
-            >
-              <X className="h-5 w-5" />
-            </button>
+            <Tooltip texto="Cerrar">
+              <button
+                onClick={handleReset}
+                className="shrink-0 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
+                aria-label="Cerrar"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </Tooltip>
           </div>
 
           <form onSubmit={handleSubmit} className="p-6 space-y-4">

@@ -21,6 +21,7 @@ import { getCajas, Caja } from '@/services/contabilidad-service';
 import CreacionPrestamoElegante from '@/components/prestamos/CreacionPrestamo';
 import CreacionCreditoArticulo from '@/components/creditos/CreacionCreditoArticulo';
 import { cn } from '@/lib/utils';
+import Tooltip from '@/components/ui/Tooltip';
 
 interface CreacionUnificadaProps {
   isModal?: boolean;
@@ -85,11 +86,13 @@ export default function CreacionUnificada({ isModal, initialClienteId, onClose }
                 </div>
                 <h2 className="font-bold text-slate-900">Nueva Operación</h2>
              </div>
-             <button onClick={onClose} className="shrink-0 p-2 hover:bg-slate-200 rounded-full transition-colors"
-               aria-label="Cerrar"
-             >
-                <X className="w-5 h-5 text-slate-500" />
-             </button>
+             <Tooltip texto="Cerrar">
+               <button onClick={onClose} className="shrink-0 p-2 hover:bg-slate-200 rounded-full transition-colors"
+                 aria-label="Cerrar"
+               >
+                  <X className="w-5 h-5 text-slate-500" />
+               </button>
+             </Tooltip>
           </div>
         )}
 

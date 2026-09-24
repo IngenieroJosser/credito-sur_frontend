@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { X } from 'lucide-react';
 import { createPortal } from 'react-dom';
+import Tooltip from '@/components/ui/Tooltip';
 
 interface ModalProps {
   isOpen: boolean;
@@ -80,13 +81,15 @@ export const Modal: React.FC<ModalProps> = ({
             texto oscuro sobre el mismo blanco. */}
         <div className="flex shrink-0 items-center justify-between gap-4 rounded-t-2xl bg-gradient-to-r from-primary to-primary-dark px-6 py-4">
           <h3 className="min-w-0 truncate text-lg font-bold text-white">{title}</h3>
-          <button
-            onClick={onClose}
-            aria-label="Cerrar"
-            className="shrink-0 rounded-full bg-white/10 p-2 text-white/80 transition-colors hover:bg-white/20 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <Tooltip texto="Cerrar">
+            <button
+              onClick={onClose}
+              aria-label="Cerrar"
+              className="shrink-0 rounded-full bg-white/10 p-2 text-white/80 transition-colors hover:bg-white/20 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </Tooltip>
         </div>
 
         {/* Body */}

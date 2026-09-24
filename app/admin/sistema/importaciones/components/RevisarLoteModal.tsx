@@ -16,6 +16,7 @@ import { CreditoDeLote, DetalleLoteImportacion } from "@/types/importaciones";
 import { formatCurrency } from "@/lib/utils";
 import Portal from "@/components/ui/Portal";
 import { SkeletonTabla } from "@/components/ui/Skeleton";
+import Tooltip from '@/components/ui/Tooltip';
 
 /**
  * Revisar antes de deshacer.
@@ -276,13 +277,15 @@ export const RevisarLoteModal: React.FC<Props> = ({
                   : ""}
               </p>
             </div>
-            <button
-              onClick={onCerrar}
-              className="rounded-xl p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
-              aria-label="Cerrar"
-            >
-              <X className="h-5 w-5" />
-            </button>
+            <Tooltip texto="Cerrar">
+              <button
+                onClick={onCerrar}
+                className="rounded-xl p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                aria-label="Cerrar"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </Tooltip>
           </div>
 
           {cargando && (

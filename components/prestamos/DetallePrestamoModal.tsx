@@ -13,6 +13,7 @@ import { formatLoanTerm } from '@/lib/utils';
 import { toast } from 'sonner';
 
 import { Skeleton, SkeletonTexto, SkeletonTabla } from '@/components/ui/Skeleton'
+import Tooltip from '@/components/ui/Tooltip'
 interface DetallePrestamoModalProps {
   id: string;
   onClose: () => void;
@@ -263,13 +264,15 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
           </button>
         )}
 
-        <button
-          onClick={handleClose}
-          className="absolute top-4 right-4 z-20 p-2 bg-white/80 backdrop-blur-sm rounded-full shadow-sm border border-slate-200 text-slate-400 hover:text-slate-900 hover:bg-white transition-all"
-          aria-label="Cerrar"
-        >
-          <X className="w-5 h-5" />
-        </button>
+        <Tooltip texto="Cerrar">
+          <button
+            onClick={handleClose}
+            className="absolute top-4 right-4 z-20 p-2 bg-white/80 backdrop-blur-sm rounded-full shadow-sm border border-slate-200 text-slate-400 hover:text-slate-900 hover:bg-white transition-all"
+            aria-label="Cerrar"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </Tooltip>
 
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto sm:rounded-2xl">

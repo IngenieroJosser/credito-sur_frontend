@@ -20,6 +20,7 @@ import {
 import { Portal } from '@/components/dashboards/shared/CobradorElements'
 import { formatCurrency, cn } from '@/lib/utils'
 import { parseCierreRutaNotif } from '@/lib/notificaciones/cierre-ruta'
+import Tooltip from '@/components/ui/Tooltip'
 
 export interface CierreRutaNotifModalProps {
   isOpen: boolean
@@ -106,13 +107,15 @@ export default function CierreRutaNotifModal({
             </div>
 
             {/* Botón cerrar */}
-            <button
-              onClick={onClose}
-              className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition-colors text-white"
-              aria-label="Cerrar"
-            >
-              <X className="h-4 w-4" />
-            </button>
+            <Tooltip texto="Cerrar">
+              <button
+                onClick={onClose}
+                className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition-colors text-white"
+                aria-label="Cerrar"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </Tooltip>
 
             {/* Icono + badge */}
             <div className="relative z-10 flex items-center gap-3 mb-3">

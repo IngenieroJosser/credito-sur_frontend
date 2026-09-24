@@ -39,6 +39,7 @@ import { useNotification } from '@/components/providers/NotificationProvider'
 import { formatCurrency, formatCOPInputValue, formatMilesCOP, parseCOPInputToNumber } from '@/lib/utils'
 import { TipoAmortizacion } from '@/types/enums'
 import BotonAccion from '@/components/ui/BotonAccion'
+import Tooltip from '@/components/ui/Tooltip'
 
 const MODAL_Z_INDEX = 2147483647
 
@@ -365,14 +366,16 @@ export default function ClienteDetalleSupervisorPage() {
               <div className="p-6">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-xl font-bold text-slate-900">Registrar Pago</h3>
-                  <button
-                    type="button"
-                    onClick={resetPagoModal}
-                    className="shrink-0 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
-                    aria-label="Cerrar"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
+                  <Tooltip texto="Cerrar">
+                    <button
+                      type="button"
+                      onClick={resetPagoModal}
+                      className="shrink-0 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
+                      aria-label="Cerrar"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  </Tooltip>
                 </div>
 
                 <div className="space-y-6">
@@ -560,14 +563,16 @@ export default function ClienteDetalleSupervisorPage() {
               <div className="p-6">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-xl font-bold text-slate-900">Crear Nuevo Crédito</h3>
-                  <button
-                    type="button"
-                    onClick={resetCreditoModal}
-                    className="shrink-0 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
-                    aria-label="Cerrar"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
+                  <Tooltip texto="Cerrar">
+                    <button
+                      type="button"
+                      onClick={resetCreditoModal}
+                      className="shrink-0 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
+                      aria-label="Cerrar"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  </Tooltip>
                 </div>
 
                 <div className="mb-6">
@@ -783,14 +788,16 @@ export default function ClienteDetalleSupervisorPage() {
               <div className="p-6">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-xl font-bold text-slate-900">Crear Cliente</h3>
-                  <button
-                    type="button"
-                    onClick={resetNuevoClienteForm}
-                    className="shrink-0 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
-                    aria-label="Cerrar"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
+                  <Tooltip texto="Cerrar">
+                    <button
+                      type="button"
+                      onClick={resetNuevoClienteForm}
+                      className="shrink-0 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
+                      aria-label="Cerrar"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  </Tooltip>
                 </div>
 
                 <form

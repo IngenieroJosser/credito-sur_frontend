@@ -20,6 +20,7 @@ import {
   TrendingDown, FileX
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
+import Tooltip from '@/components/ui/Tooltip'
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -179,13 +180,15 @@ export default function ProrrogaDetalleModal({
                   </p>
                 </div>
               </div>
-              <button
-                onClick={onClose}
-                className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors"
-                aria-label="Cerrar"
-              >
-                <X className="h-4 w-4" />
-              </button>
+              <Tooltip texto="Cerrar">
+                <button
+                  onClick={onClose}
+                  className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors"
+                  aria-label="Cerrar"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </Tooltip>
             </div>
           </div>
 

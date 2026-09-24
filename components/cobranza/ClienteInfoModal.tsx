@@ -22,6 +22,7 @@ import { clientesService } from '@/services/clientes-service'
 import { rutasService, type HistorialVisitaCliente } from '@/services/rutas-service'
 import { alertasClientesService } from '@/services/alertas-clientes-service'
 import { Skeleton } from '@/components/ui/Skeleton'
+import Tooltip from '@/components/ui/Tooltip'
 
 // ── Tipos ──────────────────────────────────────────────────────────────────────
 
@@ -247,13 +248,15 @@ export default function ClienteInfoModal({
                 )}
               </div>
             </div>
-            <button
-              onClick={onClose}
-              className="shrink-0 ml-3 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors shrink-0"
-              aria-label="Cerrar"
-            >
-              <X className="h-5 w-5" />
-            </button>
+            <Tooltip texto="Cerrar">
+              <button
+                onClick={onClose}
+                className="shrink-0 ml-3 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors shrink-0"
+                aria-label="Cerrar"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </Tooltip>
           </div>
 
           {/* Tabs */}

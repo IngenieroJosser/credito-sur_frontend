@@ -23,6 +23,7 @@ import {
 import { formatCurrency } from '@/lib/utils'
 import { aprobacionesService, type ApprovalContext } from '@/services/aprobaciones-service'
 import { Skeleton, SkeletonTexto } from '@/components/ui/Skeleton'
+import Tooltip from '@/components/ui/Tooltip'
 
 export interface ReprogramacionData {
   id: string
@@ -512,13 +513,15 @@ export default function ReprogramacionDetalleModal({
                   </p>
                 </div>
               </div>
-              <button
-                onClick={onClose}
-                className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors shrink-0"
-                aria-label="Cerrar"
-              >
-                <X className="h-4 w-4" />
-              </button>
+              <Tooltip texto="Cerrar">
+                <button
+                  onClick={onClose}
+                  className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors shrink-0"
+                  aria-label="Cerrar"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </Tooltip>
             </div>
           </div>
 

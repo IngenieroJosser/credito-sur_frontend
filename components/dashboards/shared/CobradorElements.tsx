@@ -9,6 +9,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { VisitaRuta, EstadoVisita, mapNivelRiesgo } from '@/lib/types/cobranza'
 import { formatCurrency } from '@/lib/utils'
 import { resolveCuotaAcumuladaOperativa, resolveCuotaNormalOperativa } from '@/lib/rutas-core'
+import Tooltip from '@/components/ui/Tooltip'
 
 export const MODAL_Z_INDEX = 2147483600
 
@@ -608,13 +609,15 @@ export function SeleccionClienteModal({
         <div className="bg-white sm:rounded-[2rem] rounded-t-[2rem] w-full sm:max-w-sm shadow-2xl animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200 overflow-hidden">
           <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
             <h3 className="font-bold text-lg text-slate-900 flex-1">{titulo}</h3>
-            <button
-              onClick={onClose}
-              className="shrink-0 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
-              aria-label="Cerrar"
-            >
-              <XCircle className="h-5 w-5" />
-            </button>
+            <Tooltip texto="Cerrar">
+              <button
+                onClick={onClose}
+                className="shrink-0 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
+                aria-label="Cerrar"
+              >
+                <XCircle className="h-5 w-5" />
+              </button>
+            </Tooltip>
           </div>
           <div className="p-6 space-y-6">
             <div className="space-y-3">

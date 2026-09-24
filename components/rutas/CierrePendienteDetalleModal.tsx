@@ -10,6 +10,7 @@ import {
 } from '@/lib/format-date'
 import type { CierrePendienteDetalle, ClienteCierrePendiente } from '@/types/rutas/cierre-pendiente'
 import BotonAccion from '@/components/ui/BotonAccion'
+import Tooltip from '@/components/ui/Tooltip'
 
 // Helper para formato de fecha compacto (ej: 18 may)
 function formatFechaDiaMes(value?: string | Date | null) {
@@ -313,15 +314,17 @@ export function CierrePendienteDetalleModal({
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={processingCierre}
-            className="shrink-0 rounded-xl p-2 text-slate-400 hover:bg-white hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
-            aria-label="Cerrar"
-          >
-            <X className="h-5 w-5" />
-          </button>
+          <Tooltip texto="Cerrar">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={processingCierre}
+              className="shrink-0 rounded-xl p-2 text-slate-400 hover:bg-white hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+              aria-label="Cerrar"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </Tooltip>
         </div>
 
         {/* Selector de jornadas si hay múltiples jornadas pendientes */}

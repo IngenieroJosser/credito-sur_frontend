@@ -16,6 +16,7 @@ import { usuariosService } from '@/services/usuarios-service'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { formatRoleLabel } from '@/lib/display-labels'
 import { categoriasPorTipo } from '@/lib/contable/categorias-movimiento'
+import Tooltip from '@/components/ui/Tooltip'
 
 interface CajaDetalle {
   id: string
@@ -595,14 +596,16 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
                                 placeholder="Nombre nueva categoría..."
                                 className="flex-1 px-4 py-3 rounded-xl border border-blue-200 bg-blue-50 text-sm font-bold text-blue-900 focus:ring-2 focus:ring-blue-100 outline-none placeholder:text-blue-300"
                              />
-                             <button
-                                type="button" 
-                                onClick={handleCrearCategoria}
-                                className="shrink-0 p-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
-                               aria-label="Confirmar"
-                             >
-                                <CheckCircle2 className="h-5 w-5" />
-                             </button>
+                             <Tooltip texto="Confirmar">
+                               <button
+                                  type="button" 
+                                  onClick={handleCrearCategoria}
+                                  className="shrink-0 p-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
+                                 aria-label="Confirmar"
+                               >
+                                  <CheckCircle2 className="h-5 w-5" />
+                               </button>
+                             </Tooltip>
                              <button 
                                 type="button"
                                 onClick={() => setIsCreatingCategory(false)}

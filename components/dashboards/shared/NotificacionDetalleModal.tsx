@@ -32,6 +32,7 @@ import PagoRegularizadoNotifModal from '@/components/dashboards/shared/PagoRegul
 import AlertaClienteDetalleModal from '@/components/notificaciones/AlertaClienteDetalleModal'
 import { alertasClientesService } from '@/services/alertas-clientes-service'
 import { logger } from '@/lib/logger'
+import Tooltip from '@/components/ui/Tooltip'
 
 export interface NotificacionDetalleModalProps {
   isOpen: boolean
@@ -702,13 +703,15 @@ export default function NotificacionDetalleModal({
                   </p>
                 </div>
               </div>
-              <button
-                onClick={onClose}
-                className="shrink-0 p-2 rounded-full hover:bg-slate-100 transition-colors"
-                aria-label="Cerrar"
-              >
-                <X className="h-5 w-5 text-slate-500" />
-              </button>
+              <Tooltip texto="Cerrar">
+                <button
+                  onClick={onClose}
+                  className="shrink-0 p-2 rounded-full hover:bg-slate-100 transition-colors"
+                  aria-label="Cerrar"
+                >
+                  <X className="h-5 w-5 text-slate-500" />
+                </button>
+              </Tooltip>
             </div>
 
             <div className="p-4 overflow-y-auto flex-1">
@@ -1577,13 +1580,15 @@ export default function NotificacionDetalleModal({
                 </div>
               </div>
             </div>
-            <button 
-              onClick={handleClose}
-              className="shrink-0 p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400"
-              aria-label="Cerrar"
-            >
-              <X className="h-5 w-5" />
-            </button>
+            <Tooltip texto="Cerrar">
+              <button 
+                onClick={handleClose}
+                className="shrink-0 p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400"
+                aria-label="Cerrar"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </Tooltip>
           </div>
 
           {/* Content */}

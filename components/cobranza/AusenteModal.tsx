@@ -4,6 +4,7 @@ import React, { useState } from 'react'
 import { VisitaRuta } from '@/lib/types/cobranza'
 import { Portal } from '@/components/dashboards/shared/CobradorElements'
 import { X, CalendarX } from 'lucide-react'
+import Tooltip from '@/components/ui/Tooltip'
 
 interface AusenteModalProps {
   visita: VisitaRuta
@@ -42,13 +43,15 @@ export default function AusenteModal({ visita, onClose, onConfirm }: AusenteModa
               <CalendarX className="h-5 w-5 text-rose-500" />
               Marcar como Ausente
             </h3>
-            <button
-              onClick={onClose}
-              className="shrink-0 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
-              aria-label="Cerrar"
-            >
-              <X className="h-5 w-5" />
-            </button>
+            <Tooltip texto="Cerrar">
+              <button
+                onClick={onClose}
+                className="shrink-0 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
+                aria-label="Cerrar"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </Tooltip>
           </div>
           <form onSubmit={handleSubmit} className="p-6 space-y-6">
             <div>

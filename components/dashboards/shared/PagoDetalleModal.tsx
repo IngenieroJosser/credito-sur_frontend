@@ -45,6 +45,7 @@ import { Portal } from '@/components/dashboards/shared/CobradorElements'
 import { formatCurrency, resolveMediaUrl } from '@/lib/utils'
 import { pagosService, Pago } from '@/services/pagos-service'
 import { Skeleton, SkeletonTexto } from '@/components/ui/Skeleton'
+import Tooltip from '@/components/ui/Tooltip'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -283,13 +284,15 @@ export default function PagoDetalleModal({
                 </div>
               </div>
             </div>
-            <button
-              onClick={handleClose}
-              className="shrink-0 p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400"
-              aria-label="Cerrar"
-            >
-              <X className="h-5 w-5" />
-            </button>
+            <Tooltip texto="Cerrar">
+              <button
+                onClick={handleClose}
+                className="shrink-0 p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400"
+                aria-label="Cerrar"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </Tooltip>
           </div>
 
           {/* ── Contenido scrollable ─────────────────────────────────────────── */}
