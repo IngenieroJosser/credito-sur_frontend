@@ -126,7 +126,7 @@ export default function PuntoDeVentaFloatingActions() {
     setVentasFechaHasta('')
     try {
       const [creditosData, ventasContadoData] = await Promise.all([
-        prestamosService.obtenerPrestamos({ tipo: 'ARTICULO', limit: 20 } as any),
+        prestamosService.obtenerPrestamos({ tipo: 'ARTICULO', limit: 20 }),
         salesService.obtenerVentasContado().catch(() => []),
       ])
 

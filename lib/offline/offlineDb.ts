@@ -243,7 +243,7 @@ export const offlineStore = {
 
     const tx = db.transaction(store, 'readwrite');
     for (const item of items) {
-      await tx.store.put(item as any);
+      await tx.store.put(item);
     }
     await tx.done;
 

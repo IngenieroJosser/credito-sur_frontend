@@ -99,7 +99,7 @@ export default function EditarArticuloPage({ params }: { params: Promise<{ id: s
       stockMinimo: Number(formData.stockMinimo || '0'),
     }
     try {
-      await inventarioService.actualizarProducto(id, payload as any)
+      await inventarioService.actualizarProducto(id, payload)
       router.push('/admin/articulos')
     } catch (err) {
       console.error('Error guardando artículo:', err)

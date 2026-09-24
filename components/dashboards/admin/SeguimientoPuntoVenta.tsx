@@ -145,7 +145,7 @@ export default function SeguimientoPuntoVenta() {
       const hoyStr = getBogotaDateKey(new Date())
 
       const [resp, usuariosResp] = await Promise.all([
-        prestamosService.obtenerPrestamos({ tipo: 'ARTICULO', limit: 200 } as any),
+        prestamosService.obtenerPrestamos({ tipo: 'ARTICULO', limit: 200 }),
         usuariosService.obtenerTodos().catch(() => []),
       ])
 
@@ -198,7 +198,7 @@ export default function SeguimientoPuntoVenta() {
               clienteId: c.clienteId, 
               prestamoId: c.id, 
               limit: 50 
-            } as any)
+            })
             
             // Filtrar pagos para asegurarnos que solo corresponden al préstamo actual (estricto)
             const pagos = (pagosResp?.pagos || []).filter((p: any) => {
@@ -305,7 +305,7 @@ export default function SeguimientoPuntoVenta() {
         clienteId: venta.clienteId, 
         prestamoId: venta.id, 
         limit: 100 
-      } as any)
+      })
       
       // Filtrar pagos para asegurarnos que solo corresponden al préstamo actual (estricto)
       const pagosVenta = (resp?.pagos || []).filter((p: any) => {

@@ -250,10 +250,10 @@ export const mapDailyVisitsResponseToVisitas = ({
       proximaVisita: fechaEfectiva,
       targetVencimiento: proximaCuota?.fechaVencimiento || cuotaObjetivo?.fechaVencimiento,
       ordenVisita: Number(visita?.ordenVisita || row?.ordenVisita || idx + 1),
-      prioridad: nivel === 'ROJO' || nivel === 'LISTA_NEGRA' ? 'alta' : 'media' as any,
+      prioridad: nivel === 'ROJO' || nivel === 'LISTA_NEGRA' ? 'alta' : 'media',
       diasMora,
       cobradorId: rutaData?.cobradorId || initialRuta?.cobradorId || '',
-      periodoRuta: mapFrecuenciaToPeriodo(frecuencia) as any,
+      periodoRuta: mapFrecuenciaToPeriodo(frecuencia),
       clienteId: c?.id || visita?.clienteId || '',
       prestamoId: p?.id || row?.prestamoId || '',
       tipoPrestamo: esArticulo ? 'ARTICULO' : 'EFECTIVO',
@@ -285,7 +285,7 @@ export const mapDailyVisitsResponseToVisitas = ({
 
     return {
       ...visitaBase,
-      nivelRiesgo: resolveNivelRiesgoVisita(visitaBase, p, cuotaObjetivo) as any,
+      nivelRiesgo: resolveNivelRiesgoVisita(visitaBase, p, cuotaObjetivo),
     } as VisitaRuta
   })
 

@@ -362,7 +362,7 @@ export const RutasPageView = ({
 
     // Obtener pagos una sola vez para todas las rutas
     const pagosResp = await pagosService.obtenerPagos({ limit: 5000 })
-    const pagos = (pagosResp as any)?.pagos || pagosResp || []
+    const pagos = (pagosResp)?.pagos || pagosResp || []
 
     await Promise.all(
       rutas.map(async (ruta) => {
@@ -421,7 +421,7 @@ export const RutasPageView = ({
         limit: 100,
         ...(isSupervisorPath && currentUser?.id ? { supervisorId: currentUser.id } : {}),
       });
-      const payload = (response as any)?.data ?? response
+      const payload = (response)?.data ?? response
       const data = Array.isArray(payload)
         ? payload
         : (Array.isArray((payload as any)?.data) ? (payload as any).data : [])
@@ -652,7 +652,7 @@ export const RutasPageView = ({
       ])
       const saldo = saldoResp?.saldoCaja ?? saldoResp?.saldoDisponible ?? 0
       setSaldoDisponibleRecolectar(saldo)
-      const cajaIdBackend = (saldoResp as any)?.cajaId as (string | undefined)
+      const cajaIdBackend = (saldoResp)?.cajaId as (string | undefined)
       const cajaRuta = cajaIdBackend
         ? cajasResp.find(c => c.id === cajaIdBackend)
         : cajasResp.find(c => c.rutaId === ruta.id)

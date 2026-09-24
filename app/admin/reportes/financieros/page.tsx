@@ -145,8 +145,8 @@ const ReportesFinancierosPage = () => {
     try {
       try {
         const targets = await getFinancialTargets()
-        if (targets && typeof (targets as any).metaMargen === 'number') {
-          setMetaMargen((targets as any).metaMargen)
+        if (targets && typeof (targets).metaMargen === 'number') {
+          setMetaMargen((targets).metaMargen)
         } else {
           setMetaMargen(null)
         }
@@ -157,7 +157,7 @@ const ReportesFinancierosPage = () => {
       }
       const ahora = new Date()
       const { inicio: startDate, fin: endDate } = getBogotaRangeForFinancialPeriod(
-        periodo as any,
+        periodo,
         ahora,
       )
 
@@ -172,10 +172,10 @@ const ReportesFinancierosPage = () => {
       const totalIngresosPeriodo = Number(resumenPeriodo?.ingresosHoy || 0)
       const totalEntradasCajaPeriodo = (Array.isArray(movimientosPeriodo?.data) ? movimientosPeriodo.data : [])
         .reduce((acc, movimiento: any) => acc + Number(movimiento?.impactoCaja || 0), 0)
-      const totalIngresosDevengadosPeriodo = Number((resumenPeriodo as any)?.ingresosDevengadosHoy ?? totalIngresosPeriodo)
-      const totalCobrosPeriodo = Number((resumenPeriodo as any)?.cobranzaHoy || 0)
+      const totalIngresosDevengadosPeriodo = Number((resumenPeriodo)?.ingresosDevengadosHoy ?? totalIngresosPeriodo)
+      const totalCobrosPeriodo = Number((resumenPeriodo)?.cobranzaHoy || 0)
       const totalEgresosPeriodo = Number(resumenPeriodo?.egresosHoy || 0)
-      const utilidadPeriodo = Number((resumenPeriodo as any)?.utilidadReal ?? (resumenPeriodo as any)?.gananciaNeta ?? (totalIngresosPeriodo - totalEgresosPeriodo))
+      const utilidadPeriodo = Number((resumenPeriodo)?.utilidadReal ?? (resumenPeriodo)?.gananciaNeta ?? (totalIngresosPeriodo - totalEgresosPeriodo))
       const utilidadOperativaPeriodo = Number((resumenPeriodo as any)?.utilidadOperativa ?? utilidadPeriodo)
       const provisionCarteraPeriodo = Number(
         // El gasto del periodo, no el saldo acumulado de la cartera: si no, se
@@ -199,10 +199,10 @@ const ReportesFinancierosPage = () => {
         provisionCartera: provisionCarteraPeriodo,
         utilidadNeta: utilidadNetaPeriodo,
         margen: Number(margenPeriodo.toFixed(1)),
-        interes: Number((resumenPeriodo as any)?.interesHoy || 0),
-        mora: Number((resumenPeriodo as any)?.moraHoy || 0),
-        margenArticulos: Number((resumenPeriodo as any)?.margenArticulosHoy || 0),
-        otrosIngresos: Number((resumenPeriodo as any)?.otrosIngresosHoy || 0),
+        interes: Number((resumenPeriodo)?.interesHoy || 0),
+        mora: Number((resumenPeriodo)?.moraHoy || 0),
+        margenArticulos: Number((resumenPeriodo)?.margenArticulosHoy || 0),
+        otrosIngresos: Number((resumenPeriodo)?.otrosIngresosHoy || 0),
         gastosOperativos: totalEgresosPeriodo,
       })
 
@@ -258,7 +258,7 @@ const ReportesFinancierosPage = () => {
         const prevEndKey = getBogotaDateKey(new Date(prevRange.fin))
         const prevResumen = await getResumenFinanciero(prevStartKey, prevEndKey)
         const prevIngresos = Number(prevResumen?.ingresosHoy || 0)
-        const prevCobros = Number((prevResumen as any)?.cobranzaHoy || 0)
+        const prevCobros = Number((prevResumen)?.cobranzaHoy || 0)
         const prevEgresos = Number(prevResumen?.egresosHoy || 0)
         const ingresosPerc = prevIngresos > 0
           ? ((totalIngresosPeriodo - prevIngresos) / prevIngresos) * 100
@@ -345,10 +345,10 @@ const ReportesFinancierosPage = () => {
         if (periodo === 'SEMANAL') {
           const nowKey7 = getBogotaDateKey(ahora)
           const resumen7 = await getResumenFinanciero(desde7Key, nowKey7)
-          const ingresosDevengados7 = Number((resumen7 as any)?.ingresosDevengadosHoy ?? totalIngresos7)
+          const ingresosDevengados7 = Number((resumen7)?.ingresosDevengadosHoy ?? totalIngresos7)
           const entradasCaja7 = (Array.isArray(movimientos7Res?.data) ? movimientos7Res.data : [])
             .reduce((acc, movimiento: any) => acc + Number(movimiento?.impactoCaja || 0), 0)
-          const utilidad7 = Number((resumen7 as any)?.utilidadReal ?? (resumen7 as any)?.gananciaNeta ?? (totalIngresos7 - totalEgresos7))
+          const utilidad7 = Number((resumen7)?.utilidadReal ?? (resumen7)?.gananciaNeta ?? (totalIngresos7 - totalEgresos7))
           const utilidadOperativa7 = Number((resumen7 as any)?.utilidadOperativa ?? utilidad7)
           const provisionCartera7 = Number(
             (resumen7 as any)?.provisionCarteraPeriodo ??
@@ -368,10 +368,10 @@ const ReportesFinancierosPage = () => {
             provisionCartera: provisionCartera7,
             utilidadNeta: utilidadNeta7,
             margen: Number(margen7.toFixed(1)),
-            interes: Number((resumen7 as any)?.interesHoy || 0),
-            mora: Number((resumen7 as any)?.moraHoy || 0),
-            margenArticulos: Number((resumen7 as any)?.margenArticulosHoy || 0),
-            otrosIngresos: Number((resumen7 as any)?.otrosIngresosHoy || 0),
+            interes: Number((resumen7)?.interesHoy || 0),
+            mora: Number((resumen7)?.moraHoy || 0),
+            margenArticulos: Number((resumen7)?.margenArticulosHoy || 0),
+            otrosIngresos: Number((resumen7)?.otrosIngresosHoy || 0),
             gastosOperativos: totalEgresos7,
           })
 

@@ -81,7 +81,7 @@ const SyncStatusPage = () => {
       setServerQueueEnabled(true)
       setServerQueueReason(null)
       setServerQueueCounts(res?.counts || null)
-      setServerQueueJobs(Array.isArray(res?.jobs) ? (res.jobs as any) : [])
+      setServerQueueJobs(Array.isArray(res?.jobs) ? (res.jobs) : [])
     } catch {
       setServerQueueCounts(null)
       setServerQueueEnabled(null)

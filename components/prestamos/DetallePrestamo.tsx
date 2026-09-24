@@ -181,7 +181,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
   const progresoCuotas = totalCuotas > 0 ? Math.round((cuotasPagadas / totalCuotas) * 100) : 0;
 
   const totalesDesdePagos = useMemo(() => {
-    const pagos = Array.isArray((prestamo as any)?.pagos) ? ((prestamo as any).pagos as any[]) : []
+    const pagos = Array.isArray((prestamo)?.pagos) ? ((prestamo).pagos as any[]) : []
     let capital = 0
     let interes = 0
     let interesMora = 0
@@ -201,13 +201,13 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
   }, [prestamo])
 
   const capitalPagadoUI = (() => {
-    const v = Number((prestamo as any)?.capitalPagado ?? 0)
+    const v = Number((prestamo)?.capitalPagado ?? 0)
     if (v > 0) return v
     return totalesDesdePagos.capitalPagado
   })()
 
   const interesPagadoUI = (() => {
-    const v = Number((prestamo as any)?.interesPagado ?? 0)
+    const v = Number((prestamo)?.interesPagado ?? 0)
     if (v > 0) return v
     return totalesDesdePagos.interesPagado
   })()
@@ -259,7 +259,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
       .reduce((min, k) => (k < min ? k : min), normalizeDateKey(vencidas[0].fecha))
 
     if (!oldestKey) return 0
-    const isDiario = String((prestamo as any)?.frecuencia || '').toUpperCase() === 'DIARIO'
+    const isDiario = String((prestamo)?.frecuencia || '').toUpperCase() === 'DIARIO'
     if (!isDiario) {
       const parseKeyToBogotaMidday = (key: string) => new Date(`${key}T12:00:00-05:00`)
       const start = parseKeyToBogotaMidday(oldestKey)
@@ -324,8 +324,8 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
 
   const cuotaActualUI = useMemo(() => {
     if (!cuotaActual) return cuotaActual
-    const st = String((cuotaActual as any)?.estado || '').toUpperCase()
-    const vtoKey = normalizeDateKey((cuotaActual as any)?.fecha)
+    const st = String((cuotaActual)?.estado || '').toUpperCase()
+    const vtoKey = normalizeDateKey((cuotaActual)?.fecha)
     const esNoPagada = st !== 'PAGADA' && st !== 'PAGADO' && st !== 'ANULADA' && st !== 'ANULADO'
     const esVencidaHoyBackend = (st === 'VENCIDA' || st === 'VENCIDO') && vtoKey && hoyBogotaKey && vtoKey === hoyBogotaKey
     const esVencidaPorFecha = esNoPagada && vtoKey && hoyBogotaKey && vtoKey < hoyBogotaKey
@@ -333,9 +333,9 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
       ? 'PENDIENTE'
       : esVencidaPorFecha
         ? 'VENCIDA'
-        : (cuotaActual as any).estado
+        : (cuotaActual).estado
     return {
-      ...(cuotaActual as any),
+      ...(cuotaActual),
       estadoUI,
     }
   }, [cuotaActual, hoyBogotaKey])
@@ -656,7 +656,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                     <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
                       <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Cuota</span>
                       <span className="text-lg font-bold text-slate-900">{formatCurrency(
-                        Number((cuotaActual as any)?.montoNominal ?? (cuotaActual as any)?.monto ?? (Number((cuotaActual as any)?.montoCapital || 0) + Number((cuotaActual as any)?.montoInteres || 0)))
+                        Number((cuotaActual)?.montoNominal ?? (cuotaActual)?.monto ?? (Number((cuotaActual)?.montoCapital || 0) + Number((cuotaActual)?.montoInteres || 0)))
                       )}</span>
                     </div>
                     <div className="bg-blue-50 rounded-xl p-3 border border-blue-100">

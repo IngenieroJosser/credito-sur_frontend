@@ -176,7 +176,7 @@ export default function PagoDetalleModal({
     if (Number.isFinite(apiTotal) && apiTotal > 0) return apiTotal
     const sumDetalles = Number(computedCapital || 0) + Number(computedInteres || 0) + Number(computedMora || 0)
     if (Number.isFinite(sumDetalles) && sumDetalles > 0) return sumDetalles
-    const meta = Number((metadata as any)?.monto ?? 0)
+    const meta = Number((metadata)?.monto ?? 0)
     return Number.isFinite(meta) ? meta : 0
   })()
 

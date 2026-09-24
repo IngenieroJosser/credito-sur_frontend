@@ -65,7 +65,7 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
                     telefono: data.telefono,
                     direccion: data.direccion || null,
                     referencia: data.referencia || null,
-                    nivelRiesgo: (data.nivelRiesgo as any) || 'VERDE',
+                    nivelRiesgo: (data.nivelRiesgo) || 'VERDE',
                     puntaje: data.puntaje || 0,
                     enListaNegra: data.enListaNegra || false,
                     estadoAprobacion: data.estadoAprobacion || 'APROBADO',
@@ -90,7 +90,7 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
                       const k = normalizeDateKey(raw)
                       return !!k && !!hoyKey && k < hoyKey
                     }).length
-                    const diasMora = computeDiasMoraFromCuotas(cuotas as any, hoyKey, frecuencia)
+                    const diasMora = computeDiasMoraFromCuotas(cuotas, hoyKey, frecuencia)
                     const estadoUI = cuotasVencidas > 0 || diasMora > 0 ? 'EN_MORA' : (p.estado || 'ACTIVO')
                     
                     const principal = Number(p.monto || 0);

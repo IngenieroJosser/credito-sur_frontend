@@ -52,7 +52,7 @@ export const useRutaHistorialOperativo = ({
     const loadPagos = async () => {
       try {
         const pagosResp = await pagosService.obtenerPagos({ limit: 5000 })
-        const pagosData = (pagosResp as any)?.pagos || pagosResp || []
+        const pagosData = (pagosResp)?.pagos || pagosResp || []
         setPagosCache(Array.isArray(pagosData) ? pagosData : [])
         pagosCacheRef.current = Array.isArray(pagosData) ? pagosData : []
       } catch {
@@ -84,18 +84,18 @@ export const useRutaHistorialOperativo = ({
       const saldoRuta = await obtenerSaldoDisponibleRuta(rutaId, fechaClave)
 
       const pagosResp = await pagosService.obtenerPagos({ limit: 5000 })
-      const pagosData = (pagosResp as any)?.pagos || pagosResp || []
+      const pagosData = (pagosResp)?.pagos || pagosResp || []
 
       const obligacionesRuta = Array.isArray((visitasResp as any)?.resumen?.obligaciones)
         ? (visitasResp as any).resumen.obligaciones
         : []
 
-      const obligaciones = Array.isArray((visitasResp as any)?.obligaciones)
-        ? (visitasResp as any).obligaciones
+      const obligaciones = Array.isArray((visitasResp)?.obligaciones)
+        ? (visitasResp).obligaciones
         : obligacionesRuta.length > 0
           ? obligacionesRuta
-          : Array.isArray((visitasResp as any)?.visitas)
-            ? (visitasResp as any).visitas
+          : Array.isArray((visitasResp)?.visitas)
+            ? (visitasResp).visitas
             : []
 
       const prestamosRuta: Set<string> = new Set(

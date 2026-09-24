@@ -949,7 +949,7 @@ export default function CrearCreditoModal({
                           }
                       
                       logger.log('[CrearCreditoModal] payload to send:', payload);
-                      await onConfirm(payload as any)
+                      await onConfirm(payload)
                       handleReset()
                     } catch (error) {
                       console.error('Error al crear crédito:', error)

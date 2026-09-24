@@ -139,7 +139,7 @@ function CuentasVencidasContent() {
               diasVencidos,
               saldoPendiente: p.saldoPendiente || 0, montoOriginal: p.monto || 0,
               ruta: '', nivelRiesgo, estado: p.estado,
-            } as any
+            }
           })
         if (vencidas.length > 0) { setCuentas(vencidas); setError(null); return }
       } catch { /* ignore */ }

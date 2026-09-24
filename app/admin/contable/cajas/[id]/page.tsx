@@ -180,7 +180,7 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
     try {
       await createTransaccion({
         cajaId: id,
-        tipo: movimientoForm.tipo as any,
+        tipo: movimientoForm.tipo,
         monto,
         descripcion: movimientoForm.concepto,
         tipoReferencia: movimientoForm.categoria,

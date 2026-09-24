@@ -95,9 +95,9 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
               const limit = 100
               while (true) {
                 const resp = await pagosService.obtenerPagos({ prestamoId, page, limit })
-                const items = (resp as any)?.pagos || []
+                const items = (resp)?.pagos || []
                 all.push(...items)
-                const totalPaginas = Number((resp as any)?.paginacion?.totalPaginas || 1)
+                const totalPaginas = Number((resp)?.paginacion?.totalPaginas || 1)
                 if (page >= totalPaginas) break
                 page += 1
               }
@@ -144,10 +144,10 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
       nextPaymentAmount: (() => {
         const cuota = prox?.cuota;
         if (!cuota) return 0;
-        const montoDirecto = (cuota as any)?.montoNominal ?? (cuota as any)?.monto;
-        const montoFallback = Number((cuota as any)?.montoCapital || 0) + Number((cuota as any)?.montoInteres || 0);
+        const montoDirecto = (cuota)?.montoNominal ?? (cuota)?.monto;
+        const montoFallback = Number((cuota)?.montoCapital || 0) + Number((cuota)?.montoInteres || 0);
         const monto = Number(montoDirecto ?? montoFallback ?? 0);
-        const pagado = Number((cuota as any)?.montoPagado ?? 0);
+        const pagado = Number((cuota)?.montoPagado ?? 0);
         return Math.max(0, monto - pagado);
       })(),
       totalPaid: pagadoD,

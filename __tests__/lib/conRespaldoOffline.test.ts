@@ -30,7 +30,7 @@ describe('conRespaldoOffline', () => {
     const res = await conRespaldoOffline(
       async () => { throw { code: 'ERR_NETWORK' }; },
       { type: 'rol_crear', endpoint: '/roles', method: 'POST', data: { a: 1 }, description: 'Crear rol' },
-      optimista as any,
+      optimista,
     );
     expect(res).toBe(optimista);
     expect(enqueueOperation).toHaveBeenCalledWith(
@@ -43,7 +43,7 @@ describe('conRespaldoOffline', () => {
       conRespaldoOffline(
         async () => { throw { response: { status: 403 }, statusCode: 403 }; },
         { type: 't', endpoint: '/x', method: 'POST', description: 'x' },
-        { optimista: true } as any,
+        { optimista: true },
       ),
     ).rejects.toBeDefined();
     expect(enqueueOperation).not.toHaveBeenCalled();

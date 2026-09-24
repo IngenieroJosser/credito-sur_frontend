@@ -116,8 +116,8 @@ export default function RutaHistorialOperativo({
             const [y, m, d] = date.split('-')
             const dateObj = new Date(parseInt(y), parseInt(m) - 1, parseInt(d))
             const dayName = dateObj.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })
-            const jornadaEtiqueta = (data.resumen as any).jornadaEtiqueta
-            const jornadaEtiquetaColor = (data.resumen as any).jornadaEtiquetaColor || 'bg-slate-100 text-slate-700 border-slate-200'
+            const jornadaEtiqueta = (data.resumen).jornadaEtiqueta
+            const jornadaEtiquetaColor = (data.resumen).jornadaEtiquetaColor || 'bg-slate-100 text-slate-700 border-slate-200'
 
             const visitasHistorial = (data.visitas || []).map(normalizeVisitaHistorial)
             const visitasHistorialFiltradas = visitasHistorial.filter((v: any) => {

@@ -248,7 +248,7 @@ export async function buildRutaHoyOperativa({
   const pagosData = pagosParam || []
   if (pagosData.length > 0) {
     const recaudosHoyMap = buildRecaudosHoyMapByPrestamoId(
-      pagosData as any,
+      pagosData,
       hoyBogotaKey,
       { includeCierrePendiente: false },
     )
@@ -261,7 +261,7 @@ export async function buildRutaHoyOperativa({
         recaudadoDelDia: 0,
         recaudadoTotalClient: 0,
         recaudadoPeriodo: 0,
-      })) as any,
+      })),
       {
         hoyBogotaKey,
         recaudosHoyMap,

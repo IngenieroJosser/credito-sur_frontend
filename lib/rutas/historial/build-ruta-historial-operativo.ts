@@ -129,7 +129,7 @@ export const buildVisitaHistorialFromPago = (
 
     recaudadoDelDia: monto,
     diasMora: 0,
-  } as any
+  }
 }
 
 export const mergePagosDelDiaIntoHistorialDia = ({

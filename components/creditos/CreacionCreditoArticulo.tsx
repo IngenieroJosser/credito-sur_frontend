@@ -210,7 +210,7 @@ export default function CreacionCreditoArticulo({
 
   const margenEstimado = useMemo(() => {
     const costoTotal = articulosSeleccionados.reduce((sum, item) => {
-      const costoUnit = Number((item as any).costo || 0)
+      const costoUnit = Number((item).costo || 0)
       return sum + (costoUnit * item.cantidad)
     }, 0)
 

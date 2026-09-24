@@ -343,7 +343,7 @@ const CreacionPrestamoElegante = ({ initialClienteId, isModal }: { initialClient
         tipoAmortizacion: form.tipoInteres
       };
 
-      await prestamosService.crearPrestamo(payload as any);
+      await prestamosService.crearPrestamo(payload);
 
       showNotification('success', `El préstamo ha sido creado exitosamente y está pendiente de aprobación si aplica.`, 'Préstamo Creado');
 

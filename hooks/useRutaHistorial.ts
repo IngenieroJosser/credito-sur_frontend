@@ -92,7 +92,7 @@ export const useRutaHistorial = (params: UseRutaHistorialParams) => {
 
     try {
       const pagosResp = await fetchPagosRef.current()
-      const pagosData = (pagosResp as any)?.pagos || pagosResp || []
+      const pagosData = (pagosResp)?.pagos || pagosResp || []
 
       setHistorialRutas((prev) => {
         if (!prev) return prev
@@ -123,7 +123,7 @@ export const useRutaHistorial = (params: UseRutaHistorialParams) => {
           })
 
           const recaudo = sumMontoTotalPagosByBogotaDateKey(
-            pagosOperativosDelDia as any,
+            pagosOperativosDelDia,
             k,
             { includeCierrePendiente: false },
           )
@@ -181,7 +181,7 @@ export const useRutaHistorial = (params: UseRutaHistorialParams) => {
         let pagosDelDia: any[] = []
         try {
           const pagosResp = await fetchPagosRef.current()
-          const pagosData = (pagosResp as any)?.pagos || pagosResp || []
+          const pagosData = (pagosResp)?.pagos || pagosResp || []
           const cobradorIdActual = cobradorIdRef.current
           pagosDelDia = (Array.isArray(pagosData) ? pagosData : []).filter((p: Pago) => {
             const raw = p?.fechaPago || p?.creadoEn
@@ -242,12 +242,12 @@ export const useRutaHistorial = (params: UseRutaHistorialParams) => {
         const baseResumen = prevDia.resumen || { recaudo: 0, gastos: 0, efectividad: 0, visitados: 0, total: 0 }
 
         const visitas = (data?.visitas || []) as VisitaRuta[]
-        const totalBackend = Number((data as any)?.resumen?.total)
+        const totalBackend = Number((data)?.resumen?.total)
         const total = Number.isFinite(totalBackend) && totalBackend >= 0
           ? totalBackend
           : Number(visitas.length)
         const visitadosDerivados = deriveVisitadosFromVisitas(visitas)
-        const visitadosBackend = Number((data as any)?.resumen?.visitados)
+        const visitadosBackend = Number((data)?.resumen?.visitados)
         const visitados = Number.isFinite(visitadosBackend) && visitadosBackend >= 0
           ? visitadosBackend
           : visitadosDerivados
@@ -260,8 +260,8 @@ export const useRutaHistorial = (params: UseRutaHistorialParams) => {
               ...(data?.resumen || {}),
               total,
               visitados,
-              efectividad: typeof (data as any)?.resumen?.efectividad === 'number'
-                ? (data as any).resumen.efectividad
+              efectividad: typeof (data)?.resumen?.efectividad === 'number'
+                ? (data).resumen.efectividad
                 : deriveEfectividad(visitados, total),
             },
             visitas,

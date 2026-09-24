@@ -217,7 +217,7 @@ export default function ClienteDetalleSupervisorPage() {
       const k = normalizeDateKey(raw)
       return !!k && !!hoyKey && k < hoyKey
     }).length
-    const diasMora = computeDiasMoraFromCuotas(cuotas as any, hoyKey, frecuencia)
+    const diasMora = computeDiasMoraFromCuotas(cuotas, hoyKey, frecuencia)
     const estadoUI = cuotasVencidas > 0 || diasMora > 0 ? 'EN_MORA' : p.estado
 
     const principal = Number(p.monto || 0)

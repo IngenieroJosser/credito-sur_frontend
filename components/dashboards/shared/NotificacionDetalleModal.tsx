@@ -413,7 +413,7 @@ export default function NotificacionDetalleModal({
         garantia: String(combined.garantia ?? ''),
       }
       
-      const isPrestamoEff = (notificacion?.tipo === 'PRESTAMO' || (notificacion as any)?.approvalType === 'NUEVO_PRESTAMO')
+      const isPrestamoEff = (notificacion?.tipo === 'PRESTAMO' || (notificacion)?.approvalType === 'NUEVO_PRESTAMO')
       const isArticleEff = isPrestamoEff && (
         combined.tipo === 'ARTICULO' ||
         combined.tipoPrestamo === 'ARTICULO'
@@ -422,7 +422,7 @@ export default function NotificacionDetalleModal({
       let initialEsContado = false
       if (isArticleEff) {
         // PRIORIDAD 1: Flag explícito del backend (incluso false debe respetarse)
-        const ventaFlag = (combined as any).esContado ?? (combined as any).ventaContado
+        const ventaFlag = (combined).esContado ?? (combined).ventaContado
         
         if (ventaFlag !== undefined && ventaFlag !== null) {
           initialEsContado = !!ventaFlag
@@ -510,12 +510,12 @@ export default function NotificacionDetalleModal({
   React.useEffect(() => {
     if (!isOpen) return
     const meta = typeof notificacion?.metadata === 'string'
-      ? JSON.parse(notificacion!.metadata as any)
+      ? JSON.parse(notificacion!.metadata)
       : (notificacion?.metadata || {})
     const dets = typeof notificacion?.detalles === 'string'
-      ? JSON.parse(notificacion!.detalles as any)
+      ? JSON.parse(notificacion!.detalles)
       : (notificacion?.detalles || {})
-    const isPrestamoEff = (notificacion?.tipo === 'PRESTAMO' || (notificacion as any)?.approvalType === 'NUEVO_PRESTAMO')
+    const isPrestamoEff = (notificacion?.tipo === 'PRESTAMO' || (notificacion)?.approvalType === 'NUEVO_PRESTAMO')
     const tituloEff = (notificacion?.titulo || '').toLowerCase()
     const mensajeEff = (notificacion?.mensaje || '').toLowerCase()
     const isArticleEff = isPrestamoEff && (
@@ -549,12 +549,12 @@ export default function NotificacionDetalleModal({
     // Al abrir el modal, NO sobreescribir los valores que ya vienen del backend.
     if (!isEditingMode) return
     const meta = typeof notificacion?.metadata === 'string'
-      ? JSON.parse(notificacion!.metadata as any)
+      ? JSON.parse(notificacion!.metadata)
       : (notificacion?.metadata || {})
     const dets = typeof notificacion?.detalles === 'string'
-      ? JSON.parse(notificacion!.detalles as any)
+      ? JSON.parse(notificacion!.detalles)
       : (notificacion?.detalles || {})
-    const isPrestamoEff = (notificacion?.tipo === 'PRESTAMO' || (notificacion as any)?.approvalType === 'NUEVO_PRESTAMO')
+    const isPrestamoEff = (notificacion?.tipo === 'PRESTAMO' || (notificacion)?.approvalType === 'NUEVO_PRESTAMO')
     const tituloEff = (notificacion?.titulo || '').toLowerCase()
     const mensajeEff = (notificacion?.mensaje || '').toLowerCase()
     const isArticleEff = isPrestamoEff && (
@@ -586,12 +586,12 @@ export default function NotificacionDetalleModal({
     // Si el modal acaba de abrirse y el usuario no ha editado nada, no sobreescribimos.
     if (!isEditingMode || !autoCuotas) return
     const meta = typeof notificacion?.metadata === 'string'
-      ? JSON.parse(notificacion!.metadata as any)
+      ? JSON.parse(notificacion!.metadata)
       : (notificacion?.metadata || {})
     const dets = typeof notificacion?.detalles === 'string'
-      ? JSON.parse(notificacion!.detalles as any)
+      ? JSON.parse(notificacion!.detalles)
       : (notificacion?.detalles || {})
-    const isPrestamoEff = (notificacion?.tipo === 'PRESTAMO' || (notificacion as any)?.approvalType === 'NUEVO_PRESTAMO')
+    const isPrestamoEff = (notificacion?.tipo === 'PRESTAMO' || (notificacion)?.approvalType === 'NUEVO_PRESTAMO')
     const tituloEff = (notificacion?.titulo || '').toLowerCase()
     const mensajeEff = (notificacion?.mensaje || '').toLowerCase()
     const isArticleEff = isPrestamoEff && (

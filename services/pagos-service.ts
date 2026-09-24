@@ -170,7 +170,7 @@ export const pagosService = {
         }
         
         if (process.env.NODE_ENV !== 'production') {
-          logger.log('[pagosService.registrarPago] FormData keys:', Array.from((formData as any).keys()));
+          logger.log('[pagosService.registrarPago] FormData keys:', Array.from((formData).keys()));
           logger.log('[pagosService.registrarPago] Comprobante:', payload.comprobante ? {
             name: payload.comprobante.name,
             size: payload.comprobante.size,
@@ -217,7 +217,7 @@ export const pagosService = {
                 idempotencyKey: payload.idempotencyKey,
                 creadoEn: toBogotaDateTimeOffsetIso(new Date()),
                 actualizadoEn: toBogotaDateTimeOffsetIso(new Date()),
-            } as any,
+            },
             descomposicion: {
                 montoTotal: payload.montoTotal,
                 capitalRecuperado: 0, // No se puede calcular offline

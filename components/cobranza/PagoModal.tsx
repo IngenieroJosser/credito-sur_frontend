@@ -38,7 +38,7 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm, montoCuota
       return montoCuotaEsperadoOverride
     }
     const cuotaBase = resolveCuotaNormalOperativa(visita)
-    const saldo = Number((visita as any)?.saldoTotal || 0)
+    const saldo = Number((visita)?.saldoTotal || 0)
     return Math.max(0, Math.min(cuotaBase, saldo > 0 ? saldo : cuotaBase))
   })()
   const [metodoPago, setMetodoPago] = useState<'EFECTIVO' | 'TRANSFERENCIA'>('EFECTIVO')
@@ -102,7 +102,7 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm, montoCuota
         tipoRegistro: tipo,
         cuotaNumeroEsperada:
           cuotaNumeroEsperadaOverride ??
-          (Number((visita as any)?.cuotaActual || 0) || undefined),
+          (Number((visita)?.cuotaActual || 0) || undefined),
         montoCuotaEsperado,
       })
     } catch (error) {

@@ -168,7 +168,7 @@ describe('ruta-recaudos', () => {
       },
     ]
 
-    const merged = mergeVisitasPreservingLocalRecaudo(local as any, backendRefresh as any)
+    const merged = mergeVisitasPreservingLocalRecaudo(local, backendRefresh)
     const operativas = merged.filter((v) => !shouldExcludeVisitaFromOperationalMeta(v))
     const stats = computeRutaHoyUiStatsFromVisitas(operativas, 0)
 
@@ -195,7 +195,7 @@ describe('ruta-recaudos', () => {
       },
     ]
 
-    const result = applyRecaudoHoyToVisitas(visitas as any, {
+    const result = applyRecaudoHoyToVisitas(visitas, {
       hoyBogotaKey: '2026-06-03',
       recaudosHoyMap: {},
     })
@@ -216,7 +216,7 @@ describe('ruta-recaudos', () => {
         saldoTotal: 1330003,
         recaudadoDelDia: 0,
       },
-    ] as any, {
+    ], {
       hoyBogotaKey: '2026-06-11',
       recaudosHoyMap: {
         'prestamo-1': 126666,

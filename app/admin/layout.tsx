@@ -448,7 +448,7 @@ export default function AdminLayout({
       ),
     )
 
-    const id = (seccionActiva as any)?.id
+    const id = (seccionActiva)?.id
     if (!id) return
 
     setOpenMenus((prev) => (prev[id] ? prev : { ...prev, [id]: true }))

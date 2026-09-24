@@ -106,10 +106,10 @@ export const computeOperationalMetaByRouteIdsForTimeFilter = async (
   let recaudosHoyMap: Record<string, number> = {}
   if (timeFilter === 'today') {
     try {
-      const pagosResp: any = await apiRequest<any>('GET', '/payments?limit=5000', undefined, { cacheTTL: 0 } as any)
+      const pagosResp: any = await apiRequest<any>('GET', '/payments?limit=5000', undefined, { cacheTTL: 0 })
       const pagosData = (pagosResp)?.pagos || (pagosResp)?.data?.pagos || pagosResp || []
       recaudosHoyMap = buildRecaudosHoyMapByPrestamoId(
-        (Array.isArray(pagosData) ? pagosData : []) as any,
+        (Array.isArray(pagosData) ? pagosData : []),
         endKey,
         { includeCierrePendiente: false },
       )
@@ -161,7 +161,7 @@ export const computeOperationalMetaByRouteIdsForTimeFilter = async (
         )
 
         const visitasLite = mapAsignacionesToVisitasLite({
-          asignaciones: asigsConCuotas as any,
+          asignaciones: asigsConCuotas,
           hoyKey: endKey,
           cobradorId: String(rutaCompleta?.cobradorId || ''),
         }) as any[]
@@ -194,7 +194,7 @@ export const computeOperationalMetaByRouteIdsForTimeFilter = async (
 
           const tieneCuotaPendiente = cuotas.some((c: any) => c && isCuotaNoPagada(c))
           if (!tieneCuotaPendiente) return sum
-          const recHoy = timeFilter === 'today' ? Number((recaudosHoyMap as any)?.[pid] || 0) : 0
+          const recHoy = timeFilter === 'today' ? Number((recaudosHoyMap)?.[pid] || 0) : 0
           if (shouldExcludeVisitaFromOperationalMeta(v, recHoy)) return sum
 
           if (timeFilter === 'today' && !isVisitaExigibleHoy(v, endKey)) return sum

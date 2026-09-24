@@ -129,7 +129,7 @@ export async function enrichRutaHistorialRiesgo({
 
       // Calcular monto vencido bruto
       const montoVencidoBruto = computeMontoExigibleHastaHoyFromCuotas(
-        cuotasArray as any,
+        cuotasArray,
         fechaClave,
       )
 
@@ -137,7 +137,7 @@ export async function enrichRutaHistorialRiesgo({
 
       // Calcular días de mora final
       const diasMoraFinal = computeDiasMoraFromCuotas(
-        cuotasArray as any,
+        cuotasArray,
         fechaClave,
         (v)?.frecuenciaPago || (v)?.periodoRuta || 'DIARIO',
       )

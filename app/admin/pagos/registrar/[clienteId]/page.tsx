@@ -76,7 +76,7 @@ const RegistrarPagoClientePage = () => {
         const prestamo = prestamosResp?.prestamos?.[0]
         if (prestamo) {
           const tipoPrestamoRaw = prestamo.tipoPrestamo || prestamo.producto || ''
-          const tipoPrestamo: string = typeof tipoPrestamoRaw === 'string' ? tipoPrestamoRaw : (tipoPrestamoRaw as any)?.nombre || ''
+          const tipoPrestamo: string = typeof tipoPrestamoRaw === 'string' ? tipoPrestamoRaw : (tipoPrestamoRaw)?.nombre || ''
           const esArticulo = tipoPrestamo.toLowerCase() !== 'efectivo' && tipoPrestamo.toLowerCase() !== 'préstamo'
           setProducto({
             id: prestamo.id,

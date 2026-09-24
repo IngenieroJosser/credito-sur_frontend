@@ -119,9 +119,9 @@ function shouldShowMoraBadge(visita: VisitaRuta): boolean {
   if (estado === 'en_mora') return false
 
   return (
-    Boolean((visita as any)?.enMoraHistorico) ||
+    Boolean((visita)?.enMoraHistorico) ||
     Number(visita?.diasMora || 0) > 0 ||
-    Number((visita as any)?.montoVencidoAcumulado || (visita as any)?.saldoVencidoAcumulado || 0) > 0
+    Number((visita)?.montoVencidoAcumulado || (visita)?.saldoVencidoAcumulado || 0) > 0
   )
 }
 
@@ -186,11 +186,11 @@ function VisitaCardContent({
   actions?: ReactNode
   children?: ReactNode
 }) {
-  const estadoLower = String((visita as any)?.estado || '').toLowerCase().replace(/\s+/g, '_')
+  const estadoLower = String((visita)?.estado || '').toLowerCase().replace(/\s+/g, '_')
   const cuotaNormal = resolveCuotaNormalOperativa(visita)
   const cuotaBase = cuotaNormal
-  const recHoy = Number((visita as any)?.recaudadoDelDia || 0)
-  const saldo = Number((visita as any)?.saldoTotal || 0)
+  const recHoy = Number((visita)?.recaudadoDelDia || 0)
+  const saldo = Number((visita)?.saldoTotal || 0)
   const cuotaPendiente = Math.max(0, cuotaBase - recHoy)
   const cuotaOperativa = estadoLower === 'pagado'
     ? (cuotaBase > 0 ? cuotaBase : recHoy)
@@ -207,15 +207,15 @@ function VisitaCardContent({
     String(visita?.estado || '').toLowerCase() === 'en_mora' &&
     montoVencido > 0
   const saldado = estadoLower === 'pagado' && cuotaUI === 0 && saldo === 0
-  const estadoVisitaNorm = normalizeEstadoVisita((visita as any)?.estadoVisita)
+  const estadoVisitaNorm = normalizeEstadoVisita((visita)?.estadoVisita)
   const esReprogramadoHistorial =
     estadoVisitaNorm === 'reprogramado' ||
     estadoVisitaNorm === 'reprogramada' ||
     estadoVisitaNorm === 'reprogramacion'
-  const regularizadoDespues = Number((visita as any)?.recaudadoRegularizadoDespues || 0)
+  const regularizadoDespues = Number((visita)?.recaudadoRegularizadoDespues || 0)
   const esAbonoRegularizado =
     regularizadoDespues > 0 &&
-    String((visita as any)?.estado || '').toLowerCase() !== 'pagado'
+    String((visita)?.estado || '').toLowerCase() !== 'pagado'
 
   const nivelRiesgoUI = resolveNivelRiesgoForVisita(visita)
   return (

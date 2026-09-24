@@ -105,7 +105,7 @@ export default function ClienteDetallePage() {
       const k = normalizeDateKey(raw)
       return !!k && !!hoyKey && k < hoyKey
     }).length
-    const diasMora = computeDiasMoraFromCuotas(cuotas as any, hoyKey, frecuencia)
+    const diasMora = computeDiasMoraFromCuotas(cuotas, hoyKey, frecuencia)
     const estadoUI = cuotasVencidas > 0 || diasMora > 0 ? 'EN_MORA' : p.estado
     
     // El backend devuelve Decimal como string/objeto, aseguramos conversión a número

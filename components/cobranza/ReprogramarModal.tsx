@@ -65,10 +65,10 @@ export default function ReprogramarModal({ visita, onClose, onConfirm }: Reprogr
   const handleGuardar = async () => {
     if (!canSubmit) return
     const cuotaId =
-      (visita as any)?.cuotaId ||
-      (visita as any)?.cuotaObjetivoId ||
-      (visita as any)?.cuotaObjetivoPrestamoId ||
-      (visita as any)?.proximaCuota?.id
+      (visita)?.cuotaId ||
+      (visita)?.cuotaObjetivoId ||
+      (visita)?.cuotaObjetivoPrestamoId ||
+      (visita)?.proximaCuota?.id
     setIsSubmitting(true)
     try {
       await onConfirm(

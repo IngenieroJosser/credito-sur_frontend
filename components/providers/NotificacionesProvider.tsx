@@ -48,7 +48,7 @@ export function NotificacionesProvider({ children }: { children: React.ReactNode
       const data = await notificacionesService.obtenerTodas()
       setNotificaciones(data)
     } catch (e) {
-      const err: any = e as any
+      const err: any = e
       const statusCode = err?.statusCode || err?.response?.status
       if (statusCode === 401 || statusCode === 403) {
         return
@@ -196,7 +196,7 @@ export function NotificacionesProvider({ children }: { children: React.ReactNode
     const handleIncomingNotification = (notificacion: Notificacion, forceInfo = false) => {
       const formattedNotif = {
         ...notificacion,
-        fecha: formatShortDateTime((notificacion as any).creadoEn || notificacion.fecha, 'Fecha desconocida'),
+        fecha: formatShortDateTime((notificacion).creadoEn || notificacion.fecha, 'Fecha desconocida'),
       };
       setNotificaciones(prev => [formattedNotif, ...prev]);
       ringBell();

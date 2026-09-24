@@ -263,13 +263,13 @@ export function CierrePendienteDetalleModal({
   }
 
   // Lógica para cierre de jornada
-  const obligacionesPendientesCount = Number((resumen as any)?.obligacionesPendientes ?? NaN)
-  const obligacionesAusentesCount = Number((resumen as any)?.obligacionesAusentes ?? NaN)
+  const obligacionesPendientesCount = Number((resumen)?.obligacionesPendientes ?? NaN)
+  const obligacionesAusentesCount = Number((resumen)?.obligacionesAusentes ?? NaN)
   const clientesPendientesCount = Number(resumen?.clientesPendientes || 0)
   const clientesAusentesCount = Number(resumen?.clientesAusentes || 0)
   const pendientesCount = Number.isFinite(obligacionesPendientesCount) ? obligacionesPendientesCount : clientesPendientesCount
   const ausentesCount = Number.isFinite(obligacionesAusentesCount) ? obligacionesAusentesCount : clientesAusentesCount
-  const usaObligaciones = Number.isFinite(Number((resumen as any)?.totalObligaciones ?? NaN))
+  const usaObligaciones = Number.isFinite(Number((resumen)?.totalObligaciones ?? NaN))
   const requiereObservacionAdministrativa = pendientesCount > 0 || ausentesCount > 0
   const puedeCerrarJornada = Boolean(permissions?.canCerrarJornada && onRegularizar)
   const canShowAccionesJornada = puedeCerrarJornada || Boolean(permissions?.canExportarDetalle && handlers?.onExportarDetalle) || Boolean(permissions?.canSolicitarCorreccion && handlers?.onSolicitarCorreccion)

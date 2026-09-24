@@ -274,7 +274,7 @@ export const syncManager = {
       let token = localStorage.getItem('token');
       if (!token) {
         const restored = restoreOfflineSession();
-        token = restored?.token || null as any;
+        token = restored?.token || null;
         if (!token) {
           logger.warn('[Offline Sync] No hay token de autenticación disponible');
           return 0;
@@ -347,7 +347,7 @@ export const syncManager = {
       let token = localStorage.getItem('token');
       if (!token) {
         const restored = restoreOfflineSession();
-        token = restored?.token || null as any;
+        token = restored?.token || null;
         if (!token) return 0;
       }
 
@@ -445,7 +445,7 @@ export const syncManager = {
       let token = localStorage.getItem('token');
       if (!token) {
         const restored = restoreOfflineSession();
-        token = restored?.token || null as any;
+        token = restored?.token || null;
         if (!token) return 0;
       }
 

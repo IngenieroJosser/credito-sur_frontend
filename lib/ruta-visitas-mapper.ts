@@ -155,7 +155,7 @@ export const mapAsignacionesToVisitasLite = (params: {
       const frecuencia = String(prestamo?.frecuenciaPago || 'DIARIO').toUpperCase()
       const periodoRuta = toPeriodo(frecuencia)
 
-      const diasMora = computeDiasMoraFromCuotas(cuotasOrdenadas as any, hoyKey, frecuencia)
+      const diasMora = computeDiasMoraFromCuotas(cuotasOrdenadas, hoyKey, frecuencia)
 
       const tieneMora = (() => {
         const byCuotas = cuotasOrdenadas.some((c: any) => {
@@ -216,7 +216,7 @@ export const mapAsignacionesToVisitasLite = (params: {
       const montoCuotaBase = esArticulo
         ? Math.max(montoNominalProxima, montoNominalPrestamo)
         : (montoNominalPrestamo > 0 ? montoNominalPrestamo : montoNominalProxima)
-      const montoPendienteHastaHoy = computeMontoExigibleHastaHoyFromCuotas(cuotasOrdenadas as any, hoyKey)
+      const montoPendienteHastaHoy = computeMontoExigibleHastaHoyFromCuotas(cuotasOrdenadas, hoyKey)
       const montoCuotaNormal = montoCuotaBase
       const montoCuota = montoCuotaNormal
 

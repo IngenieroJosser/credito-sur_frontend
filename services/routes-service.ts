@@ -153,7 +153,7 @@ export const routesService = {
     return conRespaldoOffline(
       () => apiRequest<Route>('POST', '/routes', data),
       { type: 'ruta_crear', endpoint: '/routes', method: 'POST', data, description: `Crear ruta`, tempId },
-      { id: tempId, ...(data as any) } as Route,
+      { id: tempId, ...(data) } as Route,
     );
   },
 
@@ -162,7 +162,7 @@ export const routesService = {
     return conRespaldoOffline(
       () => apiRequest<Route>('PATCH', `/routes/${id}`, data),
       { type: 'ruta_actualizar', endpoint: `/routes/${id}`, method: 'PATCH', data, description: `Actualizar ruta ${id}` },
-      { id, ...(data as any) } as Route,
+      { id, ...(data) } as Route,
     );
   },
 

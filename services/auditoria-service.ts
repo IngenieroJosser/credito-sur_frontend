@@ -75,7 +75,7 @@ export const auditoriaService = {
     return conRespaldoOffline(
       () => apiRequest<RegistroAuditoria>('POST', '/audit', data),
       { type: 'auditoria_crear', endpoint: '/audit', method: 'POST', data, description: `Registro de auditoría`, tempId },
-      { id: tempId, ...(data as any) } as RegistroAuditoria,
+      { id: tempId, ...(data) } as RegistroAuditoria,
     );
   },
 

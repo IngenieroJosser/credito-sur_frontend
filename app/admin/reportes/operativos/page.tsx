@@ -136,7 +136,7 @@ const ReportesOperativosPage = () => {
 
   useEffect(() => {
     if (!mounted) return
-    const rutas = (reportData as any)?.rendimientoRutas
+    const rutas = (reportData)?.rendimientoRutas
     const ids = (Array.isArray(rutas) ? rutas : []).map((r: any) => String(r?.id || '')).filter(Boolean)
     if (ids.length === 0) {
       setMetaByRuta({})
@@ -194,7 +194,7 @@ const ReportesOperativosPage = () => {
 
   const pickMeta = (item: any): number => {
     const id = String(item?.id || '')
-    const fromComputed = id && Object.prototype.hasOwnProperty.call(metaByRuta, id) ? Number((metaByRuta as any)[id] || 0) : null
+    const fromComputed = id && Object.prototype.hasOwnProperty.call(metaByRuta, id) ? Number((metaByRuta)[id] || 0) : null
     if (fromComputed !== null && Number.isFinite(fromComputed)) return Math.max(0, fromComputed)
     const raw = item?.metaPendiente ?? item?.metaHoy ?? item?.metaDelDia ?? item?.meta
     const meta = Number(raw || 0)
@@ -216,7 +216,7 @@ const ReportesOperativosPage = () => {
   const totalRecaudo = rendimientoFiltrado.reduce((acc: number, r: any) => acc + Number(r?.recaudado || 0), 0)
   const totalMeta = rendimientoFiltrado.reduce((acc: number, r: any) => acc + Number(r?.meta || 0), 0)
   const porcentajeGlobal = (() => {
-    const raw = Number((data as any).porcentajeGlobal)
+    const raw = Number((data).porcentajeGlobal)
     if (Number.isFinite(raw) && raw >= 0) return raw
     return totalMeta > 0 ? Number(((totalRecaudo / totalMeta) * 100).toFixed(1)) : 0
   })()

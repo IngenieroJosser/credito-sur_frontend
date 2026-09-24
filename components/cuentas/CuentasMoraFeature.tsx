@@ -237,10 +237,10 @@ export default function CuentasMoraFeature() {
 
       const raw: any[] = Array.isArray(response)
         ? response
-        : Array.isArray((response as any).prestamos)
-          ? (response as any).prestamos
-          : Array.isArray((response as any).data)
-            ? (response as any).data
+        : Array.isArray((response).prestamos)
+          ? (response).prestamos
+          : Array.isArray((response).data)
+            ? (response).data
             : []
 
       const enriched: CuentaMora[] = raw.map(p => ({

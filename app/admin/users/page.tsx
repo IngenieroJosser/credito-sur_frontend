@@ -131,7 +131,7 @@ const GLOBAL_MODULE_CATALOG = (() => {
   const seen = new Set<string>()
 
   roleOrder.forEach((rol) => {
-    const modules = (permisosPorRol as any)?.[rol] || []
+    const modules = (permisosPorRol)?.[rol] || []
     modules.forEach((module: any) => {
       if (module.submodulos && module.submodulos.length > 0) {
         module.submodulos.forEach((sub: any) => {
@@ -571,7 +571,7 @@ const UserManagementPage = () => {
           "caja",
         ],
         [RolUsuario.PUNTO_DE_VENTA]: ["articulo", "prestamo", "cliente"],
-      } as any;
+      };
       const permissionEntityMap: Record<string, string[]> = {
         usuarios: ["usuario"],
         auditoria: ["audit", "registro", "log"],
@@ -698,11 +698,11 @@ const UserManagementPage = () => {
       return ids;
     };
 
-    const permisosGuardados = Array.isArray((user as any).permisos)
-      ? (user as any).permisos
+    const permisosGuardados = Array.isArray((user).permisos)
+      ? (user).permisos
       : [];
     const permisosDefaultRol = flattenPermissionIds(
-      permisosPorRol[user.rol as any] || [],
+      permisosPorRol[user.rol] || [],
     );
 
     const expandGroupIds = (ids: string[]): string[] => {

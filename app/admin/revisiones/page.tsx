@@ -303,7 +303,7 @@ const aprobacionToNotificacion = (item: Aprobacion) => {
     id: item.id,
     titulo,
     mensaje,
-    tipo: cat.tipoNotif as any,
+    tipo: cat.tipoNotif,
     creadoEn: item.creadoEn,
     leida: false,
     entidadId: item.id,
@@ -390,7 +390,7 @@ export default function RevisionesPage() {
       ])
 
       if (pendientes.status === 'fulfilled') setData(pendientes.value)
-      if (superadmin.status === 'fulfilled') setSuperadminData(superadmin.value as any)
+      if (superadmin.status === 'fulfilled') setSuperadminData(superadmin.value)
       if (rutasData.status === 'fulfilled') setRutas(rutasData.value)
       if (alertasData.status === 'fulfilled') setAlertasCliente(alertasData.value)
     } catch (error) {
@@ -426,7 +426,7 @@ export default function RevisionesPage() {
 
   // Helper para detectar si un item corresponde a una prorroga o gestion vencida
   const isProrrogaOrVencida = (item: Aprobacion) => {
-    const datos = item.datosSolicitud || {} as any
+    const datos = item.datosSolicitud || {}
     return (
       item.tipoAprobacion === 'PRORROGA_PAGO' ||
       datos.tipo === 'GESTION_VENCIDA' ||
@@ -436,7 +436,7 @@ export default function RevisionesPage() {
 
   // Helper para detectar si es un gasto provisional real
   const isGastoProvisional = (item: Aprobacion) => {
-    const datos = item.datosSolicitud || {} as any
+    const datos = item.datosSolicitud || {}
     return (
       item.tipoAprobacion === 'GASTO' &&
       (datos.esProvisional === true || datos.esProvisional === 'true')
@@ -445,7 +445,7 @@ export default function RevisionesPage() {
 
   // Helper para detectar si es una solicitud legacy de gasto (sin impacto de caja)
   const isGastoProvisionalLegacy = (item: Aprobacion) => {
-    const datos = item.datosSolicitud || {} as any
+    const datos = item.datosSolicitud || {}
     return (
       item.tipoAprobacion === 'GASTO' &&
       !isGastoProvisional(item)
@@ -453,7 +453,7 @@ export default function RevisionesPage() {
   }
 
   const handleOpenDetail = (item: Aprobacion) => {
-    const datos = (item.datosSolicitud || {}) as any
+    const datos = (item.datosSolicitud || {})
     if (item.tipoAprobacion === 'REPROGRAMACION_CUOTA') {
       setSelectedReprogramacion({
         id: item.id,
@@ -652,7 +652,7 @@ export default function RevisionesPage() {
     try {
       await aprobacionesService.confirmarAccionSuperadmin(
         confirmModal.item.id,
-        confirmModal.type as any,
+        confirmModal.type,
         notaSuperadmin || undefined,
       )
       toast.success(confirmModal.type === 'CONFIRMAR' ? 'Eliminación confirmada' : 'Solicitud restaurada')

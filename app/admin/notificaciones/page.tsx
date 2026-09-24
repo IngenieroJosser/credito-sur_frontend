@@ -61,7 +61,7 @@ const ROLES_CON_RUTAS = ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'SUPERVI
 type TipoNotificacionFiltro = 'TODOS' | Notificacion['tipo'] | 'REGULARIZADAS'
 
 const isPagoRegularizadoNotif = (notif: Notificacion) => {
-  const metadata = (notif as any)?.metadata || {}
+  const metadata = (notif)?.metadata || {}
   return (
     metadata.tipoEvento === 'PAGO_REGULARIZADO' ||
     String(notif.titulo || '').toLowerCase().includes('pago regularizado')
@@ -120,7 +120,7 @@ export default function NotificacionesPage() {
         const basePath = user?.rol === 'COBRADOR' ? '/cobranzas' : user?.rol === 'CONTADOR' ? '/contador' : user?.rol === 'COORDINADOR' ? '/coordinador' : '/admin'
         
         const notifsConLinks = notifs.map((n: Notificacion) => {
-          const raw: any = n as any
+          const raw: any = n
           const metadata = raw.metadata || {}
 
           let link = undefined
@@ -195,7 +195,7 @@ export default function NotificacionesPage() {
             estado = n.estado || 'LEIDA';
           }
 
-          let detalles = n.detalles || (metadata.detalles as any) || {}
+          let detalles = n.detalles || (metadata.detalles) || {}
 
           // Enriquecer detalles de gastos (se puede venir como tipo GASTO o como entidad GASTO con tipo SISTEMA)
           if (n.tipo === 'GASTO' || entidad === 'GASTO' || approvalType === 'GASTO') {
@@ -217,7 +217,7 @@ export default function NotificacionesPage() {
 
           return {
             ...n,
-            tipo: tipoFinal as any,
+            tipo: tipoFinal,
             link,
             fecha,
             rutaId,

@@ -153,9 +153,9 @@ export default function ClienteInfoModal({
   const cuotaNormalOperativa = resolveCuotaNormalOperativa(visita)
   const acumuladoVencido = resolveCuotaAcumuladaOperativa(visita)
   const cuotaProyectada = nextPagoMonto ?? cuotaNormalOperativa
-  const estadoVisitaGestion = String((visita as any)?.estadoVisita || visita.estado || '').toLowerCase()
+  const estadoVisitaGestion = String((visita)?.estadoVisita || visita.estado || '').toLowerCase()
   const esAusenteGestion = estadoVisitaGestion === 'ausente'
-  const notaAusencia = String((visita as any)?.notasVisita || '').trim()
+  const notaAusencia = String((visita)?.notasVisita || '').trim()
   const puedeReportarClienteNoUbicado = ROLES_ALERTA_CLIENTE.includes(String(userRole || '').toUpperCase())
 
   const handleReportarClienteNoUbicado = async () => {
@@ -467,7 +467,7 @@ export default function ClienteInfoModal({
                   <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl text-right">
                     <p className="text-[10px] text-slate-500 font-black uppercase mb-1">Cuotas vencidas</p>
                     <p className="text-slate-900 font-black text-lg">
-                      {Number((visita as any)?.cuotasVencidas || 0)}
+                      {Number((visita)?.cuotasVencidas || 0)}
                     </p>
                   </div>
                 </div>

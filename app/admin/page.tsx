@@ -259,8 +259,8 @@ export default function DashboardPage() {
           : moraCount > 0 ? '> 0' : '0';
         // Gastos operativos del período (excluye DEUDA_COBRADOR)
         const gastosPeriodo = resumen?.egresosHoy || 0;
-        const utilidadPeriodo = typeof (resumen as any)?.utilidadReal === 'number'
-          ? Number((resumen as any).utilidadReal || 0)
+        const utilidadPeriodo = typeof (resumen)?.utilidadReal === 'number'
+          ? Number((resumen).utilidadReal || 0)
           : (resumen?.gananciaNeta || 0);
 
         const mainMetrics: MetricItem[] = [

@@ -74,9 +74,9 @@ const AuditoriaSistemaPage = () => {
       ])
       const rutasList = rutasResp?.data || []
       setRutas(rutasList)
-      const registros = (registrosResp as any).registros ?? registrosResp
-      const total = (registrosResp as any).total ?? registros.length
-      const totPag = (registrosResp as any).totalPaginas ?? 1
+      const registros = (registrosResp).registros ?? registrosResp
+      const total = (registrosResp).total ?? registros.length
+      const totPag = (registrosResp).totalPaginas ?? 1
       setTotalRegistros(total)
       setTotalPaginas(totPag)
       const rutaMap = new Map<string, string>()
