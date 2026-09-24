@@ -447,7 +447,7 @@ export default function ClienteDetalleSupervisorPage() {
 
                   {metodoPago === 'TRANSFERENCIA' && (
                     <div className="pt-2">
-                      <label className="block text-sm font-bold text-slate-700 mb-2">Comprobante (Obligatorio)</label>
+                      <label className="block text-sm font-bold text-slate-700 mb-2">Comprobante<span className="ml-1 text-red-500" aria-label="obligatorio">*</span></label>
                       <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4">
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex-1">
@@ -810,7 +810,7 @@ export default function ClienteDetalleSupervisorPage() {
                 >
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">Cédula / CC</label>
+                      <label className="block text-sm font-bold text-slate-700 mb-2">Cédula / CC<span className="ml-1 text-red-500" aria-label="obligatorio">*</span></label>
                       <input
                         type="text"
                         inputMode="numeric"
@@ -827,7 +827,7 @@ export default function ClienteDetalleSupervisorPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">Teléfono</label>
+                      <label className="block text-sm font-bold text-slate-700 mb-2">Teléfono<span className="ml-1 text-red-500" aria-label="obligatorio">*</span></label>
                       <input
                         type="tel"
                         inputMode="tel"
@@ -847,7 +847,7 @@ export default function ClienteDetalleSupervisorPage() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">Nombres</label>
+                      <label className="block text-sm font-bold text-slate-700 mb-2">Nombres<span className="ml-1 text-red-500" aria-label="obligatorio">*</span></label>
                       <input
                         value={formularioNuevoCliente.nombres}
                         onChange={(e) => setFormularioNuevoCliente((prev) => ({ ...prev, nombres: e.target.value }))}
@@ -856,7 +856,7 @@ export default function ClienteDetalleSupervisorPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">Apellidos</label>
+                      <label className="block text-sm font-bold text-slate-700 mb-2">Apellidos<span className="ml-1 text-red-500" aria-label="obligatorio">*</span></label>
                       <input
                         value={formularioNuevoCliente.apellidos}
                         onChange={(e) => setFormularioNuevoCliente((prev) => ({ ...prev, apellidos: e.target.value }))}

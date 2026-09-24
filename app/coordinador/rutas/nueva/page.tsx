@@ -155,7 +155,7 @@ const NuevaRutaPage = () => {
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <label className="text-sm font-bold text-slate-700">Nombre de la Ruta</label>
+                      <label className="text-sm font-bold text-slate-700">Nombre de la Ruta<span className="ml-1 text-red-500" aria-label="obligatorio">*</span></label>
                       <input
                         type="text"
                         name="nombre"
@@ -197,7 +197,7 @@ const NuevaRutaPage = () => {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <label className="text-sm font-bold text-slate-700">Cobrador Asignado</label>
+                      <label className="text-sm font-bold text-slate-700">Cobrador Asignado<span className="ml-1 text-red-500" aria-label="obligatorio">*</span></label>
                       <div className="relative">
                         <select
                           name="cobradorId"
@@ -216,7 +216,7 @@ const NuevaRutaPage = () => {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-sm font-bold text-slate-700">Supervisor</label>
+                      <label className="text-sm font-bold text-slate-700">Supervisor<span className="ml-1 text-red-500" aria-label="obligatorio">*</span></label>
                       <div className="relative">
                         <select
                           name="supervisorId"

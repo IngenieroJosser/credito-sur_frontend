@@ -120,7 +120,7 @@ export default function EditarCajaPage({ params }: { params: Promise<{ id: strin
               </div>
 
               <div className="space-y-2">
-                <label className="block text-sm font-bold text-slate-700">Nombre de la Caja</label>
+                <label className="block text-sm font-bold text-slate-700">Nombre de la Caja<span className="ml-1 text-red-500" aria-label="obligatorio">*</span></label>
                 <input
                   type="text"
                   value={formData.nombre}

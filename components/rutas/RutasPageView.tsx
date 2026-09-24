@@ -1760,7 +1760,7 @@ export const RutasPageView = ({
                   <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-2">
-                        <label className="text-xs uppercase tracking-wider font-bold text-slate-500">Nombre de la Ruta</label>
+                        <label className="text-xs uppercase tracking-wider font-bold text-slate-500">Nombre de la Ruta<span className="ml-1 text-red-500" aria-label="obligatorio">*</span></label>
                         <input
                           type="text"
                           name="nombre"
@@ -1773,7 +1773,7 @@ export const RutasPageView = ({
                       </div>
 
                       <div className="space-y-2">
-                        <label className="text-xs uppercase tracking-wider font-bold text-slate-500">Código Identificador</label>
+                        <label className="text-xs uppercase tracking-wider font-bold text-slate-500">Código Identificador<span className="ml-1 text-red-500" aria-label="obligatorio">*</span></label>
                         <input
                           type="text"
                           name="codigo"
@@ -1794,7 +1794,7 @@ export const RutasPageView = ({
                       </div>
 
                       <div className="space-y-2">
-                        <label className="text-xs uppercase tracking-wider font-bold text-slate-500">Zona</label>
+                        <label className="text-xs uppercase tracking-wider font-bold text-slate-500">Zona<span className="ml-1 text-red-500" aria-label="obligatorio">*</span></label>
                         <div className="relative">
                           <input
                             type="text"
@@ -1810,7 +1810,7 @@ export const RutasPageView = ({
                       </div>
 
                       <div className="space-y-2">
-                        <label className="text-xs uppercase tracking-wider font-bold text-slate-500">Cobrador Asignado</label>
+                        <label className="text-xs uppercase tracking-wider font-bold text-slate-500">Cobrador Asignado<span className="ml-1 text-red-500" aria-label="obligatorio">*</span></label>
                         <div className="relative">
                           <select
                             name="cobradorId"
@@ -1831,7 +1831,7 @@ export const RutasPageView = ({
                       </div>
 
                       <div className="space-y-2">
-                        <label className="text-xs uppercase tracking-wider font-bold text-slate-500">Asignar supervisor</label>
+                        <label className="text-xs uppercase tracking-wider font-bold text-slate-500">Asignar supervisor<span className="ml-1 text-red-500" aria-label="obligatorio">*</span></label>
                         <div className="relative">
                           <select
                             name="supervisorId"

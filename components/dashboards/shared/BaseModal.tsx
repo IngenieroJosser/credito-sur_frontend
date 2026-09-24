@@ -72,7 +72,7 @@ export default function BaseModal({ isOpen, onClose, onConfirm }: BaseModalProps
 
           <form onSubmit={handleSubmit} className="p-6 space-y-4">
             <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-700">Monto Solicitado</label>
+              <label className="text-sm font-bold text-slate-700">Monto Solicitado<span className="ml-1 text-red-500" aria-label="obligatorio">*</span></label>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
                 <input
@@ -89,7 +89,7 @@ export default function BaseModal({ isOpen, onClose, onConfirm }: BaseModalProps
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-700">Justificación</label>
+              <label className="text-sm font-bold text-slate-700">Justificación<span className="ml-1 text-red-500" aria-label="obligatorio">*</span></label>
               <textarea
                 required
                 rows={3}

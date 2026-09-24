@@ -36,6 +36,9 @@ export default function CampoCodigoRuta({
     <div className="space-y-2">
       <label className="text-sm font-bold text-slate-700" htmlFor={name}>
         Código Identificador
+        <span className="ml-1 text-red-500" aria-label="obligatorio">
+          *
+        </span>
       </label>
       <input
         id={name}

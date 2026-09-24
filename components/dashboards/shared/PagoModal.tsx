@@ -298,6 +298,7 @@ export default function PagoModal({
                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
                           <CheckCircle2 className="w-4 h-4 text-blue-500" />
                           Imagen del comprobante
+                          <span className="ml-1 text-red-500" aria-label="obligatorio">*</span>
                         </label>
                         {comprobanteTransferencia && (
                           <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100 uppercase tracking-widest animate-in fade-in zoom-in duration-300">Archivo cargado</span>
