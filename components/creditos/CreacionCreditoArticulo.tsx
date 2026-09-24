@@ -360,7 +360,7 @@ export default function CreacionCreditoArticulo({
       }
 
       router.push('/prestamos');
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error al crear crédito de artículo:', error);
       showNotification('error', mensajeDeError(error, 'No se pudo crear el crédito. Verifique los datos.'));
     } finally {

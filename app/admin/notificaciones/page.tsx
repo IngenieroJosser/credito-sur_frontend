@@ -407,7 +407,7 @@ export default function NotificacionesPage() {
         mensaje: `La solicitud ha sido aprobada correctamente y se ha reflejado en el sistema.`,
           tipo: 'success'
         })
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error procesando aprobación/rechazo:', err)
       setFeedbackModal({
         titulo: 'Error al procesar',
@@ -460,7 +460,7 @@ export default function NotificacionesPage() {
         mensaje: `La solicitud ha sido rechazada correctamente.`,
         tipo: 'danger'
       })
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error procesando rechazo:', err)
       setFeedbackModal({
         titulo: 'Error al procesar',
@@ -505,7 +505,7 @@ export default function NotificacionesPage() {
         mensaje: `La solicitud ha sido aprobada correctamente.`,
         tipo: 'success'
       })
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error in handleApproveFromModal:', err)
       throw err
     }
@@ -537,7 +537,7 @@ export default function NotificacionesPage() {
         mensaje: `La solicitud ha sido rechazada correctamente.`,
         tipo: 'danger'
       })
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error in handleRejectFromModal:', err)
       throw err
     }

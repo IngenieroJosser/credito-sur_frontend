@@ -526,7 +526,7 @@ export default function ClienteDetalleSupervisorPage() {
                         const data = await clientesService.obtenerPorId(id);
                         setClienteData(data);
                         resetPagoModal();
-                      } catch (err: any) {
+                      } catch (err) {
                         console.error('Error al registrar pago:', err);
                         showNotification('error', mensajeDeError(err, 'No se pudo registrar el pago'));
                       } finally {
@@ -755,7 +755,7 @@ export default function ClienteDetalleSupervisorPage() {
                           const data = await clientesService.obtenerPorId(id);
                           setClienteData(data);
                           resetCreditoModal();
-                        } catch (err: any) {
+                        } catch (err) {
                           console.error('Error al crear crédito:', err);
                           showNotification('error', mensajeDeError(err, 'No se pudo crear el crédito'));
                         } finally {

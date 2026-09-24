@@ -54,7 +54,7 @@ export default function RecuperarContrasenaPage() {
         nuevaContrasena,
       })
       setPaso('listo')
-    } catch (err: any) {
+    } catch (err) {
       const msg = mensajeDeError(err, 'Código incorrecto o expirado')
       setError(msg)
     } finally {

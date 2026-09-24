@@ -697,7 +697,7 @@ export default function CreditosArticulosPage() {
                   }
                 }
               }
-            } catch (err: any) {
+            } catch (err) {
               const msg = mensajeDeError(err, 'No se pudo crear el crédito de artículo.')
               showNotification('error', Array.isArray(msg) ? msg.join(', ') : msg, 'Error al crear crédito')
             }

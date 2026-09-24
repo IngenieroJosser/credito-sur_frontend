@@ -42,7 +42,7 @@ export const ImportacionesClient = () => {
       } else {
         toast.success('El archivo pasó la validación');
       }
-    } catch (error: any) {
+    } catch (error) {
       toast.error(mensajeDeError(error, 'El archivo no es un Excel válido o está dañado.'));
     } finally {
       setLoadingClientes(false);
@@ -63,7 +63,7 @@ export const ImportacionesClient = () => {
       } else {
         toast.success('El archivo pasó la validación');
       }
-    } catch (error: any) {
+    } catch (error) {
       toast.error(mensajeDeError(error, 'El archivo no es un Excel válido o está dañado.'));
     } finally {
       setLoadingInventario(false);
@@ -125,7 +125,7 @@ export const ImportacionesClient = () => {
       }
       setReporteActivo(null);
       setVersionHistorial((v) => v + 1);
-    } catch (error: any) {
+    } catch (error) {
       toast.error(mensajeDeError(error, 'No se pudo confirmar la importación.'));
     } finally {
       setConfirmandoClientes(false);

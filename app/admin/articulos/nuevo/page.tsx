@@ -83,7 +83,7 @@ export default function NuevoArticuloPage() {
       logger.log('Guardar artículo:', payload)
       await inventarioService.crearProducto(payload)
       router.push('/admin/articulos')
-    } catch (err: any) {
+    } catch (err) {
       logger.error('Error creando artículo:', err)
       setSaveError(mensajeDeError(err, 'No se pudo guardar el artículo. Verifica los datos e intenta nuevamente.'))
     } finally {

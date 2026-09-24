@@ -190,7 +190,7 @@ export default function ClienteInfoModal({
         ultimaUbicacionConocida: '',
         observacionesReportante: '',
       })
-    } catch (error: any) {
+    } catch (error) {
       toast.error(mensajeDeError(error, 'No se pudo crear la alerta.'))
     } finally {
       setAlertaSubmitting(false)

@@ -188,7 +188,7 @@ const PerfilUsuarioPage = () => {
       })
       setPasswordSuccess(true)
       setTimeout(() => setIsPasswordModalOpen(false), 1500)
-    } catch (err: any) {
+    } catch (err) {
       setPasswordError(mensajeDeError(err, 'Error al cambiar la contraseña. Verifica tu contraseña actual.'))
     } finally {
       setIsSavingPassword(false)

@@ -270,7 +270,7 @@ export default function PuntoDeVentaFloatingActions() {
           })
         }
       }
-    } catch (error: any) {
+    } catch (error) {
       const esContado = Boolean(data?.ventaContado)
       toast.error(esContado ? 'Error al registrar venta' : 'Error al crear crédito', {
         description: mensajeDeError(error, 'Ocurrió un error inesperado.'),

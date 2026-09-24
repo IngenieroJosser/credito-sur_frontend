@@ -62,7 +62,7 @@ export default function IngresoMercanciaModal({
       reset()
       onClose()
       toast.success('Ingreso registrado correctamente')
-    } catch (e: any) {
+    } catch (e) {
       const msg =
         mensajeDeError(e, 'No se pudo registrar el ingreso de mercancía')
       toast.error(String(msg))

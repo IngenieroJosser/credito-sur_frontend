@@ -353,7 +353,7 @@ const CreacionPrestamoElegante = ({ initialClienteId, isModal }: { initialClient
       if (pathname?.startsWith('/coordinador')) destino = '/coordinador/creditos';
       router.push(destino);
 
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error al crear el préstamo:', error);
       showNotification('error', mensajeDeError(error, 'Ocurrió un error al intentar crear el préstamo'), 'Error');
     } finally {

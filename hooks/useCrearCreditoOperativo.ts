@@ -92,7 +92,7 @@ export function useCrearCreditoOperativo({
 
       toast.success('Crédito creado correctamente. Pendiente de aprobación.');
       onSuccess?.();
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error al crear crédito:', error);
       toast.error(mensajeDeError(error, 'No se pudo crear el crédito. Inténtelo de nuevo.'));
       onError?.(error);

@@ -157,7 +157,7 @@ const VistaSupervisor = () => {
         }
       }
       loadDashboardData();
-    } catch (error: any) {
+    } catch (error) {
       toast.error('Error al crear crédito', { description: mensajeDeError(error, 'Ocurrió un error inesperado.') });
     }
   }
@@ -175,7 +175,7 @@ const VistaSupervisor = () => {
     try {
       await exportService.exportOperationalReport(format, { period: timeFilter })
       toast.success(`Resumen exportado en ${format === 'excel' ? 'Excel' : 'PDF'}`)
-    } catch (error: any) {
+    } catch (error) {
       toast.error('No se pudo exportar el resumen', {
         description: mensajeDeError(error, 'Intente de nuevo en un momento.'),
       })

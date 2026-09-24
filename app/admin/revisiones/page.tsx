@@ -529,7 +529,7 @@ export default function RevisionesPage() {
       setSelectedAlertaCliente(null)
       setMotivoResolucionAlerta('')
       await loadData()
-    } catch (error: any) {
+    } catch (error) {
       toast.error(mensajeDeError(error, 'Error al resolver la alerta'))
     } finally {
       setResolvingAlertaId(null)
@@ -557,7 +557,7 @@ export default function RevisionesPage() {
       toast.success('Solicitud aprobada correctamente')
       closeAllDetailModals()
       await loadData()
-    } catch (error: any) {
+    } catch (error) {
       toast.error(mensajeDeError(error, 'Error al aprobar'))
     } finally {
       setProcessingId(null)
@@ -590,7 +590,7 @@ export default function RevisionesPage() {
       toast.success('Solicitud aprobada correctamente')
       setConfirmModal(null)
       await loadData()
-    } catch (error: any) {
+    } catch (error) {
       toast.error(mensajeDeError(error, 'Error al aprobar'))
     } finally {
       setProcessingId(null)
@@ -640,7 +640,7 @@ export default function RevisionesPage() {
       toast.success('Solicitud rechazada')
       setConfirmModal(null)
       await loadData()
-    } catch (error: any) {
+    } catch (error) {
       toast.error(mensajeDeError(error, 'Error al rechazar'))
     } finally {
       setProcessingId(null)
@@ -660,7 +660,7 @@ export default function RevisionesPage() {
       setConfirmModal(null)
       setNotaSuperadmin('')
       await loadData()
-    } catch (error: any) {
+    } catch (error) {
       toast.error(mensajeDeError(error, 'Error al procesar'))
     } finally {
       setProcessingId(null)

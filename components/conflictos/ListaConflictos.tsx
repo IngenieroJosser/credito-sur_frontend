@@ -48,7 +48,7 @@ export default function ListaConflictos() {
       toast.success(`Conflicto ${accion === "RESOLVER" ? "resuelto y reprocesado" : "descartado"} exitosamente`, { id: toastId });
       setSelectedConflict(null);
       loadConflictos();
-    } catch (error: any) {
+    } catch (error) {
       toast.error(mensajeDeError(error, "Hubo un error al aplicar la acción"));
     }
   };

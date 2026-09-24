@@ -29,7 +29,7 @@ export default function AusenteModal({ visita, onClose, onConfirm }: AusenteModa
     setError('')
     try {
       await onConfirm(notas)
-    } catch (err: any) {
+    } catch (err) {
       setError(mensajeDeError(err, 'Error al registrar la visita'))
       setLoading(false)
     }

@@ -32,7 +32,7 @@ const ConfiguracionSistemaPage = () => {
         timeout: 15 * 60 * 1000,
       });
       toast.success('Respaldo generado correctamente');
-    } catch (error: any) {
+    } catch (error) {
       toast.error(mensajeDeError(error, 'No se pudo generar el respaldo'));
     } finally {
       setRespaldando(false);

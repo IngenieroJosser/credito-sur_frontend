@@ -312,7 +312,7 @@ export function DashboardClient({ data }: DashboardClientProps) {
             toast.success('Crédito creado y enviado a revisión.');
             setShowCrearCreditoModal(false);
             router.refresh();
-          } catch (err: any) {
+          } catch (err) {
             const msg = mensajeDeError(err, 'No se pudo crear el crédito.');
             toast.error(Array.isArray(msg) ? msg.join(', ') : msg);
           }

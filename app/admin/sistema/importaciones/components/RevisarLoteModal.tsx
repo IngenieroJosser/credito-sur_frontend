@@ -75,7 +75,7 @@ export const RevisarLoteModal: React.FC<Props> = ({
         // Nada viene marcado: elegir qué deshacer es del usuario, no del
         // sistema. Marcar todo por defecto invita a confirmar sin mirar.
         setSeleccion(new Set());
-      } catch (e: any) {
+      } catch (e) {
         if (vivo) setError(mensajeDeError(e, "No se pudo cargar la importación."));
       } finally {
         if (vivo) setCargando(false);
@@ -179,7 +179,7 @@ export const RevisarLoteModal: React.FC<Props> = ({
       res.mensajes.slice(1).forEach((m) => toast.info(m));
       onDeshecho();
       onCerrar();
-    } catch (e: any) {
+    } catch (e) {
       toast.error(mensajeDeError(e, "No se pudo deshacer la importación."));
     } finally {
       setDeshaciendo(false);

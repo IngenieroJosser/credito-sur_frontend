@@ -286,7 +286,7 @@ const ListadoPrestamosElegante = () => {
       showNotification('success', 'El préstamo ha sido archivado exitosamente', 'Préstamo Archivado');
       setPrestamoAEliminar(null);
       handleRefresh();
-    } catch (error: any) {
+    } catch (error) {
       const msg = mensajeDeError(error, 'No se pudo archivar el préstamo');
       showNotification('error', Array.isArray(msg) ? msg.join(', ') : msg, 'Error al Archivar');
     }
@@ -999,7 +999,7 @@ const ListadoPrestamosElegante = () => {
             } else {
               setPaginaActual(1);
             }
-          } catch (error: any) {
+          } catch (error) {
             const msg = mensajeDeError(error, 'No se pudo crear el crédito');
             showNotification('error', Array.isArray(msg) ? msg.join(', ') : msg, 'Error al Crear Crédito');
           }

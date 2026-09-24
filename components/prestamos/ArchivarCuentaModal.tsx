@@ -49,7 +49,7 @@ export default function ArchivarCuentaModal({
 
       onSuccess();
       onClose();
-    } catch (err: any) {
+    } catch (err) {
       setError(mensajeDeError(err, 'Error al archivar la cuenta'));
     } finally {
       setLoading(false);

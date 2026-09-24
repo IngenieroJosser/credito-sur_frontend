@@ -81,7 +81,7 @@ export const EstadoContableCard: React.FC = () => {
           { cacheTTL: 0 },
         ),
       );
-    } catch (e: any) {
+    } catch (e) {
       setError(mensajeDeError(e, 'No se pudo revisar el estado contable.'));
     } finally {
       setCargando(false);
@@ -107,7 +107,7 @@ export const EstadoContableCard: React.FC = () => {
           {},
         ),
       );
-    } catch (e: any) {
+    } catch (e) {
       setError(mensajeDeError(e, 'No se pudo calcular la regularización.'));
     } finally {
       setRegularizando(false);
@@ -125,7 +125,7 @@ export const EstadoContableCard: React.FC = () => {
       );
       setPropuesta(null);
       await revisar();
-    } catch (e: any) {
+    } catch (e) {
       setError(mensajeDeError(e, 'No se pudo regularizar el inventario.'));
     } finally {
       setRegularizando(false);
