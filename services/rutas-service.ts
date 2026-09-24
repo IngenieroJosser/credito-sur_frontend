@@ -4,6 +4,8 @@ import { apiRequest } from '@/lib/api/api';
 
 import { syncService } from '@/lib/offline/syncService';
 import { esErrorDeRed } from '@/lib/offline/conRespaldoOffline';
+import type { Cliente, PrestamoParcial } from '@/types/domain';
+import type { CuotaOperativa } from '@/lib/types/cobranza';
 
 
 
@@ -21,7 +23,23 @@ export interface AsignacionCliente {
 
   horaSugerida?: string | null;
 
-  cliente?: { id: string; nombres: string; apellidos: string; telefono?: string };
+  /**
+   * El detalle de la ruta trae el cliente ENTERO, con sus creditos activos y
+   * las cuotas de cada uno: en routes.service la asignacion lleva
+   * `include: { cliente: { include: { prestamos: { include: { cuotas } } } } }`,
+   * que es un include, no un select. Declararlo con cuatro campos obligaba a
+   * tratar toda la pantalla de la ruta como `any` para poder leer el resto.
+   */
+  cliente?: Partial<Cliente> & {
+    prestamos?: Array<PrestamoParcial & { cuotas?: CuotaOperativa[] }>;
+  };
+
+  /**
+   * NO existe en el modelo AsignacionRuta. Se lee como
+   * `asig.prioridad?.toLowerCase() || (en mora ? alta : media)`, asi que
+   * siempre resuelve por el respaldo, que es el que decide de verdad.
+   */
+  prioridad?: string | null;
 
 }
 
