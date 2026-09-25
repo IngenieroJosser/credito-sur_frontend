@@ -20,6 +20,7 @@ import { prestamosService } from '@/services/prestamos-service';
 import { resolveCurrentUserId } from '@/lib/creditos/crear-prestamo-payload';
 import { obtenerPerfil } from '@/services/autenticacion-service';
 import { TipoAmortizacion } from '@/types/enums';
+import { repartoConInteresConocido } from '@/lib/creditos/preview-credito';
 import { exportService } from '@/services/export-service';
 import FieldLabel from '@/components/ui/FieldLabel';
 import { idDelPrestamoCreado } from '@/lib/creditos/prestamo-creado';
@@ -198,13 +199,22 @@ export default function CreacionCreditoArticulo({
     else if (frecuenciaPago === 'QUINCENAL') factorFrecuencia = 2;
 
     const cuotasTotales = Math.ceil(numeroCuotas * factorFrecuencia);
-    const valorCuotaTotal = cuotasTotales > 0 ? Math.ceil(saldoAFinanciar / cuotasTotales) : 0;
+    // Mismo reparto que hace el backend: interes 0 (el recargo ya esta en el
+    // precio del plan), cuota base truncada y la ultima absorbe el residuo. Antes
+    // era `Math.ceil`, un peso mas que lo que se cobra en la mitad de los casos.
+    const { valorCuota, valorUltimaCuota } = repartoConInteresConocido(
+      TipoAmortizacion.INTERES_SIMPLE,
+      saldoAFinanciar,
+      0,
+      cuotasTotales,
+    );
 
     return {
       totalBase,
       totalFinanciadoBruto,
       saldoAFinanciar,
-      valorCuota: valorCuotaTotal,
+      valorCuota,
+      valorUltimaCuota,
       numeroCuotas: cuotasTotales,
       meses: numeroCuotas
     };

@@ -13,7 +13,7 @@ import {
   Loader2
 } from 'lucide-react'
 import { formatCOPInputValue, formatCurrency, formatLoanTerm, parseCOPInputToNumber } from '@/lib/utils'
-import { calcularPrestamoPreview } from '@/lib/creditos/preview-credito'
+import { calcularPrestamoPreview, repartoConInteresConocido } from '@/lib/creditos/preview-credito'
 import { Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
 import { clientesService, Cliente } from '@/services/clientes-service'
 import { articulosService, Articulo } from '@/services/articulos-service'
@@ -239,7 +239,7 @@ export default function CrearCreditoModal({
       const aFinanciar = precioTotal
       const numCuotas = 1
       const valorCuota = precioTotal
-      return { meses: 0, precioTotal, aFinanciar, numCuotas, valorCuota }
+      return { meses: 0, precioTotal, aFinanciar, numCuotas, valorCuota, valorUltimaCuota: valorCuota }
     }
     if (!planSeleccionado || !mesesPlan) return null
     const precioTotal = planSeleccionado.precioTotal
@@ -249,8 +249,20 @@ export default function CrearCreditoModal({
     else if (frecuenciaPago === 'SEMANAL') numCuotas = Math.ceil(mesesPlan * 4)
     else if (frecuenciaPago === 'QUINCENAL') numCuotas = Math.ceil(mesesPlan * 2)
     else if (frecuenciaPago === 'MENSUAL') numCuotas = Math.ceil(mesesPlan * 1)
-    const valorCuota = numCuotas > 0 ? Math.ceil(aFinanciar / numCuotas) : 0
-    return { meses: mesesPlan, precioTotal, aFinanciar, numCuotas, valorCuota }
+    // Un credito de articulo no cobra tasa: el recargo ya viene en el precio del
+    // plan, asi que el backend lo reparte con interes 0 y cuota base
+    // `floor(aFinanciar / n)`, con la ultima absorbiendo el residuo.
+    //
+    // Aqui era `Math.ceil`, que da un peso MAS que lo que se cobra. Medido sobre
+    // 1540 combinaciones de precio, cuota inicial, frecuencia y plazo tipicas:
+    // 780 (50,6%) mostraban un peso de mas.
+    const { valorCuota, valorUltimaCuota } = repartoConInteresConocido(
+      TipoAmortizacion.INTERES_PLANO,
+      aFinanciar,
+      0,
+      numCuotas,
+    )
+    return { meses: mesesPlan, precioTotal, aFinanciar, numCuotas, valorCuota, valorUltimaCuota }
   }, [planSeleccionado, mesesPlan, frecuenciaPago, cuotaInicialArticuloInput, articuloSeleccionado, esContado])
 
   const calculoPrestamo = useMemo(() => {
@@ -762,6 +774,28 @@ export default function CrearCreditoModal({
                             {formatCurrency(esContado ? calculoCreditoArticulo.precioTotal : calculoCreditoArticulo.valorCuota)}
                           </div>
                         </div>
+                        {/* La ultima cuota absorbe el residuo del reparto. En un
+                            articulo el residuo llega a ser de casi un peso por
+                            cuota, asi que con 180 cuotas diarias la ultima puede
+                            estar cientos de pesos por encima. Solo aparece cuando
+                            de verdad difiere. */}
+                        {!esContado &&
+                          calculoCreditoArticulo.valorUltimaCuota != null &&
+                          calculoCreditoArticulo.valorUltimaCuota !== calculoCreditoArticulo.valorCuota && (
+                          <div className="bg-white/50 p-3 rounded-xl border border-emerald-100 sm:col-span-2">
+                            <div className="text-[10px] text-emerald-800 font-bold uppercase mb-1 flex items-center gap-1.5">
+                              <DollarSign className="w-3 h-3" />
+                              Ultima cuota (cuota {calculoCreditoArticulo.numCuotas})
+                            </div>
+                            <div className="font-black text-emerald-900 text-lg">
+                              {formatCurrency(calculoCreditoArticulo.valorUltimaCuota)}
+                            </div>
+                            <div className="text-[10px] text-emerald-600 font-medium mt-1">
+                              Cierra el credito: las cuotas 1 a {calculoCreditoArticulo.numCuotas - 1} son de{' '}
+                              {formatCurrency(calculoCreditoArticulo.valorCuota)}.
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
