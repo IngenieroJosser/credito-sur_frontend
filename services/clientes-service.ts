@@ -102,12 +102,6 @@ export interface AgregarListaNegraDto {
   agregadoPorId: string;
 }
 
-export interface AsignarRutaDto {
-  rutaId: string;
-  cobradorId: string;
-  diaSemana?: number;
-}
-
 export interface FiltrosClientes {
   nivelRiesgo?: string;
   ruta?: string;
@@ -319,28 +313,6 @@ export const clientesService = {
           null,
           `Remover de lista negra cliente: ${id}`
         ) as any;
-      }
-      throw error;
-    }
-  },
-
-  /**
-   * Asignar cliente a una ruta
-   */
-  async asignarRuta(clienteId: string, data: AsignarRutaDto): Promise<void> {
-    try {
-      return await apiRequest<void>('POST', `/clients/${clienteId}/assign-route`, data);
-    } catch (error) {
-      if (esErrorDeRed(error)) {
-        logger.log('[Offline Mode] Guardando asignacion de ruta en cola...');
-        await syncService.enqueueOperation(
-          'cliente_assign_route',
-          `/clients/${clienteId}/assign-route`,
-          'POST',
-          data,
-          `Asignar ruta a cliente: ${clienteId}`
-        );
-        return;
       }
       throw error;
     }
