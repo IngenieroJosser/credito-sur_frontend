@@ -51,6 +51,7 @@ import { usePageFocusRefresh } from '@/hooks/usePageFocusRefresh';
 import type { Prestamo } from '@/types/domain'
 import type { EstadoPrestamo } from '@/types/enums'
 import type { PrestamoDelListado } from '@/types/domain'
+import { idDelPrestamoCreado } from '@/lib/creditos/prestamo-creado';
 
 interface Filtros {
   estado: string;
@@ -975,8 +976,8 @@ const ListadoPrestamosElegante = () => {
             // Intentar descargar automáticamente el PDF del contrato si es artículo a cuotas
             if (isArticulo && !esContado) {
               try {
-                // response puede venir estructurado de varias formas, intentamos extraer el ID
-                const loanId = response?.data?.id || response?.id || (response?.prestamo && response?.prestamo?.id) || response?.data?.prestamo?.id;
+                // Un solo lugar saca el id (ver lib/creditos/prestamo-creado).
+                const loanId = idDelPrestamoCreado(response);
                 logger.log('ID rescatado para contrato:', loanId);
                 
                 if (loanId) {

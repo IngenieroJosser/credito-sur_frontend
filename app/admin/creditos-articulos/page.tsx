@@ -18,6 +18,7 @@ import { buildCrearPrestamoPayload } from '@/lib/creditos/crear-prestamo-payload
 import { exportService } from '@/services/export-service'
 import { useNotification } from '@/components/providers/NotificationProvider'
 import type { PrestamoDelListadoParcial } from '@/types/domain'
+import { idDelPrestamoCreado } from '@/lib/creditos/prestamo-creado'
 
 /**
  * Una fila de esta tabla.
@@ -688,7 +689,11 @@ export default function CreditosArticulosPage() {
               await loadData()
 
               if (!payload.esContado) {
-                const loanId = response?.data?.id || response?.id || response?.prestamo?.id || response?.data?.prestamo?.id
+                // El id sale de un solo lugar. Las cuatro pantallas lo adivinaban
+                // por caminos distintos y ninguna leia `prestamoId`, que es como
+                // se llama en la respuesta del reintento idempotente: justo el
+                // caso de la cola offline, donde el contrato no se bajaba nunca.
+                const loanId = idDelPrestamoCreado(response)
                 if (loanId) {
                   try {
                     await exportService.exportContrato(loanId)

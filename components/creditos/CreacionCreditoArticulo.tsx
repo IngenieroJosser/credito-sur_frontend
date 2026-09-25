@@ -22,6 +22,7 @@ import { obtenerPerfil } from '@/services/autenticacion-service';
 import { TipoAmortizacion } from '@/types/enums';
 import { exportService } from '@/services/export-service';
 import FieldLabel from '@/components/ui/FieldLabel';
+import { idDelPrestamoCreado } from '@/lib/creditos/prestamo-creado';
 
 type FrecuenciaPago = 'DIARIO' | 'SEMANAL' | 'QUINCENAL' | 'MENSUAL';
 
@@ -330,23 +331,15 @@ export default function CreacionCreditoArticulo({
       const creado = await prestamosService.crearPrestamo(payload as any);
 
       try {
-        const loanIdRaw =
-          creado?.data?.id ||
-          creado?.id ||
-          (creado?.prestamo && creado?.prestamo?.id) ||
-          creado?.data?.prestamo?.id ||
-          creado?.data?.data?.id ||
-          creado?.data?.loan?.id ||
-          creado?.data?.prestamoId;
-
-        const loanId = typeof loanIdRaw === 'string' || typeof loanIdRaw === 'number' ? String(loanIdRaw) : '';
+        // `idDelPrestamoCreado` ya descarta el id temporal de la cola, que era
+        // lo que estas seis alternativas intentaban cubrir a mano.
+        const loanId = idDelPrestamoCreado(creado);
 
         logger.log('ID rescatado para el PDF: ', loanId);
-        const esOffline = Boolean(creado?.esOffline) || String(loanId || '').startsWith('temp-loan-');
-        if (loanId && !esOffline && !esContado) {
+        if (loanId && !esContado) {
           await exportService.exportContrato(loanId);
-        } else if (!esOffline && !esContado) {
-          console.warn('No se encontró el id del prestamo para imprimir contrato.', { loanIdRaw });
+        } else if (!creado?.esOffline && !esContado) {
+          console.warn('No se encontró el id del prestamo para imprimir contrato.', { creado });
         }
       } catch (err) {
         console.error('Error exportando contrato automáticamente:', err);

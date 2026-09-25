@@ -6,6 +6,7 @@ import { EstadoPrestamo, FrecuenciaPago, EstadoCuota, TipoAmortizacion } from '@
 import type { Prestamo } from '@/types/domain';
 import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 import type { PrestamoDelListado } from '@/types/domain';
+import type { PrestamoCreado } from '@/lib/creditos/prestamo-creado';
 
 const generarIdempotencyKey = (prefix: string) => {
   const random =
@@ -224,14 +225,14 @@ export const prestamosService = {
   /**
    * Crear un nuevo préstamo (con soporte Offline)
    */
-  async crearPrestamo(data: CrearPrestamoDto): Promise<any> {
+  async crearPrestamo(data: CrearPrestamoDto): Promise<PrestamoCreado> {
     const payload = {
       ...data,
       idempotencyKey: (data).idempotencyKey || generarIdempotencyKey('prestamo'),
     };
 
     try {
-      return await apiRequest('POST', '/loans', payload);
+      return await apiRequest<PrestamoCreado>('POST', '/loans', payload);
     } catch (error) {
       if (esErrorDeRed(error)) {
          logger.log('[Offline Mode] Guardando creacion de préstamo en cola...');
@@ -256,7 +257,10 @@ export const prestamosService = {
            tasaInteres: payload.tasaInteres,
            plazoMeses: payload.plazoMeses,
            fechaInicio: payload.fechaInicio,
-           estado: 'PENDIENTE',
+           // 'PENDIENTE' no es un estado de prestamo: la union EstadoPrestamo no
+           // lo tiene. Un prestamo que espera aprobacion es PENDIENTE_APROBACION,
+           // que es el que pone el backend (loans.service, estadoInicial).
+           estado: 'PENDIENTE_APROBACION',
            esOffline: true
          };
       }

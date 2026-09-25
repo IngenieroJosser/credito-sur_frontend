@@ -2072,7 +2072,6 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
       const clienteIdFinal = String(
         prestamo?.clienteId ||
           prestamo?.cliente?.id ||
-          prestamo?.cliente?.clienteId ||
           data?.clienteId ||
           data?.clienteCreditoId ||
           data?.cliente?.id ||
