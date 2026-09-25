@@ -1,4 +1,8 @@
-import { calcularPrestamoPreview } from '@/lib/creditos/preview-credito'
+import {
+  calcularPrestamoPreview,
+  derivarPlazoMeses,
+  repartoConInteresConocido,
+} from '@/lib/creditos/preview-credito'
 import { TipoAmortizacion } from '@/types/enums'
 
 /**
@@ -224,5 +228,103 @@ describe('bordes del formulario', () => {
     })!
     expect(corto.intereses).toBe(largo.intereses)
     expect(corto.intereses).toBe(50_000)
+  })
+})
+
+/**
+ * `derivarPlazoMeses` y `repartoConInteresConocido`, que usan las pantallas de
+ * aprobación y de detalle de una solicitud.
+ *
+ * Existen porque esas pantallas tenían su propia matemática: la del reparto era
+ * una división directa del total, y la del interés tomaba el `plazoMeses` entero
+ * de la base en lugar del fraccionario que usa el cálculo real.
+ */
+describe('derivarPlazoMeses', () => {
+  it('el plazo puede quedar fraccionario a propósito', () => {
+    // 45 cuotas diarias son mes y medio. Redondear a 2 infla el interés un 33%.
+    expect(derivarPlazoMeses(45, 'DIARIO')).toBe(1.5)
+    expect(derivarPlazoMeses(6, 'SEMANAL')).toBe(1.5)
+    expect(derivarPlazoMeses(3, 'QUINCENAL')).toBe(1.5)
+  })
+
+  it('usa 4 semanas por mes, como el modal y el backend', () => {
+    // El formulario de página completa usa 4,33 y por eso deriva otro número de
+    // cuotas; esa divergencia está pendiente de decisión y no se replica aquí.
+    expect(derivarPlazoMeses(12, 'SEMANAL')).toBe(3)
+  })
+
+  it('no le importan las mayúsculas de la frecuencia', () => {
+    expect(derivarPlazoMeses(30, 'diario')).toBe(1)
+  })
+
+  it('devuelve 0 cuando no hay con qué derivar', () => {
+    expect(derivarPlazoMeses(0, 'DIARIO')).toBe(0)
+    expect(derivarPlazoMeses(30, 'QUINCENAL_Y_MEDIO')).toBe(0)
+    expect(derivarPlazoMeses(30, '')).toBe(0)
+  })
+})
+
+describe('repartoConInteresConocido contra el reparto del backend', () => {
+  describe.each(CASOS.map((c) => [c.etiqueta, c] as const))('%s', (_etiqueta, caso) => {
+    const preview = calcularPrestamoPreview({
+      monto: caso.monto,
+      cuotas: caso.cuotas,
+      tasa: caso.tasa,
+      meses: caso.meses,
+      tipoInteres: caso.tipo,
+    })!
+    const reparto = repartoDelBackend(caso.tipo, caso.monto, preview.intereses, caso.cuotas)
+    const conocido = repartoConInteresConocido(
+      caso.tipo,
+      caso.monto,
+      preview.intereses,
+      caso.cuotas,
+    )
+
+    it('da la misma cuota que el backend', () => {
+      if (caso.cuotas === 1) return
+      expect(conocido.valorCuota).toBe(reparto[0].monto)
+    })
+
+    it('da la misma última cuota que el backend', () => {
+      expect(conocido.valorUltimaCuota).toBe(reparto[reparto.length - 1].monto)
+    })
+
+    it('coincide con lo que muestra el modal de creación', () => {
+      expect(conocido.valorCuota).toBe(preview.valorCuota)
+      expect(conocido.valorUltimaCuota).toBe(preview.valorUltimaCuota)
+      expect(conocido.total).toBe(preview.total)
+    })
+  })
+
+  it('no es una división directa del total: ahí estaba el peso de diferencia', () => {
+    // $100.000 al 5% en 30 cuotas diarias: interés 5.000, total 105.000.
+    // La división directa da 3.500; el reparto real, 3.499.
+    const conocido = repartoConInteresConocido(TipoAmortizacion.INTERES_SIMPLE, 100_000, 5_000, 30)
+    expect(Math.trunc(105_000 / 30)).toBe(3_500)
+    expect(conocido.valorCuota).toBe(3_499)
+  })
+
+  it('en interés plano sí es la división del total', () => {
+    const conocido = repartoConInteresConocido(TipoAmortizacion.INTERES_PLANO, 100_000, 5_000, 30)
+    expect(conocido.valorCuota).toBe(3_500)
+  })
+
+  describe('datos incompletos', () => {
+    it('sin cuotas no inventa un reparto', () => {
+      const r = repartoConInteresConocido(TipoAmortizacion.INTERES_SIMPLE, 100_000, 5_000, 0)
+      expect(r).toEqual({ valorCuota: 0, valorUltimaCuota: 0, total: 105_000 })
+    })
+
+    it('sin capital tampoco', () => {
+      const r = repartoConInteresConocido(TipoAmortizacion.INTERES_SIMPLE, 0, 0, 12)
+      expect(r).toEqual({ valorCuota: 0, valorUltimaCuota: 0, total: 0 })
+    })
+
+    it('un interés negativo se trata como cero, no contamina el total', () => {
+      const r = repartoConInteresConocido(TipoAmortizacion.INTERES_SIMPLE, 120_000, -50, 12)
+      expect(r.total).toBe(120_000)
+      expect(r.valorCuota).toBe(10_000)
+    })
   })
 })

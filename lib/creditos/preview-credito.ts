@@ -96,3 +96,75 @@ export function calcularPrestamoPreview(params: {
     sistema: 'Interés Simple',
   }
 }
+
+/**
+ * Cuotas que caben en un mes según la frecuencia.
+ *
+ * Son los factores de `CrearCreditoModal` y de `createLoan` en el backend
+ * (`CUOTAS_POR_MES` en `src/importaciones/interes-credito.ts`). El formulario de
+ * página completa `CreacionPrestamo` usa 4,33 para SEMANAL y por eso deriva un
+ * número de cuotas distinto; eso está pendiente de decisión y no se toca aquí.
+ */
+export const CUOTAS_POR_MES: Record<string, number> = {
+  DIARIO: 30,
+  SEMANAL: 4,
+  QUINCENAL: 2,
+  MENSUAL: 1,
+}
+
+/**
+ * Plazo en meses derivado del número de cuotas y la frecuencia.
+ *
+ * Puede quedar fraccionario a propósito (45 cuotas diarias = 1,5 meses): ese es
+ * el valor que entra al cálculo de interés simple, aunque la columna
+ * `plazoMeses` de la base sea entera. Usar el entero redondeado en su lugar
+ * infla el interés: para 45 cuotas diarias serían 2 meses en vez de 1,5, un 33%
+ * más.
+ */
+export function derivarPlazoMeses(cuotas: number, frecuenciaPago: string): number {
+  const factor = CUOTAS_POR_MES[String(frecuenciaPago || '').toUpperCase()]
+  if (!factor || !(cuotas > 0)) return 0
+  return cuotas / factor
+}
+
+/**
+ * Reparto en cuotas cuando el interés total ya se conoce.
+ *
+ * Es el caso de las pantallas de aprobación y de los detalles de una solicitud:
+ * el interés viene con los datos, no hay que recalcularlo, y lo único que falta
+ * es partirlo en cuotas como lo hará el backend (`construirTablaCuotas`).
+ *
+ * Existe porque esas pantallas lo hacían con una división directa
+ * (`total / cuotas`), que no es el reparto real en interés simple: ahí se trunca
+ * capital e interés por separado.
+ */
+export function repartoConInteresConocido(
+  tipoInteres: TipoAmortizacion,
+  monto: number,
+  interesTotal: number,
+  cuotas: number,
+): { valorCuota: number; valorUltimaCuota: number; total: number } {
+  const capital = Math.max(0, Number(monto) || 0)
+  const interes = Math.max(0, Number(interesTotal) || 0)
+  const n = Number(cuotas) || 0
+  const total = capital + interes
+
+  if (!(n > 0) || !(capital > 0)) {
+    return { valorCuota: 0, valorUltimaCuota: 0, total }
+  }
+
+  if (tipoInteres === TipoAmortizacion.INTERES_PLANO || tipoInteres === TipoAmortizacion.FRANCESA) {
+    // Interés plano: la cuota base es la división del total, y la última absorbe
+    // el residuo.
+    const valorCuota = Math.floor(total / n)
+    return { valorCuota, valorUltimaCuota: total - valorCuota * (n - 1), total }
+  }
+
+  const baseCapital = Math.floor(capital / n)
+  const baseInteres = Math.floor(interes / n)
+  return {
+    valorCuota: baseCapital + baseInteres,
+    valorUltimaCuota: capital - baseCapital * (n - 1) + (interes - baseInteres * (n - 1)),
+    total,
+  }
+}

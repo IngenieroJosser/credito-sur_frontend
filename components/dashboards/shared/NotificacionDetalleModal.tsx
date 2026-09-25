@@ -34,6 +34,12 @@ import AlertaClienteDetalleModal from '@/components/notificaciones/AlertaCliente
 import { alertasClientesService } from '@/services/alertas-clientes-service'
 import { logger } from '@/lib/logger'
 import Tooltip from '@/components/ui/Tooltip'
+import { TipoAmortizacion } from '@/types/enums'
+import {
+  calcularPrestamoPreview,
+  derivarPlazoMeses,
+  repartoConInteresConocido,
+} from '@/lib/creditos/preview-credito'
 
 export interface NotificacionDetalleModalProps {
   isOpen: boolean
@@ -346,21 +352,37 @@ export default function NotificacionDetalleModal({
 
       const tipoAmortBase = String(combined.tipoAmortizacion || '').toUpperCase()
 
-      // Calcular montoTotal según el tipo de amortización
+      // Total del credito cuando la solicitud no lo trae.
+      //
+      // Esto tenia su propia matematica y no coincidia con la del sistema en dos
+      // cosas. Tomaba `plazoBase`, que es la columna `plazoMeses` de la base y es
+      // ENTERA, cuando el interes se calcula con el plazo fraccionario que sale de
+      // las cuotas y la frecuencia: para 45 cuotas diarias son 1,5 meses y no 2,
+      // o sea un 33% mas de interes en pantalla. Y no truncaba, mientras el
+      // sistema si trunca. Ahora usa `calcularPrestamoPreview`, la misma formula
+      // del modal de creacion, verificada contra el reparto del backend.
       const calcFallbackMontoTotal = () => {
         if (isArticuloSolicitud) return valorArticuloBase
         if (interesTotalBase > 0) return montoFinanciado + interesTotalBase
-        if (tipoAmortBase === 'FRANCESA') {
-          const r = tasaBase / 100
-          const n = Math.max(1, cuotasBase)
-          if (r > 0) {
-            const cuotaFija = montoFinanciado * r / (1 - Math.pow(1 + r, -n))
-            return Math.round(cuotaFija * n)
-          }
-          return montoFinanciado
-        }
-        // Interés simple
-        return montoFinanciado + (montoFinanciado * tasaBase * Math.max(1, plazoBase)) / 100
+
+        const plazoDerivado =
+          derivarPlazoMeses(cuotasBase, String(combined.frecuenciaPago || combined.frecuencia || 'DIARIO')) ||
+          Math.max(1, plazoBase)
+
+        const preview = calcularPrestamoPreview({
+          monto: montoFinanciado,
+          cuotas: cuotasBase,
+          tasa: tasaBase,
+          meses: plazoDerivado,
+          tipoInteres:
+            tipoAmortBase === 'FRANCESA'
+              ? TipoAmortizacion.FRANCESA
+              : tipoAmortBase === 'INTERES_PLANO'
+                ? TipoAmortizacion.INTERES_PLANO
+                : TipoAmortizacion.INTERES_SIMPLE,
+        })
+
+        return preview ? preview.total : montoFinanciado
       }
 
       const montoTotalBase = pickNumber(
@@ -1347,12 +1369,23 @@ export default function NotificacionDetalleModal({
 
                             if (interesTotal > 0) return monto + interesTotal
 
-                            if (tipoAmort === 'FRANCESA') {
-                              // Amortización ahora usa lógica plana: capital × tasa (una sola vez)
-                              return monto + Math.round(monto * (tasa / 100))
-                            }
+                            // Misma formula que el modal de creacion. Antes aqui se
+                            // sumaba el interes sin truncar y FRANCESA se redondeaba,
+                            // asi que el total no coincidia con el que se guarda.
+                            const preview = calcularPrestamoPreview({
+                              monto,
+                              cuotas,
+                              tasa,
+                              meses: derivarPlazoMeses(cuotas, String(editedDetails?.frecuenciaPago || 'DIARIO')) || meses,
+                              tipoInteres:
+                                tipoAmort === 'FRANCESA'
+                                  ? TipoAmortizacion.FRANCESA
+                                  : tipoAmort === 'INTERES_PLANO'
+                                    ? TipoAmortizacion.INTERES_PLANO
+                                    : TipoAmortizacion.INTERES_SIMPLE,
+                            })
 
-                            return monto + ((monto * tasa * meses) / 100)
+                            return preview ? preview.total : monto
                           })()
                           return formatCurrency(isNaN(total) ? 0 : total)
                         })()}
@@ -1500,17 +1533,33 @@ export default function NotificacionDetalleModal({
                             const montoTotal = Number(editedDetails?.montoTotal || 0)
                             const cuotas = Math.max(1, Number(editedDetails?.cuotas || editedDetails?.cantidadCuotas || 1))
                             const monto = Number(editedDetails?.monto || 0)
-                            const tasa = Number(editedDetails?.tasaInteres ?? editedDetails?.porcentaje ?? 0)
                             const interesTotal = Number(editedDetails?.interesTotal || 0)
                             const tipoAmort = String(editedDetails?.tipoAmortizacion || '').toUpperCase()
+                            const tipoInteres =
+                              tipoAmort === 'FRANCESA'
+                                ? TipoAmortizacion.FRANCESA
+                                : tipoAmort === 'INTERES_PLANO'
+                                  ? TipoAmortizacion.INTERES_PLANO
+                                  : TipoAmortizacion.INTERES_SIMPLE
 
-                            if (tipoAmort === 'FRANCESA' && monto > 0) {
-                              const interes = interesTotal > 0 ? interesTotal : Math.round(monto * (tasa / 100))
-                              const total = monto + interes
-                              return formatCurrency(cuotas > 0 ? Math.floor(total / cuotas) : 0)
-                            }
+                            // El interes ya viene con la solicitud, o se deduce del
+                            // total. Lo que falta es partirlo como lo va a partir el
+                            // backend: en interes simple se truncan capital e interes
+                            // por separado, no se divide el total. Antes era
+                            // `trunc(montoTotal / cuotas)`, que da hasta un peso mas
+                            // por cuota que lo que se cobra.
+                            const interes =
+                              interesTotal > 0
+                                ? interesTotal
+                                : Math.max(0, montoTotal - monto)
+                            const capital = monto > 0 ? monto : Math.max(0, montoTotal - interes)
 
-                            const valorCuota = Math.trunc(montoTotal / cuotas)
+                            const { valorCuota } = repartoConInteresConocido(
+                              tipoInteres,
+                              capital,
+                              interes,
+                              cuotas,
+                            )
                             // isFinite, no isNaN: division por 0 da Infinity, que isNaN no atrapa.
                             return formatCurrency(Number.isFinite(valorCuota) ? valorCuota : 0)
                           })()}
