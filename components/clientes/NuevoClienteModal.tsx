@@ -218,7 +218,9 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
     }
 
     try {
-      let resultado: Cliente;
+      // `actualizar` devuelve null sin conexion (ver clientes-service): en ese
+      // caso la pantalla se queda con lo que el formulario ya tenia.
+      let resultado: Cliente | null;
       
       if (esEdicion && cliente?.id) {
         // Enviar archivos junto con los datos al actualizar
@@ -235,7 +237,7 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
       
       onClienteCreado({
         ...formulario,
-        ...resultado,
+        ...(resultado ?? {}),
       } as any);
       onClose();
 

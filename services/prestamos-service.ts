@@ -35,6 +35,15 @@ export interface Cuota {
 }
 
 export interface CrearPrestamoDto {
+  /**
+   * Clave de idempotencia para el modo offline.
+   *
+   * La cola trata esta operación como idempotente (ver `idempotentTypes` en
+   * `syncService`), así que esta clave es lo que evita que una creación encolada se
+   * aplique dos veces si el sync reintenta. El servicio ya la ponía —y la leía con
+   * un `as any`, porque la interfaz no la declaraba—; ahora está declarada.
+   */
+  idempotencyKey?: string;
   clienteId: string;
   productoId?: string;
   precioProductoId?: string;
@@ -218,7 +227,7 @@ export const prestamosService = {
   async crearPrestamo(data: CrearPrestamoDto): Promise<any> {
     const payload = {
       ...data,
-      idempotencyKey: (data as any).idempotencyKey || generarIdempotencyKey('prestamo'),
+      idempotencyKey: (data).idempotencyKey || generarIdempotencyKey('prestamo'),
     };
 
     try {

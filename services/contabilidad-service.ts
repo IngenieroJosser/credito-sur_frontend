@@ -269,7 +269,7 @@ export async function createCaja(data: {
           data,
           `Crear caja: ${data.nombre}`
         );
-        return { ...data, id: `temp-caja-${Date.now()}`, estado: 'ABIERTA', saldo: data.saldoInicial || 0, ultimaActualizacion: toBogotaDateTimeOffsetIso(new Date()), responsable: 'Local', responsableId: data.responsableId, codigo: 'TEMP' } as any;
+        return { ...data, id: `temp-caja-${Date.now()}`, estado: 'ABIERTA', saldo: data.saldoInicial || 0, ultimaActualizacion: toBogotaDateTimeOffsetIso(new Date()), responsable: 'Local', responsableId: data.responsableId, codigo: 'TEMP' };
     }
     console.error('Error creating caja:', error);
     throw error;
@@ -293,7 +293,9 @@ export async function updateCaja(id: string, data: {
           data,
           `Actualizar caja ID: ${id}`
         );
-        return { id, ...data } as any;
+        // El tipo ya era `| null` y las dos pantallas que llaman descartan el
+        // resultado: `{ id, ...data }` no era una Caja, solo lo parecia.
+        return null;
     }
     throw error;
   }
@@ -467,17 +469,10 @@ export async function createTransaccion(data: {
         payload,
         `Transacción: ${payload.descripcion} ($${payload.monto})`
       );
-      return {
-        id: `temp-trx-${Date.now()}`,
-        numero: 'OFFLINE',
-        fecha: toBogotaDateTimeOffsetIso(new Date()),
-        tipo: payload.tipo,
-        monto: payload.monto,
-        descripcion: payload.descripcion,
-        cajaId: payload.cajaId,
-        estado: 'PENDIENTE',
-        caja: 'Caja Local'
-      } as any;
+      // Las dos pantallas que llaman recargan desde el servidor y descartan el
+      // resultado, asi que no se inventa una transaccion (le faltaba
+      // `responsable` y traia un `numero` que no existe en el libro).
+      return null;
     }
     console.error('Error creating transaccion:', error);
     throw error;

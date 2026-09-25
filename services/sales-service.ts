@@ -23,7 +23,7 @@ export const salesService = {
     const data = {
       ...dataEntrada,
       idempotencyKey:
-        (dataEntrada as any).idempotencyKey ||
+        (dataEntrada).idempotencyKey ||
         `venta-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
     }
     try {

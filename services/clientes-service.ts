@@ -49,6 +49,15 @@ export interface Cliente {
 }
 
 export interface CrearClienteDto {
+  /**
+   * Clave de idempotencia para el modo offline.
+   *
+   * La cola trata esta operación como idempotente (ver `idempotentTypes` en
+   * `syncService`), así que esta clave es lo que evita que una creación encolada se
+   * aplique dos veces si el sync reintenta. El servicio ya la ponía —y la leía con
+   * un `as any`, porque la interfaz no la declaraba—; ahora está declarada.
+   */
+  idempotencyKey?: string;
   dni: string;
   nombres: string;
   apellidos: string;
@@ -147,7 +156,7 @@ export const clientesService = {
   async crear(data: CrearClienteDto): Promise<Cliente> {
     const payload = {
       ...data,
-      idempotencyKey: (data as any).idempotencyKey || generarIdempotencyKey('cliente'),
+      idempotencyKey: (data).idempotencyKey || generarIdempotencyKey('cliente'),
     };
 
     try {
@@ -184,6 +193,10 @@ export const clientesService = {
           telefono: payload.telefono,
           direccion: payload.direccion || null,
           referencia: payload.referencia || null,
+          referencia1Nombre: payload.referencia1Nombre || null,
+          referencia1Telefono: payload.referencia1Telefono || null,
+          referencia2Nombre: payload.referencia2Nombre || null,
+          referencia2Telefono: payload.referencia2Telefono || null,
           correo: payload.correo || null,
           nivelRiesgo: payload.nivelRiesgo || NivelRiesgo.VERDE,
           puntaje: payload.puntaje || 0,
@@ -191,7 +204,7 @@ export const clientesService = {
           estadoAprobacion: EstadoAprobacion.PENDIENTE,
           creadoEn: toBogotaDateTimeOffsetIso(new Date()),
           actualizadoEn: toBogotaDateTimeOffsetIso(new Date()),
-        } as any;
+        };
       }
       throw error;
     }
@@ -200,7 +213,7 @@ export const clientesService = {
   /**
    * Actualizar un cliente existente (con soporte Offline)
    */
-  async actualizar(id: string, data: ActualizarClienteDto): Promise<Cliente> {
+  async actualizar(id: string, data: ActualizarClienteDto): Promise<Cliente | null> {
     try {
       return await apiRequest<Cliente>('PUT', `/clients/${id}`, data);
     } catch (error) {
@@ -213,7 +226,10 @@ export const clientesService = {
           data,
           `Actualizar cliente: ${id}`
         );
-        return { id, ...data } as any;
+        // Sin conexion solo conocemos el id y los campos enviados; eso no es un
+        // Cliente. Devolver `null` deja que la pantalla siga mostrando lo que ya
+        // tenia en lugar de recibir una entidad con huecos.
+        return null;
       }
       throw error;
     }
@@ -255,7 +271,7 @@ export const clientesService = {
   /**
    * Aprobar un cliente
    */
-  async aprobar(id: string, aprobadoPorId: string, datosAprobados?: unknown): Promise<Cliente> {
+  async aprobar(id: string, aprobadoPorId: string, datosAprobados?: unknown): Promise<Cliente | null> {
     try {
       return await apiRequest<Cliente>('POST', `/clients/approve/${id}`, {
         aprobadoPorId,
@@ -264,13 +280,16 @@ export const clientesService = {
     } catch (error) {
       if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando aprobacion de cliente en cola...');
-        return await syncService.enqueueOperation(
+        await syncService.enqueueOperation(
           'cliente_aprobar',
           `/clients/approve/${id}`,
           'POST',
           { aprobadoPorId, datosAprobados },
           `Aprobar cliente: ${id}`
-        ) as any;
+        );
+        // Sin conexion no conocemos la entidad que el backend devolvera, asi que no
+        // se fabrica una: el tipo es `| null` y quien llama ya descarta el resultado.
+        return null;
       }
       throw error;
     }
@@ -279,19 +298,22 @@ export const clientesService = {
   /**
    * Agregar cliente a lista negra
    */
-  async agregarListaNegra(id: string, data: AgregarListaNegraDto): Promise<Cliente> {
+  async agregarListaNegra(id: string, data: AgregarListaNegraDto): Promise<Cliente | null> {
     try {
       return await apiRequest<Cliente>('POST', `/clients/${id}/blacklist`, data);
     } catch (error) {
       if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando agregar a lista negra en cola...');
-        return await syncService.enqueueOperation(
+        await syncService.enqueueOperation(
           'cliente_blacklist_add',
           `/clients/${id}/blacklist`,
           'POST',
           data,
           `Agregar a lista negra cliente: ${id}`
-        ) as any;
+        );
+        // Sin conexion no conocemos la entidad que el backend devolvera, asi que no
+        // se fabrica una: el tipo es `| null` y quien llama ya descarta el resultado.
+        return null;
       }
       throw error;
     }
@@ -300,19 +322,22 @@ export const clientesService = {
   /**
    * Remover cliente de lista negra
    */
-  async removerListaNegra(id: string): Promise<Cliente> {
+  async removerListaNegra(id: string): Promise<Cliente | null> {
     try {
       return await apiRequest<Cliente>('DELETE', `/clients/${id}/blacklist`);
     } catch (error) {
       if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando remover de lista negra en cola...');
-        return await syncService.enqueueOperation(
+        await syncService.enqueueOperation(
           'cliente_blacklist_remove',
           `/clients/${id}/blacklist`,
           'DELETE',
           null,
           `Remover de lista negra cliente: ${id}`
-        ) as any;
+        );
+        // Sin conexion no conocemos la entidad que el backend devolvera, asi que no
+        // se fabrica una: el tipo es `| null` y quien llama ya descarta el resultado.
+        return null;
       }
       throw error;
     }
@@ -334,7 +359,8 @@ export const clientesService = {
     return this.eliminar(id);
   },
 
-  actualizarCliente: function(id: string, data: ActualizarClienteDto): Promise<Cliente> {
+  // Nota: este alias no tiene consumidores hoy. Hereda el `| null` de `actualizar`.
+  actualizarCliente: function(id: string, data: ActualizarClienteDto): Promise<Cliente | null> {
     return this.actualizar(id, data);
   }
 };

@@ -39,6 +39,15 @@ export type VentaContadoPayload = {
   creadoPorId: string
   metodoPago: 'EFECTIVO' | 'TRANSFERENCIA'
   notas: string
+  /**
+   * Clave de idempotencia para el modo offline.
+   *
+   * `venta_contado` esta en la lista de tipos idempotentes de la cola, asi que esta
+   * clave es lo que evita que una venta encolada se registre dos veces si el sync
+   * reintenta. El servicio ya la ponia, y la leia con un `as any` porque el tipo no
+   * la declaraba.
+   */
+  idempotencyKey?: string
 }
 
 export function resolveCurrentUserId() {

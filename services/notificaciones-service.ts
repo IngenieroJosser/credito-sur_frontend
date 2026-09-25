@@ -50,7 +50,7 @@ export const notificacionesService = {
   /**
    * Marcar una notificación como leída
    */
-  async marcarComoLeida(id: string): Promise<Notificacion> {
+  async marcarComoLeida(id: string): Promise<Notificacion | null> {
     try {
       return await apiRequest<Notificacion>('PATCH', `/notificaciones/${id}/read`);
     } catch (error) {
@@ -63,7 +63,9 @@ export const notificacionesService = {
           null,
           'Marcar notificación como leída ID: ' + id
         );
-        return { id, leida: true } as any;
+        // Los tres sitios que llaman descartan el resultado; `{ id, leida: true }`
+        // no era una Notificacion (sin titulo, mensaje, tipo ni fecha).
+        return null;
       }
       throw error;
     }
