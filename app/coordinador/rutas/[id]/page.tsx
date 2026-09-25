@@ -503,7 +503,7 @@ const LegacyDetalleRutaPage = () => {
 
                    if (r === 'VERDE') return 'bajo';
 
-                   if (r === 'AMARILLO') return 'precaucion' as any;
+                   if (r === 'AMARILLO') return 'precaucion';
 
                    if (r === 'ROJO') return 'moderado';
 

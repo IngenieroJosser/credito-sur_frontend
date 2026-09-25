@@ -3329,7 +3329,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
               setVisitasBase((prev: VisitaRuta[]) =>
                 prev.map((v: VisitaRuta) =>
                   v.clienteId === clienteIdAusente
-                    ? { ...v, estado: 'ausente' as any, estadoVisita: 'ausente' as any, notasVisita: notas }
+                    ? { ...v, estado: 'ausente', estadoVisita: 'ausente', notasVisita: notas }
                     : v
                 )
               );

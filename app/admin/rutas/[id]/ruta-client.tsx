@@ -534,7 +534,7 @@ const RutaClientLoaded = ({
               if (pagado) nuevoEstado = 'pagado'
 
               if (nuevoEstado !== 'pagado' && Number(v?.saldoTotal || 0) > 0 && tieneMora) {
-                nuevoEstado = 'en_mora' as any
+                nuevoEstado = 'en_mora'
               }
             }
 
@@ -1975,7 +1975,7 @@ const RutaClientLoaded = ({
             setVisitasCobrador((prev) =>
               (prev || []).map((v) =>
                 v.clienteId === clienteIdAusente
-                  ? { ...v, estado: 'ausente' as any, estadoVisita: 'ausente' as any, notasVisita: notas }
+                  ? { ...v, estado: 'ausente', estadoVisita: 'ausente', notasVisita: notas }
                   : v
               )
             );
@@ -2247,7 +2247,7 @@ const RutaClientLoaded = ({
                     if (v.id !== visitaReprogramar.id) return v
                     return {
                       ...v,
-                      estado: 'reprogramado' as any,
+                      estado: 'reprogramado',
                       proximaVisita: fecha,
                       cuotaObjetivo: {
                         ...v.cuotaObjetivo,

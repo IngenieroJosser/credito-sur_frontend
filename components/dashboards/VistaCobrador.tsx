@@ -989,7 +989,7 @@ const VistaCobrador = () => {
           estado: estadoCalculado,
           proximaVisita: proximaVisitaV,
           ordenVisita: Number(row?.ordenVisita || idx + 1),
-          prioridad: 'media' as any,
+          prioridad: 'media',
           diasMora,
           cobradorId,
           periodoRuta: normalizePeriodoRuta(p?.frecuenciaPago || 'DIARIO') as any,
@@ -1826,7 +1826,7 @@ const VistaCobrador = () => {
                     ...v,
                     montoCuota: cuotaNormalArticulo > 0 ? cuotaNormalArticulo : saldoPendiente,
                     montoCuotaNormal: cuotaNormalArticulo > 0 ? cuotaNormalArticulo : saldoPendiente,
-                    estado: 'pendiente' as any,
+                    estado: 'pendiente',
                     proximaVisita:
                       resolveFechaEfectivaCuota(pendienteArticulo) ||
                       pendienteArticulo?.fechaVencimiento ||
@@ -5032,7 +5032,7 @@ const VistaCobrador = () => {
               setVisitasBase((prev: VisitaRuta[]) =>
                 prev.map((v: VisitaRuta) =>
                   v.clienteId === clienteIdAusente
-                    ? { ...v, estado: 'ausente' as any, estadoVisita: 'ausente' as any, notasVisita: notas }
+                    ? { ...v, estado: 'ausente', estadoVisita: 'ausente', notasVisita: notas }
                     : v
                 )
               );
@@ -5040,7 +5040,7 @@ const VistaCobrador = () => {
               setMisCreditos((prev: VisitaRuta[]) =>
                 prev.map((v: VisitaRuta) =>
                   v.clienteId === clienteIdAusente
-                    ? { ...v, estado: 'ausente' as any, estadoVisita: 'ausente' as any, notasVisita: notas }
+                    ? { ...v, estado: 'ausente', estadoVisita: 'ausente', notasVisita: notas }
                     : v
                 )
               );
