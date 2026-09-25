@@ -106,6 +106,21 @@ export const isReprogramadoHistorial = (v: VisitaParcial): boolean => {
   )
 }
 
+/**
+ * OJO con la precedencia: esta cadena arranca por `v.estado`, que es el estado
+ * del CRÉDITO (ACTIVO, EN_MORA, pagado), no el de la visita. Como casi siempre
+ * viene con valor, los `estado.includes('PAGADO' | 'AUSENTE' | 'REPROGRAM')` de
+ * abajo no llegan a mirar `estadoVisita` ni `estadoGestion`: en una visita
+ * ausente con el crédito ACTIVO esta función devuelve false, y en un crédito
+ * saldado devuelve true aunque nadie lo haya visitado.
+ *
+ * Por eso lo que decide de verdad aquí son los dos montos y
+ * `isReprogramadoHistorial`. Para preguntar si una visita tuvo gestión, usar
+ * `hasGestionHistorial`, que mira el estado de la visita.
+ *
+ * `computeHistorialResumenCompartido` y el mapeo de daily-visits usan el orden
+ * contrario (`estadoGestion || estadoVisita || estado`), que es el correcto.
+ */
 export const isGestionHistorial = (v: VisitaParcial): boolean => {
   const estado = String(
     v?.estado ||
@@ -947,9 +962,18 @@ export const buildHistorialDiaFromBackend = (params: {
   }
 
   // Ocultar saldados (pagado y saldo <= 0) que NO tuvieron gestión real en este día.
+  //
+  // Antes esta condición usaba `isGestionHistorial`, y con eso no ocultaba NADA.
+  // `isGestionHistorial` arranca su cadena por `v.estado`, que aquí vale
+  // 'pagado' justamente porque el crédito está saldado; su `estado.includes('PAGADO')`
+  // daba true para todos, y `!(isSaldado && !true)` deja pasar la visita entera.
+  // El filtro gemelo de `buildHistorialDiaFromBackend` siempre usó
+  // `hasGestionHistorial`, que mira el estado de la VISITA y no el del crédito,
+  // y ese sí oculta. Se usa el mismo aquí para que los dos digan lo mismo, y
+  // para que `total` no cuente tarjetas que `visitados` nunca va a contar.
   const filteredVisitas = todasVisitas.filter((v: VisitaParcial) => {
     const isSaldado = String(v.estado || '').toLowerCase() === 'pagado' && Number(v.saldoTotal || 0) <= 0;
-    return !(isSaldado && !isGestionHistorial(v));
+    return !(isSaldado && !hasGestionHistorial(v));
   });
 
   // 5) Resumen: calcular desde visitas finales, no desde backend viejo
