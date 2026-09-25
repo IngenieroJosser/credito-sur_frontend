@@ -1,4 +1,5 @@
 'use client'
+import { esApiError } from '@/lib/api/api'
 
 import { datosParaRegistro, estadoDeError, mensajeDeError } from '@/lib/mensaje-de-error'
 import PantallaCarga from '@/components/ui/PantallaCarga'
@@ -225,7 +226,7 @@ const mapDailyVisitToVisitaRuta = (row: any, rutaCobradorId: string, idx: number
     targetVencimiento: cuotaObjetivo?.fechaVencimiento || undefined,
     ordenVisita: Number(row?.ordenVisita || idx + 1),
     prioridad: enMora ? 'alta' : 'media',
-    nivelRiesgo: mapNivelRiesgo(cliente?.nivelRiesgo) as any,
+    nivelRiesgo: mapNivelRiesgo(cliente?.nivelRiesgo),
     cobradorId: rutaCobradorId,
     periodoRuta: normalizePeriodoRuta(prestamoObjetivo?.frecuenciaPago) as PeriodoRuta,
     clienteId: cliente?.id || '',
@@ -244,7 +245,7 @@ const mapDailyVisitToVisitaRuta = (row: any, rutaCobradorId: string, idx: number
     fechaOriginalVencimiento: cuotaObjetivo?.fechaVencimiento || undefined,
     recaudadoDelDia: recaudo,
     diasMora,
-  } as any
+  }
 }
 
 const mapObligacionToVisitaRuta = (o: any, rutaCobradorId: string, idx: number, hoyKey: string): VisitaRuta => {
@@ -379,7 +380,7 @@ const mapObligacionToVisitaRuta = (o: any, rutaCobradorId: string, idx: number, 
     cuotaObjetivo,
     proximaCuota: prestamo?.proximaCuota,
     diasMora,
-  } as any
+  }
 }
 
 
@@ -838,7 +839,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         hoyBogotaKey,
       )
       const pagosResp = await pagosService.obtenerPagos({ limit: 5000 })
-      const pagos = (pagosResp as any)?.pagos || pagosResp || []
+      const pagos = (pagosResp)?.pagos || pagosResp || []
 
       const result = await buildRutaHoyOperativa({
         ruta,
@@ -848,7 +849,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         pagos,
       })
 
-      setMisCreditos(result.kpiItems as any)
+      setMisCreditos(result.kpiItems)
     } catch (e) {
       console.error('Error cargando mis clientes:', e)
     } finally {
@@ -958,7 +959,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
           // Usar helper compartido para construir fuente completa de KPI
           const pagosRecientesResp = await pagosService.obtenerPagos({ limit: 5000 })
-          pagosRecientes = (pagosRecientesResp as any)?.pagos || pagosRecientesResp || []
+          pagosRecientes = (pagosRecientesResp)?.pagos || pagosRecientesResp || []
 
           helperResult = await buildRutaHoyOperativa({
             ruta,
@@ -1334,10 +1335,10 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
     const cuotaIdFinal = String(
       cuotaId || 
-      (visitaReprogramar as any)?.cuotaId || 
-      (visitaReprogramar as any)?.cuotaObjetivoId || 
-      (visitaReprogramar as any)?.cuotaObjetivo?.id || 
-      (visitaReprogramar as any)?.proximaCuota?.id || 
+      (visitaReprogramar)?.cuotaId || 
+      (visitaReprogramar)?.cuotaObjetivoId || 
+      (visitaReprogramar)?.cuotaObjetivo?.id || 
+      (visitaReprogramar)?.proximaCuota?.id || 
       ''
     ).trim();
 
@@ -1579,7 +1580,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
           ), vencidas[0])
 
-          const freq = String((info as any)?.frecuenciaPago || (info as any)?.frecuencia || '').toUpperCase()
+          const freq = String((info)?.frecuenciaPago || (info)?.frecuencia || '').toUpperCase()
           if (freq === 'DIARIO') {
             const oldestKey = normalizeDateKey(String(oldest.fechaVencimiento || ''))
             const endKey = hoyBogotaKey
@@ -1701,8 +1702,8 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
   }, [showMoraModal, visitaMoraSeleccionada, userSession])
 
   // El id sale a una variable porque la lista de dependencias de un hook solo
-  // admite expresiones simples, no un cast como (rutaInfo as any)?.id.
-  const rutaInfoId = (rutaInfo as any)?.id
+  // admite expresiones simples, no un cast como (rutaInfo)?.id.
+  const rutaInfoId = (rutaInfo)?.id
 
   useEffect(() => {
 
@@ -1812,7 +1813,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     contexto?: { tipoRegistro: 'PAGO' | 'ABONO'; cuotaNumeroEsperada?: number; montoCuotaEsperado: number; cuotaId?: string },
   ) => {
 
-    const contextoRegularizacionSnapshot = contextoRegularizacionRef.current as any
+    const contextoRegularizacionSnapshot = contextoRegularizacionRef.current
     const esCierrePendiente =
       contextoRegularizacionSnapshot?.origenGestion === 'CIERRE_PENDIENTE'
     const visita = visitaPagoRegularizada || visitasBase.find(v => v.id === visitaId)
@@ -1924,7 +1925,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
       // Marcar como pagado si completó la cuota del período (para que desaparezca del diario)
 
       const montoCuotaPrev = Number(visita.montoCuota || 0)
-      const recPrev = Number((visita as any).recaudadoDelDia || 0)
+      const recPrev = Number((visita).recaudadoDelDia || 0)
       const recNuevo = recPrev + Number(montoPagado || 0)
       const cuotaCompletadaLocal = montoCuotaPrev > 0 && recNuevo >= (montoCuotaPrev - 1)
 
@@ -1965,8 +1966,8 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
             recaudadoDelDia: recNuevoVisita,
             montoCuotaPendiente,
             estado: cuotaCompletada ? 'pagado' : estadoSinAusente,
-            estadoVisita: undefined as any,
-            notasVisita: undefined as any,
+            estadoVisita: undefined,
+            notasVisita: undefined,
           }
         }))
       }
@@ -1993,8 +1994,9 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     } catch (e) {
 
       console.error('Error registrando pago (SupervisorCobroView):', e)
-      const error = e as any
-      const isConflict = error?.isConflict || estadoDeError(error) === 409 || estadoDeError(error) === 409
+      const error = e
+      const isConflict =
+        (esApiError(error) && error.isConflict === true) || estadoDeError(error) === 409
       const mensaje = mensajeDeError(error, 'No se pudo registrar el pago')
 
       if (isConflict) {
@@ -2196,7 +2198,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         const backendFecha = backendProx
           ? (backendProx?.fechaVencimientoProrroga || backendProx?.fechaVencimiento || null)
           : null
-        const backendMonto = backendProx ? Number((backendProx as any)?.montoNominal ?? backendProx?.monto ?? 0) : null
+        const backendMonto = backendProx ? Number((backendProx)?.montoNominal ?? backendProx?.monto ?? 0) : null
 
         setNextPagoFecha(backendFecha)
         setNextPagoMonto(typeof backendMonto === 'number' ? backendMonto : null)
@@ -2208,7 +2210,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
             ...prev,
             cuotaActual: prog.cuotaActual ?? (prev).cuotaActual,
             cuotasTotales: prog.cuotasTotales ?? (prev).cuotasTotales,
-          } as any
+          }
         })
       } catch {
         setNextPagoFecha(null)
@@ -2344,7 +2346,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
 
 
-        <RutaKpiSection periodo={periodoCards} onPeriodoChange={setPeriodoCards} rutaStats={rutaStats as any} userRol={userSession?.rol} />
+        <RutaKpiSection periodo={periodoCards} onPeriodoChange={setPeriodoCards} rutaStats={rutaStats} userRol={userSession?.rol} />
 
         {/* Banner de cierre pendiente */}
         <CierrePendienteBanner
@@ -3152,7 +3154,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
             nextPagoFecha={nextPagoFecha ?? (visitaClienteSeleccionada.proximaVisita || '')}
 
-            recaudadoHoy={Number((visitaClienteSeleccionada as any).recaudadoDelDia || 0)}
+            recaudadoHoy={Number((visitaClienteSeleccionada).recaudadoDelDia || 0)}
 
             formatFechaLargaUTC={(d: string) => {
 
@@ -3237,8 +3239,8 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
               clearRegularizacionContext()
 
             }}
-            montoCuotaEsperadoOverride={(contextoRegularizacion as any)?.montoCuotaEsperado ?? resolveCuotaNormalOperativa(visitaPagoRegularizada || visitasBase.find(v => v.id === visitaPagoSeleccionadaId))}
-            cuotaNumeroEsperadaOverride={(contextoRegularizacion as any)?.cuotaNumeroEsperada}
+            montoCuotaEsperadoOverride={(contextoRegularizacion)?.montoCuotaEsperado ?? resolveCuotaNormalOperativa(visitaPagoRegularizada || visitasBase.find(v => v.id === visitaPagoSeleccionadaId))}
+            cuotaNumeroEsperadaOverride={(contextoRegularizacion)?.cuotaNumeroEsperada}
 
             onConfirm={async (monto: number, metodo: 'EFECTIVO' | 'TRANSFERENCIA', comprobante: File | null, contexto) => {
 
@@ -3376,7 +3378,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
           cobradorId={
             userSession?.rol === RolUsuario.SUPERVISOR
               ? userSession.id
-              : ((rutaInfo as any)?.cobradorId || userSession?.id)
+              : ((rutaInfo)?.cobradorId || userSession?.id)
           }
           
           recaudoDia={rutaStats.recaudo}
@@ -3390,7 +3392,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
             const esSupervisor = userSession?.rol === RolUsuario.SUPERVISOR
             const cobradorIdReal = esSupervisor
               ? userSession?.id
-              : ((rutaInfo as any)?.cobradorId || userSession?.id || '')
+              : ((rutaInfo)?.cobradorId || userSession?.id || '')
 
             if (!cobradorIdReal) {
               toast.error('No se pudo registrar el gasto: falta cobrador')
