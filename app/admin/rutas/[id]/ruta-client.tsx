@@ -974,7 +974,11 @@ const RutaClientLoaded = ({
                     const recaudado = Number(v?.recaudadoDelDia || 0)
                     const metaPendiente = Number(v?.montoCuotaPendiente || 0)
                     const cuotaNormal = Number(v?.montoCuotaNormal ?? v?.montoCuota ?? 0)
-                    const estadoGestion = String(v?.estadoGestion || '').toUpperCase()
+                    // `estadoGestion` no lo escribe nadie en una visita: el estado del dia
+                    // esta en `estadoVisita`, que se rellena desde el RegistroVisita. Se deja
+                    // el mismo orden de respaldo que usa `rutas-core`, donde esta misma
+                    // comprobacion si funcionaba porque caia al segundo termino.
+                    const estadoGestion = String(v?.estadoGestion || v?.estadoVisita || '').toUpperCase()
 
                     return (
                       metaPendiente > 0 ||
@@ -1077,7 +1081,11 @@ const RutaClientLoaded = ({
                     const recaudado = Number(v?.recaudadoDelDia || 0)
                     const metaPendiente = Number(v?.montoCuotaPendiente || 0)
                     const cuotaNormal = Number(v?.montoCuotaNormal ?? v?.montoCuota ?? 0)
-                    const estadoGestion = String(v?.estadoGestion || '').toUpperCase()
+                    // `estadoGestion` no lo escribe nadie en una visita: el estado del dia
+                    // esta en `estadoVisita`, que se rellena desde el RegistroVisita. Se deja
+                    // el mismo orden de respaldo que usa `rutas-core`, donde esta misma
+                    // comprobacion si funcionaba porque caia al segundo termino.
+                    const estadoGestion = String(v?.estadoGestion || v?.estadoVisita || '').toUpperCase()
 
                     return (
                       metaPendiente > 0 ||
@@ -2280,7 +2288,11 @@ const RutaClientLoaded = ({
                             const recaudado = Number(v?.recaudadoDelDia || 0)
                             const metaPendiente = Number(v?.montoCuotaPendiente || 0)
                             const cuotaNormal = Number(v?.montoCuotaNormal ?? v?.montoCuota ?? 0)
-                            const estadoGestion = String(v?.estadoGestion || '').toUpperCase()
+                            // `estadoGestion` no lo escribe nadie en una visita: el estado del dia
+                            // esta en `estadoVisita`, que se rellena desde el RegistroVisita. Se deja
+                            // el mismo orden de respaldo que usa `rutas-core`, donde esta misma
+                            // comprobacion si funcionaba porque caia al segundo termino.
+                            const estadoGestion = String(v?.estadoGestion || v?.estadoVisita || '').toUpperCase()
 
                             return (
                               metaPendiente > 0 ||
