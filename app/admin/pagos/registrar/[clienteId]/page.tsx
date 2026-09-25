@@ -20,7 +20,6 @@ import { clientesService } from '@/services/cliente-service'
 import { prestamosService } from '@/services/prestamos-service'
 import { pagosService, type DescomposicionPago } from '@/services/pagos-service'
 import { offlineStore } from '@/lib/offline/offlineDb'
-import { enqueuePago } from '@/lib/offline/offlineQueue'
 import { resolveCobradorIdForRouteAction } from '@/lib/rutas-core'
 
 type TipoProducto = 'PRESTAMO_EFECTIVO' | 'CREDITO_ARTICULO'
@@ -59,6 +58,9 @@ const RegistrarPagoClientePage = () => {
   const [comentarios, setComentarios] = useState('')
   const [estadoEnvio, setEstadoEnvio] = useState<'idle' | 'enviando' | 'exito' | 'error'>('idle')
   const [descomposicion, setDescomposicion] = useState<DescomposicionPago | null>(null)
+  // El pago puede quedar registrado sin desglose: sin conexion queda en la cola y
+  // el reparto entre capital, interes y mora lo decide el backend al sincronizar.
+  const [pagoSinConexion, setPagoSinConexion] = useState(false)
 
   useEffect(() => {
     const loadData = async () => {
@@ -147,34 +149,16 @@ const RegistrarPagoClientePage = () => {
         metodoPago: 'EFECTIVO' as any,
         notas: comentarios || undefined,
       })
-      setDescomposicion(resultado.descomposicion)
+      setDescomposicion(resultado.descomposicion ?? null)
+      setPagoSinConexion(Boolean(resultado.esOffline))
       setEstadoEnvio('exito')
     } catch (err) {
       console.error('Error registrando pago:', err)
-      // Fallback offline: encolar pago
-      if (!navigator.onLine) {
-        try {
-          await enqueuePago({
-            clienteId: cliente.id,
-            prestamoId: producto.id,
-            cobradorId,
-            montoTotal: parseCOPInputToNumber(monto),
-            notas: comentarios || undefined,
-            clienteNombre: cliente.nombre,
-          })
-          setEstadoEnvio('exito')
-          setDescomposicion({
-            montoTotal: parseCOPInputToNumber(monto),
-            capitalRecuperado: 0,
-            interesRecuperado: 0,
-            saldoAnterior: producto.saldoPendiente,
-            saldoNuevo: producto.saldoPendiente - parseCOPInputToNumber(monto),
-            cuotasAfectadas: 0,
-            prestamoQuedaPagado: false,
-          })
-          return
-        } catch { /* ignore */ }
-      }
+      // Aqui NO se vuelve a encolar. `pagosService.registrarPago` ya encola ante
+      // error de red y devuelve el pago optimista, asi que este catch solo recibe
+      // errores que no son de red; encolar aqui duplicaba el pago. El bloque que
+      // habia era inalcanzable y ademas fabricaba un desglose con capital e
+      // interes en cero.
       setEstadoEnvio('error')
     }
   }
@@ -333,6 +317,30 @@ const RegistrarPagoClientePage = () => {
                         {estadoEnvio === 'enviando' ? 'Procesando...' : estadoEnvio === 'exito' ? '¡Pago Exitoso!' : 'Confirmar Pago de Artículo'}
                       </button>
                    </div>
+
+                   {estadoEnvio === 'exito' && pagoSinConexion && !descomposicion && (
+                     <div className="mt-6 bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-3">
+                       <h4 className="font-bold text-amber-800 flex items-center gap-2">
+                         <CheckCircle2 className="h-5 w-5" />
+                         Pago guardado sin conexion
+                       </h4>
+                       <p className="text-sm text-amber-800">
+                         Se registro <strong>{formatCurrency(parseCOPInputToNumber(monto))}</strong> y se
+                         enviara automaticamente al reconectar.
+                       </p>
+                       <p className="text-xs text-amber-700">
+                         El reparto entre capital, interes y mora lo calcula el servidor al
+                         sincronizar, asi que todavia no se puede mostrar.
+                       </p>
+                       <button
+                         type="button"
+                         onClick={() => router.back()}
+                         className="w-full mt-2 py-3 rounded-xl border border-amber-300 text-amber-700 font-bold text-sm hover:bg-amber-100 transition-colors"
+                       >
+                         Volver
+                       </button>
+                     </div>
+                   )}
 
                    {estadoEnvio === 'exito' && descomposicion && (
                      <div className="mt-6 bg-emerald-50 border border-emerald-200 rounded-2xl p-5 space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-500">
@@ -586,6 +594,29 @@ const RegistrarPagoClientePage = () => {
                     )}
                   </button>
 
+                  {estadoEnvio === 'exito' && pagoSinConexion && !descomposicion && (
+                    <div className="mt-6 bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-3">
+                      <h4 className="font-bold text-amber-800 flex items-center gap-2">
+                        <CheckCircle2 className="h-5 w-5" />
+                        Pago guardado sin conexion
+                      </h4>
+                      <p className="text-sm text-amber-800">
+                        Se registro <strong>{formatCurrency(parseCOPInputToNumber(monto))}</strong> y se
+                        enviara automaticamente al reconectar.
+                      </p>
+                      <p className="text-xs text-amber-700">
+                        El reparto entre capital, interes y mora lo calcula el servidor al
+                        sincronizar, asi que todavia no se puede mostrar.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => router.back()}
+                        className="w-full mt-2 py-3 rounded-xl border border-amber-300 text-amber-700 font-bold text-sm hover:bg-amber-100 transition-colors"
+                      >
+                        Volver
+                      </button>
+                    </div>
+                  )}
                   {estadoEnvio === 'exito' && descomposicion && (
                     <div className="mt-6 bg-emerald-50 border border-emerald-200 rounded-2xl p-5 space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-500">
                       <h4 className="font-bold text-emerald-800 flex items-center gap-2">
