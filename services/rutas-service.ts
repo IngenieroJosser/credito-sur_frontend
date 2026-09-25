@@ -432,7 +432,7 @@ export const rutasService = {
 
   async obtenerRutaPorId(id: string): Promise<Ruta> {
 
-    return apiRequest<Ruta>('GET', `/routes/${id}`, undefined, { cacheTTL: 0 } as any);
+    return apiRequest<Ruta>('GET', `/routes/${id}`, undefined, { cacheTTL: 0 });
 
   },
 
@@ -448,7 +448,7 @@ export const rutasService = {
 
       undefined,
 
-      { cacheTTL: 0 } as any,
+      { cacheTTL: 0 },
 
     );
 
@@ -476,7 +476,15 @@ export const rutasService = {
 
    */
 
-  async crearRuta(data: CrearRutaDto): Promise<Ruta> {
+  /**
+   * Sin conexión devuelve `null`, no el registro de la cola.
+   *
+   * Antes devolvía `enqueueOperation(...) as any`: un objeto con `endpoint` y
+   * `method` disfrazado de `Ruta`. Ninguno de los sitios que llaman aquí usa el
+   * resultado —hacen `await` y recargan la lista—, asi que se dice la verdad en vez
+   * de fabricar una ruta que nadie lee.
+   */
+  async crearRuta(data: CrearRutaDto): Promise<Ruta | null> {
 
     try {
 
@@ -488,7 +496,7 @@ export const rutasService = {
 
         logger.log('[Offline Mode] Guardando creacion de ruta en cola...');
 
-        return await syncService.enqueueOperation(
+        await syncService.enqueueOperation(
 
           'ruta_crear',
 
@@ -500,7 +508,8 @@ export const rutasService = {
 
           'Crear ruta: ' + data.nombre
 
-        ) as any;
+        );
+        return null;
 
       }
 
@@ -518,7 +527,11 @@ export const rutasService = {
 
    */
 
-  async actualizarRuta(id: string, data: ActualizarRutaDto): Promise<Ruta> {
+  /** Sin conexión devuelve `null`; ver la nota de `crearRuta`. */
+  async actualizarRuta(
+    id: string,
+    data: ActualizarRutaDto,
+  ): Promise<Ruta | null> {
 
     try {
 
@@ -530,7 +543,7 @@ export const rutasService = {
 
         logger.log('[Offline Mode] Guardando actualizacion de ruta en cola...');
 
-        return await syncService.enqueueOperation(
+        await syncService.enqueueOperation(
 
           'ruta_actualizar',
 
@@ -542,7 +555,8 @@ export const rutasService = {
 
           'Actualizar ruta ID: ' + id
 
-        ) as any;
+        );
+        return null;
 
       }
 
@@ -604,7 +618,8 @@ export const rutasService = {
 
    */
 
-  async toggleActiva(id: string): Promise<Ruta> {
+  /** Sin conexión devuelve `null`; ver la nota de `crearRuta`. */
+  async toggleActiva(id: string): Promise<Ruta | null> {
 
     try {
 
@@ -616,7 +631,7 @@ export const rutasService = {
 
         logger.log('[Offline Mode] Guardando cambio de estado de ruta en cola...');
 
-        return await syncService.enqueueOperation(
+        await syncService.enqueueOperation(
 
           'ruta_toggle_activa',
 
@@ -628,7 +643,8 @@ export const rutasService = {
 
           'Alternar estado activo de ruta ID: ' + id
 
-        ) as any;
+        );
+        return null;
 
       }
 
@@ -834,7 +850,7 @@ export const rutasService = {
 
         logger.log('[Offline Mode] Guardando reordenamiento de clientes en cola...');
 
-        return await syncService.enqueueOperation(
+        await syncService.enqueueOperation(
 
           'ruta_reorder_clientes',
 
@@ -846,7 +862,15 @@ export const rutasService = {
 
           `Reordenar clientes en ruta: ${rutaId}`
 
-        ) as any;
+        );
+
+        // Aqui si se construye el resultado, y no es inventarlo: el reorden
+        // QUEDA hecho, encolado, asi que `exito` es cierto. El mensaje dice de
+        // donde viene, que es lo que la pantalla necesita saber.
+        return {
+          exito: true,
+          mensaje: 'El orden se guardó sin conexión y se enviará al sincronizar.',
+        };
 
       }
 
