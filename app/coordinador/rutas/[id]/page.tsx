@@ -1,4 +1,5 @@
 'use client'
+import { datosParaRegistro, mensajeDeError } from '@/lib/mensaje-de-error'
 
 import { logger } from '@/lib/logger'
 
@@ -270,7 +271,7 @@ const LegacyDetalleRutaPage = () => {
       const resp = await rutasService.obtenerVisitasDelDia(rutaId, getBogotaDateKey(new Date()))
       setMisCreditos(ordenarVisitasRutaActual(mapDailyVisitsResponseToVisitasCoordinador(resp, cobradorId)))
 
-    } catch (e: any) {
+    } catch (e) {
 
       console.error('Error cargando mis clientes (ruta coordinador):', e)
 
@@ -2304,18 +2305,14 @@ const LegacyDetalleRutaPage = () => {
                     logger.warn('Fallo el refresco de la ruta tras la accion', error)
                   }
 
-                } catch (e: any) {
+                } catch (e) {
                   const message =
-                    e?.response?.data?.message ??
-                    e?.data?.message ??
-                    e?.message ??
-                    'Error al solicitar reprogramación.'
+                    mensajeDeError(e, 'Error al solicitar reprogramación.')
 
                   console.error('Error reprogramando cuota (coordinador):', {
                     message,
                     error: e,
-                    response: e?.response,
-                    data: e?.response?.data || e?.data,
+                    ...datosParaRegistro(e),
                   })
 
                   showNotification('error', Array.isArray(message) ? message[0] : message, 'Error')

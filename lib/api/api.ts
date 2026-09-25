@@ -22,6 +22,27 @@ export interface ApiError {
   isConflict?: boolean;
 }
 
+/**
+ * Si el fallo es uno de los que lanza `apiRequest`.
+ *
+ * `ApiError` estaba declarado y exportado desde el principio, pero NADIE fuera de
+ * este fichero lo importaba: los 43 `catch (error)` del proyecto leian sus
+ * campos a mano. Con esto se puede escribir `catch (error)` y preguntar por
+ * `isConflict` o `statusCode` sabiendo que existen.
+ *
+ * No todo fallo es un `ApiError` —hay Error normales, fallos de axios que no pasan
+ * por aqui y cosas lanzadas desde el navegador—, asi que para el mensaje y el
+ * estado en general siguen sirviendo `mensajeDeError` y `estadoDeError`. Esto es
+ * para lo que solo tiene sentido en NUESTRO error, como `isConflict`.
+ */
+export function esApiError(error: unknown): error is ApiError {
+  if (!error || typeof error !== 'object') return false;
+  const posible = error as Partial<ApiError>;
+  return (
+    typeof posible.statusCode === 'number' && typeof posible.message === 'string'
+  );
+}
+
 const CONFLICT_ERROR_MESSAGE =
   "Este registro fue actualizado por otra persona. Recarga la información antes de guardar.";
 const FORBIDDEN_ERROR_MESSAGE = "No tienes permisos para realizar esta acción.";

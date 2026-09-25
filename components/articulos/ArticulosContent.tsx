@@ -1,4 +1,5 @@
 'use client'
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 
 
 import Paginador from '@/components/ui/Paginador'
@@ -500,9 +501,12 @@ export default function ArticulosContent() {
       setShowNuevoModal(false)
       setShowEditarModal(false)
       setArticuloSeleccionado(null)
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error saving:', error)
-      const errorMsg = error.response?.data?.message || 'Error al guardar el artículo. Verifique el código o los datos.'
+      const errorMsg = mensajeDeError(
+        error,
+        'Error al guardar el artículo. Verifique el código o los datos.',
+      )
       showNotification('error', errorMsg, 'Error')
     } finally {
       setGuardandoArticulo(false)

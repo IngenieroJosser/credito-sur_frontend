@@ -1,4 +1,5 @@
 'use client';
+import { estadoDeError } from '@/lib/mensaje-de-error'
 
 import PantallaCarga from '@/components/ui/PantallaCarga'
 
@@ -290,10 +291,10 @@ export default function CoordinadorPage() {
             shouldRedirect: null,
           });
         }
-      } catch (error: any) {
+      } catch (error) {
         console.error('Error cargando dashboard coordinador:', error);
         // Solo hacer logout en error de autenticación (401), no en errores de red
-        if (error?.response?.status === 401 || error?.statusCode === 401) {
+        if (estadoDeError(error) === 401 || estadoDeError(error) === 401) {
           localStorage.removeItem('token');
           localStorage.removeItem('user');
           router.replace('/login');

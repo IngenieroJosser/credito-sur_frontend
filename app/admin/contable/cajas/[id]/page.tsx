@@ -1,4 +1,5 @@
 'use client'
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 
 
 import Paginador from '@/components/ui/Paginador'
@@ -191,14 +192,15 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
       setShowRegistrarMovimientoModal(false)
       setMovimientoForm({ tipo: 'INGRESO', categoria: '', montoInput: '', concepto: '', referencia: '', accountCode: '' })
       await fetchCaja()
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error registrando movimiento:', error)
-      const msg =
-        error?.message ||
-        error?.response?.message ||
-        (Array.isArray(error?.response?.message) ? error.response.message.join(', ') : undefined) ||
-        'No se pudo registrar el movimiento'
-      showNotification('error', String(msg), 'Error')
+      // La cadena que habia aqui ponia `error?.response?.message` ANTES del
+      // `Array.isArray`, asi que cuando el backend mandaba la lista de campos del
+      // ValidationPipe el segundo termino la devolvia tal cual y el `join` no
+      // llegaba a correr: acababa en `String(array)`, con comas y sin espacios.
+      // `mensajeDeError` une la lista donde sea que venga.
+      const msg = mensajeDeError(error, 'No se pudo registrar el movimiento')
+      showNotification('error', msg, 'Error')
     }
   }
 

@@ -617,9 +617,11 @@ export const RutasPageView = ({
       try {
         await fetchRutas();
       } catch (e) { /* Error refreshing routes */ }
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.message || 'No se pudo guardar la ruta';
-      showNotification('error', Array.isArray(errorMessage) ? errorMessage.join(', ') : errorMessage, 'Error');
+    } catch (error) {
+      // `mensajeDeError` ya une la lista de campos del ValidationPipe, asi que el
+      // `Array.isArray(...)` de aqui sobraba.
+      const errorMessage = mensajeDeError(error, 'No se pudo guardar la ruta');
+      showNotification('error', errorMessage, 'Error');
     }
   }
 
@@ -694,7 +696,7 @@ export const RutasPageView = ({
       }
 
       await fetchRutas()
-    } catch (e: any) {
+    } catch (e) {
       setErrorRecolectar(mensajeDeError(e, 'No se pudo recolectar. Intenta de nuevo.'))
     } finally {
       setProcessingTransfer(false)

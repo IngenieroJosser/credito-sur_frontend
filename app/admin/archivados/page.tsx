@@ -1,6 +1,6 @@
 'use client'
 
-import { mensajeDeError } from '@/lib/mensaje-de-error'
+import { estadoDeError, mensajeDeError } from '@/lib/mensaje-de-error'
 import { Archive, Search, Filter, RefreshCw, RotateCcw, Trash2, Eye, MapPin } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
@@ -143,7 +143,7 @@ export default function ArchivadosPage() {
       if ((window as any).refreshArchivados) {
         (window as any).refreshArchivados()
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error al restaurar:', error)
       toast.error(mensajeDeError(error, 'Error al restaurar el elemento'), { id: toastId })
     }
@@ -164,13 +164,13 @@ export default function ArchivadosPage() {
       if ((window as any).refreshArchivados) {
         (window as any).refreshArchivados()
       }
-    } catch (error: any) {
-      const statusCode = error?.statusCode
-      const rawMessage =
-        error?.message ||
-        error?.error?.message ||
-        error?.error ||
-        ''
+    } catch (error) {
+      const statusCode = estadoDeError(error)
+      // El ultimo termino de la cadena que habia aqui era `error?.error` crudo, o
+      // sea un objeto en un sitio donde se espera texto. `mensajeDeError` recorre
+      // los mismos candidatos y devuelve '' si ninguno es legible, que es el mismo
+      // respaldo que tenia.
+      const rawMessage = mensajeDeError(error, '')
 
       let extra = ''
       try {

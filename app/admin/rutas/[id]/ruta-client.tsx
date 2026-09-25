@@ -1,6 +1,6 @@
 'use client'
 
-import { mensajeDeError } from '@/lib/mensaje-de-error'
+import { datosParaRegistro, estadoDeError, mensajeDeError } from '@/lib/mensaje-de-error'
 import { Skeleton, SkeletonDetalle } from '@/components/ui/Skeleton'
 
 import { logger } from '@/lib/logger'
@@ -883,21 +883,17 @@ const RutaClientLoaded = ({
       const resp = await routesService.activarHoy(initialRuta.id)
       setRutaActivadaHoy(Boolean(resp?.operableHoy ?? resp?.activadaHoy))
       showNotification('success', mensajeDeError(resp, 'Ruta activada para hoy correctamente'), 'Éxito')
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error activando ruta del día:', error)
       
-      const status =
-        error?.statusCode ??
-        error?.status ??
-        error?.response?.status ??
-        error?.error?.statusCode ??
-        error?.response?.data?.statusCode;
+      // Antes esto era una cadena de cinco formas distintas de leer el estado
+      // (`statusCode`, `status`, `response.status`, `error.statusCode` y
+      // `response.data.statusCode`). `estadoDeError` las recorre todas, en el mismo
+      // orden.
+      const status = estadoDeError(error);
 
       const message =
-        error?.response?.data?.message ??
-        error?.error?.message ??
-        error?.message ??
-        'La ruta ya tiene movimiento de caja hoy y se considera operativa.';
+        mensajeDeError(error, 'La ruta ya tiene movimiento de caja hoy y se considera operativa.');
 
       // Tratar 409 como caso de negocio (conflicto por restricción de BD)
       if (status === 409) {
@@ -1225,7 +1221,7 @@ const RutaClientLoaded = ({
 
       // Para "Mis clientes", mostrar kpiItems (obligaciones completas) enriquecidas
       setMisCreditos(result.kpiItems as any)
-    } catch (e: any) {
+    } catch (e) {
       console.error('Error cargando mis clientes (ruta admin):', e)
       toast.error('No se pudieron cargar las obligaciones operativas de la ruta.')
     } finally {
@@ -2140,7 +2136,7 @@ const RutaClientLoaded = ({
             } catch (error) {
               console.error('Error registrando pago/abono:', error);
               const apiError = error as any;
-              const isConflict = apiError?.isConflict || apiError?.statusCode === 409 || apiError?.error?.statusCode === 409;
+              const isConflict = apiError?.isConflict || apiError?.statusCode === 409 || apiError?.estadoDeError(error) === 409;
               const mensaje = apiError?.message || apiError?.error?.message || 'No se pudo registrar el pago/abono';
               if (isConflict) {
                 setEnrichNonce((n) => n + 1);
@@ -2335,18 +2331,14 @@ const RutaClientLoaded = ({
                   logger.warn('Fallo el refresco de la ruta tras la accion', error)
                 }
 
-              } catch (error: any) {
+              } catch (error) {
                 const message =
-                  error?.response?.data?.message ??
-                  error?.data?.message ??
-                  error?.message ??
-                  'No se pudo realizar la reprogramación.'
+                  mensajeDeError(error, 'No se pudo realizar la reprogramación.')
 
                 console.error('Error reprogramando cuota (ruta admin):', {
                   message,
                   error,
-                  response: error?.response,
-                  data: error?.response?.data || error?.data,
+                  ...datosParaRegistro(error),
                 })
 
                 toast.error(Array.isArray(message) ? message[0] : message)
@@ -2748,7 +2740,7 @@ const RutaClientLoaded = ({
               cargarDetalle(),
               onRutaRefresh?.(),
             ])
-          } catch (error: any) {
+          } catch (error) {
             toast.error(
               mensajeDeError(error, 'No se pudo cerrar la jornada regularizada.'),
             )

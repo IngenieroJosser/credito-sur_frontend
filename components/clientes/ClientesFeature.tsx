@@ -1,4 +1,5 @@
 'use client';
+import { estadoDeError } from '@/lib/mensaje-de-error'
 
 
 import Paginador from '@/components/ui/Paginador'
@@ -259,8 +260,8 @@ export default function ClientesFeature({
       setIsDeleteModalOpen(false);
       setClientToDelete(null);
       showNotification('success', 'El cliente ha sido archivado exitosamente', 'Cliente Archivado');
-    } catch (error: any) {
-      if (error?.statusCode === 404 || error?.statusCode === 500) {
+    } catch (error) {
+      if (estadoDeError(error) === 404 || estadoDeError(error) === 500) {
         setClientes((prev) => prev.filter((c) => c.id !== clientToDelete.id));
         setIsDeleteModalOpen(false);
         setClientToDelete(null);

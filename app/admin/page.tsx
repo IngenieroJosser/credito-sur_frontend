@@ -1,4 +1,5 @@
 'use client'
+import { estadoDeError } from '@/lib/mensaje-de-error'
 
 import PantallaCarga from '@/components/ui/PantallaCarga'
 import { logger } from '@/lib/logger'
@@ -434,9 +435,9 @@ export default function DashboardPage() {
           },
           shouldRedirect: null
         });
-      } catch (error: any) {
+      } catch (error) {
         console.error('Error cargando dashboard:', error);
-        if (error?.response?.status === 401 || error?.statusCode === 401) {
+        if (estadoDeError(error) === 401 || estadoDeError(error) === 401) {
           localStorage.removeItem('token');
           localStorage.removeItem('user');
           router.replace('/');

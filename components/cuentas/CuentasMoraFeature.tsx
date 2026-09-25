@@ -35,7 +35,7 @@ import { exportService } from '@/services/export-service'
 import { toast } from 'sonner'
 import { resolveRiesgoObligacion } from '@/lib/rutas/riesgo-obligacion'
 import { SkeletonTarjetas } from '@/components/ui/Skeleton'
-import { mensajeDeError } from '@/lib/mensaje-de-error'
+import { estadoDeError, mensajeDeError } from '@/lib/mensaje-de-error'
 
 type NivelRiesgo = 'VERDE' | 'LEVE' | 'PRECAUCION' | 'ROJO' | 'LISTA_NEGRA'
 type EstadoPrestamo = 'EN_MORA' | 'INCUMPLIDO' | 'PERDIDA'
@@ -261,12 +261,12 @@ export default function CuentasMoraFeature() {
         : soloEnMora.filter(c => c.etiquetaMora === filtroNivel)
 
       setCuentas(filtradas)
-    } catch (error: any) {
+    } catch (error) {
       const msg = formatErrorForComponent(error)
       console.error('Error al cargar cuentas en mora:', {
         error,
-        statusCode: error?.statusCode,
-        message: error?.message,
+        statusCode: estadoDeError(error),
+        message: mensajeDeError(error, ''),
         serialized: (() => {
           try { return JSON.stringify(error) } catch { return String(error) }
         })(),

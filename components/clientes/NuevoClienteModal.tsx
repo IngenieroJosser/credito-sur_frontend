@@ -1,6 +1,6 @@
 'use client';
 
-import { mensajeDeError } from '@/lib/mensaje-de-error';
+import { codigoDeError, estadoDeError, mensajeDeError } from '@/lib/mensaje-de-error';
 import { useState, useEffect, useRef } from 'react';
 import { X, Loader2 } from 'lucide-react';
 import { useNotification } from '@/components/providers/NotificationProvider';
@@ -239,12 +239,12 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
       } as any);
       onClose();
 
-    } catch (error: any) {
+    } catch (error) {
       console.error('[NuevoClienteModal] Error:', error);
       
       // Si el servicio no pudo manejar el modo offline automáticamente (ej. navigator.onLine es true pero falló)
       // o si queremos asegurar que se guarde localmente ante cualquier error de conexión
-      const isNetworkError = !navigator.onLine || error?.statusCode === 0 || error?.code === 'ERR_NETWORK';
+      const isNetworkError = !navigator.onLine || estadoDeError(error) === 0 || codigoDeError(error) === 'ERR_NETWORK';
       
       if (isNetworkError) {
         try {
@@ -273,8 +273,12 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
         }
       }
 
-      if (error?.statusCode === 409) {
-        showNotification('warning', error.message || `Ya existe un cliente con el documento: ${formulario.dni}`, 'Conflicto de Datos');
+      if (estadoDeError(error) === 409) {
+        showNotification(
+          'warning',
+          mensajeDeError(error, `Ya existe un cliente con el documento: ${formulario.dni}`),
+          'Conflicto de Datos',
+        );
       } else {
         showNotification('error', mensajeDeError(error, 'No se pudo procesar la solicitud del cliente'), 'Error Interno');
       }

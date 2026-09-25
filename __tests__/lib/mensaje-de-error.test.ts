@@ -1,4 +1,10 @@
-import { estadoDeError, mensajeDeError } from '@/lib/mensaje-de-error'
+import {
+  codigoDeError,
+  datosParaRegistro,
+  estadoDeError,
+  mensajeDeError,
+} from '@/lib/mensaje-de-error'
+import { esApiError } from '@/lib/api/api'
 
 /**
  * Que el motivo del backend llegue a la pantalla.
@@ -94,5 +100,122 @@ describe('estadoDeError', () => {
     // La comprobacion que decide si el sync reintenta es `=== 401`, asi que
     // devolver 0 o NaN en vez de undefined cambiaria la decision.
     expect(estadoDeError({ statusCode: 'no es un numero' })).toBeUndefined()
+  })
+})
+
+describe('las formas que llegan desenvueltas', () => {
+  it('mensajeDeError lee `data.message` sin `response` delante', () => {
+    // 14 sitios lo leian a mano asi: el cuerpo llega desenvuelto segun por donde
+    // pase el fallo.
+    expect(mensajeDeError({ data: { message: 'La caja ya fue cerrada.' } }, 'respaldo')).toBe(
+      'La caja ya fue cerrada.',
+    )
+  })
+
+  it('mensajeDeError prefiere el de `response.data` cuando estan los dos', () => {
+    const fallo = { response: { data: { message: 'de response' } }, data: { message: 'suelto' } }
+    expect(mensajeDeError(fallo, 'respaldo')).toBe('de response')
+  })
+
+  it('estadoDeError lee el estado un nivel mas adentro', () => {
+    expect(estadoDeError({ error: { statusCode: 409 } })).toBe(409)
+  })
+
+  it('estadoDeError prefiere el de arriba cuando estan los dos', () => {
+    expect(estadoDeError({ statusCode: 401, error: { statusCode: 409 } })).toBe(401)
+  })
+})
+
+/**
+ * `ApiError` estaba declarado y exportado desde el principio y nadie fuera de
+ * `lib/api/api.ts` lo importaba: los 43 `catch (error)` leian sus campos a
+ * mano. El guard existe para poder preguntar por lo que solo tiene sentido en
+ * NUESTRO error, como `isConflict`.
+ */
+describe('esApiError', () => {
+  it('reconoce el fallo que lanza apiRequest', () => {
+    expect(esApiError({ statusCode: 409, message: 'Conflicto', isConflict: true })).toBe(true)
+  })
+
+  it('no confunde un Error normal con uno de la api', () => {
+    expect(esApiError(new Error('cualquier cosa'))).toBe(false)
+  })
+
+  it('exige que los dos campos sean del tipo correcto', () => {
+    expect(esApiError({ statusCode: '409', message: 'Conflicto' })).toBe(false)
+    expect(esApiError({ statusCode: 409 })).toBe(false)
+  })
+
+  it('no revienta con null, undefined ni texto', () => {
+    expect(esApiError(null)).toBe(false)
+    expect(esApiError(undefined)).toBe(false)
+    expect(esApiError('texto')).toBe(false)
+  })
+})
+
+describe('mensajeDeError con listas de mensajes', () => {
+  it('une la lista que manda el ValidationPipe, sin quedarse con el primero', () => {
+    const fallo = { response: { data: { message: ['monto debe ser positivo', 'ruta es obligatoria'] } } }
+    expect(mensajeDeError(fallo, 'respaldo')).toBe(
+      'monto debe ser positivo · ruta es obligatoria',
+    )
+  })
+
+  it('tambien cuando la lista llega un nivel mas adentro', () => {
+    // Varias cadenas escritas a mano hacian justo esto:
+    // `Array.isArray(error?.error?.message) ? error.error.message.join(', ') : ...`
+    const fallo = { error: { message: ['uno', 'dos'] } }
+    expect(mensajeDeError(fallo, 'respaldo')).toBe('uno · dos')
+  })
+
+  it('tambien cuando llega en `response.message`', () => {
+    const fallo = { response: { message: ['tres', 'cuatro'] } }
+    expect(mensajeDeError(fallo, 'respaldo')).toBe('tres · cuatro')
+  })
+
+  it('una lista vacia o de blancos cae al siguiente candidato', () => {
+    const fallo = { response: { data: { message: ['', '  '] } }, message: 'el de arriba' }
+    expect(mensajeDeError(fallo, 'respaldo')).toBe('el de arriba')
+  })
+})
+
+describe('datosParaRegistro', () => {
+  it('saca el cuerpo de la respuesta de axios', () => {
+    const fallo = { response: { data: { detalle: 'x' } } }
+    expect(datosParaRegistro(fallo)).toEqual({
+      response: { data: { detalle: 'x' } },
+      data: { detalle: 'x' },
+    })
+  })
+
+  it('usa el cuerpo desenvuelto cuando no hay `response`', () => {
+    expect(datosParaRegistro({ data: { detalle: 'y' } })).toEqual({
+      response: undefined,
+      data: { detalle: 'y' },
+    })
+  })
+
+  it('no revienta con null ni con texto', () => {
+    expect(datosParaRegistro(null)).toEqual({})
+    expect(datosParaRegistro('texto')).toEqual({})
+  })
+})
+
+describe('estadoDeError dentro del cuerpo', () => {
+  it('lee el statusCode del cuerpo de la respuesta', () => {
+    expect(estadoDeError({ response: { data: { statusCode: 422 } } })).toBe(422)
+  })
+})
+
+describe('codigoDeError', () => {
+  it('lee el codigo de axios', () => {
+    expect(codigoDeError({ code: 'ECONNABORTED' })).toBe('ECONNABORTED')
+    expect(codigoDeError({ code: 'ERR_NETWORK' })).toBe('ERR_NETWORK')
+  })
+
+  it('sin codigo, undefined, sin reventar', () => {
+    expect(codigoDeError(new Error('x'))).toBeUndefined()
+    expect(codigoDeError(null)).toBeUndefined()
+    expect(codigoDeError({ code: 500 })).toBeUndefined()
   })
 })

@@ -1,6 +1,6 @@
 'use client'
 
-import { mensajeDeError } from '@/lib/mensaje-de-error'
+import { datosParaRegistro, estadoDeError, mensajeDeError } from '@/lib/mensaje-de-error'
 import PantallaCarga from '@/components/ui/PantallaCarga'
 import { logger } from '@/lib/logger'
 
@@ -849,7 +849,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
       })
 
       setMisCreditos(result.kpiItems as any)
-    } catch (e: any) {
+    } catch (e) {
       console.error('Error cargando mis clientes:', e)
     } finally {
       setLoadingMisCreditos(false)
@@ -1227,8 +1227,8 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
             const perfil = await obtenerPerfil();
             localStorage.setItem('user', JSON.stringify(perfil));
             setUserSession(perfil as unknown as UserSession);
-          } catch (e: any) {
-            if (e?.statusCode === 401) router.replace('/login');
+          } catch (e) {
+            if (estadoDeError(e) === 401) router.replace('/login');
           }
         }
 
@@ -1452,18 +1452,14 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
       setVisitaReprogramar(null)
       clearRegularizacionContext()
 
-    } catch (err: any) {
+    } catch (err) {
       const message =
-        err?.response?.data?.message ??
-        err?.data?.message ??
-        err?.message ??
-        'No se pudo enviar la solicitud de reprogramación.'
+        mensajeDeError(err, 'No se pudo enviar la solicitud de reprogramación.')
 
       console.error('Error reprogramando cuota (supervisor):', {
         message,
         error: err,
-        response: err?.response,
-        data: err?.response?.data || err?.data,
+        ...datosParaRegistro(err),
       })
 
       setModalAlerta({
@@ -1998,8 +1994,8 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
       console.error('Error registrando pago (SupervisorCobroView):', e)
       const error = e as any
-      const isConflict = error?.isConflict || error?.statusCode === 409 || error?.error?.statusCode === 409
-      const mensaje = error?.message || error?.error?.message || 'No se pudo registrar el pago'
+      const isConflict = error?.isConflict || estadoDeError(error) === 409 || estadoDeError(error) === 409
+      const mensaje = mensajeDeError(error, 'No se pudo registrar el pago')
 
       if (isConflict) {
         try {
@@ -2113,7 +2109,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
             )
 
             clienteVinculadoARuta = true
-          } catch (assignError: any) {
+          } catch (assignError) {
             console.error('Error al asignar cliente a la ruta:', assignError)
 
             toast.warning(
@@ -2143,7 +2139,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
       })
 
       setShowCreditModal(false)
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error al crear crédito:', error)
 
       setModalAlerta({
@@ -3413,7 +3409,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
               })
               toast.success('Gasto registrado. Se envió a aprobación.')
               setShowGastoModal(false)
-            } catch (e: any) {
+            } catch (e) {
               console.error('Error al registrar gasto (SupervisorCobroView):', e)
               const msg = mensajeDeError(e, 'No se pudo registrar el gasto')
               setModalAlerta({ titulo: 'Error', mensaje: msg, tipo: 'error' })
@@ -3463,7 +3459,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
               })
 
               setShowBaseModal(false)
-            } catch (error: any) {
+            } catch (error) {
               console.error('Error solicitando base:', error)
 
               setModalAlerta({
@@ -3757,7 +3753,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                 refreshCierrePendiente?.(),
                 cargarVisitasRuta?.(),
               ])
-            } catch (error: any) {
+            } catch (error) {
               toast.error(
                 mensajeDeError(error, 'No se pudo cerrar la jornada regularizada.'),
               )

@@ -1,6 +1,6 @@
 'use client'
 
-import { mensajeDeError } from '@/lib/mensaje-de-error'
+import { estadoDeError, mensajeDeError } from '@/lib/mensaje-de-error'
 import Paginador from '@/components/ui/Paginador'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -70,7 +70,7 @@ const BackupsSistemaPage = () => {
       ])
       setStatus(s || null)
       setHistory(Array.isArray(h?.items) ? h.items : [])
-    } catch (e: any) {
+    } catch (e) {
       setError(mensajeDeError(e, 'No se pudo cargar el estado de backups'))
       setStatus(null)
       setHistory([])
@@ -112,8 +112,8 @@ const BackupsSistemaPage = () => {
     setDescargando(`${id}:${type}`)
     try {
       await exportService.downloadFile(`backup/${id}/download`, { type }, `backup_${id}.${ext}`)
-    } catch (e: any) {
-      const status = e?.response?.status
+    } catch (e) {
+      const status = estadoDeError(e)
       if (status === 404) {
         setError(
           type === 'dump'
@@ -134,7 +134,7 @@ const BackupsSistemaPage = () => {
     try {
       await apiRequest('POST', '/backup/run', undefined, { cacheTTL: 0, timeout: 15 * 60 * 1000 })
       await loadAll()
-    } catch (e: any) {
+    } catch (e) {
       setError(mensajeDeError(e, 'No se pudo ejecutar el backup'))
     } finally {
       setRunning(false)
@@ -152,7 +152,7 @@ const BackupsSistemaPage = () => {
         { cacheTTL: 0 },
       )
       setIntegrity(res)
-    } catch (e: any) {
+    } catch (e) {
       setError(mensajeDeError(e, 'No se pudo verificar la integridad contable'))
     } finally {
       setCheckingIntegrity(false)

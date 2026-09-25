@@ -1,4 +1,5 @@
 'use client'
+import { estadoDeError } from '@/lib/mensaje-de-error'
 
 import React, { useState, useRef } from 'react'
 import { 
@@ -488,8 +489,8 @@ export default function NotificacionDetalleModal({
         )
 
         setHistory(Array.isArray(data) ? data : [])
-      } catch (error: any) {
-        if (error?.statusCode !== 403 && error?.error?.statusCode !== 403) {
+      } catch (error) {
+        if (estadoDeError(error) !== 403 && estadoDeError(error) !== 403) {
           console.error('Error fetching history:', error)
         }
 

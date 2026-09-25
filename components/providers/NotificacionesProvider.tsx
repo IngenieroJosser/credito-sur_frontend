@@ -1,4 +1,5 @@
 'use client'
+import { estadoDeError } from '@/lib/mensaje-de-error'
 
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react'
 import { io, Socket } from 'socket.io-client'
@@ -49,7 +50,7 @@ export function NotificacionesProvider({ children }: { children: React.ReactNode
       setNotificaciones(data)
     } catch (e) {
       const err: any = e
-      const statusCode = err?.statusCode || err?.response?.status
+      const statusCode = estadoDeError(err)
       if (statusCode === 401 || statusCode === 403) {
         return
       }

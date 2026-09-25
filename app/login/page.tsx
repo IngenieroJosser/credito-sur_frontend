@@ -1,4 +1,5 @@
 'use client'
+import { codigoDeError, estadoDeError, mensajeDeError } from '@/lib/mensaje-de-error'
 import { logger } from '@/lib/logger'
 
 /**
@@ -310,7 +311,7 @@ const LoginPage = () => {
       // NO seteamos isLoading a false porque queremos que la pantalla parezca bloqueada 
       // mientras cambiamos de página, previniendo doble click y saltos visuales.
 
-    } catch (err: any) {
+    } catch (err) {
       // ── LOGIN OFFLINE ────────────────────────────────────────────────────
       // Si el fallo es por falta de red (p. ej. tras un apagón en Quibdó, el
       // equipo reinicia y sigue sin internet) intentamos entrar con la sesión
@@ -350,12 +351,11 @@ const LoginPage = () => {
 
       console.error('Error en login:', err);
       // Manejamos el error de forma amigable (axios data vs generic error)
-      const axiosMsg = err?.response?.data?.message;
-      let msg = axiosMsg || (err instanceof Error ? err.message : 'Error al iniciar sesión');
+      let msg = mensajeDeError(err, 'Error al iniciar sesión');
 
-      if (err?.response?.status === 401) {
+      if (estadoDeError(err) === 401) {
         msg = 'Credenciales incorrectas';
-      } else if (err?.code === 'ECONNABORTED' || msg.includes('timeout')) {
+      } else if (codigoDeError(err) === 'ECONNABORTED' || msg.includes('timeout')) {
         msg = 'El servidor está iniciando (Cold Start). Sigue intentando un momento más.';
       } else if (esErrorDeRed(err)) {
         msg = 'Sin conexión y sin sesión offline en este equipo. Conéctate al menos una vez para poder trabajar sin internet.';

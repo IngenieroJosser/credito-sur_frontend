@@ -19,22 +19,35 @@ export function mensajeDeError(error: unknown, respaldo: string): string {
 
   if (typeof error === 'string' && error.trim()) return error
 
-  // Los errores de axios traen el cuerpo del backend aquí dentro.
-  if (error && typeof error === 'object') {
-    const posible = error as {
-      response?: { data?: { message?: unknown } }
-      message?: unknown
-      error?: { message?: unknown }
+  if (!error || typeof error !== 'object') return respaldo
+
+  const posible = error as {
+    response?: { data?: { message?: unknown }; message?: unknown }
+    data?: { message?: unknown }
+    message?: unknown
+    error?: { message?: unknown }
+  }
+
+  // Los candidatos, en el orden en que los leian las cadenas escritas a mano:
+  // primero el cuerpo de la respuesta de axios, luego el cuerpo desenvuelto, luego
+  // el mensaje de arriba y por ultimo el que viene un nivel mas adentro.
+  const candidatos = [
+    posible.response?.data?.message,
+    posible.response?.message,
+    posible.data?.message,
+    posible.message,
+    posible.error?.message,
+  ]
+
+  for (const candidato of candidatos) {
+    // El ValidationPipe de Nest manda una LISTA de mensajes, uno por campo. Se
+    // unen todos: quedarse con el primero esconde los demas, y varias cadenas de
+    // las que habia ya hacian `Array.isArray(...) ? ....join(', ') : ...`.
+    if (Array.isArray(candidato)) {
+      const limpios = candidato.map((m) => String(m ?? '').trim()).filter(Boolean)
+      if (limpios.length) return limpios.join(' · ')
     }
-    const delCuerpo = posible.response?.data?.message
-    if (Array.isArray(delCuerpo) && delCuerpo.length) return delCuerpo.join(' · ')
-    if (typeof delCuerpo === 'string' && delCuerpo.trim()) return delCuerpo
-    if (typeof posible.message === 'string' && posible.message.trim()) return posible.message
-    // Algunos fallos llegan con el motivo un nivel mas adentro, en `error.message`.
-    // Seis ficheros lo leian a mano como `err?.message || err?.error?.message`, en
-    // ese orden, y aqui se respeta: primero el de arriba, luego el de dentro.
-    const delAnidado = posible.error?.message
-    if (typeof delAnidado === 'string' && delAnidado.trim()) return delAnidado
+    if (typeof candidato === 'string' && candidato.trim()) return candidato
   }
 
   return respaldo
@@ -62,7 +75,8 @@ export function estadoDeError(error: unknown): number | undefined {
   const posible = error as {
     statusCode?: unknown
     status?: unknown
-    response?: { status?: unknown }
+    response?: { status?: unknown; data?: { statusCode?: unknown } }
+    error?: { statusCode?: unknown }
   }
 
   const numero = (valor: unknown): number | undefined => {
@@ -73,9 +87,40 @@ export function estadoDeError(error: unknown): number | undefined {
     return undefined
   }
 
+  // El ultimo es el estado un nivel mas adentro, que 5 sitios leian como
+  // `err?.error?.statusCode`: pasa cuando un ApiError envuelve a otro.
   return (
     numero(posible.statusCode) ??
     numero(posible.response?.status) ??
-    numero(posible.status)
+    numero(posible.status) ??
+    numero(posible.error?.statusCode) ??
+    numero(posible.response?.data?.statusCode)
   )
+}
+
+/**
+ * El cuerpo crudo de un fallo, para dejarlo en el registro.
+ *
+ * Cuatro pantallas escribian el mismo par a mano dentro de su `console.error`:
+ * `response: err?.response` y `data: err?.response?.data || err?.data`. Es para
+ * mirar, no para decidir: quien tenga que decidir algo usa `estadoDeError` o
+ * `mensajeDeError`.
+ */
+export function datosParaRegistro(error: unknown): {
+  response?: unknown
+  data?: unknown
+} {
+  if (!error || typeof error !== 'object') return {}
+  const f = error as { response?: { data?: unknown }; data?: unknown }
+  return { response: f.response, data: f.response?.data ?? f.data }
+}
+
+/**
+ * El codigo del fallo: `ECONNABORTED` de axios cuando se agota el tiempo,
+ * `ERR_NETWORK` cuando no hay red. De estos cuelgan decisiones, no textos.
+ */
+export function codigoDeError(error: unknown): string | undefined {
+  if (!error || typeof error !== 'object') return undefined
+  const codigo = (error as { code?: unknown }).code
+  return typeof codigo === 'string' && codigo ? codigo : undefined
 }

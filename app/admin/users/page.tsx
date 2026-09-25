@@ -1,6 +1,6 @@
 "use client";
 
-import { mensajeDeError } from '@/lib/mensaje-de-error';
+import { datosParaRegistro, estadoDeError, mensajeDeError } from '@/lib/mensaje-de-error';
 import Paginador from '@/components/ui/Paginador'
 import { logger } from '@/lib/logger'
 
@@ -843,14 +843,9 @@ const UserManagementPage = () => {
       );
       setIsCreateModalOpen(false);
       fetchUsers(); // Recargar lista
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error creating user:", error);
-      const backendMsg =
-        error?.message ||
-        (Array.isArray(error?.error?.message)
-          ? error.error.message.join(", ")
-          : error?.error?.message) ||
-        "No se pudo crear el usuario";
+      const backendMsg = mensajeDeError(error, "No se pudo crear el usuario");
       showNotification("error", backendMsg, "Error al crear usuario");
     } finally {
       setIsCreatingUser(false);
@@ -995,7 +990,7 @@ const UserManagementPage = () => {
       setIsEditModalOpen(false);
       setSelectedUser(null);
       await fetchUsers();
-    } catch (error: any) {
+    } catch (error) {
       const errorMsg = mensajeDeError(error, 'Error desconocido');
       if (formData.password && formData.password.trim() !== '') {
         showNotification('warning', `Contraseña cambiada, pero falló la actualización de datos: ${errorMsg}`, 'Actualización Parcial');
@@ -1064,16 +1059,14 @@ const UserManagementPage = () => {
         "Los permisos del usuario han sido actualizados",
         "Permisos Actualizados",
       );
-    } catch (error: any) {
-      const msg =
-        error?.response?.data?.message ??
-        error?.message ??
-        error?.toString?.() ??
-        'Error desconocido';
+    } catch (error) {
+      // Se cae el `error?.toString?.()` de la cadena: para un objeto cualquiera
+      // devuelve "[object Object]", que no le dice nada a nadie.
+      const msg = mensajeDeError(error, 'Error desconocido');
 
       console.error("Error actualizando los permisos:", msg, {
-        status: error?.response?.status,
-        data: error?.response?.data,
+        status: estadoDeError(error),
+        data: datosParaRegistro(error).data,
       });
 
       showNotification("error", msg, "Error");

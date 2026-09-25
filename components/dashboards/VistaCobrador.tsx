@@ -1,6 +1,7 @@
 'use client'
+import { esApiError } from '@/lib/api/api'
 
-import { mensajeDeError } from '@/lib/mensaje-de-error'
+import { datosParaRegistro, estadoDeError, mensajeDeError } from '@/lib/mensaje-de-error'
 import PantallaCarga, { CapaAccion } from '@/components/ui/PantallaCarga'
 import { logger } from '@/lib/logger'
 
@@ -694,7 +695,7 @@ const VistaCobrador = () => {
 
             setUserSession(perfil);
 
-          } catch (error: any) {
+          } catch (error) {
 
             console.warn('Error al obtener perfil, usando modo offline:', error);
 
@@ -702,7 +703,7 @@ const VistaCobrador = () => {
 
             // Solo redirigir si el token definitivamente murió (401) pero api.ts ya no lanza 401 severamente.
 
-            if (error?.statusCode === 401) {
+            if (estadoDeError(error) === 401) {
 
               router.replace('/login');
 
@@ -1031,12 +1032,12 @@ const VistaCobrador = () => {
 
       setMisCreditos(finales)
 
-    } catch (e: any) {
+    } catch (e) {
       const extractErrorInfo = (err: any) => ({
         message: err?.message,
         status: err?.status,
-        statusCode: err?.statusCode,
-        responseStatus: err?.response?.status,
+        statusCode: estadoDeError(err),
+        responseStatus: estadoDeError(err),
         responseData: err?.response?.data,
         data: err?.data,
         name: err?.name,
@@ -2948,18 +2949,14 @@ const VistaCobrador = () => {
       setVisitaReprogramar(null)
       clearRegularizacionContext()
 
-    } catch (error: any) {
+    } catch (error) {
       const message =
-        error?.response?.data?.message ??
-        error?.data?.message ??
-        error?.message ??
-        'No se pudo realizar la reprogramación.'
+        mensajeDeError(error, 'No se pudo realizar la reprogramación.')
 
       console.error('Error reprogramando cuota (cobrador):', {
         message,
         error,
-        response: error?.response,
-        data: error?.response?.data || error?.data,
+        ...datosParaRegistro(error),
       })
 
       setModalAlerta({
@@ -3047,7 +3044,7 @@ const VistaCobrador = () => {
 
       }
 
-    } catch (error: any) {
+    } catch (error) {
 
       console.error('Error al crear crédito:', error)
 
@@ -3413,11 +3410,12 @@ const VistaCobrador = () => {
         logger.warn('Fallo el refresco de la ruta tras la accion', error)
       }
 
-    } catch (error: any) {
+    } catch (error) {
 
       console.error('Error al registrar pago', error)
-      const isConflict = error?.isConflict || error?.statusCode === 409 || error?.error?.statusCode === 409
-      const mensaje = error?.message || error?.error?.message || 'Ocurrió un error al registrar el pago. Intente de nuevo.'
+      const isConflict =
+        (esApiError(error) && error.isConflict === true) || estadoDeError(error) === 409
+      const mensaje = mensajeDeError(error, 'Ocurrió un error al registrar el pago. Intente de nuevo.')
 
       if (isConflict) {
         try {
@@ -5233,13 +5231,14 @@ const VistaCobrador = () => {
 
               setShowGastoModal(false)
 
-            } catch (error: any) {
+            } catch (error) {
 
               console.error('Error al registrar gasto:', error)
 
               const mensajeError =
 
-                error?.statusCode === 404 && typeof error?.message === 'string' && error.message.toLowerCase().includes('caja de ruta')
+                estadoDeError(error) === 404 &&
+                mensajeDeError(error, '').toLowerCase().includes('caja de ruta')
 
                   ? 'No se encontró una caja de ruta asociada para registrar el gasto. Informe al coordinador para que configure la caja de ruta en el módulo contable.'
 
@@ -5305,7 +5304,7 @@ const VistaCobrador = () => {
 
               setShowBaseModal(false)
 
-            } catch (error: any) {
+            } catch (error) {
 
               console.error('Error solicitando base:', error)
 
@@ -5564,7 +5563,7 @@ const VistaCobrador = () => {
                 refreshCierrePendiente?.(),
                 cargarDatosRuta?.(),
               ])
-            } catch (error: any) {
+            } catch (error) {
               toast.error(
                 mensajeDeError(error, 'No se pudo cerrar la jornada regularizada.'),
               )

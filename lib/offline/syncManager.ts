@@ -20,7 +20,7 @@ import {
  *
  * Estaba escrito cinco veces, identico, en las cinco descargas: url, metodo,
  * baseURL, cuerpo de la respuesta, codigo, claves crudas y pila. Y estaba escrito
- * sobre un `catch (err: any)`, asi que nadie comprobaba que esos campos
+ * sobre un `catch (err)`, asi que nadie comprobaba que esos campos
  * existieran: son de axios, y un fallo que no venga de axios no los trae.
  */
 type FalloDeRed = {
