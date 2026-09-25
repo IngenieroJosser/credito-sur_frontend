@@ -5,7 +5,12 @@ import { toast } from 'sonner'
 import { NotificationType } from '@/components/ui/Toast'
 
 interface NotificationContextType {
-  showNotification: (type: NotificationType, message: string, title?: string, duration?: number) => void
+  showNotification: (
+    type: NotificationType,
+    message: string,
+    title?: string,
+    duration?: number,
+  ) => void
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined)

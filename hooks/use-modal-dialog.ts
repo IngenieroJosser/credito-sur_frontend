@@ -95,14 +95,11 @@ export function useModalDialog<T extends HTMLElement = HTMLDivElement>({
    * fondo solo cierra si no hay nada que perder; lo decide cada modal con
    * `hayDatos`. La X y el botón de cancelar cierran siempre.
    */
-  const alTocarElFondo = useCallback(
-    (evento: React.MouseEvent, hayDatos: boolean) => {
-      if (evento.target !== evento.currentTarget) return
-      if (hayDatos) return
-      onCloseRef.current()
-    },
-    [],
-  )
+  const alTocarElFondo = useCallback((evento: React.MouseEvent, hayDatos: boolean) => {
+    if (evento.target !== evento.currentTarget) return
+    if (hayDatos) return
+    onCloseRef.current()
+  }, [])
 
   return {
     contenedorRef,

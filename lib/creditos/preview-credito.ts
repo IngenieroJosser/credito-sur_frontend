@@ -83,9 +83,7 @@ export function calcularPrestamoPreview(params: {
   // que el resumen mostraba la cuota normal como si todas fueran iguales: medido
   // sobre 2268 combinaciones reales, la última se cobra hasta $80 por encima.
   const valorUltimaCuota =
-    cuotas > 0
-      ? monto - baseCapital * (cuotas - 1) + (intereses - baseInteres * (cuotas - 1))
-      : 0
+    cuotas > 0 ? monto - baseCapital * (cuotas - 1) + (intereses - baseInteres * (cuotas - 1)) : 0
 
   return {
     meses: params.meses,
