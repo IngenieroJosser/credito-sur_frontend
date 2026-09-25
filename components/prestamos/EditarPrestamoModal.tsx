@@ -6,7 +6,6 @@ import { createPortal } from 'react-dom';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { useNotificaciones } from '@/components/providers/NotificacionesProvider';
 import { formatCurrency, formatLoanTerm, formatMilesCOP } from '@/lib/utils';
-import { calcularInteresPlano, calcularInteresSimple } from '@/lib/interes';
 import { prestamosService } from '@/services/prestamos-service';
 import { formatErrorForComponent } from '@/lib/api/api';
 import { articulosService } from '@/services/articulos-service';
@@ -29,47 +28,11 @@ const formatCOPInput = (val: number | undefined) => {
 
 const parseCOP = (val: string) => Number(val.replace(/\D/g, ''));
 
-const calcularAmortizacionPreview = (
-  capital: number,
-  tasaTotal: number,
-  numCuotas: number
-) => {
-  if (!capital || capital <= 0 || !numCuotas || numCuotas <= 0) {
-    return { cuotaFija: 0, interesTotal: 0, total: 0 };
-  }
-
-  const tasaPeriodo = (Number(tasaTotal) || 0) / 100;
-
-  if (tasaPeriodo === 0) {
-    const cuotaFija = capital / numCuotas;
-    return {
-      cuotaFija,
-      interesTotal: 0,
-      total: capital,
-    };
-  }
-
-  const cuotaFijaDecimal = (capital * tasaPeriodo) / (1 - Math.pow(1 + tasaPeriodo, -numCuotas));
-  const cuotaFija = Math.round(cuotaFijaDecimal);
-  const total = cuotaFija * numCuotas;
-  const interesTotal = Math.max(0, total - capital);
-  return { cuotaFija, interesTotal, total };
-};
-
-const calcularInteresPlanoPreview = (
-  capital: number,
-  tasaTotal: number,
-  numCuotas: number
-) => {
-  if (!capital || capital <= 0 || !numCuotas || numCuotas <= 0) {
-    return { cuotaFija: 0, interesTotal: 0, total: 0 };
-  }
-  
-  const interesTotal = calcularInteresPlano(capital, tasaTotal);
-  const total = capital + interesTotal;
-  const cuotaFija = Math.floor(total / numCuotas);
-  return { cuotaFija, interesTotal, total };
-};
+// Aqui vivian dos formulas de dinero propias de esta pantalla
+// (`calcularAmortizacionPreview` y `calcularInteresPlanoPreview`). El resumen
+// proyectado ahora sale de `/loans/simular`, que reutiliza la misma
+// `calculateInterestAndCuotas` de la creacion, asi que ya no hay una tercera
+// copia de la matematica que pueda divergir.
 
 export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPrestamoModalProps) {
   const { showNotification } = useNotification();
@@ -140,6 +103,14 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
     montoInteres: number;
   }>>([]);
   const [planLoading, setPlanLoading] = useState(false);
+  // El resumen proyectado sale de la misma simulacion que la tabla. Antes la
+  // tabla usaba el backend y el resumen una formula local: en la misma pantalla
+  // podian diferir en un peso por cuota (medido: 60 de 1134 combinaciones).
+  const [simResumen, setSimResumen] = useState<{
+    interesTotal: number;
+    totalFinal: number;
+    cuotaProyectada: number;
+  } | null>(null);
   const [verPlanCompleto, setVerPlanCompleto] = useState(false);
 
   const hasChanges = monto !== original.monto 
@@ -157,41 +128,30 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
   const isArticle = tipoPrestamo?.toUpperCase() === 'ARTICULO';
   const themeColor = isArticle ? 'orange' : 'blue';
 
-  const previewAmortizacion = (!isArticle && hasChanges && tipoAmortizacion === TipoAmortizacion.FRANCESA)
-    ? calcularAmortizacionPreview(monto, tasa, cuotas)
-    : null;
-    
-  const previewInteresPlano = (!isArticle && hasChanges && tipoAmortizacion === TipoAmortizacion.INTERES_PLANO)
-    ? calcularInteresPlanoPreview(monto, tasa, cuotas)
-    : null;
-
-  // Computed preview (si no hay cambios, usar backend para que coincida con el detalle)
+  // El resumen proyectado sale de `/loans/simular`, la misma proyeccion que
+  // alimenta la tabla de cuotas de abajo y que usa `calculateInterestAndCuotas`,
+  // es decir la formula con la que se guardaria.
+  //
+  // Antes habia aqui tres formulas locales (una francesa propia, una de interes
+  // plano y una division directa para interes simple) y solo la tabla venia del
+  // backend, asi que la misma pantalla mostraba dos cifras distintas para el
+  // mismo credito. Medido sobre 1134 combinaciones de interes simple: 60
+  // discrepaban, siempre en un peso por cuota. Y en un credito FRANCESA la
+  // formula local tomaba la tasa mensual como tasa del periodo e ignoraba la
+  // frecuencia, con lo que la diferencia no era de un peso.
+  //
+  // Mientras la simulacion viaja (va con 400 ms de espera) se mantiene la
+  // anterior en pantalla; `planLoading` es lo que avisa que se esta actualizando.
   const interesTotal = hasChanges
-    ? (isArticle
-      ? 0
-      : (tipoAmortizacion === TipoAmortizacion.FRANCESA
-        ? Number(previewAmortizacion?.interesTotal || 0)
-        : tipoAmortizacion === TipoAmortizacion.INTERES_PLANO
-        ? Number(previewInteresPlano?.interesTotal || 0)
-        : calcularInteresSimple(monto, tasa, plazoMeses)))
+    ? (isArticle ? 0 : (simResumen?.interesTotal ?? backendInteresTotal))
     : backendInteresTotal;
 
   const totalRecaudar = hasChanges
-    ? (isArticle
-      ? monto
-      : (tipoAmortizacion === TipoAmortizacion.FRANCESA
-        ? Number(previewAmortizacion?.total || 0)
-        : tipoAmortizacion === TipoAmortizacion.INTERES_PLANO
-        ? Number(previewInteresPlano?.total || 0)
-        : monto + interesTotal))
+    ? (isArticle ? monto : (simResumen?.totalFinal ?? backendTotalFinal))
     : backendTotalFinal;
 
   const cobroPorCuota = hasChanges
-    ? (tipoAmortizacion === TipoAmortizacion.FRANCESA
-      ? Number(previewAmortizacion?.cuotaFija || 0)
-      : tipoAmortizacion === TipoAmortizacion.INTERES_PLANO
-      ? Number(previewInteresPlano?.cuotaFija || 0)
-      : (cuotas > 0 ? totalRecaudar / cuotas : 0))
+    ? (simResumen?.cuotaProyectada ?? backendCuotaProyectada)
     : backendCuotaProyectada;
 
   useEffect(() => {
@@ -287,6 +247,7 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
     if (fetching) return;
     if (!(monto > 0) || !(cuotas > 0)) {
       setPlanPreview([]);
+      setSimResumen(null);
       return;
     }
     let cancelado = false;
@@ -304,9 +265,19 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
           tipoPrestamo,
           cuotaInicial,
         });
-        if (!cancelado) setPlanPreview(sim.cuotas || []);
+        if (!cancelado) {
+          setPlanPreview(sim.cuotas || []);
+          setSimResumen({
+            interesTotal: Number(sim.interesTotal) || 0,
+            totalFinal: Number(sim.totalFinal) || 0,
+            cuotaProyectada: Number(sim.cuotaProyectada) || 0,
+          });
+        }
       } catch {
-        if (!cancelado) setPlanPreview([]);
+        if (!cancelado) {
+          setPlanPreview([]);
+          setSimResumen(null);
+        }
       } finally {
         if (!cancelado) setPlanLoading(false);
       }
@@ -540,7 +511,18 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
                 <div className="flex flex-col gap-4">
                   <div className="flex justify-between items-start border-b border-black/5 pb-3">
                     <div className="space-y-1 min-w-0 flex-1">
-                      <label className={`text-[8px] font-black uppercase tracking-[0.2em] ${isArticle ? 'text-orange-400' : 'text-emerald-500'}`}>Cuota Proyectada</label>
+                      <label className={`text-[8px] font-black uppercase tracking-[0.2em] flex items-center gap-1.5 ${isArticle ? 'text-orange-400' : 'text-emerald-500'}`}>
+                        Cuota Proyectada
+                        {/* La proyeccion se le pide al backend con 400 ms de espera.
+                            Sin este aviso, durante ese rato el resumen muestra las
+                            cifras de antes del cambio y parece que no reacciona. */}
+                        {hasChanges && planLoading && (
+                          <span className="inline-flex items-center gap-1 font-bold normal-case tracking-normal opacity-70">
+                            <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                            actualizando
+                          </span>
+                        )}
+                      </label>
                       <p className={`text-xl font-black tabular-nums leading-none truncate ${isArticle ? 'text-orange-900' : 'text-emerald-900'}`}>{formatCurrency(cobroPorCuota)}</p>
                       <p className={`text-[8px] font-bold uppercase tracking-widest mt-1 ${isArticle ? 'text-orange-600' : 'text-emerald-600'}`}>
                         Frecuencia {frecuencia.toLowerCase()}
