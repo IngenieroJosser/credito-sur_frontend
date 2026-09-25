@@ -13,7 +13,7 @@ import {
   Loader2
 } from 'lucide-react'
 import { formatCOPInputValue, formatCurrency, formatLoanTerm, parseCOPInputToNumber } from '@/lib/utils'
-import { calcularInteresPlano, calcularInteresSimple } from '@/lib/interes'
+import { calcularPrestamoPreview } from '@/lib/creditos/preview-credito'
 import { Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
 import { clientesService, Cliente } from '@/services/clientes-service'
 import { articulosService, Articulo } from '@/services/articulos-service'
@@ -127,63 +127,6 @@ const getDefaultFirstCollectionDate = (frecuencia: string, base: Date = new Date
   }
 }
 
-const calcularPrestamoPreview = (params: {
-  monto: number
-  cuotas: number
-  tasa: number
-  meses: number
-  tipoInteres: TipoAmortizacion
-}) => {
-  const monto = Number(params.monto || 0)
-  const cuotas = Number(params.cuotas || 0)
-  const tasa = Number(params.tasa || 0)
-
-  if (!(monto > 0) || !(cuotas > 0)) {
-    return null
-  }
-
-  if (params.tipoInteres === TipoAmortizacion.INTERES_PLANO || params.tipoInteres === TipoAmortizacion.FRANCESA) {
-    // Interés plano (nuevo) / Amortización.
-    const intereses = calcularInteresPlano(monto, tasa)
-    const total = monto + intereses
-    // Protegido contra cuotas=0 (el campo puede estar vacío mientras se
-    // escribe): sin esto la división da Infinity y el preview muestra "$∞".
-    const valorCuota = cuotas > 0 ? Math.floor(total / cuotas) : 0
-    // La última cuota absorbe el residuo
-    const residuo = cuotas > 0 ? total - valorCuota * cuotas : 0
-
-    return {
-      meses: params.meses,
-      monto,
-      intereses,
-      total,
-      valorCuota, // cuotas 1..n-1
-      valorUltimaCuota: valorCuota + residuo, // última cuota
-      numCuotas: cuotas,
-      sistema: 'Amortización',
-    }
-  }
-
-  // INTERES_SIMPLE: la tasa se aplica por cada mes de plazo.
-  const mesesInteres = Math.max(1, params.meses)
-  const intereses = calcularInteresSimple(monto, tasa, mesesInteres)
-  const total = monto + intereses
-  // Reparto como el backend en interés simple: trunca capital e interés por
-  // separado (la última cuota absorbe el residuo), no una división directa.
-  const valorCuota = cuotas > 0
-    ? Math.floor((total - intereses) / cuotas) + Math.floor(intereses / cuotas)
-    : 0
-
-  return {
-    meses: params.meses,
-    monto,
-    intereses,
-    total,
-    valorCuota,
-    numCuotas: cuotas,
-    sistema: 'Interés Simple',
-  }
-}
 
 export default function CrearCreditoModal({
   isOpen,
@@ -332,6 +275,17 @@ export default function CrearCreditoModal({
     })
   }, [creditType, montoPrestamoInput, cuotasPrestamoInput, frecuenciaPago, tasaInteresInput, tipoInteres])
 
+  // Este es el formulario mas caro de perder del sistema: cliente, monto, tasa,
+  // cuotas, fechas y, en articulos, el plan elegido. Un clic en el fondo lo
+  // borraba todo sin preguntar.
+  const hayDatosSinGuardar =
+    isSubmitting ||
+    clienteCreditoId !== '' ||
+    montoPrestamoInput !== '' ||
+    articuloSeleccionadoId !== '' ||
+    cuotaInicialArticuloInput !== '' ||
+    notasInput !== ''
+
   if (!isOpen) return null
 
   const handleReset = () => {
@@ -359,7 +313,11 @@ export default function CrearCreditoModal({
         style={{ zIndex: MODAL_Z_INDEX }}
         onMouseDown={(e) => { mouseDownTargetRef.current = e.target }}
         onMouseUp={(e) => {
-          if (e.target === e.currentTarget && mouseDownTargetRef.current === e.currentTarget) {
+          if (
+            e.target === e.currentTarget &&
+            mouseDownTargetRef.current === e.currentTarget &&
+            !hayDatosSinGuardar
+          ) {
             handleReset()
           }
           mouseDownTargetRef.current = null
@@ -591,6 +549,27 @@ export default function CrearCreditoModal({
                             {formatCurrency(calculoPrestamo.valorCuota)}
                           </div>
                         </div>
+                        {/* La última cuota absorbe el residuo del reparto, así que
+                            casi nunca vale lo mismo que las demás. El dato ya se
+                            calculaba y no se mostraba: quien vende el crédito
+                            cotizaba la cuota normal para todas. Solo aparece
+                            cuando de verdad difiere. */}
+                        {calculoPrestamo.valorUltimaCuota != null &&
+                          calculoPrestamo.valorUltimaCuota !== calculoPrestamo.valorCuota && (
+                          <div className="bg-white/50 p-3 rounded-xl border border-blue-100 sm:col-span-2">
+                            <div className="text-[10px] text-blue-800 font-bold uppercase mb-1 flex items-center gap-1.5">
+                              <DollarSign className="w-3 h-3" />
+                              Última cuota (cuota {calculoPrestamo.numCuotas})
+                            </div>
+                            <div className="font-black text-blue-900 text-lg">
+                              {formatCurrency(calculoPrestamo.valorUltimaCuota)}
+                            </div>
+                            <div className="text-[10px] text-blue-600 font-medium mt-1">
+                              Cierra el crédito con el resto del reparto: las cuotas 1 a{' '}
+                              {calculoPrestamo.numCuotas - 1} son de {formatCurrency(calculoPrestamo.valorCuota)}.
+                            </div>
+                          </div>
+                        )}
                       </div>
                       <div className="text-[11px] text-blue-600 font-medium italic text-center">
                         Duración: {formatLoanTerm({

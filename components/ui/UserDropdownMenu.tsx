@@ -274,7 +274,7 @@ export default function UserDropdownMenu({ user, onLogout }: UserDropdownMenuPro
                     <div className="flex-1 min-w-0">
                       <div className="text-xs text-gray-500">Miembro desde</div>
                       <div className="text-sm font-medium text-gray-900">
-                        {new Date(user.fecha_creacion).toLocaleDateString('es-ES', {
+                        {new Date(user.fecha_creacion).toLocaleDateString('es-CO', {
                           year: 'numeric',
                           month: 'long',
                           day: 'numeric',

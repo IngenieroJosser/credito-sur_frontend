@@ -279,7 +279,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
   const formatFecha = (fechaStr: string) => {
     if (!fechaStr || fechaStr === '---' || !fechaStr.includes('T')) return fechaStr;
     try {
-      return new Date(fechaStr).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+      return new Date(fechaStr).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' });
     } catch {
       return fechaStr;
     }
@@ -1101,7 +1101,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
             <div className="w-2.5 h-2.5 rounded-full bg-green-500 ring-4 ring-green-100"></div>
             <span>
               Cliente activo desde{" "}
-              {new Date(cliente.fechaRegistro).toLocaleDateString("es-ES", {
+              {new Date(cliente.fechaRegistro).toLocaleDateString("es-CO", {
                 day: "numeric",
                 month: "short",
                 year: "numeric",

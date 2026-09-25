@@ -118,7 +118,7 @@ export default function ListaConflictos() {
                 {conflictos.map((c) => (
                   <tr key={c.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="px-6 py-4 text-slate-700">
-                      {new Date(c.creadoEn).toLocaleString("es-ES")}
+                      {new Date(c.creadoEn).toLocaleString("es-CO")}
                     </td>
                     <td className="px-6 py-4">
                       {c.creadoPor ? `${c.creadoPor.nombres} ${c.creadoPor.apellidos}` : "Desconocido"}

@@ -301,7 +301,7 @@ const PerfilUsuarioPage = () => {
                       </span>
                       <span className="font-bold text-slate-900">
                         {backendUser.creadoEn && !isNaN(new Date(backendUser.creadoEn).getTime())
-                          ? new Date(backendUser.creadoEn).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' })
+                          ? new Date(backendUser.creadoEn).toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })
                           : 'No disponible'}
                       </span>
                     </div>
@@ -350,7 +350,7 @@ const PerfilUsuarioPage = () => {
                     {backendUser.ultimoIngreso && (
                       <span className="text-xs font-medium text-slate-500 flex items-center gap-1">
                         <Clock className="h-3 w-3" />
-                        Último ingreso: {new Date(backendUser.ultimoIngreso).toLocaleString('es-ES')}
+                        Último ingreso: {new Date(backendUser.ultimoIngreso).toLocaleString('es-CO')}
                       </span>
                     )}
                   </div>

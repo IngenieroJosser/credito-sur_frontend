@@ -5,6 +5,7 @@ import { X } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { MODAL_Z_INDEX } from '@/components/ui/Portal';
 import Tooltip from '@/components/ui/Tooltip';
+import { useModalDialog } from '@/hooks/use-modal-dialog';
 
 interface ModalProps {
   isOpen: boolean;
@@ -27,6 +28,12 @@ export const Modal: React.FC<ModalProps> = ({
 }) => {
   const [mounted, setMounted] = useState(false);
   const mouseDownTargetRef = useRef<EventTarget | null>(null);
+  // Escape para salir y el foco en el primer campo al abrir: le faltaban al
+  // dialogo base, asi que le faltaban a los cuatro modales que lo usan.
+  const { contenedorRef, propsDialogo } = useModalDialog<HTMLDivElement>({
+    abierto: isOpen,
+    onClose,
+  });
 
   useEffect(() => {
     setMounted(true);
@@ -73,9 +80,9 @@ export const Modal: React.FC<ModalProps> = ({
       {/* Modal Content: aparece con escala y un leve ascenso, en vez de surgir
           de golpe. Respeta prefers-reduced-motion. */}
       <div
-        className={`relative w-full ${sizeClasses[size]} bg-white rounded-2xl shadow-2xl flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-200 ease-out motion-reduce:animate-none`}
-        role="dialog"
-        aria-modal="true"
+        ref={contenedorRef}
+        className={`relative w-full ${sizeClasses[size]} bg-white rounded-2xl shadow-2xl flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-200 ease-out motion-reduce:animate-none focus:outline-none`}
+        {...propsDialogo}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Cabecera con el azul de la marca: da identidad al dialogo y separa

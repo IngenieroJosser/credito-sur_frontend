@@ -872,7 +872,11 @@ export default function ClientesFeature({
           onClienteCreado={(nuevo: Cliente) => {
             setClientes([nuevo as ClienteAdmin, ...clientes]);
             setIsCreateModalOpen(false);
-            showNotification('success', 'Cliente registrado exitosamente', 'Registro Exitoso');
+            // El aviso lo da NuevoClienteModal, que es quien sabe si fue una
+            // creacion o una edicion y si salio en linea o quedo en la cola. Aqui
+            // habia un segundo aviso ('Cliente registrado exitosamente') que se
+            // apilaba encima del suyo y ademas lo contradecia: el cliente nuevo
+            // queda PENDIENTE de aprobacion, no registrado.
           }}
         />
       )}
@@ -901,7 +905,8 @@ export default function ClientesFeature({
             }));
             setIsEditModalOpen(false);
             setClientToEdit(null);
-            showNotification('success', 'Los datos del cliente han sido actualizados', 'Cliente Actualizado');
+            // Mismo caso que en la creacion: el modal ya avisa 'Cliente
+            // Actualizado'. Este repetia el mismo titulo con otro texto.
           }}
         />
       )}

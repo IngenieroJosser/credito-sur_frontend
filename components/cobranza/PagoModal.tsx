@@ -13,6 +13,7 @@ import { formatCOPInputValue, parseCOPInputToNumber, formatMilesCOP, getDisplaye
 import FieldLabel from '@/components/ui/FieldLabel'
 import Portal, { MODAL_Z_INDEX } from '@/components/ui/Portal'
 import Tooltip from '@/components/ui/Tooltip'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 
 const MONTO_MINIMO_ABONO_COP = 1000
 
@@ -49,6 +50,22 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm, montoCuota
   const [comprobanteTransferenciaPreviewUrl, setComprobanteTransferenciaPreviewUrl] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+
+  // Para un PAGO el monto viene prellenado con la cuota esperada, asi que "hay
+  // datos" no es "el campo tiene algo": es que la persona haya cambiado algo
+  // respecto a como abrio el modal.
+  const montoInicial = tipo === 'PAGO' ? formatMilesCOP(montoCuotaEsperado) : ''
+  const hayDatosSinGuardar =
+    isSubmitting ||
+    comprobanteTransferencia !== null ||
+    metodoPago !== 'EFECTIVO' ||
+    montoPagoInput !== montoInicial
+
+  // Escape cierra, salvo mientras se esta enviando el pago.
+  const { contenedorRef, alTocarElFondo, propsDialogo } = useModalDialog<HTMLDivElement>({
+    onClose,
+    cerrarConEscape: !isSubmitting,
+  })
 
   // Cleanup preview URL on unmount or change
   useEffect(() => {
@@ -116,10 +133,15 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm, montoCuota
       <div
         className="fixed inset-0 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
         style={{ zIndex: MODAL_Z_INDEX }}
-        onClick={onClose}
+        // Un toque fuera de la tarjeta cerraba el modal con el monto escrito y el
+        // comprobante ya adjunto: habia que volver a tomar la foto. Ahora el
+        // fondo solo cierra si no hay nada que perder; la X siempre cierra.
+        onClick={(evento) => alTocarElFondo(evento, hayDatosSinGuardar)}
       >
         <div
-          className="w-full max-w-md bg-white rounded-3xl shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto"
+          ref={contenedorRef}
+          className="w-full max-w-md bg-white rounded-3xl shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto focus:outline-none"
+          {...propsDialogo}
           onClick={(e) => e.stopPropagation()}
         >
           <div className="p-6">

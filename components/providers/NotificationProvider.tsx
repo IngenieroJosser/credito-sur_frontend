@@ -1,9 +1,8 @@
 'use client'
 
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react'
-import { Toast, Notification, NotificationType } from '@/components/ui/Toast'
-import { createPortal } from 'react-dom'
-import { ALERT_Z_INDEX } from '@/components/ui/Portal'
+import React, { createContext, useContext, useCallback, ReactNode } from 'react'
+import { toast } from 'sonner'
+import { NotificationType } from '@/components/ui/Toast'
 
 interface NotificationContextType {
   showNotification: (type: NotificationType, message: string, title?: string, duration?: number) => void
@@ -23,40 +22,37 @@ interface NotificationProviderProps {
   children: ReactNode
 }
 
+/**
+ * Avisos del sistema.
+ *
+ * Antes este proveedor tenía su propia pila de avisos, en su propio portal, en
+ * `fixed top-4 right-4` y con ALERT_Z_INDEX. Como el Toaster de sonner está en
+ * la misma esquina pero con TOAST_Z_INDEX (más abajo), cuando una acción
+ * disparaba las dos vías —cosa que pasaba— los avisos se tapaban entre sí y
+ * encima se veían distintos: los de sonner con colores y botón de cerrar, los de
+ * aquí sin botón y con 4 segundos fijos.
+ *
+ * Ahora `showNotification` delega en sonner. La firma no cambia, así que los 136
+ * llamados repartidos en 17 archivos siguen igual, pero hay una sola pila de
+ * avisos, con un solo aspecto y un solo botón de cerrar.
+ */
 export const NotificationProvider = ({ children }: NotificationProviderProps) => {
-  const [notifications, setNotifications] = useState<Notification[]>([])
+  const showNotification = useCallback(
+    (type: NotificationType, message: string, title?: string, duration = 4000) => {
+      // La firma vieja pone el texto largo en `message` y el encabezado opcional
+      // en `title`. Sonner espera al revés: primer argumento el encabezado y el
+      // detalle en `description`. Cuando no hay título, el mensaje va solo.
+      const encabezado = title ?? message
+      const detalle = title ? message : undefined
 
-  const showNotification = useCallback((type: NotificationType, message: string, title?: string, duration = 4000) => {
-    const id = Math.random().toString(36).substring(7)
-    setNotifications((prev) => [...prev, { id, type, message, title, duration }])
-  }, [])
-
-  const removeNotification = useCallback((id: string) => {
-    setNotifications((prev) => prev.filter((notification) => notification.id !== id))
-  }, [])
-
-  const [mounted, setMounted] = React.useState(false)
-
-  React.useEffect(() => {
-    setMounted(true)
-  }, [])
+      toast[type](encabezado, { description: detalle, duration })
+    },
+    [],
+  )
 
   return (
     <NotificationContext.Provider value={{ showNotification }}>
       {children}
-      {/* Portal para renderizar notificaciones fuera del flujo normal */}
-      {mounted && createPortal(
-        <div className="fixed top-4 right-4 flex w-full max-w-sm flex-col gap-2 pointer-events-none p-4 md:p-0" style={{ zIndex: ALERT_Z_INDEX }}>
-          {notifications.map((notification) => (
-            <Toast
-              key={notification.id}
-              {...notification}
-              onClose={removeNotification}
-            />
-          ))}
-        </div>,
-        document.body
-      )}
     </NotificationContext.Provider>
   )
 }

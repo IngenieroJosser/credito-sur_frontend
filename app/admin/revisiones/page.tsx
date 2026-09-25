@@ -148,7 +148,7 @@ const CATEGORIAS: Record<string, { label: string; icon: any; color: string; bgCo
 const formatFecha = (iso: string | null | undefined) => {
   if (!iso) return '—'
   const d = new Date(iso)
-  return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true })
+  return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true })
 }
 
 const toBogotaDateKey = (value: string | null | undefined) => {
