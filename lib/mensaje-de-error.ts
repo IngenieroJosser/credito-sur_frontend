@@ -24,12 +24,58 @@ export function mensajeDeError(error: unknown, respaldo: string): string {
     const posible = error as {
       response?: { data?: { message?: unknown } }
       message?: unknown
+      error?: { message?: unknown }
     }
     const delCuerpo = posible.response?.data?.message
     if (Array.isArray(delCuerpo) && delCuerpo.length) return delCuerpo.join(' · ')
     if (typeof delCuerpo === 'string' && delCuerpo.trim()) return delCuerpo
     if (typeof posible.message === 'string' && posible.message.trim()) return posible.message
+    // Algunos fallos llegan con el motivo un nivel mas adentro, en `error.message`.
+    // Seis ficheros lo leian a mano como `err?.message || err?.error?.message`, en
+    // ese orden, y aqui se respeta: primero el de arriba, luego el de dentro.
+    const delAnidado = posible.error?.message
+    if (typeof delAnidado === 'string' && delAnidado.trim()) return delAnidado
   }
 
   return respaldo
+}
+
+/**
+ * El estado HTTP de un fallo, sea de donde venga.
+ *
+ * Se leia a mano en 53 sitios y con tres cadenas distintas segun el fichero:
+ * `err?.statusCode` (37 veces), `err?.response?.status` (13) y `err?.status` (3).
+ * Depende de como se lanzo el fallo: nuestro `apiRequest` pone `statusCode`, axios
+ * lo deja en `response.status`, y un `Response` de fetch en `status`. Ninguna de
+ * las tres cadenas sola cubre los tres casos, asi que la misma comprobacion —«un
+ * 401 no se reintenta»— se comportaba distinto segun donde estuviera escrita.
+ *
+ * El orden es el de esas cadenas, de la mas usada a la menos, para no cambiar lo
+ * que ya decidian los sitios que las tenian.
+ *
+ * Devuelve `undefined` cuando no hay estado, que es lo que hacian los `?.`: asi
+ * una comparacion como `estadoDeError(e) === 401` da falso en vez de reventar.
+ */
+export function estadoDeError(error: unknown): number | undefined {
+  if (!error || typeof error !== 'object') return undefined
+
+  const posible = error as {
+    statusCode?: unknown
+    status?: unknown
+    response?: { status?: unknown }
+  }
+
+  const numero = (valor: unknown): number | undefined => {
+    if (typeof valor === 'number' && Number.isFinite(valor)) return valor
+    if (typeof valor === 'string' && valor.trim() && !Number.isNaN(Number(valor))) {
+      return Number(valor)
+    }
+    return undefined
+  }
+
+  return (
+    numero(posible.statusCode) ??
+    numero(posible.response?.status) ??
+    numero(posible.status)
+  )
 }

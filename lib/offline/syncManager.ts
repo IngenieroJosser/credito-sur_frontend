@@ -1,4 +1,4 @@
-import { mensajeDeError } from '@/lib/mensaje-de-error';
+import { estadoDeError, mensajeDeError } from '@/lib/mensaje-de-error';
 import { logger } from '@/lib/logger'
 import { apiClient } from '@/lib/api/apiClient';
 import { apiRequest } from '@/lib/api/api';
@@ -14,6 +14,56 @@ import {
   limpiarMapeos,
   contieneTempIdSinResolver,
 } from './idRemap';
+
+/**
+ * Lo que se puede sacar de un fallo de red para el registro de diagnostico.
+ *
+ * Estaba escrito cinco veces, identico, en las cinco descargas: url, metodo,
+ * baseURL, cuerpo de la respuesta, codigo, claves crudas y pila. Y estaba escrito
+ * sobre un `catch (err: any)`, asi que nadie comprobaba que esos campos
+ * existieran: son de axios, y un fallo que no venga de axios no los trae.
+ */
+type FalloDeRed = {
+  config?: { url?: unknown; method?: unknown; baseURL?: unknown }
+  response?: { data?: unknown }
+  error?: unknown
+  code?: unknown
+  stack?: unknown
+}
+
+/**
+ * `code` y `message` tal cual vienen, sin la busqueda mas amplia de
+ * `mensajeDeError`.
+ *
+ * Hace falta porque de estas dos lecturas cuelgan DECISIONES, no textos: si el
+ * fallo es de red no se detienen las demas descargas, y si el mensaje habla de 403
+ * la descarga se omite por permisos. `mensajeDeError` tambien mira el cuerpo de la
+ * respuesta y un `error.message` anidado, asi que usarlo aqui ampliaria lo que
+ * cuenta como un 403. Se deja igual que estaba.
+ */
+const crudoDeFallo = (fallo: unknown) => {
+  const f = (fallo && typeof fallo === 'object' ? fallo : {}) as {
+    code?: unknown
+    message?: unknown
+  }
+  return {
+    code: f.code,
+    message: typeof f.message === 'string' ? f.message : '',
+  }
+}
+
+const detallesDeFallo = (fallo: unknown) => {
+  const f: FalloDeRed = fallo && typeof fallo === 'object' ? fallo : {}
+  return {
+    url: f.config?.url,
+    method: f.config?.method,
+    baseURL: f.config?.baseURL,
+    responseData: f.response?.data || f.error,
+    code: f.code,
+    rawKeys: fallo && typeof fallo === 'object' ? Object.keys(fallo) : null,
+    stack: f.stack,
+  }
+}
 
 /**
  * Cuantas veces se reintenta una operacion fallida antes de dejarla como
@@ -182,8 +232,8 @@ export const syncManager = {
           setTimeout(async () => {
             await offlineQueue.remove(item.id);
           }, 3000);
-        } catch (err: any) {
-          const status = err?.response?.status;
+        } catch (err) {
+          const status = estadoDeError(err);
           const errorMsg = mensajeDeError(err, 'Error desconocido');
 
           const newRetries = (item.retries || 0) + 1;
@@ -305,9 +355,9 @@ export const syncManager = {
       await trackOfflineEvent('download', { storeName: 'clientes', recordCount: clientes.length });
       logger.log(`[Offline Sync] Descarga de clientes completada: ${clientes.length} registros`);
       return clientes.length;
-    } catch (err: any) {
-      const errorMessage = err?.message || err?.error?.message || 'Error desconocido';
-      const statusCode = err?.statusCode || err?.response?.status || 'N/A';
+    } catch (err) {
+      const errorMessage = mensajeDeError(err, 'Error desconocido');
+      const statusCode = estadoDeError(err) ?? 'N/A';
 
       if (statusCode === 401 || statusCode === 403) {
         logger.log('[Offline Sync] Descarga de clientes omitida por permisos.');
@@ -317,13 +367,7 @@ export const syncManager = {
       const errorDetails = {
         message: errorMessage,
         statusCode,
-        url: err?.config?.url,
-        method: err?.config?.method,
-        baseURL: err?.config?.baseURL,
-        responseData: err?.response?.data || err?.error,
-        code: err?.code,
-        rawKeys: err && typeof err === 'object' ? Object.keys(err) : null,
-        stack: err?.stack,
+        ...detallesDeFallo(err),
       };
 
       try {
@@ -333,7 +377,12 @@ export const syncManager = {
       }
       
       // Si es un error de red, no lanzar excepción para evitar que detenga otras descargas
-      if (statusCode === 0 || err?.code === 'ERR_NETWORK' || err?.message?.includes('Network Error')) {
+      const crudo = crudoDeFallo(err)
+      if (
+        statusCode === 0 ||
+        crudo.code === 'ERR_NETWORK' ||
+        crudo.message.includes('Network Error')
+      ) {
         logger.warn('[Offline Sync] Error de red al descargar clientes. El servidor puede no estar disponible.');
       }
       
@@ -411,23 +460,17 @@ export const syncManager = {
       }
 
       return prestamos.length;
-    } catch (err: any) {
-      const statusCode = err?.statusCode || err?.response?.status || 'N/A'
+    } catch (err) {
+      const statusCode = estadoDeError(err) ?? 'N/A'
       if (statusCode === 401 || statusCode === 403) {
         logger.log('[Offline Sync] Descarga de préstamos omitida por permisos.');
         return 0;
       }
 
       const errorDetails = {
-        message: err?.message || err?.error?.message || 'Error desconocido',
+        message: mensajeDeError(err, 'Error desconocido'),
         statusCode,
-        url: err?.config?.url,
-        method: err?.config?.method,
-        baseURL: err?.config?.baseURL,
-        responseData: err?.response?.data || err?.error,
-        code: err?.code,
-        rawKeys: err && typeof err === 'object' ? Object.keys(err) : null,
-        stack: err?.stack,
+        ...detallesDeFallo(err),
       }
 
       try {
@@ -466,9 +509,9 @@ export const syncManager = {
       await offlineStore.saveMany('rutas', rutas, true);
       await trackOfflineEvent('download', { storeName: 'rutas', recordCount: rutas.length });
       return rutas.length;
-    } catch (err: any) {
-      const errorMessage = err?.message || err?.error?.message || 'Error desconocido'
-      const statusCode = err?.statusCode || err?.response?.status || 'N/A'
+    } catch (err) {
+      const errorMessage = mensajeDeError(err, 'Error desconocido')
+      const statusCode = estadoDeError(err) ?? 'N/A'
 
       if (statusCode === 401 || statusCode === 403) {
         logger.log('[Offline Sync] Descarga de rutas omitida por permisos.');
@@ -478,13 +521,7 @@ export const syncManager = {
       const errorDetails = {
         message: errorMessage,
         statusCode,
-        url: err?.config?.url,
-        method: err?.config?.method,
-        baseURL: err?.config?.baseURL,
-        responseData: err?.response?.data || err?.error,
-        code: err?.code,
-        rawKeys: err && typeof err === 'object' ? Object.keys(err) : null,
-        stack: err?.stack,
+        ...detallesDeFallo(err),
       }
 
       try {
@@ -535,9 +572,9 @@ export const syncManager = {
       await offlineStore.saveMany('cajas', cajas, true);
       await trackOfflineEvent('download', { storeName: 'cajas', recordCount: cajas.length });
       return cajas.length;
-    } catch (err: any) {
-      const errorMessage = err?.message || err?.error?.message || 'Error desconocido'
-      const statusCode = err?.statusCode || err?.response?.status || 'N/A'
+    } catch (err) {
+      const errorMessage = mensajeDeError(err, 'Error desconocido')
+      const statusCode = estadoDeError(err) ?? 'N/A'
 
       if (statusCode === 401 || statusCode === 403) {
         logger.log('[Offline Sync] Descarga de cajas omitida por permisos.');
@@ -547,13 +584,7 @@ export const syncManager = {
       const errorDetails = {
         message: errorMessage,
         statusCode,
-        url: err?.config?.url,
-        method: err?.config?.method,
-        baseURL: err?.config?.baseURL,
-        responseData: err?.response?.data || err?.error,
-        code: err?.code,
-        rawKeys: err && typeof err === 'object' ? Object.keys(err) : null,
-        stack: err?.stack,
+        ...detallesDeFallo(err),
       }
 
       try {
@@ -580,28 +611,22 @@ export const syncManager = {
       await offlineStore.saveMany('usuarios', usuarios, true);
       await trackOfflineEvent('download', { storeName: 'usuarios', recordCount: usuarios.length });
       return usuarios.length;
-    } catch (err: any) {
-      const statusCode = err?.statusCode || err?.response?.status || 'N/A'
+    } catch (err) {
+      const statusCode = estadoDeError(err) ?? 'N/A'
       if (
         statusCode === 401 ||
         statusCode === 403 ||
-        err?.message?.includes('403') ||
-        err?.message?.toLowerCase().includes('forbidden')
+        crudoDeFallo(err).message.includes('403') ||
+        crudoDeFallo(err).message.toLowerCase().includes('forbidden')
       ) {
         logger.log('[Offline Sync] Descarga de usuarios omitida por permisos (SUPERVISOR/COBRADOR).');
         return 0;
       }
 
       const errorDetails = {
-        message: err?.message || err?.error?.message || 'Error desconocido',
+        message: mensajeDeError(err, 'Error desconocido'),
         statusCode,
-        url: err?.config?.url,
-        method: err?.config?.method,
-        baseURL: err?.config?.baseURL,
-        responseData: err?.response?.data || err?.error,
-        code: err?.code,
-        rawKeys: err && typeof err === 'object' ? Object.keys(err) : null,
-        stack: err?.stack,
+        ...detallesDeFallo(err),
       }
 
       try {
