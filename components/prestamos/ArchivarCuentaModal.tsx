@@ -6,6 +6,7 @@ import { AlertTriangle, X, FileText } from 'lucide-react'
 import { formatMilesCOP } from '@/lib/utils'
 import { prestamosService } from '@/services/prestamos-service';
 import Tooltip from '@/components/ui/Tooltip';
+import { useModalDialog } from '@/hooks/use-modal-dialog';
 
 interface ArchivarCuentaModalProps {
   prestamoId: string;
@@ -29,6 +30,11 @@ export default function ArchivarCuentaModal({
   const [notas, setNotas] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  // Escape para salir y el foco en el primer campo al abrir. El hook lleva
+  // una pila, asi que con modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    onClose: onClose,
+  })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

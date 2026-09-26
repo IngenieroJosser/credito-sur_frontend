@@ -6,6 +6,7 @@ import { VisitaRuta } from '@/lib/types/cobranza'
 import { Portal } from '@/components/dashboards/shared/CobradorElements'
 import { X, CalendarX } from 'lucide-react'
 import Tooltip from '@/components/ui/Tooltip'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 
 interface AusenteModalProps {
   visita: VisitaRuta
@@ -17,6 +18,11 @@ export default function AusenteModal({ visita, onClose, onConfirm }: AusenteModa
   const [notas, setNotas] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  // Escape para salir y el foco en el primer campo al abrir. El hook lleva
+  // una pila, asi que con modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    onClose: onClose,
+  })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

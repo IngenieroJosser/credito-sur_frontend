@@ -25,6 +25,7 @@ import { formatCurrency } from '@/lib/utils'
 import { aprobacionesService, type ApprovalContext } from '@/services/aprobaciones-service'
 import { Skeleton, SkeletonTexto } from '@/components/ui/Skeleton'
 import Tooltip from '@/components/ui/Tooltip'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 
 export interface ReprogramacionData {
   id: string
@@ -200,6 +201,15 @@ export default function ReprogramacionDetalleModal({
   const [activeTab, setActiveTab] = useState<TabKey>('solicitud')
   const [context, setContext] = useState<ApprovalContext | null>(null)
   const [loadingContext, setLoadingContext] = useState(false)
+  // Escape para salir y foco al abrir. El hook lleva una pila, asi que con
+  // modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    abierto: isOpen,
+    onClose: onClose,
+    // Modal de solo lectura: no hay campo que enfocar.
+    enfocarAlAbrir: false,
+  })
+
   const [contextError, setContextError] = useState<string | null>(null)
 
   useEffect(() => {

@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 import { Skeleton, SkeletonTexto, SkeletonTabla } from '@/components/ui/Skeleton'
 import Tooltip from '@/components/ui/Tooltip'
 import { mensajeDeError } from '@/lib/mensaje-de-error'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 interface DetallePrestamoModalProps {
   id: string;
   onClose: () => void;
@@ -27,6 +28,11 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
   const [downloadingContract, setDownloadingContract] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
+  // Escape para salir y el foco en el primer campo al abrir. El hook lleva
+  // una pila, asi que con modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    onClose: onClose,
+  })
 
   useEffect(() => {
     setMounted(true);

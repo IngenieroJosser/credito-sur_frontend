@@ -7,6 +7,7 @@ import Portal, { MODAL_Z_INDEX } from '@/components/ui/Portal'
 import FieldLabel from '@/components/ui/FieldLabel'
 import { getBogotaDateKey } from '@/lib/rutas-core'
 import Tooltip from '@/components/ui/Tooltip'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 
 interface ReprogramarModalProps {
   visita: VisitaRuta
@@ -48,6 +49,11 @@ export default function ReprogramarModal({ visita, onClose, onConfirm }: Reprogr
   const [reprogramFecha, setReprogramFecha] = useState(mananaStr)
   const [reprogramMotivo, setReprogramMotivo] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  // Escape para salir y el foco en el primer campo al abrir. El hook lleva
+  // una pila, asi que con modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    onClose: onClose,
+  })
 
   // Validar si la fecha seleccionada supera el límite
   const diasSeleccionados = reprogramFecha

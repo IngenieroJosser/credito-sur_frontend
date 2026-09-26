@@ -18,6 +18,7 @@ import {
 import { formatCurrency, cn } from '@/lib/utils'
 import { createPortal } from 'react-dom'
 import Tooltip from '@/components/ui/Tooltip'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 
 interface DetalleMoraModalProps {
   cuenta: {
@@ -63,6 +64,14 @@ export default function DetalleMoraModal({
   onAsignarMora,
   onRegistrarPago,
 }: DetalleMoraModalProps) {
+  // Escape para salir y foco al abrir. El hook lleva una pila, asi que con
+  // modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    onClose: onClose,
+    // Modal de solo lectura: no hay campo que enfocar.
+    enfocarAlAbrir: false,
+  })
+
   if (typeof document === 'undefined') return null
 
   const riesgoConfig = RIESGO_CONFIG[cuenta.nivelRiesgo] || RIESGO_CONFIG.AMARILLO

@@ -11,6 +11,7 @@ import {
 import type { CierrePendienteDetalle, ClienteCierrePendiente } from '@/types/rutas/cierre-pendiente'
 import BotonAccion from '@/components/ui/BotonAccion'
 import Tooltip from '@/components/ui/Tooltip'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 
 // Helper para formato de fecha compacto (ej: 18 may)
 function formatFechaDiaMes(value?: string | Date | null) {
@@ -187,6 +188,11 @@ export function CierrePendienteDetalleModal({
   const [processingCierre, setProcessingCierre] = useState(false)
   const [showObservacionCierre, setShowObservacionCierre] = useState(false)
   const [observacionCierre, setObservacionCierre] = useState('')
+  // Escape para salir y el foco en el primer campo al abrir. El hook lleva
+  // una pila, asi que con modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    onClose: onClose,
+  })
 
   // Resetear selección cuando cambia el detalle
   useEffect(() => {

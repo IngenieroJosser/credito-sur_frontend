@@ -47,6 +47,7 @@ import { formatCurrency, resolveMediaUrl } from '@/lib/utils'
 import { pagosService, Pago } from '@/services/pagos-service'
 import { Skeleton, SkeletonTexto } from '@/components/ui/Skeleton'
 import Tooltip from '@/components/ui/Tooltip'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -131,6 +132,12 @@ export default function PagoDetalleModal({
   const [error, setError]             = useState<string | null>(null)
   const [imgExpanded, setImgExpanded] = useState(false)
   const [expandedUrl, setExpandedUrl] = useState('')
+  // Escape para salir y el foco en el primer campo al abrir. El hook lleva
+  // una pila, asi que con modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    abierto: isOpen,
+    onClose: () => handleClose(),
+  })
 
   // ── Cargar detalle completo del pago ──────────────────────────────────────
   useEffect(() => {

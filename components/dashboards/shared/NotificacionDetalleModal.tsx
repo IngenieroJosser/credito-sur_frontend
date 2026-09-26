@@ -35,6 +35,7 @@ import { alertasClientesService } from '@/services/alertas-clientes-service'
 import { logger } from '@/lib/logger'
 import Tooltip from '@/components/ui/Tooltip'
 import { TipoAmortizacion } from '@/types/enums'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 import {
   calcularPrestamoPreview,
   derivarPlazoMeses,
@@ -179,6 +180,12 @@ export default function NotificacionDetalleModal({
   const mouseDownTargetRef = useRef<EventTarget | null>(null)
   // Estado del modal de detalle de pago (componente separado)
   const [showPagoDetalle, setShowPagoDetalle] = useState(false)
+  // Escape para salir y el foco en el primer campo al abrir. El hook lleva
+  // una pila, asi que con modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    abierto: isOpen,
+    onClose: onClose,
+  })
 
   const formatFechaHora = (raw: any, fallback = '—') => {
     if (!raw || raw === 'N/A' || raw === '—') return fallback

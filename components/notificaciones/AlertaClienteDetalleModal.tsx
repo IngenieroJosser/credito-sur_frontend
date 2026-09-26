@@ -20,6 +20,7 @@ import {
 import Portal, { MODAL_Z_INDEX } from '@/components/ui/Portal'
 import { formatCurrency, resolveMediaUrl } from '@/lib/utils'
 import Tooltip from '@/components/ui/Tooltip'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 
 interface AlertaClienteDetalleModalProps {
   alerta: any
@@ -178,6 +179,14 @@ export default function AlertaClienteDetalleModal({
   onClose,
   loading = false,
 }: AlertaClienteDetalleModalProps) {
+  // Escape para salir y foco al abrir. El hook lleva una pila, asi que con
+  // modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    onClose: onClose,
+    // Modal de solo lectura: no hay campo que enfocar.
+    enfocarAlAbrir: false,
+  })
+
   const metadata = alerta?.metadata || {}
   const snapshot = alerta?.snapshotCliente || metadata.snapshotCliente || {}
   const cliente = snapshot.cliente || alerta?.cliente || {}

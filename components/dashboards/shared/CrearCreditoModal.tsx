@@ -23,6 +23,7 @@ import { getBogotaDateKey, toBogotaDateTimeLocalInputValue } from '@/lib/rutas-c
 import FieldLabel from '@/components/ui/FieldLabel'
 import { useAuth } from '@/hooks/useAuth'
 import Tooltip from '@/components/ui/Tooltip'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 
 interface CrearCreditoModalProps {
   isOpen: boolean
@@ -167,6 +168,12 @@ export default function CrearCreditoModal({
 
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [articulos, setArticulos] = useState<Articulo[]>([])
+  // Escape para salir y el foco en el primer campo al abrir. El hook lleva
+  // una pila, asi que con modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    abierto: isOpen,
+    onClose: () => handleReset(),
+  })
 
   const puedeUsarFechaAntiguaCredito = [
     'ADMIN',

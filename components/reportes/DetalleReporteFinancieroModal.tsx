@@ -7,6 +7,7 @@ import { getMovimientosLedger } from '@/services/contabilidad-service'
 import { buildBogotaOffsetIsoFromKey, getBogotaDateKey, normalizeDateKey } from '@/lib/rutas-core'
 import Paginador from '@/components/ui/Paginador'
 import Tooltip from '@/components/ui/Tooltip'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 
 interface DetalleReporteFinancieroModalProps {
   id: string
@@ -174,6 +175,11 @@ export default function DetalleReporteFinancieroModal({ id, onClose }: DetalleRe
   }, [])
 
   const [pagina, setPagina] = useState(1)
+  // Escape para salir y el foco en el primer campo al abrir. El hook lleva
+  // una pila, asi que con modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    onClose: onClose,
+  })
 
   if (!id) return null
 

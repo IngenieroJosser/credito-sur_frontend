@@ -14,6 +14,7 @@ import { TipoAmortizacion } from '@/types/enums';
 import { Skeleton, SkeletonTexto } from '@/components/ui/Skeleton'
 import { logger } from '@/lib/logger'
 import Tooltip from '@/components/ui/Tooltip'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 
 interface EditarPrestamoModalProps {
   id: string;
@@ -112,6 +113,11 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
     cuotaProyectada: number;
   } | null>(null);
   const [verPlanCompleto, setVerPlanCompleto] = useState(false);
+  // Escape para salir y el foco en el primer campo al abrir. El hook lleva
+  // una pila, asi que con modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    onClose: () => handleClose(),
+  })
 
   const hasChanges = monto !== original.monto 
     || tasa !== original.tasa 

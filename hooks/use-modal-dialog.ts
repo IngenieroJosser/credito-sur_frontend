@@ -11,6 +11,17 @@ const SELECTOR_ENFOCABLE = [
   '[tabindex]:not([tabindex="-1"])',
 ].join(', ')
 
+/**
+ * Pila de diálogos abiertos, para que Escape cierre solo el de encima.
+ *
+ * Los listeners viven en `document`, así que `stopPropagation` no impide que el
+ * listener del otro diálogo también corra (para eso haría falta
+ * `stopImmediatePropagation`, y aun así el orden de registro decidiría cuál
+ * gana). Con la pila, cada diálogo comprueba si es el último abierto antes de
+ * cerrarse: un modal que abre otro encima no se cierra con el mismo Escape.
+ */
+const pilaDeDialogos: symbol[] = []
+
 interface OpcionesModalDialog {
   /** Si el modal está en pantalla. Los modales que se montan y desmontan pueden omitirlo. */
   abierto?: boolean
@@ -40,6 +51,8 @@ export function useModalDialog<T extends HTMLElement = HTMLDivElement>({
   enfocarAlAbrir = true,
 }: OpcionesModalDialog) {
   const contenedorRef = useRef<T | null>(null)
+  // Identidad estable de este diálogo dentro de la pila.
+  const identidadRef = useRef<symbol>(Symbol('dialogo'))
   // Quién tenía el foco antes de abrir, para devolvérselo al cerrar: si no, el
   // foco vuelve al principio de la página y hay que navegar de nuevo hasta el
   // botón que abrió el modal.
@@ -52,6 +65,20 @@ export function useModalDialog<T extends HTMLElement = HTMLDivElement>({
     onCloseRef.current = onClose
   }, [onClose])
 
+  // Entrar y salir de la pila mientras el diálogo está abierto. Va aparte del
+  // listener de teclado para que la pila refleje lo que está en pantalla incluso
+  // en un diálogo con `cerrarConEscape` apagado: si no, un diálogo de encima que
+  // no cierra con Escape dejaría que el de abajo se cerrara.
+  useEffect(() => {
+    if (!abierto) return
+    const identidad = identidadRef.current
+    pilaDeDialogos.push(identidad)
+    return () => {
+      const i = pilaDeDialogos.lastIndexOf(identidad)
+      if (i !== -1) pilaDeDialogos.splice(i, 1)
+    }
+  }, [abierto])
+
   useEffect(() => {
     if (!abierto || !cerrarConEscape) return
 
@@ -60,6 +87,8 @@ export function useModalDialog<T extends HTMLElement = HTMLDivElement>({
       // Un select abierto o un datepicker se cierran con Escape por su cuenta;
       // si el evento ya fue atendido, no se cierra el modal encima.
       if (evento.defaultPrevented) return
+      // Solo el diálogo de encima responde.
+      if (pilaDeDialogos[pilaDeDialogos.length - 1] !== identidadRef.current) return
       evento.stopPropagation()
       onCloseRef.current()
     }

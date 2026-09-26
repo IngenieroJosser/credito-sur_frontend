@@ -24,6 +24,7 @@ import { rutasService, type HistorialVisitaCliente } from '@/services/rutas-serv
 import { alertasClientesService } from '@/services/alertas-clientes-service'
 import { Skeleton } from '@/components/ui/Skeleton'
 import Tooltip from '@/components/ui/Tooltip'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 
 // ── Tipos ──────────────────────────────────────────────────────────────────────
 
@@ -91,6 +92,12 @@ export default function ClienteInfoModal({
     descripcion: '',
     ultimaUbicacionConocida: '',
     observacionesReportante: '',
+  })
+
+  // Escape para salir y el foco en el primer campo al abrir. El hook lleva
+  // una pila, asi que con modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    onClose: onClose,
   })
 
   useEffect(() => {

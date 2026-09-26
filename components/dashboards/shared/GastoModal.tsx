@@ -10,6 +10,7 @@ import type { SaldoDisponibleRuta } from '@/services/contabilidad-service'
 import { rutasService } from '@/services/rutas-service'
 import { getBogotaDateKey } from '@/lib/rutas-core'
 import Tooltip from '@/components/ui/Tooltip'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 
 interface GastoModalProps {
   isOpen: boolean
@@ -32,6 +33,12 @@ export default function GastoModal({ isOpen, onClose, onConfirm, cobradorId, rut
   const [errorSaldo, setErrorSaldo] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [esPersonal, setEsPersonal] = useState(false)
+  // Escape para salir y el foco en el primer campo al abrir. El hook lleva
+  // una pila, asi que con modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    abierto: isOpen,
+    onClose: () => handleReset(),
+  })
 
   // Cargar saldo disponible al abrir el modal
   useEffect(() => {

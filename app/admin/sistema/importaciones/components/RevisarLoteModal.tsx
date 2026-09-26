@@ -18,6 +18,7 @@ import { formatCurrency } from "@/lib/utils";
 import Portal from "@/components/ui/Portal";
 import { SkeletonTabla } from "@/components/ui/Skeleton";
 import Tooltip from '@/components/ui/Tooltip';
+import { useModalDialog } from "@/hooks/use-modal-dialog";
 
 /**
  * Revisar antes de deshacer.
@@ -59,6 +60,12 @@ export const RevisarLoteModal: React.FC<Props> = ({
   const [error, setError] = useState<string | null>(null);
   const [seleccion, setSeleccion] = useState<Set<string>>(new Set());
   const [busqueda, setBusqueda] = useState("");
+
+  // Escape para salir y foco al abrir. El hook lleva una pila, asi que con
+  // modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    onClose: onCerrar,
+  });
   const [confirmando, setConfirmando] = useState(false);
   const [deshaciendo, setDeshaciendo] = useState(false);
   const esInventario = detalle?.tipo === "INVENTARIO";

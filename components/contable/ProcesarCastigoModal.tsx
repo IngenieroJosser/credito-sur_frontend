@@ -6,6 +6,7 @@ import { formatCurrency, cn } from '@/lib/utils'
 import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 import { createPortal } from 'react-dom'
 import Tooltip from '@/components/ui/Tooltip'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 
 interface CastigoData {
   cuentaId: string
@@ -39,6 +40,12 @@ function Portal({ children }: { children: React.ReactNode }) {
 export default function ProcesarCastigoModal({ cuenta, onClose, onConfirm }: ProcesarCastigoModalProps) {
   const [motivo, setMotivo] = useState('')
   const [tipoCastigo, setTipoCastigo] = useState('TOTAL')
+  // Escape para salir y foco al abrir. El hook lleva una pila, asi que con
+  // modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    onClose: onClose,
+  })
+
 
   const handleConfirm = () => {
     onConfirm({

@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import Tooltip from '@/components/ui/Tooltip'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -130,6 +131,15 @@ export default function ProrrogaDetalleModal({
   canApprove = true,
   isProcessing = false,
 }: ProrrogaDetalleModalProps) {
+  // Escape para salir y foco al abrir. El hook lleva una pila, asi que con
+  // modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    abierto: isOpen,
+    onClose: onClose,
+    // Modal de solo lectura: no hay campo que enfocar.
+    enfocarAlAbrir: false,
+  })
+
   if (!isOpen || !data) return null
 
   const decision = data.decision || 'PRORROGAR'

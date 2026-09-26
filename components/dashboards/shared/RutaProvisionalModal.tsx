@@ -23,6 +23,7 @@ import {
 import { VisitaRuta, EstadoVisita } from '@/lib/types/cobranza'
 import { formatCurrency } from '@/lib/utils'
 import Tooltip from '@/components/ui/Tooltip'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 
 interface RutaProvisionalModalProps {
   visitas: VisitaRuta[]
@@ -39,6 +40,11 @@ export default function RutaProvisionalModal({
 }: RutaProvisionalModalProps) {
   const [orden, setOrden] = useState<string[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
+  // Escape para salir y el foco en el primer campo al abrir. El hook lleva
+  // una pila, asi que con modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    onClose: onClose,
+  })
 
   useEffect(() => {
     const validIds = visitas.map(v => v.id)

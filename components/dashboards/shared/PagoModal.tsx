@@ -16,6 +16,7 @@ import { Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorEl
 import { clientesService, Cliente } from '@/services/clientes-service'
 import { offlineStore } from '@/lib/offline/offlineDb'
 import Tooltip from '@/components/ui/Tooltip'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 
 interface Visita {
   id: string
@@ -76,6 +77,12 @@ export default function PagoModal({
   }
 
   const [todosLosClientes, setTodosLosClientes] = useState<Cliente[]>([]);
+  // Escape para salir y el foco en el primer campo al abrir. El hook lleva
+  // una pila, asi que con modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    abierto: isOpen,
+    onClose: onClose,
+  })
   
   useEffect(() => {
     if (isOpen && (!availableVisitas || availableVisitas.length === 0)) {

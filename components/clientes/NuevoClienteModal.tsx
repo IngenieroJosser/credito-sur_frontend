@@ -24,6 +24,7 @@ interface NuevoClienteModalProps {
 
 import { useAuth } from '@/hooks/useAuth';
 import Tooltip from '@/components/ui/Tooltip';
+import { useModalDialog } from '@/hooks/use-modal-dialog';
 
 /**
  * Estilo unico de los campos del formulario.
@@ -68,6 +69,12 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
     documentoReverso: null,
     comprobanteDomicilio: null,
   });
+
+  // Escape para salir y el foco en el primer campo al abrir. El hook lleva
+  // una pila, asi que con modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    onClose: onClose,
+  })
 
   /* State for existing files in edit mode */
   const [existingFiles, setExistingFiles] = useState<{

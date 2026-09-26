@@ -7,6 +7,7 @@ import { inventarioService, Producto } from '@/services/inventario-service'
 import { formatCurrency } from '@/lib/utils'
 import { Skeleton, SkeletonTexto, SkeletonTabla } from '@/components/ui/Skeleton'
 import Tooltip from '@/components/ui/Tooltip'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 
 interface DetalleProductoModalProps {
   id: string
@@ -18,6 +19,11 @@ export default function DetalleProductoModal({ id, onClose }: DetalleProductoMod
   const [visible, setVisible] = useState(false)
   const [loading, setLoading] = useState(true)
   const [producto, setProducto] = useState<Producto | null>(null)
+  // Escape para salir y el foco en el primer campo al abrir. El hook lleva
+  // una pila, asi que con modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    onClose: onClose,
+  })
 
   useEffect(() => {
     setMounted(true)

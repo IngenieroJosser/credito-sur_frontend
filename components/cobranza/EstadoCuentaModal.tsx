@@ -13,6 +13,7 @@ import { Skeleton, SkeletonTabla } from '@/components/ui/Skeleton'
 import type { Pago, Prestamo } from '@/types/domain'
 import Tooltip from '@/components/ui/Tooltip'
 import type { PrestamoDelListado } from '@/types/domain'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 
 interface EstadoCuentaModalProps {
   visita: VisitaRuta
@@ -54,6 +55,11 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
   const [loanData, setLoanData] = useState<any>(null)
   const [pagosFull, setPagosFull] = useState<any[]>([])
   const [error, setError] = useState<string | null>(null)
+  // Escape para salir y el foco en el primer campo al abrir. El hook lleva
+  // una pila, asi que con modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    onClose: onClose,
+  })
 
   useEffect(() => {
     async function loadLoanDetails() {

@@ -17,6 +17,7 @@ import { Portal } from '@/components/dashboards/shared/CobradorElements'
 import { formatCurrency } from '@/lib/utils'
 import PagoDetalleModal from '@/components/dashboards/shared/PagoDetalleModal'
 import Tooltip from '@/components/ui/Tooltip'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 
 export interface PagoRegularizadoNotifModalProps {
   isOpen: boolean
@@ -93,6 +94,12 @@ export default function PagoRegularizadoNotifModal({
   notificacion,
 }: PagoRegularizadoNotifModalProps) {
   const [showPagoDetalle, setShowPagoDetalle] = useState(false)
+  // Escape para salir y el foco en el primer campo al abrir. El hook lleva
+  // una pila, asi que con modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    abierto: isOpen,
+    onClose: onClose,
+  })
 
   if (!isOpen || !notificacion) return null
 

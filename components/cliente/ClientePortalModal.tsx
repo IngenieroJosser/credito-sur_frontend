@@ -8,6 +8,7 @@ import { Smartphone, DollarSign } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { offlineStore } from '@/lib/offline/offlineDb';
 import Tooltip from '@/components/ui/Tooltip';
+import { useModalDialog } from '@/hooks/use-modal-dialog';
 import {
   computeDiasMoraFromCuotas,
   getBogotaDateKey,
@@ -37,6 +38,14 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
   const [pagos, setPagos] = useState<Pago[]>([]);
   const [estadoCuenta, setEstadoCuenta] = useState<any>(null);
   const [loadingEstadoCuenta, setLoadingEstadoCuenta] = useState(false);
+  // Escape para salir y foco al abrir. El hook lleva una pila, asi que con
+  // modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    onClose: onClose,
+    // Modal de solo lectura: no hay campo que enfocar.
+    enfocarAlAbrir: false,
+  })
+
 
   const [comentarios, setComentarios] = useState<Comentario[]>([]);
 

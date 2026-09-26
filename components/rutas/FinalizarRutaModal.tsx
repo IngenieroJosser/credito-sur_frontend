@@ -3,6 +3,7 @@
 import { AlertTriangle, ArrowRight, CheckCircle2, Info, ShieldAlert, XCircle } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { MODAL_Z_INDEX, Portal } from '@/components/dashboards/shared/CobradorElements'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 
 type AusenteConNota = {
   nombre: string
@@ -39,6 +40,16 @@ export function FinalizarRutaModal({
   onRequestDoubleConfirm: () => void
   onConfirm: () => void
 }) {
+  // Escape para salir. El hook lleva una pila, asi que con modales anidados
+  // Escape cierra solo el de encima. Va antes del return temprano porque los
+  // hooks no pueden ir despues.
+  useModalDialog({
+    abierto: open,
+    onClose,
+    // Es una confirmacion, no un formulario: no hay campo que enfocar.
+    enfocarAlAbrir: false,
+  })
+
   if (!open) return null
 
   const saldoCajaRuta = Number(resumen.saldoCajaRuta || 0)
