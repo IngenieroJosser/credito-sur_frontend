@@ -35,6 +35,7 @@ import { alertasClientesService } from '@/services/alertas-clientes-service'
 import { logger } from '@/lib/logger'
 import Tooltip from '@/components/ui/Tooltip'
 import { TipoAmortizacion } from '@/types/enums'
+import { totalDeSolicitud } from '@/lib/aprobaciones/total-de-solicitud'
 import { useModalDialog } from '@/hooks/use-modal-dialog'
 import {
   calcularPrestamoPreview,
@@ -359,44 +360,27 @@ export default function NotificacionDetalleModal({
 
       const tipoAmortBase = String(combined.tipoAmortizacion || '').toUpperCase()
 
-      // Total del credito cuando la solicitud no lo trae.
-      //
-      // Esto tenia su propia matematica y no coincidia con la del sistema en dos
-      // cosas. Tomaba `plazoBase`, que es la columna `plazoMeses` de la base y es
-      // ENTERA, cuando el interes se calcula con el plazo fraccionario que sale de
-      // las cuotas y la frecuencia: para 45 cuotas diarias son 1,5 meses y no 2,
-      // o sea un 33% mas de interes en pantalla. Y no truncaba, mientras el
-      // sistema si trunca. Ahora usa `calcularPrestamoPreview`, la misma formula
-      // del modal de creacion, verificada contra el reparto del backend.
-      const calcFallbackMontoTotal = () => {
-        if (isArticuloSolicitud) return valorArticuloBase
-        if (interesTotalBase > 0) return montoFinanciado + interesTotalBase
-
-        const plazoDerivado =
-          derivarPlazoMeses(cuotasBase, String(combined.frecuenciaPago || combined.frecuencia || 'DIARIO')) ||
-          Math.max(1, plazoBase)
-
-        const preview = calcularPrestamoPreview({
+      // El total sale de `lib/aprobaciones/total-de-solicitud`, que es donde se
+      // puede probar. Aqui vivia la cuenta y tenia dos errores: tomaba el
+      // `plazoMeses` de la solicitud —la columna de la base, ENTERA— cuando el
+      // interes se calcula con el plazo fraccionario que sale de las cuotas y la
+      // frecuencia (45 diarias son 1,5 meses, no 2: un 33% mas de interes), y
+      // sumaba el interes sin truncar.
+      const montoTotalBase = totalDeSolicitud(
+        {
+          montoTotal: combined.montoTotal,
+          totalPagar: combined.totalPagar,
+          totalAPagar: combined.totalAPagar,
+          interesTotal: interesTotalBase,
           monto: montoFinanciado,
-          cuotas: cuotasBase,
-          tasa: tasaBase,
-          meses: plazoDerivado,
-          tipoInteres:
-            tipoAmortBase === 'FRANCESA'
-              ? TipoAmortizacion.FRANCESA
-              : tipoAmortBase === 'INTERES_PLANO'
-                ? TipoAmortizacion.INTERES_PLANO
-                : TipoAmortizacion.INTERES_SIMPLE,
-        })
-
-        return preview ? preview.total : montoFinanciado
-      }
-
-      const montoTotalBase = pickNumber(
-        combined.montoTotal,
-        combined.totalPagar,
-        combined.totalAPagar,
-        calcFallbackMontoTotal(),
+          valorArticulo: valorArticuloBase,
+          cantidadCuotas: cuotasBase,
+          tasaInteres: tasaBase,
+          plazoMeses: plazoBase,
+          frecuenciaPago: combined.frecuenciaPago || combined.frecuencia,
+          tipoAmortizacion: tipoAmortBase,
+        },
+        isArticuloSolicitud,
       )
 
       const initialVal = {

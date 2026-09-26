@@ -102,8 +102,10 @@ export function calcularPrestamoPreview(params: {
  *
  * Son los factores de `CrearCreditoModal` y de `createLoan` en el backend
  * (`CUOTAS_POR_MES` en `src/importaciones/interes-credito.ts`). El formulario de
- * página completa `CreacionPrestamo` usa 4,33 para SEMANAL y por eso deriva un
- * número de cuotas distinto; eso está pendiente de decisión y no se toca aquí.
+ * página completa `CreacionPrestamo` usa 4,33 para SEMANAL —52/12, el promedio
+ * real de semanas por mes— y por eso deriva un número de cuotas distinto: la
+ * diferencia se revisó y se decidió dejarla, así que los dos factores conviven a
+ * propósito. No unificar sin hablarlo.
  */
 export const CUOTAS_POR_MES: Record<string, number> = {
   DIARIO: 30,

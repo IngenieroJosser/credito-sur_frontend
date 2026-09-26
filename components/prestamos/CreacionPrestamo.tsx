@@ -75,6 +75,20 @@ const calcularCuotasYResumen = (form: FormularioPrestamo) => {
   const cuotasCalculadas: CuotaCalculada[] = [];
   let saldo = montoFinanciado;
 
+  /**
+   * SEMANAL = 4,33 A PROPOSITO. No cambiar a 4 sin hablarlo.
+   *
+   * 4,33 es 52/12, el promedio real de semanas por mes. El modal de crear credito
+   * y `createLoan` en el backend usan 4 (ver CUOTAS_POR_MES en
+   * lib/creditos/preview-credito). Los dos factores conviven, asi que el mismo
+   * plazo deriva distinto numero de cuotas segun la pantalla:
+   *
+   *   3 meses semanal  -> 13 cuotas aqui, 12 en el modal
+   *   12 meses semanal -> 52 cuotas aqui, 48 en el modal
+   *
+   * Y ese numero se envia al backend, asi que el credito que se crea es distinto.
+   * Esta diferencia se reviso y se decidio dejarla como esta.
+   */
   const factorFrecuencia = {
     DIARIO: 30,
     SEMANAL: 4.33,
@@ -256,6 +270,20 @@ const CreacionPrestamoElegante = ({ initialClienteId, isModal }: { initialClient
   const [cuotasCantidadInput, setCuotasCantidadInput] = useState('')
 
   useEffect(() => {
+    /**
+     * SEMANAL = 4,33 A PROPOSITO. No cambiar a 4 sin hablarlo.
+     *
+     * 4,33 es 52/12, el promedio real de semanas por mes. El modal de crear credito
+     * y `createLoan` en el backend usan 4 (ver CUOTAS_POR_MES en
+     * lib/creditos/preview-credito). Los dos factores conviven, asi que el mismo
+     * plazo deriva distinto numero de cuotas segun la pantalla:
+     *
+     *   3 meses semanal  -> 13 cuotas aqui, 12 en el modal
+     *   12 meses semanal -> 52 cuotas aqui, 48 en el modal
+     *
+     * Y ese numero se envia al backend, asi que el credito que se crea es distinto.
+     * Esta diferencia se reviso y se decidio dejarla como esta.
+     */
     const factorFrecuencia = {
       DIARIO: 30,
       SEMANAL: 4.33,
