@@ -247,7 +247,7 @@ export default function CierreCajaPage() {
   }, [showHistorialModal, filtroTipo, soloRutas, estadoFiltro, fechaInicio, fechaFin])
 
   const saldoSistema = useMemo(() => {
-    const caja: any = selectedRutaCaja as any
+    const caja: any = selectedRutaCaja
     const rawSaldo = arqueoPreview?.saldoEsperado ?? caja?.saldo ?? caja?.saldoActual ?? caja?.saldoCaja ?? caja?.cajaSaldo
     return parseSaldoCaja(rawSaldo)
   }, [selectedRutaCaja, arqueoPreview])

@@ -165,7 +165,7 @@ const ListadoPrestamosElegante = () => {
         if (filtros.busqueda) params.busqueda = filtros.busqueda
         if (filtros.ruta !== 'todas') params.rutaId = filtros.ruta
 
-        const moraResp: any = await apiRequest<any>('GET', '/reports/prestamos-mora', undefined, { params } as any)
+        const moraResp: any = await apiRequest<any>('GET', '/reports/prestamos-mora', undefined, { params })
         const raw: any[] = Array.isArray(moraResp)
           ? moraResp
           : Array.isArray((moraResp)?.prestamos)
@@ -338,9 +338,9 @@ const ListadoPrestamosElegante = () => {
     if (filtros.cliente !== 'todos' && prestamo.clienteId !== filtros.cliente) return false;
 
     // Estado UI: si tiene días de mora, se considera EN_MORA aunque el backend lo marque ACTIVO.
-    const diasMora = Number((prestamo as any)?.diasMora || 0)
-    const cuotasVencidas = Number((prestamo as any)?.cuotasVencidas || 0)
-    const estadoRaw = String((prestamo as any)?.estado || '').toUpperCase()
+    const diasMora = Number((prestamo)?.diasMora || 0)
+    const cuotasVencidas = Number((prestamo)?.cuotasVencidas || 0)
+    const estadoRaw = String((prestamo)?.estado || '').toUpperCase()
     const estadoUI = (diasMora > 0 || cuotasVencidas > 0) ? 'EN_MORA' : estadoRaw
 
     if (filtros.estado === 'EN_MORA') return estadoUI === 'EN_MORA'
@@ -633,8 +633,8 @@ const ListadoPrestamosElegante = () => {
                   ))
                 ) : prestamosPaginados.length > 0 ? (
                   prestamosPaginados.map((prestamo) => {
-                    const diasMora = Number((prestamo as any)?.diasMora || 0)
-                    const cuotasVencidas = Number((prestamo as any)?.cuotasVencidas || 0)
+                    const diasMora = Number((prestamo)?.diasMora || 0)
+                    const cuotasVencidas = Number((prestamo)?.cuotasVencidas || 0)
                     const estadoUI = (diasMora > 0 || cuotasVencidas > 0) ? 'EN_MORA' : prestamo.estado
 
                     return (
@@ -782,8 +782,8 @@ const ListadoPrestamosElegante = () => {
             ))
           ) : prestamosPaginados.length > 0 ? (
             prestamosPaginados.map((prestamo) => {
-              const diasMora = Number((prestamo as any)?.diasMora || 0)
-              const cuotasVencidas = Number((prestamo as any)?.cuotasVencidas || 0)
+              const diasMora = Number((prestamo)?.diasMora || 0)
+              const cuotasVencidas = Number((prestamo)?.cuotasVencidas || 0)
               const estadoUI = (diasMora > 0 || cuotasVencidas > 0) ? 'EN_MORA' : prestamo.estado
 
               return (

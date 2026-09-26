@@ -1,7 +1,7 @@
 /**
  * Crear una categoria sin conexion devuelve la categoria, no el registro de la cola.
  *
- * Antes el camino offline hacia `return enqueueOperation(...) as any`. Ese registro
+ * Antes el camino offline hacia `return enqueueOperation(...)`. Ese registro
  * tiene `id`, `endpoint`, `method` y `status`, pero NO tiene `nombre`, y quien llama
  * —el desplegable de categorias— lo mete en su lista y lo pinta: sin conexion
  * aparecia una opcion EN BLANCO y se seleccionaba el id de la cola.

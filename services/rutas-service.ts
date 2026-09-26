@@ -489,7 +489,7 @@ export const rutasService = {
   /**
    * Sin conexión devuelve `null`, no el registro de la cola.
    *
-   * Antes devolvía `enqueueOperation(...) as any`: un objeto con `endpoint` y
+   * Antes devolvía `enqueueOperation(...)`: un objeto con `endpoint` y
    * `method` disfrazado de `Ruta`. Ninguno de los sitios que llaman aquí usa el
    * resultado —hacen `await` y recargan la lista—, asi que se dice la verdad en vez
    * de fabricar una ruta que nadie lee.

@@ -33,7 +33,7 @@ export const categoriasService = {
     // Sin conexión se devuelve la categoría que se acaba de pedir, no el registro
     // de la cola.
     //
-    // Antes esto era `return await syncService.enqueueOperation(...) as any`, y ese
+    // Antes esto era `return await syncService.enqueueOperation(...)`, y ese
     // registro tiene `id`, `endpoint`, `method`… pero NO tiene `nombre`. Quien
     // llama lo mete en el desplegable y lo pinta, asi que sin conexión aparecía una
     // opción en blanco y se seleccionaba el id de la cola.

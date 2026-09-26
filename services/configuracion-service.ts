@@ -30,7 +30,7 @@ class ConfiguracionService {
   /**
    * Sin conexión devuelve `null`, no el registro de la cola.
    *
-   * Antes devolvía `enqueueOperation(...) as any`, un objeto con `endpoint` y
+   * Antes devolvía `enqueueOperation(...)`, un objeto con `endpoint` y
    * `method` disfrazado de configuración. Quien llama no usa el resultado —hace
    * `await` y recarga—, así que el `| null` dice lo que de verdad pasa.
    */

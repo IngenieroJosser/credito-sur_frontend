@@ -111,7 +111,7 @@ export const inventarioService = {
   /**
    * Sin conexión devuelve `null`, no el registro de la cola.
    *
-   * Antes devolvía `enqueueOperation(...) as any`, o sea un objeto con `endpoint`
+   * Antes devolvía `enqueueOperation(...)`, o sea un objeto con `endpoint`
    * y `method` disfrazado de `Producto`. No se fabrica un producto optimista
    * porque ninguno de los cinco sitios que llaman aquí usa el resultado: todos
    * hacen `await` y luego recargan la lista. El `| null` es lo que de verdad pasa,
