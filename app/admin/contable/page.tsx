@@ -191,8 +191,8 @@ type RutaResumen = {
 // Centraliza la lógica que antes estaba duplicada 3 veces en fetchData,
 // loadMovimientosDetalle y loadMovimientosGlobalPorTipo.
 const mapTransaccion = (t: ApiTransaccion): MovimientoContable => {
-  const tipoRefRaw = String((t as any).tipoReferencia || '').toUpperCase()
-  const origenBackend = (t as any).origen
+  const tipoRefRaw = String((t).tipoReferencia || '').toUpperCase()
+  const origenBackend = (t).origen
 
   const origenInferido = (() => {
     // Abonos de deuda del cobrador: el origen real es el COBRADOR.
@@ -570,7 +570,7 @@ const ModuloContableContent = () => {
           next = Array.isArray(legacyResp?.data) ? legacyResp.data.map(mapTransaccion) : []
         }
 
-        const codigoCaja = String((cajaSeleccionada as any)?.codigo || '').toUpperCase()
+        const codigoCaja = String((cajaSeleccionada)?.codigo || '').toUpperCase()
         if (codigoCaja === 'CAJA-PRINCIPAL' || codigoCaja === 'CAJA-BANCO') {
           next = next.filter((m: MovimientoContable) => {
             const ref = String(m?.tipoReferencia || '').toUpperCase()
@@ -1075,7 +1075,7 @@ const ModuloContableContent = () => {
     setCajaSeleccionada(caja)
     // Buscamos el ID del responsable basado en el nombre (fallback si no tenemos el ID directo en la interfaz)
     // Idealmente Caja debería tener responsableId. He actualizado la carga de datos para incluirlo.
-    const cajaConId = caja as any; // Cast temporal si la interfaz Caja no tiene responsableId aún
+    const cajaConId = caja; // Cast temporal si la interfaz Caja no tiene responsableId aún
     
     setEditarCajaForm({
       nombre: caja.nombre,
@@ -2649,10 +2649,10 @@ const ModuloContableContent = () => {
                     {esCajaSupervisor(cajaSeleccionada) && (
                         <div className="md:col-span-2">
                             <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Rutas Supervisadas</label>
-                            {Array.isArray((cajaSeleccionada as any).rutasSupervisadas) &&
-                            (cajaSeleccionada as any).rutasSupervisadas.length > 0 ? (
+                            {Array.isArray((cajaSeleccionada).rutasSupervisadas) &&
+                            (cajaSeleccionada).rutasSupervisadas.length > 0 ? (
                                 <div className="flex flex-wrap gap-2">
-                                    {(cajaSeleccionada as any).rutasSupervisadas.map((ruta: any) => (
+                                    {(cajaSeleccionada).rutasSupervisadas.map((ruta: any) => (
                                         <span key={ruta.id} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
                                             {ruta.nombre} ({ruta.codigo})
                                         </span>
