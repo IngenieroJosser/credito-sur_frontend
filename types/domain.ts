@@ -504,10 +504,11 @@ export interface Ruta {
  * declarado por separado en `lib/rutas-data.ts` y en `RutasPageView`, con campos
  * distintos cada uno.
  *
- * `estado` lo deriva el backend de `activa`, asi que solo puede ser ACTIVA o
- * INACTIVA. En el frontend hay codigo que espera tambien 'PENDIENTE_ACTIVACION' y
- * 'COMPLETADA'; se comprobo que NADIE las produce (la activacion del dia vive en
- * otro endpoint, `getActivacionHoy`), asi que no se declaran aqui.
+ * `estado` dice solo si la ruta esta HABILITADA: el backend lo deriva de `activa`,
+ * asi que vale ACTIVA o INACTIVA y nada mas. Que la ruta haya abierto jornada hoy
+ * es otra cosa y viaja en `activadaHoy`, aparte a proposito: hay pantallas que
+ * cuentan `estado === 'ACTIVA'` como KPI, y meterle un tercer valor bajaria ese
+ * contador.
  */
 export interface RutaDeLista extends Ruta {
   estado: 'ACTIVA' | 'INACTIVA';
@@ -521,6 +522,18 @@ export interface RutaDeLista extends Ruta {
   porcentajeMora?: number;
   avanceDiario?: number;
   frecuenciaVisita?: string;
+  /**
+   * Si la ruta abrio jornada hoy.
+   *
+   * La activacion se registra como una transaccion de monto 0 con
+   * `tipoReferencia: 'ACTIVACION_RUTA'` en la caja de la ruta, y de ella cuelga la
+   * `RutaJornada`. Antes solo se podia consultar ruta por ruta
+   * (`GET /routes/:id/activacion-hoy`), asi que no habia forma de saber de un
+   * vistazo cuales no han salido a operar.
+   */
+  activadaHoy?: boolean;
+  /** Domingo: no hay jornada operativa, asi que nada esta pendiente de activar. */
+  diaNoLaboral?: boolean;
   cierrePendienteAnterior?: unknown;
   cierresPendientes?: unknown[];
   totalCierresPendientes?: number;

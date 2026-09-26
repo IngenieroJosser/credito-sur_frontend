@@ -60,29 +60,26 @@ import Paginador from '@/components/ui/Paginador'
 import { normalizarCodigoRuta } from '@/lib/rutas/codigo-ruta'
 import { logger } from '@/lib/logger'
 import type { RutaDeLista } from '@/types/domain'
+import { estaPendienteDeActivacion } from '@/lib/rutas/pendiente-de-activacion'
 
 /**
- * La ruta del listado, con el estado ensanchado solo aqui.
+ * La ruta del listado. La forma la define `RutaDeLista` en `types/domain.ts`.
  *
- * La forma la define `RutaDeLista` en `types/domain.ts`, sacada de lo que
- * `GET /routes` devuelve de verdad. Esta pantalla tenia su propia copia de la
- * interfaz, la cuarta del proyecto.
- *
- * `estado` se ensancha porque esta pantalla tiene ramas para
- * 'PENDIENTE_ACTIVACION' y 'COMPLETADA' —incluida la pestaña "Pendientes"— y el
- * backend solo manda ACTIVA o INACTIVA: lo deriva de `activa`. Se busco en todo el
- * proyecto y NADIE produce esos dos estados, asi que esa pestaña siempre cuenta 0
- * y al filtrarla la lista sale vacia. La activacion del dia es otra cosa y vive en
- * `getActivacionHoy`. Queda declarado asi, y no borrado, porque quitar una pestaña
- * visible es decision del producto.
+ * `estado` dice solo si la ruta esta habilitada (ACTIVA / INACTIVA). Que haya
+ * salido a operar hoy es `activadaHoy`, y de ahi sale la pestaña "Pendientes".
  */
-type Ruta = Omit<RutaDeLista, 'estado'> & {
-  estado: RutaDeLista['estado'] | 'PENDIENTE_ACTIVACION' | 'COMPLETADA';
+type Ruta = RutaDeLista & {
   cobrador: string;
   codigo: string;
   cierrePendienteAnterior?: any;
   cierresPendientes?: any[];
 }
+
+/** Clave de la pestaña que lista lo que no ha salido a operar hoy. */
+const FILTRO_PENDIENTE_ACTIVACION = 'PENDIENTE_ACTIVACION' as const
+
+// La regla de "pendiente de activar" vive en lib/rutas/pendiente-de-activacion,
+// donde se puede probar.
 
 interface PrestamoResumen {
   id: string;
@@ -142,8 +139,6 @@ export const mapAsignacionesToClientesRuta = (asignaciones: any[] = []): Cliente
 const getEstadoSistemaLabel = (estado: Ruta['estado']) => {
   if (estado === 'ACTIVA') return 'Habilitada'
   if (estado === 'INACTIVA') return 'Inhabilitada'
-  if (estado === 'PENDIENTE_ACTIVACION') return 'Pendiente'
-  if (estado === 'COMPLETADA') return 'Completada'
   return estado
 }
 
@@ -813,7 +808,12 @@ export const RutasPageView = ({
   // ... (Rest of code)
 
   const rutasFiltradas = displayRutas.filter((ruta) => {
-    const cumpleEstado = estadoFiltro === 'TODAS' || ruta.estado === estadoFiltro
+    const cumpleEstado =
+      estadoFiltro === 'TODAS'
+        ? true
+        : estadoFiltro === FILTRO_PENDIENTE_ACTIVACION
+          ? estaPendienteDeActivacion(ruta)
+          : ruta.estado === estadoFiltro
     const cumpleBusqueda =
       ruta.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
       ruta.codigo.toLowerCase().includes(busqueda.toLowerCase()) ||
@@ -860,7 +860,7 @@ export const RutasPageView = ({
 
         return ruta.estado === 'ACTIVA' && clientesOperativos > 0
       }).length
-  const rutasPendientes = displayRutas.filter((ruta) => ruta.estado === 'PENDIENTE_ACTIVACION').length
+  const rutasPendientes = displayRutas.filter(estaPendienteDeActivacion).length
   const totalClientes = displayRutas.reduce((acc, curr) => acc + curr.clientesAsignados, 0)
 
   const { objetivoTotalShown, porcentajeAvance } = useMemo(() => {
@@ -1109,7 +1109,7 @@ export const RutasPageView = ({
             </div>
             <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
               {(['TODAS', 'PENDIENTE_ACTIVACION', 'ACTIVA', 'INACTIVA'] as const).map((estado) => {
-                const count = estado === 'PENDIENTE_ACTIVACION' ? rutasPendientes : null
+                const count = estado === FILTRO_PENDIENTE_ACTIVACION ? rutasPendientes : null
                 const label = estado === 'TODAS' ? 'Todas'
                   : estado === 'PENDIENTE_ACTIVACION' ? 'Pendientes'
                     : estado === 'ACTIVA' ? 'Habilitadas'
@@ -1214,15 +1214,20 @@ export const RutasPageView = ({
                           'px-3 py-1 rounded-full text-xs font-bold border',
                           ruta.estado === 'ACTIVA'
                             ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                            : ruta.estado === 'PENDIENTE_ACTIVACION'
-                              ? 'bg-orange-50 text-orange-700 border-orange-200'
-                              : ruta.estado === 'COMPLETADA'
-                                ? 'bg-blue-50 text-blue-700 border-blue-200'
-                                : 'bg-slate-50 text-slate-600 border-slate-200',
+                            : 'bg-slate-50 text-slate-600 border-slate-200',
                         )}
                       >
                         {getEstadoSistemaLabel(ruta.estado)}
                       </div>
+                      {/* Habilitada y sin salir a operar son dos cosas distintas, asi
+                          que van en dos chips y no en uno. Antes el estado tenia una
+                          rama naranja para 'PENDIENTE_ACTIVACION', un valor que el
+                          backend nunca manda. */}
+                      {estaPendienteDeActivacion(ruta) && (
+                        <div className="ml-2 px-3 py-1 rounded-full text-xs font-bold border bg-orange-50 text-orange-700 border-orange-200">
+                          Sin activar hoy
+                        </div>
+                      )}
                       {ruta.nivelRiesgo && (
                           <div className={cn(
                               'px-3 py-1 rounded-full text-[10px] font-bold border uppercase ml-2',
