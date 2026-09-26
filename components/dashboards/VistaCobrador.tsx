@@ -304,7 +304,12 @@ interface UserSession {
 
   nombres: string
 
-  apellidos: string
+  /**
+   * Puede faltar: es NULL-able en la base, y al sembrar la sesion desde
+   * `/auth/perfil` llega como `undefined` si el usuario no tiene apellido. El
+   * render ya lo contempla (`apellidos?.charAt(0) || ''`).
+   */
+  apellidos?: string
 
   correo?: string
 
@@ -3915,7 +3920,7 @@ const VistaCobrador = () => {
 
   // Generar avatar del usuario
 
-  const generarAvatar = (nombres: string, apellidos: string) => {
+  const generarAvatar = (nombres: string, apellidos?: string) => {
 
     return nombres.charAt(0) + (apellidos?.charAt(0) || '');
 

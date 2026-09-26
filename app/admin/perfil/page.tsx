@@ -12,6 +12,7 @@ import { formatRoleName, getRoleColor, getRoleIcon } from '@/components/ui/UserD
 import PushNotificationManager from '@/components/push/PushNotificationManager'
 import { logger } from '@/lib/logger'
 import { Skeleton, SkeletonTexto } from '@/components/ui/Skeleton'
+import { mezclarPerfilEnCache } from '@/lib/auth/mezclar-perfil-en-cache'
 
 const VOLVER_RUTAS: Record<string, string> = {
   'SUPER_ADMINISTRADOR': '/admin',
@@ -85,11 +86,22 @@ const PerfilUsuarioPage = () => {
           logger.warn('No se pudo traer el perfil completo; se usa el de la sesion', error)
         }
       }
+      // Si no se pudo traer el usuario completo se arma uno con lo que hay. El
+      // apellido y el correo pueden faltar (son NULL-ables), asi que se completan
+      // con lo que ya estuviera guardado antes de caer a cadena vacia.
+      const guardado = (() => {
+        try {
+          const crudo = localStorage.getItem('user')
+          return crudo ? (JSON.parse(crudo) as Record<string, unknown>) : {}
+        } catch {
+          return {}
+        }
+      })()
       setBackendUser(fullUser || {
         id: perfil.id,
-        correo: perfil.correo || '',
+        correo: perfil.correo || String(guardado.correo || ''),
         nombres: perfil.nombres,
-        apellidos: perfil.apellidos,
+        apellidos: perfil.apellidos || String(guardado.apellidos || ''),
         telefono: perfil.telefono || null,
         rol: perfil.rol as any,
         estado: (perfil.estado || 'ACTIVO') as any,
@@ -105,14 +117,13 @@ const PerfilUsuarioPage = () => {
       if (cachedUser && (fullUser || perfil)) {
         try {
           const parsed = JSON.parse(cachedUser)
-          const updated = {
-            ...parsed,
-            nombres: fullUser?.nombres || perfil.nombres,
-            apellidos: fullUser?.apellidos || perfil.apellidos,
-            correo: fullUser?.correo || perfil.correo || parsed.correo,
-            telefono: fullUser?.telefono || perfil.telefono || parsed.telefono,
-            rol: fullUser?.rol || perfil.rol || parsed.rol,
-          }
+          // El respaldo al cache lo aplica `mezclarPerfilEnCache` para TODOS los
+          // campos. Aqui `apellidos` no lo tenia, y como `/auth/perfil` devuelve
+          // los claims del token —que no traen apellidos— cuando fallaba la
+          // llamada del usuario completo se escribia `undefined` encima del
+          // apellido que si estaba guardado, y despues el perfil offline lo
+          // mostraba en blanco.
+          const updated = mezclarPerfilEnCache(parsed, perfil, fullUser)
           localStorage.setItem('user', JSON.stringify(updated))
           window.dispatchEvent(new Event('userUpdated'))
         } catch (e) {
