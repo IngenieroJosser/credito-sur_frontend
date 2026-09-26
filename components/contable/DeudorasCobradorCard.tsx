@@ -9,6 +9,8 @@ import { formatCurrency, formatMilesCOP, cn } from '@/lib/utils'
 import { getCajas, getDeudoresCobrador, registrarAbonoDeudaCobrador, type DeudaCobrador } from '@/services/contabilidad-service'
 import { useAuth } from '@/hooks/useAuth'
 import { useNotification } from '@/components/providers/NotificationProvider'
+import { Skeleton } from '@/components/ui/Skeleton'
+import Tooltip from '@/components/ui/Tooltip'
 
 // Utilidades locales para inputs COP (sin importar las del lib para evitar circularidades)
 function fmtCOPInput(val: string): string {
@@ -80,9 +82,13 @@ function AbonoModal({ cobrador, onClose, onConfirm, cajas }: AbonoModalProps) {
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Registrar Abono</p>
             <h3 className="text-sm font-black text-slate-900 mt-0.5">{cobrador.nombreCobrador}</h3>
           </div>
-          <button onClick={onClose} className="shrink-0 p-2 hover:bg-slate-100 rounded-full transition-colors">
-            <X className="h-4 w-4 text-slate-400" />
-          </button>
+          <Tooltip texto="Cerrar">
+            <button onClick={onClose} className="shrink-0 p-2 hover:bg-slate-100 rounded-full transition-colors"
+              aria-label="Cerrar"
+            >
+              <X className="h-4 w-4 text-slate-400" />
+            </button>
+          </Tooltip>
         </div>
 
         <div className="px-6 py-5 space-y-4">
@@ -210,9 +216,13 @@ function DetalleDeudaModal({ cobrador, onClose }: DetalleDeudaModalProps) {
             <h3 className="text-base sm:text-lg font-black text-slate-900 mt-0.5 truncate">{cobrador.nombreCobrador}</h3>
             <p className="text-xs font-bold text-slate-500 mt-1">{cobrador.rol.replace('_', ' ')} · {cobrador.totalEventos} evento(s)</p>
           </div>
-          <button onClick={onClose} className="shrink-0 p-2 hover:bg-slate-100 rounded-full transition-colors shrink-0">
-            <X className="h-5 w-5 text-slate-400" />
-          </button>
+          <Tooltip texto="Cerrar">
+            <button onClick={onClose} className="shrink-0 p-2 hover:bg-slate-100 rounded-full transition-colors shrink-0"
+              aria-label="Cerrar"
+            >
+              <X className="h-5 w-5 text-slate-400" />
+            </button>
+          </Tooltip>
         </div>
 
         <div className="px-5 sm:px-6 py-5 space-y-4 overflow-y-auto">
@@ -354,7 +364,7 @@ export default function DeudorasCobradorCard() {
       try {
         const arr = await getCajas()
         if (!mounted) return
-        setCajas((Array.isArray(arr) ? arr : []).map((c: any) => ({
+        setCajas((Array.isArray(arr) ? arr : []).map((c) => ({
           id: c.id,
           nombre: c.nombre,
           codigo: c.codigo,
@@ -479,9 +489,18 @@ export default function DeudorasCobradorCard() {
         {expanded && (
           <div className="border-t border-slate-100 px-6 py-5">
             {loading ? (
-              <div className="flex items-center justify-center py-8 gap-2 text-slate-300">
-                <RefreshCw className="h-4 w-4 animate-spin" />
-                <span className="text-xs font-bold">Cargando deudas...</span>
+              <div className="space-y-3 py-2" aria-busy="true">
+                <span className="sr-only">Cargando deudas…</span>
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <Skeleton className="h-9 w-9 rounded-xl" />
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <Skeleton className="h-3.5 w-1/2" />
+                      <Skeleton className="h-3 w-1/4" />
+                    </div>
+                    <Skeleton className="h-4 w-20" />
+                  </div>
+                ))}
               </div>
             ) : deudoresActivos.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 gap-3">

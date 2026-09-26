@@ -1,4 +1,5 @@
 import { getPagoBogotaDateKey, shouldMarkVisitaAsPagado } from '@/lib/rutas-core'
+import type { PagoParcial } from '@/types/domain'
 
 // ============================================================================
 // Helpers compartidos de recaudo (pagos) para vistas de Ruta.
@@ -18,12 +19,12 @@ type PagoFilterOptions = {
   includeCierrePendiente?: boolean
 }
 
-export const isPagoCierrePendiente = (pago: any): boolean => {
+export const isPagoCierrePendiente = (pago: PagoParcial | null | undefined): boolean => {
   return String(pago?.origenGestion || '').toUpperCase() === 'CIERRE_PENDIENTE'
 }
 
 const shouldIncludePagoForOperationalToday = (
-  pago: any,
+  pago: PagoParcial | null | undefined,
   options?: PagoFilterOptions,
 ): boolean => {
   if (options?.includeCierrePendiente) return true
@@ -62,7 +63,7 @@ export const buildRecaudosHoyMapByPrestamoId = (
 }
 
 export const sumMontoTotalPagosByBogotaDateKey = (
-  pagos: any[],
+  pagos: PagoParcial[],
   targetBogotaKey: string,
   options?: PagoFilterOptions,
 ): number => {
@@ -81,14 +82,14 @@ export const sumMontoTotalPagosByBogotaDateKey = (
   }, 0)
 }
 
-export const sumMontoTotalPagosHistorico = (pagos: any[]): number => {
+export const sumMontoTotalPagosHistorico = (pagos: PagoParcial[]): number => {
   // Suma total histórica de una lista de pagos (sin filtro por fecha).
   return (Array.isArray(pagos) ? pagos : []).reduce((sum: number, p: any) => {
     return sum + Number(p?.montoTotal ?? p?.monto ?? p?.valor ?? 0)
   }, 0)
 }
 
-export const indexPagosByPrestamoId = (pagos: any[]) => {
+export const indexPagosByPrestamoId = (pagos: PagoParcial[]) => {
   // Construye índices en memoria para evitar filtros O(N) por cada visita.
   //
   // Retorna:
@@ -144,8 +145,8 @@ export const applyRecaudoHoyToVisitas = <T extends Record<string, any>>(
     }
 
     const recHoyBackend = Number(
-      (v as any)?.recaudadoDelDia ??
-      (v as any)?.recaudadoHoy ??
+      (v)?.recaudadoDelDia ??
+      (v)?.recaudadoHoy ??
       0
     )
 
@@ -162,7 +163,7 @@ export const applyRecaudoHoyToVisitas = <T extends Record<string, any>>(
     // real cada vez que el mapa llegaba vacío, y el cobrador veía como no
     // cobrado a un cliente al que acababa de cobrarle. Se toma el mayor de los
     // dos, y nunca el `recaudadoHoy` agrupado.
-    const recHoyPropio = Number((v as any)?.recaudadoDelDia || 0)
+    const recHoyPropio = Number((v)?.recaudadoDelDia || 0)
     const recHoy = v?.prestamoId
       ? Math.max(recHoyMap, recHoyPropio)
       : recHoyBackend
@@ -190,10 +191,10 @@ export const computeMontoCuotaPendienteDespuesDeRecaudo = (
   visita: Record<string, any>,
   recaudadoDelDia: unknown,
 ): number => {
-  const cuotaPendienteActualRaw = (visita as any)?.montoCuotaPendiente
+  const cuotaPendienteActualRaw = (visita)?.montoCuotaPendiente
   const tieneCuotaPendiente = cuotaPendienteActualRaw !== undefined && cuotaPendienteActualRaw !== null
-  const cuotaNominal = Number((visita as any)?.montoCuota || 0)
-  const recaudadoPrev = Number((visita as any)?.recaudadoDelDia || 0)
+  const cuotaNominal = Number((visita)?.montoCuota || 0)
+  const recaudadoPrev = Number((visita)?.recaudadoDelDia || 0)
   const recaudadoNext = Number(recaudadoDelDia || 0)
   const deltaRecaudo = Math.max(0, recaudadoNext - recaudadoPrev)
 

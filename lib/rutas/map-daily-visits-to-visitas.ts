@@ -1,3 +1,5 @@
+import type { VisitaParcial } from '@/lib/types/cobranza'
+import type { Cliente } from '@/types/domain'
 /**
  * Mapper compartido para convertir DailyVisitsResponse en VisitaRuta[].
  * Centraliza la normalización de obligaciones operativas para todas las vistas:
@@ -61,17 +63,18 @@ export const mapDailyVisitsResponseToVisitas = ({
   modo = 'LIVE',
   fechaOperativa = hoyBogotaKey,
 }: MapDailyVisitsToVisitasParams): VisitaRuta[] => {
-  const obligaciones = Array.isArray((resp as any)?.obligaciones)
-    ? (resp as any).obligaciones
+  const obligaciones = Array.isArray((resp)?.obligaciones)
+    ? (resp).obligaciones
     : []
 
   const rows = obligaciones.length > 0
     ? obligaciones
-    : (Array.isArray((resp as any)?.visitas) ? (resp as any).visitas : [])
+    : (Array.isArray((resp)?.visitas) ? (resp).visitas : [])
 
   const mapped = rows.map((row: any, idx: number) => {
-    const visita = row?.visita || row || {}
-    const c = row?.cliente || visita?.cliente || {}
+    // Anotadas por el mismo motivo: sin tipo, el `|| {}` las deja en `{}`.
+    const visita: VisitaParcial = row?.visita || row || {}
+    const c: Partial<Cliente> = row?.cliente || visita?.cliente || {}
     const p = row?.prestamo || visita?.prestamo || visita?.prestamos?.[0] || {}
     const cuotaObjetivo =
       row?.cuotaObjetivo ||
@@ -250,10 +253,10 @@ export const mapDailyVisitsResponseToVisitas = ({
       proximaVisita: fechaEfectiva,
       targetVencimiento: proximaCuota?.fechaVencimiento || cuotaObjetivo?.fechaVencimiento,
       ordenVisita: Number(visita?.ordenVisita || row?.ordenVisita || idx + 1),
-      prioridad: nivel === 'ROJO' || nivel === 'LISTA_NEGRA' ? 'alta' : 'media' as any,
+      prioridad: nivel === 'ROJO' || nivel === 'LISTA_NEGRA' ? 'alta' : 'media',
       diasMora,
       cobradorId: rutaData?.cobradorId || initialRuta?.cobradorId || '',
-      periodoRuta: mapFrecuenciaToPeriodo(frecuencia as any) as any,
+      periodoRuta: mapFrecuenciaToPeriodo(frecuencia),
       clienteId: c?.id || visita?.clienteId || '',
       prestamoId: p?.id || row?.prestamoId || '',
       tipoPrestamo: esArticulo ? 'ARTICULO' : 'EFECTIVO',
@@ -285,7 +288,7 @@ export const mapDailyVisitsResponseToVisitas = ({
 
     return {
       ...visitaBase,
-      nivelRiesgo: resolveNivelRiesgoVisita(visitaBase, p, cuotaObjetivo) as any,
+      nivelRiesgo: resolveNivelRiesgoVisita(visitaBase, p, cuotaObjetivo),
     } as VisitaRuta
   })
 

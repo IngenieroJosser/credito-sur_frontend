@@ -1,6 +1,6 @@
 'use client'
 
-import PantallaCarga from '@/components/ui/PantallaCarga'
+import { SkeletonDetalle } from '@/components/ui/Skeleton'
 import { logger } from '@/lib/logger'
 
 import { useEffect, useState } from 'react'
@@ -163,7 +163,7 @@ export default function RegistrarPagoClienteSupervisorPage() {
 
   if (loading) {
     return (
-      <PantallaCarga />
+      <SkeletonDetalle />
     )
   }
 
@@ -317,7 +317,7 @@ export default function RegistrarPagoClienteSupervisorPage() {
 
               {metodoPago === 'TRANSFERENCIA' && (
                 <div className="pt-1">
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Comprobante (Obligatorio)</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Comprobante<span className="ml-1 text-red-500" aria-label="obligatorio">*</span></label>
                   <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1">

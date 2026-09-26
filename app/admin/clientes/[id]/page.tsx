@@ -1,6 +1,6 @@
 'use client';
 
-import PantallaCarga from '@/components/ui/PantallaCarga'
+import { SkeletonDetalle } from '@/components/ui/Skeleton'
 
 import React, { useEffect, useState } from 'react';
 import { useRealtimeData } from '@/hooks/useRealtimeData'
@@ -56,7 +56,7 @@ export default function ClienteDetallePage() {
 
   if (isLoading) {
     return (
-      <PantallaCarga texto="Cargando información del cliente..." />
+      <SkeletonDetalle />
     );
   }
 
@@ -99,13 +99,13 @@ export default function ClienteDetallePage() {
 
     const hoyKey = getBogotaDateKey(new Date())
     const frecuencia = String(p.frecuenciaPago || 'DIARIO').toUpperCase()
-    const cuotasVencidas = (Array.isArray(cuotas) ? cuotas : []).filter((c: any) => {
+    const cuotasVencidas = (Array.isArray(cuotas) ? cuotas : []).filter((c) => {
       if (!c || !isCuotaNoPagada(c)) return false
       const raw = resolveFechaEfectivaCuota(c) || String(c?.fechaVencimiento || '')
       const k = normalizeDateKey(raw)
       return !!k && !!hoyKey && k < hoyKey
     }).length
-    const diasMora = computeDiasMoraFromCuotas(cuotas as any, hoyKey, frecuencia)
+    const diasMora = computeDiasMoraFromCuotas(cuotas, hoyKey, frecuencia)
     const estadoUI = cuotasVencidas > 0 || diasMora > 0 ? 'EN_MORA' : p.estado
     
     // El backend devuelve Decimal como string/objeto, aseguramos conversión a número

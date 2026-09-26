@@ -1,4 +1,5 @@
 'use client'
+import { estadoDeError } from '@/lib/mensaje-de-error'
 
 import PantallaCarga from '@/components/ui/PantallaCarga'
 import { logger } from '@/lib/logger'
@@ -23,7 +24,7 @@ import { dashboardService } from '@/services/dashboard-coordinador-service';
 import { prestamosService } from '@/services/prestamos-service';
 import { getResumenFinanciero } from '@/services/contabilidad-service';
 import { formatCurrency } from '@/lib/utils';
-import { computeOperationalMetaTotalForTimeFilter } from '@/lib/dashboard-operational-meta'
+import { SkeletonDetalle } from '@/components/ui/Skeleton'
 
 interface UserData {
   id: string;
@@ -259,8 +260,8 @@ export default function DashboardPage() {
           : moraCount > 0 ? '> 0' : '0';
         // Gastos operativos del período (excluye DEUDA_COBRADOR)
         const gastosPeriodo = resumen?.egresosHoy || 0;
-        const utilidadPeriodo = typeof (resumen as any)?.utilidadReal === 'number'
-          ? Number((resumen as any).utilidadReal || 0)
+        const utilidadPeriodo = typeof (resumen)?.utilidadReal === 'number'
+          ? Number((resumen).utilidadReal || 0)
           : (resumen?.gananciaNeta || 0);
 
         const mainMetrics: MetricItem[] = [
@@ -358,13 +359,6 @@ export default function DashboardPage() {
           };
         });
 
-        let metaOperativaTotal = 0
-        try {
-          metaOperativaTotal = await computeOperationalMetaTotalForTimeFilter(requestedPeriod)
-        } catch {
-          metaOperativaTotal = 0
-        }
-
         const chartData = (dashboard?.trend || []).map((t: any) => {
           const value = Number(t?.value || 0);
           const target = Number(t?.target || 0);
@@ -441,9 +435,9 @@ export default function DashboardPage() {
           },
           shouldRedirect: null
         });
-      } catch (error: any) {
+      } catch (error) {
         console.error('Error cargando dashboard:', error);
-        if (error?.response?.status === 401 || error?.statusCode === 401) {
+        if (estadoDeError(error) === 401 || estadoDeError(error) === 401) {
           localStorage.removeItem('token');
           localStorage.removeItem('user');
           router.replace('/');
@@ -509,7 +503,7 @@ export default function DashboardPage() {
 
   if (state.isLoading) {
     return (
-      <PantallaCarga texto="Preparando tu dashboard..." />
+      <SkeletonDetalle />
     );
   }
 

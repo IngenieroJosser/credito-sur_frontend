@@ -1,6 +1,7 @@
 import { logger } from '@/lib/logger'
 import { apiRequest } from "@/lib/api/api";
 import { syncService } from '@/lib/offline/syncService';
+import { esErrorDeRed } from '@/lib/offline/conRespaldoOffline';
 
 export interface ConfiguracionSistema {
   id: string;
@@ -26,24 +27,29 @@ class ConfiguracionService {
     }
   }
 
-  async updateConfiguracion(data: Partial<ConfiguracionSistema>): Promise<ConfiguracionSistema> {
+  /**
+   * Sin conexión devuelve `null`, no el registro de la cola.
+   *
+   * Antes devolvía `enqueueOperation(...) as any`, un objeto con `endpoint` y
+   * `method` disfrazado de configuración. Quien llama no usa el resultado —hace
+   * `await` y recarga—, así que el `| null` dice lo que de verdad pasa.
+   */
+  async updateConfiguracion(
+    data: Partial<ConfiguracionSistema>,
+  ): Promise<ConfiguracionSistema | null> {
     try {
       return await apiRequest<ConfiguracionSistema>('PUT', '/configuracion', data);
-    } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+    } catch (error) {
+      if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando actualizacion de configuracion en cola...');
-        return await syncService.enqueueOperation(
+        await syncService.enqueueOperation(
           'configuracion_actualizar',
           '/configuracion',
           'PUT',
           data,
           'Actualizar configuración del sistema'
-        ) as any;
+        );
+        return null;
       }
       throw error;
     }

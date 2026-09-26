@@ -1,5 +1,6 @@
 'use client'
 
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ChevronLeft,
@@ -7,7 +8,6 @@ import {
   Clock,
   CreditCard,
   Eye,
-  Loader2,
   Package,
   Phone,
   Search,
@@ -15,7 +15,7 @@ import {
   TrendingUp,
   UserPlus,
   Users,
-  X,
+  X
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn, formatCurrency } from '@/lib/utils'
@@ -29,6 +29,8 @@ import FloatingActionMenu, { FabAction } from '@/components/dashboards/shared/Fl
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal'
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
 import ClientePortalModal from '@/components/cliente/ClientePortalModal'
+import { Skeleton } from '@/components/ui/Skeleton'
+import { logger } from '@/lib/logger'
 
 interface VentaReciente {
   id: string
@@ -110,7 +112,11 @@ export default function PuntoDeVentaFloatingActions() {
     try {
       const userData = localStorage.getItem('user')
       if (userData) setUserSession(JSON.parse(userData))
-    } catch {}
+    } catch (error) {
+      // Sin sesion guardada la pantalla pide iniciar sesion por su cuenta.
+      // Se avisa solo en desarrollo, que es donde sirve.
+      logger.warn('No se pudo leer la sesion guardada', error)
+    }
   }, [])
 
   const fetchVentasRecientes = useCallback(async () => {
@@ -121,7 +127,7 @@ export default function PuntoDeVentaFloatingActions() {
     setVentasFechaHasta('')
     try {
       const [creditosData, ventasContadoData] = await Promise.all([
-        prestamosService.obtenerPrestamos({ tipo: 'ARTICULO', limit: 20 } as any),
+        prestamosService.obtenerPrestamos({ tipo: 'ARTICULO', limit: 20 }),
         salesService.obtenerVentasContado().catch(() => []),
       ])
 
@@ -251,12 +257,23 @@ export default function PuntoDeVentaFloatingActions() {
       })
       setShowCreditoModal(false)
       if (isArticulo && !esContado && prestamo?.id) {
-        try { await exportService.exportContrato(prestamo.id) } catch {}
+        try {
+          await exportService.exportContrato(prestamo.id)
+        } catch (error) {
+          // El credito SI quedo creado: el aviso de exito ya se mostro. Lo que
+          // fallo es la descarga automatica del contrato, y hasta ahora se caia
+          // en silencio: el usuario se quedaba esperando un archivo que nunca
+          // llegaba, sin saber si tenia que volver a intentarlo.
+          logger.warn('No se pudo descargar el contrato del credito', error)
+          toast.warning('El credito se creo, pero no se pudo descargar el contrato', {
+            description: 'Puedes descargarlo despues desde el detalle del credito.',
+          })
+        }
       }
-    } catch (error: any) {
+    } catch (error) {
       const esContado = Boolean(data?.ventaContado)
       toast.error(esContado ? 'Error al registrar venta' : 'Error al crear crédito', {
-        description: error?.message || 'Ocurrió un error inesperado.',
+        description: mensajeDeError(error, 'Ocurrió un error inesperado.'),
       })
     }
   }
@@ -321,7 +338,12 @@ export default function PuntoDeVentaFloatingActions() {
             </div>
             <div className="flex-1 overflow-y-auto">
               {loadingClientes ? (
-                <div className="p-10 text-center"><Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto" /><p className="mt-3 text-sm text-slate-400">Cargando clientes...</p></div>
+                <div className="space-y-2" aria-busy="true">
+                  <span className="sr-only">Cargando…</span>
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <Skeleton key={i} className="h-12 rounded-xl" />
+                  ))}
+                </div>
               ) : clientesFiltrados.length === 0 ? (
                 <div className="p-10 text-center"><Users className="h-10 w-10 text-slate-300 mx-auto mb-3" /><p className="text-sm text-slate-400 font-medium">{clientesSearch ? 'No se encontraron resultados' : 'No hay clientes registrados'}</p></div>
               ) : (
@@ -398,7 +420,12 @@ export default function PuntoDeVentaFloatingActions() {
             </div>
             <div className="flex-1 overflow-y-auto">
               {loadingVentas ? (
-                <div className="p-10 text-center"><Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto" /><p className="mt-3 text-sm text-slate-400">Cargando ventas...</p></div>
+                <div className="space-y-2" aria-busy="true">
+                  <span className="sr-only">Cargando…</span>
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <Skeleton key={i} className="h-12 rounded-xl" />
+                  ))}
+                </div>
               ) : ventasFiltradas.length === 0 ? (
                 <div className="p-10 text-center"><Package className="h-10 w-10 text-slate-300 mx-auto mb-3" /><p className="text-sm text-slate-400 font-medium">{ventasSearch || ventasFechaDesde || ventasFechaHasta ? 'No se encontraron resultados' : 'No hay ventas recientes'}</p></div>
               ) : (

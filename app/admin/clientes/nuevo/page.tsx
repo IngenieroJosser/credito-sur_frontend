@@ -54,7 +54,6 @@ const ScoreMeter = ({ score }: { score: number }) => {
 const ClienteFormPage = () => {
   const router = useRouter();
   const pathname = usePathname();
-  const [isEditMode] = useState(false);
   const [activeSection, setActiveSection] = useState('personal');
 
   const [isSaving, setIsSaving] = useState(false)
@@ -106,10 +105,10 @@ const ClienteFormPage = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (isEditMode) {
-      toast.info('La funcionalidad de edición aún no está disponible');
-    } else {
-      ;(async () => {
+    // `isEditMode` era un useState(false) sin setter: nunca se activaba, asi
+    // que la rama de edicion no se alcanzaba y el aviso de "aun no disponible"
+    // no llegaba a verse. La pantalla se anunciaba como si pudiera editar.
+    ;(async () => {
         setIsSaving(true)
         try {
           const userData = (() => {
@@ -142,8 +141,7 @@ const ClienteFormPage = () => {
         } finally {
           setIsSaving(false)
         }
-      })()
-    }
+    })()
   };
 
   const getRiesgoColor = (nivel: string) => {
@@ -191,11 +189,11 @@ const ClienteFormPage = () => {
               <User className="w-4 h-4 text-white" />
             </div>
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-              <span className="text-blue-600">{isEditMode ? 'Editar' : 'Nuevo'}</span> <span className="text-orange-500">Cliente</span>
+              <span className="text-blue-600">Nuevo</span> <span className="text-orange-500">Cliente</span>
             </h1>
           </div>
           <p className="text-slate-500 text-sm pl-11 font-medium">
-            {isEditMode ? 'Actualizar información del cliente' : 'Registrar un nuevo cliente en el sistema'}
+            Registrar un nuevo cliente en el sistema
           </p>
         </div>
 
@@ -477,7 +475,7 @@ const ClienteFormPage = () => {
                   className="px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors text-sm font-bold shadow-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Save className="h-4 w-4" />
-                  {isSaving ? 'Guardando...' : (isEditMode ? 'Guardar Cambios' : 'Crear Cliente')}
+                  {isSaving ? 'Guardando...' : 'Crear Cliente'}
                 </button>
               </div>
             </form>

@@ -14,7 +14,8 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { rutasService } from '@/services/rutas-service';
-import { normalizarCodigoRuta } from '@/lib/rutas/codigo-ruta'
+import { toast } from 'sonner';
+import CampoCodigoRuta from '@/components/rutas/CampoCodigoRuta';
 
 interface RutaFormData {
   nombre: string;
@@ -53,15 +54,15 @@ const NuevaRutaPage = () => {
           rutasService.obtenerSupervisores().catch(() => []),
           rutasService.obtenerCoordinadores().catch(() => []),
         ]);
-        setCobradores((cobRes as any[]).map((c: any) => ({
+        setCobradores((cobRes as any[]).map((c) => ({
           id: c.id,
           nombre: c.nombre || `${c.nombres || ''} ${c.apellidos || ''}`.trim(),
         })));
-        setSupervisores((supRes as any[]).map((s: any) => ({
+        setSupervisores((supRes as any[]).map((s) => ({
           id: s.id,
           nombre: s.nombre || `${s.nombres || ''} ${s.apellidos || ''}`.trim(),
         })));
-        setCoordinadores((coordRes as any[]).map((c: any) => ({
+        setCoordinadores((coordRes as any[]).map((c) => ({
           id: c.id,
           nombre: c.nombre || `${c.nombres || ''} ${c.apellidos || ''}`.trim(),
         })));
@@ -94,7 +95,7 @@ const NuevaRutaPage = () => {
       router.push('/rutas');
     } catch (err) {
       console.error('Error creando ruta:', err);
-      alert('Error al crear la ruta');
+      toast.error('Error al crear la ruta');
     } finally {
       setLoading(false);
     }
@@ -164,7 +165,7 @@ const NuevaRutaPage = () => {
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <label className="text-sm font-bold text-slate-700">Nombre de la Ruta</label>
+                      <label className="text-sm font-bold text-slate-700">Nombre de la Ruta<span className="ml-1 text-red-500" aria-label="obligatorio">*</span></label>
                       <input
                         type="text"
                         name="nombre"
@@ -176,26 +177,10 @@ const NuevaRutaPage = () => {
                       />
                     </div>
                     
-                    <div className="space-y-2">
-                      <label className="text-sm font-bold text-slate-700">Código Identificador</label>
-                      <input
-                        type="text"
-                        name="codigo"
-                        value={formData.codigo}
-                        onChange={handleInputChange}
-                        placeholder="Ej: RT-CEN-01"
-                        className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900"
-                        required
-                      />
-                      {formData.codigo.trim() && (
-                        <p className="text-xs font-medium text-slate-500">
-                          Se guardará como{' '}
-                          <span className="font-bold text-slate-700">
-                            {normalizarCodigoRuta(formData.codigo)}
-                          </span>
-                        </p>
-                      )}
-                    </div>
+                    <CampoCodigoRuta
+                      value={formData.codigo}
+                      onChange={handleInputChange}
+                    />
 
                     <div className="col-span-full space-y-2">
                       <label className="text-sm font-bold text-slate-700">Descripción</label>
@@ -222,7 +207,7 @@ const NuevaRutaPage = () => {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <label className="text-sm font-bold text-slate-700">Cobrador Asignado</label>
+                      <label className="text-sm font-bold text-slate-700">Cobrador Asignado<span className="ml-1 text-red-500" aria-label="obligatorio">*</span></label>
                       <div className="relative">
                         <select
                           name="cobradorId"
@@ -241,7 +226,7 @@ const NuevaRutaPage = () => {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-sm font-bold text-slate-700">Asignar supervisor</label>
+                      <label className="text-sm font-bold text-slate-700">Asignar supervisor<span className="ml-1 text-red-500" aria-label="obligatorio">*</span></label>
                       <div className="relative">
                         <select
                           name="supervisorId"

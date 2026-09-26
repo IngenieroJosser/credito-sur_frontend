@@ -1,6 +1,7 @@
 'use client'
 
 
+import { mensajeDeError } from '@/lib/mensaje-de-error';
 import Paginador from '@/components/ui/Paginador'
 import React, { useState, useEffect } from 'react'
 
@@ -35,6 +36,9 @@ import { aprobacionesService } from '@/services/aprobaciones-service'
 import { TipoAprobacion } from '@/types/enums'
 import NotificacionDetalleModal from '@/components/dashboards/shared/NotificacionDetalleModal'
 import { formatCurrency, formatMilesCOP } from '@/lib/utils'
+import BotonAccion from '@/components/ui/BotonAccion'
+import { CapaAccion } from '@/components/ui/PantallaCarga'
+import { Skeleton } from '@/components/ui/Skeleton'
 
 // MOCKS ELIMINADOS - La aplicación solo funciona con datos reales del backend
 
@@ -58,7 +62,7 @@ const ROLES_CON_RUTAS = ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'SUPERVI
 type TipoNotificacionFiltro = 'TODOS' | Notificacion['tipo'] | 'REGULARIZADAS'
 
 const isPagoRegularizadoNotif = (notif: Notificacion) => {
-  const metadata = (notif as any)?.metadata || {}
+  const metadata = (notif)?.metadata || {}
   return (
     metadata.tipoEvento === 'PAGO_REGULARIZADO' ||
     String(notif.titulo || '').toLowerCase().includes('pago regularizado')
@@ -117,7 +121,7 @@ export default function NotificacionesPage() {
         const basePath = user?.rol === 'COBRADOR' ? '/cobranzas' : user?.rol === 'CONTADOR' ? '/contador' : user?.rol === 'COORDINADOR' ? '/coordinador' : '/admin'
         
         const notifsConLinks = notifs.map((n: Notificacion) => {
-          const raw: any = n as any
+          const raw: any = n
           const metadata = raw.metadata || {}
 
           let link = undefined
@@ -192,7 +196,7 @@ export default function NotificacionesPage() {
             estado = n.estado || 'LEIDA';
           }
 
-          let detalles = n.detalles || (metadata.detalles as any) || {}
+          let detalles = n.detalles || (metadata.detalles) || {}
 
           // Enriquecer detalles de gastos (se puede venir como tipo GASTO o como entidad GASTO con tipo SISTEMA)
           if (n.tipo === 'GASTO' || entidad === 'GASTO' || approvalType === 'GASTO') {
@@ -214,7 +218,7 @@ export default function NotificacionesPage() {
 
           return {
             ...n,
-            tipo: tipoFinal as any,
+            tipo: tipoFinal,
             link,
             fecha,
             rutaId,
@@ -255,7 +259,14 @@ export default function NotificacionesPage() {
   const [prestamoModalOpen, setPrestamoModalOpen] = useState(false)
   const [selectedPrestamoId, setSelectedPrestamoId] = useState<string | null>(null)
   const [feedbackModal, setFeedbackModal] = useState<{titulo: string, mensaje: string, tipo: 'success' | 'danger'} | null>(null)
-  const [isProcessing, setIsProcessing] = useState(false)
+  /**
+   * Que decision se esta aplicando ahora, o null.
+   *
+   * Era `isProcessing`, un booleano que se escribia al aprobar y al rechazar
+   * y no se leia en ningun sitio: no bloqueaba nada. Aprobar no es
+   * idempotente, asi que dos pulsaciones son dos decisiones.
+   */
+  const [decisionEnCurso, setDecisionEnCurso] = useState<string | null>(null)
   
   // Paginación
   const [currentPage, setCurrentPage] = useState(1);
@@ -369,7 +380,8 @@ export default function NotificacionesPage() {
       return
     }
 
-    setIsProcessing(true)
+    if (decisionEnCurso) return
+    setDecisionEnCurso('Aprobando la solicitud…')
 
     try {
       await aprobacionesService.aprobar(entidadId, {
@@ -395,15 +407,15 @@ export default function NotificacionesPage() {
         mensaje: `La solicitud ha sido aprobada correctamente y se ha reflejado en el sistema.`,
           tipo: 'success'
         })
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error procesando aprobación/rechazo:', err)
       setFeedbackModal({
         titulo: 'Error al procesar',
-        mensaje: err?.message || 'Ocurrió un error al procesar la solicitud. Verifique su conexión e intente de nuevo.',
+        mensaje: mensajeDeError(err, 'Ocurrió un error al procesar la solicitud. Verifique su conexión e intente de nuevo.'),
         tipo: 'danger'
       })
     } finally {
-      setIsProcessing(false)
+      setDecisionEnCurso(null)
     }
 
     setShowApproveModalList(false)
@@ -424,7 +436,8 @@ export default function NotificacionesPage() {
       setShowRejectModalList(false)
       return
     }
-    setIsProcessing(true)
+    if (decisionEnCurso) return
+    setDecisionEnCurso('Rechazando la solicitud…')
     try {
       await aprobacionesService.rechazar(entidadId, {
         type: approvalType as any,
@@ -447,15 +460,15 @@ export default function NotificacionesPage() {
         mensaje: `La solicitud ha sido rechazada correctamente.`,
         tipo: 'danger'
       })
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error procesando rechazo:', err)
       setFeedbackModal({
         titulo: 'Error al procesar',
-        mensaje: err?.message || 'Ocurrió un error al procesar el rechazo.',
+        mensaje: mensajeDeError(err, 'Ocurrió un error al procesar el rechazo.'),
         tipo: 'danger'
       })
     } finally {
-      setIsProcessing(false)
+      setDecisionEnCurso(null)
       setShowRejectModalList(false)
       setSelectedNotif(null)
     }
@@ -492,7 +505,7 @@ export default function NotificacionesPage() {
         mensaje: `La solicitud ha sido aprobada correctamente.`,
         tipo: 'success'
       })
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error in handleApproveFromModal:', err)
       throw err
     }
@@ -524,7 +537,7 @@ export default function NotificacionesPage() {
         mensaje: `La solicitud ha sido rechazada correctamente.`,
         tipo: 'danger'
       })
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error in handleRejectFromModal:', err)
       throw err
     }
@@ -532,6 +545,8 @@ export default function NotificacionesPage() {
 
   return (
     <div className="min-h-screen relative bg-white">
+      <CapaAccion texto={decisionEnCurso} />
+
       {/* Fondo Arquitectónico */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
@@ -719,9 +734,18 @@ export default function NotificacionesPage() {
             {/* Lista */}
             <div className="divide-y divide-slate-100">
               {isLoading ? (
-                <div className="p-16 text-center">
-                  <div className="animate-spin mx-auto mb-4 h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full"></div>
-                  <p className="text-slate-500 text-sm font-medium">Cargando notificaciones...</p>
+                <div className="divide-y divide-slate-100" aria-busy="true">
+                  <span className="sr-only">Cargando notificaciones…</span>
+                  {[0, 1, 2, 3, 4].map((i) => (
+                    <div key={i} className="flex items-start gap-4 p-5">
+                      <Skeleton className="h-10 w-10 shrink-0 rounded-xl" />
+                      <div className="min-w-0 flex-1 space-y-2">
+                        <Skeleton className="h-3.5 w-1/3" />
+                        <Skeleton className="h-3 w-2/3" />
+                      </div>
+                      <Skeleton className="h-3 w-16 shrink-0" />
+                    </div>
+                  ))}
                 </div>
               ) : error ? (
                 <div className="p-16 text-center">
@@ -789,7 +813,7 @@ export default function NotificacionesPage() {
                         </button>
 
                          {!notif.leida && (
-                           <button
+                           <BotonAccion
                              onClick={async () => {
                                try {
                                  await notificacionesService.marcarComoLeida(notif.id)
@@ -804,7 +828,7 @@ export default function NotificacionesPage() {
                              title="Marcar como leída"
                            >
                              <CheckCircle2 className="h-4 w-4" />
-                           </button>
+                           </BotonAccion>
                          )}
                       </div>
                     </div>

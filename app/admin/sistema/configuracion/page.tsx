@@ -1,11 +1,14 @@
 'use client'
 
-import PantallaCarga from '@/components/ui/PantallaCarga'
+import { mensajeDeError } from '@/lib/mensaje-de-error'
+import { SkeletonDetalle } from '@/components/ui/Skeleton'
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
-import { Settings, CreditCard, Bell, Shield, Users, Database, Wallet, Calculator, CheckCircle } from 'lucide-react'
+import Link from 'next/link'
+import { Settings, CreditCard, Bell, Shield, Users, Database, Wallet, Calculator, CheckCircle, ArrowRight } from 'lucide-react'
 import { configuracionService, ConfiguracionSistema } from '@/services/configuracion-service'
+import Tooltip from '@/components/ui/Tooltip'
 import { apiRequest } from '@/lib/api/api'
 import { Toaster, toast } from 'sonner'
 
@@ -29,8 +32,8 @@ const ConfiguracionSistemaPage = () => {
         timeout: 15 * 60 * 1000,
       });
       toast.success('Respaldo generado correctamente');
-    } catch (error: any) {
-      toast.error(error?.message || 'No se pudo generar el respaldo');
+    } catch (error) {
+      toast.error(mensajeDeError(error, 'No se pudo generar el respaldo'));
     } finally {
       setRespaldando(false);
     }
@@ -66,7 +69,7 @@ const ConfiguracionSistemaPage = () => {
 
   if (loading) {
     return (
-      <PantallaCarga />
+      <SkeletonDetalle />
     );
   }
 
@@ -109,25 +112,54 @@ const ConfiguracionSistemaPage = () => {
             </div>
 
             <div className="space-y-4">
+              {/*
+                Decía "Frecuencia automática — Diario (23:00)" y no es verdad:
+                el backend no tiene ningún @Cron de respaldo. El único camino es
+                POST /backup/run, que el propio servicio llama
+                `runManualBackup()`. Si nadie pulsa el botón, no hay copia.
+              */}
               <div className="flex items-center justify-between p-4 bg-slate-50/50 rounded-xl border border-slate-100">
                 <div className="min-w-0">
                   <div className="text-sm font-bold text-slate-900">Respaldo Local</div>
-                  <div className="text-xs text-slate-500 mt-0.5 font-medium">Frecuencia automática</div>
+                  <div className="text-xs text-slate-500 mt-0.5 font-medium">Solo cuando se pide aquí</div>
                 </div>
-                <span className="px-3 py-1 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-600 shadow-sm">
-                  Diario (23:00)
-                </span>
+                <Tooltip texto="No hay respaldo programado: el sistema no genera copias por su cuenta. Cada copia se crea con el botón de abajo.">
+                  <span
+                    tabIndex={0}
+                    className="px-3 py-1 bg-amber-50 border border-amber-200 rounded-lg text-sm font-bold text-amber-700 shadow-sm cursor-help"
+                  >
+                    Manual
+                  </span>
+                </Tooltip>
               </div>
 
-              <div className="flex items-center justify-between p-4 bg-slate-50/50 rounded-xl border border-slate-100">
+              {/*
+                Aquí había un interruptor verde fijo, sin onClick y sin ningún
+                campo detrás: se podía pulsar creyendo que se apagaba la réplica.
+                La réplica SÍ existe (MirrorSyncModule copia cada cambio al VPS),
+                pero no se enciende desde la pantalla: depende de MIRROR_SYNC_ENABLED,
+                MIRROR_VPS_URL y MIRROR_SYNC_TOKEN en el servidor. Y tampoco es un
+                respaldo: es una copia en vivo, fila a fila.
+
+                Su estado de verdad ya lo muestra la pantalla de Sincronización
+                (consulta /configuracion/colas/status), así que se enlaza en vez
+                de repetir aquí esa consulta.
+              */}
+              <Link
+                href="/sistema/sincronizacion"
+                className="flex items-center justify-between gap-3 p-4 bg-slate-50/50 rounded-xl border border-slate-100 hover:border-slate-300 hover:bg-slate-50 transition-colors group/enlace"
+              >
                 <div className="min-w-0">
-                  <div className="text-sm font-bold text-slate-900">Sincronización Nube (VPS)</div>
-                  <div className="text-xs text-slate-500 mt-0.5 font-medium">Respaldo remoto automático</div>
+                  <div className="text-sm font-bold text-slate-900">Réplica en vivo (VPS)</div>
+                  <div className="text-xs text-slate-500 mt-0.5 font-medium">
+                    Se configura en el servidor, no desde aquí
+                  </div>
                 </div>
-                <button className="w-11 h-6 bg-emerald-500 rounded-full relative transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500">
-                  <span className="absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform translate-x-5 shadow-sm"></span>
-                </button>
-              </div>
+                <span className="shrink-0 inline-flex items-center gap-1 text-xs font-bold text-slate-600 group-hover/enlace:text-slate-900">
+                  Ver estado
+                  <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                </span>
+              </Link>
 
               <button
                 onClick={realizarRespaldoManual}
@@ -158,12 +190,18 @@ const ConfiguracionSistemaPage = () => {
                   <div className="text-sm font-bold text-slate-900">Auto-Aprobar Clientes</div>
                   <div className="text-xs text-slate-500 mt-0.5 font-medium">Bypass flujo de aprobación inicial</div>
                 </div>
-                <button 
-                  onClick={() => updateConfig('autoAprobarClientes', !config.autoAprobarClientes)}
-                  className={`w-11 h-6 rounded-full relative transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${config.autoAprobarClientes ? 'bg-emerald-500 focus:ring-emerald-500' : 'bg-slate-300 focus:ring-slate-400'}`}
-                >
-                  <span className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform shadow-sm ${config.autoAprobarClientes ? 'translate-x-5' : 'translate-x-0'}`}></span>
-                </button>
+                <Tooltip texto="Los clientes nuevos entran aprobados, sin pasar por revision">
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={config.autoAprobarClientes}
+                    aria-label="Auto-aprobar clientes"
+                    onClick={() => updateConfig('autoAprobarClientes', !config.autoAprobarClientes)}
+                    className={`w-11 h-6 rounded-full relative transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${config.autoAprobarClientes ? 'bg-emerald-500 focus:ring-emerald-500' : 'bg-slate-300 focus:ring-slate-400'}`}
+                  >
+                    <span className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform shadow-sm ${config.autoAprobarClientes ? 'translate-x-5' : 'translate-x-0'}`}></span>
+                  </button>
+                </Tooltip>
               </div>
 
               <div className="flex items-center justify-between p-4 bg-slate-50/50 rounded-xl border border-slate-100">
@@ -171,12 +209,18 @@ const ConfiguracionSistemaPage = () => {
                   <div className="text-sm font-bold text-slate-900">Auto-Aprobar Créditos</div>
                   <div className="text-xs text-slate-500 mt-0.5 font-medium">Aprobar préstamos automáticamente</div>
                 </div>
-                <button 
-                  onClick={() => updateConfig('autoAprobarCreditos', !config.autoAprobarCreditos)}
-                  className={`w-11 h-6 rounded-full relative transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${config.autoAprobarCreditos ? 'bg-emerald-500 focus:ring-emerald-500' : 'bg-slate-300 focus:ring-slate-400'}`}
-                >
-                  <span className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform shadow-sm ${config.autoAprobarCreditos ? 'translate-x-5' : 'translate-x-0'}`}></span>
-                </button>
+                <Tooltip texto="Los creditos nuevos quedan aprobados sin que nadie los revise">
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={config.autoAprobarCreditos}
+                    aria-label="Auto-aprobar créditos"
+                    onClick={() => updateConfig('autoAprobarCreditos', !config.autoAprobarCreditos)}
+                    className={`w-11 h-6 rounded-full relative transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${config.autoAprobarCreditos ? 'bg-emerald-500 focus:ring-emerald-500' : 'bg-slate-300 focus:ring-slate-400'}`}
+                  >
+                    <span className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform shadow-sm ${config.autoAprobarCreditos ? 'translate-x-5' : 'translate-x-0'}`}></span>
+                  </button>
+                </Tooltip>
               </div>
               
               <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">

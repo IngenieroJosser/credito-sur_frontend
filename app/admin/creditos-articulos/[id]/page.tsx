@@ -1,6 +1,6 @@
 'use client';
 
-import PantallaCarga from '@/components/ui/PantallaCarga'
+import { SkeletonDetalle } from '@/components/ui/Skeleton'
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
@@ -11,6 +11,7 @@ import { prestamosService } from '@/services/prestamos-service';
 import { exportService } from '@/services/export-service';
 import { toast } from 'sonner';
 import { formatLoanTerm } from '@/lib/utils';
+import BotonAccion from '@/components/ui/BotonAccion'
 
 export default function CreditoDetallePage() {
   const params = useParams();
@@ -54,7 +55,7 @@ export default function CreditoDetallePage() {
           producto: data.producto?.nombre || data.tipoPrestamo || 'Crédito Artículo',
           garantia: data.garantia || 'Prenda sobre artículo',
           fotos: data.fotos || [],
-          cuotas: cuotasData.map((c: any) => ({
+          cuotas: cuotasData.map((c) => ({
             numero: c.numeroCuota,
             fecha: c.fechaVencimiento,
             monto: c.monto,
@@ -76,7 +77,7 @@ export default function CreditoDetallePage() {
 
   if (loading) {
     return (
-      <PantallaCarga />
+      <SkeletonDetalle />
     );
   }
 
@@ -123,7 +124,7 @@ export default function CreditoDetallePage() {
             </div>
 
             <div className="flex items-center gap-2">
-              <button
+              <BotonAccion
                 onClick={async () => {
                   try {
                     await exportService.exportContrato(id);
@@ -136,7 +137,7 @@ export default function CreditoDetallePage() {
               >
                 <FileText className="w-4 h-4" />
                 Descargar Contrato
-              </button>
+              </BotonAccion>
 
               <Link
                 href={`/creditos-articulos/${id}/editar`}

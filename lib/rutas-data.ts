@@ -1,4 +1,6 @@
 import { cookies } from 'next/headers';
+import { raizBackend } from '@/lib/api/baseUrl';
+import type { RutaDeLista } from '@/types/domain';
 
 export interface RutaEstadisticas {
   clientesAsignados: number;
@@ -36,7 +38,7 @@ export async function getRutaDetalle(id: string): Promise<RutaDetalleMock | null
     if (!token) {
       return null;
     }
-    const apiUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
+    const apiUrl = raizBackend();
 
     const res = await fetch(`${apiUrl}/api-credisur/routes/${id}`, {
       headers: {
@@ -61,23 +63,16 @@ export async function getRutaDetalle(id: string): Promise<RutaDetalleMock | null
 }
 
 
-export interface Ruta {
-  id: string;
-  nombre: string;
-  codigo: string;
-  zona?: string;
-  estado: 'ACTIVA' | 'INACTIVA' | 'PENDIENTE_ACTIVACION' | 'COMPLETADA';
-  cobrador: string;
-  cobradorId?: string;
-  supervisorId?: string;
-  clientesAsignados: number;
-  clientesNuevos: number;
-  cobranzaDelDia: number;
-  metaDelDia: number;
-  descripcion?: string;
-  nivelRiesgo?: string;
-  frecuenciaVisita?: string;
-}
+/**
+ * La forma de una ruta del listado vive en `types/domain.ts`.
+ *
+ * Aqui habia una cuarta copia de la misma interfaz. Se deja como alias para que no
+ * puedan volver a separarse.
+ *
+ * Nota: ni `getRutasList` ni `getRutaDetalle` de este archivo tienen consumidores
+ * hoy; lo unico que se usa de aqui es el tipo `RutaDetalleMock`.
+ */
+export type Ruta = RutaDeLista;
 
 export async function getRutasList(): Promise<Ruta[]> {
   try {
@@ -90,7 +85,7 @@ export async function getRutasList(): Promise<Ruta[]> {
       return [];
     }
 
-    const apiUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
+    const apiUrl = raizBackend();
 
     // Traer las rutas con un límite prudente para evitar timeouts
     const res = await fetch(`${apiUrl}/api-credisur/routes?limit=20`, { 

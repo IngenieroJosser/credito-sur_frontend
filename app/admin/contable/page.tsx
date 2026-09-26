@@ -1,4 +1,5 @@
 'use client'
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 import { logger } from '@/lib/logger'
 
 /**
@@ -60,7 +61,7 @@ import {
   ChevronRight,
   ArrowRightLeft,
   Search,
-} from 'lucide-react'
+ Loader2,} from 'lucide-react'
 
 import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber, cn, formatMilesCOP } from '@/lib/utils'
 import MoneyAmount from '@/components/contable/MoneyAmount'
@@ -91,6 +92,7 @@ import AnimacionCarga from '@/components/ui/AnimacionCarga'
 import Link from 'next/link'
 import DeudorasCobradorCard from '@/components/contable/DeudorasCobradorCard'
 import FieldLabel from '@/components/ui/FieldLabel'
+import BotonAccion from '@/components/ui/BotonAccion'
 
 // --- TIPOS DE DATOS ---
 // Definimos la estructura de nuestras "Cajas".
@@ -276,7 +278,7 @@ const mapMovimientoLedger = (m: ApiMovimientoLedger): MovimientoContable => {
 }
 
 const esMovimientoPagoRegularizado = (m: Pick<MovimientoContable, 'origenGestion' | 'tipoReferencia'> | ApiMovimientoLedger) => {
-  const origenGestion = String((m as any).origenGestion || '').toUpperCase()
+  const origenGestion = String((m).origenGestion || '').toUpperCase()
   const tipo = String((m as any).tipo || '').toUpperCase()
   const tipoReferencia = String((m as any).tipoReferencia || '').toUpperCase()
   return origenGestion === 'CIERRE_PENDIENTE' && (tipo === 'PAGO' || tipoReferencia === 'PAGO')
@@ -416,20 +418,20 @@ const ModuloContableContent = () => {
     saldoPerdida: number
   } | null>(null)
 
-  const esReferenciaCobranza = (m: any) => {
+  const esReferenciaCobranza = (m: MovimientoContable) => {
     const ref = String(m?.tipoReferencia || '').toUpperCase()
     return ref === 'PAGO' || ref === 'ABONO' || ref === 'CUOTA_INICIAL' || ref === 'RESTAURACION_CUOTA_INICIAL'
   }
 
-  const esTransferenciaSalida = (m: any) => {
+  const esTransferenciaSalida = (m: MovimientoContable) => {
     if (String(m?.tipo || '').toUpperCase() !== 'TRANSFERENCIA') return false
-    const numero = String((m as any)?.numero || (m as any)?.numeroTransaccion || '')
+    const numero = String(m?.numero || '')
     return numero.toUpperCase().startsWith('TRX-OUT')
   }
 
-  const esTransferenciaEntrada = (m: any) => {
+  const esTransferenciaEntrada = (m: MovimientoContable) => {
     if (String(m?.tipo || '').toUpperCase() !== 'TRANSFERENCIA') return false
-    const numero = String((m as any)?.numero || (m as any)?.numeroTransaccion || '')
+    const numero = String(m?.numero || '')
     return numero.toUpperCase().startsWith('TRX-IN')
   }
 
@@ -437,11 +439,11 @@ const ModuloContableContent = () => {
     return caja?.tipo === 'RUTA' && !caja?.rutaId;
   }
 
-  const esIngresoContable = (m: any) => {
+  const esIngresoContable = (m: MovimientoContable) => {
     return esIngresoContableGeneral(m)
   }
 
-  const esEgresoOperativo = (m: any) => {
+  const esEgresoOperativo = (m: MovimientoContable) => {
     return esEgresoOperativoContable(m)
   }
 
@@ -570,7 +572,7 @@ const ModuloContableContent = () => {
 
         const codigoCaja = String((cajaSeleccionada as any)?.codigo || '').toUpperCase()
         if (codigoCaja === 'CAJA-PRINCIPAL' || codigoCaja === 'CAJA-BANCO') {
-          next = next.filter((m: any) => {
+          next = next.filter((m: MovimientoContable) => {
             const ref = String(m?.tipoReferencia || '').toUpperCase()
             return ref !== 'CUOTA_INICIAL' && ref !== 'RESTAURACION_CUOTA_INICIAL' && ref !== 'ABONO_DEUDA'
           })
@@ -753,7 +755,7 @@ const ModuloContableContent = () => {
           saldo: c.saldo,
           estado: c.estado,
           ultimaActualizacion: c.ultimaActualizacion,
-          rutasSupervisadas: (c as any).rutasSupervisadas
+          rutasSupervisadas: c.rutasSupervisadas
         })));
       }
 
@@ -1005,10 +1007,10 @@ const ModuloContableContent = () => {
     const cumpleEstado = filtroEstado === 'TODOS' || mov.estado === filtroEstado
     const cajaRutaId = filtroRuta === 'TODOS'
       ? null
-      : (cajas.find((c: any) => c?.rutaId === filtroRuta)?.id ?? null)
+      : (cajas.find((c: Caja) => c?.rutaId === filtroRuta)?.id ?? null)
 
     const rutaObj = filtroRuta === 'TODOS' ? null : (rutasDisponibles.find((r: any) => r?.id === filtroRuta) as any)
-    const cajaRuta = filtroRuta === 'TODOS' ? null : (cajas.find((c: any) => c?.rutaId === filtroRuta) as any)
+    const cajaRuta = filtroRuta === 'TODOS' ? null : (cajas.find((c: Caja) => c?.rutaId === filtroRuta) as any)
     const rutaKeywordRaw = String(
       rutaObj?.nombre ||
       (cajaRuta as any)?.rutaNombre ||
@@ -1033,7 +1035,12 @@ const ModuloContableContent = () => {
 
 
 
+  const [creandoCaja, setCreandoCaja] = useState(false)
+
   const handleCrearCaja = async () => {
+    // Sin bloqueo el boton no mostraba nada mientras guardaba y se podian crear
+    // cajas repetidas a fuerza de clics.
+    if (creandoCaja) return
     const saldo = parseCOPInputToNumber(crearCajaForm.saldoInicialInput)
     const ruta = rutasDisponibles.find((r) => r.id === crearCajaForm.rutaId)
     const respId = crearCajaForm.responsableId;
@@ -1044,6 +1051,7 @@ const ModuloContableContent = () => {
     }
 
     try {
+      setCreandoCaja(true)
       await apiCreateCaja({
         nombre: crearCajaForm.nombre.trim() || (crearCajaForm.tipo === 'PRINCIPAL' ? 'Caja Principal' : `Caja ${ruta?.nombre ?? 'Ruta'}`),
         tipo: crearCajaForm.tipo,
@@ -1058,6 +1066,8 @@ const ModuloContableContent = () => {
     } catch (error) {
       console.error('Error creating caja:', error)
       showNotification('error', 'No se pudo crear la caja', 'Error')
+    } finally {
+      setCreandoCaja(false)
     }
   }
 
@@ -1108,7 +1118,7 @@ const ModuloContableContent = () => {
   const openRegistrarMovimiento = () => {
     // Buscamos el ID real de la caja principal para el admin.
     // Importante: Caja Banco también puede ser PRINCIPAL. Preferimos CAJA-PRINCIPAL si existe.
-    const cajaPrincipal = cajas.find((c: any) => c.codigo === 'CAJA-PRINCIPAL') || cajas.find(c => c.tipo === 'PRINCIPAL');
+    const cajaPrincipal = cajas.find((c: Caja) => c.codigo === 'CAJA-PRINCIPAL') || cajas.find(c => c.tipo === 'PRINCIPAL');
     const defaultCaja = (userRole === 'ADMIN' || userRole === 'SUPER_ADMINISTRADOR') 
         ? (cajaPrincipal?.id || '') 
         : (cajas.find(c => c.tipo === 'RUTA')?.id || '')
@@ -1133,7 +1143,7 @@ const ModuloContableContent = () => {
   const openRegistrarTransferencia = () => {
     // Buscamos el ID real de la caja principal para el admin.
     // Importante: Caja Banco también puede ser PRINCIPAL. Preferimos CAJA-PRINCIPAL si existe.
-    const cajaPrincipal = cajas.find((c: any) => c.codigo === 'CAJA-PRINCIPAL') || cajas.find(c => c.tipo === 'PRINCIPAL');
+    const cajaPrincipal = cajas.find((c: Caja) => c.codigo === 'CAJA-PRINCIPAL') || cajas.find(c => c.tipo === 'PRINCIPAL');
     const defaultCaja = (userRole === 'ADMIN' || userRole === 'SUPER_ADMINISTRADOR') 
         ? (cajaPrincipal?.id || '') 
         : (cajas.find(c => c.tipo === 'RUTA')?.id || '')
@@ -1199,14 +1209,15 @@ const ModuloContableContent = () => {
       setShowRegistrarMovimientoModal(false)
 
       showNotification('success', 'El movimiento contable ha sido registrado', 'Movimiento Registrado')
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error creating transaccion:', error)
-      const msg =
-        error?.message ||
-        error?.response?.message ||
-        (Array.isArray(error?.response?.message) ? error.response.message.join(', ') : undefined) ||
-        'No se pudo registrar el movimiento'
-      showNotification('error', String(msg), 'Error')
+      // La cadena que habia aqui ponia `error?.response?.message` ANTES del
+      // `Array.isArray`, asi que cuando el backend mandaba la lista de campos del
+      // ValidationPipe el segundo termino la devolvia tal cual y el `join` no
+      // llegaba a correr: acababa en `String(array)`, con comas y sin espacios.
+      // `mensajeDeError` une la lista donde sea que venga.
+      const msg = mensajeDeError(error, 'No se pudo registrar el movimiento')
+      showNotification('error', msg, 'Error')
     }
   }
 
@@ -1712,7 +1723,7 @@ const ModuloContableContent = () => {
                       </div>
                       <MoneyAmount value={c.saldo} amountClassName="text-sm font-extrabold text-slate-900" />
                       <div className="flex items-center gap-2">
-                        <button
+                        <BotonAccion
                           onClick={async () => {
                             setCajaSeleccionada(c)
                             setVerCajaRangoStats(null)
@@ -1787,9 +1798,9 @@ const ModuloContableContent = () => {
                                     : []
 
                                   const ingresos = movimientosCaja
-                                    .filter((m: any) => {
+                                    .filter((m: MovimientoContable) => {
                                       const tipo = String(m.tipo || '').toUpperCase()
-                                      const numero = String((m.numero || m.numeroTransaccion || '')).toUpperCase()
+                                      const numero = String(m.numero || '').toUpperCase()
 
                                       if (tipo === 'INGRESO') return true
                                       if (tipo === 'TRANSFERENCIA') return numero.startsWith('TRX-IN')
@@ -1799,9 +1810,9 @@ const ModuloContableContent = () => {
                                     .reduce((acc: number, m: any) => acc + Number(m.monto || 0), 0)
 
                                   const egresos = movimientosCaja
-                                    .filter((m: any) => {
+                                    .filter((m: MovimientoContable) => {
                                       const tipo = String(m.tipo || '').toUpperCase()
-                                      const numero = String((m.numero || m.numeroTransaccion || '')).toUpperCase()
+                                      const numero = String(m.numero || '').toUpperCase()
 
                                       if (tipo === 'EGRESO') return true
                                       if (tipo === 'TRANSFERENCIA') return numero.startsWith('TRX-OUT')
@@ -1824,20 +1835,20 @@ const ModuloContableContent = () => {
                                 const params = { cajaId: c.id, fechaInicio: hoyClave, limit: 500 }
                                 const resp = await getTransacciones(params)
                                 if (resp && Array.isArray(resp.data)) {
-                                  const codigoCaja = String((c as any)?.codigo || '').toUpperCase()
+                                  const codigoCaja = String((c)?.codigo || '').toUpperCase()
                                   const omitRefs = codigoCaja === 'CAJA-PRINCIPAL' || codigoCaja === 'CAJA-BANCO'
 
-                                  const base = resp.data.filter((m: any) => {
+                                  const base = resp.data.filter((m: ApiTransaccion) => {
                                     if (!omitRefs) return true
                                     const ref = String(m?.tipoReferencia || '').toUpperCase()
                                     return ref !== 'CUOTA_INICIAL' && ref !== 'RESTAURACION_CUOTA_INICIAL' && ref !== 'ABONO_DEUDA'
                                   })
 
                                   const ingresos = base
-                                    .filter((m: any) => m.tipo === 'INGRESO' || m.tipo === 'TRANSFERENCIA')
-                                    .filter((m: any) => {
+                                    .filter((m: ApiTransaccion) => m.tipo === 'INGRESO' || m.tipo === 'TRANSFERENCIA')
+                                    .filter((m: ApiTransaccion) => {
                                       if (m.tipo === 'TRANSFERENCIA') {
-                                        const num = String(m.numeroTransaccion || '').toUpperCase()
+                                        const num = String(m.numero || '').toUpperCase()
                                         return num.startsWith('TRX-IN')
                                       }
                                       return true
@@ -1845,10 +1856,10 @@ const ModuloContableContent = () => {
                                     .reduce((acc: number, m: any) => acc + Number(m.monto), 0)
 
                                   const egresos = base
-                                    .filter((m: any) => m.tipo === 'EGRESO' || m.tipo === 'TRANSFERENCIA')
-                                    .filter((m: any) => {
+                                    .filter((m: ApiTransaccion) => m.tipo === 'EGRESO' || m.tipo === 'TRANSFERENCIA')
+                                    .filter((m: ApiTransaccion) => {
                                       if (m.tipo === 'TRANSFERENCIA') {
-                                        const num = String(m.numeroTransaccion || '').toUpperCase()
+                                        const num = String(m.numero || '').toUpperCase()
                                         return num.startsWith('TRX-OUT')
                                       }
                                       return true
@@ -1870,7 +1881,7 @@ const ModuloContableContent = () => {
                         >
                           <Eye className="h-3.5 w-3.5" />
                           Ver
-                        </button>
+                        </BotonAccion>
                         <button
                           onClick={() => openEditarCaja(c)}
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 text-xs font-bold hover:bg-blue-100 transition-colors"
@@ -1987,9 +1998,11 @@ const ModuloContableContent = () => {
                 <button
                   type="button"
                   onClick={handleCrearCaja}
-                  className="px-6 py-3 rounded-2xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700"
+                  disabled={creandoCaja}
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  Crear Caja
+                  {creandoCaja && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {creandoCaja ? 'Creando...' : 'Crear Caja'}
                 </button>
               </div>
             </div>
@@ -2114,13 +2127,14 @@ const ModuloContableContent = () => {
                 >
                   Cancelar
                 </button>
-                <button
+                <BotonAccion
                   type="button"
                   onClick={handleEditarCaja}
+                  textoCargando="Guardando…"
                   className="px-6 py-3 rounded-2xl bg-amber-600 text-white text-sm font-bold hover:bg-amber-700"
                 >
                   Guardar
-                </button>
+                </BotonAccion>
               </div>
             </div>
           </div>
@@ -2946,7 +2960,7 @@ const ModuloContableContent = () => {
                                         })
                                         .filter(m => {
                                             if (cajaSeleccionada && detalleCajaFocus) {
-                                              const conc = String((m as any).descripcion || m.concepto || '').toUpperCase()
+                                              const conc = String(m.concepto || '').toUpperCase()
                                               const ref = String(m.tipoReferencia || '').toUpperCase()
                                               const tipoMovimiento = String(m.tipo || '').toUpperCase()
                                               const esTransferencia = tipoMovimiento === 'TRANSFERENCIA'
@@ -2982,7 +2996,7 @@ const ModuloContableContent = () => {
                                               const esIngresoRecoleccion =
                                                 m.tipo === 'TRANSFERENCIA' &&
                                                 String(m.tipoReferencia || '').toUpperCase() === 'RECOLECCION' &&
-                                                String((m as any).descripcion || m.concepto || '').toUpperCase().includes('RECIBIDA')
+                                                String(m.concepto || '').toUpperCase().includes('RECIBIDA')
                                               return esIngresoRecoleccion || esEgresoOperativo(m)
                                             } else {
                                               return esEgresoOperativo(m);
@@ -3014,8 +3028,8 @@ const ModuloContableContent = () => {
                                       if (detalleTipo === 'CAJA_TODOS') {
                                         return filtered.reduce((acc, m) => {
                                           const monto = Number(m.monto || 0)
-                                          const tipo = String((m as any)?.tipo || '').toUpperCase()
-                                          const numero = String((m as any)?.numero || (m as any)?.numeroTransaccion || '')
+                                          const tipo = String((m)?.tipo || '').toUpperCase()
+                                          const numero = String(m?.numero || '')
                                           if (tipo === 'INGRESO') return acc + monto
                                           if (tipo === 'EGRESO') return acc - monto
                                           if (tipo === 'TRANSFERENCIA') {
@@ -3032,7 +3046,7 @@ const ModuloContableContent = () => {
                                         .filter((m) =>
                                           m.tipo === 'TRANSFERENCIA' &&
                                           String(m.tipoReferencia || '').toUpperCase() === 'RECOLECCION' &&
-                                          String((m as any).descripcion || m.concepto || '').toUpperCase().includes('RECIBIDA')
+                                          String(m.concepto || '').toUpperCase().includes('RECIBIDA')
                                         )
                                         .reduce((acc, m) => acc + m.monto, 0)
                                       const egresos = filtered
@@ -3202,7 +3216,7 @@ const ModuloContableContent = () => {
                                        })
                                        .filter(m => {
                                          if (cajaSeleccionada && detalleCajaFocus) {
-                                          const conc = String((m as any).descripcion || m.concepto || '').toUpperCase();
+                                          const conc = String(m.concepto || '').toUpperCase();
                                           const ref = String(m.tipoReferencia || '').toUpperCase();
 
                                           const esTransferencia = String(m.tipo || '').toUpperCase() === 'TRANSFERENCIA'
@@ -3239,7 +3253,7 @@ const ModuloContableContent = () => {
                                           const esIngresoRecoleccion =
                                             m.tipo === 'TRANSFERENCIA' &&
                                             String(m.tipoReferencia || '').toUpperCase() === 'RECOLECCION' &&
-                                            String((m as any).descripcion || m.concepto || '').toUpperCase().includes('RECIBIDA')
+                                            String(m.concepto || '').toUpperCase().includes('RECIBIDA')
                                            return esIngresoRecoleccion || esEgresoOperativo(m)
                                          } else {
                                            return esEgresoOperativo(m);
@@ -3380,7 +3394,7 @@ const ModuloContableContent = () => {
                             .filter(m => {
                               if (!cajaSeleccionada && m.categoria === 'CONSOLIDACION') return false;
                               if (cajaSeleccionada && detalleCajaFocus) {
-                                const conc = String((m as any).descripcion || m.concepto || '').toUpperCase();
+                                const conc = String(m.concepto || '').toUpperCase();
                                 const ref = String(m.tipoReferencia || '').toUpperCase();
 
                                 const esTransferencia = String(m.tipo || '').toUpperCase() === 'TRANSFERENCIA'
@@ -3416,7 +3430,7 @@ const ModuloContableContent = () => {
                                 const esIngresoRecoleccion =
                                   m.tipo === 'TRANSFERENCIA' &&
                                   String(m.tipoReferencia || '').toUpperCase() === 'RECOLECCION' &&
-                                  String((m as any).descripcion || m.concepto || '').toUpperCase().includes('RECIBIDA')
+                                  String(m.concepto || '').toUpperCase().includes('RECIBIDA')
                                 return esIngresoRecoleccion || esEgresoOperativo(m)
                               } else {
                                 return esEgresoOperativo(m);
@@ -3445,7 +3459,7 @@ const ModuloContableContent = () => {
                                 if (m.tipo === 'TRANSFERENCIA') {
                                   const ref = String(m.tipoReferencia || '').toUpperCase()
                                   if (ref === 'TRANSFERENCIA_INTERNA') return true
-                                  const conc = String((m as any).descripcion || m.concepto || '').toUpperCase()
+                                  const conc = String(m.concepto || '').toUpperCase()
                                   if (detalleTipo === 'INGRESOS') {
                                     return conc.includes('RECIBIDA')
                                   }
@@ -3462,7 +3476,7 @@ const ModuloContableContent = () => {
                               const esIngresoRecoleccion =
                                 m.tipo === 'TRANSFERENCIA' &&
                                 String(m.tipoReferencia || '').toUpperCase() === 'RECOLECCION' &&
-                                String((m as any).descripcion || m.concepto || '').toUpperCase().includes('RECIBIDA')
+                                String(m.concepto || '').toUpperCase().includes('RECIBIDA')
 
                               const isPositivo = (() => {
                                 if (detalleTipo === 'INGRESOS') return true
@@ -3474,7 +3488,7 @@ const ModuloContableContent = () => {
                                 if (detalleTipo === 'CAJA_TODOS') {
                                   if (m.tipo === 'EGRESO') return false
                                   if (m.tipo === 'TRANSFERENCIA') {
-                                    const numero = String((m as any).numero || '')
+                                    const numero = String((m).numero || '')
                                     const esSalida = numero.toUpperCase().startsWith('TRX-OUT')
                                     return !esSalida
                                   }

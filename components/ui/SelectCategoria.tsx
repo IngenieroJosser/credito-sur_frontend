@@ -4,6 +4,7 @@ import { Plus, X, Check, Loader2 } from 'lucide-react';
 import { categoriasService, Categoria } from '@/services/categorias-service';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import FieldLabel from '@/components/ui/FieldLabel';
+import { logger } from '@/lib/logger';
 
 interface SelectCategoriaProps {
   tipo: string; // 'CLIENTE', 'GASTO', etc.
@@ -47,7 +48,10 @@ export default function SelectCategoria({
            onChange(defaultCat.id);
         }
       }
-    } catch (err) {
+    } catch (error) {
+      // Sin categorias el desplegable queda vacio; el formulario sigue usable.
+      // Se avisa solo en desarrollo, que es donde sirve.
+      logger.warn('No se pudieron cargar las categorias', error)
     } finally {
       setLoading(false);
     }

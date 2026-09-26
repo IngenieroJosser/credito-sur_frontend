@@ -5,6 +5,9 @@ import { createPortal } from 'react-dom'
 import { X, Loader2 } from 'lucide-react'
 import { inventarioService, Producto } from '@/services/inventario-service'
 import { formatCurrency } from '@/lib/utils'
+import { Skeleton, SkeletonTexto, SkeletonTabla } from '@/components/ui/Skeleton'
+import Tooltip from '@/components/ui/Tooltip'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 
 interface DetalleProductoModalProps {
   id: string
@@ -16,6 +19,11 @@ export default function DetalleProductoModal({ id, onClose }: DetalleProductoMod
   const [visible, setVisible] = useState(false)
   const [loading, setLoading] = useState(true)
   const [producto, setProducto] = useState<Producto | null>(null)
+  // Escape para salir y el foco en el primer campo al abrir. El hook lleva
+  // una pila, asi que con modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    onClose: onClose,
+  })
 
   useEffect(() => {
     setMounted(true)
@@ -57,18 +65,29 @@ export default function DetalleProductoModal({ id, onClose }: DetalleProductoMod
         className={`relative w-full bg-white shadow-2xl flex flex-col transition-all duration-200 ease-out h-[100dvh] sm:h-auto sm:max-h-[92vh] rounded-none sm:rounded-2xl sm:max-w-3xl ${visible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
         onClick={(e) => e.stopPropagation()}
       >
-        <button
-          onClick={handleClose}
-          className="absolute top-4 right-4 z-20 p-2 bg-white/80 backdrop-blur-sm rounded-full shadow-sm border border-slate-200 text-slate-400 hover:text-slate-900 hover:bg-white transition-all"
-        >
-          <X className="w-5 h-5" />
-        </button>
+        <Tooltip texto="Cerrar">
+          <button
+            onClick={handleClose}
+            className="absolute top-4 right-4 z-20 p-2 bg-white/80 backdrop-blur-sm rounded-full shadow-sm border border-slate-200 text-slate-400 hover:text-slate-900 hover:bg-white transition-all"
+            aria-label="Cerrar"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </Tooltip>
 
         <div className="flex-1 overflow-y-auto sm:rounded-2xl p-6">
           {loading ? (
-            <div className="flex flex-col items-center justify-center min-h-[40vh] gap-3">
-              <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
-              <p className="text-sm font-medium text-slate-500">Cargando detalle del artículo...</p>
+            <div className="space-y-6" aria-busy="true">
+              <span className="sr-only">Cargando detalle del artículo…</span>
+              <div className="flex items-start gap-4">
+                <Skeleton className="h-16 w-16 rounded-2xl" />
+                <div className="min-w-0 flex-1 space-y-2">
+                  <Skeleton className="h-5 w-2/3" />
+                  <Skeleton className="h-3.5 w-1/3" />
+                </div>
+              </div>
+              <SkeletonTexto lineas={3} />
+              <SkeletonTabla filas={4} columnas={3} />
             </div>
           ) : producto ? (
             <div className="space-y-6">

@@ -1,6 +1,7 @@
 'use client'
 
-import PantallaCarga from '@/components/ui/PantallaCarga'
+import { mensajeDeError } from '@/lib/mensaje-de-error'
+import { SkeletonDetalle } from '@/components/ui/Skeleton'
 
 import { logger } from '@/lib/logger'
 
@@ -38,6 +39,8 @@ import { resolveCurrentUserId } from '@/lib/creditos/crear-prestamo-payload'
 import { useNotification } from '@/components/providers/NotificationProvider'
 import { formatCurrency, formatCOPInputValue, formatMilesCOP, parseCOPInputToNumber } from '@/lib/utils'
 import { TipoAmortizacion } from '@/types/enums'
+import BotonAccion from '@/components/ui/BotonAccion'
+import Tooltip from '@/components/ui/Tooltip'
 
 const MODAL_Z_INDEX = 2147483647
 
@@ -165,7 +168,7 @@ export default function ClienteDetalleSupervisorPage() {
 
   if (isLoading) {
     return (
-      <PantallaCarga texto="Cargando información del cliente..." />
+      <SkeletonDetalle />
     )
   }
 
@@ -215,7 +218,7 @@ export default function ClienteDetalleSupervisorPage() {
       const k = normalizeDateKey(raw)
       return !!k && !!hoyKey && k < hoyKey
     }).length
-    const diasMora = computeDiasMoraFromCuotas(cuotas as any, hoyKey, frecuencia)
+    const diasMora = computeDiasMoraFromCuotas(cuotas, hoyKey, frecuencia)
     const estadoUI = cuotasVencidas > 0 || diasMora > 0 ? 'EN_MORA' : p.estado
 
     const principal = Number(p.monto || 0)
@@ -364,13 +367,16 @@ export default function ClienteDetalleSupervisorPage() {
               <div className="p-6">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-xl font-bold text-slate-900">Registrar Pago</h3>
-                  <button
-                    type="button"
-                    onClick={resetPagoModal}
-                    className="shrink-0 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
+                  <Tooltip texto="Cerrar">
+                    <button
+                      type="button"
+                      onClick={resetPagoModal}
+                      className="shrink-0 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
+                      aria-label="Cerrar"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  </Tooltip>
                 </div>
 
                 <div className="space-y-6">
@@ -442,7 +448,7 @@ export default function ClienteDetalleSupervisorPage() {
 
                   {metodoPago === 'TRANSFERENCIA' && (
                     <div className="pt-2">
-                      <label className="block text-sm font-bold text-slate-700 mb-2">Comprobante (Obligatorio)</label>
+                      <label className="block text-sm font-bold text-slate-700 mb-2">Comprobante<span className="ml-1 text-red-500" aria-label="obligatorio">*</span></label>
                       <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4">
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex-1">
@@ -495,7 +501,7 @@ export default function ClienteDetalleSupervisorPage() {
                     </div>
                   )}
 
-                  <button
+                  <BotonAccion
                     type="button"
                     onClick={async () => {
                       if (isSaving) return;
@@ -520,9 +526,9 @@ export default function ClienteDetalleSupervisorPage() {
                         const data = await clientesService.obtenerPorId(id);
                         setClienteData(data);
                         resetPagoModal();
-                      } catch (err: any) {
+                      } catch (err) {
                         console.error('Error al registrar pago:', err);
-                        showNotification('error', err.message || 'No se pudo registrar el pago');
+                        showNotification('error', mensajeDeError(err, 'No se pudo registrar el pago'));
                       } finally {
                         setIsSaving(false);
                       }
@@ -536,7 +542,7 @@ export default function ClienteDetalleSupervisorPage() {
                   >
                     {isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <CheckCircle className="h-5 w-5" />}
                     {isSaving ? 'Registrando...' : 'Confirmar Pago'}
-                  </button>
+                  </BotonAccion>
                 </div>
               </div>
             </div>
@@ -558,13 +564,16 @@ export default function ClienteDetalleSupervisorPage() {
               <div className="p-6">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-xl font-bold text-slate-900">Crear Nuevo Crédito</h3>
-                  <button
-                    type="button"
-                    onClick={resetCreditoModal}
-                    className="shrink-0 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
+                  <Tooltip texto="Cerrar">
+                    <button
+                      type="button"
+                      onClick={resetCreditoModal}
+                      className="shrink-0 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
+                      aria-label="Cerrar"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  </Tooltip>
                 </div>
 
                 <div className="mb-6">
@@ -746,9 +755,9 @@ export default function ClienteDetalleSupervisorPage() {
                           const data = await clientesService.obtenerPorId(id);
                           setClienteData(data);
                           resetCreditoModal();
-                        } catch (err: any) {
+                        } catch (err) {
                           console.error('Error al crear crédito:', err);
-                          showNotification('error', err.message || 'No se pudo crear el crédito');
+                          showNotification('error', mensajeDeError(err, 'No se pudo crear el crédito'));
                         } finally {
                           setIsSaving(false);
                         }
@@ -780,13 +789,16 @@ export default function ClienteDetalleSupervisorPage() {
               <div className="p-6">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-xl font-bold text-slate-900">Crear Cliente</h3>
-                  <button
-                    type="button"
-                    onClick={resetNuevoClienteForm}
-                    className="shrink-0 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
+                  <Tooltip texto="Cerrar">
+                    <button
+                      type="button"
+                      onClick={resetNuevoClienteForm}
+                      className="shrink-0 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
+                      aria-label="Cerrar"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  </Tooltip>
                 </div>
 
                 <form
@@ -799,7 +811,7 @@ export default function ClienteDetalleSupervisorPage() {
                 >
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">Cédula / CC</label>
+                      <label className="block text-sm font-bold text-slate-700 mb-2">Cédula / CC<span className="ml-1 text-red-500" aria-label="obligatorio">*</span></label>
                       <input
                         type="text"
                         inputMode="numeric"
@@ -816,7 +828,7 @@ export default function ClienteDetalleSupervisorPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">Teléfono</label>
+                      <label className="block text-sm font-bold text-slate-700 mb-2">Teléfono<span className="ml-1 text-red-500" aria-label="obligatorio">*</span></label>
                       <input
                         type="tel"
                         inputMode="tel"
@@ -836,7 +848,7 @@ export default function ClienteDetalleSupervisorPage() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">Nombres</label>
+                      <label className="block text-sm font-bold text-slate-700 mb-2">Nombres<span className="ml-1 text-red-500" aria-label="obligatorio">*</span></label>
                       <input
                         value={formularioNuevoCliente.nombres}
                         onChange={(e) => setFormularioNuevoCliente((prev) => ({ ...prev, nombres: e.target.value }))}
@@ -845,7 +857,7 @@ export default function ClienteDetalleSupervisorPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">Apellidos</label>
+                      <label className="block text-sm font-bold text-slate-700 mb-2">Apellidos<span className="ml-1 text-red-500" aria-label="obligatorio">*</span></label>
                       <input
                         value={formularioNuevoCliente.apellidos}
                         onChange={(e) => setFormularioNuevoCliente((prev) => ({ ...prev, apellidos: e.target.value }))}

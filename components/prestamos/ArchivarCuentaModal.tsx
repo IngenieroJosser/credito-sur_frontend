@@ -1,9 +1,12 @@
 'use client';
 
+import { mensajeDeError } from '@/lib/mensaje-de-error';
 import { useState } from 'react';
 import { AlertTriangle, X, FileText } from 'lucide-react'
 import { formatMilesCOP } from '@/lib/utils'
 import { prestamosService } from '@/services/prestamos-service';
+import Tooltip from '@/components/ui/Tooltip';
+import { useModalDialog } from '@/hooks/use-modal-dialog';
 
 interface ArchivarCuentaModalProps {
   prestamoId: string;
@@ -27,6 +30,11 @@ export default function ArchivarCuentaModal({
   const [notas, setNotas] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  // Escape para salir y el foco en el primer campo al abrir. El hook lleva
+  // una pila, asi que con modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    onClose: onClose,
+  })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,8 +55,8 @@ export default function ArchivarCuentaModal({
 
       onSuccess();
       onClose();
-    } catch (err: any) {
-      setError(err.message || 'Error al archivar la cuenta');
+    } catch (err) {
+      setError(mensajeDeError(err, 'Error al archivar la cuenta'));
     } finally {
       setLoading(false);
     }
@@ -68,12 +76,15 @@ export default function ArchivarCuentaModal({
               <p className="text-sm text-gray-500">Esta acción es irreversible</p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <Tooltip texto="Cerrar">
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+              aria-label="Cerrar"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </Tooltip>
         </div>
 
         {/* Content */}

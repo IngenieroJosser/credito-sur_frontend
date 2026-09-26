@@ -7,6 +7,7 @@ import { Upload, X, Check, Loader2, Image as ImageIcon, Video, AlertCircle } fro
 import { cn } from '@/lib/utils';
 import { uploadService, UploadResponse } from '@/services/upload-service';
 import { ALERT_Z_INDEX } from '@/components/ui/Portal';
+import Tooltip from '@/components/ui/Tooltip';
 
 export type UploadStatus = 'idle' | 'uploading' | 'success' | 'error';
 
@@ -309,13 +310,16 @@ export default function MediaUpload({
 
             {/* Botón de eliminar */}
             {!disabled && (
-              <button
-                type="button"
-                onClick={handleRemove}
-                className="absolute top-2 left-2 w-8 h-8 bg-rose-500 text-white rounded-full flex items-center justify-center hover:bg-rose-600 transition-all shadow-lg hover:scale-110 active:scale-95 z-20"
-              >
-                <X className="w-4 h-4" strokeWidth={3} />
-              </button>
+              <Tooltip texto="Cerrar">
+                <button
+                  type="button"
+                  onClick={handleRemove}
+                  className="absolute top-2 left-2 w-8 h-8 bg-rose-500 text-white rounded-full flex items-center justify-center hover:bg-rose-600 transition-all shadow-lg hover:scale-110 active:scale-95 z-20"
+                  aria-label="Cerrar"
+                >
+                  <X className="w-4 h-4" strokeWidth={3} />
+                </button>
+              </Tooltip>
             )}
 
             {/* Nombre del archivo */}

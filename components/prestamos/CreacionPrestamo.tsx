@@ -1,5 +1,6 @@
 'use client';
 
+import { mensajeDeError } from '@/lib/mensaje-de-error';
 import React, { useState, useMemo, useEffect } from 'react';
 import { logger } from '@/lib/logger'
 import {
@@ -74,6 +75,20 @@ const calcularCuotasYResumen = (form: FormularioPrestamo) => {
   const cuotasCalculadas: CuotaCalculada[] = [];
   let saldo = montoFinanciado;
 
+  /**
+   * SEMANAL = 4,33 A PROPOSITO. No cambiar a 4 sin hablarlo.
+   *
+   * 4,33 es 52/12, el promedio real de semanas por mes. El modal de crear credito
+   * y `createLoan` en el backend usan 4 (ver CUOTAS_POR_MES en
+   * lib/creditos/preview-credito). Los dos factores conviven, asi que el mismo
+   * plazo deriva distinto numero de cuotas segun la pantalla:
+   *
+   *   3 meses semanal  -> 13 cuotas aqui, 12 en el modal
+   *   12 meses semanal -> 52 cuotas aqui, 48 en el modal
+   *
+   * Y ese numero se envia al backend, asi que el credito que se crea es distinto.
+   * Esta diferencia se reviso y se decidio dejarla como esta.
+   */
   const factorFrecuencia = {
     DIARIO: 30,
     SEMANAL: 4.33,
@@ -255,6 +270,20 @@ const CreacionPrestamoElegante = ({ initialClienteId, isModal }: { initialClient
   const [cuotasCantidadInput, setCuotasCantidadInput] = useState('')
 
   useEffect(() => {
+    /**
+     * SEMANAL = 4,33 A PROPOSITO. No cambiar a 4 sin hablarlo.
+     *
+     * 4,33 es 52/12, el promedio real de semanas por mes. El modal de crear credito
+     * y `createLoan` en el backend usan 4 (ver CUOTAS_POR_MES en
+     * lib/creditos/preview-credito). Los dos factores conviven, asi que el mismo
+     * plazo deriva distinto numero de cuotas segun la pantalla:
+     *
+     *   3 meses semanal  -> 13 cuotas aqui, 12 en el modal
+     *   12 meses semanal -> 52 cuotas aqui, 48 en el modal
+     *
+     * Y ese numero se envia al backend, asi que el credito que se crea es distinto.
+     * Esta diferencia se reviso y se decidio dejarla como esta.
+     */
     const factorFrecuencia = {
       DIARIO: 30,
       SEMANAL: 4.33,
@@ -306,7 +335,7 @@ const CreacionPrestamoElegante = ({ initialClienteId, isModal }: { initialClient
 
   const handleCrearPrestamo = async () => {
     if (!clienteSeleccionado) {
-      alert('Por favor, seleccione un cliente.');
+      showNotification('warning', 'Por favor, seleccione un cliente.');
       return;
     }
 
@@ -343,7 +372,7 @@ const CreacionPrestamoElegante = ({ initialClienteId, isModal }: { initialClient
         tipoAmortizacion: form.tipoInteres
       };
 
-      await prestamosService.crearPrestamo(payload as any);
+      await prestamosService.crearPrestamo(payload);
 
       showNotification('success', `El préstamo ha sido creado exitosamente y está pendiente de aprobación si aplica.`, 'Préstamo Creado');
 
@@ -352,9 +381,9 @@ const CreacionPrestamoElegante = ({ initialClienteId, isModal }: { initialClient
       if (pathname?.startsWith('/coordinador')) destino = '/coordinador/creditos';
       router.push(destino);
 
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error al crear el préstamo:', error);
-      showNotification('error', error.message || 'Ocurrió un error al intentar crear el préstamo', 'Error');
+      showNotification('error', mensajeDeError(error, 'Ocurrió un error al intentar crear el préstamo'), 'Error');
     } finally {
       setCreandoPrestamo(false);
     }

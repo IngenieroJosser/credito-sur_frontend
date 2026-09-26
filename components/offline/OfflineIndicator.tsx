@@ -22,6 +22,7 @@ import { useAutoSync } from '@/hooks/use-auto-sync';
 import { offlineQueue } from '@/lib/offline/offlineQueue';
 import { OfflineQueueItem } from '@/lib/offline/offlineDb';
 import { hasValidOfflineSession, getOfflineSessionDaysRemaining, isSessionExpiringSoon } from '@/lib/auth/offlineAuth';
+import Tooltip from '@/components/ui/Tooltip';
 
 export default function OfflineIndicator() {
   const {
@@ -67,11 +68,11 @@ export default function OfflineIndicator() {
   };
 
   // Separar actividades activas de completadas
-  const activeManualActivities = manualActivities.filter((activity: any) => {
+  const activeManualActivities = manualActivities.filter((activity) => {
     return !isCompletedStatus(activity?.status);
   });
 
-  const completedManualActivities = manualActivities.filter((activity: any) => {
+  const completedManualActivities = manualActivities.filter((activity) => {
     return isCompletedStatus(activity?.status);
   });
 
@@ -329,7 +330,7 @@ export default function OfflineIndicator() {
   };
 
   // Filtrar items visibles (excluir completados)
-  const visibleQueueItems = queueItems.filter((item: any) => {
+  const visibleQueueItems = queueItems.filter((item) => {
     return !isCompletedStatus(item?.status);
   });
 
@@ -340,7 +341,7 @@ export default function OfflineIndicator() {
 
   return (
     <>
-      <div className="fixed left-1/2 top-[calc(env(safe-area-inset-top)+0.75rem)] z-[80] w-[min(94vw,48rem)] -translate-x-1/2 pointer-events-none">
+      <div className="fixed left-1/2 top-[calc(env(safe-area-inset-top)+0.75rem)] z-[60] w-[min(94vw,48rem)] -translate-x-1/2 pointer-events-none">
         {/* Resultado de sync */}
         {showResult && lastSyncResult && (
           <div className="relative mb-2 overflow-hidden rounded-[1.6rem] border border-white/20 bg-white/[0.08] p-3 shadow-[0_24px_80px_rgba(15,23,42,0.18)] ring-1 ring-white/15 backdrop-blur-[34px] backdrop-saturate-[1.9] animate-in fade-in slide-in-from-top-2 duration-300 pointer-events-auto">
@@ -356,14 +357,16 @@ export default function OfflineIndicator() {
                 </span>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setShowResult(false)}
-                className="rounded-full p-1 text-slate-500 transition hover:bg-white/30 hover:text-slate-800"
-                aria-label="Cerrar resultado de sincronización"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
+              <Tooltip texto="Cerrar resultado de sincronización">
+                <button
+                  type="button"
+                  onClick={() => setShowResult(false)}
+                  className="rounded-full p-1 text-slate-500 transition hover:bg-white/30 hover:text-slate-800"
+                  aria-label="Cerrar resultado de sincronización"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </Tooltip>
             </div>
           </div>
         )}
@@ -403,14 +406,16 @@ export default function OfflineIndicator() {
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={handleExpand}
-                  className="absolute right-3 top-3 rounded-full p-1.5 text-slate-500 transition hover:bg-white/30 hover:text-slate-800 md:static"
-                  aria-label="Contraer estado del sistema"
-                >
-                  <ChevronUp className="h-4 w-4" />
-                </button>
+                <Tooltip texto="Contraer estado del sistema">
+                  <button
+                    type="button"
+                    onClick={handleExpand}
+                    className="absolute right-3 top-3 rounded-full p-1.5 text-slate-500 transition hover:bg-white/30 hover:text-slate-800 md:static"
+                    aria-label="Contraer estado del sistema"
+                  >
+                    <ChevronUp className="h-4 w-4" />
+                  </button>
+                </Tooltip>
               </div>
 
               {hasOfflineSession && (

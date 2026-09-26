@@ -1,4 +1,5 @@
 'use client'
+import { estadoDeError } from '@/lib/mensaje-de-error'
 
 import React, { useState, useRef } from 'react'
 import { 
@@ -31,6 +32,16 @@ import CierreRutaNotifModal from '@/components/dashboards/shared/CierreRutaNotif
 import PagoRegularizadoNotifModal from '@/components/dashboards/shared/PagoRegularizadoNotifModal'
 import AlertaClienteDetalleModal from '@/components/notificaciones/AlertaClienteDetalleModal'
 import { alertasClientesService } from '@/services/alertas-clientes-service'
+import { logger } from '@/lib/logger'
+import Tooltip from '@/components/ui/Tooltip'
+import { TipoAmortizacion } from '@/types/enums'
+import { totalDeSolicitud } from '@/lib/aprobaciones/total-de-solicitud'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
+import {
+  calcularPrestamoPreview,
+  derivarPlazoMeses,
+  repartoConInteresConocido,
+} from '@/lib/creditos/preview-credito'
 
 export interface NotificacionDetalleModalProps {
   isOpen: boolean
@@ -43,7 +54,7 @@ export interface NotificacionDetalleModalProps {
   userRol?: string
 }
 
-const countValue = (value: any) => {
+const countValue = (value: unknown) => {
   if (Array.isArray(value)) return value.length
   const n = Number(value)
   return Number.isFinite(n) ? n : 0
@@ -123,7 +134,7 @@ export default function NotificacionDetalleModal({
     return ''
   }
 
-  const scalarText = (value: any, fallback = 'No disponible') => {
+  const scalarText = (value: unknown, fallback = 'No disponible') => {
     if (Array.isArray(value)) return String(value.length)
     if (value && typeof value === 'object') return fallback
     const str = String(value ?? '').trim()
@@ -142,7 +153,7 @@ export default function NotificacionDetalleModal({
     )
   }
 
-  const cierrePendienteLabel = (tipoCierre: any) => {
+  const cierrePendienteLabel = (tipoCierre: unknown) => {
     const tipo = scalarText(tipoCierre, '')
     const labels: Record<string, string> = {
       ADMINISTRATIVO_CON_OBSERVACION: 'Cierre administrativo con observación',
@@ -170,6 +181,12 @@ export default function NotificacionDetalleModal({
   const mouseDownTargetRef = useRef<EventTarget | null>(null)
   // Estado del modal de detalle de pago (componente separado)
   const [showPagoDetalle, setShowPagoDetalle] = useState(false)
+  // Escape para salir y el foco en el primer campo al abrir. El hook lleva
+  // una pila, asi que con modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    abierto: isOpen,
+    onClose: onClose,
+  })
 
   const formatFechaHora = (raw: any, fallback = '—') => {
     if (!raw || raw === 'N/A' || raw === '—') return fallback
@@ -343,28 +360,27 @@ export default function NotificacionDetalleModal({
 
       const tipoAmortBase = String(combined.tipoAmortizacion || '').toUpperCase()
 
-      // Calcular montoTotal según el tipo de amortización
-      const calcFallbackMontoTotal = () => {
-        if (isArticuloSolicitud) return valorArticuloBase
-        if (interesTotalBase > 0) return montoFinanciado + interesTotalBase
-        if (tipoAmortBase === 'FRANCESA') {
-          const r = tasaBase / 100
-          const n = Math.max(1, cuotasBase)
-          if (r > 0) {
-            const cuotaFija = montoFinanciado * r / (1 - Math.pow(1 + r, -n))
-            return Math.round(cuotaFija * n)
-          }
-          return montoFinanciado
-        }
-        // Interés simple
-        return montoFinanciado + (montoFinanciado * tasaBase * Math.max(1, plazoBase)) / 100
-      }
-
-      const montoTotalBase = pickNumber(
-        combined.montoTotal,
-        combined.totalPagar,
-        combined.totalAPagar,
-        calcFallbackMontoTotal(),
+      // El total sale de `lib/aprobaciones/total-de-solicitud`, que es donde se
+      // puede probar. Aqui vivia la cuenta y tenia dos errores: tomaba el
+      // `plazoMeses` de la solicitud —la columna de la base, ENTERA— cuando el
+      // interes se calcula con el plazo fraccionario que sale de las cuotas y la
+      // frecuencia (45 diarias son 1,5 meses, no 2: un 33% mas de interes), y
+      // sumaba el interes sin truncar.
+      const montoTotalBase = totalDeSolicitud(
+        {
+          montoTotal: combined.montoTotal,
+          totalPagar: combined.totalPagar,
+          totalAPagar: combined.totalAPagar,
+          interesTotal: interesTotalBase,
+          monto: montoFinanciado,
+          valorArticulo: valorArticuloBase,
+          cantidadCuotas: cuotasBase,
+          tasaInteres: tasaBase,
+          plazoMeses: plazoBase,
+          frecuenciaPago: combined.frecuenciaPago || combined.frecuencia,
+          tipoAmortizacion: tipoAmortBase,
+        },
+        isArticuloSolicitud,
       )
 
       const initialVal = {
@@ -411,7 +427,7 @@ export default function NotificacionDetalleModal({
         garantia: String(combined.garantia ?? ''),
       }
       
-      const isPrestamoEff = (notificacion?.tipo === 'PRESTAMO' || (notificacion as any)?.approvalType === 'NUEVO_PRESTAMO')
+      const isPrestamoEff = (notificacion?.tipo === 'PRESTAMO' || (notificacion)?.approvalType === 'NUEVO_PRESTAMO')
       const isArticleEff = isPrestamoEff && (
         combined.tipo === 'ARTICULO' ||
         combined.tipoPrestamo === 'ARTICULO'
@@ -420,7 +436,7 @@ export default function NotificacionDetalleModal({
       let initialEsContado = false
       if (isArticleEff) {
         // PRIORIDAD 1: Flag explícito del backend (incluso false debe respetarse)
-        const ventaFlag = (combined as any).esContado ?? (combined as any).ventaContado
+        const ventaFlag = (combined).esContado ?? (combined).ventaContado
         
         if (ventaFlag !== undefined && ventaFlag !== null) {
           initialEsContado = !!ventaFlag
@@ -486,8 +502,8 @@ export default function NotificacionDetalleModal({
         )
 
         setHistory(Array.isArray(data) ? data : [])
-      } catch (error: any) {
-        if (error?.statusCode !== 403 && error?.error?.statusCode !== 403) {
+      } catch (error) {
+        if (estadoDeError(error) !== 403 && estadoDeError(error) !== 403) {
           console.error('Error fetching history:', error)
         }
 
@@ -508,12 +524,12 @@ export default function NotificacionDetalleModal({
   React.useEffect(() => {
     if (!isOpen) return
     const meta = typeof notificacion?.metadata === 'string'
-      ? JSON.parse(notificacion!.metadata as any)
+      ? JSON.parse(notificacion!.metadata)
       : (notificacion?.metadata || {})
     const dets = typeof notificacion?.detalles === 'string'
-      ? JSON.parse(notificacion!.detalles as any)
+      ? JSON.parse(notificacion!.detalles)
       : (notificacion?.detalles || {})
-    const isPrestamoEff = (notificacion?.tipo === 'PRESTAMO' || (notificacion as any)?.approvalType === 'NUEVO_PRESTAMO')
+    const isPrestamoEff = (notificacion?.tipo === 'PRESTAMO' || (notificacion)?.approvalType === 'NUEVO_PRESTAMO')
     const tituloEff = (notificacion?.titulo || '').toLowerCase()
     const mensajeEff = (notificacion?.mensaje || '').toLowerCase()
     const isArticleEff = isPrestamoEff && (
@@ -534,7 +550,11 @@ export default function NotificacionDetalleModal({
           )
           setPlanIndex(idx >= 0 ? idx : null)
         }
-      } catch {}
+      } catch (error) {
+        // El articulo es informacion de apoyo: sin el se muestra el resto.
+        // Se avisa solo en desarrollo, que es donde sirve.
+        logger.warn('No se pudo enlazar el articulo de la notificacion', error)
+      }
     })()
   }, [isOpen, notificacion, editedDetails?.plazoMeses])
 
@@ -543,12 +563,12 @@ export default function NotificacionDetalleModal({
     // Al abrir el modal, NO sobreescribir los valores que ya vienen del backend.
     if (!isEditingMode) return
     const meta = typeof notificacion?.metadata === 'string'
-      ? JSON.parse(notificacion!.metadata as any)
+      ? JSON.parse(notificacion!.metadata)
       : (notificacion?.metadata || {})
     const dets = typeof notificacion?.detalles === 'string'
-      ? JSON.parse(notificacion!.detalles as any)
+      ? JSON.parse(notificacion!.detalles)
       : (notificacion?.detalles || {})
-    const isPrestamoEff = (notificacion?.tipo === 'PRESTAMO' || (notificacion as any)?.approvalType === 'NUEVO_PRESTAMO')
+    const isPrestamoEff = (notificacion?.tipo === 'PRESTAMO' || (notificacion)?.approvalType === 'NUEVO_PRESTAMO')
     const tituloEff = (notificacion?.titulo || '').toLowerCase()
     const mensajeEff = (notificacion?.mensaje || '').toLowerCase()
     const isArticleEff = isPrestamoEff && (
@@ -580,12 +600,12 @@ export default function NotificacionDetalleModal({
     // Si el modal acaba de abrirse y el usuario no ha editado nada, no sobreescribimos.
     if (!isEditingMode || !autoCuotas) return
     const meta = typeof notificacion?.metadata === 'string'
-      ? JSON.parse(notificacion!.metadata as any)
+      ? JSON.parse(notificacion!.metadata)
       : (notificacion?.metadata || {})
     const dets = typeof notificacion?.detalles === 'string'
-      ? JSON.parse(notificacion!.detalles as any)
+      ? JSON.parse(notificacion!.detalles)
       : (notificacion?.detalles || {})
-    const isPrestamoEff = (notificacion?.tipo === 'PRESTAMO' || (notificacion as any)?.approvalType === 'NUEVO_PRESTAMO')
+    const isPrestamoEff = (notificacion?.tipo === 'PRESTAMO' || (notificacion)?.approvalType === 'NUEVO_PRESTAMO')
     const tituloEff = (notificacion?.titulo || '').toLowerCase()
     const mensajeEff = (notificacion?.mensaje || '').toLowerCase()
     const isArticleEff = isPrestamoEff && (
@@ -697,12 +717,15 @@ export default function NotificacionDetalleModal({
                   </p>
                 </div>
               </div>
-              <button
-                onClick={onClose}
-                className="shrink-0 p-2 rounded-full hover:bg-slate-100 transition-colors"
-              >
-                <X className="h-5 w-5 text-slate-500" />
-              </button>
+              <Tooltip texto="Cerrar">
+                <button
+                  onClick={onClose}
+                  className="shrink-0 p-2 rounded-full hover:bg-slate-100 transition-colors"
+                  aria-label="Cerrar"
+                >
+                  <X className="h-5 w-5 text-slate-500" />
+                </button>
+              </Tooltip>
             </div>
 
             <div className="p-4 overflow-y-auto flex-1">
@@ -1337,12 +1360,23 @@ export default function NotificacionDetalleModal({
 
                             if (interesTotal > 0) return monto + interesTotal
 
-                            if (tipoAmort === 'FRANCESA') {
-                              // Amortización ahora usa lógica plana: capital × tasa (una sola vez)
-                              return monto + Math.round(monto * (tasa / 100))
-                            }
+                            // Misma formula que el modal de creacion. Antes aqui se
+                            // sumaba el interes sin truncar y FRANCESA se redondeaba,
+                            // asi que el total no coincidia con el que se guarda.
+                            const preview = calcularPrestamoPreview({
+                              monto,
+                              cuotas,
+                              tasa,
+                              meses: derivarPlazoMeses(cuotas, String(editedDetails?.frecuenciaPago || 'DIARIO')) || meses,
+                              tipoInteres:
+                                tipoAmort === 'FRANCESA'
+                                  ? TipoAmortizacion.FRANCESA
+                                  : tipoAmort === 'INTERES_PLANO'
+                                    ? TipoAmortizacion.INTERES_PLANO
+                                    : TipoAmortizacion.INTERES_SIMPLE,
+                            })
 
-                            return monto + ((monto * tasa * meses) / 100)
+                            return preview ? preview.total : monto
                           })()
                           return formatCurrency(isNaN(total) ? 0 : total)
                         })()}
@@ -1490,17 +1524,33 @@ export default function NotificacionDetalleModal({
                             const montoTotal = Number(editedDetails?.montoTotal || 0)
                             const cuotas = Math.max(1, Number(editedDetails?.cuotas || editedDetails?.cantidadCuotas || 1))
                             const monto = Number(editedDetails?.monto || 0)
-                            const tasa = Number(editedDetails?.tasaInteres ?? editedDetails?.porcentaje ?? 0)
                             const interesTotal = Number(editedDetails?.interesTotal || 0)
                             const tipoAmort = String(editedDetails?.tipoAmortizacion || '').toUpperCase()
+                            const tipoInteres =
+                              tipoAmort === 'FRANCESA'
+                                ? TipoAmortizacion.FRANCESA
+                                : tipoAmort === 'INTERES_PLANO'
+                                  ? TipoAmortizacion.INTERES_PLANO
+                                  : TipoAmortizacion.INTERES_SIMPLE
 
-                            if (tipoAmort === 'FRANCESA' && monto > 0) {
-                              const interes = interesTotal > 0 ? interesTotal : Math.round(monto * (tasa / 100))
-                              const total = monto + interes
-                              return formatCurrency(cuotas > 0 ? Math.floor(total / cuotas) : 0)
-                            }
+                            // El interes ya viene con la solicitud, o se deduce del
+                            // total. Lo que falta es partirlo como lo va a partir el
+                            // backend: en interes simple se truncan capital e interes
+                            // por separado, no se divide el total. Antes era
+                            // `trunc(montoTotal / cuotas)`, que da hasta un peso mas
+                            // por cuota que lo que se cobra.
+                            const interes =
+                              interesTotal > 0
+                                ? interesTotal
+                                : Math.max(0, montoTotal - monto)
+                            const capital = monto > 0 ? monto : Math.max(0, montoTotal - interes)
 
-                            const valorCuota = Math.trunc(montoTotal / cuotas)
+                            const { valorCuota } = repartoConInteresConocido(
+                              tipoInteres,
+                              capital,
+                              interes,
+                              cuotas,
+                            )
                             // isFinite, no isNaN: division por 0 da Infinity, que isNaN no atrapa.
                             return formatCurrency(Number.isFinite(valorCuota) ? valorCuota : 0)
                           })()}
@@ -1571,12 +1621,15 @@ export default function NotificacionDetalleModal({
                 </div>
               </div>
             </div>
-            <button 
-              onClick={handleClose}
-              className="shrink-0 p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400"
-            >
-              <X className="h-5 w-5" />
-            </button>
+            <Tooltip texto="Cerrar">
+              <button 
+                onClick={handleClose}
+                className="shrink-0 p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400"
+                aria-label="Cerrar"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </Tooltip>
           </div>
 
           {/* Content */}

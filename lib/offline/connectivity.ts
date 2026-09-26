@@ -12,22 +12,18 @@
  * Cache de 10s para evitar over-fetching.
  */
 
+import { conPrefijoApi, raizBackend } from '@/lib/api/baseUrl';
+
+// Este archivo acepta ademas dos nombres de variable que no lee nadie mas y
+// que no estan en .env.local. Se conservan por si estuvieran puestas en el
+// panel de Vercel, que desde aqui no se ve; si no lo estan, manda la
+// configuracion comun.
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ||
   process.env.NEXT_PUBLIC_BACKEND_URL ||
-  process.env.NEXT_PUBLIC_BASE_URL ||
-  (process.env.NODE_ENV === 'production'
-    ? 'https://credito-sur-backend.onrender.com'
-    : 'http://127.0.0.1:3001');
+  raizBackend();
 
-const normalizeBackendUrl = (url: string) => {
-  const normalized = url.replace(/\/$/, '');
-  return normalized.endsWith('/api-credisur')
-    ? normalized
-    : `${normalized}/api-credisur`;
-};
-
-const PING_ENDPOINT = `${normalizeBackendUrl(API_URL)}/health`;
+const PING_ENDPOINT = `${conPrefijoApi(API_URL)}/health`;
 const PING_TIMEOUT_MS = 4000;
 const CACHE_DURATION_MS = 10_000; // No re-pinguear más de 1 vez cada 10s
 

@@ -9,6 +9,11 @@ import { prestamosService } from '@/services/prestamos-service'
 import { pagosService } from '@/services/pagos-service'
 import { getLoanAmounts } from '@/lib/loan-calculations'
 import { normalizeDateKey, resolveNextPagoFromPrestamo } from '@/lib/rutas-core'
+import { Skeleton, SkeletonTabla } from '@/components/ui/Skeleton'
+import type { Pago, Prestamo } from '@/types/domain'
+import Tooltip from '@/components/ui/Tooltip'
+import type { PrestamoDelListado } from '@/types/domain'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 
 interface EstadoCuentaModalProps {
   visita: VisitaRuta
@@ -50,6 +55,11 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
   const [loanData, setLoanData] = useState<any>(null)
   const [pagosFull, setPagosFull] = useState<any[]>([])
   const [error, setError] = useState<string | null>(null)
+  // Escape para salir y el foco en el primer campo al abrir. El hook lleva
+  // una pila, asi que con modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    onClose: onClose,
+  })
 
   useEffect(() => {
     async function loadLoanDetails() {
@@ -72,7 +82,7 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
           })
           if (response.prestamos && response.prestamos.length > 0) {
             const clientLoan = visita.clienteId 
-                ? response.prestamos.find((p: any) => p.clienteId === visita.clienteId)
+                ? response.prestamos.find((p: PrestamoDelListado) => p.clienteId === visita.clienteId)
                 : response.prestamos[0];
             
             if (clientLoan) {
@@ -92,9 +102,9 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
               const limit = 100
               while (true) {
                 const resp = await pagosService.obtenerPagos({ prestamoId, page, limit })
-                const items = (resp as any)?.pagos || []
+                const items = (resp)?.pagos || []
                 all.push(...items)
-                const totalPaginas = Number((resp as any)?.paginacion?.totalPaginas || 1)
+                const totalPaginas = Number((resp)?.paginacion?.totalPaginas || 1)
                 if (page >= totalPaginas) break
                 page += 1
               }
@@ -141,10 +151,10 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
       nextPaymentAmount: (() => {
         const cuota = prox?.cuota;
         if (!cuota) return 0;
-        const montoDirecto = (cuota as any)?.montoNominal ?? (cuota as any)?.monto;
-        const montoFallback = Number((cuota as any)?.montoCapital || 0) + Number((cuota as any)?.montoInteres || 0);
+        const montoDirecto = (cuota)?.montoNominal ?? (cuota)?.monto;
+        const montoFallback = Number((cuota)?.montoCapital || 0) + Number((cuota)?.montoInteres || 0);
         const monto = Number(montoDirecto ?? montoFallback ?? 0);
-        const pagado = Number((cuota as any)?.montoPagado ?? 0);
+        const pagado = Number((cuota)?.montoPagado ?? 0);
         return Math.max(0, monto - pagado);
       })(),
       totalPaid: pagadoD,
@@ -178,7 +188,7 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
     }
 
     const ordered = [...source].sort((a, b) => new Date(b.fechaPago).getTime() - new Date(a.fechaPago).getTime())
-    const rows = ordered.flatMap((p: any) => {
+    const rows = ordered.flatMap((p: Pago) => {
       const detalles = Array.isArray(p?.detalles) ? p.detalles : []
       if (detalles.length > 0) {
         return detalles.map((d: any) => {
@@ -229,9 +239,14 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
           onClick={(e) => e.stopPropagation()}
         >
           {loading ? (
-             <div className="py-20 flex flex-col items-center justify-center space-y-4">
-                <Loader2 className="w-10 h-10 text-[#08557f] animate-spin" />
-                <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Sincronizando con Backend...</p>
+             <div className="space-y-5 p-5" aria-busy="true">
+                <span className="sr-only">Cargando el estado de cuenta…</span>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <Skeleton className="h-20 rounded-2xl" />
+                  <Skeleton className="h-20 rounded-2xl" />
+                  <Skeleton className="h-20 rounded-2xl" />
+                </div>
+                <SkeletonTabla filas={6} columnas={4} />
              </div>
           ) : error && !loanData ? (
             <div className="p-10 text-center space-y-4 font-bold">
@@ -256,9 +271,13 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
                         </span>
                     </div>
                 </div>
-                <button onClick={onClose} className="shrink-0 p-2 bg-white border border-slate-200 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-colors">
-                    <X className="h-5 w-5" />
-                </button>
+                <Tooltip texto="Cerrar">
+                  <button onClick={onClose} className="shrink-0 p-2 bg-white border border-slate-200 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-colors"
+                    aria-label="Cerrar"
+                  >
+                      <X className="h-5 w-5" />
+                  </button>
+                </Tooltip>
                 </div>
 
                 <div className="p-6 space-y-6">
@@ -377,7 +396,7 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100 bg-white">
-                                {historialPagos.length > 0 ? historialPagos.map((p: any, i: number) => (
+                                {historialPagos.length > 0 ? historialPagos.map((p, i: number) => (
                                     <tr key={i} className="hover:bg-slate-50 transition-colors">
                                         <td className="px-4 py-3">
                                             <div className="font-black text-slate-900 uppercase">{p.fecha}</div>

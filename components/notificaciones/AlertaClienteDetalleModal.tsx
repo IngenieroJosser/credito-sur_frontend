@@ -19,6 +19,8 @@ import {
 } from 'lucide-react'
 import Portal, { MODAL_Z_INDEX } from '@/components/ui/Portal'
 import { formatCurrency, resolveMediaUrl } from '@/lib/utils'
+import Tooltip from '@/components/ui/Tooltip'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 
 interface AlertaClienteDetalleModalProps {
   alerta: any
@@ -56,7 +58,7 @@ const text = (...values: any[]) => {
   return ''
 }
 
-const money = (value: any) => formatCurrency(Number(value || 0))
+const money = (value: unknown) => formatCurrency(Number(value || 0))
 
 const formatDate = (value: any) => {
   const raw = text(
@@ -177,6 +179,14 @@ export default function AlertaClienteDetalleModal({
   onClose,
   loading = false,
 }: AlertaClienteDetalleModalProps) {
+  // Escape para salir y foco al abrir. El hook lleva una pila, asi que con
+  // modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    onClose: onClose,
+    // Modal de solo lectura: no hay campo que enfocar.
+    enfocarAlAbrir: false,
+  })
+
   const metadata = alerta?.metadata || {}
   const snapshot = alerta?.snapshotCliente || metadata.snapshotCliente || {}
   const cliente = snapshot.cliente || alerta?.cliente || {}
@@ -260,13 +270,16 @@ export default function AlertaClienteDetalleModal({
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={onClose}
-                className="shrink-0 rounded-2xl bg-slate-100 p-2 text-slate-500 transition hover:bg-slate-200 hover:text-slate-900"
-              >
-                <X className="h-5 w-5" />
-              </button>
+              <Tooltip texto="Cerrar">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="shrink-0 rounded-2xl bg-slate-100 p-2 text-slate-500 transition hover:bg-slate-200 hover:text-slate-900"
+                  aria-label="Cerrar"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </Tooltip>
             </div>
 
             <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-2 xl:grid-cols-4">

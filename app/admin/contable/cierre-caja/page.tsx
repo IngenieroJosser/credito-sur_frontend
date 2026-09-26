@@ -3,14 +3,17 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { logger } from '@/lib/logger'
 import Link from 'next/link'
-import { ArrowLeft, CheckCircle2, AlertCircle, Calculator, Wallet, Receipt, Eye } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, AlertCircle, Calculator, Wallet, Receipt, Eye, Loader2 } from 'lucide-react'
+import Tooltip from '@/components/ui/Tooltip'
 import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber, cn } from '@/lib/utils'
 import MoneyAmount from '@/components/contable/MoneyAmount'
 import { getResumenFinanciero, getHistorialCierres, getHistorialCierresFiltrado, getCajas, getMovimientosLedger, getArqueoPreview, confirmarArqueo, getArqueoById } from '@/services/contabilidad-service';
+import type { Caja } from '@/services/contabilidad-service'
 import { Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
 import { getBogotaDateKey } from '@/lib/rutas-core'
 import { getEntradaCajaFisica, getSalidaCajaFisica } from '@/lib/contabilidad-clasificacion'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
+import { toast } from 'sonner';
 
 const parseSaldoCaja = (raw: any): number => {
   if (typeof raw === 'number') return Number.isFinite(raw) ? raw : 0
@@ -35,15 +38,15 @@ const getCajaPrincipal = (cajas: any[]) => {
 
   return (
     cajas.find(
-      (c: any) => 
+      (c: Caja) => 
         String(c?.codigo || '').trim().toUpperCase() === 'CAJA-PRINCIPAL'
     ) || 
     cajas.find(
-      (c: any) => 
+      (c: Caja) => 
         String(c?.nombre || '').trim().toUpperCase() === 'CAJA PRINCIPAL'
     ) || 
     cajas.find(
-      (c: any) => 
+      (c: Caja) => 
         String(c?.tipo || '').trim().toUpperCase() === 'PRINCIPAL' && 
         String(c?.nombre || '').trim().toUpperCase() !== 'CAJA BANCO' && 
         String(c?.nombre || '').trim().toUpperCase() !== 'CAJA DE OFICINA'
@@ -53,7 +56,7 @@ const getCajaPrincipal = (cajas: any[]) => {
 };
 
 // Helper to get saldo from various fields using parseSaldoCaja
-const getSaldoCaja = (caja: any) => {
+const getSaldoCaja = (caja: Caja) => {
   if (!caja) return 0;
 
   const raw = 
@@ -98,7 +101,7 @@ export default function CierreCajaPage() {
     const total = cierres.length
     let cuadradas = 0
     let descuadradas = 0
-    cierres.forEach((c: any) => {
+    cierres.forEach((c) => {
       if (String(c.estado) === 'DESCUADRADA') descuadradas++
       else cuadradas++
     })
@@ -137,14 +140,14 @@ export default function CierreCajaPage() {
       const principal = getCajaPrincipal(cajasList)
       setPrincipalCaja(principal)
       
-      const rutas = cajasList.filter((c: any) => String(c?.tipo || '').trim().toUpperCase() === 'RUTA')
+      const rutas = cajasList.filter((c: Caja) => String(c?.tipo || '').trim().toUpperCase() === 'RUTA')
       setRutaCajas(rutas)
       
       // Detailed debug: log all caja fields (only in dev)
       if (process.env.NODE_ENV === 'development') {
         logger.log('[loadCierreCaja] Starting load...')
         logger.log('[loadCierreCaja] Fetched data:', { res, cierresResp, cajasResp })
-        console.table(cajasList.map((c: any) => ({
+        console.table(cajasList.map((c: Caja) => ({
           id: c.id,
           nombre: c.nombre,
           tipo: c.tipo,
@@ -165,8 +168,8 @@ export default function CierreCajaPage() {
           limit: 1000,
         })
         const data = Array.isArray(movimientosCaja?.data) ? movimientosCaja.data : []
-        setIngresosHoyCalc(data.reduce((acc: number, m: any) => acc + getEntradaCajaFisica(m), 0))
-        setEgresosHoyCalc(data.reduce((acc: number, m: any) => acc + getSalidaCajaFisica(m), 0))
+        setIngresosHoyCalc(data.reduce((acc: number, m) => acc + getEntradaCajaFisica(m), 0))
+        setEgresosHoyCalc(data.reduce((acc: number, m) => acc + getSalidaCajaFisica(m), 0))
       } else {
         setIngresosHoyCalc(0)
         setEgresosHoyCalc(0)
@@ -176,21 +179,28 @@ export default function CierreCajaPage() {
     }
   }, [])
 
-  const selectRutaCaja = useCallback(async (caja: any) => {
+  /** Mientras se pide al servidor el arqueo de la caja elegida. */
+  const [cargandoPreview, setCargandoPreview] = useState(false)
+
+  const selectRutaCaja = useCallback(async (caja: Caja) => {
     setSelectedRutaCaja(caja)
     setForm((prev) => ({
       ...prev,
       efectivoContado: '',
     }))
     setArqueoPreview(null)
+    // Mientras no llega el arqueo, el saldo esperado que se muestra es el
+    // saldo guardado de la caja y cambia cuando responde el servidor. Se
+    // avisa para que nadie lea esa cifra como la definitiva.
+    setCargandoPreview(true)
     try {
       const preview = await getArqueoPreview(caja.id, form.fechaOperativa)
       setArqueoPreview(preview)
     } catch (e) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('[selectRutaCaja] Error loading arqueo preview:', e)
-      }
+      logger.error('No se pudo cargar el arqueo previo de la caja', e)
       setArqueoPreview(null)
+    } finally {
+      setCargandoPreview(false)
     }
   }, [form.fechaOperativa])
 
@@ -201,7 +211,7 @@ export default function CierreCajaPage() {
   useRealtimeData(['dashboards_actualizados', 'pagos_actualizados', 'prestamos_actualizados', 'rutas_actualizadas'], loadCierreCaja)
   
   const rutasPendientesCount = useMemo(() => {
-    return rutaCajas.filter((caja: any) => getSaldoCaja(caja) > 0).length
+    return rutaCajas.filter((caja: Caja) => getSaldoCaja(caja) > 0).length
   }, [rutaCajas])
 
   useEffect(() => {
@@ -246,19 +256,28 @@ export default function CierreCajaPage() {
     }
   };
 
+  /** Mientras se pide al servidor el arqueo que se va a imprimir. */
+  const [imprimiendo, setImprimiendo] = useState(false);
+
   const handleImprimirComprobante = async (arqueo?: any) => {
+    if (imprimiendo) return;
     let data = arqueo ?? arqueoResult;
     if (!data) return;
 
     // Si el item viene del historial y no trae todos los campos, se pide completo por ID
     if (arqueo && !arqueo.cajaOrigen && arqueo.id) {
+      // Este es el unico tramo que espera al servidor: lo de despues -armar
+      // el HTML y abrir la ventana- es sincrono y no necesita aviso.
+      setImprimiendo(true);
       try {
         const fullArqueo = await getArqueoById(arqueo.id);
         if (fullArqueo) {
           data = fullArqueo;
         }
       } catch (err) {
-        console.error('Failed to fetch full arqueo for printing:', err);
+        logger.error('No se pudo traer el arqueo completo para imprimirlo', err);
+      } finally {
+        setImprimiendo(false);
       }
     }
 
@@ -701,7 +720,9 @@ export default function CierreCajaPage() {
     const printWindow = window.open('', '_blank', 'width=950,height=850');
 
     if (!printWindow) {
-      alert('El navegador bloqueó la ventana de impresión. Permite ventanas emergentes para imprimir el comprobante.');
+      toast.error(
+        'El navegador bloqueó la ventana de impresión. Permite ventanas emergentes para imprimir el comprobante.',
+      );
       return;
     }
 
@@ -825,7 +846,7 @@ export default function CierreCajaPage() {
                 <div className="p-6">
                   {rutaCajas.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                      {rutaCajas.map((caja: any) => (
+                      {rutaCajas.map((caja: Caja) => (
                         <button
                           key={caja.id}
                           type="button"
@@ -881,9 +902,18 @@ export default function CierreCajaPage() {
 
                     <div>
                       <div className="text-xs font-bold text-slate-500 uppercase mb-1">Saldo Esperado de la Caja Origen</div>
-                      <div className="text-lg font-bold text-slate-900 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                      <div
+                        aria-busy={cargandoPreview}
+                        className={`text-lg font-bold text-slate-900 bg-slate-50 p-3 rounded-xl border border-slate-200 ${cargandoPreview ? 'animate-pulse' : ''}`}
+                      >
                         {formatCurrency(saldoSistema)}
                       </div>
+                      {cargandoPreview ? (
+                        <p className="mt-1 flex items-center gap-1.5 text-xs font-medium text-slate-500">
+                          <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
+                          Calculando el saldo esperado de esta caja…
+                        </p>
+                      ) : null}
                     </div>
 
                     <div>
@@ -1326,12 +1356,17 @@ export default function CierreCajaPage() {
                           </button>
                           
                           {c.numeroComprobanteTraslado && (
-                            <button
-                              onClick={() => handleImprimirComprobante(c)}
-                              className="flex-1 px-3 py-2 bg-blue-50 border border-blue-200 text-xs font-bold text-blue-700 rounded-xl hover:bg-blue-100 transition-colors text-center"
-                            >
-                              Imprimir Comprobante
-                            </button>
+                            <Tooltip texto="Abre el comprobante de traslado listo para imprimir">
+                              <button
+                                onClick={() => handleImprimirComprobante(c)}
+                                disabled={imprimiendo}
+                                aria-busy={imprimiendo}
+                                className="flex-1 px-3 py-2 bg-blue-50 border border-blue-200 text-xs font-bold text-blue-700 rounded-xl hover:bg-blue-100 transition-colors text-center disabled:opacity-60 inline-flex items-center justify-center gap-1.5"
+                              >
+                                {imprimiendo ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                                {imprimiendo ? 'Preparando…' : 'Imprimir Comprobante'}
+                              </button>
+                            </Tooltip>
                           )}
                         </div>
                       </div>
@@ -1367,10 +1402,21 @@ export default function CierreCajaPage() {
                 
                 <div className="flex gap-2 items-center">
                   {selectedCierre.numeroComprobanteTraslado && (
-                    <button onClick={() => handleImprimirComprobante(selectedCierre)} className="px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-xl hover:bg-blue-700 transition-colors flex items-center gap-2">
-                      <Receipt className="h-4 w-4" />
-                      Imprimir Comprobante
-                    </button>
+                    <Tooltip texto="Abre el comprobante de traslado listo para imprimir">
+                      <button
+                        onClick={() => handleImprimirComprobante(selectedCierre)}
+                        disabled={imprimiendo}
+                        aria-busy={imprimiendo}
+                        className="px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-xl hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-60"
+                      >
+                        {imprimiendo ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Receipt className="h-4 w-4" />
+                        )}
+                        {imprimiendo ? 'Preparando…' : 'Imprimir Comprobante'}
+                      </button>
+                    </Tooltip>
                   )}
                   <button onClick={() => setShowDetalleCierreModal(false)} className="px-4 py-2 bg-white border border-slate-200 text-sm font-bold text-slate-600 rounded-xl hover:bg-slate-50 transition-colors">
                     Cerrar
@@ -1545,12 +1591,17 @@ export default function CierreCajaPage() {
 
               <div className="p-4 sm:p-6 border-t border-slate-100 flex flex-col sm:flex-row justify-between sm:justify-end gap-2">
                 {selectedCierre.numeroComprobanteTraslado && (
-                  <button
-                    onClick={() => handleImprimirComprobante(selectedCierre)}
-                    className="w-full sm:w-auto px-6 py-2 bg-blue-600 text-white text-sm font-bold rounded-xl hover:bg-blue-700 transition-colors"
-                  >
-                    Imprimir comprobante
-                  </button>
+                  <Tooltip texto="Abre el comprobante de traslado listo para imprimir">
+                    <button
+                      onClick={() => handleImprimirComprobante(selectedCierre)}
+                      disabled={imprimiendo}
+                      aria-busy={imprimiendo}
+                      className="w-full sm:w-auto px-6 py-2 bg-blue-600 text-white text-sm font-bold rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-60 inline-flex items-center justify-center gap-2"
+                    >
+                      {imprimiendo ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                      {imprimiendo ? 'Preparando…' : 'Imprimir comprobante'}
+                    </button>
+                  </Tooltip>
                 )}
                 
                 <button

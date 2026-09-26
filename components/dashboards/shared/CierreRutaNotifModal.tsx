@@ -20,6 +20,8 @@ import {
 import { Portal } from '@/components/dashboards/shared/CobradorElements'
 import { formatCurrency, cn } from '@/lib/utils'
 import { parseCierreRutaNotif } from '@/lib/notificaciones/cierre-ruta'
+import Tooltip from '@/components/ui/Tooltip'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 
 export interface CierreRutaNotifModalProps {
   isOpen: boolean
@@ -36,6 +38,15 @@ export default function CierreRutaNotifModal({
   onClose,
   notificacion,
 }: CierreRutaNotifModalProps) {
+  // Escape para salir y foco al abrir. El hook lleva una pila, asi que con
+  // modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    abierto: isOpen,
+    onClose: onClose,
+    // Modal de solo lectura: no hay campo que enfocar.
+    enfocarAlAbrir: false,
+  })
+
   if (!isOpen || !notificacion) return null
 
   // Extraer datos estructurados; el parser mantiene regex solo como fallback para notificaciones antiguas.
@@ -106,12 +117,15 @@ export default function CierreRutaNotifModal({
             </div>
 
             {/* Botón cerrar */}
-            <button
-              onClick={onClose}
-              className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition-colors text-white"
-            >
-              <X className="h-4 w-4" />
-            </button>
+            <Tooltip texto="Cerrar">
+              <button
+                onClick={onClose}
+                className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition-colors text-white"
+                aria-label="Cerrar"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </Tooltip>
 
             {/* Icono + badge */}
             <div className="relative z-10 flex items-center gap-3 mb-3">

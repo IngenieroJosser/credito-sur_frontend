@@ -1,3 +1,4 @@
+import type { PrestamoParcial } from '@/types/domain'
 import { getBogotaDateKey } from '@/lib/rutas-core'
 import { resolveRutaDailySummary, shouldShowVisitaEnRutaHoy, shouldExcludeVisitaFromOperationalMeta, resolveCuotaIdFromVisitaLike, resolveFechaEfectivaCuota, computeDiasMoraFromCuotaObjetivo } from '@/lib/rutas-core'
 import { resolveNivelRiesgoVisita } from '@/lib/rutas/resolve-riesgo-visita'
@@ -53,7 +54,9 @@ export async function buildRutaHoyOperativa({
   // 2. Convertir obligaciones en formato VisitaRuta
   const visitasOperativas = obligacionesJornada.map((o: any, idx: number) => {
     const clienteObj = typeof o.cliente === 'object' && o.cliente ? o.cliente : null
-    const prestamo = o.prestamo || {}
+    // El `|| {}` mete un objeto vacio en la union y el compilador deja de
+    // ver los campos. Se anota lo que estas variables contienen.
+    const prestamo: PrestamoParcial = o.prestamo || {}
 
     const clienteNombre =
       o.clienteNombre ||
@@ -248,25 +251,25 @@ export async function buildRutaHoyOperativa({
   const pagosData = pagosParam || []
   if (pagosData.length > 0) {
     const recaudosHoyMap = buildRecaudosHoyMapByPrestamoId(
-      pagosData as any,
+      pagosData,
       hoyBogotaKey,
       { includeCierrePendiente: false },
     )
 
-    const { ultimoPagoDateByPrestamoId } = indexPagosByPrestamoId(pagosData as any)
+    const { ultimoPagoDateByPrestamoId } = indexPagosByPrestamoId(pagosData)
 
     visitasOperativasConPagos = applyRecaudoHoyToVisitas(
-      visitasOperativasVivas.map((v: any) => ({
+      visitasOperativasVivas.map((v) => ({
         ...v,
         recaudadoDelDia: 0,
         recaudadoTotalClient: 0,
         recaudadoPeriodo: 0,
-      })) as any,
+      })),
       {
         hoyBogotaKey,
         recaudosHoyMap,
       },
-    ).map((v: any) => {
+    ).map((v) => {
       const pid = String(v?.prestamoId || '')
       return {
         ...v,
@@ -279,7 +282,7 @@ export async function buildRutaHoyOperativa({
 
   // 5. Construir lista completa para KPI
   const kpiItems = visitasOperativasConPagos
-    .filter((v: any) => {
+    .filter((v) => {
       const recaudado = Number(v?.recaudadoDelDia || 0)
       const cuotaNormal = Number(v?.montoCuotaNormal ?? v?.montoCuota ?? 0)
       const metaPendiente = Number(v?.montoCuotaPendiente || 0)
@@ -293,18 +296,18 @@ export async function buildRutaHoyOperativa({
         estadoGestion.includes('ABONO')
       )
     })
-    .filter((v: any) => !shouldExcludeVisitaFromOperationalMeta(v))
+    .filter((v) => !shouldExcludeVisitaFromOperationalMeta(v))
 
   // 6. Construir lista visible
   const visibleItems = kpiItems
-    .filter((v: any) => shouldShowVisitaEnRutaHoy(v, hoyBogotaKey))
+    .filter((v) => shouldShowVisitaEnRutaHoy(v, hoyBogotaKey))
 
   // 7. Calcular KPI exacto
-  const recaudo = kpiItems.reduce((sum: number, v: any) => {
+  const recaudo = kpiItems.reduce((sum: number, v) => {
     return sum + Number(v?.recaudadoDelDia || 0)
   }, 0)
 
-  const meta = kpiItems.reduce((sum: number, v: any) => {
+  const meta = kpiItems.reduce((sum: number, v) => {
     return sum + Number(v?.montoCuotaNormal ?? v?.montoCuota ?? 0)
   }, 0)
 
@@ -318,7 +321,7 @@ export async function buildRutaHoyOperativa({
         : 0
 
   // Logs de validación
-  console.table(kpiItems.map((v: any) => ({
+  console.table(kpiItems.map((v) => ({
     tipo: 'KPI',
     cliente: v.cliente,
     prestamoId: v.prestamoId,
@@ -330,7 +333,7 @@ export async function buildRutaHoyOperativa({
     estado: v.estado,
   })))
 
-  console.table(visibleItems.map((v: any) => ({
+  console.table(visibleItems.map((v) => ({
     tipo: 'VISIBLE',
     cliente: v.cliente,
     prestamoId: v.prestamoId,

@@ -3,6 +3,7 @@ import { apiRequest } from '@/lib/api/api';
 import { syncService } from '@/lib/offline/syncService';
 import { MetodoPago } from '@/types/enums';
 import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
+import { esErrorDeRed } from '@/lib/offline/conRespaldoOffline'
 
 export type { MetodoPago };
 
@@ -63,9 +64,37 @@ export interface DescomposicionPago {
   prestamoQuedaPagado: boolean;
 }
 
+/**
+ * Lo que de verdad devuelve `POST /payments`.
+ *
+ * `descomposicion` estaba declarada como obligatoria y no lo es. Rastreado en
+ * `PaymentsService`, hay dos respuestas distintas:
+ *
+ *  1. Pago aplicado: `{ pago, descomposicion }`, con `idempotentReplay` cuando
+ *     es un reintento del mismo `idempotencyKey`.
+ *  2. Transferencia enviada a revision: `{ pendingVerification, aprobacionId,
+ *     message, idempotentReplay }` — SIN desglose, porque el pago todavia no se
+ *     aplico a ninguna cuota.
+ *
+ * Y sin conexion este servicio devuelve el pago optimista con `esOffline`, que
+ * tampoco trae desglose: el reparto entre capital, interes y mora lo decide el
+ * backend al sincronizar.
+ *
+ * Por eso el desglose es opcional. `VistaCobrador` ya lo leia con `?.` porque en
+ * la practica falta; la pantalla de registrar pago no, y mostraba ceros como si
+ * fueran el desglose real.
+ */
 export interface ResultadoPago {
-  pago: Pago;
-  descomposicion: DescomposicionPago;
+  pago?: Pago;
+  descomposicion?: DescomposicionPago;
+  /** Transferencia que quedo pendiente de revision: no se aplico nada aun. */
+  pendingVerification?: boolean;
+  aprobacionId?: string;
+  message?: string;
+  /** El pago ya existia: la respuesta es un reintento del mismo idempotencyKey. */
+  idempotentReplay?: boolean;
+  /** Quedo en la cola: el id es temporal y el desglose todavia no existe. */
+  esOffline?: boolean;
 }
 
 export interface PagosResponse {
@@ -170,7 +199,7 @@ export const pagosService = {
         }
         
         if (process.env.NODE_ENV !== 'production') {
-          logger.log('[pagosService.registrarPago] FormData keys:', Array.from((formData as any).keys()));
+          logger.log('[pagosService.registrarPago] FormData keys:', Array.from((formData).keys()));
           logger.log('[pagosService.registrarPago] Comprobante:', payload.comprobante ? {
             name: payload.comprobante.name,
             size: payload.comprobante.size,
@@ -183,13 +212,8 @@ export const pagosService = {
 
       // Si es efectivo sin archivos, envío JSON normal
       return await apiRequest<ResultadoPago>('POST', '/payments', payload);
-    } catch (error: any) {
-       if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+    } catch (error) {
+       if (esErrorDeRed(error)) {
          logger.log('[Offline Mode] Guardando pago en cola...');
          const tempId = `temp-pay-${Date.now()}`;
          
@@ -201,8 +225,16 @@ export const pagosService = {
            `Pago Offline $${payload.montoTotal}`
          );
 
-         // Retornar objeto temporal con estimaciones
+         // Se devuelve el pago optimista, pero SIN desglose.
+         //
+         // Antes aqui iba un `descomposicion` con todo en cero y el comentario
+         // "No se puede calcular offline". La pantalla de registrar pago lo
+         // pintaba tal cual, asi que el cajero veia "Capital recuperado $0,
+         // Saldo anterior $0, Saldo nuevo $0" sobre un credito con saldo real.
+         // El reparto entre capital, interes y mora lo decide el backend al
+         // sincronizar; no hay forma de saberlo aqui, asi que no se inventa.
          return {
+            esOffline: true,
             pago: {
                 id: tempId,
                 numeroPago: 'OFFLINE',
@@ -217,16 +249,7 @@ export const pagosService = {
                 idempotencyKey: payload.idempotencyKey,
                 creadoEn: toBogotaDateTimeOffsetIso(new Date()),
                 actualizadoEn: toBogotaDateTimeOffsetIso(new Date()),
-            } as any,
-            descomposicion: {
-                montoTotal: payload.montoTotal,
-                capitalRecuperado: 0, // No se puede calcular offline
-                interesRecuperado: 0,
-                saldoAnterior: 0,
-                saldoNuevo: 0,
-                cuotasAfectadas: 0,
-                prestamoQuedaPagado: false
-            }
+            },
          };
       }
       throw error;

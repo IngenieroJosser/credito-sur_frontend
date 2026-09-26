@@ -6,12 +6,15 @@ import { createPortal } from 'react-dom';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { useNotificaciones } from '@/components/providers/NotificacionesProvider';
 import { formatCurrency, formatLoanTerm, formatMilesCOP } from '@/lib/utils';
-import { calcularInteresPlano, calcularInteresSimple } from '@/lib/interes';
 import { prestamosService } from '@/services/prestamos-service';
 import { formatErrorForComponent } from '@/lib/api/api';
 import { articulosService } from '@/services/articulos-service';
 import { normalizeDateKey } from '@/lib/rutas-core';
 import { TipoAmortizacion } from '@/types/enums';
+import { Skeleton, SkeletonTexto } from '@/components/ui/Skeleton'
+import { logger } from '@/lib/logger'
+import Tooltip from '@/components/ui/Tooltip'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 
 interface EditarPrestamoModalProps {
   id: string;
@@ -26,47 +29,11 @@ const formatCOPInput = (val: number | undefined) => {
 
 const parseCOP = (val: string) => Number(val.replace(/\D/g, ''));
 
-const calcularAmortizacionPreview = (
-  capital: number,
-  tasaTotal: number,
-  numCuotas: number
-) => {
-  if (!capital || capital <= 0 || !numCuotas || numCuotas <= 0) {
-    return { cuotaFija: 0, interesTotal: 0, total: 0 };
-  }
-
-  const tasaPeriodo = (Number(tasaTotal) || 0) / 100;
-
-  if (tasaPeriodo === 0) {
-    const cuotaFija = capital / numCuotas;
-    return {
-      cuotaFija,
-      interesTotal: 0,
-      total: capital,
-    };
-  }
-
-  const cuotaFijaDecimal = (capital * tasaPeriodo) / (1 - Math.pow(1 + tasaPeriodo, -numCuotas));
-  const cuotaFija = Math.round(cuotaFijaDecimal);
-  const total = cuotaFija * numCuotas;
-  const interesTotal = Math.max(0, total - capital);
-  return { cuotaFija, interesTotal, total };
-};
-
-const calcularInteresPlanoPreview = (
-  capital: number,
-  tasaTotal: number,
-  numCuotas: number
-) => {
-  if (!capital || capital <= 0 || !numCuotas || numCuotas <= 0) {
-    return { cuotaFija: 0, interesTotal: 0, total: 0 };
-  }
-  
-  const interesTotal = calcularInteresPlano(capital, tasaTotal);
-  const total = capital + interesTotal;
-  const cuotaFija = Math.floor(total / numCuotas);
-  return { cuotaFija, interesTotal, total };
-};
+// Aqui vivian dos formulas de dinero propias de esta pantalla
+// (`calcularAmortizacionPreview` y `calcularInteresPlanoPreview`). El resumen
+// proyectado ahora sale de `/loans/simular`, que reutiliza la misma
+// `calculateInterestAndCuotas` de la creacion, asi que ya no hay una tercera
+// copia de la matematica que pueda divergir.
 
 export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPrestamoModalProps) {
   const { showNotification } = useNotification();
@@ -137,7 +104,20 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
     montoInteres: number;
   }>>([]);
   const [planLoading, setPlanLoading] = useState(false);
+  // El resumen proyectado sale de la misma simulacion que la tabla. Antes la
+  // tabla usaba el backend y el resumen una formula local: en la misma pantalla
+  // podian diferir en un peso por cuota (medido: 60 de 1134 combinaciones).
+  const [simResumen, setSimResumen] = useState<{
+    interesTotal: number;
+    totalFinal: number;
+    cuotaProyectada: number;
+  } | null>(null);
   const [verPlanCompleto, setVerPlanCompleto] = useState(false);
+  // Escape para salir y el foco en el primer campo al abrir. El hook lleva
+  // una pila, asi que con modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    onClose: () => handleClose(),
+  })
 
   const hasChanges = monto !== original.monto 
     || tasa !== original.tasa 
@@ -154,41 +134,30 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
   const isArticle = tipoPrestamo?.toUpperCase() === 'ARTICULO';
   const themeColor = isArticle ? 'orange' : 'blue';
 
-  const previewAmortizacion = (!isArticle && hasChanges && tipoAmortizacion === TipoAmortizacion.FRANCESA)
-    ? calcularAmortizacionPreview(monto, tasa, cuotas)
-    : null;
-    
-  const previewInteresPlano = (!isArticle && hasChanges && tipoAmortizacion === TipoAmortizacion.INTERES_PLANO)
-    ? calcularInteresPlanoPreview(monto, tasa, cuotas)
-    : null;
-
-  // Computed preview (si no hay cambios, usar backend para que coincida con el detalle)
+  // El resumen proyectado sale de `/loans/simular`, la misma proyeccion que
+  // alimenta la tabla de cuotas de abajo y que usa `calculateInterestAndCuotas`,
+  // es decir la formula con la que se guardaria.
+  //
+  // Antes habia aqui tres formulas locales (una francesa propia, una de interes
+  // plano y una division directa para interes simple) y solo la tabla venia del
+  // backend, asi que la misma pantalla mostraba dos cifras distintas para el
+  // mismo credito. Medido sobre 1134 combinaciones de interes simple: 60
+  // discrepaban, siempre en un peso por cuota. Y en un credito FRANCESA la
+  // formula local tomaba la tasa mensual como tasa del periodo e ignoraba la
+  // frecuencia, con lo que la diferencia no era de un peso.
+  //
+  // Mientras la simulacion viaja (va con 400 ms de espera) se mantiene la
+  // anterior en pantalla; `planLoading` es lo que avisa que se esta actualizando.
   const interesTotal = hasChanges
-    ? (isArticle
-      ? 0
-      : (tipoAmortizacion === TipoAmortizacion.FRANCESA
-        ? Number(previewAmortizacion?.interesTotal || 0)
-        : tipoAmortizacion === TipoAmortizacion.INTERES_PLANO
-        ? Number(previewInteresPlano?.interesTotal || 0)
-        : calcularInteresSimple(monto, tasa, plazoMeses)))
+    ? (isArticle ? 0 : (simResumen?.interesTotal ?? backendInteresTotal))
     : backendInteresTotal;
 
   const totalRecaudar = hasChanges
-    ? (isArticle
-      ? monto
-      : (tipoAmortizacion === TipoAmortizacion.FRANCESA
-        ? Number(previewAmortizacion?.total || 0)
-        : tipoAmortizacion === TipoAmortizacion.INTERES_PLANO
-        ? Number(previewInteresPlano?.total || 0)
-        : monto + interesTotal))
+    ? (isArticle ? monto : (simResumen?.totalFinal ?? backendTotalFinal))
     : backendTotalFinal;
 
   const cobroPorCuota = hasChanges
-    ? (tipoAmortizacion === TipoAmortizacion.FRANCESA
-      ? Number(previewAmortizacion?.cuotaFija || 0)
-      : tipoAmortizacion === TipoAmortizacion.INTERES_PLANO
-      ? Number(previewInteresPlano?.cuotaFija || 0)
-      : (cuotas > 0 ? totalRecaudar / cuotas : 0))
+    ? (simResumen?.cuotaProyectada ?? backendCuotaProyectada)
     : backendCuotaProyectada;
 
   useEffect(() => {
@@ -242,7 +211,7 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
           const art = await articulosService.obtenerArticuloPorId(String(data.producto.id));
           const ops = art?.opcionesCuotas || [];
           setOpcionesCuotas(ops);
-          const idx = ops.findIndex((op: any) => Number(op.numeroCuotas) === Number(p));
+          const idx = ops.findIndex((op) => Number(op.numeroCuotas) === Number(p));
           setPlanIndex(idx >= 0 ? idx : null);
         }
         
@@ -284,6 +253,7 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
     if (fetching) return;
     if (!(monto > 0) || !(cuotas > 0)) {
       setPlanPreview([]);
+      setSimResumen(null);
       return;
     }
     let cancelado = false;
@@ -301,9 +271,19 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
           tipoPrestamo,
           cuotaInicial,
         });
-        if (!cancelado) setPlanPreview(sim.cuotas || []);
+        if (!cancelado) {
+          setPlanPreview(sim.cuotas || []);
+          setSimResumen({
+            interesTotal: Number(sim.interesTotal) || 0,
+            totalFinal: Number(sim.totalFinal) || 0,
+            cuotaProyectada: Number(sim.cuotaProyectada) || 0,
+          });
+        }
       } catch {
-        if (!cancelado) setPlanPreview([]);
+        if (!cancelado) {
+          setPlanPreview([]);
+          setSimResumen(null);
+        }
       } finally {
         if (!cancelado) setPlanLoading(false);
       }
@@ -365,7 +345,7 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
       // rechaza como conflicto (409) en vez de sobrescribir en silencio.
       if (versionRef.current != null) payload.version = versionRef.current;
 
-      await prestamosService.actualizarPrestamo(id, payload as any);
+      await prestamosService.actualizarPrestamo(id, payload);
       showNotification('success', 'El crédito ha sido actualizado correctamente', 'Éxito');
       
       // Intentar descargar contrato si es artículo a cuotas tras la edición
@@ -375,13 +355,24 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
           const { exportService } = await import('@/services/export-service');
           await exportService.exportContrato(id);
         } catch (err) {
-          console.error('Error al descargar contrato tras edición:', err);
+          // La edición SI se guardó: lo que falló es volver a bajar el
+          // contrato, y callarlo dejaba al usuario esperando el archivo.
+          logger.error('No se pudo descargar el contrato tras la edición', err);
+          showNotification(
+            'warning',
+            'Los cambios se guardaron, pero no se pudo descargar el contrato actualizado. Puedes descargarlo desde el detalle del crédito.',
+            'Contrato',
+          );
         }
       }
 
       try {
         refreshNotificaciones();
-      } catch {}
+      } catch (error) {
+        // El refresco es secundario: la accion ya se hizo.
+        // Se avisa solo en desarrollo, que es donde sirve.
+        logger.warn('Fallo el refresco de notificaciones tras editar el credito', error)
+      }
       if (onSuccess) onSuccess();
       handleClose();
     } catch (err) {
@@ -443,18 +434,22 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
                 <span className="flex items-center gap-1.5"><Edit3 className="h-3 w-3" /> Habilitar edición</span>
               )}
             </button>
-            <button type="button" onClick={handleClose} aria-label="Cerrar" className="rounded-xl p-2 text-slate-500 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400">
-              <X className="h-5 w-5" />
-            </button>
+            <Tooltip texto="Cerrar">
+              <button type="button" onClick={handleClose} aria-label="Cerrar" className="rounded-xl p-2 text-slate-500 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400">
+                <X className="h-5 w-5" />
+              </button>
+            </Tooltip>
           </div>
         </div>
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto bg-white/50">
           {fetching ? (
-            <div className="flex flex-col items-center justify-center py-16 gap-3">
-              <Loader2 className={`w-8 h-8 text-${themeColor}-600 animate-spin`} />
-              <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Sincronizando datos...</p>
+            <div className="space-y-4 p-6" aria-busy="true">
+              <span className="sr-only">Cargando el préstamo…</span>
+              <Skeleton className="h-4 w-40" />
+              <SkeletonTexto lineas={5} />
+              <Skeleton className="h-24 w-full rounded-2xl" />
             </div>
           ) : (
           <>
@@ -522,7 +517,18 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
                 <div className="flex flex-col gap-4">
                   <div className="flex justify-between items-start border-b border-black/5 pb-3">
                     <div className="space-y-1 min-w-0 flex-1">
-                      <label className={`text-[8px] font-black uppercase tracking-[0.2em] ${isArticle ? 'text-orange-400' : 'text-emerald-500'}`}>Cuota Proyectada</label>
+                      <label className={`text-[8px] font-black uppercase tracking-[0.2em] flex items-center gap-1.5 ${isArticle ? 'text-orange-400' : 'text-emerald-500'}`}>
+                        Cuota Proyectada
+                        {/* La proyeccion se le pide al backend con 400 ms de espera.
+                            Sin este aviso, durante ese rato el resumen muestra las
+                            cifras de antes del cambio y parece que no reacciona. */}
+                        {hasChanges && planLoading && (
+                          <span className="inline-flex items-center gap-1 font-bold normal-case tracking-normal opacity-70">
+                            <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                            actualizando
+                          </span>
+                        )}
+                      </label>
                       <p className={`text-xl font-black tabular-nums leading-none truncate ${isArticle ? 'text-orange-900' : 'text-emerald-900'}`}>{formatCurrency(cobroPorCuota)}</p>
                       <p className={`text-[8px] font-bold uppercase tracking-widest mt-1 ${isArticle ? 'text-orange-600' : 'text-emerald-600'}`}>
                         Frecuencia {frecuencia.toLowerCase()}
@@ -693,7 +699,7 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
                         className="w-full bg-slate-50 border border-slate-100 text-slate-900 rounded-2xl px-3 py-2 text-xs font-black outline-none focus:ring-2 focus:ring-blue-500/10 focus:bg-white"
                       >
                         <option value="">Seleccionar plazo...</option>
-                        {opcionesCuotas.map((op: any, i: number) => {
+                        {opcionesCuotas.map((op, i: number) => {
                           const meses = Number(op.numeroCuotas);
                           if (isNaN(meses)) return null;
                           return (

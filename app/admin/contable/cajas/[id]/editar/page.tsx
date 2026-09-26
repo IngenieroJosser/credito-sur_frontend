@@ -1,6 +1,6 @@
 'use client'
 
-import PantallaCarga from '@/components/ui/PantallaCarga'
+import { SkeletonDetalle } from '@/components/ui/Skeleton'
 
 import { use, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
@@ -8,6 +8,7 @@ import { ArrowLeft, Save, Wallet } from 'lucide-react'
 import { getCajaById, updateCaja } from '@/services/contabilidad-service'
 import { usuariosService } from '@/services/usuarios-service'
 import { formatRoleLabel } from '@/lib/display-labels'
+import { toast } from 'sonner'
 
 export default function EditarCajaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -42,7 +43,7 @@ export default function EditarCajaPage({ params }: { params: Promise<{ id: strin
         descripcion: ''
           })
         }
-        setUsuariosAutorizados((users as any[]).map((u: any) => ({
+        setUsuariosAutorizados((users as any[]).map((u) => ({
           id: u.id,
           nombre: `${u.nombres || ''} ${u.apellidos || ''}`.trim(),
           rol: u.rol || ''
@@ -67,7 +68,7 @@ export default function EditarCajaPage({ params }: { params: Promise<{ id: strin
       router.push(`/contable/cajas/${id}`)
     } catch (err) {
       console.error('Error guardando caja:', err)
-      alert('Error al guardar la caja')
+      toast.error('Error al guardar la caja')
     } finally {
       setSaving(false)
     }
@@ -75,7 +76,7 @@ export default function EditarCajaPage({ params }: { params: Promise<{ id: strin
 
   if (loading) {
     return (
-      <PantallaCarga />
+      <SkeletonDetalle />
     )
   }
 
@@ -119,7 +120,7 @@ export default function EditarCajaPage({ params }: { params: Promise<{ id: strin
               </div>
 
               <div className="space-y-2">
-                <label className="block text-sm font-bold text-slate-700">Nombre de la Caja</label>
+                <label className="block text-sm font-bold text-slate-700">Nombre de la Caja<span className="ml-1 text-red-500" aria-label="obligatorio">*</span></label>
                 <input
                   type="text"
                   value={formData.nombre}

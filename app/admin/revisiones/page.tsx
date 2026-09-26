@@ -1,5 +1,6 @@
 'use client'
 
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 /**
  * ============================================================================
  * MÓDULO DE REVISIONES - Centro de Aprobaciones
@@ -56,6 +57,7 @@ import AlertaClienteDetalleModal from '@/components/notificaciones/AlertaCliente
 import ProrrogaDetalleModal, { type ProrrogaData } from '@/components/revisiones/ProrrogaDetalleModal'
 import ReprogramacionDetalleModal, { type ReprogramacionData } from '@/components/revisiones/ReprogramacionDetalleModal'
 import ConfirmRejectModal from '@/components/ui/ConfirmRejectModal'
+import { SkeletonTarjetas } from '@/components/ui/Skeleton'
 
 // Configuración de categorías con meta visual
 const CATEGORIAS: Record<string, { label: string; icon: any; color: string; bgColor: string; borderColor: string; tipoNotif: string }> = {
@@ -146,7 +148,7 @@ const CATEGORIAS: Record<string, { label: string; icon: any; color: string; bgCo
 const formatFecha = (iso: string | null | undefined) => {
   if (!iso) return '—'
   const d = new Date(iso)
-  return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true })
+  return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true })
 }
 
 const toBogotaDateKey = (value: string | null | undefined) => {
@@ -302,7 +304,7 @@ const aprobacionToNotificacion = (item: Aprobacion) => {
     id: item.id,
     titulo,
     mensaje,
-    tipo: cat.tipoNotif as any,
+    tipo: cat.tipoNotif,
     creadoEn: item.creadoEn,
     leida: false,
     entidadId: item.id,
@@ -389,7 +391,7 @@ export default function RevisionesPage() {
       ])
 
       if (pendientes.status === 'fulfilled') setData(pendientes.value)
-      if (superadmin.status === 'fulfilled') setSuperadminData(superadmin.value as any)
+      if (superadmin.status === 'fulfilled') setSuperadminData(superadmin.value)
       if (rutasData.status === 'fulfilled') setRutas(rutasData.value)
       if (alertasData.status === 'fulfilled') setAlertasCliente(alertasData.value)
     } catch (error) {
@@ -425,7 +427,7 @@ export default function RevisionesPage() {
 
   // Helper para detectar si un item corresponde a una prorroga o gestion vencida
   const isProrrogaOrVencida = (item: Aprobacion) => {
-    const datos = item.datosSolicitud || {} as any
+    const datos = item.datosSolicitud || {}
     return (
       item.tipoAprobacion === 'PRORROGA_PAGO' ||
       datos.tipo === 'GESTION_VENCIDA' ||
@@ -435,7 +437,7 @@ export default function RevisionesPage() {
 
   // Helper para detectar si es un gasto provisional real
   const isGastoProvisional = (item: Aprobacion) => {
-    const datos = item.datosSolicitud || {} as any
+    const datos = item.datosSolicitud || {}
     return (
       item.tipoAprobacion === 'GASTO' &&
       (datos.esProvisional === true || datos.esProvisional === 'true')
@@ -444,7 +446,7 @@ export default function RevisionesPage() {
 
   // Helper para detectar si es una solicitud legacy de gasto (sin impacto de caja)
   const isGastoProvisionalLegacy = (item: Aprobacion) => {
-    const datos = item.datosSolicitud || {} as any
+    const datos = item.datosSolicitud || {}
     return (
       item.tipoAprobacion === 'GASTO' &&
       !isGastoProvisional(item)
@@ -452,7 +454,7 @@ export default function RevisionesPage() {
   }
 
   const handleOpenDetail = (item: Aprobacion) => {
-    const datos = (item.datosSolicitud || {}) as any
+    const datos = (item.datosSolicitud || {})
     if (item.tipoAprobacion === 'REPROGRAMACION_CUOTA') {
       setSelectedReprogramacion({
         id: item.id,
@@ -527,8 +529,8 @@ export default function RevisionesPage() {
       setSelectedAlertaCliente(null)
       setMotivoResolucionAlerta('')
       await loadData()
-    } catch (error: any) {
-      toast.error(error?.message || 'Error al resolver la alerta')
+    } catch (error) {
+      toast.error(mensajeDeError(error, 'Error al resolver la alerta'))
     } finally {
       setResolvingAlertaId(null)
     }
@@ -555,8 +557,8 @@ export default function RevisionesPage() {
       toast.success('Solicitud aprobada correctamente')
       closeAllDetailModals()
       await loadData()
-    } catch (error: any) {
-      toast.error(error?.message || 'Error al aprobar')
+    } catch (error) {
+      toast.error(mensajeDeError(error, 'Error al aprobar'))
     } finally {
       setProcessingId(null)
     }
@@ -588,8 +590,8 @@ export default function RevisionesPage() {
       toast.success('Solicitud aprobada correctamente')
       setConfirmModal(null)
       await loadData()
-    } catch (error: any) {
-      toast.error(error?.message || 'Error al aprobar')
+    } catch (error) {
+      toast.error(mensajeDeError(error, 'Error al aprobar'))
     } finally {
       setProcessingId(null)
     }
@@ -638,8 +640,8 @@ export default function RevisionesPage() {
       toast.success('Solicitud rechazada')
       setConfirmModal(null)
       await loadData()
-    } catch (error: any) {
-      toast.error(error?.message || 'Error al rechazar')
+    } catch (error) {
+      toast.error(mensajeDeError(error, 'Error al rechazar'))
     } finally {
       setProcessingId(null)
     }
@@ -651,15 +653,15 @@ export default function RevisionesPage() {
     try {
       await aprobacionesService.confirmarAccionSuperadmin(
         confirmModal.item.id,
-        confirmModal.type as any,
+        confirmModal.type,
         notaSuperadmin || undefined,
       )
       toast.success(confirmModal.type === 'CONFIRMAR' ? 'Eliminación confirmada' : 'Solicitud restaurada')
       setConfirmModal(null)
       setNotaSuperadmin('')
       await loadData()
-    } catch (error: any) {
-      toast.error(error?.message || 'Error al procesar')
+    } catch (error) {
+      toast.error(mensajeDeError(error, 'Error al procesar'))
     } finally {
       setProcessingId(null)
     }
@@ -1080,10 +1082,9 @@ export default function RevisionesPage() {
       </div>
 
       {loading ? (
-        <div className="py-20 text-center text-slate-500">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p className="font-medium">Cargando datos...</p>
-        </div>
+        // Esqueleto con la forma de las tarjetas que van a llegar: la pantalla
+        // no salta al cargar y se ve que hay contenido en camino.
+        <SkeletonTarjetas cantidad={6} />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {activeTab === 'alertas-clientes' ? (

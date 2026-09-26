@@ -1,9 +1,7 @@
 import axios from 'axios';
+import { baseApi } from '@/lib/api/baseUrl';
 
-const rawBase = process.env.NEXT_PUBLIC_BASE_URL || 'http://127.0.0.1:3001';
-const API_BASE = rawBase.replace(/\/$/, '').endsWith('/api-credisur') 
-  ? rawBase.replace(/\/$/, '') 
-  : `${rawBase.replace(/\/$/, '')}/api-credisur`;
+const API_BASE = baseApi();
 
 /**
  * Generic export service that downloads files from backend endpoints.
@@ -40,10 +38,10 @@ export const exportService = {
         const texto = await (response.data as Blob).text();
         try {
           const json = JSON.parse(texto);
-          const msg = (json as any)?.message;
+          const msg = (json)?.message;
           if (Array.isArray(msg)) mensajeError = msg.join(' | ');
           else if (typeof msg === 'string' && msg.trim()) mensajeError = msg;
-          else if (typeof (json as any)?.error === 'string') mensajeError = (json as any).error;
+          else if (typeof (json)?.error === 'string') mensajeError = (json).error;
         } catch {
           if (typeof texto === 'string' && texto.trim()) mensajeError = texto;
         }
@@ -121,10 +119,10 @@ export const exportService = {
         const texto = await (response.data as Blob).text();
         try {
           const json = JSON.parse(texto);
-          const msg = (json as any)?.message;
+          const msg = (json)?.message;
           if (Array.isArray(msg)) mensajeError = msg.join(' | ');
           else if (typeof msg === 'string' && msg.trim()) mensajeError = msg;
-          else if (typeof (json as any)?.error === 'string') mensajeError = (json as any).error;
+          else if (typeof (json)?.error === 'string') mensajeError = (json).error;
         } catch {
           if (typeof texto === 'string' && texto.trim()) mensajeError = texto;
         }

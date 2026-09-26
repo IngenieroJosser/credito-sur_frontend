@@ -1,6 +1,6 @@
 'use client'
 
-import PantallaCarga from '@/components/ui/PantallaCarga'
+import { SkeletonDetalle } from '@/components/ui/Skeleton'
 
 import { use, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
@@ -37,7 +37,7 @@ export default function DetalleCierrePage({ params }: { params: Promise<{ id: st
       setLoading(true)
       try {
         const cierres = await getHistorialCierres()
-        const found: any = cierres.find((c: any) => c.id === id)
+        const found: any = cierres.find((c) => c.id === id)
         if (found) {
           setCierre({
             id: found.id,
@@ -63,7 +63,7 @@ export default function DetalleCierrePage({ params }: { params: Promise<{ id: st
 
   if (loading) {
     return (
-      <PantallaCarga />
+      <SkeletonDetalle />
     )
   }
 

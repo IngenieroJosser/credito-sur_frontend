@@ -1,5 +1,6 @@
 "use client";
 
+import { datosParaRegistro, estadoDeError, mensajeDeError } from '@/lib/mensaje-de-error';
 import Paginador from '@/components/ui/Paginador'
 import { logger } from '@/lib/logger'
 
@@ -16,6 +17,7 @@ import { RolUsuario, EstadoUsuario } from "@/types/enums";
 import { apiRequest, formatErrorForComponent } from "@/lib/api/api";
 import { formatShortDateTime, formatShortDate } from "@/lib/utils/format";
 import { buildBogotaOffsetIsoFromKey, normalizeDateKey } from '@/lib/rutas-core'
+import BotonAccion from '@/components/ui/BotonAccion'
 
 import {
   Search,
@@ -130,7 +132,7 @@ const GLOBAL_MODULE_CATALOG = (() => {
   const seen = new Set<string>()
 
   roleOrder.forEach((rol) => {
-    const modules = (permisosPorRol as any)?.[rol] || []
+    const modules = (permisosPorRol)?.[rol] || []
     modules.forEach((module: any) => {
       if (module.submodulos && module.submodulos.length > 0) {
         module.submodulos.forEach((sub: any) => {
@@ -244,6 +246,9 @@ const UserManagementPage = () => {
   const [userAction, setUserAction] = useState<"toggle" | "archive" | "restore" | "hide">("toggle");
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isSavingUser, setIsSavingUser] = useState(false);
+  // Sin esto el boton de crear no se bloqueaba ni mostraba nada mientras
+  // guardaba: se podia hacer clic varias veces y crear el usuario repetido.
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [actividadPage, setActividadPage] = useState(1);
   const actividadPerPage = 3;
@@ -567,7 +572,7 @@ const UserManagementPage = () => {
           "caja",
         ],
         [RolUsuario.PUNTO_DE_VENTA]: ["articulo", "prestamo", "cliente"],
-      } as any;
+      };
       const permissionEntityMap: Record<string, string[]> = {
         usuarios: ["usuario"],
         auditoria: ["audit", "registro", "log"],
@@ -694,11 +699,11 @@ const UserManagementPage = () => {
       return ids;
     };
 
-    const permisosGuardados = Array.isArray((user as any).permisos)
-      ? (user as any).permisos
+    const permisosGuardados = Array.isArray((user).permisos)
+      ? (user).permisos
       : [];
     const permisosDefaultRol = flattenPermissionIds(
-      permisosPorRol[user.rol as any] || [],
+      permisosPorRol[user.rol] || [],
     );
 
     const expandGroupIds = (ids: string[]): string[] => {
@@ -791,6 +796,7 @@ const UserManagementPage = () => {
   };
 
   const handleCreateUser = async () => {
+    if (isCreatingUser) return;
     try {
       // Validar campos mínimos
       if (
@@ -823,6 +829,7 @@ const UserManagementPage = () => {
         return;
       }
 
+      setIsCreatingUser(true);
       await usuariosService.crear({
         ...formData,
         correo: formData.correo.trim().toLowerCase(),
@@ -836,15 +843,12 @@ const UserManagementPage = () => {
       );
       setIsCreateModalOpen(false);
       fetchUsers(); // Recargar lista
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error creating user:", error);
-      const backendMsg =
-        error?.message ||
-        (Array.isArray(error?.error?.message)
-          ? error.error.message.join(", ")
-          : error?.error?.message) ||
-        "No se pudo crear el usuario";
+      const backendMsg = mensajeDeError(error, "No se pudo crear el usuario");
       showNotification("error", backendMsg, "Error al crear usuario");
+    } finally {
+      setIsCreatingUser(false);
     }
   };
 
@@ -986,8 +990,8 @@ const UserManagementPage = () => {
       setIsEditModalOpen(false);
       setSelectedUser(null);
       await fetchUsers();
-    } catch (error: any) {
-      const errorMsg = error?.response?.data?.message || error?.message || 'Error desconocido';
+    } catch (error) {
+      const errorMsg = mensajeDeError(error, 'Error desconocido');
       if (formData.password && formData.password.trim() !== '') {
         showNotification('warning', `Contraseña cambiada, pero falló la actualización de datos: ${errorMsg}`, 'Actualización Parcial');
       } else {
@@ -1055,16 +1059,14 @@ const UserManagementPage = () => {
         "Los permisos del usuario han sido actualizados",
         "Permisos Actualizados",
       );
-    } catch (error: any) {
-      const msg =
-        error?.response?.data?.message ??
-        error?.message ??
-        error?.toString?.() ??
-        'Error desconocido';
+    } catch (error) {
+      // Se cae el `error?.toString?.()` de la cadena: para un objeto cualquiera
+      // devuelve "[object Object]", que no le dice nada a nadie.
+      const msg = mensajeDeError(error, 'Error desconocido');
 
       console.error("Error actualizando los permisos:", msg, {
-        status: error?.response?.status,
-        data: error?.response?.data,
+        status: estadoDeError(error),
+        data: datosParaRegistro(error).data,
       });
 
       showNotification("error", msg, "Error");
@@ -2000,16 +2002,21 @@ const UserManagementPage = () => {
                     <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-slate-100">
                       <button
                         onClick={() => setIsCreateModalOpen(false)}
-                        className="px-5 py-2.5 text-sm font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-2xl transition-colors"
+                        disabled={isCreatingUser}
+                        className="px-5 py-2.5 text-sm font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-2xl transition-colors disabled:opacity-50"
                       >
                         Cancelar
                       </button>
                       <button
                         onClick={handleCreateUser}
-                        className="px-5 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-2xl shadow-lg shadow-blue-600/20 transition-all transform active:scale-95 flex items-center gap-2"
+                        disabled={isCreatingUser}
+                        className="px-5 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-2xl shadow-lg shadow-blue-600/20 transition-all transform active:scale-95 flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-blue-600 disabled:scale-100"
                       >
-                        <UserPlus className="h-4 w-4" />
-                        <span>Crear Usuario</span>
+                        {isCreatingUser ? (
+                          <><svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg> Creando...</>
+                        ) : (
+                          <><UserPlus className="h-4 w-4" /><span>Crear Usuario</span></>
+                        )}
                       </button>
                     </div>
                   </div>
@@ -2312,13 +2319,14 @@ const UserManagementPage = () => {
                     >
                       Cancelar
                     </button>
-                    <button
+                    <BotonAccion
                       onClick={handleUpdatePermissions}
+                      textoCargando="Guardando…"
+                      icono={<Save className="h-4 w-4" />}
                       className="px-5 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-2xl shadow-lg shadow-blue-600/20 transition-all transform active:scale-95 flex items-center gap-2"
                     >
-                      <Save className="h-4 w-4" />
                       <span>Guardar Cambios</span>
-                    </button>
+                    </BotonAccion>
                   </div>
                 </div>
               </div>
@@ -2359,15 +2367,16 @@ const UserManagementPage = () => {
                       >
                         Cancelar
                       </button>
-                      <button
+                      <BotonAccion
                         onClick={handleConfirmUserAction}
+                        textoCargando="Procesando…"
                         className={cn(
                           "flex-1 px-4 py-2.5 text-sm font-bold text-white rounded-2xl shadow-lg transition-all transform active:scale-95",
                           config.button,
                         )}
                       >
                         {config.confirm}
-                      </button>
+                      </BotonAccion>
                     </div>
                   </div>
                     )
@@ -2647,7 +2656,7 @@ const UserManagementPage = () => {
                                     setFiltroFechaFin(e.target.value)
                                   }
                                 />
-                                <button
+                                <BotonAccion
                                   className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded-md border border-blue-200 hover:bg-blue-100"
                                   onClick={async () => {
                                     if (!selectedUser) return;
@@ -2656,7 +2665,7 @@ const UserManagementPage = () => {
                                   }}
                                 >
                                   Aplicar
-                                </button>
+                                </BotonAccion>
                               </div>
                             </div>
                             <div className="bg-white p-0">

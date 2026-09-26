@@ -7,6 +7,8 @@ import { clientesService } from '@/services/clientes-service';
 import { Smartphone, DollarSign } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { offlineStore } from '@/lib/offline/offlineDb';
+import Tooltip from '@/components/ui/Tooltip';
+import { useModalDialog } from '@/hooks/use-modal-dialog';
 import {
   computeDiasMoraFromCuotas,
   getBogotaDateKey,
@@ -36,6 +38,14 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
   const [pagos, setPagos] = useState<Pago[]>([]);
   const [estadoCuenta, setEstadoCuenta] = useState<any>(null);
   const [loadingEstadoCuenta, setLoadingEstadoCuenta] = useState(false);
+  // Escape para salir y foco al abrir. El hook lleva una pila, asi que con
+  // modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    onClose: onClose,
+    // Modal de solo lectura: no hay campo que enfocar.
+    enfocarAlAbrir: false,
+  })
+
 
   const [comentarios, setComentarios] = useState<Comentario[]>([]);
 
@@ -64,7 +74,7 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
                     telefono: data.telefono,
                     direccion: data.direccion || null,
                     referencia: data.referencia || null,
-                    nivelRiesgo: (data.nivelRiesgo as any) || 'VERDE',
+                    nivelRiesgo: (data.nivelRiesgo) || 'VERDE',
                     puntaje: data.puntaje || 0,
                     enListaNegra: data.enListaNegra || false,
                     estadoAprobacion: data.estadoAprobacion || 'APROBADO',
@@ -83,13 +93,13 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
 
                     const hoyKey = getBogotaDateKey(new Date())
                     const frecuencia = String(p.frecuenciaPago || 'DIARIO').toUpperCase()
-                    const cuotasVencidas = (Array.isArray(cuotas) ? cuotas : []).filter((c: any) => {
+                    const cuotasVencidas = (Array.isArray(cuotas) ? cuotas : []).filter((c) => {
                       if (!c || !isCuotaNoPagada(c)) return false
                       const raw = resolveFechaEfectivaCuota(c) || String(c?.fechaVencimiento || '')
                       const k = normalizeDateKey(raw)
                       return !!k && !!hoyKey && k < hoyKey
                     }).length
-                    const diasMora = computeDiasMoraFromCuotas(cuotas as any, hoyKey, frecuencia)
+                    const diasMora = computeDiasMoraFromCuotas(cuotas, hoyKey, frecuencia)
                     const estadoUI = cuotasVencidas > 0 || diasMora > 0 ? 'EN_MORA' : (p.estado || 'ACTIVO')
                     
                     const principal = Number(p.monto || 0);
@@ -169,7 +179,7 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
                 });
                 // Cargar préstamos offline
                 const offPrestamos = await offlineStore.getByIndex<any>('prestamos', 'by-clienteId', clientId);
-                setPrestamos(offPrestamos.map((p: any) => ({
+                setPrestamos(offPrestamos.map((p) => ({
                   id: p.id,
                   producto: p.tipoPrestamo === 'ARTICULO' ? 'Artículo' : 'Préstamo Efectivo',
                   montoTotal: Number(p.montoTotal || p.monto || 0),
@@ -242,12 +252,15 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
         >
           {/* Header del Modal */}
           <div className="absolute top-6 right-6 z-[60]">
-            <button 
-              onClick={onClose}
-              className="p-3 bg-white/80 backdrop-blur-xl border border-slate-200 rounded-2xl text-slate-400 hover:text-slate-900 shadow-xl hover:scale-110 transition-all active:scale-95 animate-in fade-in zoom-in-95 duration-200 ease-out motion-reduce:animate-none"
-            >
-              <X className="w-6 h-6" />
-            </button>
+            <Tooltip texto="Cerrar">
+              <button 
+                onClick={onClose}
+                className="p-3 bg-white/80 backdrop-blur-xl border border-slate-200 rounded-2xl text-slate-400 hover:text-slate-900 shadow-xl hover:scale-110 transition-all active:scale-95 animate-in fade-in zoom-in-95 duration-200 ease-out motion-reduce:animate-none"
+                aria-label="Cerrar"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </Tooltip>
           </div>
 
           {/* Contenido con Scroll */}

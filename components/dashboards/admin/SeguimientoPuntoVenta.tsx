@@ -32,6 +32,7 @@ import { getBogotaDateKey, getBogotaRangeByPeriod, normalizeDateKey } from '@/li
 import { prestamosService } from '@/services/prestamos-service'
 import { pagosService } from '@/services/pagos-service'
 import { usuariosService, type Usuario } from '@/services/usuarios-service'
+import { Skeleton } from '@/components/ui/Skeleton'
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -144,7 +145,7 @@ export default function SeguimientoPuntoVenta() {
       const hoyStr = getBogotaDateKey(new Date())
 
       const [resp, usuariosResp] = await Promise.all([
-        prestamosService.obtenerPrestamos({ tipo: 'ARTICULO', limit: 200 } as any),
+        prestamosService.obtenerPrestamos({ tipo: 'ARTICULO', limit: 200 }),
         usuariosService.obtenerTodos().catch(() => []),
       ])
 
@@ -197,7 +198,7 @@ export default function SeguimientoPuntoVenta() {
               clienteId: c.clienteId, 
               prestamoId: c.id, 
               limit: 50 
-            } as any)
+            })
             
             // Filtrar pagos para asegurarnos que solo corresponden al préstamo actual (estricto)
             const pagos = (pagosResp?.pagos || []).filter((p: any) => {
@@ -304,7 +305,7 @@ export default function SeguimientoPuntoVenta() {
         clienteId: venta.clienteId, 
         prestamoId: venta.id, 
         limit: 100 
-      } as any)
+      })
       
       // Filtrar pagos para asegurarnos que solo corresponden al préstamo actual (estricto)
       const pagosVenta = (resp?.pagos || []).filter((p: any) => {
@@ -597,9 +598,11 @@ export default function SeguimientoPuntoVenta() {
           </div>
 
           {loading ? (
-            <div className="p-12 flex flex-col items-center justify-center text-slate-400">
-              <div className="w-10 h-10 border-4 border-slate-200 border-t-orange-500 rounded-full animate-spin mb-4" />
-              <p className="text-sm font-medium">Cargando datos del punto de venta…</p>
+            <div className="space-y-2" aria-busy="true">
+              <span className="sr-only">Cargando…</span>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-12 rounded-xl" />
+              ))}
             </div>
           ) : ventasFiltradas.length === 0 ? (
             <div className="p-16 flex flex-col items-center justify-center text-slate-400">
@@ -937,9 +940,11 @@ export default function SeguimientoPuntoVenta() {
               <section>
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Historial de Pagos</p>
                 {loadingDetalle ? (
-                  <div className="text-center py-6 text-slate-400">
-                    <div className="w-6 h-6 border-2 border-slate-200 border-t-orange-500 rounded-full animate-spin mx-auto mb-2" />
-                    <p className="text-xs font-medium">Cargando historial…</p>
+                  <div className="space-y-2" aria-busy="true">
+                    <span className="sr-only">Cargando…</span>
+                    {Array.from({ length: 3 }).map((_, i) => (
+                      <Skeleton key={i} className="h-10 rounded-xl" />
+                    ))}
                   </div>
                 ) : historialPagos.length === 0 ? (
                   <div className="text-center py-6 text-slate-400">

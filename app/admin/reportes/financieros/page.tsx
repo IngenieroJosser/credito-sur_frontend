@@ -15,7 +15,6 @@ import {
 import { formatCurrency } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
 import { TransactionalHighDetailChart } from '@/components/ui/TransactionalHighDetailChart'
-import AnimacionCarga from '@/components/ui/AnimacionCarga'
 import { getMonthlyEvolution, getFinancialTargets } from '@/services/reportes-service'
 import { getResumenFinanciero, getMovimientosLedger } from '@/services/contabilidad-service'
 import { exportService } from '@/services/export-service'
@@ -27,6 +26,8 @@ import {
   normalizeDateKey,
   toBogotaDateTimeOffsetIso,
 } from '@/lib/rutas-core'
+import { Skeleton, SkeletonTabla } from '@/components/ui/Skeleton'
+import { logger } from '@/lib/logger'
 
 // Interfaces
 interface FinancialSummary {
@@ -144,15 +145,19 @@ const ReportesFinancierosPage = () => {
     try {
       try {
         const targets = await getFinancialTargets()
-        if (targets && typeof (targets as any).metaMargen === 'number') {
-          setMetaMargen((targets as any).metaMargen)
+        if (targets && typeof (targets).metaMargen === 'number') {
+          setMetaMargen((targets).metaMargen)
         } else {
           setMetaMargen(null)
         }
-      } catch {}
+      } catch (error) {
+        // Sin metas configuradas la pantalla funciona igual, sin la referencia.
+        // Se avisa solo en desarrollo, que es donde sirve.
+        logger.warn('No se pudieron leer las metas financieras', error)
+      }
       const ahora = new Date()
       const { inicio: startDate, fin: endDate } = getBogotaRangeForFinancialPeriod(
-        periodo as any,
+        periodo,
         ahora,
       )
 
@@ -166,11 +171,11 @@ const ReportesFinancierosPage = () => {
       const movimientosPeriodo = await getMovimientosLedger({ fechaInicio: startDate, fechaFin: endDate, limit: 10000 })
       const totalIngresosPeriodo = Number(resumenPeriodo?.ingresosHoy || 0)
       const totalEntradasCajaPeriodo = (Array.isArray(movimientosPeriodo?.data) ? movimientosPeriodo.data : [])
-        .reduce((acc, movimiento: any) => acc + Number(movimiento?.impactoCaja || 0), 0)
-      const totalIngresosDevengadosPeriodo = Number((resumenPeriodo as any)?.ingresosDevengadosHoy ?? totalIngresosPeriodo)
-      const totalCobrosPeriodo = Number((resumenPeriodo as any)?.cobranzaHoy || 0)
+        .reduce((acc, movimiento) => acc + Number(movimiento?.impactoCaja || 0), 0)
+      const totalIngresosDevengadosPeriodo = Number((resumenPeriodo)?.ingresosDevengadosHoy ?? totalIngresosPeriodo)
+      const totalCobrosPeriodo = Number((resumenPeriodo)?.cobranzaHoy || 0)
       const totalEgresosPeriodo = Number(resumenPeriodo?.egresosHoy || 0)
-      const utilidadPeriodo = Number((resumenPeriodo as any)?.utilidadReal ?? (resumenPeriodo as any)?.gananciaNeta ?? (totalIngresosPeriodo - totalEgresosPeriodo))
+      const utilidadPeriodo = Number((resumenPeriodo)?.utilidadReal ?? (resumenPeriodo)?.gananciaNeta ?? (totalIngresosPeriodo - totalEgresosPeriodo))
       const utilidadOperativaPeriodo = Number((resumenPeriodo as any)?.utilidadOperativa ?? utilidadPeriodo)
       const provisionCarteraPeriodo = Number(
         // El gasto del periodo, no el saldo acumulado de la cartera: si no, se
@@ -194,10 +199,10 @@ const ReportesFinancierosPage = () => {
         provisionCartera: provisionCarteraPeriodo,
         utilidadNeta: utilidadNetaPeriodo,
         margen: Number(margenPeriodo.toFixed(1)),
-        interes: Number((resumenPeriodo as any)?.interesHoy || 0),
-        mora: Number((resumenPeriodo as any)?.moraHoy || 0),
-        margenArticulos: Number((resumenPeriodo as any)?.margenArticulosHoy || 0),
-        otrosIngresos: Number((resumenPeriodo as any)?.otrosIngresosHoy || 0),
+        interes: Number((resumenPeriodo)?.interesHoy || 0),
+        mora: Number((resumenPeriodo)?.moraHoy || 0),
+        margenArticulos: Number((resumenPeriodo)?.margenArticulosHoy || 0),
+        otrosIngresos: Number((resumenPeriodo)?.otrosIngresosHoy || 0),
         gastosOperativos: totalEgresosPeriodo,
       })
 
@@ -253,7 +258,7 @@ const ReportesFinancierosPage = () => {
         const prevEndKey = getBogotaDateKey(new Date(prevRange.fin))
         const prevResumen = await getResumenFinanciero(prevStartKey, prevEndKey)
         const prevIngresos = Number(prevResumen?.ingresosHoy || 0)
-        const prevCobros = Number((prevResumen as any)?.cobranzaHoy || 0)
+        const prevCobros = Number((prevResumen)?.cobranzaHoy || 0)
         const prevEgresos = Number(prevResumen?.egresosHoy || 0)
         const ingresosPerc = prevIngresos > 0
           ? ((totalIngresosPeriodo - prevIngresos) / prevIngresos) * 100
@@ -300,7 +305,7 @@ const ReportesFinancierosPage = () => {
           if (dias[key]) dias[key].ingresos += getIngresoOperativoMovimiento(t)
         })
         cobroRes.data
-          .filter((t: any) => String(t.origenGestion || '').toUpperCase() !== 'CIERRE_PENDIENTE')
+          .filter((t) => String(t.origenGestion || '').toUpperCase() !== 'CIERRE_PENDIENTE')
           .forEach(t => {
             const key = normalizeDateKey(t.fecha)
             if (dias[key]) dias[key].cobros += getCobroMovimiento(t)
@@ -340,10 +345,10 @@ const ReportesFinancierosPage = () => {
         if (periodo === 'SEMANAL') {
           const nowKey7 = getBogotaDateKey(ahora)
           const resumen7 = await getResumenFinanciero(desde7Key, nowKey7)
-          const ingresosDevengados7 = Number((resumen7 as any)?.ingresosDevengadosHoy ?? totalIngresos7)
+          const ingresosDevengados7 = Number((resumen7)?.ingresosDevengadosHoy ?? totalIngresos7)
           const entradasCaja7 = (Array.isArray(movimientos7Res?.data) ? movimientos7Res.data : [])
-            .reduce((acc, movimiento: any) => acc + Number(movimiento?.impactoCaja || 0), 0)
-          const utilidad7 = Number((resumen7 as any)?.utilidadReal ?? (resumen7 as any)?.gananciaNeta ?? (totalIngresos7 - totalEgresos7))
+            .reduce((acc, movimiento) => acc + Number(movimiento?.impactoCaja || 0), 0)
+          const utilidad7 = Number((resumen7)?.utilidadReal ?? (resumen7)?.gananciaNeta ?? (totalIngresos7 - totalEgresos7))
           const utilidadOperativa7 = Number((resumen7 as any)?.utilidadOperativa ?? utilidad7)
           const provisionCartera7 = Number(
             (resumen7 as any)?.provisionCarteraPeriodo ??
@@ -363,10 +368,10 @@ const ReportesFinancierosPage = () => {
             provisionCartera: provisionCartera7,
             utilidadNeta: utilidadNeta7,
             margen: Number(margen7.toFixed(1)),
-            interes: Number((resumen7 as any)?.interesHoy || 0),
-            mora: Number((resumen7 as any)?.moraHoy || 0),
-            margenArticulos: Number((resumen7 as any)?.margenArticulosHoy || 0),
-            otrosIngresos: Number((resumen7 as any)?.otrosIngresosHoy || 0),
+            interes: Number((resumen7)?.interesHoy || 0),
+            mora: Number((resumen7)?.moraHoy || 0),
+            margenArticulos: Number((resumen7)?.margenArticulosHoy || 0),
+            otrosIngresos: Number((resumen7)?.otrosIngresosHoy || 0),
             gastosOperativos: totalEgresos7,
           })
 
@@ -398,7 +403,7 @@ const ReportesFinancierosPage = () => {
             ])
             const prevIng7 = prevIng7Res.data.filter(isIngresoOperativoMovimiento).reduce((acc, t) => acc + getIngresoOperativoMovimiento(t), 0)
             const prevCobro7 = prevCobro7Res.data
-              .filter((t: any) => String(t.origenGestion || '').toUpperCase() !== 'CIERRE_PENDIENTE')
+              .filter((t) => String(t.origenGestion || '').toUpperCase() !== 'CIERRE_PENDIENTE')
               .reduce((acc, t) => acc + getCobroMovimiento(t), 0)
             const prevEgr7 = prevEgre7Res.data.reduce((acc, t) => acc + Number(t.totalDebito || 0), 0)
             const ingresosPerc7 = prevIng7 > 0 ? ((totalIngresos7 - prevIng7) / prevIng7) * 100 : (totalIngresos7 > 0 ? 100 : 0)
@@ -435,7 +440,7 @@ const ReportesFinancierosPage = () => {
             if (dayMap[key]) dayMap[key].ingresos += getIngresoOperativoMovimiento(t)
           })
           cobroResAll.data
-            .filter((t: any) => String(t.origenGestion || '').toUpperCase() !== 'CIERRE_PENDIENTE')
+            .filter((t) => String(t.origenGestion || '').toUpperCase() !== 'CIERRE_PENDIENTE')
             .forEach(t => {
               const key = normalizeDateKey(t.fecha)
               if (dayMap[key]) dayMap[key].cobros += getCobroMovimiento(t)
@@ -478,7 +483,7 @@ const ReportesFinancierosPage = () => {
             if (monthMap[key]) monthMap[key].ingresos += getIngresoOperativoMovimiento(t)
           })
           cobroResAll.data
-            .filter((t: any) => String(t.origenGestion || '').toUpperCase() !== 'CIERRE_PENDIENTE')
+            .filter((t) => String(t.origenGestion || '').toUpperCase() !== 'CIERRE_PENDIENTE')
             .forEach(t => {
               const d = new Date(t.fecha)
               const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`
@@ -528,7 +533,16 @@ const ReportesFinancierosPage = () => {
 
   if (loading) {
     return (
-      <AnimacionCarga texto="Cargando reportes financieros..." />
+      <div className="space-y-4 p-4 sm:p-6" aria-busy="true">
+        <span className="sr-only">Cargando reportes financieros…</span>
+        <Skeleton className="h-8 w-72" />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-28 rounded-2xl" />
+          ))}
+        </div>
+        <SkeletonTabla filas={6} columnas={5} />
+      </div>
     )
   }
 

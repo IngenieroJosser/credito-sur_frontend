@@ -1,6 +1,7 @@
 'use client'
 
-import PantallaCarga from '@/components/ui/PantallaCarga'
+import { datosParaRegistro, estadoDeError, mensajeDeError } from '@/lib/mensaje-de-error'
+import { Skeleton, SkeletonDetalle } from '@/components/ui/Skeleton'
 
 import { logger } from '@/lib/logger'
 
@@ -37,7 +38,6 @@ import {
   CalendarDays,
   Star,
   History,
-  Loader2,
   ChevronDown,
   FileDown,
   Eye,
@@ -70,7 +70,7 @@ import ReprogramarModal from '@/components/cobranza/ReprogramarModal'
 
 import AusenteModal from '@/components/cobranza/AusenteModal'
 
-import { VisitaRuta, EstadoVisita } from '@/lib/types/cobranza'
+import { VisitaRuta, EstadoVisita, VisitaParcial } from '@/lib/types/cobranza'
 
 import { StaticVisitaItem, SeleccionClienteModal, Portal } from '@/components/dashboards/shared/CobradorElements'
 
@@ -287,7 +287,12 @@ const RutaClientLoaded = ({
   const lastMisCreditosEnrichKeyRef = useRef('')
 
   // === Mapeo de asignaciones a modelo de UI (VisitaRuta) ===
-  // === Mapeo de asignaciones a modelo de UI (VisitaRuta) ===
+  //
+  // `cobradorIdRuta` se saca aparte a proposito: con `initialRuta?.cobradorId`
+  // dentro del array de dependencias, el compilador de React infiere
+  // `initialRuta.cobradorId` (sin el `?.`), no le coincide con lo escrito y
+  // renuncia a optimizar TODO este componente ("Compilation Skipped").
+  const cobradorIdRuta = initialRuta?.cobradorId
   const mapearAsignacionesAVisitas = useCallback((data: any) => {
     const asignaciones = data?.asignaciones || data?.asignacionesRuta;
     if (!asignaciones || !Array.isArray(asignaciones)) return [];
@@ -296,26 +301,26 @@ const RutaClientLoaded = ({
     const visitasRaw = mapAsignacionesToVisitasLite({
       asignaciones,
       hoyKey,
-      cobradorId: initialRuta?.cobradorId || '',
+      cobradorId: cobradorIdRuta || '',
     }) as any[]
 
     const idsProcesados = new Set<string>()
-    const firstPass = visitasRaw.flatMap((v: any) => {
+    const firstPass = visitasRaw.flatMap((v: VisitaRuta) => {
       const uniqueKey = v?.prestamoId ? `loan-${v.prestamoId}` : `client-${v.clienteId}`
       if (idsProcesados.has(uniqueKey)) return []
       idsProcesados.add(uniqueKey)
       
       const cuotaId = resolveCuotaIdFromVisitaLike(
         v,
-        (v as any)?.prestamo,
-        (v as any)?.cuotaObjetivo || (v as any)?.proximaCuota,
+        (v)?.prestamo,
+        (v)?.cuotaObjetivo || (v)?.proximaCuota,
       )
       
       return [
         {
           ...v,
           // Ajuste de forma admin: mantiene el mismo shape que usaba antes.
-          cobradorId: initialRuta?.cobradorId || '',
+          cobradorId: cobradorIdRuta || '',
           cuotaId,
           cuotaObjetivoId: cuotaId,
           cuotaObjetivoPrestamoId: cuotaId,
@@ -323,12 +328,12 @@ const RutaClientLoaded = ({
       ]
     })
 
-    const clientesConPrestamo = new Set(firstPass.filter((v: any) => v.prestamoId).map((v: any) => v.clienteId))
-    return firstPass.filter((v: any) => {
+    const clientesConPrestamo = new Set(firstPass.filter((v: VisitaRuta) => v.prestamoId).map((v: VisitaRuta) => v.clienteId))
+    return firstPass.filter((v: VisitaRuta) => {
       if (!v.prestamoId && clientesConPrestamo.has(v.clienteId)) return false
       return true
     }) as VisitaRuta[]
-  }, [initialRuta?.cobradorId, hoyBogotaKey]);
+  }, [cobradorIdRuta, hoyBogotaKey]);
 
   const [visitasCobrador, setVisitasCobrador] = useState<VisitaRuta[]>(() => mapearAsignacionesAVisitas(initialRuta));
   const [visitasRutaHoyKpi, setVisitasRutaHoyKpi] = useState<VisitaRuta[]>([]);
@@ -434,7 +439,7 @@ const RutaClientLoaded = ({
 
     const enrichKey = JSON.stringify({
       nonce: enrichNonce,
-      items: visitasCobrador.map((v: any) => ({
+      items: visitasCobrador.map((v: VisitaRuta) => ({
         id: v?.id,
         prestamoId: v?.prestamoId,
         recaudo: v?.recaudadoDelDia,
@@ -479,7 +484,7 @@ const RutaClientLoaded = ({
 
       const actualizadas = await mapWithConcurrency(
         visitasEnriquecidasConCuotas,
-        async (v: any) => {
+        async (v: VisitaRuta) => {
           if (!v.clienteId || !v.prestamoId) return { ...v, recaudadoDelDia: 0, recaudadoTotalClient: 0 };
 
           try {
@@ -490,15 +495,15 @@ const RutaClientLoaded = ({
 
             // 2. Usar valores ya enriquecidos por el helper compartido
             let montoCuotaReal = v.montoCuota;
-            let montoCuotaPendienteReal = Number((v as any)?.montoCuotaPendiente ?? v.montoCuota ?? 0);
+            let montoCuotaPendienteReal = Number((v)?.montoCuotaPendiente ?? v.montoCuota ?? 0);
             let fechaReal = v.proximaVisita;
             let cuotaActual = v.cuotaActual
             let cuotasTotales = v.cuotasTotales
 
             // El helper ya calculó estos valores, usarlos directamente
             if (v.cuotaObjetivo) {
-              montoCuotaReal = v.montoCuotaNormal
-              montoCuotaPendienteReal = v.montoCuotaPendiente
+              montoCuotaReal = v.montoCuotaNormal as number
+              montoCuotaPendienteReal = v.montoCuotaPendiente as number
               fechaReal = v.proximaVisita
               cuotaActual = v.cuotaActual
               cuotasTotales = v.cuotasTotales
@@ -534,7 +539,7 @@ const RutaClientLoaded = ({
               if (pagado) nuevoEstado = 'pagado'
 
               if (nuevoEstado !== 'pagado' && Number(v?.saldoTotal || 0) > 0 && tieneMora) {
-                nuevoEstado = 'en_mora' as any
+                nuevoEstado = 'en_mora'
               }
             }
 
@@ -550,9 +555,9 @@ const RutaClientLoaded = ({
               cuotaActual,
               cuotasTotales,
               estado: nuevoEstado,
-              cuotaId: v?.cuotaObjetivo?.id || (v as any)?.cuotaId,
-              cuotaObjetivoId: v?.cuotaObjetivo?.id || (v as any)?.cuotaObjetivoId,
-              cuotaObjetivoPrestamoId: v?.cuotaObjetivo?.id || (v as any)?.cuotaObjetivoPrestamoId,
+              cuotaId: v?.cuotaObjetivo?.id || (v)?.cuotaId,
+              cuotaObjetivoId: v?.cuotaObjetivo?.id || (v)?.cuotaObjetivoId,
+              cuotaObjetivoPrestamoId: v?.cuotaObjetivo?.id || (v)?.cuotaObjetivoPrestamoId,
               proximaCuota: v?.cuotaObjetivo,
               cuotaObjetivo: v?.cuotaObjetivo,
               // Usar valores normalizados del mapper compartido
@@ -572,7 +577,7 @@ const RutaClientLoaded = ({
 
       // Fusión selectiva: 'actualizadas' es la fuente base y solo se conservan campos locales puntuales
       const merged = actualizadas.map((actualizada: any) => {
-        const local = visitasCobradorRef.current.find((v: any) =>
+        const local = visitasCobradorRef.current.find((v: VisitaRuta) =>
           v.id === actualizada.id || v.prestamoId === actualizada.prestamoId
         )
 
@@ -635,7 +640,7 @@ const RutaClientLoaded = ({
 
       if (!matchesSearch) return false
 
-      return shouldShowVisitaEnRutaHoy(v as any, hoyBogota);
+      return shouldShowVisitaEnRutaHoy(v, hoyBogota);
     });
 
     if (periodoRutaFiltro !== 'TODOS') {
@@ -763,7 +768,7 @@ const RutaClientLoaded = ({
           v.direccion.toLowerCase().includes(searchQuery.toLowerCase())
         return matchesSearch
       })
-      console.table(filtradas.map((v: any) => ({
+      console.table(filtradas.map((v: VisitaRuta) => ({
         cliente: v.cliente,
         cuotaActual: v.cuotaActual,
         estado: v.estado,
@@ -860,17 +865,22 @@ const RutaClientLoaded = ({
   const [isCheckingActivacion, setIsCheckingActivacion] = useState(true)
   const esDiaNoLaboral = esDomingoBogota()
 
+  // Mismo caso que `cobradorIdRuta`: la dependencia es la variable, no el acceso
+  // con `?.`, para que el compilador no se salte el componente.
+  // Se llama `idDeInitialRuta` y no `rutaId` porque ese nombre ya lo ocupa un prop
+  // del componente, que viene de la URL y no necesariamente es el mismo valor.
+  const idDeInitialRuta = initialRuta?.id
   const refreshActivacionHoy = useCallback(async () => {
-    if (!initialRuta?.id) return
+    if (!idDeInitialRuta) return
     try {
-      const resp = await routesService.getActivacionHoy(initialRuta.id)
+      const resp = await routesService.getActivacionHoy(idDeInitialRuta)
       setRutaActivadaHoy(Boolean(resp?.operableHoy ?? resp?.activadaHoy))
     } catch (e) {
       // ignore
     } finally {
       setIsCheckingActivacion(false)
     }
-  }, [initialRuta?.id])
+  }, [idDeInitialRuta])
 
   useEffect(() => {
     refreshActivacionHoy()
@@ -882,22 +892,18 @@ const RutaClientLoaded = ({
       setLoadingActivacionHoy(true)
       const resp = await routesService.activarHoy(initialRuta.id)
       setRutaActivadaHoy(Boolean(resp?.operableHoy ?? resp?.activadaHoy))
-      showNotification('success', resp?.message || 'Ruta activada para hoy correctamente', 'Éxito')
-    } catch (error: any) {
+      showNotification('success', mensajeDeError(resp, 'Ruta activada para hoy correctamente'), 'Éxito')
+    } catch (error) {
       console.error('Error activando ruta del día:', error)
       
-      const status =
-        error?.statusCode ??
-        error?.status ??
-        error?.response?.status ??
-        error?.error?.statusCode ??
-        error?.response?.data?.statusCode;
+      // Antes esto era una cadena de cinco formas distintas de leer el estado
+      // (`statusCode`, `status`, `response.status`, `error.statusCode` y
+      // `response.data.statusCode`). `estadoDeError` las recorre todas, en el mismo
+      // orden.
+      const status = estadoDeError(error);
 
       const message =
-        error?.response?.data?.message ??
-        error?.error?.message ??
-        error?.message ??
-        'La ruta ya tiene movimiento de caja hoy y se considera operativa.';
+        mensajeDeError(error, 'La ruta ya tiene movimiento de caja hoy y se considera operativa.');
 
       // Tratar 409 como caso de negocio (conflicto por restricción de BD)
       if (status === 409) {
@@ -970,11 +976,15 @@ const RutaClientLoaded = ({
             ? visitasRutaHoyKpi
             : Array.isArray(visitasCobrador)
               ? visitasCobrador
-                  .filter((v: any) => {
+                  .filter((v: VisitaRuta) => {
                     const recaudado = Number(v?.recaudadoDelDia || 0)
                     const metaPendiente = Number(v?.montoCuotaPendiente || 0)
                     const cuotaNormal = Number(v?.montoCuotaNormal ?? v?.montoCuota ?? 0)
-                    const estadoGestion = String(v?.estadoGestion || '').toUpperCase()
+                    // `estadoGestion` no lo escribe nadie en una visita: el estado del dia
+                    // esta en `estadoVisita`, que se rellena desde el RegistroVisita. Se deja
+                    // el mismo orden de respaldo que usa `rutas-core`, donde esta misma
+                    // comprobacion si funcionaba porque caia al segundo termino.
+                    const estadoGestion = String(v?.estadoGestion || v?.estadoVisita || '').toUpperCase()
 
                     return (
                       metaPendiente > 0 ||
@@ -983,7 +993,7 @@ const RutaClientLoaded = ({
                       estadoGestion.includes('PAGO')
                     )
                   })
-                  .filter((v: any) => !isAusente(v))
+                  .filter((v: VisitaRuta) => !isAusente(v))
               : []
 
         const statsUiHoy = computeRutaHoyUiStatsFromVisitas(fuenteKpiHoy, 0)
@@ -1059,7 +1069,7 @@ const RutaClientLoaded = ({
           eficiencia,
           pendiente: pendienteHoy,
           gastos: Number(saldo?.gastosDelDia ?? 0),
-          gastosProvisionales: Number((saldo as any)?.egresosProvisionales ?? 0),
+          gastosProvisionales: Number((saldo)?.egresosProvisionales ?? 0),
           base: Number(saldo?.saldoCaja ?? saldo?.baseEfectivo ?? 0)
         } as any)
       } catch {
@@ -1073,11 +1083,15 @@ const RutaClientLoaded = ({
             ? visitasRutaHoyKpi
             : Array.isArray(visitasCobrador)
               ? visitasCobrador
-                  .filter((v: any) => {
+                  .filter((v: VisitaRuta) => {
                     const recaudado = Number(v?.recaudadoDelDia || 0)
                     const metaPendiente = Number(v?.montoCuotaPendiente || 0)
                     const cuotaNormal = Number(v?.montoCuotaNormal ?? v?.montoCuota ?? 0)
-                    const estadoGestion = String(v?.estadoGestion || '').toUpperCase()
+                    // `estadoGestion` no lo escribe nadie en una visita: el estado del dia
+                    // esta en `estadoVisita`, que se rellena desde el RegistroVisita. Se deja
+                    // el mismo orden de respaldo que usa `rutas-core`, donde esta misma
+                    // comprobacion si funcionaba porque caia al segundo termino.
+                    const estadoGestion = String(v?.estadoGestion || v?.estadoVisita || '').toUpperCase()
 
                     return (
                       metaPendiente > 0 ||
@@ -1086,7 +1100,7 @@ const RutaClientLoaded = ({
                       estadoGestion.includes('PAGO')
                     )
                   })
-                  .filter((v: any) => !isAusente(v))
+                  .filter((v: VisitaRuta) => !isAusente(v))
               : []
 
         const statsHoy = computeRutaHoyUiStatsFromVisitas(
@@ -1217,7 +1231,7 @@ const RutaClientLoaded = ({
 
       // Para "Mis clientes", mostrar kpiItems (obligaciones completas) enriquecidas
       setMisCreditos(result.kpiItems as any)
-    } catch (e: any) {
+    } catch (e) {
       console.error('Error cargando mis clientes (ruta admin):', e)
       toast.error('No se pudieron cargar las obligaciones operativas de la ruta.')
     } finally {
@@ -1254,7 +1268,7 @@ const RutaClientLoaded = ({
       setVisitasCobrador((prev: VisitaRuta[]) =>
         prev.map((v) =>
           v.clienteId === clienteIdVisita
-            ? { ...v, estado: estadoVisitaPayload as any, estadoVisita: estadoVisitaPayload as any, notasVisita: notasVisitaPayload ?? (v as any).notasVisita }
+            ? { ...v, estado: estadoVisitaPayload as any, estadoVisita: estadoVisitaPayload as any, notasVisita: notasVisitaPayload ?? (v).notasVisita }
             : v,
         ),
       )
@@ -1681,12 +1695,11 @@ const RutaClientLoaded = ({
 
                 {loadingMisCreditos ? (
 
-                  <div className="flex flex-col items-center justify-center py-10 text-slate-400">
-
-                    <Loader2 className="w-6 h-6 animate-spin mb-2 opacity-20" />
-
-                    <span className="text-xs font-medium">Cargando clientes...</span>
-
+                  <div className="space-y-2" aria-busy="true">
+                    <span className="sr-only">Cargando…</span>
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <Skeleton key={i} className="h-12 rounded-xl" />
+                    ))}
                   </div>
 
                 ) : (() => {
@@ -1972,7 +1985,7 @@ const RutaClientLoaded = ({
             setVisitasCobrador((prev) =>
               (prev || []).map((v) =>
                 v.clienteId === clienteIdAusente
-                  ? { ...v, estado: 'ausente' as any, estadoVisita: 'ausente' as any, notasVisita: notas }
+                  ? { ...v, estado: 'ausente', estadoVisita: 'ausente', notasVisita: notas }
                   : v
               )
             );
@@ -1982,7 +1995,11 @@ const RutaClientLoaded = ({
             setEnrichNonce((n) => n + 1);
             try {
               await onRutaRefresh?.();
-            } catch {}
+            } catch (error) {
+              // El refresco es secundario: la accion ya se hizo.
+              // Se avisa solo en desarrollo, que es donde sirve.
+              logger.warn('Fallo el refresco de la ruta tras la accion', error)
+            }
           }}
         />
       )}
@@ -2070,7 +2087,7 @@ const RutaClientLoaded = ({
                 const prestamoIdPago = String(prestamoIdFinal || pagoActual.visita.prestamoId || '')
                 const visitaIdPago = String(pagoActual.visita.id || '')
                 setVisitasCobrador((prev) => {
-                  const next = (prev || []).map((v: any) => {
+                  const next = (prev || []).map((v: VisitaRuta) => {
                     const esVisitaPagada =
                       String(v?.prestamoId || '') === prestamoIdPago ||
                       String(v?.id || '') === visitaIdPago
@@ -2091,7 +2108,7 @@ const RutaClientLoaded = ({
                         : v.estado
 
                     const recaudadoDelDia = Number(v?.recaudadoDelDia || 0) + Number(monto || 0)
-                    const montoCuotaPendiente = computeMontoCuotaPendienteDespuesDeRecaudo(v as any, recaudadoDelDia)
+                    const montoCuotaPendiente = computeMontoCuotaPendienteDespuesDeRecaudo(v, recaudadoDelDia)
                     const estado = shouldMarkVisitaAsPagado({
                       saldoTotal: v?.saldoTotal,
                       recaudadoHoy: recaudadoDelDia,
@@ -2121,17 +2138,25 @@ const RutaClientLoaded = ({
               setEnrichNonce((n) => n + 1)
               try {
                 await onRutaRefresh?.(pagoActual.visita.prestamoId);
-              } catch {}
+              } catch (error) {
+                // El refresco es secundario: la accion ya se hizo.
+                // Se avisa solo en desarrollo, que es donde sirve.
+                logger.warn('Fallo el refresco de la ruta tras registrar el pago', error)
+              }
             } catch (error) {
               console.error('Error registrando pago/abono:', error);
               const apiError = error as any;
-              const isConflict = apiError?.isConflict || apiError?.statusCode === 409 || apiError?.error?.statusCode === 409;
+              const isConflict = apiError?.isConflict || apiError?.statusCode === 409 || apiError?.estadoDeError(error) === 409;
               const mensaje = apiError?.message || apiError?.error?.message || 'No se pudo registrar el pago/abono';
               if (isConflict) {
                 setEnrichNonce((n) => n + 1);
                 try {
                   await onRutaRefresh?.(pagoVisita?.visita?.prestamoId);
-                } catch {}
+                } catch (error) {
+                  // El refresco es secundario: la accion ya se hizo.
+                  // Se avisa solo en desarrollo, que es donde sirve.
+                  logger.warn('Fallo el refresco de la ruta tras registrar el pago', error)
+                }
               }
               showNotification('error', mensaje, isConflict ? 'La cuota cambió' : 'Error');
             } finally {
@@ -2232,15 +2257,15 @@ const RutaClientLoaded = ({
                     if (v.id !== visitaReprogramar.id) return v
                     return {
                       ...v,
-                      estado: 'reprogramado' as any,
+                      estado: 'reprogramado',
                       proximaVisita: fecha,
                       cuotaObjetivo: {
-                        ...(v as any).cuotaObjetivo,
+                        ...v.cuotaObjetivo,
                         fechaVencimiento: fecha,
                         fechaEfectiva: fecha,
                       },
                       proximaCuota: {
-                        ...(v as any).proximaCuota,
+                        ...v.proximaCuota,
                         fechaVencimiento: fecha,
                         fechaEfectiva: fecha,
                       },
@@ -2250,7 +2275,7 @@ const RutaClientLoaded = ({
 
                 // Recalcular KPI inmediatamente
                 setRutaStatsCards((prev) => {
-                  const visitasActualizadas = visitasCobrador.map((v: any) => {
+                  const visitasActualizadas = visitasCobrador.map((v: VisitaRuta): VisitaParcial => {
                     if (v.id !== visitaReprogramar.id) return v
 
                     return {
@@ -2265,11 +2290,15 @@ const RutaClientLoaded = ({
                     visitasRutaHoyKpi.length > 0
                       ? visitasRutaHoyKpi
                       : visitasActualizadas
-                          .filter((v: any) => {
+                          .filter((v) => {
                             const recaudado = Number(v?.recaudadoDelDia || 0)
                             const metaPendiente = Number(v?.montoCuotaPendiente || 0)
                             const cuotaNormal = Number(v?.montoCuotaNormal ?? v?.montoCuota ?? 0)
-                            const estadoGestion = String(v?.estadoGestion || '').toUpperCase()
+                            // `estadoGestion` no lo escribe nadie en una visita: el estado del dia
+                            // esta en `estadoVisita`, que se rellena desde el RegistroVisita. Se deja
+                            // el mismo orden de respaldo que usa `rutas-core`, donde esta misma
+                            // comprobacion si funcionaba porque caia al segundo termino.
+                            const estadoGestion = String(v?.estadoGestion || v?.estadoVisita || '').toUpperCase()
 
                             return (
                               metaPendiente > 0 ||
@@ -2278,7 +2307,7 @@ const RutaClientLoaded = ({
                               estadoGestion.includes('PAGO')
                             )
                           })
-                          .filter((v: any) => !shouldExcludeVisitaFromOperationalMeta(v))
+                          .filter((v) => !shouldExcludeVisitaFromOperationalMeta(v))
 
                   const statsHoy = computeRutaHoyUiStatsFromVisitas(fuenteKpiHoy, 0)
                   const recaudo = Number(prev.recaudo || 0)
@@ -2306,20 +2335,20 @@ const RutaClientLoaded = ({
 
                 try {
                   await onRutaRefresh?.();
-                } catch {}
+                } catch (error) {
+                  // El refresco es secundario: la accion ya se hizo.
+                  // Se avisa solo en desarrollo, que es donde sirve.
+                  logger.warn('Fallo el refresco de la ruta tras la accion', error)
+                }
 
-              } catch (error: any) {
+              } catch (error) {
                 const message =
-                  error?.response?.data?.message ??
-                  error?.data?.message ??
-                  error?.message ??
-                  'No se pudo realizar la reprogramación.'
+                  mensajeDeError(error, 'No se pudo realizar la reprogramación.')
 
                 console.error('Error reprogramando cuota (ruta admin):', {
                   message,
                   error,
-                  response: error?.response,
-                  data: error?.response?.data || error?.data,
+                  ...datosParaRegistro(error),
                 })
 
                 toast.error(Array.isArray(message) ? message[0] : message)
@@ -2501,7 +2530,6 @@ const RutaClientLoaded = ({
               const clienteIdFinal = String(
                 prestamo?.clienteId ||
                   prestamo?.cliente?.id ||
-                  prestamo?.cliente?.clienteId ||
                   data?.clienteId ||
                   data?.clienteCreditoId ||
                   data?.cliente?.id ||
@@ -2550,7 +2578,11 @@ const RutaClientLoaded = ({
 
                 await onRutaRefresh?.();
 
-              } catch {}
+              } catch (error) {
+                // El refresco es secundario: la accion ya se hizo.
+                // Se avisa solo en desarrollo, que es donde sirve.
+                logger.warn('Fallo el refresco de la ruta tras la accion', error)
+              }
 
               setShowCrearCreditoModal(false);
 
@@ -2717,9 +2749,9 @@ const RutaClientLoaded = ({
               cargarDetalle(),
               onRutaRefresh?.(),
             ])
-          } catch (error: any) {
+          } catch (error) {
             toast.error(
-              error?.response?.data?.message || error?.message || 'No se pudo cerrar la jornada regularizada.',
+              mensajeDeError(error, 'No se pudo cerrar la jornada regularizada.'),
             )
           }
         }}
@@ -2879,7 +2911,7 @@ const RutaClient = ({ initialRuta: initialRutaProp, rutaId }: RutaClientProps) =
 
     return (
 
-      <PantallaCarga />
+      <SkeletonDetalle />
 
     )
 

@@ -2,6 +2,7 @@ import { apiRequest } from '@/lib/api/api'
 import { syncService } from '@/lib/offline/syncService'
 import { logger } from '@/lib/logger'
 import type { VentaContadoPayload } from '@/lib/creditos/crear-prestamo-payload'
+import { esErrorDeRed } from '@/lib/offline/conRespaldoOffline'
 
 export type VentaContadoResponse = {
   success: boolean
@@ -22,18 +23,13 @@ export const salesService = {
     const data = {
       ...dataEntrada,
       idempotencyKey:
-        (dataEntrada as any).idempotencyKey ||
+        (dataEntrada).idempotencyKey ||
         `venta-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
     }
     try {
       return await apiRequest<VentaContadoResponse>('POST', '/sales/cash', data)
-    } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 ||
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+    } catch (error) {
+      if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando venta de contado en cola...')
         await syncService.enqueueOperation(
           'venta_contado',
@@ -46,10 +42,10 @@ export const salesService = {
         return {
           success: true,
           ventaId: `temp-venta-${Date.now()}`,
-          clienteId: (data as any)?.clienteId ?? '',
-          productoId: (data as any)?.productoId ?? '',
-          precioVenta: (data as any)?.precioVenta ?? 0,
-          metodoPago: (data as any)?.metodoPago ?? 'EFECTIVO',
+          clienteId: (data)?.clienteId ?? '',
+          productoId: (data)?.productoId ?? '',
+          precioVenta: (data)?.precioVenta ?? 0,
+          metodoPago: (data)?.metodoPago ?? 'EFECTIVO',
           transaccionId: '',
           numeroTransaccion: 'OFFLINE',
           journalEntryId: null,

@@ -17,6 +17,8 @@ import {
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import { createPortal } from 'react-dom'
+import Tooltip from '@/components/ui/Tooltip'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 
 interface DetalleMoraModalProps {
   cuenta: {
@@ -62,6 +64,14 @@ export default function DetalleMoraModal({
   onAsignarMora,
   onRegistrarPago,
 }: DetalleMoraModalProps) {
+  // Escape para salir y foco al abrir. El hook lleva una pila, asi que con
+  // modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    onClose: onClose,
+    // Modal de solo lectura: no hay campo que enfocar.
+    enfocarAlAbrir: false,
+  })
+
   if (typeof document === 'undefined') return null
 
   const riesgoConfig = RIESGO_CONFIG[cuenta.nivelRiesgo] || RIESGO_CONFIG.AMARILLO
@@ -103,12 +113,15 @@ export default function DetalleMoraModal({
                 </p>
               </div>
             </div>
-            <button
-              onClick={onClose}
-              className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all"
-            >
-              <X className="h-5 w-5" />
-            </button>
+            <Tooltip texto="Cerrar">
+              <button
+                onClick={onClose}
+                className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all"
+                aria-label="Cerrar"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </Tooltip>
           </div>
         </div>
 

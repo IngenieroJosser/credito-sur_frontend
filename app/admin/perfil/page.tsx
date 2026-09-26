@@ -1,5 +1,6 @@
 'use client'
 
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 import { User, Lock, Phone, Calendar, Clock, FileText, CheckCircle2, X, Eye, EyeOff, ChevronLeft, Loader2, AlertCircle } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
@@ -10,6 +11,7 @@ import { obtenerPerfil } from '@/services/autenticacion-service'
 import { formatRoleName, getRoleColor, getRoleIcon } from '@/components/ui/UserDropdownMenu'
 import PushNotificationManager from '@/components/push/PushNotificationManager'
 import { logger } from '@/lib/logger'
+import { Skeleton, SkeletonTexto } from '@/components/ui/Skeleton'
 
 const VOLVER_RUTAS: Record<string, string> = {
   'SUPER_ADMINISTRADOR': '/admin',
@@ -77,7 +79,11 @@ const PerfilUsuarioPage = () => {
       // failover CORS en consola). Online sí trae los datos completos.
       const hayRed = typeof navigator === 'undefined' || navigator.onLine
       if (perfil.id && hayRed) {
-        try { fullUser = await usuariosService.obtenerPorId(perfil.id) } catch {}
+        try { fullUser = await usuariosService.obtenerPorId(perfil.id) } catch (error) {
+          // El perfil completo es un extra: si no llega, se muestra el basico.
+          // Se avisa solo en desarrollo, que es donde sirve.
+          logger.warn('No se pudo traer el perfil completo; se usa el de la sesion', error)
+        }
       }
       setBackendUser(fullUser || {
         id: perfil.id,
@@ -182,8 +188,8 @@ const PerfilUsuarioPage = () => {
       })
       setPasswordSuccess(true)
       setTimeout(() => setIsPasswordModalOpen(false), 1500)
-    } catch (err: any) {
-      setPasswordError(err?.message || 'Error al cambiar la contraseña. Verifica tu contraseña actual.')
+    } catch (err) {
+      setPasswordError(mensajeDeError(err, 'Error al cambiar la contraseña. Verifica tu contraseña actual.'))
     } finally {
       setIsSavingPassword(false)
     }
@@ -206,9 +212,19 @@ const PerfilUsuarioPage = () => {
 
       <div className="relative z-10 w-full px-6 md:px-8 py-8 space-y-8">
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-32">
-            <Loader2 className="h-10 w-10 text-blue-600 animate-spin mb-4" />
-            <p className="text-slate-500 font-medium">Cargando perfil...</p>
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3" aria-busy="true">
+            <span className="sr-only">Cargando perfil…</span>
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="flex flex-col items-center gap-3">
+                <Skeleton className="h-20 w-20 rounded-full" />
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-3 w-24" />
+              </div>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
+              <Skeleton className="h-4 w-40" />
+              <SkeletonTexto lineas={6} className="mt-5" />
+            </div>
           </div>
         ) : error ? (
           <div className="flex flex-col items-center justify-center py-32">
@@ -285,7 +301,7 @@ const PerfilUsuarioPage = () => {
                       </span>
                       <span className="font-bold text-slate-900">
                         {backendUser.creadoEn && !isNaN(new Date(backendUser.creadoEn).getTime())
-                          ? new Date(backendUser.creadoEn).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' })
+                          ? new Date(backendUser.creadoEn).toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })
                           : 'No disponible'}
                       </span>
                     </div>
@@ -334,7 +350,7 @@ const PerfilUsuarioPage = () => {
                     {backendUser.ultimoIngreso && (
                       <span className="text-xs font-medium text-slate-500 flex items-center gap-1">
                         <Clock className="h-3 w-3" />
-                        Último ingreso: {new Date(backendUser.ultimoIngreso).toLocaleString('es-ES')}
+                        Último ingreso: {new Date(backendUser.ultimoIngreso).toLocaleString('es-CO')}
                       </span>
                     )}
                   </div>

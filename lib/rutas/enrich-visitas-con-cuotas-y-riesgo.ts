@@ -100,11 +100,11 @@ export async function enrichVisitasConCuotasYRiesgo(params: {
 
   const visitasFinales = await mapWithConcurrency(
     visitas,
-    async (visita: any) => {
+    async (visita) => {
       if (!visita?.prestamoId) return visita
 
       const cuotas = await getCuotasByPrestamoId(String(visita.prestamoId))
-      const pendiente = (Array.isArray(cuotas) ? cuotas : []).find((c: any) =>
+      const pendiente = (Array.isArray(cuotas) ? cuotas : []).find((c) =>
         isCuotaNoPagada(c),
       )
 
@@ -240,7 +240,7 @@ export async function enrichVisitasConCuotasYRiesgo(params: {
 
   // Log temporal en desarrollo
   if (process.env.NODE_ENV !== 'production') {
-    console.table(visitasFinales.map((v: any) => ({
+    console.table(visitasFinales.map((v) => ({
       cliente: v.cliente,
       prestamoId: v.prestamoId,
       cuotaActual: v.cuotaActual,

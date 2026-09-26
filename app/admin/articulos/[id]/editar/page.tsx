@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, use } from 'react'
+import { PLAZOS_ARTICULO_MESES } from '@/lib/plazos-articulo'
 import FieldLabel from '@/components/ui/FieldLabel'
 import { useRouter } from 'next/navigation'
 import {
@@ -17,6 +18,7 @@ import {
 import { formatCOPInputValue, formatCurrency, formatMilesCOP, parseCOPInputToNumber } from '@/lib/utils'
 import SelectCategoria from '@/components/ui/SelectCategoria'
 import { inventarioService } from '@/services/inventario-service'
+import { toast } from 'sonner'
 
 // Types
 interface PrecioCuota {
@@ -58,7 +60,7 @@ export default function EditarArticuloPage({ params }: { params: Promise<{ id: s
     stockMinimo: '',
     precios: [] as PrecioCuota[]
   })
-  const [nuevaCuota, setNuevaCuota] = useState({ meses: 1, precio: '' })
+  const [nuevaCuota, setNuevaCuota] = useState({ meses: PLAZOS_ARTICULO_MESES[0], precio: '' })
 
   useEffect(() => {
     const cargarArticulo = async () => {
@@ -98,11 +100,11 @@ export default function EditarArticuloPage({ params }: { params: Promise<{ id: s
       stockMinimo: Number(formData.stockMinimo || '0'),
     }
     try {
-      await inventarioService.actualizarProducto(id, payload as any)
+      await inventarioService.actualizarProducto(id, payload)
       router.push('/admin/articulos')
     } catch (err) {
       console.error('Error guardando artículo:', err)
-      alert('Error al guardar el artículo')
+      toast.error('Error al guardar el artículo')
     } finally {
       setLoading(false)
     }
@@ -115,7 +117,7 @@ export default function EditarArticuloPage({ params }: { params: Promise<{ id: s
         ...prev,
         precios: [...prev.precios, { meses: nuevaCuota.meses, precio }].sort((a, b) => a.meses - b.meses)
       }))
-      setNuevaCuota({ meses: 1, precio: '' })
+      setNuevaCuota({ meses: PLAZOS_ARTICULO_MESES[0], precio: '' })
     }
   }
 
@@ -261,7 +263,7 @@ export default function EditarArticuloPage({ params }: { params: Promise<{ id: s
                     onChange={e => setNuevaCuota({ ...nuevaCuota, meses: Number(e.target.value) })}
                     className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900"
                   >
-                    {[1, 2, 3, 4, 5, 6, 9, 12, 18, 24].map(m => (
+                    {PLAZOS_ARTICULO_MESES.map(m => (
                       <option key={m} value={m}>{m} Mes{m > 1 ? 'es' : ''}</option>
                     ))}
                   </select>

@@ -11,12 +11,14 @@ import {
   Banknote,
   ChevronLeft,
   ChevronRight,
-  AlertCircle,
   Receipt,
   ReceiptText,
   X
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
+// El `Pago` de mas abajo es el modelo de vista de ESTA pantalla; este es el
+// del dominio, que es lo que llega de la API.
+import type { PagoParcial } from '@/types/domain'
 import { Portal } from '@/components/dashboards/shared/CobradorElements'
 import { ExportButton } from '@/components/ui/ExportButton'
 import { pagosService } from '@/services/pagos-service'
@@ -27,13 +29,14 @@ import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 import { toast } from 'sonner'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { TimeFilter, TimeFilterPeriod } from '@/components/ui/TimeFilter'
-import AnimacionCarga from '@/components/ui/AnimacionCarga'
 import PagoDetalleModal from '@/components/dashboards/shared/PagoDetalleModal'
 import FiltroRuta from '@/components/filtros/FiltroRuta'
 // Se usa el paginador compartido en vez de uno propio: el de aquí estaba
 // declarado dentro del componente, así que React lo trataba como un tipo nuevo
 // en cada render y remontaba la tabla entera.
 import PaginadorCompartido from '@/components/ui/Paginador'
+import { Skeleton, SkeletonTabla } from '@/components/ui/Skeleton'
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 
 type EstadoPago = 'completado' | 'pendiente' | 'fallido' | 'en_revision'
 
@@ -116,8 +119,7 @@ const HistorialPagosPage = () => {
     try {
       await exportService.downloadFile('accounting/gastos/export', { format: 'excel' }, 'gastos.xlsx')
       toast.success('Gastos Excel descargado')
-    } catch {
-      toast.error('Error al exportar gastos')
+    } catch (error) { toast.error(mensajeDeError(error, 'Error al exportar gastos'))
     }
   }
 
@@ -125,8 +127,7 @@ const HistorialPagosPage = () => {
     try {
       await exportService.downloadFile('accounting/gastos/export', { format: 'pdf' }, 'gastos.pdf')
       toast.success('Gastos PDF descargado')
-    } catch {
-      toast.error('Error al exportar gastos PDF')
+    } catch (error) { toast.error(mensajeDeError(error, 'Error al exportar gastos PDF'))
     }
   }
 
@@ -135,32 +136,37 @@ const HistorialPagosPage = () => {
       try {
         const resp = await pagosService.obtenerPagos({ limit: 500, rutaId: filtroRutaId || undefined })
         const data = resp?.pagos || resp || []
-        const mapped: Pago[] = (Array.isArray(data) ? data : []).map((p: any) => {
+        const mapped: Pago[] = (Array.isArray(data) ? data : []).map((p: PagoParcial) => {
           const montoTotal = Number(p?.montoTotal ?? 0)
-          const sumCampos = Number(p?.montoCapital ?? 0) + Number(p?.montoInteres ?? 0) + Number(p?.montoMora ?? 0)
-          
-          let capital = Number(p?.montoCapital ?? 0)
-          let interes = Number(p?.montoInteres ?? 0)
-          let mora = Number(p?.montoMora ?? 0)
-          
-          const detalles = Array.isArray(p?.detalles) ? p.detalles : []
-          if (capital === 0 && interes === 0 && mora === 0) {
-            capital = detalles.reduce((acc: number, d: any) => acc + Number(d?.montoCapital || 0), 0)
-            interes = detalles.reduce((acc: number, d: any) => acc + Number(d?.montoInteres || 0), 0)
-            mora = detalles.reduce((acc: number, d: any) => acc + Number(d?.montoInteresMora || 0), 0)
-          }
 
-          let monto = montoTotal > 0 ? montoTotal : (sumCampos > 0 ? sumCampos : (capital + interes + mora))
-          if (monto === 0) monto = capital + interes + mora
+          // El desglose sale de `detalles`, una fila por cuota cubierta, porque
+          // un mismo pago puede repartirse entre varias. El modelo Pago solo
+          // guarda `montoTotal`: no tiene capital ni interes propios.
+          //
+          // Antes esto empezaba leyendo `p.montoCapital`, `p.montoInteres` y
+          // `p.montoMora`, que el backend no manda nunca, y caia a `detalles`
+          // solo si los tres daban cero. Como siempre daban cero, la rama de
+          // respaldo era la unica que se ejecutaba: las cifras salian bien, pero
+          // leyendo el codigo parecia que el pago traia su propio desglose.
+          const detalles = Array.isArray(p?.detalles) ? p.detalles : []
+          const capital = detalles.reduce((acc: number, d) => acc + Number(d?.montoCapital || 0), 0)
+          const interes = detalles.reduce((acc: number, d) => acc + Number(d?.montoInteres || 0), 0)
+          const mora = detalles.reduce((acc: number, d) => acc + Number(d?.montoInteresMora || 0), 0)
+
+          const monto = montoTotal > 0 ? montoTotal : capital + interes + mora
 
           return {
-            pagoId: p.id,
-            id: p.numeroPago || p.id,
+            pagoId: p.id || '',
+            id: p.numeroPago || p.id || '',
             fecha: p.fechaPago || p.creadoEn || '',
             cliente: p.cliente ? `${p.cliente.nombres} ${p.cliente.apellidos}` : (p.clienteId || ''),
             cobrador: p.cobrador ? `${p.cobrador.nombres} ${p.cobrador.apellidos}` : (p.cobradorId || ''),
             rutaId: p.rutaId || p.ruta?.id || undefined,
-            ruta: p.ruta?.nombre || p.ruta || '',
+            // Antes terminaba en `|| p.ruta`: si la ruta llegaba sin `nombre`,
+            // esto metia el OBJETO en una columna de texto y la tabla mostraba
+            // "[object Object]". El backend siempre manda el nombre, asi que no
+            // llego a verse, pero bastaba con que un endpoint lo omitiera.
+            ruta: p.ruta?.nombre || '',
             monto,
             capital,
             interes,
@@ -288,7 +294,14 @@ const HistorialPagosPage = () => {
   const totalGastos = useMemo(() => gastosFiltrados.reduce((s, g) => s + Number(g.monto || 0), 0), [gastosFiltrados])
 
   if (isLoading) {
-    return <AnimacionCarga texto="Cargando historial de pagos..." />
+    // Antes era una animacion a pantalla completa: tapaba la pantalla entera y
+    // al terminar todo aparecia de golpe. El esqueleto mantiene el sitio.
+    return (
+      <div className="p-4 sm:p-6 space-y-4">
+        <Skeleton className="h-8 w-64" />
+        <SkeletonTabla filas={8} columnas={6} />
+      </div>
+    )
   }
 
   const getEstadoChipClasses = (estado: EstadoPago) => {
@@ -636,9 +649,11 @@ const HistorialPagosPage = () => {
 
             {/* Lista de cobradores con gastos */}
             {isLoadingGastos ? (
-              <div className="flex items-center justify-center py-12 gap-2 text-slate-400">
-                <AlertCircle className="h-4 w-4 animate-spin" />
-                <span className="text-xs font-bold">Cargando gastos...</span>
+              <div className="space-y-2" aria-busy="true">
+                <span className="sr-only">Cargando…</span>
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="h-12 rounded-xl" />
+                ))}
               </div>
             ) : gastosPorCobradorFiltrado.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 gap-3">

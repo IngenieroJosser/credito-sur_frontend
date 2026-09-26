@@ -9,6 +9,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { VisitaRuta, EstadoVisita, mapNivelRiesgo } from '@/lib/types/cobranza'
 import { formatCurrency } from '@/lib/utils'
 import { resolveCuotaAcumuladaOperativa, resolveCuotaNormalOperativa } from '@/lib/rutas-core'
+import Tooltip from '@/components/ui/Tooltip'
 
 export const MODAL_Z_INDEX = 2147483600
 
@@ -118,9 +119,9 @@ function shouldShowMoraBadge(visita: VisitaRuta): boolean {
   if (estado === 'en_mora') return false
 
   return (
-    Boolean((visita as any)?.enMoraHistorico) ||
+    Boolean((visita)?.enMoraHistorico) ||
     Number(visita?.diasMora || 0) > 0 ||
-    Number((visita as any)?.montoVencidoAcumulado || (visita as any)?.saldoVencidoAcumulado || 0) > 0
+    Number((visita)?.montoVencidoAcumulado || (visita)?.saldoVencidoAcumulado || 0) > 0
   )
 }
 
@@ -185,11 +186,11 @@ function VisitaCardContent({
   actions?: ReactNode
   children?: ReactNode
 }) {
-  const estadoLower = String((visita as any)?.estado || '').toLowerCase().replace(/\s+/g, '_')
+  const estadoLower = String((visita)?.estado || '').toLowerCase().replace(/\s+/g, '_')
   const cuotaNormal = resolveCuotaNormalOperativa(visita)
   const cuotaBase = cuotaNormal
-  const recHoy = Number((visita as any)?.recaudadoDelDia || 0)
-  const saldo = Number((visita as any)?.saldoTotal || 0)
+  const recHoy = Number((visita)?.recaudadoDelDia || 0)
+  const saldo = Number((visita)?.saldoTotal || 0)
   const cuotaPendiente = Math.max(0, cuotaBase - recHoy)
   const cuotaOperativa = estadoLower === 'pagado'
     ? (cuotaBase > 0 ? cuotaBase : recHoy)
@@ -206,15 +207,15 @@ function VisitaCardContent({
     String(visita?.estado || '').toLowerCase() === 'en_mora' &&
     montoVencido > 0
   const saldado = estadoLower === 'pagado' && cuotaUI === 0 && saldo === 0
-  const estadoVisitaNorm = normalizeEstadoVisita((visita as any)?.estadoVisita)
+  const estadoVisitaNorm = normalizeEstadoVisita((visita)?.estadoVisita)
   const esReprogramadoHistorial =
     estadoVisitaNorm === 'reprogramado' ||
     estadoVisitaNorm === 'reprogramada' ||
     estadoVisitaNorm === 'reprogramacion'
-  const regularizadoDespues = Number((visita as any)?.recaudadoRegularizadoDespues || 0)
+  const regularizadoDespues = Number((visita)?.recaudadoRegularizadoDespues || 0)
   const esAbonoRegularizado =
     regularizadoDespues > 0 &&
-    String((visita as any)?.estado || '').toLowerCase() !== 'pagado'
+    String((visita)?.estado || '').toLowerCase() !== 'pagado'
 
   const nivelRiesgoUI = resolveNivelRiesgoForVisita(visita)
   return (
@@ -251,7 +252,7 @@ function VisitaCardContent({
 
             onVerCliente?.(visita)
           }}
-          className="relative z-[80] pointer-events-auto p-2.5 sm:p-2 bg-slate-100/60 rounded-lg hover:bg-white text-slate-400 hover:text-[#08557f] transition-all border border-transparent hover:border-slate-200 shrink-0 active:scale-95 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center cursor-pointer"
+          className="relative z-20 pointer-events-auto p-2.5 sm:p-2 bg-slate-100/60 rounded-lg hover:bg-white text-slate-400 hover:text-[#08557f] transition-all border border-transparent hover:border-slate-200 shrink-0 active:scale-95 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center cursor-pointer"
           title="Ver expediente del cliente"
           aria-label={`Ver detalle de ${visita.cliente}`}
         >
@@ -608,12 +609,15 @@ export function SeleccionClienteModal({
         <div className="bg-white sm:rounded-[2rem] rounded-t-[2rem] w-full sm:max-w-sm shadow-2xl animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200 overflow-hidden">
           <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
             <h3 className="font-bold text-lg text-slate-900 flex-1">{titulo}</h3>
-            <button
-              onClick={onClose}
-              className="shrink-0 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
-            >
-              <XCircle className="h-5 w-5" />
-            </button>
+            <Tooltip texto="Cerrar">
+              <button
+                onClick={onClose}
+                className="shrink-0 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
+                aria-label="Cerrar"
+              >
+                <XCircle className="h-5 w-5" />
+              </button>
+            </Tooltip>
           </div>
           <div className="p-6 space-y-6">
             <div className="space-y-3">

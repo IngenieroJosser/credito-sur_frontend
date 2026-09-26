@@ -253,10 +253,20 @@ export const resolveMontoVencidoAcumulado = (params: {
 /**
  * Normalizar el nivel de riesgo para UI.
  */
-export const resolveNivelRiesgoUi = (nivelRiesgoRaw: string): string => {
+/** Los cinco niveles que entiende la interfaz. */
+export type NivelRiesgoUi =
+  | 'minimo'
+  | 'leve'
+  | 'precaucion'
+  | 'moderado'
+  | 'critico'
+
+export const resolveNivelRiesgoUi = (
+  nivelRiesgoRaw: string,
+): NivelRiesgoUi => {
   const nivel = String(nivelRiesgoRaw || '').toUpperCase()
 
-  const nivelMap: Record<string, string> = {
+  const nivelMap: Record<string, NivelRiesgoUi> = {
     'VERDE': 'minimo',
     'LEVE': 'leve',
     'PRECAUCION': 'precaucion',

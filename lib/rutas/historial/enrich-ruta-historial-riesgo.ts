@@ -1,13 +1,14 @@
 import { prestamosService } from '@/services/prestamos-service'
+import type { CuotaOperativa, EstadoVisita, VisitaRuta } from '@/lib/types/cobranza'
 import { resolveFechaEfectivaCuota, normalizeDateKey, isCuotaNoPagada, computeMontoExigibleHastaHoyFromCuotas, computeDiasMoraFromCuotas } from '@/lib/rutas-core'
-import { resolveRiesgoObligacion, resolveNivelRiesgoUi } from '@/lib/rutas/riesgo-obligacion'
+import { resolveRiesgoObligacion, resolveNivelRiesgoUi, type NivelRiesgoUi } from '@/lib/rutas/riesgo-obligacion'
 import { mapWithConcurrency, memoizePromiseByKey } from '@/lib/async-utils'
 
 interface EnrichRutaHistorialRiesgoOptions {
-  visitas: any[]
+  visitas: VisitaRuta[]
   fechaClave: string
   hoyBogotaKey?: string
-  visitasHoy?: any[]
+  visitasHoy?: VisitaRuta[]
 }
 
 /**
@@ -21,14 +22,14 @@ export async function enrichRutaHistorialRiesgo({
   fechaClave,
   hoyBogotaKey,
   visitasHoy,
-}: EnrichRutaHistorialRiesgoOptions): Promise<any[]> {
-  const visitasConPrestamo = visitas.filter((v: any) => !!String(v?.prestamoId || ''))
+}: EnrichRutaHistorialRiesgoOptions): Promise<VisitaRuta[]> {
+  const visitasConPrestamo = visitas.filter((v: VisitaRuta) => !!String(v?.prestamoId || ''))
   const esHistorialDeHoy = fechaClave === hoyBogotaKey
   const expectedSource = esHistorialDeHoy ? 'ruta-hoy-v1' : 'cuotas-historicas-v2'
   const yaEnriquecido = visitasConPrestamo.length > 0
-    && visitasConPrestamo.every((v: any) =>
-      (v as any)?.riesgoHistoricoUiCalculado === true &&
-      (v as any)?.riesgoHistoricoUiSource === expectedSource
+    && visitasConPrestamo.every((v: VisitaRuta) =>
+      (v)?.riesgoHistoricoUiCalculado === true &&
+      (v)?.riesgoHistoricoUiSource === expectedSource
     )
   
   if (yaEnriquecido) return visitas
@@ -37,18 +38,20 @@ export async function enrichRutaHistorialRiesgo({
   if (esHistorialDeHoy && Array.isArray(visitasHoy) && visitasHoy.length > 0) {
     const liveByPrestamoId = new Map(
       visitasHoy
-        .filter((v: any) => String(v?.prestamoId || '').trim())
-        .map((v: any) => [String(v.prestamoId).trim(), v]),
+        .filter((v: VisitaRuta) => String(v?.prestamoId || '').trim())
+        .map((v: VisitaRuta) => [String(v.prestamoId).trim(), v]),
     )
 
-    const nextVisitas = visitas.map((v: any) => {
+    const nextVisitas = visitas.map((v: VisitaRuta) => {
       const pid = String(v?.prestamoId || '').trim()
       const live = liveByPrestamoId.get(pid)
 
       if (!live) {
         return {
           ...v,
-          nivelRiesgo: v?.nivelRiesgo || v?.nivelRiesgoObligacion || 'minimo',
+          nivelRiesgo: (v?.nivelRiesgo ||
+            v?.nivelRiesgoObligacion ||
+            'minimo') as NivelRiesgoUi,
           riesgoHistoricoUiCalculado: true,
           riesgoHistoricoUiSource: 'ruta-hoy-v1-fallback',
         }
@@ -58,39 +61,39 @@ export async function enrichRutaHistorialRiesgo({
         ...v,
         estado: live.estado,
         nivelRiesgo: live.nivelRiesgo,
-        nivelRiesgoObligacion: (live as any).nivelRiesgoObligacion,
+        nivelRiesgoObligacion: (live).nivelRiesgoObligacion,
         montoCuota: live.montoCuota,
-        montoCuotaNormal: (live as any).montoCuotaNormal ?? live.montoCuota,
-        montoCuotaPendiente: (live as any).montoCuotaPendiente,
-        montoVencidoAcumulado: (live as any).montoVencidoAcumulado,
-        saldoVencidoAcumulado: (live as any).saldoVencidoAcumulado,
-        montoMoraAcumulada: (live as any).montoMoraAcumulada,
-        cuotasVencidas: (live as any).cuotasVencidas,
-        diasMora: (live as any).diasMora,
-        cuotaActual: (live as any).cuotaActual,
-        cuotasTotales: (live as any).cuotasTotales,
-        cuotaId: (live as any).cuotaId,
-        cuotaObjetivoId: (live as any).cuotaObjetivoId,
-        cuotaObjetivoPrestamoId: (live as any).cuotaObjetivoPrestamoId,
-        cuotaObjetivo: (live as any).cuotaObjetivo,
-        proximaCuota: (live as any).proximaCuota,
+        montoCuotaNormal: (live).montoCuotaNormal ?? live.montoCuota,
+        montoCuotaPendiente: (live).montoCuotaPendiente,
+        montoVencidoAcumulado: (live).montoVencidoAcumulado,
+        saldoVencidoAcumulado: (live).saldoVencidoAcumulado,
+        montoMoraAcumulada: (live).montoMoraAcumulada,
+        cuotasVencidas: (live).cuotasVencidas,
+        diasMora: (live).diasMora,
+        cuotaActual: (live).cuotaActual,
+        cuotasTotales: (live).cuotasTotales,
+        cuotaId: (live).cuotaId,
+        cuotaObjetivoId: (live).cuotaObjetivoId,
+        cuotaObjetivoPrestamoId: (live).cuotaObjetivoPrestamoId,
+        cuotaObjetivo: (live).cuotaObjetivo,
+        proximaCuota: (live).proximaCuota,
         enMoraHistorico:
           live.estado === 'en_mora' ||
-          Number((live as any).montoVencidoAcumulado || 0) > 0 ||
-          Number((live as any).diasMora || 0) > 0,
+          Number((live).montoVencidoAcumulado || 0) > 0 ||
+          Number((live).diasMora || 0) > 0,
         riesgoHistoricoUiCalculado: true,
         riesgoHistoricoUiSource: 'ruta-hoy-v1',
       }
     })
 
-    return nextVisitas.map((v: any) => ({
+    return nextVisitas.map((v) => ({
       ...v,
       riesgoHistoricoUiCalculado: true,
       riesgoHistoricoUiSource: 'ruta-hoy-v1',
     }))
   }
 
-  const prestamoIds = Array.from(new Set(visitasConPrestamo.map((v: any) => String(v?.prestamoId || '')).filter(Boolean)))
+  const prestamoIds = Array.from(new Set(visitasConPrestamo.map((v: VisitaRuta) => String(v?.prestamoId || '')).filter(Boolean)))
   if (prestamoIds.length === 0) return visitas
 
   const cuotasHistorialCacheRef = { current: new Map<string, any[]>() }
@@ -108,14 +111,14 @@ export async function enrichRutaHistorialRiesgo({
 
   const nextVisitas = await mapWithConcurrency(
     visitas,
-    async (v: any) => {
+    async (v: VisitaRuta) => {
       const pid = String(v?.prestamoId || '')
       if (!pid) return v
       const cuotas = await getCuotasByPrestamoId(pid)
       const cuotasArray = Array.isArray(cuotas) ? cuotas : []
 
       // Calcular cuotas vencidas históricas
-      const cuotasVencidasHistoricas = cuotasArray.filter((c: any) => {
+      const cuotasVencidasHistoricas = cuotasArray.filter((c: CuotaOperativa) => {
         if (!c || !isCuotaNoPagada(c)) return false
         const vtoRaw = resolveFechaEfectivaCuota(c) || String(c?.fechaVencimiento || '')
         const vtoKey = normalizeDateKey(vtoRaw)
@@ -126,7 +129,7 @@ export async function enrichRutaHistorialRiesgo({
 
       // Calcular monto vencido bruto
       const montoVencidoBruto = computeMontoExigibleHastaHoyFromCuotas(
-        cuotasArray as any,
+        cuotasArray,
         fechaClave,
       )
 
@@ -134,9 +137,9 @@ export async function enrichRutaHistorialRiesgo({
 
       // Calcular días de mora final
       const diasMoraFinal = computeDiasMoraFromCuotas(
-        cuotasArray as any,
+        cuotasArray,
         fechaClave,
-        (v as any)?.frecuenciaPago || (v as any)?.periodoRuta || 'DIARIO',
+        (v)?.frecuenciaPago || (v)?.periodoRuta || 'DIARIO',
       )
 
       // Determinar si tiene mora histórica
@@ -146,8 +149,8 @@ export async function enrichRutaHistorialRiesgo({
         Number(montoVencidoFinal || 0) > 0
 
       // Calcular cuota normal y recaudo del día
-      const cuotaNormal = Number((v as any)?.montoCuotaNormal ?? (v as any)?.montoCuota ?? 0)
-      const recaudadoDelDia = Number((v as any)?.recaudadoDelDia || 0)
+      const cuotaNormal = Number((v)?.montoCuotaNormal ?? (v)?.montoCuota ?? 0)
+      const recaudadoDelDia = Number((v)?.recaudadoDelDia || 0)
 
       // Determinar si pagó la cuota completa
       const pagoCompletaCuota =
@@ -156,7 +159,7 @@ export async function enrichRutaHistorialRiesgo({
         recaudadoDelDia >= cuotaNormal
 
       // Determinar estado histórico
-      const estadoHistorico =
+      const estadoHistorico: EstadoVisita =
         pagoCompletaCuota
           ? 'pagado'
           : tieneMoraHistorica
@@ -164,7 +167,7 @@ export async function enrichRutaHistorialRiesgo({
             : 'pendiente'
 
       // Calcular en prorroga histórico
-      const enProrrogaHistorico = cuotasArray.some((c: any) => {
+      const enProrrogaHistorico = cuotasArray.some((c: CuotaOperativa) => {
         if (!c || !isCuotaNoPagada(c)) return false
         const prRaw = String(c?.fechaVencimientoProrroga || '')
         if (!prRaw) return false
@@ -195,12 +198,12 @@ export async function enrichRutaHistorialRiesgo({
 
       const nivelRiesgoRaw = resolveRiesgoObligacion({
         row: rowRiesgo,
-        prestamo: (v as any)?.prestamo || {},
-        cuotaObjetivo: (v as any)?.cuotaObjetivo || (v as any)?.proximaCuota || {},
+        prestamo: (v)?.prestamo || {},
+        cuotaObjetivo: (v)?.cuotaObjetivo || (v)?.proximaCuota || {},
         estadoCalculado: estadoHistorico,
         diasMora: diasMoraFinal,
         cuotasVencidas: cuotasVencidasFinal,
-        esProvisional: Boolean((v as any)?.esProvisional),
+        esProvisional: Boolean((v)?.esProvisional),
       })
 
       const nivelRiesgo = resolveNivelRiesgoUi(nivelRiesgoRaw)
@@ -208,7 +211,7 @@ export async function enrichRutaHistorialRiesgo({
       return {
         ...v,
         estado: estadoHistorico,
-        montoCuotaPendiente: montoVencidoFinal > 0 ? montoVencidoFinal : (v as any)?.montoCuotaPendiente,
+        montoCuotaPendiente: montoVencidoFinal > 0 ? montoVencidoFinal : (v)?.montoCuotaPendiente,
         montoVencidoAcumulado: montoVencidoFinal,
         saldoVencidoAcumulado: montoVencidoFinal,
         montoMoraAcumulada: montoVencidoFinal,
@@ -227,7 +230,7 @@ export async function enrichRutaHistorialRiesgo({
 
   // Logs de validación para riesgo histórico UI
   if (process.env.NODE_ENV !== 'production') {
-    console.table(nextVisitas.map((v: any) => ({
+    console.table(nextVisitas.map((v) => ({
       tipo: 'RIESGO_HISTORIAL_UI',
       cliente: v.cliente,
       prestamoId: v.prestamoId,
@@ -243,7 +246,7 @@ export async function enrichRutaHistorialRiesgo({
     })))
   }
 
-  return nextVisitas.map((v: any) => ({
+  return nextVisitas.map((v) => ({
     ...v,
     riesgoHistoricoUiCalculado: true,
     riesgoHistoricoUiSource: v?.riesgoHistoricoUiSource || 'cuotas-historicas-v2',

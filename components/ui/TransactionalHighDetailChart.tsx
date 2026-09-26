@@ -68,7 +68,7 @@ const CustomTooltip = ({ active, payload }: any) => {
         : 0;
     const tooltipTime = formatBogotaTime(d.time) ?? formatBogotaDateTime(d.time);
     return (
-      <div className="bg-white/95 backdrop-blur-md p-5 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.12)] border border-slate-100 min-w-[220px] pointer-events-none animate-in fade-in zoom-in duration-300 relative z-[9999]">
+      <div className="bg-white/95 backdrop-blur-md p-5 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.12)] border border-slate-100 min-w-[220px] pointer-events-none animate-in fade-in zoom-in duration-300 relative z-[60]">
         <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
           <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">{d.label}</p>
           {d.time && (
@@ -182,7 +182,7 @@ export const TransactionalHighDetailChart = ({
               data={data}
               margin={{ top: 10, right: 40, left: 10, bottom: 20 }}
               barGap={type === 'single' && hasTarget ? -barSize : barGapValue}
-              barCategoryGap={barCategoryGapValue as any}
+              barCategoryGap={barCategoryGapValue}
             >
               <defs>
                 <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">

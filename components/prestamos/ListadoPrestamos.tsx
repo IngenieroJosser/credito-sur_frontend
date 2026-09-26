@@ -1,6 +1,7 @@
 'use client';
 
 
+import { mensajeDeError } from '@/lib/mensaje-de-error';
 import Paginador from '@/components/ui/Paginador'
 import React, { useState, useEffect, useCallback } from 'react';
 import { logger } from '@/lib/logger'
@@ -47,6 +48,10 @@ import { WifiOff } from 'lucide-react';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import { useRealtimeData } from '@/hooks/useRealtimeData';
 import { usePageFocusRefresh } from '@/hooks/usePageFocusRefresh';
+import type { Prestamo } from '@/types/domain'
+import type { EstadoPrestamo } from '@/types/enums'
+import type { PrestamoDelListado } from '@/types/domain'
+import { idDelPrestamoCreado } from '@/lib/creditos/prestamo-creado';
 
 interface Filtros {
   estado: string;
@@ -70,7 +75,9 @@ const ListadoPrestamosElegante = () => {
   const permitido = can('CREDITOS_VIEW') || can('LOANS_VIEW') || canForPath(baseRoute);
   const puedeCrear = can('CREDITOS_CREATE') || can('LOANS_CREATE') || canForPath(baseRoute);
   
-  const [prestamos, setPrestamos] = useState<Loan[]>([]);
+  // Son filas del LISTADO, no modelos: `Loan` es un alias de `Prestamo` y esa
+  // no es la forma que devuelve GET /loans.
+  const [prestamos, setPrestamos] = useState<PrestamoDelListado[]>([]);
   const [estadisticas, setEstadisticas] = useState({
     total: 0,
     activos: 0,
@@ -161,17 +168,17 @@ const ListadoPrestamosElegante = () => {
         const moraResp: any = await apiRequest<any>('GET', '/reports/prestamos-mora', undefined, { params } as any)
         const raw: any[] = Array.isArray(moraResp)
           ? moraResp
-          : Array.isArray((moraResp as any)?.prestamos)
-            ? (moraResp as any).prestamos
-            : Array.isArray((moraResp as any)?.data)
-              ? (moraResp as any).data
+          : Array.isArray((moraResp)?.prestamos)
+            ? (moraResp).prestamos
+            : Array.isArray((moraResp)?.data)
+              ? (moraResp).data
               : []
-        moraReportCount = Number((moraResp as any)?.total ?? (moraResp as any)?.totales?.totalRegistros ?? raw.length)
+        moraReportCount = Number((moraResp)?.total ?? (moraResp)?.totales?.totalRegistros ?? raw.length)
 
         moraMap = new Map(
           raw
-            .filter((p: any) => p && p.id)
-            .map((p: any) => [
+            .filter((p: Prestamo) => p && p.id)
+            .map((p: Prestamo) => [
               String(p.id),
               {
                 diasMora: Number(p?.diasMora || 0),
@@ -184,7 +191,7 @@ const ListadoPrestamosElegante = () => {
         moraMap = new Map()
       }
 
-      const nextPrestamos = nextPrestamosBase.map((p: any) => {
+      const nextPrestamos = nextPrestamosBase.map((p: PrestamoDelListado) => {
         const m = moraMap.get(String(p?.id || ''))
         if (!m) return p
         return {
@@ -192,14 +199,14 @@ const ListadoPrestamosElegante = () => {
           diasMora: Number(m.diasMora || 0),
           cuotasVencidas: Number(m.cuotasVencidas || 0),
           // Si el backend de /loans no marca EN_MORA pero el reporte sí, lo reflejamos.
-          estado: String(m?.estado || p?.estado || ''),
+          estado: String(m?.estado || p?.estado || '') as EstadoPrestamo,
         }
       })
 
       setPrestamos(nextPrestamos);
 
       // Respaldo local si el backend no envía estadísticas de mora.
-      const moraCount = nextPrestamos.filter((p: any) => {
+      const moraCount = nextPrestamos.filter((p: PrestamoDelListado) => {
         const diasMora = Number(p?.diasMora || 0)
         const cuotasVencidas = Number(p?.cuotasVencidas || 0)
         const estado = String(p?.estado || '').toUpperCase()
@@ -220,7 +227,7 @@ const ListadoPrestamosElegante = () => {
     } catch (err) {
       // Fallback offline
       try {
-        const offData = await offlineStore.getAll<Loan>('prestamos');
+        const offData = await offlineStore.getAll<PrestamoDelListado>('prestamos');
         if (offData.length > 0) {
           setPrestamos(offData);
           setTotalPrestamos(offData.length);
@@ -280,8 +287,8 @@ const ListadoPrestamosElegante = () => {
       showNotification('success', 'El préstamo ha sido archivado exitosamente', 'Préstamo Archivado');
       setPrestamoAEliminar(null);
       handleRefresh();
-    } catch (error: any) {
-      const msg = error?.response?.data?.message || error?.message || 'No se pudo archivar el préstamo';
+    } catch (error) {
+      const msg = mensajeDeError(error, 'No se pudo archivar el préstamo');
       showNotification('error', Array.isArray(msg) ? msg.join(', ') : msg, 'Error al Archivar');
     }
   };
@@ -969,8 +976,8 @@ const ListadoPrestamosElegante = () => {
             // Intentar descargar automáticamente el PDF del contrato si es artículo a cuotas
             if (isArticulo && !esContado) {
               try {
-                // response puede venir estructurado de varias formas, intentamos extraer el ID
-                const loanId = response?.data?.id || response?.id || (response?.prestamo && response?.prestamo?.id) || response?.data?.prestamo?.id;
+                // Un solo lugar saca el id (ver lib/creditos/prestamo-creado).
+                const loanId = idDelPrestamoCreado(response);
                 logger.log('ID rescatado para contrato:', loanId);
                 
                 if (loanId) {
@@ -993,8 +1000,8 @@ const ListadoPrestamosElegante = () => {
             } else {
               setPaginaActual(1);
             }
-          } catch (error: any) {
-            const msg = error?.response?.data?.message || error?.message || 'No se pudo crear el crédito';
+          } catch (error) {
+            const msg = mensajeDeError(error, 'No se pudo crear el crédito');
             showNotification('error', Array.isArray(msg) ? msg.join(', ') : msg, 'Error al Crear Crédito');
           }
         }}

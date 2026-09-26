@@ -6,6 +6,7 @@ import { applyPagosDelDiaToHistorialVisitas } from '@/lib/ruta-historial'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 
 import type { HistorialDia, VisitaRuta } from '@/lib/types/cobranza'
+import type { Pago } from '@/types/domain'
 
 type ResumenBase = {
   recaudo: number
@@ -91,7 +92,7 @@ export const useRutaHistorial = (params: UseRutaHistorialParams) => {
 
     try {
       const pagosResp = await fetchPagosRef.current()
-      const pagosData = (pagosResp as any)?.pagos || pagosResp || []
+      const pagosData = (pagosResp)?.pagos || pagosResp || []
 
       setHistorialRutas((prev) => {
         if (!prev) return prev
@@ -100,7 +101,7 @@ export const useRutaHistorial = (params: UseRutaHistorialParams) => {
         const keys = Object.keys(next)
 
         const cobradorIdActual = cobradorIdRef.current
-        const pagosFiltrados = (Array.isArray(pagosData) ? pagosData : []).filter((p: any) => {
+        const pagosFiltrados = (Array.isArray(pagosData) ? pagosData : []).filter((p: Pago) => {
           const cobradorMatch = cobradorIdActual ? (p?.cobradorId === cobradorIdActual) : true
           return cobradorMatch
         })
@@ -110,7 +111,7 @@ export const useRutaHistorial = (params: UseRutaHistorialParams) => {
         for (const k of keys) {
           if (next[k]?.loaded) continue
 
-          const pagosOperativosDelDia = pagosFiltrados.filter((p: any) => {
+          const pagosOperativosDelDia = pagosFiltrados.filter((p: Pago) => {
             if (isPagoCierrePendiente(p)) return false
 
             const fechaOperativa = String(p?.fechaOperativaRuta || '').slice(0, 10)
@@ -122,12 +123,12 @@ export const useRutaHistorial = (params: UseRutaHistorialParams) => {
           })
 
           const recaudo = sumMontoTotalPagosByBogotaDateKey(
-            pagosOperativosDelDia as any,
+            pagosOperativosDelDia,
             k,
             { includeCierrePendiente: false },
           )
           const visitadosKeys = new Set<string>()
-          pagosOperativosDelDia.forEach((p: any) => {
+          pagosOperativosDelDia.forEach((p: Pago) => {
             const pid = String(p?.prestamoId || p?.prestamo?.id || '')
             const cid = String(p?.clienteId || p?.cliente?.id || '')
             const key = pid ? `loan-${pid}` : (cid ? `client-${cid}` : String(p?.id || ''))
@@ -155,7 +156,7 @@ export const useRutaHistorial = (params: UseRutaHistorialParams) => {
 
   const deriveVisitadosFromVisitas = useCallback((visitas: VisitaRuta[]) => {
     if (!Array.isArray(visitas) || visitas.length === 0) return 0
-    return visitas.reduce((count: number, v: any) => {
+    return visitas.reduce((count: number, v) => {
       const rec = Number(v?.recaudadoDelDia || 0)
       const estado = String(v?.estado || '')
       if (rec > 0 || estado === 'pagado') return count + 1
@@ -180,9 +181,9 @@ export const useRutaHistorial = (params: UseRutaHistorialParams) => {
         let pagosDelDia: any[] = []
         try {
           const pagosResp = await fetchPagosRef.current()
-          const pagosData = (pagosResp as any)?.pagos || pagosResp || []
+          const pagosData = (pagosResp)?.pagos || pagosResp || []
           const cobradorIdActual = cobradorIdRef.current
-          pagosDelDia = (Array.isArray(pagosData) ? pagosData : []).filter((p: any) => {
+          pagosDelDia = (Array.isArray(pagosData) ? pagosData : []).filter((p: Pago) => {
             const raw = p?.fechaPago || p?.creadoEn
             if (!raw) return false
             const pk = getPagoBogotaDateKey(raw)
@@ -200,7 +201,7 @@ export const useRutaHistorial = (params: UseRutaHistorialParams) => {
           pagosDelDia,
         })
 
-        setHistorialRutas((prev: any) => {
+        setHistorialRutas((prev) => {
           const prevDia = (prev || {})[fechaClave] || {}
           const totalPrevio = Number((prevDia.resumen || {})?.total || 0)
           const visitadosPrevios = Number((prevDia.resumen || {})?.visitados || 0)
@@ -236,17 +237,17 @@ export const useRutaHistorial = (params: UseRutaHistorialParams) => {
     try {
       const data = await loadDay(fechaClave)
 
-      setHistorialRutas((prev: any) => {
+      setHistorialRutas((prev) => {
         const prevDia = (prev || {})[fechaClave] || {}
         const baseResumen = prevDia.resumen || { recaudo: 0, gastos: 0, efectividad: 0, visitados: 0, total: 0 }
 
         const visitas = (data?.visitas || []) as VisitaRuta[]
-        const totalBackend = Number((data as any)?.resumen?.total)
+        const totalBackend = Number((data)?.resumen?.total)
         const total = Number.isFinite(totalBackend) && totalBackend >= 0
           ? totalBackend
           : Number(visitas.length)
         const visitadosDerivados = deriveVisitadosFromVisitas(visitas)
-        const visitadosBackend = Number((data as any)?.resumen?.visitados)
+        const visitadosBackend = Number((data)?.resumen?.visitados)
         const visitados = Number.isFinite(visitadosBackend) && visitadosBackend >= 0
           ? visitadosBackend
           : visitadosDerivados
@@ -259,8 +260,8 @@ export const useRutaHistorial = (params: UseRutaHistorialParams) => {
               ...(data?.resumen || {}),
               total,
               visitados,
-              efectividad: typeof (data as any)?.resumen?.efectividad === 'number'
-                ? (data as any).resumen.efectividad
+              efectividad: typeof (data)?.resumen?.efectividad === 'number'
+                ? (data).resumen.efectividad
                 : deriveEfectividad(visitados, total),
             },
             visitas,
@@ -269,7 +270,7 @@ export const useRutaHistorial = (params: UseRutaHistorialParams) => {
         }
       })
     } catch {
-      setHistorialRutas((prev: any) => {
+      setHistorialRutas((prev) => {
         if ((prev || {})[fechaClave]?.loaded) return prev
         return {
           ...(prev || {}),

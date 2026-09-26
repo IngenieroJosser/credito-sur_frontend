@@ -1,4 +1,5 @@
 'use client';
+import { estadoDeError } from '@/lib/mensaje-de-error'
 
 
 import Paginador from '@/components/ui/Paginador'
@@ -259,8 +260,8 @@ export default function ClientesFeature({
       setIsDeleteModalOpen(false);
       setClientToDelete(null);
       showNotification('success', 'El cliente ha sido archivado exitosamente', 'Cliente Archivado');
-    } catch (error: any) {
-      if (error?.statusCode === 404 || error?.statusCode === 500) {
+    } catch (error) {
+      if (estadoDeError(error) === 404 || estadoDeError(error) === 500) {
         setClientes((prev) => prev.filter((c) => c.id !== clientToDelete.id));
         setIsDeleteModalOpen(false);
         setClientToDelete(null);
@@ -326,7 +327,7 @@ export default function ClientesFeature({
 
     const run = async () => {
       const visibles = (Array.isArray(currentItems) ? currentItems : [])
-        .map((c) => ({ id: String((c as any)?.id || ''), isPending: (c as any)?.estadoAprobacion === 'PENDIENTE' }))
+        .map((c) => ({ id: String((c)?.id || ''), isPending: (c)?.estadoAprobacion === 'PENDIENTE' }))
         .filter((c) => !!c.id && !c.id.includes('offline') && !c.id.includes('temp') && !c.isPending)
 
       if (visibles.length === 0) return
@@ -871,7 +872,11 @@ export default function ClientesFeature({
           onClienteCreado={(nuevo: Cliente) => {
             setClientes([nuevo as ClienteAdmin, ...clientes]);
             setIsCreateModalOpen(false);
-            showNotification('success', 'Cliente registrado exitosamente', 'Registro Exitoso');
+            // El aviso lo da NuevoClienteModal, que es quien sabe si fue una
+            // creacion o una edicion y si salio en linea o quedo en la cola. Aqui
+            // habia un segundo aviso ('Cliente registrado exitosamente') que se
+            // apilaba encima del suyo y ademas lo contradecia: el cliente nuevo
+            // queda PENDIENTE de aprobacion, no registrado.
           }}
         />
       )}
@@ -900,7 +905,8 @@ export default function ClientesFeature({
             }));
             setIsEditModalOpen(false);
             setClientToEdit(null);
-            showNotification('success', 'Los datos del cliente han sido actualizados', 'Cliente Actualizado');
+            // Mismo caso que en la creacion: el modal ya avisa 'Cliente
+            // Actualizado'. Este repetia el mismo titulo con otro texto.
           }}
         />
       )}

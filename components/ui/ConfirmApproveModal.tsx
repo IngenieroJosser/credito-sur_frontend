@@ -3,6 +3,8 @@
 import { useState, useRef } from 'react'
 import { X, CheckCircle2 } from 'lucide-react'
 import { Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
+import Tooltip from '@/components/ui/Tooltip'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 
 interface ConfirmApproveModalProps {
   isOpen: boolean
@@ -21,6 +23,12 @@ export default function ConfirmApproveModal({
 }: ConfirmApproveModalProps) {
   const [loading, setLoading] = useState(false)
   const mouseDownTargetRef = useRef<EventTarget | null>(null)
+  // Escape para salir y el foco en el primer campo al abrir. El hook lleva
+  // una pila, asi que con modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    abierto: isOpen,
+    onClose: () => handleClose(),
+  })
   
   if (!isOpen) return null
 
@@ -67,9 +75,13 @@ export default function ConfirmApproveModal({
                 <p className="text-xs text-slate-600">Se generarán los movimientos correspondientes y se notificará al solicitante.</p>
               </div>
             </div>
-            <button onClick={handleClose} className="shrink-0 p-2 hover:bg-slate-100 rounded-full">
-              <X className="h-5 w-5 text-slate-400" />
-            </button>
+            <Tooltip texto="Cerrar">
+              <button onClick={handleClose} className="shrink-0 p-2 hover:bg-slate-100 rounded-full"
+                aria-label="Cerrar"
+              >
+                <X className="h-5 w-5 text-slate-400" />
+              </button>
+            </Tooltip>
           </div>
 
           <div className="p-6">

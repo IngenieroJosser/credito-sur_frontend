@@ -3,6 +3,9 @@ import { logger } from '@/lib/logger'
 import { apiRequest } from '@/lib/api/api';
 
 import { syncService } from '@/lib/offline/syncService';
+import { esErrorDeRed } from '@/lib/offline/conRespaldoOffline';
+import type { Cliente, PrestamoParcial } from '@/types/domain';
+import type { CuotaOperativa } from '@/lib/types/cobranza';
 
 
 
@@ -20,7 +23,23 @@ export interface AsignacionCliente {
 
   horaSugerida?: string | null;
 
-  cliente?: { id: string; nombres: string; apellidos: string; telefono?: string };
+  /**
+   * El detalle de la ruta trae el cliente ENTERO, con sus creditos activos y
+   * las cuotas de cada uno: en routes.service la asignacion lleva
+   * `include: { cliente: { include: { prestamos: { include: { cuotas } } } } }`,
+   * que es un include, no un select. Declararlo con cuatro campos obligaba a
+   * tratar toda la pantalla de la ruta como `any` para poder leer el resto.
+   */
+  cliente?: Partial<Cliente> & {
+    prestamos?: Array<PrestamoParcial & { cuotas?: CuotaOperativa[] }>;
+  };
+
+  /**
+   * NO existe en el modelo AsignacionRuta. Se lee como
+   * `asig.prioridad?.toLowerCase() || (en mora ? alta : media)`, asi que
+   * siempre resuelve por el respaldo, que es el que decide de verdad.
+   */
+  prioridad?: string | null;
 
 }
 
@@ -171,6 +190,16 @@ export interface HistorialVisitaCliente {
 }
 
 
+/**
+ * La entidad ruta cruda, sin las cifras del dia.
+ *
+ * La forma canonica es `Ruta` / `RutaDeLista` en `types/domain.ts`, sacada de lo
+ * que los endpoints devuelven de verdad. Este tipo se conserva porque lo usan
+ * muchas firmas de este servicio, pero describe el mismo concepto.
+ *
+ * Ojo con lo que NO esta aqui: `cobrador`. Los dos endpoints de rutas lo mandan,
+ * como NOMBRE ya armado (no como objeto). Ver la nota en `types/domain.ts`.
+ */
 export interface Ruta {
 
   id: string;
@@ -413,7 +442,7 @@ export const rutasService = {
 
   async obtenerRutaPorId(id: string): Promise<Ruta> {
 
-    return apiRequest<Ruta>('GET', `/routes/${id}`, undefined, { cacheTTL: 0 } as any);
+    return apiRequest<Ruta>('GET', `/routes/${id}`, undefined, { cacheTTL: 0 });
 
   },
 
@@ -429,7 +458,7 @@ export const rutasService = {
 
       undefined,
 
-      { cacheTTL: 0 } as any,
+      { cacheTTL: 0 },
 
     );
 
@@ -457,29 +486,27 @@ export const rutasService = {
 
    */
 
-  async crearRuta(data: CrearRutaDto): Promise<Ruta> {
+  /**
+   * Sin conexión devuelve `null`, no el registro de la cola.
+   *
+   * Antes devolvía `enqueueOperation(...) as any`: un objeto con `endpoint` y
+   * `method` disfrazado de `Ruta`. Ninguno de los sitios que llaman aquí usa el
+   * resultado —hacen `await` y recargan la lista—, asi que se dice la verdad en vez
+   * de fabricar una ruta que nadie lee.
+   */
+  async crearRuta(data: CrearRutaDto): Promise<Ruta | null> {
 
     try {
 
       return await apiRequest<Ruta>('POST', '/routes', data);
 
-    } catch (error: any) {
+    } catch (error) {
 
-      if (
-
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-
-        error?.statusCode === 0 || 
-
-        error?.message?.includes('network') ||
-
-        error?.code === 'ERR_NETWORK'
-
-      ) {
+      if (esErrorDeRed(error)) {
 
         logger.log('[Offline Mode] Guardando creacion de ruta en cola...');
 
-        return await syncService.enqueueOperation(
+        await syncService.enqueueOperation(
 
           'ruta_crear',
 
@@ -491,7 +518,8 @@ export const rutasService = {
 
           'Crear ruta: ' + data.nombre
 
-        ) as any;
+        );
+        return null;
 
       }
 
@@ -509,29 +537,23 @@ export const rutasService = {
 
    */
 
-  async actualizarRuta(id: string, data: ActualizarRutaDto): Promise<Ruta> {
+  /** Sin conexión devuelve `null`; ver la nota de `crearRuta`. */
+  async actualizarRuta(
+    id: string,
+    data: ActualizarRutaDto,
+  ): Promise<Ruta | null> {
 
     try {
 
       return await apiRequest<Ruta>('PATCH', `/routes/${id}`, data);
 
-    } catch (error: any) {
+    } catch (error) {
 
-      if (
-
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-
-        error?.statusCode === 0 || 
-
-        error?.message?.includes('network') ||
-
-        error?.code === 'ERR_NETWORK'
-
-      ) {
+      if (esErrorDeRed(error)) {
 
         logger.log('[Offline Mode] Guardando actualizacion de ruta en cola...');
 
-        return await syncService.enqueueOperation(
+        await syncService.enqueueOperation(
 
           'ruta_actualizar',
 
@@ -543,7 +565,8 @@ export const rutasService = {
 
           'Actualizar ruta ID: ' + id
 
-        ) as any;
+        );
+        return null;
 
       }
 
@@ -567,19 +590,9 @@ export const rutasService = {
 
       return await apiRequest<void>('DELETE', `/routes/${id}`);
 
-    } catch (error: any) {
+    } catch (error) {
 
-      if (
-
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-
-        error?.statusCode === 0 || 
-
-        error?.message?.includes('network') ||
-
-        error?.code === 'ERR_NETWORK'
-
-      ) {
+      if (esErrorDeRed(error)) {
 
         logger.log('[Offline Mode] Guardando eliminacion de ruta en cola...');
 
@@ -615,29 +628,20 @@ export const rutasService = {
 
    */
 
-  async toggleActiva(id: string): Promise<Ruta> {
+  /** Sin conexión devuelve `null`; ver la nota de `crearRuta`. */
+  async toggleActiva(id: string): Promise<Ruta | null> {
 
     try {
 
       return await apiRequest<Ruta>('PATCH', `/routes/${id}/toggle-active`);
 
-    } catch (error: any) {
+    } catch (error) {
 
-      if (
-
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-
-        error?.statusCode === 0 || 
-
-        error?.message?.includes('network') ||
-
-        error?.code === 'ERR_NETWORK'
-
-      ) {
+      if (esErrorDeRed(error)) {
 
         logger.log('[Offline Mode] Guardando cambio de estado de ruta en cola...');
 
-        return await syncService.enqueueOperation(
+        await syncService.enqueueOperation(
 
           'ruta_toggle_activa',
 
@@ -649,7 +653,8 @@ export const rutasService = {
 
           'Alternar estado activo de ruta ID: ' + id
 
-        ) as any;
+        );
+        return null;
 
       }
 
@@ -679,19 +684,9 @@ export const rutasService = {
 
       });
 
-    } catch (error: any) {
+    } catch (error) {
 
-      if (
-
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-
-        error?.statusCode === 0 || 
-
-        error?.message?.includes('network') ||
-
-        error?.code === 'ERR_NETWORK'
-
-      ) {
+      if (esErrorDeRed(error)) {
 
         logger.log('[Offline Mode] Guardando asignacion de cliente a ruta en cola...');
 
@@ -733,19 +728,9 @@ export const rutasService = {
 
       return await apiRequest<void>('DELETE', `/routes/${rutaId}/remove-client/${clienteId}`);
 
-    } catch (error: any) {
+    } catch (error) {
 
-      if (
-
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-
-        error?.statusCode === 0 || 
-
-        error?.message?.includes('network') ||
-
-        error?.code === 'ERR_NETWORK'
-
-      ) {
+      if (esErrorDeRed(error)) {
 
         logger.log('[Offline Mode] Guardando remocion de cliente de ruta en cola...');
 
@@ -795,19 +780,9 @@ export const rutasService = {
 
       });
 
-    } catch (error: any) {
+    } catch (error) {
 
-      if (
-
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-
-        error?.statusCode === 0 || 
-
-        error?.message?.includes('network') ||
-
-        error?.code === 'ERR_NETWORK'
-
-      ) {
+      if (esErrorDeRed(error)) {
 
         logger.log('[Offline Mode] Guardando movimiento de cliente entre rutas en cola...');
 
@@ -879,23 +854,13 @@ export const rutasService = {
 
       return await apiRequest('PATCH', `/routes/${rutaId}/reorder`, { orden });
 
-    } catch (error: any) {
+    } catch (error) {
 
-      if (
-
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-
-        error?.statusCode === 0 || 
-
-        error?.message?.includes('network') ||
-
-        error?.code === 'ERR_NETWORK'
-
-      ) {
+      if (esErrorDeRed(error)) {
 
         logger.log('[Offline Mode] Guardando reordenamiento de clientes en cola...');
 
-        return await syncService.enqueueOperation(
+        await syncService.enqueueOperation(
 
           'ruta_reorder_clientes',
 
@@ -907,7 +872,15 @@ export const rutasService = {
 
           `Reordenar clientes en ruta: ${rutaId}`
 
-        ) as any;
+        );
+
+        // Aqui si se construye el resultado, y no es inventarlo: el reorden
+        // QUEDA hecho, encolado, asi que `exito` es cierto. El mensaje dice de
+        // donde viene, que es lo que la pantalla necesita saber.
+        return {
+          exito: true,
+          mensaje: 'El orden se guardó sin conexión y se enviará al sincronizar.',
+        };
 
       }
 
@@ -941,13 +914,8 @@ export const rutasService = {
   async marcarVisitaAusente(rutaId: string, clienteId: string, payload: { estadoVisita: string, notas: string, fechaOperativa?: string, origenGestion?: string }): Promise<void> {
     try {
       await apiRequest<void>('POST', `/routes/${rutaId}/clientes/${clienteId}/visita`, payload);
-    } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 ||
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+    } catch (error) {
+      if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando registro de visita en cola...');
         await syncService.enqueueOperation(
           'ruta_registrar_visita',

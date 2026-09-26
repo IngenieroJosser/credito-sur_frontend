@@ -34,6 +34,8 @@ import { formatErrorForComponent } from '@/lib/api/api'
 import { exportService } from '@/services/export-service'
 import { toast } from 'sonner'
 import { resolveRiesgoObligacion } from '@/lib/rutas/riesgo-obligacion'
+import { SkeletonTarjetas } from '@/components/ui/Skeleton'
+import { estadoDeError, mensajeDeError } from '@/lib/mensaje-de-error'
 
 type NivelRiesgo = 'VERDE' | 'LEVE' | 'PRECAUCION' | 'ROJO' | 'LISTA_NEGRA'
 type EstadoPrestamo = 'EN_MORA' | 'INCUMPLIDO' | 'PERDIDA'
@@ -236,10 +238,10 @@ export default function CuentasMoraFeature() {
 
       const raw: any[] = Array.isArray(response)
         ? response
-        : Array.isArray((response as any).prestamos)
-          ? (response as any).prestamos
-          : Array.isArray((response as any).data)
-            ? (response as any).data
+        : Array.isArray((response).prestamos)
+          ? (response).prestamos
+          : Array.isArray((response).data)
+            ? (response).data
             : []
 
       const enriched: CuentaMora[] = raw.map(p => ({
@@ -259,12 +261,12 @@ export default function CuentasMoraFeature() {
         : soloEnMora.filter(c => c.etiquetaMora === filtroNivel)
 
       setCuentas(filtradas)
-    } catch (error: any) {
+    } catch (error) {
       const msg = formatErrorForComponent(error)
       console.error('Error al cargar cuentas en mora:', {
         error,
-        statusCode: error?.statusCode,
-        message: error?.message,
+        statusCode: estadoDeError(error),
+        message: mensajeDeError(error, ''),
         serialized: (() => {
           try { return JSON.stringify(error) } catch { return String(error) }
         })(),
@@ -318,14 +320,14 @@ export default function CuentasMoraFeature() {
     try {
       await exportService.exportMora('excel', { busqueda, nivelRiesgo: filtroRiesgo !== 'TODOS' ? filtroRiesgo : undefined, rutaId: filtroRuta || undefined })
       toast.success('Reporte descargado')
-    } catch { toast.error('Error al exportar') }
+    } catch (error) { toast.error(mensajeDeError(error, 'Error al exportar')) }
   }
 
   const handleExportPDF = async () => {
     try {
       await exportService.exportMora('pdf', { busqueda, nivelRiesgo: filtroRiesgo !== 'TODOS' ? filtroRiesgo : undefined, rutaId: filtroRuta || undefined })
       toast.success('Reporte descargado')
-    } catch { toast.error('Error al exportar') }
+    } catch (error) { toast.error(mensajeDeError(error, 'Error al exportar')) }
   }
 
   const totalMora = estadisticas?.totalMora ?? cuentas.reduce((a, c) => a + c.montoMora, 0)
@@ -474,10 +476,7 @@ export default function CuentasMoraFeature() {
 
         {/* Contenido */}
         {isDataLoading ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <RefreshCw className="h-10 w-10 animate-spin text-primary mb-4" />
-            <p className="text-slate-500 font-medium">Cargando cuentas en mora...</p>
-          </div>
+          <SkeletonTarjetas cantidad={6} />
         ) : cuentas.length === 0 ? (
           <div className="col-span-full text-center py-16 bg-white rounded-2xl border border-slate-200 border-dashed">
             <div className="shrink-0 inline-flex p-4 rounded-full bg-emerald-50 mb-4">
@@ -585,7 +584,7 @@ export default function CuentasMoraFeature() {
 
         ) : (
           <>
-          /* GRID */
+          {/* GRID */}
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {cuentasPagina.map(cuenta => {
               const nivel = (cuenta.etiquetaMora || calcularNivelMora(cuenta)) as NivelMoraKey

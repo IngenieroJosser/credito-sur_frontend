@@ -1,6 +1,6 @@
 'use client'
 
-import PantallaCarga from '@/components/ui/PantallaCarga'
+import { SkeletonDetalle } from '@/components/ui/Skeleton'
 
 import React, { use, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
@@ -67,7 +67,7 @@ export default function DetalleMovimientoPage({ params }: { params: Promise<{ id
 
   if (loading) {
     return (
-      <PantallaCarga />
+      <SkeletonDetalle />
     )
   }
 

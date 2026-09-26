@@ -167,7 +167,7 @@ export const aprobacionesService = {
     // sincronizar); devolvemos vacío para no romper la vista.
     try {
       return await apiRequest<Aprobacion[]>('POST', '/approvals/history', { entidadId, tabla });
-    } catch (error: any) {
+    } catch (error) {
       if (esErrorDeRed(error)) return [];
       throw error;
     }

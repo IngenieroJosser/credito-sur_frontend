@@ -20,6 +20,8 @@ import {
   TrendingDown, FileX
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
+import Tooltip from '@/components/ui/Tooltip'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -129,6 +131,15 @@ export default function ProrrogaDetalleModal({
   canApprove = true,
   isProcessing = false,
 }: ProrrogaDetalleModalProps) {
+  // Escape para salir y foco al abrir. El hook lleva una pila, asi que con
+  // modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    abierto: isOpen,
+    onClose: onClose,
+    // Modal de solo lectura: no hay campo que enfocar.
+    enfocarAlAbrir: false,
+  })
+
   if (!isOpen || !data) return null
 
   const decision = data.decision || 'PRORROGAR'
@@ -179,12 +190,15 @@ export default function ProrrogaDetalleModal({
                   </p>
                 </div>
               </div>
-              <button
-                onClick={onClose}
-                className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors"
-              >
-                <X className="h-4 w-4" />
-              </button>
+              <Tooltip texto="Cerrar">
+                <button
+                  onClick={onClose}
+                  className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors"
+                  aria-label="Cerrar"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </Tooltip>
             </div>
           </div>
 

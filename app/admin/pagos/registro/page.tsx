@@ -1,5 +1,6 @@
 'use client'
 
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 /**
  * ============================================================================
  * REGISTRO CENTRAL DE COBRANZA (ADMIN)
@@ -180,9 +181,9 @@ const RegistroPagoPage = () => {
       await pagosService.registrarPago(dto)
       setEstadoEnvio('exito')
       toast.success('¡Pago registrado correctamente!')
-    } catch (error: any) {
+    } catch (error) {
       setEstadoEnvio('error')
-      const msg = error.response?.data?.message || error.message || 'Error al registrar el pago'
+      const msg = mensajeDeError(error, 'Error al registrar el pago')
       toast.error(msg)
     }
   }

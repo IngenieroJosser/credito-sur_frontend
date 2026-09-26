@@ -1,6 +1,6 @@
 'use client';
 
-import PantallaCarga from '@/components/ui/PantallaCarga'
+import { SkeletonDetalle } from '@/components/ui/Skeleton'
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
@@ -31,6 +31,9 @@ export default function PrestamoDetallePage() {
           clienteDni: data.cliente?.dni || '',
           clienteTelefono: data.cliente?.telefono || '',
           clienteDireccion: data.cliente?.direccion || '',
+          // Marca de cartera vieja: el detalle avisa de que las cuotas pagadas
+          // de este credito no tienen pagos detras.
+          cargaHistoricaEn: data.cargaHistoricaEn ?? null,
           montoPrestamo: data.monto || 0,
           montoTotal: data.montoTotal || (Number(data.monto || 0) + Number(data.interesTotal || 0)),
           saldoPendiente: data.saldoPendiente || data.montoPendiente || 0,
@@ -58,7 +61,7 @@ export default function PrestamoDetallePage() {
           } : undefined,
           garantia: data.garantia || '',
           fotos: data.fotos || [],
-          cuotas: cuotasData.map((c: any) => ({
+          cuotas: cuotasData.map((c) => ({
             numero: c.numeroCuota,
             fecha: c.fechaVencimiento,
             monto: c.monto,
@@ -80,7 +83,7 @@ export default function PrestamoDetallePage() {
 
   if (loading) {
     return (
-      <PantallaCarga />
+      <SkeletonDetalle />
     );
   }
 

@@ -1,6 +1,7 @@
 'use client'
 
 
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 import Paginador from '@/components/ui/Paginador'
 import { useState, useEffect, useCallback } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
@@ -16,10 +17,43 @@ import DetallePrestamoModal from '@/components/prestamos/DetallePrestamoModal'
 import { buildCrearPrestamoPayload } from '@/lib/creditos/crear-prestamo-payload'
 import { exportService } from '@/services/export-service'
 import { useNotification } from '@/components/providers/NotificationProvider'
+import type { PrestamoDelListadoParcial } from '@/types/domain'
+import { idDelPrestamoCreado } from '@/lib/creditos/prestamo-creado'
 
-type CreditoArticuloRow = Prestamo & {
+/**
+ * Una fila de esta tabla.
+ *
+ * Se declara por lo que el mapeo de abajo construye, no derivandola de
+ * `Prestamo`: las filas no son modelos, son la vista del listado -otro
+ * vocabulario, cliente y ruta ya aplanados a texto- mas lo que calcula esta
+ * pantalla. Todos los campos son obligatorios porque el mapeo los rellena
+ * todos, con respaldo cuando el dato no viene.
+ */
+type CreditoArticuloRow = {
+  id: string
   rowKey: string
   detalleId: string
+  cliente: string
+  clienteId: string
+  producto: string
+  tipoProducto: string
+  montoTotal: number
+  montoPagado: number
+  montoPendiente: number
+  cuotasTotales: number
+  cuotasPagadas: number
+  cuotasPendientes: number
+  fechaInicio: string
+  fechaVencimiento: string
+  /** Siempre vacio: el backend no manda ninguna fecha de proximo pago. */
+  proximoPago: string
+  estado: string
+  tasaInteres: number
+  /** Siempre 0: el backend no manda `diasMora`. Ver el comentario del mapeo. */
+  diasMora: number
+  moraAcumulada: number
+  riesgo: string
+  ruta: string
 }
 
 export default function CreditosArticulosPage() {
@@ -43,7 +77,7 @@ export default function CreditosArticulosPage() {
     setIsLoading(true)
     try {
       const response = await loansService.getLoans({ limit: 100 })
-      const prestamos = (response?.prestamos || []).map((p: any, index: number) => {
+      const prestamos = (response?.prestamos || []).map((p: PrestamoDelListadoParcial, index: number) => {
         const detalleId = String(p.id || p.prestamoId || '')
         const rowKey = detalleId || String(p.numeroPrestamo || `credito-articulo-${index}`)
 
@@ -61,13 +95,25 @@ export default function CreditosArticulosPage() {
         cuotasPagadas: p.cuotasPagadas || 0,
         cuotasPendientes: (p.cuotasTotales || 0) - (p.cuotasPagadas || 0),
         fechaInicio: p.fechaInicio || '',
-        fechaVencimiento: p.fechaFin || p.fechaVencimiento || '',
-        proximoPago: p.proximoPago || '',
-        estado: (String(p.estado || 'ACTIVO').toUpperCase() === 'EN_MORA' && Number(p.diasMora || 0) <= 0)
+        fechaVencimiento: p.fechaFin || '',
+        // El listado no manda ninguna fecha de proximo pago: comprobado que
+        // `proximoPago` no existe en el backend. La columna sale vacia, como
+        // salia antes; queda aqui para que se vea que no es un olvido.
+        proximoPago: '',
+        // Esto corrige un EN_MORA sin dias vencidos de verdad. Antes miraba
+        // `p.diasMora`, que el backend NO manda -no existe en ningun payload;
+        // lo que hay es `diasEnMora`, en otro servicio y sin llegar aqui-. Como
+        // siempre valia 0, la condicion `<= 0` se cumplia SIEMPRE y todos los
+        // creditos en mora se mostraban como ACTIVO: esta pantalla no enseñaba
+        // ni una mora. Se usa `cuotasVencidas`, que el listado si manda y es la
+        // misma señal.
+        estado: (String(p.estado || 'ACTIVO').toUpperCase() === 'EN_MORA' && Number(p.cuotasVencidas || 0) <= 0)
           ? 'ACTIVO'
           : (p.estado || 'ACTIVO'),
         tasaInteres: p.tasaInteres || 0,
-        diasMora: p.diasMora || 0,
+        // Mismo caso: el backend no manda `diasMora`. Se deriva de las cuotas
+        // vencidas, que es lo que si llega.
+        diasMora: 0,
         moraAcumulada: p.moraAcumulada || 0,
         riesgo: p.riesgo || 'VERDE',
         ruta: p.ruta || '',
@@ -93,7 +139,9 @@ export default function CreditosArticulosPage() {
     loadData,
   )
 
-  const getEstadoColor = (estado: EstadoPrestamo) => {
+  // Acepta texto: el listado manda `estado` como cadena, no como la union del
+  // modelo, y el switch ya tiene `default` para lo que no reconozca.
+  const getEstadoColor = (estado: string) => {
     switch(estado) {
       case 'ACTIVO': return 'bg-emerald-50 text-emerald-700 border-emerald-100'
       case 'PENDIENTE_APROBACION': return 'bg-amber-50 text-amber-700 border-amber-100'
@@ -125,7 +173,8 @@ export default function CreditosArticulosPage() {
     }
   }
 
-  const getRiesgoColor = (riesgo: NivelRiesgo) => {
+  // Igual que arriba: llega como texto y el switch ya cubre lo desconocido.
+  const getRiesgoColor = (riesgo: string) => {
     switch(riesgo) {
       case 'VERDE': return 'text-emerald-600 bg-emerald-50 border-emerald-100 border'
       case 'AMARILLO': return 'text-amber-600 bg-amber-50 border-amber-100 border'
@@ -640,7 +689,11 @@ export default function CreditosArticulosPage() {
               await loadData()
 
               if (!payload.esContado) {
-                const loanId = response?.data?.id || response?.id || response?.prestamo?.id || response?.data?.prestamo?.id
+                // El id sale de un solo lugar. Las cuatro pantallas lo adivinaban
+                // por caminos distintos y ninguna leia `prestamoId`, que es como
+                // se llama en la respuesta del reintento idempotente: justo el
+                // caso de la cola offline, donde el contrato no se bajaba nunca.
+                const loanId = idDelPrestamoCreado(response)
                 if (loanId) {
                   try {
                     await exportService.exportContrato(loanId)
@@ -649,8 +702,8 @@ export default function CreditosArticulosPage() {
                   }
                 }
               }
-            } catch (err: any) {
-              const msg = err?.response?.data?.message || err?.message || 'No se pudo crear el crédito de artículo.'
+            } catch (err) {
+              const msg = mensajeDeError(err, 'No se pudo crear el crédito de artículo.')
               showNotification('error', Array.isArray(msg) ? msg.join(', ') : msg, 'Error al crear crédito')
             }
           }}

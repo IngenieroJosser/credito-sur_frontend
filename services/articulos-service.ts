@@ -1,4 +1,23 @@
 import { apiRequest } from '@/lib/api/api';
+import { PLAZOS_ARTICULO_MESES } from '@/lib/plazos-articulo';
+
+/**
+ * El precio tal y como llega del servidor, antes de convertirlo en
+ * OpcionCuotas.
+ *
+ * No son lo mismo y confundirlos es facil: aqui el plazo se llama `meses` y el
+ * importe `precio`; en OpcionCuotas son `numeroCuotas` y `precioTotal`. Un
+ * `meses: 0` significa contado.
+ *
+ * Coincide con el modelo PrecioProducto del backend.
+ */
+export interface PrecioProductoApi {
+  id?: string
+  productoId?: string
+  meses: number
+  precio: number
+  activo?: boolean
+}
 
 export interface OpcionCuotas {
   id?: string
@@ -32,7 +51,7 @@ class ArticulosService {
     // Estas son opciones de respaldo si NO hay data en la DB.
     // Usamos el precioBase (contado) como referencia sin intereses automáticos aquí,
     // ya que el usuario prefiere que se tome lo que dice la DB.
-    const mesesEstandar = [1, 2, 3, 4, 6, 12];
+    const mesesEstandar = PLAZOS_ARTICULO_MESES;
 
     return mesesEstandar.map(m => {
         return {
@@ -52,7 +71,7 @@ class ArticulosService {
         return inventoryItems.map(item => {
             const preciosRaw = item.precios || [];
 
-            const contadoItem = preciosRaw.find((p: any) => Number(p?.meses) === 0);
+            const contadoItem = preciosRaw.find((p: PrecioProductoApi) => Number(p?.meses) === 0);
             const precioContado = contadoItem
               ? Number(contadoItem.precio)
               : Number(
@@ -67,8 +86,8 @@ class ArticulosService {
             
             // Mapear planes de crédito reales desde el backend (solo meses > 0)
             const opcionesCuotas: OpcionCuotas[] = preciosRaw
-              .filter((p: any) => p && Number(p.meses) > 0)
-              .map((p: any) => {
+              .filter((p: PrecioProductoApi) => p && Number(p.meses) > 0)
+              .map((p: PrecioProductoApi) => {
                 const meses = Number(p.meses);
                 const precio = Number(p.precio);
                 return {
@@ -105,7 +124,7 @@ class ArticulosService {
         if (!item) return null;
 
         const preciosRaw = item.precios || [];
-        const contadoItem = preciosRaw.find((p: any) => Number(p?.meses) === 0);
+        const contadoItem = preciosRaw.find((p: PrecioProductoApi) => Number(p?.meses) === 0);
         const precioContado = contadoItem
           ? Number(contadoItem.precio)
           : Number(
@@ -119,8 +138,8 @@ class ArticulosService {
         const precioBase = precioContado || Number(item.costo || 0);
         
         const opcionesCuotas: OpcionCuotas[] = preciosRaw
-          .filter((p: any) => p && Number(p.meses) > 0)
-          .map((p: any) => {
+          .filter((p: PrecioProductoApi) => p && Number(p.meses) > 0)
+          .map((p: PrecioProductoApi) => {
             const meses = Number(p.meses);
             const precio = Number(p.precio);
             return {

@@ -24,23 +24,37 @@ export enum NivelRiesgo {
   LISTA_NEGRA = 'LISTA_NEGRA'
 }
 
-export enum EstadoPrestamo {
-  BORRADOR = 'BORRADOR',
-  PENDIENTE_APROBACION = 'PENDIENTE_APROBACION',
-  ACTIVO = 'ACTIVO',
-  EN_MORA = 'EN_MORA',
-  PAGADO = 'PAGADO',
-  INCUMPLIDO = 'INCUMPLIDO',
-  PERDIDA = 'PERDIDA'
-}
+/**
+ * Estos dos son uniones de cadenas, no `enum`, y la diferencia importa.
+ *
+ * Un `enum` de TypeScript es un tipo nominal: un `'ACTIVO'` que llega del API
+ * en un JSON NO encaja en `EstadoPrestamo` aunque el valor sea identico. Como
+ * todo lo que maneja prestamos y cuotas viene del servidor como cadena, tipar
+ * cualquiera de los dos obligaba a castear en cada comparacion, y por eso casi
+ * todo ese codigo seguia en `any`.
+ *
+ * Con una union, `'ACTIVO'` encaja solo. Se comprobo antes de cambiarlo que
+ * nadie los usaba como valor -ni una sola referencia a `EstadoPrestamo.X` o
+ * `EstadoCuota.X` en todo el proyecto-, asi que el objeto que el `enum` emitia
+ * era codigo muerto.
+ *
+ * Los demas enums de este archivo SI se usan como valor y se quedan como estan.
+ */
+export type EstadoPrestamo =
+  | 'BORRADOR'
+  | 'PENDIENTE_APROBACION'
+  | 'ACTIVO'
+  | 'EN_MORA'
+  | 'PAGADO'
+  | 'INCUMPLIDO'
+  | 'PERDIDA'
 
-export enum EstadoCuota {
-  PENDIENTE = 'PENDIENTE',
-  PAGADA = 'PAGADA',
-  PARCIAL = 'PARCIAL',
-  VENCIDA = 'VENCIDA',
-  PRORROGADA = 'PRORROGADA'
-}
+export type EstadoCuota =
+  | 'PENDIENTE'
+  | 'PAGADA'
+  | 'PARCIAL'
+  | 'VENCIDA'
+  | 'PRORROGADA'
 
 export enum FrecuenciaPago {
   DIARIO = 'DIARIO',
@@ -78,59 +92,13 @@ export enum TipoAprobacion {
   REPROGRAMACION_CUOTA = 'REPROGRAMACION_CUOTA',
 }
 
-export enum TipoGasto {
-  OPERATIVO = 'OPERATIVO',
-  TRANSPORTE = 'TRANSPORTE',
-  OTRO = 'OTRO'
-}
-
-export enum TipoCaja {
-  PRINCIPAL = 'PRINCIPAL',
-  RUTA = 'RUTA'
-}
-
-export enum TipoTransaccion {
-  INGRESO = 'INGRESO',
-  EGRESO = 'EGRESO',
-  TRANSFERENCIA = 'TRANSFERENCIA'
-}
-
-export enum EstadoSincronizacion {
-  PENDIENTE = 'PENDIENTE',
-  SINCRONIZADO = 'SINCRONIZADO',
-  CONFLICTO = 'CONFLICTO',
-  ERROR = 'ERROR'
-}
-
-export enum TipoContenidoMultimedia {
-  FOTO_PERFIL = 'FOTO_PERFIL',
-  DOCUMENTO_IDENTIDAD_FRENTE = 'DOCUMENTO_IDENTIDAD_FRENTE',
-  DOCUMENTO_IDENTIDAD_REVERSO = 'DOCUMENTO_IDENTIDAD_REVERSO',
-  COMPROBANTE_DOMICILIO = 'COMPROBANTE_DOMICILIO',
-  FIRMA_DIGITAL = 'FIRMA_DIGITAL',
-  FOTO_PRODUCTO = 'FOTO_PRODUCTO',
-  RECIBO_PAGO = 'RECIBO_PAGO',
-  EVIDENCIA_GASTO = 'EVIDENCIA_GASTO',
-  CONTRATO_PRESTAMO = 'CONTRATO_PRESTAMO',
-  OTRO_DOCUMENTO = 'OTRO_DOCUMENTO'
-}
-
-export enum EstadoMultimedia {
-  TEMPORAL = 'TEMPORAL',
-  ACTIVO = 'ACTIVO',
-  ELIMINADO = 'ELIMINADO'
-}
-
 // Type exports para compatibilidad con codigo existente
 export type RolUsuarioType = keyof typeof RolUsuario;
 export type EstadoUsuarioType = keyof typeof EstadoUsuario;
 export type NivelRiesgoType = keyof typeof NivelRiesgo;
-export type EstadoPrestamoType = keyof typeof EstadoPrestamo;
-export type EstadoCuotaType = keyof typeof EstadoCuota;
+export type EstadoPrestamoType = EstadoPrestamo;
+export type EstadoCuotaType = EstadoCuota;
 export type FrecuenciaPagoType = keyof typeof FrecuenciaPago;
 export type MetodoPagoType = keyof typeof MetodoPago;
 export type EstadoAprobacionType = keyof typeof EstadoAprobacion;
 export type TipoAprobacionType = keyof typeof TipoAprobacion;
-export type TipoGastoType = keyof typeof TipoGasto;
-export type TipoCajaType = keyof typeof TipoCaja;
-export type TipoTransaccionType = keyof typeof TipoTransaccion;

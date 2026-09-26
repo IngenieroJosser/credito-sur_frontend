@@ -96,7 +96,7 @@ export default function FloatingActionMenu({ actions }: FloatingActionMenuProps)
 
       <div
         ref={menuRef}
-        className="fixed right-4 z-[2147483646] flex flex-col items-end gap-4 bottom-[calc(1.5rem+env(safe-area-inset-bottom))] sm:right-6 pointer-events-none"
+        className="fixed right-4 z-[60] flex flex-col items-end gap-4 bottom-[calc(1.5rem+env(safe-area-inset-bottom))] sm:right-6 pointer-events-none"
       >
         <div
           className={`relative flex max-h-[calc(100dvh-8.5rem)] min-w-64 flex-col gap-3 overflow-y-auto rounded-[2.25rem] border border-white/20 bg-white/[0.075] p-3 shadow-[0_24px_80px_rgba(15,23,42,0.24)] ring-1 ring-white/[0.10] backdrop-blur-[28px] backdrop-saturate-[1.8] transition-all duration-300 ease-out [scrollbar-width:thin] ${

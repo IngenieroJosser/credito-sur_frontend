@@ -1,10 +1,12 @@
 import { logger } from '@/lib/logger'
 import { apiRequest } from '@/lib/api/api';
 import { syncService } from '@/lib/offline/syncService';
-import { conRespaldoOffline } from '@/lib/offline/conRespaldoOffline';
+import { conRespaldoOffline, esErrorDeRed } from '@/lib/offline/conRespaldoOffline';
 import { EstadoPrestamo, FrecuenciaPago, EstadoCuota, TipoAmortizacion } from '@/types/enums';
 import type { Prestamo } from '@/types/domain';
 import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
+import type { PrestamoDelListado } from '@/types/domain';
+import type { PrestamoCreado } from '@/lib/creditos/prestamo-creado';
 
 const generarIdempotencyKey = (prefix: string) => {
   const random =
@@ -34,6 +36,15 @@ export interface Cuota {
 }
 
 export interface CrearPrestamoDto {
+  /**
+   * Clave de idempotencia para el modo offline.
+   *
+   * La cola trata esta operación como idempotente (ver `idempotentTypes` en
+   * `syncService`), así que esta clave es lo que evita que una creación encolada se
+   * aplique dos veces si el sync reintenta. El servicio ya la ponía —y la leía con
+   * un `as any`, porque la interfaz no la declaraba—; ahora está declarada.
+   */
+  idempotencyKey?: string;
   clienteId: string;
   productoId?: string;
   precioProductoId?: string;
@@ -79,7 +90,14 @@ export interface EstadisticasPrestamos {
 }
 
 export interface RespuestaPrestamos {
-  prestamos: Prestamo[];
+  /**
+   * Ojo: NO son modelos `Prestamo`. GET /loans devuelve una vista ya
+   * calculada, con otro vocabulario -`montoTotal`, `montoPendiente`,
+   * `cuotasTotales`- y el cliente y la ruta aplanados a texto. Decir aqui
+   * `Prestamo[]` hacia que las pantallas del listado tuvieran que tratar cada
+   * fila como `any` para poder leerla.
+   */
+  prestamos: PrestamoDelListado[];
   estadisticas: EstadisticasPrestamos;
   paginacion: {
     total: number;
@@ -188,13 +206,8 @@ export const prestamosService = {
   async archivarPrestamo(prestamoId: string, data: { motivo: string; notas?: string }) {
     try {
       return await apiRequest('POST', `/loans/${prestamoId}/archive`, data);
-    } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+    } catch (error) {
+      if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando archivado de prestamo en cola...');
         await syncService.enqueueOperation(
           'prestamo_archivar',
@@ -212,21 +225,16 @@ export const prestamosService = {
   /**
    * Crear un nuevo préstamo (con soporte Offline)
    */
-  async crearPrestamo(data: CrearPrestamoDto): Promise<any> {
+  async crearPrestamo(data: CrearPrestamoDto): Promise<PrestamoCreado> {
     const payload = {
       ...data,
-      idempotencyKey: (data as any).idempotencyKey || generarIdempotencyKey('prestamo'),
+      idempotencyKey: (data).idempotencyKey || generarIdempotencyKey('prestamo'),
     };
 
     try {
-      return await apiRequest('POST', '/loans', payload);
-    } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+      return await apiRequest<PrestamoCreado>('POST', '/loans', payload);
+    } catch (error) {
+      if (esErrorDeRed(error)) {
          logger.log('[Offline Mode] Guardando creacion de préstamo en cola...');
          const tempId = `temp-loan-${Date.now()}`;
          
@@ -249,7 +257,10 @@ export const prestamosService = {
            tasaInteres: payload.tasaInteres,
            plazoMeses: payload.plazoMeses,
            fechaInicio: payload.fechaInicio,
-           estado: 'PENDIENTE',
+           // 'PENDIENTE' no es un estado de prestamo: la union EstadoPrestamo no
+           // lo tiene. Un prestamo que espera aprobacion es PENDIENTE_APROBACION,
+           // que es el que pone el backend (loans.service, estadoInicial).
+           estado: 'PENDIENTE_APROBACION',
            esOffline: true
          };
       }
@@ -263,13 +274,8 @@ export const prestamosService = {
   async eliminarPrestamo(id: string, userId: string): Promise<void> {
     try {
       return await apiRequest<void>('DELETE', `/loans/${id}`, { userId });
-    } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+    } catch (error) {
+      if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando eliminacion de prestamo en cola...');
         await syncService.enqueueOperation(
           'prestamo_eliminar',
@@ -327,13 +333,8 @@ export const prestamosService = {
   async aprobarPrestamo(id: string, aprobadoPorId: string): Promise<any> {
     try {
       return await apiRequest('POST', `/loans/${id}/approve`, { aprobadoPorId });
-    } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+    } catch (error) {
+      if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando aprobacion de prestamo en cola...');
         await syncService.enqueueOperation(
           'prestamo_aprobar',
@@ -357,13 +358,8 @@ export const prestamosService = {
         rechazadoPorId, 
         motivo 
       });
-    } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+    } catch (error) {
+      if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando rechazo de prestamo en cola...');
         await syncService.enqueueOperation(
           'prestamo_rechazar',
@@ -409,13 +405,8 @@ export const prestamosService = {
       }
       
       return await apiRequest('POST', '/payments', formData);
-    } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+    } catch (error) {
+      if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando pago en cola...');
         
         const payload = {
@@ -466,13 +457,8 @@ export const prestamosService = {
     };
     try {
       return await apiRequest('POST', `/loans/${prestamoId}/reprogramacion`, payload);
-    } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+    } catch (error) {
+      if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando reprogramacion de prestamo en cola...');
         await syncService.enqueueOperation(
           'prestamo_reprogramar',
@@ -507,13 +493,8 @@ export const prestamosService = {
   }): Promise<any> {
     try {
       return await apiRequest('PATCH', `/loans/${id}`, data);
-    } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+    } catch (error) {
+      if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando actualizacion de prestamo en cola...');
         await syncService.enqueueOperation(
           'prestamo_actualizar',
@@ -544,13 +525,8 @@ export const prestamosService = {
     };
     try {
       return await apiRequest('POST', `/loans/${data.prestamoId}/reprogramacion`, payload);
-    } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 ||
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+    } catch (error) {
+      if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando solicitud de reprogramacion de cuota en cola...');
         await syncService.enqueueOperation(
           'reprogramacion_cuota_solicitar',

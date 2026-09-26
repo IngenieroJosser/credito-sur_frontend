@@ -1,9 +1,11 @@
 "use client";
 
+import { mensajeDeError } from '@/lib/mensaje-de-error';
 import { useState, useEffect } from "react";
 import { AlertTriangle, CheckCircle, XCircle, Eye, AlertCircle, RefreshCw } from "lucide-react";
 import { apiRequest } from "@/lib/api/api";
 import { toast } from "sonner";
+import { SkeletonTabla } from '@/components/ui/Skeleton'
 
 interface SyncConflict {
   id: string;
@@ -46,8 +48,8 @@ export default function ListaConflictos() {
       toast.success(`Conflicto ${accion === "RESOLVER" ? "resuelto y reprocesado" : "descartado"} exitosamente`, { id: toastId });
       setSelectedConflict(null);
       loadConflictos();
-    } catch (error: any) {
-      toast.error(error?.message || "Hubo un error al aplicar la acción");
+    } catch (error) {
+      toast.error(mensajeDeError(error, "Hubo un error al aplicar la acción"));
     }
   };
 
@@ -75,7 +77,9 @@ export default function ListaConflictos() {
         </div>
         <button
           onClick={loadConflictos}
-          className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-colors text-sm"
+          disabled={loading}
+          aria-busy={loading}
+          className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-colors text-sm disabled:cursor-not-allowed disabled:opacity-60"
         >
           <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
           Actualizar
@@ -84,9 +88,9 @@ export default function ListaConflictos() {
 
       <div className="bg-white">
         {loading ? (
-          <div className="p-8 text-center text-slate-500 flex flex-col items-center">
-            <RefreshCw className="w-8 h-8 animate-spin mb-4 text-brand-500" />
-            <p>Cargando conflictos...</p>
+          <div className="p-4" aria-busy="true">
+            <span className="sr-only">Cargando conflictos…</span>
+            <SkeletonTabla filas={4} columnas={4} />
           </div>
         ) : conflictos.length === 0 ? (
           <div className="p-12 text-center flex flex-col items-center">
@@ -114,7 +118,7 @@ export default function ListaConflictos() {
                 {conflictos.map((c) => (
                   <tr key={c.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="px-6 py-4 text-slate-700">
-                      {new Date(c.creadoEn).toLocaleString("es-ES")}
+                      {new Date(c.creadoEn).toLocaleString("es-CO")}
                     </td>
                     <td className="px-6 py-4">
                       {c.creadoPor ? `${c.creadoPor.nombres} ${c.creadoPor.apellidos}` : "Desconocido"}

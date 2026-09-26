@@ -1,24 +1,20 @@
 'use client'
 
-import PantallaCarga from '@/components/ui/PantallaCarga'
+import { SkeletonDetalle } from '@/components/ui/Skeleton'
 
 import React, { useState, useEffect } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import Link from 'next/link'
-import { 
-  ChevronLeft, 
-  AlertCircle, 
-  DollarSign, 
-  Phone, 
-  MapPin, 
-  ShieldAlert, 
-  Clock, 
+import {
+  ChevronLeft,
+  AlertCircle,
+  DollarSign,
+  Phone,
+  MapPin,
+  ShieldAlert,
+  Clock,
   FileText,
   User,
-  CalendarDays,
-  Send,
-  MessageSquare,
-  CheckCircle2,
   Archive
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
@@ -65,8 +61,6 @@ export default function DetalleCuentaMoraPage({ params }: { params: Promise<{ id
   
   const [data, setData] = useState<MoraDetalle | null>(null);
   const [loading, setLoading] = useState(true);
-  const [nota, setNota] = useState('');
-  const [activeTab, setActiveTab] = useState<'historial' | 'reprogramar' | 'supervisor'>('historial');
   const [showArchivarModal, setShowArchivarModal] = useState(false);
 
   useEffect(() => {
@@ -127,7 +121,7 @@ export default function DetalleCuentaMoraPage({ params }: { params: Promise<{ id
 
   if (loading) {
     return (
-      <PantallaCarga />
+      <SkeletonDetalle />
     );
   }
 
@@ -288,194 +282,47 @@ export default function DetalleCuentaMoraPage({ params }: { params: Promise<{ id
                  </div>
             </div>
 
-            {/* Management Tabs */}
+            {/* Historial de gestión.
+
+                Aquí había tres pestañas. Dos ("Reprogramar" y "Pasar a
+                Supervisor") eran formularios que no llegaban a ninguna parte:
+                sus campos no tenían estado y el botón de reprogramar ni
+                siquiera tenía onClick, así que quien escribía un acuerdo de
+                pago y lo "enviaba" creía haber guardado algo. En un sistema de
+                créditos eso es peor que no tener la función.
+
+                Se deja lo único que sí funcionaba: el historial que llega del
+                servidor. La reprogramación real existe y vive en
+                ReprogramarModal (POST /loans/:id/reprogramacion). */}
             <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 overflow-hidden">
-                {/* Tabs Navigation */}
-                <div className="flex border-b border-slate-200">
-                    <button
-                        onClick={() => setActiveTab('historial')}
-                        className={cn(
-                            "flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 transition-all relative",
-                            activeTab === 'historial' ? "text-blue-600 bg-blue-50/50" : "text-slate-500 hover:bg-slate-50"
-                        )}
-                    >
-                        <Clock className="w-4 h-4" />
-                        Historial de Gestión
-                        {activeTab === 'historial' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600"></div>}
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('reprogramar')}
-                        className={cn(
-                            "flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 transition-all relative",
-                            activeTab === 'reprogramar' ? "text-orange-600 bg-orange-50/50" : "text-slate-500 hover:bg-slate-50"
-                        )}
-                    >
-                        <CalendarDays className="w-4 h-4" />
-                        Reprogramar
-                        {activeTab === 'reprogramar' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-orange-600"></div>}
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('supervisor')}
-                        className={cn(
-                            "flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 transition-all relative",
-                            activeTab === 'supervisor' ? "text-rose-600 bg-rose-50/50" : "text-slate-500 hover:bg-slate-50"
-                        )}
-                    >
-                        <ShieldAlert className="w-4 h-4" />
-                        Pasar a Supervisor
-                        {activeTab === 'supervisor' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-rose-600"></div>}
-                    </button>
+                <div className="flex items-center gap-2 border-b border-slate-200 px-5 py-3">
+                    <Clock className="w-4 h-4 text-blue-600" />
+                    <h2 className="text-sm font-bold text-slate-900">Historial de Gestión</h2>
                 </div>
-                 
-                 {/* Tab Content */}
-                 <div className="p-5">
-                    
-                    {/* HISTORIAL */}
-                    {activeTab === 'historial' && (
-                        <div className="space-y-4 animate-in fade-in duration-300">
-                             {/* Add Note Input */}
-                            <div className="flex gap-4">
-                                <textarea 
-                                    value={nota}
-                                    onChange={(e) => setNota(e.target.value)}
-                                    placeholder="Agregar nueva nota de gestión..."
-                                    className="flex-1 bg-white border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all resize-none h-16 text-slate-900 placeholder:text-slate-400"
-                                />
-                                <button
-                                    type="button"
-                                    disabled={!nota.trim()}
-                                    onClick={() =>
-                                      // Sin endpoint para persistir notas de
-                                      // gestión: el botón no guardaba nada.
-                                      // Se avisa en vez de aparentar que sí.
-                                      alert('Guardar notas de gestión aún no está disponible. Esta función está pendiente de habilitar.')
-                                    }
-                                    className="self-end px-4 py-2 bg-blue-600 text-white rounded-xl font-bold text-sm hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
-                                    <MessageSquare className="w-4 h-4" />
-                                    Guardar
-                                </button>
-                            </div>
 
-                            {/* Timeline */}
-                            <div className="relative border-l-2 border-slate-100 ml-3 space-y-6 py-2">
-                                {data.historialGestion.map((item, idx) => (
-                                    <div key={idx} className="relative pl-8">
-                                        <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-slate-200 border-2 border-white ring-1 ring-slate-100"></div>
-                                        <div className="flex items-center justify-between mb-1">
-                                            <span className="text-xs font-bold text-slate-500 uppercase">{item.tipo}</span>
-                                            <span className="text-xs text-slate-400">{item.fecha}</span>
-                                        </div>
-                                        <p className="text-slate-700 text-sm bg-slate-50 p-3 rounded-lg border border-slate-100">
-                                            {item.nota}
-                                            <span className="block mt-2 text-xs text-slate-400 font-medium">— {item.usuario}</span>
-                                        </p>
+                <div className="p-5">
+                    {data.historialGestion.length === 0 ? (
+                        <p className="py-6 text-center text-sm text-slate-400">
+                            Todavía no hay gestiones registradas para esta cuenta.
+                        </p>
+                    ) : (
+                        <div className="relative border-l-2 border-slate-100 ml-3 space-y-6 py-2">
+                            {data.historialGestion.map((item, idx) => (
+                                <div key={idx} className="relative pl-8">
+                                    <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-slate-200 border-2 border-white ring-1 ring-slate-100"></div>
+                                    <div className="flex items-center justify-between mb-1">
+                                        <span className="text-xs font-bold text-slate-500 uppercase">{item.tipo}</span>
+                                        <span className="text-xs text-slate-400">{item.fecha}</span>
                                     </div>
-                                ))}
-                            </div>
+                                    <p className="text-slate-700 text-sm bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                        {item.nota}
+                                        <span className="block mt-2 text-xs text-slate-400 font-medium">— {item.usuario}</span>
+                                    </p>
+                                </div>
+                            ))}
                         </div>
                     )}
-
-                    {/* REPROGRAMAR */}
-                    {activeTab === 'reprogramar' && (
-                        <div className="space-y-4 animate-in fade-in duration-300">
-                            <div className="bg-orange-50 border border-orange-100 rounded-xl p-3 flex gap-3">
-                                <AlertCircle className="w-5 h-5 text-orange-600 shrink-0 mt-0.5" />
-                                <p className="text-xs text-orange-800">
-                                    La reprogramación debe ser autorizada por el Coordinador si implica cambio de tasa o condonación de intereses.
-                                </p>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-bold text-slate-700 mb-2">Nueva Fecha de Pago</label>
-                                    <input 
-                                        type="date" 
-                                        className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none text-slate-900 font-medium placeholder:text-slate-400"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-bold text-slate-700 mb-2">Cuota Propuesta</label>
-                                    <div className="relative">
-                                        <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                                        <input 
-                                            type="text" 
-                                            inputMode="numeric"
-                                            placeholder="0"
-                                            className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none text-slate-900 font-medium placeholder:text-slate-400"
-                                        />
-                                    </div>
-                                </div>
-                                <div className="md:col-span-2">
-                                    <label className="block text-sm font-bold text-slate-700 mb-2">Motivo / Acuerdo</label>
-                                    <textarea 
-                                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none text-slate-900 text-sm h-20 resize-none placeholder:text-slate-400"
-                                        placeholder="Describa el acuerdo de pago alcanzado con el cliente..."
-                                    ></textarea>
-                                </div>
-                            </div>
-
-                            <div className="flex justify-end pt-2">
-                                <button className="px-6 py-2.5 bg-orange-500 text-white font-bold rounded-xl hover:bg-orange-600 shadow-lg shadow-orange-500/20 transition-all flex items-center gap-2">
-                                    <CheckCircle2 className="w-4 h-4" />
-                                    Solicitar Reprogramación
-                                </button>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* SUPERVISOR */}
-                    {activeTab === 'supervisor' && (
-                        <div className="space-y-4 animate-in fade-in duration-300">
-                             <div className="bg-rose-50 border border-rose-100 rounded-xl p-3 flex gap-3">
-                                <ShieldAlert className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
-                                <p className="text-xs text-rose-800">
-                                    Escalar este caso notificará inmediatamente al Supervisor de zona y bloqueará acciones de cobranza estándar hasta nueva orden.
-                                </p>
-                            </div>
-
-                             <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-2">Prioridad</label>
-                                <div className="flex gap-4">
-                                    <label className="flex items-center gap-2 cursor-pointer">
-                                        <input type="radio" name="prioridad" className="text-rose-600 focus:ring-rose-500" />
-                                        <span className="text-sm font-medium text-slate-700">Alta</span>
-                                    </label>
-                                    <label className="flex items-center gap-2 cursor-pointer">
-                                        <input type="radio" name="prioridad" className="text-rose-600 focus:ring-rose-500" defaultChecked />
-                                        <span className="text-sm font-medium text-slate-700">Media</span>
-                                    </label>
-                                    <label className="flex items-center gap-2 cursor-pointer">
-                                        <input type="radio" name="prioridad" className="text-rose-600 focus:ring-rose-500" />
-                                        <span className="text-sm font-medium text-slate-700">Baja</span>
-                                    </label>
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-2">Informe para Supervisor</label>
-                                <textarea 
-                                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none text-slate-900 text-sm h-24 resize-none placeholder:text-slate-400"
-                                    placeholder="Detalle por qué este caso requiere intervención de supervisión (ej: cliente ilocalizable, negativa de pago, amenazas)..."
-                                ></textarea>
-                            </div>
-
-                             <div className="flex justify-end pt-2">
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                      // El botón no tenía acción: escalar a
-                                      // supervisión aún no tiene endpoint. Se
-                                      // avisa en vez de aparentar que funciona.
-                                      alert('Escalar el caso a supervisión aún no está disponible. Esta función está pendiente de habilitar.')
-                                    }
-                                    className="px-6 py-2.5 bg-rose-600 text-white font-bold rounded-xl hover:bg-rose-700 shadow-lg shadow-rose-600/20 transition-all flex items-center gap-2">
-                                    <Send className="w-4 h-4" />
-                                    Escalar Caso
-                                </button>
-                            </div>
-                        </div>
-                    )}
-                 </div>
+                </div>
             </div>
         </div>
 

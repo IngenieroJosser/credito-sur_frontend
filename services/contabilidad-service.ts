@@ -1,7 +1,8 @@
+import { estadoDeError } from '@/lib/mensaje-de-error'
 import { logger } from '@/lib/logger'
 import { apiRequest } from '@/lib/api/api';
 import { syncService } from '@/lib/offline/syncService';
-import { conRespaldoOffline } from '@/lib/offline/conRespaldoOffline';
+import { conRespaldoOffline, esErrorDeRed } from '@/lib/offline/conRespaldoOffline';
 import { offlineStore } from '@/lib/offline/offlineDb';
 import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 
@@ -24,11 +25,29 @@ export interface Caja {
   responsable: string;
   responsableId: string;
   saldo: number;
+  /**
+   * Alias del saldo que el codigo acepta y el backend NO manda. Se
+   * comprobo endpoint por endpoint: la respuesta expone `saldo`, y
+   * `saldoActual` es solo el nombre de la columna en Prisma, que nunca
+   * sale tal cual. La cadena `saldoActual ?? saldo ?? ...` resuelve por
+   * el segundo eslabon, asi que no estorban; se declaran para que se
+   * sepa que de ahi no viene el dato.
+   */
+  saldoActual?: number;
+  saldoCaja?: number;
+  balance?: number;
+  monto?: number;
+  total?: number;
   saldoMinimo?: number;
   saldoMaximo?: number;
   estado: 'ABIERTA' | 'CERRADA';
   transacciones?: number;
   ultimaActualizacion: string;
+  /**
+   * Rutas que supervisa esta caja. Solo viene en las cajas de tipo RUTA
+   * sin ruta propia, es decir, las de un supervisor con varias a cargo.
+   */
+  rutasSupervisadas?: Array<{ id: string; nombre: string; codigo: string }>;
 }
 
 export interface Transaccion {
@@ -47,6 +66,10 @@ export interface Transaccion {
   cajaId: string;
   cajaOrigenId?: string;
   cajaSaldo?: number;
+  /** Que origino la transaccion: CUOTA_INICIAL, ABONO_DEUDA, CIERRE_RUTA… */
+  tipoReferencia?: string;
+  /** Id de eso que la origino. */
+  referenciaId?: string;
   direction?: 'IN' | 'OUT';
   impactoCaja?: number;
   impactoResultado?: number;
@@ -142,6 +165,12 @@ export interface SaldoDisponibleRuta {
   desembolsos: number;
   netoPeriodo: number;
   saldoCaja?: number;
+  /** Gastos aun sin aprobar. El backend los manda; el tipo no los declaraba. */
+  egresosProvisionales?: number;
+  /** Todas las salidas reales de caja del periodo. */
+  totalEgresosCaja?: number;
+  /** Recaudo desglosado por referencia; solo lo trae el saldo por ruta. */
+  recaudosPorReferencia?: Record<string, number>;
   mensaje?: string;
   fechaInicio?: string;
   fechaFin?: string;
@@ -170,15 +199,15 @@ export async function getCajas(): Promise<Caja[]> {
       const cached = await offlineStore.getAll<Caja>('cajas');
       if (cached.length > 0) return cached;
     }
-    const err: any = error as any;
-    const statusCode = err?.statusCode;
+    const err: any = error;
+    const statusCode = estadoDeError(err);
     if (statusCode === 401 || statusCode === 403) {
       logger.log('[Contabilidad] getCajas omitido por permisos.');
       return [];
     }
 
     const errorDetails = {
-      statusCode: err?.statusCode,
+      statusCode: estadoDeError(err),
       message: err?.message,
       error: err?.error,
     };
@@ -200,15 +229,15 @@ export async function getCajaById(id: string): Promise<Caja | null> {
        const cached = await offlineStore.getById<Caja>('cajas', id);
        if (cached) return cached;
     }
-    const err: any = error as any;
-    const statusCode = err?.statusCode;
+    const err: any = error;
+    const statusCode = estadoDeError(err);
     if (statusCode === 401 || statusCode === 403) {
       logger.log('[Contabilidad] getCajaById omitido por permisos.');
       return null;
     }
 
     const errorDetails = {
-      statusCode: err?.statusCode,
+      statusCode: estadoDeError(err),
       message: err?.message,
       error: err?.error,
     };
@@ -230,13 +259,8 @@ export async function createCaja(data: {
 }): Promise<Caja | null> {
   try {
     return await apiRequest<Caja>('POST', '/accounting/cajas', data);
-  } catch (error: any) {
-    if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+  } catch (error) {
+    if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando creacion de caja en cola...');
         await syncService.enqueueOperation(
           'caja_crear',
@@ -245,7 +269,7 @@ export async function createCaja(data: {
           data,
           `Crear caja: ${data.nombre}`
         );
-        return { ...data, id: `temp-caja-${Date.now()}`, estado: 'ABIERTA', saldo: data.saldoInicial || 0, ultimaActualizacion: toBogotaDateTimeOffsetIso(new Date()), responsable: 'Local', responsableId: data.responsableId, codigo: 'TEMP' } as any;
+        return { ...data, id: `temp-caja-${Date.now()}`, estado: 'ABIERTA', saldo: data.saldoInicial || 0, ultimaActualizacion: toBogotaDateTimeOffsetIso(new Date()), responsable: 'Local', responsableId: data.responsableId, codigo: 'TEMP' };
     }
     console.error('Error creating caja:', error);
     throw error;
@@ -259,13 +283,8 @@ export async function updateCaja(id: string, data: {
 }): Promise<Caja | null> {
   try {
     return await apiRequest<Caja>('PATCH', `/accounting/cajas/${id}`, data);
-  } catch (error: any) {
-    if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+  } catch (error) {
+    if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando actualizacion de caja en cola...');
         await syncService.enqueueOperation(
           'caja_actualizar',
@@ -274,7 +293,9 @@ export async function updateCaja(id: string, data: {
           data,
           `Actualizar caja ID: ${id}`
         );
-        return { id, ...data } as any;
+        // El tipo ya era `| null` y las dos pantallas que llaman descartan el
+        // resultado: `{ id, ...data }` no era una Caja, solo lo parecia.
+        return null;
     }
     throw error;
   }
@@ -302,13 +323,8 @@ export async function consolidarCaja(cajaId: string, monto?: number, idempotency
       monto, 
       idempotencyKey: key 
     });
-  } catch (error: any) {
-    if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+  } catch (error) {
+    if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando consolidacion de caja en cola...');
         await syncService.enqueueOperation(
           'caja_consolidar',
@@ -366,7 +382,7 @@ export async function getTransacciones(filtros?: {
     
     return await apiRequest<PaginatedResponse<Transaccion>>('GET', url);
   } catch (error) {
-    const e: any = error as any;
+    const e: any = error;
     console.error('Error fetching transacciones:', {
       urlRequested: (() => {
         try {
@@ -383,7 +399,7 @@ export async function getTransacciones(filtros?: {
           return '/accounting/transacciones';
         }
       })(),
-      statusCode: e?.statusCode,
+      statusCode: estadoDeError(e),
       message: e?.message,
       error: e?.error,
       rawType: typeof e,
@@ -443,13 +459,8 @@ export async function createTransaccion(data: {
 
   try {
     return await apiRequest<Transaccion>('POST', '/accounting/transacciones', payload);
-  } catch (error: any) {
-    if (
-      (typeof navigator !== 'undefined' && !navigator.onLine) ||
-      error?.statusCode === 0 || 
-      error?.message?.includes('network') ||
-      error?.code === 'ERR_NETWORK'
-    ) {
+  } catch (error) {
+    if (esErrorDeRed(error)) {
       logger.log('[Offline Mode] Guardando transacción en cola...');
       await syncService.enqueueOperation(
         'transaccion_crear', // Tipo más descriptivo
@@ -458,17 +469,10 @@ export async function createTransaccion(data: {
         payload,
         `Transacción: ${payload.descripcion} ($${payload.monto})`
       );
-      return {
-        id: `temp-trx-${Date.now()}`,
-        numero: 'OFFLINE',
-        fecha: toBogotaDateTimeOffsetIso(new Date()),
-        tipo: payload.tipo,
-        monto: payload.monto,
-        descripcion: payload.descripcion,
-        cajaId: payload.cajaId,
-        estado: 'PENDIENTE',
-        caja: 'Caja Local'
-      } as any;
+      // Las dos pantallas que llaman recargan desde el servidor y descartan el
+      // resultado, asi que no se inventa una transaccion (le faltaba
+      // `responsable` y traia un `numero` que no existe en el libro).
+      return null;
     }
     console.error('Error creating transaccion:', error);
     throw error;
@@ -499,15 +503,15 @@ export async function getResumenFinanciero(fechaInicio?: string, fechaFin?: stri
     
     return await apiRequest<ResumenFinanciero>('GET', url);
   } catch (error) {
-    const err: any = error as any
-    const statusCode = err?.statusCode
+    const err: any = error
+    const statusCode = estadoDeError(err)
     if (statusCode === 401 || statusCode === 403) {
       logger.log('[Contabilidad] getResumenFinanciero omitido por permisos.')
       return null
     }
 
     const details = {
-      statusCode: err?.statusCode,
+      statusCode: estadoDeError(err),
       message: err?.message,
       error: err?.error,
     }
@@ -589,14 +593,11 @@ export async function getArqueoPreview(cajaId: string, fechaOperativa?: string):
     const params = fechaOperativa ? `?fechaOperativa=${fechaOperativa}` : '';
     logger.log('[getArqueoPreview] Requesting:', `/cajas/${cajaId}/arqueo/preview${params}`);
     return await apiRequest<any>('GET', `/cajas/${cajaId}/arqueo/preview${params}`);
-  } catch (error: any) {
-    console.error('[getArqueoPreview] Full error:', {
-      message: error?.message,
-      statusCode: error?.statusCode,
-      error: error?.error,
-      stack: error?.stack,
-      fullError: JSON.stringify(error, null, 2)
-    });
+  } catch (error) {
+    // Se registra el error entero: desglosarlo en campos sueltos obligaba a
+    // tipar el catch como `any`, y el JSON.stringify de abajo ya volcaba lo
+    // mismo. Por logger y no por console, como el resto del sistema.
+    logger.error('[getArqueoPreview] Fallo la peticion', error);
     throw error;
   }
 }
@@ -604,14 +605,11 @@ export async function getArqueoPreview(cajaId: string, fechaOperativa?: string):
 export async function getArqueoById(arqueoId: string): Promise<any> {
   try {
     return await apiRequest<any>('GET', `/cajas/arqueos/${arqueoId}`);
-  } catch (error: any) {
-    console.error('[getArqueoById] Full error:', {
-      message: error?.message,
-      statusCode: error?.statusCode,
-      error: error?.error,
-      stack: error?.stack,
-      fullError: JSON.stringify(error, null, 2)
-    });
+  } catch (error) {
+    // Se registra el error entero: desglosarlo en campos sueltos obligaba a
+    // tipar el catch como `any`, y el JSON.stringify de abajo ya volcaba lo
+    // mismo. Por logger y no por console, como el resto del sistema.
+    logger.error('[getArqueoById] Fallo la peticion', error);
     throw error;
   }
 }
@@ -625,13 +623,8 @@ export async function confirmarArqueo(cajaId: string, data: {
 }): Promise<any> {
   try {
     return await apiRequest<any>('POST', `/cajas/${cajaId}/arqueos`, data);
-  } catch (error: any) {
-    if (
-      (typeof navigator !== 'undefined' && !navigator.onLine) ||
-      error?.statusCode === 0 || 
-      error?.message?.includes('network') ||
-      error?.code === 'ERR_NETWORK'
-    ) {
+  } catch (error) {
+    if (esErrorDeRed(error)) {
       logger.log('[Offline Mode] Guardando arqueo en cola...');
       await syncService.enqueueOperation(
         'arqueo_registrar',
@@ -655,13 +648,8 @@ export async function registrarArqueo(cajaId: string, data: {
 }): Promise<any> {
   try {
     return await apiRequest<any>('POST', `/accounting/cajas/${cajaId}/arqueos`, data);
-  } catch (error: any) {
-    if (
-      (typeof navigator !== 'undefined' && !navigator.onLine) ||
-      error?.statusCode === 0 || 
-      error?.message?.includes('network') ||
-      error?.code === 'ERR_NETWORK'
-    ) {
+  } catch (error) {
+    if (esErrorDeRed(error)) {
       logger.log('[Offline Mode] Guardando arqueo en cola...');
       await syncService.enqueueOperation(
         'arqueo_registrar',
@@ -739,13 +727,8 @@ export async function registrarGasto(data: {
     };
 
     return await apiRequest('POST', '/accounting/gastos', payload);
-  } catch (error: any) {
-    if (
-      (typeof navigator !== 'undefined' && !navigator.onLine) ||
-      error?.statusCode === 0 || 
-      error?.message?.includes('network') ||
-      error?.code === 'ERR_NETWORK'
-    ) {
+  } catch (error) {
+    if (esErrorDeRed(error)) {
       logger.log('[Offline Mode] Guardando gasto en cola...');
       
       const payload: any = {
@@ -799,13 +782,8 @@ export async function solicitarBase(data: {
 }): Promise<any> {
   try {
     return await apiRequest('POST', '/accounting/base-requests', data);
-  } catch (error: any) {
-    if (
-      (typeof navigator !== 'undefined' && !navigator.onLine) ||
-      error?.statusCode === 0 || 
-      error?.message?.includes('network') ||
-      error?.code === 'ERR_NETWORK'
-    ) {
+  } catch (error) {
+    if (esErrorDeRed(error)) {
       logger.log('[Offline Mode] Guardando solicitud de base en cola...');
       await syncService.enqueueOperation(
         'base_solicitar',
@@ -850,15 +828,15 @@ export async function getDeudoresCobrador(): Promise<DeudaCobrador[]> {
   try {
     return await apiRequest<DeudaCobrador[]>('GET', '/accounting/deudas-cobradores');
   } catch (error) {
-    const err: any = error as any
-    const statusCode = err?.statusCode
+    const err: any = error
+    const statusCode = estadoDeError(err)
     if (statusCode === 401 || statusCode === 403) {
       logger.log('[Contabilidad] getDeudoresCobrador omitido por permisos.')
       return []
     }
 
     const details = {
-      statusCode: err?.statusCode,
+      statusCode: estadoDeError(err),
       message: err?.message,
       error: err?.error,
     }
@@ -886,13 +864,8 @@ export async function registrarAbonoDeudaCobrador(
   };
   try {
     return await apiRequest<Transaccion>('POST', `/accounting/deudas-cobradores/${cobradorId}/abono`, payload);
-  } catch (error: any) {
-    if (
-      (typeof navigator !== 'undefined' && !navigator.onLine) ||
-      error?.statusCode === 0 ||
-      error?.message?.includes('network') ||
-      error?.code === 'ERR_NETWORK'
-    ) {
+  } catch (error) {
+    if (esErrorDeRed(error)) {
       logger.log('[Offline Mode] Guardando abono a deuda de cobrador en cola...');
       await syncService.enqueueOperation(
         'abono_deuda_cobrador',

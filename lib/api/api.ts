@@ -1,3 +1,4 @@
+import { mensajeDeError } from '@/lib/mensaje-de-error';
 import { logger } from '@/lib/logger'
 // app/lib/api/api.ts
 import { AxiosRequestConfig, Method, AxiosError } from "axios";
@@ -19,6 +20,27 @@ export interface ApiError {
   message: string;
   error?: unknown;
   isConflict?: boolean;
+}
+
+/**
+ * Si el fallo es uno de los que lanza `apiRequest`.
+ *
+ * `ApiError` estaba declarado y exportado desde el principio, pero NADIE fuera de
+ * este fichero lo importaba: los 43 `catch (error)` del proyecto leian sus
+ * campos a mano. Con esto se puede escribir `catch (error)` y preguntar por
+ * `isConflict` o `statusCode` sabiendo que existen.
+ *
+ * No todo fallo es un `ApiError` —hay Error normales, fallos de axios que no pasan
+ * por aqui y cosas lanzadas desde el navegador—, asi que para el mensaje y el
+ * estado en general siguen sirviendo `mensajeDeError` y `estadoDeError`. Esto es
+ * para lo que solo tiene sentido en NUESTRO error, como `isConflict`.
+ */
+export function esApiError(error: unknown): error is ApiError {
+  if (!error || typeof error !== 'object') return false;
+  const posible = error as Partial<ApiError>;
+  return (
+    typeof posible.statusCode === 'number' && typeof posible.message === 'string'
+  );
 }
 
 const CONFLICT_ERROR_MESSAGE =
@@ -245,7 +267,7 @@ export const formatErrorForComponent = (error: any): string => {
       case 500:
         return "Error interno del servidor. Por favor, intente más tarde.";
       default:
-        return `Error ${error.statusCode}: ${error.message || 'Error desconocido'}`;
+        return `Error ${error.statusCode}: ${mensajeDeError(error, 'Error desconocido')}`;
     }
   }
   

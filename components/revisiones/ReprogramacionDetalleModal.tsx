@@ -1,5 +1,6 @@
 'use client'
 
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 import React, { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
@@ -22,6 +23,9 @@ import {
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { aprobacionesService, type ApprovalContext } from '@/services/aprobaciones-service'
+import { Skeleton, SkeletonTexto } from '@/components/ui/Skeleton'
+import Tooltip from '@/components/ui/Tooltip'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 
 export interface ReprogramacionData {
   id: string
@@ -197,6 +201,15 @@ export default function ReprogramacionDetalleModal({
   const [activeTab, setActiveTab] = useState<TabKey>('solicitud')
   const [context, setContext] = useState<ApprovalContext | null>(null)
   const [loadingContext, setLoadingContext] = useState(false)
+  // Escape para salir y foco al abrir. El hook lleva una pila, asi que con
+  // modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    abierto: isOpen,
+    onClose: onClose,
+    // Modal de solo lectura: no hay campo que enfocar.
+    enfocarAlAbrir: false,
+  })
+
   const [contextError, setContextError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -214,7 +227,7 @@ export default function ReprogramacionDetalleModal({
       .catch((error) => {
         if (!cancelled) {
           setContext(null)
-          setContextError(error?.message || 'No se pudo cargar el contexto')
+          setContextError(mensajeDeError(error, 'No se pudo cargar el contexto'))
         }
       })
       .finally(() => {
@@ -238,9 +251,10 @@ export default function ReprogramacionDetalleModal({
   const metricas = context?.metricas
 
   const renderLoading = () => (
-    <div className="py-8 text-center text-slate-400">
-      <Loader2 className="h-6 w-6 animate-spin mx-auto mb-3" />
-      <p className="text-xs font-bold">Cargando contexto...</p>
+    <div className="space-y-3 py-4" aria-busy="true">
+      <span className="sr-only">Cargando contexto…</span>
+      <Skeleton className="h-4 w-1/3" />
+      <SkeletonTexto lineas={3} />
     </div>
   )
 
@@ -332,7 +346,10 @@ export default function ReprogramacionDetalleModal({
         <InfoTile label="Dirección" value={cliente.direccion} />
         <InfoTile
           label="Ruta activa"
-          value={ruta ? `${ruta.nombre || ruta.codigo} · ${ruta.cobrador?.nombres || ''} ${ruta.cobrador?.apellidos || ''}`.trim() : '—'}
+          // La ruta viene anidada en el cliente, y ese select del backend trae
+          // solo id, nombre y codigo: no hay cobrador. Antes se intentaba
+          // `ruta.cobrador?.nombres` y quedaba un " · " suelto al final.
+          value={ruta ? String(ruta.nombre || ruta.codigo || '').trim() || '—' : '—'}
         />
       </div>
     )
@@ -510,12 +527,15 @@ export default function ReprogramacionDetalleModal({
                   </p>
                 </div>
               </div>
-              <button
-                onClick={onClose}
-                className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors shrink-0"
-              >
-                <X className="h-4 w-4" />
-              </button>
+              <Tooltip texto="Cerrar">
+                <button
+                  onClick={onClose}
+                  className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors shrink-0"
+                  aria-label="Cerrar"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </Tooltip>
             </div>
           </div>
 

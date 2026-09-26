@@ -1,7 +1,6 @@
 'use client'
 
-import PantallaCarga from '@/components/ui/PantallaCarga'
-import { logger } from '@/lib/logger'
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 
 import { useState, type ReactNode, useMemo, useEffect, useCallback } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
@@ -30,9 +29,7 @@ import { Sparkline } from '@/components/ui/PremiumCharts'
 import { TransactionalHighDetailChart } from '@/components/ui/TransactionalHighDetailChart'
 import { dashboardService, type DashboardData } from '@/services/dashboard-coordinador-service'
 import { formatErrorForComponent } from '@/lib/api/api'
-import { computeOperationalMetaTotalForTimeFilter } from '@/lib/dashboard-operational-meta'
 
-import PagoModal from '@/components/dashboards/shared/PagoModal'
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
 import FloatingActionMenu, { FabAction } from '@/components/dashboards/shared/FloatingActionMenu'
 import { prestamosService } from '@/services/prestamos-service'
@@ -40,6 +37,7 @@ import { exportService } from '@/services/export-service'
 import { toast } from 'sonner'
 import { useAuth } from '@/hooks/useAuth'
 import { buildCrearPrestamoPayload } from '@/lib/creditos/crear-prestamo-payload'
+import { SkeletonDetalle } from '@/components/ui/Skeleton'
 
 
 interface MetricCard {
@@ -62,40 +60,26 @@ const VistaSupervisor = () => {
   const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
 
-  const [isFabOpen, setIsFabOpen] = useState(false)
-  const [showPagoModal, setShowPagoModal] = useState(false)
-  const [pagoInitialIsAbono, setPagoInitialIsAbono] = useState(false)
   const [showCreditoTipoModal, setShowCreditoTipoModal] = useState(false)
   const [showNewClientModal, setShowNewClientModal] = useState(false)
-  const [selectedVisitaForPago, setSelectedVisitaForPago] = useState<{
-    id: string;
-    cliente: string;
-    direccion: string;
-    montoCuota: number;
-    saldoTotal: number;
-  } | undefined>(undefined)
-  
   const router = useRouter()
 
   const loadDashboardData = useCallback(async () => {
     try {
       if (!refreshing) setLoading(true)
       setError(null)
-      const [data, metaOperativa] = await Promise.all([
-        dashboardService.getDashboardData(timeFilter),
-        computeOperationalMetaTotalForTimeFilter(timeFilter as any).catch(() => 0),
-      ])
-      const meta = Number(metaOperativa || 0)
-      const next = meta > 0
-        ? ({
-            ...(data as any),
-            trend: (Array.isArray((data as any)?.trend) ? (data as any).trend : []).map((t: any) => ({
-              ...t,
-              target: meta,
-            })),
-          } as any)
-        : data
-      setDashboardData(next)
+      // El target de cada punto lo manda el backend ("meta nominal diaria") y
+      // se usa tal cual. Antes se pisaba el de TODOS los puntos con una sola
+      // cifra global del periodo: como `Sem` y `Mes` agrupan por dia, cada
+      // barra quedaba con la meta del periodo entero y su eficiencia salia
+      // dividida entre el numero de barras (en un mes, ~30 veces menor).
+      //
+      // Es la misma decision de 247aec2 ("usar target especifico por punto del
+      // backend en lugar de meta global"), que se aplico solo al panel del
+      // administrador y a VistaCoordinador, un componente que no renderiza
+      // nadie. Aqui nunca llego.
+      const data = await dashboardService.getDashboardData(timeFilter)
+      setDashboardData(data)
     } catch (err) {
       setError(formatErrorForComponent(err))
     } finally {
@@ -127,21 +111,9 @@ const VistaSupervisor = () => {
     }
   }, [])
 
-  const handlePagoConfirm = (data: {
-    clienteId: string;
-    monto: number;
-    metodoPago: string;
-    comprobante: File | null;
-    isAbono: boolean;
-  }) => {
-    logger.log('Pago confirmado en Supervisor:', data)
-    setShowPagoModal(false)
-    setSelectedVisitaForPago(undefined)
-  }
-
   const handleCreditoConfirm = async (data: any) => {
     try {
-      const esContado = Boolean((data as any).ventaContado)
+      const esContado = Boolean((data).ventaContado)
       const isArticulo = data.creditType === 'articulo'
       const payload = buildCrearPrestamoPayload(data, user?.id)
       const prestamo = await prestamosService.crearPrestamo(payload);
@@ -160,8 +132,8 @@ const VistaSupervisor = () => {
         }
       }
       loadDashboardData();
-    } catch (error: any) {
-      toast.error('Error al crear crédito', { description: error?.message || 'Ocurrió un error inesperado.' });
+    } catch (error) {
+      toast.error('Error al crear crédito', { description: mensajeDeError(error, 'Ocurrió un error inesperado.') });
     }
   }
 
@@ -178,9 +150,9 @@ const VistaSupervisor = () => {
     try {
       await exportService.exportOperationalReport(format, { period: timeFilter })
       toast.success(`Resumen exportado en ${format === 'excel' ? 'Excel' : 'PDF'}`)
-    } catch (error: any) {
+    } catch (error) {
       toast.error('No se pudo exportar el resumen', {
-        description: error?.message || 'Intente de nuevo en un momento.',
+        description: mensajeDeError(error, 'Intente de nuevo en un momento.'),
       })
     } finally {
       setExportando(false)
@@ -267,7 +239,7 @@ const VistaSupervisor = () => {
 
   if (loading && !dashboardData) {
     return (
-      <PantallaCarga texto="Cargando panel de supervisión..." />
+      <SkeletonDetalle />
     )
   }
 
@@ -409,17 +381,6 @@ const VistaSupervisor = () => {
 
 
 
-
-      <PagoModal 
-        isOpen={showPagoModal}
-        onClose={() => {
-          setShowPagoModal(false)
-          setSelectedVisitaForPago(undefined)
-        }}
-        onConfirm={handlePagoConfirm}
-        initialIsAbono={pagoInitialIsAbono}
-        initialVisita={selectedVisitaForPago}
-      />
 
       <CrearCreditoModal 
         isOpen={showCreditoTipoModal}

@@ -1,7 +1,14 @@
 'use client'
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 
 
 import Paginador from '@/components/ui/Paginador'
+import {
+  PLAZOS_ARTICULO_MESES,
+  opcionesDeMesesParaPlazo,
+  plazosRepetidos,
+  problemasDeOpcionesDeCredito,
+} from '@/lib/plazos-articulo'
 /**
  * ============================================================================
  * ARTÍCULOS / INVENTARIO - COMPONENTE COMPARTIDO
@@ -41,8 +48,8 @@ import {
   Pencil,
   XCircle,
   Bell
-} from 'lucide-react'
-import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber } from '@/lib/utils'
+, Loader2} from 'lucide-react'
+import { formatCOPInputValue, formatCurrency, formatMilesCOP, parseCOPInputToNumber } from '@/lib/utils'
 import { inventarioService, Producto as BackendProducto, EstadisticasInventario } from '@/services/inventario-service'
 import { useNotification } from '@/components/providers/NotificationProvider'
 import { useNotificaciones } from '@/components/providers/NotificacionesProvider'
@@ -55,6 +62,7 @@ import { useRouter } from 'next/navigation'
 import IngresoMercanciaModal from '@/components/articulos/IngresoMercanciaModal'
 import { exportService } from '@/services/export-service'
 import { formatErrorForComponent } from '@/lib/api/api'
+import BotonAccion from '@/components/ui/BotonAccion'
 
 // Interfaces
 interface PrecioCuota {
@@ -221,7 +229,7 @@ export default function ArticulosContent() {
     precios: [] as PrecioCuota[],
   })
 
-  const [nuevaCuota, setNuevaCuota] = useState({ meses: 1, precio: '' })
+  const [nuevaCuota, setNuevaCuota] = useState({ meses: PLAZOS_ARTICULO_MESES[0], precio: '' })
 
   const articulosFiltrados = articulos.filter((a) => {
     const q = busqueda.toLowerCase()
@@ -356,7 +364,7 @@ export default function ArticulosContent() {
       stockMinimo: '',
       precios: [],
     })
-    setNuevaCuota({ meses: 1, precio: '' })
+    setNuevaCuota({ meses: PLAZOS_ARTICULO_MESES[0], precio: '' })
     setShowNuevoModal(true)
   }
 
@@ -381,7 +389,7 @@ export default function ArticulosContent() {
       stockMinimo: String(articulo.stockMinimo),
       precios: [...articulo.precios],
     })
-    setNuevaCuota({ meses: 1, precio: '' })
+    setNuevaCuota({ meses: PLAZOS_ARTICULO_MESES[0], precio: '' })
     setShowEditarModal(true)
   }
 
@@ -392,7 +400,7 @@ export default function ArticulosContent() {
         ...prev,
         precios: [...prev.precios, { meses: nuevaCuota.meses, precio }].sort((a, b) => a.meses - b.meses),
       }))
-      setNuevaCuota({ meses: 1, precio: '' })
+      setNuevaCuota({ meses: PLAZOS_ARTICULO_MESES[0], precio: '' })
     }
   }
 
@@ -402,6 +410,30 @@ export default function ArticulosContent() {
       precios: prev.precios.filter((_, i) => i !== index),
     }))
   }
+
+  /**
+   * Corrige una opción ya agregada en su sitio.
+   *
+   * Antes las filas eran texto con un botón de borrar: cambiar una cifra
+   * obligaba a borrar la opción y volver a escribirla entera, y en el modal de
+   * editar eso significaba borrar un precio que ya estaba guardado para
+   * reponerlo a mano.
+   *
+   * NO reordena. `addPrecioCuota` sí ordena al agregar, pero hacerlo aquí movía
+   * la fila mientras se elegía el plazo: se pasa de 3 a 8 meses y la fila salta
+   * a otro sitio con el cursor dentro. El orden no cambia nada al guardar,
+   * porque lo que se manda es el plazo de cada opción.
+   */
+  const actualizarPrecioCuota = (index: number, cambio: Partial<PrecioCuota>) => {
+    setFormData((prev) => ({
+      ...prev,
+      precios: prev.precios.map((p, i) => (i === index ? { ...p, ...cambio } : p)),
+    }))
+  }
+
+  // Los plazos que quedaron repetidos tras editar uno: se pintan en rojo.
+  const repetidos = plazosRepetidos(formData.precios)
+  const problemasDeLosPrecios = problemasDeOpcionesDeCredito(formData.precios)
 
   /**
    * Lo que la base exige de verdad, más el precio de contado, que es del que
@@ -420,7 +452,12 @@ export default function ArticulosContent() {
     return faltan
   }
 
+  const [guardandoArticulo, setGuardandoArticulo] = useState(false)
+
   const handleGuardar = async () => {
+    // El boton no se bloqueaba ni mostraba nada al guardar: a fuerza de clics
+    // se creaba el mismo articulo varias veces.
+    if (guardandoArticulo) return
     const faltan = camposQueFaltan()
     if (faltan.length > 0) {
       showNotification(
@@ -428,6 +465,11 @@ export default function ArticulosContent() {
         `Falta diligenciar: ${faltan.join(', ')}.`,
         'Datos incompletos',
       )
+      return
+    }
+
+    if (problemasDeLosPrecios.length > 0) {
+      showNotification('error', problemasDeLosPrecios.join(' '), 'Revisa los precios a crédito')
       return
     }
 
@@ -447,6 +489,7 @@ export default function ArticulosContent() {
     }
 
     try {
+      setGuardandoArticulo(true)
       if (articuloSeleccionado) {
          await inventarioService.actualizarProducto(articuloSeleccionado.id, commonData)
          showNotification('success', 'Artículo actualizado correctamente', 'Éxito')
@@ -458,10 +501,15 @@ export default function ArticulosContent() {
       setShowNuevoModal(false)
       setShowEditarModal(false)
       setArticuloSeleccionado(null)
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error saving:', error)
-      const errorMsg = error.response?.data?.message || 'Error al guardar el artículo. Verifique el código o los datos.'
+      const errorMsg = mensajeDeError(
+        error,
+        'Error al guardar el artículo. Verifique el código o los datos.',
+      )
       showNotification('error', errorMsg, 'Error')
+    } finally {
+      setGuardandoArticulo(false)
     }
   }
 
@@ -1081,7 +1129,7 @@ export default function ArticulosContent() {
                       onChange={(e) => setNuevaCuota((p) => ({ ...p, meses: Number(e.target.value) }))}
                       className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-900"
                     >
-                      {[1, 2, 3, 4, 5, 6, 9, 12, 18, 24].map((m) => (
+                      {PLAZOS_ARTICULO_MESES.map((m) => (
                         <option key={m} value={m}>
                           {m} mes{m > 1 ? 'es' : ''}
                         </option>
@@ -1098,10 +1146,21 @@ export default function ArticulosContent() {
                         placeholder="0"
                       />
                     </div>
+                    {/*
+                      Sin precio el botón no hacía nada y no decía por qué:
+                      `addPrecioCuota` sale sin agregar si el precio es 0. Queda
+                      deshabilitado, que es lo mismo pero visible.
+                    */}
                     <button
                       type="button"
                       onClick={addPrecioCuota}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-orange-500 text-white text-sm font-bold hover:bg-orange-600"
+                      disabled={parseCOPInputToNumber(nuevaCuota.precio) <= 0}
+                      title={
+                        parseCOPInputToNumber(nuevaCuota.precio) <= 0
+                          ? 'Escribe el precio total de esa opción para agregarla'
+                          : undefined
+                      }
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-orange-500 text-white text-sm font-bold hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-orange-500"
                     >
                       <Plus className="h-4 w-4" />
                       Agregar
@@ -1114,23 +1173,67 @@ export default function ArticulosContent() {
                 ) : (
                   <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
                     <div className="divide-y divide-slate-100">
-                      {formData.precios.map((p, idx) => (
-                        <div key={`${p.meses}-${idx}`} className="flex items-center justify-between px-4 py-3">
-                          <div className="text-sm font-bold text-slate-900">{p.meses} meses</div>
-                          <div className="flex items-center gap-3">
-                            <div className="text-sm font-bold text-slate-900">{formatCurrency(p.precio)}</div>
-                            <button
-                              type="button"
-                              onClick={() => removePrecioCuota(idx)}
-                              className="shrink-0 p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                      {formData.precios.map((p, idx) => {
+                        const repetido = repetidos.has(p.meses)
+                        const sinPrecio = p.precio <= 0
+                        return (
+                          <div
+                            key={idx}
+                            className={`flex items-center justify-between gap-3 px-4 py-3 ${
+                              repetido || sinPrecio ? 'bg-rose-50' : ''
+                            }`}
+                          >
+                            <select
+                              value={p.meses}
+                              onChange={(e) => actualizarPrecioCuota(idx, { meses: Number(e.target.value) })}
+                              aria-label={`Plazo de la opción ${idx + 1}`}
+                              className={`rounded-xl border bg-white px-3 py-2 text-sm font-bold text-slate-900 ${
+                                repetido ? 'border-rose-400' : 'border-slate-200'
+                              }`}
                             >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
+                              {opcionesDeMesesParaPlazo(p.meses).map((m) => (
+                                <option key={m} value={m}>
+                                  {m} mes{m > 1 ? 'es' : ''}
+                                </option>
+                              ))}
+                            </select>
+                            <div className="flex items-center gap-3">
+                              <div className="relative">
+                                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  value={p.precio > 0 ? formatMilesCOP(p.precio) : ''}
+                                  onChange={(e) =>
+                                    actualizarPrecioCuota(idx, { precio: parseCOPInputToNumber(e.target.value) })
+                                  }
+                                  aria-label={`Precio de la opción a ${p.meses} meses`}
+                                  className={`w-40 pl-10 pr-4 py-2 rounded-xl border bg-white text-sm font-bold text-slate-900 ${
+                                    sinPrecio ? 'border-rose-400' : 'border-slate-200'
+                                  }`}
+                                  placeholder="0"
+                                />
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => removePrecioCuota(idx)}
+                                aria-label={`Quitar la opción a ${p.meses} meses`}
+                                className="shrink-0 p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   </div>
+                )}
+
+                {problemasDeLosPrecios.length > 0 && (
+                  <p className="mt-3 text-sm font-bold text-rose-600">
+                    {problemasDeLosPrecios.join(' ')}
+                  </p>
                 )}
               </div>
             </div>
@@ -1150,9 +1253,11 @@ export default function ArticulosContent() {
               <button
                 type="button"
                 onClick={handleGuardar}
-                className="px-6 py-3 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700"
+                disabled={guardandoArticulo}
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                Guardar
+                {guardandoArticulo && <Loader2 className="h-4 w-4 animate-spin" />}
+                {guardandoArticulo ? 'Guardando...' : 'Guardar'}
               </button>
             </div>
           </div>
@@ -1191,13 +1296,14 @@ export default function ArticulosContent() {
               >
                 Cancelar
               </button>
-              <button
+              <BotonAccion
                 type="button"
                 onClick={confirmarEliminar}
+                textoCargando="Archivando…"
                 className="px-6 py-2.5 rounded-xl bg-rose-500 text-white text-sm font-bold hover:bg-rose-600 active:bg-rose-700 transition-all duration-200 shadow-sm shadow-rose-200"
               >
                 Sí, archivar
-              </button>
+              </BotonAccion>
             </div>
           </div>
         </div>

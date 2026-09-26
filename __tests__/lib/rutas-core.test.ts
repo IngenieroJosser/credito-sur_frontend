@@ -1,3 +1,4 @@
+import type { VisitaParcial } from '@/lib/types/cobranza'
 import {
   buildRegularizedPaymentTarget,
   computeDiasMoraFromCuotaObjetivo,
@@ -14,19 +15,20 @@ import {
   resolveCobradorIdForRouteAction,
   shouldShowVisitaEnRutaHoy,
 } from '@/lib/rutas-core'
+import type { PrestamoParcial } from '@/types/domain'
 
 describe('validez operativa provisional', () => {
   it('permite prestamos pendientes como provisionales y excluye rechazados/revertidos', () => {
-    const pendiente = {
+    const pendiente: PrestamoParcial = {
       estado: 'PENDIENTE_APROBACION',
       estadoAprobacion: 'PENDIENTE',
       efectoProvisional: { estado: 'PENDIENTE_REVISION' },
     }
-    const rechazado = {
+    const rechazado: PrestamoParcial = {
       estado: 'PENDIENTE_APROBACION',
       estadoAprobacion: 'RECHAZADO',
     }
-    const revertido = {
+    const revertido: PrestamoParcial = {
       estado: 'PENDIENTE_APROBACION',
       estadoAprobacion: 'PENDIENTE',
       efectoProvisional: { estado: 'REVERTIDO' },
@@ -365,7 +367,7 @@ describe('shouldShowVisitaEnRutaHoy', () => {
         {
           estado: 'pendiente',
           estadoGestion: 'PENDIENTE',
-          periodoRuta: 'SEMANAL',
+          periodoRuta: 'SEMANA',
           proximaVisita: '2026-06-20',
           saldoPendiente: 1900000,
         },
@@ -591,7 +593,7 @@ describe('computeRutaHoyUiStatsFromVisitas', () => {
   })
 
   it('reincorpora a meta y recaudo un cliente ausente cuando registra pago hoy', () => {
-    const visitas = [
+    const visitas: VisitaParcial[] = [
       { estado: 'pendiente', montoCuota: 564_998, saldoTotal: 564_998 },
       { estado: 'ausente', estadoVisita: 'ausente', montoCuota: 425_335, saldoTotal: 425_335, recaudadoDelDia: 425_335 },
     ]
@@ -605,7 +607,7 @@ describe('computeRutaHoyUiStatsFromVisitas', () => {
   })
 
   it('excluye de meta a un cliente ausente mientras no tenga pago operativo', () => {
-    const visitas = [
+    const visitas: VisitaParcial[] = [
       { estado: 'pendiente', montoCuota: 564_998, saldoTotal: 564_998 },
       { estado: 'ausente', estadoVisita: 'ausente', montoCuota: 425_335, saldoTotal: 425_335, recaudadoDelDia: 0 },
     ]
@@ -619,7 +621,7 @@ describe('computeRutaHoyUiStatsFromVisitas', () => {
   })
 
   it('excluye de meta a un cliente reprogramado mientras no tenga pago operativo', () => {
-    const visitas = [
+    const visitas: VisitaParcial[] = [
       { estado: 'pendiente', montoCuota: 1_957_333, saldoTotal: 1_957_333 },
       { estado: 'reprogramado', estadoVisita: 'reprogramado', montoCuota: 86_666, saldoTotal: 86_666, recaudadoDelDia: 0 },
     ]
@@ -633,7 +635,7 @@ describe('computeRutaHoyUiStatsFromVisitas', () => {
   })
 
   it('excluye de meta a una prorroga futura aunque no venga como estado reprogramado', () => {
-    const visitas = [
+    const visitas: VisitaParcial[] = [
       { estado: 'pendiente', montoCuota: 1_957_333, saldoTotal: 1_957_333 },
       { estado: 'en_mora', enProrroga: true, fechaProrroga: '2999-01-01', montoCuota: 86_666, saldoTotal: 86_666, recaudadoDelDia: 0 },
     ]
@@ -647,7 +649,7 @@ describe('computeRutaHoyUiStatsFromVisitas', () => {
   })
 
   it('mantiene el recaudo de un cliente reprogramado sin dejarlo pendiente otra vez', () => {
-    const visitas = [
+    const visitas: VisitaParcial[] = [
       { estado: 'pendiente', montoCuota: 1_957_333, saldoTotal: 1_957_333 },
       { estado: 'reprogramado', estadoVisita: 'reprogramado', montoCuota: 86_666, saldoTotal: 86_666, recaudadoDelDia: 86_666 },
     ]

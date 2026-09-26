@@ -1,3 +1,4 @@
+import type { VisitaParcial } from '@/lib/types/cobranza'
 import {
   applyRecaudoHoyToVisitas,
   buildRecaudosHoyMapByPrestamoId,
@@ -120,7 +121,7 @@ describe('ruta-recaudos', () => {
   })
 
   it('preserva recaudo de un ausente pagado aunque el refresh cambie el id visual de la visita', () => {
-    const local = [
+    const local: VisitaParcial[] = [
       {
         id: 'asig-anterior-prestamo-1',
         prestamoId: 'prestamo-1',
@@ -144,7 +145,7 @@ describe('ruta-recaudos', () => {
       },
     ]
 
-    const backendRefresh = [
+    const backendRefresh: VisitaParcial[] = [
       {
         id: 'asig-nueva-prestamo-1',
         prestamoId: 'prestamo-1',
@@ -168,7 +169,7 @@ describe('ruta-recaudos', () => {
       },
     ]
 
-    const merged = mergeVisitasPreservingLocalRecaudo(local as any, backendRefresh as any)
+    const merged = mergeVisitasPreservingLocalRecaudo(local, backendRefresh)
     const operativas = merged.filter((v) => !shouldExcludeVisitaFromOperationalMeta(v))
     const stats = computeRutaHoyUiStatsFromVisitas(operativas, 0)
 
@@ -195,7 +196,7 @@ describe('ruta-recaudos', () => {
       },
     ]
 
-    const result = applyRecaudoHoyToVisitas(visitas as any, {
+    const result = applyRecaudoHoyToVisitas(visitas, {
       hoyBogotaKey: '2026-06-03',
       recaudosHoyMap: {},
     })
@@ -216,7 +217,7 @@ describe('ruta-recaudos', () => {
         saldoTotal: 1330003,
         recaudadoDelDia: 0,
       },
-    ] as any, {
+    ], {
       hoyBogotaKey: '2026-06-11',
       recaudosHoyMap: {
         'prestamo-1': 126666,

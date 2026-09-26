@@ -48,6 +48,8 @@ import { toast } from 'sonner'
 import { offlineStore } from '@/lib/offline/offlineDb'
 import { resolveRiesgoObligacion } from '@/lib/rutas/riesgo-obligacion'
 import Paginador from '@/components/ui/Paginador'
+import { SkeletonTabla } from '@/components/ui/Skeleton'
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 
 type ViewMode = 'list' | 'grid'
 
@@ -90,7 +92,6 @@ function CuentasVencidasContent() {
 
   const [cuentas, setCuentas] = useState<CuentaVencida[]>([])
   const [loading, setLoading] = useState(true)
-  const [exportLoading, setExportLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [busqueda, setBusqueda] = useState('')
   const [viewMode, setViewMode] = useState<ViewMode>('list')
@@ -122,9 +123,9 @@ function CuentasVencidasContent() {
         const offPrestamos = await offlineStore.getAll<any>('prestamos')
         const offClientes = await offlineStore.getAll<any>('clientes')
         const vencidas: CuentaVencida[] = offPrestamos
-          .filter((p: any) => p.estado === 'EN_MORA' || p.estado === 'INCUMPLIDO')
-          .map((p: any) => {
-            const cli = offClientes.find((c: any) => c.id === p.clienteId)
+          .filter((p) => p.estado === 'EN_MORA' || p.estado === 'INCUMPLIDO')
+          .map((p) => {
+            const cli = offClientes.find((c) => c.id === p.clienteId)
             const diasVencidos = diasVencidosDesde(p.fechaFin || toBogotaDateTimeOffsetIso(new Date()))
             const nivelRiesgo = resolveRiesgoObligacion({
               row: p,
@@ -139,7 +140,7 @@ function CuentasVencidasContent() {
               diasVencidos,
               saldoPendiente: p.saldoPendiente || 0, montoOriginal: p.monto || 0,
               ruta: '', nivelRiesgo, estado: p.estado,
-            } as any
+            }
           })
         if (vencidas.length > 0) { setCuentas(vencidas); setError(null); return }
       } catch { /* ignore */ }
@@ -150,15 +151,15 @@ function CuentasVencidasContent() {
     }
   }, [busqueda, filtroRuta])
 
+  // El aviso de progreso lo pone <ExportButton>: espera a que termine la
+  // promesa, ensena "Generando Excel…" y se bloquea mientras dura.
   const handleExportExcel = async () => {
-    setExportLoading(true)
     try { await exportService.exportCuentasVencidas('excel', { busqueda: busqueda || undefined }); toast.success('Reporte descargado') }
-    catch { toast.error('Error al exportar') } finally { setExportLoading(false) }
+    catch (error) { toast.error(mensajeDeError(error, 'Error al exportar')) }
   }
   const handleExportPDF = async () => {
-    setExportLoading(true)
     try { await exportService.exportCuentasVencidas('pdf', { busqueda: busqueda || undefined }); toast.success('Reporte descargado') }
-    catch { toast.error('Error al exportar') } finally { setExportLoading(false) }
+    catch (error) { toast.error(mensajeDeError(error, 'Error al exportar')) }
   }
 
   const handleAccion = (cuenta: CuentaVencida) => {
@@ -204,8 +205,8 @@ function CuentasVencidasContent() {
       )
       setShowGestionarModal(false); setShowCastigoModal(false); setSelectedCuenta(null)
       fetchCuentasVencidas()
-    } catch (e: any) {
-      toast.error(e?.message || 'Error al procesar la decision')
+    } catch (e) {
+      toast.error(mensajeDeError(e, 'Error al procesar la decision'))
     }
   }
 
@@ -365,9 +366,9 @@ function CuentasVencidasContent() {
 
         {/* ── Contenido ── */}
         {loading && cuentasFiltradas.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <RefreshCw className="h-10 w-10 animate-spin text-primary mb-4" />
-            <p className="text-slate-500 font-medium">Cargando cuentas vencidas...</p>
+          <div aria-busy="true">
+            <span className="sr-only">Cargando cuentas vencidas…</span>
+            <SkeletonTabla filas={6} columnas={5} />
           </div>
         ) : error && cuentasFiltradas.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-2xl border border-slate-200 border-dashed">
@@ -471,7 +472,7 @@ function CuentasVencidasContent() {
 
         ) : (
           <>
-          /* ── GRID ── */
+          {/* ── GRID ── */}
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {cuentasPagina.map(cuenta => {
               const severidad = severidadVencida(cuenta.diasVencidos)

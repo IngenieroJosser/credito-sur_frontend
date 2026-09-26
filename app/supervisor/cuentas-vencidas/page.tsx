@@ -23,6 +23,7 @@ import {
   type CuentaVencida,
 } from '@/services/vencidas-service'
 import { toast } from 'sonner'
+import { SkeletonTabla } from '@/components/ui/Skeleton'
 
 type ViewMode = 'list' | 'grid'
 
@@ -207,9 +208,9 @@ function CuentasVencidasContent() {
 
         {/* Contenido */}
         {loading && cuentasFiltradas.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <RefreshCw className="h-10 w-10 animate-spin text-primary mb-4" />
-            <p className="text-slate-500 font-medium">Cargando cuentas vencidas...</p>
+          <div aria-busy="true">
+            <span className="sr-only">Cargando cuentas vencidas…</span>
+            <SkeletonTabla filas={6} columnas={5} />
           </div>
         ) : error && cuentasFiltradas.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-2xl border border-slate-200 border-dashed">

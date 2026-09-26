@@ -1,8 +1,14 @@
 import { apiRequest } from '@/lib/api/api';
 import { syncService } from '@/lib/offline/syncService';
-import { conRespaldoOffline } from '@/lib/offline/conRespaldoOffline';
+import { conRespaldoOffline, esErrorDeRed } from '@/lib/offline/conRespaldoOffline';
 import { logger } from '@/lib/logger';
 
+/**
+ * Lo mismo que `RutaDeLista` de `types/domain.ts`, declarado otra vez.
+ *
+ * Se conserva porque las firmas de este servicio lo usan; la forma canonica, y la
+ * explicacion de por que `cobrador` es un string y no un objeto, esta alla.
+ */
 export interface Route {
   id: string;
   codigo: string;
@@ -16,15 +22,11 @@ export interface Route {
   actualizadoEn: string;
   eliminadoEn?: string;
   
-  // Relaciones
-  cobrador_: {
-    id: string;
-    nombres: string;
-    apellidos: string;
-    correo: string;
-    telefono?: string;
-    rol: string;
-  };
+  // Aqui habia un `cobrador_` OBLIGATORIO con la forma de la relacion de Prisma.
+  // Se busco en todo el backend y ese campo no existe en ninguna respuesta: los
+  // dos endpoints de rutas hacen `cobrador: nombres + apellidos`, y este tipo ya
+  // lo declara mas abajo como `cobrador: string`. El unico sitio que leia
+  // `cobrador_` (FiltroRuta) lo hacia en la rama muerta de un `||`.
   supervisor?: {
     id: string;
     nombres: string;
@@ -153,7 +155,7 @@ export const routesService = {
     return conRespaldoOffline(
       () => apiRequest<Route>('POST', '/routes', data),
       { type: 'ruta_crear', endpoint: '/routes', method: 'POST', data, description: `Crear ruta`, tempId },
-      { id: tempId, ...(data as any) } as Route,
+      { id: tempId, ...(data) } as Route,
     );
   },
 
@@ -162,7 +164,7 @@ export const routesService = {
     return conRespaldoOffline(
       () => apiRequest<Route>('PATCH', `/routes/${id}`, data),
       { type: 'ruta_actualizar', endpoint: `/routes/${id}`, method: 'PATCH', data, description: `Actualizar ruta ${id}` },
-      { id, ...(data as any) } as Route,
+      { id, ...(data) } as Route,
     );
   },
 
@@ -283,13 +285,8 @@ export const routesService = {
     const endpoint = `/routes/${rutaId}/cierre-pendiente/${fechaOperativa}/cerrar`;
     try {
       return await apiRequest<any>('POST', endpoint, { observaciones });
-    } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 ||
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+    } catch (error) {
+      if (esErrorDeRed(error)) {
         // Seguro offline: la cola es cronológica, así que este cierre se
         // sincroniza DESPUÉS de los pagos/gastos del día → el servidor
         // reconcilia con el panorama completo.

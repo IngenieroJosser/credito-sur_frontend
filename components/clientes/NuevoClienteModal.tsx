@@ -1,5 +1,6 @@
 'use client';
 
+import { codigoDeError, estadoDeError, mensajeDeError } from '@/lib/mensaje-de-error';
 import { useState, useEffect, useRef } from 'react';
 import { X, Loader2 } from 'lucide-react';
 import { useNotification } from '@/components/providers/NotificationProvider';
@@ -22,6 +23,8 @@ interface NuevoClienteModalProps {
 }
 
 import { useAuth } from '@/hooks/useAuth';
+import Tooltip from '@/components/ui/Tooltip';
+import { useModalDialog } from '@/hooks/use-modal-dialog';
 
 /**
  * Estilo unico de los campos del formulario.
@@ -66,6 +69,12 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
     documentoReverso: null,
     comprobanteDomicilio: null,
   });
+
+  // Escape para salir y el foco en el primer campo al abrir. El hook lleva
+  // una pila, asi que con modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    onClose: onClose,
+  })
 
   /* State for existing files in edit mode */
   const [existingFiles, setExistingFiles] = useState<{
@@ -216,7 +225,9 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
     }
 
     try {
-      let resultado: Cliente;
+      // `actualizar` devuelve null sin conexion (ver clientes-service): en ese
+      // caso la pantalla se queda con lo que el formulario ya tenia.
+      let resultado: Cliente | null;
       
       if (esEdicion && cliente?.id) {
         // Enviar archivos junto con los datos al actualizar
@@ -233,16 +244,16 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
       
       onClienteCreado({
         ...formulario,
-        ...resultado,
+        ...(resultado ?? {}),
       } as any);
       onClose();
 
-    } catch (error: any) {
+    } catch (error) {
       console.error('[NuevoClienteModal] Error:', error);
       
       // Si el servicio no pudo manejar el modo offline automáticamente (ej. navigator.onLine es true pero falló)
       // o si queremos asegurar que se guarde localmente ante cualquier error de conexión
-      const isNetworkError = !navigator.onLine || error?.statusCode === 0 || error?.code === 'ERR_NETWORK';
+      const isNetworkError = !navigator.onLine || estadoDeError(error) === 0 || codigoDeError(error) === 'ERR_NETWORK';
       
       if (isNetworkError) {
         try {
@@ -271,10 +282,14 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
         }
       }
 
-      if (error?.statusCode === 409) {
-        showNotification('warning', error.message || `Ya existe un cliente con el documento: ${formulario.dni}`, 'Conflicto de Datos');
+      if (estadoDeError(error) === 409) {
+        showNotification(
+          'warning',
+          mensajeDeError(error, `Ya existe un cliente con el documento: ${formulario.dni}`),
+          'Conflicto de Datos',
+        );
       } else {
-        showNotification('error', error.message || 'No se pudo procesar la solicitud del cliente', 'Error Interno');
+        showNotification('error', mensajeDeError(error, 'No se pudo procesar la solicitud del cliente'), 'Error Interno');
       }
     } finally {
       setIsSubmitting(false);
@@ -306,14 +321,16 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
               <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Gestión de clientes</p>
               <h3 className="text-lg font-bold text-slate-900">{esEdicion ? 'Editar cliente' : 'Nuevo cliente'}</h3>
             </div>
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Cerrar"
-              className="shrink-0 rounded-xl p-2 text-slate-500 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
-            >
-              <X className="h-5 w-5" />
-            </button>
+            <Tooltip texto="Cerrar">
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Cerrar"
+                className="shrink-0 rounded-xl p-2 text-slate-500 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </Tooltip>
           </div>
 
           <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">

@@ -12,6 +12,10 @@ import { normalizeDateKey } from '@/lib/rutas-core';
 import { formatLoanTerm } from '@/lib/utils';
 import { toast } from 'sonner';
 
+import { Skeleton, SkeletonTexto, SkeletonTabla } from '@/components/ui/Skeleton'
+import Tooltip from '@/components/ui/Tooltip'
+import { mensajeDeError } from '@/lib/mensaje-de-error'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 interface DetallePrestamoModalProps {
   id: string;
   onClose: () => void;
@@ -24,6 +28,11 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
   const [downloadingContract, setDownloadingContract] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
+  // Escape para salir y el foco en el primer campo al abrir. El hook lleva
+  // una pila, asi que con modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    onClose: onClose,
+  })
 
   useEffect(() => {
     setMounted(true);
@@ -43,8 +52,7 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
     try {
       await exportService.exportContrato(id);
       toast.success('Contrato descargado');
-    } catch {
-      toast.error('Error al descargar contrato');
+    } catch (error) { toast.error(mensajeDeError(error, 'Error al descargar contrato'));
     } finally {
       setDownloadingContract(false);
     }
@@ -68,7 +76,7 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
             return st !== 'PAGADA' && st !== 'PAGADO' && st !== 'ANULADA' && st !== 'ANULADO';
           };
 
-          const sorted = [...cuotasArr].sort((a: any, b: any) => {
+          const sorted = [...cuotasArr].sort((a, b: any) => {
             const ak = normalizeDateKey(String(a?.fechaVencimiento || ''));
             const bk = normalizeDateKey(String(b?.fechaVencimiento || ''));
             if (ak && bk) return ak.localeCompare(bk);
@@ -104,18 +112,18 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
           ? data.fotos
           : Array.isArray(data.archivos) && data.archivos.length > 0
             ? data.archivos
-              .map((a: any) => a?.url || a?.path || a?.ruta)
+              .map((a) => a?.url || a?.path || a?.ruta)
               .filter(Boolean)
             : Array.isArray(data?.cliente?.archivos)
               ? data.cliente.archivos
-                .map((a: any) => a?.url || a?.path || a?.ruta)
+                .map((a) => a?.url || a?.path || a?.ruta)
                 .filter(Boolean)
               : [];
 
         const fotos: string[] = Array.from(
           new Set(
             (rawFotos || [])
-              .map((u: any) => String(u || '').trim())
+              .map((u) => String(u || '').trim())
               .filter(Boolean)
               // filtrar entradas rotas tipo "oxz...jpg" sin ruta/publicId ni URL
               .filter((u: string) => u.startsWith('http://') || u.startsWith('https://') || u.includes('/'))
@@ -160,7 +168,7 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
           garantia: data.garantia || '',
           notas: data.notas || '',
           fotos,
-          cuotas: cuotasData.map((c: any) => ({
+          cuotas: cuotasData.map((c) => ({
             numero: c.numeroCuota,
             fecha: c.fechaVencimiento,
             monto: c.monto,
@@ -205,7 +213,7 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
               producto: offP.tipoPrestamo || 'Préstamo',
               garantia: '',
               fotos: [],
-              cuotas: offCuotas.map((c: any) => ({
+              cuotas: offCuotas.map((c) => ({
                 numero: c.numeroCuota,
                 fecha: c.fechaVencimiento,
                 monto: c.monto,
@@ -262,19 +270,28 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
           </button>
         )}
 
-        <button
-          onClick={handleClose}
-          className="absolute top-4 right-4 z-20 p-2 bg-white/80 backdrop-blur-sm rounded-full shadow-sm border border-slate-200 text-slate-400 hover:text-slate-900 hover:bg-white transition-all"
-        >
-          <X className="w-5 h-5" />
-        </button>
+        <Tooltip texto="Cerrar">
+          <button
+            onClick={handleClose}
+            className="absolute top-4 right-4 z-20 p-2 bg-white/80 backdrop-blur-sm rounded-full shadow-sm border border-slate-200 text-slate-400 hover:text-slate-900 hover:bg-white transition-all"
+            aria-label="Cerrar"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </Tooltip>
 
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto sm:rounded-2xl">
           {loading ? (
-            <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3">
-              <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
-              <p className="text-sm font-medium text-slate-500">Cargando detalle del crédito...</p>
+            <div className="space-y-6 p-1" aria-busy="true">
+              <span className="sr-only">Cargando detalle del crédito…</span>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <Skeleton className="h-20 rounded-2xl" />
+                <Skeleton className="h-20 rounded-2xl" />
+                <Skeleton className="h-20 rounded-2xl" />
+              </div>
+              <SkeletonTexto lineas={3} />
+              <SkeletonTabla filas={6} columnas={5} />
             </div>
           ) : prestamo ? (
             <DetallePrestamo prestamo={prestamo} />

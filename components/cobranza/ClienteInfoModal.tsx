@@ -1,5 +1,6 @@
 'use client'
 
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 /**
  * Modal de Información del Cliente — Vista Cobrador
  *
@@ -21,6 +22,9 @@ import { resolveCuotaAcumuladaOperativa, resolveCuotaNormalOperativa } from '@/l
 import { clientesService } from '@/services/clientes-service'
 import { rutasService, type HistorialVisitaCliente } from '@/services/rutas-service'
 import { alertasClientesService } from '@/services/alertas-clientes-service'
+import { Skeleton } from '@/components/ui/Skeleton'
+import Tooltip from '@/components/ui/Tooltip'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 
 // ── Tipos ──────────────────────────────────────────────────────────────────────
 
@@ -90,6 +94,12 @@ export default function ClienteInfoModal({
     observacionesReportante: '',
   })
 
+  // Escape para salir y el foco en el primer campo al abrir. El hook lleva
+  // una pila, asi que con modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    onClose: onClose,
+  })
+
   useEffect(() => {
     try {
       const raw = localStorage.getItem('user')
@@ -151,9 +161,9 @@ export default function ClienteInfoModal({
   const cuotaNormalOperativa = resolveCuotaNormalOperativa(visita)
   const acumuladoVencido = resolveCuotaAcumuladaOperativa(visita)
   const cuotaProyectada = nextPagoMonto ?? cuotaNormalOperativa
-  const estadoVisitaGestion = String((visita as any)?.estadoVisita || visita.estado || '').toLowerCase()
+  const estadoVisitaGestion = String((visita)?.estadoVisita || visita.estado || '').toLowerCase()
   const esAusenteGestion = estadoVisitaGestion === 'ausente'
-  const notaAusencia = String((visita as any)?.notasVisita || '').trim()
+  const notaAusencia = String((visita)?.notasVisita || '').trim()
   const puedeReportarClienteNoUbicado = ROLES_ALERTA_CLIENTE.includes(String(userRole || '').toUpperCase())
 
   const handleReportarClienteNoUbicado = async () => {
@@ -187,8 +197,8 @@ export default function ClienteInfoModal({
         ultimaUbicacionConocida: '',
         observacionesReportante: '',
       })
-    } catch (error: any) {
-      toast.error(error?.message || 'No se pudo crear la alerta.')
+    } catch (error) {
+      toast.error(mensajeDeError(error, 'No se pudo crear la alerta.'))
     } finally {
       setAlertaSubmitting(false)
     }
@@ -246,12 +256,15 @@ export default function ClienteInfoModal({
                 )}
               </div>
             </div>
-            <button
-              onClick={onClose}
-              className="shrink-0 ml-3 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors shrink-0"
-            >
-              <X className="h-5 w-5" />
-            </button>
+            <Tooltip texto="Cerrar">
+              <button
+                onClick={onClose}
+                className="shrink-0 ml-3 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors shrink-0"
+                aria-label="Cerrar"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </Tooltip>
           </div>
 
           {/* Tabs */}
@@ -319,9 +332,11 @@ export default function ClienteInfoModal({
                   </div>
 
                   {loadingFotos ? (
-                    <div className="flex flex-col items-center py-8 text-slate-400">
-                      <Loader2 className="w-8 h-8 animate-spin mb-2" />
-                      <span className="text-xs font-medium">Cargando fotos...</span>
+                    <div className="grid grid-cols-3 gap-2 py-2" aria-busy="true">
+                      <span className="sr-only">Cargando fotos…</span>
+                      {[0, 1, 2].map((i) => (
+                        <Skeleton key={i} className="aspect-square rounded-xl" />
+                      ))}
                     </div>
                   ) : archivos.filter(isImage).length === 0 ? (
                     <div className="flex flex-col items-center py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
@@ -460,7 +475,7 @@ export default function ClienteInfoModal({
                   <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl text-right">
                     <p className="text-[10px] text-slate-500 font-black uppercase mb-1">Cuotas vencidas</p>
                     <p className="text-slate-900 font-black text-lg">
-                      {Number((visita as any)?.cuotasVencidas || 0)}
+                      {Number((visita)?.cuotasVencidas || 0)}
                     </p>
                   </div>
                 </div>

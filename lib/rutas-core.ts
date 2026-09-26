@@ -1,5 +1,7 @@
 import { mapFrecuenciaToPeriodo, type PeriodoRuta } from '@/lib/types/cobranza';
 import type { ClienteCierrePendiente } from '@/types/rutas/cierre-pendiente';
+import type { CuotaOperativa, VisitaParcial } from '@/lib/types/cobranza';
+import type { PrestamoParcial } from '@/types/domain';
 
 /**
  * Saca el id de la cuota objetivo de un objeto de visita.
@@ -12,7 +14,11 @@ import type { ClienteCierrePendiente } from '@/types/rutas/cierre-pendiente';
  * Devuelve cadena vacia si no encuentra ninguno, nunca `undefined`, para que
  * quien llama pueda comparar sin normalizar antes.
  */
-export const resolveCuotaIdFromVisitaLike = (source: any, prestamo?: any, cuota?: any) => {
+export const resolveCuotaIdFromVisitaLike = (
+  source: VisitaParcial | null | undefined,
+  prestamo?: PrestamoParcial | null,
+  cuota?: CuotaOperativa | null,
+) => {
   return String(
     source?.cuotaId ??
     source?.cuotaObjetivoId ??
@@ -54,7 +60,7 @@ const BOGOTA_TZ = 'America/Bogota';
  * de atraso apareciera con una cuota enorme que nadie va a pagar de un golpe, y
  * descuadraria la meta del cobrador.
  */
-export const resolveCuotaNormalOperativa = (visita: any): number => {
+export const resolveCuotaNormalOperativa = (visita: VisitaParcial | null | undefined): number => {
   return Number(
     visita?.montoCuotaNormal ??
       visita?.cuotaObjetivo?.montoCuota ??
@@ -71,7 +77,7 @@ export const resolveCuotaNormalOperativa = (visita: any): number => {
  * Es dato financiero, no la cuota que la ruta sale a cobrar
  * (ver `resolveCuotaNormalOperativa`).
  */
-export const resolveCuotaAcumuladaOperativa = (visita: any): number => {
+export const resolveCuotaAcumuladaOperativa = (visita: VisitaParcial | null | undefined): number => {
   return Number(
     visita?.montoMoraAcumulada ??
       visita?.saldoVencidoAcumulado ??
@@ -118,7 +124,7 @@ export const getEstadoRevisionOperacion = (source: any) => {
   };
 };
 
-export const isPrestamoRevertido = (prestamo: any): boolean => {
+export const isPrestamoRevertido = (prestamo: PrestamoParcial): boolean => {
   return getEstadoRevisionOperacion(prestamo).esRevertido;
 };
 
@@ -145,7 +151,7 @@ const nonOperativePrestamoStates = new Set([
  *
  * Cualquier cambio en las reglas de aqui hay que aplicarlo tambien alla.
  */
-export const isPrestamoOperativo = (prestamo: any): boolean => {
+export const isPrestamoOperativo = (prestamo: PrestamoParcial): boolean => {
   if (!prestamo) return false;
   if (prestamo?.eliminadoEn) return false;
 
@@ -168,7 +174,7 @@ export const isPrestamoOperativo = (prestamo: any): boolean => {
  * La comparacion es `<=` y no `===`: la ruta de hoy arrastra lo que vencio antes
  * y sigue impago.
  */
-export const isCuotaOperativaParaFecha = (cuota: any, fechaOperativaKey: string): boolean => {
+export const isCuotaOperativaParaFecha = (cuota: CuotaOperativa | null | undefined, fechaOperativaKey: string): boolean => {
   if (!cuota || !fechaOperativaKey) return false;
 
   const estado = normalizeUpper(cuota?.estado ?? cuota?.estadoActual);
@@ -187,7 +193,11 @@ export const isCuotaOperativaParaFecha = (cuota: any, fechaOperativaKey: string)
 };
 
 export const isObligacionOperativaRuta = (
-  obligacion: { prestamo?: any; cuota?: any; cuotaObjetivo?: any },
+  obligacion: PrestamoParcial & {
+    prestamo?: PrestamoParcial | null
+    cuota?: CuotaOperativa | null
+    cuotaObjetivo?: CuotaOperativa | null
+  },
   fechaOperativaKey: string,
 ): boolean => {
   const prestamo = obligacion?.prestamo ?? obligacion;
@@ -586,7 +596,7 @@ export const frecuenciaToPeriodoRuta = (frecuencia: string | null | undefined): 
   return mapFrecuenciaToPeriodo(String(frecuencia || '').toUpperCase());
 };
 
-export const resolveFechaEfectivaCuota = (cuota: any): string => {
+export const resolveFechaEfectivaCuota = (cuota: CuotaOperativa | null | undefined): string => {
   // Determina la "fecha efectiva" de una cuota.
   // Si la cuota está PRORROGADA y trae fechaVencimientoProrroga, esa fecha manda.
   // En caso contrario usa fechaVencimiento.
@@ -604,14 +614,14 @@ export const resolveFechaEfectivaCuota = (cuota: any): string => {
   return raw ? String(raw) : '';
 };
 
-export const resolveProximaCuotaFromPrestamo = (prestamo: any): { cuota: any | null; fechaEfectiva: string } => {
+export const resolveProximaCuotaFromPrestamo = (prestamo: PrestamoParcial): { cuota: CuotaOperativa | null; fechaEfectiva: string } => {
   // Resuelve la próxima cuota exigible de un préstamo.
   // Preferencia:
   // 1) prestamo.proximaCuota (si el backend la entrega)
   // 2) primera cuota no pagada del array prestamo.cuotas (ordenadas por fecha efectiva)
   if (!prestamo) return { cuota: null, fechaEfectiva: '' };
 
-  const noPagada = (c: any) => {
+  const noPagada = (c: CuotaOperativa) => {
     const s = String(c?.estado || '').toUpperCase();
     return s !== 'PAGADA' && s !== 'PAGADO' && s !== 'ANULADA' && s !== 'ANULADO';
   };
@@ -641,17 +651,17 @@ export const resolveProximaCuotaFromPrestamo = (prestamo: any): { cuota: any | n
   return { cuota, fechaEfectiva };
 };
 
-export const resolveNextPagoFromPrestamo = (prestamo: any): { monto: number | null; fecha: string | null; cuota: any | null; fechaEfectiva: string } => {
+export const resolveNextPagoFromPrestamo = (prestamo: PrestamoParcial): { monto: number | null; fecha: string | null; cuota: CuotaOperativa | null; fechaEfectiva: string } => {
   // Wrapper que devuelve (monto, fecha) de la cuota próxima, más la cuota y su fecha efectiva.
   // Se usa para mostrar "próximo pago" en UI.
   const { cuota, fechaEfectiva } = resolveProximaCuotaFromPrestamo(prestamo);
   if (!cuota) return { monto: null, fecha: null, cuota: null, fechaEfectiva: '' };
-  const monto = Number((cuota as any)?.montoNominal ?? (cuota as any)?.monto ?? 0);
-  const fecha = String(fechaEfectiva || (cuota as any)?.fechaVencimiento || '') || null;
+  const monto = Number((cuota)?.montoNominal ?? (cuota)?.monto ?? 0);
+  const fecha = String(fechaEfectiva || (cuota)?.fechaVencimiento || '') || null;
   return { monto, fecha, cuota, fechaEfectiva: String(fechaEfectiva || '') };
 };
 
-export const resolveCuotaProgressFromPrestamo = (prestamo: any): { cuotaActual: number | null; cuotasTotales: number | null } => {
+export const resolveCuotaProgressFromPrestamo = (prestamo: PrestamoParcial): { cuotaActual: number | null; cuotasTotales: number | null } => {
   // Devuelve el progreso del plan de pagos:
   // - cuotaActual: número de la primera cuota no pagada (o la primera cuota si no hay estado)
   // - cuotasTotales: cantidad total de cuotas (preferencia: prestamo.cantidadCuotas)
@@ -660,7 +670,7 @@ export const resolveCuotaProgressFromPrestamo = (prestamo: any): { cuotaActual: 
   const cuotas = Array.isArray(prestamo?.cuotas) ? prestamo.cuotas : [];
   const cuotasTotales = Number(prestamo?.cantidadCuotas ?? cuotas.length ?? 0) || null;
 
-  const noPagada = (c: any) => {
+  const noPagada = (c: CuotaOperativa) => {
     const s = String(c?.estado || '').toUpperCase();
     return s !== 'PAGADA' && s !== 'PAGADO' && s !== 'ANULADA' && s !== 'ANULADO';
   };
@@ -696,7 +706,7 @@ export const getPagoBogotaDateKey = (raw: unknown): string => {
   }
 };
 
-export const isVisitaExigibleHoy = (visita: any, hoyBogotaKey: string): boolean => {
+export const isVisitaExigibleHoy = (visita: VisitaParcial | null | undefined, hoyBogotaKey: string): boolean => {
   // Regla compartida: determina si una "visita" debe aparecer hoy.
   // - Si la fecha efectiva de la próxima cuota está en el futuro, no aparece hoy
   //   aunque el préstamo conserve temporalmente estado de mora.
@@ -809,13 +819,13 @@ export const shouldMarkVisitaAsPagado = (params: {
 };
 
 
-export const shouldIncludeVisitaInRutaHoyKpis = (visita: any, hoyBogotaKey: string): boolean => {
+export const shouldIncludeVisitaInRutaHoyKpis = (visita: VisitaParcial | null | undefined, hoyBogotaKey: string): boolean => {
   if (!visita) return false;
   if (isVisitaExigibleHoy(visita, hoyBogotaKey)) return true;
-  return Number((visita as any)?.recaudadoDelDia ?? (visita as any)?.recaudadoPeriodo ?? 0) > 0;
+  return Number((visita)?.recaudadoDelDia ?? (visita)?.recaudadoPeriodo ?? 0) > 0;
 };
 export const shouldExcludeVisitaFromOperationalMeta = (
-  visita: any,
+  visita: VisitaParcial,
   recaudadoHoyOverride?: unknown,
 ): boolean => {
   const estadoVisita = String(visita?.estadoVisita || '').toLowerCase().replace(/\s+/g, '_');
@@ -846,30 +856,30 @@ export const shouldExcludeVisitaFromOperationalMeta = (
 
   const recaudadoHoy = recaudadoHoyOverride !== undefined
     ? Number(recaudadoHoyOverride || 0)
-    : Number((visita as any)?.recaudadoDelDia ?? (visita as any)?.recaudadoPeriodo ?? 0);
+    : Number((visita)?.recaudadoDelDia ?? (visita)?.recaudadoPeriodo ?? 0);
 
   return !(Number.isFinite(recaudadoHoy) && recaudadoHoy > 0);
 };
 
-export const shouldShowVisitaEnRutaHoy = (visita: any, hoyBogotaKey: string): boolean => {
+export const shouldShowVisitaEnRutaHoy = (visita: VisitaParcial | null | undefined, hoyBogotaKey: string): boolean => {
   // Regla unificada para las vistas de ruta: usar isVisitaExigibleHoy
   // que ya maneja todos los casos: mora, fecha vencida, gestionado, etc.
   return isVisitaExigibleHoy(visita, hoyBogotaKey);
 };
 
-export const computeMetaHoyFromVisitas = (visitas: any[], hoyBogotaKey: string): number => {
+export const computeMetaHoyFromVisitas = (visitas: VisitaParcial[], hoyBogotaKey: string): number => {
   // Calcula la meta visual del día como suma de una cuota normal por obligación.
   // La mora/acumulado vencido vive aparte y no debe inflar la cuota principal.
   if (!Array.isArray(visitas) || visitas.length === 0) return 0;
-  return visitas.reduce((sum: number, v: any) => {
+  return visitas.reduce((sum: number, v) => {
     if (!isVisitaExigibleHoy(v, hoyBogotaKey)) return sum;
     if (String(v?.estado || '').toLowerCase() === 'pagado') return sum;
-    if (Number((v as any)?.recaudadoDelDia || 0) > 0) return sum;
-    const saldo = Number((v as any)?.saldoTotal ?? 0);
+    if (Number((v)?.recaudadoDelDia || 0) > 0) return sum;
+    const saldo = Number((v)?.saldoTotal ?? 0);
     if (saldo <= 0) return sum;
 
     const cuotaBase = resolveCuotaNormalOperativa(v);
-    const recHoy = Number((v as any)?.recaudadoDelDia || 0);
+    const recHoy = Number((v)?.recaudadoDelDia || 0);
     const cuotaPendiente = Math.max(0, cuotaBase - recHoy);
     const cuotaUI = Math.min(cuotaPendiente, saldo > 0 ? saldo : cuotaPendiente);
     return sum + Number(cuotaUI || 0);
@@ -877,19 +887,19 @@ export const computeMetaHoyFromVisitas = (visitas: any[], hoyBogotaKey: string):
 };
 
 export const computeRutaHoyUiStatsFromVisitas = (
-  visitas: any[],
+  visitas: VisitaParcial[],
   recaudoFallback = 0,
 ): { meta: number; pendiente: number; recaudo: number } => {
   const visitasSeguras = Array.isArray(visitas) ? visitas : [];
-  const pendiente = visitasSeguras.reduce((sum: number, v: any) => {
+  const pendiente = visitasSeguras.reduce((sum: number, v) => {
     if (!v) return sum;
     const estadoLower = String(v?.estado || '').toLowerCase().replace(/\s+/g, '_');
     if (estadoLower === 'pagado') return sum;
-    if (Number((v as any)?.recaudadoDelDia || 0) > 0) return sum;
+    if (Number((v)?.recaudadoDelDia || 0) > 0) return sum;
 
     const cuotaBase = resolveCuotaNormalOperativa(v);
-    const recHoy = Number((v as any)?.recaudadoDelDia || 0);
-    const saldo = Number((v as any)?.saldoTotal || 0);
+    const recHoy = Number((v)?.recaudadoDelDia || 0);
+    const saldo = Number((v)?.saldoTotal || 0);
 
     const cuotaPendiente = Math.max(0, cuotaBase - recHoy);
     const cuotaUI = Math.min(cuotaPendiente, saldo > 0 ? saldo : cuotaPendiente);
@@ -897,7 +907,7 @@ export const computeRutaHoyUiStatsFromVisitas = (
   }, 0);
 
   const recaudoDeVisitas = visitasSeguras.reduce(
-    (sum: number, v: any) => sum + Number((v as any)?.recaudadoDelDia || 0),
+    (sum: number, v) => sum + Number((v)?.recaudadoDelDia || 0),
     0,
   );
   const recaudo = Math.max(Number(recaudoFallback || 0), recaudoDeVisitas);
@@ -932,14 +942,14 @@ export const resolveRutaHoyKpiStats = (
   return { meta, pendiente, recaudo, eficiencia };
 };
 
-export const isCuotaNoPagada = (cuota: any): boolean => {
+export const isCuotaNoPagada = (cuota: CuotaOperativa | null | undefined): boolean => {
   // Predicado normalizado de "cuota no pagada" (incluye pendientes, vencidas, prorrogadas, etc.).
   const st = String(cuota?.estado || '').toUpperCase();
   return st !== 'PAGADA' && st !== 'PAGADO' && st !== 'ANULADA' && st !== 'ANULADO';
 };
 
 export const computeDiasMoraFromCuotas = (
-  cuotas: any[],
+  cuotas: CuotaOperativa[],
   hoyBogotaKey: string,
   frecuenciaPagoRaw?: string | null,
 ): number => {
@@ -948,9 +958,9 @@ export const computeDiasMoraFromCuotas = (
 
   const frecuencia = String(frecuenciaPagoRaw || '').toUpperCase();
   const vencidasKeys = (cuotas || [])
-    .filter((c: any) => c && isCuotaNoPagada(c))
-    .map((c: any) => normalizeDateKey(resolveFechaEfectivaCuota(c) || String(c?.fechaVencimiento || '')))
-    .filter((k: any) => !!k && k < hoyBogotaKey) as string[];
+    .filter((c: CuotaOperativa) => c && isCuotaNoPagada(c))
+    .map((c: CuotaOperativa) => normalizeDateKey(resolveFechaEfectivaCuota(c) || String(c?.fechaVencimiento || '')))
+    .filter((k) => !!k && k < hoyBogotaKey) as string[];
 
   if (vencidasKeys.length === 0) return 0;
   const oldestKey = vencidasKeys.reduce((min, k) => (k < min ? k : min), vencidasKeys[0]);
@@ -1014,7 +1024,7 @@ export const computeDiasMoraFromCuotaObjetivo = (
   );
 };
 
-export const computeMontoExigibleHastaHoyFromCuotas = (cuotas: any[], hoyBogotaKey: string): number => {
+export const computeMontoExigibleHastaHoyFromCuotas = (cuotas: CuotaOperativa[], hoyBogotaKey: string): number => {
   // Regla de negocio clave (mora / abonos parciales):
   // Devuelve el total exigible acumulado hasta HOY (inclusive):
   // suma de todas las cuotas NO PAGADAS cuyo vencimiento efectivo <= hoyBogotaKey.
@@ -1024,35 +1034,35 @@ export const computeMontoExigibleHastaHoyFromCuotas = (cuotas: any[], hoyBogotaK
   if (!Array.isArray(cuotas) || cuotas.length === 0) return 0;
   if (!hoyBogotaKey) return 0;
 
-  return cuotas.reduce((sum: number, c: any) => {
+  return cuotas.reduce((sum: number, c) => {
     if (!c || !isCuotaNoPagada(c)) return sum;
     const vtoRaw = resolveFechaEfectivaCuota(c) || String(c?.fechaVencimiento || '');
     const vtoKey = normalizeDateKey(vtoRaw);
     if (!vtoKey) return sum;
     if (vtoKey > hoyBogotaKey) return sum;
 
-    const montoDirecto = (c as any)?.montoNominal ?? (c as any)?.monto
-    const montoFallback = Number((c as any)?.montoCapital || 0) + Number((c as any)?.montoInteres || 0)
+    const montoDirecto = (c)?.montoNominal ?? (c)?.monto
+    const montoFallback = Number((c)?.montoCapital || 0) + Number((c)?.montoInteres || 0)
     const monto = Number(montoDirecto ?? montoFallback ?? 0)
-    const pagado = Number((c as any)?.montoPagado ?? 0)
+    const pagado = Number((c)?.montoPagado ?? 0)
     const pendiente = monto - pagado
     return sum + (pendiente > 0 ? pendiente : 0);
   }, 0);
 };
 
-export const computeMontoNominalHastaHoyFromCuotas = (cuotas: any[], hoyBogotaKey: string): number => {
+export const computeMontoNominalHastaHoyFromCuotas = (cuotas: CuotaOperativa[], hoyBogotaKey: string): number => {
   if (!Array.isArray(cuotas) || cuotas.length === 0) return 0;
   if (!hoyBogotaKey) return 0;
 
-  return cuotas.reduce((sum: number, c: any) => {
+  return cuotas.reduce((sum: number, c) => {
     if (!c || !isCuotaNoPagada(c)) return sum;
     const vtoRaw = resolveFechaEfectivaCuota(c) || String(c?.fechaVencimiento || '');
     const vtoKey = normalizeDateKey(vtoRaw);
     if (!vtoKey) return sum;
     if (vtoKey > hoyBogotaKey) return sum;
 
-    const montoDirecto = (c as any)?.montoNominal ?? (c as any)?.monto;
-    const montoFallback = Number((c as any)?.montoCapital || 0) + Number((c as any)?.montoInteres || 0);
+    const montoDirecto = (c)?.montoNominal ?? (c)?.monto;
+    const montoFallback = Number((c)?.montoCapital || 0) + Number((c)?.montoInteres || 0);
     const monto = Number(montoDirecto ?? montoFallback ?? 0);
     return sum + (monto > 0 ? monto : 0);
   }, 0);

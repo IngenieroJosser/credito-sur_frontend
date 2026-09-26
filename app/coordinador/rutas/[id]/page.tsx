@@ -1,4 +1,5 @@
 'use client'
+import { datosParaRegistro, mensajeDeError } from '@/lib/mensaje-de-error'
 
 import { logger } from '@/lib/logger'
 
@@ -15,45 +16,24 @@ const isUuid = (value?: string | null) => {
 }
 
 import {
-
   CheckCircle2,
-
   XCircle,
-
   Banknote,
-
   ArrowLeft,
-
   Save,
-
   Search,
-
   FileText as FileTextIcon,
-
   History,
-
-  Loader2,
-
   User,
-
   Fingerprint,
-
   Star,
-
   CalendarDays,
-
   Phone,
-
   MapPin,
-
   Calendar,
-
   ChevronDown,
-
   Plus,
-
   CreditCard
-
 } from 'lucide-react'
 
 import { formatCOPInputValue, formatCurrency, formatMilesCOP } from '@/lib/utils'
@@ -88,7 +68,6 @@ import PagoModal from '@/components/cobranza/PagoModal'
 
 import EstadoCuentaModal from '@/components/cobranza/EstadoCuentaModal'
 
-import AnimacionCarga from '@/components/ui/AnimacionCarga'
 
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
 
@@ -115,6 +94,8 @@ import { obtenerSaldoDisponibleRuta } from '@/services/contabilidad-service'
 
 
 import { useRealtimeData } from '@/hooks/useRealtimeData'
+import { Skeleton, SkeletonTabla } from '@/components/ui/Skeleton'
+import Tooltip from '@/components/ui/Tooltip'
 
 
 
@@ -290,7 +271,7 @@ const LegacyDetalleRutaPage = () => {
       const resp = await rutasService.obtenerVisitasDelDia(rutaId, getBogotaDateKey(new Date()))
       setMisCreditos(ordenarVisitasRutaActual(mapDailyVisitsResponseToVisitasCoordinador(resp, cobradorId)))
 
-    } catch (e: any) {
+    } catch (e) {
 
       console.error('Error cargando mis clientes (ruta coordinador):', e)
 
@@ -522,7 +503,7 @@ const LegacyDetalleRutaPage = () => {
 
                    if (r === 'VERDE') return 'bajo';
 
-                   if (r === 'AMARILLO') return 'precaucion' as any;
+                   if (r === 'AMARILLO') return 'precaucion';
 
                    if (r === 'ROJO') return 'moderado';
 
@@ -584,7 +565,7 @@ const LegacyDetalleRutaPage = () => {
 
                        const montoReal = Number(pendiente.monto || (pendiente.montoCapital + pendiente.montoInteres) || 0);
                        const montoNormal = Number(
-                         (v as any).montoCuotaNormal ??
+                         (v).montoCuotaNormal ??
                          (pendiente as any).montoNominal ??
                          (pendiente as any).montoCuota ??
                          pendiente.monto ??
@@ -599,7 +580,7 @@ const LegacyDetalleRutaPage = () => {
 
                          montoCuota: montoNormal,
                          montoCuotaNormal: montoNormal,
-                         montoCuotaPendiente: montoPendiente > 0 ? montoPendiente : (v as any).montoCuotaPendiente,
+                         montoCuotaPendiente: montoPendiente > 0 ? montoPendiente : (v).montoCuotaPendiente,
 
                          proximaVisita: (pendiente.estado === 'PRORROGADA' && pendiente.fechaVencimientoProrroga)
 
@@ -617,9 +598,9 @@ const LegacyDetalleRutaPage = () => {
 
                          fechaOriginalVencimiento: pendiente.fechaVencimiento || undefined,
 
-                         cuotaId: pendiente?.id || (v as any)?.cuotaId,
-                         cuotaObjetivoId: pendiente?.id || (v as any)?.cuotaObjetivoId,
-                         cuotaObjetivoPrestamoId: pendiente?.id || (v as any)?.cuotaObjetivoPrestamoId,
+                         cuotaId: pendiente?.id || (v)?.cuotaId,
+                         cuotaObjetivoId: pendiente?.id || (v)?.cuotaObjetivoId,
+                         cuotaObjetivoPrestamoId: pendiente?.id || (v)?.cuotaObjetivoPrestamoId,
                          proximaCuota: pendiente,
                          cuotaObjetivo: pendiente,
 
@@ -633,7 +614,7 @@ const LegacyDetalleRutaPage = () => {
                    const pAny = p as any;
 
                    const proxima = (pAny.proximaCuota ?? {}) as any;
-                   const cuotaIdFromP = String(proxima?.id || pAny?.cuotaObjetivo?.id || pAny?.cuotaId || (v as any)?.cuotaId || '').trim();
+                   const cuotaIdFromP = String(proxima?.id || pAny?.cuotaObjetivo?.id || pAny?.cuotaId || (v)?.cuotaId || '').trim();
 
                    const montoP = Number(proxima.montoCuota || proxima.montoNominal || proxima.monto || p.montoCuota || p.valorCuota || 0);
 
@@ -718,7 +699,7 @@ const LegacyDetalleRutaPage = () => {
 
               const saldoHoy = Number(v.recaudadoDelDia || 0);
 
-              const cuota = Number((v as any).montoCuotaPendiente ?? v.montoCuota ?? 0);
+              const cuota = Number((v).montoCuotaPendiente ?? v.montoCuota ?? 0);
 
               if (saldoHoy >= (cuota - 1) && saldoHoy > 0) return 'pagado';
 
@@ -1318,7 +1299,18 @@ const LegacyDetalleRutaPage = () => {
 
   if (isLoading) {
 
-    return <AnimacionCarga texto="Cargando detalle de ruta..." />
+    return (
+      <div className="space-y-4 p-4 sm:p-6" aria-busy="true">
+        <span className="sr-only">Cargando detalle de ruta…</span>
+        <Skeleton className="h-8 w-64" />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} className="h-24 rounded-2xl" />
+          ))}
+        </div>
+        <SkeletonTabla filas={6} columnas={4} />
+      </div>
+    )
 
   }
 
@@ -1795,12 +1787,11 @@ const LegacyDetalleRutaPage = () => {
 
                                     {!data.loaded ? (
 
-                                      <div className="flex flex-col items-center justify-center py-8 text-slate-400">
-
-                                        <Loader2 className="w-6 h-6 animate-spin mb-2 opacity-20" />
-
-                                        <span className="text-xs font-medium">Cargando detalles...</span>
-
+                                      <div className="space-y-2" aria-busy="true">
+                                        <span className="sr-only">Cargando…</span>
+                                        {Array.from({ length: 3 }).map((_, i) => (
+                                          <Skeleton key={i} className="h-12 rounded-xl" />
+                                        ))}
                                       </div>
 
                                     ) : data.visitas.length === 0 ? (
@@ -2087,7 +2078,7 @@ const LegacyDetalleRutaPage = () => {
 
               <div className="space-y-2">
 
-                <label className="text-sm font-bold text-slate-700">Tipo de Gasto</label>
+                <label className="text-sm font-bold text-slate-700">Tipo de Gasto<span className="ml-1 text-red-500" aria-label="obligatorio">*</span></label>
 
                 <select
 
@@ -2115,7 +2106,7 @@ const LegacyDetalleRutaPage = () => {
 
               <div className="space-y-2">
 
-                <label className="text-sm font-bold text-slate-700">Descripción</label>
+                <label className="text-sm font-bold text-slate-700">Descripción<span className="ml-1 text-red-500" aria-label="obligatorio">*</span></label>
 
                 <textarea
 
@@ -2139,7 +2130,7 @@ const LegacyDetalleRutaPage = () => {
 
               <div className="space-y-2">
 
-                <label className="text-sm font-bold text-slate-700">Valor</label>
+                <label className="text-sm font-bold text-slate-700">Valor<span className="ml-1 text-red-500" aria-label="obligatorio">*</span></label>
 
                 <div className="relative">
 
@@ -2308,20 +2299,20 @@ const LegacyDetalleRutaPage = () => {
                     if (showMisClientes) {
                       await cargarMisCreditos();
                     }
-                  } catch {}
+                  } catch (error) {
+                    // El refresco es secundario: la accion ya se hizo.
+                    // Se avisa solo en desarrollo, que es donde sirve.
+                    logger.warn('Fallo el refresco de la ruta tras la accion', error)
+                  }
 
-                } catch (e: any) {
+                } catch (e) {
                   const message =
-                    e?.response?.data?.message ??
-                    e?.data?.message ??
-                    e?.message ??
-                    'Error al solicitar reprogramación.'
+                    mensajeDeError(e, 'Error al solicitar reprogramación.')
 
                   console.error('Error reprogramando cuota (coordinador):', {
                     message,
                     error: e,
-                    response: e?.response,
-                    data: e?.response?.data || e?.data,
+                    ...datosParaRegistro(e),
                   })
 
                   showNotification('error', Array.isArray(message) ? message[0] : message, 'Error')
@@ -2391,7 +2382,7 @@ const LegacyDetalleRutaPage = () => {
 
             try {
 
-              const esContado = Boolean((data as any).ventaContado);
+              const esContado = Boolean((data).ventaContado);
 
               const payload: any = {
 
@@ -2468,7 +2459,6 @@ const LegacyDetalleRutaPage = () => {
               const clienteIdFinal = String(
                 prestamo?.clienteId ||
                   prestamo?.cliente?.id ||
-                  prestamo?.cliente?.clienteId ||
                   data?.clienteId ||
                   data?.clienteCreditoId ||
                   data?.cliente?.id ||
@@ -2516,7 +2506,11 @@ const LegacyDetalleRutaPage = () => {
 
                 await cargarRuta();
 
-              } catch {}
+              } catch (error) {
+                // El refresco es secundario: la accion ya se hizo.
+                // Se avisa solo en desarrollo, que es donde sirve.
+                logger.warn('Fallo el refresco de la ruta tras la accion', error)
+              }
 
               setShowNuevoCreditoModal(false);
 
@@ -2736,17 +2730,19 @@ function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose:
 
           </div>
 
-          <button
+          <Tooltip texto="Cerrar">
+            <button
 
-            onClick={onClose}
+              onClick={onClose}
 
-            className="shrink-0 p-2 bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all active:scale-90"
+              className="shrink-0 p-2 bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all active:scale-90"
+              aria-label="Cerrar"
+            >
 
-          >
+              <XCircle className="h-6 w-6" />
 
-            <XCircle className="h-6 w-6" />
-
-          </button>
+            </button>
+          </Tooltip>
 
         </div>
 
@@ -2758,12 +2754,11 @@ function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose:
 
           {loading ? (
 
-            <div className="py-16 flex flex-col items-center justify-center gap-4">
-
-              <Loader2 className="w-10 h-10 text-[#08557f] animate-spin" />
-
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sincronizando...</p>
-
+            <div className="space-y-2" aria-busy="true">
+              <span className="sr-only">Cargando…</span>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-12 rounded-xl" />
+              ))}
             </div>
 
           ) : (

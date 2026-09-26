@@ -1,4 +1,31 @@
 import { EstadoVisita, PeriodoRuta, VisitaRuta, mapNivelRiesgo } from '@/lib/types/cobranza';
+import type { PagoParcial, PrestamoParcial } from '@/types/domain';
+import type { CuotaOperativa } from '@/lib/types/cobranza';
+
+/**
+ * Un pago tal como le llega al historial.
+ *
+ * No es el `Pago` del backend a secas: por aqui pasan tambien los pagos
+ * aplanados que arman otras pantallas y los que salen de la cola offline,
+ * que traen el nombre del cliente y su direccion al nivel del pago en vez de
+ * dentro de `cliente`. Cada lectura va defendida con `?.` y una cadena de
+ * alternativas, asi que el tipo describe lo que el codigo acepta, no lo que
+ * el backend promete.
+ *
+ * Se declara aqui y no en `Pago` a proposito: `Pago` es el contrato del
+ * backend y no debe engordar con las formas de cada pantalla.
+ */
+export type PagoHistorial = PagoParcial & {
+  clienteNombre?: string | null;
+  direccion?: string | null;
+  telefono?: string | null;
+  montoPagado?: number | null;
+  tipoPrestamo?: string | null;
+  frecuenciaPago?: string | null;
+  cuotaId?: string | null;
+  cuota?: CuotaOperativa | null;
+  cliente?: (Partial<import("@/types/domain").Cliente> & { nombre?: string | null }) | null;
+};
 
 /**
  * Normaliza el periodo de ruta
@@ -19,7 +46,7 @@ const normalizePeriodoRuta = (raw: any): any => {
  * que ya no están en la lista visible (por ejemplo, porque completaron su cuota)
  */
 
-export const getPagoMontoHistorial = (pago: any): number => {
+export const getPagoMontoHistorial = (pago: PagoHistorial): number => {
   return Number(
     pago?.montoTotal ??
     pago?.montoPagado ??
@@ -29,7 +56,7 @@ export const getPagoMontoHistorial = (pago: any): number => {
   )
 }
 
-export const getPagoHistorialKey = (pago: any): string => {
+export const getPagoHistorialKey = (pago: PagoHistorial): string => {
   return String(
     pago?.prestamoId ||
     pago?.prestamo?.id ||
@@ -42,12 +69,15 @@ export const getPagoHistorialKey = (pago: any): string => {
 }
 
 export const buildVisitaHistorialFromPago = (
-  pago: any,
+  pago: PagoHistorial,
   fechaClave: string,
   rutaCobradorId: string,
 ): VisitaRuta => {
-  const cliente = pago?.cliente || pago?.prestamo?.cliente || {}
-  const prestamo = pago?.prestamo || {}
+  // El `|| {}` mete un objeto vacio en la union y el compilador deja de ver
+  // los campos. Se anota el tipo de lo que estas tres variables contienen.
+  const cliente: NonNullable<PagoHistorial['cliente']> =
+    pago?.cliente || pago?.prestamo?.cliente || {}
+  const prestamo: PrestamoParcial = pago?.prestamo || {}
   const monto = getPagoMontoHistorial(pago)
 
   const clienteNombre =
@@ -56,7 +86,7 @@ export const buildVisitaHistorialFromPago = (
     `${cliente?.nombres || ''} ${cliente?.apellidos || ''}`.trim() ||
     'Cliente'
 
-  const cuota = pago?.cuota || pago?.cuotaAfectada || {}
+  const cuota: CuotaOperativa = pago?.cuota || {}
 
   return {
     id: `pago-historial-${pago?.id || pago?.numeroPago || getPagoHistorialKey(pago)}`,
@@ -129,7 +159,7 @@ export const buildVisitaHistorialFromPago = (
 
     recaudadoDelDia: monto,
     diasMora: 0,
-  } as any
+  }
 }
 
 export const mergePagosDelDiaIntoHistorialDia = ({
@@ -202,7 +232,7 @@ export const mergePagosDelDiaIntoHistorialDia = ({
 
   // Calcular visitados considerando múltiples estados
   const visitados = Math.max(
-    visitasFusionadas.filter((v: any) => {
+    visitasFusionadas.filter((v) => {
       const estado = String(v?.estado || v?.estadoVisita || '').toLowerCase()
       return estado === 'pagado' || estado === 'gestionado' || Number(v?.recaudadoDelDia || 0) > 0
     }).length,
@@ -216,7 +246,7 @@ export const mergePagosDelDiaIntoHistorialDia = ({
   )
 
   const recaudoPorVisitas = visitasFusionadas.reduce(
-    (acc, v: any) => acc + Number(v?.recaudadoDelDia || 0),
+    (acc, v) => acc + Number(v?.recaudadoDelDia || 0),
     0,
   )
 
@@ -254,9 +284,9 @@ export const filterPagosDelDiaByRuta = ({
   rutaOperativaId: string
   prestamosRuta: Set<string>
   rutaCobradorId?: string
-  isPagoForHistorialFecha: (pago: any, fecha: string) => boolean
+  isPagoForHistorialFecha: (pago: PagoHistorial, fecha: string) => boolean
 }): any[] => {
-  return (Array.isArray(pagosData) ? pagosData : []).filter((p: any) => {
+  return (Array.isArray(pagosData) ? pagosData : []).filter((p) => {
     if (!isPagoForHistorialFecha(p, fechaClave)) return false;
 
     const pagoRutaId = String(

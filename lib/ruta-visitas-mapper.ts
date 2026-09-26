@@ -43,11 +43,11 @@ export type VisitaRutaLite = {
   estado: EstadoVisita
   estadoVisita?: string       // estado de visita del día (ej: 'ausente')
   notasVisita?: string | null // nota/justificación de ausencia del día
-  proximaVisita: any
-  targetVencimiento?: any
+  proximaVisita: string
+  targetVencimiento?: string
   ordenVisita: number
-  prioridad: any
-  nivelRiesgo: any
+  prioridad: 'alta' | 'media' | 'baja'
+  nivelRiesgo: 'minimo' | 'leve' | 'precaucion' | 'moderado' | 'critico'
   cobradorId: string
   periodoRuta: PeriodoRuta
   clienteId: string
@@ -57,7 +57,7 @@ export type VisitaRutaLite = {
   cuotaActual?: number
   cuotasTotales?: number
   diasMora?: number
-  tipoPrestamo?: any
+  tipoPrestamo?: 'EFECTIVO' | 'ARTICULO'
   articuloNombre?: string
   pendienteAprobacion?: boolean
   estadoAprobacion?: string
@@ -66,8 +66,8 @@ export type VisitaRutaLite = {
   esRevertido?: boolean
   etiquetaRevision?: string
   enProrroga?: boolean
-  fechaProrroga?: any
-  fechaOriginalVencimiento?: any
+  fechaProrroga?: string
+  fechaOriginalVencimiento?: string
   apareceHoy?: boolean
 }
 
@@ -121,7 +121,7 @@ export const mapAsignacionesToVisitasLite = (params: {
   const asignaciones = Array.isArray(params.asignaciones) ? params.asignaciones : []
   const hoyKey = params.hoyKey ?? getBogotaDateKey(new Date())
 
-  const visitasRaw: VisitaRutaLite[] = asignaciones.flatMap((asig: any, index: number) => {
+  const visitasRaw: VisitaRutaLite[] = asignaciones.flatMap((asig, index: number) => {
     const cliente = asig?.cliente || {}
 
     const prestamos = Array.isArray(cliente?.prestamos) ? cliente.prestamos : []
@@ -135,14 +135,14 @@ export const mapAsignacionesToVisitasLite = (params: {
 
     return lista.flatMap((prestamo: any, subIdx: number) => {
       const cuotas = Array.isArray(prestamo?.cuotas) ? prestamo.cuotas : []
-      const cuotasOrdenadas = [...cuotas].sort((a: any, b: any) => {
+      const cuotasOrdenadas = [...cuotas].sort((a, b: any) => {
         const ak = getCuotaEffectiveVtoKey(a)
         const bk = getCuotaEffectiveVtoKey(b)
         if (ak && bk) return ak.localeCompare(bk)
         return 0
       })
 
-      const proxima = cuotasOrdenadas.find((c: any) => c && !isPagada(c) && !isAnulada(c)) || (prestamo?.proximaCuota ?? null)
+      const proxima = cuotasOrdenadas.find((c) => c && !isPagada(c) && !isAnulada(c)) || (prestamo?.proximaCuota ?? null)
       const esObligacionOperativa = isObligacionOperativaRuta(
         { prestamo, cuota: proxima },
         hoyKey,
@@ -150,15 +150,15 @@ export const mapAsignacionesToVisitasLite = (params: {
       if (!esObligacionOperativa && params.filtrarExigibles !== false) return []
 
       const dueKey = getCuotaEffectiveVtoKey(proxima)
-      const fechaEfectiva = proxima ? (resolveFechaEfectivaCuota(proxima) || String((proxima as any)?.fechaVencimiento || '')) : ''
+      const fechaEfectiva = proxima ? (resolveFechaEfectivaCuota(proxima) || String((proxima)?.fechaVencimiento || '')) : ''
 
       const frecuencia = String(prestamo?.frecuenciaPago || 'DIARIO').toUpperCase()
       const periodoRuta = toPeriodo(frecuencia)
 
-      const diasMora = computeDiasMoraFromCuotas(cuotasOrdenadas as any, hoyKey, frecuencia)
+      const diasMora = computeDiasMoraFromCuotas(cuotasOrdenadas, hoyKey, frecuencia)
 
       const tieneMora = (() => {
-        const byCuotas = cuotasOrdenadas.some((c: any) => {
+        const byCuotas = cuotasOrdenadas.some((c) => {
           if (!c || isPagada(c) || isAnulada(c)) return false
           const vtoKey = getCuotaEffectiveVtoKey(c)
           return !!vtoKey && !!hoyKey && vtoKey < hoyKey
@@ -185,12 +185,12 @@ export const mapAsignacionesToVisitasLite = (params: {
       // cero, concluía que no quedaba nada, y devolvía false siempre: el
       // cobrador se quedaba con la ruta vacía y ningún crédito aparecía.
       const saldoDelPrestamo = Number(
-        (prestamo as any)?.saldoPendiente ?? (prestamo as any)?.saldoTotal ?? 0,
+        (prestamo)?.saldoPendiente ?? (prestamo)?.saldoTotal ?? 0,
       )
       const cuotaDeLaProxima = Math.max(
         0,
-        Number((proxima as any)?.montoNominal ?? (proxima as any)?.monto ?? 0) -
-          Number((proxima as any)?.montoPagado ?? 0),
+        Number((proxima)?.montoNominal ?? (proxima)?.monto ?? 0) -
+          Number((proxima)?.montoPagado ?? 0),
       )
 
       const apareceHoy = isVisitaExigibleHoy(
@@ -209,14 +209,14 @@ export const mapAsignacionesToVisitasLite = (params: {
       const esArticulo = prestamo?.tipo === 'ARTICULO' || prestamo?.tipoPrestamo === 'ARTICULO'
       const estadoRevision = getEstadoRevisionOperacion(prestamo)
 
-      const montoNominalProxima = Number((proxima as any)?.montoNominal ?? (proxima as any)?.monto ?? 0)
-      const montoPagadoProxima = Number((proxima as any)?.montoPagado ?? 0)
+      const montoNominalProxima = Number((proxima)?.montoNominal ?? (proxima)?.monto ?? 0)
+      const montoPagadoProxima = Number((proxima)?.montoPagado ?? 0)
       const montoPendienteProxima = Math.max(0, montoNominalProxima - montoPagadoProxima)
-      const montoNominalPrestamo = Number((prestamo as any)?.valorCuota ?? (prestamo as any)?.montoCuota ?? 0)
+      const montoNominalPrestamo = Number((prestamo)?.valorCuota ?? (prestamo)?.montoCuota ?? 0)
       const montoCuotaBase = esArticulo
         ? Math.max(montoNominalProxima, montoNominalPrestamo)
         : (montoNominalPrestamo > 0 ? montoNominalPrestamo : montoNominalProxima)
-      const montoPendienteHastaHoy = computeMontoExigibleHastaHoyFromCuotas(cuotasOrdenadas as any, hoyKey)
+      const montoPendienteHastaHoy = computeMontoExigibleHastaHoyFromCuotas(cuotasOrdenadas, hoyKey)
       const montoCuotaNormal = montoCuotaBase
       const montoCuota = montoCuotaNormal
 
@@ -240,22 +240,22 @@ export const mapAsignacionesToVisitasLite = (params: {
 
       const nombreCredito = esArticulo ? (prestamo?.articulo || prestamo?.descripcionArticulo || 'Artículo') : 'Préstamo'
 
-      const estadoCuota = String((proxima as any)?.estado || '').toUpperCase()
-      const enProrroga = estadoCuota === 'PRORROGADA' || !!(proxima as any)?.fechaVencimientoProrroga
-      const fechaProrroga = (proxima as any)?.fechaVencimientoProrroga
-      const fechaOriginalVencimiento = (proxima as any)?.fechaVencimiento
+      const estadoCuota = String((proxima)?.estado || '').toUpperCase()
+      const enProrroga = estadoCuota === 'PRORROGADA' || !!(proxima)?.fechaVencimientoProrroga
+      const fechaProrroga = (proxima)?.fechaVencimientoProrroga
+      const fechaOriginalVencimiento = (proxima)?.fechaVencimiento
 
       // El campo estadoVisita puede venir del objeto de asignación cuando el backend
       // lo enriquece (ej: llamada a daily-visits). Se preserva para que la UI lo muestre.
       const estadoVisitaRaw = String(asig?.estadoVisita || '')
       const recaudadoDelDia = Number(
-        (prestamo as any)?.recaudadoDelDia ??
-        (prestamo as any)?.recaudadoHoy ??
-        (asig as any)?.recaudadoDelDia ??
+        (prestamo)?.recaudadoDelDia ??
+        (prestamo)?.recaudadoHoy ??
+        (asig)?.recaudadoDelDia ??
         0,
       )
 
-      const cuotaIdFinal = String((proxima as any)?.id || prestamo?.cuotaObjetivo?.id || prestamo?.proximaCuota?.id || '').trim();
+      const cuotaIdFinal = String((proxima)?.id || prestamo?.cuotaObjetivo?.id || prestamo?.proximaCuota?.id || '').trim();
       
       return [{
         id: prestamo?.id ? `${asig.id || `asig-${hoyKey}-${index}`}-${prestamo.id}` : (asig.id || `asig-${hoyKey}-${index}-${subIdx}`),
@@ -270,8 +270,8 @@ export const mapAsignacionesToVisitasLite = (params: {
         estado,
         estadoVisita: estadoVisitaRaw || undefined,
         notasVisita: asig?.notasVisita || undefined,
-        proximaVisita: fechaEfectiva || (proxima as any)?.fechaVencimiento || hoyKey,
-        targetVencimiento: (proxima as any)?.fechaVencimiento,
+        proximaVisita: fechaEfectiva || (proxima)?.fechaVencimiento || hoyKey,
+        targetVencimiento: (proxima)?.fechaVencimiento,
         ordenVisita: asig.ordenVisita || index + 1,
         prioridad: (cliente.nivelRiesgo === 'ROJO' ? 'alta' : 'media'),
         nivelRiesgo: toNivel(cliente.nivelRiesgo || 'VERDE'),
@@ -281,7 +281,7 @@ export const mapAsignacionesToVisitasLite = (params: {
         prestamoId: prestamo?.id,
         cuotaId: cuotaIdFinal,
         cuotaObjetivoId: cuotaIdFinal,
-        cuotaActual: (proxima as any)?.numeroCuota,
+        cuotaActual: (proxima)?.numeroCuota,
         cuotasTotales: prestamo?.cantidadCuotas,
         diasMora,
         tipoPrestamo: esArticulo ? 'ARTICULO' : 'EFECTIVO',
