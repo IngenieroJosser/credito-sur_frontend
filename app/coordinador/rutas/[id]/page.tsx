@@ -716,7 +716,7 @@ const LegacyDetalleRutaPage = () => {
             const finalesBackend = ordenarVisitasRutaActual(
               withRecaudo.map(v => ({ ...v, estado: ajustarEstadoConPago(v) })),
             );
-            const finales = mergeVisitasPreservingLocalRecaudo(visitasCobradorRef.current as any, finalesBackend as any) as any[];
+            const finales = mergeVisitasPreservingLocalRecaudo(visitasCobradorRef.current, finalesBackend) as any[];
 
 
 
@@ -939,7 +939,7 @@ const LegacyDetalleRutaPage = () => {
 
       const pagosResp = await pagosService.obtenerPagos({ limit: 1000 });
 
-      const pagosData = (pagosResp as any)?.pagos || pagosResp || [];
+      const pagosData = (pagosResp)?.pagos || pagosResp || [];
 
 
 
@@ -994,7 +994,7 @@ const LegacyDetalleRutaPage = () => {
 
       const existentes = new Set();
 
-      const visitas: VisitaRuta[] = ((visitasResp as any)?.visitas || []).map((item: any, index: number) => {
+      const visitas: VisitaRuta[] = ((visitasResp)?.visitas || []).map((item: any, index: number) => {
 
         const cliente = item.cliente || {};
 
@@ -1080,7 +1080,7 @@ const LegacyDetalleRutaPage = () => {
 
             return 'DIA';
 
-          })() as any,
+          })(),
 
           clienteId: cliente.id,
 
@@ -1650,8 +1650,8 @@ const LegacyDetalleRutaPage = () => {
 
 
 
-                       const jornadaEtiqueta = (data.resumen as any).jornadaEtiqueta;
-                       const jornadaEtiquetaColor = (data.resumen as any).jornadaEtiquetaColor || 'bg-slate-100 text-slate-700 border-slate-200';
+                       const jornadaEtiqueta = (data.resumen).jornadaEtiqueta;
+                       const jornadaEtiquetaColor = (data.resumen).jornadaEtiquetaColor || 'bg-slate-100 text-slate-700 border-slate-200';
 
 
 
@@ -2250,10 +2250,10 @@ const LegacyDetalleRutaPage = () => {
 
                 const cuotaIdFinal = String(
                   cuotaId || 
-                  (visitaReprogramar as any)?.cuotaId || 
-                  (visitaReprogramar as any)?.cuotaObjetivoId || 
-                  (visitaReprogramar as any)?.cuotaObjetivo?.id || 
-                  (visitaReprogramar as any)?.proximaCuota?.id || 
+                  (visitaReprogramar)?.cuotaId || 
+                  (visitaReprogramar)?.cuotaObjetivoId || 
+                  (visitaReprogramar)?.cuotaObjetivo?.id || 
+                  (visitaReprogramar)?.proximaCuota?.id || 
                   ''
                 ).trim();
 

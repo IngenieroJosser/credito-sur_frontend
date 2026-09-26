@@ -51,11 +51,11 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
     correo: cliente?.correo || '',
     direccion: cliente?.direccion || '',
     referencia: cliente?.referencia || '',
-    referencia1Nombre: (cliente as any)?.referencia1Nombre || '',
-    referencia1Telefono: (cliente as any)?.referencia1Telefono || '',
-    referencia2Nombre: (cliente as any)?.referencia2Nombre || '',
-    referencia2Telefono: (cliente as any)?.referencia2Telefono || '',
-    enListaNegra: (cliente as any)?.enListaNegra || false,
+    referencia1Nombre: (cliente)?.referencia1Nombre || '',
+    referencia1Telefono: (cliente)?.referencia1Telefono || '',
+    referencia2Nombre: (cliente)?.referencia2Nombre || '',
+    referencia2Telefono: (cliente)?.referencia2Telefono || '',
+    enListaNegra: (cliente)?.enListaNegra || false,
   });
 
   const [archivosCargados, setArchivosCargados] = useState<{
@@ -174,9 +174,9 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
         archivos.push({
           tipoContenido: map.tipo,
           tipoArchivo: upload.mimetype,
-          nombreOriginal: (upload as any).originalName || upload.filename,
-          nombreAlmacenamiento: (upload as any).publicId || upload.filename,
-          ruta: (upload as any).publicId || upload.filename,
+          nombreOriginal: (upload).originalName || upload.filename,
+          nombreAlmacenamiento: (upload).publicId || upload.filename,
+          ruta: (upload).publicId || upload.filename,
           url: (upload as any).path || (upload as any).url,
           tamanoBytes: upload.size,
         });
@@ -231,7 +231,7 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
       
       if (esEdicion && cliente?.id) {
         // Enviar archivos junto con los datos al actualizar
-        resultado = await clientesService.actualizar(cliente.id, payload as any);
+        resultado = await clientesService.actualizar(cliente.id, payload);
       } else {
         resultado = await clientesService.crear(payload);
       }

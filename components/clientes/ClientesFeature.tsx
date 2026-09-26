@@ -209,7 +209,7 @@ export default function ClientesFeature({
   }
 
   const getDiasMoraCliente = (cliente: ClienteAdmin) =>
-    Number(diasMoraByClientId[String((cliente as any)?.id || '')] ?? (cliente as any)?.diasMora ?? 0)
+    Number(diasMoraByClientId[String((cliente)?.id || '')] ?? (cliente)?.diasMora ?? 0)
 
   /**
    * Días de mora, o null si TODAVÍA no se conocen.
@@ -224,10 +224,10 @@ export default function ClientesFeature({
    * es un "Al día" real y sí se muestra; solo el hueco previo queda neutro.
    */
   const getDiasMoraOrNull = (cliente: ClienteAdmin): number | null => {
-    const id = String((cliente as any)?.id || '')
+    const id = String((cliente)?.id || '')
     const calculado = diasMoraByClientId[id]
     if (calculado !== undefined) return Number(calculado)
-    const delBackend = (cliente as any)?.diasMora
+    const delBackend = (cliente)?.diasMora
     if (delBackend !== undefined && delBackend !== null) return Number(delBackend)
     return null
   }
@@ -338,7 +338,7 @@ export default function ClientesFeature({
       await Promise.all(visibles.map(async ({ id }) => {
         try {
           // Solo recalcular si el backend no manda diasMora o viene en 0.
-          const existing = Number((diasMoraByClientId as any)?.[id])
+          const existing = Number((diasMoraByClientId)?.[id])
           if (existing > 0) return
 
           const detalle: any = await clientesService.obtenerPorId(id)
@@ -358,7 +358,7 @@ export default function ClientesFeature({
             })
             if (!vencidas) continue
 
-            const dm = computeDiasMoraFromCuotas(cuotas as any, hoyKey, frecuencia)
+            const dm = computeDiasMoraFromCuotas(cuotas, hoyKey, frecuencia)
             if (dm > maxDias) maxDias = dm
           }
 
@@ -749,7 +749,7 @@ export default function ClientesFeature({
             ))}
           {!cargando && currentItems.map((cliente, index) => {
             const isPending = cliente.estadoAprobacion === 'PENDIENTE' || cliente.id?.includes('offline') || cliente.id?.includes('temp');
-            const diasMoraUI = Number(diasMoraByClientId[String((cliente as any)?.id || '')] ?? (cliente as any)?.diasMora ?? 0)
+            const diasMoraUI = Number(diasMoraByClientId[String((cliente)?.id || '')] ?? (cliente)?.diasMora ?? 0)
             const diasMoraConocidos = getDiasMoraOrNull(cliente)
             return (
             <div 
