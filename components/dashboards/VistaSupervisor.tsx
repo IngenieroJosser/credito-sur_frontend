@@ -60,7 +60,6 @@ const VistaSupervisor = () => {
   const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
 
-  const [isFabOpen, setIsFabOpen] = useState(false)
   const [showCreditoTipoModal, setShowCreditoTipoModal] = useState(false)
   const [showNewClientModal, setShowNewClientModal] = useState(false)
   const router = useRouter()
