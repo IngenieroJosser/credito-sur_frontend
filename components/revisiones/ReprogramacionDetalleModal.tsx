@@ -346,7 +346,10 @@ export default function ReprogramacionDetalleModal({
         <InfoTile label="Dirección" value={cliente.direccion} />
         <InfoTile
           label="Ruta activa"
-          value={ruta ? `${ruta.nombre || ruta.codigo} · ${ruta.cobrador?.nombres || ''} ${ruta.cobrador?.apellidos || ''}`.trim() : '—'}
+          // La ruta viene anidada en el cliente, y ese select del backend trae
+          // solo id, nombre y codigo: no hay cobrador. Antes se intentaba
+          // `ruta.cobrador?.nombres` y quedaba un " · " suelto al final.
+          value={ruta ? String(ruta.nombre || ruta.codigo || '').trim() || '—' : '—'}
         />
       </div>
     )

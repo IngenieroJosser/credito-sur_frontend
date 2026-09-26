@@ -457,15 +457,74 @@ export type PagoParcial = Partial<Pago>;
 
 // ─── RUTA ────────────────────────────────────────────────────────────────────
 
+/**
+ * Una ruta, tal como la devuelven `GET /routes` y `GET /routes/:id`.
+ *
+ * ── `cobrador` es un STRING, no un objeto ────────────────────────────────────
+ * Se rastrearon los dos endpoints en `RoutesService`: los dos hacen
+ * `cobrador: \`${ruta.cobrador.nombres} ${ruta.cobrador.apellidos}\``, o sea que
+ * pisan la relacion de Prisma con el nombre ya armado. Antes este tipo declaraba
+ * `cobrador?: Pick<Usuario, ...>` y tres pantallas leian `ruta.cobrador.nombres`:
+ * como el string es truthy, entraban a esa rama, sacaban `undefined` y mostraban
+ * el cobrador EN BLANCO.
+ *
+ * La regla, comprobada endpoint por endpoint:
+ *
+ *   GET /routes            -> cobrador: string
+ *   GET /routes/:id        -> cobrador: string
+ *   reports/…/route-detail -> cobrador: objeto  (ese si)
+ *   GET /loans/:id         -> cobrador: objeto  (es el del prestamo, no de la ruta)
+ *   anidado en un cliente  -> no viene (el select trae solo id, nombre, codigo)
+ *
+ * O sea: en una RUTA el cobrador es un nombre; en un PRESTAMO o un reporte es un
+ * objeto.
+ */
 export interface Ruta {
   id: string;
   nombre: string;
   codigo?: string | null;
   zona?: string | null;
+  descripcion?: string | null;
   cobradorId?: string | null;
-  cobrador?: Pick<Usuario, 'id' | 'nombres' | 'apellidos'>;
+  /** Nombre y apellido ya armados por el backend. No es un objeto. */
+  cobrador?: string;
+  supervisorId?: string | null;
+  coordinadorId?: string | null;
   activa: boolean;
   creadoEn: string;
+  actualizadoEn?: string;
+  eliminadoEn?: string | null;
+}
+
+/**
+ * Una ruta en el listado, con las cifras operativas del dia.
+ *
+ * Es lo que devuelve `GET /routes` y nada mas: el backend arma este objeto
+ * esparciendo la entidad, las estadisticas y los cierres pendientes. Estaba
+ * declarado por separado en `lib/rutas-data.ts` y en `RutasPageView`, con campos
+ * distintos cada uno.
+ *
+ * `estado` lo deriva el backend de `activa`, asi que solo puede ser ACTIVA o
+ * INACTIVA. En el frontend hay codigo que espera tambien 'PENDIENTE_ACTIVACION' y
+ * 'COMPLETADA'; se comprobo que NADIE las produce (la activacion del dia vive en
+ * otro endpoint, `getActivacionHoy`), asi que no se declaran aqui.
+ */
+export interface RutaDeLista extends Ruta {
+  estado: 'ACTIVA' | 'INACTIVA';
+  clientesAsignados: number;
+  clientesNuevos: number;
+  cobranzaDelDia: number;
+  metaDelDia: number;
+  recaudoRegularizadoHoy?: number;
+  recaudoContableHoy?: number;
+  nivelRiesgo?: string;
+  porcentajeMora?: number;
+  avanceDiario?: number;
+  frecuenciaVisita?: string;
+  cierrePendienteAnterior?: unknown;
+  cierresPendientes?: unknown[];
+  totalCierresPendientes?: number;
+  tieneCierrePendiente?: boolean;
 }
 
 export interface AsignacionRuta {

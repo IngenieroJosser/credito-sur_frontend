@@ -190,6 +190,16 @@ export interface HistorialVisitaCliente {
 }
 
 
+/**
+ * La entidad ruta cruda, sin las cifras del dia.
+ *
+ * La forma canonica es `Ruta` / `RutaDeLista` en `types/domain.ts`, sacada de lo
+ * que los endpoints devuelven de verdad. Este tipo se conserva porque lo usan
+ * muchas firmas de este servicio, pero describe el mismo concepto.
+ *
+ * Ojo con lo que NO esta aqui: `cobrador`. Los dos endpoints de rutas lo mandan,
+ * como NOMBRE ya armado (no como objeto). Ver la nota en `types/domain.ts`.
+ */
 export interface Ruta {
 
   id: string;

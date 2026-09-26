@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { rutasService } from '@/services/rutas-service'
+import { nombreDelCobrador } from '@/lib/rutas/nombre-cobrador'
 
 interface Cobrador {
   id: string
@@ -57,7 +58,11 @@ const AsignacionCobradoresPage = () => {
         nombre: r.nombre || '',
         codigo: r.codigo || '',
         clientes: r.totalClientes || r.clientes || 0,
-        cobradorActual: r.cobrador ? `${r.cobrador.nombres || ''} ${r.cobrador.apellidos || ''}`.trim() : 'Sin asignar',
+        // `GET /routes` manda el cobrador como NOMBRE ya armado, no como objeto.
+        // Antes esto hacia `r.cobrador.nombres` sobre un string: como el string es
+        // truthy entraba a esa rama, sacaba undefined y la columna quedaba EN
+        // BLANCO para toda ruta que si tenia cobrador.
+        cobradorActual: nombreDelCobrador(r.cobrador, 'Sin asignar'),
       })))
     } catch (err) {
       console.error('Error cargando datos de asignación:', err)

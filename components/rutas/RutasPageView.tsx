@@ -59,29 +59,28 @@ import { buildCrearPrestamoPayload } from '@/lib/creditos/crear-prestamo-payload
 import Paginador from '@/components/ui/Paginador'
 import { normalizarCodigoRuta } from '@/lib/rutas/codigo-ruta'
 import { logger } from '@/lib/logger'
+import type { RutaDeLista } from '@/types/domain'
 
-interface Ruta {
-  id: string;
-  nombre: string;
-  codigo: string;
-  zona?: string;
-  estado: 'ACTIVA' | 'INACTIVA' | 'PENDIENTE_ACTIVACION' | 'COMPLETADA';
+/**
+ * La ruta del listado, con el estado ensanchado solo aqui.
+ *
+ * La forma la define `RutaDeLista` en `types/domain.ts`, sacada de lo que
+ * `GET /routes` devuelve de verdad. Esta pantalla tenia su propia copia de la
+ * interfaz, la cuarta del proyecto.
+ *
+ * `estado` se ensancha porque esta pantalla tiene ramas para
+ * 'PENDIENTE_ACTIVACION' y 'COMPLETADA' —incluida la pestaña "Pendientes"— y el
+ * backend solo manda ACTIVA o INACTIVA: lo deriva de `activa`. Se busco en todo el
+ * proyecto y NADIE produce esos dos estados, asi que esa pestaña siempre cuenta 0
+ * y al filtrarla la lista sale vacia. La activacion del dia es otra cosa y vive en
+ * `getActivacionHoy`. Queda declarado asi, y no borrado, porque quitar una pestaña
+ * visible es decision del producto.
+ */
+type Ruta = Omit<RutaDeLista, 'estado'> & {
+  estado: RutaDeLista['estado'] | 'PENDIENTE_ACTIVACION' | 'COMPLETADA';
   cobrador: string;
-  cobradorId?: string;
-  supervisorId?: string;
-  coordinadorId?: string;
-  clientesAsignados: number;
-  clientesNuevos: number;
-  cobranzaDelDia: number;
-  recaudoRegularizadoHoy?: number;
-  recaudoContableHoy?: number;
-  metaDelDia: number;
-  descripcion?: string;
-  nivelRiesgo?: string;
-  frecuenciaVisita?: string;
+  codigo: string;
   cierrePendienteAnterior?: any;
-  tieneCierrePendiente?: boolean;
-  totalCierresPendientes?: number;
   cierresPendientes?: any[];
 }
 

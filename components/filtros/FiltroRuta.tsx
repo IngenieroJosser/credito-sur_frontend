@@ -41,7 +41,9 @@ export default function FiltroRuta({
         id: r.id,
         nombre: r.nombre,
         codigo: r.codigo,
-        cobrador: r.cobrador || (r.cobrador_ ? `${r.cobrador_.nombres} ${r.cobrador_.apellidos}` : undefined),
+        // `cobrador` ya viene como nombre armado. La rama de `cobrador_` que habia
+        // aqui estaba muerta: ese campo no existe en ninguna respuesta del backend.
+        cobrador: r.cobrador || undefined,
       }))
       setRutas(rutasData)
       offlineStore.saveMany('rutas', rutasData.map(r => ({ ...r, zona: '', activa: true, cobradorId: '', supervisorId: null }))).catch(() => {})

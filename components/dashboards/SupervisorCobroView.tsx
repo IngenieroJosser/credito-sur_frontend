@@ -158,6 +158,7 @@ import RutaProvisionalModal from '@/components/dashboards/shared/RutaProvisional
 
 import { toast } from 'sonner'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { nombreDelCobrador } from '@/lib/rutas/nombre-cobrador'
 
 const isUuid = (value?: string | null) => {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
@@ -927,9 +928,13 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
       const ruta = await rutasService.obtenerRutaPorId(rutaId);
       let cobradorNombre = '';
 
-      if ((ruta as any).cobrador) {
-        cobradorNombre = `${(ruta as any).cobrador.nombres || ''} ${(ruta as any).cobrador.apellidos || ''}`.trim();
-      } else if (ruta.cobradorId) {
+      // `GET /routes/:id` manda el cobrador como NOMBRE ya armado. Antes esto
+      // hacia `.nombres` sobre un string: la condicion entraba (el string es
+      // truthy), el nombre quedaba vacio y NUNCA se llegaba al respaldo de abajo,
+      // que es el que consulta el usuario por su id.
+      cobradorNombre = nombreDelCobrador((ruta as any).cobrador);
+
+      if (!cobradorNombre && ruta.cobradorId) {
         try {
           const { usuariosService } = await import('@/services/usuarios-service');
           const usr = await usuariosService.obtenerPorId(ruta.cobradorId);
