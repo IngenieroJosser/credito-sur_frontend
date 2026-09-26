@@ -588,11 +588,83 @@ export async function getHistorialCierresFiltrado(filtros?: {
   }
 }
 
-export async function getArqueoPreview(cajaId: string, fechaOperativa?: string): Promise<any> {
+/**
+ * El arqueo de una caja: las dos respuestas del backend, que NO son iguales.
+ *
+ * Ojo con `responsable`, que tiene tres formas distintas segun de donde venga, y
+ * las tres circulan por esta pantalla:
+ *
+ *   `/cajas/:id/arqueo/preview`  -> { id, nombre }   (nombre en SINGULAR)
+ *   `/cajas/arqueos/:id`         -> el usuario de Prisma, con nombres y apellidos
+ *   `/accounting/cierres`        -> un string ya armado
+ *
+ * `getNombreUsuario` de la pantalla de cierre de caja cubre la segunda y la
+ * tercera. La primera no le llega nunca (de la vista previa solo se leen
+ * `saldoEsperado`, `arqueoExistente` y `cajaPrincipal.nombre`), pero si algun dia
+ * se le pasa, devolveria un guion en vez del nombre.
+ */
+export interface ArqueoPreview {
+  cajaId: string;
+  cajaNombre: string;
+  rutaId: string | null;
+  rutaNombre: string | null;
+  fechaOperativa: string;
+  /** Forma corta, con `nombre` en singular. */
+  responsable: { id: string | null; nombre: string } | null;
+  cajaPrincipal: { id: string; nombre: string; saldoActual: number };
+  /** El saldo en libros de la caja. De aqui sale el faltante/sobrante del arqueo. */
+  saldoEsperado: number;
+  desglose: {
+    baseInicial: number;
+    saldoActualSistema: number;
+    saldoEsperadoCalculado: number;
+    diferenciaSistema: number;
+  };
+  jornada: { id: string; estado: string } | null;
+  arqueoExistente: boolean;
+}
+
+/** Un usuario tal como lo incluye Prisma en el detalle del arqueo. */
+interface UsuarioDeArqueo {
+  id?: string;
+  nombres?: string;
+  apellidos?: string;
+}
+
+export interface ArqueoDetalle {
+  id: string;
+  fechaOperativa: string;
+  creadoEn: string;
+  numeroComprobanteTraslado: string | null;
+  saldoEsperado: number;
+  efectivoContado: number;
+  diferencia: number;
+  tipoDiferencia: string;
+  montoTransferido: number;
+  journalEntryId: string | null;
+  observaciones: string | null;
+  cajaOrigen: {
+    id: string;
+    nombre: string;
+    saldoAnterior: number;
+    salida: number;
+    saldoNuevo: number;
+  };
+  cajaDestino: { nombre: string; ingreso: number; saldoNuevo: number | null } | null;
+  /** Forma larga: el usuario de Prisma. */
+  responsable: UsuarioDeArqueo | null;
+  creadoPor: UsuarioDeArqueo | null;
+  recibidoPor: UsuarioDeArqueo | null;
+}
+
+export async function getArqueoPreview(
+  cajaId: string,
+  fechaOperativa?: string,
+): Promise<ArqueoPreview> {
   try {
     const params = fechaOperativa ? `?fechaOperativa=${fechaOperativa}` : '';
     logger.log('[getArqueoPreview] Requesting:', `/cajas/${cajaId}/arqueo/preview${params}`);
-    return await apiRequest<any>('GET', `/cajas/${cajaId}/arqueo/preview${params}`);
+    return await apiRequest<ArqueoPreview>('GET', `/cajas/${cajaId}/arqueo/preview${params}`);
   } catch (error) {
     // Se registra el error entero: desglosarlo en campos sueltos obligaba a
     // tipar el catch como `any`, y el JSON.stringify de abajo ya volcaba lo
@@ -602,9 +674,9 @@ export async function getArqueoPreview(cajaId: string, fechaOperativa?: string):
   }
 }
 
-export async function getArqueoById(arqueoId: string): Promise<any> {
+export async function getArqueoById(arqueoId: string): Promise<ArqueoDetalle> {
   try {
-    return await apiRequest<any>('GET', `/cajas/arqueos/${arqueoId}`);
+    return await apiRequest<ArqueoDetalle>('GET', `/cajas/arqueos/${arqueoId}`);
   } catch (error) {
     // Se registra el error entero: desglosarlo en campos sueltos obligaba a
     // tipar el catch como `any`, y el JSON.stringify de abajo ya volcaba lo

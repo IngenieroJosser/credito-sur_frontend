@@ -26,10 +26,26 @@ const parseSaldoCaja = (raw: any): number => {
   return Number.isFinite(n) ? n : 0
 }
 
-const getNombreUsuario = (usuario: any) => {
+/**
+ * El nombre de un usuario del arqueo, que llega en tres formas distintas.
+ *
+ * Rastreado endpoint por endpoint (ver los tipos en `contabilidad-service`):
+ *
+ *   `/accounting/cierres`        -> un string ya armado
+ *   `/cajas/arqueos/:id`         -> el usuario de Prisma, con nombres y apellidos
+ *   `/cajas/:id/arqueo/preview`  -> { id, nombre }, con `nombre` en SINGULAR
+ *
+ * A esta pantalla le llegan la primera y la segunda. La tercera se cubre igual,
+ * porque antes caia al guion: si algun dia se le pasa el responsable de la vista
+ * previa, mostraria '—' en vez del nombre.
+ */
+const getNombreUsuario = (
+  usuario: string | { nombres?: string; apellidos?: string; nombre?: string } | null | undefined,
+) => {
   if (!usuario) return '—'
   if (typeof usuario === 'string') return usuario
-  return `${usuario.nombres ?? ''} ${usuario.apellidos ?? ''}`.trim() || '—'
+  const armado = `${usuario.nombres ?? ''} ${usuario.apellidos ?? ''}`.trim()
+  return armado || usuario.nombre?.trim() || '—'
 }
 
 // Helper to get principal caja (strict, no Oficina fallback)
