@@ -153,32 +153,16 @@ export const normalizeVisitaHistorial = (v: VisitaParcial): any => {
   return v
 }
 
-export const buildResumenHistorialCompartido = (
-  visitas: VisitaParcial[],
-  resumenBase?: Partial<Resumen>,
-): Partial<Resumen> & Pick<Resumen, 'recaudo' | 'total' | 'visitados' | 'efectividad'> => {
-  const normalizadas = (visitas || []).map(normalizeVisitaHistorial)
-
-  const total = normalizadas.length
-  const visitados = normalizadas.filter(isGestionHistorial).length
-  const recaudo = normalizadas.reduce(
-    (sum, v) => sum + Number(v?.recaudadoDelDia || v?.montoTotal || 0),
-    0,
-  )
-
-  const esperado = normalizadas.reduce(
-    (sum, v) => sum + Number(v?.montoCuotaPendiente ?? v?.montoCuota ?? 0),
-    0,
-  )
-
-  return {
-    ...(resumenBase || {}),
-    recaudo,
-    total,
-    visitados,
-    efectividad: esperado > 0 ? Number(((recaudo / esperado) * 100).toFixed(1)) : 0,
-  }
-}
+// Aqui vivia `buildResumenHistorialCompartido`, la version anterior de
+// `computeHistorialResumenCompartido` (justo debajo). Se quedo exportada sin ningun
+// consumidor cuando se escribio la nueva, y cualquiera que eligiera por el nombre
+// se llevaba tres cosas corregidas:
+//   - contaba TODAS las visitas en `total`, sin sacar ausentes ni reprogramadas de
+//     la meta operativa;
+//   - contaba los visitados con `isGestionHistorial`, que arranca su cadena por el
+//     estado del CREDITO y por eso no ve el de la visita;
+//   - usaba `montoCuotaPendiente` como meta en vez de `montoCuotaNormal`.
+// Usar `computeHistorialResumenCompartido`.
 
 export function computeHistorialResumenCompartido(
   visitas: VisitaParcial[],

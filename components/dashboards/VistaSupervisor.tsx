@@ -1,7 +1,6 @@
 'use client'
 
 import { mensajeDeError } from '@/lib/mensaje-de-error'
-import { logger } from '@/lib/logger'
 
 import { useState, type ReactNode, useMemo, useEffect, useCallback } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
@@ -31,7 +30,6 @@ import { TransactionalHighDetailChart } from '@/components/ui/TransactionalHighD
 import { dashboardService, type DashboardData } from '@/services/dashboard-coordinador-service'
 import { formatErrorForComponent } from '@/lib/api/api'
 
-import PagoModal from '@/components/dashboards/shared/PagoModal'
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
 import FloatingActionMenu, { FabAction } from '@/components/dashboards/shared/FloatingActionMenu'
 import { prestamosService } from '@/services/prestamos-service'
@@ -63,18 +61,8 @@ const VistaSupervisor = () => {
   const [refreshing, setRefreshing] = useState(false)
 
   const [isFabOpen, setIsFabOpen] = useState(false)
-  const [showPagoModal, setShowPagoModal] = useState(false)
-  const [pagoInitialIsAbono, setPagoInitialIsAbono] = useState(false)
   const [showCreditoTipoModal, setShowCreditoTipoModal] = useState(false)
   const [showNewClientModal, setShowNewClientModal] = useState(false)
-  const [selectedVisitaForPago, setSelectedVisitaForPago] = useState<{
-    id: string;
-    cliente: string;
-    direccion: string;
-    montoCuota: number;
-    saldoTotal: number;
-  } | undefined>(undefined)
-  
   const router = useRouter()
 
   const loadDashboardData = useCallback(async () => {
@@ -123,18 +111,6 @@ const VistaSupervisor = () => {
       }
     }
   }, [])
-
-  const handlePagoConfirm = (data: {
-    clienteId: string;
-    monto: number;
-    metodoPago: string;
-    comprobante: File | null;
-    isAbono: boolean;
-  }) => {
-    logger.log('Pago confirmado en Supervisor:', data)
-    setShowPagoModal(false)
-    setSelectedVisitaForPago(undefined)
-  }
 
   const handleCreditoConfirm = async (data: any) => {
     try {
@@ -406,17 +382,6 @@ const VistaSupervisor = () => {
 
 
 
-
-      <PagoModal 
-        isOpen={showPagoModal}
-        onClose={() => {
-          setShowPagoModal(false)
-          setSelectedVisitaForPago(undefined)
-        }}
-        onConfirm={handlePagoConfirm}
-        initialIsAbono={pagoInitialIsAbono}
-        initialVisita={selectedVisitaForPago}
-      />
 
       <CrearCreditoModal 
         isOpen={showCreditoTipoModal}
