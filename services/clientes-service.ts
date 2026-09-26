@@ -75,6 +75,20 @@ export interface CrearClienteDto {
   creadoPorId?: string;
   rutaId?: string;
   observaciones?: string;
+  /**
+   * OJO: el backend NO lo acepta todavia.
+   *
+   * La columna existe (`Cliente.categoriaId`, con su relacion `categoria`), pero
+   * `CreateClientDto` y `UpdateClientDto` no la declaran, y el ValidationPipe global
+   * va con `whitelist: true` SIN `forbidNonWhitelisted`: un campo que el DTO no
+   * declara se descarta EN SILENCIO, sin error ni aviso.
+   *
+   * Hoy no rompe nada porque ninguna pantalla lo manda (se comprobo: los
+   * `categoriaId` del frontend son de articulos y de contabilidad). Si se agrega un
+   * selector de categoria al formulario de cliente, hay que declararlo primero en
+   * el DTO del backend y usarlo en `ClientsService`, o el valor se pierde sin que
+   * nadie se entere.
+   */
   categoriaId?: string;
   archivos?: {
     tipoContenido: string;
@@ -102,6 +116,7 @@ export interface ActualizarClienteDto {
   dni?: string; // Permitir dni si es editable
   enListaNegra?: boolean;
   rutaId?: string;
+  /** Igual que en `CrearClienteDto`: el backend lo descarta en silencio. Ver la nota de alla. */
   categoriaId?: string;
   observaciones?: string;
 }
