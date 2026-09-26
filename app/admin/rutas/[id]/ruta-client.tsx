@@ -287,7 +287,12 @@ const RutaClientLoaded = ({
   const lastMisCreditosEnrichKeyRef = useRef('')
 
   // === Mapeo de asignaciones a modelo de UI (VisitaRuta) ===
-  // === Mapeo de asignaciones a modelo de UI (VisitaRuta) ===
+  //
+  // `cobradorIdRuta` se saca aparte a proposito: con `initialRuta?.cobradorId`
+  // dentro del array de dependencias, el compilador de React infiere
+  // `initialRuta.cobradorId` (sin el `?.`), no le coincide con lo escrito y
+  // renuncia a optimizar TODO este componente ("Compilation Skipped").
+  const cobradorIdRuta = initialRuta?.cobradorId
   const mapearAsignacionesAVisitas = useCallback((data: any) => {
     const asignaciones = data?.asignaciones || data?.asignacionesRuta;
     if (!asignaciones || !Array.isArray(asignaciones)) return [];
@@ -296,7 +301,7 @@ const RutaClientLoaded = ({
     const visitasRaw = mapAsignacionesToVisitasLite({
       asignaciones,
       hoyKey,
-      cobradorId: initialRuta?.cobradorId || '',
+      cobradorId: cobradorIdRuta || '',
     }) as any[]
 
     const idsProcesados = new Set<string>()
@@ -315,7 +320,7 @@ const RutaClientLoaded = ({
         {
           ...v,
           // Ajuste de forma admin: mantiene el mismo shape que usaba antes.
-          cobradorId: initialRuta?.cobradorId || '',
+          cobradorId: cobradorIdRuta || '',
           cuotaId,
           cuotaObjetivoId: cuotaId,
           cuotaObjetivoPrestamoId: cuotaId,
@@ -328,7 +333,7 @@ const RutaClientLoaded = ({
       if (!v.prestamoId && clientesConPrestamo.has(v.clienteId)) return false
       return true
     }) as VisitaRuta[]
-  }, [initialRuta?.cobradorId, hoyBogotaKey]);
+  }, [cobradorIdRuta, hoyBogotaKey]);
 
   const [visitasCobrador, setVisitasCobrador] = useState<VisitaRuta[]>(() => mapearAsignacionesAVisitas(initialRuta));
   const [visitasRutaHoyKpi, setVisitasRutaHoyKpi] = useState<VisitaRuta[]>([]);
@@ -860,17 +865,22 @@ const RutaClientLoaded = ({
   const [isCheckingActivacion, setIsCheckingActivacion] = useState(true)
   const esDiaNoLaboral = esDomingoBogota()
 
+  // Mismo caso que `cobradorIdRuta`: la dependencia es la variable, no el acceso
+  // con `?.`, para que el compilador no se salte el componente.
+  // Se llama `idDeInitialRuta` y no `rutaId` porque ese nombre ya lo ocupa un prop
+  // del componente, que viene de la URL y no necesariamente es el mismo valor.
+  const idDeInitialRuta = initialRuta?.id
   const refreshActivacionHoy = useCallback(async () => {
-    if (!initialRuta?.id) return
+    if (!idDeInitialRuta) return
     try {
-      const resp = await routesService.getActivacionHoy(initialRuta.id)
+      const resp = await routesService.getActivacionHoy(idDeInitialRuta)
       setRutaActivadaHoy(Boolean(resp?.operableHoy ?? resp?.activadaHoy))
     } catch (e) {
       // ignore
     } finally {
       setIsCheckingActivacion(false)
     }
-  }, [initialRuta?.id])
+  }, [idDeInitialRuta])
 
   useEffect(() => {
     refreshActivacionHoy()

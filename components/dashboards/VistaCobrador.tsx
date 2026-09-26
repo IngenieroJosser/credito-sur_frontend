@@ -2980,6 +2980,13 @@ const VistaCobrador = () => {
 
 
 
+  // Los ids se sacan a variables a proposito. Con `objeto?.id` dentro del array de
+  // dependencias, el compilador de React no ve a traves del `?.` y ensancha la
+  // dependencia al objeto completo; al no coincidir con lo escrito, renuncia a
+  // optimizar TODO este componente ("Compilation Skipped"). El cuerpo solo usa los
+  // ids, asi que las dependencias no cambian de significado.
+  const userSessionId = userSession?.id
+  const rutaActualId = rutaActual?.id
   const handleCrearCredito = useCallback(async (data: any) => {
 
     try {
@@ -2988,7 +2995,7 @@ const VistaCobrador = () => {
 
       const esContado = Boolean((data).ventaContado)
       const isArticulo = data.creditType === 'articulo'
-      const payload = buildCrearPrestamoPayload(data, userSession?.id)
+      const payload = buildCrearPrestamoPayload(data, userSessionId)
 
       const prestamo = await prestamosService.crearPrestamo(payload)
 
@@ -3038,9 +3045,9 @@ const VistaCobrador = () => {
 
       // Refrescar datos
 
-      if (rutaActual?.id) {
+      if (rutaActualId) {
 
-         cargarEstadisticasRuta(rutaActual.id);
+         cargarEstadisticasRuta(rutaActualId);
 
       }
 
@@ -3064,7 +3071,7 @@ const VistaCobrador = () => {
 
     }
 
-  }, [userSession?.id, rutaActual?.id, cargarEstadisticasRuta])
+  }, [userSessionId, rutaActualId, cargarEstadisticasRuta])
 
 
 

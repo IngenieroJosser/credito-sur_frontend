@@ -414,13 +414,19 @@ export const RutasPageView = ({
     return parseFloat(formatted.replace(/\./g, '').replace(',', '.')) || 0
   }
 
+  // El id se saca a una variable a proposito. Con `currentUser?.id` dentro del array
+  // de dependencias, el compilador de React no ve a traves del `?.` y ensancha la
+  // dependencia al objeto completo; al no coincidir con lo escrito, renuncia a
+  // optimizar TODO este componente ("Compilation Skipped"). El cuerpo solo usa el id,
+  // asi que la dependencia no cambia de significado.
+  const currentUserId = currentUser?.id
   const fetchRutas = useCallback(async () => {
     setLoading(true);
     try {
       const isSupervisorPath = (rutasBasePath || '').toLowerCase().includes('/supervisor')
       const response = await routesService.getAll({
         limit: 100,
-        ...(isSupervisorPath && currentUser?.id ? { supervisorId: currentUser.id } : {}),
+        ...(isSupervisorPath && currentUserId ? { supervisorId: currentUserId } : {}),
       });
       const payload = (response)?.data ?? response
       const data = Array.isArray(payload)
@@ -454,7 +460,7 @@ export const RutasPageView = ({
         logger.warn('No se pudieron leer las rutas guardadas sin conexion', error)
       }
     }
-  }, [currentUser?.id, rutasBasePath])
+  }, [currentUserId, rutasBasePath])
 
   useEffect(() => {
     const fetchLists = async () => {

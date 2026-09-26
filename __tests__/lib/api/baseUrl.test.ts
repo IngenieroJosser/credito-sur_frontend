@@ -11,6 +11,10 @@ const CONFIGURADA = process.env.NEXT_PUBLIC_BASE_URL
 function cargar() {
   let modulo: typeof import('@/lib/api/baseUrl')
   jest.isolateModules(() => {
+    // `require` y no `import()`: `isolateModules` necesita que la carga ocurra de
+    // forma sincrona dentro del callback, y un import dinamico devuelve una promesa
+    // que se resolveria fuera del aislamiento, con el modulo ya cacheado.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     modulo = require('@/lib/api/baseUrl')
   })
   return modulo!
