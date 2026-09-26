@@ -235,9 +235,9 @@ const RutaClientLoaded = ({
     base: number
     pendiente?: number
   }>({
-    recaudo: Number((initialRuta as any)?.estadisticas?.cobranzaDelDia || 0),
-    meta: Number((initialRuta as any)?.estadisticas?.metaDelDia || 0),
-    eficiencia: Number((initialRuta as any)?.estadisticas?.avanceDiario || 0),
+    recaudo: Number((initialRuta)?.estadisticas?.cobranzaDelDia || 0),
+    meta: Number((initialRuta)?.estadisticas?.metaDelDia || 0),
+    eficiencia: Number((initialRuta)?.estadisticas?.avanceDiario || 0),
     gastos: 0,
     gastosProvisionales: 0,
     base: 0,
@@ -365,12 +365,12 @@ const RutaClientLoaded = ({
     }
 
     try {
-      const resp = await rutasService.obtenerVisitasDelDia(rutaId as any, hoyBogotaKey)
+      const resp = await rutasService.obtenerVisitasDelDia(rutaId, hoyBogotaKey)
       setDailyVisitsHoy(resp)
 
       // Usar helper compartido para construir fuente completa de KPI
       const pagosResp = await pagosService.obtenerPagos({ limit: 5000 })
-      const pagos = (pagosResp as any)?.pagos || pagosResp || []
+      const pagos = (pagosResp)?.pagos || pagosResp || []
 
       const result = await buildRutaHoyOperativa({
         ruta: rutaData || initialRuta,
@@ -381,8 +381,8 @@ const RutaClientLoaded = ({
       })
 
       setVisitasRutaHoyKpi(result.kpiItems)
-      visitasCobradorRef.current = result.visibleItems as any
-      setVisitasCobrador(result.visibleItems as any)
+      visitasCobradorRef.current = result.visibleItems
+      setVisitasCobrador(result.visibleItems)
       setEnrichNonce((n) => n + 1)
 
       // Actualizar KPI directamente desde el resultado del helper
@@ -411,17 +411,17 @@ const RutaClientLoaded = ({
     if (vistaRuta === 'ACTUAL' && dailyVisitsHoy) return
 
     const tieneDailyVisits =
-      (Array.isArray((dailyVisitsHoy as any)?.obligaciones) &&
-        (dailyVisitsHoy as any).obligaciones.length > 0) ||
-      (Array.isArray((dailyVisitsHoy as any)?.visitas) &&
-        (dailyVisitsHoy as any).visitas.length > 0)
+      (Array.isArray((dailyVisitsHoy)?.obligaciones) &&
+        (dailyVisitsHoy).obligaciones.length > 0) ||
+      (Array.isArray((dailyVisitsHoy)?.visitas) &&
+        (dailyVisitsHoy).visitas.length > 0)
 
     if (tieneDailyVisits) return
 
     const nextList = mapearAsignacionesAVisitas(rutaData)
-    const merged = mergeVisitasPreservingLocalRecaudo(visitasCobradorRef.current as any, nextList as any)
-    visitasCobradorRef.current = merged as any
-    setVisitasCobrador(merged as any);
+    const merged = mergeVisitasPreservingLocalRecaudo(visitasCobradorRef.current, nextList)
+    visitasCobradorRef.current = merged
+    setVisitasCobrador(merged);
   }, [rutaData, dailyVisitsHoy, mapearAsignacionesAVisitas]);
 
 
@@ -472,15 +472,15 @@ const RutaClientLoaded = ({
 
       // 2. Obtener todos los pagos recientes de forma masiva para evitar N peticiones API
       const pagosRecientesResp = await pagosService.obtenerPagos({ limit: 1000 });
-      const todosPagos = (pagosRecientesResp as any)?.pagos || pagosRecientesResp || [];
+      const todosPagos = (pagosRecientesResp)?.pagos || pagosRecientesResp || [];
 
       const recaudosHoyMap = buildRecaudosHoyMapByPrestamoId(
-        todosPagos as any,
+        todosPagos,
         hoyBogota,
         { includeCierrePendiente: false },
       )
 
-      const { totalHistoricoByPrestamoId, ultimoPagoDateByPrestamoId } = indexPagosByPrestamoId(todosPagos as any)
+      const { totalHistoricoByPrestamoId, ultimoPagoDateByPrestamoId } = indexPagosByPrestamoId(todosPagos)
 
       const actualizadas = await mapWithConcurrency(
         visitasEnriquecidasConCuotas,
@@ -606,7 +606,7 @@ const RutaClientLoaded = ({
         }
       })
 
-      setVisitasCobrador(merged as any);
+      setVisitasCobrador(merged);
     };
 
 
@@ -953,10 +953,10 @@ const RutaClientLoaded = ({
 
 
 
-  const estadisticas = (rutaData as any)?.estadisticas || initialRuta.estadisticas;
+  const estadisticas = (rutaData)?.estadisticas || initialRuta.estadisticas;
   const resumenDailyVisitsHoy = dailyVisitsHoy?.resumen || null
 
-  const nivelRiesgo = (rutaData as any)?.nivelRiesgo || initialRuta.nivelRiesgo;
+  const nivelRiesgo = (rutaData)?.nivelRiesgo || initialRuta.nivelRiesgo;
 
   const porcentajeProgreso = estadisticas?.avanceDiario || 0;
 
@@ -1071,7 +1071,7 @@ const RutaClientLoaded = ({
           gastos: Number(saldo?.gastosDelDia ?? 0),
           gastosProvisionales: Number((saldo)?.egresosProvisionales ?? 0),
           base: Number(saldo?.saldoCaja ?? saldo?.baseEfectivo ?? 0)
-        } as any)
+        })
       } catch {
         const recaudo = Number(estadisticas?.cobranzaDelDia ?? 0)
 
@@ -1215,11 +1215,11 @@ const RutaClientLoaded = ({
     if (!rutaId) return
     try {
       setLoadingMisCreditos(true)
-      const resp = await rutasService.obtenerVisitasDelDia(rutaId as any, hoyBogotaKey)
+      const resp = await rutasService.obtenerVisitasDelDia(rutaId, hoyBogotaKey)
 
       // Usar helper compartido para construir fuente completa de KPI
       const pagosResp = await pagosService.obtenerPagos({ limit: 5000 })
-      const pagos = (pagosResp as any)?.pagos || pagosResp || []
+      const pagos = (pagosResp)?.pagos || pagosResp || []
 
       const result = await buildRutaHoyOperativa({
         ruta: rutaData || initialRuta,
@@ -1230,7 +1230,7 @@ const RutaClientLoaded = ({
       })
 
       // Para "Mis clientes", mostrar kpiItems (obligaciones completas) enriquecidas
-      setMisCreditos(result.kpiItems as any)
+      setMisCreditos(result.kpiItems)
     } catch (e) {
       console.error('Error cargando mis clientes (ruta admin):', e)
       toast.error('No se pudieron cargar las obligaciones operativas de la ruta.')
@@ -1268,7 +1268,7 @@ const RutaClientLoaded = ({
       setVisitasCobrador((prev: VisitaRuta[]) =>
         prev.map((v) =>
           v.clienteId === clienteIdVisita
-            ? { ...v, estado: estadoVisitaPayload as any, estadoVisita: estadoVisitaPayload as any, notasVisita: notasVisitaPayload ?? (v).notasVisita }
+            ? { ...v, estado: estadoVisitaPayload, estadoVisita: estadoVisitaPayload, notasVisita: notasVisitaPayload ?? (v).notasVisita }
             : v,
         ),
       )
@@ -1324,7 +1324,7 @@ const RutaClientLoaded = ({
           }
         />
 
-        <RutaKpiSection periodo={periodoCards} onPeriodoChange={setPeriodoCards} rutaStats={rutaStatsCards as any} />
+        <RutaKpiSection periodo={periodoCards} onPeriodoChange={setPeriodoCards} rutaStats={rutaStatsCards} />
 
         {/* Banner de cierre pendiente */}
         <CierrePendienteBanner
@@ -2122,14 +2122,14 @@ const RutaClientLoaded = ({
                       ...v,
                       recaudadoDelDia,
                       montoCuotaPendiente,
-                      estado: estado as any,
-                      estadoVisita: undefined as any,
-                      notasVisita: undefined as any,
+                      estado: estado,
+                      estadoVisita: undefined,
+                      notasVisita: undefined,
                     }
                   })
 
-                  visitasCobradorRef.current = next as any
-                  return next as any
+                  visitasCobradorRef.current = next
+                  return next
                 });
               }
               showNotification('success', `${pagoActual.tipo === 'ABONO' ? 'Abono' : 'Pago'} registrado correctamente`, 'Éxito');
@@ -2189,10 +2189,10 @@ const RutaClientLoaded = ({
 
               const cuotaIdFinal = String(
                 cuotaId || 
-                (visitaReprogramar as any)?.cuotaId || 
-                (visitaReprogramar as any)?.cuotaObjetivoId || 
-                (visitaReprogramar as any)?.cuotaObjetivo?.id || 
-                (visitaReprogramar as any)?.proximaCuota?.id || 
+                (visitaReprogramar)?.cuotaId || 
+                (visitaReprogramar)?.cuotaObjetivoId || 
+                (visitaReprogramar)?.cuotaObjetivo?.id || 
+                (visitaReprogramar)?.proximaCuota?.id || 
                 ''
               ).trim();
 
@@ -2403,7 +2403,7 @@ const RutaClientLoaded = ({
               onClose={() => setDetalleVisita(null)}
               nextPagoMonto={resolveCuotaNormalOperativa(detalleActual)}
               nextPagoFecha={detalleActual.proximaVisita}
-              recaudadoHoy={Number((detalleActual as any)?.recaudadoDelDia || 0)}
+              recaudadoHoy={Number((detalleActual)?.recaudadoDelDia || 0)}
               formatFechaLargaUTC={formatShortDate}
             />
           )
@@ -2831,7 +2831,7 @@ const RutaClient = ({ initialRuta: initialRutaProp, rutaId }: RutaClientProps) =
 
       setRutaData(ruta as any);
 
-      setRutaCompletada(!(ruta as any)?.activa);
+      setRutaCompletada(!(ruta)?.activa);
 
     } catch (e) {
 
@@ -2962,7 +2962,7 @@ const RutaClient = ({ initialRuta: initialRutaProp, rutaId }: RutaClientProps) =
 
     <RutaClientLoaded
       initialRuta={initialRuta}
-      rutaData={rutaData as any}
+      rutaData={rutaData}
       rutaId={rutaId}
       rutaCompletada={rutaCompletada}
       setRutaCompletada={setRutaCompletada}
