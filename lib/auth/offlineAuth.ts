@@ -1,5 +1,6 @@
 import { logger } from '@/lib/logger'
 import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
+import type { UsuarioDeSesion } from '@/lib/types/autenticacion-type'
 /**
  * Sistema de Autenticación Offline
  * Permite continuar usando el sistema PWA sin conexión después de haber iniciado sesión previamente
@@ -7,9 +8,33 @@ import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 
 interface CachedSession {
   token: string;
-  user: any;
+  /**
+   * El usuario de la respuesta de sesion, tal como lo mandan `login` y `refresh`.
+   * Es el mismo objeto que se escribe como `user` en localStorage (ver
+   * `restoreOfflineSession`), asi que conviene que diga la verdad: `apellidos`,
+   * `correo` y `nombreUsuario` son NULL-ables en la base.
+   */
+  user: UsuarioDeSesion;
   cachedAt: string;
   expiresAt: string;
+}
+
+/**
+ * Los claims que lleva el token que firma el backend.
+ *
+ * Comprobado en `AuthService`: el payload de iniciar sesion es
+ * `{ sub, nombres, rol, permisos }` y el de registrar un usuario omite `permisos`.
+ * `iat` y `exp` los agrega la firma. Aqui no se verifica ninguna firma: esto es
+ * solo lectura del payload.
+ */
+export interface ClaimsDeToken {
+  sub?: string;
+  nombres?: string;
+  rol?: string;
+  permisos?: string[];
+  /** Segundos desde epoch. Si falta, se asume que el token no expira. */
+  exp?: number;
+  iat?: number;
 }
 
 const SESSION_CACHE_KEY = 'offline_session_cache';
@@ -172,7 +197,7 @@ export function hayCredencialOffline(): boolean {
 /**
  * Guardar sesión en caché para uso offline
  */
-export function cacheSession(token: string, user: any): void {
+export function cacheSession(token: string, user: UsuarioDeSesion): void {
   try {
     if (typeof window === 'undefined') return;
     
@@ -271,33 +296,29 @@ export function restoreOfflineSession(): { token: string; user: any } | null {
  * Nota: Esta es una validación básica, no verifica la firma del token
  */
 export function isTokenExpired(token: string): boolean {
-  try {
-    // Decodificar el payload del JWT (segunda parte)
-    const parts = token.split('.');
-    if (parts.length !== 3) return true;
+  // El decodificado lo hace `decodeToken`. Antes estaba copiado aqui linea por
+  // linea, asi que habia dos decodificadores del mismo token en este archivo y solo
+  // uno se usaba.
+  const payload = decodeToken(token);
 
-    // Decodificar base64url de forma segura
-    const base64Url = parts[1];
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const padding = '='.repeat((4 - (base64.length % 4)) % 4);
-    const payload = JSON.parse(atob(base64 + padding));
-    
-    // Verificar si tiene campo 'exp' (expiration)
-    if (!payload.exp) return false; // Si no tiene exp, asumimos que no expira
+  // Sin payload es que el token no se pudo leer: se trata como expirado.
+  if (!payload) return true;
 
-    // Comparar con tiempo actual (exp está en segundos, Date.now() en milisegundos)
-    const now = Math.floor(Date.now() / 1000);
-    return payload.exp < now;
-  } catch (error) {
-    logger.error('[Offline Auth] Error verificando expiración de token:', error);
-    return true; // Si hay error, asumimos que está expirado
-  }
+  // Sin `exp` se asume que no expira.
+  if (!payload.exp) return false;
+
+  // `exp` va en segundos y Date.now() en milisegundos.
+  const now = Math.floor(Date.now() / 1000);
+  return payload.exp < now;
 }
 
 /**
- * Obtener información del token sin validar (solo lectura)
+ * Leer los claims del token sin validar la firma.
+ *
+ * Devuelve `null` si el token no tiene la forma de un JWT o el payload no es JSON
+ * valido. No comprueba la firma: para eso esta el backend.
  */
-export function decodeToken(token: string): any {
+export function decodeToken(token: string): ClaimsDeToken | null {
   try {
     const parts = token.split('.');
     if (parts.length !== 3) return null;
@@ -305,7 +326,13 @@ export function decodeToken(token: string): any {
     const base64Url = parts[1];
     const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
     const padding = '='.repeat((4 - (base64.length % 4)) % 4);
-    return JSON.parse(atob(base64 + padding));
+    const payload: unknown = JSON.parse(atob(base64 + padding));
+
+    // Un JWT valido lleva un objeto en el payload. Una cadena o un numero
+    // decodifican bien y no son claims.
+    if (!payload || typeof payload !== 'object') return null;
+
+    return payload as ClaimsDeToken;
   } catch (error) {
     logger.error('[Offline Auth] Error decodificando token:', error);
     return null;

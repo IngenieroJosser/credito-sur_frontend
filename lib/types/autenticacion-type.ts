@@ -19,20 +19,41 @@ export interface SidebarModulo {
   items: SidebarItem[];
 }
 
+/**
+ * Lo que devuelve iniciar sesion y `GET /auth/refresh`.
+ *
+ * `usuario` esta copiado de lo que arma `AuthService.login`, comprobado campo por
+ * campo. Tenia tres desajustes:
+ *
+ *  - `apellidos` figuraba OBLIGATORIO. El backend hace
+ *    `apellidos: usuario.apellidos ?? undefined`, porque la columna es NULL-able.
+ *  - `telefono` estaba declarado y el login NO lo manda.
+ *  - `nombreUsuario` si lo manda y no estaba declarado.
+ *
+ * Este objeto es el que se guarda como `user` en localStorage (via `cacheSession`),
+ * asi que lo que aqui se prometa de mas termina como `undefined` en el cache. Fue
+ * justo lo que paso con el apellido en la pantalla de perfil.
+ */
 export interface AuthResponse {
   access_token: string;
   usuario: {
     id: string;
     nombres: string;
-    apellidos: string;
     rol: RolUsuario;
+    /** NULL-able en la base. */
+    apellidos?: string;
+    /** NULL-able en la base. */
     correo?: string;
-    telefono?: string;
+    /** NULL-able en la base. */
+    nombreUsuario?: string;
     permisos?: string[];
     rutaDefault?: string;
     sidebar?: SidebarModulo[];
   };
 }
+
+/** El usuario que viaja en la respuesta de sesion y se guarda en localStorage. */
+export type UsuarioDeSesion = AuthResponse['usuario'];
 
 /**
  * Lo que devuelve `GET /auth/perfil`.
