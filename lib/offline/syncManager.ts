@@ -233,6 +233,7 @@ export function mapearPrestamoDescargado(p: Record<string, unknown>): OfflinePre
     cliente: nombreDePersona(p.cliente),
     clienteDni: texto(p.clienteDni),
     clienteTelefono: texto(p.clienteTelefono),
+    clienteDireccion: texto(p.clienteDireccion),
 
     monto: num(p.montoPrestado),
     montoPrestado: num(p.montoPrestado),

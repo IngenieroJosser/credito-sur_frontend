@@ -192,13 +192,12 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
               id: offP.id,
               clienteId: offP.clienteId || '',
               clienteNombre: offP.clienteNombre || offP.cliente || '',
-              // Estos tres estaban fijos en cadena vacia porque la copia local no los
-              // guardaba. Ahora si guarda el documento y el telefono (los manda
-              // `GET /loans`); la direccion ese endpoint no la manda, asi que sigue
-              // vacia y por eso queda dicho aqui.
+              // Los tres estaban fijos en cadena vacia porque la copia local no los
+              // guardaba. Ya los guarda: el documento y el telefono los mandaba
+              // `GET /loans`, y la direccion se agrego a ese listado para esto.
               clienteDni: offP.clienteDni || '',
               clienteTelefono: offP.clienteTelefono || '',
-              clienteDireccion: '',
+              clienteDireccion: offP.clienteDireccion || '',
               montoPrestamo: offP.monto || offP.montoPrestamo || 0,
               montoTotal: offP.montoTotal || 0,
               saldoPendiente: offP.saldoPendiente || 0,

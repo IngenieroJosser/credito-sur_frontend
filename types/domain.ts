@@ -265,6 +265,8 @@ export interface PrestamoDelListado {
   cliente: string;
   clienteDni: string;
   clienteTelefono: string;
+  /** La manda el listado desde `loans.service.ts`; antes no venia. */
+  clienteDireccion: string;
   producto: string;
   tipoProducto: string;
   tipoPrestamo: string;

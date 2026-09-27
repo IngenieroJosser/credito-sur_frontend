@@ -41,6 +41,7 @@ export interface OfflinePrestamo {
   cliente?: string;
   clienteDni?: string;
   clienteTelefono?: string;
+  clienteDireccion?: string;
 
   monto: number;
   montoPrestado?: number;

@@ -46,6 +46,7 @@ const filaDelListado = {
   cliente: 'Ana Muñoz',
   clienteDni: '1098765432',
   clienteTelefono: '3001234567',
+  clienteDireccion: 'Calle 5 # 12-30',
   producto: 'Nevera 220L',
   tipoProducto: 'articulo',
   tipoPrestamo: 'ARTICULO',
@@ -135,9 +136,12 @@ describe('mapearPrestamoDescargado: lo que se descartaba', () => {
     expect(local.rutaNombre).toBe('Ruta Centro')
   })
 
-  it('conserva el documento y el telefono del cliente', () => {
+  it('conserva el documento, el telefono y la direccion del cliente', () => {
     expect(local.clienteDni).toBe('1098765432')
     expect(local.clienteTelefono).toBe('3001234567')
+    // La direccion no la mandaba `GET /loans`; se agrego a ese listado porque el detalle
+    // de prestamo sin conexion la dejaba en blanco.
+    expect(local.clienteDireccion).toBe('Calle 5 # 12-30')
   })
 })
 
