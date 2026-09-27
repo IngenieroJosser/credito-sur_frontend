@@ -58,7 +58,7 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
                 // Adaptar data backend a UI
                 const fotos: string[] = Array.from(
                   new Set(
-                    ((data as any).archivos || [])
+                    (data.archivos || [])
                       .map((a: any) => a.url || a.path || a.ruta)
                       .filter(Boolean),
                   ),
@@ -81,11 +81,11 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
                     fechaRegistro: data.creadoEn || toBogotaDateTimeOffsetIso(new Date()),
                     ocupacion: 'No especificada',
                     avatarColor: 'bg-blue-600',
-                    ruta: (data as any).asignacionesRuta?.[0]?.ruta?.nombre || 'Sin Ruta',
+                    ruta: data.asignacionesRuta?.[0]?.ruta?.nombre || 'Sin Ruta',
                     fotos: fotos
                 });
                 
-                const prestamosBackend: any[] = (data as any).prestamos || [];
+                const prestamosBackend: any[] = data.prestamos || [];
                 setPrestamos(prestamosBackend.map(p => {
                     const cuotas = p.cuotas || [];
                     const cuotasPagadas = cuotas.filter((c: any) => c.estado === 'PAGADO' || c.estado === 'PAGADA').length;
@@ -139,7 +139,7 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
                     };
                 }));
                 
-                const pagosBackend: any[] = (data as any).pagos || [];
+                const pagosBackend: any[] = data.pagos || [];
                 setPagos(pagosBackend.map(p => ({
                     id: String(p.id),
                     fecha: p.fechaPago,

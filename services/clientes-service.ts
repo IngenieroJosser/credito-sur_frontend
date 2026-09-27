@@ -58,6 +58,38 @@ export interface Cliente {
    * `as any`, asi que la funcion estaba escondida detras de un cast.
    */
   version?: number;
+
+  /**
+   * Las relaciones que trae SOLO el detalle, `GET /clients/:id`
+   * (`clients.service.ts:153`, el `include` de `findOne`). El listado no las manda,
+   * de ahi que todas vayan opcionales.
+   */
+  archivos?: { url?: string; path?: string; ruta?: string }[];
+  /**
+   * La asignacion activa, con la ruta. Solo viene la primera (`take: 1`).
+   *
+   * El detalle NO la incluia y el portal del cliente la lee de aqui, asi que
+   * mostraba "Sin Ruta" en todos. Arreglado en el backend; ver el commit
+   * "clientes: el detalle tambien trae la ruta asignada".
+   */
+  asignacionesRuta?: {
+    ruta?: { id?: string; nombre?: string; codigo?: string } | null;
+  }[];
+  /**
+   * Los prestamos del cliente, como filas del modelo.
+   *
+   * OJO: `prestamos: true` NO trae la relacion `cuotas`, asi que `p.cuotas` siempre
+   * llega vacio y todo lo que se calcule de ahi (las cuotas pagadas del portal) sale
+   * en cero. `cantidadCuotas` si es columna y si llega.
+   */
+  prestamos?: Record<string, unknown>[];
+  /**
+   * Los pagos del cliente.
+   *
+   * OJO: `pagos: true` NO trae la relacion `detalles`, asi que no se puede saber a
+   * que cuota fue cada pago; el portal acaba mostrando "cuota 1" en todos.
+   */
+  pagos?: Record<string, unknown>[];
 }
 
 export interface CrearClienteDto {
