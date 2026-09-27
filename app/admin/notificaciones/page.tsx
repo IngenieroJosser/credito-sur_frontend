@@ -45,7 +45,23 @@ import { Skeleton } from '@/components/ui/Skeleton'
 // Las notificaciones que requieren aprobación se identifican por metadata.tipoAprobacion
 // o porque el backend las marcó explícitamente como de tipo APROBACION.
 // Inferir tipo de aprobación a partir del título de la notificación (último recurso)
-function inferirApprovalTypePorTitulo(titulo: string): string | undefined {
+/**
+ * Narrowing de lo que llega en `metadata.tipoAprobacion`.
+ *
+ * Comprobado que no descarta nada real: en el backend la columna es el enum
+ * `TipoAprobacion` de Prisma (`schema.prisma:558`) con los mismos ocho miembros que
+ * el enum del frontend, asi que la base ya garantiza el valor. El guard esta para
+ * que el tipo diga la verdad y para el dia que alguien mande otra cosa.
+ */
+function esTipoAprobacion(valor: unknown): valor is TipoAprobacion {
+  return (
+    typeof valor === 'string' &&
+    (Object.values(TipoAprobacion) as string[]).includes(valor)
+  )
+}
+
+/** Solo devuelve miembros del enum; antes lo declaraba como `string`. */
+function inferirApprovalTypePorTitulo(titulo: string): TipoAprobacion | undefined {
   const t = titulo.toLowerCase()
   if (t.includes('gasto')) return TipoAprobacion.GASTO
   if (t.includes('préstamo') || t.includes('prestamo')) return TipoAprobacion.NUEVO_PRESTAMO
@@ -56,6 +72,22 @@ function inferirApprovalTypePorTitulo(titulo: string): string | undefined {
 }
 
 // Roles que pueden aprobar/rechazar solicitudes
+/**
+ * Los ordenes de la lista, con su etiqueta. Un solo origen: el `<select>` se dibuja
+ * de aqui y el tipo del estado sale de aqui, asi que la lista de opciones y los
+ * valores que el codigo compara no pueden separarse.
+ */
+const ORDENES = {
+  RECENT: 'Más recientes',
+  OLD: 'Más antiguos',
+  CATEGORY: 'Por Categoría',
+  STATUS: 'Por Estado',
+} as const
+
+type Orden = keyof typeof ORDENES
+
+const esOrden = (valor: string): valor is Orden => valor in ORDENES
+
 const ROLES_APROBADORES = ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR']
 // Roles que tienen acceso a filtro de rutas
 const ROLES_CON_RUTAS = ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'SUPERVISOR']
@@ -93,7 +125,7 @@ export default function NotificacionesPage() {
   const [filter, setFilter] = useState<'TODAS' | 'NO_LEIDAS' | 'LEIDAS' | 'APROBADAS' | 'RECHAZADAS'>('TODAS')
   const [tipoFilter, setTipoFilter] = useState<TipoNotificacionFiltro>('TODOS')
   const [filterRuta, setFilterRuta] = useState<string | null>(null)
-  const [sortBy, setSortBy] = useState<'RECENT' | 'OLD' | 'CATEGORY' | 'STATUS'>('RECENT')
+  const [sortBy, setSortBy] = useState<Orden>('RECENT')
   
   // --- ESTADOS DE DATOS Y UI ---
   const [search, setSearch] = useState('')
@@ -167,7 +199,11 @@ export default function NotificacionesPage() {
             texto.includes('interes de mora')
           if (tipoFinal === 'SISTEMA' && pareceMora) tipoFinal = 'MORA'
 
-          let approvalType: string | undefined = metadata.tipoAprobacion as string | undefined
+          let approvalType: TipoAprobacion | undefined = esTipoAprobacion(
+            metadata.tipoAprobacion,
+          )
+            ? metadata.tipoAprobacion
+            : undefined
 
           if (!approvalType && (n.tipo === 'APROBACION' || entidad === 'Aprobacion')) {
             if (n.titulo && (n.titulo.toLowerCase().includes('aprobación') || n.titulo.toLowerCase().includes('requiere'))) {
@@ -230,7 +266,7 @@ export default function NotificacionesPage() {
             revisadoPor: metadata.revisadoPor,
             motivoRechazo: metadata.motivoRechazo || n.motivoRechazo,
             ...(approvalType ? { approvalType } : {}),
-          } as Notificacion & { approvalType?: string }
+          } as Notificacion & { approvalType?: TipoAprobacion }
         })
         
         setNotificacionesState(notifsConLinks)
@@ -367,7 +403,7 @@ export default function NotificacionesPage() {
     if (!selectedNotif) return
 
     const anyNotif: any = selectedNotif
-    const approvalType: string | undefined = anyNotif.approvalType
+    const approvalType: TipoAprobacion | undefined = anyNotif.approvalType
     const entidadId = selectedNotif.entidadId
 
     if (!approvalType || !entidadId) {
@@ -385,7 +421,7 @@ export default function NotificacionesPage() {
 
     try {
       await aprobacionesService.aprobar(entidadId, {
-        type: approvalType as any,
+        type: approvalType,
         notas: editedDetails ? JSON.stringify(editedDetails) : undefined,
       })
 
@@ -425,7 +461,7 @@ export default function NotificacionesPage() {
   const handleRejectConfirmList = async (reason: string) => {
     if (!selectedNotif) return
     const anyNotif: any = selectedNotif
-    const approvalType: string | undefined = anyNotif.approvalType
+    const approvalType: TipoAprobacion | undefined = anyNotif.approvalType
     const entidadId = selectedNotif.entidadId
     if (!approvalType || !entidadId) {
       setFeedbackModal({
@@ -440,7 +476,7 @@ export default function NotificacionesPage() {
     setDecisionEnCurso('Rechazando la solicitud…')
     try {
       await aprobacionesService.rechazar(entidadId, {
-        type: approvalType as any,
+        type: approvalType,
         motivoRechazo: reason || 'Rechazado por el administrador',
       })
       setNotificacionesState(prev =>
@@ -480,10 +516,10 @@ export default function NotificacionesPage() {
     setIsDetailModalOpen(true)
   }
 
-  const handleApproveFromModal = async (entityId: string, type: string, details: any) => {
+  const handleApproveFromModal = async (entityId: string, type: TipoAprobacion, details: any) => {
     try {
       await aprobacionesService.aprobar(entityId, {
-        type: type as any,
+        type,
         notas: details ? JSON.stringify(details) : undefined,
       })
 
@@ -511,10 +547,10 @@ export default function NotificacionesPage() {
     }
   }
 
-  const handleRejectFromModal = async (entityId: string, type: string, reason: string, resultadoRevision?: 'RECHAZADO_CON_DEUDA' | 'RECHAZADO_CON_REINTEGRO') => {
+  const handleRejectFromModal = async (entityId: string, type: TipoAprobacion, reason: string, resultadoRevision?: 'RECHAZADO_CON_DEUDA' | 'RECHAZADO_CON_REINTEGRO') => {
     try {
       await aprobacionesService.rechazar(entityId, {
-        type: type as any,
+        type,
         motivoRechazo: reason || 'Rechazado por el administrador',
         resultadoRevision,
       })
@@ -706,13 +742,19 @@ export default function NotificacionesPage() {
                       <div className="md:w-48">
                         <select 
                           value={sortBy}
-                          onChange={(e) => setSortBy(e.target.value as any)}
+                          onChange={(e) => {
+                            // `e.target.value` es un `string`: se comprueba en vez de
+                            // afirmarlo. Los valores posibles son las llaves de ORDENES,
+                            // que es de donde se dibujan las opciones.
+                            if (esOrden(e.target.value)) setSortBy(e.target.value)
+                          }}
                           className="w-full h-[42px] px-4 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 transition-all cursor-pointer"
                         >
-                          <option value="RECENT">Más recientes</option>
-                          <option value="OLD">Más antiguos</option>
-                          <option value="CATEGORY">Por Categoría</option>
-                          <option value="STATUS">Por Estado</option>
+                          {Object.entries(ORDENES).map(([valor, etiqueta]) => (
+                            <option key={valor} value={valor}>
+                              {etiqueta}
+                            </option>
+                          ))}
                         </select>
                       </div>
                     </div>

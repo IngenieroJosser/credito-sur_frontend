@@ -50,6 +50,17 @@ export default function ArchivadosPage() {
   // Permite que el boton 'Actualizar' vuelva a cargar los datos.
   const [refreshKey, setRefreshKey] = useState(0)
 
+  /**
+   * Vuelve a pedir la lista.
+   *
+   * Antes esto se hacia guardando `fetchItems` en `window.refreshArchivados` y
+   * leyendolo de vuelta con `as any` en cuatro sitios. Medido: ese nombre no se lee
+   * en ningun otro archivo del proyecto, o sea que el componente se estaba hablando
+   * a si mismo a traves del objeto global. `refreshKey` ya existia para esto y el
+   * boton de recargar (mas abajo) ya lo usaba; ahora lo usan todos.
+   */
+  const recargar = useCallback(() => setRefreshKey((k) => k + 1), [])
+
   useEffect(() => {
     setMounted(true)
     const fetchItems = async () => {
@@ -95,16 +106,12 @@ export default function ArchivadosPage() {
       }
     }
     
-    // Función disponible globalmente para recargar
-    (window as any).refreshArchivados = fetchItems;
-    
-    // Carga inicial
     fetchItems();
   }, [refreshKey])
 
   // Tiempo real: cuando se archive/elimine/restaure algo vía otro módulo, actualizar lista
   useRealtimeData(['prestamos_actualizados', 'clientes_actualizados', 'inventario_actualizado', 'usuarios_actualizados', 'dashboards_actualizados'], () => {
-    if ((window as any).refreshArchivados) (window as any).refreshArchivados()
+    recargar()
   })
 
   const handleRestore = async () => {
@@ -139,10 +146,7 @@ export default function ArchivadosPage() {
       toast.success(`${selectedItem.tipo.charAt(0).toUpperCase() + selectedItem.tipo.slice(1)} restaurado correctamente`, { id: toastId })
       setItems((prev) => prev.filter((item) => !(item.tipo === selectedItem.tipo && item.entidadId === selectedItem.entidadId)))
       
-      // Recargar lista
-      if ((window as any).refreshArchivados) {
-        (window as any).refreshArchivados()
-      }
+      recargar()
     } catch (error) {
       console.error('Error al restaurar:', error)
       toast.error(mensajeDeError(error, 'Error al restaurar el elemento'), { id: toastId })
@@ -161,9 +165,7 @@ export default function ArchivadosPage() {
       await auditoriaService.ocultarArchivado(tipo, entidadId)
 
       toast.success('Elemento quitado de archivados', { id: toastId })
-      if ((window as any).refreshArchivados) {
-        (window as any).refreshArchivados()
-      }
+      recargar()
     } catch (error) {
       const statusCode = estadoDeError(error)
       // El ultimo termino de la cadena que habia aqui era `error?.error` crudo, o

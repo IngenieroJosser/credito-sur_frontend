@@ -155,6 +155,13 @@ export interface ResumenFinanciero {
   provisionCarteraIncumplida?: number;
   provisionCarteraPerdida?: number;
   provisionCarteraTotal?: number;
+  /**
+   * La provision causada DENTRO del periodo consultado, no el acumulado.
+   * `provisionCarteraTotal` es el saldo de toda la cartera; esta es la del rango
+   * (`accounting.service.ts:3328`, y el comentario de la linea 3327 lo separa
+   * explicitamente).
+   */
+  provisionCarteraPeriodo?: number;
 }
 
 export interface Gasto {

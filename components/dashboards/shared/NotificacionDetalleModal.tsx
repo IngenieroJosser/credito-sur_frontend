@@ -1,5 +1,6 @@
 'use client'
 import { estadoDeError } from '@/lib/mensaje-de-error'
+import type { TipoAprobacion } from '@/types/enums'
 
 import React, { useState, useRef } from 'react'
 import { 
@@ -47,8 +48,8 @@ export interface NotificacionDetalleModalProps {
   isOpen: boolean
   onClose: () => void
   notificacion: any
-  onApprove: (id: string, type: string, editedDetails: any) => Promise<void>
-  onReject: (id: string, type: string, reason: string, resultadoRevision?: 'RECHAZADO_CON_DEUDA' | 'RECHAZADO_CON_REINTEGRO') => Promise<void>
+  onApprove: (id: string, type: TipoAprobacion, editedDetails: any) => Promise<void>
+  onReject: (id: string, type: TipoAprobacion, reason: string, resultadoRevision?: 'RECHAZADO_CON_DEUDA' | 'RECHAZADO_CON_REINTEGRO') => Promise<void>
   canApprove?: boolean
   isLegacy?: boolean
   userRol?: string
