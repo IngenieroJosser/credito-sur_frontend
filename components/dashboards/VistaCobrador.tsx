@@ -2212,7 +2212,12 @@ const VistaCobrador = () => {
           const nuevas = prev.map(v => {
             if (v.prestamoId === prestamoId) {
               let nuevoEstado: EstadoVisita = 'pendiente';
-              if (prox?.estado === 'VENCIDA' || (prox as any)?.estado === 'ATRASADA') nuevoEstado = 'en_mora';
+              // Se quito `|| prox?.estado === 'ATRASADA'`: ese estado no existe.
+              // `enum EstadoCuota` es PENDIENTE, PAGADA, PARCIAL, VENCIDA, PRORROGADA,
+              // y la palabra "ATRASADA" no aparece ni una vez en el backend, asi que la
+              // comparacion era siempre falsa. Quedan dos gemelas en `ruta-historial.ts`
+              // (lineas 260 y 720) que comparan un `string` y por eso no las marca tsc.
+              if (prox?.estado === 'VENCIDA') nuevoEstado = 'en_mora';
               else if (!prox) nuevoEstado = 'pagado';
               
               const hoyStr = hoyBogotaKey;
@@ -2229,8 +2234,12 @@ const VistaCobrador = () => {
               const metaEstableRealtime = cuotasVencidasHoy.reduce((s, c) => s + Number(c.monto || 0), 0);
               const cuotaNormal = Number(
                 (v).montoCuotaNormal ??
-                  (prox as any)?.montoNominal ??
-                  (prox as any)?.montoCuota ??
+                  // `montoNominal` y `montoCuota` NO existen en una cuota que venga de
+                  // `/loans/:id/cuotas`: ese endpoint devuelve las filas crudas de
+                  // Prisma (`getLoanCuotas`, sin enriquecer) y `model Cuota` solo tiene
+                  // `monto`. Los dos nombres existen en la cuota ENRIQUECIDA que arma
+                  // `routes.service` (`CuotaOperativa`), de donde se copio este patron.
+                  // Aqui siempre valian `undefined` y la cadena caia en `monto`.
                   (prox)?.monto ??
                   v.montoCuota ??
                   0,
@@ -3604,9 +3613,14 @@ const VistaCobrador = () => {
 
         let targetDateStr = hoyBogotaKey;
 
-        if ((visitaClienteSeleccionada as any).fecha || visitaClienteSeleccionada.proximaVisita) {
+        // Se quito `visitaClienteSeleccionada.fecha`: una VISITA no tiene ese campo.
+        // `fecha` existe una sola vez en `routes.service.ts:4607`, y esta en el SOBRE de
+        // la respuesta de daily-visits (`DailyVisitsResponse.fecha`), no en cada visita;
+        // ningun sitio del frontend arma visitas con ese campo tampoco. Siempre valia
+        // `undefined` y la cadena caia en `proximaVisita`.
+        if (visitaClienteSeleccionada.proximaVisita) {
 
-           const dString = (visitaClienteSeleccionada as any).fecha || visitaClienteSeleccionada.proximaVisita;
+           const dString = visitaClienteSeleccionada.proximaVisita;
 
            targetDateStr = dString.includes('T') ? dString.split('T')[0] : dString;
 

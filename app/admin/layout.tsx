@@ -56,6 +56,7 @@ import SupervisorFloatingActionsGate from '@/components/dashboards/SupervisorFlo
 import { cerrarSesion } from '@/services/autenticacion-service';
 import { useAnchoAside } from '@/hooks/useAnchoAside'
 import BotonAccion from '@/components/ui/BotonAccion'
+import type { SidebarModulo } from '@/lib/types/autenticacion-type'
 
 interface NavigationItem {
   name: string;
@@ -66,6 +67,19 @@ interface NavigationItem {
   submodulos?: NavigationItem[];
 }
 
+/**
+ * El usuario que se guarda en localStorage al entrar.
+ *
+ * Es un tipo local de esta pantalla, y le faltaban dos campos que el login SI manda
+ * (`auth.service.ts:158-170`), por eso se leian con `as any`:
+ *
+ *  - `permisos`: las acciones del usuario, ya deduplicadas (`uniquePermisos`).
+ *  - `sidebar`: el menu agrupado por modulo, que es justo lo que `obtenerModulos`
+ *    recibe como segundo argumento.
+ *
+ * `fecha_creacion`, `direccion` y `ciudad` se quedan porque son de esta pantalla; el
+ * login no los manda.
+ */
 interface Usuario {
   id?: string
   nombres: string
@@ -73,6 +87,8 @@ interface Usuario {
   correo: string
   telefono?: string
   rol: Rol
+  permisos?: string[]
+  sidebar?: SidebarModulo[]
   fecha_creacion?: string
   direccion?: string
   ciudad?: string
@@ -309,7 +325,7 @@ export default function AdminLayout({
           
           // Generamos el menú lateral: primero intenta sidebar dinámico del backend, luego fallback estático
           if (parsedUser.rol) {
-            const modulos = obtenerModulos(parsedUser.rol, (parsedUser as any).sidebar)
+            const modulos = obtenerModulos(parsedUser.rol, parsedUser.sidebar)
             
             // Transformamos los módulos de permisos a items de navegación visual
             let navItems = modulos.map(modulo => ({
@@ -328,7 +344,7 @@ export default function AdminLayout({
             }))
 
             // Fix: si el usuario tiene permiso de contable pero el menú no lo trae (sidebar dinámico ausente), agregar Movimientos.
-            const permisosUser = Array.isArray((parsedUser as any).permisos) ? (parsedUser as any).permisos : []
+            const permisosUser = Array.isArray(parsedUser.permisos) ? parsedUser.permisos : []
             const hasContablePerm = permisosUser.includes('contable') || permisosUser.includes('CONTABLE_VIEW')
             const hasMovimientos = navItems.some((n) => n?.href === '/contable' || n?.submodulos?.some((s: any) => s?.href === '/contable'))
             if (hasContablePerm && !hasMovimientos) {

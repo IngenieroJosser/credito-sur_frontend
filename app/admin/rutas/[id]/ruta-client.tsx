@@ -50,7 +50,16 @@ import Link from 'next/link'
 
 import { useRouter } from 'next/navigation'
 
-import { RutaDetalleMock } from '@/lib/rutas-data'
+/**
+ * Antes esta pantalla usaba `RutaDeDetalle`, de `lib/rutas-data.ts`. Era una copia
+ * del mismo detalle de ruta con los campos escritos distinto, y por eso guardar en el
+ * estado lo que devuelve `obtenerRutaPorId` necesitaba un `as any`. Ahora se usa el
+ * tipo del servicio, que es el que describe la respuesta real de `findOne`.
+ *
+ * `lib/rutas-data.ts` importa `next/headers`, o sea que solo corre en servidor, y esta
+ * pantalla es cliente: ese import solo se sostenia porque TypeScript borra los tipos.
+ */
+import type { RutaDeDetalle } from '@/services/rutas-service'
 
 import { routesService } from '@/services/routes-service'
 
@@ -134,13 +143,13 @@ interface GastoRuta {
 }
 
 interface RutaClientProps {
-  initialRuta: RutaDetalleMock | null
+  initialRuta: RutaDeDetalle | null
   rutaId?: string
 }
 
 type RutaClientLoadedProps = {
-  initialRuta: RutaDetalleMock
-  rutaData: RutaDetalleMock
+  initialRuta: RutaDeDetalle
+  rutaData: RutaDeDetalle
   rutaId?: string
   rutaCompletada: boolean
   setRutaCompletada: React.Dispatch<React.SetStateAction<boolean>>
@@ -2824,7 +2833,7 @@ const RutaClient = ({ initialRuta: initialRutaProp, rutaId }: RutaClientProps) =
 
 
 
-  const [rutaData, setRutaData] = useState<RutaDetalleMock | null>(initialRutaProp)
+  const [rutaData, setRutaData] = useState<RutaDeDetalle | null>(initialRutaProp)
 
   const [loadingRuta, setLoadingRuta] = useState(!initialRutaProp && !!rutaId)
 
@@ -2844,7 +2853,7 @@ const RutaClient = ({ initialRuta: initialRutaProp, rutaId }: RutaClientProps) =
 
       const ruta = await rutasService.obtenerRutaPorId(rutaId);
 
-      setRutaData(ruta as any);
+      setRutaData(ruta);
 
       setRutaCompletada(!(ruta)?.activa);
 
@@ -2894,7 +2903,7 @@ const RutaClient = ({ initialRuta: initialRutaProp, rutaId }: RutaClientProps) =
 
         const ruta = await rutasService.obtenerRutaPorId(rutaId)
 
-        setRutaData(ruta as any)
+        setRutaData(ruta)
 
         setRutaCompletada(!(ruta)?.activa)
 

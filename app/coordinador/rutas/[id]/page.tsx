@@ -566,8 +566,9 @@ const LegacyDetalleRutaPage = () => {
                        const montoReal = Number(pendiente.monto || (pendiente.montoCapital + pendiente.montoInteres) || 0);
                        const montoNormal = Number(
                          (v).montoCuotaNormal ??
-                         (pendiente as any).montoNominal ??
-                         (pendiente as any).montoCuota ??
+                         // Ver la nota en `VistaCobrador`: `montoNominal` y `montoCuota`
+                         // no existen en una cuota de `/loans/:id/cuotas`, que devuelve
+                         // las filas crudas de Prisma. Siempre caia en `monto`.
                          pendiente.monto ??
                          v.montoCuota ??
                          0,

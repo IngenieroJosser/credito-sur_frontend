@@ -284,15 +284,20 @@ export interface RutaDeListado extends Ruta {
  * `estadisticas` (`routes.service.ts:2413-2422`) y NO hay `metaDelDia` en la
  * raiz: leerlo ahi siempre da `undefined`.
  *
- * Los dos campos van opcionales porque `obtenerRutaPorId` tiene respaldo offline
- * y esa rama no reconstruye las estadisticas.
+ * CORRECCION de una nota anterior: aqui se dijo que estos campos iban opcionales
+ * "porque `obtenerRutaPorId` tiene respaldo offline". No lo tiene: ese metodo es un
+ * `apiRequest` pelado, sin `conRespaldoOffline`, asi que la respuesta SIEMPRE viene de
+ * `findOne`, que siempre fija los cuatro. Van obligatorios.
+ *
+ * `supervisor` si es opcional de verdad: `findOne` solo lo pone si la ruta tiene
+ * `supervisorId` (`routes.service.ts:2434-2436`).
  */
 export interface RutaDeDetalle extends Ruta {
-  estadisticas?: EstadisticasDeRuta;
-  nivelRiesgo?: string;
-  porcentajeMora?: number;
+  estadisticas: EstadisticasDeRuta;
+  nivelRiesgo: string;
+  porcentajeMora: number;
   /** Nombre ya armado, no un objeto. */
-  cobrador?: string;
+  cobrador: string;
   supervisor?: string;
 }
 
@@ -508,7 +513,7 @@ export const rutasService = {
 
   async obtenerRutaPorId(id: string): Promise<RutaDeDetalle> {
 
-    return apiRequest<Ruta>('GET', `/routes/${id}`, undefined, { cacheTTL: 0 });
+    return apiRequest<RutaDeDetalle>('GET', `/routes/${id}`, undefined, { cacheTTL: 0 });
 
   },
 
