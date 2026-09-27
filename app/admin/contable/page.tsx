@@ -218,18 +218,26 @@ const mapTransaccion = (t: ApiTransaccion): MovimientoContable => {
     responsable: t.responsable,
     origen: origenInferido as Exclude<OrigenMovimientoContable, 'TODOS'>,
     estado: (t.estado as any) || 'APROBADO',
-    rutaId: (t as any).rutaId,
-    cajaId: (t as any).cajaId,
-    cajaOrigenId: (t as any).cajaOrigenId,
-    tipoReferencia: (t as any).tipoReferencia,
-    referenciaId: (t as any).referenciaId,
-    caja: (t as any).caja,
-    accountCode: (t as any).accountCode,
-    accountName: (t as any).accountName,
-    direction: (t as any).direction,
-    impactoCaja: (t as any).impactoCaja,
-    origenGestion: (t as any).origenGestion ?? null,
-    fechaOperativaRuta: (t as any).fechaOperativaRuta ?? null,
+    rutaId: t.rutaId,
+    cajaId: t.cajaId,
+    cajaOrigenId: t.cajaOrigenId,
+    tipoReferencia: t.tipoReferencia,
+    referenciaId: t.referenciaId,
+    caja: t.caja,
+    accountCode: t.accountCode,
+    accountName: t.accountName,
+    direction: t.direction,
+    impactoCaja: t.impactoCaja,
+    // `/accounting/transacciones` NO manda estos dos: se comprobo en
+    // `AccountingService.mapTransaccionRow`, que devuelve id, numero, fecha, tipo,
+    // monto, descripcion, caja, cajaId, cajaOrigenId, tipoReferencia, referenciaId,
+    // responsable, estado, origen, categoria, rutaId y cajaSaldo, y nada mas.
+    // `origenGestion` y `fechaOperativaRuta` viven en el Pago y solo los adjunta el
+    // endpoint del Ledger (`getMovimientosLedger`). Aqui se leian con un cast, asi
+    // que siempre daban undefined; se deja el null explicito, que es lo que de
+    // verdad hay, y se documenta de donde salen cuando existen.
+    origenGestion: null,
+    fechaOperativaRuta: null,
   }
 }
 
@@ -278,9 +286,14 @@ const mapMovimientoLedger = (m: ApiMovimientoLedger): MovimientoContable => {
 }
 
 const esMovimientoPagoRegularizado = (m: Pick<MovimientoContable, 'origenGestion' | 'tipoReferencia'> | ApiMovimientoLedger) => {
-  const origenGestion = String((m).origenGestion || '').toUpperCase()
-  const tipo = String((m as any).tipo || '').toUpperCase()
-  const tipoReferencia = String((m as any).tipoReferencia || '').toUpperCase()
+  // El parametro acepta dos formas y NO comparten todos los campos: el
+  // `Pick<MovimientoContable, ...>` no trae `tipo`. Se comprueba con `in` en vez de
+  // apagar el chequeo con un cast.
+  const origenGestion = String(m.origenGestion || '').toUpperCase()
+  const tipo = String(('tipo' in m ? m.tipo : '') || '').toUpperCase()
+  const tipoReferencia = String(
+    ('tipoReferencia' in m ? m.tipoReferencia : '') || '',
+  ).toUpperCase()
   return origenGestion === 'CIERRE_PENDIENTE' && (tipo === 'PAGO' || tipoReferencia === 'PAGO')
 }
 
@@ -319,8 +332,11 @@ const mapMovimientoLedgerResultado = (m: ApiMovimientoLedger, tipoResultado: 'IN
 }
 
 const esPagoClienteEnPanelContable = (m: Pick<MovimientoContable, 'tipoReferencia'> | ApiMovimientoLedger) => {
-  const tipo = String((m as any).tipo || '').toUpperCase()
-  const tipoReferencia = String((m as any).tipoReferencia || '').toUpperCase()
+  // Igual que arriba: las dos formas no comparten `tipo`.
+  const tipo = String(('tipo' in m ? m.tipo : '') || '').toUpperCase()
+  const tipoReferencia = String(
+    ('tipoReferencia' in m ? m.tipoReferencia : '') || '',
+  ).toUpperCase()
   return tipo === 'PAGO' || tipoReferencia === 'PAGO'
 }
 
@@ -777,15 +793,15 @@ const ModuloContableContent = () => {
         setResumenData({
           ingresosHoy: ingresosPanelContable,
           egresosHoy: resumen.egresosHoy,
-          cuotaInicialHoy: Number((resumen as any).cuotaInicialHoy || 0),
-          utilidadNeta: Number((resumen as any).utilidadReal ?? resumen.gananciaNeta ?? 0),
-          margenArticulosHoy: Number((resumen as any).margenArticulosHoy ?? 0),
-          deudaCobradorHoy: Number((resumen as any).deudaCobradorHoy ?? 0),
+          cuotaInicialHoy: Number(resumen.cuotaInicialHoy || 0),
+          utilidadNeta: Number(resumen.utilidadReal ?? resumen.gananciaNeta ?? 0),
+          margenArticulosHoy: Number(resumen.margenArticulosHoy ?? 0),
+          deudaCobradorHoy: Number(resumen.deudaCobradorHoy ?? 0),
           capitalEnCalle: resumen.capitalEnCalle,
           cajaActual: resumen.saldoCajas,
           porcentajeIngresosVsAyer: resumen.porcentajeIngresosVsAyer ?? null,
           porcentajeEgresosVsAyer: resumen.porcentajeEgresosVsAyer ?? null,
-          porcentajeCuotaInicialVsAyer: (resumen as any).porcentajeCuotaInicialVsAyer ?? null,
+          porcentajeCuotaInicialVsAyer: resumen.porcentajeCuotaInicialVsAyer ?? null,
           esIngresoPositivo: resumen.esIngresoPositivo ?? true,
           esEgresoPositivo: resumen.esEgresoPositivo ?? true,
           rutasTotales: resumen.rutasTotales || 0,
@@ -895,21 +911,25 @@ const ModuloContableContent = () => {
       try {
         const resumen = await getResumenFinanciero(fechaInicioModal, fechaFinModal)
         if (cancelled) return
+        // `getResumenFinanciero` devuelve `| null` (lo omite por permisos, entre
+        // otros casos) y abajo se leen trece campos. El cast que habia aqui tapaba
+        // eso: si no llega el resumen, no hay panel que armar.
+        if (!resumen) return
 
-        const totalUtilidad     = Number((resumen as any).utilidadReal ?? (resumen as any).gananciaNeta ?? 0)
-        const utilidadOperativa  = Number((resumen as any).utilidadOperativa ?? 0)
-        const margen             = Number((resumen as any).margenArticulosHoy ?? 0)
-        const egresosOperativos  = Number((resumen as any).egresosHoy ?? 0)
-        const interes            = Number((resumen as any).interesHoy ?? 0)
-        const mora               = Number((resumen as any).moraHoy ?? 0)
+        const totalUtilidad     = Number(resumen.utilidadReal ?? resumen.gananciaNeta ?? 0)
+        const utilidadOperativa  = Number(resumen.utilidadOperativa ?? 0)
+        const margen             = Number(resumen.margenArticulosHoy ?? 0)
+        const egresosOperativos  = Number(resumen.egresosHoy ?? 0)
+        const interes            = Number(resumen.interesHoy ?? 0)
+        const mora               = Number(resumen.moraHoy ?? 0)
         const utilidadFinanciera = interes + mora
-        const provisionTotal     = Number((resumen as any).provisionCarteraTotal ?? 0)
-        const provisionEnMora    = Number((resumen as any).provisionCarteraEnMora ?? 0)
-        const provisionIncumplida= Number((resumen as any).provisionCarteraIncumplida ?? 0)
-        const provisionPerdida   = Number((resumen as any).provisionCarteraPerdida ?? 0)
-        const saldoEnMora        = Number((resumen as any).saldoCarteraEnMora ?? 0)
-        const saldoIncumplido    = Number((resumen as any).saldoCarteraIncumplida ?? 0)
-        const saldoPerdida       = Number((resumen as any).saldoCarteraPerdida ?? 0)
+        const provisionTotal     = Number(resumen.provisionCarteraTotal ?? 0)
+        const provisionEnMora    = Number(resumen.provisionCarteraEnMora ?? 0)
+        const provisionIncumplida= Number(resumen.provisionCarteraIncumplida ?? 0)
+        const provisionPerdida   = Number(resumen.provisionCarteraPerdida ?? 0)
+        const saldoEnMora        = Number(resumen.saldoCarteraEnMora ?? 0)
+        const saldoIncumplido    = Number(resumen.saldoCarteraIncumplida ?? 0)
+        const saldoPerdida       = Number(resumen.saldoCarteraPerdida ?? 0)
 
         setResumenUtilidadModal({
           totalUtilidad,

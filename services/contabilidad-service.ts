@@ -135,6 +135,26 @@ export interface ResumenFinanciero {
   porcentajeEgresosVsAyer?: number;
   esIngresoPositivo?: boolean;
   esEgresoPositivo?: boolean;
+
+  /**
+   * Cartera, provision y utilidad del Ledger.
+   *
+   * El backend los manda (comprobado uno por uno en `AccountingService`, lineas
+   * 3315-3360) y este tipo no los declaraba, asi que la pantalla contable los leia
+   * con `as any`. Se agregan como opcionales porque no todas las respuestas del
+   * resumen los traen.
+   */
+  utilidadOperativa?: number;
+  cuotaInicialHoy?: number;
+  deudaCobradorHoy?: number;
+  porcentajeCuotaInicialVsAyer?: number;
+  saldoCarteraEnMora?: number;
+  saldoCarteraIncumplida?: number;
+  saldoCarteraPerdida?: number;
+  provisionCarteraEnMora?: number;
+  provisionCarteraIncumplida?: number;
+  provisionCarteraPerdida?: number;
+  provisionCarteraTotal?: number;
 }
 
 export interface Gasto {
