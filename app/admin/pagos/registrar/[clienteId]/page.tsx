@@ -21,6 +21,7 @@ import { prestamosService } from '@/services/prestamos-service'
 import { pagosService, type DescomposicionPago } from '@/services/pagos-service'
 import { offlineStore } from '@/lib/offline/offlineDb'
 import { resolveCobradorIdForRouteAction } from '@/lib/rutas-core'
+import { MetodoPago } from '@/types/enums'
 
 type TipoProducto = 'PRESTAMO_EFECTIVO' | 'CREDITO_ARTICULO'
 
@@ -70,7 +71,10 @@ const RegistrarPagoClientePage = () => {
         setCliente({
           id: clienteData.id,
           nombre: `${clienteData.nombres} ${clienteData.apellidos}`,
-          dni: clienteData.dni || (clienteData as any).cedula || '',
+          // Se quito el respaldo `clienteData.cedula`: la columna real es `dni`
+          // (`model Cliente.dni`), y `cedula` solo existe en el backend como alias de
+          // salida en aprobaciones e importaciones, nunca en el detalle de un cliente.
+          dni: clienteData.dni || '',
           direccion: clienteData.direccion || ''
         })
 
@@ -146,7 +150,7 @@ const RegistrarPagoClientePage = () => {
         prestamoId: producto.id,
         cobradorId,
         montoTotal: parseCOPInputToNumber(monto),
-        metodoPago: 'EFECTIVO' as any,
+        metodoPago: MetodoPago.EFECTIVO,
         notas: comentarios || undefined,
       })
       setDescomposicion(resultado.descomposicion ?? null)

@@ -722,8 +722,14 @@ export const getPagoBogotaDateKey = (raw: unknown): string => {
   // Acepta string YYYY-MM-DD directo o cualquier valor parseable por Date.
   if (!raw) return '';
   if (typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  // `new Date()` solo acepta texto, numero o Date. Con cualquier otra cosa daba
+  // "Invalid Date" y se acababa en el `catch`, asi que descartarla aqui da lo mismo y
+  // no hace falta castear el `unknown`.
+  if (typeof raw !== 'string' && typeof raw !== 'number' && !(raw instanceof Date)) {
+    return '';
+  }
   try {
-    return getBogotaDateKey(new Date(raw as any));
+    return getBogotaDateKey(new Date(raw));
   } catch {
     return '';
   }

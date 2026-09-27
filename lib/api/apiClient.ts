@@ -1,4 +1,5 @@
 import { logger } from '@/lib/logger'
+import { estadoDeError } from '@/lib/mensaje-de-error'
 import axios from "axios";
 import { baseApi, conPrefijoApi } from '@/lib/api/baseUrl';
 
@@ -69,7 +70,9 @@ apiClient.interceptors.response.use(
         logger.log('Operación exitosa en servidor de contingencia.');
         return response;
       } catch (localError) {
-        const status = (localError as any)?.response?.status;
+        // `estadoDeError` ya recorre `statusCode`, `status`, `response.status` y
+        // `response.data.statusCode`, que es justo lo que aqui se leia a mano casteando.
+        const status = estadoDeError(localError);
         if (status) {
           // Hubo respuesta HTTP: NO es un problema de conectividad.
           // Ej: 401/403 = token/permisos, 404 = ruta, 500 = error servidor.

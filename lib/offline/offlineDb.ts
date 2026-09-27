@@ -311,9 +311,25 @@ export const offlineStore = {
   },
 
   // Obtener registros por índice
+  /**
+   * El cast del nombre del indice es de la firma de idb, no del dato.
+   *
+   * idb tipa `getAllFromIndex` contra UN almacen concreto; con `store: StoreName` (la
+   * union entera) los indices validos son la interseccion de todos, o sea `never`. Se
+   * probo hacer la funcion generica sobre el almacen para que idb resolviera los
+   * indices de cada uno, y no sirve: los tres llamadores pasan el tipo del resultado
+   * explicitamente (`getByIndex<T>(...)`), y cuando se dan algunos argumentos de tipo
+   * a mano TypeScript deja de inferir el resto y usa su valor por omision, que vuelve
+   * a ser la union entera.
+   *
+   * Antes el cast era `(db as any)`, que apagaba la comprobacion de TODA la llamada.
+   * Ahora se usa la vista SIN esquema de idb (`IDBPDatabase` a secas), que acepta
+   * nombres de almacen e indice como texto: se sigue comprobando que el metodo exista y
+   * que los argumentos sean los que pide, en vez de no comprobar nada.
+   */
   async getByIndex<T>(store: StoreName, indexName: string, value: string): Promise<T[]> {
-    const db = await getOfflineDb();
-    return (db as any).getAllFromIndex(store, indexName, value) as Promise<T[]>;
+    const db = (await getOfflineDb()) as IDBPDatabase;
+    return db.getAllFromIndex(store, indexName, value) as Promise<T[]>;
   },
 
   // Obtener metadata de sincronización

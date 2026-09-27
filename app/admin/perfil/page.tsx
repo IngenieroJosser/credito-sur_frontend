@@ -7,6 +7,7 @@ import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { usuariosService, type Usuario } from '@/services/usuarios-service'
+import { esEstadoUsuario, esRolUsuario, EstadoUsuario } from '@/types/enums'
 import { obtenerPerfil } from '@/services/autenticacion-service'
 import { formatRoleName, getRoleColor, getRoleIcon } from '@/components/ui/UserDropdownMenu'
 import PushNotificationManager from '@/components/push/PushNotificationManager'
@@ -97,22 +98,36 @@ const PerfilUsuarioPage = () => {
           return {}
         }
       })()
-      setBackendUser(fullUser || {
-        id: perfil.id,
-        correo: perfil.correo || String(guardado.correo || ''),
-        nombres: perfil.nombres,
-        apellidos: perfil.apellidos || String(guardado.apellidos || ''),
-        telefono: perfil.telefono || null,
-        rol: perfil.rol as any,
-        estado: (perfil.estado || 'ACTIVO') as any,
-        ultimoIngreso: null,
-        intentosFallidos: 0,
-        debeCambiarContrasena: false,
-        creadoEn: '',
-        actualizadoEn: '',
-        eliminadoEn: null,
-        permisos: perfil.permisos,
-      })
+      // `perfil.rol` y `perfil.estado` llegan como texto y el tipo pide los enums, asi
+      // que se comprueban en vez de afirmarse. Los dos guards son inofensivos: las dos
+      // columnas del backend SON esos enums, con los mismos miembros.
+      //
+      // Si el rol no fuera valido NO se arma el usuario de respaldo. Poner un rol por
+      // omision seria inventar privilegios, y esta pantalla los usa para decidir que
+      // muestra; es mejor quedarse sin respaldo que con uno mal.
+      const rolDelPerfil = esRolUsuario(perfil.rol) ? perfil.rol : null
+      if (fullUser) {
+        setBackendUser(fullUser)
+      } else if (rolDelPerfil) {
+        setBackendUser({
+          id: perfil.id,
+          correo: perfil.correo || String(guardado.correo || ''),
+          nombres: perfil.nombres,
+          apellidos: perfil.apellidos || String(guardado.apellidos || ''),
+          telefono: perfil.telefono || null,
+          rol: rolDelPerfil,
+          estado: esEstadoUsuario(perfil.estado) ? perfil.estado : EstadoUsuario.ACTIVO,
+          ultimoIngreso: null,
+          intentosFallidos: 0,
+          debeCambiarContrasena: false,
+          creadoEn: '',
+          actualizadoEn: '',
+          eliminadoEn: null,
+          permisos: perfil.permisos,
+        })
+      } else {
+        logger.warn('El perfil llego con un rol que no se reconoce; no se arma el respaldo', perfil.rol)
+      }
       const cachedUser = localStorage.getItem('user')
       if (cachedUser && (fullUser || perfil)) {
         try {

@@ -17,6 +17,33 @@ export enum RolUsuario {
   PUNTO_DE_VENTA = 'PUNTO_DE_VENTA'
 }
 
+/**
+ * Narrowing de un rol que llega como texto.
+ *
+ * `/auth/perfil` devuelve `rol` como `string` (es lo que arma
+ * `jwt.strategy.validate`), y los tipos del frontend piden este enum. Comprobado que
+ * no descarta nada real: la columna es el enum `RolUsuario` de Prisma y tiene los
+ * mismos siete miembros que este, asi que la base ya garantiza el valor.
+ */
+export function esEstadoUsuario(valor: unknown): valor is EstadoUsuario {
+  return (
+    typeof valor === 'string' &&
+    (Object.values(EstadoUsuario) as string[]).includes(valor)
+  )
+}
+
+/**
+ * Igual que el anterior, para el rol. Las dos columnas del backend son enums de Prisma
+ * con exactamente los mismos miembros que estos, asi que ninguno de los dos guards
+ * puede descartar un valor real.
+ */
+export function esRolUsuario(valor: unknown): valor is RolUsuario {
+  return (
+    typeof valor === 'string' &&
+    (Object.values(RolUsuario) as string[]).includes(valor)
+  )
+}
+
 export enum NivelRiesgo {
   VERDE = 'VERDE',
   AMARILLO = 'AMARILLO',
