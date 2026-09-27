@@ -41,6 +41,7 @@ import { formatCurrency, formatCOPInputValue, formatMilesCOP, parseCOPInputToNum
 import { TipoAmortizacion } from '@/types/enums'
 import BotonAccion from '@/components/ui/BotonAccion'
 import Tooltip from '@/components/ui/Tooltip'
+import { FrecuenciaPago } from '@/types/enums'
 
 const MODAL_Z_INDEX = 2147483647
 
@@ -744,7 +745,7 @@ export default function ClienteDetalleSupervisorPage() {
                             tasaInteresMora: 5, // Default
                             plazoMeses: Math.max(1, Math.ceil(cuotas / 4)), // Estimado si es semanal
                             cantidadCuotas: cuotas,
-                            frecuenciaPago: 'SEMANAL' as any,
+                            frecuenciaPago: FrecuenciaPago.SEMANAL,
                             fechaInicio: toBogotaDateTimeOffsetIso(new Date()),
                             creadoPorId,
                             tipoAmortizacion: TipoAmortizacion.INTERES_SIMPLE,

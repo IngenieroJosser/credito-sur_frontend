@@ -106,13 +106,20 @@ export default function DetalleCuentaVencidaPage({
         </div>
       </header>
 
-      {/* Modal de Archivar */}
+      {/*
+        Modal de Archivar.
+
+        `saldoPendiente` salia de `cuenta.montoVencido || cuenta.saldoTotal || 0`, y
+        ninguno de esos dos campos existe en `CuentaVencida`: los reales son
+        `saldoPendiente` y `montoOriginal`. Los dos valian `undefined`, asi que el modal
+        recibia SIEMPRE 0 como saldo pendiente.
+      */}
       {showArchivarModal && (
         <ArchivarCuentaModal
           prestamoId={id}
           numeroPrestamo={cuenta.numeroPrestamo}
           clienteNombre={typeof cuenta.cliente === 'string' ? cuenta.cliente : cuenta.cliente.nombre}
-          saldoPendiente={(cuenta as any).montoVencido || (cuenta as any).saldoTotal || 0}
+          saldoPendiente={cuenta.saldoPendiente || 0}
           onClose={() => setShowArchivarModal(false)}
           onSuccess={() => {
             window.location.href = '/cuentas-vencidas';

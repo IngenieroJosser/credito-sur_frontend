@@ -322,7 +322,7 @@ export const offlineStore = {
    * a mano TypeScript deja de inferir el resto y usa su valor por omision, que vuelve
    * a ser la union entera.
    *
-   * Antes el cast era `(db as any)`, que apagaba la comprobacion de TODA la llamada.
+   * Antes el cast era `(db)`, que apagaba la comprobacion de TODA la llamada.
    * Ahora se usa la vista SIN esquema de idb (`IDBPDatabase` a secas), que acepta
    * nombres de almacen e indice como texto: se sigue comprobando que el metodo exista y
    * que los argumentos sean los que pide, en vez de no comprobar nada.

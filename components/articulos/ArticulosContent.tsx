@@ -287,7 +287,7 @@ export default function ArticulosContent() {
   }, 0)
 
   const deltaInventarioPorcentaje = (() => {
-    const baseField = (statsBase as any)?.totalValorInventario ?? statsBase?.valorTotalInventario
+    const baseField = statsBase?.totalValorInventario
     if (!statsBase || baseField == null || Number(baseField) === 0) return null
     const base = Number(baseField)
     const actual = Number(valorInventario)

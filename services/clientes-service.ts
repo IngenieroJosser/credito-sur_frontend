@@ -60,6 +60,14 @@ export interface Cliente {
   version?: number;
 
   /**
+   * Los dos los calcula el backend en la fila del LISTADO de clientes
+   * (`clients.service.ts:648-649`), no son columnas. `tendencia` compara el puntaje
+   * contra su historia y `ultimaVisita` sale del ultimo pago ('Nunca' si no hay).
+   */
+  tendencia?: 'SUBE' | 'BAJA' | 'ESTABLE';
+  ultimaVisita?: string;
+
+  /**
    * Las relaciones que trae SOLO el detalle, `GET /clients/:id`
    * (`clients.service.ts:153`, el `include` de `findOne`). El listado no las manda,
    * de ahi que todas vayan opcionales.

@@ -892,7 +892,7 @@ export default function ClientesFeature({
           onClienteCreado={(editado: Cliente) => {
             setClientes(prev => prev.map((c) => {
               if (c.id !== editado.id) return c;
-              const patch = editado as any;
+              const patch = editado;
               return {
                 ...c,
                 ...patch,

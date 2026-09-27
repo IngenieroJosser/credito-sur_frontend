@@ -183,7 +183,11 @@ export default function ClienteInfoModal({
     try {
       await alertasClientesService.reportarClienteNoUbicado({
         clienteId: visita.clienteId,
-        rutaId: String((visita as any)?.rutaId || '').trim() || undefined,
+        // Una visita no lleva `rutaId`: ningun builder del frontend lo pone y el backend
+        // tampoco en las obligaciones. Esta lectura valia siempre `undefined`, o sea que
+        // la alerta se reporta SIN ruta. Este modal solo recibe la visita como prop, asi
+        // que darle la ruta pide pasarsela desde quien lo abre; queda anotado.
+        rutaId: undefined,
         motivo: alertaForm.motivo,
         descripcion,
         observacionesReportante,

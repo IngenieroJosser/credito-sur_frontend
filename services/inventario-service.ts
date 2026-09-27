@@ -62,7 +62,13 @@ export interface EstadisticasInventario {
   totalProductos: number;
   productosActivos: number;
   productosBajoStock: number;
-  valorTotalInventario: number;
+  /**
+   * El backend lo llama `totalValorInventario` (`inventory.service.ts:171` y `202`).
+   * Aqui estaba declarado `valorTotalInventario`, con las palabras al revES, o sea que
+   * el unico nombre que el tipo conocia era el que nunca llega. La pantalla ya leia los
+   * dos en cadena, asi que no se rompia; el que sobraba era el declarado.
+   */
+  totalValorInventario: number;
 }
 
 export const inventarioService = {

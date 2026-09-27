@@ -142,15 +142,10 @@ export default function CierreCajaPage() {
       const list = Array.isArray(cierresResp) ? cierresResp : []
       setCierres(list)
       setUltimoCierre(list.length ? list[0] : null)
-      // Cargar las cajas soportando distintas formas de respuesta del backend
-      const cajasRespAny = cajasResp as any
-      const cajasList = Array.isArray(cajasRespAny)
-        ? cajasRespAny
-        : Array.isArray(cajasRespAny?.data)
-          ? cajasRespAny.data
-          : Array.isArray(cajasRespAny?.cajas)
-            ? cajasRespAny.cajas
-            : []
+      // `getCajas` devuelve un arreglo plano (`Promise<Caja[]>`), asi que los respaldos
+      // `.data` y `.cajas` que habia aqui —para "distintas formas de respuesta"— no
+      // podian usarse nunca. Se queda la comprobacion de que sea un arreglo.
+      const cajasList = Array.isArray(cajasResp) ? cajasResp : []
 
       // Strict selection of principal caja (no fallback to Oficina)
       const principal = getCajaPrincipal(cajasList)

@@ -2169,9 +2169,15 @@ const RutaClientLoaded = ({
               }
             } catch (error) {
               console.error('Error registrando pago/abono:', error);
-              const apiError = error as any;
-              const isConflict = apiError?.isConflict || apiError?.statusCode === 409 || apiError?.estadoDeError(error) === 409;
-              const mensaje = apiError?.message || apiError?.error?.message || 'No se pudo registrar el pago/abono';
+              // El tercer termino de la cadena era `apiError?.estadoDeError(error)`, o sea
+              // una LLAMADA a un metodo que el error no tiene. El `?.` solo protege que
+              // `apiError` sea nulo, no que el metodo exista, asi que con cualquier error
+              // que no fuera 409 (un 500, un fallo de red) los dos primeros terminos daban
+              // falso, se evaluaba el tercero y lanzaba un TypeError DENTRO del catch.
+              // Parece un buscar-y-reemplazar de `error.statusCode` que cayo adentro del
+              // acceso. Ahora se usa la funcion importada, que es la que hace eso.
+              const isConflict = estadoDeError(error) === 409;
+              const mensaje = mensajeDeError(error, 'No se pudo registrar el pago/abono');
               if (isConflict) {
                 setEnrichNonce((n) => n + 1);
                 try {

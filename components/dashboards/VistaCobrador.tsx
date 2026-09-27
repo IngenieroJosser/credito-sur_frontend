@@ -1730,7 +1730,10 @@ const VistaCobrador = () => {
         // 4. Construir visitas desde asignaciones (ruta completa) con lógica correcta de próxima cuota y “aparece hoy”.
         const hoyKey = hoyBogotaKey
 
-        const asignaciones = (rutaCompletaAutoritativa).asignaciones || (rutaCompletaAutoritativa as any).asignacionesRuta || []
+        // `asignacionesRuta` no existe en una RUTA: la relacion se llama `asignaciones`
+        // (`model Ruta`) y es la que incluye `findOne`; `asignacionesRuta` es la del
+        // CLIENTE. La rama era muerta.
+        const asignaciones = rutaCompletaAutoritativa.asignaciones || []
 
         const visitasMapeadas: VisitaRuta[] = mapAsignacionesToVisitasLite({
           asignaciones,

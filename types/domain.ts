@@ -90,6 +90,12 @@ export interface Prestamo {
   cuotasVencidas?: number;
   /** Estado de la revision del credito (columna del modelo). */
   estadoAprobacion?: string;
+  /**
+   * Version para el bloqueo optimista, igual que en el cliente. Es columna
+   * (`model Prestamo.version Int @default(1)`) y el tipo no la declaraba, asi que el
+   * modal de editar la leia casteando.
+   */
+  version?: number;
   /** Efecto provisional aplicado mientras se aprueba. */
   efectoProvisional?: { estado?: string } | null;
   /** Marca de archivado; si viene, el prestamo no es operativo. */

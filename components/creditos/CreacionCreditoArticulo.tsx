@@ -24,8 +24,12 @@ import { repartoConInteresConocido } from '@/lib/creditos/preview-credito';
 import { exportService } from '@/services/export-service';
 import FieldLabel from '@/components/ui/FieldLabel';
 import { idDelPrestamoCreado } from '@/lib/creditos/prestamo-creado';
+import { FrecuenciaPago } from '@/types/enums'
 
-type FrecuenciaPago = 'DIARIO' | 'SEMANAL' | 'QUINCENAL' | 'MENSUAL';
+// Esta pantalla declaraba su propia copia de este tipo (la tercera del proyecto: hay
+// otra en `lib/types/cobranza.ts`, ensanchada con `| string`). Los valores son los del
+// enum, y `crearPrestamo` pide el enum, asi que el literal no le valia y habia que
+// castear el cuerpo entero. Ahora se usa `FrecuenciaPago` de `types/enums`.
 
 interface ArticuloSeleccionado extends Articulo {
     cantidad: number;
@@ -66,7 +70,7 @@ export default function CreacionCreditoArticulo({
      }
   }, [initialClienteId]);
 
-  const [frecuenciaPago, setFrecuenciaPago] = useState<FrecuenciaPago>('DIARIO');
+  const [frecuenciaPago, setFrecuenciaPago] = useState<FrecuenciaPago>(FrecuenciaPago.DIARIO);
   const [cuotaInicial, setCuotaInicial] = useState<number>(0);
   const [fechaInicio, setFechaInicio] = useState<string>(new Date().toLocaleDateString('en-CA'));
   
@@ -194,9 +198,9 @@ export default function CreacionCreditoArticulo({
     const saldoAFinanciar = totalFinanciadoBruto - cuotaInicial;
     
     let factorFrecuencia = 1;
-    if (frecuenciaPago === 'DIARIO') factorFrecuencia = 30;
-    else if (frecuenciaPago === 'SEMANAL') factorFrecuencia = 4;
-    else if (frecuenciaPago === 'QUINCENAL') factorFrecuencia = 2;
+    if (frecuenciaPago === FrecuenciaPago.DIARIO) factorFrecuencia = 30;
+    else if (frecuenciaPago === FrecuenciaPago.SEMANAL) factorFrecuencia = 4;
+    else if (frecuenciaPago === FrecuenciaPago.QUINCENAL) factorFrecuencia = 2;
 
     const cuotasTotales = Math.ceil(numeroCuotas * factorFrecuencia);
     // Mismo reparto que hace el backend: interes 0 (el recargo ya esta en el
@@ -329,7 +333,7 @@ export default function CreacionCreditoArticulo({
         tasaInteresMora: 2.0,
         plazoMeses: esContado ? 1 : numeroCuotas,
         cantidadCuotas: esContado ? 1 : resumenFinanciero.numeroCuotas,
-        frecuenciaPago: esContado ? 'MENSUAL' : frecuenciaPago,
+        frecuenciaPago: esContado ? FrecuenciaPago.MENSUAL : frecuenciaPago,
         fechaInicio: fechaInicio,
         creadoPorId: creadorId,
         cuotaInicial: cuotaInicial,
@@ -338,7 +342,7 @@ export default function CreacionCreditoArticulo({
         esContado
       };
 
-      const creado = await prestamosService.crearPrestamo(payload as any);
+      const creado = await prestamosService.crearPrestamo(payload);
 
       try {
         // `idDelPrestamoCreado` ya descarta el id temporal de la cola, que era

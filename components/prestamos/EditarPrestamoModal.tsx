@@ -173,7 +173,7 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
       setFetching(true);
       try {
         const data = await prestamosService.obtenerPrestamoPorId(id);
-        versionRef.current = (data as any)?.version;
+        versionRef.current = (data)?.version;
         const cuotasData = await prestamosService.obtenerCuotas(id).catch(() => []);
         const m = Number(data.monto) || 0;
         const t = Number(data.tasaInteres) || 0;

@@ -43,6 +43,7 @@ interface NuevoClienteModalProps {
 import { useAuth } from '@/hooks/useAuth';
 import Tooltip from '@/components/ui/Tooltip';
 import { useModalDialog } from '@/hooks/use-modal-dialog';
+import { EstadoAprobacion } from '@/types/enums'
 
 /**
  * Estilo unico de los campos del formulario.
@@ -280,9 +281,12 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
           const { enqueueClienteCreate, enqueueClienteUpdate } = await import('@/lib/offline/offlineQueue');
           
           if (esEdicion && cliente?.id) {
-            await enqueueClienteUpdate(cliente.id, payload as any, `${formulario.nombres} ${formulario.apellidos}`);
+            // El `{ ...payload }` no es adorno: la cola recibe `Record<string, unknown>` y
+            // una interfaz no es asignable a eso (no tiene indice), pero un objeto literal
+            // si. Es lo que el `as any` tapaba.
+            await enqueueClienteUpdate(cliente.id, { ...payload }, `${formulario.nombres} ${formulario.apellidos}`);
           } else {
-            await enqueueClienteCreate(payload as any, `${formulario.nombres} ${formulario.apellidos}`);
+            await enqueueClienteCreate({ ...payload }, `${formulario.nombres} ${formulario.apellidos}`);
           }
           
           showNotification('warning', 'Sin conexión con el servidor. La operación se guardó localmente y se enviará automáticamente al reconectar.', 'Modo Offline');
@@ -291,9 +295,15 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
             ...formulario,
             id: `offline-${Date.now()}`,
             codigo: 'OFFLINE',
-            estadoAprobacion: 'PENDIENTE',
+            estadoAprobacion: EstadoAprobacion.PENDIENTE,
             creadoEn: toBogotaDateTimeOffsetIso(new Date()),
-          } as any);
+            // El cast se queda: `onClienteCreado` promete un `Cliente` completo y este
+            // objeto es el formulario mas un id local, porque sin conexion el servidor no
+            // devolvio nada. Cambiar el tipo destapa que los cuatro consumidores meten el
+            // objeto en una lista de `Cliente` y leen `.id`, y arreglarlo pide decidir que
+            // hacen esas pantallas con una creacion que quedo en la cola. Ver la nota
+            // completa en el tipo del prop, arriba.
+          } as Cliente);
           
           onClose();
           return;

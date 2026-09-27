@@ -302,7 +302,7 @@ export default function RutaHistorialOperativo({
                   {isMonthExpanded && (
                     <div className="border-t border-slate-100">
                       {daysInMonth.map((date) => {
-                        const dayData = (historialRutas as any)[date]
+                        const dayData = historialRutas?.[date] ?? null
                         const visitasHistorial = (dayData?.visitas || []).map(normalizeVisitaHistorial)
                         const visitasHistorialFiltradas = visitasHistorial.filter((v: any) => {
                           const isSaldado =
@@ -323,7 +323,7 @@ export default function RutaHistorialOperativo({
                             <div
                               className="px-5 py-3 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
                               onClick={async () => {
-                                if (!isDayExpanded && !dayData.loaded) {
+                                if (!isDayExpanded && !dayData?.loaded) {
                                   await cargarHistorialFecha(date)
                                 }
                                 setSelectedHistoryDate(isDayExpanded ? null : date)
@@ -391,7 +391,7 @@ export default function RutaHistorialOperativo({
                                   <span>Estado</span>
                                 </div>
                                 <div>
-                                  {!dayData.loaded ? (
+                                  {!dayData?.loaded ? (
                                     <div className="space-y-2" aria-busy="true">
                                       <span className="sr-only">Cargando…</span>
                                       {Array.from({ length: 3 }).map((_, i) => (

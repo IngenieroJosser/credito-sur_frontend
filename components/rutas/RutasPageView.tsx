@@ -422,10 +422,10 @@ export const RutasPageView = ({
         limit: 100,
         ...(isSupervisorPath && currentUserId ? { supervisorId: currentUserId } : {}),
       });
-      const payload = (response)?.data ?? response
-      const data = Array.isArray(payload)
-        ? payload
-        : (Array.isArray((payload as any)?.data) ? (payload as any).data : [])
+      // `getAll` devuelve `PaginatedRoutes`, o sea que `response.data` ya es el arreglo.
+      // El segundo desempaquetado (`payload.data`) era de una forma doblemente envuelta
+      // que no existe.
+      const data = Array.isArray(response?.data) ? response.data : []
 
       // Se acepta la respuesta aunque venga vacía: cero rutas es un resultado
       // válido (un supervisor sin rutas asignadas, o todas dadas de baja).

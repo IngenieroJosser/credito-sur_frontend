@@ -96,6 +96,7 @@ import { obtenerSaldoDisponibleRuta } from '@/services/contabilidad-service'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { Skeleton, SkeletonTabla } from '@/components/ui/Skeleton'
 import Tooltip from '@/components/ui/Tooltip'
+import { nombreDelCobrador } from '@/lib/rutas/nombre-cobrador'
 
 
 
@@ -614,10 +615,14 @@ const LegacyDetalleRutaPage = () => {
                    const p = await prestamosService.obtenerPrestamoPorId(v.prestamoId);
                    const pAny = p;
 
-                   const proxima = (pAny.proximaCuota ?? {}) as any;
+                   // Sin `?? {}`: ese objeto vacio aplastaba el tipo a `{}` y obligaba a
+                   // castear cada lectura. Con el nullable y `?.` se comprueba de verdad.
+                   const proxima = pAny.proximaCuota;
                    const cuotaIdFromP = String(proxima?.id || pAny?.cuotaObjetivo?.id || pAny?.cuotaId || (v)?.cuotaId || '').trim();
 
-                   const montoP = Number(proxima.montoCuota || proxima.montoNominal || proxima.monto || p.montoCuota || p.valorCuota || 0);
+                   // `montoCuota` y `montoNominal` no existen en una `Cuota` (el modelo
+                   // solo tiene `monto`); vivian en la cuota enriquecida de las rutas.
+                   const montoP = Number(proxima?.monto || p.montoCuota || p.valorCuota || 0);
 
 
                    return {
@@ -626,7 +631,7 @@ const LegacyDetalleRutaPage = () => {
 
                      montoCuota: montoP > 0 ? montoP : v.montoCuota,
 
-                     proximaVisita: proxima.fechaVencimiento || v.proximaVisita,
+                     proximaVisita: proxima?.fechaVencimiento || v.proximaVisita,
 
                      cuotaId: cuotaIdFromP,
                      cuotaObjetivoId: cuotaIdFromP,
@@ -727,14 +732,18 @@ const LegacyDetalleRutaPage = () => {
               .filter(v => shouldIncludeVisitaInRutaHoyKpis(v, hoyBogota))
               .filter(v => !shouldExcludeVisitaFromOperationalMeta(v));
             const statsHoy = computeRutaHoyUiStatsFromVisitas(finalesKpiHoy, 0);
-            const rExtra = ruta as any;
+            const rExtra = ruta;
+            // `ruta` sale de `obtenerRutaPorId`, o sea del DETALLE, que ANIDA las cifras
+            // bajo `estadisticas` y no pone nada en la raiz. Las lecturas de raiz valian
+            // siempre `undefined` y entraban al `Math.max` como 0; queda el 0 escrito,
+            // que es lo unico que aportaban. Tercera pantalla con esta misma confusion.
             const recaudoBackendHoy = Math.max(
-              Number(rExtra?.cobranzaDelDia || 0),
               Number(rExtra?.estadisticas?.cobranzaDelDia || 0),
+              0,
             )
             const metaBackendHoy = Math.max(
-              Number(rExtra?.metaDelDia || 0),
               Number(rExtra?.estadisticas?.metaDelDia || 0),
+              0,
             )
             const statsRutaHoy = resolveRutaHoyKpiStats(
               { ...statsHoy, recaudo: Math.max(Number(statsHoy.recaudo || 0), cobranzaDia) },
@@ -761,7 +770,12 @@ const LegacyDetalleRutaPage = () => {
 
               codigo: rExtra.codigo,
 
-              cobrador: rExtra.cobrador?.nombres ? `${rExtra.cobrador.nombres} ${rExtra.cobrador.apellidos || ''}` : rExtra.cobrador || 'Desconocido',
+              // `cobrador` en una RUTA es un nombre ya armado, no un objeto: los dos
+              // endpoints pisan la relacion de Prisma. La rama que leia `.nombres` nunca
+              // acertaba; aqui la salvaba el respaldo `|| rExtra.cobrador`, pero en otras
+              // pantallas no lo habia y el cobrador salia en blanco. `nombreDelCobrador`
+              // acepta las dos formas.
+              cobrador: nombreDelCobrador(rExtra.cobrador, 'Desconocido'),
 
               cobradorId: ruta.cobradorId,
 

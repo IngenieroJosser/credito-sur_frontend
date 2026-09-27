@@ -1020,7 +1020,10 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         } catch (dailyError) {
           console.warn('No se pudo cargar agenda diaria de supervisor, usando detalle de ruta:', dailyError)
           visitasRaw = mapAsignacionesToVisitasLite({
-            asignaciones: (ruta).asignaciones || (ruta as any).asignacionesRuta || [],
+            // `asignacionesRuta` no existe en una RUTA: la relacion se llama
+            // `asignaciones` (`model Ruta`), y es la que incluye `findOne`. Ese nombre es
+            // el de la relacion del CLIENTE. La rama era muerta.
+            asignaciones: ruta.asignaciones || [],
             hoyKey,
             cobradorId: ruta.cobradorId,
             filtrarExigibles: false,
@@ -1099,13 +1102,16 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
           const finalesSinAusentes = (merged || []).filter((v: VisitaParcial) => !isAusente(v))
           const statsHoy = computeRutaHoyUiStatsFromVisitas(finalesSinAusentes, 0)
           const rutaStatsBackend = (ruta)?.estadisticas || {}
+          // `ruta` es el DETALLE, que ANIDA las cifras bajo `estadisticas` y no pone
+          // nada en la raiz. Las lecturas de raiz valian siempre `undefined` y entraban al
+          // `Math.max` como 0; queda el 0 escrito. Cuarta pantalla con esta confusion.
           const recaudoBackendHoy = Math.max(
-            Number((ruta as any)?.cobranzaDelDia || 0),
             Number(rutaStatsBackend?.cobranzaDelDia || 0),
+            0,
           )
           const metaBackendHoy = Math.max(
-            Number((ruta as any)?.metaDelDia || 0),
             Number(rutaStatsBackend?.metaDelDia || 0),
+            0,
           )
           const stats = resolveRutaHoyKpiStats(
             statsHoy,
