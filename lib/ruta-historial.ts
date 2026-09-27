@@ -312,6 +312,11 @@ export const applyPagosDelDiaToHistorialVisitas = (params: {
     if (existentes.has(key)) return []
     const p = item.pago
     const cid = p?.clienteId || p?.cliente?.id
+    // Sin cliente la visita sintetica no se puede cruzar con nada, asi que no se
+    // agrega. Hoy no pasa nunca: `model Pago.clienteId` no es nulable y el backend
+    // siempre lo manda; el `undefined` que veia tsc venia solo del `?.`. La guarda
+    // esta para que el objeto cumpla `VisitaRuta` sin castearlo.
+    if (!cid) return []
     const pid = String(p?.prestamoId || p?.prestamo?.id || '')
     return [{
       id: `pago-${p?.id || item.index}-${fechaClave}`,
@@ -333,7 +338,7 @@ export const applyPagosDelDiaToHistorialVisitas = (params: {
       cuotaActual: p?.detalle?.cuota?.numeroCuota || p?.detalles?.[0]?.cuota?.numeroCuota,
       cuotasTotales: p?.prestamo?.cantidadCuotas,
       recaudadoDelDia: item.total,
-    } as any]
+    }]
   })
 
   const finalVisitas = [...visitasActualizadas, ...sinteticos]
@@ -407,8 +412,14 @@ export const buildHistorialDiaFromBackend = (params: {
   //
   // Se deja como esta. Si algun dia el historial pasa a una fila por cuota,
   // entonces si hara falta, y el dato esta en `p.detalles[]`.
-  const getPagoCuotaId = (p: Pago) =>
-    String((p as any)?.cuotaId || (p)?.cuota?.id || '').trim()
+  //
+  // Devuelve '' de forma explicita en vez de intentar leer `p.cuotaId` y `p.cuota.id`
+  // con un cast: ninguno de los dos existe (`model Pago` no tiene esa columna ni esa
+  // relacion, y el listado no las agrega), asi que el codigo de antes hacia lo mismo
+  // pero pareciendo una lectura que falla. La nota de arriba explica por que conviene
+  // que sea vacio; si algun dia el historial pasa a una fila por cuota, el dato esta
+  // en `p.detalles[].cuotaId`.
+  const getPagoCuotaId = (_p: Pago) => ''
 
   const pagosByPrestamo = new Map<string, number>()
   const pagosByPrestamoCuota = new Map<string, number>()
@@ -471,7 +482,6 @@ export const buildHistorialDiaFromBackend = (params: {
       id: p.id,
       clienteId: p.clienteId,
       prestamoId: p.prestamoId,
-      cuotaId: (p as any).cuotaId,   // siempre vacia: vive en p.detalles[]
       montoTotal: p.montoTotal,
       fechaPago: p.fechaPago || p.creadoEn,
     })))
@@ -615,7 +625,7 @@ export const buildHistorialDiaFromBackend = (params: {
       pendienteAprobacion: Boolean(prestamo?.esProvisional) || String(prestamo?.estadoAprobacion || '').toUpperCase() === 'PENDIENTE',
       esProvisional: Boolean(prestamo?.esProvisional),
       cuotaObjetivo,
-    } as any
+    }
   })
 
   // Calcular riesgo de obligación para todas las visitas
@@ -669,7 +679,7 @@ export const buildHistorialDiaFromBackend = (params: {
           ordenVisita: item?.ordenVisita || index + 1,
           cobradorId: '',
           periodoRuta: 'DIA',
-          clienteId: cliente?.id,
+          clienteId: cliente?.id || '',
           prestamoId: String(item?.prestamoId || ''),
           recaudadoDelDia: recaudadoDelDia,
           recaudadoRegularizadoDespues: regularizadoDespues,
@@ -730,7 +740,11 @@ export const buildHistorialDiaFromBackend = (params: {
       const keyExist = prestamoId ? `loan-${prestamoId}` : (cliente?.id ? `client-${cliente.id}` : `client-idx-${index}`)
       existentes.add(keyExist)
 
-      const visitaBase = {
+      // Anotado a proposito: mas abajo se le asignan los campos de mora
+      // (`montoVencidoAcumulado`, `diasMora`, ...). Sin el tipo, TypeScript infiere solo
+      // las claves del literal y esas asignaciones no compilan, que es lo que el
+      // `as any` del final estaba tapando.
+      const visitaBase: VisitaRuta = {
         id: `${item?.asignacionId || `hist-${fechaClave}-${index}`}-${prestamoId || loanIdx}`,
         cliente: `${cliente?.nombres || ''} ${cliente?.apellidos || ''}`.trim() || 'Cliente Sin Nombre',
         direccion: cliente?.direccion || 'Sin dirección',
@@ -745,13 +759,13 @@ export const buildHistorialDiaFromBackend = (params: {
         ordenVisita: (item?.ordenVisita ? Number(item.ordenVisita) : (index + 1)) + loanIdx,
         cobradorId: '',
         periodoRuta,
-        clienteId: cliente?.id,
+        clienteId: cliente?.id || '',
         prestamoId,
         recaudadoDelDia: recaudadoDelDia,
         recaudadoRegularizadoDespues: regularizadoDespues,
         pendienteAprobacion: Boolean(p?.esProvisional) || String(p?.estadoAprobacion || '').toUpperCase() === 'PENDIENTE',
         esProvisional: Boolean(p?.esProvisional),
-      } as any
+      }
 
       // Calcular riesgo histórico desde campos históricos del backend
       const montoVencidoFinal = Number(
@@ -852,7 +866,10 @@ export const buildHistorialDiaFromBackend = (params: {
 
   const sinteticos: VisitaRuta[] = Array.from(pagosSinteticosPorKey.entries()).map(([keyExist, item], offset) => {
     const p = item.pago
-    const cid = p?.clienteId || p?.cliente?.id
+    // `|| ''` en vez de una guarda: esto es un `.map`, no un `flatMap`, asi que no se
+    // puede omitir la fila. Da igual: ni '' ni `undefined` cruzan con un id real, y
+    // hoy no ocurre porque `model Pago.clienteId` no es nulable.
+    const cid = p?.clienteId || p?.cliente?.id || ''
     const pid = String(p?.prestamoId || p?.prestamo?.id || '')
     const primerDetalle = Array.isArray(p?.detalles) ? p.detalles[0] : undefined
     const cuotaDetalle = primerDetalle?.cuota || p?.cuota || undefined
@@ -890,7 +907,7 @@ export const buildHistorialDiaFromBackend = (params: {
         : 'Préstamo',
       recaudadoDelDia: isPagoCierrePendiente(p) ? 0 : item.total,
       recaudadoRegularizadoDespues: isPagoCierrePendiente(p) ? item.total : 0,
-    } as any
+    }
   })
 
   const todasVisitas = [...visitas, ...sinteticos].map(normalizeVisitaHistorial)

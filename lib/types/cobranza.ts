@@ -132,7 +132,21 @@ export interface VisitaRuta {
   proximaVisita: string
   targetVencimiento?: string
   ordenVisita: number
-  prioridad: 'alta' | 'media' | 'baja'
+  /**
+   * La calcula el FRONTEND, no viene del backend.
+   *
+   * Comprobado: `prioridad` no existe en `schema.prisma` y en todo el backend aparece
+   * una sola vez, en una alerta de cliente (`alertas-clientes.service.ts:390`), sin
+   * relacion con visitas ni asignaciones. Asi que `o.prioridad || 'media'`, que es como
+   * la arman tres builders, siempre resuelve por el `'media'`, y el
+   * `asig.prioridad?.toLowerCase() || (estado === 'en_mora' ? 'alta' : 'media')` del
+   * coordinador siempre resuelve por la parte derecha.
+   *
+   * Va opcional porque es lo que de verdad pasa: la mayoria de las visitas llegan sin
+   * ella. Estaba declarada obligatoria y eso forzaba a castear los objetos que la
+   * omiten.
+   */
+  prioridad?: 'alta' | 'media' | 'baja'
   nivelRiesgo?: 'minimo' | 'leve' | 'precaucion' | 'moderado' | 'critico'
   cobradorId: string
   periodoRuta: PeriodoRuta

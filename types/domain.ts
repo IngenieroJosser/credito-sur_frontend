@@ -223,7 +223,17 @@ export interface PrestamoCamposLeidos {
   nivelRiesgoObligacion?: string | null;
   riesgoCredito?: string | null;
   riesgoOperativo?: string | null;
-  articulo?: string | { nombre?: string } | null;
+  /**
+   * El nombre del articulo, siempre TEXTO.
+   *
+   * Aqui decia `string | { nombre?: string } | null`, y esa variante de objeto no la
+   * produce nadie: se reviso sitio por sitio en el backend y todos mandan texto
+   * (`producto?.nombre || 'Articulo'`, `String(articuloNombre)`, etc.), y ningun sitio
+   * del frontend lee `prestamo.articulo.nombre`. Con el objeto permitido,
+   * `articuloNombre: prestamo?.articulo || ...` podia acabar guardando un objeto en un
+   * campo que promete texto, y eso se pinta como "[object Object]".
+   */
+  articulo?: string | null;
   descripcionArticulo?: string | null;
   frecuenciaRuta?: string | null;
 }
