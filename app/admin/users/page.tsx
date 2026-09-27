@@ -1317,13 +1317,13 @@ const UserManagementPage = () => {
                   );
                   logger.log(
                     "[SEARCH] Input onChange - inputType:",
-                    (e.nativeEvent as any)?.inputType,
+                    (e.nativeEvent as InputEvent)?.inputType,
                   );
 
                   // Prevenir escritura automática de "superadmin"
                   if (
                     value.toLowerCase() === "superadmin" &&
-                    (e.nativeEvent as any)?.inputType === undefined
+                    (e.nativeEvent as InputEvent)?.inputType === undefined
                   ) {
                     logger.log(
                       '[SEARCH] ⚠️ Escritura automática detectada - bloqueando "superadmin"',

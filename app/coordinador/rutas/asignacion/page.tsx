@@ -43,7 +43,11 @@ const AsignacionCobradoresPage = () => {
     try {
       const [cobradoresRes, rutasRes] = await Promise.all([
         rutasService.obtenerCobradores().catch(() => []),
-        rutasService.obtenerRutas().catch(() => ({ data: [] })),
+        // `obtenerRutas` ya devuelve un arreglo plano: desenvuelve `response.data` por
+        // dentro. El `catch` devolvia `{ data: [] }`, la forma vieja envuelta, y de ahi
+        // salia la lectura `rutasRes?.data` de mas abajo, que sobre un arreglo daba
+        // siempre `undefined` y caia en `rutasRes`.
+        rutasService.obtenerRutas().catch(() => []),
       ])
       setCobradores((cobradoresRes as any[]).map((c) => ({
         id: c.id,
@@ -52,7 +56,7 @@ const AsignacionCobradoresPage = () => {
         clientesTotales: c.clientesTotales || 0,
         capacidadMaxima: c.capacidadMaxima || 120,
       })))
-      const rutasList = (rutasRes as any)?.data || rutasRes || []
+      const rutasList = rutasRes
       setRutas((rutasList as any[]).map((r) => ({
         id: r.id,
         nombre: r.nombre || '',

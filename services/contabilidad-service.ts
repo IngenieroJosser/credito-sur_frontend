@@ -59,7 +59,19 @@ export interface Transaccion {
   descripcion: string;
   caja: string;
   responsable: string;
-  estado: string;
+  /**
+   * Siempre 'APROBADO'.
+   *
+   * No es un campo de la base: `model Transaccion` no tiene columna `estado`, solo
+   * `estadoSincronizacion`. El backend lo adjunta como literal en el UNICO sitio donde
+   * arma una transaccion para la respuesta (`accounting.service.ts:102`,
+   * `estado: 'APROBADO' as const`). Estaba declarado `string`, y eso obligaba a
+   * castear al mapearlo a la union de la pantalla contable.
+   *
+   * Consecuencia a tener en cuenta: cualquier filtro o etiqueta de "PENDIENTE" o
+   * "RECHAZADO" sobre transacciones no puede coincidir con nada.
+   */
+  estado: 'APROBADO';
   categoria?: string;
   origen?: 'EMPRESA' | 'COBRADOR';
   rutaId?: string;

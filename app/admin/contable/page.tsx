@@ -216,7 +216,7 @@ const mapTransaccion = (t: ApiTransaccion): MovimientoContable => {
     categoria: t.categoria || 'GENERAL',
     responsable: t.responsable,
     origen: origenInferido as Exclude<OrigenMovimientoContable, 'TODOS'>,
-    estado: (t.estado as any) || 'APROBADO',
+    estado: (t.estado) || 'APROBADO',
     rutaId: t.rutaId,
     cajaId: t.cajaId,
     cajaOrigenId: t.cajaOrigenId,
@@ -968,7 +968,13 @@ const ModuloContableContent = () => {
 
   /* Estado para movimientos */
   const [movimientoForm, setMovimientoForm] = useState({
-    tipo: 'INGRESO' as MovimientoContable['tipo'],
+    /**
+     * Solo INGRESO o EGRESO: son los dos unicos valores que los setters del formulario
+     * ponen. Estaba declarado con `MovimientoContable['tipo']`, que incluye
+     * DEUDA_COBRADOR, y ese valor no lo acepta `createTransaccion` (su `tipo` es
+     * INGRESO|EGRESO|TRANSFERENCIA): el `as any` de `tipoEnvio` tapaba justo eso.
+     */
+    tipo: 'INGRESO' as 'INGRESO' | 'EGRESO',
     categoria: '',
     categoriaId: '',
     montoInput: '',
@@ -1009,7 +1015,7 @@ const ModuloContableContent = () => {
     // Aun así dejamos el filtro para consistencia visual.
     let cumpleTipo = filtroTipo === 'TODOS';
     if (!cumpleTipo) {
-      if (filtroTipo === 'DEUDA_COBRADOR' as any) {
+      if (filtroTipo === 'DEUDA_COBRADOR') {
         cumpleTipo = mov.tipoReferencia === 'DEUDA_COBRADOR' || mov.tipoReferencia === 'ABONO_DEUDA';
       } else if (filtroTipo === 'TRANSFERENCIA') {
         cumpleTipo = mov.tipo === 'TRANSFERENCIA' && mov.tipoReferencia !== 'DEUDA_COBRADOR';
@@ -1017,9 +1023,11 @@ const ModuloContableContent = () => {
         cumpleTipo = esIngresoContable(mov);
       } else if (filtroTipo === 'EGRESO') {
         cumpleTipo = esEgresoOperativo(mov);
-      } else {
-        cumpleTipo = mov.tipo === filtroTipo;
       }
+      // No hay `else`: las cuatro ramas cubren todos los valores menos 'TODOS', y con
+      // 'TODOS' no se entra aqui (`cumpleTipo` ya seria true). El `else` que habia hacia
+      // `mov.tipo === filtroTipo`, y tsc lo confirmo al quitar el cast: entre el tipo de
+      // `mov.tipo` y 'TODOS' no hay solape, o sea que nunca podia dar true.
     }
 
     const cumpleOrigen = filtroOrigen === 'TODOS' || mov.origen === filtroOrigen
@@ -1209,7 +1217,7 @@ const ModuloContableContent = () => {
       
       const tipoEnvio = movimientoForm.origen === 'COBRADOR'
         ? 'TRANSFERENCIA'
-        : (movimientoForm.tipo as any)
+        : (movimientoForm.tipo)
 
       await apiCreateTransaccion({
         cajaId: isEgresoConsolidacion ? movimientoForm.cajaOrigenId : movimientoForm.cajaId,
