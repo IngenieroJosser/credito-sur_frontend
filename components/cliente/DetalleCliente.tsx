@@ -96,7 +96,15 @@ export interface Pago {
   id: string;
   fecha: string;
   monto: number;
-  cuota: number;
+  /**
+   * Las cuotas que cubrio el pago, en texto.
+   *
+   * Era `number` y siempre valia 1, porque el portal lo sacaba de
+   * `p.detalles[0].cuota.numeroCuota` y el detalle del cliente no traia `detalles`. Ya
+   * los trae, y un pago puede repartirse entre VARIAS cuotas, asi que un solo numero no
+   * alcanza: viene la lista ("9" o "9, 10"), o '—' si no se sabe.
+   */
+  cuota: string;
   metodo: string;
   estado: "confirmado" | "pendiente" | "anulado";
   referencia?: string;
@@ -793,7 +801,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
                           <div className="flex items-center gap-4 text-sm text-slate-500 font-medium">
                             <span>{formatFechaHoraBogota(pago.fecha)}</span>
                             <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-xs rounded-md font-bold border border-slate-200">
-                              Cuota {pago.cuota}
+                              {String(pago.cuota).includes(',') ? 'Cuotas' : 'Cuota'} {pago.cuota}
                             </span>
                             <span>{pago.metodo}</span>
                             {pago.referencia && (

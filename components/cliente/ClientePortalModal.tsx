@@ -144,7 +144,17 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
                     id: String(p.id),
                     fecha: p.fechaPago,
                     monto: Number(p.montoTotal || 0),
-                    cuota: p.detalles?.[0]?.cuota?.numeroCuota || 1,
+                    // El `|| 1` de antes no era un respaldo: `pagos: true` no traia
+                    // `detalles`, asi que TODOS los pagos mostraban "cuota 1". Ya llegan
+                    // (ver el include de `findOne`).
+                    //
+                    // Se muestran todas las cuotas que cubrio el pago, no solo la
+                    // primera: un pago puede repartirse entre varias y un solo numero
+                    // seria mentira. Si no se sabe, no se inventa.
+                    cuota: (Array.isArray(p.detalles) ? p.detalles : [])
+                      .map((d: { cuota?: { numeroCuota?: number } }) => d?.cuota?.numeroCuota)
+                      .filter((n: number | undefined): n is number => typeof n === 'number')
+                      .join(', ') || '—',
                     referencia: p.numeroPago,
                     metodo: p.metodoPago || 'EFECTIVO',
                     estado: 'confirmado',

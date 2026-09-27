@@ -159,9 +159,9 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
           tipoPrestamo: (typeof data.tipoPrestamo === 'string' ? data.tipoPrestamo : '').toUpperCase(),
           cuotaInicial: amounts.cuotaInicial,
           producto: typeof data.producto === 'string' ? data.producto : (data.producto?.nombre || data.tipoPrestamo || 'Préstamo'),
-          // `serie` no se mapea: no existe esa columna en el backend, asi que la
-          // lectura que habia aqui siempre valia `undefined`. La fila "Serie / IMEI"
-          // de `DetallePrestamo.tsx` sigue mostrando "—", igual que antes.
+          // Aqui se leia `serie`, que no existe en ningun sitio del backend (ni columna
+          // ni mencion) y para la que tampoco habia formulario donde escribirla. La fila
+          // que la pintaba se quito de `DetallePrestamo.tsx`.
           productoInfo: data.producto ? {
             marca: data.producto.marca ?? undefined,
             modelo: data.producto.modelo ?? undefined,
@@ -191,9 +191,13 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
             setPrestamo({
               id: offP.id,
               clienteId: offP.clienteId || '',
-              clienteNombre: offP.clienteNombre || '',
-              clienteDni: '',
-              clienteTelefono: '',
+              clienteNombre: offP.clienteNombre || offP.cliente || '',
+              // Estos tres estaban fijos en cadena vacia porque la copia local no los
+              // guardaba. Ahora si guarda el documento y el telefono (los manda
+              // `GET /loans`); la direccion ese endpoint no la manda, asi que sigue
+              // vacia y por eso queda dicho aqui.
+              clienteDni: offP.clienteDni || '',
+              clienteTelefono: offP.clienteTelefono || '',
               clienteDireccion: '',
               montoPrestamo: offP.monto || offP.montoPrestamo || 0,
               montoTotal: offP.montoTotal || 0,

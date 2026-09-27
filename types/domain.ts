@@ -165,8 +165,9 @@ export interface Prestamo {
    * cubiertas solo por el indice `[key: string]: unknown`, que obliga a castear para
    * usarlas como texto.
    *
-   * `serie` NO esta aqui porque no existe: no hay esa columna en el schema ni una sola
-   * mencion en el backend. Ver la nota de `productoInfo` en `DetallePrestamo.tsx`.
+   * `serie` no esta aqui porque no existe en ningun sitio: ni columna en el schema, ni
+   * una mencion en el backend, ni formulario en el frontend donde escribirla. La fila
+   * "Serie / IMEI" que la pintaba se quito.
    */
   producto?: {
     id?: string;

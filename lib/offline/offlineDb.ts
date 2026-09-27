@@ -90,6 +90,12 @@ export interface OfflineCuota {
   estado: string;
   montoPagado: number;
   fechaPago: string | null;
+  /**
+   * De ella depende el distintivo de prorroga que calcula
+   * `enrich-ruta-historial-riesgo` sobre las visitas, y ese calculo tambien corre sin
+   * conexion. Es columna de `model Cuota`.
+   */
+  fechaVencimientoProrroga?: string | null;
 }
 
 export interface OfflineRuta {

@@ -69,13 +69,6 @@ export interface PrestamoDetalle {
   productoInfo?: {
     marca?: string;
     modelo?: string;
-    /**
-     * HUECO DEL BACKEND, no un descuido: no hay columna `serie` en `model Producto`
-     * ni una sola mencion en todo el backend, asi que la fila "Serie / IMEI" siempre
-     * muestra "—". Se deja el campo y la fila porque para un credito por articulo el
-     * IMEI importa; lo que falta es guardarlo.
-     */
-    serie?: string;
     categoria?: string;
   };
   garantia?: string;
@@ -853,10 +846,6 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                     <div className="flex justify-between border-b border-slate-50 pb-2">
                       <dt className="text-xs font-bold text-slate-400">Modelo</dt>
                       <dd className="text-sm font-bold text-slate-700">{prestamo.productoInfo.modelo || '—'}</dd>
-                    </div>
-                    <div className="flex justify-between border-b border-slate-50 pb-2">
-                      <dt className="text-xs font-bold text-slate-400">Serie / IMEI</dt>
-                      <dd className="text-sm font-bold text-slate-700">{prestamo.productoInfo.serie || '—'}</dd>
                     </div>
                     <div className="flex justify-between border-b border-slate-50 pb-2">
                       <dt className="text-xs font-bold text-slate-400">Categoría</dt>

@@ -31,7 +31,7 @@ jest.mock('@/lib/api/api', () => ({ apiRequest: jest.fn() }))
 jest.mock('@/lib/api/apiClient', () => ({ apiClient: {} }))
 jest.mock('@/lib/auth/offlineAuth', () => ({ restoreOfflineSession: jest.fn() }))
 
-import { mapearPrestamoDescargado } from '@/lib/offline/syncManager'
+import { mapearCuotaDescargada, mapearPrestamoDescargado } from '@/lib/offline/syncManager'
 
 /**
  * Una fila tal como la arma `loans.service.ts:1960-1997`. Lo importante son los
@@ -175,5 +175,75 @@ describe('mapearPrestamoDescargado: bordes', () => {
   it('plazoMeses se queda en 0: el listado no lo manda', () => {
     expect(filaDelListado).not.toHaveProperty('plazoMeses')
     expect(mapearPrestamoDescargado(filaDelListado).plazoMeses).toBe(0)
+  })
+})
+
+/**
+ * El almacen local de cuotas NUNCA se llenaba.
+ *
+ * El bucle que lo llenaba leia `p.cuotas` de cada fila de `GET /loans`, y ese arreglo no
+ * existe: el listado solo manda los conteos ya calculados. Asi que `allCuotas` quedaba
+ * vacio, mientras el `saveMany('prestamos', ..., true)` del mismo metodo SI borra el
+ * almacen `cuotas` en cada login. El detalle de prestamo sin conexion mostraba la tabla
+ * de cuotas vacia siempre.
+ *
+ * Ahora se bajan de `/loans/:id/cuotas`, que devuelve las filas crudas de Prisma.
+ */
+describe('mapearCuotaDescargada', () => {
+  /** Una fila tal como la devuelve `getLoanCuotas` (columnas de `model Cuota`). */
+  const fila = {
+    id: 'cuota-9',
+    prestamoId: 'prestamo-1',
+    numeroCuota: 9,
+    fechaVencimiento: '2026-04-20',
+    monto: 65_000,
+    montoCapital: 50_000,
+    montoInteres: 15_000,
+    montoInteresMora: 1_200,
+    estado: 'PARCIAL',
+    montoPagado: 20_000,
+    fechaPago: null,
+    fechaVencimientoProrroga: '2026-04-27',
+  }
+
+  it('copia las columnas de la cuota', () => {
+    const local = mapearCuotaDescargada(fila, 'prestamo-1')
+    expect(local.id).toBe('cuota-9')
+    expect(local.numeroCuota).toBe(9)
+    expect(local.monto).toBe(65_000)
+    expect(local.montoCapital).toBe(50_000)
+    expect(local.montoInteres).toBe(15_000)
+    expect(local.montoInteresMora).toBe(1_200)
+    expect(local.estado).toBe('PARCIAL')
+    expect(local.montoPagado).toBe(20_000)
+    expect(local.fechaVencimiento).toBe('2026-04-20')
+  })
+
+  it('el prestamoId viene del argumento, no de la fila', () => {
+    // `/loans/:id/cuotas` devuelve las cuotas de UN credito; el id lo sabe quien pide.
+    const local = mapearCuotaDescargada({ ...fila, prestamoId: 'otro' }, 'prestamo-1')
+    expect(local.prestamoId).toBe('prestamo-1')
+  })
+
+  it('guarda la fecha de prorroga: de ella depende el distintivo de prorroga', () => {
+    expect(mapearCuotaDescargada(fila, 'p').fechaVencimientoProrroga).toBe('2026-04-27')
+    expect(
+      mapearCuotaDescargada({ ...fila, fechaVencimientoProrroga: null }, 'p')
+        .fechaVencimientoProrroga,
+    ).toBeNull()
+  })
+
+  it('una cuota sin pagar deja fechaPago en null, no en undefined', () => {
+    expect(mapearCuotaDescargada(fila, 'p').fechaPago).toBeNull()
+  })
+
+  it('una fila vacia no produce NaN ni "undefined"', () => {
+    const local = mapearCuotaDescargada({}, 'p')
+    for (const valor of Object.values(local)) {
+      if (typeof valor === 'number') expect(Number.isNaN(valor)).toBe(false)
+      if (typeof valor === 'string') expect(valor).not.toContain('undefined')
+    }
+    expect(local.estado).toBe('PENDIENTE')
+    expect(local.monto).toBe(0)
   })
 })

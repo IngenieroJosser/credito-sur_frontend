@@ -53,9 +53,9 @@ export default function PrestamoDetallePage() {
           tipoPrestamo: typeof data.tipoPrestamo === 'string' ? data.tipoPrestamo : '',
           cuotaInicial: Number(data.cuotaInicial || 0),
           producto: typeof data.producto === 'string' ? data.producto : (data.producto?.nombre || data.tipoPrestamo || 'Préstamo Personal'),
-          // `serie` no se mapea: no existe esa columna en el backend, asi que la
-          // lectura que habia aqui siempre valia `undefined`. La fila "Serie / IMEI"
-          // de `DetallePrestamo.tsx` sigue mostrando "—", igual que antes.
+          // Aqui se leia `serie`, que no existe en ningun sitio del backend (ni columna
+          // ni mencion) y para la que tampoco habia formulario donde escribirla. La fila
+          // que la pintaba se quito de `DetallePrestamo.tsx`.
           productoInfo: data.producto ? {
             marca: data.producto.marca ?? undefined,
             modelo: data.producto.modelo ?? undefined,
