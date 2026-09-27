@@ -222,15 +222,38 @@ export const esDomingoBogota = (date: Date = new Date()): boolean => {
   return day === 'Sun';
 };
 
-type RegularizedPaymentTargetInput = {
+type RegularizedPaymentTargetInput<V extends Record<string, any>> = {
   rutaId?: string;
   cliente: ClienteCierrePendiente;
-  visitaBase: Record<string, any>;
+  visitaBase: V;
   contextoRegularizacion?: Record<string, any> | null;
   intent?: 'pago' | 'reprogramacion';
 };
 
-type RegularizedPaymentTarget =
+/**
+ * Los campos que la regularizacion pisa sobre la visita base. Estan escritos aparte
+ * para que el tipo del resultado diga exactamente eso: la visita del llamador, con
+ * estos seis campos recalculados.
+ */
+type CamposRegularizados = {
+  prestamoId: string;
+  cuotaActual: number;
+  montoCuota: number;
+  montoCuotaPendiente: number;
+  saldoTotal: number;
+  proximaVisita: string | undefined;
+};
+
+/**
+ * `visitaRegularizada` conserva el tipo de la visita que entro.
+ *
+ * Antes era `Record<string, any>`, y eso obligaba a castear en los NUEVE sitios que
+ * la usan (VistaCobrador, SupervisorCobroView y el detalle de ruta, tres cada uno):
+ * ninguno podia pasarsela a su `setState` sin un `as any`. Al devolver
+ * `V & CamposRegularizados` el resultado ya encaja donde va, sin que los llamadores
+ * cambien nada.
+ */
+type RegularizedPaymentTarget<V> =
   | {
       error: string;
       contextoPagoRegularizado?: never;
@@ -239,16 +262,16 @@ type RegularizedPaymentTarget =
   | {
       error?: undefined;
       contextoPagoRegularizado: Record<string, any>;
-      visitaRegularizada: Record<string, any>;
+      visitaRegularizada: V & CamposRegularizados;
     };
 
-export const buildRegularizedPaymentTarget = ({
+export const buildRegularizedPaymentTarget = <V extends Record<string, any>>({
   rutaId,
   cliente,
   visitaBase,
   contextoRegularizacion,
   intent = 'pago',
-}: RegularizedPaymentTargetInput): RegularizedPaymentTarget => {
+}: RegularizedPaymentTargetInput<V>): RegularizedPaymentTarget<V> => {
   const cuota = cliente.cuotaObjetivo;
   const prestamoId = cliente.prestamoObjetivoId || visitaBase?.prestamoId;
   const cuotaId =

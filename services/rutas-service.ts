@@ -230,6 +230,72 @@ export interface Ruta {
 
 }
 
+/**
+ * Las cifras del dia de una ruta.
+ *
+ * Es el objeto que `RoutesService` arma en los dos endpoints. Ojo con donde
+ * aparece, porque NO es igual en los dos (ver `RutaDeListado` y `RutaDeDetalle`).
+ */
+export interface EstadisticasDeRuta {
+  clientesAsignados?: number;
+  clientesNuevos?: number;
+  cobranzaDelDia?: number;
+  metaDelDia?: number;
+  totalDeuda?: number;
+  prestamosActivos?: number;
+  /** Porcentaje de avance: `cobranzaDelDia / metaDelDia * 100`, ya redondeado. */
+  avanceDiario?: number;
+  /** Solo lo manda el detalle. */
+  efectivoEntregado?: number;
+}
+
+/**
+ * Lo que devuelve `GET /routes` (el listado).
+ *
+ * Aqui las estadisticas van PLANAS: `findAll` hace `{ ...ruta, ...estadisticas }` y
+ * ademas fija `cobranzaDelDia` y `metaDelDia` en la raiz
+ * (`routes.service.ts:1661-1677`), y su prueba lo afirma asi
+ * (`routes.service.spec.ts:327-328`: `ruta.metaDelDia`). O sea que en el listado
+ * NO existe una clave `estadisticas`: leerla siempre da `undefined`.
+ */
+export interface RutaDeListado extends Ruta {
+  cobranzaDelDia?: number;
+  metaDelDia?: number;
+  avanceDiario?: number;
+  clientesAsignados?: number;
+  clientesNuevos?: number;
+  recaudoRegularizadoHoy?: number;
+  recaudoContableHoy?: number;
+  nivelRiesgo?: string;
+  porcentajeMora?: number;
+  /** Nombre ya armado, no un objeto. Ver la nota de `cobrador` arriba. */
+  cobrador?: string;
+  estado?: string;
+  /** Si la ruta abrio jornada hoy; `estado` solo dice si esta habilitada. */
+  activadaHoy?: boolean;
+  diaNoLaboral?: boolean;
+  frecuenciaVisita?: string;
+}
+
+/**
+ * Lo que devuelve `GET /routes/:id` (el detalle).
+ *
+ * Al contrario del listado, aqui las estadisticas van ANIDADAS bajo
+ * `estadisticas` (`routes.service.ts:2413-2422`) y NO hay `metaDelDia` en la
+ * raiz: leerlo ahi siempre da `undefined`.
+ *
+ * Los dos campos van opcionales porque `obtenerRutaPorId` tiene respaldo offline
+ * y esa rama no reconstruye las estadisticas.
+ */
+export interface RutaDeDetalle extends Ruta {
+  estadisticas?: EstadisticasDeRuta;
+  nivelRiesgo?: string;
+  porcentajeMora?: number;
+  /** Nombre ya armado, no un objeto. */
+  cobrador?: string;
+  supervisor?: string;
+}
+
 
 
 export interface CrearRutaDto {
@@ -344,7 +410,7 @@ export const rutasService = {
 
    */
 
-  async obtenerRutas(filtros?: FiltrosRutas): Promise<Ruta[]> {
+  async obtenerRutas(filtros?: FiltrosRutas): Promise<RutaDeListado[]> {
 
     const params = new URLSearchParams();
 
@@ -440,7 +506,7 @@ export const rutasService = {
 
    */
 
-  async obtenerRutaPorId(id: string): Promise<Ruta> {
+  async obtenerRutaPorId(id: string): Promise<RutaDeDetalle> {
 
     return apiRequest<Ruta>('GET', `/routes/${id}`, undefined, { cacheTTL: 0 });
 

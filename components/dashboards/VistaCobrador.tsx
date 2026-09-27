@@ -1247,18 +1247,26 @@ const VistaCobrador = () => {
         } catch {
           setDailyVisitsHoy(null);
         }
-        const estDetalleRuta = (rutaCompleta as any)?.estadisticas || {};
+        // Las dos formas de la misma cifra. El detalle (`obtenerRutaPorId`) las manda
+        // ANIDADAS bajo `estadisticas`; el listado (`obtenerRutas`) las manda PLANAS en
+        // la raiz. Por eso se leen de los dos sitios, cada uno donde de verdad viene.
+        //
+        // Antes habia una tercera rama, `rutaResumen.estadisticas?.X`. Esa clave no
+        // existe en el listado (`findAll` hace `{ ...ruta, ...estadisticas }`, plano),
+        // asi que siempre valia `undefined` y entraba al `Math.max` como 0. Se quita y
+        // el 0 se deja escrito, que es lo unico que aportaba.
+        const estDetalleRuta = rutaCompleta?.estadisticas ?? {};
         const estadisticasAutoritativas = {
           ...estDetalleRuta,
           cobranzaDelDia: Math.max(
             Number(estDetalleRuta?.cobranzaDelDia || 0),
-            Number((rutaResumen as any)?.cobranzaDelDia || 0),
-            Number((rutaResumen as any)?.estadisticas?.cobranzaDelDia || 0),
+            Number(rutaResumen?.cobranzaDelDia || 0),
+            0,
           ),
           metaDelDia: Math.max(
             Number(estDetalleRuta?.metaDelDia || 0),
-            Number((rutaResumen as any)?.metaDelDia || 0),
-            Number((rutaResumen as any)?.estadisticas?.metaDelDia || 0),
+            Number(rutaResumen?.metaDelDia || 0),
+            0,
           ),
         };
         const rutaCompletaAutoritativa = {
@@ -5475,7 +5483,7 @@ const VistaCobrador = () => {
 
             setTimeout(() => {
               setRegularizacionContext(target.contextoPagoRegularizado)
-              setVisitaPagoSeleccionada(target.visitaRegularizada as any)
+              setVisitaPagoSeleccionada(target.visitaRegularizada)
               setPagoInitialIsAbono(false)
               setShowPaymentModal(true)
             }, 80)
@@ -5503,7 +5511,7 @@ const VistaCobrador = () => {
 
             setTimeout(() => {
               setRegularizacionContext(target.contextoPagoRegularizado)
-              setVisitaPagoSeleccionada(target.visitaRegularizada as any)
+              setVisitaPagoSeleccionada(target.visitaRegularizada)
               setPagoInitialIsAbono(true)
               setShowPaymentModal(true)
             }, 80)
@@ -5546,7 +5554,7 @@ const VistaCobrador = () => {
 
             setTimeout(() => {
               setRegularizacionContext(target.contextoPagoRegularizado)
-              setVisitaReprogramar(target.visitaRegularizada as any)
+              setVisitaReprogramar(target.visitaRegularizada)
               setShowReprogramModal(true)
             }, 80)
           }}

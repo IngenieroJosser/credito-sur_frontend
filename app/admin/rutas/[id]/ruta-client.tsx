@@ -1002,15 +1002,19 @@ const RutaClientLoaded = ({
         const hasMetaBackend = metaBackendRaw !== null && metaBackendRaw !== undefined
         const metaBackend = hasMetaBackend ? Number(metaBackendRaw) : null
 
+        // `initialRuta` sale de `obtenerRutaPorId`, o sea del DETALLE, y el detalle
+        // manda las cifras anidadas bajo `estadisticas`. La rama que leia
+        // `initialRuta.metaDelDia` en la raiz era del listado: aqui siempre valia
+        // `undefined` y entraba al `Math.max` como 0. Se quita y queda el 0 escrito.
         const metaBackendHoy = Math.max(
           Number(metaBackend ?? 0),
-          Number((initialRuta as any)?.metaDelDia || 0),
-          Number((initialRuta)?.estadisticas?.metaDelDia || 0),
+          Number(initialRuta?.estadisticas?.metaDelDia || 0),
+          0,
         )
         const recaudoBackendHoy = Math.max(
           Number(recaudo || 0),
-          Number((initialRuta as any)?.cobranzaDelDia || 0),
-          Number((initialRuta)?.estadisticas?.cobranzaDelDia || 0),
+          Number(initialRuta?.estadisticas?.cobranzaDelDia || 0),
+          0,
         )
         const tieneResumenHoy =
           periodoCards === 'HOY'
@@ -1112,15 +1116,19 @@ const RutaClientLoaded = ({
         const hasMetaBackend = metaBackendRaw !== null && metaBackendRaw !== undefined
         const metaBackend = hasMetaBackend ? Number(metaBackendRaw) : null
 
+        // `initialRuta` sale de `obtenerRutaPorId`, o sea del DETALLE, y el detalle
+        // manda las cifras anidadas bajo `estadisticas`. La rama que leia
+        // `initialRuta.metaDelDia` en la raiz era del listado: aqui siempre valia
+        // `undefined` y entraba al `Math.max` como 0. Se quita y queda el 0 escrito.
         const metaBackendHoy = Math.max(
           Number(metaBackend ?? 0),
-          Number((initialRuta as any)?.metaDelDia || 0),
-          Number((initialRuta)?.estadisticas?.metaDelDia || 0),
+          Number(initialRuta?.estadisticas?.metaDelDia || 0),
+          0,
         )
         const recaudoBackendHoy = Math.max(
           Number(recaudo || 0),
-          Number((initialRuta as any)?.cobranzaDelDia || 0),
-          Number((initialRuta)?.estadisticas?.cobranzaDelDia || 0),
+          Number(initialRuta?.estadisticas?.cobranzaDelDia || 0),
+          0,
         )
         const tieneResumenHoy =
           periodoCards === 'HOY'
@@ -1348,7 +1356,7 @@ const RutaClientLoaded = ({
 
                     <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Efectivo Entregado</p>
 
-                    <div className="text-3xl font-bold text-slate-900">{formatCurrency(Number((estadisticas as any)?.efectivoEntregado || 0))}</div>
+                    <div className="text-3xl font-bold text-slate-900">{formatCurrency(Number(estadisticas?.efectivoEntregado || 0))}</div>
 
                     <p className="text-xs text-slate-400 mt-1">Total recolectado de esta ruta</p>
 
@@ -2648,7 +2656,7 @@ const RutaClientLoaded = ({
           setTimeout(() => {
             setRegularizacionContext(target.contextoPagoRegularizado)
             setPagoVisita({
-              visita: target.visitaRegularizada as any,
+              visita: target.visitaRegularizada,
               tipo: 'PAGO',
             })
           }, 80)
@@ -2677,7 +2685,7 @@ const RutaClientLoaded = ({
           setTimeout(() => {
             setRegularizacionContext(target.contextoPagoRegularizado)
             setPagoVisita({
-              visita: target.visitaRegularizada as any,
+              visita: target.visitaRegularizada,
               tipo: 'ABONO',
             })
           }, 80)
@@ -2719,7 +2727,7 @@ const RutaClientLoaded = ({
 
           setTimeout(() => {
             setRegularizacionContext(target.contextoPagoRegularizado)
-            setVisitaReprogramar(target.visitaRegularizada as any)
+            setVisitaReprogramar(target.visitaRegularizada)
           }, 80)
         }}
         onRegularizar={async (contextoRegularizacion, observaciones) => {

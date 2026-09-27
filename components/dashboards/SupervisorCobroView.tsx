@@ -3655,7 +3655,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
             setTimeout(() => {
               setRegularizacionContext(target.contextoPagoRegularizado)
-              setVisitaPagoRegularizada(target.visitaRegularizada as any)
+              setVisitaPagoRegularizada(target.visitaRegularizada)
               setVisitaPagoSeleccionadaId(visitaBase.id)
               setPagoInitialIsAbono(false)
               setShowPaymentModal(true)
@@ -3684,7 +3684,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
             setTimeout(() => {
               setRegularizacionContext(target.contextoPagoRegularizado)
-              setVisitaPagoRegularizada(target.visitaRegularizada as any)
+              setVisitaPagoRegularizada(target.visitaRegularizada)
               setVisitaPagoSeleccionadaId(visitaBase.id)
               setPagoInitialIsAbono(true)
               setShowPaymentModal(true)
@@ -3728,7 +3728,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
             setTimeout(() => {
               setRegularizacionContext(target.contextoPagoRegularizado)
-              setVisitaReprogramar(target.visitaRegularizada as any)
+              setVisitaReprogramar(target.visitaRegularizada)
               setShowReprogramModal(true)
             }, 80)
           }}
