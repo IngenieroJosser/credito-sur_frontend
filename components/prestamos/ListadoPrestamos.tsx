@@ -213,10 +213,16 @@ const ListadoPrestamosElegante = () => {
         return diasMora > 0 || cuotasVencidas > 0 || estado === 'EN_MORA'
       }).length
 
-      const stats = (response.estadisticas || {}) as any
+      const stats = response.estadisticas
       const backendMoraCount = Number(stats.atrasados ?? 0)
       setEstadisticas({
         ...stats,
+        // El tipo los marca opcionales y el estado promete `number`, asi que aqui van
+        // los valores por omision. Medido: el backend los manda siempre, en las dos
+        // ramas de `findAll` (`loans.service.ts:2041-2042` y `2066-2067`), asi que hoy
+        // estos `?? 0` no se usan nunca; estan para que el tipo no mienta.
+        montoPrestado: stats.montoPrestado ?? 0,
+        interesTotal: stats.interesTotal ?? 0,
         atrasados: Math.max(backendMoraCount, Number(moraReportCount ?? 0), moraCount),
       });
       setTotalPrestamos(response.paginacion.total);
@@ -646,13 +652,13 @@ const ListadoPrestamosElegante = () => {
                       <td className="px-6 py-4">
                         <div className="flex flex-col">
                           <span className="font-bold text-slate-900 group-hover:text-slate-700 transition-colors">{prestamo.numeroPrestamo}</span>
-                          <span className="text-xs font-medium text-slate-500">{typeof prestamo.cliente === 'string' ? prestamo.cliente : prestamo.clienteNombre || (prestamo.cliente as any)?.nombres || ''}</span>
+                          <span className="text-xs font-medium text-slate-500">{prestamo.cliente || prestamo.clienteNombre || ''}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2 text-slate-600 font-medium">
                           {getProductoIcono(prestamo.tipoProducto ?? undefined)}
-                          <span>{typeof prestamo.producto === 'string' ? prestamo.producto : (prestamo.producto as any)?.nombre || ''}</span>
+                          <span>{prestamo.producto || ''}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -796,7 +802,7 @@ const ListadoPrestamosElegante = () => {
                 <div className="flex items-start justify-between mb-3 pb-3 border-b border-slate-100">
                   <div className="flex-1 min-w-0">
                     <div className="font-bold text-slate-900 truncate">{prestamo.numeroPrestamo}</div>
-                    <div className="text-xs text-slate-500 font-medium mt-0.5">{typeof prestamo.cliente === 'string' ? prestamo.cliente : prestamo.clienteNombre || (prestamo.cliente as any)?.nombres || ''}</div>
+                    <div className="text-xs text-slate-500 font-medium mt-0.5">{prestamo.cliente || prestamo.clienteNombre || ''}</div>
                   </div>
                   <span className={cn(
                     "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase border flex-shrink-0 ml-2",
@@ -812,7 +818,7 @@ const ListadoPrestamosElegante = () => {
                   <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Producto</div>
                   <div className="flex items-center gap-2 text-slate-700 font-medium">
                     {getProductoIcono(prestamo.tipoProducto ?? undefined)}
-                    <span>{typeof prestamo.producto === 'string' ? prestamo.producto : (prestamo.producto as any)?.nombre || ''}</span>
+                    <span>{prestamo.producto || ''}</span>
                   </div>
                 </div>
 

@@ -69,6 +69,12 @@ export interface PrestamoDetalle {
   productoInfo?: {
     marca?: string;
     modelo?: string;
+    /**
+     * HUECO DEL BACKEND, no un descuido: no hay columna `serie` en `model Producto`
+     * ni una sola mencion en todo el backend, asi que la fila "Serie / IMEI" siempre
+     * muestra "—". Se deja el campo y la fila porque para un credito por articulo el
+     * IMEI importa; lo que falta es guardarlo.
+     */
     serie?: string;
     categoria?: string;
   };

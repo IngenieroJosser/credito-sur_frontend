@@ -158,12 +158,14 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
           tipoAmortizacion: (data.tipoAmortizacion || 'INTERES_SIMPLE') as 'INTERES_SIMPLE' | 'FRANCESA',
           tipoPrestamo: (typeof data.tipoPrestamo === 'string' ? data.tipoPrestamo : '').toUpperCase(),
           cuotaInicial: amounts.cuotaInicial,
-          producto: typeof data.producto === 'string' ? data.producto : ((data.producto as any)?.nombre || data.tipoPrestamo || 'Préstamo'),
+          producto: typeof data.producto === 'string' ? data.producto : (data.producto?.nombre || data.tipoPrestamo || 'Préstamo'),
+          // `serie` no se mapea: no existe esa columna en el backend, asi que la
+          // lectura que habia aqui siempre valia `undefined`. La fila "Serie / IMEI"
+          // de `DetallePrestamo.tsx` sigue mostrando "—", igual que antes.
           productoInfo: data.producto ? {
-            marca: (data.producto as any).marca,
-            modelo: (data.producto as any).modelo,
-            serie: (data.producto as any).serie,
-            categoria: (data.producto as any).categoria
+            marca: data.producto.marca ?? undefined,
+            modelo: data.producto.modelo ?? undefined,
+            categoria: data.producto.categoria
           } : undefined,
           garantia: data.garantia || '',
           notas: data.notas || '',

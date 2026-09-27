@@ -150,9 +150,24 @@ export interface Prestamo {
   clienteTelefono?: string | null;
   clienteDireccion?: string | null;
   // Producto (para créditos por artículo)
+  /**
+   * El articulo del credito, cuando es por articulo.
+   *
+   * El detalle lo trae con `producto: true` (`loans.service.ts:876`), o sea la fila
+   * completa de `model Producto`. De ahi salen `nombre` y `categoria` (obligatorias
+   * en el schema) y `marca`/`modelo` (opcionales ahi, de ahi el `| null`). Estaban
+   * cubiertas solo por el indice `[key: string]: unknown`, que obliga a castear para
+   * usarlas como texto.
+   *
+   * `serie` NO esta aqui porque no existe: no hay esa columna en el schema ni una sola
+   * mencion en el backend. Ver la nota de `productoInfo` en `DetallePrestamo.tsx`.
+   */
   producto?: {
     id?: string;
     nombre?: string;
+    categoria?: string;
+    marca?: string | null;
+    modelo?: string | null;
     precio?: number;
     descripcion?: string;
     [key: string]: unknown;

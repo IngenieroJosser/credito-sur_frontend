@@ -52,12 +52,14 @@ export default function PrestamoDetallePage() {
           estado: data.estado || 'ACTIVO',
           tipoPrestamo: typeof data.tipoPrestamo === 'string' ? data.tipoPrestamo : '',
           cuotaInicial: Number(data.cuotaInicial || 0),
-          producto: typeof data.producto === 'string' ? data.producto : ((data.producto as any)?.nombre || data.tipoPrestamo || 'Préstamo Personal'),
+          producto: typeof data.producto === 'string' ? data.producto : (data.producto?.nombre || data.tipoPrestamo || 'Préstamo Personal'),
+          // `serie` no se mapea: no existe esa columna en el backend, asi que la
+          // lectura que habia aqui siempre valia `undefined`. La fila "Serie / IMEI"
+          // de `DetallePrestamo.tsx` sigue mostrando "—", igual que antes.
           productoInfo: data.producto ? {
-            marca: (data.producto as any).marca,
-            modelo: (data.producto as any).modelo,
-            serie: (data.producto as any).serie,
-            categoria: (data.producto as any).categoria
+            marca: data.producto.marca ?? undefined,
+            modelo: data.producto.modelo ?? undefined,
+            categoria: data.producto.categoria
           } : undefined,
           garantia: data.garantia || '',
           fotos: data.fotos || [],
