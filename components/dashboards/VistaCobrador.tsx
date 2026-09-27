@@ -858,7 +858,7 @@ const VistaCobrador = () => {
         const hoyBogota = hoyBogotaKey
         const resp = await rutasService.obtenerVisitasDelDia(rutaActual.id, hoyBogota)
         const pagosResp = await pagosService.obtenerPagos({ limit: 5000 })
-        const pagos = (pagosResp as any)?.pagos || pagosResp || []
+        const pagos = (pagosResp)?.pagos || pagosResp || []
 
         const result = await buildRutaHoyOperativa({
           ruta: rutaActual,
@@ -868,7 +868,7 @@ const VistaCobrador = () => {
           pagos,
         })
 
-        setMisCreditos(result.kpiItems as any)
+        setMisCreditos(result.kpiItems)
         return
       }
 
@@ -879,7 +879,7 @@ const VistaCobrador = () => {
         logger.log('[Mis clientes] cobradorId:', cobradorId, 'resp:', JSON.stringify(resp)?.substring(0, 500))
       }
 
-      const raw = (resp as any)?.data
+      const raw = (resp)?.data
 
       const filas = Array.isArray(raw) ? raw : []
 
@@ -933,9 +933,9 @@ const VistaCobrador = () => {
         const nombreCredito = esArticulo ? (p?.articulo || 'Artículo') : 'Préstamo'
         const { cuotaActual, cuotasTotales } = resolveCuotaProgressFromPrestamo(prestamoAutoritativo)
         const cuotasForMonto = Array.isArray((prestamoAutoritativo)?.cuotas) ? (prestamoAutoritativo).cuotas : []
-        const montoMoraAcumulada = computeMontoExigibleHastaHoyFromCuotas(cuotasForMonto as any, hoyBogotaKey)
-        const montoNominalProx = Number((prox as any)?.montoNominal ?? (prox as any)?.montoCuota ?? (prox as any)?.monto ?? 0)
-        const montoPagadoProx = Number((prox as any)?.montoPagado ?? 0)
+        const montoMoraAcumulada = computeMontoExigibleHastaHoyFromCuotas(cuotasForMonto, hoyBogotaKey)
+        const montoNominalProx = Number((prox)?.montoNominal ?? (prox)?.montoCuota ?? (prox)?.monto ?? 0)
+        const montoPagadoProx = Number((prox)?.montoPagado ?? 0)
         const pendienteProx = Math.max(0, montoNominalProx - montoPagadoProx)
         const montoCuotaNormal = montoNominalProx
         const montoCuotaPendiente = pendienteProx
@@ -2219,7 +2219,7 @@ const VistaCobrador = () => {
                 (v).montoCuotaNormal ??
                   (prox as any)?.montoNominal ??
                   (prox as any)?.montoCuota ??
-                  (prox as any)?.monto ??
+                  (prox)?.monto ??
                   v.montoCuota ??
                   0,
               )

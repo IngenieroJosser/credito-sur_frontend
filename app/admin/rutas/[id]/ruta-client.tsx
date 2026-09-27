@@ -1005,12 +1005,12 @@ const RutaClientLoaded = ({
         const metaBackendHoy = Math.max(
           Number(metaBackend ?? 0),
           Number((initialRuta as any)?.metaDelDia || 0),
-          Number((initialRuta as any)?.estadisticas?.metaDelDia || 0),
+          Number((initialRuta)?.estadisticas?.metaDelDia || 0),
         )
         const recaudoBackendHoy = Math.max(
           Number(recaudo || 0),
           Number((initialRuta as any)?.cobranzaDelDia || 0),
-          Number((initialRuta as any)?.estadisticas?.cobranzaDelDia || 0),
+          Number((initialRuta)?.estadisticas?.cobranzaDelDia || 0),
         )
         const tieneResumenHoy =
           periodoCards === 'HOY'
@@ -1115,12 +1115,12 @@ const RutaClientLoaded = ({
         const metaBackendHoy = Math.max(
           Number(metaBackend ?? 0),
           Number((initialRuta as any)?.metaDelDia || 0),
-          Number((initialRuta as any)?.estadisticas?.metaDelDia || 0),
+          Number((initialRuta)?.estadisticas?.metaDelDia || 0),
         )
         const recaudoBackendHoy = Math.max(
           Number(recaudo || 0),
           Number((initialRuta as any)?.cobranzaDelDia || 0),
-          Number((initialRuta as any)?.estadisticas?.cobranzaDelDia || 0),
+          Number((initialRuta)?.estadisticas?.cobranzaDelDia || 0),
         )
         const tieneResumenHoy =
           periodoCards === 'HOY'
@@ -2881,7 +2881,7 @@ const RutaClient = ({ initialRuta: initialRutaProp, rutaId }: RutaClientProps) =
 
         setRutaData(ruta as any)
 
-        setRutaCompletada(!(ruta as any)?.activa)
+        setRutaCompletada(!(ruta)?.activa)
 
       } catch (e) {
 

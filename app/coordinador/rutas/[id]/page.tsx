@@ -572,7 +572,7 @@ const LegacyDetalleRutaPage = () => {
                          v.montoCuota ??
                          0,
                        )
-                       const montoPendiente = Math.max(0, montoReal - Number((pendiente as any).montoPagado || 0))
+                       const montoPendiente = Math.max(0, montoReal - Number((pendiente).montoPagado || 0))
 
                        return {
 
@@ -611,7 +611,7 @@ const LegacyDetalleRutaPage = () => {
 
 
                    const p = await prestamosService.obtenerPrestamoPorId(v.prestamoId);
-                   const pAny = p as any;
+                   const pAny = p;
 
                    const proxima = (pAny.proximaCuota ?? {}) as any;
                    const cuotaIdFromP = String(proxima?.id || pAny?.cuotaObjetivo?.id || pAny?.cuotaId || (v)?.cuotaId || '').trim();
