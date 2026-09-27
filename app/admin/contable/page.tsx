@@ -650,9 +650,11 @@ const ModuloContableContent = () => {
           limit: 500,
         }),
       ])
-      const transacciones = ([] as any[])
-        .concat(Array.isArray(ingresosResp?.data) ? ingresosResp.data : [])
-        .concat(Array.isArray(egresosResp?.data) ? egresosResp.data : [])
+      // Sin la semilla `([] as any[])`: con `...` el tipo sale de los datos.
+      const transacciones = [
+        ...(Array.isArray(ingresosResp?.data) ? ingresosResp.data : []),
+        ...(Array.isArray(egresosResp?.data) ? egresosResp.data : []),
+      ]
 
       setMovimientosModalGlobal(
         transacciones
@@ -685,7 +687,7 @@ const ModuloContableContent = () => {
         }),
       ])
 
-      const merged = ([] as any[]).concat(transIngresos || [], transEgresos || [])
+      const merged = [...(transIngresos || []), ...(transEgresos || [])]
       setMovimientosModalGlobal(merged.map(mapTransaccion))
     } catch {
       setMovimientosModalGlobal([])

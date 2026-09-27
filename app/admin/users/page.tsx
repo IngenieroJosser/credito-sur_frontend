@@ -200,11 +200,13 @@ const UserManagementPage = () => {
         estado: u.estado as EstadoUsuario,
         fechaCreacion: formatShortDate(u.creadoEn),
         ultimoAcceso: formatShortDateTime(u.ultimoIngreso),
-        permisos: (Array.isArray(u.permisos)
-          ? (u.permisos as any[])
-              .map((p) => (p?.codigo || p?.id || p))
-              .filter((p) => typeof p === 'string' && p.trim() !== '')
-          : []),
+        // `Usuario.permisos` es `string[]`: el backend manda las acciones ya
+        // deduplicadas (`uniquePermisos` = `p.accion`), no objetos. El `.map` que leia
+        // `p.codigo || p.id` era de una forma que no llega; el `|| p` de su final es lo
+        // unico que valia.
+        permisos: Array.isArray(u.permisos)
+          ? u.permisos.filter((p) => typeof p === 'string' && p.trim() !== '')
+          : [],
       }));
       setUsers(mappedUsers);
     } catch (error) {
@@ -707,13 +709,13 @@ const UserManagementPage = () => {
     );
 
     const expandGroupIds = (ids: string[]): string[] => {
-      const allModules = Object.values(permisosPorRol || {}).flat() as any[]
+      const allModules = Object.values(permisosPorRol || {}).flat()
       const expanded = new Set<string>()
 
       ids.forEach((id) => {
         const group = allModules.find((m: any) => m?.id === id && Array.isArray(m?.submodulos) && m.submodulos.length > 0)
         if (group) {
-          group.submodulos.forEach((s: any) => {
+          group.submodulos?.forEach((s: any) => {
             if (s?.id) expanded.add(s.id)
           })
           return

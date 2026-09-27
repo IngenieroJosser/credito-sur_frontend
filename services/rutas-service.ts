@@ -381,16 +381,24 @@ export interface EstadisticasRutas {
 
 
 
+/**
+ * Lo que devuelve `GET /routes/cobradores`, que NO es la fila del usuario.
+ *
+ * `getCobradores` compone el nombre y devuelve solo cuatro campos:
+ * `{ id, nombre, correo, telefono }`. Este tipo declaraba `nombres` y `apellidos`
+ * —que no llegan— y no declaraba `nombre`, que si: o sea que los dos unicos nombres
+ * que conocia eran los que nunca vienen.
+ *
+ * No manda `rutasAsignadas`, `clientesTotales` ni `capacidadMaxima`: la pantalla de
+ * asignacion las lee y por eso muestra 0, 0 y 120 en todos los cobradores. Si se
+ * quieren de verdad hay que calcularlas en el backend.
+ */
 export interface Cobrador {
-
   id: string;
-
-  nombres: string;
-
-  apellidos: string;
-
+  /** El nombre ya compuesto. */
+  nombre: string;
   correo: string;
-
+  telefono?: string | null;
 }
 
 

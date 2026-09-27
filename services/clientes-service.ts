@@ -66,13 +66,26 @@ export interface Cliente {
    */
   tendencia?: 'SUBE' | 'BAJA' | 'ESTABLE';
   ultimaVisita?: string;
+  /** El puntaje redondeado que calcula el listado (`clients.service.ts:647`). */
+  score?: number;
 
   /**
    * Las relaciones que trae SOLO el detalle, `GET /clients/:id`
    * (`clients.service.ts:153`, el `include` de `findOne`). El listado no las manda,
    * de ahi que todas vayan opcionales.
    */
-  archivos?: { url?: string; path?: string; ruta?: string }[];
+  archivos?: {
+    id?: string;
+    /** Columnas de `model Multimedia`. `url` es nulable; `ruta` siempre viene. */
+    url?: string | null;
+    ruta?: string;
+    /** No es columna; queda porque varias pantallas lo leen en una cadena `a || b`. */
+    path?: string;
+    tipoArchivo?: string;
+    tipoContenido?: string;
+    nombreOriginal?: string;
+    tamanoBytes?: number;
+  }[];
   /**
    * La asignacion activa, con la ruta. Solo viene la primera (`take: 1`).
    *

@@ -2587,7 +2587,7 @@ function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose:
 
   const [loading, setLoading] = useState(true)
 
-  const [clienteCompleto, setClienteCompleto] = useState<any>(null)
+  const [clienteCompleto, setClienteCompleto] = useState<Cliente | null>(null)
 
 
 
@@ -3038,7 +3038,7 @@ function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose:
 
                   <div className="grid grid-cols-2 gap-2">
 
-                    {(clienteCompleto.archivos as any[]).filter((a) => {
+                    {(clienteCompleto?.archivos || []).filter((a) => {
 
                       const url = String(a.url || a.path || a.ruta || '')
 
