@@ -110,7 +110,20 @@ export interface PagosResponse {
 export interface CrearPagoDto {
   clienteId: string;
   prestamoId: string;
-  cobradorId: string;
+  /**
+   * Opcional, igual que en el backend (`create-payment.dto.ts:26`).
+   *
+   * Estaba obligatorio, y el detalle de ruta lo manda desde
+   * `initialRuta.cobradorId`, que puede ser `undefined`: de ahi salia un `as any`
+   * sobre TODO el cuerpo del pago, que tapaba tambien el desajuste de `metodoPago`.
+   *
+   * No es que el backend lo ignore. `payments.service.ts:707` PARTE de lo que se le
+   * manda; lo pisa con el actor si quien paga es cobrador o supervisor (712, 764);
+   * si sigue vacio lo deriva de la asignacion activa de la ruta (783-784); y si ni
+   * asi lo resuelve, LANZA (787). Omitirlo solo es seguro cuando existe esa
+   * asignacion activa.
+   */
+  cobradorId?: string;
   fechaPago?: string;
   montoTotal: number;
   metodoPago?: MetodoPago;
@@ -179,7 +192,13 @@ export const pagosService = {
         const formData = new FormData();
         formData.append('prestamoId', payload.prestamoId);
         formData.append('clienteId', payload.clienteId);
-        formData.append('cobradorId', payload.cobradorId);
+        // Solo si viene, como los demas opcionales de este bloque. `FormData.append`
+        // no ignora `undefined`: lo convierte en la CADENA "undefined", y el backend
+        // la aceptaria (`@IsString() @IsOptional()`) para luego arrancar de ese valor
+        // como id de cobrador (`payments.service.ts:707`). Pasaba de verdad: un admin
+        // registrando un pago por TRANSFERENCIA desde el detalle de una ruta sin
+        // `cobradorId` entra por aqui.
+        if (payload.cobradorId) formData.append('cobradorId', payload.cobradorId);
         formData.append('montoTotal', payload.montoTotal.toString());
         formData.append('metodoPago', payload.metodoPago || '');
         formData.append('idempotencyKey', payload.idempotencyKey!);
@@ -240,7 +259,10 @@ export const pagosService = {
                 numeroPago: 'OFFLINE',
                 clienteId: payload.clienteId,
                 prestamoId: payload.prestamoId,
-                cobradorId: payload.cobradorId,
+                // El pago optimista de la cola: `Pago.cobradorId` es obligatorio y
+                // aqui puede no venir. Queda vacio en vez de `undefined` dentro de un
+                // campo que promete texto; el backend lo resuelve al sincronizar.
+                cobradorId: payload.cobradorId || '',
                 fechaPago: toBogotaDateTimeOffsetIso(new Date()),
                 montoTotal: payload.montoTotal,
                 metodoPago: payload.metodoPago || MetodoPago.EFECTIVO,

@@ -651,10 +651,19 @@ const RutaClientLoaded = ({
 
     const exportarRutaDiariaCSV = async () => {
       try {
-        await exportService.exportOperationalReport('excel', {
-          rutaId: initialRuta.id,
-          startDate: getBogotaDateKey(new Date()),
-        } as any);
+        // `exportOperationalReport` NO acepta `rutaId`: su tipo solo declara
+        // `period`, `startDate` y `endDate`, y solo reenvia esos tres. El `rutaId`
+        // que se le pasaba con `as any` se caia ahi mismo, asi que estos botones
+        // exportaban el reporte operativo COMPLETO, no esta ruta. Y si hubiera
+        // llegado tampoco habria servido: el DTO del backend llama a ese filtro
+        // `routeId`, no `rutaId`, y `whitelist: true` lo habria descartado.
+        //
+        // `exportRutaCobrador` es lo que corresponde: pega en
+        // `routes/:id/export/excel|pdf` ("Exportar ruta completa"), que ya existia
+        // en las dos variantes y no tenia ni un llamador. Ademas sus @Roles
+        // incluyen COBRADOR y SUPERVISOR, que `operational/export` no, asi que un
+        // supervisor en esta pantalla recibia 403.
+        await exportService.exportRutaCobrador('excel', initialRuta.id);
       } catch (e) {
         toast.error('No se pudo exportar el reporte de ruta a Excel');
         console.error('Error exportando ruta CSV:', e);
@@ -663,10 +672,8 @@ const RutaClientLoaded = ({
 
     const exportarRutaDiariaPDF = async () => {
       try {
-        await exportService.exportOperationalReport('pdf', {
-          rutaId: initialRuta.id,
-          startDate: getBogotaDateKey(new Date()),
-        } as any);
+        // Ver la nota del export a Excel de arriba.
+        await exportService.exportRutaCobrador('pdf', initialRuta.id);
       } catch (e) {
         toast.error('No se pudo exportar el reporte de ruta a PDF');
         console.error('Error exportando ruta PDF:', e);
@@ -2088,7 +2095,7 @@ const RutaClientLoaded = ({
                       Number(monto || 0),
                     ].join(':')
                   : undefined,
-              } as any);
+              });
 
               // Actualizacion optimista solo para pagos operativos de hoy.
               if (!esCierrePendiente) {

@@ -8,6 +8,7 @@ import {
   Loader2
 } from 'lucide-react'
 import { VisitaRuta } from '@/lib/types/cobranza'
+import { MetodoPago } from '@/types/enums'
 import { resolveCuotaNormalOperativa } from '@/lib/rutas-core'
 import { formatCOPInputValue, parseCOPInputToNumber, formatMilesCOP, getDisplayedCOPInteger, isSameDisplayedCOPAmount } from '@/lib/utils'
 import FieldLabel from '@/components/ui/FieldLabel'
@@ -23,7 +24,13 @@ interface PagoModalProps {
   onClose: () => void
   onConfirm: (
     monto: number,
-    metodo: 'EFECTIVO' | 'TRANSFERENCIA',
+    /**
+     * El enum, no una union literal repetida. Los dos valores son los mismos, pero
+     * `CrearPagoDto.metodoPago` pide `MetodoPago` y un literal no le vale (los enum
+     * de TypeScript son nominales): eso obligaba a castear el cuerpo del pago en las
+     * pantallas que usan este modal.
+     */
+    metodo: MetodoPago,
     comprobante: File | null,
     contexto: { tipoRegistro: 'PAGO' | 'ABONO'; cuotaNumeroEsperada?: number; montoCuotaEsperado: number; cuotaId?: string },
   ) => void | Promise<void>
@@ -42,7 +49,7 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm, montoCuota
     const saldo = Number((visita)?.saldoTotal || 0)
     return Math.max(0, Math.min(cuotaBase, saldo > 0 ? saldo : cuotaBase))
   })()
-  const [metodoPago, setMetodoPago] = useState<'EFECTIVO' | 'TRANSFERENCIA'>('EFECTIVO')
+  const [metodoPago, setMetodoPago] = useState<MetodoPago>(MetodoPago.EFECTIVO)
   const [montoPagoInput, setMontoPagoInput] = useState(
     tipo === 'PAGO' ? formatMilesCOP(montoCuotaEsperado) : ''
   )
@@ -58,7 +65,7 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm, montoCuota
   const hayDatosSinGuardar =
     isSubmitting ||
     comprobanteTransferencia !== null ||
-    metodoPago !== 'EFECTIVO' ||
+    metodoPago !== MetodoPago.EFECTIVO ||
     montoPagoInput !== montoInicial
 
   // Escape cierra, salvo mientras se esta enviando el pago.
@@ -172,9 +179,9 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm, montoCuota
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
-                    onClick={() => setMetodoPago('EFECTIVO')}
+                    onClick={() => setMetodoPago(MetodoPago.EFECTIVO)}
                     className={`py-3 rounded-xl border text-sm font-bold transition-colors ${
-                      metodoPago === 'EFECTIVO'
+                      metodoPago === MetodoPago.EFECTIVO
                         ? 'bg-[#08557f] text-white border-[#08557f]'
                         : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                     }`}
@@ -183,9 +190,9 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm, montoCuota
                   </button>
                   <button
                     type="button"
-                    onClick={() => setMetodoPago('TRANSFERENCIA')}
+                    onClick={() => setMetodoPago(MetodoPago.TRANSFERENCIA)}
                     className={`py-3 rounded-xl border text-sm font-bold transition-colors ${
-                      metodoPago === 'TRANSFERENCIA'
+                      metodoPago === MetodoPago.TRANSFERENCIA
                         ? 'bg-[#08557f] text-white border-[#08557f]'
                         : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                     }`}
@@ -235,7 +242,7 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm, montoCuota
                   isSubmitting ||
                   parseCOPInputToNumber(montoPagoInput) <= 0 ||
                   (tipo === 'ABONO' && parseCOPInputToNumber(montoPagoInput) < MONTO_MINIMO_ABONO_COP) ||
-                  (metodoPago === 'TRANSFERENCIA' && !comprobanteTransferencia)
+                  (metodoPago === MetodoPago.TRANSFERENCIA && !comprobanteTransferencia)
                 }
                 className="w-full bg-[#08557f] text-white font-bold py-4 rounded-xl shadow-lg shadow-[#08557f]/20 hover:bg-[#063a58] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
               >
@@ -247,7 +254,7 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm, montoCuota
                 {isSubmitting ? 'Procesando...' : (tipo === 'ABONO' ? 'Confirmar Abono' : 'Confirmar Pago')}
               </button>
 
-              {metodoPago === 'TRANSFERENCIA' && (
+              {metodoPago === MetodoPago.TRANSFERENCIA && (
                 <div className="pt-2">
                   <FieldLabel required>Comprobante</FieldLabel>
                   <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4">
