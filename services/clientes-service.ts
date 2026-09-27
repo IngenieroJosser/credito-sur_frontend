@@ -46,6 +46,18 @@ export interface Cliente {
   ultimoPago?: string;
   rutaId?: string;
   categoriaId?: string;
+  /**
+   * Version para el control de concurrencia optimista.
+   *
+   * La cadena completa existe y funciona: la columna es `Cliente.version Int
+   * @default(1)` en Prisma, `CreateClientDto` y `UpdateClientDto` la declaran, y
+   * `ClientsService` compara la version que manda la pantalla contra la de la base
+   * para rechazar una edicion sobre datos desactualizados en vez de sobrescribir.
+   *
+   * Lo unico que faltaba era declararla aqui: la pantalla la leia y la escribia con
+   * `as any`, asi que la funcion estaba escondida detras de un cast.
+   */
+  version?: number;
 }
 
 export interface CrearClienteDto {
@@ -90,6 +102,8 @@ export interface CrearClienteDto {
    * nadie se entere.
    */
   categoriaId?: string;
+  /** Version para el control de concurrencia optimista. Ver la nota en `Cliente`. */
+  version?: number;
   archivos?: {
     tipoContenido: string;
     tipoArchivo: string;
@@ -118,6 +132,8 @@ export interface ActualizarClienteDto {
   rutaId?: string;
   /** Igual que en `CrearClienteDto`: el backend lo descarta en silencio. Ver la nota de alla. */
   categoriaId?: string;
+  /** Version para el control de concurrencia optimista. Ver la nota en `Cliente`. */
+  version?: number;
   observaciones?: string;
 }
 

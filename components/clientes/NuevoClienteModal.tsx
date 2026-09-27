@@ -17,6 +17,24 @@ import { UploadResponse } from '@/services/upload-service';
 
 interface NuevoClienteModalProps {
   onClose: () => void;
+  /**
+   * PENDIENTE DE DECISION: este tipo promete mas de lo que el modal entrega.
+   *
+   * Lo que se pasa es el formulario mezclado con lo que devolvio el servidor, y sin
+   * conexion el servidor no devuelve nada (`clientes-service.actualizar` devuelve
+   * `| null`). O sea que sin red el objeto no es un `Cliente` completo: puede no
+   * tener `id`.
+   *
+   * Se probo declararlo como `Partial<Cliente> & { id?: string }`, que es la verdad,
+   * y tsc destapo que los CUATRO consumidores lo meten en una lista de `Cliente` y
+   * leen `.id`: `ClientesFeature`, `CreacionCreditoArticulo`, `CreacionPrestamo` y la
+   * edicion. Arreglarlo bien exige decidir que deben hacer esas pantallas cuando la
+   * creacion quedo en la cola —no mostrarlo, mostrarlo marcado como pendiente, u
+   * otra cosa— y eso es decision de producto, no de tipos.
+   *
+   * Mientras se decide, el tipo se queda como estaba y las dos llamadas mantienen su
+   * cast. Queda escrito para que no se tome por un descuido.
+   */
   onClienteCreado: (cliente: Cliente) => void;
   cliente?: Cliente | null;
   esEdicion?: boolean;
@@ -177,7 +195,9 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
           nombreOriginal: (upload).originalName || upload.filename,
           nombreAlmacenamiento: (upload).publicId || upload.filename,
           ruta: (upload).publicId || upload.filename,
-          url: (upload as any).path || (upload as any).url,
+          // El backend devuelve `path: result.url`, asi que `path` ES la url.
+          // `UploadResponse` no tiene campo `url`: ese respaldo nunca se alcanzaba.
+          url: upload.path,
           tamanoBytes: upload.size,
         });
       } else if (esEdicion && archivosOriginales[map.key as keyof typeof archivosOriginales]) {
@@ -220,8 +240,8 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
     // Control de conflictos: al editar, mandamos la versión que cargamos. Si el
     // servidor tiene una más nueva (otro editó mientras tanto / edición offline
     // desincronizada), el backend rechaza como conflicto en vez de sobrescribir.
-    if (esEdicion && cliente && (cliente as any).version != null) {
-      (payload as any).version = (cliente as any).version;
+    if (esEdicion && cliente && cliente.version != null) {
+      payload.version = cliente.version;
     }
 
     try {
@@ -245,7 +265,7 @@ export default function NuevoClienteModal({ onClose, onClienteCreado, cliente = 
       onClienteCreado({
         ...formulario,
         ...(resultado ?? {}),
-      } as any);
+      } as Cliente);
       onClose();
 
     } catch (error) {
