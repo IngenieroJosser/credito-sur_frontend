@@ -82,6 +82,16 @@ const NuevaRutaPage = () => {
     e.preventDefault();
     setLoading(true);
     try {
+      // OJO: esta llamada NO puede funcionar, y el `as any` de abajo es lo que lo
+      // tapa. `CreateRouteDto` del backend exige `zona` con `@IsNotEmpty()`
+      // (`create-route.dto.ts:28-30`) y esta pantalla no tiene campo `zona`, asi que
+      // el ValidationPipe global responde 400 y siempre se ve "Error al crear la
+      // ruta". Ademas `frecuenciaVisita` y `estado` no existen en el DTO: con
+      // `whitelist: true` se descartan sin avisar.
+      //
+      // La creacion que SI funciona es el modal de `RutasPageView.tsx:602`, que llama
+      // a `routesService.create` con su `zona`. Esta pagina la duplica y no esta
+      // enlazada desde ningun sitio. Queda para decidir: completarla o quitarla.
       await rutasService.crearRuta({
         nombre: formData.nombre,
         codigo: formData.codigo,

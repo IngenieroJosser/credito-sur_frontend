@@ -302,7 +302,7 @@ function VisitaCardContent({
             </span>
           )}
 
-          {(((visita as any)?.enProrrogaHistorico) || (visita as any)?.enProrroga || !!(visita as any)?.fechaProrroga) && (
+          {(visita?.enProrrogaHistorico || visita?.enProrroga || !!visita?.fechaProrroga) && (
             <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md border uppercase bg-amber-50 text-amber-700 border-amber-200">
               prórroga
             </span>
@@ -408,11 +408,11 @@ function VisitaCardContent({
       })()}
 
       {/* Fila extra: monto pagado hoy (visible en historial) */}
-      {(visita as any).recaudadoDelDia > 0 && (
+      {(visita.recaudadoDelDia ?? 0) > 0 && (
         <div className="mt-1 flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-50 border border-emerald-100 w-fit">
           <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" />
           <span className="text-[9px] font-black text-emerald-700 uppercase tracking-wide">
-            Pagó hoy: {formatMontoCompleto((visita as any).recaudadoDelDia)}
+            Pagó hoy: {formatMontoCompleto(visita.recaudadoDelDia ?? 0)}
           </span>
         </div>
       )}

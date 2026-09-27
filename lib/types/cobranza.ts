@@ -121,6 +121,13 @@ export interface VisitaRuta {
   riesgoHistoricoUiSource?: string
   /** Lo marca el frontend al enriquecer el historial: hubo mora ese dia. */
   enMoraHistorico?: boolean
+  /**
+   * El gemelo del anterior, que faltaba: hubo prorroga vigente ese dia. Lo calcula
+   * `enrich-ruta-historial-riesgo.ts:170-221` a partir de
+   * `cuota.fechaVencimientoProrroga`, y `CobradorElements` lo lee para pintar el
+   * distintivo de prorroga.
+   */
+  enProrrogaHistorico?: boolean
   notasVisita?: string | null // Nota/justificación registrada al marcar ausencia
   proximaVisita: string
   targetVencimiento?: string
