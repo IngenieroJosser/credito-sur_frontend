@@ -5,6 +5,20 @@ import { getPagoBogotaDateKey, shouldExcludeVisitaFromOperationalMeta } from '@/
 import { mapNivelRiesgo, type VisitaParcial, type VisitaRuta } from '@/lib/types/cobranza'
 import { resolveRiesgoObligacion } from '@/lib/rutas/riesgo-obligacion'
 import type { Cliente, Pago, PagoParcial, Prestamo, PrestamoParcial } from '@/types/domain'
+import type { DailyVisitsResponse } from '@/services/rutas-service'
+
+/** Las cifras del resumen del dia, tal como las nombra el backend. */
+type ResumenDelDia = DailyVisitsResponse['resumen']
+
+/**
+ * La respuesta de `daily-visits` como de verdad le llega a este archivo.
+ *
+ * Todo opcional, incluso por dentro de `resumen`: las lecturas van con guardas y
+ * arriba puede haber quedado un `null` si la peticion fallo.
+ */
+type RespuestaVisitasDelDia = Omit<Partial<DailyVisitsResponse>, 'resumen'> & {
+  resumen?: Partial<ResumenDelDia>
+}
 
 type Resumen = {
   recaudo: number
@@ -351,7 +365,15 @@ export const applyPagosDelDiaToHistorialVisitas = (params: {
 //   del día devuelta por el backend, para que el historial refleje correctamente el recaudo.
 export const buildHistorialDiaFromBackend = (params: {
   fechaClave: string
-  visitasResp: any
+  /**
+   * Lo que devuelve `GET /routes/:id/daily-visits`.
+   *
+   * Va como `Partial` a proposito: esta funcion no exige la respuesta completa. Lee
+   * `visitas`, `obligaciones` y `resumen` con guardas (`?.` y `Array.isArray`), y
+   * tiene que seguir funcionando cuando la peticion fallo y arriba quedo un `null`,
+   * que es lo que hace VistaCobrador.
+   */
+  visitasResp: RespuestaVisitasDelDia | null
   saldo: any
   pagosDelDia: any[]
 }) => {
@@ -435,15 +457,15 @@ export const buildHistorialDiaFromBackend = (params: {
     return 'DIA'
   }
 
-  const obligacionesRaw = Array.isArray((visitasResp as any)?.obligaciones)
-    ? (visitasResp as any).obligaciones
+  const obligacionesRaw = Array.isArray(visitasResp?.obligaciones)
+    ? visitasResp.obligaciones
     : []
 
   // LOGS DE AUDITORÍA: Ver qué devuelve el backend
   if (process.env.NODE_ENV !== 'production') {
     logger.log(`[buildHistorialDiaFromBackend] Fecha: ${fechaClave}`)
     logger.log(`[buildHistorialDiaFromBackend] Obligaciones: ${obligacionesRaw.length}`)
-    logger.log(`[buildHistorialDiaFromBackend] Visitas: ${Array.isArray((visitasResp as any)?.visitas) ? (visitasResp as any).visitas.length : 0}`)
+    logger.log(`[buildHistorialDiaFromBackend] Visitas: ${Array.isArray(visitasResp?.visitas) ? visitasResp.visitas.length : 0}`)
     console.table((pagosOperativos || []).map((p: Pago) => ({
       tipo: 'PAGO_HISTORIAL',
       id: p.id,
@@ -621,7 +643,7 @@ export const buildHistorialDiaFromBackend = (params: {
   //    Para historial, la mayoría de campos se debe respetar del backend si viene.
   const visitas: VisitaRuta[] = visitasConRiesgo.length > 0
     ? visitasConRiesgo
-    : ((visitasResp as any)?.visitas || []).flatMap((item: any, index: number) => {
+    : (visitasResp?.visitas || []).flatMap((item: any, index: number) => {
     const cliente: Partial<Cliente> = item?.cliente || {}
     const prestamos = Array.isArray(item?.prestamos) ? item.prestamos : []
 
@@ -1011,8 +1033,11 @@ export const buildHistorialDiaFromBackend = (params: {
   // Así que se toma el mayor de los dos por cada cifra: nunca se muestra menos
   // que lo que el backend reportó, y nunca se cuenta dos veces un pago que él
   // ya había contado.
-  const resumenBackend = ((visitasResp as any)?.resumen || {}) as any
-  const mayorQueElBackend = (clave: string, local: number) =>
+  const resumenBackend: Partial<ResumenDelDia> = visitasResp?.resumen ?? {}
+  // `clave` se tipa con las claves reales del resumen: si alguna se escribe mal,
+  // tsc lo dice, en vez de que `resumenBackend[clave]` de `undefined` en silencio y
+  // el maximo se quede con el valor local sin que nadie lo note.
+  const mayorQueElBackend = (clave: keyof ResumenDelDia, local: number) =>
     Math.max(Number(resumenBackend?.[clave] ?? 0), Number(local || 0))
 
   const regularizadoLocal = pagosRegularizados.reduce(
