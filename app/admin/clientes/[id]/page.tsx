@@ -5,7 +5,7 @@ import { SkeletonDetalle } from '@/components/ui/Skeleton'
 import React, { useEffect, useState } from 'react';
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { useParams } from 'next/navigation';
-import { ChevronLeft, BarChart3, Smartphone, DollarSign, Loader2 } from 'lucide-react';
+import { ChevronLeft, BarChart3, Smartphone, DollarSign } from 'lucide-react';
 import ClienteDetalleElegante, { Cliente, Prestamo, Pago, Comentario } from '@/components/cliente/DetalleCliente';
 import Link from 'next/link';
 import { clientesService } from '@/services/clientes-service';

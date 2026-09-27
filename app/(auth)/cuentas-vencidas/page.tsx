@@ -22,9 +22,8 @@ import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { usePageFocusRefresh } from '@/hooks/usePageFocusRefresh'
 import {
   Archive, Search, Clock, LayoutGrid, List, Calendar,
-  AlertCircle as AlertCircleIcon, CheckCircle, XCircle,
-  Scale, FileText, RefreshCw, DollarSign, Timer,
-  TrendingDown, Users, Gavel, ArrowRight, CalendarX
+  AlertCircle as AlertCircleIcon, RefreshCw, DollarSign,
+  TrendingDown, Gavel, CalendarX
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
@@ -39,8 +38,7 @@ import {
   vencidasService,
   type CuentaVencida,
   type NivelRiesgo,
-  type DecisionCastigo,
-  type DecisionCastigoRequest
+  type DecisionCastigo
 } from '@/services/vencidas-service'
 import { exportService } from '@/services/export-service'
 import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'

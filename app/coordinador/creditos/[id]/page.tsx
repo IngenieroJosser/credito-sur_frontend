@@ -1,7 +1,6 @@
 'use client'
 
 import { SkeletonDetalle } from '@/components/ui/Skeleton'
-import { logger } from '@/lib/logger'
 
 import { useState, useEffect, use, useCallback } from 'react';
 import {

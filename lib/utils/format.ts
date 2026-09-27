@@ -27,7 +27,7 @@ export const formatShortDateTime = (date: any, fallback: string = 'Nunca'): stri
     });
 
     return `${fecha}, ${hora}`;
-  } catch (error) {
+  } catch {
     return fallback;
   }
 };
@@ -62,7 +62,7 @@ export const formatShortDate = (date: any, fallback: string = '—'): string => 
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const year = d.getFullYear();
     return `${day}/${month}/${year}`;
-  } catch (error) {
+  } catch {
     return fallback;
   }
 };

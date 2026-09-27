@@ -33,7 +33,6 @@ import { apiRequest } from '@/lib/api/api'
 import { formatErrorForComponent } from '@/lib/api/api'
 import { exportService } from '@/services/export-service'
 import { toast } from 'sonner'
-import { resolveRiesgoObligacion } from '@/lib/rutas/riesgo-obligacion'
 import { SkeletonTarjetas } from '@/components/ui/Skeleton'
 import { estadoDeError, mensajeDeError } from '@/lib/mensaje-de-error'
 

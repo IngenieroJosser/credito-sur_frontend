@@ -12,7 +12,7 @@ export const PlantillasCard = () => {
     try {
       await importacionesService.descargarPlantillaClientesCreditos();
       toast.success('Plantilla de clientes descargada');
-    } catch (error) {
+    } catch {
       toast.error('Error al descargar la plantilla de clientes');
     } finally {
       setLoadingClientes(false);
@@ -24,7 +24,7 @@ export const PlantillasCard = () => {
     try {
       await importacionesService.descargarPlantillaInventario();
       toast.success('Plantilla de inventario descargada');
-    } catch (error) {
+    } catch {
       toast.error('Error al descargar la plantilla de inventario');
     } finally {
       setLoadingInventario(false);

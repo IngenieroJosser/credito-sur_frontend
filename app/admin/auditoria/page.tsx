@@ -10,9 +10,7 @@ import {
   User, 
   AlertCircle, 
   Calendar, 
-  Eye, 
-  ChevronLeft, 
-  ChevronRight,
+  Eye,
   X,
   Laptop
 } from 'lucide-react'
@@ -94,7 +92,7 @@ const AuditoriaSistemaPage = () => {
         rutaNombre: r.entidad?.toLowerCase() === 'ruta' ? (rutaMap.get(r.entidadId) || '') : ''
       }))
       setLogs(items)
-    } catch (e) {
+    } catch {
       setError('No se pudo cargar auditoria')
     } finally {
       setLoading(false)
@@ -113,7 +111,7 @@ const AuditoriaSistemaPage = () => {
     try {
       await exportService.exportAudit('excel')
       toast.success('Log de auditoría Excel descargado')
-    } catch (e) {
+    } catch {
       toast.error('Error al exportar log de auditoría')
     }
   }
@@ -121,7 +119,7 @@ const AuditoriaSistemaPage = () => {
     try {
       await exportService.exportAudit('pdf')
       toast.success('Log de auditoría PDF descargado')
-    } catch (e) {
+    } catch {
       toast.error('Error al exportar log de auditoría')
     }
   }

@@ -62,7 +62,7 @@ export default function PushNotificationManager() {
       
       // Mantener animación por 2 segundos
       setTimeout(() => setShowAnimation(false), 2000);
-    } catch (error) {
+    } catch {
       setMessage({ type: 'error', text: 'Error al activar notificaciones' });
       setShowAnimation(false);
     } finally {
@@ -87,7 +87,7 @@ export default function PushNotificationManager() {
       
       setIsSubscribed(false);
       setMessage({ type: 'success', text: 'Notificaciones desactivadas' });
-    } catch (error) {
+    } catch {
       setMessage({ type: 'error', text: 'Error al desactivar notificaciones' });
     } finally {
       setLoading(false);
@@ -102,7 +102,7 @@ export default function PushNotificationManager() {
       // El backend dice a cuántos dispositivos llegó: se muestra eso en vez de
       // un "enviada" que salía aunque no hubiera ningún dispositivo registrado.
       setMessage(mensajeResultadoPrueba(await sendTestNotification()));
-    } catch (error) {
+    } catch {
       setMessage(mensajeResultadoPrueba(null));
     } finally {
       setLoading(false);

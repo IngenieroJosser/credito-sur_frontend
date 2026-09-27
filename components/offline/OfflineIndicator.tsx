@@ -3,7 +3,6 @@
 import { useMemo, useState, useEffect } from 'react';
 import {
   WifiOff,
-  Wifi,
   RefreshCw,
   CloudUpload,
   AlertTriangle,
@@ -11,7 +10,6 @@ import {
   X,
   ChevronUp,
   ChevronDown,
-  Download,
   Clock,
   Trash2,
 } from 'lucide-react';

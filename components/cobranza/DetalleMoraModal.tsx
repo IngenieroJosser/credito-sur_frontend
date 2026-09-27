@@ -11,9 +11,8 @@
 
 import React from 'react'
 import {
-  X, ShieldAlert, User, MapPin, Phone, MessageSquare,
-  ChevronRight, Banknote, DollarSign, Clock,
-  Calendar, AlertTriangle, CheckCircle
+  X, ShieldAlert, MapPin, Phone,
+  ChevronRight, Banknote, DollarSign, Clock
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import { createPortal } from 'react-dom'

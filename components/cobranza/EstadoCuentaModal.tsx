@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import { X, Calendar, Clock, ShoppingBag, History, Loader2 } from 'lucide-react'
+import { X, Calendar, Clock, ShoppingBag, History } from 'lucide-react'
 import { VisitaRuta } from '@/lib/types/cobranza'
 import { formatMilesCOP } from '@/lib/utils'
 import { Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
@@ -10,7 +10,7 @@ import { pagosService } from '@/services/pagos-service'
 import { getLoanAmounts } from '@/lib/loan-calculations'
 import { normalizeDateKey, resolveNextPagoFromPrestamo } from '@/lib/rutas-core'
 import { Skeleton, SkeletonTabla } from '@/components/ui/Skeleton'
-import type { Pago, Prestamo } from '@/types/domain'
+import type { Pago } from '@/types/domain'
 import Tooltip from '@/components/ui/Tooltip'
 import type { PrestamoDelListado } from '@/types/domain'
 import { useModalDialog } from '@/hooks/use-modal-dialog'
@@ -70,7 +70,7 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
         if (visita.prestamoId) {
           try {
             detail = await prestamosService.obtenerPrestamoPorId(visita.prestamoId)
-          } catch (e) {
+          } catch {
             console.warn("No se pudo obtener prestamo por ID directo...")
           }
         }
@@ -118,7 +118,7 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
         } else {
           setError("No se encontró información del crédito.")
         }
-      } catch (error) {
+      } catch {
         setError("Error de comunicación.")
       } finally {
         setLoading(false)

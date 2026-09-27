@@ -10,23 +10,18 @@ import {
   Info, 
   AlertTriangle, 
   User, 
-  Phone, 
   CreditCard, 
   Receipt, 
   DollarSign,
-  Briefcase,
   Calendar,
   Layers,
   FileText,
 } from 'lucide-react'
 import { Portal } from '@/components/dashboards/shared/CobradorElements'
 import { formatCOPInputValue, formatCurrency, formatLoanTerm, formatMilesCOP, parseCOPInputToNumber, resolveMediaUrl } from '@/lib/utils'
-import { getBogotaDateKey, normalizeDateKey } from '@/lib/rutas-core'
-import { notificacionesService } from '@/services/notificaciones-service'
-import { prestamosService } from '@/services/prestamos-service'
+import { normalizeDateKey } from '@/lib/rutas-core'
 import { aprobacionesService } from '@/services/aprobaciones-service'
 import { articulosService } from '@/services/articulos-service'
-import ConfirmApproveModal from '@/components/ui/ConfirmApproveModal'
 import ConfirmRejectModal from '@/components/ui/ConfirmRejectModal'
 import PagoDetalleModal from '@/components/dashboards/shared/PagoDetalleModal'
 import CierreRutaNotifModal from '@/components/dashboards/shared/CierreRutaNotifModal'
@@ -1485,7 +1480,7 @@ export default function NotificacionDetalleModal({
                               const base = new Date(`${key}T12:00:00-05:00`)
                               return base.toLocaleDateString('es-CO')
                             }
-                          } catch (e) {
+                          } catch {
                             return String(dateStr);
                           }
                           // Si es un string válido (ej. "01/04/2026") que date no pudo entender, devuélvelo tal cual.

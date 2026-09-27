@@ -36,7 +36,6 @@ import { useState, useEffect, useMemo } from 'react'
 import {
   Package,
   Search,
-  Filter,
   Plus,
   Download,
   Trash2,
@@ -47,10 +46,9 @@ import {
   Eye,
   Pencil,
   XCircle,
-  Bell
-, Loader2} from 'lucide-react'
+ Loader2} from 'lucide-react'
 import { formatCOPInputValue, formatCurrency, formatMilesCOP, parseCOPInputToNumber } from '@/lib/utils'
-import { inventarioService, Producto as BackendProducto, EstadisticasInventario } from '@/services/inventario-service'
+import { inventarioService, EstadisticasInventario } from '@/services/inventario-service'
 import { useNotification } from '@/components/providers/NotificationProvider'
 import { useNotificaciones } from '@/components/providers/NotificacionesProvider'
 import { categoriasService, Categoria } from '@/services/categorias-service'

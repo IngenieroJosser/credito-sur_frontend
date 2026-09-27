@@ -17,7 +17,7 @@ import {
   User,
   Archive
 } from 'lucide-react'
-import { formatCurrency, cn } from '@/lib/utils'
+import { formatCurrency } from '@/lib/utils'
 import { prestamosService } from '@/services/prestamos-service'
 import ArchivarCuentaModal from '@/components/prestamos/ArchivarCuentaModal'
 

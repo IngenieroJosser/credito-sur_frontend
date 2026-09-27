@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
-import { BarChart3, Calendar, DollarSign, FilePlus, MapPin, TrendingUp, Users, Eye } from 'lucide-react'
+import { BarChart3, DollarSign, FilePlus, MapPin, TrendingUp, Users, Eye } from 'lucide-react'
 import { cn, formatCurrency } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
 import { TimeFilter, TimeFilterPeriod } from '@/components/ui/TimeFilter'

@@ -20,7 +20,6 @@ import {
 import { dashboardService } from '@/services/dashboard-coordinador-service';
 import { prestamosService } from '@/services/prestamos-service';
 import { useRealtimeData } from '@/hooks/useRealtimeData';
-import { logger } from '@/lib/logger';
 
 interface UserData {
   id: string;

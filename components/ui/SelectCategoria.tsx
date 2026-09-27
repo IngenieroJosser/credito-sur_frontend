@@ -77,7 +77,7 @@ export default function SelectCategoria({
       setNewCatName('');
       setShowCreate(false);
       showNotification('success', 'Categoría creada', 'Éxito');
-    } catch (error) {
+    } catch {
       showNotification('error', 'Error al crear categoría', 'Error');
     } finally {
       setCreating(false);

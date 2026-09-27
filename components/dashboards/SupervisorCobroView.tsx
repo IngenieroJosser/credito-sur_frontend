@@ -24,10 +24,8 @@ import { mapWithConcurrency, memoizePromiseByKey } from '@/lib/async-utils'
 import { mapNivelRiesgo } from '@/lib/types/cobranza'
 import { ordenarVisitasRutaActual } from '@/lib/rutas/ordenar-visitas-ruta'
 import { resolveVisitaBaseRegularizacion } from '@/lib/rutas/resolve-visita-base-regularizacion'
-import { formatMilesCOP } from '@/lib/utils'
 import { buildRutaHoyOperativa } from '@/lib/rutas/build-ruta-hoy-operativa'
 import { formatRoleLabel } from '@/lib/display-labels'
-import { computeDiasMoraFromCuotas } from '@/lib/rutas-core'
 import type { CuotaOperativa, VisitaParcial } from '@/lib/types/cobranza'
 
 import {
@@ -36,7 +34,6 @@ import {
   KeyboardSensor,
   useSensor,
   useSensors,
-  DragEndEvent,
   DragStartEvent,
   DragOverlay,
 } from '@dnd-kit/core'
@@ -50,20 +47,16 @@ import {
   MapPin,
   RefreshCw,
   Wallet,
-  CheckCircle2,
   History,
   UserPlus,
-  Receipt,
   DollarSign,
   ChevronDown,
-  X,
   CreditCard,
   GripVertical,
   Calendar,
   Search,
   FileText as FileTextIcon,
   User,
-  Target,
   ReceiptText,
 } from 'lucide-react'
 
@@ -71,7 +64,7 @@ import { RolUsuario, MetodoPago } from '@/types/enums'
 import { EstadoVisita, PeriodoRuta, VisitaRuta } from '@/lib/types/cobranza'
 
 import { obtenerPerfil } from '@/services/autenticacion-service'
-import { rutasService, Ruta } from '@/services/rutas-service'
+import { rutasService } from '@/services/rutas-service'
 
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal'
 import ClienteInfoModal from '@/components/cobranza/ClienteInfoModal'
@@ -83,7 +76,6 @@ import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
 import { CierrePendienteBanner } from '@/components/rutas/CierrePendienteBanner'
 import { CierrePendienteDetalleModal } from '@/components/rutas/CierrePendienteDetalleModal'
 import { useCierrePendienteDetalle } from '@/hooks/useCierrePendienteDetalle'
-import type { CierrePendienteDetalle } from '@/types/rutas/cierre-pendiente'
 
 import ConfirmModal from '@/components/ui/ConfirmModal'
 
@@ -95,7 +87,6 @@ import GastoModal from '@/components/dashboards/shared/GastoModal'
 import BaseModal from '@/components/dashboards/shared/BaseModal'
 
 
-import DetalleMoraModal from '@/components/cobranza/DetalleMoraModal'
 
 
 import FloatingActionMenu, { FabAction } from '@/components/dashboards/shared/FloatingActionMenu'
@@ -126,8 +117,6 @@ import { useNotificaciones } from '@/components/providers/NotificacionesProvider
 
 import {
   buildRegularizedPaymentTarget,
-  computeMontoExigibleHastaHoyFromCuotas,
-  computeMontoNominalHastaHoyFromCuotas,
   computeRutaHoyUiStatsFromVisitas,
   resolveRutaHoyKpiStats,
   esDomingoBogota,
@@ -139,7 +128,6 @@ import {
   normalizeDateKey,
   resolveFechaEfectivaCuota,
   shouldExcludeVisitaFromOperationalMeta,
-  resolveProximaCuotaFromPrestamo,
   resolveCuotaProgressFromPrestamo,
   resolveCuotaNormalOperativa,
   resolveCobradorIdForRouteAction,

@@ -16,8 +16,7 @@ import React, { useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
   X, AlertCircle, DollarSign, Save, Ban, Clock,
-  CalendarClock, Check, Loader2, Scale, Info,
-  ChevronRight
+  CalendarClock, Check, Loader2, Scale, Info
 } from 'lucide-react'
 import { formatCurrency, cn, formatCOPDecimalTypingInputValue, formatCOPDecimalBlurInputValue, parseCOPDecimalInputToNumber } from '@/lib/utils'
 import Tooltip from '@/components/ui/Tooltip'

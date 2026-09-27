@@ -1,18 +1,9 @@
 // ... (imports remain the same, ensure all icons are imported)
 import React from 'react';
 import { 
-  BarChart3, 
   TrendingUp, 
-  Users, 
-  Calendar, 
-  ArrowRight, 
-  DollarSign, 
-  X,
-  Clock,
-  Wallet,
-  Receipt,
-  ArrowDownLeft,
-  ArrowUpRight
+  Calendar,
+  ArrowDownLeft
 } from 'lucide-react';
 import { formatCurrency, cn } from '@/lib/utils';
 import { Modal } from '@/components/ui/Modal';

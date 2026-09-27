@@ -89,7 +89,7 @@ export default function MediaUpload({
       // Quitar brillo de éxito luego
       setTimeout(() => setShowSuccess(false), 2000);
 
-    } catch (error) {
+    } catch {
       setStatus('error');
       setErrorMessage('Error al subir el archivo. Intente nuevamente.');
       setShowErrorModal(true);

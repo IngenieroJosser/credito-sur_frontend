@@ -8,7 +8,6 @@ import Portal, { MODAL_Z_INDEX } from '@/components/ui/Portal'
 import { clientesService, CrearClienteDto, Cliente } from '@/services/clientes-service'
 import MediaUpload from '@/components/ui/MediaUpload'
 import FieldLabel from '@/components/ui/FieldLabel'
-import { enqueueClienteUpdate } from '@/lib/offline/offlineQueue'
 import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 
 import { resolveMediaUrl } from '@/lib/utils'

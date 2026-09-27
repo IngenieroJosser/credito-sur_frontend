@@ -126,7 +126,7 @@ export const apiRequest = async <T>(
           const { logSyncActivity } = await import('@/lib/offline/offlineQueue');
           const description = `${method.toUpperCase()} ${url.split('?')[0]}`;
           logSyncActivity(description);
-        } catch (e) {
+        } catch {
           // Ignorar si falla el log
         }
       }

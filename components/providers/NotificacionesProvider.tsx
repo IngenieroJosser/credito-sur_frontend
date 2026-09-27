@@ -175,7 +175,7 @@ export function NotificacionesProvider({ children }: { children: React.ReactNode
         }
 
         window.dispatchEvent(new Event('userUpdated'));
-      } catch (e) {
+      } catch {
         // No interrumpir la app si falla el refresh; el cambio se aplicará en el próximo login.
       }
     })

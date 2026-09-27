@@ -9,29 +9,22 @@ import {
   AlertCircle,
   Calendar,
   Eye,
-  Map,
-  Plus,
   RefreshCw,
   DollarSign,
   CreditCard,
-  UserPlus,
-  X,
   TrendingDown,
   TrendingUp,
-  ClipboardList,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { ExportButton } from '@/components/ui/ExportButton'
 import { TimeFilter, type TimeFilterPeriod } from '@/components/ui/TimeFilter'
 import { formatCurrency } from '@/lib/utils'
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal'
-import { Sparkline } from '@/components/ui/PremiumCharts'
 import { TransactionalHighDetailChart } from '@/components/ui/TransactionalHighDetailChart'
 import { dashboardService, type DashboardData } from '@/services/dashboard-coordinador-service'
 import { formatErrorForComponent } from '@/lib/api/api'
 
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
-import FloatingActionMenu, { FabAction } from '@/components/dashboards/shared/FloatingActionMenu'
 import { prestamosService } from '@/services/prestamos-service'
 import { exportService } from '@/services/export-service'
 import { toast } from 'sonner'

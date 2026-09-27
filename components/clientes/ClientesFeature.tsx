@@ -3,7 +3,7 @@ import { estadoDeError } from '@/lib/mensaje-de-error'
 
 
 import Paginador from '@/components/ui/Paginador'
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { clientesService, Cliente } from '@/services/clientes-service';
 import { ClienteAdmin } from '@/lib/clientes-data';
@@ -25,9 +25,7 @@ import {
   AlertTriangle,
   Trash2,
   Calendar,
-  Clock,
-  ChevronLeft,
-  ChevronRight
+  Clock
 } from 'lucide-react';
 import { formatCurrency, cn } from '@/lib/utils';
 import { Modal } from '@/components/ui/Modal';

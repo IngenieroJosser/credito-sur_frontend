@@ -129,7 +129,7 @@ export default function CreditoDetallePage() {
                   try {
                     await exportService.exportContrato(id);
                     toast.success('Contrato descargado');
-                  } catch (e) {
+                  } catch {
                     toast.error('Error al descargar contrato');
                   }
                 }}

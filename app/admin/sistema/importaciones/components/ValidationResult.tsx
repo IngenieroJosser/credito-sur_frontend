@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AlertCircle, AlertTriangle, CheckCircle, ChevronLeft, ChevronRight, FileSpreadsheet, Table2 } from 'lucide-react';
-import { ResultadoValidacion, ErrorValidacion, AdvertenciaValidacion } from '@/types/importaciones';
+import { ResultadoValidacion } from '@/types/importaciones';
 import { formatCurrency } from '@/lib/utils';
 import ImpactoCajaPreview from './ImpactoCajaPreview';
 

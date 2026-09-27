@@ -23,8 +23,6 @@ import {
   X,
   CheckCircle2,
   Trash2,
-  ChevronLeft,
-  ChevronRight,
   Save,
   ArrowRightLeft,
   XCircle,
@@ -34,15 +32,11 @@ import { formatCurrency, cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 import { routesService } from '@/services/routes-service';
 import {
-  computeRutaHoyUiStatsFromVisitas,
   esDomingoBogota,
   getBogotaDateKey,
   getEstadoRevisionOperacion,
   isPrestamoOperativo,
   resolveFechaEfectivaCuota,
-  resolveRutaDailySummary,
-  shouldExcludeVisitaFromOperationalMeta,
-  shouldShowVisitaEnRutaHoy,
 } from '@/lib/rutas-core'
 import { buildRutaHoyOperativa } from '@/lib/rutas/build-ruta-hoy-operativa'
 import { rutasService } from '@/services/rutas-service';
@@ -472,7 +466,7 @@ export const RutasPageView = ({
           setCoordinadoresList(fetchedCoordinadores);
         }
         await fetchRutas();
-      } catch (error) { /* offline handled inside fetchRutas */ }
+      } catch { /* offline handled inside fetchRutas */ }
     };
     fetchLists();
   }, [fetchRutas]);
@@ -616,7 +610,7 @@ export const RutasPageView = ({
       // Refrescar la lista en el cliente para que la UI se actualice de inmediato
       try {
         await fetchRutas();
-      } catch (e) { /* Error refreshing routes */ }
+      } catch { /* Error refreshing routes */ }
     } catch (error) {
       // `mensajeDeError` ya une la lista de campos del ValidationPipe, asi que el
       // `Array.isArray(...)` de aqui sobraba.
@@ -632,10 +626,10 @@ export const RutasPageView = ({
       // Refrescar el estado local desde el backend
       try {
          await fetchRutas();
-      } catch (e) { /* Error al recargar las rutas */ }
+      } catch { /* Error al recargar las rutas */ }
 
       showNotification('success', 'Estado de la ruta actualizado', 'Éxito');
-    } catch (error) {
+    } catch {
       showNotification('error', 'No se pudo cambiar el estado', 'Error');
     }
   }
@@ -744,7 +738,7 @@ export const RutasPageView = ({
         // Se avisa solo en desarrollo, que es donde sirve.
         logger.warn('Fallo el refresco del listado de rutas', error)
       }
-    } catch (error) {
+    } catch {
       showNotification('error', 'No se pudo mover el cliente', 'Error');
     }
   }
@@ -760,7 +754,7 @@ export const RutasPageView = ({
         await loadClientesRuta(editingId);
       }
       await fetchRutas();
-    } catch (error) {
+    } catch {
       showNotification('error', 'No se pudo mover el crédito', 'Error');
     }
   }
@@ -793,7 +787,7 @@ export const RutasPageView = ({
         // Se avisa solo en desarrollo, que es donde sirve.
         logger.warn('Fallo el refresco del listado de rutas', error)
       }
-    } catch (error) {
+    } catch {
       showNotification('error', 'No se pudo asignar el cliente', 'Error');
     } finally {
       setAsignandoClienteId(null);

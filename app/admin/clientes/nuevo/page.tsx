@@ -136,7 +136,7 @@ const ClienteFormPage = () => {
           const destino = rolUsuario === 'COBRADOR' ? '/cobranzas' : '/admin/clientes'
 
           router.push(destino)
-        } catch (error) {
+        } catch {
           toast.error('Error al crear el cliente. Verifique los datos.')
         } finally {
           setIsSaving(false)

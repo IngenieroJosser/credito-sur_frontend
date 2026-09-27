@@ -48,17 +48,13 @@ import {
   Eye,
   Edit2,
   Plus,
-  Receipt,
   Zap,
   CreditCard,
   BarChart3,
   Clock,
   History,
-  CheckCircle2,
   X,
   AlertTriangle,
-  ChevronLeft,
-  ChevronRight,
   ArrowRightLeft,
   Search,
  Loader2,} from 'lucide-react'
@@ -78,9 +74,7 @@ import {
   type Caja as ApiCaja,
   type Transaccion as ApiTransaccion,
   type MovimientoLedger as ApiMovimientoLedger,
-  type ResumenFinanciero as ApiResumen,
   getHistorialCierres,
-  consolidarCaja,
   obtenerSaldoDisponibleRuta,
   type SaldoDisponibleRuta
 } from '@/services/contabilidad-service'
@@ -698,7 +692,7 @@ const ModuloContableContent = () => {
     try {
       await exportService.exportAccounting('excel')
       toast.success('Reporte contable Excel descargado')
-    } catch (e) {
+    } catch {
       toast.error('Error al exportar reporte contable')
     }
   }
@@ -707,7 +701,7 @@ const ModuloContableContent = () => {
     try {
       await exportService.exportAccounting('pdf')
       toast.success('Reporte contable PDF descargado')
-    } catch (e) {
+    } catch {
       toast.error('Error al exportar reporte contable')
     }
   }
@@ -755,7 +749,7 @@ const ModuloContableContent = () => {
         try {
           const rutasData = await rutasService.obtenerRutas({ limit: 100, activa: true });
           setRutasDisponibles(rutasData);
-        } catch (err) {
+        } catch {
           logger.warn('No se pudo cargar rutas (permiso insuficiente)');
         }
       }

@@ -3,9 +3,9 @@
 import { SkeletonDetalle } from '@/components/ui/Skeleton'
 
 import { use, useState, useEffect } from 'react';
-import { ChevronLeft, AlertCircle, Calendar, Phone, MapPin, User, ArrowRight, DollarSign } from 'lucide-react';
+import { ChevronLeft, AlertCircle, Calendar, Phone, MapPin, User } from 'lucide-react';
 import Link from 'next/link';
-import { formatCurrency, cn } from '@/lib/utils';
+import { formatCurrency } from '@/lib/utils';
 import { prestamosService } from '@/services/prestamos-service';
 
 interface CuentaMora {

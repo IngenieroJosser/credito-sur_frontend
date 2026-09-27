@@ -54,7 +54,7 @@ const ReportesCoordinador = () => {
     try {
       await exportReport({ period, routeId }, 'excel')
       toast.success('Reporte Excel exportado correctamente')
-    } catch (error) {
+    } catch {
       toast.error('Error al exportar el reporte en Excel')
     } finally {
       setExporting(false)
@@ -66,7 +66,7 @@ const ReportesCoordinador = () => {
     try {
       await exportReport({ period, routeId }, 'pdf')
       toast.success('Reporte PDF exportado correctamente')
-    } catch (error) {
+    } catch {
       toast.error('Error al exportar el reporte en PDF')
     } finally {
       setExporting(false)

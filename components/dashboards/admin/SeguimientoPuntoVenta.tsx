@@ -9,12 +9,10 @@ import {
   Users,
   CreditCard,
   Search,
-  RefreshCw,
   Eye,
   X,
   Calendar,
   DollarSign,
-  AlertCircle,
   CheckCircle2,
   Clock,
   Phone,
@@ -24,8 +22,6 @@ import {
   ArrowUpRight,
   Banknote,
   Filter,
-  Download,
-  Wifi,
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { getBogotaDateKey, getBogotaRangeByPeriod, normalizeDateKey } from '@/lib/rutas-core'

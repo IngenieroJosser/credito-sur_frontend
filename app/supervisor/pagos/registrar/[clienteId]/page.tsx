@@ -12,7 +12,6 @@ import {
   CheckCircle2,
   CreditCard,
   Package,
-  ShoppingBag,
   User,
   Wallet,
 } from 'lucide-react'

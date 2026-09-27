@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { RolUsuario } from '@/lib/types/autenticacion-type'
 
 export const useAuth = () => {
   const [user, setUser] = useState<any>(null)

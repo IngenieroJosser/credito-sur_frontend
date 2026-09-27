@@ -26,27 +26,14 @@ import { createPortal } from 'react-dom'
 import { 
   Shield,
   Bell,
-  CreditCard,
   Banknote,
   Users,
   AlertCircle,
-  User,
-  Settings,
-  Wallet,
   Menu,
   X,
-  LogOut,
-  Mail,
-  Phone,
-  Calendar,
-  MapPin,
-  ChevronDown,
-  Eye,
-  Home
+  ChevronDown
 } from 'lucide-react'
-import { Rol, obtenerModulos, getIconComponent, tieneAcceso } from '@/lib/permissions'
-import NotFoundPage from '../not-found'
-import { notificacionesService, type Notificacion } from '@/services/notificaciones-service'
+import { Rol, obtenerModulos, getIconComponent } from '@/lib/permissions'
 import UserDropdownMenu, { formatRoleName, getRoleColor, getRoleIcon } from '@/components/ui/UserDropdownMenu'
 import { useNotificaciones } from '@/components/providers/NotificacionesProvider';
 import { aprobacionesService } from '@/services/aprobaciones-service';

@@ -19,12 +19,7 @@ import {
   CheckCircle2, 
   Clock,
   ChevronLeft,
-  ChevronRight,
-  Check,
-  X,
-  Eye,
-  AlertTriangle,
-  Info
+  Eye
 } from 'lucide-react'
 import FiltroRuta from '@/components/filtros/FiltroRuta'
 import { notificacionesService, type Notificacion } from '@/services/notificaciones-service'
@@ -35,7 +30,7 @@ import EditarPrestamoModal from '@/components/prestamos/EditarPrestamoModal'
 import { aprobacionesService } from '@/services/aprobaciones-service'
 import { TipoAprobacion } from '@/types/enums'
 import NotificacionDetalleModal from '@/components/dashboards/shared/NotificacionDetalleModal'
-import { formatCurrency, formatMilesCOP } from '@/lib/utils'
+import { formatMilesCOP } from '@/lib/utils'
 import BotonAccion from '@/components/ui/BotonAccion'
 import { CapaAccion } from '@/components/ui/PantallaCarga'
 import { Skeleton } from '@/components/ui/Skeleton'

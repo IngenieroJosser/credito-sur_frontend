@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Calendar, User, FileText, TrendingUp, Package, Image as ImageIcon, ChevronRight, ChevronLeft, Clock, BarChart3, AlertTriangle, History } from 'lucide-react';
+import { Calendar, User, FileText, TrendingUp, Package, Image as ImageIcon, ChevronRight, Clock, BarChart3, AlertTriangle, History } from 'lucide-react';
 import { formatCurrency, cn, resolveMediaUrl } from '@/lib/utils';
 import ClientePortalModal from '@/components/cliente/ClientePortalModal';
 import { getBogotaDateKey, normalizeDateKey } from '@/lib/rutas-core'

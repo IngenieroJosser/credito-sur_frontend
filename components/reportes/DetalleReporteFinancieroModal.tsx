@@ -1,10 +1,10 @@
 'use client'
 
 import { useMemo, useState, useEffect } from 'react'
-import { X, Calendar, TrendingUp, TrendingDown, Eye, LineChart } from 'lucide-react'
+import { X, Calendar, LineChart } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { getMovimientosLedger } from '@/services/contabilidad-service'
-import { buildBogotaOffsetIsoFromKey, getBogotaDateKey, normalizeDateKey } from '@/lib/rutas-core'
+import { buildBogotaOffsetIsoFromKey, getBogotaDateKey } from '@/lib/rutas-core'
 import Paginador from '@/components/ui/Paginador'
 import Tooltip from '@/components/ui/Tooltip'
 import { useModalDialog } from '@/hooks/use-modal-dialog'

@@ -6,7 +6,7 @@ import { SkeletonDetalle } from '@/components/ui/Skeleton'
 import { useState, useEffect, useCallback } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import Link from 'next/link'
-import { Settings, CreditCard, Bell, Shield, Users, Database, Wallet, Calculator, CheckCircle, ArrowRight } from 'lucide-react'
+import { Settings, Bell, Database, CheckCircle, ArrowRight } from 'lucide-react'
 import { configuracionService, ConfiguracionSistema } from '@/services/configuracion-service'
 import Tooltip from '@/components/ui/Tooltip'
 import { apiRequest } from '@/lib/api/api'
@@ -43,7 +43,7 @@ const ConfiguracionSistemaPage = () => {
     try {
       const data = await configuracionService.getConfiguracion();
       setConfig(data);
-    } catch (error) {
+    } catch {
       toast.error('Error al cargar la configuración');
     } finally {
       setLoading(false);
@@ -61,7 +61,7 @@ const ConfiguracionSistemaPage = () => {
       setConfig({ ...config, [key]: value });
       await configuracionService.updateConfiguracion({ [key]: value });
       toast.success('Configuración actualizada');
-    } catch (error) {
+    } catch {
       setConfig(originalConfig);
       toast.error('Error al actualizar la configuración');
     }

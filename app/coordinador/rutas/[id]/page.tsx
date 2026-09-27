@@ -16,7 +16,6 @@ const isUuid = (value?: string | null) => {
 }
 
 import {
-  CheckCircle2,
   XCircle,
   Banknote,
   ArrowLeft,
@@ -30,10 +29,8 @@ import {
   CalendarDays,
   Phone,
   MapPin,
-  Calendar,
   ChevronDown,
-  Plus,
-  CreditCard
+  Plus
 } from 'lucide-react'
 
 import { formatCOPInputValue, formatCurrency, formatMilesCOP } from '@/lib/utils'
@@ -48,17 +45,13 @@ import { Cliente, clientesService } from '@/services/clientes-service'
 
 import { rutasService } from '@/services/rutas-service'
 
-import { EstadoVisita, VisitaRuta, HistorialDia, mapNivelRiesgo, mapFrecuenciaToPeriodo } from '@/lib/types/cobranza'
+import { EstadoVisita, VisitaRuta, HistorialDia, mapNivelRiesgo } from '@/lib/types/cobranza'
 
 import {
 
     StaticVisitaItem,
 
-    SeleccionClienteModal,
-
-    Portal,
-
-    MODAL_Z_INDEX
+    SeleccionClienteModal
 
 } from '@/components/dashboards/shared/CobradorElements'
 
@@ -71,7 +64,6 @@ import EstadoCuentaModal from '@/components/cobranza/EstadoCuentaModal'
 
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
 
-import { creditosService } from '@/services/creditos-service'
 
 import { useNotification } from '@/components/providers/NotificationProvider'
 

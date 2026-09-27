@@ -5,7 +5,6 @@ import { mensajeDeError } from '@/lib/mensaje-de-error';
 import Paginador from '@/components/ui/Paginador'
 import React, { useState, useEffect, useCallback } from 'react';
 import { logger } from '@/lib/logger'
-import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   Search,
@@ -36,7 +35,7 @@ import EditarPrestamoModal from '@/components/prestamos/EditarPrestamoModal';
 import DetallePrestamoModal from '@/components/prestamos/DetallePrestamoModal';
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal';
 import { useNotification } from '@/components/providers/NotificationProvider';
-import { loansServiceExt as loansService, type Loan, type LoansFilters } from '@/services/loans-service';
+import { loansServiceExt as loansService, type LoansFilters } from '@/services/loans-service';
 import { apiRequest, formatErrorForComponent } from '@/lib/api/api';
 import { usePermission } from '@/hooks/usePermission';
 import { ExportButton } from '@/components/ui/ExportButton';
@@ -309,7 +308,7 @@ const ListadoPrestamosElegante = () => {
         search: filtros.busqueda || undefined,
       });
       showNotification('success', 'Archivo compatible con importaciones generado', 'Exportación Exitosa');
-    } catch (err) {
+    } catch {
       showNotification('error', 'Error al exportar. Intente de nuevo.', 'Error');
     }
   };
@@ -323,7 +322,7 @@ const ListadoPrestamosElegante = () => {
         search: filtros.busqueda || undefined,
       });
       showNotification('success', 'Archivo descargado correctamente', 'Exportación Exitosa');
-    } catch (err) {
+    } catch {
       showNotification('error', 'Error al exportar. Intente de nuevo.', 'Error');
     }
   };
@@ -333,7 +332,7 @@ const ListadoPrestamosElegante = () => {
       showNotification('info', 'Generando Historial de Pagos...', 'Exportando');
       await exportService.exportPayments('pdf', { prestamoId });
       showNotification('success', 'Historial guardado exitosamente', 'Exito');
-    } catch(err) {
+    } catch {
       showNotification('error', 'No se pudo exportar el historial de pagos', 'Error');
     }
   };

@@ -453,7 +453,7 @@ export const syncManager = {
 
                 // Se reportó exitosamente al servidor. Ya podemos borrarlo seguro.
                 await offlineQueue.remove(item.id)
-              } catch (reportErr) {
+              } catch {
                 // Si falla el reporte (ej. no hay internet), actualizamos su estado y reintentos para que intente reportarlo después
                 await offlineQueue.updateStatus(
                   item.id,

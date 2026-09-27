@@ -15,38 +15,23 @@ const isUuid = (value?: string | null) => {
 
 import {
   CheckCircle2,
-  X,
   XCircle,
   ArrowLeft,
   Search,
-  Filter,
   Wallet,
   DollarSign,
   Calendar,
   FileText as FileTextIcon,
-  ChevronRight,
-  TrendingUp,
-  Sparkles,
   MapPin,
-  AlertCircle,
   UserPlus,
   Plus,
   User,
-  Phone,
-  CreditCard,
-  Fingerprint,
-  CalendarDays,
-  Star,
   History,
-  ChevronDown,
-  FileDown,
-  Eye,
-  Shield
+  ChevronDown
 } from 'lucide-react'
 
-import { formatCurrency, formatMilesCOP } from '@/lib/utils'
+import { formatCurrency } from '@/lib/utils'
 
-import Link from 'next/link'
 
 import { useRouter } from 'next/navigation'
 
@@ -65,7 +50,6 @@ import { routesService } from '@/services/routes-service'
 
 import { rutasService, type DailyVisitsResponse } from '@/services/rutas-service'
 
-import { clientesService } from '@/services/clientes-service'
 
 import { useNotification } from '@/components/providers/NotificationProvider'
 
@@ -81,7 +65,7 @@ import AusenteModal from '@/components/cobranza/AusenteModal'
 
 import { VisitaRuta, EstadoVisita, VisitaParcial } from '@/lib/types/cobranza'
 
-import { StaticVisitaItem, SeleccionClienteModal, Portal } from '@/components/dashboards/shared/CobradorElements'
+import { StaticVisitaItem, SeleccionClienteModal } from '@/components/dashboards/shared/CobradorElements'
 
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal'
 
@@ -99,7 +83,6 @@ import {
 
 import { pagosService } from '@/services/pagos-service'
 
-import { FrecuenciaPago } from '@/types/enums'
 
 import { obtenerSaldoDisponibleRuta } from '@/services/contabilidad-service'
 
@@ -110,9 +93,7 @@ import RutaKpiSection from '@/components/dashboards/shared/RutaKpiSection'
 import { CierrePendienteBanner } from '@/components/rutas/CierrePendienteBanner'
 import { CierrePendienteDetalleModal } from '@/components/rutas/CierrePendienteDetalleModal'
 import { useCierrePendienteDetalle } from '@/hooks/useCierrePendienteDetalle'
-import type { CierrePendienteDetalle } from '@/types/rutas/cierre-pendiente'
 
-import { HistorialDia, mapNivelRiesgo, mapFrecuenciaToPeriodo } from '@/lib/types/cobranza'
 import { ordenarVisitasRutaActual } from '@/lib/rutas/ordenar-visitas-ruta'
 import RutaHistorialOperativo from '@/components/rutas/historial/RutaHistorialOperativo'
 
@@ -124,10 +105,10 @@ import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { useCierrePendienteRuta } from '@/hooks/useCierrePendienteRuta'
 import ClienteInfoModal from '@/components/cobranza/ClienteInfoModal'
 import { formatShortDate } from '@/lib/utils/format'
-import { buildRegularizedPaymentTarget, computeMontoExigibleHastaHoyFromCuotas, computeMontoNominalHastaHoyFromCuotas, computeRutaHoyUiStatsFromVisitas, resolveRutaHoyKpiStats, esDomingoBogota, getBogotaDateKey, getBogotaRangeByPeriod, getPagoBogotaDateKey, isCuotaNoPagada, isTodayOrPastBogota, isVisitaExigibleHoy, normalizeDateKey, resolveFechaEfectivaCuota, shouldExcludeVisitaFromOperationalMeta, shouldMarkVisitaAsPagado, shouldShowVisitaEnRutaHoy, toBogotaDateTimeOffsetIso, resolveProximaCuotaFromPrestamo, computeDiasMoraFromCuotas, resolveCuotaNormalOperativa, resolveCuotaIdFromVisitaLike } from '@/lib/rutas-core'
+import { buildRegularizedPaymentTarget, computeRutaHoyUiStatsFromVisitas, resolveRutaHoyKpiStats, esDomingoBogota, getBogotaDateKey, getBogotaRangeByPeriod, shouldExcludeVisitaFromOperationalMeta, shouldMarkVisitaAsPagado, shouldShowVisitaEnRutaHoy, resolveCuotaNormalOperativa, resolveCuotaIdFromVisitaLike } from '@/lib/rutas-core'
 
 import { mapAsignacionesToVisitasLite } from '@/lib/ruta-visitas-mapper'
-import { buildRecaudosHoyMapByPrestamoId, computeMontoCuotaPendienteDespuesDeRecaudo, indexPagosByPrestamoId, mergeVisitasPreservingLocalRecaudo, sumMontoTotalPagosByBogotaDateKey } from '@/lib/ruta-recaudos'
+import { buildRecaudosHoyMapByPrestamoId, computeMontoCuotaPendienteDespuesDeRecaudo, indexPagosByPrestamoId, mergeVisitasPreservingLocalRecaudo } from '@/lib/ruta-recaudos'
 import { mapWithConcurrency, memoizePromiseByKey } from '@/lib/async-utils'
 import { mapDailyVisitsResponseToVisitas as mapDailyVisitsResponseToVisitasShared, type MapMode } from '@/lib/rutas/map-daily-visits-to-visitas'
 import { enrichVisitasConCuotasYRiesgo } from '@/lib/rutas/enrich-visitas-con-cuotas-y-riesgo'

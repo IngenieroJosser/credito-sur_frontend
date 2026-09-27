@@ -1,7 +1,7 @@
 'use client'
 
 import { mensajeDeError } from '@/lib/mensaje-de-error'
-import { User, Lock, Phone, Calendar, Clock, FileText, CheckCircle2, X, Eye, EyeOff, ChevronLeft, Loader2, AlertCircle } from 'lucide-react'
+import { User, Lock, Phone, Calendar, Clock, FileText, CheckCircle2, X, Eye, EyeOff, ChevronLeft, AlertCircle } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { createPortal } from 'react-dom'
@@ -141,12 +141,12 @@ const PerfilUsuarioPage = () => {
           const updated = mezclarPerfilEnCache(parsed, perfil, fullUser)
           localStorage.setItem('user', JSON.stringify(updated))
           window.dispatchEvent(new Event('userUpdated'))
-        } catch (e) {
+        } catch {
           logger.warn('Error sincronizando datos de perfil en caché.')
         }
       }
       setError(null)
-    } catch (err) {
+    } catch {
       logger.warn('Perfil: usando datos locales (sin red o backend no disponible).')
       try {
         const userStr = localStorage.getItem('user')

@@ -1,12 +1,10 @@
 import type { PrestamoParcial } from '@/types/domain'
-import { getBogotaDateKey } from '@/lib/rutas-core'
 import { resolveRutaDailySummary, shouldShowVisitaEnRutaHoy, shouldExcludeVisitaFromOperationalMeta, resolveCuotaIdFromVisitaLike, resolveFechaEfectivaCuota, computeDiasMoraFromCuotaObjetivo } from '@/lib/rutas-core'
 import { resolveNivelRiesgoVisita } from '@/lib/rutas/resolve-riesgo-visita'
 import { enrichVisitasConCuotasYRiesgo } from '@/lib/rutas/enrich-visitas-con-cuotas-y-riesgo'
 import { applyRecaudoHoyToVisitas, buildRecaudosHoyMapByPrestamoId, indexPagosByPrestamoId } from '@/lib/ruta-recaudos'
 import { memoizePromiseByKey } from '@/lib/async-utils'
 import { prestamosService } from '@/services/prestamos-service'
-import { pagosService } from '@/services/pagos-service'
 
 export type RutaHoyOperativaResult = {
   kpiItems: any[]

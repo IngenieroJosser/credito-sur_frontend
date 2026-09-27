@@ -26,10 +26,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
-import { BarChart3, Calendar, TrendingUp, Users, FilePlus, DollarSign, MapPin, Eye } from 'lucide-react'
-import { formatCurrency, cn } from '@/lib/utils'
+import { BarChart3, TrendingUp, Users, FilePlus, DollarSign, MapPin, Eye } from 'lucide-react'
+import { formatCurrency } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
-import FiltroRuta from '@/components/filtros/FiltroRuta'
 import { TimeFilter, TimeFilterPeriod } from '@/components/ui/TimeFilter'
 import type { RoutePerformance } from '@/services/reportes-coordinador-service'
 import { useReportesCoordinador } from '@/hooks/useReportesCoordinador'
@@ -81,7 +80,7 @@ const ReportesOperativosPage = () => {
     try {
       await exportReport({ period, routeId: filterRuta || undefined }, 'excel')
       toast.success('Reporte Excel exportado correctamente')
-    } catch (error) {
+    } catch {
       toast.error('Error al exportar el reporte')
     }
   }
@@ -90,7 +89,7 @@ const ReportesOperativosPage = () => {
     try {
       await exportReport({ period, routeId: filterRuta || undefined }, 'pdf')
       toast.success('Reporte PDF exportado correctamente')
-    } catch (error) {
+    } catch {
       toast.error('Error al exportar el reporte')
     }
   }

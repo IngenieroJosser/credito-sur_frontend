@@ -412,7 +412,7 @@ export default function DeudorasCobradorCard() {
 
       showNotification('success', 'Abono registrado correctamente', 'Éxito');
       await cargar();
-    } catch (error) {
+    } catch {
       showNotification('error', 'Error al registrar el abono', 'Error');
     }
   }

@@ -9,8 +9,6 @@ import {
   User,
   Wallet,
   Banknote,
-  ChevronLeft,
-  ChevronRight,
   Receipt,
   ReceiptText,
   X
@@ -101,7 +99,7 @@ const HistorialPagosPage = () => {
     try {
       await exportService.exportPayments('excel')
       toast.success('Historial de pagos Excel descargado')
-    } catch (e) {
+    } catch {
       toast.error('Error al exportar historial de pagos')
     }
   }
@@ -110,7 +108,7 @@ const HistorialPagosPage = () => {
     try {
       await exportService.exportPayments('pdf')
       toast.success('Historial de pagos PDF descargado')
-    } catch (e) {
+    } catch {
       toast.error('Error al exportar historial de pagos')
     }
   }

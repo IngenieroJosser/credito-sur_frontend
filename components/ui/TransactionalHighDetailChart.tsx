@@ -271,7 +271,7 @@ export const TransactionalHighDetailChart = ({
                 animationDuration={1500}
               >
                 {data.map((entry, index) => {
-                  let color = 'url(#barGradient)';
+                  const color = 'url(#barGradient)';
                   return <Cell key={`cell-${index}`} fill={color} />;
                 })}
               </Bar>

@@ -14,7 +14,7 @@ import { refreshSesion } from '@/services/autenticacion-service'
 import { useNotificaciones } from "@/components/providers/NotificacionesProvider";
 import { usuariosService } from "@/services/usuarios-service";
 import { RolUsuario, EstadoUsuario } from "@/types/enums";
-import { apiRequest, formatErrorForComponent } from "@/lib/api/api";
+import { apiRequest } from "@/lib/api/api";
 import { formatShortDateTime, formatShortDate } from "@/lib/utils/format";
 import { buildBogotaOffsetIsoFromKey, normalizeDateKey } from '@/lib/rutas-core'
 import BotonAccion from '@/components/ui/BotonAccion'

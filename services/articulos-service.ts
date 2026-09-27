@@ -163,7 +163,7 @@ class ArticulosService {
             stock: Number(item.quantity || item.stock || 0),
             opcionesCuotas: opcionesCuotas.length > 0 ? opcionesCuotas : this.generarOpcionesCuotas(precioBase)
         }
-    } catch (error) {
+    } catch {
         return null;
     }
   }

@@ -18,7 +18,7 @@ class ConfiguracionService {
         autoAprobarClientes: false,
         autoAprobarCreditos: false,
       };
-    } catch (e) {
+    } catch {
       return {
         id: 'default',
         autoAprobarClientes: false,

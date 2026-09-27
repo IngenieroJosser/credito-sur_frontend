@@ -126,7 +126,7 @@ const ReportesFinancierosPage = () => {
     try {
       await exportService.exportFinancialReport('excel')
       toast.success('Reporte financiero Excel descargado')
-    } catch (e) {
+    } catch {
       toast.error('Error al exportar reporte financiero')
     }
   }
@@ -135,7 +135,7 @@ const ReportesFinancierosPage = () => {
     try {
       await exportService.exportFinancialReport('pdf')
       toast.success('Reporte financiero PDF descargado')
-    } catch (e) {
+    } catch {
       toast.error('Error al exportar reporte financiero')
     }
   }

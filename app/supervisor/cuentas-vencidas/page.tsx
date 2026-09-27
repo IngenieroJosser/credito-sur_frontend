@@ -11,13 +11,12 @@ import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { usePageFocusRefresh } from '@/hooks/usePageFocusRefresh'
 import {
   Archive, Search, Clock, LayoutGrid, List, Calendar,
-  AlertCircle as AlertCircleIcon, RefreshCw, DollarSign, Timer,
+  AlertCircle as AlertCircleIcon, RefreshCw, DollarSign,
   TrendingDown, CalendarX
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import FiltroRuta from '@/components/filtros/FiltroRuta'
 import ProtectedPage from '@/components/auth/ProtectedPage'
-import { usePermission } from '@/hooks/usePermission'
 import {
   vencidasService,
   type CuentaVencida,
@@ -73,7 +72,7 @@ function CuentasVencidasContent() {
       })
       setCuentas(response.cuentas)
       setTotales({ totalVencido: response.totales.totalVencido, diasPromedioVencimiento: response.totales.diasPromedioVencimiento })
-    } catch (err) {
+    } catch {
       setError('Error al cargar las cuentas vencidas')
       toast.error('No se pudieron cargar las cuentas vencidas')
     } finally {

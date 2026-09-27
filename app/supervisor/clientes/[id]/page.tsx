@@ -33,11 +33,10 @@ import {
 } from '@/lib/rutas-core'
 import { clientesService } from '@/services/clientes-service'
 import { prestamosService } from '@/services/prestamos-service'
-import { pagosService } from '@/services/pagos-service'
 import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 import { resolveCurrentUserId } from '@/lib/creditos/crear-prestamo-payload'
 import { useNotification } from '@/components/providers/NotificationProvider'
-import { formatCurrency, formatCOPInputValue, formatMilesCOP, parseCOPInputToNumber } from '@/lib/utils'
+import { formatCOPInputValue, formatMilesCOP, parseCOPInputToNumber } from '@/lib/utils'
 import { TipoAmortizacion } from '@/types/enums'
 import BotonAccion from '@/components/ui/BotonAccion'
 import Tooltip from '@/components/ui/Tooltip'
@@ -108,7 +107,7 @@ export default function ClienteDetalleSupervisorPage() {
         } else {
            setError('Cliente no encontrado')
         }
-      } catch (e) {
+      } catch {
         setError('Error al cargar cliente')
       } finally {
         setIsLoading(false)

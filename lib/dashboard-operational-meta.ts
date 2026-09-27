@@ -12,7 +12,6 @@ import {
 } from '@/lib/rutas-core'
 import { mapAsignacionesToVisitasLite } from '@/lib/ruta-visitas-mapper'
 import { buildRecaudosHoyMapByPrestamoId } from '@/lib/ruta-recaudos'
-import { routesService } from '@/services/routes-service'
 import { rutasService } from '@/services/rutas-service'
 import { prestamosService } from '@/services/prestamos-service'
 

@@ -70,19 +70,11 @@ import {
 
   UserPlus,
 
-  Receipt,
-
   DollarSign,
 
   ChevronDown,
 
-  X,
-
   CreditCard,
-
-  Plus,
-
-  ClipboardList,
 
   GripVertical,
 
@@ -92,25 +84,9 @@ import {
 
   FileText as FileTextIcon,
 
-  BarChart3,
-
   User,
 
-  Target,
-
   ReceiptText,
-
-  Eye,
-
-  Pencil,
-
-  Trash2,
-
-  ChevronRight,
-
-  ChevronLeft,
-
-  FileDown,
 
 } from 'lucide-react'
 
@@ -124,8 +100,6 @@ import {
   closestCenter,
 
   KeyboardSensor,
-
-  PointerSensor,
 
   useSensor,
 
@@ -158,7 +132,7 @@ import { RolUsuario } from '@/lib/types/autenticacion-type'
 import { obtenerPerfil } from '@/services/autenticacion-service'
 
 
-import { formatCurrency, formatMilesCOP, getDisplayedCOPInteger, isSameDisplayedCOPAmount, resolveMediaUrl } from '@/lib/utils'
+import { formatMilesCOP, getDisplayedCOPInteger, isSameDisplayedCOPAmount } from '@/lib/utils'
 
 import { rutasService, Ruta } from '@/services/rutas-service'
 
@@ -170,7 +144,6 @@ import {
   prestamosService,
 } from '@/services/prestamos-service'
 
-import { reportesCoordinadorService } from '@/services/reportes-coordinador-service'
 import type { RouteDetailResponse } from '@/services/reportes-coordinador-service'
 import { clientesService, Cliente } from '@/services/clientes-service'
 
@@ -179,12 +152,11 @@ import { exportService } from '@/services/export-service'
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal'
 
 import RutaProvisionalModal from '@/components/dashboards/shared/RutaProvisionalModal'
-import { VisitaRuta, EstadoVisita, PeriodoRuta, HistorialDia, mapNivelRiesgo, mapFrecuenciaToPeriodo } from '@/lib/types/cobranza'
+import { VisitaRuta, EstadoVisita, PeriodoRuta, mapNivelRiesgo } from '@/lib/types/cobranza'
 import type { CuotaOperativa, VisitaParcial } from '@/lib/types/cobranza'
-import { resolveRiesgoObligacion, resolveNivelRiesgoUi } from '@/lib/rutas/riesgo-obligacion'
 import { resolveNivelRiesgoVisita } from '@/lib/rutas/resolve-riesgo-visita'
 import { ordenarVisitasRutaActual } from '@/lib/rutas/ordenar-visitas-ruta'
-import { StaticVisitaItem, SortableVisita, Portal, MODAL_Z_INDEX, SeleccionClienteModal } from '@/components/dashboards/shared/CobradorElements'
+import { StaticVisitaItem, SortableVisita, SeleccionClienteModal } from '@/components/dashboards/shared/CobradorElements'
 import { SafePointerSensor } from '@/components/dashboards/shared/safe-pointer-sensor'
 import EstadoCuentaModal from '@/components/cobranza/EstadoCuentaModal'
 
@@ -198,19 +170,16 @@ import { buildCrearPrestamoPayload } from '@/lib/creditos/crear-prestamo-payload
 import { CierrePendienteBanner } from '@/components/rutas/CierrePendienteBanner'
 import { CierrePendienteDetalleModal } from '@/components/rutas/CierrePendienteDetalleModal'
 import { useCierrePendienteDetalle } from '@/hooks/useCierrePendienteDetalle'
-import type { CierrePendienteDetalle } from '@/types/rutas/cierre-pendiente'
 import ReprogramarModal from '@/components/cobranza/ReprogramarModal'
 
 import GastoModal from '@/components/dashboards/shared/GastoModal'
 
 import BaseModal from '@/components/dashboards/shared/BaseModal'
 
-import DetalleMoraModal from '@/components/cobranza/DetalleMoraModal'
 
 import ClienteInfoModal from '@/components/cobranza/ClienteInfoModal'
 
 import FloatingActionMenu, { FabAction } from '@/components/dashboards/shared/FloatingActionMenu'
-import { RutaStatsCards } from './shared/RutaStatsCards'
 
 import RutaKpiSection from '@/components/dashboards/shared/RutaKpiSection'
 import SundayNoticeBanner from '@/components/rutas/SundayNoticeBanner'
@@ -219,18 +188,13 @@ import { useNotificaciones } from '@/components/providers/NotificacionesProvider
 
 import {
   buildRegularizedPaymentTarget,
-  buildBogotaOffsetIsoFromKey,
   computeMontoExigibleHastaHoyFromCuotas,
   computeMontoNominalHastaHoyFromCuotas,
-  computeMetaHoyFromVisitas,
   computeRutaHoyUiStatsFromVisitas,
-  resolveRutaHoyKpiStats,
   resolveRutaDailySummary,
   esDomingoBogota,
   getBogotaDateKey,
   getBogotaRangeByPeriod,
-  getLocalDateKey,
-  getPagoBogotaDateKey,
   isCuotaNoPagada,
   isTodayOrPastBogota,
   isVisitaExigibleHoy,
@@ -250,7 +214,7 @@ import {
   resolveCuotaIdFromVisitaLike,
 } from '@/lib/rutas-core'
 import { mapAsignacionesToVisitasLite } from '@/lib/ruta-visitas-mapper'
-import { applyRecaudoHoyToVisitas, buildRecaudosHoyMapByPrestamoId, computeMontoCuotaPendienteDespuesDeRecaudo, indexPagosByPrestamoId, mergeVisitasPreservingLocalRecaudo, sumMontoTotalPagosByBogotaDateKey, sumMontoTotalPagosHistorico } from '@/lib/ruta-recaudos'
+import { applyRecaudoHoyToVisitas, buildRecaudosHoyMapByPrestamoId, computeMontoCuotaPendienteDespuesDeRecaudo, indexPagosByPrestamoId, mergeVisitasPreservingLocalRecaudo } from '@/lib/ruta-recaudos'
 import { buildRutaHoyOperativa } from '@/lib/rutas/build-ruta-hoy-operativa'
 import { mapWithConcurrency, memoizePromiseByKey } from '@/lib/async-utils'
 import { enrichVisitasConCuotasYRiesgo } from '@/lib/rutas/enrich-visitas-con-cuotas-y-riesgo'
@@ -262,7 +226,7 @@ import { formatShortDate } from '@/lib/utils/format'
 
 import { pagosService } from '@/services/pagos-service'
 
-import { TipoAmortizacion, MetodoPago } from '@/types/enums'
+import { MetodoPago } from '@/types/enums'
 
 import { toast } from 'sonner'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -3323,7 +3287,7 @@ const VistaCobrador = () => {
 
       // para que desaparezca del listado diario.
 
-      let cuotaCompletadaLocal = false
+      const cuotaCompletadaLocal = false
 
       const isAusente = shouldExcludeVisitaFromOperationalMeta
 
