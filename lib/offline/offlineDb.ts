@@ -19,21 +19,62 @@ export interface OfflineCliente {
   [key: string]: unknown;
 }
 
+/**
+ * La copia local de un prestamo.
+ *
+ * Dos sitios escriben en este almacen: `mapearPrestamoDescargado` (syncManager, tras
+ * cada login) y `ListadoPrestamos`, que guarda las filas del listado tal cual. Los
+ * campos de abajo son los que las pantallas offline leen de verdad, y los dos
+ * escritores los rellenan.
+ *
+ * Hay pares que son el mismo dato con dos nombres (`monto`/`montoPrestado`,
+ * `saldoPendiente`/`montoPendiente`, `cantidadCuotas`/`cuotasTotales`): el primero es
+ * el nombre historico de este almacen y el segundo el que usa `GET /loans`. Se
+ * guardan los dos porque hay pantallas leyendo cada uno.
+ */
 export interface OfflinePrestamo {
   id: string;
   numeroPrestamo: string;
   clienteId: string;
   clienteNombre?: string;
+  /** El nombre ya compuesto, igual que `clienteNombre`; asi lo llama `GET /loans`. */
+  cliente?: string;
+  clienteDni?: string;
+  clienteTelefono?: string;
+
   monto: number;
+  montoPrestado?: number;
   montoTotal: number;
   saldoPendiente: number;
+  montoPendiente?: number;
+  montoPagado?: number;
+  interesTotal?: number;
+  moraAcumulada?: number;
+  cuotaInicial?: number;
+  valorCuota?: number;
+
   tasaInteres: number;
+  /** `GET /loans` no lo manda: queda en 0 y nadie lo lee de la copia local. */
   plazoMeses: number;
   frecuenciaPago: string;
   estado: string;
+
   cantidadCuotas: number;
+  cuotasTotales?: number;
+  cuotasPagadas?: number;
+  cuotasVencidas?: number;
+  progreso?: number;
+
+  producto?: string;
+  tipoProducto?: string;
+  tipoPrestamo?: string;
+  riesgo?: string;
+  ruta?: string;
+  rutaNombre?: string;
+
   fechaInicio: string;
   fechaFin: string;
+  creadoEn?: string;
   [key: string]: unknown;
 }
 

@@ -2026,7 +2026,11 @@ const VistaCobrador = () => {
 
                      horaSugerida: '08:00 AM',
 
-                     montoCuota: Number(proximaCuota?.monto || p?.montoCuota || 0),
+                     // `valorCuota` es lo que manda `GET /loans` y lo que guarda la
+                     // copia local; `montoCuota` se conserva por si la fila vino de
+                     // otro origen. El almacen `cuotas` esta vacio (ver syncManager),
+                     // asi que hoy el valor sale de aqui.
+                     montoCuota: Number(proximaCuota?.monto || p?.valorCuota || p?.montoCuota || 0),
 
                      saldoTotal: Number(p?.saldoPendiente || 0),
 

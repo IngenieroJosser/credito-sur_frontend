@@ -6,6 +6,7 @@ import { restoreOfflineSession } from '@/lib/auth/offlineAuth';
 import { offlineQueue } from './offlineQueue';
 import { offlineStore, OfflineCliente, OfflinePrestamo, OfflineCuota, OfflineRuta } from './offlineDb';
 import { trackOfflineEvent } from './offlineAnalytics';
+import { nombreDePersona } from '@/lib/nombre-de-persona';
 import {
   remapearEndpoint,
   remapearProfundo,
@@ -102,6 +103,84 @@ export interface SyncResult {
   succeeded: number;
   failed: number;
   errors: Array<{ id: string; description: string; error: string }>;
+}
+
+
+/**
+ * Una fila de `GET /loans` convertida en la copia local de un prestamo.
+ *
+ * Esta funcion existe aparte y exportada porque el mapeo que habia dentro de
+ * `downloadPrestamos` leia claves que ese endpoint NO manda. Comprobado contra la
+ * fila que arma `loans.service.ts:1960-1997`:
+ *
+ *   se leia          el endpoint manda      resultado que quedaba guardado
+ *   ---------------  ---------------------  ------------------------------
+ *   p.monto          montoPrestado          0 en todos los prestamos
+ *   p.saldoPendiente montoPendiente         0 en todos los prestamos
+ *   p.cantidadCuotas cuotasTotales          0 en todos los prestamos
+ *   p.cliente.nombres cliente (TEXTO)       cadena vacia en todos
+ *   p.plazoMeses     no lo manda            0 (sigue asi, ver abajo)
+ *
+ * Y descartaba una veintena de campos que si venian y que las pantallas offline
+ * leen. El efecto se veia en tres sitios: cuentas vencidas mostraba todo el saldo
+ * en $0, la ruta del cobrador mostraba cuota y saldo en $0, y el listado de
+ * prestamos mostraba "undefined/undefined cuotas" y el pendiente en $0 en verde,
+ * como si estuviera pagado.
+ *
+ * `plazoMeses` se queda en 0 a proposito: el listado no lo manda y no hay de donde
+ * sacarlo sin otra peticion. Nadie lo lee de la copia local.
+ */
+export function mapearPrestamoDescargado(p: Record<string, unknown>): OfflinePrestamo {
+  const num = (valor: unknown): number => Number(valor) || 0;
+  const texto = (valor: unknown, siNoHay = ''): string =>
+    typeof valor === 'string' && valor ? valor : siNoHay;
+
+  return {
+    id: String(p.id ?? ''),
+    numeroPrestamo: texto(p.numeroPrestamo),
+    clienteId: texto(p.clienteId),
+    // `cliente` llega como nombre ya compuesto, no como objeto. `nombreDePersona`
+    // acepta las dos formas por si otro origen alimenta este almacen.
+    clienteNombre: nombreDePersona(p.cliente),
+    cliente: nombreDePersona(p.cliente),
+    clienteDni: texto(p.clienteDni),
+    clienteTelefono: texto(p.clienteTelefono),
+
+    monto: num(p.montoPrestado),
+    montoPrestado: num(p.montoPrestado),
+    montoTotal: num(p.montoTotal),
+    // El listado lo llama `montoPendiente`; aqui el campo historico es
+    // `saldoPendiente` y lo leen dos pantallas, asi que se guardan los dos.
+    saldoPendiente: num(p.montoPendiente),
+    montoPendiente: num(p.montoPendiente),
+    montoPagado: num(p.montoPagado),
+    interesTotal: num(p.interesTotal),
+    moraAcumulada: num(p.moraAcumulada),
+    cuotaInicial: num(p.cuotaInicial),
+    valorCuota: num(p.valorCuota),
+
+    tasaInteres: num(p.tasaInteres),
+    plazoMeses: num(p.plazoMeses),
+    frecuenciaPago: texto(p.frecuenciaPago, 'MENSUAL'),
+    estado: texto(p.estado, 'PENDIENTE'),
+
+    cantidadCuotas: num(p.cuotasTotales),
+    cuotasTotales: num(p.cuotasTotales),
+    cuotasPagadas: num(p.cuotasPagadas),
+    cuotasVencidas: num(p.cuotasVencidas),
+    progreso: num(p.progreso),
+
+    producto: texto(p.producto),
+    tipoProducto: texto(p.tipoProducto),
+    tipoPrestamo: texto(p.tipoPrestamo),
+    riesgo: texto(p.riesgo),
+    ruta: texto(p.ruta),
+    rutaNombre: texto(p.rutaNombre),
+
+    fechaInicio: texto(p.fechaInicio),
+    fechaFin: texto(p.fechaFin),
+    creadoEn: texto(p.creadoEn),
+  };
 }
 
 // ─── Procesar cola de operaciones pendientes ─────────────────────
@@ -404,22 +483,9 @@ export const syncManager = {
       const data = await apiRequest<any>('GET', '/loans?limit=500', undefined, { timeout: 30000, cacheTTL: 0 });
 
       const prestamosRaw = data.prestamos || [];
-      const prestamos: OfflinePrestamo[] = prestamosRaw.map((p: any) => ({
-        id: p.id,
-        numeroPrestamo: p.numeroPrestamo || '',
-        clienteId: p.clienteId || '',
-        clienteNombre: p.cliente ? `${p.cliente.nombres || ''} ${p.cliente.apellidos || ''}`.trim() : '',
-        monto: Number(p.monto) || 0,
-        montoTotal: Number(p.montoTotal) || 0,
-        saldoPendiente: Number(p.saldoPendiente) || 0,
-        tasaInteres: Number(p.tasaInteres) || 0,
-        plazoMeses: p.plazoMeses || 0,
-        frecuenciaPago: p.frecuenciaPago || 'MENSUAL',
-        estado: p.estado || 'PENDIENTE',
-        cantidadCuotas: p.cantidadCuotas || 0,
-        fechaInicio: p.fechaInicio || '',
-        fechaFin: p.fechaFin || '',
-      }));
+      const prestamos: OfflinePrestamo[] = prestamosRaw.map(
+        mapearPrestamoDescargado,
+      );
 
       // Filtrar para guardar solo préstamos activos o en mora (excluir FINALIZADO, ARCHIVADO, RECHAZADO, etc.)
       const prestamosFiltrados = prestamos.filter(p => 
@@ -432,7 +498,16 @@ export const syncManager = {
       await offlineStore.saveMany('prestamos', prestamosFiltrados, true);
       await trackOfflineEvent('download', { storeName: 'prestamos', recordCount: prestamos.length });
 
-      // Guardar cuotas de cada préstamo
+      // OJO: este bucle NUNCA se ejecuta. `GET /loans` no devuelve el arreglo
+      // `cuotas`: la fila que arma `loans.service.ts:1960-1997` solo trae los conteos
+      // ya calculados (`cuotasPagadas`, `cuotasTotales`, `cuotasVencidas`). Asi que
+      // `allCuotas` queda vacio y el almacen `cuotas` no se llena nunca, mientras el
+      // `saveMany('prestamos', ..., true)` de arriba SI lo borra (ver `saveMany`).
+      //
+      // Consecuencia: la proxima cuota que busca `VistaCobrador` offline y las cuotas
+      // del detalle de prestamo offline siempre salen vacias. Llenarlas requiere otra
+      // peticion (`/loans/:id` por prestamo, o un endpoint nuevo) y eso es una
+      // decision aparte; se deja escrito para que no se lea como que ya funciona.
       const allCuotas: OfflineCuota[] = [];
       for (const p of prestamosRaw) {
         if (p.cuotas && Array.isArray(p.cuotas)) {

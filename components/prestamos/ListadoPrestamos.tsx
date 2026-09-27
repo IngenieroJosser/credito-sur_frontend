@@ -698,11 +698,11 @@ const ListadoPrestamosElegante = () => {
                           <div className="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                             <div 
                               className="h-full bg-slate-900 rounded-full transition-all duration-500"
-                              style={{ width: `${prestamo.progreso}%` }}
+                              style={{ width: `${prestamo.progreso ?? 0}%` }}
                             />
                           </div>
                           <span className="text-[10px] text-slate-400 font-bold">
-                            {prestamo.cuotasPagadas}/{prestamo.cuotasTotales} cuotas
+                            {prestamo.cuotasPagadas ?? 0}/{prestamo.cuotasTotales ?? 0} cuotas
                           </span>
                         </div>
                       </td>
@@ -858,11 +858,11 @@ const ListadoPrestamosElegante = () => {
                     <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
                       <div 
                         className="h-full bg-slate-900 rounded-full transition-all duration-500"
-                        style={{ width: `${prestamo.progreso}%` }}
+                        style={{ width: `${prestamo.progreso ?? 0}%` }}
                       />
                     </div>
                     <span className="text-xs text-slate-500 font-bold">
-                      {prestamo.cuotasPagadas}/{prestamo.cuotasTotales} cuotas ({prestamo.progreso}%)
+                      {prestamo.cuotasPagadas ?? 0}/{prestamo.cuotasTotales ?? 0} cuotas ({prestamo.progreso ?? 0}%)
                     </span>
                   </div>
                 </div>
