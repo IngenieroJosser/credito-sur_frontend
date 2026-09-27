@@ -147,7 +147,7 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
       setEditForm({ nombre: cajaData?.nombre || '', responsable: cajaData?.responsable || '', saldoInicialInput: '' })
       try {
         const users = await usuariosService.obtenerTodos()
-        setUsuariosAutorizados((users as any[]).map((u: any) => ({ id: u.id, nombre: `${u.nombres} ${u.apellidos}`, rol: u.rol })))
+        setUsuariosAutorizados((users).map((u: any) => ({ id: u.id, nombre: `${u.nombres} ${u.apellidos}`, rol: u.rol })))
       } catch { /* ignore */ }
     } catch (err) {
       console.error('Error cargando caja:', err)

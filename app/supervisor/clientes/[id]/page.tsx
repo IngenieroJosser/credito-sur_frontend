@@ -101,8 +101,8 @@ export default function ClienteDetalleSupervisorPage() {
            // Asegurar campos para UI
            setClienteData({ 
                 ...data, 
-                prestamos: (data as any).prestamos || [], 
-                pagos: (data as any).pagos || []
+                prestamos: (data).prestamos || [], 
+                pagos: (data).pagos || []
            })
         } else {
            setError('Cliente no encontrado')

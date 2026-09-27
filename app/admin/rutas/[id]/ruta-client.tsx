@@ -302,7 +302,7 @@ const RutaClientLoaded = ({
       asignaciones,
       hoyKey,
       cobradorId: cobradorIdRuta || '',
-    }) as any[]
+    })
 
     const idsProcesados = new Set<string>()
     const firstPass = visitasRaw.flatMap((v: VisitaRuta) => {

@@ -246,7 +246,7 @@ export async function buildRutaHoyOperativa({
   })
 
   // 4. Aplicar pagos por prestamoId
-  let visitasOperativasConPagos = visitasOperativasVivas as any[]
+  let visitasOperativasConPagos = visitasOperativasVivas
 
   const pagosData = pagosParam || []
   if (pagosData.length > 0) {

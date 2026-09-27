@@ -892,7 +892,7 @@ export default function NotificacionDetalleModal({
   const mediaArchivos = (() => {
     const meta = typeof notificacion.metadata === 'string' ? JSON.parse(notificacion.metadata) : (notificacion.metadata || {})
     const dets = typeof notificacion.detalles === 'string' ? JSON.parse(notificacion.detalles) : (notificacion.detalles || {})
-    const arr = (dets.archivos || meta.archivos || []) as any[]
+    const arr = (dets.archivos || meta.archivos || [])
     return Array.isArray(arr) ? arr : []
   })()
   const tipoLabels: Record<string, string> = {

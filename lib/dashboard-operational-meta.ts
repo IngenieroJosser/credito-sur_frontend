@@ -164,7 +164,7 @@ export const computeOperationalMetaByRouteIdsForTimeFilter = async (
           asignaciones: asigsConCuotas,
           hoyKey: endKey,
           cobradorId: String(rutaCompleta?.cobradorId || ''),
-        }) as any[]
+        })
 
         const idsProcesados = new Set<string>()
         const firstPass = (Array.isArray(visitasLite) ? visitasLite : []).flatMap((v) => {
@@ -180,7 +180,7 @@ export const computeOperationalMetaByRouteIdsForTimeFilter = async (
         })
 
         const cuotasMap = new Map<string, any[]>()
-        for (const asig of asigsConCuotas as any[]) {
+        for (const asig of asigsConCuotas) {
           for (const p of asig?.cliente?.prestamos || []) {
             if (p?.id && Array.isArray(p?.cuotas)) cuotasMap.set(String(p.id), p.cuotas)
           }

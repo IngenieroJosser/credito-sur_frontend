@@ -716,7 +716,7 @@ const LegacyDetalleRutaPage = () => {
             const finalesBackend = ordenarVisitasRutaActual(
               withRecaudo.map(v => ({ ...v, estado: ajustarEstadoConPago(v) })),
             );
-            const finales = mergeVisitasPreservingLocalRecaudo(visitasCobradorRef.current, finalesBackend) as any[];
+            const finales = mergeVisitasPreservingLocalRecaudo(visitasCobradorRef.current, finalesBackend);
 
 
 
@@ -725,7 +725,7 @@ const LegacyDetalleRutaPage = () => {
             const finalesKpiHoy = finales
               .filter(v => shouldIncludeVisitaInRutaHoyKpis(v, hoyBogota))
               .filter(v => !shouldExcludeVisitaFromOperationalMeta(v));
-            const statsHoy = computeRutaHoyUiStatsFromVisitas(finalesKpiHoy as any[], 0);
+            const statsHoy = computeRutaHoyUiStatsFromVisitas(finalesKpiHoy, 0);
             const rExtra = ruta as any;
             const recaudoBackendHoy = Math.max(
               Number(rExtra?.cobranzaDelDia || 0),

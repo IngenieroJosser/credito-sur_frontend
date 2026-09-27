@@ -97,23 +97,22 @@ import BotonAccion from '@/components/ui/BotonAccion'
 // --- TIPOS DE DATOS ---
 // Definimos la estructura de nuestras "Cajas".
 // Una caja puede ser la PRINCIPAL (Caja fuerte de la oficina) o DE RUTA (La billetera del cobrador).
-interface Caja {
-  id: string
-  codigo?: string
-  nombre: string
-  tipo: 'PRINCIPAL' | 'RUTA'
-  rutaId?: string // Si es de tipo RUTA, aquí guardamos a cuál pertenece
-  responsable: string // Quién responde por la plata
-  responsableId?: string
-  saldo: number
-  estado: 'ABIERTA' | 'CERRADA'
-  recaudoEsperado?: number
-  eficiencia?: number
-  ultimaActualizacion: string
-  rutasSupervisadas?: Array<{ id: string; nombre: string; codigo: string }>
-}
+/**
+ * Esta pantalla declaraba su PROPIO `Caja`, mas pobre que el del servicio, y por eso
+ * leia campos con `as any`. Le faltaba `rutaNombre`, que el backend SI manda en las
+ * dos respuestas de caja (`accounting.service.ts:531` y `583`).
+ *
+ * Los dos campos que el tipo local tenia y el del servicio no, no existen en el
+ * backend: `recaudoEsperado` no aparece ni una vez en `src/`, y `eficiencia` solo sale
+ * en los reportes de RUTAS, nunca en una caja. El bloque que los pintaba en la tarjeta
+ * ("Goal / % Efficiency") estaba guardado por `c.recaudoEsperado &&`, o sea que nunca
+ * se dibujaba; se quito con ellos.
+ *
+ * Siguen habiendo tres tipos `Caja` mas en el frontend: el del servicio, el de
+ * `types/domain.ts` y el local de `EstadoContableCard`.
+ */
+type Caja = ApiCaja
 
-// Forzar actualización de TypeScript
 type CajaWithRutas = Caja & {
   rutasSupervisadas?: Array<{ id: string; nombre: string; codigo: string }>
 }
@@ -1029,12 +1028,12 @@ const ModuloContableContent = () => {
       ? null
       : (cajas.find((c: Caja) => c?.rutaId === filtroRuta)?.id ?? null)
 
-    const rutaObj = filtroRuta === 'TODOS' ? null : (rutasDisponibles.find((r: any) => r?.id === filtroRuta) as any)
-    const cajaRuta = filtroRuta === 'TODOS' ? null : (cajas.find((c: Caja) => c?.rutaId === filtroRuta) as any)
+    const rutaObj = filtroRuta === 'TODOS' ? null : (rutasDisponibles.find((r: any) => r?.id === filtroRuta))
+    const cajaRuta = filtroRuta === 'TODOS' ? null : (cajas.find((c: Caja) => c?.rutaId === filtroRuta))
     const rutaKeywordRaw = String(
       rutaObj?.nombre ||
-      (cajaRuta as any)?.rutaNombre ||
-      (cajaRuta as any)?.nombre ||
+      (cajaRuta)?.rutaNombre ||
+      (cajaRuta)?.nombre ||
       ''
     )
     const rutaKeyword = rutaKeywordRaw
@@ -1723,12 +1722,6 @@ const ModuloContableContent = () => {
                           title="Caja asociada a Ruta"
                         >
                           Ruta
-                        </div>
-                      )}
-                      {c.recaudoEsperado && (
-                        <div className="mt-2 flex items-center gap-3">
-                           <div className="text-[10px] font-bold text-slate-400 uppercase">Goal: <MoneyAmount value={c.recaudoEsperado} amountClassName="text-[10px] font-bold text-slate-400 uppercase" /></div>
-                           <div className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">{c.eficiencia}% Efficiency</div>
                         </div>
                       )}
                     </div>

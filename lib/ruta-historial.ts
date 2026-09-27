@@ -408,7 +408,7 @@ export const buildHistorialDiaFromBackend = (params: {
   // Se deja como esta. Si algun dia el historial pasa a una fila por cuota,
   // entonces si hara falta, y el dato esta en `p.detalles[]`.
   const getPagoCuotaId = (p: Pago) =>
-    String((p as any)?.cuotaId || (p as any)?.cuota?.id || '').trim()
+    String((p as any)?.cuotaId || (p)?.cuota?.id || '').trim()
 
   const pagosByPrestamo = new Map<string, number>()
   const pagosByPrestamoCuota = new Map<string, number>()
@@ -538,7 +538,7 @@ export const buildHistorialDiaFromBackend = (params: {
 
     // No confiar en estadoGestion crudo si no hay pago asignado por obligación
     const pagoCompletaCuota = recaudadoDelDia > 0 && cuotaNormal > 0 && recaudadoDelDia >= cuotaNormal
-    const estadoBase = resolveEstadoHistorialFromGestion(item?.estadoGestion, cuotaObjetivo, regularizadoDespues) as any
+    const estadoBase = resolveEstadoHistorialFromGestion(item?.estadoGestion, cuotaObjetivo, regularizadoDespues)
     const estado = pagoCompletaCuota ? 'pagado' : estadoBase
 
     // Calcular riesgo histórico con datos de la fecha
@@ -673,7 +673,7 @@ export const buildHistorialDiaFromBackend = (params: {
           prestamoId: String(item?.prestamoId || ''),
           recaudadoDelDia: recaudadoDelDia,
           recaudadoRegularizadoDespues: regularizadoDespues,
-        } as any,
+        },
       ]
     }
 
@@ -806,7 +806,7 @@ export const buildHistorialDiaFromBackend = (params: {
         nivelRiesgo,
         nivelRiesgoObligacion: nivelRiesgoRaw,
         prioridad,
-      } as any
+      }
     })
     })
 
@@ -941,7 +941,7 @@ export const buildHistorialDiaFromBackend = (params: {
         : 'Préstamo',
       recaudadoDelDia: Number(pago?.montoTotal || 0),
       recaudadoRegularizadoDespues: 0,
-    } as any)
+    })
   }
 
   // LOGS DE AUDITORÍA: Ver las visitas finales

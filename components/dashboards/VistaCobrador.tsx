@@ -985,7 +985,7 @@ const VistaCobrador = () => {
           montoMoraAcumulada,
           montoVencidoAcumulado: montoMoraAcumulada,
           saldoVencidoAcumulado: montoMoraAcumulada,
-          cuotasVencidas: (cuotasForMonto as any[]).filter((cuota: any) => {
+          cuotasVencidas: (cuotasForMonto).filter((cuota: any) => {
             if (!cuota || !isCuotaNoPagada(cuota)) return false
             const vtoKey = normalizeDateKey(resolveFechaEfectivaCuota(cuota) || String(cuota?.fechaVencimiento || ''))
             return !!vtoKey && !!hoyBogotaKey && vtoKey <= hoyBogotaKey
@@ -1161,12 +1161,12 @@ const VistaCobrador = () => {
 
   const visitasBaseRef = useRef<any[]>([])
   useEffect(() => {
-    visitasBaseRef.current = Array.isArray(visitasBase) ? (visitasBase as any[]) : []
+    visitasBaseRef.current = Array.isArray(visitasBase) ? (visitasBase) : []
   }, [visitasBase])
 
   // Ref para guardar los datos enriquecidos de la ruta actual (KPI)
   useEffect(() => {
-    visitasRutaHoyKpiRef.current = Array.isArray(visitasBase) ? (visitasBase as any[]) : []
+    visitasRutaHoyKpiRef.current = Array.isArray(visitasBase) ? (visitasBase) : []
   }, [visitasBase])
 
   // BUG-09 FIX: Map<string, number> con timestamp para evitar locks indefinidos.
@@ -1602,7 +1602,7 @@ const VistaCobrador = () => {
             });
 
             // Aplicar pagos por prestamoId para limpiar recaudos agrupados por cliente
-            let visitasOperativasConPagos = visitasOperativasVivas as any[]
+            let visitasOperativasConPagos = visitasOperativasVivas
 
             try {
               const pagosResp = await pagosService.obtenerPagos({ limit: 5000 })
@@ -1639,7 +1639,7 @@ const VistaCobrador = () => {
                 }
               })
             } catch {
-              visitasOperativasConPagos = visitasOperativasVivas as any[]
+              visitasOperativasConPagos = visitasOperativasVivas
             }
 
             // Filtrar visitas con la regla compartida
@@ -1730,7 +1730,7 @@ const VistaCobrador = () => {
         // 4. Construir visitas desde asignaciones (ruta completa) con lógica correcta de próxima cuota y “aparece hoy”.
         const hoyKey = hoyBogotaKey
 
-        const asignaciones = (rutaCompletaAutoritativa as any).asignaciones || (rutaCompletaAutoritativa as any).asignacionesRuta || []
+        const asignaciones = (rutaCompletaAutoritativa).asignaciones || (rutaCompletaAutoritativa as any).asignacionesRuta || []
 
         const visitasMapeadas: VisitaRuta[] = mapAsignacionesToVisitasLite({
           asignaciones,
@@ -1935,7 +1935,7 @@ const VistaCobrador = () => {
 
           // Asignar fechaUltimoPago por prestamoId para el ordenamiento
           const { ultimoPagoDateByPrestamoId } = indexPagosByPrestamoId(pagosData)
-          visitasEnriquecidas = (visitasEnriquecidas as any[]).map((v: VisitaParcial) => {
+          visitasEnriquecidas = (visitasEnriquecidas).map((v: VisitaParcial) => {
             const pid = v?.prestamoId
             if (!pid) return v
             return {
@@ -1950,7 +1950,7 @@ const VistaCobrador = () => {
         const merged = mergeVisitasPreservingLocalRecaudo(visitasBaseRef.current, visitasEnriquecidas)
         setVisitasBase(merged)
         setVisitasSelectorFallback(merged)
-        setVisitasOrden((merged as any[]).map((v: VisitaRuta) => v.id))
+        setVisitasOrden((merged).map((v: VisitaRuta) => v.id))
 
 
 
@@ -2598,7 +2598,7 @@ const VistaCobrador = () => {
     const visitasAusentesHoy = visitasExigiblesHoy.filter(isAusente)
     const visitasOperativasHoy = visitasExigiblesHoy.filter((v: VisitaParcial) => !isAusente(v))
 
-    const statsHoy = computeRutaHoyUiStatsFromVisitas(visitasOperativasHoy as any[], 0)
+    const statsHoy = computeRutaHoyUiStatsFromVisitas(visitasOperativasHoy, 0)
     const meta = Number(statsHoy.meta || 0)
     const recaudo = Number(statsHoy.recaudo || 0)
 

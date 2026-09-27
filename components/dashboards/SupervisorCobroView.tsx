@@ -932,7 +932,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
       // hacia `.nombres` sobre un string: la condicion entraba (el string es
       // truthy), el nombre quedaba vacio y NUNCA se llegaba al respaldo de abajo,
       // que es el que consulta el usuario por su id.
-      cobradorNombre = nombreDelCobrador((ruta as any).cobrador);
+      cobradorNombre = nombreDelCobrador((ruta).cobrador);
 
       if (!cobradorNombre && ruta.cobradorId) {
         try {
@@ -1020,11 +1020,11 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         } catch (dailyError) {
           console.warn('No se pudo cargar agenda diaria de supervisor, usando detalle de ruta:', dailyError)
           visitasRaw = mapAsignacionesToVisitasLite({
-            asignaciones: (ruta as any).asignaciones || (ruta as any).asignacionesRuta || [],
+            asignaciones: (ruta).asignaciones || (ruta as any).asignacionesRuta || [],
             hoyKey,
             cobradorId: ruta.cobradorId,
             filtrarExigibles: false,
-          }) as any[]
+          })
         }
 
         const { totalHistoricoByPrestamoId, ultimoPagoDateByPrestamoId } = indexPagosByPrestamoId(pagosRecientes)
@@ -1077,7 +1077,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
         setRutaStats((prev: any) => {
           if (periodoCards === 'HOY') {
-            const statsHoy = computeRutaHoyUiStatsFromVisitas(visitasBaseParaKpi as any[], 0)
+            const statsHoy = computeRutaHoyUiStatsFromVisitas(visitasBaseParaKpi, 0)
             const recaudo = Number(statsHoy.recaudo || prev.recaudo || 0)
             return {
               ...prev,
@@ -1097,8 +1097,8 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
           const isAusente = shouldExcludeVisitaFromOperationalMeta
           const finalesSinAusentes = (merged || []).filter((v: VisitaParcial) => !isAusente(v))
-          const statsHoy = computeRutaHoyUiStatsFromVisitas(finalesSinAusentes as any[], 0)
-          const rutaStatsBackend = (ruta as any)?.estadisticas || {}
+          const statsHoy = computeRutaHoyUiStatsFromVisitas(finalesSinAusentes, 0)
+          const rutaStatsBackend = (ruta)?.estadisticas || {}
           const recaudoBackendHoy = Math.max(
             Number((ruta as any)?.cobranzaDelDia || 0),
             Number(rutaStatsBackend?.cobranzaDelDia || 0),
@@ -1126,8 +1126,8 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         });
 
         // Sincronizar la ref ANTES de que cargarEstadisticasRuta la lea (evita leer una ref vieja)
-        setVisitasBaseAndRef(merged as any[])
-        setVisitasOrden((merged as any[]).map((v: VisitaRuta) => v.id));
+        setVisitasBaseAndRef(merged)
+        setVisitasOrden((merged).map((v: VisitaRuta) => v.id));
       }
     } catch (error) {
       console.error('Error al cargar visitas de ruta (supervisor):', error);

@@ -103,8 +103,8 @@ export async function enrichRutaHistorialRiesgo({
       const cache = cuotasHistorialCacheRef.current
       if (cache.has(prestamoId)) return cache.get(prestamoId) || []
       const cuotas = await prestamosService.obtenerCuotas(prestamoId).catch(() => [])
-      cache.set(prestamoId, cuotas as any[])
-      return cuotas as any[]
+      cache.set(prestamoId, cuotas)
+      return cuotas
     },
     () => [],
   )

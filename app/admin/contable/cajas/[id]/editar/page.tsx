@@ -43,7 +43,7 @@ export default function EditarCajaPage({ params }: { params: Promise<{ id: strin
         descripcion: ''
           })
         }
-        setUsuariosAutorizados((users as any[]).map((u) => ({
+        setUsuariosAutorizados((users).map((u) => ({
           id: u.id,
           nombre: `${u.nombres || ''} ${u.apellidos || ''}`.trim(),
           rol: u.rol || ''

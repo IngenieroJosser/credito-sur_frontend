@@ -192,7 +192,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
   const progresoCuotas = totalCuotas > 0 ? Math.round((cuotasPagadas / totalCuotas) * 100) : 0;
 
   const totalesDesdePagos = useMemo(() => {
-    const pagos = Array.isArray((prestamo)?.pagos) ? ((prestamo).pagos as any[]) : []
+    const pagos = Array.isArray((prestamo)?.pagos) ? ((prestamo).pagos) : []
     let capital = 0
     let interes = 0
     let interesMora = 0
