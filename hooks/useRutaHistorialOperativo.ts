@@ -20,6 +20,7 @@ import {
 } from '@/services/contabilidad-service'
 import { RolUsuario } from '@/types/enums'
 import { getBogotaDateKey } from '@/lib/rutas-core'
+import type { Pago } from '@/types/domain'
 
 export type UseRutaHistorialOperativoProps = {
   rutaId?: string
@@ -39,7 +40,7 @@ export const useRutaHistorialOperativo = ({
   initialDays = 30,
   preferLoadDayForToday = false,
 }: UseRutaHistorialOperativoProps) => {
-  const [pagosCache, setPagosCache] = useState<any[]>([])
+  const [pagosCache, setPagosCache] = useState<Pago[]>([])
   const pagosCacheRef = useRef<any[]>([])
 
   useEffect(() => {

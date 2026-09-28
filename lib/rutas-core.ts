@@ -2,6 +2,7 @@ import { mapFrecuenciaToPeriodo, type PeriodoRuta } from '@/lib/types/cobranza';
 import type { ClienteCierrePendiente } from '@/types/rutas/cierre-pendiente';
 import type { CuotaOperativa, VisitaParcial } from '@/lib/types/cobranza';
 import type { PrestamoParcial } from '@/types/domain';
+import type { ContextoRegularizacion } from '@/types/rutas/cierre-pendiente'
 
 /**
  * Saca el id de la cuota objetivo de un objeto de visita.
@@ -226,7 +227,7 @@ type RegularizedPaymentTargetInput<V extends Record<string, any>> = {
   rutaId?: string;
   cliente: ClienteCierrePendiente;
   visitaBase: V;
-  contextoRegularizacion?: Record<string, any> | null;
+  contextoRegularizacion?: ContextoRegularizacion | null;
   intent?: 'pago' | 'reprogramacion';
 };
 
@@ -261,7 +262,7 @@ type RegularizedPaymentTarget<V> =
     }
   | {
       error?: undefined;
-      contextoPagoRegularizado: Record<string, any>;
+      contextoPagoRegularizado: ContextoRegularizacion;
       visitaRegularizada: V & CamposRegularizados;
     };
 

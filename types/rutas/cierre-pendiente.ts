@@ -149,3 +149,36 @@ export type CierrePendienteDetalle = {
   obligaciones?: ObligacionCierrePendiente[]
   accionesSugeridas?: string[]
 }
+
+/**
+ * Lo que viaja como "contexto de regularizacion" entre el cierre pendiente y las
+ * pantallas que registran el pago.
+ *
+ * Todos los campos son opcionales porque el estado guarda UNA DE DOS formas, segun por
+ * donde entro el usuario:
+ *
+ *  - El objeto que arma `CierrePendienteDetalleModal` (y el banner) y pasa a
+ *    `onMarcarAusente` / `onReprogramar` / `onRegularizar`: `rutaId`, `fechaOperativa`,
+ *    `activacionId`, `origenGestion`.
+ *  - La salida de `buildRegularizedPaymentTarget`, que esparce la anterior y le suma la
+ *    cuota objetivo y `fechaOperativaRuta`, DERIVADA de `fechaOperativa`.
+ *
+ * Por eso conviven `fechaOperativa` y `fechaOperativaRuta`, y por eso los lectores usan
+ * la cadena `fechaOperativaRuta || fechaOperativa`: acepta las dos formas. Antes esto
+ * era `any` en catorce sitios (tres `useState`, tres `useRef`, siete props y el
+ * builder), con la forma escrita a mano dos veces.
+ */
+export type ContextoRegularizacion = {
+  rutaId?: string
+  clienteId?: string
+  prestamoId?: string
+  cuotaId?: string
+  cuotaObjetivoId?: string
+  cuotaObjetivoPrestamoId?: string
+  cuotaNumeroEsperada?: number
+  montoCuotaEsperado?: number
+  fechaOperativa?: string
+  fechaOperativaRuta?: string
+  activacionId?: string
+  origenGestion?: string
+}

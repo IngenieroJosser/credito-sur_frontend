@@ -114,6 +114,7 @@ import { mapDailyVisitsResponseToVisitas as mapDailyVisitsResponseToVisitasShare
 import { enrichVisitasConCuotasYRiesgo } from '@/lib/rutas/enrich-visitas-con-cuotas-y-riesgo'
 import { resolveVisitaBaseRegularizacion } from '@/lib/rutas/resolve-visita-base-regularizacion'
 import { buildRutaHoyOperativa } from '@/lib/rutas/build-ruta-hoy-operativa'
+import type { ContextoRegularizacion } from '@/types/rutas/cierre-pendiente'
 
 interface GastoRuta {
   id: string
@@ -249,12 +250,12 @@ const RutaClientLoaded = ({
   const [enrichNonce, setEnrichNonce] = useState(0)
   
   const [visitaAusente, setVisitaAusente] = useState<VisitaRuta | null>(null)
-  const [contextoRegularizacion, setContextoRegularizacion] = useState<any>(null)
-  const contextoRegularizacionRef = useRef<any>(null)
+  const [contextoRegularizacion, setContextoRegularizacion] = useState<ContextoRegularizacion | null>(null)
+  const contextoRegularizacionRef = useRef<ContextoRegularizacion | null>(null)
 
-  const setRegularizacionContext = useCallback((ctx: any) => {
-    contextoRegularizacionRef.current = ctx
-    setContextoRegularizacion(ctx)
+  const setRegularizacionContext = useCallback((ctx: ContextoRegularizacion | null | undefined) => {
+    contextoRegularizacionRef.current = ctx ?? null
+    setContextoRegularizacion(ctx ?? null)
   }, [])
 
   const clearRegularizacionContext = useCallback(() => {
@@ -2038,7 +2039,7 @@ const RutaClientLoaded = ({
 
               const prestamoIdFinal =
                 esCierrePendiente
-                  ? contextoRegularizacionSnapshot?.prestamoId
+                  ? (contextoRegularizacionSnapshot?.prestamoId || pagoActual.visita.prestamoId)
                   : pagoActual.visita.prestamoId
 
               const cuotaIdFinal =

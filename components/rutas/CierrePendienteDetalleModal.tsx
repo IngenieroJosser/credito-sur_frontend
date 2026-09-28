@@ -12,6 +12,7 @@ import type { CierrePendienteDetalle, ClienteCierrePendiente } from '@/types/rut
 import BotonAccion from '@/components/ui/BotonAccion'
 import Tooltip from '@/components/ui/Tooltip'
 import { useModalDialog } from '@/hooks/use-modal-dialog'
+import type { ContextoRegularizacion } from '@/types/rutas/cierre-pendiente'
 
 // Helper para formato de fecha compacto (ej: 18 may)
 function formatFechaDiaMes(value?: string | Date | null) {
@@ -157,11 +158,11 @@ export function CierrePendienteDetalleModal({
     activacionId?: string
     origenGestion: 'CIERRE_PENDIENTE'
   }, observaciones?: string) => void | Promise<void>
-  onVerEstadoCuenta?: (cliente: ClienteCierrePendiente, contextoRegularizacion?: any) => void
-  onRegistrarPago?: (cliente: ClienteCierrePendiente, contextoRegularizacion?: any) => void
-  onRegistrarAbono?: (cliente: ClienteCierrePendiente, contextoRegularizacion?: any) => void
-  onMarcarAusente?: (cliente: ClienteCierrePendiente, contextoRegularizacion?: any) => void
-  onReprogramar?: (cliente: ClienteCierrePendiente, contextoRegularizacion?: any) => void
+  onVerEstadoCuenta?: (cliente: ClienteCierrePendiente, contextoRegularizacion?: ContextoRegularizacion) => void
+  onRegistrarPago?: (cliente: ClienteCierrePendiente, contextoRegularizacion?: ContextoRegularizacion) => void
+  onRegistrarAbono?: (cliente: ClienteCierrePendiente, contextoRegularizacion?: ContextoRegularizacion) => void
+  onMarcarAusente?: (cliente: ClienteCierrePendiente, contextoRegularizacion?: ContextoRegularizacion) => void
+  onReprogramar?: (cliente: ClienteCierrePendiente, contextoRegularizacion?: ContextoRegularizacion) => void
   permissions?: {
     canExportarDetalle?: boolean
     canSolicitarCorreccion?: boolean
@@ -177,10 +178,10 @@ export function CierrePendienteDetalleModal({
   handlers?: {
     onExportarDetalle?: (contexto: any) => void
     onSolicitarCorreccion?: (contexto: any) => void
-    onAnularAusencia?: (cliente: ClienteCierrePendiente, contextoRegularizacion?: any) => void
-    onVerPago?: (cliente: ClienteCierrePendiente, contextoRegularizacion?: any) => void
-    onVerComprobante?: (cliente: ClienteCierrePendiente, contextoRegularizacion?: any) => void
-    onAgregarObservacion?: (cliente: ClienteCierrePendiente, contextoRegularizacion?: any) => void
+    onAnularAusencia?: (cliente: ClienteCierrePendiente, contextoRegularizacion?: ContextoRegularizacion) => void
+    onVerPago?: (cliente: ClienteCierrePendiente, contextoRegularizacion?: ContextoRegularizacion) => void
+    onVerComprobante?: (cliente: ClienteCierrePendiente, contextoRegularizacion?: ContextoRegularizacion) => void
+    onAgregarObservacion?: (cliente: ClienteCierrePendiente, contextoRegularizacion?: ContextoRegularizacion) => void
   }
 }) {
   const [jornadaSeleccionada, setJornadaSeleccionada] = useState(0)

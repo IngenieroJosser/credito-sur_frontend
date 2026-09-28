@@ -230,6 +230,8 @@ import { MetodoPago } from '@/types/enums'
 
 import { toast } from 'sonner'
 import { Skeleton } from '@/components/ui/Skeleton'
+import type { DailyVisitsResponse } from '@/services/rutas-service'
+import type { ContextoRegularizacion } from '@/types/rutas/cierre-pendiente'
 
 const normalizePeriodoRuta = (raw: any): any => {
   const v = String(raw || '').toUpperCase()
@@ -318,12 +320,12 @@ const VistaCobrador = () => {
   const [visitaEstadoCuentaSeleccionada, setVisitaEstadoCuentaSeleccionada] = useState<VisitaRuta | null>(null)
 
   const [visitaAusente, setVisitaAusente] = useState<VisitaRuta | null>(null)
-  const [contextoRegularizacion, setContextoRegularizacion] = useState<any>(null)
-  const contextoRegularizacionRef = useRef<any>(null)
+  const [contextoRegularizacion, setContextoRegularizacion] = useState<ContextoRegularizacion | null>(null)
+  const contextoRegularizacionRef = useRef<ContextoRegularizacion | null>(null)
 
-  const setRegularizacionContext = useCallback((ctx: any) => {
-    contextoRegularizacionRef.current = ctx
-    setContextoRegularizacion(ctx)
+  const setRegularizacionContext = useCallback((ctx: ContextoRegularizacion | null | undefined) => {
+    contextoRegularizacionRef.current = ctx ?? null
+    setContextoRegularizacion(ctx ?? null)
   }, [])
 
   const clearRegularizacionContext = useCallback(() => {
@@ -494,7 +496,7 @@ const VistaCobrador = () => {
 
 
   const [rutaActual, setRutaActual] = useState<Ruta | null>(null)
-  const [dailyVisitsHoy, setDailyVisitsHoy] = useState<any>(null)
+  const [dailyVisitsHoy, setDailyVisitsHoy] = useState<DailyVisitsResponse | null>(null)
 
   const {
     cierrePendiente,
@@ -3196,7 +3198,7 @@ const VistaCobrador = () => {
       const esCierrePendiente =
         contextoRegularizacionSnapshot?.origenGestion === 'CIERRE_PENDIENTE'
       const prestamoIdFinal = esCierrePendiente
-        ? contextoRegularizacionSnapshot?.prestamoId
+        ? (contextoRegularizacionSnapshot?.prestamoId || visitaSnapshot.prestamoId)
         : visitaSnapshot.prestamoId
       const cuotaIdFinal = esCierrePendiente
         ? contextoRegularizacionSnapshot?.cuotaId

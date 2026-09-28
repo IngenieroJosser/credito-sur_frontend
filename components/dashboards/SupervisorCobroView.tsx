@@ -147,6 +147,7 @@ import RutaProvisionalModal from '@/components/dashboards/shared/RutaProvisional
 import { toast } from 'sonner'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { nombreDelCobrador } from '@/lib/rutas/nombre-cobrador'
+import type { ContextoRegularizacion } from '@/types/rutas/cierre-pendiente'
 
 const isUuid = (value?: string | null) => {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
@@ -460,12 +461,12 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
   const [visitaEstadoCuentaSeleccionada, setVisitaEstadoCuentaSeleccionada] = useState<VisitaRuta | null>(null)
 
   const [visitaAusente, setVisitaAusente] = useState<VisitaRuta | null>(null)
-  const [contextoRegularizacion, setContextoRegularizacion] = useState<any>(null)
-  const contextoRegularizacionRef = useRef<any>(null)
+  const [contextoRegularizacion, setContextoRegularizacion] = useState<ContextoRegularizacion | null>(null)
+  const contextoRegularizacionRef = useRef<ContextoRegularizacion | null>(null)
 
-  const setRegularizacionContext = useCallback((ctx: any) => {
-    contextoRegularizacionRef.current = ctx
-    setContextoRegularizacion(ctx)
+  const setRegularizacionContext = useCallback((ctx: ContextoRegularizacion | null | undefined) => {
+    contextoRegularizacionRef.current = ctx ?? null
+    setContextoRegularizacion(ctx ?? null)
   }, [])
 
   const clearRegularizacionContext = useCallback(() => {
@@ -1861,7 +1862,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
       pagosInFlightRef.current.set(String(visita.prestamoId), Date.now())
 
       const prestamoIdFinal = esCierrePendiente
-        ? contextoRegularizacionSnapshot?.prestamoId
+        ? (contextoRegularizacionSnapshot?.prestamoId || visita.prestamoId)
         : visita.prestamoId
       const cuotaIdFinal = esCierrePendiente
         ? contextoRegularizacionSnapshot?.cuotaId

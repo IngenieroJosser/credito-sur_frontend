@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import type { Usuario } from '@/types/domain'
 
 export const useAuth = () => {
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<Usuario | null>(null)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 

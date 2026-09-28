@@ -53,7 +53,7 @@ function formatDateTime(dateStr: string) {
 export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModalProps) {
   const [loading, setLoading] = useState(true)
   const [loanData, setLoanData] = useState<any>(null)
-  const [pagosFull, setPagosFull] = useState<any[]>([])
+  const [pagosFull, setPagosFull] = useState<Pago[]>([])
   const [error, setError] = useState<string | null>(null)
   // Escape para salir y el foco en el primer campo al abrir. El hook lleva
   // una pila, asi que con modales anidados Escape cierra solo el de encima.
