@@ -569,7 +569,7 @@ const VistaCobrador = () => {
 
 
 
-  const visitasRutaHoyKpiRef = useRef<any[]>([])
+  const visitasRutaHoyKpiRef = useRef<VisitaRuta[]>([])
 
   const [monthlyReport, setMonthlyReport] = useState<RouteDetailResponse | null>(null);
 
@@ -1124,6 +1124,19 @@ const VistaCobrador = () => {
     return false
   }, [esDiaNoLaboral, isCheckingActivacion, rutaActivadaHoy, rutaCompletada, rutaOperable])
 
+  /**
+   * Se queda en `any[]` a proposito, y esto es lo que se midio al intentar tiparlo:
+   *
+   * Con `VisitaRuta[]` falla una linea: `mergeVisitasPreservingLocalRecaudo` es generica
+   * de un solo parametro (`<T>(prev: T[], fresh: T[]) => T[]`) y recibe este ref junto
+   * con `visitasEnriquecidas`, que es `VisitaParcial[]`.
+   *
+   * Con `VisitaParcial[]` el error se mueve y aparece el fondo del asunto: el resultado
+   * del merge va a `setVisitasBase`, cuyo estado SI esta declarado `VisitaRuta[]`. O sea
+   * que hoy entran visitas PARCIALES en un estado de forma completa, y eso es anterior a
+   * este tipado. Decidir si `visitasBase` debe ser parcial toca todo el componente, asi
+   * que se deja para un paso propio en vez de dejar el arbol roto.
+   */
   const visitasBaseRef = useRef<any[]>([])
   useEffect(() => {
     visitasBaseRef.current = Array.isArray(visitasBase) ? (visitasBase) : []

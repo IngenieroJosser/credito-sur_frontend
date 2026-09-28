@@ -863,7 +863,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
   // Datos base
 
   const [visitasBase, setVisitasBase] = useState<VisitaRuta[]>([])
-  const visitasBaseRef = useRef<any[]>([])
+  const visitasBaseRef = useRef<VisitaRuta[]>([])
   
   // Helper: actualiza estado Y ref sincrónicamente para evitar que lecturas
   // inmediatas de visitasBaseRef.current vean datos obsoletos (race condition
@@ -889,7 +889,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
   // BUG-09 FIX: Map<string, number> con timestamp para evitar locks indefinidos.
   const pagosInFlightRef = useRef<Map<string, number>>(new Map())
-  const visitasRutaHoyKpiRef = useRef<any[]>([])
+  const visitasRutaHoyKpiRef = useRef<VisitaRuta[]>([])
 
 
 

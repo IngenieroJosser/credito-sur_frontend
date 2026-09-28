@@ -41,7 +41,7 @@ export const useRutaHistorialOperativo = ({
   preferLoadDayForToday = false,
 }: UseRutaHistorialOperativoProps) => {
   const [pagosCache, setPagosCache] = useState<Pago[]>([])
-  const pagosCacheRef = useRef<any[]>([])
+  const pagosCacheRef = useRef<Pago[]>([])
 
   useEffect(() => {
     pagosCacheRef.current = pagosCache
