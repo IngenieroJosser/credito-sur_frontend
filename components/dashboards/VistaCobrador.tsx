@@ -988,7 +988,7 @@ const VistaCobrador = () => {
 
       // Dedupe igual que admin: evita préstamos repetidos / filas duplicadas.
       const idsProcesados = new Set<string>()
-      const firstPass = (Array.isArray(mapped) ? mapped : []).flatMap((v: VisitaParcial) => {
+      const firstPass = (Array.isArray(mapped) ? mapped : []).flatMap((v) => {
         const uniqueKey = v?.prestamoId ? `loan-${v.prestamoId}` : `client-${v.clienteId}`
         if (idsProcesados.has(uniqueKey)) return []
         idsProcesados.add(uniqueKey)
@@ -1125,19 +1125,14 @@ const VistaCobrador = () => {
   }, [esDiaNoLaboral, isCheckingActivacion, rutaActivadaHoy, rutaCompletada, rutaOperable])
 
   /**
-   * Se queda en `any[]` a proposito, y esto es lo que se midio al intentar tiparlo:
-   *
-   * Con `VisitaRuta[]` falla una linea: `mergeVisitasPreservingLocalRecaudo` es generica
-   * de un solo parametro (`<T>(prev: T[], fresh: T[]) => T[]`) y recibe este ref junto
-   * con `visitasEnriquecidas`, que es `VisitaParcial[]`.
-   *
-   * Con `VisitaParcial[]` el error se mueve y aparece el fondo del asunto: el resultado
-   * del merge va a `setVisitasBase`, cuyo estado SI esta declarado `VisitaRuta[]`. O sea
-   * que hoy entran visitas PARCIALES en un estado de forma completa, y eso es anterior a
-   * este tipado. Decidir si `visitasBase` debe ser parcial toca todo el componente, asi
-   * que se deja para un paso propio en vez de dejar el arbol roto.
+   * `VisitaRuta[]`, no parcial. Se comprobo la cadena entera: los dos origenes estan
+   * declarados `VisitaRuta[]` (`mapped` y `visitasMapeadas`), y lo que la volvia parcial
+   * eran cuatro callbacks anotados `VisitaParcial` cuyo RETORNO fija el tipo del arreglo
+   * (dos `flatMap`, un `map` y el `mapWithConcurrency`). `VisitaParcial` existe para los
+   * PARAMETROS de los helpers, que se defienden solos de lo que falte; usarla ahi
+   * ensanchaba todo el tubo sin que nada lo fuera de verdad.
    */
-  const visitasBaseRef = useRef<any[]>([])
+  const visitasBaseRef = useRef<VisitaRuta[]>([])
   useEffect(() => {
     visitasBaseRef.current = Array.isArray(visitasBase) ? (visitasBase) : []
   }, [visitasBase])
@@ -1720,7 +1715,7 @@ const VistaCobrador = () => {
         })
 
         const idsProcesados = new Set<string>()
-        const firstPass = (Array.isArray(visitasMapeadas) ? visitasMapeadas : []).flatMap((v: VisitaParcial) => {
+        const firstPass = (Array.isArray(visitasMapeadas) ? visitasMapeadas : []).flatMap((v) => {
           const uniqueKey = v?.prestamoId ? `loan-${v.prestamoId}` : `client-${v.clienteId}`
           if (idsProcesados.has(uniqueKey)) return []
           idsProcesados.add(uniqueKey)
@@ -1764,7 +1759,7 @@ const VistaCobrador = () => {
 
           visitasEnriquecidas = await mapWithConcurrency(
             visitasMapeadasDedupe,
-            async (v: VisitaParcial) => {
+            async (v) => {
               if (!v?.prestamoId) return v
               const cuotas = await getCuotasByPrestamoId(String(v.prestamoId))
               const tipoPrestamo = String((v)?.tipoPrestamo || '').toUpperCase()
@@ -1916,7 +1911,7 @@ const VistaCobrador = () => {
 
           // Asignar fechaUltimoPago por prestamoId para el ordenamiento
           const { ultimoPagoDateByPrestamoId } = indexPagosByPrestamoId(pagosData)
-          visitasEnriquecidas = (visitasEnriquecidas).map((v: VisitaParcial) => {
+          visitasEnriquecidas = visitasEnriquecidas.map((v) => {
             const pid = v?.prestamoId
             if (!pid) return v
             return {
