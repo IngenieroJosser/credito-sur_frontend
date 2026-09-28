@@ -620,25 +620,12 @@ export interface Gasto {
   creadoEn: string;
 }
 
-// ─── NOTIFICACIÓN ────────────────────────────────────────────────────────────
+// La `Notificacion` de este archivo se BORRO: estaba duplicada con la de
+// `services/notificaciones-service.ts` y no tenia un solo consumidor (todos importan la
+// del servicio, que es la buena: su `tipo` es una union cerrada de diez valores y su
+// `detalles` esta desglosado campo por campo). Tener dos tipos con el mismo nombre ya
+// costo un rato con `Cliente`, donde una pantalla importaba el que no era.
 
-export interface Notificacion {
-  id: string;
-  titulo: string;
-  mensaje: string;
-  tipo: 'PAGO' | 'CLIENTE' | 'PRESTAMO' | 'GASTO' | 'MORA' | 'SISTEMA' | 'APROBACION' | 'SOLICITUD_DINERO' | string;
-  leida: boolean;
-  estado?: string | null;
-  rutaId?: string | null;
-  entidadId?: string | null;
-  fecha?: string;
-  creadoEn?: string;
-  metadata?: Record<string, unknown>;
-  detalles?: Record<string, unknown>;
-  link?: string;
-  solicitante?: string;
-  motivoRechazo?: string;
-}
 
 // ─── AUDITORÍA ───────────────────────────────────────────────────────────────
 

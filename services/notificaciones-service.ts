@@ -1,3 +1,4 @@
+import type { TipoAprobacion } from '@/types/enums'
 import { logger } from '@/lib/logger'
 import { apiRequest } from '@/lib/api/api';
 import { syncService } from '@/lib/offline/syncService';
@@ -37,6 +38,39 @@ export interface Notificacion {
   solicitante?: string;
   creadoEn?: string;
   metadata?: Record<string, any>;
+}
+
+/**
+ * Lo que recibe `NotificacionDetalleModal`, que es MAS que una `Notificacion`.
+ *
+ * Tres campos vienen del backend y no estaban declarados (comprobado en
+ * `notificaciones.service.ts`, `enrichNotificationForUi`):
+ *
+ *  - `entidad`, que SI es columna del modelo `Notificacion`.
+ *  - `datosSolicitud` y `aprobacion`, que el enriquecimiento agrega al nivel superior
+ *    cuando la notificacion apunta a una aprobacion (`notif.entidadId`).
+ *
+ * `approvalType` lo agregan las dos pantallas que alimentan el modal.
+ *
+ * `detalles` y `metadata` se quedan como bolsas: son el JSON de la solicitud, cuya forma
+ * CAMBIA segun `tipoAprobacion` (nuevo prestamo, gasto, prorroga, reprogramacion...). El
+ * modal lee unos setenta nombres distintos de ahi, muchos alias de otros. Declararlos todos
+ * como opcionales no comprobaria nada y daria una falsa sensacion de contrato; lo honesto es
+ * decir que es un JSON y que quien lo lee se defiende.
+ *
+ * NO se declaran `revisadoEn` ni `actualizadoEn`: se comprobo que no son columnas del modelo
+ * y que el enriquecimiento no los agrega.
+ */
+export interface NotificacionParaDetalle
+  extends Omit<Notificacion, 'fecha' | 'detalles'> {
+  /** Opcional aqui: el puente `aprobacionToNotificacion` de revisiones no la pone. */
+  fecha?: string
+  entidad?: string | null
+  detalles?: Record<string, unknown>
+  datosSolicitud?: Record<string, unknown>
+  aprobacion?: Record<string, unknown> | null
+  approvalType?: TipoAprobacion
+  revisadoPor?: string | null
 }
 
 export const notificacionesService = {

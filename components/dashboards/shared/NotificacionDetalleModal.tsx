@@ -33,6 +33,7 @@ import Tooltip from '@/components/ui/Tooltip'
 import { TipoAmortizacion } from '@/types/enums'
 import { totalDeSolicitud } from '@/lib/aprobaciones/total-de-solicitud'
 import { useModalDialog } from '@/hooks/use-modal-dialog'
+import type { NotificacionParaDetalle } from '@/services/notificaciones-service'
 import {
   calcularPrestamoPreview,
   derivarPlazoMeses,
@@ -42,7 +43,7 @@ import {
 export interface NotificacionDetalleModalProps {
   isOpen: boolean
   onClose: () => void
-  notificacion: any
+  notificacion: NotificacionParaDetalle | null
   onApprove: (id: string, type: TipoAprobacion, editedDetails: any) => Promise<void>
   onReject: (id: string, type: TipoAprobacion, reason: string, resultadoRevision?: 'RECHAZADO_CON_DEUDA' | 'RECHAZADO_CON_REINTEGRO') => Promise<void>
   canApprove?: boolean
@@ -476,11 +477,17 @@ export default function NotificacionDetalleModal({
       rolNormalizado === 'SUPER_ADMINISTRADOR' ||
       rolNormalizado === 'COORDINADOR'
 
-    if (!puedeConsultarHistorial) {
+    // `entidadId` es una columna ANULABLE, asi que puede faltar. Sin esta guarda se
+    // pedia el historial de `undefined`.
+    if (!puedeConsultarHistorial || !notificacion.entidadId) {
       setHistory([])
       setIsLoadingHistory(false)
       return
     }
+
+    // Se captura fuera del closure: el estrechamiento de `notificacion.entidadId` que hace
+    // la guarda de arriba no cruza a una funcion anidada, y con razon.
+    const entidadId = notificacion.entidadId
 
     const fetchHistory = async () => {
       setIsLoadingHistory(true)
@@ -493,7 +500,7 @@ export default function NotificacionDetalleModal({
         else if (notificacion.tipo === 'SOLICITUD_DINERO') tabla = 'Caja'
 
         const data = await aprobacionesService.getHistorial(
-          notificacion.entidadId,
+          entidadId,
           tabla,
         )
 
@@ -871,7 +878,7 @@ export default function NotificacionDetalleModal({
 
   // Variable interna robusta para detectar gastos legacy
   const tituloNotif = notificacion.titulo || notificacion.mensaje || ''
-  const mensajeNotif = notificacion.descripcion || notificacion.mensaje || ''
+  const mensajeNotif = notificacion.mensaje || ''
   const isLegacyEff =
     isLegacy ||
     (
@@ -1784,7 +1791,7 @@ export default function NotificacionDetalleModal({
                       <p className="text-[9px] text-slate-400 uppercase font-bold mb-0.5">Fecha</p>
                       <p className="text-[10px] font-black text-slate-700">
                         {(() => {
-                          const raw = safeMeta.fechaRevision || notificacion?.revisadoEn || notificacion?.actualizadoEn || notificacion?.creadoEn
+                          const raw = safeMeta.fechaRevision || notificacion?.creadoEn
                           if (!raw || raw === 'N/A' || raw === '—') return fecha || '—'
                           try {
                             const d = new Date(raw);
