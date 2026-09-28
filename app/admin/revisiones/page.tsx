@@ -189,7 +189,6 @@ const getAlertaClienteNombre = (alerta: AlertaCliente) => {
   const snapshot = alerta.snapshotCliente || {}
   const cliente = snapshot.cliente || alerta.cliente || {}
   return textValue(
-    cliente.nombreCompleto,
     `${cliente.nombres || ''} ${cliente.apellidos || ''}`,
     'Cliente sin nombre',
   )
@@ -224,7 +223,6 @@ const getAlertaMetricas = (alerta: AlertaCliente) => {
       ? saldoCarteraActiva
       : (
       metricas.saldoPendienteCarteraActiva ??
-      metricas.saldoCarteraActiva ??
       metricas.saldoPendienteTotal ??
       0
       ),

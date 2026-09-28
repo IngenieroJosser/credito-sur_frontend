@@ -21,9 +21,10 @@ import Portal, { MODAL_Z_INDEX } from '@/components/ui/Portal'
 import { formatCurrency, resolveMediaUrl } from '@/lib/utils'
 import Tooltip from '@/components/ui/Tooltip'
 import { useModalDialog } from '@/hooks/use-modal-dialog'
+import type { AlertaClienteParaDetalle, SnapshotClienteAlerta } from '@/services/alertas-clientes-service'
 
 interface AlertaClienteDetalleModalProps {
-  alerta: any
+  alerta: AlertaClienteParaDetalle | null
   onClose: () => void
   loading?: boolean
 }
@@ -90,7 +91,9 @@ const estadoLabel: Record<string, string> = {
   PAGADO: 'Pagado',
 }
 
-const esCarteraActiva = (credito: any) => {
+const esCarteraActiva = (
+  credito: NonNullable<SnapshotClienteAlerta['creditos']>[number],
+) => {
   if (credito?.esCarteraActiva === true) return true
   if (credito?.esCarteraActiva === false) return false
 
@@ -189,14 +192,15 @@ export default function AlertaClienteDetalleModal({
 
   const metadata = alerta?.metadata || {}
   const snapshot = alerta?.snapshotCliente || metadata.snapshotCliente || {}
-  const cliente = snapshot.cliente || alerta?.cliente || {}
+  const cliente: NonNullable<SnapshotClienteAlerta['cliente']> =
+    snapshot.cliente || alerta?.cliente || {}
   const ruta = snapshot.ruta || {}
   const cobrador = ruta?.cobrador || snapshot.cobrador || {}
   const referencias = Array.isArray(snapshot.referencias) ? snapshot.referencias : []
   const creditos = Array.isArray(snapshot.creditos) ? snapshot.creditos : []
   const visitas = Array.isArray(snapshot.historialVisitas) ? snapshot.historialVisitas : []
   const evidencias = Array.isArray(snapshot.evidencias) ? snapshot.evidencias : []
-  const pagos = creditos.flatMap((credito: any) =>
+  const pagos = creditos.flatMap((credito) =>
     Array.isArray(credito.pagosRecientes) ? credito.pagosRecientes : [],
   )
   const rawMetricas = snapshot.metricas || metadata || {}
@@ -204,7 +208,7 @@ export default function AlertaClienteDetalleModal({
     .filter(esCarteraActiva)
     .reduce((sum: number, credito: any) => sum + Number(credito.saldoPendiente || 0), 0)
   const saldoPendienteRevisionCalculado = creditos
-    .filter((credito: any) => !esCarteraActiva(credito))
+    .filter((credito) => !esCarteraActiva(credito))
     .reduce((sum: number, credito: any) => sum + Number(credito.saldoPendiente || 0), 0)
   const cuotasVencidasCalculadas = creditos
     .filter(esCarteraActiva)
@@ -213,24 +217,21 @@ export default function AlertaClienteDetalleModal({
     ...rawMetricas,
     saldoPendienteTotal:
       rawMetricas.saldoPendienteCarteraActiva ??
-      rawMetricas.saldoCarteraActiva ??
       saldoCarteraActivaCalculado,
     saldoPendientePendienteRevision:
       rawMetricas.saldoPendientePendienteRevision ??
       saldoPendienteRevisionCalculado,
     cuotasVencidas:
-      rawMetricas.saldoPendienteCarteraActiva !== undefined ||
-      rawMetricas.saldoCarteraActiva !== undefined
+      rawMetricas.saldoPendienteCarteraActiva !== undefined
         ? rawMetricas.cuotasVencidas
         : cuotasVencidasCalculadas,
   }
 
   const clienteNombre = text(
     metadata.clienteNombre,
-    cliente.nombreCompleto,
     `${cliente.nombres || ''} ${cliente.apellidos || ''}`,
   )
-  const documento = text(metadata.documento, cliente.documento, cliente.dni)
+  const documento = text(metadata.documento, cliente.dni)
   const estado = text(alerta?.estado, metadata.estadoAlerta, 'ACTIVA')
   const activa = estado.toUpperCase() === 'ACTIVA'
 
@@ -348,7 +349,6 @@ export default function AlertaClienteDetalleModal({
                         label="Cobrador"
                         value={text(
                           metadata.cobradorNombre,
-                          cobrador.nombreCompleto,
                           `${cobrador.nombres || ''} ${cobrador.apellidos || ''}`,
                         )}
                       />
@@ -358,7 +358,7 @@ export default function AlertaClienteDetalleModal({
                   <Section title="Referencias personales" icon={<Users className="h-4 w-4" />}>
                     {referencias.length > 0 ? (
                       <div className="grid gap-3">
-                        {referencias.map((ref: any, index: number) => (
+                        {referencias.map((ref, index) => (
                           <div key={`${ref.tipo || 'ref'}-${index}`} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
                             <p className="text-sm font-black text-slate-900">
                               {text(ref.nombre) || 'Referencia sin nombre'}
@@ -382,7 +382,7 @@ export default function AlertaClienteDetalleModal({
                   <Section title="Obligaciones asociadas" icon={<CreditCard className="h-4 w-4" />}>
                     {creditos.length > 0 ? (
                       <div className="space-y-3">
-                        {creditos.map((credito: any) => {
+                        {creditos.map((credito) => {
                           const vencidas = Number(credito.cuotasVencidas || 0)
                           const sumaSaldoActivo = esCarteraActiva(credito)
                           return (
@@ -419,16 +419,16 @@ export default function AlertaClienteDetalleModal({
                   <Section title="Evidencias cargadas" icon={<ImageIcon className="h-4 w-4" />}>
                     {evidencias.length > 0 ? (
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        {evidencias.map((ev: any) => {
-                          const url = resolveMediaUrl(ev.url || ev.path || ev.ruta || '')
-                          const kind = String(ev.tipoContenido || ev.tipoArchivo || '').toLowerCase()
+                        {evidencias.map((ev) => {
+                          const url = resolveMediaUrl(ev.url || '')
+                          const kind = String(ev.tipoContenido || '').toLowerCase()
                           const isVideo = kind.includes('video') || /\.(mp4|mov|webm)$/i.test(url)
                           const isImage = kind.includes('foto') || kind.includes('imagen') || /\.(jpg|jpeg|png|webp|gif)$/i.test(url)
 
                           return (
                             <div key={ev.id || url} className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
                               {url && isImage ? (
-                                <img src={url} alt={text(ev.descripcion, ev.nombreOriginal, 'Evidencia')} className="h-40 w-full object-cover" />
+                                <img src={url} alt={text(ev.descripcion, 'Evidencia')} className="h-40 w-full object-cover" />
                               ) : url && isVideo ? (
                                 <video src={url} controls className="h-40 w-full bg-black object-cover" />
                               ) : (
@@ -439,7 +439,7 @@ export default function AlertaClienteDetalleModal({
                               )}
                               <div className="px-3 py-2">
                                 <p className="truncate text-xs font-black text-slate-800">
-                                  {text(ev.descripcion, ev.nombreOriginal, ev.tipoContenido, 'Evidencia')}
+                                  {text(ev.descripcion, ev.tipoContenido, 'Evidencia')}
                                 </p>
                               </div>
                             </div>
@@ -455,17 +455,17 @@ export default function AlertaClienteDetalleModal({
                     <Section title="Últimos pagos" icon={<CheckCircle2 className="h-4 w-4" />}>
                       {pagos.length > 0 ? (
                         <div className="space-y-2">
-                          {pagos.slice(0, 5).map((pago: any, index: number) => (
-                            <div key={pago.id || pago.numeroPago || `pago-${index}`} className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2">
+                          {pagos.slice(0, 5).map((pago, index) => (
+                            <div key={pago.id || `pago-${index}`} className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2">
                               <div className="min-w-0">
                                 <p className="truncate text-xs font-bold text-slate-600">{formatDate(pago)}</p>
-                                {text(pago.metodoPago, pago.metodo) ? (
+                                {pago.metodoPago ? (
                                   <p className="mt-0.5 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                                    {text(pago.metodoPago, pago.metodo).replace(/_/g, ' ')}
+                                    {text(pago.metodoPago).replace(/_/g, ' ')}
                                   </p>
                                 ) : null}
                               </div>
-                              <p className="text-sm font-black text-emerald-700">{money(pago.montoTotal ?? pago.monto ?? pago.valor)}</p>
+                              <p className="text-sm font-black text-emerald-700">{money(pago.montoTotal)}</p>
                             </div>
                           ))}
                         </div>
@@ -477,10 +477,10 @@ export default function AlertaClienteDetalleModal({
                     <Section title="Últimas gestiones" icon={<Calendar className="h-4 w-4" />}>
                       {visitas.length > 0 ? (
                         <div className="space-y-2">
-                          {visitas.slice(0, 5).map((visita: any) => (
+                          {visitas.slice(0, 5).map((visita) => (
                             <div key={visita.id || `${visita.fechaVisita}-${visita.estadoVisita}`} className="rounded-xl bg-slate-50 px-3 py-2">
                               <p className="text-xs font-black text-slate-800">
-                                {text(visita.fechaVisita, visita.creadoEn)} · {text(visita.estadoVisita).replace(/_/g, ' ') || 'Sin estado'}
+                                {text(visita.fechaVisita)} · {text(visita.estadoVisita).replace(/_/g, ' ') || 'Sin estado'}
                               </p>
                               <p className="mt-1 line-clamp-2 text-xs font-semibold text-slate-500">
                                 {text(visita.notas) || 'Sin observaciones'}
