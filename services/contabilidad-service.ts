@@ -1,4 +1,5 @@
-import { estadoDeError } from '@/lib/mensaje-de-error'
+import { estadoDeError, mensajeDeError } from '@/lib/mensaje-de-error'
+import { esApiError } from '@/lib/api/api'
 import { logger } from '@/lib/logger'
 import { apiRequest } from '@/lib/api/api';
 import { syncService } from '@/lib/offline/syncService';
@@ -238,17 +239,16 @@ export async function getCajas(): Promise<Caja[]> {
       const cached = await offlineStore.getAll<Caja>('cajas');
       if (cached.length > 0) return cached;
     }
-    const err: any = error;
-    const statusCode = estadoDeError(err);
+    const statusCode = estadoDeError(error);
     if (statusCode === 401 || statusCode === 403) {
       logger.log('[Contabilidad] getCajas omitido por permisos.');
       return [];
     }
 
     const errorDetails = {
-      statusCode: estadoDeError(err),
-      message: err?.message,
-      error: err?.error,
+      statusCode: estadoDeError(error),
+      message: mensajeDeError(error, ''),
+      error: esApiError(error) ? error.error : undefined,
     };
     try {
       console.error(`Error fetching cajas: ${JSON.stringify(errorDetails)}`);
@@ -268,17 +268,16 @@ export async function getCajaById(id: string): Promise<Caja | null> {
        const cached = await offlineStore.getById<Caja>('cajas', id);
        if (cached) return cached;
     }
-    const err: any = error;
-    const statusCode = estadoDeError(err);
+    const statusCode = estadoDeError(error);
     if (statusCode === 401 || statusCode === 403) {
       logger.log('[Contabilidad] getCajaById omitido por permisos.');
       return null;
     }
 
     const errorDetails = {
-      statusCode: estadoDeError(err),
-      message: err?.message,
-      error: err?.error,
+      statusCode: estadoDeError(error),
+      message: mensajeDeError(error, ''),
+      error: esApiError(error) ? error.error : undefined,
     };
     try {
       console.error(`Error fetching caja: ${JSON.stringify(errorDetails)}`);
@@ -421,7 +420,6 @@ export async function getTransacciones(filtros?: {
     
     return await apiRequest<PaginatedResponse<Transaccion>>('GET', url);
   } catch (error) {
-    const e: any = error;
     console.error('Error fetching transacciones:', {
       urlRequested: (() => {
         try {
@@ -438,11 +436,11 @@ export async function getTransacciones(filtros?: {
           return '/accounting/transacciones';
         }
       })(),
-      statusCode: estadoDeError(e),
-      message: e?.message,
-      error: e?.error,
-      rawType: typeof e,
-      rawKeys: e && typeof e === 'object' ? Object.keys(e) : null,
+      statusCode: estadoDeError(error),
+      message: mensajeDeError(error, ''),
+      error: esApiError(error) ? error.error : undefined,
+      rawType: typeof error,
+      rawKeys: error && typeof error === 'object' ? Object.keys(error) : null,
     });
     return { data: [], meta: { total: 0, page: 1, limit: 50, totalPages: 0 } };
   }
@@ -542,17 +540,16 @@ export async function getResumenFinanciero(fechaInicio?: string, fechaFin?: stri
     
     return await apiRequest<ResumenFinanciero>('GET', url);
   } catch (error) {
-    const err: any = error
-    const statusCode = estadoDeError(err)
+    const statusCode = estadoDeError(error)
     if (statusCode === 401 || statusCode === 403) {
       logger.log('[Contabilidad] getResumenFinanciero omitido por permisos.')
       return null
     }
 
     const details = {
-      statusCode: estadoDeError(err),
-      message: err?.message,
-      error: err?.error,
+      statusCode: estadoDeError(error),
+      message: mensajeDeError(error, ''),
+      error: esApiError(error) ? error.error : undefined,
     }
     try {
       console.error(`Error fetching resumen financiero: ${JSON.stringify(details)}`)
@@ -998,17 +995,16 @@ export async function getDeudoresCobrador(): Promise<DeudaCobrador[]> {
   try {
     return await apiRequest<DeudaCobrador[]>('GET', '/accounting/deudas-cobradores');
   } catch (error) {
-    const err: any = error
-    const statusCode = estadoDeError(err)
+    const statusCode = estadoDeError(error)
     if (statusCode === 401 || statusCode === 403) {
       logger.log('[Contabilidad] getDeudoresCobrador omitido por permisos.')
       return []
     }
 
     const details = {
-      statusCode: estadoDeError(err),
-      message: err?.message,
-      error: err?.error,
+      statusCode: estadoDeError(error),
+      message: mensajeDeError(error, ''),
+      error: esApiError(error) ? error.error : undefined,
     }
     try {
       logger.error(`Error fetching deudas cobrador: ${JSON.stringify(details)}`)
