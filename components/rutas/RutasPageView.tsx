@@ -103,7 +103,7 @@ interface RutasPageViewProps {
 export const mapAsignacionesToClientesRuta = (asignaciones: any[] = []): ClienteSelection[] => {
   const uniqueByClienteId = new Map<string, ClienteSelection>();
 
-  asignaciones.forEach((a: any) => {
+  asignaciones.forEach((a) => {
     const clienteId = a?.cliente?.id;
     if (!clienteId || uniqueByClienteId.has(clienteId)) return;
 
@@ -369,7 +369,7 @@ export const RutasPageView = ({
 
           const clientesOperativosHoy = new Set(
             result.visibleItems
-              .map((v: any) => v.clienteId)
+              .map((v) => v.clienteId)
               .filter(Boolean),
           ).size
 
@@ -435,7 +435,7 @@ export const RutasPageView = ({
       try {
         const offRutas = await offlineStore.getAll<any>('rutas');
         if (offRutas.length > 0) {
-          setRutasList(offRutas.map((r: any) => ({
+          setRutasList(offRutas.map((r) => ({
             id: r.id, nombre: r.nombre, codigo: r.codigo, zona: r.zona || '',
             estado: r.activa ? 'ACTIVA' : 'INACTIVA', cobrador: '',
             cobradorId: r.cobradorId || '', supervisorId: r.supervisorId || '',
@@ -865,7 +865,7 @@ export const RutasPageView = ({
       }
     }
 
-    const rutasOperativas = (Array.isArray(displayRutas) ? displayRutas : []).filter((r: any) => {
+    const rutasOperativas = (Array.isArray(displayRutas) ? displayRutas : []).filter((r) => {
       if (!r || r.estado !== 'ACTIVA') return false
 
       const clientesOperativos = Number(
@@ -2259,7 +2259,7 @@ export const RutasPageView = ({
       <CrearCreditoModal
         isOpen={showCrearCreditoModal}
         onClose={() => setShowCrearCreditoModal(false)}
-        onConfirm={async (data: any) => {
+        onConfirm={async (data) => {
           try {
             const payload = buildCrearPrestamoPayload(data, currentUser?.id);
 

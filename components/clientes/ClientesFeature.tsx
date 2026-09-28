@@ -299,19 +299,19 @@ export default function ClientesFeature({
     const getDias = (c: any) => Number(diasMoraByClientId[String(c?.id || '')] ?? c?.diasMora ?? 0)
 
     const buenEstado = base.filter((c: any) => getDias(c) <= 0).length
-    const riesgoMedio = base.filter((c: any) => {
+    const riesgoMedio = base.filter((c) => {
       const d = getDias(c)
       return d >= 1 && d <= 4
     }).length
-    const altoRiesgo = base.filter((c: any) => getDias(c) >= 5).length
+    const altoRiesgo = base.filter((c) => getDias(c) >= 5).length
 
     return {
       total: base.length,
       buenEstado,
       riesgoMedio,
       altoRiesgo,
-      totalDeuda: base.reduce((sum: number, c: any) => sum + Number(c?.montoTotal ?? 0), 0),
-      totalMora: base.reduce((sum: number, c: any) => sum + Number(c?.montoMora ?? 0), 0),
+      totalDeuda: base.reduce((sum: number, c) => sum + Number(c?.montoTotal ?? 0), 0),
+      totalMora: base.reduce((sum: number, c) => sum + Number(c?.montoMora ?? 0), 0),
     }
   }, [filteredClientes, diasMoraByClientId])
 

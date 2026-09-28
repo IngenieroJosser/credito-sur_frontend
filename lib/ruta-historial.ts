@@ -487,7 +487,7 @@ export const buildHistorialDiaFromBackend = (params: {
     })))
   }
 
-  const visitasDesdeObligaciones: VisitaRuta[] = obligacionesRaw.map((item: any, index: number) => {
+  const visitasDesdeObligaciones: VisitaRuta[] = obligacionesRaw.map((item, index: number) => {
     const cliente: Partial<Cliente> = item?.cliente || item?.visita?.cliente || {}
     const prestamo: PrestamoParcial = item?.prestamo || {}
     const cuotaObjetivo = item?.cuotaObjetivo || prestamo?.cuotaObjetivo || null
@@ -653,7 +653,7 @@ export const buildHistorialDiaFromBackend = (params: {
   //    Para historial, la mayoría de campos se debe respetar del backend si viene.
   const visitas: VisitaRuta[] = visitasConRiesgo.length > 0
     ? visitasConRiesgo
-    : (visitasResp?.visitas || []).flatMap((item: any, index: number) => {
+    : (visitasResp?.visitas || []).flatMap((item, index: number) => {
     const cliente: Partial<Cliente> = item?.cliente || {}
     const prestamos = Array.isArray(item?.prestamos) ? item.prestamos : []
 

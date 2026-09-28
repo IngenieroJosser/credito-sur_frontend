@@ -538,11 +538,11 @@ export default function NotificacionDetalleModal({
     ;(async () => {
       try {
         const lista = await articulosService.obtenerArticulos()
-        const match = lista.find((a: any) => (a?.nombre || '').toLowerCase() === nombre.toLowerCase())
+        const match = lista.find((a) => (a?.nombre || '').toLowerCase() === nombre.toLowerCase())
         setArticuloData(match || null)
         if (match) {
           const idx = match.opcionesCuotas.findIndex(
-            (op: any) => Number(op?.numeroCuotas) === Number(dets?.plazoMeses || meta?.plazoMeses || 0),
+            (op) => Number(op?.numeroCuotas) === Number(dets?.plazoMeses || meta?.plazoMeses || 0),
           )
           setPlanIndex(idx >= 0 ? idx : null)
         }

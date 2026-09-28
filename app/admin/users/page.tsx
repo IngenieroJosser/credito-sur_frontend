@@ -133,9 +133,9 @@ const GLOBAL_MODULE_CATALOG = (() => {
 
   roleOrder.forEach((rol) => {
     const modules = (permisosPorRol)?.[rol] || []
-    modules.forEach((module: any) => {
+    modules.forEach((module) => {
       if (module.submodulos && module.submodulos.length > 0) {
-        module.submodulos.forEach((sub: any) => {
+        module.submodulos.forEach((sub) => {
           if (!sub?.id || seen.has(sub.id) || EXCLUDED_ACTION_IDS.has(sub.id)) return
           seen.add(sub.id)
           flattenedModules.push({
@@ -591,8 +591,8 @@ const UserManagementPage = () => {
         (selectedPermissions && selectedPermissions.length > 0)
           ? selectedPermissions
           : (availableModules || [])
-              .filter((m: any) => (m.roles || []).includes(user.rol))
-              .map((m: any) => m.id);
+              .filter((m) => (m.roles || []).includes(user.rol))
+              .map((m) => m.id);
       const permissionFilters = allowedModules.flatMap(
         (id: string) => permissionEntityMap[id] || [],
       );
@@ -602,11 +602,11 @@ const UserManagementPage = () => {
           : roleFilters[user.rol] || []
       ).map((s) => s.toLowerCase());
       const filtrados = filtros.length
-        ? (audit || []).filter((a: any) =>
+        ? (audit || []).filter((a) =>
             filtros.some((f) => (a.entidad || "").toLowerCase().includes(f)),
           )
         : audit || [];
-      const timeline = filtrados.slice(0, timelineLimit).map((a: any) => ({
+      const timeline = filtrados.slice(0, timelineLimit).map((a) => ({
         time: formatShortDateTime(a.creadoEn),
         action: a.action || a.accion,
         detail: `${a.entidad} ${a.entidadId || ""}`.trim(),
@@ -713,9 +713,9 @@ const UserManagementPage = () => {
       const expanded = new Set<string>()
 
       ids.forEach((id) => {
-        const group = allModules.find((m: any) => m?.id === id && Array.isArray(m?.submodulos) && m.submodulos.length > 0)
+        const group = allModules.find((m) => m?.id === id && Array.isArray(m?.submodulos) && m.submodulos.length > 0)
         if (group) {
-          group.submodulos?.forEach((s: any) => {
+          group.submodulos?.forEach((s) => {
             if (s?.id) expanded.add(s.id)
           })
           return
@@ -1008,7 +1008,7 @@ const UserManagementPage = () => {
     if (!selectedUser) return;
 
     try {
-      const validIds = new Set(availableModules.map((m: any) => m.id));
+      const validIds = new Set(availableModules.map((m) => m.id));
       const permissionsToSave = selectedPermissions.filter((p) => validIds.has(p));
 
       await usuariosService.asignarPermisos(selectedUser.id, permissionsToSave);

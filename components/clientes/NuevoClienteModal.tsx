@@ -134,7 +134,7 @@ export default function NuevoClienteModal({
 
       clientesService
         .obtenerPorId(cliente.id)
-        .then((fullClient: any) => {
+        .then((fullClient) => {
           if (fullClient.archivos) {
             const newExisting = { ...existingFiles }
             const newOriginales: any = {
@@ -145,7 +145,7 @@ export default function NuevoClienteModal({
             }
 
             let changed = false
-            fullClient.archivos.forEach((file: any) => {
+            fullClient.archivos.forEach((file) => {
               const url = file.url || file.path || file.ruta
               if (!url) return
               const fullUrl = resolveMediaUrl(url)

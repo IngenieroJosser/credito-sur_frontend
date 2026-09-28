@@ -59,7 +59,7 @@ function getSaldoOperativoJornada(cliente: ClienteCierrePendiente) {
 
   const saldoPrestamos = Array.isArray(cliente?.prestamos)
     ? cliente.prestamos.reduce(
-        (sum: number, prestamo: any) =>
+        (sum: number, prestamo) =>
           sum + Number(prestamo?.montoMetaOperativaPendiente || 0),
         0,
       )
@@ -594,10 +594,10 @@ export function CierrePendienteDetalleModal({
                 <div className="divide-y divide-slate-100 pb-8 sm:max-h-[520px] sm:overflow-y-auto sm:pb-10">
                   {(() => {
                     // Ordenar obligaciones por estado de gestión: pendientes, ausentes, pagos
-                    const obligacionesPendientes = obligacionesJornada.filter((c: any) => c.estadoGestion === 'PENDIENTE')
-                    const obligacionesAusentes = obligacionesJornada.filter((c: any) => c.estadoGestion === 'AUSENTE')
-                    const obligacionesReprogramados = obligacionesJornada.filter((c: any) => c.estadoGestion === 'REPROGRAMADO')
-                    const obligacionesPagaron = obligacionesJornada.filter((c: any) => c.estadoGestion === 'PAGO_REGISTRADO')
+                    const obligacionesPendientes = obligacionesJornada.filter((c) => c.estadoGestion === 'PENDIENTE')
+                    const obligacionesAusentes = obligacionesJornada.filter((c) => c.estadoGestion === 'AUSENTE')
+                    const obligacionesReprogramados = obligacionesJornada.filter((c) => c.estadoGestion === 'REPROGRAMADO')
+                    const obligacionesPagaron = obligacionesJornada.filter((c) => c.estadoGestion === 'PAGO_REGISTRADO')
                     const obligacionesOrdenadas = [...obligacionesPendientes, ...obligacionesAusentes, ...obligacionesReprogramados, ...obligacionesPagaron]
 
                     return obligacionesOrdenadas.map((cliente) => {

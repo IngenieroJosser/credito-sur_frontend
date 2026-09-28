@@ -304,7 +304,7 @@ export default function RutaHistorialOperativo({
                       {daysInMonth.map((date) => {
                         const dayData = historialRutas?.[date] ?? null
                         const visitasHistorial = (dayData?.visitas || []).map(normalizeVisitaHistorial)
-                        const visitasHistorialFiltradas = visitasHistorial.filter((v: any) => {
+                        const visitasHistorialFiltradas = visitasHistorial.filter((v) => {
                           const isSaldado =
                             String(v.estado || '').toLowerCase() === 'pagado' && Number(v.saldoTotal || 0) <= 0
                           return !(isSaldado && !hasGestionHistorial(v))

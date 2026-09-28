@@ -99,7 +99,7 @@ export const useRutaHistorialOperativo = ({
 
       const prestamosRuta: Set<string> = new Set(
         obligaciones
-          .map((o: any) =>
+          .map((o) =>
             String(
               o?.prestamoId ||
               o?.prestamo?.id ||

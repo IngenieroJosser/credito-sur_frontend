@@ -267,7 +267,7 @@ export default function CoordinadorPage() {
           target: Number(t.target || 0),
         }));
 
-        const topCollectors = (dashboard?.topCollectors || []).slice(0, 5).map((c: any) => ({
+        const topCollectors = (dashboard?.topCollectors || []).slice(0, 5).map((c) => ({
           name: c.name,
           collected: c.collected || 0,
           efficiency: c.efficiency || 0,

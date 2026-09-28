@@ -90,7 +90,7 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
       }
 
       const totalRegistradoRango = (ledgerRes.data || [])
-        .filter((entry: any) => txEnRango(entry))
+        .filter((entry) => txEnRango(entry))
         .reduce((s: number, entry: MovimientoLedger) => {
           const lineasCaja = entry.lineas.filter((linea) => linea.cajaId === id)
           const debitos = lineasCaja.reduce((acc, linea) => acc + Number(linea.debitAmount || 0), 0)
@@ -100,7 +100,7 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
 
       const saldoActual = cajaData?.saldo || 0
       const saldoPrevioRango = (ledgerRes.data || [])
-        .filter((entry: any) => {
+        .filter((entry) => {
           const key = new Date(entry.fecha).toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
           return key < ayerKey
         })
@@ -147,7 +147,7 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
       setEditForm({ nombre: cajaData?.nombre || '', responsable: cajaData?.responsable || '', saldoInicialInput: '' })
       try {
         const users = await usuariosService.obtenerTodos()
-        setUsuariosAutorizados((users).map((u: any) => ({ id: u.id, nombre: `${u.nombres} ${u.apellidos}`, rol: u.rol })))
+        setUsuariosAutorizados((users).map((u) => ({ id: u.id, nombre: `${u.nombres} ${u.apellidos}`, rol: u.rol })))
       } catch { /* ignore */ }
     } catch (err) {
       console.error('Error cargando caja:', err)

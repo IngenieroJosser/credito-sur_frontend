@@ -333,7 +333,7 @@ export default function AdminLayout({
             // Fix: si el usuario tiene permiso de contable pero el menú no lo trae (sidebar dinámico ausente), agregar Movimientos.
             const permisosUser = Array.isArray(parsedUser.permisos) ? parsedUser.permisos : []
             const hasContablePerm = permisosUser.includes('contable') || permisosUser.includes('CONTABLE_VIEW')
-            const hasMovimientos = navItems.some((n) => n?.href === '/contable' || n?.submodulos?.some((s: any) => s?.href === '/contable'))
+            const hasMovimientos = navItems.some((n) => n?.href === '/contable' || n?.submodulos?.some((s) => s?.href === '/contable'))
             if (hasContablePerm && !hasMovimientos) {
               navItems = [
                 ...navItems,
@@ -444,9 +444,9 @@ export default function AdminLayout({
   useEffect(() => {
     if (!pathname || navigation.length === 0) return
 
-    const seccionActiva = navigation.find((item: any) =>
+    const seccionActiva = navigation.find((item) =>
       item.submodulos?.some(
-        (sub: any) =>
+        (sub) =>
           sub.href && esRutaActiva(sub.href, pathname),
       ),
     )

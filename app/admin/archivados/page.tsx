@@ -68,7 +68,7 @@ export default function ArchivadosPage() {
         const ocultos = await auditoriaService.obtenerOcultosArchivados().catch(() => [])
         const ocultosKey = new Set(
           (Array.isArray(ocultos) ? ocultos : []).map(
-            (o: any) => `${String(o.entidad || '').toLowerCase()}::${String(o.entidadId || '')}`,
+            (o) => `${String(o.entidad || '').toLowerCase()}::${String(o.entidadId || '')}`,
           ),
         )
 
