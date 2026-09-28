@@ -994,8 +994,8 @@ const VistaCobrador = () => {
         idsProcesados.add(uniqueKey)
         return [v]
       })
-      const clientesConPrestamo = new Set(firstPass.filter((v: VisitaParcial) => v?.prestamoId).map((v: VisitaParcial) => v?.clienteId))
-      const mappedDedupe = firstPass.filter((v: VisitaParcial) => {
+      const clientesConPrestamo = new Set(firstPass.filter((v) => v?.prestamoId).map((v) => v?.clienteId))
+      const mappedDedupe = firstPass.filter((v) => {
         if (!v?.prestamoId && clientesConPrestamo.has(v?.clienteId)) return false
         return true
       })
@@ -1381,7 +1381,7 @@ const VistaCobrador = () => {
             });
 
             // Convertir obligaciones en el formato que espera el componente (VisitaRuta)
-            const visitasOperativas = obligacionesJornada.map((o: any, idx: number) => {
+            const visitasOperativas: VisitaRuta[] = obligacionesJornada.map((o: any, idx: number) => {
               const clienteObj = typeof o.cliente === 'object' && o.cliente ? o.cliente : null
               const prestamo = o.prestamo || {}
 
@@ -1590,7 +1590,7 @@ const VistaCobrador = () => {
               const { ultimoPagoDateByPrestamoId } = indexPagosByPrestamoId(pagosData)
 
               visitasOperativasConPagos = applyRecaudoHoyToVisitas(
-                visitasOperativasVivas.map((v: VisitaParcial) => ({
+                visitasOperativasVivas.map((v) => ({
                   ...v,
 
                   // Limpiar posibles recaudos agrupados por cliente que vengan del daily summary.
@@ -1602,7 +1602,7 @@ const VistaCobrador = () => {
                   hoyBogotaKey,
                   recaudosHoyMap,
                 },
-              ).map((v: VisitaParcial) => {
+              ).map((v) => {
                 const pid = String(v?.prestamoId || '')
                 return {
                   ...v,
@@ -1617,7 +1617,7 @@ const VistaCobrador = () => {
 
             // Filtrar visitas con la regla compartida
             const visitasBaseParaKpi = visitasOperativasConPagos
-              .filter((v: VisitaParcial) => {
+              .filter((v) => {
                 const recaudado = Number(v?.recaudadoDelDia || 0)
                 const metaPendiente = Number(v?.montoCuotaPendiente || 0)
                 const estadoGestion = String(v?.estadoGestion || '').toUpperCase()
@@ -1628,10 +1628,10 @@ const VistaCobrador = () => {
                   estadoGestion.includes('PAGO')
                 )
               })
-              .filter((v: VisitaParcial) => !shouldExcludeVisitaFromOperationalMeta(v))
+              .filter((v) => !shouldExcludeVisitaFromOperationalMeta(v))
 
             const visitasOperativasFiltradas = visitasBaseParaKpi
-              .filter((v: VisitaParcial) => shouldShowVisitaEnRutaHoy(v, hoyBogotaKey))
+              .filter((v) => shouldShowVisitaEnRutaHoy(v, hoyBogotaKey))
 
             const recaudoHoy = visitasBaseParaKpi.reduce(
               (sum: number, v: any) => sum + Number(v?.recaudadoDelDia || 0),
@@ -1664,7 +1664,7 @@ const VistaCobrador = () => {
 
             // Usar estas visitas como base para KPI (incluye pagadas de hoy)
             const nextBaseHoy = ordenarVisitasRutaActual(
-              visitasBaseParaKpi.map((v: VisitaParcial) => ({
+              visitasBaseParaKpi.map((v) => ({
                 ...v,
                 recaudadoDelDia: Number(v?.recaudadoDelDia || 0),
                 recaudadoTotalClient: Number(v?.recaudadoDelDia || 0),
@@ -1673,7 +1673,7 @@ const VistaCobrador = () => {
               })),
             )
 
-            console.table(nextBaseHoy.map((v: VisitaParcial) => ({
+            console.table(nextBaseHoy.map((v) => ({
               cliente: v.cliente,
               prestamoId: v.prestamoId,
               cuotaId: v.cuotaId,
@@ -1722,8 +1722,8 @@ const VistaCobrador = () => {
           return [v]
         })
 
-        const clientesConPrestamo = new Set(firstPass.filter((v: VisitaParcial) => v?.prestamoId).map((v: VisitaParcial) => v?.clienteId))
-        let visitasMapeadasDedupe = firstPass.filter((v: VisitaParcial) => {
+        const clientesConPrestamo = new Set(firstPass.filter((v) => v?.prestamoId).map((v) => v?.clienteId))
+        let visitasMapeadasDedupe = firstPass.filter((v) => {
           if (!v?.prestamoId && clientesConPrestamo.has(v?.clienteId)) return false
           return true
         })
@@ -1732,7 +1732,7 @@ const VistaCobrador = () => {
 
         if (periodoCardsRef.current === 'HOY') {
           const metaFallback = (Array.isArray(visitasMapeadasDedupe) ? visitasMapeadasDedupe : [])
-            .filter((v: VisitaParcial) => {
+            .filter((v) => {
               const estadoRaw = String(v?.estado || '').toLowerCase().replace(/\s+/g, '_')
               if (estadoRaw === 'en_mora' || estadoRaw.includes('mora')) return true
               if (String(v?.periodoRuta || '').toUpperCase() === 'DIA') return true
@@ -2083,7 +2083,7 @@ const VistaCobrador = () => {
       } finally {
         if (!silent) setIsLoading(false)
 
-        console.table(visitasBaseRef.current.map((v: VisitaParcial) => ({
+        console.table(visitasBaseRef.current.map((v) => ({
           cliente: v.cliente,
           prestamoId: v.prestamoId,
           cuotaId: v.cuotaId,
@@ -2549,7 +2549,7 @@ const VistaCobrador = () => {
 
     // BUG-12 FIX: en modo historial mostrar TODAS las visitas (incluyendo pagadas) para ver
     // el resumen completo del día. En modo normal ocultar las ya cobradas (shouldShowVisitaEnRutaHoy).
-    const visibles = buscadas.filter((v: VisitaParcial) =>
+    const visibles = buscadas.filter((v) =>
       showHistory ? true : shouldShowVisitaEnRutaHoy(v, hoyBogotaKey),
     )
 
@@ -2573,7 +2573,7 @@ const VistaCobrador = () => {
         ...v,
         estado: ajustarEstadoConPago(v),
       }))
-      .filter((v: VisitaParcial) =>
+      .filter((v) =>
         shouldIncludeVisitaInRutaHoyKpis(v, hoyBogotaKey) ||
         Number(v?.recaudadoDelDia || 0) > 0
       )
@@ -2581,13 +2581,13 @@ const VistaCobrador = () => {
     const isAusente = shouldExcludeVisitaFromOperationalMeta
 
     const visitasAusentesHoy = visitasExigiblesHoy.filter(isAusente)
-    const visitasOperativasHoy = visitasExigiblesHoy.filter((v: VisitaParcial) => !isAusente(v))
+    const visitasOperativasHoy = visitasExigiblesHoy.filter((v) => !isAusente(v))
 
     const statsHoy = computeRutaHoyUiStatsFromVisitas(visitasOperativasHoy, 0)
     const meta = Number(statsHoy.meta || 0)
     const recaudo = Number(statsHoy.recaudo || 0)
 
-    const pendientes = visitasOperativasHoy.filter((v: VisitaParcial) => {
+    const pendientes = visitasOperativasHoy.filter((v) => {
       const estado = String(v?.estado || '').toLowerCase()
       return estado !== 'pagado'
     }).length
@@ -3105,7 +3105,8 @@ const VistaCobrador = () => {
 
 
 
-  const getPrioridadColor = useCallback((prioridad: 'alta' | 'media' | 'baja') => {
+  const getPrioridadColor = useCallback(
+    (prioridad: 'alta' | 'media' | 'baja' | undefined) => {
 
     if (prioridad === 'alta') return '#f97316'
 
@@ -4906,7 +4907,7 @@ const VistaCobrador = () => {
 
           <RutaProvisionalModal
 
-            visitas={visitasCobrador.filter((v: VisitaParcial) => {
+            visitas={visitasCobrador.filter((v) => {
               const pending = ['pendiente', 'en_mora'].includes(String(v?.estado || '').toLowerCase())
               if (!pending) return false
               return isVisitaExigibleHoy(v, hoyBogotaKey)
@@ -5350,20 +5351,20 @@ const VistaCobrador = () => {
 
           const visitasCierreHoy = (visitasBase || [])
             .map((v: VisitaRuta) => ({ ...v, estado: ajustarEstadoConPago(v) }))
-            .filter((v: VisitaParcial) => shouldIncludeVisitaInRutaHoyKpis(v, hoyBogotaKey))
-          const visitasAusentesCierre = visitasCierreHoy.filter((v: VisitaParcial) => shouldExcludeVisitaFromOperationalMeta(v))
-          const visitasOperativasCierre = visitasCierreHoy.filter((v: VisitaParcial) => !shouldExcludeVisitaFromOperationalMeta(v))
-          const clientesFaltantesHoy = visitasOperativasCierre.filter((v: VisitaParcial) => {
+            .filter((v) => shouldIncludeVisitaInRutaHoyKpis(v, hoyBogotaKey))
+          const visitasAusentesCierre = visitasCierreHoy.filter((v) => shouldExcludeVisitaFromOperationalMeta(v))
+          const visitasOperativasCierre = visitasCierreHoy.filter((v) => !shouldExcludeVisitaFromOperationalMeta(v))
+          const clientesFaltantesHoy = visitasOperativasCierre.filter((v) => {
             const estado = String(v?.estado || '').toLowerCase()
             return estado !== 'pagado'
           }).length
           const clientesAusentesHoy = visitasAusentesCierre.length
-          const ausentesConNotaCierre = visitasAusentesCierre.map((v: VisitaParcial) => ({
+          const ausentesConNotaCierre = visitasAusentesCierre.map((v) => ({
             nombre: String(v?.cliente || 'Cliente'),
             nota: String(v?.notasVisita || '').trim(),
           }))
           const totalProgramadosHoy = visitasCierreHoy.length
-          const clientesCobradosHoy = visitasOperativasCierre.filter((v: VisitaParcial) => {
+          const clientesCobradosHoy = visitasOperativasCierre.filter((v) => {
             const estado = String(v?.estado || '').toLowerCase()
             return estado === 'pagado' || Number(v?.recaudadoDelDia || 0) > 0
           }).length

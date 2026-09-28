@@ -1,4 +1,5 @@
 import type { PrestamoParcial } from '@/types/domain'
+import type { VisitaRuta } from '@/lib/types/cobranza'
 import { resolveRutaDailySummary, shouldShowVisitaEnRutaHoy, shouldExcludeVisitaFromOperationalMeta, resolveCuotaIdFromVisitaLike, resolveFechaEfectivaCuota, computeDiasMoraFromCuotaObjetivo } from '@/lib/rutas-core'
 import { resolveNivelRiesgoVisita } from '@/lib/rutas/resolve-riesgo-visita'
 import { enrichVisitasConCuotasYRiesgo } from '@/lib/rutas/enrich-visitas-con-cuotas-y-riesgo'
@@ -7,8 +8,8 @@ import { memoizePromiseByKey } from '@/lib/async-utils'
 import { prestamosService } from '@/services/prestamos-service'
 
 export type RutaHoyOperativaResult = {
-  kpiItems: any[]
-  visibleItems: any[]
+  kpiItems: VisitaRuta[]
+  visibleItems: VisitaRuta[]
   stats: {
     meta: number
     recaudo: number
@@ -50,7 +51,7 @@ export async function buildRutaHoyOperativa({
   })
 
   // 2. Convertir obligaciones en formato VisitaRuta
-  const visitasOperativas = obligacionesJornada.map((o: any, idx: number) => {
+  const visitasOperativas: VisitaRuta[] = obligacionesJornada.map((o: any, idx: number) => {
     const clienteObj = typeof o.cliente === 'object' && o.cliente ? o.cliente : null
     // El `|| {}` mete un objeto vacio en la union y el compilador deja de
     // ver los campos. Se anota lo que estas variables contienen.

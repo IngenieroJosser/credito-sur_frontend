@@ -45,7 +45,13 @@ const resolveFechaOrdenRutaTs = (v: any): number => {
   )
 }
 
-export function ordenarVisitasRutaActual(visitas: any[]): any[] {
+/**
+ * Ordena y DEVUELVE LA MISMA forma, asi que es generica: era `(any[]) => any[]` y, con 23
+ * llamadores, borraba el tipo de la lista en cada paso del tubo de ruta-hoy.
+ */
+export function ordenarVisitasRutaActual<T extends Record<string, any>>(
+  visitas: T[],
+): T[] {
   return [...(Array.isArray(visitas) ? visitas : [])].sort((a, b) => {
     const aGestionado = isGestionado(a)
     const bGestionado = isGestionado(b)

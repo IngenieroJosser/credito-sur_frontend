@@ -89,13 +89,28 @@ const resolvePrimeraCuotaPendienteKey = (cuotas: any[]): string => {
   return pendientes[0] || ''
 }
 
-export async function enrichVisitasConCuotasYRiesgo(params: {
-  visitas: any[]
+/**
+ * Generica sobre la forma de la visita, como `applyRecaudoHoyToVisitas` y
+ * `mergeVisitasPreservingLocalRecaudo` en `ruta-recaudos`: enriquece y DEVUELVE LA MISMA
+ * forma, asi que no tiene por que perderla.
+ *
+ * Antes era `(visitas: any[]): Promise<any[]>` y era la puerta por la que el `any` entraba
+ * a todo el tubo de ruta-hoy: de aqui salia el `kpiItems: any[]` de
+ * `build-ruta-hoy-operativa`, y de ahi el `visitasRaw: any[]` de SupervisorCobroView.
+ *
+ * `Record<string, any>` como cota permite las lecturas defensivas de dentro
+ * (`visita?.frecuenciaPago`, `visita?.prestamoRaw?...`) sin pedirle al llamador que las
+ * declare.
+ */
+export async function enrichVisitasConCuotasYRiesgo<
+  T extends Record<string, any>,
+>(params: {
+  visitas: T[]
   hoyBogotaKey: string
   getCuotasByPrestamoId: (prestamoId: string) => Promise<any[]>
   getPrestamoById?: (prestamoId: string) => Promise<any>
   concurrency?: number
-}): Promise<any[]> {
+}): Promise<T[]> {
   const { visitas, hoyBogotaKey, getCuotasByPrestamoId, getPrestamoById, concurrency = 6 } = params
 
   const visitasFinales = await mapWithConcurrency(

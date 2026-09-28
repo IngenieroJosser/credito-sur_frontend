@@ -24,6 +24,7 @@ import { mapWithConcurrency, memoizePromiseByKey } from '@/lib/async-utils'
 import { mapNivelRiesgo } from '@/lib/types/cobranza'
 import { ordenarVisitasRutaActual } from '@/lib/rutas/ordenar-visitas-ruta'
 import { resolveVisitaBaseRegularizacion } from '@/lib/rutas/resolve-visita-base-regularizacion'
+import type { RutaHoyOperativaResult } from '@/lib/rutas/build-ruta-hoy-operativa'
 import { buildRutaHoyOperativa } from '@/lib/rutas/build-ruta-hoy-operativa'
 import { formatRoleLabel } from '@/lib/display-labels'
 import type { CuotaOperativa, VisitaParcial } from '@/lib/types/cobranza'
@@ -760,7 +761,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         const visitasActuales = visitasBaseRef.current
         const hasVisitasActuales = Array.isArray(visitasActuales) && visitasActuales.length > 0
         const visitasParaMeta = Array.isArray(visitasActuales)
-          ? visitasActuales.filter((v: VisitaParcial) => !isAusente(v))
+          ? visitasActuales.filter((v) => !isAusente(v))
           : []
         const statsHoy = computeRutaHoyUiStatsFromVisitas(visitasParaMeta, 0)
         const statsAutoritativas = {
@@ -869,7 +870,8 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
   // inmediatas de visitasBaseRef.current vean datos obsoletos (race condition
   // entre setVisitasBase → useEffect → ref cuando la siguiente fn lee el ref
   // antes de que React re-renderice).
-  const setVisitasBaseAndRef = useCallback((next: any[] | ((prev: any[]) => any[])) => {
+  const setVisitasBaseAndRef = useCallback(
+    (next: VisitaRuta[] | ((prev: VisitaRuta[]) => VisitaRuta[])) => {
     if (typeof next === 'function') {
       setVisitasBase((prev: any) => {
         const result = next(prev)
@@ -942,10 +944,10 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
           () => [],
         )
 
-        let visitasRaw: any[] = []
+        let visitasRaw: VisitaRuta[] = []
         let dailyVisitsData: any = null
         let pagosRecientes: any[] = []
-        let helperResult: any = null
+        let helperResult: RutaHoyOperativaResult | null = null
 
         try {
           const visitasDia = await rutasService.obtenerVisitasDelDia(ruta.id, hoyKey)
@@ -966,7 +968,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
           // Aplicar lógica específica de SupervisorCobroView (prorrogas, targetVencimiento, etc.)
           const visitasConLogicaSupervisor = await mapWithConcurrency(
             helperResult.kpiItems,
-            async (v: VisitaParcial) => {
+            async (v) => {
               if (!v.prestamoId || !v.cuotaObjetivo) return v
 
               const pendiente = v.cuotaObjetivo
@@ -1021,7 +1023,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
         const { totalHistoricoByPrestamoId, ultimoPagoDateByPrestamoId } = indexPagosByPrestamoId(pagosRecientes)
 
-        let finales = visitasRaw.map((v: VisitaParcial) => {
+        let finales = visitasRaw.map((v) => {
           const pid = v?.prestamoId
           if (!pid) return v
           return {
@@ -1043,13 +1045,13 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         visitasRutaHoyKpiRef.current = visitasBaseParaKpi
 
         const prevByKey = new Map(
-          (visitasBaseRef.current || []).map((v: VisitaParcial) => [
+          (visitasBaseRef.current || []).map((v) => [
             String(v?.prestamoId || v?.clienteId || v?.id || ''),
             v,
           ]),
         )
 
-        const merged = visitasVisibles.map((v: VisitaParcial) => {
+        const merged = visitasVisibles.map((v) => {
           const key = String(v?.prestamoId || v?.clienteId || v?.id || '')
           const prev = prevByKey.get(key)
 
@@ -1088,7 +1090,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
           }
 
           const isAusente = shouldExcludeVisitaFromOperationalMeta
-          const finalesSinAusentes = (merged || []).filter((v: VisitaParcial) => !isAusente(v))
+          const finalesSinAusentes = (merged || []).filter((v) => !isAusente(v))
           const statsHoy = computeRutaHoyUiStatsFromVisitas(finalesSinAusentes, 0)
           const rutaStatsBackend = (ruta)?.estadisticas || {}
           // `ruta` es el DETALLE, que ANIDA las cifras bajo `estadisticas` y no pone
@@ -1301,7 +1303,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     )
 
 
-    const filtered = searched.filter((v: VisitaParcial) => {
+    const filtered = searched.filter((v) => {
       return shouldShowVisitaEnRutaHoy(v, hoyBogotaKey)
     })
 
@@ -1411,8 +1413,8 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         return dd && mm ? `${dd}/${mm}` : fecha
       })()
 
-      setVisitasBaseAndRef((prev: any[]) =>
-        prev.map((v: VisitaParcial) => {
+      setVisitasBaseAndRef((prev) =>
+        prev.map((v) => {
           if (v.id !== visitaReprogramar.id) return v
           return {
             ...v,
@@ -1792,7 +1794,8 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
 
 
-  const getPrioridadColor = useCallback((prioridad: 'alta' | 'media' | 'baja') => {
+  const getPrioridadColor = useCallback(
+    (prioridad: 'alta' | 'media' | 'baja' | undefined) => {
 
     if (prioridad === 'alta') return '#f97316'
 
@@ -1932,7 +1935,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
       const clienteIdPago = visita.clienteId
 
       if (!esCierrePendiente) {
-        setVisitasBaseAndRef((prev: any[]) => prev.map((v: VisitaParcial) => {
+        setVisitasBaseAndRef((prev) => prev.map((v) => {
           if (v.clienteId !== clienteIdPago) return v
 
           const esVisitaPagada = v.id === visitaId
@@ -3201,7 +3204,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
           <RutaProvisionalModal
 
-            visitas={visitasCobrador.filter((v: VisitaParcial) => {
+            visitas={visitasCobrador.filter((v) => {
               const pending = ['pendiente', 'en_mora'].includes(String(v?.estado || '').toLowerCase())
               if (!pending) return false
               const hoyBogota = hoyBogotaKey
