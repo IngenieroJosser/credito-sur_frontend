@@ -41,6 +41,11 @@ import { TipoAmortizacion } from '@/types/enums'
 import BotonAccion from '@/components/ui/BotonAccion'
 import Tooltip from '@/components/ui/Tooltip'
 import { FrecuenciaPago } from '@/types/enums'
+// El `Cliente` del SERVICIO, con alias: la vista (`DetalleCliente`) exporta otro
+// `Cliente` distinto, que es el de presentacion y exige `fechaRegistro` (un nombre
+// de pantalla; en el esquema la columna es `creadoEn`). El estado guarda la
+// respuesta del endpoint, no el objeto de presentacion.
+import type { Cliente as ClienteDelServicio } from '@/services/clientes-service'
 
 const MODAL_Z_INDEX = 2147483647
 
@@ -89,7 +94,7 @@ export default function ClienteDetalleSupervisorPage() {
     comprobanteDomicilio: null as File | null,
   })
 
-  const [clienteData, setClienteData] = useState<any>(null)
+  const [clienteData, setClienteData] = useState<ClienteDelServicio | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 

@@ -542,7 +542,6 @@ const VistaCobrador = () => {
 
 
 
-  const [creditosPendientes, setCreditosPendientes] = useState<any[]>([]);
 
   
 

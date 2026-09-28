@@ -15,6 +15,7 @@ import { Skeleton, SkeletonTexto } from '@/components/ui/Skeleton'
 import { logger } from '@/lib/logger'
 import Tooltip from '@/components/ui/Tooltip'
 import { useModalDialog } from '@/hooks/use-modal-dialog'
+import type { OpcionCuotas } from '@/services/articulos-service'
 
 interface EditarPrestamoModalProps {
   id: string;
@@ -90,7 +91,7 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
 
   const tasa = Number(tasaStr) || 0;
   const cuotas = Number(cuotasStr) || 0;
-  const [opcionesCuotas, setOpcionesCuotas] = useState<any[]>([]);
+  const [opcionesCuotas, setOpcionesCuotas] = useState<OpcionCuotas[]>([]);
   const [planIndex, setPlanIndex] = useState<number | null>(null);
   const [autoCuotas, setAutoCuotas] = useState(false);
 

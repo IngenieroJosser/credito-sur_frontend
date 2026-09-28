@@ -9,6 +9,11 @@ import { ChevronLeft, BarChart3, Smartphone, DollarSign } from 'lucide-react';
 import ClienteDetalleElegante, { Cliente, Prestamo, Pago, Comentario } from '@/components/cliente/DetalleCliente';
 import Link from 'next/link';
 import { clientesService } from '@/services/clientes-service';
+// El `Cliente` del SERVICIO, con alias: la vista (`DetalleCliente`) exporta otro
+// `Cliente` distinto, que es el de presentacion y exige `fechaRegistro` (un nombre
+// de pantalla; en el esquema la columna es `creadoEn`). El estado guarda la
+// respuesta del endpoint, no el objeto de presentacion.
+import type { Cliente as ClienteDelServicio } from '@/services/clientes-service'
 import {
   computeDiasMoraFromCuotas,
   getBogotaDateKey,
@@ -22,7 +27,7 @@ export default function ClienteDetallePage() {
   const rawId = params?.id;
   const id = Array.isArray(rawId) ? rawId[0] : rawId as string;
   
-  const [clienteData, setClienteData] = useState<any>(null);
+  const [clienteData, setClienteData] = useState<ClienteDelServicio | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
