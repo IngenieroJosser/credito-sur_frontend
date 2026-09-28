@@ -9,11 +9,6 @@ import { use, useState } from 'react'
 
 import RutaClient from '../../../admin/rutas/[id]/ruta-client'
 
-const isUuid = (value?: string | null) => {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-    String(value || '').trim(),
-  )
-}
 
 import {
   XCircle,
@@ -33,7 +28,7 @@ import {
   Plus
 } from 'lucide-react'
 
-import { formatCOPInputValue, formatCurrency, formatMilesCOP } from '@/lib/utils'
+import { formatCOPInputValue, formatCurrency, formatMilesCOP, isUuid } from '@/lib/utils'
 
 import Link from 'next/link'
 
@@ -89,6 +84,7 @@ import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { Skeleton, SkeletonTabla } from '@/components/ui/Skeleton'
 import Tooltip from '@/components/ui/Tooltip'
 import { nombreDelCobrador } from '@/lib/rutas/nombre-cobrador'
+import { riesgoBadgeClasses, estadoVisitaClasses, prioridadColor, riesgoOperativoLabel } from '@/lib/display-labels'
 
 
 
@@ -316,87 +312,6 @@ const LegacyDetalleRutaPage = () => {
 
 
 
-  const getEstadoClasses = useCallback((estado: EstadoVisita) => {
-
-    switch (estado) {
-
-      case 'pagado':
-
-        return 'bg-emerald-50 text-emerald-700 border-emerald-500/30'
-
-      case 'pendiente':
-
-        return 'bg-orange-50 text-orange-700 border-orange-500/30'
-
-      case 'ausente':
-
-        return 'bg-amber-50 text-amber-700 border-amber-200'
-
-      case 'en_mora':
-
-        return 'bg-rose-50 text-rose-700 border-rose-500/30'
-
-      default:
-
-        return 'bg-slate-50 text-slate-700 border-slate-300'
-
-    }
-
-  }, [])
-
-
-
-  const getPrioridadColor = useCallback((prioridad: 'alta' | 'media' | 'baja') => {
-
-    switch (prioridad) {
-
-      case 'alta':
-
-        return '#f97316'
-
-      case 'media':
-
-        return '#08557f'
-
-      default:
-
-        return '#94a3b8'
-
-    }
-
-  }, [])
-
-
-
-  const getRiesgoBadgeClasses = (riesgo: string) => {
-
-    switch (riesgo) {
-
-        case 'PELIGRO_MINIMO': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
-
-        case 'LEVE_RETRASO': return 'bg-blue-100 text-blue-800 border-blue-200';
-
-        case 'PRECAUCION': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-
-        case 'RIESGO_MODERADO': return 'bg-amber-100 text-amber-800 border-amber-200';
-
-        case 'ALTO_RIESGO': return 'bg-rose-100 text-rose-800 border-rose-200';
-
-        default: return 'bg-slate-100 text-slate-800 border-slate-200';
-
-    }
-
-  }
-
-
-
-  const getRiesgoLabel = (riesgo: string) => {
-
-      if (!riesgo) return 'Desconocido'
-
-      return riesgo.replace('_', ' ');
-
-  }
 
 
 
@@ -1361,9 +1276,9 @@ const LegacyDetalleRutaPage = () => {
 
                     </h1>
 
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getRiesgoBadgeClasses(rutaActual?.nivelRiesgo || '')}`}>
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold border ${riesgoBadgeClasses(rutaActual?.nivelRiesgo || '')}`}>
 
-                        {getRiesgoLabel(rutaActual?.nivelRiesgo || '')}
+                        {riesgoOperativoLabel(rutaActual?.nivelRiesgo || '')}
 
                     </span>
 
@@ -1825,9 +1740,9 @@ const LegacyDetalleRutaPage = () => {
 
                                             onVerCliente={handleAbrirClienteInfo}
 
-                                            getEstadoClasses={getEstadoClasses}
+                                            getEstadoClasses={estadoVisitaClasses}
 
-                                            getPrioridadColor={getPrioridadColor}
+                                            getPrioridadColor={prioridadColor}
 
                                         />
 
@@ -1997,9 +1912,9 @@ const LegacyDetalleRutaPage = () => {
 
                                           onVerCliente={handleAbrirClienteInfo}
 
-                                          getEstadoClasses={getEstadoClasses}
+                                          getEstadoClasses={estadoVisitaClasses}
 
-                                          getPrioridadColor={getPrioridadColor}
+                                          getPrioridadColor={prioridadColor}
 
                                           actions={
 

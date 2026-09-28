@@ -229,3 +229,16 @@ export const resolveMediaUrl = (rawUrl: unknown) => {
   const cleanUrl = url.startsWith('/') ? url : `/${url}`
   return `${baseApi()}${cleanUrl}`
 }
+
+/**
+ * Si el texto es un UUID (version 1 a 5).
+ *
+ * Estaba copiado BYTE A BYTE en cuatro sitios: el detalle de ruta de admin y de
+ * coordinador, SupervisorCobroView y `useCrearCreditoOperativo`. Se usa para distinguir un
+ * id real de un id temporal offline (`temp-...`), asi que conviene que la regla sea una.
+ */
+export const isUuid = (value?: string | null) => {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    String(value || '').trim(),
+  )
+}

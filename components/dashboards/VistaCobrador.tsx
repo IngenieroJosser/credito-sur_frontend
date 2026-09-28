@@ -233,6 +233,7 @@ import { toast } from 'sonner'
 import { Skeleton } from '@/components/ui/Skeleton'
 import type { DailyVisitsResponse } from '@/services/rutas-service'
 import type { ContextoRegularizacion } from '@/types/rutas/cierre-pendiente'
+import { estadoVisitaClasses, prioridadColor } from '@/lib/display-labels'
 
 
 
@@ -3083,36 +3084,7 @@ const VistaCobrador = () => {
 
   // Funciones auxiliares
 
-  const getEstadoClasses = useCallback((estado: EstadoVisita) => {
-
-    if (estado === 'pagado') return 'bg-emerald-50 text-emerald-700 border-emerald-500/30'
-
-    if (estado === 'pendiente') return 'bg-orange-50 text-orange-700 border-orange-500/30'
-
-    if (estado === 'en_mora') return 'bg-rose-50 text-rose-700 border-rose-500/30'
-
-    if (estado === 'ausente') return 'bg-amber-50 text-amber-700 border-amber-200'
-
-    return 'bg-blue-50 text-blue-700 border-blue-500/30'
-
-  }, [])
-
-
-
-  const getPrioridadColor = useCallback(
-    (prioridad: 'alta' | 'media' | 'baja' | undefined) => {
-
-    if (prioridad === 'alta') return '#f97316'
-
-    if (prioridad === 'media') return '#08557f'
-
-    return '#94a3b8'
-
-  }, [])
-
-
-
-  const handleRegistrarPago = useCallback(async (
+const handleRegistrarPago = useCallback(async (
     monto: number,
     metodo: 'EFECTIVO' | 'TRANSFERENCIA',
     comprobante: File | null,
@@ -4392,7 +4364,7 @@ const VistaCobrador = () => {
                             : visitasBaseRef.current
                         }
                         onVerCliente={handleAbrirClienteInfo}
-                        getEstadoClasses={getEstadoClasses}
+                        getEstadoClasses={estadoVisitaClasses}
                       />
                     )}
 
@@ -4453,7 +4425,7 @@ const VistaCobrador = () => {
 
                                 allowClick={false}
 
-                                getEstadoClasses={getEstadoClasses}
+                                getEstadoClasses={estadoVisitaClasses}
 
                                 actions={
 
@@ -4565,7 +4537,7 @@ const VistaCobrador = () => {
                                   visita={visita}
                                   onSelect={(id) => setVisitaSeleccionada(id === visitaSeleccionada ? null : id)}
                                   onVerCliente={handleAbrirClienteInfo}
-                                  getEstadoClasses={getEstadoClasses}
+                                  getEstadoClasses={estadoVisitaClasses}
                                   disableSort={!modoOrdenarRuta}
                                   isSelected={visita.id === visitaSeleccionada}
                                   actions={
@@ -4784,7 +4756,7 @@ const VistaCobrador = () => {
 
                                   className="h-1.5 w-1.5 rounded-full"
 
-                                  style={{ backgroundColor: getPrioridadColor(overlayVisita.prioridad) }}
+                                  style={{ backgroundColor: prioridadColor(overlayVisita.prioridad) }}
 
                                 ></div>
 
@@ -4911,7 +4883,7 @@ const VistaCobrador = () => {
 
             onClose={() => setShowRutaProvisional(false)}
 
-            getEstadoClasses={getEstadoClasses}
+            getEstadoClasses={estadoVisitaClasses}
 
           />
 

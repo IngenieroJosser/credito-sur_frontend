@@ -7,11 +7,6 @@ import { logger } from '@/lib/logger'
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 
-const isUuid = (value?: string | null) => {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-    String(value || '').trim(),
-  )
-}
 
 import {
   CheckCircle2,
@@ -30,7 +25,7 @@ import {
   ChevronDown
 } from 'lucide-react'
 
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, isUuid } from '@/lib/utils'
 
 
 import { useRouter } from 'next/navigation'
@@ -63,7 +58,7 @@ import ReprogramarModal from '@/components/cobranza/ReprogramarModal'
 
 import AusenteModal from '@/components/cobranza/AusenteModal'
 
-import { VisitaRuta, EstadoVisita, VisitaParcial } from '@/lib/types/cobranza'
+import { VisitaRuta, VisitaParcial } from '@/lib/types/cobranza'
 
 import { StaticVisitaItem, SeleccionClienteModal } from '@/components/dashboards/shared/CobradorElements'
 
@@ -115,6 +110,7 @@ import { enrichVisitasConCuotasYRiesgo } from '@/lib/rutas/enrich-visitas-con-cu
 import { resolveVisitaBaseRegularizacion } from '@/lib/rutas/resolve-visita-base-regularizacion'
 import { buildRutaHoyOperativa } from '@/lib/rutas/build-ruta-hoy-operativa'
 import type { ContextoRegularizacion } from '@/types/rutas/cierre-pendiente'
+import { riesgoBadgeClasses, estadoVisitaClasses, prioridadColor, riesgoOperativoLabel } from '@/lib/display-labels'
 
 interface GastoRuta {
   id: string
@@ -799,45 +795,7 @@ const RutaClientLoaded = ({
 
 
 
-  const getEstadoClasses = useCallback((estado: EstadoVisita) => {
-
-    switch (estado) {
-
-      case 'pagado': return 'bg-emerald-50 text-emerald-700 border-emerald-500/30'
-
-      case 'pendiente': return 'bg-orange-50 text-orange-700 border-orange-500/30'
-
-      case 'en_mora': return 'bg-rose-50 text-rose-700 border-rose-500/30'
-
-      case 'ausente': return 'bg-amber-50 text-amber-700 border-amber-200'
-
-      case 'reprogramado': return 'bg-blue-50 text-blue-700 border-blue-500/30'
-
-      default: return 'bg-slate-50 text-slate-700 border-slate-300'
-
-    }
-
-  }, [])
-
-
-
-  const getPrioridadColor = useCallback((prioridad: 'alta' | 'media' | 'baja') => {
-
-    switch (prioridad) {
-
-      case 'alta': return '#ef4444'
-
-      case 'media': return '#f59e0b'
-
-      default: return '#10b981'
-
-    }
-
-  }, [])
-
-
-
-  const handleAbrirClienteInfo = useCallback((visita: VisitaRuta) => setDetalleVisita(visita), [setDetalleVisita])
+const handleAbrirClienteInfo = useCallback((visita: VisitaRuta) => setDetalleVisita(visita), [setDetalleVisita])
 
   const handleAbrirPago = useCallback((visita: VisitaRuta) => setPagoVisita({ visita, tipo: 'PAGO' }), [setPagoVisita])
 
@@ -921,33 +879,9 @@ const RutaClientLoaded = ({
 
   // Clases de riesgo para el badge superior
 
-  const getRiesgoBadgeClasses = (riesgo: string) => {
-
-    switch (riesgo) {
-
-        case 'PELIGRO_MINIMO': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
-
-        case 'LEVE_RETRASO': return 'bg-blue-100 text-blue-800 border-blue-200';
-
-        case 'PRECAUCION': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-
-        case 'RIESGO_MODERADO': return 'bg-amber-100 text-amber-800 border-amber-200';
-
-        case 'ALTO_RIESGO': return 'bg-rose-100 text-rose-800 border-rose-200';
-
-        default: return 'bg-slate-100 text-slate-800 border-slate-200';
-
-    }
-
-  }
 
 
 
-  const getRiesgoLabel = (riesgo: string) => {
-
-      return riesgo.replace('_', ' ');
-
-  }
 
 
 
@@ -1319,8 +1253,8 @@ const RutaClientLoaded = ({
             </h1>
           }
           badge={
-            <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getRiesgoBadgeClasses(nivelRiesgo)}`}>
-              {getRiesgoLabel(nivelRiesgo)}
+            <span className={`px-3 py-1 rounded-full text-xs font-bold border ${riesgoBadgeClasses(nivelRiesgo)}`}>
+              {riesgoOperativoLabel(nivelRiesgo)}
             </span>
           }
           subtitle={
@@ -1676,7 +1610,7 @@ const RutaClientLoaded = ({
                         : visitasCobradorRef.current
                     }
                     onVerCliente={handleAbrirClienteInfo}
-                    getEstadoClasses={getEstadoClasses}
+                    getEstadoClasses={estadoVisitaClasses}
                   />
 
               </div>
@@ -1744,8 +1678,8 @@ const RutaClientLoaded = ({
                           key={visita.id}
                           visita={visita}
                           allowClick={false}
-                          getEstadoClasses={getEstadoClasses}
-                          getPrioridadColor={getPrioridadColor}
+                          getEstadoClasses={estadoVisitaClasses}
+                          getPrioridadColor={prioridadColor}
                           actions={renderMisClientesActions(visita)}
                         />
                       ))}
@@ -1888,8 +1822,8 @@ const RutaClientLoaded = ({
                                             allowClick={false}
 
                                             onVerCliente={handleAbrirClienteInfo}
-                                            getEstadoClasses={getEstadoClasses}
-                                            getPrioridadColor={getPrioridadColor}
+                                            getEstadoClasses={estadoVisitaClasses}
+                                            getPrioridadColor={prioridadColor}
                                             actions={renderRutaActualActions(visita)}
                                         >
                                         </StaticVisitaItem>

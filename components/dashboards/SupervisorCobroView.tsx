@@ -26,7 +26,7 @@ import { ordenarVisitasRutaActual } from '@/lib/rutas/ordenar-visitas-ruta'
 import { resolveVisitaBaseRegularizacion } from '@/lib/rutas/resolve-visita-base-regularizacion'
 import type { RutaHoyOperativaResult } from '@/lib/rutas/build-ruta-hoy-operativa'
 import { buildRutaHoyOperativa } from '@/lib/rutas/build-ruta-hoy-operativa'
-import { formatRoleLabel } from '@/lib/display-labels'
+import { formatRoleLabel, estadoVisitaClasses, prioridadColor } from '@/lib/display-labels'
 import type { CuotaOperativa, VisitaParcial } from '@/lib/types/cobranza'
 
 import {
@@ -150,12 +150,8 @@ import { toast } from 'sonner'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { nombreDelCobrador } from '@/lib/rutas/nombre-cobrador'
 import type { ContextoRegularizacion } from '@/types/rutas/cierre-pendiente'
+import { isUuid } from '@/lib/utils'
 
-const isUuid = (value?: string | null) => {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-    String(value || '').trim(),
-  )
-}
 
 
 
@@ -1772,36 +1768,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
 
 
-  const getEstadoClasses = useCallback((estado: EstadoVisita) => {
-
-    if (estado === 'pendiente') return 'bg-orange-50 text-orange-700 border-orange-100'
-
-    if (estado === 'pagado') return 'bg-blue-50 text-blue-700 border-blue-100'
-
-    if (estado === 'en_mora') return 'bg-rose-50 text-rose-700 border-rose-500/30'
-
-    if (estado === 'ausente') return 'bg-amber-50 text-amber-700 border-amber-200'
-
-    return 'bg-blue-50 text-blue-700 border-blue-100'
-
-  }, [])
-
-
-
-  const getPrioridadColor = useCallback(
-    (prioridad: 'alta' | 'media' | 'baja' | undefined) => {
-
-    if (prioridad === 'alta') return '#f97316'
-
-    if (prioridad === 'media') return '#08557f'
-
-    return '#94a3b8'
-
-  }, [])
-
-
-
-  const handleRegistrarPago = useCallback(async (
+const handleRegistrarPago = useCallback(async (
     visitaId: string,
     montoPagado: number,
     metodo: 'EFECTIVO' | 'TRANSFERENCIA',
@@ -2619,7 +2586,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                                 : visitasBase
                             }
                             onVerCliente={handleAbrirClienteInfo}
-                            getEstadoClasses={getEstadoClasses}
+                            getEstadoClasses={estadoVisitaClasses}
                           />
                         )
 
@@ -2745,9 +2712,9 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
                                   allowClick={false}
 
-                                  getEstadoClasses={getEstadoClasses}
+                                  getEstadoClasses={estadoVisitaClasses}
 
-                                  getPrioridadColor={getPrioridadColor}
+                                  getPrioridadColor={prioridadColor}
 
                                   actions={
 
@@ -2877,7 +2844,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
                                     onVerCliente={handleAbrirClienteInfo}
 
-                                    getEstadoClasses={getEstadoClasses}
+                                    getEstadoClasses={estadoVisitaClasses}
 
                                     isSelected={visita.id === visitaSeleccionada}
 
@@ -3107,7 +3074,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
                                   className="h-1.5 w-1.5 rounded-full"
 
-                                  style={{ backgroundColor: getPrioridadColor(activeVisita.prioridad) }}
+                                  style={{ backgroundColor: prioridadColor(activeVisita.prioridad) }}
 
                                 ></div>
 
@@ -3209,7 +3176,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
             onClose={() => setShowRutaProvisional(false)}
 
-            getEstadoClasses={getEstadoClasses}
+            getEstadoClasses={estadoVisitaClasses}
 
           />
 

@@ -5,12 +5,8 @@ import { buildCrearPrestamoPayload } from '@/lib/creditos/crear-prestamo-payload
 import { prestamosService } from '@/services/prestamos-service';
 import { exportService } from '@/services/export-service';
 import { rutasService } from '@/services/rutas-service';
+import { isUuid } from '@/lib/utils'
 
-const isUuid = (value?: string | null) => {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-    String(value || '').trim(),
-  )
-}
 
 interface UseCrearCreditoOperativoProps {
   userId?: string;

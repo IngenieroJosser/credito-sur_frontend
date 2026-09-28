@@ -151,7 +151,7 @@ export default function CreditosArticulosPage() {
     }
   }
 
-  const getRiesgoLabel = (riesgo: string) => {
+  const riesgoClienteLabel = (riesgo: string) => {
     switch (riesgo) {
       case 'VERDE': return 'Al día'
       case 'AMARILLO': return 'Precaución'
@@ -446,7 +446,7 @@ export default function CreditosArticulosPage() {
                             <div className="flex items-center gap-2 mt-0.5">
                                <span className="text-xs font-medium text-slate-500">{credito.cliente}</span>
                                <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold border ${getRiesgoColor(credito.riesgo)}`}>
-                                 {getRiesgoLabel(credito.riesgo)}
+                                 {riesgoClienteLabel(credito.riesgo)}
                                </span>
                             </div>
                           </div>
@@ -603,7 +603,7 @@ export default function CreditosArticulosPage() {
                 <div className="mb-3">
                   <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Nivel de Riesgo</div>
                   <span className={`inline-flex items-center text-xs px-2 py-1 rounded font-bold ${getRiesgoColor(credito.riesgo)}`}>
-                    {getRiesgoLabel(credito.riesgo)}
+                    {riesgoClienteLabel(credito.riesgo)}
                   </span>
                 </div>
 

@@ -48,7 +48,7 @@ import { offlineStore } from '@/lib/offline/offlineDb';
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal';
 import { getCajas, consolidarCaja, obtenerSaldoDisponibleRuta, Caja } from '@/services/contabilidad-service';
 import { prestamosService } from '@/services/prestamos-service';
-import { formatRoleLabel } from '@/lib/display-labels';
+import { formatRoleLabel, riesgoOperativoLabel } from '@/lib/display-labels';
 import { buildCrearPrestamoPayload } from '@/lib/creditos/crear-prestamo-payload';
 import Paginador from '@/components/ui/Paginador'
 import { normalizarCodigoRuta } from '@/lib/rutas/codigo-ruta'
@@ -951,10 +951,6 @@ export const RutasPageView = ({
     }
   }
 
-  const getRiesgoLabel = (riesgo: string) => {
-      if (!riesgo) return '';
-      return riesgo.replace('_', ' ');
-  }
 
   if (!permitido) {
     return (
@@ -1227,7 +1223,7 @@ export const RutasPageView = ({
                               'px-3 py-1 rounded-full text-[10px] font-bold border uppercase ml-2',
                               getRiesgoColor(ruta.nivelRiesgo)
                           )}>
-                              {getRiesgoLabel(ruta.nivelRiesgo)}
+                              {riesgoOperativoLabel(ruta.nivelRiesgo)}
                           </div>
                       )}
                     </div>
@@ -1439,7 +1435,7 @@ export const RutasPageView = ({
                                   getRiesgoColor(ruta.nivelRiesgo)
                                 )}
                               >
-                                {getRiesgoLabel(ruta.nivelRiesgo)}
+                                {riesgoOperativoLabel(ruta.nivelRiesgo)}
                               </span>
                           )}
                         </td>
