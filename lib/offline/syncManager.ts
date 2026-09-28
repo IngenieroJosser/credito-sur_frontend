@@ -13,6 +13,12 @@ import {
 } from './offlineDb'
 import { trackOfflineEvent } from './offlineAnalytics'
 import { nombreDePersona } from '@/lib/nombre-de-persona'
+import type { Cliente } from '@/services/clientes-service'
+import type { PrestamoDelListadoParcial } from '@/types/domain'
+import type { PaginatedRoutes } from '@/services/routes-service'
+import type { Producto } from '@/services/inventario-service'
+import type { Caja } from '@/services/contabilidad-service'
+import type { Usuario } from '@/services/usuarios-service'
 import {
   remapearEndpoint,
   remapearProfundo,
@@ -218,7 +224,28 @@ async function descargarCuotasDePrestamos(ids: string[]): Promise<OfflineCuota[]
   return cuotas
 }
 
-export function mapearPrestamoDescargado(p: Record<string, unknown>): OfflinePrestamo {
+/**
+ * Lo que entra a `mapearPrestamoDescargado`.
+ *
+ * Es la fila del listado (`PrestamoDelListado`) en PARCIAL y con `cliente` ensanchado, por
+ * dos razones medidas:
+ *
+ *  - El almacen `prestamos` tiene DOS escritores: esta descarga y `ListadoPrestamos`, que
+ *    guarda las filas tal cual. Y hay una prueba —"acepta tambien el cliente como objeto,
+ *    por si otro origen alimenta el almacen"— que pasa `{ nombres, apellidos }`. El listado
+ *    manda `cliente` como TEXTO ya compuesto; el detalle, como objeto.
+ *  - Las pruebas llaman al mapeador con fragmentos, asi que tiene que ser parcial.
+ *
+ * Antes era `Record<string, unknown>`, que aceptaba leer cualquier nombre sin avisar. Ahi
+ * vivian los cuatro campos que se guardaban en 0 en TODOS los prestamos.
+ */
+type FilaPrestamoDescargable = Omit<PrestamoDelListadoParcial, 'cliente'> & {
+  cliente?: string | { nombres?: string; apellidos?: string; razonSocial?: string }
+}
+
+export function mapearPrestamoDescargado(
+  p: FilaPrestamoDescargable,
+): OfflinePrestamo {
   const num = (valor: unknown): number => Number(valor) || 0
   const texto = (valor: unknown, siNoHay = ''): string =>
     typeof valor === 'string' && valor ? valor : siNoHay
@@ -249,7 +276,9 @@ export function mapearPrestamoDescargado(p: Record<string, unknown>): OfflinePre
     valorCuota: num(p.valorCuota),
 
     tasaInteres: num(p.tasaInteres),
-    plazoMeses: num(p.plazoMeses),
+    // El listado NO manda `plazoMeses` (ver la nota de arriba): queda en 0, y quien lo
+    // usa lo comprueba antes (`offP.plazoMeses ? formatLoanTerm(...)`).
+    plazoMeses: 0,
     frecuenciaPago: texto(p.frecuenciaPago, 'MENSUAL'),
     estado: texto(p.estado, 'PENDIENTE'),
 
@@ -523,7 +552,7 @@ export const syncManager = {
       }
 
       logger.log('[Offline Sync] Iniciando descarga de clientes...')
-      const data = await apiRequest<any>('GET', '/clients', undefined, {
+      const data = await apiRequest<Cliente[] | { clientes: Cliente[] }>('GET', '/clients', undefined, {
         timeout: 30000,
         cacheTTL: 0,
       })
@@ -598,7 +627,7 @@ export const syncManager = {
         if (!token) return 0
       }
 
-      const data = await apiRequest<any>('GET', '/loans?limit=500', undefined, {
+      const data = await apiRequest<{ prestamos?: PrestamoDelListadoParcial[] }>('GET', '/loans?limit=500', undefined, {
         timeout: 30000,
         cacheTTL: 0,
       })
@@ -677,7 +706,7 @@ export const syncManager = {
         if (!token) return 0
       }
 
-      const data = await apiRequest<any>('GET', '/routes', undefined, {
+      const data = await apiRequest<PaginatedRoutes>('GET', '/routes', undefined, {
         timeout: 30000,
         cacheTTL: 0,
       })
@@ -723,11 +752,11 @@ export const syncManager = {
   async downloadProductos(): Promise<number> {
     if (typeof navigator !== 'undefined' && !navigator.onLine) return 0
     try {
-      const data = await apiRequest<any>('GET', '/inventory', undefined, {
+      const data = await apiRequest<Producto[]>('GET', '/inventory', undefined, {
         timeout: 30000,
         cacheTTL: 0,
       })
-      const productos = (Array.isArray(data) ? data : data.data || []).map((p: any) => ({
+      const productos = data.map((p) => ({
         id: String(p.id),
         codigo: p.codigo || '',
         nombre: p.nombre || '',
@@ -749,11 +778,11 @@ export const syncManager = {
   async downloadCajas(): Promise<number> {
     if (typeof navigator !== 'undefined' && !navigator.onLine) return 0
     try {
-      const data = await apiRequest<any>('GET', '/accounting/cajas', undefined, {
+      const data = await apiRequest<Caja[]>('GET', '/accounting/cajas', undefined, {
         timeout: 30000,
         cacheTTL: 0,
       })
-      const cajas = (Array.isArray(data) ? data : data.data || []).map((c: any) => ({
+      const cajas = data.map((c) => ({
         id: c.id,
         codigo: c.codigo || '',
         nombre: c.nombre || '',
@@ -792,11 +821,11 @@ export const syncManager = {
   async downloadUsuarios(): Promise<number> {
     if (typeof navigator !== 'undefined' && !navigator.onLine) return 0
     try {
-      const data = await apiRequest<any>('GET', '/usuarios', undefined, {
+      const data = await apiRequest<Usuario[]>('GET', '/usuarios', undefined, {
         timeout: 30000,
         cacheTTL: 0,
       })
-      const usuarios = (Array.isArray(data) ? data : data.data || []).map((u: any) => ({
+      const usuarios = data.map((u) => ({
         id: u.id,
         nombres: u.nombres || '',
         apellidos: u.apellidos || '',
