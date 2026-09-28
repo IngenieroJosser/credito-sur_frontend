@@ -59,18 +59,105 @@ export interface ApprovalMultimedia {
   pagoId?: string | null;
 }
 
+/**
+ * El cliente tal como lo manda `GET /approvals/:id/context`.
+ *
+ * NO es el `Cliente` del servicio de clientes: aqui viene por un `select` acotado (ver
+ * `getApprovalContext` en `approvals.service.ts`), asi que solo estan estos campos. Antes
+ * era `any`, y eso permitia leer cualquier nombre sin que nada avisara.
+ */
+export interface ClienteDeContextoAprobacion {
+  id: string;
+  codigo: string;
+  dni: string;
+  nombres: string;
+  apellidos: string;
+  telefono: string;
+  direccion: string | null;
+  nivelRiesgo: string;
+  enListaNegra: boolean;
+  razonListaNegra: string | null;
+  referencia: string | null;
+  referencia1Nombre: string | null;
+  referencia1Telefono: string | null;
+  referencia2Nombre: string | null;
+  referencia2Telefono: string | null;
+  /** Solo la asignacion activa, y de la ruta solo lo que se muestra. */
+  asignacionesRuta: Array<{
+    ruta: {
+      id: string;
+      nombre: string;
+      codigo: string;
+      cobrador: { id: string; nombres: string; apellidos: string } | null;
+    };
+  }>;
+}
+
+/** Una cuota del credito, con los ocho campos que el contexto selecciona. */
+export interface CuotaDeContextoAprobacion {
+  id: string;
+  numeroCuota: number;
+  fechaVencimiento: string;
+  fechaVencimientoProrroga: string | null;
+  fechaPago: string | null;
+  monto: number | string;
+  montoPagado: number | string;
+  estado: string;
+}
+
+/**
+ * Un credito del cliente en el contexto de aprobacion.
+ *
+ * El backend lo pide con `include`, asi que llegan todas las columnas del prestamo; aqui se
+ * declaran las que las pantallas leen, mas `producto` y `cuotas`, que son las dos
+ * relaciones que el `include` nombra. Si hace falta otra columna, se agrega: lo que no debe
+ * volver es el `any`, que dejaba pasar nombres inexistentes.
+ */
+export interface CreditoDeContextoAprobacion {
+  id: string;
+  numeroPrestamo: string;
+  estado: string;
+  tipoPrestamo: string;
+  frecuenciaPago: string;
+  cantidadCuotas: number;
+  saldoPendiente: number | string;
+  monto?: number | string;
+  producto?: {
+    id: string;
+    nombre: string;
+    marca: string | null;
+    modelo: string | null;
+  } | null;
+  cuotas?: CuotaDeContextoAprobacion[];
+}
+
+/**
+ * Un pago de los ultimos 30 dias. El backend lo pide con un `select` de OCHO campos, y esos
+ * son todos los que llegan.
+ */
+export interface PagoDeContextoAprobacion {
+  id: string;
+  numeroPago: string;
+  prestamoId: string;
+  montoTotal: number | string;
+  metodoPago: string;
+  fechaPago: string;
+  origenGestion: string | null;
+  fechaOperativaRuta: string | null;
+}
+
 export interface ApprovalContext {
   approval: Aprobacion;
-  cliente: any | null;
-  creditoSolicitud: any | null;
-  creditosCliente: any[];
+  cliente: ClienteDeContextoAprobacion | null;
+  creditoSolicitud: CreditoDeContextoAprobacion | null;
+  creditosCliente: CreditoDeContextoAprobacion[];
   referencias: Array<{
     tipo: string;
     nombre?: string | null;
     telefono?: string | null;
   }>;
   multimedia: ApprovalMultimedia[];
-  pagosUltimos30Dias: any[];
+  pagosUltimos30Dias: PagoDeContextoAprobacion[];
   metricas: {
     saldoTotalPendiente: number;
     creditosActivos: number;

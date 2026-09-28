@@ -418,7 +418,7 @@ export default function ReprogramacionDetalleModal({
             <span>{formatFechaHora(pago.fechaPago)}</span>
             <span>{humanizeToken(pago.metodoPago)}</span>
             <span className="font-black text-emerald-700">{formatCurrency(Number(pago.montoTotal || 0))}</span>
-            <span>{humanizeToken(pago.origenGestion || pago.tipo || pago.tipoReferencia, 'Ruta')}</span>
+            <span>{humanizeToken(pago.origenGestion, 'Ruta')}</span>
           </div>
         ))}
       </div>
