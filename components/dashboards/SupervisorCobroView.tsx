@@ -135,6 +135,7 @@ import {
   computeDiasMoraFromCuotaObjetivo,
   shouldShowVisitaEnRutaHoy,
   resolveCuotaIdFromVisitaLike,
+  frecuenciaToPeriodoRuta,
 } from '@/lib/rutas-core'
 
 import { mapAsignacionesToVisitasLite } from '@/lib/ruta-visitas-mapper'
@@ -156,14 +157,7 @@ const isUuid = (value?: string | null) => {
   )
 }
 
-const normalizePeriodoRuta = (raw: any): any => {
-  const v = String(raw || '').toUpperCase()
-  if (v === 'DIARIO' || v === 'DIA') return 'DIA'
-  if (v === 'SEMANAL' || v === 'SEMANA') return 'SEMANA'
-  if (v === 'QUINCENAL' || v === 'QUINCENA') return 'QUINCENA'
-  if (v === 'MENSUAL' || v === 'MES') return 'MES'
-  return 'DIA'
-}
+
 
 const mapDailyVisitToVisitaRuta = (row: any, rutaCobradorId: string, idx: number): VisitaRuta => {
   const cliente = row?.cliente || {}
@@ -219,7 +213,7 @@ const mapDailyVisitToVisitaRuta = (row: any, rutaCobradorId: string, idx: number
     prioridad: enMora ? 'alta' : 'media',
     nivelRiesgo: mapNivelRiesgo(cliente?.nivelRiesgo),
     cobradorId: rutaCobradorId,
-    periodoRuta: normalizePeriodoRuta(prestamoObjetivo?.frecuenciaPago) as PeriodoRuta,
+    periodoRuta: frecuenciaToPeriodoRuta(prestamoObjetivo?.frecuenciaPago) as PeriodoRuta,
     clienteId: cliente?.id || '',
     prestamoId: prestamoObjetivo?.id || row?.prestamoObjetivoId || '',
     cuotaId,
@@ -362,7 +356,7 @@ const mapObligacionToVisitaRuta = (o: any, rutaCobradorId: string, idx: number, 
     prioridad: estaEnMora ? 'alta' : o.prioridad || 'media',
     nivelRiesgo: mapNivelRiesgo(o.nivelRiesgo || clienteObj?.nivelRiesgo),
     cobradorId: rutaCobradorId,
-    periodoRuta: normalizePeriodoRuta(frecuenciaPago) as PeriodoRuta,
+    periodoRuta: frecuenciaToPeriodoRuta(frecuenciaPago) as PeriodoRuta,
     clienteId: o.clienteId || clienteObj?.id || '',
     prestamoId: o.prestamoId || prestamo?.id || '',
     cuotaId,

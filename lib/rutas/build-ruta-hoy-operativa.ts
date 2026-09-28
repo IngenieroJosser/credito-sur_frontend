@@ -6,6 +6,7 @@ import { enrichVisitasConCuotasYRiesgo } from '@/lib/rutas/enrich-visitas-con-cu
 import { applyRecaudoHoyToVisitas, buildRecaudosHoyMapByPrestamoId, indexPagosByPrestamoId } from '@/lib/ruta-recaudos'
 import { memoizePromiseByKey } from '@/lib/async-utils'
 import { prestamosService } from '@/services/prestamos-service'
+import { frecuenciaToPeriodoRuta } from '@/lib/rutas-core'
 
 export type RutaHoyOperativaResult = {
   kpiItems: VisitaRuta[]
@@ -212,7 +213,7 @@ export async function buildRutaHoyOperativa({
       prioridad: o.prioridad || 'media',
 
       cobradorId: ruta.cobradorId,
-      periodoRuta: frecuenciaPago === 'DIARIO' ? 'DIA' : frecuenciaPago === 'SEMANAL' ? 'SEMANA' : frecuenciaPago === 'QUINCENAL' ? 'QUINCENA' : 'MES',
+      periodoRuta: frecuenciaToPeriodoRuta(frecuenciaPago),
 
       clienteId: o.clienteId || clienteObj?.id || '',
       prestamoId: o.prestamoId || prestamo?.id || '',

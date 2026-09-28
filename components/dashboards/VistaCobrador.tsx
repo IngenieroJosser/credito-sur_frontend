@@ -212,6 +212,7 @@ import {
   computeDiasMoraFromCuotaObjetivo,
   computeDiasMoraFromCuotas,
   resolveCuotaIdFromVisitaLike,
+  frecuenciaToPeriodoRuta,
 } from '@/lib/rutas-core'
 import { mapAsignacionesToVisitasLite } from '@/lib/ruta-visitas-mapper'
 import { applyRecaudoHoyToVisitas, buildRecaudosHoyMapByPrestamoId, computeMontoCuotaPendienteDespuesDeRecaudo, indexPagosByPrestamoId, mergeVisitasPreservingLocalRecaudo } from '@/lib/ruta-recaudos'
@@ -233,14 +234,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import type { DailyVisitsResponse } from '@/services/rutas-service'
 import type { ContextoRegularizacion } from '@/types/rutas/cierre-pendiente'
 
-const normalizePeriodoRuta = (raw: any): any => {
-  const v = String(raw || '').toUpperCase()
-  if (v === 'DIARIO' || v === 'DIA') return 'DIA'
-  if (v === 'SEMANAL' || v === 'SEMANA') return 'SEMANA'
-  if (v === 'QUINCENAL' || v === 'QUINCENA') return 'QUINCENA'
-  if (v === 'MENSUAL' || v === 'MES') return 'MES'
-  return 'DIA'
-}
+
 
 
 
@@ -962,7 +956,7 @@ const VistaCobrador = () => {
           prioridad: 'media' as const,
           diasMora,
           cobradorId,
-          periodoRuta: normalizePeriodoRuta(p?.frecuenciaPago || 'DIARIO'),
+          periodoRuta: frecuenciaToPeriodoRuta(p?.frecuenciaPago || 'DIARIO'),
           clienteId: c?.id || '',
           prestamoId: p?.id || '',
           tipoPrestamo: esArticulo ? ('ARTICULO' as const) : ('EFECTIVO' as const),
@@ -1540,7 +1534,7 @@ const VistaCobrador = () => {
                 prioridad: o.prioridad || 'media',
 
                 cobradorId: rutaCompleta.cobradorId,
-                periodoRuta: normalizePeriodoRuta(frecuenciaPago),
+                periodoRuta: frecuenciaToPeriodoRuta(frecuenciaPago),
 
                 clienteId: o.clienteId || clienteObj?.id || '',
                 prestamoId: o.prestamoId || prestamo?.id || '',
@@ -2022,7 +2016,7 @@ const VistaCobrador = () => {
 
                      cobradorId: userSession.id,
 
-                     periodoRuta: normalizePeriodoRuta(p?.frecuenciaPago || 'DIARIO') as PeriodoRuta,
+                     periodoRuta: frecuenciaToPeriodoRuta(p?.frecuenciaPago || 'DIARIO') as PeriodoRuta,
 
                      clienteId: c.id,
 

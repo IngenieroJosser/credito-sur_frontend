@@ -1,6 +1,7 @@
 import { EstadoVisita, PeriodoRuta, VisitaRuta, mapNivelRiesgo } from '@/lib/types/cobranza';
 import type { PagoParcial, PrestamoParcial } from '@/types/domain';
 import type { CuotaOperativa } from '@/lib/types/cobranza';
+import { frecuenciaToPeriodoRuta } from '@/lib/rutas-core'
 
 /**
  * Un pago tal como le llega al historial.
@@ -30,14 +31,7 @@ export type PagoHistorial = PagoParcial & {
 /**
  * Normaliza el periodo de ruta
  */
-const normalizePeriodoRuta = (raw: any): any => {
-  const v = String(raw || '').toUpperCase()
-  if (v === 'DIARIO' || v === 'DIA') return 'DIA'
-  if (v === 'SEMANAL' || v === 'SEMANA') return 'SEMANA'
-  if (v === 'QUINCENAL' || v === 'QUINCENA') return 'QUINCENA'
-  if (v === 'MENSUAL' || v === 'MES') return 'MES'
-  return 'DIA'
-}
+
 
 /**
  * Helper central para construir historial operativo de ruta
@@ -130,7 +124,7 @@ export const buildVisitaHistorialFromPago = (
     nivelRiesgo: mapNivelRiesgo(cliente?.nivelRiesgo),
 
     cobradorId: String(pago?.cobradorId || rutaCobradorId || ''),
-    periodoRuta: normalizePeriodoRuta(
+    periodoRuta: frecuenciaToPeriodoRuta(
       prestamo?.frecuenciaPago ||
       pago?.frecuenciaPago ||
       'DIARIO',

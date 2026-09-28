@@ -1,7 +1,7 @@
 import type { CuotaOperativa } from '@/lib/types/cobranza'
 import { isPagoCierrePendiente } from '@/lib/ruta-recaudos'
 import { logger } from '@/lib/logger'
-import { getPagoBogotaDateKey, shouldExcludeVisitaFromOperationalMeta } from '@/lib/rutas-core'
+import { frecuenciaToPeriodoRuta, getPagoBogotaDateKey, shouldExcludeVisitaFromOperationalMeta } from '@/lib/rutas-core'
 import { mapNivelRiesgo, type VisitaParcial, type VisitaRuta } from '@/lib/types/cobranza'
 import { resolveRiesgoObligacion } from '@/lib/rutas/riesgo-obligacion'
 import type { Cliente, Pago, PagoParcial, Prestamo, PrestamoParcial } from '@/types/domain'
@@ -459,14 +459,6 @@ export const buildHistorialDiaFromBackend = (params: {
   //    Usamos llave por préstamo cuando exista; si no, por cliente.
   const existentes = new Set<string>()
 
-  const normalizePeriodoRuta = (raw: any): any => {
-    const v = String(raw || '').toUpperCase()
-    if (v === 'DIARIO' || v === 'DIA') return 'DIA'
-    if (v === 'SEMANAL' || v === 'SEMANA') return 'SEMANA'
-    if (v === 'QUINCENAL' || v === 'QUINCENA') return 'QUINCENA'
-    if (v === 'MENSUAL' || v === 'MES') return 'MES'
-    return 'DIA'
-  }
 
   const obligacionesRaw = Array.isArray(visitasResp?.obligaciones)
     ? visitasResp.obligaciones
@@ -606,7 +598,7 @@ export const buildHistorialDiaFromBackend = (params: {
         fechaClave,
       ordenVisita: Number(item?.ordenVisita || item?.visita?.ordenVisita || index + 1),
       cobradorId: '',
-      periodoRuta: normalizePeriodoRuta(prestamo?.frecuenciaRuta || prestamo?.frecuenciaPago || prestamo?.frecuencia || 'DIA'),
+      periodoRuta: frecuenciaToPeriodoRuta(prestamo?.frecuenciaRuta || prestamo?.frecuenciaPago || prestamo?.frecuencia || 'DIA'),
       clienteId,
       prestamoId,
       cuotaActual: cuotaObjetivo?.numeroCuota || prestamo?.proximaCuota?.numeroCuota,
@@ -735,7 +727,7 @@ export const buildHistorialDiaFromBackend = (params: {
       // por pagos del cliente de otros préstamos.
       if (!item?.estado && montoGestionado <= 0 && estado === 'pagado') estado = 'pendiente'
 
-      const periodoRuta = normalizePeriodoRuta(p?.frecuenciaRuta || p?.frecuenciaPago || p?.frecuencia || 'DIA')
+      const periodoRuta = frecuenciaToPeriodoRuta(p?.frecuenciaRuta || p?.frecuenciaPago || p?.frecuencia || 'DIA')
 
       const keyExist = prestamoId ? `loan-${prestamoId}` : (cliente?.id ? `client-${cliente.id}` : `client-idx-${index}`)
       existentes.add(keyExist)
@@ -896,7 +888,7 @@ export const buildHistorialDiaFromBackend = (params: {
       prioridad: cliente?.nivelRiesgo === 'ROJO' ? 'alta' : 'media',
       nivelRiesgo: normalizeNivelRiesgo(cliente?.nivelRiesgo),
       cobradorId: '',
-      periodoRuta: normalizePeriodoRuta(prestamo?.frecuenciaRuta || prestamo?.frecuenciaPago || prestamo?.frecuencia || 'DIA'),
+      periodoRuta: frecuenciaToPeriodoRuta(prestamo?.frecuenciaRuta || prestamo?.frecuenciaPago || prestamo?.frecuencia || 'DIA'),
       clienteId: cid,
       prestamoId: pid,
       cuotaActual: cuotaDetalle?.numeroCuota,
@@ -947,7 +939,7 @@ export const buildHistorialDiaFromBackend = (params: {
       prioridad: 'media',
       nivelRiesgo: cliente?.nivelRiesgo || 'MINIMO',
       cobradorId: '',
-      periodoRuta: normalizePeriodoRuta(prestamo?.frecuenciaRuta || prestamo?.frecuenciaPago || 'DIA'),
+      periodoRuta: frecuenciaToPeriodoRuta(prestamo?.frecuenciaRuta || prestamo?.frecuenciaPago || 'DIA'),
       clienteId: pago?.clienteId || cliente?.id || '',
       prestamoId,
       cuotaActual: pago?.cuota?.numeroCuota,
