@@ -8,7 +8,7 @@ import Tooltip from '@/components/ui/Tooltip'
 import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber, cn } from '@/lib/utils'
 import MoneyAmount from '@/components/contable/MoneyAmount'
 import { getResumenFinanciero, getHistorialCierres, getHistorialCierresFiltrado, getCajas, getMovimientosLedger, getArqueoPreview, confirmarArqueo, getArqueoById } from '@/services/contabilidad-service';
-import type { Caja } from '@/services/contabilidad-service'
+import type { ArqueoPreview, Caja, CierreHistorialItem, ResumenFinanciero } from '@/services/contabilidad-service'
 import { Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
 import { getBogotaDateKey } from '@/lib/rutas-core'
 import { getEntradaCajaFisica, getSalidaCajaFisica } from '@/lib/contabilidad-clasificacion'
@@ -49,7 +49,7 @@ const getNombreUsuario = (
 }
 
 // Helper to get principal caja (strict, no Oficina fallback)
-const getCajaPrincipal = (cajas: any[]) => {
+const getCajaPrincipal = (cajas: Caja[]): Caja | null => {
   if (!Array.isArray(cajas)) return null;
 
   return (
@@ -72,7 +72,7 @@ const getCajaPrincipal = (cajas: any[]) => {
 };
 
 // Helper to get saldo from various fields using parseSaldoCaja
-const getSaldoCaja = (caja: Caja) => {
+const getSaldoCaja = (caja: Caja | null | undefined) => {
   if (!caja) return 0;
 
   const raw = 
@@ -97,16 +97,16 @@ export default function CierreCajaPage() {
     efectivoContado: '',
     observaciones: 'Cierre normal sin novedades.'
   })
-  const [resumen, setResumen] = useState<any | null>(null)
-  const [ultimoCierre, setUltimoCierre] = useState<any | null>(null)
-  const [cierres, setCierres] = useState<any[]>([])
+  const [resumen, setResumen] = useState<ResumenFinanciero | null>(null)
+  const [ultimoCierre, setUltimoCierre] = useState<CierreHistorialItem | null>(null)
+  const [cierres, setCierres] = useState<CierreHistorialItem[]>([])
   const [showHistorialModal, setShowHistorialModal] = useState(false)
-  const [selectedCierre, setSelectedCierre] = useState<any | null>(null)
+  const [selectedCierre, setSelectedCierre] = useState<CierreHistorialItem | null>(null)
   const [cargando, setCargando] = useState(false)
-  const [principalCaja, setPrincipalCaja] = useState<any | null>(null)
-  const [rutaCajas, setRutaCajas] = useState<any[]>([])
-  const [selectedRutaCaja, setSelectedRutaCaja] = useState<any | null>(null)
-  const [arqueoPreview, setArqueoPreview] = useState<any | null>(null)
+  const [principalCaja, setPrincipalCaja] = useState<Caja | null>(null)
+  const [rutaCajas, setRutaCajas] = useState<Caja[]>([])
+  const [selectedRutaCaja, setSelectedRutaCaja] = useState<Caja | null>(null)
+  const [arqueoPreview, setArqueoPreview] = useState<ArqueoPreview | null>(null)
   const [arqueoResult, setArqueoResult] = useState<any | null>(null)
   const [filtroTipo, setFiltroTipo] = useState<'TODOS' | 'ARQUEO' | 'CONSOLIDACION'>('TODOS')
   const [soloRutas, setSoloRutas] = useState<boolean>(false)
@@ -254,7 +254,7 @@ export default function CierreCajaPage() {
   const ingresosHoy = useMemo(() => ingresosHoyCalc ?? (resumen ? resumen.ingresosHoy : 0), [ingresosHoyCalc, resumen])
   const egresosHoy = useMemo(() => egresosHoyCalc ?? (resumen ? resumen.egresosHoy : 0), [egresosHoyCalc, resumen])
 
-  const formatTipoDiferencia = (tipo?: string) => {
+  const formatTipoDiferencia = (tipo?: string | null) => {
     switch (tipo) {
       case 'SIN_DIFERENCIA':
         return 'Sin diferencia'
@@ -1353,7 +1353,7 @@ export default function CierreCajaPage() {
                             {c.responsable ? `Resp: ${getNombreUsuario(c.responsable)}` : ''}
                           </span>
                           <span className="text-[11px] text-slate-400">
-                            {new Date(c.fecha || c.creadoEn || c.fechaOperativa).toLocaleString('es-CO')}
+                            {new Date(c.fecha).toLocaleString('es-CO')}
                           </span>
                         </div>
                         
@@ -1448,7 +1448,7 @@ export default function CierreCajaPage() {
                     <div className="flex-1 min-w-[150px]">
                       <div className="text-[10px] font-bold text-slate-400 uppercase">Fecha generación</div>
                       <div className="text-sm font-bold text-slate-900">
-                        {new Date(selectedCierre.creadoEn || selectedCierre.fecha).toLocaleString('es-CO')}
+                        {new Date(selectedCierre.fecha).toLocaleString('es-CO')}
                       </div>
                     </div>
                     <div className="flex-1 min-w-[150px]">
@@ -1591,10 +1591,10 @@ export default function CierreCajaPage() {
                   )}
 
                   {/* Observaciones */}
-                  { (selectedCierre.observaciones || selectedCierre.descripcion) && (
+                  { selectedCierre.descripcion && (
                     <div className="bg-slate-50 border border-slate-200 rounded-2xl px-4 py-4">
                       <div className="text-[10px] font-bold text-slate-400 uppercase">Observaciones</div>
-                      <div className="mt-1 text-sm font-medium text-slate-900 whitespace-pre-line">{selectedCierre.observaciones || selectedCierre.descripcion}</div>
+                      <div className="mt-1 text-sm font-medium text-slate-900 whitespace-pre-line">{selectedCierre.descripcion}</div>
                     </div>
                   )}
                 </div>

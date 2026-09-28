@@ -594,9 +594,68 @@ export async function getGastos(filtros?: {
 // CIERRES
 // =====================
 
-export async function getHistorialCierres(): Promise<any[]> {
+/**
+ * Una fila de `GET /accounting/cierres`.
+ *
+ * Espejo de `CierreHistorialItem` en `accounting.service.ts` del backend. Casi todo es
+ * opcional porque la lista UNE cuatro formas y se distinguen por `tipo`:
+ *
+ *  - `ARQUEO` salido de `Transaccion` (el detalle viene codificado en `referenciaId`).
+ *    Es el unico que NO trae `cajaTipo`.
+ *  - `CIERRE_RUTA`: la meta va en `saldoSistema` y el recaudo en `saldoReal`.
+ *  - `CONSOLIDACION`.
+ *  - `ARQUEO` salido de la tabla `Arqueo`, el mas rico: trae `cajaOrigen`/`cajaDestino`,
+ *    que es lo que pinta el modal de detalle.
+ *
+ * La forma no se adivino: se leyeron los dos `map` del backend y se anoto alli el
+ * resultado para que tsc la validara contra Prisma.
+ */
+export interface CierreHistorialItem {
+  id: string;
+  fecha: string;
+  caja: string;
+  responsable: string | null;
+  diferencia: number;
+  estado: string;
+  descripcion: string | null;
+  tipo: 'ARQUEO' | 'CIERRE_RUTA' | 'CONSOLIDACION';
+  cajaId: string;
+  cajaTipo?: string;
+  saldoSistema?: number;
+  saldoReal?: number;
+  referenciaId?: string | null;
+  /** Solo `CIERRE_RUTA`. */
+  deudaFisica?: number;
+  efectividad?: number;
+  clientesFaltantes?: number;
+  /** Solo el `ARQUEO` de la tabla `Arqueo`. */
+  fechaOperativa?: string;
+  creadoPor?: string | null;
+  recibidoPor?: string | null;
+  saldoEsperado?: number;
+  efectivoContado?: number;
+  montoTransferido?: number;
+  tipoDiferencia?: string | null;
+  numeroComprobanteTraslado?: string | null;
+  journalEntryId?: string | null;
+  rutaId?: string | null;
+  cajaOrigen?: {
+    id: string;
+    nombre: string;
+    saldoAnterior: number;
+    salida: number;
+    saldoNuevo: number;
+  };
+  cajaDestino?: {
+    nombre: string;
+    ingreso: number;
+    saldoNuevo: number | null;
+  };
+}
+
+export async function getHistorialCierres(): Promise<CierreHistorialItem[]> {
     try {
-        return await apiRequest<any[]>('GET', '/accounting/cierres');
+        return await apiRequest<CierreHistorialItem[]>('GET', '/accounting/cierres');
     } catch (error) {
         console.error('Error fetching cierres:', error);
         return [];
@@ -620,7 +679,7 @@ export async function getHistorialCierresFiltrado(filtros?: {
     if (filtros?.fechaInicio) params.append('fechaInicio', filtros.fechaInicio);
     if (filtros?.fechaFin) params.append('fechaFin', filtros.fechaFin);
     const qs = params.toString();
-    return await apiRequest<any[]>('GET', `/accounting/cierres${qs ? `?${qs}` : ''}`);
+    return await apiRequest<CierreHistorialItem[]>('GET', `/accounting/cierres${qs ? `?${qs}` : ''}`);
   } catch (error) {
     console.error('Error fetching cierres filtrados:', error);
     return [];
