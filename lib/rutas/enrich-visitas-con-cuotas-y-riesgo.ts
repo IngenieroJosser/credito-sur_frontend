@@ -23,15 +23,16 @@ import {
   computeMontoExigibleHastaHoyFromCuotas,
 } from '@/lib/rutas-core'
 import { mapWithConcurrency } from '@/lib/async-utils'
+import type { CuotaOperativa } from '@/lib/types/cobranza'
 
 // Helpers internos para mora estricta (solo cuotas vencidas antes de hoy)
-const getCuotaVtoKey = (cuota: any): string => {
+const getCuotaVtoKey = (cuota: CuotaOperativa): string => {
   return normalizeDateKey(
     resolveFechaEfectivaCuota(cuota) || String(cuota?.fechaVencimiento || '')
   )
 }
 
-const isCuotaVencidaAntesDeHoy = (cuota: any, hoyBogotaKey: string): boolean => {
+const isCuotaVencidaAntesDeHoy = (cuota: CuotaOperativa, hoyBogotaKey: string): boolean => {
   if (!cuota || !isCuotaNoPagada(cuota)) return false
 
   const vtoKey = getCuotaVtoKey(cuota)
@@ -39,7 +40,7 @@ const isCuotaVencidaAntesDeHoy = (cuota: any, hoyBogotaKey: string): boolean => 
   return !!vtoKey && !!hoyBogotaKey && vtoKey < hoyBogotaKey
 }
 
-const getMontoPendienteCuota = (cuota: any): number => {
+const getMontoPendienteCuota = (cuota: CuotaOperativa): number => {
   const nominal = Number(
     cuota?.montoNominal ??
     cuota?.montoCuota ??
@@ -53,7 +54,7 @@ const getMontoPendienteCuota = (cuota: any): number => {
 }
 
 const computeMontoVencidoAntesDeHoyFromCuotas = (
-  cuotas: any[],
+  cuotas: CuotaOperativa[],
   hoyBogotaKey: string
 ): number => {
   return (Array.isArray(cuotas) ? cuotas : [])
@@ -62,7 +63,7 @@ const computeMontoVencidoAntesDeHoyFromCuotas = (
 }
 
 const computeCuotasVencidasAntesDeHoyFromCuotas = (
-  cuotas: any[],
+  cuotas: CuotaOperativa[],
   hoyBogotaKey: string
 ): number => {
   return (Array.isArray(cuotas) ? cuotas : [])
@@ -79,7 +80,7 @@ const parseBogotaKeyToTs = (key?: string | null): number => {
   return Number.isFinite(ts) ? ts : 0
 }
 
-const resolvePrimeraCuotaPendienteKey = (cuotas: any[]): string => {
+const resolvePrimeraCuotaPendienteKey = (cuotas: CuotaOperativa[]): string => {
   const pendientes = (Array.isArray(cuotas) ? cuotas : [])
     .filter((c) => c && isCuotaNoPagada(c))
     .map((c) => normalizeDateKey(resolveFechaEfectivaCuota(c) || String(c?.fechaVencimiento || '')))
