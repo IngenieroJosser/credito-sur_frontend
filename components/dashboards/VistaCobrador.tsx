@@ -1611,16 +1611,25 @@ const VistaCobrador = () => {
             }
 
             // Filtrar visitas con la regla compartida
+            // Mismo filtro que `buildRutaHoyOperativa`, que es el que alimenta las
+            // pantallas de supervisor y admin. Esta copia se habia quedado sin dos
+            // condiciones —`cuotaNormal > 0` y el estado ABONO— asi que la lista
+            // del cobrador era mas estrecha que la del supervisor sobre la MISMA
+            // ruta y el mismo dia: un cliente que abono parcialmente le
+            // desaparecia al cobrador y le seguia apareciendo al supervisor.
             const visitasBaseParaKpi = visitasOperativasConPagos
               .filter((v) => {
                 const recaudado = Number(v?.recaudadoDelDia || 0)
+                const cuotaNormal = Number(v?.montoCuotaNormal ?? v?.montoCuota ?? 0)
                 const metaPendiente = Number(v?.montoCuotaPendiente || 0)
                 const estadoGestion = String(v?.estadoGestion || '').toUpperCase()
 
                 return (
+                  cuotaNormal > 0 ||
                   metaPendiente > 0 ||
                   recaudado > 0 ||
-                  estadoGestion.includes('PAGO')
+                  estadoGestion.includes('PAGO') ||
+                  estadoGestion.includes('ABONO')
                 )
               })
               .filter((v) => !shouldExcludeVisitaFromOperationalMeta(v))
