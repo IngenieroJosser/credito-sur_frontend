@@ -44,6 +44,13 @@ export interface Pago {
   rutaId?: string | null;
   fechaOperativaRuta?: string | null;
   origenGestion?: string | null;
+  /**
+   * Si el registro fue un pago de cuota o un abono. Es columna del modelo desde la
+   * migracion `tipo_registro_pago`: antes solo decidia comportamiento y no se guardaba, por
+   * eso la columna `esAbono` del export salia siempre en false. Estaba declarada en el DTO
+   * de creacion de este mismo archivo, pero no en el de LECTURA.
+   */
+  tipoRegistro?: 'PAGO' | 'ABONO' | null;
   detalles?: DetallePago[];
   archivos?: ArchivoMultimediaPago[];  // Comprobantes de transferencia, etc.
   cliente?: { id: string; nombres: string; apellidos: string; dni?: string };

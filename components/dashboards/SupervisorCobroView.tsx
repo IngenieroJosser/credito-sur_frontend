@@ -158,7 +158,10 @@ import { isUuid } from '@/lib/utils'
 const mapDailyVisitToVisitaRuta = (row: any, rutaCobradorId: string, idx: number): VisitaRuta => {
   const cliente = row?.cliente || {}
   const prestamos = Array.isArray(row?.prestamos) ? row.prestamos : []
-  const prestamoObjetivo = prestamos.find((p: any) => p?.id === row?.prestamoObjetivoId) || prestamos[0] || {}
+  const prestamoObjetivo =
+    prestamos.find((p: { id?: string }) => p?.id === row?.prestamoObjetivoId) ||
+    prestamos[0] ||
+    {}
   const cuotaObjetivo = row?.cuotaObjetivo || prestamoObjetivo?.cuotaObjetivo || prestamoObjetivo?.proximaCuota || {}
   const cuotaId = resolveCuotaIdFromVisitaLike(row, prestamoObjetivo, cuotaObjetivo)
   const saldoExigible = Number(
@@ -977,7 +980,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                 return vtoKey && vtoKey <= hoyBogota
               })
 
-              const cuotaMasAntigua = cuotasExigibles.reduce((acc: any, c: any) => {
+              const cuotaMasAntigua = cuotasExigibles.reduce((acc, c: any) => {
                 const vtoKey = getCuotaVtoKey(c)
                 if (!vtoKey) return acc
                 if (!acc) return { c, vtoKey }
@@ -1566,7 +1569,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
         if (vencidas.length > 0) {
 
-          const oldest = vencidas.reduce((min: any, c: any) => (
+          const oldest = vencidas.reduce((min, c: any) => (
 
             new Date(c.fechaVencimiento).getTime() < new Date(min.fechaVencimiento).getTime() ? c : min
 

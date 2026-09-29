@@ -78,6 +78,7 @@ import {
   obtenerSaldoDisponibleRuta,
   type SaldoDisponibleRuta
 } from '@/services/contabilidad-service'
+import type { CierreHistorialItem } from '@/services/contabilidad-service'
 import { toast } from 'sonner'
 import { rutasService, type Ruta as ApiRuta } from '@/services/rutas-service'
 import { exportService } from '@/services/export-service'
@@ -112,16 +113,12 @@ type CajaWithRutas = Caja & {
 }
 
 // Historial de cuando se cierra la caja (El famoso "Cuadre")
-interface HistorialCierre {
-  id: string
-  fecha: string
-  caja: string
-  responsable: string
-  saldoSistema: number // Lo que el software dice que debe haber
-  saldoReal: number    // Lo que se contó físicamente (billete sobre billete)
-  diferencia: number   // Si sobra (+) o falta (-) plata
-  estado: 'CUADRADA' | 'DESCUADRADA'
-}
+// La forma de una fila del historial de cierres vive en el servicio, como
+// `CierreHistorialItem`, espejo del tipo del backend. Antes habia aqui un
+// `interface HistorialCierre` con nueve campos que se habia quedado corto: le faltaban
+// `tipo`, `cajaId` y `clientesFaltantes`, que esta pantalla SI lee, y declaraba `estado`
+// como solo CUADRADA|DESCUADRADA cuando el backend tambien manda PENDIENTE.
+type HistorialCierre = CierreHistorialItem
 
 type OrigenMovimientoContable = 'TODOS' | 'EMPRESA' | 'COBRADOR' | 'CLIENTE' | 'SISTEMA'
 
@@ -816,21 +813,20 @@ const ModuloContableContent = () => {
       // 5. Historial de Cierres (Real)
       const cierresResp = await getHistorialCierres();
       if (Array.isArray(cierresResp)) {
-        setHistorialCierres(cierresResp.map((c: any) => ({
-             id: c.id,
-             fecha: c.fecha,
-             caja: c.caja || 'Desconocida',
-             responsable: c.responsable || 'Sistema',
-             saldoSistema: Number(c.saldoSistema),
-             saldoReal: Number(c.saldoReal),
-             diferencia: Number(c.diferencia),
-             estado: c.estado || (Number(c.diferencia) === 0 ? 'CUADRADA' : 'DESCUADRADA'),
-             tipo: c.tipo || 'CONSOLIDACION',
-             efectividad: c.efectividad,
-             clientesFaltantes: c.clientesFaltantes,
-             cajaId: c.cajaId,
-             deudaFisica: Number(c.deudaFisica || 0),
-        })));
+        // Se esparce la fila y solo se pisan los respaldos. Antes se reconstruia campo por
+        // campo, y eso DESCARTABA el resto de lo que manda el endpoint (`descripcion`,
+        // `cajaOrigen`, `cajaDestino`, `saldoEsperado`...), que el modal de detalle si usa.
+        setHistorialCierres(
+          cierresResp.map((c) => ({
+            ...c,
+            caja: c.caja || 'Desconocida',
+            responsable: c.responsable || 'Sistema',
+            estado:
+              c.estado || (Number(c.diferencia) === 0 ? 'CUADRADA' : 'DESCUADRADA'),
+            tipo: c.tipo || 'CONSOLIDACION',
+            deudaFisica: Number(c.deudaFisica || 0),
+          })),
+        );
       }
     } catch (error) {
       console.error('Error cargando datos contables:', error);
@@ -1032,7 +1028,7 @@ const ModuloContableContent = () => {
       ? null
       : (cajas.find((c: Caja) => c?.rutaId === filtroRuta)?.id ?? null)
 
-    const rutaObj = filtroRuta === 'TODOS' ? null : (rutasDisponibles.find((r: any) => r?.id === filtroRuta))
+    const rutaObj = filtroRuta === 'TODOS' ? null : (rutasDisponibles.find((r) => r?.id === filtroRuta))
     const cajaRuta = filtroRuta === 'TODOS' ? null : (cajas.find((c: Caja) => c?.rutaId === filtroRuta))
     const rutaKeywordRaw = String(
       rutaObj?.nombre ||
@@ -1824,7 +1820,7 @@ const ModuloContableContent = () => {
 
                                       return false
                                     })
-                                    .reduce((acc: number, m: any) => acc + Number(m.monto || 0), 0)
+                                    .reduce((acc: number, m) => acc + Number(m.monto || 0), 0)
 
                                   const egresos = movimientosCaja
                                     .filter((m: MovimientoContable) => {
@@ -1836,7 +1832,7 @@ const ModuloContableContent = () => {
 
                                       return false
                                     })
-                                    .reduce((acc: number, m: any) => acc + Number(m.monto || 0), 0)
+                                    .reduce((acc: number, m) => acc + Number(m.monto || 0), 0)
 
                                   setCajaHoyStats({ ingresos, egresos })
                                 } catch {
@@ -1870,7 +1866,7 @@ const ModuloContableContent = () => {
                                       }
                                       return true
                                     })
-                                    .reduce((acc: number, m: any) => acc + Number(m.monto), 0)
+                                    .reduce((acc: number, m) => acc + Number(m.monto), 0)
 
                                   const egresos = base
                                     .filter((m: ApiTransaccion) => m.tipo === 'EGRESO' || m.tipo === 'TRANSFERENCIA')
@@ -1881,7 +1877,7 @@ const ModuloContableContent = () => {
                                       }
                                       return true
                                     })
-                                    .reduce((acc: number, m: any) => acc + Number(m.monto), 0)
+                                    .reduce((acc: number, m) => acc + Number(m.monto), 0)
 
                                   setCajaHoyStats({ ingresos, egresos })
                                 } else {
@@ -2669,7 +2665,7 @@ const ModuloContableContent = () => {
                             {Array.isArray((cajaSeleccionada).rutasSupervisadas) &&
                             (cajaSeleccionada).rutasSupervisadas.length > 0 ? (
                                 <div className="flex flex-wrap gap-2">
-                                    {(cajaSeleccionada).rutasSupervisadas.map((ruta: any) => (
+                                    {(cajaSeleccionada).rutasSupervisadas.map((ruta) => (
                                         <span key={ruta.id} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
                                             {ruta.nombre} ({ruta.codigo})
                                         </span>
@@ -2830,7 +2826,7 @@ const ModuloContableContent = () => {
                          <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                        </div>
                        <div className="font-extrabold text-slate-900 text-lg">
-                         {historialCierres.filter((c: any) => c.tipo === 'CIERRE_RUTA' && c.cajaId === cajaSeleccionada.id).length}
+                         {historialCierres.filter((c) => c.tipo === 'CIERRE_RUTA' && c.cajaId === cajaSeleccionada.id).length}
                          <span className="text-slate-400 font-bold text-sm"> registro(s)</span>
                        </div>
                      </div>
@@ -2919,7 +2915,7 @@ const ModuloContableContent = () => {
                             {(() => {
                               const cajaId = cajaSeleccionada?.id
                               if (!cajaId) return 0
-                              return historialCierres.filter((c: any) => c.tipo === 'CIERRE_RUTA' && c.cajaId === cajaId).length
+                              return historialCierres.filter((c) => c.tipo === 'CIERRE_RUTA' && c.cajaId === cajaId).length
                             })()} registros
                           </span>
                         </div>
@@ -3222,7 +3218,7 @@ const ModuloContableContent = () => {
                                    ? (() => {
                                         const cajaId = cajaSeleccionada?.id
                                         if (!cajaId) return 0
-                                        return historialCierres.filter((c: any) => c.tipo === 'CIERRE_RUTA' && c.cajaId === cajaId).length
+                                        return historialCierres.filter((c) => c.tipo === 'CIERRE_RUTA' && c.cajaId === cajaId).length
                                       })()
                                   : (() => {
                                       const base = cajaSeleccionada ? movimientosDetalle : movimientosModalGlobal;
@@ -3338,8 +3334,8 @@ const ModuloContableContent = () => {
                              const cajaId = cajaSeleccionada?.id
                              if (!cajaId) return null
                              const cierresDeEstaRuta = historialCierres
-                               .filter((c: any) => c.tipo === 'CIERRE_RUTA' && c.cajaId === cajaId)
-                               .sort((a: any, b: any) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
+                               .filter((c) => c.tipo === 'CIERRE_RUTA' && c.cajaId === cajaId)
+                               .sort((a, b: any) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
                              if (cierresDeEstaRuta.length === 0) {
                                return (
                                  <div className="py-10 text-center text-slate-400 font-bold text-sm">
@@ -3347,7 +3343,7 @@ const ModuloContableContent = () => {
                                  </div>
                                )
                              }
-                             return cierresDeEstaRuta.map((c: any) => {
+                             return cierresDeEstaRuta.map((c) => {
                                const esDescuadre = c.estado === 'DESCUADRADA'
                                return (
                                  <div
@@ -3359,9 +3355,9 @@ const ModuloContableContent = () => {
                                        {new Date(c.fecha).toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                                      </span>
                                      <span className="text-[10px] font-bold text-slate-500 truncate">{c.responsable}</span>
-                                     {c.clientesFaltantes > 0 && (
+                                     {(c.clientesFaltantes ?? 0) > 0 && (
                                        <span className="text-[10px] font-bold text-amber-700">
-                                         {c.clientesFaltantes} cliente{c.clientesFaltantes > 1 ? 's' : ''} sin cobrar
+                                         {c.clientesFaltantes} cliente{(c.clientesFaltantes ?? 0) > 1 ? 's' : ''} sin cobrar
                                        </span>
                                      )}
                                    </div>
@@ -3699,7 +3695,7 @@ const ModuloContableContent = () => {
                     <div className="grid grid-cols-2 gap-4">
                         <div className="p-5 rounded-[1.5rem] bg-slate-50 border border-slate-100 flex flex-col items-center justify-center gap-1 group hover:bg-white transition-colors duration-300">
                             <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Monto Consolidado</span>
-                            <span className="text-base font-black text-slate-900">{formatCurrency(Math.abs(arqueoSeleccionado.saldoSistema))}</span>
+                            <span className="text-base font-black text-slate-900">{formatCurrency(Math.abs(arqueoSeleccionado.saldoSistema ?? arqueoSeleccionado.saldoEsperado ?? 0))}</span>
                         </div>
                         <div className="p-5 rounded-[1.5rem] border border-blue-100 bg-blue-50 flex flex-col items-center justify-center gap-1">
                             <span className="text-[9px] font-bold text-blue-600 uppercase tracking-tighter">Estado</span>
@@ -3710,7 +3706,7 @@ const ModuloContableContent = () => {
                     <div className="bg-slate-50 border border-slate-200 rounded-[2rem] p-6 flex items-center justify-between shadow-sm">
                         <div className="flex items-center gap-4">
                             <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center font-black text-white text-xl shadow-lg shadow-blue-200">
-                                {arqueoSeleccionado.responsable.charAt(0)}
+                                {(arqueoSeleccionado.responsable ?? '?').charAt(0)}
                             </div>
                             <div>
                                 <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Responsable de Auditoría</div>

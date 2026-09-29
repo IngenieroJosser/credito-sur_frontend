@@ -855,7 +855,7 @@ const VistaCobrador = () => {
 
 
 
-      const mapped: VisitaRuta[] = await Promise.all(filas.map(async (row: any, idx: number) => {
+      const mapped: VisitaRuta[] = await Promise.all(filas.map(async (row, idx: number) => {
         const c = row?.cliente || {}
         const p = row?.prestamo || {}
         let prestamoAutoritativo: any = p
@@ -945,7 +945,7 @@ const VistaCobrador = () => {
           montoMoraAcumulada,
           montoVencidoAcumulado: montoMoraAcumulada,
           saldoVencidoAcumulado: montoMoraAcumulada,
-          cuotasVencidas: (cuotasForMonto).filter((cuota: any) => {
+          cuotasVencidas: (cuotasForMonto).filter((cuota: CuotaOperativa) => {
             if (!cuota || !isCuotaNoPagada(cuota)) return false
             const vtoKey = normalizeDateKey(resolveFechaEfectivaCuota(cuota) || String(cuota?.fechaVencimiento || ''))
             return !!vtoKey && !!hoyBogotaKey && vtoKey <= hoyBogotaKey
@@ -1633,7 +1633,7 @@ const VistaCobrador = () => {
               0,
             )
 
-            const metaHoy = visitasBaseParaKpi.reduce((sum: number, v: any) => {
+            const metaHoy = visitasBaseParaKpi.reduce((sum: number, v) => {
               return sum + Number(
                 v?.montoCuotaNormal ??
                 v?.montoCuota ??
@@ -1734,7 +1734,7 @@ const VistaCobrador = () => {
               const proximaKey = v?.proximaVisita ? normalizeDateKey(String(v.proximaVisita)) : ''
               return !!proximaKey && proximaKey === hoyKey
             })
-            .reduce((sum: number, v: any) => sum + Number(v?.montoCuotaPendiente ?? v?.montoCuota ?? 0), 0)
+            .reduce((sum: number, v) => sum + Number(v?.montoCuotaPendiente ?? v?.montoCuota ?? 0), 0)
 
           if (metaFallback > 0) {
             setRutaStats(prev => {
@@ -1883,11 +1883,11 @@ const VistaCobrador = () => {
           const pagosResp = await pagosService.obtenerPagos({ limit: 5000 })
           const pagosData = (pagosResp)?.pagos || pagosResp || []
 
-          console.table(pagosData.map((p: any) => ({
+          console.table(pagosData.map((p) => ({
             id: p.id,
             clienteId: p.clienteId,
             prestamoId: p.prestamoId,
-            cuotaId: p.cuotaId,
+            cuotaId: p.detalles?.[0]?.cuotaId,
             montoTotal: p.montoTotal,
             tipoRegistro: p.tipoRegistro,
             fechaPago: p.fechaPago,
@@ -1967,7 +1967,7 @@ const VistaCobrador = () => {
 
              
 
-             const visitasOffline: VisitaRuta[] = dataParaMapear.map((c: any, idx: number) => {
+             const visitasOffline: VisitaRuta[] = dataParaMapear.map((c, idx: number) => {
 
                  // Buscar préstamo activo para el cliente (solo estados operativos)
 
@@ -2672,7 +2672,7 @@ const VistaCobrador = () => {
 
 
     const hoyBogota = getBogotaDateKey(new Date())
-    const recaudoEsperado = visitasCobrador.reduce((sum, v: any) => {
+    const recaudoEsperado = visitasCobrador.reduce((sum, v) => {
       if (v?.estado === 'pagado') return sum
       const incluye = isVisitaExigibleHoy(v, hoyBogota)
       if (!incluye) return sum
@@ -3571,7 +3571,7 @@ const handleRegistrarPago = useCallback(async (
 
 
 
-        const totalDelDia = (resp?.pagos || []).reduce((sum: number, p: any) => {
+        const totalDelDia = (resp?.pagos || []).reduce((sum: number, p) => {
 
           const rawPago = p.fechaPago || p.creadoEn;
 
@@ -3752,7 +3752,7 @@ const handleRegistrarPago = useCallback(async (
 
         if (vencidas.length > 0) {
 
-          const oldest = vencidas.reduce((min: any, c: any) => (
+          const oldest = vencidas.reduce((min, c: any) => (
 
             new Date(c.fechaVencimiento).getTime() < new Date(min.fechaVencimiento).getTime() ? c : min
 
@@ -4531,7 +4531,7 @@ const handleRegistrarPago = useCallback(async (
 
                             <div className="space-y-3">
 
-                              {visitasOrdenadas.map((visita: any, index: number) => (
+                              {visitasOrdenadas.map((visita, index: number) => (
                                 <SortableVisita
                                   key={visita.id || visita.prestamoId || visita.cuotaId || index}
                                   visita={visita}

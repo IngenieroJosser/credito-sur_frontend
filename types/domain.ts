@@ -414,6 +414,13 @@ export interface Pago {
    */
   monto?: number;
   referencia?: string | null;
+  /**
+   * Si el registro fue un pago de cuota o un abono. Es columna del modelo desde la
+   * migracion `tipo_registro_pago`: antes solo decidia comportamiento y no se guardaba, por
+   * eso la columna `esAbono` del export salia siempre en false.
+   */
+  tipoRegistro?: 'PAGO' | 'ABONO' | null;
+
   /** Fecha operativa de la ruta a la que se imputa el pago (columna del modelo). */
   fechaOperativaRuta?: string | null;
   /**
