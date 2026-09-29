@@ -328,53 +328,6 @@ export const prestamosService = {
   },
 
   /**
-   * Aprobar un préstamo
-   */
-  async aprobarPrestamo(id: string, aprobadoPorId: string): Promise<any> {
-    try {
-      return await apiRequest('POST', `/loans/${id}/approve`, { aprobadoPorId });
-    } catch (error) {
-      if (esErrorDeRed(error)) {
-        logger.log('[Offline Mode] Guardando aprobacion de prestamo en cola...');
-        await syncService.enqueueOperation(
-          'prestamo_aprobar',
-          `/loans/${id}/approve`,
-          'POST',
-          { aprobadoPorId },
-          `Aprobar préstamo ID: ${id}`
-        );
-        return { esOffline: true };
-      }
-      throw error;
-    }
-  },
-
-  /**
-   * Rechazar un préstamo
-   */
-  async rechazarPrestamo(id: string, rechazadoPorId: string, motivo?: string): Promise<any> {
-    try {
-      return await apiRequest('POST', `/loans/${id}/reject`, { 
-        rechazadoPorId, 
-        motivo 
-      });
-    } catch (error) {
-      if (esErrorDeRed(error)) {
-        logger.log('[Offline Mode] Guardando rechazo de prestamo en cola...');
-        await syncService.enqueueOperation(
-          'prestamo_rechazar',
-          `/loans/${id}/reject`,
-          'POST',
-          { rechazadoPorId, motivo },
-          `Rechazar préstamo ID: ${id}`
-        );
-        return { esOffline: true };
-      }
-      throw error;
-    }
-  },
-
-  /**
    * Registrar un pago o abono
    */
   async registrarPago(data: {

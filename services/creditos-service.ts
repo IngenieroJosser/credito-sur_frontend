@@ -128,51 +128,6 @@ class CreditosService {
     }
   }
 
-  async aprobarCredito(id: string, aprobadoPorId: string) {
-    try {
-      const response = await apiRequest<any>('POST', `loans/${id}/approve`, {
-        aprobadoPorId
-      });
-      return response;
-    } catch (error) {
-      if (esErrorDeRed(error)) {
-        logger.log('[Offline Mode] Guardando aprobacion de credito en cola...');
-        return await syncService.enqueueOperation(
-          'prestamo_aprobar',
-          `loans/${id}/approve`,
-          'POST',
-          { aprobadoPorId },
-          `Aprobar crédito ID: ${id}`
-        );
-      }
-      console.error('Error approving credit:', error);
-      throw error;
-    }
-  }
-
-  async rechazarCredito(id: string, rechazadoPorId: string, motivo?: string) {
-    try {
-      const response = await apiRequest<any>('POST', `loans/${id}/reject`, {
-        rechazadoPorId,
-        motivo
-      });
-      return response;
-    } catch (error) {
-      if (esErrorDeRed(error)) {
-        logger.log('[Offline Mode] Guardando rechazo de credito en cola...');
-        return await syncService.enqueueOperation(
-          'prestamo_rechazar',
-          `loans/${id}/reject`,
-          'POST',
-          { rechazadoPorId, motivo },
-          `Rechazar crédito ID: ${id}`
-        );
-      }
-      console.error('Error rejecting credit:', error);
-      throw error;
-    }
-  }
-
   async obtenerCuotas(prestamoId: string) {
     try {
       const response = await apiRequest<any>('GET', `loans/${prestamoId}/cuotas`);
