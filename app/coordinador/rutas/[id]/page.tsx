@@ -86,6 +86,7 @@ import Tooltip from '@/components/ui/Tooltip'
 import { nombreDelCobrador } from '@/lib/rutas/nombre-cobrador'
 import { riesgoBadgeClasses, estadoVisitaClasses, prioridadColor, riesgoOperativoLabel } from '@/lib/display-labels'
 import type { EstadisticasDeRuta, DailyVisitsResponse } from '@/services/rutas-service'
+import { resolveNivelRiesgoUi } from '@/lib/rutas/riesgo-obligacion'
 
 
 
@@ -356,29 +357,36 @@ const LegacyDetalleRutaPage = () => {
               console.warn('No se pudo cargar daily-visits de coordinador, usando detalle de ruta:', dailyError)
             }
 
-            const visitas = visitasDaily.length > 0 ? visitasDaily : ruta.asignaciones.map((asig: any, index: number) => {
+            // Se anota `VisitaRuta[]`: las dos ramas construyen lo mismo, y sin el tipo la
+            // union deja fuera los campos que el codigo de abajo lee.
+            const visitas: VisitaRuta[] =
+              visitasDaily.length > 0
+                ? visitasDaily
+                : ruta.asignaciones.map((asig, index: number) => {
 
-               const cliente = asig.cliente || {};
+               const cliente = asig.cliente;
 
-               const prestamos = cliente.prestamos || [];
+               const prestamos = cliente?.prestamos || [];
 
-               const prestamoActivo = prestamos.find((p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA') || prestamos[0] || {};
+               const prestamoActivo =
+                 prestamos.find((p) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA') ??
+                 prestamos[0];
 
 
 
-               const proximaCuota = prestamoActivo.proximaCuota || {};
+               const proximaCuota = prestamoActivo?.proximaCuota;
 
-               const saldoTotal = asig.cliente?.prestamos?.reduce((sum: number, p: any) => sum + Number(p.saldoPendiente || 0), 0) || 0;
+               const saldoTotal = asig.cliente?.prestamos?.reduce((sum: number, p) => sum + Number(p.saldoPendiente || 0), 0) || 0;
 
 
 
                let estado: EstadoVisita = 'pendiente';
 
-               if (proximaCuota.estado === 'VENCIDA') estado = 'en_mora';
+               if (proximaCuota?.estado === 'VENCIDA') estado = 'en_mora';
 
-               else if (proximaCuota.estado === 'PAGADA') estado = 'pagado';
+               else if (proximaCuota?.estado === 'PAGADA') estado = 'pagado';
 
-               else if (!prestamoActivo.id) estado = 'pendiente';
+               else if (!prestamoActivo?.id) estado = 'pendiente';
 
 
 
@@ -386,49 +394,50 @@ const LegacyDetalleRutaPage = () => {
 
                 id: asig.id || `asig-${index}`,
 
-                cliente: `${cliente.nombres || ''} ${cliente.apellidos || ''}`.trim() || 'Cliente Sin Nombre',
+                cliente: `${cliente?.nombres || ''} ${cliente?.apellidos || ''}`.trim() || 'Cliente Sin Nombre',
 
-                direccion: cliente.direccion || 'Sin dirección registrada',
+                direccion: cliente?.direccion || 'Sin dirección registrada',
 
-                telefono: cliente.telefono || '',
+                telefono: cliente?.telefono || '',
 
                 horaSugerida: asig.horaSugerida || '08:00 AM',
 
-                montoCuota: Number(proximaCuota.monto || 0),
+                montoCuota: Number(proximaCuota?.monto || 0),
 
                 saldoTotal: Number(saldoTotal),
 
                 estado: estado,
 
-                proximaVisita: proximaCuota.fechaVencimiento || '9999-12-31T00:00:00.000Z',
+                proximaVisita: proximaCuota?.fechaVencimiento || '9999-12-31T00:00:00.000Z',
 
-                targetVencimiento: proximaCuota.fechaVencimiento || undefined,
+                targetVencimiento: proximaCuota?.fechaVencimiento || undefined,
 
                 ordenVisita: asig.ordenVisita || index + 1,
 
-                prioridad: (asig.prioridad?.toLowerCase()) || (estado === 'en_mora' ? 'alta' : 'media'),
-
-                nivelRiesgo: (() => {
-
-                   const r = cliente.nivelRiesgo || 'VERDE';
-
-                   if (r === 'VERDE') return 'bajo';
-
-                   if (r === 'AMARILLO') return 'precaucion';
-
-                   if (r === 'ROJO') return 'moderado';
-
-                   if (r === 'LISTA_NEGRA') return 'critico';
-
-                   return 'bajo';
-
+                // `toLowerCase()` devuelve `string`, que no encaja en la union de tres
+                // literales de `VisitaRuta.prioridad`. Se comprueba contra los tres en vez de
+                // castear, igual que el resto del proyecto (`unoDeLosPermitidos` en el backend).
+                prioridad: ((): 'alta' | 'media' | 'baja' => {
+                  const cruda = asig.prioridad?.toLowerCase();
+                  if (cruda === 'alta' || cruda === 'media' || cruda === 'baja') {
+                    return cruda;
+                  }
+                  return estado === 'en_mora' ? 'alta' : 'media';
                 })(),
+
+                // Se usa `resolveNivelRiesgoUi`, que ya existia exportada. La copia que habia
+                // aqui mapeaba VERDE a 'bajo', un valor que NO esta en la union de
+                // `VisitaRuta.nivelRiesgo` (minimo | leve | precaucion | moderado | critico).
+                // Consecuencia: `ClienteInfoModal` compara contra 'minimo' para pintar el
+                // distintivo verde y la etiqueta "Minimo", asi que un cliente de riesgo bajo
+                // abierto desde esta pantalla no acertaba ninguna rama.
+                nivelRiesgo: resolveNivelRiesgoUi(cliente?.nivelRiesgo || 'VERDE'),
 
                 cobradorId: ruta.cobradorId,
 
                 periodoRuta: (() => {
 
-                   const f = prestamoActivo.frecuenciaPago || 'DIARIO';
+                   const f = prestamoActivo?.frecuenciaPago || 'DIARIO';
 
                    if (f === 'DIARIO') return 'DIA';
 
@@ -442,9 +451,9 @@ const LegacyDetalleRutaPage = () => {
 
                 })(),
 
-                clienteId: cliente.id,
+                clienteId: cliente?.id || '',
 
-                prestamoId: prestamoActivo.id,
+                prestamoId: prestamoActivo?.id,
 
                 cuotasTotales: prestamoActivo.cantidadCuotas,
 
@@ -460,7 +469,7 @@ const LegacyDetalleRutaPage = () => {
 
             // Enriquecer con cuotas
 
-            const visitasEnriquecidas = await Promise.all(visitas.map(async (v: any) => {
+            const visitasEnriquecidas = await Promise.all(visitas.map(async (v) => {
 
                 if (!v.prestamoId) return v;
 
@@ -569,7 +578,7 @@ const LegacyDetalleRutaPage = () => {
 
 
 
-            const withRecaudo = await Promise.all(visitasEnriquecidas.map(async (v: any) => {
+            const withRecaudo = await Promise.all(visitasEnriquecidas.map(async (v) => {
 
               if (!v.clienteId) return { ...v, recaudadoDelDia: 0, recaudadoTotalClient: 0 };
 
@@ -589,7 +598,7 @@ const LegacyDetalleRutaPage = () => {
 
 
 
-                const totalHistorico = pagosCalc.reduce((sum: number, p: any) => {
+                const totalHistorico = pagosCalc.reduce((sum: number, p) => {
 
                   return sum + Number(p.montoTotal || 0);
 
@@ -636,7 +645,7 @@ const LegacyDetalleRutaPage = () => {
 
 
 
-            const cobranzaDia = finales.reduce((acc: number, curr: any) => acc + (curr.recaudadoDelDia || 0), 0)
+            const cobranzaDia = finales.reduce((acc: number, curr) => acc + (curr.recaudadoDelDia || 0), 0)
             const hoyBogota = getBogotaDateKey(new Date());
             const finalesKpiHoy = finales
               .filter(v => shouldIncludeVisitaInRutaHoyKpis(v, hoyBogota))
@@ -714,7 +723,7 @@ const LegacyDetalleRutaPage = () => {
             });
 
             setVisitasCobrador(ordenarVisitasRutaActual(finalesFiltradas));
-            setClientes(finalesFiltradas.map((v: any) => ({
+            setClientes(finalesFiltradas.map((v) => ({
 
                 id: v.id,
 
@@ -874,7 +883,7 @@ const LegacyDetalleRutaPage = () => {
 
 
 
-      const pagosDelDia = (Array.isArray(pagosData) ? pagosData : []).filter((p: any) => {
+      const pagosDelDia = (Array.isArray(pagosData) ? pagosData : []).filter((p) => {
 
         const raw = p.fechaPago || p.creadoEn;
 
@@ -887,13 +896,20 @@ const LegacyDetalleRutaPage = () => {
 
         const cobradorMatch = rutaActual?.cobradorId ? (p.cobradorId === rutaActual.cobradorId) : true;
 
-        const matchRuta = p.rutaId === rutaId ||
-
-                          normalize(p.ruta) === rutaNombreNorm ||
-
-                          (p.ruta && normalize(p.ruta).includes(rutaNombreNorm)) ||
-
-                          (rutaNombreNorm && normalize(p.ruta).includes(rutaNombreNorm));
+        // `p.ruta` es un OBJETO `{ id, nombre, codigo }` (lo manda asi el include de
+        // `payments.service`), no un nombre. Antes se le pasaba entero a `normalize`, que
+        // hace `.toLowerCase()`: eso lanzaba TypeError. Y no fallaba de forma visible, porque
+        // este bloque esta dentro de un `try` cuyo catch se lo comia, asi que la pantalla
+        // perdia los pagos del dia enteros. Se disparaba en cuanto entre los mil pagos
+        // consultados hubiera uno de OTRA ruta: para los de esta, el primer termino corta
+        // antes por cortocircuito.
+        const nombreRutaDelPago = normalize(p.ruta?.nombre || '');
+        const matchRuta =
+          p.rutaId === rutaId ||
+          (!!nombreRutaDelPago && nombreRutaDelPago === rutaNombreNorm) ||
+          (!!nombreRutaDelPago &&
+            !!rutaNombreNorm &&
+            nombreRutaDelPago.includes(rutaNombreNorm));
 
 
 
@@ -919,13 +935,13 @@ const LegacyDetalleRutaPage = () => {
 
       const existentes = new Set();
 
-      const visitas: VisitaRuta[] = ((visitasResp)?.visitas || []).map((item: any, index: number) => {
+      const visitas: VisitaRuta[] = ((visitasResp)?.visitas || []).map((item, index: number) => {
 
         const cliente = item.cliente || {};
 
         const prestamos = item.prestamos || [];
 
-        const prestamoActivo = prestamos.find((p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA' || p.estado === 'PAGADO') || prestamos[0] || {};
+        const prestamoActivo = prestamos.find((p: { estado?: string }) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA' || p.estado === 'PAGADO') || prestamos[0] || {};
 
         const proximaCuota = prestamoActivo?.proximaCuota || {};
 
@@ -961,11 +977,11 @@ const LegacyDetalleRutaPage = () => {
 
           id: item.asignacionId || `hist-${fechaClave}-${index}`,
 
-          cliente: `${cliente.nombres || ''} ${cliente.apellidos || ''}`.trim() || 'Cliente Sin Nombre',
+          cliente: `${cliente?.nombres || ''} ${cliente?.apellidos || ''}`.trim() || 'Cliente Sin Nombre',
 
-          direccion: cliente.direccion || 'Sin dirección registrada',
+          direccion: cliente?.direccion || 'Sin dirección registrada',
 
-          telefono: cliente.telefono || '',
+          telefono: cliente?.telefono || '',
 
           horaSugerida: '08:00 AM',
 
@@ -979,11 +995,11 @@ const LegacyDetalleRutaPage = () => {
 
           ordenVisita: item.ordenVisita || index + 1,
 
-          prioridad: (cliente.nivelRiesgo === 'ROJO' ? 'alta' : 'media'),
+          prioridad: (cliente?.nivelRiesgo === 'ROJO' ? 'alta' : 'media'),
 
           nivelRiesgo: (() => {
 
-            const r = cliente.nivelRiesgo || 'VERDE';
+            const r = cliente?.nivelRiesgo || 'VERDE';
 
             return mapNivelRiesgo(r);
 
@@ -1021,13 +1037,13 @@ const LegacyDetalleRutaPage = () => {
 
       // Agregar gestiones fuera de ruta (Sintéticas)
 
-      const sinteticos: VisitaRuta[] = (pagosDelDia || []).flatMap((p: any, i: number) => {
+      const sinteticos: VisitaRuta[] = (pagosDelDia || []).flatMap((p, i: number) => {
 
         const cid = p.clienteId || (p.cliente?.id);
 
         if (!cid || existentes.has(cid)) return [];
 
-        const nombre = p.cliente ? `${p.cliente.nombres || ''} ${p.cliente.apellidos || ''}`.trim() : 'Cliente';
+        const nombre = p.cliente ? `${p.cliente?.nombres || ''} ${p.cliente?.apellidos || ''}`.trim() : 'Cliente';
 
         return [{
 
@@ -1035,9 +1051,12 @@ const LegacyDetalleRutaPage = () => {
 
             cliente: nombre || 'Cliente fuera de ruta',
 
-            direccion: p.cliente?.direccion || 'Sin dirección',
+            // El `select` de `pago.cliente` en el backend trae id, nombres, apellidos y dni:
+            // no manda direccion ni telefono, asi que estas dos siempre caian al respaldo. Se
+            // dejan los respaldos y se quitan las lecturas que no existen.
+            direccion: 'Sin dirección',
 
-            telefono: p.cliente?.telefono || '',
+            telefono: '',
 
             horaSugerida: '08:00 AM',
 
@@ -1073,7 +1092,7 @@ const LegacyDetalleRutaPage = () => {
 
       const esperado = todasVisitas.reduce((sum, v) => sum + (v.montoCuota || 0), 0);
 
-      const recaudoDia = pagosDelDia.reduce((s: number, p: any) => s + Number(p.montoTotal || 0), 0);
+      const recaudoDia = pagosDelDia.reduce((s: number, p) => s + Number(p.montoTotal || 0), 0);
 
 
 
@@ -1731,7 +1750,7 @@ const LegacyDetalleRutaPage = () => {
 
                                     ) : (
 
-                                      data.visitas.map((v: any) => (
+                                      data.visitas.map((v) => (
 
                                         <StaticVisitaItem
 
@@ -2517,9 +2536,9 @@ function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose:
 
           let score = res.puntaje || 100
 
-          const prestamosEnMora = (res.prestamos || []).filter((p: any) => p.estado === 'EN_MORA')
+          const prestamosEnMora = (res.prestamos || []).filter((p) => p.estado === 'EN_MORA')
 
-          const prestamosActivos = (res.prestamos || []).filter((p: any) => p.estado === 'ACTIVO')
+          const prestamosActivos = (res.prestamos || []).filter((p) => p.estado === 'ACTIVO')
 
           if (prestamosEnMora.length > 0) {
 
@@ -2606,7 +2625,7 @@ function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose:
 
     if (!clienteCompleto?.prestamos) return 0;
 
-    return clienteCompleto.prestamos.filter((p: any) =>
+    return clienteCompleto.prestamos.filter((p) =>
 
       p.estado !== 'PAGADO' && p.estado !== 'CANCELADO' && p.estado !== 'RECHAZADO'
 
@@ -2935,7 +2954,7 @@ function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose:
 
               {/* Fotografías del cliente (si existen) */}
 
-              {(clienteCompleto?.archivos || []).filter((a: any) => {
+              {(clienteCompleto?.archivos || []).filter((a) => {
 
                 const url = String(a.url || a.path || a.ruta || '')
 
@@ -2955,7 +2974,7 @@ function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose:
 
                       return /(jpg|jpeg|png|gif|webp)$/i.test(url) || String(a.tipoArchivo || '').startsWith('image/')
 
-                    }).map((archivo: any, idx: number) => {
+                    }).map((archivo, idx: number) => {
 
                       const rawUrl = archivo.url || archivo.path || archivo.ruta || ''
 
