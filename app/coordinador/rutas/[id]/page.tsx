@@ -85,6 +85,7 @@ import { Skeleton, SkeletonTabla } from '@/components/ui/Skeleton'
 import Tooltip from '@/components/ui/Tooltip'
 import { nombreDelCobrador } from '@/lib/rutas/nombre-cobrador'
 import { riesgoBadgeClasses, estadoVisitaClasses, prioridadColor, riesgoOperativoLabel } from '@/lib/display-labels'
+import type { EstadisticasDeRuta, DailyVisitsResponse } from '@/services/rutas-service'
 
 
 
@@ -183,7 +184,9 @@ const LegacyDetalleRutaPage = () => {
 
     nivelRiesgo?: string;
 
-    estadisticas?: any;
+    // `pendienteDelDia` no viene del backend: lo calcula esta pantalla, asi que se suma
+    // aqui y no en `EstadisticasDeRuta`, que describe la respuesta.
+    estadisticas?: EstadisticasDeRuta & { pendienteDelDia?: number };
 
   } | null>(null)
 
@@ -235,7 +238,7 @@ const LegacyDetalleRutaPage = () => {
 
   // Declarada antes de cargarMisCreditos a proposito: la usa mas abajo y
   // tenerla despues dejaba una lectura anterior a la declaracion.
-  const mapDailyVisitsResponseToVisitasCoordinador = useCallback((resp: any, cobradorId: string): VisitaRuta[] => {
+  const mapDailyVisitsResponseToVisitasCoordinador = useCallback((resp: DailyVisitsResponse | null | undefined, cobradorId: string): VisitaRuta[] => {
     const hoyBogotaKey = getBogotaDateKey(new Date())
     return ordenarVisitasRutaActual(mapDailyVisitsResponseToVisitasShared({
       resp,
@@ -2508,7 +2511,7 @@ function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose:
 
         if (visita.clienteId) {
 
-          const res: any = await clientesService.obtenerPorId(visita.clienteId)
+          const res = await clientesService.obtenerPorId(visita.clienteId)
 
           // Calcular score dinámico igual que getAllClients en el backend
 
@@ -2536,7 +2539,8 @@ function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose:
 
             const diasDesdeUltimoPago = Math.floor(
 
-              (Date.now() - new Date(pagos[0].fechaPago).getTime()) / (1000 * 60 * 60 * 24)
+              (Date.now() - new Date(String(pagos[0].fechaPago)).getTime()) /
+              (1000 * 60 * 60 * 24)
 
             )
 
