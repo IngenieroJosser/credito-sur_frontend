@@ -712,7 +712,7 @@ export const syncManager = {
       })
 
       const rutasRaw = Array.isArray(data) ? data : data.data || []
-      const rutas: OfflineRuta[] = rutasRaw.map((r: any) => ({
+      const rutas: OfflineRuta[] = rutasRaw.map((r) => ({
         id: r.id,
         codigo: r.codigo || '',
         nombre: r.nombre || '',

@@ -233,7 +233,7 @@ const getAlertaMetricas = (alerta: AlertaCliente) => {
       ? creditos.filter(esActiva).length
       : (metricas.creditosActivos ?? 0),
     creditosPendientesRevision: tieneDetalleCreditos
-      ? creditos.filter((credito: any) => !esActiva(credito)).length
+      ? creditos.filter((credito) => !esActiva(credito)).length
       : (metricas.creditosPendientesRevision ?? 0),
   }
 }

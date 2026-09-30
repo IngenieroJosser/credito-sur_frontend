@@ -298,7 +298,7 @@ export default function ClientesFeature({
     const base = Array.isArray(filteredClientes) ? filteredClientes : []
     const getDias = (c: any) => Number(diasMoraByClientId[String(c?.id || '')] ?? c?.diasMora ?? 0)
 
-    const buenEstado = base.filter((c: any) => getDias(c) <= 0).length
+    const buenEstado = base.filter((c) => getDias(c) <= 0).length
     const riesgoMedio = base.filter((c) => {
       const d = getDias(c)
       return d >= 1 && d <= 4

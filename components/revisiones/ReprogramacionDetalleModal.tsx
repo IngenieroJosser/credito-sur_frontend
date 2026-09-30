@@ -362,8 +362,8 @@ export default function ReprogramacionDetalleModal({
     return (
       <div className="space-y-3">
         {context.creditosCliente.map((credito) => {
-          const vencidas = (credito.cuotas || []).filter((cuota: any) => cuota.estado === 'VENCIDA').length
-          const pagadas = (credito.cuotas || []).filter((cuota: any) => cuota.estado === 'PAGADA').length
+          const vencidas = (credito.cuotas || []).filter((cuota) => cuota.estado === 'VENCIDA').length
+          const pagadas = (credito.cuotas || []).filter((cuota) => cuota.estado === 'PAGADA').length
           const isTarget = credito.id === context.creditoSolicitud?.id
           return (
             <div key={credito.id} className={`rounded-2xl border p-4 ${isTarget ? 'border-orange-300 bg-orange-50' : 'border-slate-200 bg-white'}`}>
