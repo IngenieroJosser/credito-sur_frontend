@@ -3,8 +3,12 @@
 import type { PagoParcial } from '@/types/domain'
 
 import type { DailyVisitsResponse } from '@/services/rutas-service'
+import type { CrearCreditoModalData } from '@/lib/creditos/crear-prestamo-payload'
 
-import type { ObligacionDeJornada } from '@/types/obligacion-jornada'
+import type {
+  EventoDeJornada,
+  ObligacionDeJornada,
+} from '@/types/obligacion-jornada'
 import { esApiError } from '@/lib/api/api'
 
 import { datosParaRegistro, estadoDeError, mensajeDeError } from '@/lib/mensaje-de-error'
@@ -81,7 +85,10 @@ import PagoModal from '@/components/cobranza/PagoModal'
 import AusenteModal from '@/components/cobranza/AusenteModal'
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
 import { CierrePendienteBanner } from '@/components/rutas/CierrePendienteBanner'
-import { CierrePendienteDetalleModal } from '@/components/rutas/CierrePendienteDetalleModal'
+import {
+  CierrePendienteDetalleModal,
+  type PermisosCierrePendiente,
+} from '@/components/rutas/CierrePendienteDetalleModal'
 import { useCierrePendienteDetalle } from '@/hooks/useCierrePendienteDetalle'
 
 import ConfirmModal from '@/components/ui/ConfirmModal'
@@ -161,8 +168,17 @@ import { isUuid } from '@/lib/utils'
 
 
 
-const mapDailyVisitToVisitaRuta = (row: any, rutaCobradorId: string, idx: number): VisitaRuta => {
-  const cliente = row?.cliente || {}
+const mapDailyVisitToVisitaRuta = (
+  row: ObligacionDeJornada,
+  rutaCobradorId: string,
+  idx: number,
+): VisitaRuta => {
+  // El `typeof` es NUEVO, y lo pidio el tipo: el cliente de una obligacion llega como
+  // objeto o como texto con solo el nombre segun el endpoint, y este mapeador leia
+  // `cliente.nombres` a secas. Con el texto, eso valia `undefined` y la visita salia sin
+  // nombre. El mapeador hermano de build-ruta-hoy-operativa ya hacia esta comprobacion.
+  const cliente =
+    typeof row?.cliente === 'object' && row.cliente ? row.cliente : {}
   const prestamos = Array.isArray(row?.prestamos) ? row.prestamos : []
   const prestamoObjetivo =
     prestamos.find((p: { id?: string }) => p?.id === row?.prestamoObjetivoId) ||
@@ -742,7 +758,9 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
     try {
       // Si el usuario es SUPERVISOR, usar su caja propia en lugar de la caja de ruta
       const esSupervisor = userSession?.rol === RolUsuario.SUPERVISOR
-      const saldo: any = esSupervisor && userSession?.id
+      const saldo: Awaited<
+        ReturnType<typeof obtenerSaldoDisponibleRuta>
+      > | null = esSupervisor && userSession?.id
         ? await obtenerSaldoCajaSupervisor(userSession.id, undefined, cardInicio, cardFin)
         : await obtenerSaldoDisponibleRuta(rutaId as string, undefined, cardInicio, cardFin)
 
@@ -813,7 +831,10 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
   const [rutaInfo, setRutaInfo] = useState<{ id: string; cobradorId: string; nombre?: string; cobradorNombre?: string } | null>(null);
 
-  const mapDailyVisitsResponseToVisitas = useCallback((resp: any, cobradorId: string): VisitaRuta[] => {
+  const mapDailyVisitsResponseToVisitas = useCallback((
+    resp: DailyVisitsResponse | null | undefined,
+    cobradorId: string,
+  ): VisitaRuta[] => {
     return mapDailyVisitsResponseToVisitasShared({
       resp,
       hoyBogotaKey,
@@ -997,12 +1018,15 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
                 return vtoKey && vtoKey <= hoyBogota
               })
 
-              const cuotaMasAntigua = cuotasExigibles.reduce((acc, c: any) => {
+              // El tipo del acumulador se DERIVA del arreglo en vez de escribir `any` dos
+              // veces, igual que en el reduce equivalente de reports.service del backend.
+              type CuotaExigible = (typeof cuotasExigibles)[number]
+              const cuotaMasAntigua = cuotasExigibles.reduce((acc, c) => {
                 const vtoKey = getCuotaVtoKey(c)
                 if (!vtoKey) return acc
                 if (!acc) return { c, vtoKey }
                 return vtoKey < acc.vtoKey ? { c, vtoKey } : acc
-              }, null as null | { c: any; vtoKey: string })
+              }, null as null | { c: CuotaExigible; vtoKey: string })
 
               return {
                 ...v,
@@ -1152,7 +1176,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
   // Handler completo: recarga visitas/cuotas al registrar pagos o nuevos préstamos
 
-  const handlerFull = useCallback(async (payload?: any) => {
+  const handlerFull = useCallback(async (payload?: EventoDeJornada) => {
     const prestamoId = payload?.prestamoId || payload?.metadata?.prestamoId;
     const clienteId = payload?.clienteId || payload?.metadata?.clienteId;
 
@@ -1519,7 +1543,10 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
       try {
 
-        let detalle: any = null
+        // Declarado, no inferido: `let x = null` sin anotacion es un `any` EVOLUTIVO.
+        let detalle: Awaited<
+          ReturnType<typeof prestamosService.obtenerPrestamoPorId>
+        > | null = null
 
         try {
 
@@ -1541,9 +1568,14 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
             cliente: {
 
-              nombre: detalle.cliente?.nombre || visitaMoraSeleccionada.cliente,
+              // Mismas cuatro lecturas muertas que en VistaCobrador, este bloque esta
+              // duplicado: `Cliente` no tiene `nombre` ni `documento`, y `Prestamo` no tiene
+              // `montoMora` ni `montoTotalDeuda`. El respaldo era el valor real desde siempre.
+              nombre:
+                `${detalle.cliente?.nombres || ''} ${detalle.cliente?.apellidos || ''}`.trim() ||
+                visitaMoraSeleccionada.cliente,
 
-              documento: detalle.cliente?.documento || 'N/A',
+              documento: detalle.cliente?.dni || 'N/A',
 
               telefono: detalle.cliente?.telefono || visitaMoraSeleccionada.telefono,
 
@@ -1553,9 +1585,13 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
             diasMora: Number(detalle.diasMora || 0),
 
-            montoMora: Number(detalle.montoMora ?? (visitaMoraSeleccionada.saldoTotal - visitaMoraSeleccionada.montoCuota)),
+            montoMora: Number(
+              visitaMoraSeleccionada.saldoTotal - visitaMoraSeleccionada.montoCuota,
+            ),
 
-            montoTotalDeuda: Number(detalle.montoTotalDeuda ?? visitaMoraSeleccionada.saldoTotal),
+            montoTotalDeuda: Number(
+              detalle.montoTotal ?? visitaMoraSeleccionada.saldoTotal,
+            ),
 
             cuotasVencidas: Number(detalle.cuotasVencidas || 0),
 
@@ -1585,7 +1621,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
         if (vencidas.length > 0) {
 
-          const oldest = vencidas.reduce((min, c: any) => (
+          const oldest = vencidas.reduce((min, c) => (
 
             new Date(c.fechaVencimiento).getTime() < new Date(min.fechaVencimiento).getTime() ? c : min
 
@@ -2026,7 +2062,7 @@ const handleRegistrarPago = useCallback(async (
     refreshHistorialOperativo,
   ])
 
-  const handleCrearCredito = useCallback(async (data: any) => {
+  const handleCrearCredito = useCallback(async (data: CrearCreditoModalData) => {
     try {
       setIsLoading(true)
 
@@ -2052,12 +2088,13 @@ const handleRegistrarPago = useCallback(async (
       const rutaOperativaId = String(rutaInfo?.id || rutaId || '').trim()
       const cobradorResponsableId = String(rutaInfo?.cobradorId || '').trim()
 
+      // `data?.clienteId` y `data?.cliente?.id` eran lecturas MUERTAS: el modal manda
+      // `clienteCreditoId` y `CrearCreditoModalData` no declara las otras dos. Valian
+      // `undefined` y la cascada resolvia por `clienteCreditoId`, que es la que queda.
       const clienteIdFinal = String(
         prestamo?.clienteId ||
           prestamo?.cliente?.id ||
-          data?.clienteId ||
           data?.clienteCreditoId ||
-          data?.cliente?.id ||
           '',
       ).trim()
 
@@ -2074,7 +2111,7 @@ const handleRegistrarPago = useCallback(async (
           console.warn('[Crear crédito supervisor] clienteId inválido para asignación:', {
             clienteIdFinal,
             dataClienteCreditoId: data?.clienteCreditoId,
-            dataClienteId: data?.clienteId,
+
             prestamoClienteId: prestamo?.clienteId,
             prestamo,
           })
@@ -3743,7 +3780,7 @@ const handleRegistrarPago = useCallback(async (
               )
             }
           }}
-          permissions={((): any => {
+          permissions={((): PermisosCierrePendiente => {
             const rolActual = String(userSession?.rol || '').toUpperCase()
             const isSuperAdmin =
               rolActual === 'SUPER_ADMIN' ||

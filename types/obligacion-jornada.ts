@@ -25,7 +25,7 @@
  * secas obligaría a un cast en cada lectura.
  */
 
-import type { CuotaOperativa } from '@/lib/types/cobranza'
+import type { CuotaOperativa, EstadoVisita } from '@/lib/types/cobranza'
 import type { EstadoPrestamo, FrecuenciaPago } from '@/types/enums'
 
 /**
@@ -119,6 +119,11 @@ export type PrestamoDeObligacion = {
   frecuencia?: string
   frecuenciaRuta?: string
   esProvisional?: boolean | null
+  // Los tres los agrega el backend al revisar la operacion, y los lee el mapeo del
+  // listado de rutas. Los nombro el compilador al tipar ese mapeo.
+  estadoEfectoProvisional?: string | null
+  etiquetaRevision?: string | null
+  esRevertido?: boolean | null
 
   // Aqui NO va `cliente`, y es una medida: el `prestamo` que anida una obligacion de la
   // jornada no lo trae. El backend lo arma con id, tipo, numeroPrestamo, saldoPendiente,
@@ -268,4 +273,32 @@ export type ObligacionDeJornada = {
   riesgoCredito?: string
   riesgoOperativo?: string
   riesgoOperativoEnFecha?: string
+}
+
+/**
+ * El evento de tiempo real que hace recargar la jornada.
+ *
+ * Cada campo aparece DOS veces —en la raiz y dentro de `metadata`— porque los emisores no
+ * coinciden: unos mandan `{prestamoId}` y otros `{metadata: {prestamoId}}`, y los handlers
+ * los leen en cascada. Eso es lo que el `any` escondia en las dos pantallas que lo reciben.
+ *
+ * Vive aqui y no en una pantalla porque `VistaCobrador` y `SupervisorCobroView` tenian el
+ * mismo handler con el mismo `payload?: any`. Una sola copia.
+ *
+ * `estadoVisita` va como la union cerrada porque se escribe DIRECTO en `VisitaRuta.estado`.
+ * Conviene decirlo: nada valida este payload en ejecucion —viene de un socket— asi que si
+ * el backend mandara otro texto, la pantalla guardaria un estado que no sabe pintar.
+ */
+export type CamposDelEventoDeJornada = {
+  rutaId?: string
+  clienteId?: string
+  prestamoId?: string
+  accion?: string
+  estadoVisita?: EstadoVisita
+  notas?: string
+  notasVisita?: string
+}
+
+export type EventoDeJornada = CamposDelEventoDeJornada & {
+  metadata?: CamposDelEventoDeJornada
 }

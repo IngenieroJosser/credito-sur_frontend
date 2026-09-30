@@ -155,6 +155,7 @@ import RutaProvisionalModal from '@/components/dashboards/shared/RutaProvisional
 import { VisitaRuta, EstadoVisita, PeriodoRuta, mapNivelRiesgo } from '@/lib/types/cobranza'
 import type { PrestamoParcial } from '@/types/domain'
 import type { CrearCreditoModalData } from '@/lib/creditos/crear-prestamo-payload'
+import type { EventoDeJornada } from '@/types/obligacion-jornada'
 import type { CuotaOperativa, VisitaParcial } from '@/lib/types/cobranza'
 import { resolveNivelRiesgoVisita } from '@/lib/rutas/resolve-riesgo-visita'
 import { ordenarVisitasRutaActual } from '@/lib/rutas/ordenar-visitas-ruta'
@@ -297,34 +298,6 @@ interface UserSession {
 }
 
 
-
-/**
- * El evento de tiempo real que recarga la jornada.
- *
- * Cada campo aparece DOS veces —en la raiz y dentro de `metadata`— porque los emisores no
- * coinciden: unos mandan `{prestamoId}` y otros `{metadata: {prestamoId}}`, y el handler los
- * lee en cascada. Eso es lo que el `any` escondia, y lo nombro el compilador al declararlo:
- * cinco campos, no tres.
- */
-type CamposDelEvento = {
-  rutaId?: string
-  clienteId?: string
-  prestamoId?: string
-  accion?: string
-  /**
-   * El estado que la visita toma tras el evento, ya como la union cerrada.
-   *
-   * Va asi porque se escribe DIRECTO en `VisitaRuta.estado`, que es esa union. Conviene
-   * decirlo: nada valida este payload en ejecucion —viene de un socket— asi que si el
-   * backend mandara otro texto, la pantalla guardaria un estado que no sabe pintar. El
-   * tipo al menos deja el supuesto escrito donde se ve.
-   */
-  estadoVisita?: EstadoVisita
-  notas?: string
-  notasVisita?: string
-}
-
-type EventoDeJornada = CamposDelEvento & { metadata?: CamposDelEvento }
 
 const VistaCobrador = () => {
 

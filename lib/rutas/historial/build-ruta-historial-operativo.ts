@@ -26,6 +26,14 @@ export type PagoHistorial = PagoParcial & {
   cuotaId?: string | null;
   cuota?: CuotaOperativa | null;
   cliente?: (Partial<import("@/types/domain").Cliente> & { nombre?: string | null }) | null;
+  /**
+   * La ruta del pago llega en cuatro sitios distintos segun de donde venga: en la raiz, en
+   * la ruta anidada, en el `metadata` de la transaccion o en el `datosSolicitud` de la
+   * aprobacion. La cascada que las lee estaba sobre un `any[]`, asi que ninguno de los
+   * cuatro nombres se comprobaba.
+   */
+  metadata?: { rutaId?: string | null } | null;
+  datosSolicitud?: { rutaId?: string | null } | null;
 };
 
 /**
@@ -163,8 +171,12 @@ export const mergePagosDelDiaIntoHistorialDia = ({
   rutaCobradorId,
 }: {
   fechaClave: string
-  diaBase: any
-  pagosDelDia: any[]
+  // El dia del historial: sus visitas y su resumen, que es lo unico que se lee de el.
+  // `VisitaRuta[]` y no la forma parcial: las visitas del dia las arma
+  // `mapDailyVisitsResponseToVisitas`, que devuelve visitas completas. El resumen se
+  // reenvia sin leerlo campo por campo.
+  diaBase: { visitas?: VisitaRuta[]; resumen?: Record<string, unknown> } | null
+  pagosDelDia: PagoHistorial[]
   rutaCobradorId: string
 }) => {
   const pagos = Array.isArray(pagosDelDia) ? pagosDelDia : []
@@ -174,7 +186,7 @@ export const mergePagosDelDiaIntoHistorialDia = ({
     return diaBase
   }
 
-  const visitasByKey = new Map<string, any>()
+  const visitasByKey = new Map<string, VisitaRuta>()
 
   for (const visita of visitasBase) {
     const key = String(
@@ -273,13 +285,15 @@ export const filterPagosDelDiaByRuta = ({
   rutaCobradorId,
   isPagoForHistorialFecha,
 }: {
-  pagosData: any[]
+  pagosData: PagoHistorial[]
   fechaClave: string
   rutaOperativaId: string
   prestamosRuta: Set<string>
   rutaCobradorId?: string
   isPagoForHistorialFecha: (pago: PagoHistorial, fecha: string) => boolean
-}): any[] => {
+  // El retorno se infiere: es el mismo arreglo filtrado, asi que `PagoHistorial[]`. Antes
+  // decia `any[]`, que perdia el tipo que el propio parametro ya declaraba.
+}) => {
   return (Array.isArray(pagosData) ? pagosData : []).filter((p) => {
     if (!isPagoForHistorialFecha(p, fechaClave)) return false;
 

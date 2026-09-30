@@ -141,7 +141,7 @@ export const useRutaHistorialOperativo = ({
       const visitasHoy = getVisitasHoy()
 
       const visitasEnriquecidas = await enrichRutaHistorialRiesgo({
-        visitas: diaMerged.visitas || [],
+        visitas: diaMerged?.visitas || [],
         fechaClave,
         hoyBogotaKey,
         visitasHoy,
@@ -150,7 +150,7 @@ export const useRutaHistorialOperativo = ({
       const visitasNormalizadas = visitasEnriquecidas.map(normalizeVisitaHistorial)
       const resumenActualizado = computeHistorialResumenCompartido(
         visitasNormalizadas,
-        diaMerged.resumen,
+        diaMerged?.resumen,
       )
 
       return {

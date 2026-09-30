@@ -1,6 +1,11 @@
 'use client'
 
 import { mensajeDeError } from '@/lib/mensaje-de-error';
+import type { VisitaRuta } from '@/lib/types/cobranza';
+import type { ClienteCierrePendiente } from '@/types/rutas/cierre-pendiente';
+import type { ObligacionDeJornada } from '@/types/obligacion-jornada';
+import type { PrestamoParcial } from '@/types/domain';
+import type { OfflineRuta } from '@/lib/offline/offlineDb';
 import { useState, ChangeEvent, FormEvent, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { usePageFocusRefresh } from '@/hooks/usePageFocusRefresh'
@@ -62,11 +67,29 @@ import { estaPendienteDeActivacion } from '@/lib/rutas/pendiente-de-activacion'
  * `estado` dice solo si la ruta esta habilitada (ACTIVA / INACTIVA). Que haya
  * salido a operar hoy es `activadaHoy`, y de ahi sale la pestaña "Pendientes".
  */
+/**
+ * El resumen del dia de una ruta, tal como lo arma `fetchDailySummaries`.
+ *
+ * Las cuatro cifras salen de `buildRutaHoyOperativa` y las dos listas son sus dos salidas
+ * (la visible y la del KPI), que ya tienen tipo.
+ */
+type ResumenDiarioDeRuta = {
+  meta: number
+  recaudo: number
+  pendiente: number
+  eficiencia: number
+  clientesOperativosHoy: number
+  visitasOperativasHoy: VisitaRuta[]
+  obligacionesKpiHoy: VisitaRuta[]
+}
+
 type Ruta = RutaDeLista & {
   cobrador: string;
   codigo: string;
-  cierrePendienteAnterior?: any;
-  cierresPendientes?: any[];
+  // `RutaDeLista` ya los declara como `unknown`/`unknown[]`: aqui se afinan al tipo que el
+  // modal de cierre recibe, que ya existe.
+  cierrePendienteAnterior?: ClienteCierrePendiente | null;
+  cierresPendientes?: ClienteCierrePendiente[];
 }
 
 /** Clave de la pestaña que lista lo que no ha salido a operar hoy. */
@@ -100,7 +123,21 @@ interface RutasPageViewProps {
   supervisores?: { id: string; nombre: string; rol?: string }[];
 }
 
-export const mapAsignacionesToClientesRuta = (asignaciones: any[] = []): ClienteSelection[] => {
+/** La asignacion tal como la trae el detalle de ruta, con lo que este mapeo lee. */
+type AsignacionDeSeleccion = {
+  cliente?: {
+    id?: string
+    nombres?: string | null
+    apellidos?: string | null
+    dni?: string | null
+    telefono?: string | null
+    prestamos?: PrestamoParcial[] | null
+  } | null
+}
+
+export const mapAsignacionesToClientesRuta = (
+  asignaciones: AsignacionDeSeleccion[] = [],
+): ClienteSelection[] => {
   const uniqueByClienteId = new Map<string, ClienteSelection>();
 
   asignaciones.forEach((a) => {
@@ -109,12 +146,15 @@ export const mapAsignacionesToClientesRuta = (asignaciones: any[] = []): Cliente
 
     uniqueByClienteId.set(clienteId, {
       id: clienteId,
-      nombre: `${a.cliente.nombres} ${a.cliente.apellidos}`,
-      codigo: a.cliente.dni,
-      direccion: a.cliente.telefono,
-      prestamos: (a.cliente.prestamos || [])
-        .filter((p: any) => isPrestamoOperativo(p))
-        .map((p: any) => ({
+      // Los `?.` y los `?? undefined` los pidio el tipo: el cliente puede no venir (el
+      // `clienteId` de arriba sale de `a?.cliente?.id`) y los tres campos son nulables en la
+      // base. Con `any[]` esto era un `a.cliente.nombres` a pelo.
+      nombre: `${a.cliente?.nombres ?? ''} ${a.cliente?.apellidos ?? ''}`.trim(),
+      codigo: a.cliente?.dni ?? undefined,
+      direccion: a.cliente?.telefono ?? undefined,
+      prestamos: (a.cliente?.prestamos || [])
+        .filter((p) => isPrestamoOperativo(p))
+        .map((p) => ({
           id: p.id,
           tipo:
             p.tipo === 'ARTICULO' || p.tipoPrestamo === 'ARTICULO'
@@ -137,9 +177,9 @@ const getEstadoSistemaLabel = (estado: Ruta['estado']) => {
 }
 
 export const mapObligacionToRutaListVisita = (
-  o: any,
+  o: ObligacionDeJornada,
   hoyKey: string,
-): any => {
+) => {
   const prestamo = o?.prestamo || {}
   const estadoRevision = getEstadoRevisionOperacion({ ...prestamo, ...o })
   const cuotaObjetivo =
@@ -194,12 +234,11 @@ export const mapObligacionToRutaListVisita = (
       metaPendiente,
   )
 
-  const recaudo = Number(
-    o?.recaudadoDelDia ??
-      o?.recaudoDelDia ??
-      o?.montoPagadoHoy ??
-      0,
-  )
+  // HALLAZGO: el segundo eslabon era `recaudoDelDia`, sin la segunda "a". El campo se llama
+  // `recaudadoDelDia`, que es justo el de arriba, asi que era una lectura muerta por un error
+  // de tipeo. `montoPagadoHoy` tampoco existe en la obligacion. Los dos valian `undefined` y
+  // la cascada resolvia por el primero, que es el correcto: el resultado no cambia.
+  const recaudo = Number(o?.recaudadoDelDia ?? o?.recaudado ?? 0)
 
   const saldoRaw = prestamo?.saldoPendiente ?? o?.saldoPendiente
 
@@ -219,7 +258,10 @@ export const mapObligacionToRutaListVisita = (
 
   return {
     id: o?.id || o?.prestamoId || prestamo?.id || `${o?.clienteId || 'cliente'}-${fechaCuota}`,
-    clienteId: o?.clienteId || o?.cliente?.id || prestamo?.clienteId || '',
+    clienteId:
+      o?.clienteId ||
+      (typeof o?.cliente === 'object' ? o.cliente?.id : undefined) ||
+      '',
     prestamoId: o?.prestamoId || prestamo?.id || '',
     estado: estadoGestion.includes('REPROGRAM')
       ? 'reprogramado'
@@ -339,7 +381,12 @@ export const RutasPageView = ({
   const [saldoDisponibleRecolectar, setSaldoDisponibleRecolectar] = useState<number | null>(null)
   const [cajaRutaIdRecolectar, setCajaRutaIdRecolectar] = useState<string | null>(null)
   const [errorRecolectar, setErrorRecolectar] = useState<string | null>(null)
-  const [dailySummaries, setDailySummaries] = useState<Record<string, any>>({});
+  // El resumen del dia por ruta: lo que `fetchDailySummaries` mete y las pantallas leen.
+  // Antes era `Record<string, any>` en los dos lados, asi que ni lo que se guarda ni lo que
+  // se lee se comprobaba contra nada.
+  const [dailySummaries, setDailySummaries] = useState<
+    Record<string, ResumenDiarioDeRuta>
+  >({});
 
   const recolectarIdempotencyKeyRef = useRef<string | null>(null)
 
@@ -347,7 +394,7 @@ export const RutasPageView = ({
     if (!rutas || rutas.length === 0) return
 
     const hoyKey = getBogotaDateKey(new Date())
-    const newSummaries: Record<string, any> = {}
+    const newSummaries: Record<string, ResumenDiarioDeRuta> = {}
 
     // Obtener pagos una sola vez para todas las rutas
     const pagosResp = await pagosService.obtenerPagos({ limit: 5000 })
@@ -433,7 +480,7 @@ export const RutasPageView = ({
       }
     } catch {
       try {
-        const offRutas = await offlineStore.getAll<any>('rutas');
+        const offRutas = await offlineStore.getAll<OfflineRuta>('rutas');
         if (offRutas.length > 0) {
           setRutasList(offRutas.map((r) => ({
             id: r.id, nombre: r.nombre, codigo: r.codigo, zona: r.zona || '',
