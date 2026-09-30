@@ -192,6 +192,16 @@ export interface VisitaRuta {
   esRevertido?: boolean
   etiquetaRevision?: string | null
   fechaUltimoPago?: number      // Timestamp del último pago realizado para ordenamiento rápido
+  /**
+   * Las dos llaves con las que se ORDENA la ruta, y las dos las calcula el frontend.
+   *
+   * `enrich-visitas-con-cuotas-y-riesgo` las escribe (lineas 218-245) y
+   * `ordenar-visitas-ruta` las lee; faltaban aqui, asi que ese orden se resolvia a traves
+   * de un `any`. `fechaOrdenRuta` es el ultimo pago si hubo, y si no la primera cuota
+   * pendiente.
+   */
+  fechaOrdenRuta?: number
+  fechaPrimeraCuotaPendienteTs?: number
   /** La cuota que toca cobrar hoy, ya enriquecida por el servidor. */
   cuotaObjetivo?: CuotaOperativa | null
   /** La siguiente cuota; misma forma que la objetivo. */

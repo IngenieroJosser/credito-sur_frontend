@@ -1,3 +1,5 @@
+import type { VisitaParcial } from '@/lib/types/cobranza'
+
 
 /**
  * Helper compartido para ordenar visitas en la vista de ruta actual.
@@ -11,12 +13,12 @@
  * 5. Fallback: ordenVisita, nombre, ID
  */
 
-const toNumber = (value: any): number => {
+const toNumber = (value: unknown): number => {
   const n = Number(value)
   return Number.isFinite(n) ? n : 0
 }
 
-const isGestionado = (v: any): boolean => {
+const isGestionado = (v: VisitaParcial): boolean => {
   const estado = String(v?.estado || '').toLowerCase()
   const estadoVisita = String(v?.estadoVisita || '').toLowerCase()
 
@@ -28,14 +30,13 @@ const isGestionado = (v: any): boolean => {
   )
 }
 
-const resolveFechaOrdenRutaTs = (v: any): number => {
-  const fechaUltimoPago = toNumber(
-    v?.fechaUltimoPago ??
-    v?.ultimoPagoAt ??
-    v?.ultimoPagoEn ??
-    v?.ultimaFechaPago ??
-    0
-  )
+const resolveFechaOrdenRutaTs = (v: VisitaParcial): number => {
+  // HALLAZGO: los tres eslabones que seguian a `fechaUltimoPago` —`ultimoPagoAt`,
+  // `ultimoPagoEn` y `ultimaFechaPago`— no los escribe NADIE. Medido: quien arma estas
+  // visitas es `enrich-visitas-con-cuotas-y-riesgo`, que pone `fechaUltimoPago`,
+  // `fechaOrdenRuta` y `fechaPrimeraCuotaPendienteTs` (lineas 218-245), y ninguno de los
+  // otros tres aparece en el backend. Valian `undefined` siempre.
+  const fechaUltimoPago = toNumber(v?.fechaUltimoPago ?? 0)
 
   if (fechaUltimoPago > 0) return fechaUltimoPago
 
@@ -50,7 +51,7 @@ const resolveFechaOrdenRutaTs = (v: any): number => {
  * Ordena y DEVUELVE LA MISMA forma, asi que es generica: era `(any[]) => any[]` y, con 23
  * llamadores, borraba el tipo de la lista en cada paso del tubo de ruta-hoy.
  */
-export function ordenarVisitasRutaActual<T extends Record<string, any>>(
+export function ordenarVisitasRutaActual<T extends VisitaParcial>(
   visitas: T[],
 ): T[] {
   return [...(Array.isArray(visitas) ? visitas : [])].sort((a, b) => {

@@ -1,6 +1,7 @@
 'use client'
 
 import { mensajeDeError } from '@/lib/mensaje-de-error'
+import type { CrearCreditoModalData } from '@/lib/creditos/crear-prestamo-payload'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ChevronLeft,
@@ -102,6 +103,23 @@ const getRiesgoStyle = (riesgo: string) => {
   }
 }
 
+/** El estado de una venta reciente, normalizado contra la union que la tarjeta pinta. */
+const ESTADOS_DE_VENTA: readonly VentaReciente['estado'][] = [
+  'ACTIVO',
+  'PENDIENTE',
+  'COMPLETADO',
+  'PENDIENTE_APROBACION',
+  'PAGADO',
+  'EN_MORA',
+]
+
+const estadoDeVentaReciente = (valor: unknown): VentaReciente['estado'] => {
+  const estado = String(valor ?? '').trim().toUpperCase()
+  return (ESTADOS_DE_VENTA as readonly string[]).includes(estado)
+    ? (estado as VentaReciente['estado'])
+    : 'ACTIVO'
+}
+
 const getEstadoLabel = (estado: string) => {
   switch (estado) {
     case 'ACTIVO':
@@ -126,6 +144,51 @@ const formatDateShort = (dateStr: string) => {
   return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
+/**
+ * El credito de articulo y la venta de contado, con lo que esta barra lee de cada uno.
+ *
+ * Los campos salen de un `grep` de los accesos. El filtro por tipo usa tres nombres
+ * (`tipoPrestamo`, `tipo`, `tipoProducto`) porque el endpoint manda uno u otro segun la
+ * version, y esa cascada es justo lo que el `any` escondia.
+ */
+type CreditoDeArticulo = {
+  // `id` obligatorio: es la clave del credito y el endpoint siempre lo manda.
+  id: string
+  cliente?: string | null
+  clienteId?: string
+  clienteDni?: string | null
+  clienteTelefono?: string | null
+  tipo?: string | null
+  tipoPrestamo?: string | null
+  tipoProducto?: string | null
+  producto?: string | null
+  observaciones?: string | null
+  // Los doce que siguen los nombro el compilador al declarar el tipo: son las cifras que
+  // la barra pinta en la tarjeta del credito.
+  montoTotal?: number | string | null
+  montoPendiente?: number | string | null
+  cuotaInicial?: number | string | null
+  valorCuota?: number | string | null
+  tasaInteres?: number | string | null
+  cuotasTotales?: number | null
+  cuotasPagadas?: number | null
+  frecuenciaPago?: string | null
+  estado?: string | null
+  fechaInicio?: string | null
+  creadoEn?: string | null
+  vendedor?: string | null
+}
+
+type VentaDeContado = {
+  id: string
+  articulo?: string | null
+  descripcion?: string | null
+  monto?: number | string | null
+  fecha?: string | null
+  vendedor?: string | null
+  cliente?: string | null
+}
+
 export default function PuntoDeVentaFloatingActions() {
   const [showNewClientModal, setShowNewClientModal] = useState(false)
   const [showCreditoModal, setShowCreditoModal] = useState(false)
@@ -146,7 +209,8 @@ export default function PuntoDeVentaFloatingActions() {
   const [loadingClientes, setLoadingClientes] = useState(false)
   const [clientesSearch, setClientesSearch] = useState('')
   const [clientesPage, setClientesPage] = useState(1)
-  const [userSession, setUserSession] = useState<any>(null)
+  // Solo se le lee el id, que es el vendedor que queda en el credito.
+  const [userSession, setUserSession] = useState<{ id?: string } | null>(null)
 
   useEffect(() => {
     try {
@@ -172,35 +236,38 @@ export default function PuntoDeVentaFloatingActions() {
       ])
 
       const soloArticulos = (creditosData?.prestamos || [])
-        .filter((c: any) => {
+        .filter((c: CreditoDeArticulo) => {
           const tipoPrestamo = String(c.tipoPrestamo || c.tipo || '').toUpperCase()
           const tipoProducto = String(c.tipoProducto || '').toLowerCase()
           return tipoPrestamo === 'ARTICULO' || (!!tipoProducto && tipoProducto !== 'efectivo')
         })
-        .map((c: any) => ({
+        .map((c: CreditoDeArticulo) => ({
           id: c.id,
           cliente: c.cliente || 'Cliente',
           clienteId: c.clienteId,
-          clienteDni: c.clienteDni,
-          clienteTelefono: c.clienteTelefono,
+          clienteDni: c.clienteDni ?? undefined,
+          clienteTelefono: c.clienteTelefono ?? undefined,
           articulo: c.producto || 'Artículo',
-          monto: c.montoTotal || 0,
-          cuotaInicial: c.cuotaInicial || 0,
+          monto: Number(c.montoTotal || 0),
+          cuotaInicial: Number(c.cuotaInicial || 0),
           cuotas: c.cuotasTotales || 0,
           cuotasPagadas: c.cuotasPagadas || 0,
-          valorCuota: c.valorCuota || 0,
+          valorCuota: Number(c.valorCuota || 0),
           frecuencia: c.frecuenciaPago || 'Quincenal',
-          tasaInteres: c.tasaInteres || 0,
-          saldoPendiente: c.montoPendiente || 0,
+          tasaInteres: Number(c.tasaInteres || 0),
+          saldoPendiente: Number(c.montoPendiente || 0),
           tipo: 'CREDITO' as const,
-          estado: c.estado || 'ACTIVO',
+          // El estado del credito es texto libre en la respuesta y `VentaReciente` lo
+          // declara como una union cerrada: se normaliza contra ella, y lo que no coincida
+          // cae en ACTIVO, que es lo que ya hacia el `|| 'ACTIVO'` para el caso vacio.
+          estado: estadoDeVentaReciente(c.estado),
           fecha: c.creadoEn || '',
           fechaPrimerCobro: c.fechaInicio || '',
           vendedor: c.vendedor || 'Sin asignar',
           observaciones: c.observaciones || undefined,
         }))
 
-      const ventasContado = (ventasContadoData || []).map((v: any) => ({
+      const ventasContado = (ventasContadoData || []).map((v: VentaDeContado) => ({
         id: v.id,
         cliente: 'Cliente contado',
         clienteId: undefined,
@@ -209,7 +276,9 @@ export default function PuntoDeVentaFloatingActions() {
         articulo:
           v.descripcion?.replace(/^Venta de contado\s+(EFECTIVO|TRANSFERENCIA):\s*/i, '')?.trim() ||
           'Venta contado',
-        monto: v.monto || 0,
+        // La venta de contado puede traer el monto como texto: se convierte, que es lo
+        // que el destino declara.
+        monto: Number(v.monto || 0),
         cuotaInicial: 0,
         cuotas: 0,
         cuotasPagadas: 0,
@@ -290,7 +359,7 @@ export default function PuntoDeVentaFloatingActions() {
     clientesPage * CLIENTES_PER_PAGE,
   )
 
-  const handleCrearCredito = async (data: any) => {
+  const handleCrearCredito = async (data: CrearCreditoModalData) => {
     try {
       const esContado = Boolean(data.ventaContado)
       const isArticulo = data.creditType === 'articulo'
