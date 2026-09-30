@@ -19,6 +19,14 @@ type PagoFilterOptions = {
   includeCierrePendiente?: boolean
 }
 
+/**
+ * Un pago, con lo poco que estas funciones necesitan de el.
+ *
+ * Se declara lo que se lee y nada mas: el pago completo vive en su servicio y copiarlo
+ * aqui seria una segunda version que se quedaria atras. Los montos admiten texto
+ * porque Prisma serializa `Decimal` como string y el codigo los pasa por `Number`.
+ */
+
 export const isPagoCierrePendiente = (pago: PagoParcial | null | undefined): boolean => {
   return String(pago?.origenGestion || '').toUpperCase() === 'CIERRE_PENDIENTE'
 }
@@ -32,7 +40,7 @@ const shouldIncludePagoForOperationalToday = (
 }
 
 export const buildRecaudosHoyMapByPrestamoId = (
-  pagosRecientes: any[],
+  pagosRecientes: PagoParcial[],
   hoyBogotaKey: string,
   options?: PagoFilterOptions,
 ): Record<string, number> => {
@@ -43,7 +51,7 @@ export const buildRecaudosHoyMapByPrestamoId = (
   // - El pago se asocia por p.prestamoId.
   const recaudosHoyMap: Record<string, number> = {}
 
-  ;(Array.isArray(pagosRecientes) ? pagosRecientes : []).forEach((p: any) => {
+  ;(Array.isArray(pagosRecientes) ? pagosRecientes : []).forEach((p) => {
     if (!shouldIncludePagoForOperationalToday(p, options)) return
 
     const rawDate = p?.fechaPago || p?.creadoEn
@@ -69,7 +77,7 @@ export const sumMontoTotalPagosByBogotaDateKey = (
 ): number => {
   // Suma el montoTotal de una lista de pagos que pertenezcan a un día específico
   // (comparación por llave Bogotá YYYY-MM-DD).
-  return (Array.isArray(pagos) ? pagos : []).reduce((sum: number, p: any) => {
+  return (Array.isArray(pagos) ? pagos : []).reduce((sum: number, p) => {
     if (options && !shouldIncludePagoForOperationalToday(p, options)) return sum
 
     const rawDate = p?.fechaPago || p?.creadoEn
@@ -84,7 +92,7 @@ export const sumMontoTotalPagosByBogotaDateKey = (
 
 export const sumMontoTotalPagosHistorico = (pagos: PagoParcial[]): number => {
   // Suma total histórica de una lista de pagos (sin filtro por fecha).
-  return (Array.isArray(pagos) ? pagos : []).reduce((sum: number, p: any) => {
+  return (Array.isArray(pagos) ? pagos : []).reduce((sum: number, p) => {
     return sum + Number(p?.montoTotal ?? p?.monto ?? p?.valor ?? 0)
   }, 0)
 }
@@ -96,20 +104,24 @@ export const indexPagosByPrestamoId = (pagos: PagoParcial[]) => {
   // - pagosByPrestamoId: { [prestamoId]: pagos[] }
   // - totalHistoricoByPrestamoId: { [prestamoId]: sum(montoTotal) }
   // - ultimoPagoDateByPrestamoId: { [prestamoId]: timestampMax(fechaPago/creadoEn) }
-  const pagosByPrestamoId: Record<string, any[]> = {}
+  const pagosByPrestamoId: Record<string, PagoParcial[]> = {}
   const totalHistoricoByPrestamoId: Record<string, number> = {}
   const ultimoPagoDateByPrestamoId: Record<string, number> = {}
 
-  ;(Array.isArray(pagos) ? pagos : []).forEach((p: any) => {
+  ;(Array.isArray(pagos) ? pagos : []).forEach((p) => {
     const pid = p?.prestamoId
     if (!pid) return
 
     if (!pagosByPrestamoId[pid]) pagosByPrestamoId[pid] = []
     pagosByPrestamoId[pid].push(p)
 
-    totalHistoricoByPrestamoId[pid] = (totalHistoricoByPrestamoId[pid] || 0) + Number(p?.montoTotal || 0)
+    totalHistoricoByPrestamoId[pid] =
+      (totalHistoricoByPrestamoId[pid] || 0) + Number(p?.montoTotal || 0)
 
-    const d = new Date(p?.fechaPago || p?.creadoEn).getTime()
+    // Las dos fechas son opcionales en el tipo, asi que se comprueba antes de
+    // construirla en vez de pasarle undefined a `new Date`.
+    const fechaDelPago = p?.fechaPago ?? p?.creadoEn
+    const d = fechaDelPago ? new Date(fechaDelPago).getTime() : NaN
     if (!isNaN(d) && d > (ultimoPagoDateByPrestamoId[pid] || 0)) ultimoPagoDateByPrestamoId[pid] = d
   })
 
@@ -144,15 +156,9 @@ export const applyRecaudoHoyToVisitas = <T extends Record<string, any>>(
       }
     }
 
-    const recHoyBackend = Number(
-      (v)?.recaudadoDelDia ??
-      (v)?.recaudadoHoy ??
-      0
-    )
+    const recHoyBackend = Number(v?.recaudadoDelDia ?? v?.recaudadoHoy ?? 0)
 
-    const recHoyMap = v?.prestamoId
-      ? Number(recaudosHoyMap[v.prestamoId] || 0)
-      : 0
+    const recHoyMap = v?.prestamoId ? Number(recaudosHoyMap[v.prestamoId] || 0) : 0
 
     // Con prestamoId, el recaudo de HOY sale del mapa por préstamo: los
     // recaudos agrupados por cliente no se preservan, porque le atribuirían a
@@ -163,10 +169,8 @@ export const applyRecaudoHoyToVisitas = <T extends Record<string, any>>(
     // real cada vez que el mapa llegaba vacío, y el cobrador veía como no
     // cobrado a un cliente al que acababa de cobrarle. Se toma el mayor de los
     // dos, y nunca el `recaudadoHoy` agrupado.
-    const recHoyPropio = Number((v)?.recaudadoDelDia || 0)
-    const recHoy = v?.prestamoId
-      ? Math.max(recHoyMap, recHoyPropio)
-      : recHoyBackend
+    const recHoyPropio = Number(v?.recaudadoDelDia || 0)
+    const recHoy = v?.prestamoId ? Math.max(recHoyMap, recHoyPropio) : recHoyBackend
 
     const estadoFinal = shouldMarkVisitaAsPagado({
       saldoTotal: v?.saldoTotal,
@@ -191,10 +195,11 @@ export const computeMontoCuotaPendienteDespuesDeRecaudo = (
   visita: Record<string, any>,
   recaudadoDelDia: unknown,
 ): number => {
-  const cuotaPendienteActualRaw = (visita)?.montoCuotaPendiente
-  const tieneCuotaPendiente = cuotaPendienteActualRaw !== undefined && cuotaPendienteActualRaw !== null
-  const cuotaNominal = Number((visita)?.montoCuota || 0)
-  const recaudadoPrev = Number((visita)?.recaudadoDelDia || 0)
+  const cuotaPendienteActualRaw = visita?.montoCuotaPendiente
+  const tieneCuotaPendiente =
+    cuotaPendienteActualRaw !== undefined && cuotaPendienteActualRaw !== null
+  const cuotaNominal = Number(visita?.montoCuota || 0)
+  const recaudadoPrev = Number(visita?.recaudadoDelDia || 0)
   const recaudadoNext = Number(recaudadoDelDia || 0)
   const deltaRecaudo = Math.max(0, recaudadoNext - recaudadoPrev)
 
@@ -209,11 +214,11 @@ export const resolveObligacionKey = (v: any): string => {
   const prestamoId = String(v?.prestamoId || '')
   const cuotaId = String(
     v?.cuotaId ||
-    v?.cuotaObjetivoId ||
-    v?.cuotaObjetivo?.id ||
-    v?.proximaCuota?.id ||
-    v?.cuotaObjetivoPrestamoId ||
-    '',
+      v?.cuotaObjetivoId ||
+      v?.cuotaObjetivo?.id ||
+      v?.proximaCuota?.id ||
+      v?.cuotaObjetivoPrestamoId ||
+      '',
   )
 
   if (prestamoId && cuotaId) return `loan:${prestamoId}:cuota:${cuotaId}`
@@ -261,8 +266,7 @@ export const mergeVisitasPreservingLocalRecaudo = <T extends Record<string, any>
     const estado = shouldMarkVisitaAsPagado({
       saldoTotal: freshItem?.saldoTotal,
       recaudadoHoy: recaudadoDelDia,
-      montoCuotaExigible:
-        freshItem?.montoCuotaPendiente ?? freshItem?.montoCuota,
+      montoCuotaExigible: freshItem?.montoCuotaPendiente ?? freshItem?.montoCuota,
       estadoActual: estadoBase,
     })
       ? 'pagado'
@@ -270,8 +274,7 @@ export const mergeVisitasPreservingLocalRecaudo = <T extends Record<string, any>
 
     const estadoVisitaBase = freshItem?.estadoVisita ?? prevItem?.estadoVisita
     const estadoVisita =
-      tienePagoHoy &&
-      String(estadoVisitaBase || '').toLowerCase() === 'ausente'
+      tienePagoHoy && String(estadoVisitaBase || '').toLowerCase() === 'ausente'
         ? undefined
         : estadoVisitaBase
 
@@ -287,4 +290,3 @@ export const mergeVisitasPreservingLocalRecaudo = <T extends Record<string, any>
     }
   })
 }
-
