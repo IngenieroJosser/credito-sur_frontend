@@ -976,7 +976,7 @@ const RutaClientLoaded = ({
     const run = async () => {
       try {
         const { inicio, fin } = getDatesByPeriod(periodoCards)
-        const saldo: any = await obtenerSaldoDisponibleRuta(initialRuta.id, undefined, inicio, fin)
+        const saldo = await obtenerSaldoDisponibleRuta(initialRuta.id, undefined, inicio, fin)
 
         const recaudo = Number(
           saldo?.cobranzaDelDia ?? saldo?.recaudoDelDia ?? estadisticas?.cobranzaDelDia ?? 0,

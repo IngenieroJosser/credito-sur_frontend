@@ -175,7 +175,7 @@ const ListadoPrestamosElegante = () => {
           undefined,
           { params },
         )
-        const raw: any[] = Array.isArray(moraResp)
+        const raw = Array.isArray(moraResp)
           ? moraResp
           : Array.isArray(moraResp?.prestamos)
             ? moraResp.prestamos

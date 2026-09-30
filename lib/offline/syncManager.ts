@@ -243,9 +243,7 @@ type FilaPrestamoDescargable = Omit<PrestamoDelListadoParcial, 'cliente'> & {
   cliente?: string | { nombres?: string; apellidos?: string; razonSocial?: string }
 }
 
-export function mapearPrestamoDescargado(
-  p: FilaPrestamoDescargable,
-): OfflinePrestamo {
+export function mapearPrestamoDescargado(p: FilaPrestamoDescargable): OfflinePrestamo {
   const num = (valor: unknown): number => Number(valor) || 0
   const texto = (valor: unknown, siNoHay = ''): string =>
     typeof valor === 'string' && valor ? valor : siNoHay
@@ -387,7 +385,7 @@ export const syncManager = {
             continue
           }
 
-          let requestData: any = dataRemapeada
+          let requestData = dataRemapeada
           const headers: Record<string, string> = {
             Accept: 'application/json',
             ...(token && { Authorization: `Bearer ${token}` }),
@@ -552,10 +550,15 @@ export const syncManager = {
       }
 
       logger.log('[Offline Sync] Iniciando descarga de clientes...')
-      const data = await apiRequest<Cliente[] | { clientes: Cliente[] }>('GET', '/clients', undefined, {
-        timeout: 30000,
-        cacheTTL: 0,
-      })
+      const data = await apiRequest<Cliente[] | { clientes: Cliente[] }>(
+        'GET',
+        '/clients',
+        undefined,
+        {
+          timeout: 30000,
+          cacheTTL: 0,
+        },
+      )
 
       const clientes: OfflineCliente[] = (Array.isArray(data) ? data : data.clientes || []).map(
         (c: any) => ({
@@ -627,10 +630,15 @@ export const syncManager = {
         if (!token) return 0
       }
 
-      const data = await apiRequest<{ prestamos?: PrestamoDelListadoParcial[] }>('GET', '/loans?limit=500', undefined, {
-        timeout: 30000,
-        cacheTTL: 0,
-      })
+      const data = await apiRequest<{ prestamos?: PrestamoDelListadoParcial[] }>(
+        'GET',
+        '/loans?limit=500',
+        undefined,
+        {
+          timeout: 30000,
+          cacheTTL: 0,
+        },
+      )
 
       const prestamosRaw = data.prestamos || []
       const prestamos: OfflinePrestamo[] = prestamosRaw.map(mapearPrestamoDescargado)

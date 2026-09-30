@@ -16,16 +16,24 @@ import {
   Clock,
   CheckCircle2,
   Printer,
-  Download
+  Download,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import MoneyAmount from '@/components/contable/MoneyAmount'
 import { getTransaccionById } from '@/services/contabilidad-service'
 
 interface MovimientoDetalle {
-  id: string; fecha: string; concepto: string; tipo: string;
-  monto: number; categoria: string; responsable: string;
-  referencia: string; estado: string; caja: string; creadoPor: string;
+  id: string
+  fecha: string
+  concepto: string
+  tipo: string
+  monto: number
+  categoria: string
+  responsable: string
+  referencia: string
+  estado: string
+  caja: string
+  creadoPor: string
 }
 
 export default function DetalleMovimientoPage({ params }: { params: Promise<{ id: string }> }) {
@@ -38,7 +46,7 @@ export default function DetalleMovimientoPage({ params }: { params: Promise<{ id
     const fetchMovimiento = async () => {
       setLoading(true)
       try {
-        const found: any = await getTransaccionById(id)
+        const found = await getTransaccionById(id)
         if (!found) {
           setMovimiento(null)
           return
@@ -66,9 +74,7 @@ export default function DetalleMovimientoPage({ params }: { params: Promise<{ id
   }, [id])
 
   if (loading) {
-    return (
-      <SkeletonDetalle />
-    )
+    return <SkeletonDetalle />
   }
 
   if (!movimiento) {
@@ -89,7 +95,7 @@ export default function DetalleMovimientoPage({ params }: { params: Promise<{ id
       <div className="relative z-10 w-full max-w-7xl mx-auto p-4 md:p-6 space-y-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <Link 
+            <Link
               href="/contable"
               className="p-2 -ml-2 text-slate-400 hover:text-slate-900 transition-colors"
             >
@@ -112,11 +118,17 @@ export default function DetalleMovimientoPage({ params }: { params: Promise<{ id
           </div>
 
           <div className="flex gap-2">
-            <button className="p-2 text-slate-500 hover:text-slate-900 hover:bg-white rounded-xl border border-transparent hover:border-slate-200 transition-all" title="Imprimir">
-                <Printer className="h-5 w-5" />
+            <button
+              className="p-2 text-slate-500 hover:text-slate-900 hover:bg-white rounded-xl border border-transparent hover:border-slate-200 transition-all"
+              title="Imprimir"
+            >
+              <Printer className="h-5 w-5" />
             </button>
-            <button className="p-2 text-slate-500 hover:text-slate-900 hover:bg-white rounded-xl border border-transparent hover:border-slate-200 transition-all" title="Descargar PDF">
-                <Download className="h-5 w-5" />
+            <button
+              className="p-2 text-slate-500 hover:text-slate-900 hover:bg-white rounded-xl border border-transparent hover:border-slate-200 transition-all"
+              title="Descargar PDF"
+            >
+              <Download className="h-5 w-5" />
             </button>
           </div>
         </div>
@@ -124,18 +136,26 @@ export default function DetalleMovimientoPage({ params }: { params: Promise<{ id
         <div className="bg-white rounded-2xl border border-slate-200 shadow-lg overflow-hidden">
           {/* Cabecera con Monto */}
           <div className="p-8 text-center border-b border-slate-100 bg-slate-50/30">
-            <div className={cn(
-              "w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 border-4",
-              movimiento.tipo === 'INGRESO' 
-                ? "bg-emerald-50 text-emerald-600 border-emerald-100" 
-                : "bg-rose-50 text-rose-600 border-rose-100"
-            )}>
-              {movimiento.tipo === 'INGRESO' ? <ArrowDownLeft className="h-8 w-8" /> : <ArrowUpRight className="h-8 w-8" />}
+            <div
+              className={cn(
+                'w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 border-4',
+                movimiento.tipo === 'INGRESO'
+                  ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                  : 'bg-rose-50 text-rose-600 border-rose-100',
+              )}
+            >
+              {movimiento.tipo === 'INGRESO' ? (
+                <ArrowDownLeft className="h-8 w-8" />
+              ) : (
+                <ArrowUpRight className="h-8 w-8" />
+              )}
             </div>
-            <div className={cn(
-              "text-4xl font-bold tracking-tight mb-2",
-              movimiento.tipo === 'INGRESO' ? "text-emerald-600" : "text-rose-600"
-            )}>
+            <div
+              className={cn(
+                'text-4xl font-bold tracking-tight mb-2',
+                movimiento.tipo === 'INGRESO' ? 'text-emerald-600' : 'text-rose-600',
+              )}
+            >
               <MoneyAmount
                 value={movimiento.monto}
                 amountClassName={cn(
@@ -149,7 +169,9 @@ export default function DetalleMovimientoPage({ params }: { params: Promise<{ id
 
           <div className="p-0 divide-y divide-slate-100">
             <div className="flex p-6 hover:bg-slate-50 transition-colors">
-              <div className="w-10 text-slate-400"><Tag className="h-5 w-5" /></div>
+              <div className="w-10 text-slate-400">
+                <Tag className="h-5 w-5" />
+              </div>
               <div>
                 <div className="text-xs font-bold text-slate-500 uppercase mb-1">Categoría</div>
                 <div className="font-medium text-slate-900 bg-slate-100 px-2 py-1 rounded-md inline-block text-sm">
@@ -159,20 +181,24 @@ export default function DetalleMovimientoPage({ params }: { params: Promise<{ id
             </div>
 
             <div className="flex p-6 hover:bg-slate-50 transition-colors">
-              <div className="w-10 text-slate-400"><Calendar className="h-5 w-5" /></div>
+              <div className="w-10 text-slate-400">
+                <Calendar className="h-5 w-5" />
+              </div>
               <div>
                 <div className="text-xs font-bold text-slate-500 uppercase mb-1">Fecha y Hora</div>
                 <div className="font-medium text-slate-900">
                   {new Date(movimiento.fecha).toLocaleString('es-CO', {
                     dateStyle: 'full',
-                    timeStyle: 'short'
+                    timeStyle: 'short',
                   })}
                 </div>
               </div>
             </div>
 
             <div className="flex p-6 hover:bg-slate-50 transition-colors">
-              <div className="w-10 text-slate-400"><User className="h-5 w-5" /></div>
+              <div className="w-10 text-slate-400">
+                <User className="h-5 w-5" />
+              </div>
               <div>
                 <div className="text-xs font-bold text-slate-500 uppercase mb-1">Responsable</div>
                 <div className="font-medium text-slate-900">{movimiento.responsable}</div>
@@ -180,15 +206,23 @@ export default function DetalleMovimientoPage({ params }: { params: Promise<{ id
             </div>
 
             <div className="flex p-6 hover:bg-slate-50 transition-colors">
-              <div className="w-10 text-slate-400"><FileText className="h-5 w-5" /></div>
+              <div className="w-10 text-slate-400">
+                <FileText className="h-5 w-5" />
+              </div>
               <div>
-                <div className="text-xs font-bold text-slate-500 uppercase mb-1">Referencia / Soporte</div>
-                <div className="font-medium text-slate-900">{movimiento.referencia || 'Sin referencia'}</div>
+                <div className="text-xs font-bold text-slate-500 uppercase mb-1">
+                  Referencia / Soporte
+                </div>
+                <div className="font-medium text-slate-900">
+                  {movimiento.referencia || 'Sin referencia'}
+                </div>
               </div>
             </div>
 
             <div className="flex p-6 hover:bg-slate-50 transition-colors">
-              <div className="w-10 text-slate-400"><Clock className="h-5 w-5" /></div>
+              <div className="w-10 text-slate-400">
+                <Clock className="h-5 w-5" />
+              </div>
               <div>
                 <div className="text-xs font-bold text-slate-500 uppercase mb-1">Registro</div>
                 <div className="text-sm text-slate-600">

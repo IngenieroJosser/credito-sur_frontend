@@ -1,15 +1,14 @@
-'use client';
+'use client'
 import { estadoDeError } from '@/lib/mensaje-de-error'
 
-
 import Paginador from '@/components/ui/Paginador'
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useNotification } from '@/components/providers/NotificationProvider';
-import { clientesService, Cliente } from '@/services/clientes-service';
-import { ClienteAdmin } from '@/lib/clientes-data';
-import { usePermission } from '@/hooks/usePermission';
-import { useRealtimeData } from '@/hooks/useRealtimeData';
-import { usePageFocusRefresh } from '@/hooks/usePageFocusRefresh';
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useNotification } from '@/components/providers/NotificationProvider'
+import { clientesService, Cliente } from '@/services/clientes-service'
+import { ClienteAdmin } from '@/lib/clientes-data'
+import { usePermission } from '@/hooks/usePermission'
+import { useRealtimeData } from '@/hooks/useRealtimeData'
+import { usePageFocusRefresh } from '@/hooks/usePageFocusRefresh'
 import {
   Search,
   Filter,
@@ -25,17 +24,17 @@ import {
   AlertTriangle,
   Trash2,
   Calendar,
-  Clock
-} from 'lucide-react';
-import { formatCurrency, cn } from '@/lib/utils';
-import { Modal } from '@/components/ui/Modal';
-import FiltroRuta from '@/components/filtros/FiltroRuta';
-import NuevoClienteModal from '@/components/clientes/NuevoClienteModal';
-import ClientePortalModal from '@/components/cliente/ClientePortalModal';
-import { offlineStore } from '@/lib/offline/offlineDb';
-import { WifiOff } from 'lucide-react';
-import { ExportButton } from '@/components/ui/ExportButton';
-import { exportService } from '@/services/export-service';
+  Clock,
+} from 'lucide-react'
+import { formatCurrency, cn } from '@/lib/utils'
+import { Modal } from '@/components/ui/Modal'
+import FiltroRuta from '@/components/filtros/FiltroRuta'
+import NuevoClienteModal from '@/components/clientes/NuevoClienteModal'
+import ClientePortalModal from '@/components/cliente/ClientePortalModal'
+import { offlineStore } from '@/lib/offline/offlineDb'
+import { WifiOff } from 'lucide-react'
+import { ExportButton } from '@/components/ui/ExportButton'
+import { exportService } from '@/services/export-service'
 import {
   computeDiasMoraFromCuotas,
   getBogotaDateKey,
@@ -45,38 +44,38 @@ import {
 } from '@/lib/rutas-core'
 
 // Tipos locales
-type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA';
+type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA'
 
 interface ClientesFeatureProps {
-  initialClientes: ClienteAdmin[];
-  basePath?: string;
-  defaultFilterRiesgo?: string;
-  defaultFilterEstado?: 'GENERAL' | 'MORA' | 'VENCIDAS';
+  initialClientes: ClienteAdmin[]
+  basePath?: string
+  defaultFilterRiesgo?: string
+  defaultFilterEstado?: 'GENERAL' | 'MORA' | 'VENCIDAS'
 }
 
-export default function ClientesFeature({ 
-  initialClientes, 
+export default function ClientesFeature({
+  initialClientes,
   basePath = '/admin/clientes',
   defaultFilterRiesgo = 'all',
-  defaultFilterEstado = 'GENERAL'
+  defaultFilterEstado = 'GENERAL',
 }: ClientesFeatureProps) {
-  const { can, canForPath } = usePermission();
-  
+  const { can, canForPath } = usePermission()
+
   // Verificación de permisos más robusta
-  const permitido = can('CLIENTES_VIEW') || canForPath(basePath);
-  const puedeCrear = can('CLIENTES_CREATE') || canForPath(basePath);
-  const puedeEditar = can('CLIENTES_EDIT') || canForPath(basePath);
-  const puedeEliminar = can('CLIENTES_DELETE') || canForPath(basePath);
-  
-  const { showNotification } = useNotification();
-  
-  const [clientes, setClientes] = useState<ClienteAdmin[]>(initialClientes);
-  const [dataSource, setDataSource] = useState<'online' | 'offline'>('online');
+  const permitido = can('CLIENTES_VIEW') || canForPath(basePath)
+  const puedeCrear = can('CLIENTES_CREATE') || canForPath(basePath)
+  const puedeEditar = can('CLIENTES_EDIT') || canForPath(basePath)
+  const puedeEliminar = can('CLIENTES_DELETE') || canForPath(basePath)
+
+  const { showNotification } = useNotification()
+
+  const [clientes, setClientes] = useState<ClienteAdmin[]>(initialClientes)
+  const [dataSource, setDataSource] = useState<'online' | 'offline'>('online')
   // Sin esto la lista no avisaba que estaba trayendo datos: tras una
   // importacion se quedaba mostrando 'No se encontraron resultados' y de golpe
   // aparecian los clientes, como si no se hubiera actualizado. El listado de
   // creditos ya usaba este patron.
-  const [cargando, setCargando] = useState(initialClientes.length === 0);
+  const [cargando, setCargando] = useState(initialClientes.length === 0)
 
   useEffect(() => {
     if (initialClientes.length === 0) {
@@ -84,64 +83,82 @@ export default function ClientesFeature({
       // "offline": todavía no se ha intentado la petición online. Marcarlo aquí
       // hacía parpadear el aviso "Mostrando datos guardados localmente" en cada
       // carga, aun con conexión. El aviso solo debe salir si la petición falla.
-      offlineStore.getAll<ClienteAdmin>('clientes').then((offlineData) => {
-        if (offlineData.length > 0) {
-          setClientes(offlineData);
-        }
-      }).catch(() => {});
+      offlineStore
+        .getAll<ClienteAdmin>('clientes')
+        .then((offlineData) => {
+          if (offlineData.length > 0) {
+            setClientes(offlineData)
+          }
+        })
+        .catch(() => {})
     } else {
-      offlineStore.saveMany('clientes', initialClientes).catch(() => {});
+      offlineStore.saveMany('clientes', initialClientes).catch(() => {})
     }
-  }, [initialClientes]);
+  }, [initialClientes])
 
   const refetch = useCallback(async () => {
     // Solo se muestra el esqueleto si no hay nada en pantalla; en un refresco de
     // fondo con datos ya visibles haria parpadear la tabla.
     setClientes((actuales) => {
-      if (actuales.length === 0) setCargando(true);
-      return actuales;
-    });
+      if (actuales.length === 0) setCargando(true)
+      return actuales
+    })
     try {
-      const fresh = await clientesService.obtenerTodos();
+      const fresh = await clientesService.obtenerTodos()
       // Una respuesta vacia es una respuesta valida: puede que de verdad no haya
       // clientes. Antes se exigia length > 0 y al borrarlos todos se caia al
       // cache, mostrando "datos guardados localmente" con la conexion intacta y
       // repintando clientes que ya no existen.
       if (Array.isArray(fresh)) {
-        setClientes(fresh as ClienteAdmin[]);
-        offlineStore.saveMany('clientes', fresh as ClienteAdmin[]).catch(() => {});
-        setDataSource('online');
-        return;
+        setClientes(fresh as ClienteAdmin[])
+        offlineStore.saveMany('clientes', fresh as ClienteAdmin[]).catch(() => {})
+        setDataSource('online')
+        return
       }
-      const cached = await offlineStore.getAll<ClienteAdmin>('clientes');
-      if (cached.length > 0) { setClientes(cached); setDataSource('offline'); }
+      const cached = await offlineStore.getAll<ClienteAdmin>('clientes')
+      if (cached.length > 0) {
+        setClientes(cached)
+        setDataSource('offline')
+      }
     } catch {
-      offlineStore.getAll<ClienteAdmin>('clientes').then((cached) => {
-        if (cached.length > 0) { setClientes(cached); setDataSource('offline'); }
-      }).catch(() => {});
+      offlineStore
+        .getAll<ClienteAdmin>('clientes')
+        .then((cached) => {
+          if (cached.length > 0) {
+            setClientes(cached)
+            setDataSource('offline')
+          }
+        })
+        .catch(() => {})
     } finally {
-      setCargando(false);
+      setCargando(false)
     }
-  }, []);
+  }, [])
 
   // Carga inicial. Sin esto la lista solo se llenaba cuando llegaba un evento
   // de tiempo real o al volver el foco a la pestana: al entrar se quedaba
   // vacia y habia que recargar la pagina. El listado de creditos si tenia esta
   // carga de montaje; este no.
   useEffect(() => {
-    refetch();
-  }, [refetch]);
+    refetch()
+  }, [refetch])
 
   // Tiempo real: refresca ante cualquier cambio del backend
   useRealtimeData(
-    ['clientes_actualizados', 'prestamos_actualizados', 'pagos_actualizados', 'rutas_actualizadas', 'dashboards_actualizados'],
+    [
+      'clientes_actualizados',
+      'prestamos_actualizados',
+      'pagos_actualizados',
+      'rutas_actualizadas',
+      'dashboards_actualizados',
+    ],
     refetch,
-  );
+  )
 
   // Refresca silenciosamente al volver al foco o al reconectar el socket
-  usePageFocusRefresh(refetch);
+  usePageFocusRefresh(refetch)
 
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState('')
   const [filterRiesgo, setFilterRiesgo] = useState<string>(
     defaultFilterRiesgo === 'VERDE'
       ? 'AL_DIA'
@@ -149,24 +166,26 @@ export default function ClientesFeature({
         ? 'PRECAUCION'
         : defaultFilterRiesgo === 'ROJO'
           ? 'CRITICO'
-          : defaultFilterRiesgo
-  );
-  const [filterEstadoCuenta, setFilterEstadoCuenta] = useState<'GENERAL' | 'MORA' | 'VENCIDAS'>(defaultFilterEstado);
-  const [filterRuta, setFilterRuta] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8;
+          : defaultFilterRiesgo,
+  )
+  const [filterEstadoCuenta, setFilterEstadoCuenta] = useState<'GENERAL' | 'MORA' | 'VENCIDAS'>(
+    defaultFilterEstado,
+  )
+  const [filterRuta, setFilterRuta] = useState<string | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 8
 
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [clientToDelete, setClientToDelete] = useState<Cliente | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [clientToDelete, setClientToDelete] = useState<Cliente | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
-  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
-  const [isClientModalOpen, setIsClientModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [clientToEdit, setClientToEdit] = useState<ClienteAdmin | null>(null);
-  const [diasMoraByClientId, setDiasMoraByClientId] = useState<Record<string, number>>({});
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null)
+  const [isClientModalOpen, setIsClientModalOpen] = useState(false)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [clientToEdit, setClientToEdit] = useState<ClienteAdmin | null>(null)
+  const [diasMoraByClientId, setDiasMoraByClientId] = useState<Record<string, number>>({})
 
   const normalizeEstadoFilter = (value: string) => {
     if (value === 'VERDE') return 'AL_DIA'
@@ -185,29 +204,42 @@ export default function ClientesFeature({
 
   const getEstadoMoraColor = (nivel: string) => {
     switch (nivel) {
-      case 'bajo':       return 'text-emerald-700 bg-emerald-50 ring-emerald-600/20'
-      case 'leve':       return 'text-blue-700 bg-blue-50 ring-blue-600/20'
-      case 'precaucion': return 'text-amber-700 bg-amber-50 ring-amber-600/20'
-      case 'moderado':   return 'text-orange-700 bg-orange-50 ring-orange-600/20'
-      case 'critico':    return 'text-red-700 bg-red-50 ring-red-600/20'
-      case 'lista_negra': return 'text-slate-800 bg-slate-200 ring-slate-600/20'
-      default:           return 'text-slate-600 bg-slate-50 ring-slate-600/20'
+      case 'bajo':
+        return 'text-emerald-700 bg-emerald-50 ring-emerald-600/20'
+      case 'leve':
+        return 'text-blue-700 bg-blue-50 ring-blue-600/20'
+      case 'precaucion':
+        return 'text-amber-700 bg-amber-50 ring-amber-600/20'
+      case 'moderado':
+        return 'text-orange-700 bg-orange-50 ring-orange-600/20'
+      case 'critico':
+        return 'text-red-700 bg-red-50 ring-red-600/20'
+      case 'lista_negra':
+        return 'text-slate-800 bg-slate-200 ring-slate-600/20'
+      default:
+        return 'text-slate-600 bg-slate-50 ring-slate-600/20'
     }
   }
 
   const getEstadoMoraLabel = (nivel: string) => {
     switch (nivel) {
-      case 'bajo':       return 'Al día'
-      case 'leve':       return 'Leve'
-      case 'precaucion': return 'Precaución'
-      case 'moderado':   return 'Moderado'
-      case 'critico':    return 'Crítico'
-      default:           return '—'
+      case 'bajo':
+        return 'Al día'
+      case 'leve':
+        return 'Leve'
+      case 'precaucion':
+        return 'Precaución'
+      case 'moderado':
+        return 'Moderado'
+      case 'critico':
+        return 'Crítico'
+      default:
+        return '—'
     }
   }
 
   const getDiasMoraCliente = (cliente: ClienteAdmin) =>
-    Number(diasMoraByClientId[String((cliente)?.id || '')] ?? (cliente)?.diasMora ?? 0)
+    Number(diasMoraByClientId[String(cliente?.id || '')] ?? cliente?.diasMora ?? 0)
 
   /**
    * Días de mora, o null si TODAVÍA no se conocen.
@@ -222,10 +254,10 @@ export default function ClientesFeature({
    * es un "Al día" real y sí se muestra; solo el hueco previo queda neutro.
    */
   const getDiasMoraOrNull = (cliente: ClienteAdmin): number | null => {
-    const id = String((cliente)?.id || '')
+    const id = String(cliente?.id || '')
     const calculado = diasMoraByClientId[id]
     if (calculado !== undefined) return Number(calculado)
-    const delBackend = (cliente)?.diasMora
+    const delBackend = cliente?.diasMora
     if (delBackend !== undefined && delBackend !== null) return Number(delBackend)
     return null
   }
@@ -234,65 +266,84 @@ export default function ClientesFeature({
     if (cliente.nivelRiesgo === 'LISTA_NEGRA') return 'LISTA_NEGRA'
 
     switch (calcularNivelMora(getDiasMoraCliente(cliente))) {
-      case 'bajo': return 'AL_DIA'
-      case 'leve': return 'LEVE'
-      case 'precaucion': return 'PRECAUCION'
-      case 'moderado': return 'MODERADO'
-      case 'critico': return 'CRITICO'
-      default: return 'AL_DIA'
+      case 'bajo':
+        return 'AL_DIA'
+      case 'leve':
+        return 'LEVE'
+      case 'precaucion':
+        return 'PRECAUCION'
+      case 'moderado':
+        return 'MODERADO'
+      case 'critico':
+        return 'CRITICO'
+      default:
+        return 'AL_DIA'
     }
   }
 
   const handleDeleteClick = (cliente: Cliente) => {
-    setClientToDelete(cliente);
-    setIsDeleteModalOpen(true);
-  };
+    setClientToDelete(cliente)
+    setIsDeleteModalOpen(true)
+  }
 
   const confirmDelete = async () => {
-    if (!clientToDelete) return;
+    if (!clientToDelete) return
 
-    setIsDeleting(true);
+    setIsDeleting(true)
     try {
-      await clientesService.eliminarCliente(clientToDelete.id);
-      setClientes((prev) => prev.filter((c) => c.id !== clientToDelete.id));
-      setIsDeleteModalOpen(false);
-      setClientToDelete(null);
-      showNotification('success', 'El cliente ha sido archivado exitosamente', 'Cliente Archivado');
+      await clientesService.eliminarCliente(clientToDelete.id)
+      setClientes((prev) => prev.filter((c) => c.id !== clientToDelete.id))
+      setIsDeleteModalOpen(false)
+      setClientToDelete(null)
+      showNotification('success', 'El cliente ha sido archivado exitosamente', 'Cliente Archivado')
     } catch (error) {
       if (estadoDeError(error) === 404 || estadoDeError(error) === 500) {
-        setClientes((prev) => prev.filter((c) => c.id !== clientToDelete.id));
-        setIsDeleteModalOpen(false);
-        setClientToDelete(null);
-        showNotification('warning', 'Cliente eliminado del cache local (no existía en el servidor)', 'Cliente Offline Eliminado');
+        setClientes((prev) => prev.filter((c) => c.id !== clientToDelete.id))
+        setIsDeleteModalOpen(false)
+        setClientToDelete(null)
+        showNotification(
+          'warning',
+          'Cliente eliminado del cache local (no existía en el servidor)',
+          'Cliente Offline Eliminado',
+        )
       } else {
-        showNotification('error', 'No se pudo archivar el cliente. Por favor intente de nuevo.', 'Error');
+        showNotification(
+          'error',
+          'No se pudo archivar el cliente. Por favor intente de nuevo.',
+          'Error',
+        )
       }
     } finally {
-      setIsDeleting(false);
+      setIsDeleting(false)
     }
-  };
+  }
 
-  const esMora = (cliente: ClienteAdmin) => (cliente.montoMora ?? 0) > 0 || (cliente.diasMora ?? 0) > 0;
-  const esVencida = (cliente: ClienteAdmin) => (cliente.diasMora ?? 0) >= 30;
+  const esMora = (cliente: ClienteAdmin) =>
+    (cliente.montoMora ?? 0) > 0 || (cliente.diasMora ?? 0) > 0
+  const esVencida = (cliente: ClienteAdmin) => (cliente.diasMora ?? 0) >= 30
 
-  const totalClientesMora = useMemo(() => clientes.filter(esMora).length, [clientes]);
-  const totalClientesVencidas = useMemo(() => clientes.filter(esVencida).length, [clientes]);
+  const totalClientesMora = useMemo(() => clientes.filter(esMora).length, [clientes])
+  const totalClientesVencidas = useMemo(() => clientes.filter(esVencida).length, [clientes])
 
-  const filteredClientes = clientes.filter(cliente => {
-    const matchesSearch = 
-      `${cliente.nombres || ''} ${cliente.apellidos || ''}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  const filteredClientes = clientes.filter((cliente) => {
+    const matchesSearch =
+      `${cliente.nombres || ''} ${cliente.apellidos || ''}`
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
       (cliente.dni || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (cliente.correo && cliente.correo.toLowerCase().includes(searchTerm.toLowerCase()));
+      (cliente.correo && cliente.correo.toLowerCase().includes(searchTerm.toLowerCase()))
     const estadoFiltro = normalizeEstadoFilter(filterRiesgo)
-    const matchesRiesgo = estadoFiltro === 'all' || getEstadoCuentaFiltro(cliente) === estadoFiltro;
-    const matchesRuta = !filterRuta || filterRuta === '' || cliente.rutaId === filterRuta;
-    const matchesEstado = 
-      filterEstadoCuenta === 'GENERAL' ? true :
-      filterEstadoCuenta === 'MORA' ? esMora(cliente) :
-      esVencida(cliente);
+    const matchesRiesgo = estadoFiltro === 'all' || getEstadoCuentaFiltro(cliente) === estadoFiltro
+    const matchesRuta = !filterRuta || filterRuta === '' || cliente.rutaId === filterRuta
+    const matchesEstado =
+      filterEstadoCuenta === 'GENERAL'
+        ? true
+        : filterEstadoCuenta === 'MORA'
+          ? esMora(cliente)
+          : esVencida(cliente)
 
-    return matchesSearch && matchesRiesgo && matchesRuta && matchesEstado;
-  });
+    return matchesSearch && matchesRiesgo && matchesRuta && matchesEstado
+  })
 
   const stats = useMemo(() => {
     const base = Array.isArray(filteredClientes) ? filteredClientes : []
@@ -315,56 +366,60 @@ export default function ClientesFeature({
     }
   }, [filteredClientes, diasMoraByClientId])
 
-  const totalPages = Math.ceil(filteredClientes.length / itemsPerPage);
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredClientes.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredClientes.length / itemsPerPage)
+  const indexOfLastItem = currentPage * itemsPerPage
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage
+  const currentItems = filteredClientes.slice(indexOfFirstItem, indexOfLastItem)
 
   useEffect(() => {
     let cancelled = false
 
     const run = async () => {
       const visibles = (Array.isArray(currentItems) ? currentItems : [])
-        .map((c) => ({ id: String((c)?.id || ''), isPending: (c)?.estadoAprobacion === 'PENDIENTE' }))
-        .filter((c) => !!c.id && !c.id.includes('offline') && !c.id.includes('temp') && !c.isPending)
+        .map((c) => ({ id: String(c?.id || ''), isPending: c?.estadoAprobacion === 'PENDIENTE' }))
+        .filter(
+          (c) => !!c.id && !c.id.includes('offline') && !c.id.includes('temp') && !c.isPending,
+        )
 
       if (visibles.length === 0) return
 
       const hoyKey = getBogotaDateKey(new Date())
       const updates: Record<string, number> = {}
 
-      await Promise.all(visibles.map(async ({ id }) => {
-        try {
-          // Solo recalcular si el backend no manda diasMora o viene en 0.
-          const existing = Number((diasMoraByClientId)?.[id])
-          if (existing > 0) return
+      await Promise.all(
+        visibles.map(async ({ id }) => {
+          try {
+            // Solo recalcular si el backend no manda diasMora o viene en 0.
+            const existing = Number(diasMoraByClientId?.[id])
+            if (existing > 0) return
 
-          const detalle: any = await clientesService.obtenerPorId(id)
-          const prestamos = Array.isArray(detalle?.prestamos) ? detalle.prestamos : []
+            const detalle = await clientesService.obtenerPorId(id)
+            const prestamos = Array.isArray(detalle?.prestamos) ? detalle.prestamos : []
 
-          let maxDias = 0
-          for (const p of prestamos) {
-            const cuotas = Array.isArray(p?.cuotas) ? p.cuotas : []
-            if (cuotas.length === 0) continue
+            let maxDias = 0
+            for (const p of prestamos) {
+              const cuotas = Array.isArray(p?.cuotas) ? p.cuotas : []
+              if (cuotas.length === 0) continue
 
-            const frecuencia = String(p?.frecuenciaPago || 'DIARIO').toUpperCase()
-            const vencidas = cuotas.some((c: any) => {
-              if (!c || !isCuotaNoPagada(c)) return false
-              const raw = resolveFechaEfectivaCuota(c) || String(c?.fechaVencimiento || '')
-              const k = normalizeDateKey(raw)
-              return !!k && !!hoyKey && k < hoyKey
-            })
-            if (!vencidas) continue
+              const frecuencia = String(p?.frecuenciaPago || 'DIARIO').toUpperCase()
+              const vencidas = cuotas.some((c: any) => {
+                if (!c || !isCuotaNoPagada(c)) return false
+                const raw = resolveFechaEfectivaCuota(c) || String(c?.fechaVencimiento || '')
+                const k = normalizeDateKey(raw)
+                return !!k && !!hoyKey && k < hoyKey
+              })
+              if (!vencidas) continue
 
-            const dm = computeDiasMoraFromCuotas(cuotas, hoyKey, frecuencia)
-            if (dm > maxDias) maxDias = dm
+              const dm = computeDiasMoraFromCuotas(cuotas, hoyKey, frecuencia)
+              if (dm > maxDias) maxDias = dm
+            }
+
+            updates[id] = maxDias
+          } catch {
+            // ignore
           }
-
-          updates[id] = maxDias
-        } catch {
-          // ignore
-        }
-      }))
+        }),
+      )
 
       if (cancelled) return
       if (Object.keys(updates).length === 0) return
@@ -372,8 +427,10 @@ export default function ClientesFeature({
     }
 
     run()
-    return () => { cancelled = true }
-  }, [currentItems.map(c => c.id).join(',')])
+    return () => {
+      cancelled = true
+    }
+  }, [currentItems.map((c) => c.id).join(',')])
 
   if (!permitido) {
     return (
@@ -395,7 +452,7 @@ export default function ClientesFeature({
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
         <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-primary/20 opacity-20 blur-[100px]"></div>
       </div>
-      
+
       <div className="relative z-10 px-6 md:px-8 py-8 space-y-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4 duration-500">
           <div className="min-w-0">
@@ -404,7 +461,8 @@ export default function ClientesFeature({
               <span>Gestión de Clientes</span>
             </div>
             <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
-              <span className="text-blue-600">Listado de </span><span className="text-orange-500">Clientes</span>
+              <span className="text-blue-600">Listado de </span>
+              <span className="text-orange-500">Clientes</span>
             </h1>
           </div>
           {puedeCrear && (
@@ -445,7 +503,9 @@ export default function ClientesFeature({
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
           <div className="p-5 rounded-2xl border border-slate-200 bg-white sm:bg-white/80 sm:backdrop-blur-sm shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
             <div className="flex items-center justify-between mb-4">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Clientes</span>
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                Total Clientes
+              </span>
               <User className="w-4 h-4 text-primary" />
             </div>
             <p className="text-3xl font-bold text-slate-900">{stats.total}</p>
@@ -453,7 +513,9 @@ export default function ClientesFeature({
 
           <div className="p-5 rounded-2xl border border-slate-200 bg-white sm:bg-white/80 sm:backdrop-blur-sm shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
             <div className="flex items-center justify-between mb-4">
-              <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider">Buen Estado</span>
+              <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider">
+                Buen Estado
+              </span>
               <CheckCircle className="w-4 h-4 text-emerald-600" />
             </div>
             <p className="text-3xl font-bold text-slate-900">{stats.buenEstado}</p>
@@ -461,7 +523,9 @@ export default function ClientesFeature({
 
           <div className="p-5 rounded-2xl border border-slate-200 bg-white sm:bg-white/80 sm:backdrop-blur-sm shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
             <div className="flex items-center justify-between mb-4">
-              <span className="text-xs font-bold text-amber-600 uppercase tracking-wider">Riesgo Medio</span>
+              <span className="text-xs font-bold text-amber-600 uppercase tracking-wider">
+                Riesgo Medio
+              </span>
               <AlertTriangle className="w-4 h-4 text-amber-600" />
             </div>
             <p className="text-3xl font-bold text-slate-900">{stats.riesgoMedio}</p>
@@ -469,7 +533,9 @@ export default function ClientesFeature({
 
           <div className="p-5 rounded-2xl border border-slate-200 bg-white sm:bg-white/80 sm:backdrop-blur-sm shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
             <div className="flex items-center justify-between mb-4">
-              <span className="text-xs font-bold text-rose-600 uppercase tracking-wider">Alto Riesgo</span>
+              <span className="text-xs font-bold text-rose-600 uppercase tracking-wider">
+                Alto Riesgo
+              </span>
               <AlertCircle className="w-4 h-4 text-rose-600" />
             </div>
             <p className="text-3xl font-bold text-slate-900">{stats.altoRiesgo}</p>
@@ -538,11 +604,21 @@ export default function ClientesFeature({
             <table className="w-full">
               <thead>
                 <tr className="bg-slate-50/50 border-b border-slate-200">
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Cliente</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Estado</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Finanzas</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Última visita</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Contacto</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    Cliente
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    Estado
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    Finanzas
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    Última visita
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    Contacto
+                  </th>
                   <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider"></th>
                 </tr>
               </thead>
@@ -550,166 +626,194 @@ export default function ClientesFeature({
                 {cargando ? (
                   Array.from({ length: 5 }).map((_, i) => (
                     <tr key={i} className="animate-pulse">
-                      <td className="px-6 py-4"><div className="h-10 w-48 rounded-lg bg-slate-100" /></td>
-                      <td className="px-6 py-4"><div className="h-6 w-24 rounded-full bg-slate-100" /></td>
-                      <td className="px-6 py-4"><div className="h-4 w-28 rounded bg-slate-100" /></td>
-                      <td className="px-6 py-4"><div className="h-4 w-20 rounded bg-slate-100" /></td>
-                      <td className="px-6 py-4"><div className="h-4 w-32 rounded bg-slate-100" /></td>
-                      <td className="px-6 py-4"><div className="ml-auto h-8 w-16 rounded bg-slate-100" /></td>
+                      <td className="px-6 py-4">
+                        <div className="h-10 w-48 rounded-lg bg-slate-100" />
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="h-6 w-24 rounded-full bg-slate-100" />
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="h-4 w-28 rounded bg-slate-100" />
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="h-4 w-20 rounded bg-slate-100" />
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="h-4 w-32 rounded bg-slate-100" />
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="ml-auto h-8 w-16 rounded bg-slate-100" />
+                      </td>
                     </tr>
                   ))
                 ) : currentItems.length > 0 ? (
                   currentItems.map((cliente, index) => {
-                    const isPending = cliente.estadoAprobacion === 'PENDIENTE' || cliente.id?.includes('offline') || cliente.id?.includes('temp');
+                    const isPending =
+                      cliente.estadoAprobacion === 'PENDIENTE' ||
+                      cliente.id?.includes('offline') ||
+                      cliente.id?.includes('temp')
                     const diasMoraUI = getDiasMoraCliente(cliente)
                     const diasMoraConocidos = getDiasMoraOrNull(cliente)
                     const estadoCuenta = getEstadoCuentaFiltro(cliente)
                     return (
-                    <tr
-                      key={cliente.id || `client-${index}`}
-                      className={cn(
-                        "transition-colors group cursor-pointer",
-                        isPending ? "bg-amber-50/50 hover:bg-amber-100/50" : "hover:bg-slate-50/50"
-                      )}
-                      onClick={() => {
-                        setSelectedClientId(cliente.id);
-                        setIsDetailsModalOpen(true);
-                      }}
-                    >
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold shadow-sm ${
-                              isPending ? 'bg-amber-100 text-amber-700' :
-                              cliente.nivelRiesgo === 'VERDE'
-                                ? 'bg-emerald-100 text-emerald-700'
-                                : cliente.nivelRiesgo === 'AMARILLO'
+                      <tr
+                        key={cliente.id || `client-${index}`}
+                        className={cn(
+                          'transition-colors group cursor-pointer',
+                          isPending
+                            ? 'bg-amber-50/50 hover:bg-amber-100/50'
+                            : 'hover:bg-slate-50/50',
+                        )}
+                        onClick={() => {
+                          setSelectedClientId(cliente.id)
+                          setIsDetailsModalOpen(true)
+                        }}
+                      >
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div
+                              className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold shadow-sm ${
+                                isPending
                                   ? 'bg-amber-100 text-amber-700'
-                                  : cliente.nivelRiesgo === 'ROJO'
-                                    ? 'bg-rose-100 text-rose-700'
-                                    : 'bg-slate-100 text-slate-600'
-                            }`}
-                          >
-                            {isPending ? <Clock className="h-5 w-5" /> : (
-                              <>
-                                {cliente.nombres?.charAt(0) || '?'}
-                                {cliente.apellidos?.charAt(0) || ''}
-                              </>
-                            )}
-                          </div>
-                          <div className="ml-4">
-                            <div className="font-bold text-slate-900 flex items-center gap-2">
-                              {(cliente.nombres || cliente.apellidos) ? `${cliente.nombres} ${cliente.apellidos}` : 'Cliente sin nombre'}
-                              {isPending && (
-                                <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-amber-100 text-[9px] font-black text-amber-700 uppercase tracking-tighter border border-amber-200">
-                                  {cliente.id?.includes('offline') ? 'OFFLINE' : 'PENDIENTE'}
-                                </span>
+                                  : cliente.nivelRiesgo === 'VERDE'
+                                    ? 'bg-emerald-100 text-emerald-700'
+                                    : cliente.nivelRiesgo === 'AMARILLO'
+                                      ? 'bg-amber-100 text-amber-700'
+                                      : cliente.nivelRiesgo === 'ROJO'
+                                        ? 'bg-rose-100 text-rose-700'
+                                        : 'bg-slate-100 text-slate-600'
+                              }`}
+                            >
+                              {isPending ? (
+                                <Clock className="h-5 w-5" />
+                              ) : (
+                                <>
+                                  {cliente.nombres?.charAt(0) || '?'}
+                                  {cliente.apellidos?.charAt(0) || ''}
+                                </>
                               )}
                             </div>
-                            <div className="text-xs text-slate-500 flex items-center mt-0.5 font-mono font-medium">
-                              CC: {cliente.dni}
+                            <div className="ml-4">
+                              <div className="font-bold text-slate-900 flex items-center gap-2">
+                                {cliente.nombres || cliente.apellidos
+                                  ? `${cliente.nombres} ${cliente.apellidos}`
+                                  : 'Cliente sin nombre'}
+                                {isPending && (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-amber-100 text-[9px] font-black text-amber-700 uppercase tracking-tighter border border-amber-200">
+                                    {cliente.id?.includes('offline') ? 'OFFLINE' : 'PENDIENTE'}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-xs text-slate-500 flex items-center mt-0.5 font-mono font-medium">
+                                CC: {cliente.dni}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </td>
+                        </td>
 
-                      <td className="px-6 py-4">
-                        <div className="space-y-1">
-                          {estadoCuenta === 'LISTA_NEGRA' ? (
-                            <div className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset ${getEstadoMoraColor('lista_negra')}`}>
-                              Lista Negra
+                        <td className="px-6 py-4">
+                          <div className="space-y-1">
+                            {estadoCuenta === 'LISTA_NEGRA' ? (
+                              <div
+                                className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset ${getEstadoMoraColor('lista_negra')}`}
+                              >
+                                Lista Negra
+                              </div>
+                            ) : diasMoraConocidos === null ? (
+                              // Aún no se sabe la mora: estado neutro, no "Al día".
+                              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset text-slate-500 bg-slate-50 ring-slate-600/20">
+                                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-slate-400" />
+                                Calculando…
+                              </div>
+                            ) : (
+                              <div
+                                className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset ${getEstadoMoraColor(calcularNivelMora(diasMoraUI))}`}
+                              >
+                                {getEstadoMoraLabel(calcularNivelMora(diasMoraUI))}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+
+                        <td className="px-6 py-4">
+                          <div className="space-y-1">
+                            <div className="text-sm font-bold text-slate-900">
+                              {formatCurrency(cliente.montoTotal ?? 0)}
                             </div>
-                          ) : diasMoraConocidos === null ? (
-                            // Aún no se sabe la mora: estado neutro, no "Al día".
-                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset text-slate-500 bg-slate-50 ring-slate-600/20">
-                              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-slate-400" />
-                              Calculando…
+                            {(cliente.montoMora ?? 0) > 0 && (
+                              <div className="text-xs text-rose-600 font-bold flex items-center">
+                                Mora: {formatCurrency(cliente.montoMora ?? 0)}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+
+                        <td className="px-6 py-4">
+                          {cliente.ultimaVisita ? (
+                            <div className="flex items-center gap-1.5 text-slate-500 text-xs font-bold">
+                              <Calendar className="h-3 w-3" />
+                              {cliente.ultimaVisita}
                             </div>
                           ) : (
-                            <div className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset ${getEstadoMoraColor(calcularNivelMora(diasMoraUI))}`}>
-                              {getEstadoMoraLabel(calcularNivelMora(diasMoraUI))}
-                            </div>
+                            <span className="text-xs font-medium text-slate-400">Sin visitas</span>
                           )}
-                        </div>
-                      </td>
+                        </td>
 
-                      <td className="px-6 py-4">
-                        <div className="space-y-1">
-                          <div className="text-sm font-bold text-slate-900">
-                            {formatCurrency(cliente.montoTotal ?? 0)}
-                          </div>
-                          {(cliente.montoMora ?? 0) > 0 && (
-                            <div className="text-xs text-rose-600 font-bold flex items-center">
-                              Mora: {formatCurrency(cliente.montoMora ?? 0)}
+                        <td className="px-6 py-4">
+                          <div className="space-y-1">
+                            <div className="flex items-center text-sm font-medium text-slate-600">
+                              <Phone className="h-3 w-3 mr-2 text-slate-400" />
+                              {cliente.telefono}
                             </div>
-                          )}
-                        </div>
-                      </td>
-
-                      <td className="px-6 py-4">
-                        {cliente.ultimaVisita ? (
-                          <div className="flex items-center gap-1.5 text-slate-500 text-xs font-bold">
-                            <Calendar className="h-3 w-3" />
-                            {cliente.ultimaVisita}
+                            {cliente.correo && (
+                              <div className="flex items-center text-xs font-medium text-slate-500 min-w-0">
+                                <Mail className="h-3 w-3 mr-2 text-slate-400 shrink-0" />
+                                <span className="truncate" title={cliente.correo || undefined}>
+                                  {cliente.correo}
+                                </span>
+                              </div>
+                            )}
                           </div>
-                        ) : (
-                          <span className="text-xs font-medium text-slate-400">Sin visitas</span>
-                        )}
-                      </td>
+                        </td>
 
-                      <td className="px-6 py-4">
-                        <div className="space-y-1">
-                          <div className="flex items-center text-sm font-medium text-slate-600">
-                            <Phone className="h-3 w-3 mr-2 text-slate-400" />
-                            {cliente.telefono}
-                          </div>
-                          {cliente.correo && (
-                            <div className="flex items-center text-xs font-medium text-slate-500 min-w-0">
-                              <Mail className="h-3 w-3 mr-2 text-slate-400 shrink-0" />
-                              <span className="truncate" title={cliente.correo || undefined}>{cliente.correo}</span>
-                            </div>
-                          )}
-                        </div>
-                      </td>
-
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedClientId(cliente.id);
-                              setIsDetailsModalOpen(true);
-                            }}
-                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                            title="Ver expediente"
-                          >
-                            <Eye className="h-5 w-5" />
-                          </button>
-                          {puedeEditar && (
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
                             <button
                               onClick={(e) => {
-                                e.stopPropagation();
-                                setClientToEdit(cliente);
-                                setIsEditModalOpen(true);
+                                e.stopPropagation()
+                                setSelectedClientId(cliente.id)
+                                setIsDetailsModalOpen(true)
                               }}
-                              className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
-                              title="Editar cliente"
+                              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                              title="Ver expediente"
                             >
-                              <Pencil className="h-5 w-5" />
+                              <Eye className="h-5 w-5" />
                             </button>
-                          )}
-                          {puedeEliminar && (
-                            <button
-                              onClick={() => handleDeleteClick(cliente)}
-                              className="shrink-0 p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                    );
+                            {puedeEditar && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setClientToEdit(cliente)
+                                  setIsEditModalOpen(true)
+                                }}
+                                className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
+                                title="Editar cliente"
+                              >
+                                <Pencil className="h-5 w-5" />
+                              </button>
+                            )}
+                            {puedeEliminar && (
+                              <button
+                                onClick={() => handleDeleteClick(cliente)}
+                                className="shrink-0 p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )
                   })
                 ) : (
                   <tr>
@@ -745,94 +849,124 @@ export default function ClientesFeature({
                 <div className="mt-3 h-4 w-24 rounded bg-slate-100" />
               </div>
             ))}
-          {!cargando && currentItems.map((cliente, index) => {
-            const isPending = cliente.estadoAprobacion === 'PENDIENTE' || cliente.id?.includes('offline') || cliente.id?.includes('temp');
-            const diasMoraUI = Number(diasMoraByClientId[String((cliente)?.id || '')] ?? (cliente)?.diasMora ?? 0)
-            const diasMoraConocidos = getDiasMoraOrNull(cliente)
-            return (
-            <div 
-              key={cliente.id || `client-${index}`} 
-              className={cn(
-                "border rounded-2xl p-4 transition-all",
-                isPending ? "bg-amber-50 border-amber-200 shadow-sm" : "bg-white border-slate-200"
-              )}
-              onClick={() => { setSelectedClientId(cliente.id); setIsDetailsModalOpen(true); }}
-            >
-              <div className="flex justify-between items-start mb-3">
-                <div className="flex gap-3">
-                   <div className={cn(
-                     "w-10 h-10 rounded-lg flex items-center justify-center font-bold",
-                     isPending ? "bg-amber-100 text-amber-700" : "bg-slate-100"
-                   )}>
-                     {isPending ? <Clock className="h-5 w-5" /> : (cliente.nombres?.charAt(0) || '?')}
-                   </div>
-                   <div>
-                     <div className="font-bold text-slate-900 flex items-center gap-2">
-                       {cliente.nombres} {cliente.apellidos}
-                       {isPending && (
-                         <span className="px-1.5 py-0.5 rounded-md bg-amber-100 text-[8px] font-black text-amber-700 uppercase tracking-tighter">OFFLINE</span>
-                       )}
-                     </div>
-                     <div className="text-xs text-slate-500 font-mono">CC: {cliente.dni}</div>
-                   </div>
-                </div>
-                <div className={cn(
-                  "px-2 py-1 rounded-lg text-[10px] font-bold inline-flex items-center gap-1",
-                  isPending
-                    ? "bg-amber-200/50 text-amber-700"
-                    : diasMoraConocidos === null
-                      ? "bg-slate-50 text-slate-500"
-                      : getEstadoMoraColor(calcularNivelMora(diasMoraUI))
-                )}>
-                  {isPending ? 'PENDIENTE' : diasMoraConocidos === null ? (
-                    // Aún no se conoce la mora: neutro, no "Al día".
-                    <><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-slate-400" />Calculando…</>
-                  ) : getEstadoMoraLabel(calcularNivelMora(diasMoraUI))}
-                </div>
-              </div>
-              <div className="flex justify-between items-center pt-3 border-t border-slate-100">
-                 <div className="text-sm font-bold text-slate-900">{formatCurrency(cliente.montoTotal ?? 0)}</div>
-                 <div className="flex gap-2" onClick={e => e.stopPropagation()}>
-                    <button 
-                      onClick={(e) => { 
-                        e.stopPropagation();
-                        setSelectedClientId(cliente.id); 
-                        setIsDetailsModalOpen(true); 
-                      }} 
-                      className="p-2 text-slate-400"
+          {!cargando &&
+            currentItems.map((cliente, index) => {
+              const isPending =
+                cliente.estadoAprobacion === 'PENDIENTE' ||
+                cliente.id?.includes('offline') ||
+                cliente.id?.includes('temp')
+              const diasMoraUI = Number(
+                diasMoraByClientId[String(cliente?.id || '')] ?? cliente?.diasMora ?? 0,
+              )
+              const diasMoraConocidos = getDiasMoraOrNull(cliente)
+              return (
+                <div
+                  key={cliente.id || `client-${index}`}
+                  className={cn(
+                    'border rounded-2xl p-4 transition-all',
+                    isPending
+                      ? 'bg-amber-50 border-amber-200 shadow-sm'
+                      : 'bg-white border-slate-200',
+                  )}
+                  onClick={() => {
+                    setSelectedClientId(cliente.id)
+                    setIsDetailsModalOpen(true)
+                  }}
+                >
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex gap-3">
+                      <div
+                        className={cn(
+                          'w-10 h-10 rounded-lg flex items-center justify-center font-bold',
+                          isPending ? 'bg-amber-100 text-amber-700' : 'bg-slate-100',
+                        )}
+                      >
+                        {isPending ? (
+                          <Clock className="h-5 w-5" />
+                        ) : (
+                          cliente.nombres?.charAt(0) || '?'
+                        )}
+                      </div>
+                      <div>
+                        <div className="font-bold text-slate-900 flex items-center gap-2">
+                          {cliente.nombres} {cliente.apellidos}
+                          {isPending && (
+                            <span className="px-1.5 py-0.5 rounded-md bg-amber-100 text-[8px] font-black text-amber-700 uppercase tracking-tighter">
+                              OFFLINE
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-slate-500 font-mono">CC: {cliente.dni}</div>
+                      </div>
+                    </div>
+                    <div
+                      className={cn(
+                        'px-2 py-1 rounded-lg text-[10px] font-bold inline-flex items-center gap-1',
+                        isPending
+                          ? 'bg-amber-200/50 text-amber-700'
+                          : diasMoraConocidos === null
+                            ? 'bg-slate-50 text-slate-500'
+                            : getEstadoMoraColor(calcularNivelMora(diasMoraUI)),
+                      )}
                     >
-                      <Eye className="h-5 w-5" />
-                    </button>
-                    {puedeEditar && (
-                      <button 
+                      {isPending ? (
+                        'PENDIENTE'
+                      ) : diasMoraConocidos === null ? (
+                        // Aún no se conoce la mora: neutro, no "Al día".
+                        <>
+                          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-slate-400" />
+                          Calculando…
+                        </>
+                      ) : (
+                        getEstadoMoraLabel(calcularNivelMora(diasMoraUI))
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center pt-3 border-t border-slate-100">
+                    <div className="text-sm font-bold text-slate-900">
+                      {formatCurrency(cliente.montoTotal ?? 0)}
+                    </div>
+                    <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                      <button
                         onClick={(e) => {
-                          e.stopPropagation();
-                          setClientToEdit(cliente);
-                          setIsEditModalOpen(true);
-                        }} 
+                          e.stopPropagation()
+                          setSelectedClientId(cliente.id)
+                          setIsDetailsModalOpen(true)
+                        }}
                         className="p-2 text-slate-400"
-                        title="Editar cliente"
                       >
-                        <Pencil className="h-5 w-5" />
+                        <Eye className="h-5 w-5" />
                       </button>
-                    )}
-                    {puedeEliminar && (
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteClick(cliente);
-                        }} 
-                        className="p-2 text-slate-400"
-                        title="Eliminar cliente"
-                      >
-                        <Trash2 className="h-5 w-5" />
-                      </button>
-                    )}
-                 </div>
-              </div>
-            </div>
-            );
-          })}
+                      {puedeEditar && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setClientToEdit(cliente)
+                            setIsEditModalOpen(true)
+                          }}
+                          className="p-2 text-slate-400"
+                          title="Editar cliente"
+                        >
+                          <Pencil className="h-5 w-5" />
+                        </button>
+                      )}
+                      {puedeEliminar && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleDeleteClick(cliente)
+                          }}
+                          className="p-2 text-slate-400"
+                          title="Eliminar cliente"
+                        >
+                          <Trash2 className="h-5 w-5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
         </div>
       </div>
 
@@ -842,16 +976,16 @@ export default function ClientesFeature({
         title="Confirmar Archivado"
         footer={
           <div className="flex gap-3">
-            <button 
-              onClick={() => setIsDeleteModalOpen(false)} 
+            <button
+              onClick={() => setIsDeleteModalOpen(false)}
               disabled={isDeleting}
               className="px-5 py-2.5 text-sm font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-all duration-200"
             >
               Cancelar
             </button>
-            <button 
-              onClick={confirmDelete} 
-              disabled={isDeleting} 
+            <button
+              onClick={confirmDelete}
+              disabled={isDeleting}
               className="px-6 py-2.5 text-sm font-bold text-white bg-rose-600 hover:bg-rose-700 active:bg-rose-800 rounded-xl transition-all duration-200 shadow-lg shadow-rose-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {isDeleting ? 'Archivando...' : 'Sí, archivar'}
@@ -860,7 +994,11 @@ export default function ClientesFeature({
         }
       >
         <p className="text-sm text-slate-600 font-medium">
-          ¿Estás seguro que deseas archivar al cliente <span className="font-bold text-slate-900">{clientToDelete?.nombres} {clientToDelete?.apellidos}</span>?
+          ¿Estás seguro que deseas archivar al cliente{' '}
+          <span className="font-bold text-slate-900">
+            {clientToDelete?.nombres} {clientToDelete?.apellidos}
+          </span>
+          ?
         </p>
       </Modal>
 
@@ -868,8 +1006,8 @@ export default function ClientesFeature({
         <NuevoClienteModal
           onClose={() => setIsCreateModalOpen(false)}
           onClienteCreado={(nuevo: Cliente) => {
-            setClientes([nuevo as ClienteAdmin, ...clientes]);
-            setIsCreateModalOpen(false);
+            setClientes([nuevo as ClienteAdmin, ...clientes])
+            setIsCreateModalOpen(false)
             // El aviso lo da NuevoClienteModal, que es quien sabe si fue una
             // creacion o una edicion y si salio en linea o quedo en la cola. Aqui
             // habia un segundo aviso ('Cliente registrado exitosamente') que se
@@ -884,35 +1022,42 @@ export default function ClientesFeature({
           cliente={clientToEdit}
           esEdicion={true}
           onClose={() => {
-            setIsEditModalOpen(false);
-            setClientToEdit(null);
+            setIsEditModalOpen(false)
+            setClientToEdit(null)
           }}
           onClienteCreado={(editado: Cliente) => {
-            setClientes(prev => prev.map((c) => {
-              if (c.id !== editado.id) return c;
-              const patch = editado;
-              return {
-                ...c,
-                ...patch,
-                tendencia: patch.tendencia ?? c.tendencia,
-                montoTotal: patch.montoTotal ?? c.montoTotal,
-                montoMora: patch.montoMora ?? c.montoMora,
-                ultimaVisita: patch.ultimaVisita ?? c.ultimaVisita,
-                prestamosActivos: patch.prestamosActivos ?? c.prestamosActivos,
-              } as ClienteAdmin;
-            }));
-            setIsEditModalOpen(false);
-            setClientToEdit(null);
+            setClientes((prev) =>
+              prev.map((c) => {
+                if (c.id !== editado.id) return c
+                const patch = editado
+                return {
+                  ...c,
+                  ...patch,
+                  tendencia: patch.tendencia ?? c.tendencia,
+                  montoTotal: patch.montoTotal ?? c.montoTotal,
+                  montoMora: patch.montoMora ?? c.montoMora,
+                  ultimaVisita: patch.ultimaVisita ?? c.ultimaVisita,
+                  prestamosActivos: patch.prestamosActivos ?? c.prestamosActivos,
+                } as ClienteAdmin
+              }),
+            )
+            setIsEditModalOpen(false)
+            setClientToEdit(null)
             // Mismo caso que en la creacion: el modal ya avisa 'Cliente
             // Actualizado'. Este repetia el mismo titulo con otro texto.
           }}
         />
       )}
 
-
       {isDetailsModalOpen && selectedClientId && (
-        <ClientePortalModal clientId={String(selectedClientId)} onClose={() => { setIsDetailsModalOpen(false); setSelectedClientId(null); }} />
+        <ClientePortalModal
+          clientId={String(selectedClientId)}
+          onClose={() => {
+            setIsDetailsModalOpen(false)
+            setSelectedClientId(null)
+          }}
+        />
       )}
     </div>
-  );
+  )
 }

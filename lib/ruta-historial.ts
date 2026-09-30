@@ -768,7 +768,7 @@ export const buildHistorialDiaFromBackend = (params: {
             const saldoTotal = Number(p?.saldoPendiente ?? 0)
             const proxEstado = String(proximaCuota?.estado || '').toUpperCase()
 
-            let estado: any = item?.estado || 'pendiente'
+            let estado = item?.estado || 'pendiente'
             if (!item?.estado) {
               if (saldoTotal <= 0) estado = 'pagado'
               else if (proxEstado === 'PAGADA' || proxEstado === 'PAGADO') estado = 'pagado'

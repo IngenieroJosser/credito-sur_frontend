@@ -1,5 +1,5 @@
-import { apiRequest } from '@/lib/api/api';
-import { PLAZOS_ARTICULO_MESES } from '@/lib/plazos-articulo';
+import { apiRequest } from '@/lib/api/api'
+import { PLAZOS_ARTICULO_MESES } from '@/lib/plazos-articulo'
 
 /**
  * El precio tal y como llega del servidor, antes de convertirlo en
@@ -51,124 +51,112 @@ class ArticulosService {
     // Estas son opciones de respaldo si NO hay data en la DB.
     // Usamos el precioBase (contado) como referencia sin intereses automáticos aquí,
     // ya que el usuario prefiere que se tome lo que dice la DB.
-    const mesesEstandar = PLAZOS_ARTICULO_MESES;
+    const mesesEstandar = PLAZOS_ARTICULO_MESES
 
-    return mesesEstandar.map(m => {
-        return {
-            numeroCuotas: m, // Aquí guardamos Meses para que el componente calcule el resto
-            precioTotal: precioBase,
-            valorCuota: precioBase / m, 
-            frecuenciaPago: 'MENSUAL' 
-        };
-    });
+    return mesesEstandar.map((m) => {
+      return {
+        numeroCuotas: m, // Aquí guardamos Meses para que el componente calcule el resto
+        precioTotal: precioBase,
+        valorCuota: precioBase / m,
+        frecuenciaPago: 'MENSUAL',
+      }
+    })
   }
 
   async obtenerArticulos(): Promise<Articulo[]> {
     try {
-        const inventoryItems: any[] = await apiRequest('GET', '/inventory');
-        if (!Array.isArray(inventoryItems)) return [];
-        
-        return inventoryItems.map(item => {
-            const preciosRaw = item.precios || [];
+      const inventoryItems = await apiRequest('GET', '/inventory')
+      if (!Array.isArray(inventoryItems)) return []
 
-            const contadoItem = preciosRaw.find((p: PrecioProductoApi) => Number(p?.meses) === 0);
-            const precioContado = contadoItem
-              ? Number(contadoItem.precio)
-              : Number(
-                  item.precioContado ||
-                  item.precio_contado ||
-                  item.price ||
-                  item.precio ||
-                  0
-                );
+      return inventoryItems.map((item) => {
+        const preciosRaw = item.precios || []
 
-            const precioBase = precioContado || Number(item.costo || 0);
-            
-            // Mapear planes de crédito reales desde el backend (solo meses > 0)
-            const opcionesCuotas: OpcionCuotas[] = preciosRaw
-              .filter((p: PrecioProductoApi) => p && Number(p.meses) > 0)
-              .map((p: PrecioProductoApi) => {
-                const meses = Number(p.meses);
-                const precio = Number(p.precio);
-                return {
-                  id: p.id,
-                  numeroCuotas: meses,
-                  precioTotal: precio,
-                  valorCuota: precio / meses,
-                  frecuenciaPago: 'MENSUAL'
-                };
-              });
-
-            return {
-                id: String(item.id),
-                nombre: item.name || item.nombre,
-                descripcion: item.description || item.descripcion || '',
-                costo: Number(item.costo || 0),
-                precioBase,
-                precioContado,
-                precioContadoId: contadoItem?.id,
-                categoria: item.category || item.categoria || 'General',
-                stock: Number(item.quantity || item.stock || 0),
-                opcionesCuotas: opcionesCuotas.length > 0 ? opcionesCuotas : this.generarOpcionesCuotas(precioBase)
-            };
-        });
-    } catch (error) {
-        console.error("Error fetching articles", error);
-        return [];
-    }
-  }
-
-  async obtenerArticuloPorId(id: string): Promise<Articulo | null> {
-    try {
-        const item: any = await apiRequest('GET', `/inventory/${id}`);
-        if (!item) return null;
-
-        const preciosRaw = item.precios || [];
-        const contadoItem = preciosRaw.find((p: PrecioProductoApi) => Number(p?.meses) === 0);
+        const contadoItem = preciosRaw.find((p: PrecioProductoApi) => Number(p?.meses) === 0)
         const precioContado = contadoItem
           ? Number(contadoItem.precio)
-          : Number(
-              item.precioContado ||
-              item.precio_contado ||
-              item.price ||
-              item.precio ||
-              0
-            );
+          : Number(item.precioContado || item.precio_contado || item.price || item.precio || 0)
 
-        const precioBase = precioContado || Number(item.costo || 0);
-        
+        const precioBase = precioContado || Number(item.costo || 0)
+
+        // Mapear planes de crédito reales desde el backend (solo meses > 0)
         const opcionesCuotas: OpcionCuotas[] = preciosRaw
           .filter((p: PrecioProductoApi) => p && Number(p.meses) > 0)
           .map((p: PrecioProductoApi) => {
-            const meses = Number(p.meses);
-            const precio = Number(p.precio);
+            const meses = Number(p.meses)
+            const precio = Number(p.precio)
             return {
               id: p.id,
               numeroCuotas: meses,
               precioTotal: precio,
               valorCuota: precio / meses,
-              frecuenciaPago: 'MENSUAL'
-            };
-          });
+              frecuenciaPago: 'MENSUAL',
+            }
+          })
 
         return {
-            id: String(item.id),
-            nombre: item.name || item.nombre,
-            descripcion: item.description || item.descripcion || '',
-            costo: Number(item.costo || 0),
-            precioBase,
-            precioContado,
-            precioContadoId: contadoItem?.id,
-            categoria: item.category || item.categoria || 'General',
-            stock: Number(item.quantity || item.stock || 0),
-            opcionesCuotas: opcionesCuotas.length > 0 ? opcionesCuotas : this.generarOpcionesCuotas(precioBase)
+          id: String(item.id),
+          nombre: item.name || item.nombre,
+          descripcion: item.description || item.descripcion || '',
+          costo: Number(item.costo || 0),
+          precioBase,
+          precioContado,
+          precioContadoId: contadoItem?.id,
+          categoria: item.category || item.categoria || 'General',
+          stock: Number(item.quantity || item.stock || 0),
+          opcionesCuotas:
+            opcionesCuotas.length > 0 ? opcionesCuotas : this.generarOpcionesCuotas(precioBase),
         }
-    } catch {
-        return null;
+      })
+    } catch (error) {
+      console.error('Error fetching articles', error)
+      return []
     }
   }
-  
+
+  async obtenerArticuloPorId(id: string): Promise<Articulo | null> {
+    try {
+      const item: any = await apiRequest('GET', `/inventory/${id}`)
+      if (!item) return null
+
+      const preciosRaw = item.precios || []
+      const contadoItem = preciosRaw.find((p: PrecioProductoApi) => Number(p?.meses) === 0)
+      const precioContado = contadoItem
+        ? Number(contadoItem.precio)
+        : Number(item.precioContado || item.precio_contado || item.price || item.precio || 0)
+
+      const precioBase = precioContado || Number(item.costo || 0)
+
+      const opcionesCuotas: OpcionCuotas[] = preciosRaw
+        .filter((p: PrecioProductoApi) => p && Number(p.meses) > 0)
+        .map((p: PrecioProductoApi) => {
+          const meses = Number(p.meses)
+          const precio = Number(p.precio)
+          return {
+            id: p.id,
+            numeroCuotas: meses,
+            precioTotal: precio,
+            valorCuota: precio / meses,
+            frecuenciaPago: 'MENSUAL',
+          }
+        })
+
+      return {
+        id: String(item.id),
+        nombre: item.name || item.nombre,
+        descripcion: item.description || item.descripcion || '',
+        costo: Number(item.costo || 0),
+        precioBase,
+        precioContado,
+        precioContadoId: contadoItem?.id,
+        categoria: item.category || item.categoria || 'General',
+        stock: Number(item.quantity || item.stock || 0),
+        opcionesCuotas:
+          opcionesCuotas.length > 0 ? opcionesCuotas : this.generarOpcionesCuotas(precioBase),
+      }
+    } catch {
+      return null
+    }
+  }
 }
 
 export const articulosService = new ArticulosService()
-

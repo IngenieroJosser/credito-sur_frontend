@@ -184,7 +184,7 @@ export default function NuevoClienteModal({
     setIsSubmitting(true)
 
     // Preparar arreglo de archivos
-    const archivos: any[] = []
+    const archivos = []
     const mapeoArchivos = [
       { key: 'fotoPerfil', tipo: 'FOTO_PERFIL' },
       { key: 'documentoFrente', tipo: 'DOCUMENTO_IDENTIDAD_FRENTE' },
