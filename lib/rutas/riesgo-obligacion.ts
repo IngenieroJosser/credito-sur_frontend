@@ -28,6 +28,12 @@
 type MontoLeido = number | string | null | undefined
 
 type FilaDeRiesgo = {
+  // Los tres que siguen no los lee ESTE archivo: los lee `resolveNivelRiesgoVisita`, que
+  // deriva sus parametros de esta firma. Por eso viven aqui.
+  estado?: string | null
+  diasMora?: number | null
+  estadoAprobacion?: string | null
+  esProvisional?: boolean | null
   montoCuota?: MontoLeido
   montoCuotaNormal?: MontoLeido
   montoMetaOperativaPendiente?: MontoLeido
@@ -47,6 +53,8 @@ type PrestamoDeRiesgo = FilaDeRiesgo & {
 }
 
 type CuotaDeRiesgo = {
+  diasMora?: number | null
+  cuotasVencidas?: number | null
   monto?: MontoLeido
   montoCuota?: MontoLeido
   montoNominal?: MontoLeido

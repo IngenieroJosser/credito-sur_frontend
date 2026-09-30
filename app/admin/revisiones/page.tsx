@@ -43,6 +43,7 @@ import {
   MapPin,
   X,
 } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { formatCurrency, formatMilesCOP } from '@/lib/utils'
 import { aprobacionesService, type Aprobacion, type PendingResponse, type SuperadminReviewResponse } from '@/services/aprobaciones-service'
 import { alertasClientesService, type AlertaCliente } from '@/services/alertas-clientes-service'
@@ -51,7 +52,13 @@ import { rutasService, type Ruta } from '@/services/rutas-service'
 import { TipoAprobacion } from '@/types/enums'
 import { toast } from 'sonner'
 
-import NotificacionDetalleModal from '@/components/dashboards/shared/NotificacionDetalleModal'
+import NotificacionDetalleModal, {
+  type DetallesEditados,
+} from '@/components/dashboards/shared/NotificacionDetalleModal'
+import type {
+  Notificacion,
+  NotificacionParaDetalle,
+} from '@/services/notificaciones-service'
 import AlertaClienteDetalleModal from '@/components/notificaciones/AlertaClienteDetalleModal'
 import ProrrogaDetalleModal, { type ProrrogaData } from '@/components/revisiones/ProrrogaDetalleModal'
 import ReprogramacionDetalleModal, { type ReprogramacionData } from '@/components/revisiones/ReprogramacionDetalleModal'
@@ -59,7 +66,19 @@ import ConfirmRejectModal from '@/components/ui/ConfirmRejectModal'
 import { SkeletonTarjetas } from '@/components/ui/Skeleton'
 
 // Configuración de categorías con meta visual
-const CATEGORIAS: Record<string, { label: string; icon: any; color: string; bgColor: string; borderColor: string; tipoNotif: string }> = {
+// `icon` es un componente de lucide-react, no `any`: `LucideIcon` es el tipo que la propia
+// libreria exporta para eso, y con el un icono mal importado deja de compilar.
+const CATEGORIAS: Record<
+  string,
+  {
+    label: string
+    icon: LucideIcon
+    color: string
+    bgColor: string
+    borderColor: string
+    tipoNotif: string
+  }
+> = {
   NUEVO_CLIENTE: {
     label: 'Clientes',
     icon: Users,
@@ -176,7 +195,7 @@ const formatFechaCortaBogota = (value: string | null | undefined) => {
   return date.toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })
 }
 
-const textValue = (...values: any[]) => {
+const textValue = (...values: unknown[]) => {
   for (const value of values) {
     if (value === null || value === undefined) continue
     const str = String(value).trim()
@@ -197,7 +216,18 @@ const getAlertaClienteNombre = (alerta: AlertaCliente) => {
 const getAlertaMetricas = (alerta: AlertaCliente) => {
   const snapshot = alerta.snapshotCliente || {}
   const creditos = Array.isArray(snapshot.creditos) ? snapshot.creditos : []
-  const esActiva = (credito: any) => {
+  // Los tres callbacks leen los mismos cinco campos del credito del snapshot: se declaran
+  // una vez. Con `any`, un `esCarteraActiva` mal escrito habria hecho que TODO credito
+  // contara como activo, y de ahi salen el saldo de cartera y las cuotas vencidas que ve
+  // quien aprueba.
+  type CreditoDelSnapshot = {
+    esCarteraActiva?: boolean | null
+    estado?: string | null
+    estadoAprobacion?: string | null
+    saldoPendiente?: number | string | null
+    cuotasVencidas?: number | null
+  }
+  const esActiva = (credito: CreditoDelSnapshot) => {
     if (credito?.esCarteraActiva === true) return true
     if (credito?.esCarteraActiva === false) return false
 
@@ -210,10 +240,18 @@ const getAlertaMetricas = (alerta: AlertaCliente) => {
   }
   const saldoCarteraActiva = creditos
     .filter(esActiva)
-    .reduce((sum: number, credito: any) => sum + Number(credito.saldoPendiente || 0), 0)
+    .reduce(
+      (sum: number, credito: CreditoDelSnapshot) =>
+        sum + Number(credito.saldoPendiente || 0),
+      0,
+    )
   const cuotasVencidas = creditos
     .filter(esActiva)
-    .reduce((sum: number, credito: any) => sum + Number(credito.cuotasVencidas || 0), 0)
+    .reduce(
+      (sum: number, credito: CreditoDelSnapshot) =>
+        sum + Number(credito.cuotasVencidas || 0),
+      0,
+    )
   const metricas = snapshot.metricas || {}
   const tieneDetalleCreditos = creditos.length > 0
 
@@ -238,7 +276,15 @@ const getAlertaMetricas = (alerta: AlertaCliente) => {
   }
 }
 
-const resolveFechaOriginalReprogramacion = (datos: any, creadoEn?: string | null) => {
+const resolveFechaOriginalReprogramacion = (
+  // Los tres campos que se leen de los datos de la solicitud, que es una columna `Json`.
+  datos: {
+    fechaGestionOriginal?: string | null
+    fechaOperativaRuta?: string | null
+    fechaVencimientoOriginal?: string | null
+  } | null,
+  creadoEn?: string | null,
+) => {
   const fechaGestion =
     toBogotaDateKey(datos?.fechaGestionOriginal) ||
     toBogotaDateKey(datos?.fechaOperativaRuta)
@@ -256,7 +302,10 @@ const resolveFechaOriginalReprogramacion = (datos: any, creadoEn?: string | null
 /**
  * Transforma un objeto de aprobación al formato que recibe NotificacionDetalleModal
  */
-const aprobacionToNotificacion = (item: Aprobacion) => {
+// El retorno se ANOTA: sin eso TypeScript ensancha los literales de `estado` y `tipo` a
+// `string`, y el puente deja de comprobar que produce una notificacion valida. Que es
+// justo lo que este puente tiene que garantizar.
+const aprobacionToNotificacion = (item: Aprobacion): NotificacionParaDetalle => {
   const datos = item.datosSolicitud || {}
   const cat = CATEGORIAS[item.tipoAprobacion] || CATEGORIAS.BAJA_POR_PERDIDA
 
@@ -301,11 +350,24 @@ const aprobacionToNotificacion = (item: Aprobacion) => {
     id: item.id,
     titulo,
     mensaje,
-    tipo: cat.tipoNotif,
+    // `as Notificacion['tipo']`: `tipoNotif` es texto en la tabla de categorias y el
+    // destino es una union cerrada. Los valores de esa tabla estan dentro de la union.
+    tipo: cat.tipoNotif as Notificacion['tipo'],
     creadoEn: item.creadoEn,
     leida: false,
     entidadId: item.id,
-    estado: item.estado === 'PENDIENTE' ? 'PENDIENTE' : item.estado,
+    // HALLAZGO: los dos enums no coinciden en el genero. `Aprobacion.estado` es
+    // PENDIENTE/APROBADO/RECHAZADO/CANCELADO (masculino, enums.ts:104) y
+    // `Notificacion.estado` es PENDIENTE/APROBADA/RECHAZADA (femenino,
+    // notificaciones-service.ts:17). Este puente pasaba el masculino tal cual, asi que la
+    // notificacion quedaba con un estado que su propia union no contiene, y cualquier
+    // comparacion contra 'APROBADA' daba falso. Se traduce.
+    estado:
+      item.estado === 'APROBADO'
+        ? 'APROBADA'
+        : item.estado === 'RECHAZADO'
+          ? 'RECHAZADA'
+          : 'PENDIENTE',
     solicitante: item.solicitante || 'Desconocido',
     approvalType: item.tipoAprobacion,
     detalles: datos,
@@ -319,8 +381,9 @@ const aprobacionToNotificacion = (item: Aprobacion) => {
       motivoRechazo: item.comentarios,
       monto: datos.monto || item.montoSolicitud,
     },
-    motivoRechazo: item.comentarios,
-    revisadoPor: item.rechazadoPor,
+    // Los dos son nulables en la base y la notificacion los quiere opcionales.
+    motivoRechazo: item.comentarios ?? undefined,
+    revisadoPor: item.rechazadoPor ?? undefined,
   }
 }
 
@@ -347,7 +410,9 @@ export default function RevisionesPage() {
   const [filtroPuntoVenta, setFiltroPuntoVenta] = useState<boolean>(false)
 
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
-  const [selectedItem, setSelectedItem] = useState<any>(null)
+  const [selectedItem, setSelectedItem] = useState<NotificacionParaDetalle | null>(
+    null,
+  )
   const [selectedAlertaCliente, setSelectedAlertaCliente] = useState<AlertaCliente | null>(null)
   const [resolveAlertaCliente, setResolveAlertaCliente] = useState<AlertaCliente | null>(null)
 
@@ -433,21 +498,39 @@ export default function RevisionesPage() {
   }
 
   // Helper para detectar si es un gasto provisional real
-  const isGastoProvisional = (item: Aprobacion) => {
+  // Acepta las dos formas por el mismo motivo que `isGastoProvisionalLegacy`, que la
+  // llama: en una notificacion el tipo viene en `approvalType`, no en `tipoAprobacion`.
+  const isGastoProvisional = (
+    item: Aprobacion | NotificacionParaDetalle,
+  ) => {
     const datos = item.datosSolicitud || {}
+    const tipo =
+      'tipoAprobacion' in item ? item.tipoAprobacion : item.approvalType
     return (
-      item.tipoAprobacion === 'GASTO' &&
+      tipo === 'GASTO' &&
       (datos.esProvisional === true || datos.esProvisional === 'true')
     )
   }
 
-  // Helper para detectar si es una solicitud legacy de gasto (sin impacto de caja)
-  const isGastoProvisionalLegacy = (item: Aprobacion) => {
-    const datos = item.datosSolicitud || {}
-    return (
-      item.tipoAprobacion === 'GASTO' &&
-      !isGastoProvisional(item)
-    )
+  /**
+   * Si es una solicitud de gasto de las viejas, sin impacto de caja.
+   *
+   * HALLAZGO al tipar `selectedItem`: esta funcion pedia una `Aprobacion` y se la llamaba
+   * con las dos cosas: una `Aprobacion` en la lista y una notificacion en el modal. En la
+   * notificacion el tipo de aprobacion NO se llama `tipoAprobacion` sino `approvalType` (lo
+   * pone `aprobacionToNotificacion` mas arriba), asi que desde el modal la comparacion era
+   * `undefined === 'GASTO'`: siempre falsa, y el aviso de solicitud antigua no se mostraba
+   * nunca ahi.
+   *
+   * Ahora acepta las dos formas y lee la que traiga cada una. Se quito tambien un
+   * `const datos = item.datosSolicitud || {}` que no se usaba.
+   */
+  const isGastoProvisionalLegacy = (
+    item: Aprobacion | NotificacionParaDetalle,
+  ) => {
+    const tipo =
+      'tipoAprobacion' in item ? item.tipoAprobacion : item.approvalType
+    return tipo === 'GASTO' && !isGastoProvisional(item)
   }
 
   const handleOpenDetail = (item: Aprobacion) => {
@@ -462,7 +545,8 @@ export default function RevisionesPage() {
         clienteNombre:           datos.clienteNombre || datos.cliente,
         numeroPrestamo:          datos.numeroPrestamo,
         montoCuota:              datos.montoCuota,
-        fechaVencimientoOriginal: resolveFechaOriginalReprogramacion(datos, item.creadoEn),
+        fechaVencimientoOriginal:
+          resolveFechaOriginalReprogramacion(datos, item.creadoEn) ?? undefined,
         fechaGestionOriginal:     datos.fechaGestionOriginal || datos.fechaOperativaRuta,
         nuevaFechaVencimiento:   datos.nuevaFechaVencimiento || datos.nuevaFecha,
         motivo:                  datos.motivo || datos.comentarios,
@@ -536,7 +620,7 @@ export default function RevisionesPage() {
   const handleApproveFromModal = async (
     entityId: string,
     type?: string,
-    editedDetails?: any,
+    editedDetails?: DetallesEditados,
   ) => {
     const item = Object.values(data?.items || {}).flat().find(i => i.id === entityId)
     if (!item) return

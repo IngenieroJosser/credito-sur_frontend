@@ -100,7 +100,7 @@ type ArticuloConPlazos = {
   }>
 }
 
-type DetallesEditados = {
+export type DetallesEditados = {
   monto?: number | string
   valorArticulo?: number | string
   cuotaInicial?: number | string

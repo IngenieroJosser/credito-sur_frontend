@@ -1,3 +1,4 @@
+
 /**
  * Helper compartido para ordenar visitas en la vista de ruta actual.
  * Nuevo contrato: ordenar por obligación operativa, no por cliente.
