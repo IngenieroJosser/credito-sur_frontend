@@ -1,6 +1,10 @@
 'use client'
 
-import { mensajeDeError } from '@/lib/mensaje-de-error'
+import { mensajeDeError } from '@/lib/mensaje-de-error'
+import type { CuotaOperativa } from '@/lib/types/cobranza'
+import type {
+  PagoDeCliente,
+} from '@/services/clientes-service'
 import { SkeletonDetalle } from '@/components/ui/Skeleton'
 
 import { logger } from '@/lib/logger'
@@ -212,7 +216,9 @@ export default function ClienteDetalleSupervisorPage() {
 
   const prestamos: Prestamo[] = (clienteData.prestamos || []).map((p: any) => {
     const cuotas = p.cuotas || []
-    const cuotasPagadas = cuotas.filter((c: any) => c.estado === 'PAGADO' || c.estado === 'PAGADA').length
+    const cuotasPagadas = cuotas.filter(
+      (c: CuotaOperativa) => c.estado === 'PAGADA' || c.estadoActual === 'PAGADA',
+    ).length
     const totalCuotas = p.cantidadCuotas || cuotas.length || 0
 
     const hoyKey = getBogotaDateKey(new Date())
@@ -249,7 +255,12 @@ export default function ClienteDetalleSupervisorPage() {
       cuotasPendientes: Math.max(0, totalCuotas - cuotasPagadas),
       fechaInicio: p.fechaInicio,
       fechaVencimiento: p.fechaFin,
-      proximoPago: cuotas.find((c: any) => c.estado === 'PENDIENTE' || c.estado === 'PARCIAL' || c.estado === 'VENCIDA' || c.estado === 'VENCIDO')?.fechaVencimiento || p.fechaFin,
+      // `isCuotaNoPagada` en vez de la lista a mano: es el predicado compartido, y la
+      // lista de aqui incluia 'VENCIDO', que no es un estado de cuota (el enum es
+      // VENCIDA), asi que ese eslabon nunca se cumplia.
+      proximoPago:
+        cuotas.find((c: CuotaOperativa) => isCuotaNoPagada(c))?.fechaVencimiento ||
+        p.fechaFin,
       estado: estadoUI,
       tasaInteres: tasa,
       moraAcumulada: Number(p.interesMoraPagado || 0),
@@ -260,15 +271,27 @@ export default function ClienteDetalleSupervisorPage() {
     } as Prestamo
   })
 
-  const pagos: Pago[] = (clienteData.pagos || []).map((p: any) => {
+  const pagos: Pago[] = (clienteData.pagos || []).map((p: PagoDeCliente) => {
     return {
-      id: p.id,
-      fecha: p.fechaPago,
+      // Los `?? ''` y el `String(...)`: el pago del backend trae estos campos nulables y
+
+      // la `Pago` de la UI los declara obligatorios. Antes esto se resolvia con un
+
+      // `as Pago` al final, que tapaba justo esa diferencia.
+
+      id: p.id ?? '',
+
+      fecha: p.fechaPago ?? '',
+
       monto: Number(p.montoTotal || 0),
-      cuota: p.detalles?.[0]?.cuota?.numeroCuota || 1,
-      metodo: p.metodoPago,
-      estado: 'confirmado',
-      referencia: p.numeroPago,
+
+      cuota: String(p.detalles?.[0]?.cuota?.numeroCuota || 1),
+
+      metodo: p.metodoPago ?? '',
+
+      estado: 'confirmado' as const,
+
+      referencia: p.numeroPago == null ? undefined : String(p.numeroPago),
       icono: <DollarSign className="w-5 h-5" />,
       archivos: p.archivos || [],
     } as Pago

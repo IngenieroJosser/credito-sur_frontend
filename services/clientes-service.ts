@@ -1,4 +1,6 @@
 import { logger } from '@/lib/logger'
+import type { CuotaOperativa } from '@/lib/types/cobranza'
+import type { ArchivoMultimediaPago } from '@/services/pagos-service'
 import { apiRequest } from '@/lib/api/api'
 import { syncService } from '@/lib/offline/syncService'
 import { conRespaldoOffline, esErrorDeRed } from '@/lib/offline/conRespaldoOffline'
@@ -14,6 +16,52 @@ const generarIdempotencyKey = (prefix: string) => {
 }
 
 export type { NivelRiesgo, EstadoAprobacion }
+
+/**
+ * El prestamo y el pago que `GET /clients/:id` trae anidados.
+ *
+ * Los campos son los que las tres pantallas de detalle de cliente leen; los saco un `grep`
+ * de sus accesos. Estaban declarados `Record<string, unknown>[]`, que no miente pero obliga
+ * a que cada pantalla los lea con un `any`, y por ese `any` pasaban las cascadas sin
+ * comprobar. Las dos notas de arriba (sobre `cuotas` y `detalles`) siguen valiendo: van
+ * opcionales justamente porque esa consulta no las trae.
+ */
+export type PrestamoDeCliente = {
+  id?: string
+  tipoPrestamo?: string | null
+  producto?: { nombre?: string | null } | null
+  estado?: string | null
+  monto?: number | string | null
+  montoTotal?: number | string | null
+  saldoPendiente?: number | string | null
+  totalPagado?: number | string | null
+  interesTotal?: number | string | null
+  interesMoraPagado?: number | string | null
+  tasaInteres?: number | string | null
+  cantidadCuotas?: number | null
+  plazoMeses?: number | null
+  frecuenciaPago?: string | null
+  fechaInicio?: string | null
+  fechaFin?: string | null
+  cuotas?: CuotaOperativa[] | null
+}
+
+export type PagoDeCliente = {
+  id?: string
+  numeroPago?: string | number | null
+  fechaPago?: string | null
+  montoTotal?: number | string | null
+  metodoPago?: string | null
+  /**
+   * Los detalles del pago, con la cuota anidada.
+   *
+   * La nota de arriba dice que `pagos: true` NO los trae, y es cierto: van opcionales por
+   * eso. Se declara la forma igual porque las pantallas los leen (`detalles[0].cuota`), y
+   * asi se ve que ese acceso es el que siempre acaba en el '1' por defecto.
+   */
+  detalles?: Array<{ cuota?: { numeroCuota?: number | null } | null }> | null
+  archivos?: ArchivoMultimediaPago[] | null
+}
 
 export interface Cliente {
   id: string
@@ -103,14 +151,14 @@ export interface Cliente {
    * llega vacio y todo lo que se calcule de ahi (las cuotas pagadas del portal) sale
    * en cero. `cantidadCuotas` si es columna y si llega.
    */
-  prestamos?: Record<string, unknown>[]
+  prestamos?: PrestamoDeCliente[]
   /**
    * Los pagos del cliente.
    *
    * OJO: `pagos: true` NO trae la relacion `detalles`, asi que no se puede saber a
    * que cuota fue cada pago; el portal acaba mostrando "cuota 1" en todos.
    */
-  pagos?: Record<string, unknown>[]
+  pagos?: PagoDeCliente[]
 }
 
 export interface CrearClienteDto {

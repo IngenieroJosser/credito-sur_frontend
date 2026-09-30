@@ -1,6 +1,11 @@
 'use client';
 
-import { SkeletonDetalle } from '@/components/ui/Skeleton'
+import { SkeletonDetalle } from '@/components/ui/Skeleton'
+import type { CuotaOperativa } from '@/lib/types/cobranza'
+import type {
+  PagoDeCliente,
+  PrestamoDeCliente,
+} from '@/services/clientes-service'
 
 import React, { useEffect, useState } from 'react';
 import { useRealtimeData } from '@/hooks/useRealtimeData'
@@ -85,7 +90,10 @@ export default function ClienteDetallePage() {
 
   // Mapeo de datos del backend a la interfaz de UI
   const fotos: string[] = (clienteData.archivos || [])
-    .map((a: any) => a?.url || a?.path || a?.ruta)
+    // El tipo se DERIVA del valor: `Cliente.archivos` ya declara las tres formas de la url.
+    .map((a: NonNullable<typeof clienteData.archivos>[number]) =>
+      a?.url || a?.path || a?.ruta || '',
+    )
     .filter(Boolean)
 
   const cliente: Cliente = {
@@ -97,9 +105,11 @@ export default function ClienteDetallePage() {
   };
 
   // Mapeo de préstamos (si vienen del backend)
-  const prestamos: Prestamo[] = (clienteData.prestamos || []).map((p: any) => {
+  const prestamos: Prestamo[] = (clienteData.prestamos || []).map((p: PrestamoDeCliente) => {
     const cuotas = p.cuotas || [];
-    const cuotasPagadas = cuotas.filter((c: any) => c.estado === 'PAGADO' || c.estado === 'PAGADA').length;
+    const cuotasPagadas = cuotas.filter(
+      (c: CuotaOperativa) => c.estado === 'PAGADA' || c.estadoActual === 'PAGADA',
+    ).length;
     const totalCuotas = p.cantidadCuotas || cuotas.length || 0;
 
     const hoyKey = getBogotaDateKey(new Date())
@@ -139,7 +149,12 @@ export default function ClienteDetallePage() {
       cuotasPendientes: Math.max(0, totalCuotas - cuotasPagadas),
       fechaInicio: p.fechaInicio,
       fechaVencimiento: p.fechaFin,
-      proximoPago: cuotas.find((c: any) => c.estado === 'PENDIENTE' || c.estado === 'PARCIAL' || c.estado === 'VENCIDA' || c.estado === 'VENCIDO')?.fechaVencimiento || p.fechaFin,
+      // `isCuotaNoPagada` en vez de la lista a mano: es el predicado compartido, y la
+      // lista de aqui incluia 'VENCIDO', que no es un estado de cuota (el enum es
+      // VENCIDA), asi que ese eslabon nunca se cumplia.
+      proximoPago:
+        cuotas.find((c: CuotaOperativa) => isCuotaNoPagada(c))?.fechaVencimiento ||
+        p.fechaFin,
       estado: estadoUI,
       tasaInteres: tasa,
       moraAcumulada: Number(p.interesMoraPagado || 0),
@@ -151,18 +166,23 @@ export default function ClienteDetallePage() {
   });
 
   // Mapeo de pagos
-  const pagos: Pago[] = (clienteData.pagos || []).map((p: any) => {
+  const pagos: Pago[] = (clienteData.pagos || []).map((p: PagoDeCliente) => {
     return {
-      id: p.id,
-      fecha: p.fechaPago,
+      // Los `?? ''` y el `String(...)`: el pago del backend trae estos campos nulables y
+      // la `Pago` de la UI los declara obligatorios. Antes se resolvia con el `as Pago`
+      // del final, que tapaba justo esa diferencia.
+      id: p.id ?? '',
+      fecha: p.fechaPago ?? '',
       monto: Number(p.montoTotal || 0),
-      cuota: p.detalles?.[0]?.cuota?.numeroCuota || 1, // Ajuste basado en estructura de pagos.service
-      metodo: p.metodoPago,
-      estado: 'confirmado',
-      referencia: p.numeroPago,
+      // `cuota` es TEXTO en la UI: un pago puede repartirse entre varias cuotas. Con el
+      // `as Pago` esto pasaba como numero.
+      cuota: String(p.detalles?.[0]?.cuota?.numeroCuota ?? '—'),
+      metodo: p.metodoPago ?? '',
+      estado: 'confirmado' as const,
+      referencia: p.numeroPago == null ? undefined : String(p.numeroPago),
       icono: <DollarSign className="w-5 h-5" />,
       archivos: p.archivos || [],
-    } as Pago;
+    };
   });
 
   const comentarios: Comentario[] = []; // Por ahora vacío hasta implementar backend

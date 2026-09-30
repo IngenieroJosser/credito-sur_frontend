@@ -11,7 +11,10 @@ import ClienteDetalleElegante, {
   type NivelRiesgo,
 } from './DetalleCliente';
 import { clientesService } from '@/services/clientes-service';
-import type { PagoParcial, PrestamoParcial } from '@/types/domain';
+import type {
+  PagoDeCliente,
+  PrestamoDeCliente,
+} from '@/services/clientes-service';
 import type { CuotaOperativa } from '@/lib/types/cobranza';
 import { Smartphone, DollarSign } from 'lucide-react';
 import { createPortal } from 'react-dom';
@@ -144,7 +147,7 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
                     fotos: fotos
                 });
                 
-                const prestamosBackend: PrestamoParcial[] = data.prestamos || [];
+                const prestamosBackend: PrestamoDeCliente[] = data.prestamos || [];
                 setPrestamos(prestamosBackend.map(p => {
                     const cuotas = p.cuotas || [];
                     const cuotasPagadas = cuotas.filter(
@@ -162,7 +165,12 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
                       return !!k && !!hoyKey && k < hoyKey
                     }).length
                     const diasMora = computeDiasMoraFromCuotas(cuotas, hoyKey, frecuencia)
-                    const estadoUI = cuotasVencidas > 0 || diasMora > 0 ? 'EN_MORA' : (p.estado || 'ACTIVO')
+                    // `estadoPrestamoDeUi` normaliza contra la union cerrada, igual que en el
+                    // respaldo offline: `p.estado` es texto libre y el destino no.
+                    const estadoUI =
+                      cuotasVencidas > 0 || diasMora > 0
+                        ? ('EN_MORA' as const)
+                        : estadoPrestamoDeUi(p.estado)
                     
                     const principal = Number(p.monto || 0);
                     const tasa = Number(p.tasaInteres || 0);
@@ -212,7 +220,7 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
                     };
                 }));
                 
-                const pagosBackend: PagoParcial[] = data.pagos || [];
+                const pagosBackend: PagoDeCliente[] = data.pagos || [];
                 setPagos(pagosBackend.map(p => ({
                     id: String(p.id ?? ''),
                     fecha: p.fechaPago ?? '',
@@ -225,10 +233,18 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
                     // primera: un pago puede repartirse entre varias y un solo numero
                     // seria mentira. Si no se sabe, no se inventa.
                     cuota: (Array.isArray(p.detalles) ? p.detalles : [])
-                      .map((d: { cuota?: { numeroCuota?: number } }) => d?.cuota?.numeroCuota)
-                      .filter((n: number | undefined): n is number => typeof n === 'number')
+                      // El tipo del detalle se DERIVA del pago, que ya lo declara.
+                      .map(
+                        (d: NonNullable<PagoDeCliente['detalles']>[number]) =>
+                          d?.cuota?.numeroCuota,
+                      )
+                      .filter(
+                        (n): n is number => typeof n === 'number',
+                      )
                       .join(', ') || '—',
-                    referencia: p.numeroPago ?? undefined,
+                    // El numero de pago puede llegar como numero y la UI lo quiere texto.
+                    referencia:
+                      p.numeroPago == null ? undefined : String(p.numeroPago),
                     metodo: p.metodoPago || 'EFECTIVO',
                     estado: 'confirmado',
                     icono: <DollarSign className="w-5 h-5" />
