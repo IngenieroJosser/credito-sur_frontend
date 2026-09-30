@@ -1,7 +1,12 @@
 import type { CuotaOperativa } from '@/lib/types/cobranza'
+import type { ClienteDeObligacion, PrestamoDeObligacion } from '@/types/obligacion-jornada'
 import { isPagoCierrePendiente } from '@/lib/ruta-recaudos'
 import { logger } from '@/lib/logger'
-import { frecuenciaToPeriodoRuta, getPagoBogotaDateKey, shouldExcludeVisitaFromOperationalMeta } from '@/lib/rutas-core'
+import {
+  frecuenciaToPeriodoRuta,
+  getPagoBogotaDateKey,
+  shouldExcludeVisitaFromOperationalMeta,
+} from '@/lib/rutas-core'
 import { mapNivelRiesgo, type VisitaParcial, type VisitaRuta } from '@/lib/types/cobranza'
 import { resolveRiesgoObligacion } from '@/lib/rutas/riesgo-obligacion'
 import type { Cliente, Pago, PagoParcial, Prestamo, PrestamoParcial } from '@/types/domain'
@@ -65,7 +70,10 @@ export const getHistorialJornadaBadge = (resumen: Partial<Resumen> | undefined) 
   return null
 }
 
-export const isPagoForHistorialFecha = (pago: PagoParcial | null | undefined, fechaClave: string) => {
+export const isPagoForHistorialFecha = (
+  pago: PagoParcial | null | undefined,
+  fechaClave: string,
+) => {
   if (isPagoCierrePendiente(pago)) {
     return String(pago?.fechaOperativaRuta || '').slice(0, 10) === fechaClave
   }
@@ -105,11 +113,7 @@ export const hasGestionHistorial = (visita: VisitaParcial) => {
 
 export const isReprogramadoHistorial = (v: VisitaParcial): boolean => {
   const estado = String(
-    v?.estado ||
-    v?.estadoVisita ||
-    v?.estadoGestion ||
-    v?.tipoGestion ||
-    ''
+    v?.estado || v?.estadoVisita || v?.estadoGestion || v?.tipoGestion || '',
   ).toUpperCase()
 
   return (
@@ -136,12 +140,7 @@ export const isReprogramadoHistorial = (v: VisitaParcial): boolean => {
  * contrario (`estadoGestion || estadoVisita || estado`), que es el correcto.
  */
 export const isGestionHistorial = (v: VisitaParcial): boolean => {
-  const estado = String(
-    v?.estado ||
-    v?.estadoVisita ||
-    v?.estadoGestion ||
-    ''
-  ).toUpperCase()
+  const estado = String(v?.estado || v?.estadoVisita || v?.estadoGestion || '').toUpperCase()
 
   return (
     Number(v?.recaudadoDelDia || 0) > 0 ||
@@ -196,18 +195,10 @@ export function computeHistorialResumenCompartido(
   const total = visitasOperativas.length
 
   const visitados = visitasOperativas.filter((v: VisitaParcial) => {
-    const estado = String(
-      v?.estadoGestion ||
-        v?.estadoVisita ||
-        v?.estado ||
-        ''
-    ).toLowerCase()
+    const estado = String(v?.estadoGestion || v?.estadoVisita || v?.estado || '').toLowerCase()
 
     const aprobacionEstado = String(
-      v?.aprobacionEstado ||
-        v?.estadoAprobacion ||
-        v?.efectoProvisionalEstado ||
-        ''
+      v?.aprobacionEstado || v?.estadoAprobacion || v?.efectoProvisionalEstado || '',
     ).toLowerCase()
 
     if (estado.includes('reprogram')) {
@@ -234,29 +225,35 @@ export function computeHistorialResumenCompartido(
     visitados,
     recaudo,
     efectividad:
-      esperado > 0
-        ? Number(((recaudo / esperado) * 100).toFixed(2))
-        : recaudo > 0
-          ? 100
-          : 0,
+      esperado > 0 ? Number(((recaudo / esperado) * 100).toFixed(2)) : recaudo > 0 ? 100 : 0,
   }
 }
 
 export const isVisitadoHistorial = (visita: VisitaParcial) => {
-  return hasGestionHistorial(visita) || isGestionHistorial(visita) || String(visita?.estado || '').toLowerCase() === 'pagado'
+  return (
+    hasGestionHistorial(visita) ||
+    isGestionHistorial(visita) ||
+    String(visita?.estado || '').toLowerCase() === 'pagado'
+  )
 }
 
 const normalizeNivelRiesgo = (raw: any): any => {
   return mapNivelRiesgo(raw)
 }
 
-const resolveEstadoHistorialFromGestion = (estadoGestion: any, cuotaObjetivo: any, recaudado: number) => {
+const resolveEstadoHistorialFromGestion = (
+  estadoGestion: any,
+  cuotaObjetivo: any,
+  recaudado: number,
+) => {
   const estado = String(estadoGestion || '').toUpperCase()
   if (estado === 'PAGO_REGISTRADO') return 'pagado'
   if (estado === 'AUSENTE') return 'ausente'
   if (estado === 'REPROGRAMADO') return 'reprogramado'
 
-  const cuotaEstado = String(cuotaObjetivo?.estadoActual || cuotaObjetivo?.estado || '').toUpperCase()
+  const cuotaEstado = String(
+    cuotaObjetivo?.estadoActual || cuotaObjetivo?.estado || '',
+  ).toUpperCase()
   if (cuotaEstado === 'VENCIDA' || cuotaEstado === 'ATRASADA') return 'en_mora'
   if (recaudado > 0) return 'pagado'
   return 'pendiente'
@@ -268,8 +265,9 @@ export const applyPagosDelDiaToHistorialVisitas = (params: {
   pagosDelDia: any[]
 }) => {
   const { fechaClave, visitas, pagosDelDia } = params
-  const pagosOperativos = (Array.isArray(pagosDelDia) ? pagosDelDia : [])
-    .filter((p: Pago) => !isPagoCierrePendiente(p))
+  const pagosOperativos = (Array.isArray(pagosDelDia) ? pagosDelDia : []).filter(
+    (p: Pago) => !isPagoCierrePendiente(p),
+  )
   const recaudadoPorPrestamo: Record<string, number> = {}
   const pagosPorKey = new Map<string, { pago: PagoParcial; total: number; index: number }>()
 
@@ -302,9 +300,10 @@ export const applyPagosDelDiaToHistorialVisitas = (params: {
     return {
       ...v,
       recaudadoDelDia,
-      estado: recaudadoDelDia > 0 && String(v?.estado || '').toLowerCase() !== 'en_mora'
-        ? 'pagado'
-        : v?.estado,
+      estado:
+        recaudadoDelDia > 0 && String(v?.estado || '').toLowerCase() !== 'en_mora'
+          ? 'pagado'
+          : v?.estado,
     } as VisitaRuta
   })
 
@@ -318,38 +317,46 @@ export const applyPagosDelDiaToHistorialVisitas = (params: {
     // esta para que el objeto cumpla `VisitaRuta` sin castearlo.
     if (!cid) return []
     const pid = String(p?.prestamoId || p?.prestamo?.id || '')
-    return [{
-      id: `pago-${p?.id || item.index}-${fechaClave}`,
-      cliente: p?.cliente ? `${p.cliente.nombres || ''} ${p.cliente.apellidos || ''}`.trim() : 'Cliente',
-      direccion: p?.cliente?.direccion || '',
-      telefono: p?.cliente?.telefono || '',
-      horaSugerida: '08:00 AM',
-      montoCuota: item.total,
-      saldoTotal: 0,
-      estado: 'pagado',
-      proximaVisita: fechaClave,
-      ordenVisita: visitasActualizadas.length + item.index + 1,
-      prioridad: 'media',
-      nivelRiesgo: normalizeNivelRiesgo(p?.cliente?.nivelRiesgo),
-      cobradorId: p?.cobradorId || '',
-      periodoRuta: 'DIA',
-      clienteId: cid,
-      prestamoId: pid,
-      cuotaActual: p?.detalle?.cuota?.numeroCuota || p?.detalles?.[0]?.cuota?.numeroCuota,
-      cuotasTotales: p?.prestamo?.cantidadCuotas,
-      recaudadoDelDia: item.total,
-    }]
+    return [
+      {
+        id: `pago-${p?.id || item.index}-${fechaClave}`,
+        cliente: p?.cliente
+          ? `${p.cliente.nombres || ''} ${p.cliente.apellidos || ''}`.trim()
+          : 'Cliente',
+        direccion: p?.cliente?.direccion || '',
+        telefono: p?.cliente?.telefono || '',
+        horaSugerida: '08:00 AM',
+        montoCuota: item.total,
+        saldoTotal: 0,
+        estado: 'pagado',
+        proximaVisita: fechaClave,
+        ordenVisita: visitasActualizadas.length + item.index + 1,
+        prioridad: 'media',
+        nivelRiesgo: normalizeNivelRiesgo(p?.cliente?.nivelRiesgo),
+        cobradorId: p?.cobradorId || '',
+        periodoRuta: 'DIA',
+        clienteId: cid,
+        prestamoId: pid,
+        cuotaActual: p?.detalle?.cuota?.numeroCuota || p?.detalles?.[0]?.cuota?.numeroCuota,
+        cuotasTotales: p?.prestamo?.cantidadCuotas,
+        recaudadoDelDia: item.total,
+      },
+    ]
   })
 
   const finalVisitas = [...visitasActualizadas, ...sinteticos]
 
   // Ocultar saldados (pagado y saldo <= 0) que NO tuvieron gestión real en este día.
   const filteredVisitas = finalVisitas.filter((v: VisitaParcial) => {
-    const isSaldado = String(v.estado || '').toLowerCase() === 'pagado' && Number(v.saldoTotal || 0) <= 0;
-    return !(isSaldado && !hasGestionHistorial(v));
-  });
+    const isSaldado =
+      String(v.estado || '').toLowerCase() === 'pagado' && Number(v.saldoTotal || 0) <= 0
+    return !(isSaldado && !hasGestionHistorial(v))
+  })
 
-  const recaudo = filteredVisitas.reduce((sum: number, v) => sum + Number(v?.recaudadoDelDia || 0), 0)
+  const recaudo = filteredVisitas.reduce(
+    (sum: number, v) => sum + Number(v?.recaudadoDelDia || 0),
+    0,
+  )
   const visitados = filteredVisitas.filter(isVisitadoHistorial).length
 
   return { visitas: filteredVisitas, recaudo, visitados }
@@ -385,8 +392,9 @@ export const buildHistorialDiaFromBackend = (params: {
   const { fechaClave, visitasResp, saldo, pagosDelDia } = params
   const pagos = Array.isArray(pagosDelDia) ? pagosDelDia : []
   const pagosOperativos = pagos.filter((p: Pago) => !isPagoCierrePendiente(p))
-  const pagosRegularizados = pagos.filter((p: Pago) =>
-    isPagoCierrePendiente(p) && String(p?.fechaOperativaRuta || '').slice(0, 10) === fechaClave
+  const pagosRegularizados = pagos.filter(
+    (p: Pago) =>
+      isPagoCierrePendiente(p) && String(p?.fechaOperativaRuta || '').slice(0, 10) === fechaClave,
   )
 
   // 1) Índice de pagos por obligación (prestamoId + cuotaId) para evitar contaminación entre créditos del mismo cliente.
@@ -431,10 +439,7 @@ export const buildHistorialDiaFromBackend = (params: {
 
     if (!prestamoId || monto <= 0) continue
 
-    pagosByPrestamo.set(
-      prestamoId,
-      (pagosByPrestamo.get(prestamoId) || 0) + monto,
-    )
+    pagosByPrestamo.set(prestamoId, (pagosByPrestamo.get(prestamoId) || 0) + monto)
 
     if (cuotaId) {
       pagosByPrestamoCuota.set(
@@ -459,29 +464,45 @@ export const buildHistorialDiaFromBackend = (params: {
   //    Usamos llave por préstamo cuando exista; si no, por cliente.
   const existentes = new Set<string>()
 
-
-  const obligacionesRaw = Array.isArray(visitasResp?.obligaciones)
-    ? visitasResp.obligaciones
-    : []
+  const obligacionesRaw = Array.isArray(visitasResp?.obligaciones) ? visitasResp.obligaciones : []
 
   // LOGS DE AUDITORÍA: Ver qué devuelve el backend
   if (process.env.NODE_ENV !== 'production') {
     logger.log(`[buildHistorialDiaFromBackend] Fecha: ${fechaClave}`)
     logger.log(`[buildHistorialDiaFromBackend] Obligaciones: ${obligacionesRaw.length}`)
-    logger.log(`[buildHistorialDiaFromBackend] Visitas: ${Array.isArray(visitasResp?.visitas) ? visitasResp.visitas.length : 0}`)
-    console.table((pagosOperativos || []).map((p: Pago) => ({
-      tipo: 'PAGO_HISTORIAL',
-      id: p.id,
-      clienteId: p.clienteId,
-      prestamoId: p.prestamoId,
-      montoTotal: p.montoTotal,
-      fechaPago: p.fechaPago || p.creadoEn,
-    })))
+    logger.log(
+      `[buildHistorialDiaFromBackend] Visitas: ${Array.isArray(visitasResp?.visitas) ? visitasResp.visitas.length : 0}`,
+    )
+    console.table(
+      (pagosOperativos || []).map((p: Pago) => ({
+        tipo: 'PAGO_HISTORIAL',
+        id: p.id,
+        clienteId: p.clienteId,
+        prestamoId: p.prestamoId,
+        montoTotal: p.montoTotal,
+        fechaPago: p.fechaPago || p.creadoEn,
+      })),
+    )
   }
 
   const visitasDesdeObligaciones: VisitaRuta[] = obligacionesRaw.map((item, index: number) => {
-    const cliente: Partial<Cliente> = item?.cliente || item?.visita?.cliente || {}
-    const prestamo: PrestamoParcial = item?.prestamo || {}
+    // `cliente` puede llegar como OBJETO o como el nombre en texto: el backend manda
+    // una cosa o la otra segun el endpoint, y `build-ruta-hoy-operativa` si lo
+    // contempla. Aqui no habia guarda, asi que cuando llegaba texto este `cliente`
+    // quedaba siendo un string y todas las lecturas de abajo (`cliente?.id`,
+    // `cliente?.nombres`) daban undefined en silencio. Con `any` no se veia.
+    const clienteCrudo = item?.cliente || item?.visita?.cliente
+    // El tipo es `ClienteDeObligacion` y no `Partial<Cliente>` porque es lo que de
+    // verdad llego: `Cliente.nivelRiesgo` es un enum y el backend manda texto, que ya
+    // nos costo un fallo cuando envio VERDE, un valor que la union no tiene. Forzarlo
+    // a `Cliente` aqui seria volver a afirmar algo que no se cumple.
+    const cliente: ClienteDeObligacion =
+      typeof clienteCrudo === 'object' && clienteCrudo ? clienteCrudo : {}
+    const nombreEnTexto = typeof clienteCrudo === 'string' ? clienteCrudo : ''
+    // Igual que con el cliente: el tipo es el de lo que llego, no `PrestamoParcial`.
+    // Su `cliente` puede venir como texto o no venir, y `PrestamoParcial` lo declara
+    // como objeto obligatorio.
+    const prestamo: PrestamoDeObligacion = item?.prestamo || {}
     const cuotaObjetivo = item?.cuotaObjetivo || prestamo?.cuotaObjetivo || null
     const prestamoId = String(item?.prestamoId || prestamo?.id || '')
     const clienteId = String(cliente?.id || item?.clienteId || '')
@@ -504,82 +525,91 @@ export const buildHistorialDiaFromBackend = (params: {
             : 0,
         Number(item?.recaudadoDelDia || 0),
       )
-    const regularizadoDespues = prestamoId
-      ? Number(regularizadoPorPrestamo[prestamoId] || 0)
-      : 0
+    const regularizadoDespues = prestamoId ? Number(regularizadoPorPrestamo[prestamoId] || 0) : 0
     const montoMetaPendiente = Number(
-      item?.montoMetaOperativaPendiente
-      ?? prestamo?.montoMetaOperativaPendiente
-      ?? cuotaObjetivo?.saldoExigibleEnFechaOperativa
-      ?? 0,
+      item?.montoMetaOperativaPendiente ??
+        prestamo?.montoMetaOperativaPendiente ??
+        cuotaObjetivo?.saldoExigibleEnFechaOperativa ??
+        0,
     )
     const cuotaNormal = Number(
-      cuotaObjetivo?.montoCuotaNormal
-      ?? cuotaObjetivo?.montoNominal
-      ?? prestamo?.proximaCuota?.montoNominal
-      ?? prestamo?.montoCuotaNormal
-      ?? cuotaObjetivo?.montoCuota
-      ?? cuotaObjetivo?.monto
-      ?? prestamo?.proximaCuota?.monto
-      ?? prestamo?.montoCuota
-      // Último recurso: lo que el backend dejó por cobrar en esa obligación.
-      // Una obligación que llega sin cuota objetivo —un crédito recién
-      // asignado, por ejemplo— se quedaba con la cuota en cero y la tarjeta
-      // salía sin monto, aunque el backend sí había dicho cuánto se le debe.
-      ?? montoMetaPendiente
-      ?? 0,
+      cuotaObjetivo?.montoCuotaNormal ??
+        cuotaObjetivo?.montoNominal ??
+        prestamo?.proximaCuota?.montoNominal ??
+        prestamo?.montoCuotaNormal ??
+        cuotaObjetivo?.montoCuota ??
+        cuotaObjetivo?.monto ??
+        prestamo?.proximaCuota?.monto ??
+        prestamo?.montoCuota ??
+        // Último recurso: lo que el backend dejó por cobrar en esa obligación.
+        // Una obligación que llega sin cuota objetivo —un crédito recién
+        // asignado, por ejemplo— se quedaba con la cuota en cero y la tarjeta
+        // salía sin monto, aunque el backend sí había dicho cuánto se le debe.
+        montoMetaPendiente ??
+        0,
     )
     const saldoTotal = Number(
-      prestamo?.saldoPendiente
-      ?? item?.saldoTotal
-      ?? montoMetaPendiente
-      ?? 0,
+      prestamo?.saldoPendiente ?? item?.saldoTotal ?? montoMetaPendiente ?? 0,
     )
-    const keyExist = prestamoId ? `loan-${prestamoId}` : (clienteId ? `client-${clienteId}` : `obl-${index}`)
+    const keyExist = prestamoId
+      ? `loan-${prestamoId}`
+      : clienteId
+        ? `client-${clienteId}`
+        : `obl-${index}`
     existentes.add(keyExist)
 
     // No confiar en estadoGestion crudo si no hay pago asignado por obligación
-    const pagoCompletaCuota = recaudadoDelDia > 0 && cuotaNormal > 0 && recaudadoDelDia >= cuotaNormal
-    const estadoBase = resolveEstadoHistorialFromGestion(item?.estadoGestion, cuotaObjetivo, regularizadoDespues)
+    const pagoCompletaCuota =
+      recaudadoDelDia > 0 && cuotaNormal > 0 && recaudadoDelDia >= cuotaNormal
+    const estadoBase = resolveEstadoHistorialFromGestion(
+      item?.estadoGestion,
+      cuotaObjetivo,
+      regularizadoDespues,
+    )
     const estado = pagoCompletaCuota ? 'pagado' : estadoBase
 
     // Calcular riesgo histórico con datos de la fecha
     const montoVencidoHistorico = Number(
       item?.montoVencidoAcumuladoEnFecha ??
-      item?.montoVencidoAcumulado ??
-      item?.saldoVencidoAcumulado ??
-      item?.montoMoraAcumulada ??
-      cuotaObjetivo?.montoVencidoAcumuladoEnFecha ??
-      cuotaObjetivo?.saldoVencidoAcumulado ??
-      cuotaObjetivo?.montoMoraAcumulada ??
-      0,
+        item?.montoVencidoAcumulado ??
+        item?.saldoVencidoAcumulado ??
+        item?.montoMoraAcumulada ??
+        cuotaObjetivo?.montoVencidoAcumuladoEnFecha ??
+        cuotaObjetivo?.saldoVencidoAcumulado ??
+        cuotaObjetivo?.montoMoraAcumulada ??
+        0,
     )
 
     const cuotasVencidasHistorico = Number(
       item?.cuotasVencidasEnFecha ??
-      item?.cuotasVencidas ??
-      cuotaObjetivo?.cuotasVencidasEnFecha ??
-      cuotaObjetivo?.cuotasVencidas ??
-      0,
+        item?.cuotasVencidas ??
+        cuotaObjetivo?.cuotasVencidasEnFecha ??
+        cuotaObjetivo?.cuotasVencidas ??
+        0,
     )
 
     const diasMoraHistorico = Number(
       item?.diasMoraEnFecha ??
-      item?.diasMoraOperativos ??
-      item?.diasMora ??
-      cuotaObjetivo?.diasMoraEnFecha ??
-      cuotaObjetivo?.diasMora ??
-      0,
+        item?.diasMoraOperativos ??
+        item?.diasMora ??
+        cuotaObjetivo?.diasMoraEnFecha ??
+        cuotaObjetivo?.diasMora ??
+        0,
     )
 
     // Usar valores históricos del backend o valores actuales como fallback
-    const montoVencidoFinal = montoVencidoHistorico > 0 ? montoVencidoHistorico : Number(item?.montoVencidoAcumulado || item?.saldoVencidoAcumulado || 0)
-    const cuotasVencidasFinal = cuotasVencidasHistorico > 0 ? cuotasVencidasHistorico : Number(item?.cuotasVencidas || 0)
+    const montoVencidoFinal =
+      montoVencidoHistorico > 0
+        ? montoVencidoHistorico
+        : Number(item?.montoVencidoAcumulado || item?.saldoVencidoAcumulado || 0)
+    const cuotasVencidasFinal =
+      cuotasVencidasHistorico > 0 ? cuotasVencidasHistorico : Number(item?.cuotasVencidas || 0)
     const diasMoraFinal = diasMoraHistorico > 0 ? diasMoraHistorico : Number(item?.diasMora || 0)
 
     return {
       id: `${item?.asignacionId || `hist-obligacion-${fechaClave}-${index}`}-${prestamoId || clienteId || index}`,
-      cliente: `${cliente?.nombres || ''} ${cliente?.apellidos || ''}`.trim() || 'Cliente Sin Nombre',
+      cliente:
+        `${cliente?.nombres || ''} ${cliente?.apellidos || ''}`.trim() || 'Cliente Sin Nombre',
       direccion: cliente?.direccion || 'Sin dirección',
       telefono: cliente?.telefono || '',
       horaSugerida: '08:00 AM',
@@ -598,15 +628,23 @@ export const buildHistorialDiaFromBackend = (params: {
         fechaClave,
       ordenVisita: Number(item?.ordenVisita || item?.visita?.ordenVisita || index + 1),
       cobradorId: '',
-      periodoRuta: frecuenciaToPeriodoRuta(prestamo?.frecuenciaRuta || prestamo?.frecuenciaPago || prestamo?.frecuencia || 'DIA'),
+      periodoRuta: frecuenciaToPeriodoRuta(
+        prestamo?.frecuenciaRuta || prestamo?.frecuenciaPago || prestamo?.frecuencia || 'DIA',
+      ),
       clienteId,
       prestamoId,
       cuotaActual: cuotaObjetivo?.numeroCuota || prestamo?.proximaCuota?.numeroCuota,
-      cuotasTotales: prestamo?.cantidadCuotas,
-      tipoPrestamo: String(prestamo?.tipoPrestamo || prestamo?.tipo || '').toUpperCase() === 'ARTICULO' ? 'ARTICULO' : 'EFECTIVO',
-      articuloNombre: String(prestamo?.tipoPrestamo || prestamo?.tipo || '').toUpperCase() === 'ARTICULO'
-        ? (prestamo?.articulo || prestamo?.descripcionArticulo || 'Artículo')
-        : 'Préstamo',
+      // `?? undefined` porque el campo destino no admite null y el backend si puede
+      // mandarlo: ausente y null significan lo mismo aqui.
+      cuotasTotales: prestamo?.cantidadCuotas ?? undefined,
+      tipoPrestamo:
+        String(prestamo?.tipoPrestamo || prestamo?.tipo || '').toUpperCase() === 'ARTICULO'
+          ? 'ARTICULO'
+          : 'EFECTIVO',
+      articuloNombre:
+        String(prestamo?.tipoPrestamo || prestamo?.tipo || '').toUpperCase() === 'ARTICULO'
+          ? prestamo?.articulo || prestamo?.descripcionArticulo || 'Artículo'
+          : 'Préstamo',
       recaudadoDelDia: recaudadoDelDia,
       recaudadoRegularizadoDespues: regularizadoDespues,
       diasMora: diasMoraFinal,
@@ -614,7 +652,9 @@ export const buildHistorialDiaFromBackend = (params: {
       montoVencidoAcumulado: montoVencidoFinal,
       saldoVencidoAcumulado: montoVencidoFinal,
       montoMoraAcumulada: montoVencidoFinal,
-      pendienteAprobacion: Boolean(prestamo?.esProvisional) || String(prestamo?.estadoAprobacion || '').toUpperCase() === 'PENDIENTE',
+      pendienteAprobacion:
+        Boolean(prestamo?.esProvisional) ||
+        String(prestamo?.estadoAprobacion || '').toUpperCase() === 'PENDIENTE',
       esProvisional: Boolean(prestamo?.esProvisional),
       cuotaObjetivo,
     }
@@ -632,7 +672,8 @@ export const buildHistorialDiaFromBackend = (params: {
       esProvisional: visita.esProvisional,
     })
     const nivelRiesgo = normalizeNivelRiesgo(nivelRiesgoRaw)
-    const prioridad = nivelRiesgoRaw === 'ROJO' || nivelRiesgoRaw === 'LISTA_NEGRA' ? 'alta' : 'media'
+    const prioridad =
+      nivelRiesgoRaw === 'ROJO' || nivelRiesgoRaw === 'LISTA_NEGRA' ? 'alta' : 'media'
     return {
       ...visita,
       nivelRiesgo,
@@ -643,187 +684,214 @@ export const buildHistorialDiaFromBackend = (params: {
   // 3) Mapear visitas del backend a `VisitaRuta` (shape que espera el UI).
   //    Nota: aquí NO aplicamos la lógica pesada de mapeo/asignación del día actual.
   //    Para historial, la mayoría de campos se debe respetar del backend si viene.
-  const visitas: VisitaRuta[] = visitasConRiesgo.length > 0
-    ? visitasConRiesgo
-    : (visitasResp?.visitas || []).flatMap((item, index: number) => {
-    const cliente: Partial<Cliente> = item?.cliente || {}
-    const prestamos = Array.isArray(item?.prestamos) ? item.prestamos : []
+  const visitas: VisitaRuta[] =
+    visitasConRiesgo.length > 0
+      ? visitasConRiesgo
+      : (visitasResp?.visitas || []).flatMap((item, index: number) => {
+          const cliente: Partial<Cliente> = item?.cliente || {}
+          const prestamos = Array.isArray(item?.prestamos) ? item.prestamos : []
 
-    // Si no hay préstamos, caer a una sola visita por cliente como antes.
-    if (prestamos.length === 0) {
-      const recaudadoDelDia = 0 // Sin prestamoId, no aplicar pagos (evitar contaminación por clienteId)
-      const regularizadoDespues = 0
-      const keyExist = cliente?.id ? `client-${cliente.id}` : `client-idx-${index}`
-      existentes.add(keyExist)
-      return [
-        {
-          id: item?.asignacionId || `hist-${fechaClave}-${index}`,
-          cliente: `${cliente?.nombres || ''} ${cliente?.apellidos || ''}`.trim() || 'Cliente Sin Nombre',
-          direccion: cliente?.direccion || 'Sin dirección',
-          telefono: cliente?.telefono || '',
-          horaSugerida: '08:00 AM',
-          montoCuota: recaudadoDelDia > 0 ? recaudadoDelDia : 0,
-          saldoTotal: Number(item?.saldoTotal ?? 0),
-          estado: item?.estado || ((recaudadoDelDia > 0 || regularizadoDespues > 0) ? 'pagado' : 'pendiente'),
-          // Preservar estadoVisita del backend (ej: 'ausente') para mostrar el badge correcto
-          estadoVisita: item?.estadoVisita || undefined,
-          proximaVisita: item?.proximaVisita || fechaClave,
-          ordenVisita: item?.ordenVisita || index + 1,
-          cobradorId: '',
-          periodoRuta: 'DIA',
-          clienteId: cliente?.id || '',
-          prestamoId: String(item?.prestamoId || ''),
-          recaudadoDelDia: recaudadoDelDia,
-          recaudadoRegularizadoDespues: regularizadoDespues,
-        },
-      ]
-    }
+          // Si no hay préstamos, caer a una sola visita por cliente como antes.
+          if (prestamos.length === 0) {
+            const recaudadoDelDia = 0 // Sin prestamoId, no aplicar pagos (evitar contaminación por clienteId)
+            const regularizadoDespues = 0
+            const keyExist = cliente?.id ? `client-${cliente.id}` : `client-idx-${index}`
+            existentes.add(keyExist)
+            return [
+              {
+                id: item?.asignacionId || `hist-${fechaClave}-${index}`,
+                cliente:
+                  `${cliente?.nombres || ''} ${cliente?.apellidos || ''}`.trim() ||
+                  'Cliente Sin Nombre',
+                direccion: cliente?.direccion || 'Sin dirección',
+                telefono: cliente?.telefono || '',
+                horaSugerida: '08:00 AM',
+                montoCuota: recaudadoDelDia > 0 ? recaudadoDelDia : 0,
+                saldoTotal: Number(item?.saldoTotal ?? 0),
+                estado:
+                  item?.estado ||
+                  (recaudadoDelDia > 0 || regularizadoDespues > 0 ? 'pagado' : 'pendiente'),
+                // Preservar estadoVisita del backend (ej: 'ausente') para mostrar el badge correcto
+                estadoVisita: item?.estadoVisita || undefined,
+                proximaVisita: item?.proximaVisita || fechaClave,
+                ordenVisita: item?.ordenVisita || index + 1,
+                cobradorId: '',
+                periodoRuta: 'DIA',
+                clienteId: cliente?.id || '',
+                prestamoId: String(item?.prestamoId || ''),
+                recaudadoDelDia: recaudadoDelDia,
+                recaudadoRegularizadoDespues: regularizadoDespues,
+              },
+            ]
+          }
 
-    const prestamoPreferidoId = String(
-      item?.prestamoId
-        || (prestamos.find((p: Prestamo) => Number(p?.saldoPendiente || 0) > 0)?.id || '')
-        || (prestamos[0]?.id || ''),
-    )
+          const prestamoPreferidoId = String(
+            item?.prestamoId ||
+              prestamos.find((p: Prestamo) => Number(p?.saldoPendiente || 0) > 0)?.id ||
+              '' ||
+              prestamos[0]?.id ||
+              '',
+          )
 
-    const prestamosSeleccionados = prestamoPreferidoId
-      ? prestamos.filter((p: Prestamo) => String(p?.id || '') === prestamoPreferidoId)
-      : prestamos
+          const prestamosSeleccionados = prestamoPreferidoId
+            ? prestamos.filter((p: Prestamo) => String(p?.id || '') === prestamoPreferidoId)
+            : prestamos
 
-    const lista = (prestamosSeleccionados.length > 0 ? prestamosSeleccionados : [prestamos[0]]).filter(Boolean)
+          const lista = (
+            prestamosSeleccionados.length > 0 ? prestamosSeleccionados : [prestamos[0]]
+          ).filter(Boolean)
 
-    return lista.map((p: any, loanIdx: number) => {
-      const prestamoId = String(p?.id || prestamoPreferidoId || '')
-      const cuotaId = String(p?.cuotaId || p?.cuota?.id || '')
+          return lista.map((p: any, loanIdx: number) => {
+            const prestamoId = String(p?.id || prestamoPreferidoId || '')
+            const cuotaId = String(p?.cuotaId || p?.cuota?.id || '')
 
-      // Cruzar pagos por obligación (prestamoId + cuotaId) o por prestamoId
-      const exactKey = cuotaId ? `${prestamoId}:${cuotaId}` : ''
-      const recaudadoDelDia =
-        exactKey && pagosByPrestamoCuota.has(exactKey)
-          ? Number(pagosByPrestamoCuota.get(exactKey) || 0)
-          : prestamoId
-            ? Number(pagosByPrestamo.get(prestamoId) || 0)
-            : 0
-      const regularizadoDespues = prestamoId
-        ? Number(regularizadoPorPrestamo[prestamoId] || 0)
-        : (cliente?.id ? Number(regularizadoPorCliente[cliente.id] || 0) : 0)
+            // Cruzar pagos por obligación (prestamoId + cuotaId) o por prestamoId
+            const exactKey = cuotaId ? `${prestamoId}:${cuotaId}` : ''
+            const recaudadoDelDia =
+              exactKey && pagosByPrestamoCuota.has(exactKey)
+                ? Number(pagosByPrestamoCuota.get(exactKey) || 0)
+                : prestamoId
+                  ? Number(pagosByPrestamo.get(prestamoId) || 0)
+                  : 0
+            const regularizadoDespues = prestamoId
+              ? Number(regularizadoPorPrestamo[prestamoId] || 0)
+              : cliente?.id
+                ? Number(regularizadoPorCliente[cliente.id] || 0)
+                : 0
 
-      const proximaCuota: CuotaOperativa = p?.proximaCuota || {}
-      const montoCuotaBase = Number(p?.montoCuota ?? proximaCuota?.monto ?? 0)
-      const montoGestionado = recaudadoDelDia + regularizadoDespues
-      const montoCuotaDisplay = montoGestionado > 0 ? Math.max(montoCuotaBase, montoGestionado) : montoCuotaBase
+            const proximaCuota: CuotaOperativa = p?.proximaCuota || {}
+            const montoCuotaBase = Number(p?.montoCuota ?? proximaCuota?.monto ?? 0)
+            const montoGestionado = recaudadoDelDia + regularizadoDespues
+            const montoCuotaDisplay =
+              montoGestionado > 0 ? Math.max(montoCuotaBase, montoGestionado) : montoCuotaBase
 
-      const saldoTotal = Number(p?.saldoPendiente ?? 0)
-      const proxEstado = String(proximaCuota?.estado || '').toUpperCase()
+            const saldoTotal = Number(p?.saldoPendiente ?? 0)
+            const proxEstado = String(proximaCuota?.estado || '').toUpperCase()
 
-      let estado: any = item?.estado || 'pendiente'
-      if (!item?.estado) {
-        if (saldoTotal <= 0) estado = 'pagado'
-        else if (proxEstado === 'PAGADA' || proxEstado === 'PAGADO') estado = 'pagado'
-        else if (proxEstado === 'VENCIDA' || proxEstado === 'ATRASADA') estado = 'en_mora'
-        else if (montoGestionado > 0 && montoGestionado >= montoCuotaBase - 1) estado = 'pagado'
-      }
+            let estado: any = item?.estado || 'pendiente'
+            if (!item?.estado) {
+              if (saldoTotal <= 0) estado = 'pagado'
+              else if (proxEstado === 'PAGADA' || proxEstado === 'PAGADO') estado = 'pagado'
+              else if (proxEstado === 'VENCIDA' || proxEstado === 'ATRASADA') estado = 'en_mora'
+              else if (montoGestionado > 0 && montoGestionado >= montoCuotaBase - 1)
+                estado = 'pagado'
+            }
 
-      // Si el backend no reporta estado y no hay pago asociado a este préstamo, no marcarlo como pagado
-      // por pagos del cliente de otros préstamos.
-      if (!item?.estado && montoGestionado <= 0 && estado === 'pagado') estado = 'pendiente'
+            // Si el backend no reporta estado y no hay pago asociado a este préstamo, no marcarlo como pagado
+            // por pagos del cliente de otros préstamos.
+            if (!item?.estado && montoGestionado <= 0 && estado === 'pagado') estado = 'pendiente'
 
-      const periodoRuta = frecuenciaToPeriodoRuta(p?.frecuenciaRuta || p?.frecuenciaPago || p?.frecuencia || 'DIA')
+            const periodoRuta = frecuenciaToPeriodoRuta(
+              p?.frecuenciaRuta || p?.frecuenciaPago || p?.frecuencia || 'DIA',
+            )
 
-      const keyExist = prestamoId ? `loan-${prestamoId}` : (cliente?.id ? `client-${cliente.id}` : `client-idx-${index}`)
-      existentes.add(keyExist)
+            const keyExist = prestamoId
+              ? `loan-${prestamoId}`
+              : cliente?.id
+                ? `client-${cliente.id}`
+                : `client-idx-${index}`
+            existentes.add(keyExist)
 
-      // Anotado a proposito: mas abajo se le asignan los campos de mora
-      // (`montoVencidoAcumulado`, `diasMora`, ...). Sin el tipo, TypeScript infiere solo
-      // las claves del literal y esas asignaciones no compilan, que es lo que el
-      // `as any` del final estaba tapando.
-      const visitaBase: VisitaRuta = {
-        id: `${item?.asignacionId || `hist-${fechaClave}-${index}`}-${prestamoId || loanIdx}`,
-        cliente: `${cliente?.nombres || ''} ${cliente?.apellidos || ''}`.trim() || 'Cliente Sin Nombre',
-        direccion: cliente?.direccion || 'Sin dirección',
-        telefono: cliente?.telefono || '',
-        horaSugerida: '08:00 AM',
-        montoCuota: montoCuotaDisplay,
-        saldoTotal,
-        estado,
-        // Preservar estadoVisita del backend (ej: 'ausente') para mostrar el badge correcto
-        estadoVisita: item?.estadoVisita || undefined,
-        proximaVisita: item?.proximaVisita || proximaCuota?.fechaVencimiento || fechaClave,
-        ordenVisita: (item?.ordenVisita ? Number(item.ordenVisita) : (index + 1)) + loanIdx,
-        cobradorId: '',
-        periodoRuta,
-        clienteId: cliente?.id || '',
-        prestamoId,
-        recaudadoDelDia: recaudadoDelDia,
-        recaudadoRegularizadoDespues: regularizadoDespues,
-        pendienteAprobacion: Boolean(p?.esProvisional) || String(p?.estadoAprobacion || '').toUpperCase() === 'PENDIENTE',
-        esProvisional: Boolean(p?.esProvisional),
-      }
+            // Anotado a proposito: mas abajo se le asignan los campos de mora
+            // (`montoVencidoAcumulado`, `diasMora`, ...). Sin el tipo, TypeScript infiere solo
+            // las claves del literal y esas asignaciones no compilan, que es lo que el
+            // `as any` del final estaba tapando.
+            const visitaBase: VisitaRuta = {
+              id: `${item?.asignacionId || `hist-${fechaClave}-${index}`}-${prestamoId || loanIdx}`,
+              cliente:
+                `${cliente?.nombres || ''} ${cliente?.apellidos || ''}`.trim() ||
+                'Cliente Sin Nombre',
+              direccion: cliente?.direccion || 'Sin dirección',
+              telefono: cliente?.telefono || '',
+              horaSugerida: '08:00 AM',
+              montoCuota: montoCuotaDisplay,
+              saldoTotal,
+              estado,
+              // Preservar estadoVisita del backend (ej: 'ausente') para mostrar el badge correcto
+              estadoVisita: item?.estadoVisita || undefined,
+              proximaVisita: item?.proximaVisita || proximaCuota?.fechaVencimiento || fechaClave,
+              ordenVisita: (item?.ordenVisita ? Number(item.ordenVisita) : index + 1) + loanIdx,
+              cobradorId: '',
+              periodoRuta,
+              clienteId: cliente?.id || '',
+              prestamoId,
+              recaudadoDelDia: recaudadoDelDia,
+              recaudadoRegularizadoDespues: regularizadoDespues,
+              pendienteAprobacion:
+                Boolean(p?.esProvisional) ||
+                String(p?.estadoAprobacion || '').toUpperCase() === 'PENDIENTE',
+              esProvisional: Boolean(p?.esProvisional),
+            }
 
-      // Calcular riesgo histórico desde campos históricos del backend
-      const montoVencidoFinal = Number(
-        item?.montoVencidoAcumuladoEnFecha ??
-        item?.montoVencidoAcumulado ??
-        item?.saldoVencidoAcumulado ??
-        item?.montoMoraAcumulada ??
-        proximaCuota?.montoVencidoAcumuladoEnFecha ??
-        proximaCuota?.saldoVencidoAcumulado ??
-        proximaCuota?.montoMoraAcumulada ??
-        0,
-      )
-      const cuotasVencidasFinal = Number(
-        item?.cuotasVencidasEnFecha ??
-        item?.cuotasVencidas ??
-        proximaCuota?.cuotasVencidasEnFecha ??
-        proximaCuota?.cuotasVencidas ??
-        0,
-      )
-      const diasMoraFinal = Number(
-        item?.diasMoraEnFecha ??
-        item?.diasMoraOperativos ??
-        item?.diasMora ??
-        proximaCuota?.diasMoraEnFecha ??
-        proximaCuota?.diasMora ??
-        0,
-      )
+            // Calcular riesgo histórico desde campos históricos del backend
+            const montoVencidoFinal = Number(
+              item?.montoVencidoAcumuladoEnFecha ??
+                item?.montoVencidoAcumulado ??
+                item?.saldoVencidoAcumulado ??
+                item?.montoMoraAcumulada ??
+                proximaCuota?.montoVencidoAcumuladoEnFecha ??
+                proximaCuota?.saldoVencidoAcumulado ??
+                proximaCuota?.montoMoraAcumulada ??
+                0,
+            )
+            const cuotasVencidasFinal = Number(
+              item?.cuotasVencidasEnFecha ??
+                item?.cuotasVencidas ??
+                proximaCuota?.cuotasVencidasEnFecha ??
+                proximaCuota?.cuotasVencidas ??
+                0,
+            )
+            const diasMoraFinal = Number(
+              item?.diasMoraEnFecha ??
+                item?.diasMoraOperativos ??
+                item?.diasMora ??
+                proximaCuota?.diasMoraEnFecha ??
+                proximaCuota?.diasMora ??
+                0,
+            )
 
-      // Asignar campos de riesgo a la visita base
-      visitaBase.montoVencidoAcumulado = montoVencidoFinal
-      visitaBase.saldoVencidoAcumulado = montoVencidoFinal
-      visitaBase.montoMoraAcumulada = montoVencidoFinal
-      visitaBase.cuotasVencidas = cuotasVencidasFinal
-      visitaBase.diasMora = diasMoraFinal
-      visitaBase.enMoraHistorico = diasMoraFinal > 0 || montoVencidoFinal > 0
+            // Asignar campos de riesgo a la visita base
+            visitaBase.montoVencidoAcumulado = montoVencidoFinal
+            visitaBase.saldoVencidoAcumulado = montoVencidoFinal
+            visitaBase.montoMoraAcumulada = montoVencidoFinal
+            visitaBase.cuotasVencidas = cuotasVencidasFinal
+            visitaBase.diasMora = diasMoraFinal
+            visitaBase.enMoraHistorico = diasMoraFinal > 0 || montoVencidoFinal > 0
 
-      // Calcular riesgo de obligación con datos históricos
-      const nivelRiesgoRaw = resolveRiesgoObligacion({
-        row: visitaBase,
-        prestamo: p,
-        cuotaObjetivo: proximaCuota,
-        estadoCalculado: estado,
-        diasMora: diasMoraFinal,
-        cuotasVencidas: cuotasVencidasFinal,
-        esProvisional: visitaBase.esProvisional,
-      })
-      const nivelRiesgo = normalizeNivelRiesgo(nivelRiesgoRaw)
-      const prioridad = nivelRiesgoRaw === 'ROJO' || nivelRiesgoRaw === 'LISTA_NEGRA' ? 'alta' : 'media'
+            // Calcular riesgo de obligación con datos históricos
+            const nivelRiesgoRaw = resolveRiesgoObligacion({
+              row: visitaBase,
+              prestamo: p,
+              cuotaObjetivo: proximaCuota,
+              estadoCalculado: estado,
+              diasMora: diasMoraFinal,
+              cuotasVencidas: cuotasVencidasFinal,
+              esProvisional: visitaBase.esProvisional,
+            })
+            const nivelRiesgo = normalizeNivelRiesgo(nivelRiesgoRaw)
+            const prioridad =
+              nivelRiesgoRaw === 'ROJO' || nivelRiesgoRaw === 'LISTA_NEGRA' ? 'alta' : 'media'
 
-      return {
-        ...visitaBase,
-        nivelRiesgo,
-        nivelRiesgoObligacion: nivelRiesgoRaw,
-        prioridad,
-      }
-    })
-    })
+            return {
+              ...visitaBase,
+              nivelRiesgo,
+              nivelRiesgoObligacion: nivelRiesgoRaw,
+              prioridad,
+            }
+          })
+        })
 
   // 4) Visitas sintéticas:
   // Si hubo un pago en el día para un cliente que no aparece en `visitasResp.visitas`,
   // lo agregamos al historial para que el recaudo y el "visitados" cuadre con la realidad.
-  const pagosSinteticosPorKey = new Map<string, { pago: PagoParcial; total: number; index: number }>()
+  const pagosSinteticosPorKey = new Map<
+    string,
+    { pago: PagoParcial; total: number; index: number }
+  >()
   for (const [i, p] of pagosOperativos.entries()) {
     const cid = p?.clienteId || p?.cliente?.id
     const pid = String(p?.prestamoId || p?.prestamo?.id || '')
-    const keyExist = pid ? `loan-${pid}` : (cid ? `client-${cid}` : '')
+    const keyExist = pid ? `loan-${pid}` : cid ? `client-${cid}` : ''
     if (!cid || !keyExist || existentes.has(keyExist)) continue
 
     const actual = pagosSinteticosPorKey.get(keyExist)
@@ -841,7 +909,7 @@ export const buildHistorialDiaFromBackend = (params: {
   for (const [i, p] of pagosRegularizados.entries()) {
     const cid = p?.clienteId || p?.cliente?.id
     const pid = String(p?.prestamoId || p?.prestamo?.id || '')
-    const keyExist = pid ? `loan-${pid}` : (cid ? `client-${cid}` : '')
+    const keyExist = pid ? `loan-${pid}` : cid ? `client-${cid}` : ''
     if (!cid || !keyExist || existentes.has(keyExist)) continue
 
     const actual = pagosSinteticosPorKey.get(keyExist)
@@ -856,51 +924,59 @@ export const buildHistorialDiaFromBackend = (params: {
     }
   }
 
-  const sinteticos: VisitaRuta[] = Array.from(pagosSinteticosPorKey.entries()).map(([keyExist, item], offset) => {
-    const p = item.pago
-    // `|| ''` en vez de una guarda: esto es un `.map`, no un `flatMap`, asi que no se
-    // puede omitir la fila. Da igual: ni '' ni `undefined` cruzan con un id real, y
-    // hoy no ocurre porque `model Pago.clienteId` no es nulable.
-    const cid = p?.clienteId || p?.cliente?.id || ''
-    const pid = String(p?.prestamoId || p?.prestamo?.id || '')
-    const primerDetalle = Array.isArray(p?.detalles) ? p.detalles[0] : undefined
-    const cuotaDetalle = primerDetalle?.cuota || p?.cuota || undefined
-    const prestamo: PrestamoParcial = p?.prestamo || {}
-    const cliente: Partial<Cliente> = p?.cliente || {}
-    const nombreCliente = cliente
-      ? `${cliente.nombres || ''} ${cliente.apellidos || ''}`.trim()
-      : ''
-    const saldoPendiente = Number(prestamo?.saldoPendiente ?? 0)
-    const cuotaMonto = Number(cuotaDetalle?.monto ?? primerDetalle?.monto ?? item.total ?? 0)
-    existentes.add(keyExist)
+  const sinteticos: VisitaRuta[] = Array.from(pagosSinteticosPorKey.entries()).map(
+    ([keyExist, item], offset) => {
+      const p = item.pago
+      // `|| ''` en vez de una guarda: esto es un `.map`, no un `flatMap`, asi que no se
+      // puede omitir la fila. Da igual: ni '' ni `undefined` cruzan con un id real, y
+      // hoy no ocurre porque `model Pago.clienteId` no es nulable.
+      const cid = p?.clienteId || p?.cliente?.id || ''
+      const pid = String(p?.prestamoId || p?.prestamo?.id || '')
+      const primerDetalle = Array.isArray(p?.detalles) ? p.detalles[0] : undefined
+      const cuotaDetalle = primerDetalle?.cuota || p?.cuota || undefined
+      const prestamo: PrestamoParcial = p?.prestamo || {}
+      const cliente: Partial<Cliente> = p?.cliente || {}
+      const nombreCliente = cliente
+        ? `${cliente.nombres || ''} ${cliente.apellidos || ''}`.trim()
+        : ''
+      const saldoPendiente = Number(prestamo?.saldoPendiente ?? 0)
+      const cuotaMonto = Number(cuotaDetalle?.monto ?? primerDetalle?.monto ?? item.total ?? 0)
+      existentes.add(keyExist)
 
-    return {
-      id: `pago-${p?.id || item.index}-${fechaClave}`,
-      cliente: nombreCliente || 'Cliente',
-      direccion: cliente?.direccion || '',
-      telefono: cliente?.telefono || '',
-      horaSugerida: '08:00 AM',
-      montoCuota: cuotaMonto > 0 ? cuotaMonto : item.total,
-      saldoTotal: saldoPendiente,
-      estado: 'pagado',
-      proximaVisita: fechaClave,
-      ordenVisita: visitas.length + offset + 1,
-      prioridad: cliente?.nivelRiesgo === 'ROJO' ? 'alta' : 'media',
-      nivelRiesgo: normalizeNivelRiesgo(cliente?.nivelRiesgo),
-      cobradorId: '',
-      periodoRuta: frecuenciaToPeriodoRuta(prestamo?.frecuenciaRuta || prestamo?.frecuenciaPago || prestamo?.frecuencia || 'DIA'),
-      clienteId: cid,
-      prestamoId: pid,
-      cuotaActual: cuotaDetalle?.numeroCuota,
-      cuotasTotales: prestamo?.cantidadCuotas,
-      tipoPrestamo: String(prestamo?.tipoPrestamo || prestamo?.tipo || '').toUpperCase() === 'ARTICULO' ? 'ARTICULO' : 'EFECTIVO',
-      articuloNombre: String(prestamo?.tipoPrestamo || prestamo?.tipo || '').toUpperCase() === 'ARTICULO'
-        ? (prestamo?.articulo || prestamo?.descripcionArticulo || 'Artículo')
-        : 'Préstamo',
-      recaudadoDelDia: isPagoCierrePendiente(p) ? 0 : item.total,
-      recaudadoRegularizadoDespues: isPagoCierrePendiente(p) ? item.total : 0,
-    }
-  })
+      return {
+        id: `pago-${p?.id || item.index}-${fechaClave}`,
+        cliente: nombreCliente || 'Cliente',
+        direccion: cliente?.direccion || '',
+        telefono: cliente?.telefono || '',
+        horaSugerida: '08:00 AM',
+        montoCuota: cuotaMonto > 0 ? cuotaMonto : item.total,
+        saldoTotal: saldoPendiente,
+        estado: 'pagado',
+        proximaVisita: fechaClave,
+        ordenVisita: visitas.length + offset + 1,
+        prioridad: cliente?.nivelRiesgo === 'ROJO' ? 'alta' : 'media',
+        nivelRiesgo: normalizeNivelRiesgo(cliente?.nivelRiesgo),
+        cobradorId: '',
+        periodoRuta: frecuenciaToPeriodoRuta(
+          prestamo?.frecuenciaRuta || prestamo?.frecuenciaPago || prestamo?.frecuencia || 'DIA',
+        ),
+        clienteId: cid,
+        prestamoId: pid,
+        cuotaActual: cuotaDetalle?.numeroCuota,
+        cuotasTotales: prestamo?.cantidadCuotas,
+        tipoPrestamo:
+          String(prestamo?.tipoPrestamo || prestamo?.tipo || '').toUpperCase() === 'ARTICULO'
+            ? 'ARTICULO'
+            : 'EFECTIVO',
+        articuloNombre:
+          String(prestamo?.tipoPrestamo || prestamo?.tipo || '').toUpperCase() === 'ARTICULO'
+            ? prestamo?.articulo || prestamo?.descripcionArticulo || 'Artículo'
+            : 'Préstamo',
+        recaudadoDelDia: isPagoCierrePendiente(p) ? 0 : item.total,
+        recaudadoRegularizadoDespues: isPagoCierrePendiente(p) ? item.total : 0,
+      }
+    },
+  )
 
   const todasVisitas = [...visitas, ...sinteticos].map(normalizeVisitaHistorial)
 
@@ -939,15 +1015,21 @@ export const buildHistorialDiaFromBackend = (params: {
       prioridad: 'media',
       nivelRiesgo: cliente?.nivelRiesgo || 'MINIMO',
       cobradorId: '',
-      periodoRuta: frecuenciaToPeriodoRuta(prestamo?.frecuenciaRuta || prestamo?.frecuenciaPago || 'DIA'),
+      periodoRuta: frecuenciaToPeriodoRuta(
+        prestamo?.frecuenciaRuta || prestamo?.frecuenciaPago || 'DIA',
+      ),
       clienteId: pago?.clienteId || cliente?.id || '',
       prestamoId,
       cuotaActual: pago?.cuota?.numeroCuota,
       cuotasTotales: prestamo?.cantidadCuotas,
-      tipoPrestamo: String(prestamo?.tipoPrestamo || prestamo?.tipo || '').toUpperCase() === 'ARTICULO' ? 'ARTICULO' : 'EFECTIVO',
-      articuloNombre: String(prestamo?.tipoPrestamo || prestamo?.tipo || '').toUpperCase() === 'ARTICULO'
-        ? (prestamo?.articulo || prestamo?.descripcionArticulo || 'Artículo')
-        : 'Préstamo',
+      tipoPrestamo:
+        String(prestamo?.tipoPrestamo || prestamo?.tipo || '').toUpperCase() === 'ARTICULO'
+          ? 'ARTICULO'
+          : 'EFECTIVO',
+      articuloNombre:
+        String(prestamo?.tipoPrestamo || prestamo?.tipo || '').toUpperCase() === 'ARTICULO'
+          ? prestamo?.articulo || prestamo?.descripcionArticulo || 'Artículo'
+          : 'Préstamo',
       recaudadoDelDia: Number(pago?.montoTotal || 0),
       recaudadoRegularizadoDespues: 0,
     })
@@ -955,25 +1037,27 @@ export const buildHistorialDiaFromBackend = (params: {
 
   // LOGS DE AUDITORÍA: Ver las visitas finales
   if (process.env.NODE_ENV !== 'production') {
-    console.table(todasVisitas.map((v: VisitaParcial) => ({
-      tipo: 'VISITA_HISTORIAL',
-      cliente: v.cliente,
-      clienteId: v.clienteId,
-      prestamoId: v.prestamoId,
-      cuotaId: v.cuotaId,
-      cuotaActual: v.cuotaActual,
-      montoCuota: v.montoCuota,
-      montoCuotaNormal: v.montoCuotaNormal,
-      saldoTotal: v.saldoTotal,
-      recaudadoDelDia: v.recaudadoDelDia,
-      estado: v.estado,
-      montoVencidoAcumulado: v.montoVencidoAcumulado,
-      saldoVencidoAcumulado: v.saldoVencidoAcumulado,
-      cuotasVencidas: v.cuotasVencidas,
-      diasMora: v.diasMora,
-      nivelRiesgo: v.nivelRiesgo,
-      nivelRiesgoObligacion: v.nivelRiesgoObligacion,
-    })))
+    console.table(
+      todasVisitas.map((v: VisitaParcial) => ({
+        tipo: 'VISITA_HISTORIAL',
+        cliente: v.cliente,
+        clienteId: v.clienteId,
+        prestamoId: v.prestamoId,
+        cuotaId: v.cuotaId,
+        cuotaActual: v.cuotaActual,
+        montoCuota: v.montoCuota,
+        montoCuotaNormal: v.montoCuotaNormal,
+        saldoTotal: v.saldoTotal,
+        recaudadoDelDia: v.recaudadoDelDia,
+        estado: v.estado,
+        montoVencidoAcumulado: v.montoVencidoAcumulado,
+        saldoVencidoAcumulado: v.saldoVencidoAcumulado,
+        cuotasVencidas: v.cuotasVencidas,
+        diasMora: v.diasMora,
+        nivelRiesgo: v.nivelRiesgo,
+        nivelRiesgoObligacion: v.nivelRiesgoObligacion,
+      })),
+    )
   }
 
   // Ocultar saldados (pagado y saldo <= 0) que NO tuvieron gestión real en este día.
@@ -987,9 +1071,10 @@ export const buildHistorialDiaFromBackend = (params: {
   // y ese sí oculta. Se usa el mismo aquí para que los dos digan lo mismo, y
   // para que `total` no cuente tarjetas que `visitados` nunca va a contar.
   const filteredVisitas = todasVisitas.filter((v: VisitaParcial) => {
-    const isSaldado = String(v.estado || '').toLowerCase() === 'pagado' && Number(v.saldoTotal || 0) <= 0;
-    return !(isSaldado && !hasGestionHistorial(v));
-  });
+    const isSaldado =
+      String(v.estado || '').toLowerCase() === 'pagado' && Number(v.saldoTotal || 0) <= 0
+    return !(isSaldado && !hasGestionHistorial(v))
+  })
 
   // 5) Resumen: calcular desde visitas finales, no desde backend viejo
   const visitasOperativas = filteredVisitas.filter(
@@ -1018,12 +1103,7 @@ export const buildHistorialDiaFromBackend = (params: {
 
   const total = filteredVisitas.length
 
-  const efectividad =
-    meta > 0
-      ? Number(((recaudo / meta) * 100).toFixed(2))
-      : recaudo > 0
-        ? 100
-        : 0
+  const efectividad = meta > 0 ? Number(((recaudo / meta) * 100).toFixed(2)) : recaudo > 0 ? 100 : 0
 
   // El resumen sale del backend; lo local solo puede sumar lo que él no vio.
   //
@@ -1055,10 +1135,7 @@ export const buildHistorialDiaFromBackend = (params: {
   )
 
   const contableFinal = Number(resumenBackend?.recaudoContable ?? 0)
-  const regularizadoFinal = mayorQueElBackend(
-    'recaudoRegularizado',
-    regularizadoLocal,
-  )
+  const regularizadoFinal = mayorQueElBackend('recaudoRegularizado', regularizadoLocal)
 
   // Al total del backend se le suma solo lo que el frontend puede demostrar
   // que a él le faltó: los pagos regularizados que ve de más.
@@ -1100,12 +1177,8 @@ export const buildHistorialDiaFromBackend = (params: {
     // tenía la jornada. Aquí solo se ven las tarjetas que sobrevivieron al
     // filtrado, que son menos, y quedarse con el mayor de los dos inflaría el
     // día con visitas que el backend no reconoce.
-    visitados:
-      resumenBackend?.visitados != null
-        ? Number(resumenBackend.visitados)
-        : visitados,
-    total:
-      resumenBackend?.total != null ? Number(resumenBackend.total) : total,
+    visitados: resumenBackend?.visitados != null ? Number(resumenBackend.visitados) : visitados,
+    total: resumenBackend?.total != null ? Number(resumenBackend.total) : total,
     recaudoOperativo: operativoFinal,
     recaudoRegularizado: regularizadoFinal,
     // Este el frontend no lo puede calcular: depende de la fecha real de cada
@@ -1113,18 +1186,10 @@ export const buildHistorialDiaFromBackend = (params: {
     recaudoContable: contableFinal,
     recaudoEfectivo: Number(resumenBackend?.recaudoEfectivo ?? 0),
     recaudoTransferencia: Number(resumenBackend?.recaudoTransferencia ?? 0),
-    recaudoContableEfectivo: Number(
-      resumenBackend?.recaudoContableEfectivo ?? 0,
-    ),
-    recaudoContableTransferencia: Number(
-      resumenBackend?.recaudoContableTransferencia ?? 0,
-    ),
-    recaudoRegularizadoEfectivo: Number(
-      resumenBackend?.recaudoRegularizadoEfectivo ?? 0,
-    ),
-    recaudoRegularizadoTransferencia: Number(
-      resumenBackend?.recaudoRegularizadoTransferencia ?? 0,
-    ),
+    recaudoContableEfectivo: Number(resumenBackend?.recaudoContableEfectivo ?? 0),
+    recaudoContableTransferencia: Number(resumenBackend?.recaudoContableTransferencia ?? 0),
+    recaudoRegularizadoEfectivo: Number(resumenBackend?.recaudoRegularizadoEfectivo ?? 0),
+    recaudoRegularizadoTransferencia: Number(resumenBackend?.recaudoRegularizadoTransferencia ?? 0),
     gastos: Number(resumenBackend?.gastos ?? 0),
     netoEfectivoRuta: Number(resumenBackend?.netoEfectivoRuta ?? 0),
     jornadaId: resumenBackend?.jornadaId ?? null,
@@ -1141,19 +1206,21 @@ export const buildHistorialDiaFromBackend = (params: {
 
   // Logs de validación para historial final
   if (process.env.NODE_ENV !== 'production') {
-    console.table(filteredVisitas.map((v: VisitaParcial) => ({
-      tipo: 'HISTORIAL_FINAL',
-      cliente: v.cliente,
-      prestamoId: v.prestamoId,
-      estado: v.estado,
-      montoCuotaNormal: v.montoCuotaNormal,
-      recaudadoDelDia: v.recaudadoDelDia,
-      montoVencidoAcumulado: v.montoVencidoAcumulado,
-      cuotasVencidas: v.cuotasVencidas,
-      diasMora: v.diasMora,
-      nivelRiesgo: v.nivelRiesgo,
-      nivelRiesgoObligacion: v.nivelRiesgoObligacion,
-    })))
+    console.table(
+      filteredVisitas.map((v: VisitaParcial) => ({
+        tipo: 'HISTORIAL_FINAL',
+        cliente: v.cliente,
+        prestamoId: v.prestamoId,
+        estado: v.estado,
+        montoCuotaNormal: v.montoCuotaNormal,
+        recaudadoDelDia: v.recaudadoDelDia,
+        montoVencidoAcumulado: v.montoVencidoAcumulado,
+        cuotasVencidas: v.cuotasVencidas,
+        diasMora: v.diasMora,
+        nivelRiesgo: v.nivelRiesgo,
+        nivelRiesgoObligacion: v.nivelRiesgoObligacion,
+      })),
+    )
     logger.log('[HISTORIAL_RESUMEN_FINAL]', resumenFinal)
   }
 
