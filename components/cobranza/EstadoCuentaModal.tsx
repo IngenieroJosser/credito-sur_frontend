@@ -11,6 +11,7 @@ import { getLoanAmounts } from '@/lib/loan-calculations'
 import { normalizeDateKey, resolveNextPagoFromPrestamo } from '@/lib/rutas-core'
 import { Skeleton, SkeletonTabla } from '@/components/ui/Skeleton'
 import type { Pago } from '@/types/domain'
+import type { CuotaOperativa } from '@/lib/types/cobranza'
 import Tooltip from '@/components/ui/Tooltip'
 import type { PrestamoDelListado } from '@/types/domain'
 import { useModalDialog } from '@/hooks/use-modal-dialog'
@@ -65,9 +66,16 @@ function formatDateTime(dateStr: string) {
     .replace('.', '')
 }
 
+/** El detalle de un pago, derivado de `Pago.detalles` (domain.ts:450). */
+type DetalleDePago = NonNullable<Pago['detalles']>[number]
+
 export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModalProps) {
   const [loading, setLoading] = useState(true)
-  const [loanData, setLoanData] = useState<any>(null)
+  // El tipo sale del servicio que lo llena (`obtenerPrestamoPorId`), no de un tipo escrito
+  // a mano: asi el estado y la consulta no pueden separarse.
+  const [loanData, setLoanData] = useState<Awaited<
+    ReturnType<typeof prestamosService.obtenerPrestamoPorId>
+  > | null>(null)
   const [pagosFull, setPagosFull] = useState<Pago[]>([])
   const [error, setError] = useState<string | null>(null)
   // Escape para salir y el foco en el primer campo al abrir. El hook lleva
@@ -146,7 +154,7 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
     if (!loanData) return null
 
     const cuotas = loanData.cuotas || []
-    const pagadas = cuotas.filter((c: any) => c.estado === 'PAGADA')
+    const pagadas = cuotas.filter((c: CuotaOperativa) => c.estado === 'PAGADA')
     const prox = resolveNextPagoFromPrestamo(loanData)
 
     const amounts = getLoanAmounts({
@@ -163,7 +171,9 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
       fechaInicio: formatDateBogota(loanData.fechaInicio),
       fechaVencimiento: formatDateBogota(
         loanData.fechaFin ||
-          (cuotas.length > 0 ? cuotas[cuotas.length - 1].fechaVencimiento : null),
+          (cuotas.length > 0
+            ? cuotas[cuotas.length - 1].fechaVencimiento || ''
+            : ''),
       ),
       nextPaymentDate: prox?.fecha ? formatDateBogota(prox.fecha) : '---',
       nextPaymentAmount: (() => {
@@ -190,14 +200,14 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
     if (!Array.isArray(source) || source.length === 0) return []
 
     const cuotas = Array.isArray(loanData?.cuotas) ? loanData.cuotas : []
-    const cuotaById = new Map<string, any>()
-    cuotas.forEach((c: any) => {
+    const cuotaById = new Map<string, CuotaOperativa>()
+    cuotas.forEach((c: CuotaOperativa) => {
       const id = String(c?.id || '')
       if (!id) return
       cuotaById.set(id, c)
     })
 
-    const montoCuotaFrom = (c: any): number => {
+    const montoCuotaFrom = (c: CuotaOperativa | null | undefined): number => {
       if (!c) return 0
       const montoDirecto = Number(c?.montoNominal ?? c?.monto ?? 0)
       if (montoDirecto > 0) return montoDirecto
@@ -210,12 +220,17 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
     const rows = ordered.flatMap((p: Pago) => {
       const detalles = Array.isArray(p?.detalles) ? p.detalles : []
       if (detalles.length > 0) {
-        return detalles.map((d: any) => {
-          const monto = Number(d?.montoTotal ?? d?.monto ?? 0)
+        return detalles.map((d: DetalleDePago) => {
+          // El `d?.montoTotal` que abria esta cascada era una lectura MUERTA: el detalle de
+          // un pago tiene `monto`, no `montoTotal` (domain.ts:450). Valia `undefined` siempre
+          // y el respaldo era el valor real.
+          const monto = Number(d?.monto ?? 0)
           const cuotaId = String(d?.cuotaId || d?.cuota?.id || '')
           const cuota =
             cuotaId && cuotaById.has(cuotaId) ? cuotaById.get(cuotaId) : d?.cuota || null
-          const numeroCuota = cuota?.numeroCuota ?? cuota?.numero ?? d?.numeroCuota ?? null
+          // Los otros dos eslabones tampoco existen: la cuota tiene `numeroCuota` (no
+          // `numero`) y el detalle no lleva el numero de cuota. Queda el que si existe.
+          const numeroCuota = cuota?.numeroCuota ?? null
           const montoCuota = montoCuotaFrom(cuota)
           const COP_TOLERANCE = 1
           const esAbono = montoCuota > 0 && monto > 0 && monto < montoCuota - COP_TOLERANCE

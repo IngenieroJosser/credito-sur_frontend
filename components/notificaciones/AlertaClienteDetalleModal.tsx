@@ -29,25 +29,40 @@ interface AlertaClienteDetalleModalProps {
   loading?: boolean
 }
 
-const text = (...values: any[]) => {
+const text = (...values: unknown[]) => {
   for (const value of values) {
     if (value === null || value === undefined) continue
 
-    let candidate = value
+    let candidate: unknown = value
     if (value instanceof Date) {
       candidate = value.toISOString()
     } else if (typeof value === 'object') {
+      // Los diez nombres que este helper prueba cuando le llega un objeto, en un tipo: es
+      // la lista de formas con las que el backend manda "lo mismo" segun el endpoint, y
+      // con `any[]` no habia donde verla.
+      const posible = value as {
+        label?: unknown
+        nombre?: unknown
+        valor?: unknown
+        value?: unknown
+        fechaPago?: unknown
+        fecha?: unknown
+        fechaVisita?: unknown
+        creadoEn?: unknown
+        date?: unknown
+        iso?: unknown
+      }
       candidate =
-        value.label ??
-        value.nombre ??
-        value.valor ??
-        value.value ??
-        value.fechaPago ??
-        value.fecha ??
-        value.fechaVisita ??
-        value.creadoEn ??
-        value.date ??
-        value.iso
+        posible.label ??
+        posible.nombre ??
+        posible.valor ??
+        posible.value ??
+        posible.fechaPago ??
+        posible.fecha ??
+        posible.fechaVisita ??
+        posible.creadoEn ??
+        posible.date ??
+        posible.iso
       if (candidate === null || candidate === undefined || candidate === value) {
         continue
       }
@@ -61,16 +76,11 @@ const text = (...values: any[]) => {
 
 const money = (value: unknown) => formatCurrency(Number(value || 0))
 
-const formatDate = (value: any) => {
-  const raw = text(
-    value?.fechaPago,
-    value?.fecha,
-    value?.fechaVisita,
-    value?.creadoEn,
-    value?.date,
-    value?.iso,
-    value,
-  )
+const formatDate = (value: unknown) => {
+  // La fecha llega con seis nombres distintos segun el endpoint, o suelta. `text` ya prueba
+  // esa misma lista cuando recibe un objeto, asi que aqui basta con pasarle el valor: se
+  // quitaron las seis lecturas repetidas, que con `any` compilaban sobre cualquier cosa.
+  const raw = text(value)
   if (!raw) return 'Sin fecha'
   const date = new Date(raw)
   if (Number.isNaN(date.getTime())) return raw
@@ -91,9 +101,10 @@ const estadoLabel: Record<string, string> = {
   PAGADO: 'Pagado',
 }
 
-const esCarteraActiva = (
-  credito: NonNullable<SnapshotClienteAlerta['creditos']>[number],
-) => {
+/** El credito del snapshot, derivado del propio tipo del snapshot. */
+type CreditoDelSnapshot = NonNullable<SnapshotClienteAlerta['creditos']>[number]
+
+const esCarteraActiva = (credito: CreditoDelSnapshot) => {
   if (credito?.esCarteraActiva === true) return true
   if (credito?.esCarteraActiva === false) return false
 
@@ -138,7 +149,9 @@ function Field({
 }: {
   icon: React.ReactNode
   label: string
-  value?: any
+  // Lo que se pinta en la fila: texto o numero ya formateado, o un nodo cuando la fila
+  // lleva una insignia. `any` aqui dejaba pasar un objeto, que sale como "[object Object]".
+  value?: React.ReactNode
 }) {
   return (
     <div className="flex gap-3 rounded-xl border border-slate-200 bg-white px-3 py-3">
@@ -206,13 +219,13 @@ export default function AlertaClienteDetalleModal({
   const rawMetricas = snapshot.metricas || metadata || {}
   const saldoCarteraActivaCalculado = creditos
     .filter(esCarteraActiva)
-    .reduce((sum: number, credito: any) => sum + Number(credito.saldoPendiente || 0), 0)
+    .reduce((sum: number, credito: CreditoDelSnapshot) => sum + Number(credito.saldoPendiente || 0), 0)
   const saldoPendienteRevisionCalculado = creditos
     .filter((credito) => !esCarteraActiva(credito))
-    .reduce((sum: number, credito: any) => sum + Number(credito.saldoPendiente || 0), 0)
+    .reduce((sum: number, credito: CreditoDelSnapshot) => sum + Number(credito.saldoPendiente || 0), 0)
   const cuotasVencidasCalculadas = creditos
     .filter(esCarteraActiva)
-    .reduce((sum: number, credito: any) => sum + Number(credito.cuotasVencidas || 0), 0)
+    .reduce((sum: number, credito: CreditoDelSnapshot) => sum + Number(credito.cuotasVencidas || 0), 0)
   const metricas = {
     ...rawMetricas,
     saldoPendienteTotal:

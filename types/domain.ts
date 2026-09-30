@@ -187,6 +187,15 @@ export interface Prestamo {
    * una mencion en el backend, ni formulario en el frontend donde escribirla. La fila
    * "Serie / IMEI" que la pintaba se quito.
    */
+  /**
+   * El id del articulo financiado, y los pagos del credito.
+   *
+   * Los dos EXISTEN y faltaban aqui: `productoId` es columna del esquema (schema:267) y
+   * el detalle incluye `pagos` en su consulta (loans.service.ts:2077). El estado de cuenta
+   * los leia a traves de un `any`, asi que nadie comprobaba nada.
+   */
+  productoId?: string | null;
+  pagos?: Pago[];
   producto?: {
     id?: string;
     nombre?: string;
