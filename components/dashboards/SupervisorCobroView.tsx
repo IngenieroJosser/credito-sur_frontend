@@ -1,4 +1,10 @@
 'use client'
+
+import type { PagoParcial } from '@/types/domain'
+
+import type { DailyVisitsResponse } from '@/services/rutas-service'
+
+import type { ObligacionDeJornada } from '@/types/obligacion-jornada'
 import { esApiError } from '@/lib/api/api'
 
 import { datosParaRegistro, estadoDeError, mensajeDeError } from '@/lib/mensaje-de-error'
@@ -232,7 +238,7 @@ const mapDailyVisitToVisitaRuta = (row: any, rutaCobradorId: string, idx: number
   }
 }
 
-const mapObligacionToVisitaRuta = (o: any, rutaCobradorId: string, idx: number, hoyKey: string): VisitaRuta => {
+const mapObligacionToVisitaRuta = (o: ObligacionDeJornada, rutaCobradorId: string, idx: number, hoyKey: string): VisitaRuta => {
   const clienteObj = typeof o.cliente === 'object' && o.cliente ? o.cliente : {}
   const prestamo = o.prestamo || {}
   const clienteNombre =
@@ -338,6 +344,19 @@ const mapObligacionToVisitaRuta = (o: any, rutaCobradorId: string, idx: number, 
       prestamo?.saldoPendiente ??
       0,
     ),
+    // Los cinco montos que siguen ya vienen en el `...o` de arriba, pero como montos del
+    // backend: pueden llegar como texto (Prisma serializa `Decimal` a string) o `null`, y
+    // `VisitaRuta` los declara `number`. Se normalizan aqui, igual que los de arriba. No
+    // cambia ninguna lectura: todos los consumidores ya los pasan por `Number(... || 0)`.
+    montoMetaOperativaPendiente: Number(o.montoMetaOperativaPendiente ?? 0),
+    saldoPendiente: Number(o.saldoPendiente ?? 0),
+    montoVencidoAcumulado: Number(o.montoVencidoAcumulado ?? 0),
+    saldoVencidoAcumulado: Number(o.saldoVencidoAcumulado ?? 0),
+    // El `...o` de arriba ya lo trae, pero como monto del backend: puede llegar como
+    // texto (Prisma serializa `Decimal` a string) o `null`, y `VisitaRuta` lo declara
+    // `number`. Se normaliza aqui, igual que los montos de arriba. No cambia ninguna
+    // lectura: los cuatro sitios que lo consumen ya lo pasan por `Number(... || 0)`.
+    recaudadoDelDia: Number(o.recaudadoDelDia ?? 0),
     estado: estadoVisual,
     estadoGestion,
     estadoVisita: o.estadoVisita || prestamo?.estadoVisita || undefined,
@@ -729,7 +748,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
       const recaudoBackend = Number(saldo?.cobranzaDelDia ?? saldo?.recaudoDelDia ?? 0)
 
-      setRutaStats((prev: any) => {
+      setRutaStats((prev) => {
         if (periodoCards === 'HOY') {
           const recaudo = Number(
             saldo?.cobranzaDelDia ??
@@ -761,7 +780,6 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
           meta: Number(statsHoy.meta || 0),
           recaudo: recaudoBackend > 0 ? recaudoBackend : Number(prev.recaudo ?? 0),
           eficiencia: Number(prev.eficiencia ?? 0),
-          pendiente: Number(prev.pendiente ?? 0),
         }
         const eficiencia = statsAutoritativas.meta > 0
           ? Number(((statsAutoritativas.recaudo / statsAutoritativas.meta) * 100).toFixed(1))
@@ -776,7 +794,6 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
           recaudo: shouldUpdateOperationalKpis ? statsAutoritativas.recaudo : prev.recaudo,
           meta: shouldUpdateOperationalKpis ? statsAutoritativas.meta : prev.meta,
           eficiencia: shouldUpdateOperationalKpis ? eficiencia : prev.eficiencia,
-          pendiente: shouldUpdateOperationalKpis ? statsAutoritativas.pendiente : prev.pendiente,
           gastos: Number(saldo?.gastosDelDia ?? prev.gastos ?? 0),
           gastosProvisionales: Number((saldo)?.egresosProvisionales ?? prev.gastosProvisionales ?? 0),
           base: Number(saldo?.saldoCaja ?? saldo?.baseEfectivo ?? prev.base ?? 0),
@@ -866,7 +883,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
   const setVisitasBaseAndRef = useCallback(
     (next: VisitaRuta[] | ((prev: VisitaRuta[]) => VisitaRuta[])) => {
     if (typeof next === 'function') {
-      setVisitasBase((prev: any) => {
+      setVisitasBase((prev) => {
         const result = next(prev)
         visitasBaseRef.current = Array.isArray(result) ? result : []
         return result
@@ -933,13 +950,13 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         const hoyKey = getBogotaDateKey(new Date())
 
         const getCuotasByPrestamoId = memoizePromiseByKey(
-          (prestamoId) => prestamosService.obtenerCuotas(prestamoId) as Promise<any[]>,
+          (prestamoId) => prestamosService.obtenerCuotas(prestamoId),
           () => [],
         )
 
         let visitasRaw: VisitaRuta[] = []
-        let dailyVisitsData: any = null
-        let pagosRecientes: any[] = []
+        let dailyVisitsData: DailyVisitsResponse | null = null
+        let pagosRecientes: PagoParcial[] = []
         let helperResult: RutaHoyOperativaResult | null = null
 
         try {
@@ -1062,7 +1079,7 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
           }
         })
 
-        setRutaStats((prev: any) => {
+        setRutaStats((prev) => {
           if (periodoCards === 'HOY') {
             const statsHoy = computeRutaHoyUiStatsFromVisitas(visitasBaseParaKpi, 0)
             const recaudo = Number(statsHoy.recaudo || prev.recaudo || 0)
@@ -1111,7 +1128,6 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
             meta: stats.meta,
             recaudo: stats.recaudo,
             eficiencia: stats.eficiencia,
-            pendiente: stats.pendiente,
           }
         });
 

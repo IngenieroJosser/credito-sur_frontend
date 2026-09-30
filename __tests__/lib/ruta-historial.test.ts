@@ -3,6 +3,7 @@ import {
   buildHistorialDiaFromBackend,
   isPagoForHistorialFecha,
 } from '@/lib/ruta-historial'
+import { FrecuenciaPago } from '@/types/enums'
 
 describe('isPagoForHistorialFecha', () => {
   it('asocia pagos normales por fecha de pago y pagos regularizados por fecha operativa', () => {
@@ -91,7 +92,7 @@ describe('buildHistorialDiaFromBackend', () => {
           prestamo: {
             id: 'prestamo-1',
             cantidadCuotas: 30,
-            frecuenciaPago: 'DIARIO',
+            frecuenciaPago: FrecuenciaPago.DIARIO,
             saldoPendiente: 900000,
           },
           detalles: [{ cuota: { numeroCuota: 2, monto: 30000 } }],
@@ -112,7 +113,7 @@ describe('buildHistorialDiaFromBackend', () => {
           prestamo: {
             id: 'prestamo-1',
             cantidadCuotas: 30,
-            frecuenciaPago: 'DIARIO',
+            frecuenciaPago: FrecuenciaPago.DIARIO,
             saldoPendiente: 900000,
           },
         },
@@ -159,7 +160,7 @@ describe('buildHistorialDiaFromBackend', () => {
                 id: 'prestamo-1',
                 saldoPendiente: 4583336,
                 proximaCuota: { monto: 916664, estado: 'PENDIENTE' },
-                frecuenciaPago: 'DIARIO',
+                frecuenciaPago: FrecuenciaPago.DIARIO,
               },
             ],
           },
@@ -224,7 +225,7 @@ describe('buildHistorialDiaFromBackend', () => {
                 id: 'prestamo-1',
                 saldoPendiente: 4583336,
                 proximaCuota: { monto: 916664, estado: 'PENDIENTE' },
-                frecuenciaPago: 'DIARIO',
+                frecuenciaPago: FrecuenciaPago.DIARIO,
               },
             ],
           },
@@ -279,7 +280,7 @@ describe('buildHistorialDiaFromBackend', () => {
                 id: 'prestamo-encarnacion',
                 saldoPendiente: 1773334,
                 proximaCuota: { monto: 126666, estado: 'PENDIENTE' },
-                frecuenciaPago: 'DIARIO',
+                frecuenciaPago: FrecuenciaPago.DIARIO,
               },
             ],
           },
@@ -357,7 +358,7 @@ describe('buildHistorialDiaFromBackend', () => {
                 id: 'prestamo-1',
                 saldoPendiente: 4583336,
                 proximaCuota: { monto: 916664, estado: 'PENDIENTE' },
-                frecuenciaPago: 'DIARIO',
+                frecuenciaPago: FrecuenciaPago.DIARIO,
               },
             ],
           },
@@ -449,7 +450,7 @@ describe('buildHistorialDiaFromBackend', () => {
                 id: 'prestamo-epifanio',
                 saldoPendiente: 2296669,
                 proximaCuota: { monto: 43333, estado: 'PRORROGADA' },
-                frecuenciaPago: 'DIARIO',
+                frecuenciaPago: FrecuenciaPago.DIARIO,
               },
             ],
           },
@@ -516,7 +517,7 @@ describe('buildHistorialDiaFromBackend', () => {
             prestamo: {
               id: 'prestamo-epifanio-1',
               saldoPendiente: 190000,
-              frecuenciaPago: 'DIARIO',
+              frecuenciaPago: FrecuenciaPago.DIARIO,
               cantidadCuotas: 12,
             },
           },
@@ -574,7 +575,7 @@ describe('buildHistorialDiaFromBackend', () => {
             prestamo: {
               id: 'prestamo-viejo',
               saldoPendiente: 2296669,
-              frecuenciaPago: 'DIARIO',
+              frecuenciaPago: FrecuenciaPago.DIARIO,
               cantidadCuotas: 24,
               cuotaObjetivo: {
                 numeroCuota: 8,
@@ -601,7 +602,7 @@ describe('buildHistorialDiaFromBackend', () => {
             prestamo: {
               id: 'prestamo-nuevo',
               saldoPendiente: 190000,
-              frecuenciaPago: 'DIARIO',
+              frecuenciaPago: FrecuenciaPago.DIARIO,
               cantidadCuotas: 12,
               cuotaObjetivo: {
                 numeroCuota: 1,
@@ -664,7 +665,7 @@ describe('buildHistorialDiaFromBackend', () => {
             prestamo: {
               id: 'prestamo-1',
               saldoPendiente: 190000,
-              frecuenciaPago: 'DIARIO',
+              frecuenciaPago: FrecuenciaPago.DIARIO,
             },
           },
           {
@@ -683,7 +684,7 @@ describe('buildHistorialDiaFromBackend', () => {
             prestamo: {
               id: 'prestamo-2',
               saldoPendiente: 240000,
-              frecuenciaPago: 'DIARIO',
+              frecuenciaPago: FrecuenciaPago.DIARIO,
               cuotaObjetivo: {
                 numeroCuota: 3,
                 montoCuota: 43333,

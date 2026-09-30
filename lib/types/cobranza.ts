@@ -1,4 +1,5 @@
 import type { PrestamoParcial } from '@/types/domain'
+import type { EstadoCuota } from '@/types/enums'
 export type EstadoVisita = 'pendiente' | 'pagado' | 'en_mora' | 'ausente' | 'reprogramado' | 'en_prorroga' | 'gestionado'
 export type PeriodoRuta = 'DIA' | 'SEMANA' | 'QUINCENA' | 'MES'
 
@@ -21,9 +22,13 @@ export type PeriodoRuta = 'DIA' | 'SEMANA' | 'QUINCENA' | 'MES'
  */
 export interface CuotaOperativa {
   /** Reparto de la cuota. Columnas del modelo Cuota en el backend. */
-  montoCapital?: number | null
-  montoInteres?: number | null
-  montoInteresMora?: number | null
+  // Los tres van sin `| null`, medido contra el esquema: `montoCapital Decimal`,
+  // `montoInteres Decimal` y `montoInteresMora Decimal @default(0)` son columnas NO
+  // nulables (schema.prisma:374-376). El `| null` de mas era lo unico que impedia usar
+  // una `CuotaOperativa` donde el dominio espera una `Cuota`.
+  montoCapital?: number
+  montoInteres?: number
+  montoInteresMora?: number
   id?: string
   numeroCuota?: number
 
@@ -40,7 +45,8 @@ export interface CuotaOperativa {
    */
   saldoExigibleEnFechaOperativa?: number
 
-  estado?: string
+  /** El enum del esquema: el backend manda `estadoActual ?? estado`, columna enum. */
+  estado?: EstadoCuota
   /** Estado recalculado por el servidor; manda sobre `estado` si viene. */
   estadoActual?: string
 

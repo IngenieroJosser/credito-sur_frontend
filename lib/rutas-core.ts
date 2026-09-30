@@ -17,10 +17,27 @@ import type { ContextoRegularizacion } from '@/types/rutas/cierre-pendiente'
  * Devuelve cadena vacia si no encuentra ninguno, nunca `undefined`, para que
  * quien llama pueda comparar sin normalizar antes.
  */
+/**
+ * Lo UNICO que esta funcion lee de sus dos primeros argumentos.
+ *
+ * Estaban declarados `VisitaParcial` y `PrestamoParcial`, que son la forma
+ * completa de una visita y de un prestamo, para leer cinco ids. Eso rechazaba una
+ * `ObligacionDeJornada` —cuyo `cliente` puede ser objeto o `null`, no solo texto—
+ * aunque ninguno de esos campos se toque aqui. Declarar lo que se lee y nada mas
+ * deja pasar a cualquiera que traiga los ids, que es el contrato de verdad.
+ */
+type FuenteDeCuotaId = {
+  cuotaId?: string | null
+  cuotaObjetivoId?: string | null
+  cuotaObjetivoPrestamoId?: string | null
+  cuotaObjetivo?: { id?: string | null } | null
+  proximaCuota?: { id?: string | null } | null
+}
+
 export const resolveCuotaIdFromVisitaLike = (
-  source: VisitaParcial | null | undefined,
-  prestamo?: PrestamoParcial | null,
-  cuota?: CuotaOperativa | null,
+  source: FuenteDeCuotaId | null | undefined,
+  prestamo?: FuenteDeCuotaId | null,
+  cuota?: { id?: string | null } | null,
 ) => {
   return String(
     source?.cuotaId ??
@@ -1073,7 +1090,13 @@ export const computeDiasMoraFromCuotaObjetivo = (
   return computeDiasMoraFromCuotas(
     [
       {
-        estado: estado || 'VENCIDA',
+        // 'VENCIDA' fijo, no `estado || 'VENCIDA'`, y no cambia el resultado: el filtro
+        // de arriba ya devolvio 0 para PAGADA/PAGADO/ANULADA/ANULADO, asi que aqui solo
+        // pueden quedar estados NO pagados, y lo unico que `computeDiasMoraFromCuotas`
+        // hace con este campo es pasarlo por `isCuotaNoPagada`, que devuelve true para
+        // todos ellos (PENDIENTE, PARCIAL, VENCIDA, PRORROGADA). Antes entraba un
+        // `string` suelto donde `CuotaOperativa.estado` ya declara el enum.
+        estado: 'VENCIDA',
         fechaVencimiento: fechaKey,
       },
     ],

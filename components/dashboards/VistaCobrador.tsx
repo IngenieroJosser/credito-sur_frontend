@@ -1962,7 +1962,14 @@ const VistaCobrador = () => {
               const hoyStr = hoyBogotaKey;
 
               const cuotasVencidasHoy = cuotas.filter((c: CuotaOperativa) => {
-                if (c.estado === 'ANULADA') return false;
+                // Aqui habia un `if (c.estado === 'ANULADA') return false;`. Misma
+                // historia que el 'ATRASADA' de arriba: `enum EstadoCuota` del esquema
+                // (schema.prisma:949-955) es PENDIENTE, PAGADA, PARCIAL, VENCIDA y
+                // PRORROGADA. Una CUOTA no puede quedar anulada, asi que la guarda
+                // nunca se cumplia y no filtraba nada. Lo destapo declarar
+                // `CuotaOperativa.estado` con el enum en vez de `string`.
+                // (El backend tiene las gemelas en routes.service.ts:2337 y
+                // dashboard.service.ts:258/339, igual de muertas, comparando texto.)
                 if (c.estado === 'PAGADA') {
                   const f = c.fechaPago || '';
                   return f.startsWith(hoyStr);

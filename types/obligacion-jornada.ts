@@ -26,6 +26,7 @@
  */
 
 import type { CuotaOperativa } from '@/lib/types/cobranza'
+import type { EstadoPrestamo, FrecuenciaPago } from '@/types/enums'
 
 /**
  * Un monto: puede llegar como texto.
@@ -69,19 +70,33 @@ export type ClienteDeObligacion = {
 export type PrestamoDeObligacion = {
   id?: string
   numeroPrestamo?: string
-  estado?: string
+  /** El enum del esquema, igual que `frecuenciaPago`: el backend manda `p.estado`. */
+  estado?: EstadoPrestamo
   estadoPrestamo?: string
   estadoGestion?: string
   estadoVisita?: string
   estadoAprobacion?: string
-  frecuenciaPago?: string
+  /**
+   * El enum, no texto suelto: el backend manda `p.frecuenciaPago`, que es la columna
+   * `frecuenciaPago FrecuenciaPago` del esquema (no nulable), y `Prestamo` del dominio
+   * tambien lo declara como enum. `string` a secas era lo que no dejaba pasar el
+   * `{...o}` de `mapObligacionToVisitaRuta`.
+   */
+  frecuenciaPago?: FrecuenciaPago
   tipoPrestamo?: string
   tipo?: string
 
-  saldoPendiente?: NumeroDeApi
-  saldoTotal?: NumeroDeApi
-  cantidadCuotas?: number | null
-  montoMetaOperativaPendiente?: NumeroDeApi
+  // Los montos del prestamo anidado son `number`, no `NumeroDeApi`, y tambien es una
+  // medida: este payload los pasa por `Number(...)` antes de mandarlos
+  // (`saldoPendiente: Number(p.saldoPendiente)` routes.service.ts:867,
+  // `montoNominal: Number(...)` :822 que es de donde sale `montoCuotaNormal` en :884,
+  // `montoCuota: Number(...)` :819). El `Decimal` como texto, que es lo que justifica
+  // `NumeroDeApi`, no llega hasta aqui: el backend ya lo convirtio.
+  saldoPendiente?: number
+  saldoTotal?: number | null
+  // `cantidadCuotas Int` en el esquema (:301), no nulable.
+  cantidadCuotas?: number
+  montoMetaOperativaPendiente?: number | null
 
   // Las tres conviven a propósito: el backend manda una u otra según el endpoint, y
   // el frontend las lee en cascada. Unificarlas es otro trabajo.
@@ -95,15 +110,23 @@ export type PrestamoDeObligacion = {
   // Estos siete los nombro el compilador cuando se declaro el tipo: el codigo los
   // leia del prestamo y el inventario inicial no los tenia. Es la unica forma de
   // completarlo sin adivinar.
-  montoCuota?: NumeroDeApi
-  montoCuotaNormal?: NumeroDeApi
+  montoCuota?: number
+  montoCuotaNormal?: number | null
+  // nombrados por el compilador al tipar SupervisorCobroView
+  valorCuota?: number
   notasVisita?: string
   descripcionArticulo?: string
   frecuencia?: string
   frecuenciaRuta?: string
   esProvisional?: boolean | null
 
-  cliente?: ClienteDeObligacion | string | null
+  // Aqui NO va `cliente`, y es una medida: el `prestamo` que anida una obligacion de la
+  // jornada no lo trae. El backend lo arma con id, tipo, numeroPrestamo, saldoPendiente,
+  // frecuenciaPago, cantidadCuotas, estado, articulo y proximaCuota, y nada mas
+  // (routes.service.ts:862-875); el cliente viaja como HERMANO, en la raiz de la
+  // obligacion. Declararlo obligaba a casar `ClienteDeObligacion` con el `Cliente` del
+  // dominio, que pide `estado`, `creadoEn` y `actualizadoEn` que este payload no manda:
+  // el unico motivo del cast en el `{...o}` de `mapObligacionToVisitaRuta`.
   cuotaObjetivo?: CuotaOperativa | null
   proximaCuota?: CuotaOperativa | null
   producto?: { nombre?: string } | null
@@ -160,15 +183,42 @@ export type ObligacionDeJornada = {
   estadoVisita?: string | null
   estadoCalculado?: string | null
   estadoCalculadoEnFecha?: string | null
-  estadoAprobacion?: string | null
+  // Los cuatro que siguen van SIN `| null`, y es una medida contra el esquema, no una
+  // suposicion: `estadoAprobacion EstadoAprobacion @default(PENDIENTE)` (schema:669),
+  // `esProvisional Boolean @default(false)` (schema:671) y
+  // `frecuenciaPago FrecuenciaPago` (schema:300) son columnas NO nulables, y
+  // `esRevertido` no es columna: lo calcula el backend con un `Boolean(...)`
+  // (ruta-operational-rules.ts:194). Ninguno puede llegar como `null`.
+  //
+  // Importa porque `mapObligacionToVisitaRuta` hace `{...o}` sobre una `VisitaRuta`, que
+  // los declara `string`/`boolean`: el `| null` de mas, puesto "por si acaso", era lo
+  // unico que obligaba a castear ahi.
+  estadoAprobacion?: string
   estadoEfectoProvisional?: string | null
   etiquetaRevision?: string | null
-  esProvisional?: boolean | null
-  esRevertido?: boolean | null
+  esProvisional?: boolean
+  esRevertido?: boolean
 
-  frecuenciaPago?: string | null
-  prioridad?: string | number | null
+  frecuenciaPago?: string
+  /**
+   * La union estrecha es la medida, no una precaucion.
+   *
+   * `prioridad` NO existe en `schema.prisma` y en todo el backend aparece una sola
+   * vez, en una alerta de cliente, sin relacion con visitas ni asignaciones (ver el
+   * comentario de `VisitaRuta.prioridad` en lib/types/cobranza.ts). O sea que aqui
+   * nunca llega y el `o.prioridad || 'media'` de los builders siempre resuelve por la
+   * derecha. Se declaro `string | number` por si acaso, y eso obligaba a castear al
+   * asignarla a `VisitaRuta.prioridad`, que si es una union cerrada.
+   */
+  prioridad?: 'alta' | 'media' | 'baja' | null
   ordenVisita?: number | null
+  /**
+   * La hora sugerida de la visita, como texto ya formateado ('08:00 AM').
+   *
+   * La nombro el compilador al tipar SupervisorCobroView, que la lee con un
+   * `|| '08:00 AM'` de respaldo.
+   */
+  horaSugerida?: string | null
   notasVisita?: string | null
   fechaVisita?: FechaDeApi
   proximaVisita?: FechaDeApi
@@ -199,11 +249,23 @@ export type ObligacionDeJornada = {
   saldoVencidoAcumulado?: NumeroDeApi
   enMoraEnFechaOperativa?: boolean | null
 
-  nivelRiesgo?: string | null
-  nivelRiesgoCredito?: string | null
-  nivelRiesgoObligacion?: string | null
-  nivelRiesgoBackend?: string | null
-  riesgoCredito?: string | null
-  riesgoOperativo?: string | null
-  riesgoOperativoEnFecha?: string | null
+  // Riesgo: siete nombres para un dato que llega con uno.
+  //
+  // Medido sobre el backend entero: de estos siete campos el UNICO que existe en el
+  // codigo del servidor es `nivelRiesgo`, y solo anidado en el cliente
+  // (`nivelRiesgo: cliente.nivelRiesgo`, routes.service.ts:860). `nivelRiesgoCredito`,
+  // `nivelRiesgoObligacion`, `nivelRiesgoBackend`, `riesgoCredito`, `riesgoOperativo` y
+  // `riesgoOperativoEnFecha` no aparecen NI UNA VEZ en `src/`. La cascada que los lee
+  // resuelve siempre por el ultimo eslabon.
+  //
+  // Se quedan declarados porque el codigo los lee, y borrar las cascadas es otro
+  // trabajo en varias pantallas. Pero van sin `| null`: lo medido es que no llegan, y
+  // el `| null` obligaba a castear al asignarlos a `VisitaRuta`.
+  nivelRiesgo?: string
+  nivelRiesgoCredito?: string
+  nivelRiesgoObligacion?: string
+  nivelRiesgoBackend?: string
+  riesgoCredito?: string
+  riesgoOperativo?: string
+  riesgoOperativoEnFecha?: string
 }

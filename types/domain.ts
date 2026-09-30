@@ -81,7 +81,16 @@ export interface Prestamo {
   descripcionArticulo?: string | null;
   cuotas?: Cuota[];
   extensiones?: Extension[];
-  proximaCuota?: Cuota | null;
+  /**
+   * La PROXIMA cuota, pero como proyeccion: no es una `Cuota` completa.
+   *
+   * Medido en el backend: la respuesta de la jornada la arma con siete campos
+   * —id, numeroCuota, monto, estado, fechaVencimiento, fechaVencimientoProrroga y
+   * enProrroga (routes.service.ts:872-879)— y no manda `prestamoId` ni `creadoEn`, que
+   * `Cuota` declara obligatorios. Declararla `Cuota` prometia dos campos que nunca
+   * llegan, y era lo que obligaba a castear la obligacion de la jornada al mapearla.
+   */
+  proximaCuota?: Partial<Cuota> | null;
   /**
    * Cuotas vencidas, calculadas por el servidor y adjuntadas al
    * prestamo (alertas-clientes.service). No es columna. `diasMora`, su
