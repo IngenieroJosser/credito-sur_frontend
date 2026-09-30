@@ -9,7 +9,8 @@ import { useRealtimeData } from '@/hooks/useRealtimeData';
 import { createPortal } from "react-dom";
 
 import { useNotification } from '@/components/providers/NotificationProvider'
-import { permisosPorRol } from '@/lib/permissions'
+import { permisosPorRol, type ModuloPermiso } from '@/lib/permissions'
+import type { RegistroAuditoria } from '@/services/auditoria-service'
 import { refreshSesion } from '@/services/autenticacion-service'
 import { useNotificaciones } from "@/components/providers/NotificacionesProvider";
 import { usuariosService } from "@/services/usuarios-service";
@@ -102,6 +103,15 @@ function FieldLabel({
   );
 }
 
+/** Una fila de la tabla de permisos: el modulo con su grupo y sus etiquetas. */
+type PermisoAplanado = {
+  id: string
+  label: string
+  description: string
+  category: string
+  roles: ModuloPermiso['roles']
+}
+
 const GLOBAL_MODULE_CATALOG = (() => {
   const EXCLUDED_ACTION_IDS = new Set([
     'prestamos-dinero',
@@ -128,7 +138,10 @@ const GLOBAL_MODULE_CATALOG = (() => {
     ...existingRoles.filter((r) => !preferredOrder.includes(r)),
   ]
 
-  const flattenedModules: any[] = []
+  // NO es `ModuloPermiso`: este aplanado agrega `label`, `description` y `category` que
+  // la tabla de permisos pinta. El tipo se declara por eso, y no se reutiliza el del
+  // catalogo, que no los tiene.
+  const flattenedModules: PermisoAplanado[] = []
   const seen = new Set<string>()
 
   roleOrder.forEach((rol) => {
@@ -310,7 +323,7 @@ const UserManagementPage = () => {
 
   const availableModules = GLOBAL_MODULE_CATALOG
 
-  const asNumber = (...values: any[]) => {
+  const asNumber = (...values: unknown[]) => {
     for (const value of values) {
       const parsed = Number(value)
       if (Number.isFinite(parsed)) return parsed
@@ -556,7 +569,8 @@ const UserManagementPage = () => {
           );
         }
       }
-      const audit = await apiRequest<any[]>(
+      // El historial de auditoria del usuario: `RegistroAuditoria` ya existe.
+      const audit = await apiRequest<RegistroAuditoria[]>(
         "GET",
         `/audit/user/${user.id}?${params.toString()}`,
       );
@@ -608,7 +622,10 @@ const UserManagementPage = () => {
         : audit || [];
       const timeline = filtrados.slice(0, timelineLimit).map((a) => ({
         time: formatShortDateTime(a.creadoEn),
-        action: a.action || a.accion,
+        // El `a.action ||` que abria esta cascada era una lectura MUERTA: el registro de
+        // auditoria tiene `accion` en espanol (auditoria-service.ts:20), no `action`.
+        // Valia `undefined` siempre y el respaldo era el valor real.
+        action: a.accion,
         detail: `${a.entidad} ${a.entidadId || ""}`.trim(),
         type: "neutral" as const,
       }));
@@ -687,11 +704,11 @@ const UserManagementPage = () => {
       return;
     }
 
-    const flattenPermissionIds = (modules: any[]): string[] => {
+    const flattenPermissionIds = (modules: ModuloPermiso[]): string[] => {
       const ids: string[] = [];
       modules.forEach((m) => {
         if (m?.submodulos?.length) {
-          m.submodulos.forEach((s: any) => {
+          m.submodulos.forEach((s: ModuloPermiso) => {
             if (s?.id) ids.push(s.id);
           });
         } else if (m?.id) {
@@ -1024,7 +1041,9 @@ const UserManagementPage = () => {
 
           if (refreshed?.usuario) {
             const existingRaw = localStorage.getItem('user');
-            let existing: any = null;
+            // Lo que se guarda en localStorage bajo 'user': se leen y reescriben sus
+            // campos, asi que se declara como un mapa, no `any`.
+            let existing: Record<string, unknown> | null = null;
             try {
               existing = existingRaw ? JSON.parse(existingRaw) : null;
             } catch {

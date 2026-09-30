@@ -54,6 +54,9 @@ import ReprogramarModal from '@/components/cobranza/ReprogramarModal'
 import AusenteModal from '@/components/cobranza/AusenteModal'
 
 import { VisitaRuta, VisitaParcial } from '@/lib/types/cobranza'
+import type { EventoDeJornada } from '@/types/obligacion-jornada'
+import type { CrearCreditoModalData } from '@/lib/creditos/crear-prestamo-payload'
+import type { AsignacionDelMapeo } from '@/lib/ruta-visitas-mapper'
 
 import {
   StaticVisitaItem,
@@ -83,7 +86,10 @@ import RutaHeader from '@/components/rutas/RutaHeader'
 import RutaKpiSection from '@/components/dashboards/shared/RutaKpiSection'
 
 import { CierrePendienteBanner } from '@/components/rutas/CierrePendienteBanner'
-import { CierrePendienteDetalleModal } from '@/components/rutas/CierrePendienteDetalleModal'
+import {
+  CierrePendienteDetalleModal,
+  type PermisosCierrePendiente,
+} from '@/components/rutas/CierrePendienteDetalleModal'
 import { useCierrePendienteDetalle } from '@/hooks/useCierrePendienteDetalle'
 
 import { ordenarVisitasRutaActual } from '@/lib/rutas/ordenar-visitas-ruta'
@@ -153,7 +159,10 @@ type RutaClientLoadedProps = {
   rutaId?: string
   rutaCompletada: boolean
   setRutaCompletada: React.Dispatch<React.SetStateAction<boolean>>
-  currentUser: any
+  // Se le leen dos campos, id y rol: es lo unico que este componente necesita del usuario.
+  // El rol va como texto porque el `Usuario` que se le pasa lo declara asi, y aqui solo se
+  // compara.
+  currentUser: { id?: string; rol?: string } | null
   onRutaRefresh?: (prestamoId?: string) => Promise<void> | void
 }
 
@@ -310,7 +319,12 @@ const RutaClientLoaded = ({
   // renuncia a optimizar TODO este componente ("Compilation Skipped").
   const cobradorIdRuta = initialRuta?.cobradorId
   const mapearAsignacionesAVisitas = useCallback(
-    (data: any) => {
+    // La ruta trae las asignaciones con dos nombres segun el endpoint: esa cascada es lo
+    // que el `any` escondia.
+    (data: {
+      asignaciones?: AsignacionDelMapeo[] | null
+      asignacionesRuta?: AsignacionDelMapeo[] | null
+    } | null) => {
       const asignaciones = data?.asignaciones || data?.asignacionesRuta
       if (!asignaciones || !Array.isArray(asignaciones)) return []
 
@@ -1271,7 +1285,7 @@ const RutaClientLoaded = ({
   // Tiempo real: actualización optimista para visitas registradas
   useRealtimeData(
     ['pagos_actualizados', 'rutas_actualizadas', 'prestamos_actualizados', 'jornadas_actualizadas'],
-    async (payload?: any) => {
+    async (payload?: EventoDeJornada) => {
       // Manejo focalizado de visitas registradas (ausente, etc.)
       const accionVisita = payload?.accion || payload?.metadata?.accion
       const clienteIdVisita = payload?.clienteId || payload?.metadata?.clienteId
@@ -2304,19 +2318,20 @@ const RutaClientLoaded = ({
             setDefaultClienteId(null)
           }}
 
-          onConfirm={async (data: any) => {
+          onConfirm={async (data: CrearCreditoModalData) => {
             try {
               const payload = buildCrearPrestamoPayload(data, currentUser?.id)
 
               const prestamo = await prestamosService.crearPrestamo(payload)
 
               // Asignar cliente a la ruta automáticamente si estamos en el detalle de una ruta
+              // `data?.clienteId` y `data?.cliente?.id` eran lecturas MUERTAS: el modal manda
+              // `clienteCreditoId` y `CrearCreditoModalData` no declara las otras dos. Mismo
+              // bloque duplicado que en SupervisorCobroView, corregido igual.
               const clienteIdFinal = String(
                 prestamo?.clienteId ||
                   prestamo?.cliente?.id ||
-                  data?.clienteId ||
                   data?.clienteCreditoId ||
-                  data?.cliente?.id ||
                   '',
               ).trim()
 
@@ -2331,7 +2346,6 @@ const RutaClientLoaded = ({
                   console.warn('[Crear crédito admin] clienteId inválido para asignación:', {
                     clienteIdFinal,
                     dataClienteCreditoId: data?.clienteCreditoId,
-                    dataClienteId: data?.clienteId,
                     prestamoClienteId: prestamo?.clienteId,
                     prestamo,
                   })
@@ -2527,7 +2541,7 @@ const RutaClientLoaded = ({
             toast.error(mensajeDeError(error, 'No se pudo cerrar la jornada regularizada.'))
           }
         }}
-        permissions={((): any => {
+        permissions={((): PermisosCierrePendiente => {
           const rolActual = String(currentUser?.rol || '').toUpperCase()
           const isSuperAdmin = rolActual === 'SUPER_ADMIN' || rolActual === 'SUPER_ADMINISTRADOR'
           const isAdmin = rolActual === 'ADMIN'
@@ -2604,7 +2618,7 @@ const RutaClient = ({ initialRuta: initialRutaProp, rutaId }: RutaClientProps) =
 
   useRealtimeData(
     ['pagos_actualizados', 'rutas_actualizadas', 'prestamos_actualizados', 'jornadas_actualizadas'],
-    async (payload?: any) => {
+    async (payload?: EventoDeJornada) => {
       const prestamoId = payload?.prestamoId || payload?.metadata?.prestamoId
       const inFlightTs = prestamoId ? pagosInFlightRef.current.get(String(prestamoId)) : undefined
       if (inFlightTs !== undefined && Date.now() - inFlightTs < 3000) {

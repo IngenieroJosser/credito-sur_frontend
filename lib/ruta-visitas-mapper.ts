@@ -107,7 +107,7 @@ type PrestamoDelMapeo = PrestamoParcial & {
   recaudadoHoy?: number | null
 }
 
-type AsignacionDelMapeo = {
+export type AsignacionDelMapeo = {
   id?: string
   recaudadoDelDia?: number | null
   clienteId?: string
