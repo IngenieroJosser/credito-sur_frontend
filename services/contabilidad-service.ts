@@ -688,7 +688,7 @@ export async function getHistorialCierresFiltrado(filtros?: {
   estado?: 'CUADRADA' | 'DESCUADRADA' | 'TODOS'
   fechaInicio?: string
   fechaFin?: string
-}): Promise<any[]> {
+}): Promise<CierreHistorialItem[]> {
   try {
     const params = new URLSearchParams()
     if (filtros?.tipo && filtros.tipo !== 'TODOS') params.append('tipo', filtros.tipo)

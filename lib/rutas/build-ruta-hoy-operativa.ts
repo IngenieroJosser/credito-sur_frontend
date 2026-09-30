@@ -263,7 +263,7 @@ export async function buildRutaHoyOperativa({
   })
 
   // 3. Enriquecer con cuotas vivas
-  // Sin el `as Promise<any[]>` que llevaba: `obtenerCuotas` ya declara
+  // Sin el `as Promise<unknown[]>` que llevaba: `obtenerCuotas` ya declara
   // `Promise<Cuota[]>`, asi que ese cast no agregaba informacion, la tiraba.
   const getCuotasFn =
     getCuotasByPrestamoId ||

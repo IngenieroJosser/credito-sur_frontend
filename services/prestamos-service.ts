@@ -504,7 +504,7 @@ export const prestamosService = {
   /**
    * Listar solicitudes de reprogramación (módulo de revisiones para admin/supervisor).
    */
-  async listarReprogramacionesPendientes(estado?: string): Promise<any[]> {
+  async listarReprogramacionesPendientes(estado?: string): Promise<unknown[]> {
     const endpoint = estado
       ? `/loans/reprogramaciones-pendientes?estado=${estado}`
       : '/loans/reprogramaciones-pendientes'
