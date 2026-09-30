@@ -31,12 +31,11 @@ export type OperationalMetaTimeFilter = 'today' | 'week' | 'month' | 'year'
  */
 const VIGENCIA_CACHE_MS = 60_000
 
-const metaByRouteCache = new Map<
-  string,
-  { calculadaEn: number; metas: Record<string, number> }
->()
+const metaByRouteCache = new Map<string, { calculadaEn: number; metas: Record<string, number> }>()
 
-const toBackendRangePeriod = (timeFilter: OperationalMetaTimeFilter): 'HOY' | 'SEM' | 'MES' | 'AÑO' => {
+const toBackendRangePeriod = (
+  timeFilter: OperationalMetaTimeFilter,
+): 'HOY' | 'SEM' | 'MES' | 'AÑO' => {
   if (timeFilter === 'week') return 'SEM'
   if (timeFilter === 'month') return 'MES'
   if (timeFilter === 'year') return 'AÑO'
@@ -80,7 +79,9 @@ export const computeOperationalMetaByRouteIdsForTimeFilter = async (
   timeFilter: OperationalMetaTimeFilter,
   routeIds: string[],
 ): Promise<Record<string, number>> => {
-  const ids = (Array.isArray(routeIds) ? routeIds : []).map((x) => String(x || '').trim()).filter(Boolean)
+  const ids = (Array.isArray(routeIds) ? routeIds : [])
+    .map((x) => String(x || '').trim())
+    .filter(Boolean)
   if (ids.length === 0) return {}
 
   const range = getBogotaRangeByPeriod(toBackendRangePeriod(timeFilter))
@@ -90,7 +91,7 @@ export const computeOperationalMetaByRouteIdsForTimeFilter = async (
 
   const idsSorted = [...ids].sort()
   const cacheKey = `${timeFilter}:${startKey}:${endKey}::${idsSorted.join(',')}`
-  
+
   // No cachear datos de hoy, ya que cambian constantemente
   if (timeFilter !== 'today') {
     const cached = metaByRouteCache.get(cacheKey)
@@ -105,10 +106,12 @@ export const computeOperationalMetaByRouteIdsForTimeFilter = async (
   let recaudosHoyMap: Record<string, number> = {}
   if (timeFilter === 'today') {
     try {
-      const pagosResp: any = await apiRequest<any>('GET', '/payments?limit=5000', undefined, { cacheTTL: 0 })
-      const pagosData = (pagosResp)?.pagos || (pagosResp)?.data?.pagos || pagosResp || []
+      const pagosResp: any = await apiRequest<unknown>('GET', '/payments?limit=5000', undefined, {
+        cacheTTL: 0,
+      })
+      const pagosData = pagosResp?.pagos || pagosResp?.data?.pagos || pagosResp || []
       recaudosHoyMap = buildRecaudosHoyMapByPrestamoId(
-        (Array.isArray(pagosData) ? pagosData : []),
+        Array.isArray(pagosData) ? pagosData : [],
         endKey,
         { includeCierrePendiente: false },
       )
@@ -130,28 +133,34 @@ export const computeOperationalMetaByRouteIdsForTimeFilter = async (
             dailyVisits = null
           }
         }
-        
+
         // Si hay dailyVisits, usar resolveRutaDailySummary
         if (timeFilter === 'today' && dailyVisits) {
           const summary = resolveRutaDailySummary(rutaCompleta, dailyVisits)
           out[routeId] = Number(summary.meta || 0)
           return
         }
-        
+
         // Si no, usar la logica original
-        const asignaciones = Array.isArray(rutaCompleta?.asignaciones) ? rutaCompleta.asignaciones : []
+        const asignaciones = Array.isArray(rutaCompleta?.asignaciones)
+          ? rutaCompleta.asignaciones
+          : []
 
         const asigsConCuotas = await Promise.all(
           asignaciones.map(async (asig: any) => {
             const cliente = asig?.cliente || null
             if (!cliente) return asig
             const prestamosRaw = Array.isArray(cliente?.prestamos) ? cliente.prestamos : []
-            const prestamosValidos = prestamosRaw.filter((p: any) => p && (p.estado === 'ACTIVO' || p.estado === 'EN_MORA'))
+            const prestamosValidos = prestamosRaw.filter(
+              (p: any) => p && (p.estado === 'ACTIVO' || p.estado === 'EN_MORA'),
+            )
             const prestamos = await Promise.all(
               prestamosValidos.map(async (p: any) => {
                 if (!p?.id) return p
                 const cuotasEmbebidas = Array.isArray(p?.cuotas) ? p.cuotas : []
-                const cuotas = await prestamosService.obtenerCuotas(p.id).catch(() => cuotasEmbebidas)
+                const cuotas = await prestamosService
+                  .obtenerCuotas(p.id)
+                  .catch(() => cuotasEmbebidas)
                 return { ...p, cuotas }
               }),
             )
@@ -172,7 +181,9 @@ export const computeOperationalMetaByRouteIdsForTimeFilter = async (
           idsProcesados.add(uniqueKey)
           return [v]
         })
-        const clientesConPrestamo = new Set(firstPass.filter((v) => v?.prestamoId).map((v) => v?.clienteId))
+        const clientesConPrestamo = new Set(
+          firstPass.filter((v) => v?.prestamoId).map((v) => v?.clienteId),
+        )
         const visitasDedupe = firstPass.filter((v) => {
           if (!v?.prestamoId && clientesConPrestamo.has(v?.clienteId)) return false
           return true
@@ -193,32 +204,36 @@ export const computeOperationalMetaByRouteIdsForTimeFilter = async (
 
           const tieneCuotaPendiente = cuotas.some((c) => c && isCuotaNoPagada(c))
           if (!tieneCuotaPendiente) return sum
-          const recHoy = timeFilter === 'today' ? Number((recaudosHoyMap)?.[pid] || 0) : 0
+          const recHoy = timeFilter === 'today' ? Number(recaudosHoyMap?.[pid] || 0) : 0
           if (shouldExcludeVisitaFromOperationalMeta(v, recHoy)) return sum
 
           if (timeFilter === 'today' && !isVisitaExigibleHoy(v, endKey)) return sum
 
-          const esArticulo = String((v)?.tipoPrestamo || '').toUpperCase() === 'ARTICULO'
+          const esArticulo = String(v?.tipoPrestamo || '').toUpperCase() === 'ARTICULO'
           const untilEnd = esArticulo
             ? computeMontoExigibleHastaHoyFromCuotas(cuotas, endKey)
             : computeMontoExigibleHastaHoyFromCuotas(cuotas, endKey)
-          const untilBeforeStart = timeFilter === 'today'
-            ? 0
-            : (esArticulo
-              ? computeMontoExigibleHastaHoyFromCuotas(cuotas, beforeStartKey)
-              : computeMontoExigibleHastaHoyFromCuotas(cuotas, beforeStartKey))
+          const untilBeforeStart =
+            timeFilter === 'today'
+              ? 0
+              : esArticulo
+                ? computeMontoExigibleHastaHoyFromCuotas(cuotas, beforeStartKey)
+                : computeMontoExigibleHastaHoyFromCuotas(cuotas, beforeStartKey)
 
           let dueInPeriod = Math.max(0, Number(untilEnd || 0) - Number(untilBeforeStart || 0))
 
           if (timeFilter === 'today') {
-            const saldoRealDesdeCuotas = (Array.isArray(cuotas) ? cuotas : []).reduce((s: number, c) => {
-              if (!c || !isCuotaNoPagada(c)) return s
-              const monto = Number((c)?.montoNominal ?? (c)?.monto ?? 0)
-              const pagado = Number((c)?.montoPagado ?? 0)
-              return s + Math.max(0, monto - pagado)
-            }, 0)
+            const saldoRealDesdeCuotas = (Array.isArray(cuotas) ? cuotas : []).reduce(
+              (s: number, c) => {
+                if (!c || !isCuotaNoPagada(c)) return s
+                const monto = Number(c?.montoNominal ?? c?.monto ?? 0)
+                const pagado = Number(c?.montoPagado ?? 0)
+                return s + Math.max(0, monto - pagado)
+              },
+              0,
+            )
 
-            const saldoTotal = Number((v)?.saldoTotal || 0)
+            const saldoTotal = Number(v?.saldoTotal || 0)
             const saldoParaTope = saldoRealDesdeCuotas > 0 ? saldoRealDesdeCuotas : saldoTotal
             if (Number.isFinite(saldoParaTope) && saldoParaTope > 0) {
               dueInPeriod = Math.min(dueInPeriod, saldoParaTope)

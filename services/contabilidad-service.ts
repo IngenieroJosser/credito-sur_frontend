@@ -818,7 +818,7 @@ export async function confirmarArqueo(
   },
 ): Promise<unknown> {
   try {
-    return await apiRequest<any>('POST', `/cajas/${cajaId}/arqueos`, data)
+    return await apiRequest<unknown>('POST', `/cajas/${cajaId}/arqueos`, data)
   } catch (error) {
     if (esErrorDeRed(error)) {
       logger.log('[Offline Mode] Guardando arqueo en cola...')
@@ -846,7 +846,7 @@ export async function registrarArqueo(
   },
 ): Promise<unknown> {
   try {
-    return await apiRequest<any>('POST', `/accounting/cajas/${cajaId}/arqueos`, data)
+    return await apiRequest<unknown>('POST', `/accounting/cajas/${cajaId}/arqueos`, data)
   } catch (error) {
     if (esErrorDeRed(error)) {
       logger.log('[Offline Mode] Guardando arqueo en cola...')

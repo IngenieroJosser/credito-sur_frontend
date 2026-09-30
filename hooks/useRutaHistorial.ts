@@ -180,7 +180,7 @@ export const useRutaHistorial = (params: UseRutaHistorialParams) => {
       if (!preferLoadDayForToday && fechaClave === hoyKey && typeof getVisitasHoy === 'function') {
         const visitasHoy = getVisitasHoy() || []
         if (Array.isArray(visitasHoy) && visitasHoy.length > 0) {
-          let pagosDelDia: any[] = []
+          let pagosDelDia: unknown[] = []
           try {
             const pagosResp = await fetchPagosRef.current()
             // La respuesta llega envuelta en `{ pagos }` o como el arreglo directo, y por eso
