@@ -3,22 +3,29 @@ import { estadoDeError } from '@/lib/mensaje-de-error'
 import type { TipoAprobacion } from '@/types/enums'
 
 import React, { useState, useRef } from 'react'
-import { 
-  X, 
-  CheckCircle2, 
-  Clock, 
-  Info, 
-  AlertTriangle, 
-  User, 
-  CreditCard, 
-  Receipt, 
+import {
+  X,
+  CheckCircle2,
+  Clock,
+  Info,
+  AlertTriangle,
+  User,
+  CreditCard,
+  Receipt,
   DollarSign,
   Calendar,
   Layers,
   FileText,
 } from 'lucide-react'
 import { Portal } from '@/components/dashboards/shared/CobradorElements'
-import { formatCOPInputValue, formatCurrency, formatLoanTerm, formatMilesCOP, parseCOPInputToNumber, resolveMediaUrl } from '@/lib/utils'
+import {
+  formatCOPInputValue,
+  formatCurrency,
+  formatLoanTerm,
+  formatMilesCOP,
+  parseCOPInputToNumber,
+  resolveMediaUrl,
+} from '@/lib/utils'
 import { normalizeDateKey } from '@/lib/rutas-core'
 import { aprobacionesService } from '@/services/aprobaciones-service'
 import { articulosService } from '@/services/articulos-service'
@@ -44,8 +51,20 @@ export interface NotificacionDetalleModalProps {
   isOpen: boolean
   onClose: () => void
   notificacion: NotificacionParaDetalle | null
-  onApprove: (id: string, type: TipoAprobacion, editedDetails: any) => Promise<void>
-  onReject: (id: string, type: TipoAprobacion, reason: string, resultadoRevision?: 'RECHAZADO_CON_DEUDA' | 'RECHAZADO_CON_REINTEGRO') => Promise<void>
+  // `| undefined` a proposito: si el revisor no edito nada se llama sin detalles, y esa
+  // es la diferencia entre aprobar tal cual y aprobar con cambios. Con `any` esa
+  // distincion no se leia en la firma.
+  onApprove: (
+    id: string,
+    type: TipoAprobacion,
+    editedDetails: DetallesEditados | undefined,
+  ) => Promise<void>
+  onReject: (
+    id: string,
+    type: TipoAprobacion,
+    reason: string,
+    resultadoRevision?: 'RECHAZADO_CON_DEUDA' | 'RECHAZADO_CON_REINTEGRO',
+  ) => Promise<void>
   canApprove?: boolean
   isLegacy?: boolean
   userRol?: string
@@ -63,14 +82,56 @@ const countValue = (value: unknown) => {
  * montar el subárbol, perdiendo foco y estado de lo que haya dentro. Como solo
  * dependen de sus props, viven aquí y el problema desaparece.
  */
-const Metric = ({ label, value }: { label: string; value: any }) => (
+/**
+ * Los campos que el revisor puede editar antes de aprobar.
+ *
+ * Es un saco de claves a proposito: el modal edita creditos de efectivo y de articulo,
+ * y cada tipo llena unas u otras. Lo que NO es a proposito es que fuera `any`: con eso
+ * un nombre mal escrito —`plajeMeses` en vez de `plazoMeses`, que ya existe en el
+ * backend— se guardaba sin que nadie protestara.
+ */
+/** El articulo con sus opciones de plazo, tal como lo devuelve el catalogo. */
+type ArticuloConPlazos = {
+  precioBase?: number | string
+  precioContado?: number | string
+  opcionesCuotas?: Array<{
+    numeroCuotas?: number
+    precioTotal?: number | string
+  }>
+}
+
+type DetallesEditados = {
+  monto?: number | string
+  valorArticulo?: number | string
+  cuotaInicial?: number | string
+  porcentaje?: number | string
+  cuotas?: number
+  numCuotas?: number
+  cantidadCuotas?: number
+  plazoMeses?: number
+  frecuenciaPago?: string
+  tipoAmortizacion?: string
+  interesTotal?: number
+  montoTotal?: number
+  ventaContado?: boolean
+  notas?: string
+  [clave: string]: unknown
+}
+
+const Metric = ({ label, value }: { label: string; value: unknown }) => (
   <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
     <p className="text-[10px] font-black uppercase text-slate-500">{label}</p>
     <p className="mt-1 text-lg font-black text-slate-900">{countValue(value)}</p>
   </div>
 )
 
-const MetricMoney = ({ label, value }: { label: string; value: any }) => (
+const MetricMoney = ({
+  label,
+  value,
+}: {
+  label: string
+  value: number | string | null | undefined
+}) => (
   <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
     <p className="text-[10px] font-black uppercase text-slate-500">{label}</p>
     <p className="mt-1 text-lg font-black text-slate-900">{formatCurrency(Number(value || 0))}</p>
@@ -102,20 +163,23 @@ export default function NotificacionDetalleModal({
   onReject,
   canApprove = true,
   isLegacy = false,
-  userRol = ''
+  userRol = '',
 }: NotificacionDetalleModalProps) {
   // Helpers para normalizar datos de la notificación
-  const safeJsonParse = (value: any) => {
+  const safeJsonParse = (value: unknown) => {
     if (!value) return {}
     if (typeof value === 'object') return value
     try {
-      return JSON.parse(value)
+      // `JSON.parse` pide texto, y eso es justo lo que `unknown` obliga a comprobar. Si
+      // llega un numero o un booleano no hay nada que parsear: se devuelve el objeto
+      // vacio, igual que hace el catch.
+      return typeof value === 'string' ? JSON.parse(value) : {}
     } catch {
       return {}
     }
   }
 
-  const pickNumber = (...values: any[]) => {
+  const pickNumber = (...values: unknown[]) => {
     for (const value of values) {
       const n = Number(value)
       if (Number.isFinite(n) && n > 0) return n
@@ -123,7 +187,7 @@ export default function NotificacionDetalleModal({
     return 0
   }
 
-  const pickString = (...values: any[]) => {
+  const pickString = (...values: unknown[]) => {
     for (const value of values) {
       const str = String(value ?? '').trim()
       if (str && str !== 'N/A' && str !== 'undefined' && str !== 'null') return str
@@ -138,7 +202,21 @@ export default function NotificacionDetalleModal({
     return str && str !== 'undefined' && str !== 'null' ? str : fallback
   }
 
-  const listItemText = (value: any) => {
+  // El objeto trae UNA de estas cuatro claves segun de donde venga el registro, asi que
+  // se declaran las cuatro opcionales. Con `unknown` a secas el compilador no dejaba
+  // leerlas, y con `any` nadie comprobaba que existieran.
+  const listItemText = (
+    value:
+      | string
+      | {
+          mensaje?: string
+          descripcion?: string
+          nombreCliente?: string
+          nombre?: string
+        }
+      | null
+      | undefined,
+  ) => {
     if (typeof value === 'string') return value
     if (!value || typeof value !== 'object') return String(value ?? '')
     return (
@@ -160,7 +238,7 @@ export default function NotificacionDetalleModal({
   }
 
   const [isEditingMode, setIsEditingMode] = useState(false)
-  const [editedDetails, setEditedDetails] = useState<any>(notificacion?.detalles || {})
+  const [editedDetails, setEditedDetails] = useState<DetallesEditados>(notificacion?.detalles || {})
   const [actionComment, setActionComment] = useState('')
   const [showApproveModal, setShowApproveModal] = useState(false)
   const [showRejectModal, setShowRejectModal] = useState(false)
@@ -169,7 +247,7 @@ export default function NotificacionDetalleModal({
   const [isProcessing, setIsProcessing] = useState(false)
   const [history, setHistory] = useState<any[]>([])
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
-  const [articuloData, setArticuloData] = React.useState<any>(null)
+  const [articuloData, setArticuloData] = React.useState<ArticuloConPlazos | null>(null)
   const [planIndex, setPlanIndex] = React.useState<number | null>(null)
   const [autoCuotas, setAutoCuotas] = useState(true)
   const [esContado, setEsContado] = useState(false)
@@ -185,7 +263,7 @@ export default function NotificacionDetalleModal({
     onClose: onClose,
   })
 
-  const formatFechaHora = (raw: any, fallback = '—') => {
+  const formatFechaHora = (raw: string | number | Date | null | undefined, fallback = '—') => {
     if (!raw || raw === 'N/A' || raw === '—') return fallback
     try {
       const d = new Date(raw)
@@ -203,7 +281,7 @@ export default function NotificacionDetalleModal({
     }
   }
 
-  const isAlertaClienteNoUbicado = (notif: any) => {
+  const isAlertaClienteNoUbicado = (notif: { tipo?: string; metadata?: unknown }) => {
     const meta = safeJsonParse(notif?.metadata)
     return (
       notif?.tipo === 'ALERTA_CLIENTE_NO_UBICADO' ||
@@ -290,9 +368,9 @@ export default function NotificacionDetalleModal({
 
       const datosSolicitud = safeJsonParse(
         notificacion.datosSolicitud ||
-        meta.datosSolicitud ||
-        dets.datosSolicitud ||
-        notificacion.aprobacion?.datosSolicitud
+          meta.datosSolicitud ||
+          dets.datosSolicitud ||
+          notificacion.aprobacion?.datosSolicitud,
       )
 
       const metaDetalles = safeJsonParse(meta.detalles)
@@ -306,11 +384,7 @@ export default function NotificacionDetalleModal({
         ...datosSolicitud,
       }
 
-      const tipoPrestamo = String(
-        combined.tipoPrestamo ||
-        combined.tipo ||
-        ''
-      ).toUpperCase()
+      const tipoPrestamo = String(combined.tipoPrestamo || combined.tipo || '').toUpperCase()
 
       const isArticuloSolicitud = tipoPrestamo === 'ARTICULO'
 
@@ -334,11 +408,7 @@ export default function NotificacionDetalleModal({
         ? Math.max(0, valorArticuloBase - cuotaInicialBase)
         : montoBase
 
-      const tasaBase = Number(
-        combined.tasaInteres ??
-        combined.porcentaje ??
-        0
-      )
+      const tasaBase = Number(combined.tasaInteres ?? combined.porcentaje ?? 0)
 
       const cuotasBase = pickNumber(
         combined.cantidadCuotas,
@@ -347,11 +417,7 @@ export default function NotificacionDetalleModal({
         combined.totalCuotas,
       )
 
-      const plazoBase = Number(
-        combined.plazoMeses ??
-        combined.plazo ??
-        1
-      )
+      const plazoBase = Number(combined.plazoMeses ?? combined.plazo ?? 1)
 
       const interesTotalBase = pickNumber(combined.interesTotal)
 
@@ -390,12 +456,7 @@ export default function NotificacionDetalleModal({
           combined.nombreCompleto,
         ),
 
-        cedula: pickString(
-          combined.cedula,
-          combined.dni,
-          combined.documento,
-          combined.clienteDni,
-        ),
+        cedula: pickString(combined.cedula, combined.dni, combined.documento, combined.clienteDni),
 
         telefono: pickString(
           combined.telefono,
@@ -423,34 +484,45 @@ export default function NotificacionDetalleModal({
         notas: combined.notas || combined.observaciones || combined.comentarios || '',
         garantia: String(combined.garantia ?? ''),
       }
-      
-      const isPrestamoEff = (notificacion?.tipo === 'PRESTAMO' || (notificacion)?.approvalType === 'NUEVO_PRESTAMO')
-      const isArticleEff = isPrestamoEff && (
-        combined.tipo === 'ARTICULO' ||
-        combined.tipoPrestamo === 'ARTICULO'
-      )
+
+      const isPrestamoEff =
+        notificacion?.tipo === 'PRESTAMO' || notificacion?.approvalType === 'NUEVO_PRESTAMO'
+      const isArticleEff =
+        isPrestamoEff && (combined.tipo === 'ARTICULO' || combined.tipoPrestamo === 'ARTICULO')
 
       let initialEsContado = false
       if (isArticleEff) {
         // PRIORIDAD 1: Flag explícito del backend (incluso false debe respetarse)
-        const ventaFlag = (combined).esContado ?? (combined).ventaContado
-        
+        const ventaFlag = combined.esContado ?? combined.ventaContado
+
         if (ventaFlag !== undefined && ventaFlag !== null) {
           initialEsContado = !!ventaFlag
         } else {
           // PRIORIDAD 2: Deducción por valores (solo si no hay flag explícito)
-          const cuotasRaw = Number(combined.cantidadCuotas || combined.cuotas || combined.numCuotas || 0)
+          const cuotasRaw = Number(
+            combined.cantidadCuotas || combined.cuotas || combined.numCuotas || 0,
+          )
           const mesesRaw = Number(combined.plazoMeses || combined.plajeMeses || 0)
           const porcentajeRaw = Number(combined.porcentaje ?? 0)
-          
+
           // Si hay más de 1 cuota, definitivamente NO es de contado
           if (cuotasRaw > 1) {
             initialEsContado = false
           } else {
             const notasRaw = String((combined.notas || combined.garantia || '') ?? '').toLowerCase()
-            if (notasRaw.includes('venta de contado') || notasRaw.includes('venta de artículo de contado') || notasRaw.includes('venta de articulo de contado')) {
+            if (
+              notasRaw.includes('venta de contado') ||
+              notasRaw.includes('venta de artículo de contado') ||
+              notasRaw.includes('venta de articulo de contado')
+            ) {
               initialEsContado = true
-            } else if (!isNaN(cuotasRaw) && !isNaN(mesesRaw) && cuotasRaw <= 1 && mesesRaw <= 1 && porcentajeRaw === 0) {
+            } else if (
+              !isNaN(cuotasRaw) &&
+              !isNaN(mesesRaw) &&
+              cuotasRaw <= 1 &&
+              mesesRaw <= 1 &&
+              porcentajeRaw === 0
+            ) {
               initialEsContado = true
             }
           }
@@ -465,11 +537,12 @@ export default function NotificacionDetalleModal({
     }
   }, [notificacion])
 
-
   React.useEffect(() => {
     if (!isOpen || !notificacion?.entidadId) return
 
-    const rolNormalizado = String(userRol || '').trim().toUpperCase()
+    const rolNormalizado = String(userRol || '')
+      .trim()
+      .toUpperCase()
 
     const puedeConsultarHistorial =
       rolNormalizado === 'ADMIN' ||
@@ -499,10 +572,7 @@ export default function NotificacionDetalleModal({
         else if (notificacion.tipo === 'GASTO') tabla = 'Gasto'
         else if (notificacion.tipo === 'SOLICITUD_DINERO') tabla = 'Caja'
 
-        const data = await aprobacionesService.getHistorial(
-          entidadId,
-          tabla,
-        )
+        const data = await aprobacionesService.getHistorial(entidadId, tabla)
 
         setHistory(Array.isArray(data) ? data : [])
       } catch (error) {
@@ -517,28 +587,23 @@ export default function NotificacionDetalleModal({
     }
 
     void fetchHistory()
-  }, [
-    isOpen,
-    notificacion?.entidadId,
-    notificacion?.tipo,
-    userRol,
-  ])
+  }, [isOpen, notificacion?.entidadId, notificacion?.tipo, userRol])
 
   React.useEffect(() => {
     if (!isOpen) return
-    const meta = typeof notificacion?.metadata === 'string'
-      ? JSON.parse(notificacion!.metadata)
-      : (notificacion?.metadata || {})
-    const dets = typeof notificacion?.detalles === 'string'
-      ? JSON.parse(notificacion!.detalles)
-      : (notificacion?.detalles || {})
-    const isPrestamoEff = (notificacion?.tipo === 'PRESTAMO' || (notificacion)?.approvalType === 'NUEVO_PRESTAMO')
+    const meta =
+      typeof notificacion?.metadata === 'string'
+        ? JSON.parse(notificacion!.metadata)
+        : notificacion?.metadata || {}
+    const dets =
+      typeof notificacion?.detalles === 'string'
+        ? JSON.parse(notificacion!.detalles)
+        : notificacion?.detalles || {}
+    const isPrestamoEff =
+      notificacion?.tipo === 'PRESTAMO' || notificacion?.approvalType === 'NUEVO_PRESTAMO'
     const tituloEff = (notificacion?.titulo || '').toLowerCase()
     const mensajeEff = (notificacion?.mensaje || '').toLowerCase()
-    const isArticleEff = isPrestamoEff && (
-      dets?.tipo === 'ARTICULO' ||
-      meta?.tipo === 'ARTICULO'
-    )
+    const isArticleEff = isPrestamoEff && (dets?.tipo === 'ARTICULO' || meta?.tipo === 'ARTICULO')
     if (!isArticleEff) return
     const nombre = dets?.articulo || meta?.articulo || ''
     if (!nombre) return
@@ -565,35 +630,38 @@ export default function NotificacionDetalleModal({
     // Solo recalcular valorArticulo/monto si el usuario está editando activamente.
     // Al abrir el modal, NO sobreescribir los valores que ya vienen del backend.
     if (!isEditingMode) return
-    const meta = typeof notificacion?.metadata === 'string'
-      ? JSON.parse(notificacion!.metadata)
-      : (notificacion?.metadata || {})
-    const dets = typeof notificacion?.detalles === 'string'
-      ? JSON.parse(notificacion!.detalles)
-      : (notificacion?.detalles || {})
-    const isPrestamoEff = (notificacion?.tipo === 'PRESTAMO' || (notificacion)?.approvalType === 'NUEVO_PRESTAMO')
+    const meta =
+      typeof notificacion?.metadata === 'string'
+        ? JSON.parse(notificacion!.metadata)
+        : notificacion?.metadata || {}
+    const dets =
+      typeof notificacion?.detalles === 'string'
+        ? JSON.parse(notificacion!.detalles)
+        : notificacion?.detalles || {}
+    const isPrestamoEff =
+      notificacion?.tipo === 'PRESTAMO' || notificacion?.approvalType === 'NUEVO_PRESTAMO'
     const tituloEff = (notificacion?.titulo || '').toLowerCase()
     const mensajeEff = (notificacion?.mensaje || '').toLowerCase()
-    const isArticleEff = isPrestamoEff && (
-      dets?.tipo === 'ARTICULO' ||
-      meta?.tipo === 'ARTICULO'
-    )
+    const isArticleEff = isPrestamoEff && (dets?.tipo === 'ARTICULO' || meta?.tipo === 'ARTICULO')
     if (!isArticleEff) return
     if (!articuloData) return
     if (esContado) return
     const meses = Number(editedDetails?.plazoMeses || dets?.plazoMeses || meta?.plazoMeses || 0)
-    const matchIdx = articuloData.opcionesCuotas?.findIndex((op: any) => Number(op.numeroCuotas) === meses) ?? -1
+    const matchIdx =
+      articuloData.opcionesCuotas?.findIndex((op) => Number(op.numeroCuotas) === meses) ?? -1
     const idx = planIndex ?? (matchIdx >= 0 ? matchIdx : null)
     if (idx === null || idx < 0) return
-    const op = articuloData.opcionesCuotas[idx]
+    const op = articuloData.opcionesCuotas?.[idx]
     const precioTotal = Number(op?.precioTotal || 0)
-    const inicial = Number(editedDetails?.cuotaInicial || dets?.cuotaInicial || meta?.cuotaInicial || 0)
+    const inicial = Number(
+      editedDetails?.cuotaInicial || dets?.cuotaInicial || meta?.cuotaInicial || 0,
+    )
     const aFinanciar = Math.max(0, precioTotal - inicial)
     if (precioTotal > 0) {
-      setEditedDetails((prev: any) => ({
+      setEditedDetails((prev) => ({
         ...prev,
         valorArticulo: precioTotal,
-        monto: aFinanciar
+        monto: aFinanciar,
       }))
     }
   }, [articuloData, planIndex, esContado, isEditingMode])
@@ -602,19 +670,19 @@ export default function NotificacionDetalleModal({
     // Este efecto solo recalcula cuotas cuando el usuario está editando activamente.
     // Si el modal acaba de abrirse y el usuario no ha editado nada, no sobreescribimos.
     if (!isEditingMode || !autoCuotas) return
-    const meta = typeof notificacion?.metadata === 'string'
-      ? JSON.parse(notificacion!.metadata)
-      : (notificacion?.metadata || {})
-    const dets = typeof notificacion?.detalles === 'string'
-      ? JSON.parse(notificacion!.detalles)
-      : (notificacion?.detalles || {})
-    const isPrestamoEff = (notificacion?.tipo === 'PRESTAMO' || (notificacion)?.approvalType === 'NUEVO_PRESTAMO')
+    const meta =
+      typeof notificacion?.metadata === 'string'
+        ? JSON.parse(notificacion!.metadata)
+        : notificacion?.metadata || {}
+    const dets =
+      typeof notificacion?.detalles === 'string'
+        ? JSON.parse(notificacion!.detalles)
+        : notificacion?.detalles || {}
+    const isPrestamoEff =
+      notificacion?.tipo === 'PRESTAMO' || notificacion?.approvalType === 'NUEVO_PRESTAMO'
     const tituloEff = (notificacion?.titulo || '').toLowerCase()
     const mensajeEff = (notificacion?.mensaje || '').toLowerCase()
-    const isArticleEff = isPrestamoEff && (
-      dets?.tipo === 'ARTICULO' ||
-      meta?.tipo === 'ARTICULO'
-    )
+    const isArticleEff = isPrestamoEff && (dets?.tipo === 'ARTICULO' || meta?.tipo === 'ARTICULO')
     if (isArticleEff) {
       const meses = Number(editedDetails?.plazoMeses || 0)
       const freq = editedDetails?.frecuenciaPago || 'DIARIO'
@@ -627,10 +695,12 @@ export default function NotificacionDetalleModal({
         else c = Math.ceil(meses * 4)
       }
       if (c > 0 && c !== editedDetails?.cuotas) {
-        setEditedDetails((prev: any) => ({ ...prev, cuotas: c, cantidadCuotas: c, numCuotas: c }))
+        setEditedDetails((prev) => ({ ...prev, cuotas: c, cantidadCuotas: c, numCuotas: c }))
       }
     } else if (isPrestamoEff) {
-      const c = Number(editedDetails?.cuotas || editedDetails?.cantidadCuotas || editedDetails?.numCuotas || 0)
+      const c = Number(
+        editedDetails?.cuotas || editedDetails?.cantidadCuotas || editedDetails?.numCuotas || 0,
+      )
       const freq = editedDetails?.frecuenciaPago || 'DIARIO'
       let meses = 0
       if (c > 0) {
@@ -642,10 +712,17 @@ export default function NotificacionDetalleModal({
       }
       const roundedMeses = Number(meses.toFixed(2))
       if (roundedMeses > 0 && roundedMeses !== editedDetails?.plazoMeses) {
-        setEditedDetails((prev: any) => ({ ...prev, plazoMeses: roundedMeses }))
+        setEditedDetails((prev) => ({ ...prev, plazoMeses: roundedMeses }))
       }
     }
-  }, [editedDetails?.plazoMeses, editedDetails?.cuotas, editedDetails?.cantidadCuotas, editedDetails?.numCuotas, editedDetails?.frecuenciaPago, isEditingMode])
+  }, [
+    editedDetails?.plazoMeses,
+    editedDetails?.cuotas,
+    editedDetails?.cantidadCuotas,
+    editedDetails?.numCuotas,
+    editedDetails?.frecuenciaPago,
+    isEditingMode,
+  ])
 
   if (!isOpen || !notificacion) return null
 
@@ -662,32 +739,23 @@ export default function NotificacionDetalleModal({
   }
 
   // ── Detección de notificaciones de Cierre de Ruta (modal especializado) ──
-  const esCierreRuta = (
+  const esCierreRuta =
     (notificacion.titulo || '').toLowerCase().includes('cierre de ruta') ||
     (notificacion.titulo || '').toLowerCase().includes('ruta completo') ||
     (notificacion.titulo || '').toLowerCase().includes('ruta completada')
-  )
   if (esCierreRuta) {
-    return (
-      <CierreRutaNotifModal
-        isOpen={isOpen}
-        onClose={onClose}
-        notificacion={notificacion}
-      />
-    )
+    return <CierreRutaNotifModal isOpen={isOpen} onClose={onClose} notificacion={notificacion} />
   }
 
   // ── Detección de Pago Regularizado (modal especializado) ──
   const esPagoRegularizado =
     meta.tipoEvento === 'PAGO_REGULARIZADO' ||
-    String(notificacion.titulo || '').toLowerCase().includes('pago regularizado')
+    String(notificacion.titulo || '')
+      .toLowerCase()
+      .includes('pago regularizado')
   if (esPagoRegularizado) {
     return (
-      <PagoRegularizadoNotifModal
-        isOpen={isOpen}
-        onClose={onClose}
-        notificacion={notificacion}
-      />
+      <PagoRegularizadoNotifModal isOpen={isOpen} onClose={onClose} notificacion={notificacion} />
     )
   }
 
@@ -703,7 +771,9 @@ export default function NotificacionDetalleModal({
         <div
           className="fixed inset-0 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none"
           style={{ zIndex: 9999 }}
-          onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) onClose()
+          }}
         >
           <div className="flex flex-col bg-white rounded-2xl max-h-[90vh] w-[95vw] max-w-3xl overflow-hidden">
             <div className="flex items-center justify-between p-4 border-b border-slate-100">
@@ -712,9 +782,7 @@ export default function NotificacionDetalleModal({
                   <Calendar className="h-5 w-5" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-black text-slate-900">
-                    {notificacion.titulo}
-                  </h2>
+                  <h2 className="text-lg font-black text-slate-900">{notificacion.titulo}</h2>
                   <p className="text-xs text-slate-500">
                     {formatFechaHora(notificacion.creadoEn, '')}
                   </p>
@@ -738,16 +806,12 @@ export default function NotificacionDetalleModal({
 
               <div className="space-y-4">
                 <section className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <h4 className="text-sm font-black text-slate-900">
-                    Detalle de la jornada
-                  </h4>
+                  <h4 className="text-sm font-black text-slate-900">Detalle de la jornada</h4>
 
                   <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                     <div>
                       <span className="text-slate-500">Ruta</span>
-                      <p className="font-semibold text-slate-900">
-                        {scalarText(meta.rutaNombre)}
-                      </p>
+                      <p className="font-semibold text-slate-900">{scalarText(meta.rutaNombre)}</p>
                     </div>
 
                     <div>
@@ -774,9 +838,7 @@ export default function NotificacionDetalleModal({
                 </section>
 
                 <section className="rounded-xl border border-slate-200 bg-white p-4">
-                  <h4 className="text-sm font-black text-slate-900">
-                    Resumen operativo
-                  </h4>
+                  <h4 className="text-sm font-black text-slate-900">Resumen operativo</h4>
 
                   <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-3">
                     <Metric label="Clientes" value={meta.totalClientes} />
@@ -787,9 +849,7 @@ export default function NotificacionDetalleModal({
                 </section>
 
                 <section className="rounded-xl border border-slate-200 bg-white p-4">
-                  <h4 className="text-sm font-black text-slate-900">
-                    Resumen financiero
-                  </h4>
+                  <h4 className="text-sm font-black text-slate-900">Resumen financiero</h4>
 
                   <div className="mt-3 grid grid-cols-1 md:grid-cols-4 gap-3">
                     <MetricMoney label="Meta" value={meta.meta} />
@@ -800,9 +860,7 @@ export default function NotificacionDetalleModal({
                 </section>
 
                 <section className="rounded-xl border border-slate-200 bg-white p-4">
-                  <h4 className="text-sm font-black text-slate-900">
-                    Caja y conciliación
-                  </h4>
+                  <h4 className="text-sm font-black text-slate-900">Caja y conciliación</h4>
 
                   <div className="mt-3 grid grid-cols-1 md:grid-cols-4 gap-3">
                     <MetricMoney label="Efectivo ruta" value={meta.recaudoEfectivo} />
@@ -825,13 +883,13 @@ export default function NotificacionDetalleModal({
 
                 {Array.isArray(meta.advertencias) && meta.advertencias.length > 0 && (
                   <section className="rounded-xl border border-rose-200 bg-rose-50 p-4">
-                    <h4 className="text-sm font-black text-rose-900">
-                      Advertencias
-                    </h4>
+                    <h4 className="text-sm font-black text-rose-900">Advertencias</h4>
                     <ul className="mt-2 list-disc pl-5 text-sm text-rose-900">
-                      {meta.advertencias.map((item: any, idx: number) => (
-                        <li key={idx}>{listItemText(item)}</li>
-                      ))}
+                      {meta.advertencias.map(
+                        (item: Parameters<typeof listItemText>[0], idx: number) => (
+                          <li key={idx}>{listItemText(item)}</li>
+                        ),
+                      )}
                     </ul>
                   </section>
                 )}
@@ -844,11 +902,12 @@ export default function NotificacionDetalleModal({
   }
 
   const { tipo, titulo, mensaje, fecha, solicitante, estado, approvalType } = notificacion
-  
+
   // Versión segura de metadata para el renderizado
-  const safeMeta = typeof notificacion.metadata === 'string'
-    ? JSON.parse(notificacion.metadata)
-    : (notificacion.metadata || {})
+  const safeMeta =
+    typeof notificacion.metadata === 'string'
+      ? JSON.parse(notificacion.metadata)
+      : notificacion.metadata || {}
   const safeMetaDetalles = safeJsonParse(
     safeMeta && typeof safeMeta === 'object' ? safeMeta.detalles : {},
   )
@@ -856,45 +915,54 @@ export default function NotificacionDetalleModal({
   const isPrestamo = tipo === 'PRESTAMO' || approvalType === 'NUEVO_PRESTAMO'
   const isGasto = tipo === 'GASTO' || approvalType === 'GASTO'
   const isSolicitudBase = tipo === 'SOLICITUD_DINERO' || approvalType === 'SOLICITUD_BASE_EFECTIVO'
-  const isArticle = isPrestamo && (editedDetails?.tipo === 'ARTICULO' || editedDetails?.tipoPrestamo === 'ARTICULO' || safeMeta?.tipo === 'ARTICULO' || safeMeta?.tipoPrestamo === 'ARTICULO')
+  const isArticle =
+    isPrestamo &&
+    (editedDetails?.tipo === 'ARTICULO' ||
+      editedDetails?.tipoPrestamo === 'ARTICULO' ||
+      safeMeta?.tipo === 'ARTICULO' ||
+      safeMeta?.tipoPrestamo === 'ARTICULO')
   const isApprovalNotification = Boolean(approvalType)
   const isNuevoCliente = approvalType === 'NUEVO_CLIENTE'
-  
+
   // Detectar gastos provisionales
   const datosSolicitud = safeJsonParse(
     notificacion.datosSolicitud ||
-    safeMeta.datosSolicitud ||
-    safeMeta.detalles?.datosSolicitud ||
-    notificacion.aprobacion?.datosSolicitud
+      safeMeta.datosSolicitud ||
+      safeMeta.detalles?.datosSolicitud ||
+      notificacion.aprobacion?.datosSolicitud,
   )
   const esGastoProvisional =
     isGasto &&
-    (
-      datosSolicitud.esProvisional === true ||
+    (datosSolicitud.esProvisional === true ||
       safeMeta.esProvisional === true ||
       safeMetaDetalles.esProvisional === true ||
-      editedDetails?.esProvisional === true
-    )
+      editedDetails?.esProvisional === true)
 
   // Variable interna robusta para detectar gastos legacy
   const tituloNotif = notificacion.titulo || notificacion.mensaje || ''
   const mensajeNotif = notificacion.mensaje || ''
   const isLegacyEff =
     isLegacy ||
-    (
-      isGasto &&
+    (isGasto &&
       !esGastoProvisional &&
-      (
-        String(tituloNotif || '').toLowerCase().includes('legacy') ||
-        String(mensajeNotif || '').toLowerCase().includes('sin impacto de caja') ||
+      (String(tituloNotif || '')
+        .toLowerCase()
+        .includes('legacy') ||
+        String(mensajeNotif || '')
+          .toLowerCase()
+          .includes('sin impacto de caja') ||
         safeMeta?.legacy === true ||
-        safeMeta?.sinImpactoCaja === true
-      )
-    )
+        safeMeta?.sinImpactoCaja === true))
   const mediaArchivos = (() => {
-    const meta = typeof notificacion.metadata === 'string' ? JSON.parse(notificacion.metadata) : (notificacion.metadata || {})
-    const dets = typeof notificacion.detalles === 'string' ? JSON.parse(notificacion.detalles) : (notificacion.detalles || {})
-    const arr = (dets.archivos || meta.archivos || [])
+    const meta =
+      typeof notificacion.metadata === 'string'
+        ? JSON.parse(notificacion.metadata)
+        : notificacion.metadata || {}
+    const dets =
+      typeof notificacion.detalles === 'string'
+        ? JSON.parse(notificacion.detalles)
+        : notificacion.detalles || {}
+    const arr = dets.archivos || meta.archivos || []
     return Array.isArray(arr) ? arr : []
   })()
   const tipoLabels: Record<string, string> = {
@@ -918,9 +986,15 @@ export default function NotificacionDetalleModal({
     correo: pickString(editedDetails?.correo, safeMeta?.correo) || 'No registrado',
     referencia: pickString(editedDetails?.referencia, safeMeta?.referencia),
     referencia1Nombre: pickString(editedDetails?.referencia1Nombre, safeMeta?.referencia1Nombre),
-    referencia1Telefono: pickString(editedDetails?.referencia1Telefono, safeMeta?.referencia1Telefono),
+    referencia1Telefono: pickString(
+      editedDetails?.referencia1Telefono,
+      safeMeta?.referencia1Telefono,
+    ),
     referencia2Nombre: pickString(editedDetails?.referencia2Nombre, safeMeta?.referencia2Nombre),
-    referencia2Telefono: pickString(editedDetails?.referencia2Telefono, safeMeta?.referencia2Telefono),
+    referencia2Telefono: pickString(
+      editedDetails?.referencia2Telefono,
+      safeMeta?.referencia2Telefono,
+    ),
   }
 
   const handleClose = () => {
@@ -937,7 +1011,13 @@ export default function NotificacionDetalleModal({
       if (finalDetails && isPrestamo && isArticle && esContado) {
         const precioContado = (() => {
           if (articuloData) {
-            return Number(articuloData.precioContado || articuloData.precioBase || editedDetails?.valorArticulo || editedDetails?.monto || 0)
+            return Number(
+              articuloData.precioContado ||
+                articuloData.precioBase ||
+                editedDetails?.valorArticulo ||
+                editedDetails?.monto ||
+                0,
+            )
           }
           return Number(editedDetails?.valorArticulo || editedDetails?.monto || 0)
         })()
@@ -966,7 +1046,10 @@ export default function NotificacionDetalleModal({
     }
   }
 
-  const rejectNow = async (motivo: string, resultadoRevision?: 'RECHAZADO_CON_DEUDA' | 'RECHAZADO_CON_REINTEGRO') => {
+  const rejectNow = async (
+    motivo: string,
+    resultadoRevision?: 'RECHAZADO_CON_DEUDA' | 'RECHAZADO_CON_REINTEGRO',
+  ) => {
     if (!notificacion.entidadId || !approvalType) return
     setIsProcessing(true)
     try {
@@ -990,40 +1073,56 @@ export default function NotificacionDetalleModal({
 
   const getIcon = (tipo: string) => {
     switch (tipo) {
-      case 'PAGO': return <DollarSign className="h-5 w-5" />
-      case 'CLIENTE': return <User className="h-5 w-5" />
-      case 'PRESTAMO': return <CreditCard className="h-5 w-5" />
-      case 'GASTO': return <Receipt className="h-5 w-5" />
-      case 'SOLICITUD_DINERO': return <Layers className="h-5 w-5" />
-      default: return <Info className="h-5 w-5" />
+      case 'PAGO':
+        return <DollarSign className="h-5 w-5" />
+      case 'CLIENTE':
+        return <User className="h-5 w-5" />
+      case 'PRESTAMO':
+        return <CreditCard className="h-5 w-5" />
+      case 'GASTO':
+        return <Receipt className="h-5 w-5" />
+      case 'SOLICITUD_DINERO':
+        return <Layers className="h-5 w-5" />
+      default:
+        return <Info className="h-5 w-5" />
     }
   }
 
   const getColorClass = (tipo: string) => {
     switch (tipo) {
-      case 'PAGO': return 'bg-blue-50 text-blue-600 border-blue-100'
-      case 'CLIENTE': return 'bg-purple-50 text-purple-600 border-purple-100'
-      case 'PRESTAMO': return 'bg-indigo-50 text-indigo-600 border-indigo-100'
-      case 'GASTO': return 'bg-orange-50 text-orange-600 border-orange-100'
-      case 'SOLICITUD_DINERO': return 'bg-emerald-50 text-emerald-600 border-emerald-100'
-      default: return 'bg-slate-50 text-slate-600 border-slate-100'
+      case 'PAGO':
+        return 'bg-blue-50 text-blue-600 border-blue-100'
+      case 'CLIENTE':
+        return 'bg-purple-50 text-purple-600 border-purple-100'
+      case 'PRESTAMO':
+        return 'bg-indigo-50 text-indigo-600 border-indigo-100'
+      case 'GASTO':
+        return 'bg-orange-50 text-orange-600 border-orange-100'
+      case 'SOLICITUD_DINERO':
+        return 'bg-emerald-50 text-emerald-600 border-emerald-100'
+      default:
+        return 'bg-slate-50 text-slate-600 border-slate-100'
     }
   }
-
 
   const renderMedia = () => {
     if (!isNuevoCliente) return null
     return (
       <div className="mt-6">
         <div className="flex items-center justify-between mb-2">
-          <div className="text-xs font-black text-slate-500 uppercase tracking-widest">Archivos</div>
+          <div className="text-xs font-black text-slate-500 uppercase tracking-widest">
+            Archivos
+          </div>
           <div className="text-[10px] font-bold text-slate-400">
-            {mediaArchivos.length > 0 ? `${mediaArchivos.length} adjunto(s)` : 'Sin archivos adjuntos'}
+            {mediaArchivos.length > 0
+              ? `${mediaArchivos.length} adjunto(s)`
+              : 'Sin archivos adjuntos'}
           </div>
         </div>
         {mediaArchivos.length === 0 ? (
           <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-600">
-            Esta solicitud no incluye fotos ni videos. Puedes aprobar o rechazar con base en los datos capturados.
+            Esta solicitud no incluye fotos ni videos. Puedes aprobar o rechazar con base en los
+            datos capturados.
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -1035,18 +1134,25 @@ export default function NotificacionDetalleModal({
               const isImage = tipo.startsWith('image/') || /(jpg|jpeg|png|gif|webp)$/i.test(ext)
               const isVideo = tipo.startsWith('video/') || /(mp4|webm)$/i.test(ext)
               return (
-                <div key={`${idx}-${file.nombreAlmacenamiento || file.nombreOriginal || 'media'}`} className="border border-slate-200 rounded-xl overflow-hidden bg-slate-50">
+                <div
+                  key={`${idx}-${file.nombreAlmacenamiento || file.nombreOriginal || 'media'}`}
+                  className="border border-slate-200 rounded-xl overflow-hidden bg-slate-50"
+                >
                   <div className="px-2 py-1 text-[10px] font-bold text-slate-600 border-b border-slate-200">
-                    {tipoLabels[file.tipoContenido] || (file.tipoContenido || 'Archivo')}
+                    {tipoLabels[file.tipoContenido] || file.tipoContenido || 'Archivo'}
                   </div>
                   {isImage && (
-                    <img src={fullUrl} alt={file.nombreOriginal || 'archivo'} className="w-full h-32 object-cover" />
+                    <img
+                      src={fullUrl}
+                      alt={file.nombreOriginal || 'archivo'}
+                      className="w-full h-32 object-cover"
+                    />
                   )}
-                  {isVideo && (
-                    <video src={fullUrl} controls className="w-full h-32 object-cover" />
-                  )}
+                  {isVideo && <video src={fullUrl} controls className="w-full h-32 object-cover" />}
                   {!isImage && !isVideo && (
-                    <div className="p-3 text-xs text-slate-600 break-all">{file.nombreOriginal || file.nombreAlmacenamiento || 'archivo'}</div>
+                    <div className="p-3 text-xs text-slate-600 break-all">
+                      {file.nombreOriginal || file.nombreAlmacenamiento || 'archivo'}
+                    </div>
                   )}
                 </div>
               )
@@ -1060,13 +1166,15 @@ export default function NotificacionDetalleModal({
   const renderPrestamo = () => (
     <div className="space-y-4">
       <div className="flex items-center justify-between px-1">
-        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Análisis de Cartera</p>
+        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+          Análisis de Cartera
+        </p>
         {canApprove && estado === 'PENDIENTE' && (
-          <button 
+          <button
             onClick={() => setIsEditingMode(!isEditingMode)}
             className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-              isEditingMode 
-                ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30' 
+              isEditingMode
+                ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30'
                 : 'bg-blue-600 text-white shadow-lg shadow-blue-500/30 hover:bg-blue-700'
             }`}
           >
@@ -1077,37 +1185,62 @@ export default function NotificacionDetalleModal({
 
       {isEditingMode && (
         <div className="rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-xs font-bold text-orange-800">
-          Los cambios se aplicarán al aprobar la solicitud. Si cierras o bloqueas cambios, no se guardan todavía.
+          Los cambios se aplicarán al aprobar la solicitud. Si cierras o bloqueas cambios, no se
+          guardan todavía.
         </div>
       )}
 
       <div className="space-y-4">
-        <div className={`p-5 rounded-2xl border transition-all duration-300 ${isEditingMode ? 'bg-white border-orange-200 shadow-xl' : 'bg-slate-50 border-slate-100'}`}>
+        <div
+          className={`p-5 rounded-2xl border transition-all duration-300 ${isEditingMode ? 'bg-white border-orange-200 shadow-xl' : 'bg-slate-50 border-slate-100'}`}
+        >
           <div className="flex items-center gap-2 mb-4 border-b border-slate-200/50 pb-2">
             <User className="h-4 w-4 text-slate-400" />
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Información del Cliente</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+              Información del Cliente
+            </p>
           </div>
           <div className="grid grid-cols-2 gap-x-4 gap-y-4">
             <div className="col-span-2">
-              <label className="text-[10px] text-slate-400 uppercase font-black block mb-1">Nombre Completo</label>
+              <label className="text-[10px] text-slate-400 uppercase font-black block mb-1">
+                Nombre Completo
+              </label>
               <p className="text-base font-black text-slate-900">
-                {editedDetails?.cliente || 
-                 safeMeta?.cliente || 
-                 (mensaje?.includes('para ') ? mensaje.split('para ')[1].split(' por')[0] : 'N/A')}
+                {editedDetails?.cliente ||
+                  safeMeta?.cliente ||
+                  (mensaje?.includes('para ') ? mensaje.split('para ')[1].split(' por')[0] : 'N/A')}
               </p>
             </div>
             <div>
-              <label className="text-[10px] text-slate-400 uppercase font-black block mb-1">Cédula</label>
-              <p className="text-sm font-black text-slate-800">{editedDetails?.cedula || safeMeta?.cedula || editedDetails?.dni || safeMeta?.dni || 'N/A'}</p>
+              <label className="text-[10px] text-slate-400 uppercase font-black block mb-1">
+                Cédula
+              </label>
+              <p className="text-sm font-black text-slate-800">
+                {editedDetails?.cedula ||
+                  safeMeta?.cedula ||
+                  editedDetails?.dni ||
+                  safeMeta?.dni ||
+                  'N/A'}
+              </p>
             </div>
             <div>
-              <label className="text-[10px] text-slate-400 uppercase font-black block mb-1">Teléfono</label>
-              <p className="text-sm font-black text-slate-800">{editedDetails?.telefono || safeMeta?.telefono || editedDetails?.phone || safeMeta?.phone || 'N/A'}</p>
+              <label className="text-[10px] text-slate-400 uppercase font-black block mb-1">
+                Teléfono
+              </label>
+              <p className="text-sm font-black text-slate-800">
+                {editedDetails?.telefono ||
+                  safeMeta?.telefono ||
+                  editedDetails?.phone ||
+                  safeMeta?.phone ||
+                  'N/A'}
+              </p>
             </div>
           </div>
         </div>
 
-        <div className={`p-5 rounded-2xl border transition-all duration-300 ${isEditingMode ? 'bg-white border-blue-200 shadow-xl' : 'bg-blue-50/50 border-blue-100'}`}>
+        <div
+          className={`p-5 rounded-2xl border transition-all duration-300 ${isEditingMode ? 'bg-white border-blue-200 shadow-xl' : 'bg-blue-50/50 border-blue-100'}`}
+        >
           <div className="flex items-center gap-2 mb-4 border-b border-blue-200/50 pb-2">
             <CreditCard className="h-4 w-4 text-blue-400" />
             <p className="text-[10px] font-black uppercase tracking-widest text-blue-600">
@@ -1115,17 +1248,25 @@ export default function NotificacionDetalleModal({
             </p>
           </div>
           <div className="space-y-4">
-            {isArticle && (editedDetails?.articulo || safeMeta?.articulo) && editedDetails?.articulo !== 'N/A' && (
-              <div className="bg-white/50 p-3 rounded-xl border border-blue-100">
-                <label className="text-[9px] text-blue-600 uppercase font-black block mb-1">Artículo a Financiar</label>
-                <p className="text-sm font-black text-blue-900 italic">{editedDetails?.articulo || safeMeta?.articulo}</p>
-              </div>
-            )}
-            
+            {isArticle &&
+              (editedDetails?.articulo || safeMeta?.articulo) &&
+              editedDetails?.articulo !== 'N/A' && (
+                <div className="bg-white/50 p-3 rounded-xl border border-blue-100">
+                  <label className="text-[9px] text-blue-600 uppercase font-black block mb-1">
+                    Artículo a Financiar
+                  </label>
+                  <p className="text-sm font-black text-blue-900 italic">
+                    {editedDetails?.articulo || safeMeta?.articulo}
+                  </p>
+                </div>
+              )}
+
             <div className="space-y-4">
               {isArticle && isEditingMode && (
                 <div className="flex items-center justify-between">
-                  <span className="text-[9px] text-blue-500 font-black uppercase tracking-widest">Modo de Venta</span>
+                  <span className="text-[9px] text-blue-500 font-black uppercase tracking-widest">
+                    Modo de Venta
+                  </span>
                   <div className="inline-flex items-center gap-2">
                     <button
                       type="button"
@@ -1143,7 +1284,13 @@ export default function NotificacionDetalleModal({
                       onClick={() => {
                         setEsContado(true)
                         if (articuloData) {
-                          const precioContado = Number(articuloData.precioContado || articuloData.precioBase || editedDetails?.valorArticulo || editedDetails?.monto || 0)
+                          const precioContado = Number(
+                            articuloData.precioContado ||
+                              articuloData.precioBase ||
+                              editedDetails?.valorArticulo ||
+                              editedDetails?.monto ||
+                              0,
+                          )
                           const inicial = Number(editedDetails?.cuotaInicial || 0)
                           const montoFinanciar = Math.max(0, precioContado - inicial)
                           setEditedDetails({
@@ -1173,21 +1320,35 @@ export default function NotificacionDetalleModal({
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
-                  <label className="text-[10px] text-blue-600 uppercase font-black block mb-1">{isArticle ? 'Capital' : 'Capital Solicitado'}</label>
+                  <label className="text-[10px] text-blue-600 uppercase font-black block mb-1">
+                    {isArticle ? 'Capital' : 'Capital Solicitado'}
+                  </label>
                   {isEditingMode ? (
-                    <input 
+                    <input
                       type="text"
-                      value={formatCOPInputValue(String(editedDetails?.valorArticulo || safeMeta?.valorArticulo || editedDetails?.monto || safeMeta?.monto || ''))}
+                      value={formatCOPInputValue(
+                        String(
+                          editedDetails?.valorArticulo ||
+                            safeMeta?.valorArticulo ||
+                            editedDetails?.monto ||
+                            safeMeta?.monto ||
+                            '',
+                        ),
+                      )}
                       onChange={(e) => {
                         const val = parseCOPInputToNumber(e.target.value)
-                        const cuotaInicial = Number(editedDetails?.cuotaInicial || safeMeta?.cuotaInicial || 0)
-                        const isArticuloInput = Boolean(editedDetails?.articulo || safeMeta?.articulo)
+                        const cuotaInicial = Number(
+                          editedDetails?.cuotaInicial || safeMeta?.cuotaInicial || 0,
+                        )
+                        const isArticuloInput = Boolean(
+                          editedDetails?.articulo || safeMeta?.articulo,
+                        )
                         setEditedDetails({
-                          ...editedDetails, 
+                          ...editedDetails,
                           [isArticuloInput ? 'valorArticulo' : 'monto']: val,
                           monto: isArticuloInput ? Math.max(0, val - cuotaInicial) : val,
                           montoTotal: 0,
-                          interesTotal: 0
+                          interesTotal: 0,
                         })
                       }}
                       className="w-full bg-white border border-blue-200 text-slate-900 rounded-xl px-4 py-2 text-base font-black outline-none focus:ring-2 focus:ring-blue-500/20"
@@ -1195,8 +1356,14 @@ export default function NotificacionDetalleModal({
                   ) : (
                     <p className="text-3xl font-black text-slate-900 tabular-nums tracking-tight">
                       {(() => {
-                        const val = Number(editedDetails?.valorArticulo || safeMeta?.valorArticulo || editedDetails?.monto || safeMeta?.monto || 0);
-                        return formatCurrency(isNaN(val) ? 0 : val);
+                        const val = Number(
+                          editedDetails?.valorArticulo ||
+                            safeMeta?.valorArticulo ||
+                            editedDetails?.monto ||
+                            safeMeta?.monto ||
+                            0,
+                        )
+                        return formatCurrency(isNaN(val) ? 0 : val)
                       })()}
                     </p>
                   )}
@@ -1204,23 +1371,41 @@ export default function NotificacionDetalleModal({
 
                 {!isArticle || !esContado ? (
                   <div>
-                    <label className="text-[10px] text-blue-600 uppercase font-black block mb-1">N° de Cuotas</label>
+                    <label className="text-[10px] text-blue-600 uppercase font-black block mb-1">
+                      N° de Cuotas
+                    </label>
                     {isEditingMode ? (
                       <input
                         type="text"
                         inputMode="numeric"
-                        value={editedDetails?.cuotas === undefined || editedDetails?.cuotas === null ? '' : String(editedDetails?.cuotas)}
+                        value={
+                          editedDetails?.cuotas === undefined || editedDetails?.cuotas === null
+                            ? ''
+                            : String(editedDetails?.cuotas)
+                        }
                         onChange={(e) => {
                           const v = e.target.value.replace(/[^0-9]/g, '')
                           setAutoCuotas(false)
                           const numVal = v === '' ? undefined : Number(v)
-                          setEditedDetails({ ...editedDetails, cuotas: numVal, cantidadCuotas: numVal, numCuotas: numVal, montoTotal: 0, interesTotal: 0 })
+                          setEditedDetails({
+                            ...editedDetails,
+                            cuotas: numVal,
+                            cantidadCuotas: numVal,
+                            numCuotas: numVal,
+                            montoTotal: 0,
+                            interesTotal: 0,
+                          })
                         }}
                         className="w-full bg-white border border-blue-200 text-slate-900 rounded-xl px-4 py-2 text-sm font-black outline-none focus:ring-2 focus:ring-blue-500/20"
                       />
                     ) : (
                       <p className="text-base font-black text-slate-900">
-                        {editedDetails?.cuotas ?? safeMeta?.cuotas ?? editedDetails?.numCuotas ?? safeMeta?.numCuotas ?? 0} <span className="text-[10px] text-slate-400">CUOTAS</span>
+                        {editedDetails?.cuotas ??
+                          safeMeta?.cuotas ??
+                          editedDetails?.numCuotas ??
+                          safeMeta?.numCuotas ??
+                          0}{' '}
+                        <span className="text-[10px] text-slate-400">CUOTAS</span>
                       </p>
                     )}
                   </div>
@@ -1228,7 +1413,9 @@ export default function NotificacionDetalleModal({
 
                 {!isArticle || !esContado ? (
                   <div>
-                    <label className="text-[10px] text-blue-600 uppercase font-black block mb-1">Plazo Total</label>
+                    <label className="text-[10px] text-blue-600 uppercase font-black block mb-1">
+                      Plazo Total
+                    </label>
                     {isEditingMode ? (
                       isArticle && articuloData?.opcionesCuotas?.length ? (
                         <select
@@ -1237,9 +1424,9 @@ export default function NotificacionDetalleModal({
                             const idx = e.target.value ? parseInt(e.target.value) : null
                             setPlanIndex(idx)
                             if (idx !== null && articuloData) {
-                              const op = articuloData.opcionesCuotas[idx]
-                              const meses = Number(op.numeroCuotas)
-                              const precioTotal = Number(op.precioTotal)
+                              const op = articuloData.opcionesCuotas?.[idx]
+                              const meses = Number(op?.numeroCuotas)
+                              const precioTotal = Number(op?.precioTotal)
                               const inicial = Number(editedDetails?.cuotaInicial || 0)
                               const aFinanciar = Math.max(0, precioTotal - inicial)
                               setEditedDetails({
@@ -1254,12 +1441,13 @@ export default function NotificacionDetalleModal({
                           className="w-full bg-white border border-blue-200 text-slate-900 rounded-xl px-4 py-2 text-sm font-black outline-none focus:ring-2 focus:ring-blue-500/20"
                         >
                           <option value="">Seleccionar plazo...</option>
-                          {articuloData.opcionesCuotas.map((op: any, i: number) => {
+                          {articuloData.opcionesCuotas.map((op, i: number) => {
                             const meses = Number(op.numeroCuotas)
                             if (isNaN(meses)) return null
                             return (
                               <option key={i} value={i}>
-                                {meses} {meses === 1 ? 'Mes' : 'Meses'} - Total: {formatCurrency(op.precioTotal)}
+                                {meses} {meses === 1 ? 'Mes' : 'Meses'} - Total:{' '}
+                                {formatCurrency(op.precioTotal)}
                               </option>
                             )
                           })}
@@ -1268,8 +1456,19 @@ export default function NotificacionDetalleModal({
                         <p className="text-base font-black text-slate-900">
                           {formatLoanTerm({
                             plazoMeses: editedDetails?.plazoMeses || safeMeta?.plazoMeses || 1,
-                            cantidadCuotas: editedDetails?.cantidadCuotas || editedDetails?.cuotas || editedDetails?.numCuotas || safeMeta?.cantidadCuotas || safeMeta?.cuotas || safeMeta?.numCuotas,
-                            frecuenciaPago: editedDetails?.frecuenciaPago || safeMeta?.frecuenciaPago || editedDetails?.frecuencia || safeMeta?.frecuencia || 'DIARIO',
+                            cantidadCuotas:
+                              editedDetails?.cantidadCuotas ||
+                              editedDetails?.cuotas ||
+                              editedDetails?.numCuotas ||
+                              safeMeta?.cantidadCuotas ||
+                              safeMeta?.cuotas ||
+                              safeMeta?.numCuotas,
+                            frecuenciaPago:
+                              editedDetails?.frecuenciaPago ||
+                              safeMeta?.frecuenciaPago ||
+                              editedDetails?.frecuencia ||
+                              safeMeta?.frecuencia ||
+                              'DIARIO',
                           })}
                         </p>
                       )
@@ -1277,8 +1476,19 @@ export default function NotificacionDetalleModal({
                       <p className="text-base font-black text-slate-900">
                         {formatLoanTerm({
                           plazoMeses: editedDetails?.plazoMeses || safeMeta?.plazoMeses || 1,
-                          cantidadCuotas: editedDetails?.cantidadCuotas || editedDetails?.cuotas || editedDetails?.numCuotas || safeMeta?.cantidadCuotas || safeMeta?.cuotas || safeMeta?.numCuotas,
-                          frecuenciaPago: editedDetails?.frecuenciaPago || safeMeta?.frecuenciaPago || editedDetails?.frecuencia || safeMeta?.frecuencia || 'DIARIO',
+                          cantidadCuotas:
+                            editedDetails?.cantidadCuotas ||
+                            editedDetails?.cuotas ||
+                            editedDetails?.numCuotas ||
+                            safeMeta?.cantidadCuotas ||
+                            safeMeta?.cuotas ||
+                            safeMeta?.numCuotas,
+                          frecuenciaPago:
+                            editedDetails?.frecuenciaPago ||
+                            safeMeta?.frecuenciaPago ||
+                            editedDetails?.frecuencia ||
+                            safeMeta?.frecuencia ||
+                            'DIARIO',
                         })}
                       </p>
                     )}
@@ -1287,12 +1497,20 @@ export default function NotificacionDetalleModal({
 
                 {!isArticle || !esContado ? (
                   <div>
-                    <label className="text-[10px] text-blue-600 uppercase font-black block mb-1">Frecuencia de Pago</label>
+                    <label className="text-[10px] text-blue-600 uppercase font-black block mb-1">
+                      Frecuencia de Pago
+                    </label>
                     {isEditingMode ? (
-                      <select 
-                        value={editedDetails?.frecuenciaPago || safeMeta?.frecuenciaPago || editedDetails?.frecuencia || safeMeta?.frecuencia || 'DIARIO'}
-                        onChange={(e) => { 
-                          setEditedDetails({...editedDetails, frecuenciaPago: e.target.value})
+                      <select
+                        value={
+                          editedDetails?.frecuenciaPago ||
+                          safeMeta?.frecuenciaPago ||
+                          editedDetails?.frecuencia ||
+                          safeMeta?.frecuencia ||
+                          'DIARIO'
+                        }
+                        onChange={(e) => {
+                          setEditedDetails({ ...editedDetails, frecuenciaPago: e.target.value })
                           setAutoCuotas(true)
                         }}
                         className="w-full bg-white border border-blue-200 text-slate-900 rounded-xl px-4 py-2 text-sm font-black outline-none focus:ring-2 focus:ring-blue-500/20"
@@ -1304,7 +1522,11 @@ export default function NotificacionDetalleModal({
                       </select>
                     ) : (
                       <div className="inline-flex items-center gap-2 bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">
-                        {editedDetails?.frecuenciaPago || safeMeta?.frecuenciaPago || editedDetails?.frecuencia || safeMeta?.frecuencia || 'DIARIO'}
+                        {editedDetails?.frecuenciaPago ||
+                          safeMeta?.frecuenciaPago ||
+                          editedDetails?.frecuencia ||
+                          safeMeta?.frecuencia ||
+                          'DIARIO'}
                       </div>
                     )}
                   </div>
@@ -1312,10 +1534,16 @@ export default function NotificacionDetalleModal({
 
                 {!isArticle && (
                   <div>
-                    <label className="text-[10px] text-blue-600 uppercase font-black block mb-1">Tipo de Amortización</label>
+                    <label className="text-[10px] text-blue-600 uppercase font-black block mb-1">
+                      Tipo de Amortización
+                    </label>
                     {isEditingMode ? (
                       <select
-                        value={editedDetails?.tipoAmortizacion || safeMeta?.tipoAmortizacion || 'INTERES_SIMPLE'}
+                        value={
+                          editedDetails?.tipoAmortizacion ||
+                          safeMeta?.tipoAmortizacion ||
+                          'INTERES_SIMPLE'
+                        }
                         onChange={(e) =>
                           setEditedDetails({
                             ...editedDetails,
@@ -1331,17 +1559,25 @@ export default function NotificacionDetalleModal({
                       </select>
                     ) : (
                       <p className="text-sm font-black text-slate-900">
-                        {String(editedDetails?.tipoAmortizacion || safeMeta?.tipoAmortizacion || 'INTERES_SIMPLE').replace(/_/g, ' ')}
+                        {String(
+                          editedDetails?.tipoAmortizacion ||
+                            safeMeta?.tipoAmortizacion ||
+                            'INTERES_SIMPLE',
+                        ).replace(/_/g, ' ')}
                       </p>
                     )}
                   </div>
                 )}
 
                 <div className="col-span-2 p-4 bg-white/50 rounded-2xl border border-blue-100 space-y-4">
-                  <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest mb-1">Detalles de Venta</p>
+                  <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest mb-1">
+                    Detalles de Venta
+                  </p>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="text-[9px] text-blue-500 uppercase font-black block mb-0.5">Total a Pagar</label>
+                      <label className="text-[9px] text-blue-500 uppercase font-black block mb-0.5">
+                        Total a Pagar
+                      </label>
                       <p className="text-lg font-black text-blue-900">
                         {(() => {
                           const total = (() => {
@@ -1350,10 +1586,17 @@ export default function NotificacionDetalleModal({
                             const cuotaInicial = Number(editedDetails?.cuotaInicial || 0)
                             const montoTotal = Number(editedDetails?.montoTotal || 0)
                             const interesTotal = Number(editedDetails?.interesTotal || 0)
-                            const tasa = Number(editedDetails?.tasaInteres ?? editedDetails?.porcentaje ?? 0)
+                            const tasa = Number(
+                              editedDetails?.tasaInteres ?? editedDetails?.porcentaje ?? 0,
+                            )
                             const meses = Math.max(1, Number(editedDetails?.plazoMeses || 1))
-                            const cuotas = Math.max(1, Number(editedDetails?.cuotas || editedDetails?.cantidadCuotas || 1))
-                            const tipoAmort = String(editedDetails?.tipoAmortizacion || '').toUpperCase()
+                            const cuotas = Math.max(
+                              1,
+                              Number(editedDetails?.cuotas || editedDetails?.cantidadCuotas || 1),
+                            )
+                            const tipoAmort = String(
+                              editedDetails?.tipoAmortizacion || '',
+                            ).toUpperCase()
 
                             if (montoTotal > 0) return montoTotal
 
@@ -1370,7 +1613,11 @@ export default function NotificacionDetalleModal({
                               monto,
                               cuotas,
                               tasa,
-                              meses: derivarPlazoMeses(cuotas, String(editedDetails?.frecuenciaPago || 'DIARIO')) || meses,
+                              meses:
+                                derivarPlazoMeses(
+                                  cuotas,
+                                  String(editedDetails?.frecuenciaPago || 'DIARIO'),
+                                ) || meses,
                               tipoInteres:
                                 tipoAmort === 'FRANCESA'
                                   ? TipoAmortizacion.FRANCESA
@@ -1387,10 +1634,18 @@ export default function NotificacionDetalleModal({
                     </div>
                     {isArticle && esContado ? (
                       <div className="col-span-2">
-                        <label className="text-[9px] text-blue-500 uppercase font-black block mb-0.5">Total de Contado</label>
+                        <label className="text-[9px] text-blue-500 uppercase font-black block mb-0.5">
+                          Total de Contado
+                        </label>
                         <p className="text-lg font-black text-blue-900">
                           {(() => {
-                            const val = Number(editedDetails?.valorArticulo || safeMeta?.valorArticulo || editedDetails?.monto || safeMeta?.monto || 0)
+                            const val = Number(
+                              editedDetails?.valorArticulo ||
+                                safeMeta?.valorArticulo ||
+                                editedDetails?.monto ||
+                                safeMeta?.monto ||
+                                0,
+                            )
                             return formatCurrency(isNaN(val) ? 0 : val)
                           })()}
                         </p>
@@ -1398,32 +1653,56 @@ export default function NotificacionDetalleModal({
                     ) : isArticle ? (
                       <>
                         <div>
-                          <label className="text-[9px] text-blue-500 uppercase font-black block mb-0.5">Cuota Inicial</label>
+                          <label className="text-[9px] text-blue-500 uppercase font-black block mb-0.5">
+                            Cuota Inicial
+                          </label>
                           {isEditingMode ? (
-                            <input 
+                            <input
                               type="text"
-                            value={formatCOPInput(Number(editedDetails?.cuotaInicial ?? safeMeta?.cuotaInicial ?? 0))}
-                            onChange={(e) => {
-                              const val = parseCOPInput(e.target.value)
-                              const valorArticulo = Number(editedDetails?.valorArticulo || safeMeta?.valorArticulo || editedDetails?.monto || safeMeta?.monto || 0)
-                              setEditedDetails({
-                                ...editedDetails, 
-                                cuotaInicial: val,
-                                monto: Math.max(0, valorArticulo - val),
-                              })
-                            }}
+                              value={formatCOPInput(
+                                Number(editedDetails?.cuotaInicial ?? safeMeta?.cuotaInicial ?? 0),
+                              )}
+                              onChange={(e) => {
+                                const val = parseCOPInput(e.target.value)
+                                const valorArticulo = Number(
+                                  editedDetails?.valorArticulo ||
+                                    safeMeta?.valorArticulo ||
+                                    editedDetails?.monto ||
+                                    safeMeta?.monto ||
+                                    0,
+                                )
+                                setEditedDetails({
+                                  ...editedDetails,
+                                  cuotaInicial: val,
+                                  monto: Math.max(0, valorArticulo - val),
+                                })
+                              }}
                               className="w-full bg-white border border-blue-200 text-slate-900 rounded-xl px-4 py-2 text-sm font-black outline-none focus:ring-2 focus:ring-blue-500/20"
                             />
                           ) : (
-                            <p className="text-lg font-black text-blue-900">{formatCurrency(Number(editedDetails?.cuotaInicial ?? safeMeta?.cuotaInicial ?? 0))}</p>
+                            <p className="text-lg font-black text-blue-900">
+                              {formatCurrency(
+                                Number(editedDetails?.cuotaInicial ?? safeMeta?.cuotaInicial ?? 0),
+                              )}
+                            </p>
                           )}
                         </div>
                         <div>
-                          <label className="text-[9px] text-blue-500 uppercase font-black block mb-0.5">Capital a Financiar</label>
+                          <label className="text-[9px] text-blue-500 uppercase font-black block mb-0.5">
+                            Capital a Financiar
+                          </label>
                           <p className="text-lg font-black text-blue-900">
                             {(() => {
-                              const val = Number(editedDetails?.valorArticulo || safeMeta?.valorArticulo || editedDetails?.monto || safeMeta?.monto || 0)
-                              const inicial = Number(editedDetails?.cuotaInicial || safeMeta?.cuotaInicial || 0)
+                              const val = Number(
+                                editedDetails?.valorArticulo ||
+                                  safeMeta?.valorArticulo ||
+                                  editedDetails?.monto ||
+                                  safeMeta?.monto ||
+                                  0,
+                              )
+                              const inicial = Number(
+                                editedDetails?.cuotaInicial || safeMeta?.cuotaInicial || 0,
+                              )
                               return formatCurrency(Math.max(0, val - inicial))
                             })()}
                           </p>
@@ -1432,9 +1711,11 @@ export default function NotificacionDetalleModal({
                     ) : null}
                     {!isArticle && (
                       <div>
-                        <label className="text-[9px] text-blue-500 uppercase font-black block mb-0.5">Interés (%)</label>
+                        <label className="text-[9px] text-blue-500 uppercase font-black block mb-0.5">
+                          Interés (%)
+                        </label>
                         {isEditingMode ? (
-                          <input 
+                          <input
                             type="number"
                             value={editedDetails?.porcentaje || safeMeta?.porcentaje || ''}
                             onChange={(e) => {
@@ -1450,59 +1731,73 @@ export default function NotificacionDetalleModal({
                             className="w-full bg-white border border-blue-200 text-slate-900 rounded-xl px-4 py-2 text-sm font-black outline-none focus:ring-2 focus:ring-blue-500/20"
                           />
                         ) : (
-                          <p className="text-base font-black text-slate-900">{editedDetails?.porcentaje || safeMeta?.porcentaje || 0}%</p>
+                          <p className="text-base font-black text-slate-900">
+                            {editedDetails?.porcentaje || safeMeta?.porcentaje || 0}%
+                          </p>
                         )}
                       </div>
                     )}
                     <div>
-                    <label className="text-[10px] text-blue-600 uppercase font-black block mb-1">Fecha Inicio</label>
+                      <label className="text-[10px] text-blue-600 uppercase font-black block mb-1">
+                        Fecha Inicio
+                      </label>
                       {isEditingMode ? (
                         <input
                           type="date"
-                          value={normalizeDateKey(String(
-                            editedDetails?.fechaInicio ||
-                            editedDetails?.fecha ||
-                            safeMeta?.fechaInicio ||
-                            safeMeta?.fecha ||
-                            safeMetaDetalles?.fechaInicio ||
-                            '',
-                          )) || ''}
-                          onChange={(e) => setEditedDetails({ ...editedDetails, fechaInicio: e.target.value })}
+                          value={
+                            normalizeDateKey(
+                              String(
+                                editedDetails?.fechaInicio ||
+                                  editedDetails?.fecha ||
+                                  safeMeta?.fechaInicio ||
+                                  safeMeta?.fecha ||
+                                  safeMetaDetalles?.fechaInicio ||
+                                  '',
+                              ),
+                            ) || ''
+                          }
+                          onChange={(e) =>
+                            setEditedDetails({ ...editedDetails, fechaInicio: e.target.value })
+                          }
                           className="w-full bg-white border border-blue-200 text-slate-900 rounded-xl px-4 py-2 text-sm font-black outline-none focus:ring-2 focus:ring-blue-500/20"
                         />
                       ) : (
-                      <p className="text-base font-black text-slate-900">
-                        {(() => {
-                          // Priorizar editedDetails, luego safeMeta (ambos incluyen la data del backend)
-                          const dateStr =
-                            editedDetails?.fechaInicio ||
-                            editedDetails?.fecha ||
-                            safeMeta?.fechaInicio ||
-                            safeMeta?.fecha ||
-                            safeMetaDetalles?.fechaInicio;
-                          if (!dateStr || dateStr === 'N/A') return 'N/A';
-                          try {
-                            const key = normalizeDateKey(String(dateStr))
-                            if (key) {
-                              const base = new Date(`${key}T12:00:00-05:00`)
-                              return base.toLocaleDateString('es-CO')
+                        <p className="text-base font-black text-slate-900">
+                          {(() => {
+                            // Priorizar editedDetails, luego safeMeta (ambos incluyen la data del backend)
+                            const dateStr =
+                              editedDetails?.fechaInicio ||
+                              editedDetails?.fecha ||
+                              safeMeta?.fechaInicio ||
+                              safeMeta?.fecha ||
+                              safeMetaDetalles?.fechaInicio
+                            if (!dateStr || dateStr === 'N/A') return 'N/A'
+                            try {
+                              const key = normalizeDateKey(String(dateStr))
+                              if (key) {
+                                const base = new Date(`${key}T12:00:00-05:00`)
+                                return base.toLocaleDateString('es-CO')
+                              }
+                            } catch {
+                              return String(dateStr)
                             }
-                          } catch {
-                            return String(dateStr);
-                          }
-                          // Si es un string válido (ej. "01/04/2026") que date no pudo entender, devuélvelo tal cual.
-                          if (typeof dateStr === 'string' && dateStr.trim() !== '') return dateStr;
-                          return 'N/A';
-                        })()}
-                      </p>
+                            // Si es un string válido (ej. "01/04/2026") que date no pudo entender, devuélvelo tal cual.
+                            if (typeof dateStr === 'string' && dateStr.trim() !== '') return dateStr
+                            return 'N/A'
+                          })()}
+                        </p>
                       )}
                     </div>
                     <div className="col-span-2">
-                            <label className="text-[10px] text-blue-600 uppercase font-black block mb-1">Notas / Observaciones</label>
+                      <label className="text-[10px] text-blue-600 uppercase font-black block mb-1">
+                        Notas / Observaciones
+                      </label>
                       {isEditingMode ? (
-                        <textarea 
+                        <textarea
                           value={editedDetails?.notas ?? safeMeta?.notas ?? ''}
-                          onChange={(e) => setEditedDetails({ ...editedDetails, notas: e.target.value })}
+                          onChange={(e) =>
+                            setEditedDetails({ ...editedDetails, notas: e.target.value })
+                          }
                           className="w-full bg-white border border-blue-200 text-slate-900 rounded-xl px-4 py-2 text-xs font-medium outline-none focus:ring-2 focus:ring-blue-500/20 min-h-[60px]"
                           placeholder="Notas adicionales..."
                         />
@@ -1517,18 +1812,27 @@ export default function NotificacionDetalleModal({
                   <div className="mt-4 p-4 bg-emerald-50 rounded-2xl border border-emerald-100 border-dashed">
                     <div className="flex items-center gap-2 mb-3">
                       <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                      <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Proyección de Recaudo</p>
+                      <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">
+                        Proyección de Recaudo
+                      </p>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="text-[9px] text-emerald-500 uppercase font-black block mb-0.5">Valor Cuota (Est.)</label>
+                        <label className="text-[9px] text-emerald-500 uppercase font-black block mb-0.5">
+                          Valor Cuota (Est.)
+                        </label>
                         <p className="text-lg font-black text-emerald-900">
                           {(() => {
                             const montoTotal = Number(editedDetails?.montoTotal || 0)
-                            const cuotas = Math.max(1, Number(editedDetails?.cuotas || editedDetails?.cantidadCuotas || 1))
+                            const cuotas = Math.max(
+                              1,
+                              Number(editedDetails?.cuotas || editedDetails?.cantidadCuotas || 1),
+                            )
                             const monto = Number(editedDetails?.monto || 0)
                             const interesTotal = Number(editedDetails?.interesTotal || 0)
-                            const tipoAmort = String(editedDetails?.tipoAmortizacion || '').toUpperCase()
+                            const tipoAmort = String(
+                              editedDetails?.tipoAmortizacion || '',
+                            ).toUpperCase()
                             const tipoInteres =
                               tipoAmort === 'FRANCESA'
                                 ? TipoAmortizacion.FRANCESA
@@ -1543,9 +1847,7 @@ export default function NotificacionDetalleModal({
                             // `trunc(montoTotal / cuotas)`, que da hasta un peso mas
                             // por cuota que lo que se cobra.
                             const interes =
-                              interesTotal > 0
-                                ? interesTotal
-                                : Math.max(0, montoTotal - monto)
+                              interesTotal > 0 ? interesTotal : Math.max(0, montoTotal - monto)
                             const capital = monto > 0 ? monto : Math.max(0, montoTotal - interes)
 
                             const { valorCuota } = repartoConInteresConocido(
@@ -1560,19 +1862,26 @@ export default function NotificacionDetalleModal({
                         </p>
                       </div>
                       <div>
-                        <label className="text-[9px] text-emerald-500 uppercase font-black block mb-0.5">Total a Cobrar</label>
+                        <label className="text-[9px] text-emerald-500 uppercase font-black block mb-0.5">
+                          Total a Cobrar
+                        </label>
                         <p className="text-lg font-black text-emerald-900">
                           {(() => {
                             const montoBase = Number(editedDetails?.montoTotal || 0)
                             const monto = Number(editedDetails?.monto || 0)
-                            const tasa = Number(editedDetails?.tasaInteres ?? editedDetails?.porcentaje ?? 0)
+                            const tasa = Number(
+                              editedDetails?.tasaInteres ?? editedDetails?.porcentaje ?? 0,
+                            )
                             const interesTotal = Number(editedDetails?.interesTotal || 0)
-                            const tipoAmort = String(editedDetails?.tipoAmortizacion || '').toUpperCase()
+                            const tipoAmort = String(
+                              editedDetails?.tipoAmortizacion || '',
+                            ).toUpperCase()
 
                             if (montoBase > 0) return formatCurrency(montoBase)
 
                             if (tipoAmort === 'FRANCESA' && monto > 0) {
-                              const interes = interesTotal > 0 ? interesTotal : Math.round(monto * (tasa / 100))
+                              const interes =
+                                interesTotal > 0 ? interesTotal : Math.round(monto * (tasa / 100))
                               return formatCurrency(monto + interes)
                             }
 
@@ -1593,9 +1902,11 @@ export default function NotificacionDetalleModal({
 
   return (
     <Portal>
-      <div 
+      <div
         className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
-        onMouseDown={(e) => { mouseDownTargetRef.current = e.target }}
+        onMouseDown={(e) => {
+          mouseDownTargetRef.current = e.target
+        }}
         onMouseUp={(e) => {
           // Solo cerrar si mousedown Y mouseup ocurrieron en el backdrop (no al arrastrar texto)
           if (e.target === e.currentTarget && mouseDownTargetRef.current === e.currentTarget) {
@@ -1604,7 +1915,7 @@ export default function NotificacionDetalleModal({
           mouseDownTargetRef.current = null
         }}
       >
-        <div 
+        <div
           className="bg-white shadow-2xl w-full overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-100 flex flex-col h-[100dvh] sm:h-auto sm:max-h-[90vh] rounded-none sm:rounded-[2.5rem] sm:max-w-3xl"
           onClick={(e) => e.stopPropagation()}
         >
@@ -1616,7 +1927,11 @@ export default function NotificacionDetalleModal({
               </div>
               <div className="min-w-0">
                 <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight leading-tight truncate">
-                  {isArticle ? (esContado ? 'Venta de Artículo de Contado' : 'Crédito de un Artículo') : titulo}
+                  {isArticle
+                    ? esContado
+                      ? 'Venta de Artículo de Contado'
+                      : 'Crédito de un Artículo'
+                    : titulo}
                 </h3>
                 <div className="text-[10px] font-bold text-slate-400 flex items-center gap-1 mt-0.5">
                   <Clock className="h-3 w-3" />
@@ -1625,7 +1940,7 @@ export default function NotificacionDetalleModal({
               </div>
             </div>
             <Tooltip texto="Cerrar">
-              <button 
+              <button
                 onClick={handleClose}
                 className="shrink-0 p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400"
                 aria-label="Cerrar"
@@ -1639,7 +1954,9 @@ export default function NotificacionDetalleModal({
           <div className="p-6 space-y-6 overflow-y-auto flex-1 custom-scrollbar">
             {/* Mensaje Principal */}
             <div>
-              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 block pl-1">Mensaje de la Notificación</label>
+              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 block pl-1">
+                Mensaje de la Notificación
+              </label>
               <p className="text-slate-600 text-sm font-medium bg-slate-50 p-4 rounded-2xl border border-slate-100 leading-relaxed italic">
                 &quot;{mensajeFmt}&quot;
               </p>
@@ -1651,7 +1968,9 @@ export default function NotificacionDetalleModal({
                   <User className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="text-[9px] font-black text-amber-600 uppercase tracking-widest">Solicitado por</p>
+                  <p className="text-[9px] font-black text-amber-600 uppercase tracking-widest">
+                    Solicitado por
+                  </p>
                   <p className="text-sm font-black text-slate-900">{solicitante}</p>
                 </div>
               </div>
@@ -1660,13 +1979,29 @@ export default function NotificacionDetalleModal({
             {isNuevoCliente && (
               <div className="bg-slate-50 rounded-2xl border border-slate-100 p-5 space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-                  <ClientInfoField label="Nombre" value={clientRequestDetails.nombreCompleto} className="sm:col-span-2" />
+                  <ClientInfoField
+                    label="Nombre"
+                    value={clientRequestDetails.nombreCompleto}
+                    className="sm:col-span-2"
+                  />
                   <ClientInfoField label="CC" value={clientRequestDetails.dni} />
                   <ClientInfoField label="Teléfono" value={clientRequestDetails.telefono} />
-                  <ClientInfoField label="Dirección" value={clientRequestDetails.direccion} className="sm:col-span-2" />
-                  <ClientInfoField label="Correo" value={clientRequestDetails.correo} className="sm:col-span-2 lg:col-span-3" />
+                  <ClientInfoField
+                    label="Dirección"
+                    value={clientRequestDetails.direccion}
+                    className="sm:col-span-2"
+                  />
+                  <ClientInfoField
+                    label="Correo"
+                    value={clientRequestDetails.correo}
+                    className="sm:col-span-2 lg:col-span-3"
+                  />
                   {clientRequestDetails.referencia && (
-                    <ClientInfoField label="Referencia general" value={clientRequestDetails.referencia} className="sm:col-span-2 lg:col-span-3" />
+                    <ClientInfoField
+                      label="Referencia general"
+                      value={clientRequestDetails.referencia}
+                      className="sm:col-span-2 lg:col-span-3"
+                    />
                   )}
                 </div>
 
@@ -1676,7 +2011,9 @@ export default function NotificacionDetalleModal({
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div className="rounded-xl border border-slate-200 bg-white p-3">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Referencia 1</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                        Referencia 1
+                      </p>
                       <p className="mt-1 break-words text-sm font-black text-slate-900">
                         {clientRequestDetails.referencia1Nombre || 'No registrada'}
                       </p>
@@ -1685,7 +2022,9 @@ export default function NotificacionDetalleModal({
                       </p>
                     </div>
                     <div className="rounded-xl border border-slate-200 bg-white p-3">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Referencia 2</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                        Referencia 2
+                      </p>
                       <p className="mt-1 break-words text-sm font-black text-slate-900">
                         {clientRequestDetails.referencia2Nombre || 'No registrada'}
                       </p>
@@ -1704,13 +2043,23 @@ export default function NotificacionDetalleModal({
               {isSolicitudBase && (
                 <div className="bg-emerald-50/50 rounded-2xl border border-emerald-100 p-5 space-y-4">
                   <div className="text-center pb-4 border-b border-emerald-100">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600 mb-1">Monto de la Base</p>
-                    <h4 className="text-3xl font-black text-slate-900 tabular-nums">{formatCurrency(editedDetails?.monto || safeMeta?.monto)}</h4>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600 mb-1">
+                      Monto de la Base
+                    </p>
+                    <h4 className="text-3xl font-black text-slate-900 tabular-nums">
+                      {formatCurrency(editedDetails?.monto || safeMeta?.monto)}
+                    </h4>
                   </div>
                   <div className="pt-1">
-                    <p className="text-[10px] font-black text-emerald-600 uppercase mb-2">Motivo de la Solicitud</p>
+                    <p className="text-[10px] font-black text-emerald-600 uppercase mb-2">
+                      Motivo de la Solicitud
+                    </p>
                     <p className="text-xs text-slate-700 font-medium leading-relaxed italic border-l-4 border-emerald-400 pl-3 py-1">
-                      {editedDetails?.motivo || editedDetails?.descripcion || safeMeta?.descripcion || safeMeta?.motivo || mensaje}
+                      {editedDetails?.motivo ||
+                        editedDetails?.descripcion ||
+                        safeMeta?.descripcion ||
+                        safeMeta?.motivo ||
+                        mensaje}
                     </p>
                   </div>
                 </div>
@@ -1727,8 +2076,8 @@ export default function NotificacionDetalleModal({
                         </p>
                       </div>
                       <p className="text-xs text-slate-700 font-medium leading-relaxed">
-                        Esta solicitud fue creada antes del flujo de gasto provisional y no afectó caja.
-                        Solo puede anularse sin impacto financiero.
+                        Esta solicitud fue creada antes del flujo de gasto provisional y no afectó
+                        caja. Solo puede anularse sin impacto financiero.
                       </p>
                     </div>
                   )}
@@ -1736,19 +2085,28 @@ export default function NotificacionDetalleModal({
                     <div className="mb-4 p-3 bg-amber-50 rounded-xl border border-amber-200">
                       <div className="flex items-center gap-2 mb-2">
                         <AlertTriangle className="h-4 w-4 text-amber-600" />
-                        <p className="text-[10px] font-black uppercase tracking-widest text-amber-700">Gasto Provisional</p>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-amber-700">
+                          Gasto Provisional
+                        </p>
                       </div>
                       <p className="text-xs text-amber-800 font-medium leading-relaxed">
-                        La caja ya fue afectada. La decisión solo define si se reconoce como gasto operativo, deuda del cobrador o reintegro.
+                        La caja ya fue afectada. La decisión solo define si se reconoce como gasto
+                        operativo, deuda del cobrador o reintegro.
                       </p>
                     </div>
                   )}
                   <div className="text-center pb-4 border-b border-orange-100">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-orange-600 mb-1">Monto del Gasto</p>
-                    <h4 className="text-3xl font-black text-slate-900 tabular-nums">{formatCurrency(editedDetails?.monto || safeMeta?.monto)}</h4>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-orange-600 mb-1">
+                      Monto del Gasto
+                    </p>
+                    <h4 className="text-3xl font-black text-slate-900 tabular-nums">
+                      {formatCurrency(editedDetails?.monto || safeMeta?.monto)}
+                    </h4>
                   </div>
                   <div className="pt-1">
-                    <p className="text-[10px] font-black text-orange-600 uppercase mb-2">Descripción del Gasto</p>
+                    <p className="text-[10px] font-black text-orange-600 uppercase mb-2">
+                      Descripción del Gasto
+                    </p>
                     <p className="text-xs text-slate-700 font-medium leading-relaxed italic border-l-4 border-orange-400 pl-3 py-1">
                       {editedDetails?.descripcion || safeMeta?.descripcion || mensaje}
                     </p>
@@ -1773,19 +2131,31 @@ export default function NotificacionDetalleModal({
             </div>
 
             {/* Historial de Aprobación */}
-            {(safeMeta?.estadoAprobacion && safeMeta.estadoAprobacion !== 'PENDIENTE') && (
-              <div className={`p-5 rounded-2xl border shadow-sm ${safeMeta.estadoAprobacion === 'RECHAZADO' ? 'bg-rose-50 border-rose-100' : 'bg-emerald-50 border-emerald-100'}`}>
+            {safeMeta?.estadoAprobacion && safeMeta.estadoAprobacion !== 'PENDIENTE' && (
+              <div
+                className={`p-5 rounded-2xl border shadow-sm ${safeMeta.estadoAprobacion === 'RECHAZADO' ? 'bg-rose-50 border-rose-100' : 'bg-emerald-50 border-emerald-100'}`}
+              >
                 <div className="flex items-center gap-2 mb-3">
-                  {safeMeta.estadoAprobacion === 'RECHAZADO' ? <AlertTriangle className="h-4 w-4 text-rose-500" /> : <CheckCircle2 className="h-4 w-4 text-emerald-500" />}
-                  <p className={`text-[10px] font-black uppercase tracking-widest ${safeMeta.estadoAprobacion === 'RECHAZADO' ? 'text-rose-600' : 'text-emerald-600'}`}>
+                  {safeMeta.estadoAprobacion === 'RECHAZADO' ? (
+                    <AlertTriangle className="h-4 w-4 text-rose-500" />
+                  ) : (
+                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                  )}
+                  <p
+                    className={`text-[10px] font-black uppercase tracking-widest ${safeMeta.estadoAprobacion === 'RECHAZADO' ? 'text-rose-600' : 'text-emerald-600'}`}
+                  >
                     Resultado de la Revisión
                   </p>
                 </div>
                 <div className="space-y-3">
                   <div className="flex justify-between items-end">
                     <div className="min-w-0">
-                      <p className="text-[9px] text-slate-400 uppercase font-bold mb-0.5">Revisado por</p>
-                      <p className="text-sm font-black text-slate-900">{safeMeta.revisadoPor || 'Administrador'}</p>
+                      <p className="text-[9px] text-slate-400 uppercase font-bold mb-0.5">
+                        Revisado por
+                      </p>
+                      <p className="text-sm font-black text-slate-900">
+                        {safeMeta.revisadoPor || 'Administrador'}
+                      </p>
                     </div>
                     <div className="text-right">
                       <p className="text-[9px] text-slate-400 uppercase font-bold mb-0.5">Fecha</p>
@@ -1794,24 +2164,28 @@ export default function NotificacionDetalleModal({
                           const raw = safeMeta.fechaRevision || notificacion?.creadoEn
                           if (!raw || raw === 'N/A' || raw === '—') return fecha || '—'
                           try {
-                            const d = new Date(raw);
-                            if (isNaN(d.getTime())) return fecha || '—';
-                            return d.toLocaleString('es-CO', { 
-                              day: '2-digit', 
-                              month: 'short', 
+                            const d = new Date(raw)
+                            if (isNaN(d.getTime())) return fecha || '—'
+                            return d.toLocaleString('es-CO', {
+                              day: '2-digit',
+                              month: 'short',
                               year: 'numeric',
                               hour: '2-digit',
                               minute: '2-digit',
-                              hour12: true
-                            });
-                          } catch { return fecha || '—' }
+                              hour12: true,
+                            })
+                          } catch {
+                            return fecha || '—'
+                          }
                         })()}
                       </p>
                     </div>
                   </div>
                   {safeMeta.motivoRechazo && (
                     <div className="mt-2 pt-2 border-t border-rose-200/50">
-                      <p className="text-[9px] text-rose-400 uppercase font-bold mb-1 ml-1">Comentarios/Razón</p>
+                      <p className="text-[9px] text-rose-400 uppercase font-bold mb-1 ml-1">
+                        Comentarios/Razón
+                      </p>
                       <p className="text-xs text-rose-700 font-medium italic bg-white/50 p-3 rounded-xl border border-rose-100">
                         &quot;{safeMeta.motivoRechazo}&quot;
                       </p>
@@ -1820,7 +2194,6 @@ export default function NotificacionDetalleModal({
                 </div>
               </div>
             )}
-
           </div>
 
           {/* Footer Actions */}
@@ -1882,7 +2255,7 @@ export default function NotificacionDetalleModal({
               </>
             )}
             {(estado !== 'PENDIENTE' || !canApprove || !isApprovalNotification) && (
-              <button 
+              <button
                 onClick={handleClose}
                 className="w-full py-4 bg-white border border-slate-200 text-slate-600 font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-slate-50 transition-all shadow-sm"
               >
@@ -1915,29 +2288,28 @@ export default function NotificacionDetalleModal({
             placeholder="Confirme que el dinero fue reintegrado físicamente a la caja antes de continuar..."
           />
 
-
           {/* Modal de detalle del pago (archivo separado, sin deuda técnica) */}
           <PagoDetalleModal
             isOpen={showPagoDetalle}
             onClose={() => setShowPagoDetalle(false)}
             metadata={{
-              pagoId:             safeMeta?.pagoId,
-              numeroPago:         safeMeta?.numeroPago,
-              numeroPrestamo:     safeMeta?.numeroPrestamo,
-              prestamoId:         safeMeta?.prestamoId,
-              metodoPago:         safeMeta?.metodoPago,
-              numeroReferencia:   safeMeta?.numeroReferencia,
-              tieneComprobante:   safeMeta?.tieneComprobante,
-              cliente:            safeMeta?.cliente,
-              clienteId:          safeMeta?.clienteId,
-              clienteDni:         safeMeta?.clienteDni,
-              monto:              safeMeta?.monto,
-              capitalRecuperado:  safeMeta?.capitalRecuperado,
-              interesRecuperado:  safeMeta?.interesRecuperado,
-              saldoNuevo:         safeMeta?.saldoNuevo,
-              saldoAnterior:      safeMeta?.saldoAnterior,
+              pagoId: safeMeta?.pagoId,
+              numeroPago: safeMeta?.numeroPago,
+              numeroPrestamo: safeMeta?.numeroPrestamo,
+              prestamoId: safeMeta?.prestamoId,
+              metodoPago: safeMeta?.metodoPago,
+              numeroReferencia: safeMeta?.numeroReferencia,
+              tieneComprobante: safeMeta?.tieneComprobante,
+              cliente: safeMeta?.cliente,
+              clienteId: safeMeta?.clienteId,
+              clienteDni: safeMeta?.clienteDni,
+              monto: safeMeta?.monto,
+              capitalRecuperado: safeMeta?.capitalRecuperado,
+              interesRecuperado: safeMeta?.interesRecuperado,
+              saldoNuevo: safeMeta?.saldoNuevo,
+              saldoAnterior: safeMeta?.saldoAnterior,
               prestamoQuedaPagado: safeMeta?.prestamoQuedaPagado,
-              cuotasAfectadas:    safeMeta?.cuotasAfectadas,
+              cuotasAfectadas: safeMeta?.cuotasAfectadas,
             }}
           />
         </div>
