@@ -305,6 +305,37 @@ const resolveFechaOriginalReprogramacion = (
 // El retorno se ANOTA: sin eso TypeScript ensancha los literales de `estado` y `tipo` a
 // `string`, y el puente deja de comprobar que produce una notificacion valida. Que es
 // justo lo que este puente tiene que garantizar.
+/**
+ * Los dos conversores para leer una columna `Json`.
+ *
+ * `datosSolicitud` es `Record<string, unknown>` (lo que de verdad es una columna `Json`) y
+ * esta pantalla saca de ahi veinte campos para tres modales. Antes era `any`, asi que
+ * ninguna de esas veinte lecturas se comprobaba: un nombre mal escrito pintaba el modal
+ * vacio, y un objeto donde se esperaba texto salia como "[object Object]".
+ *
+ * Son el equivalente de `textoDeJson` del backend, que existe por el mismo motivo.
+ */
+/** La decision de una prorroga, normalizada contra sus tres valores posibles. */
+const decisionDeProrroga = (
+  valor: unknown,
+): 'PRORROGAR' | 'CASTIGAR' | 'DEJAR_QUIETO' | undefined => {
+  const d = String(valor ?? '').trim().toUpperCase()
+  return d === 'PRORROGAR' || d === 'CASTIGAR' || d === 'DEJAR_QUIETO'
+    ? d
+    : undefined
+}
+
+const texto = (valor: unknown): string | undefined => {
+  if (typeof valor === 'string') return valor
+  if (typeof valor === 'number' && Number.isFinite(valor)) return String(valor)
+  return undefined
+}
+
+const numero = (valor: unknown): number | undefined => {
+  const n = Number(valor)
+  return Number.isFinite(n) ? n : undefined
+}
+
 const aprobacionToNotificacion = (item: Aprobacion): NotificacionParaDetalle => {
   const datos = item.datosSolicitud || {}
   const cat = CATEGORIAS[item.tipoAprobacion] || CATEGORIAS.BAJA_POR_PERDIDA
@@ -324,8 +355,8 @@ const aprobacionToNotificacion = (item: Aprobacion): NotificacionParaDetalle => 
   }
 
   if (item.tipoAprobacion === 'PRORROGA_PAGO' || datos.tipo === 'GESTION_VENCIDA' || datos.tipo === 'ASIGNAR_MORA') {
-    const clienteNombre = datos.cliente || datos.clienteNombre || '—'
-    const decision = datos.decision || 'PRORROGAR'
+    const clienteNombre = texto(datos.cliente) || texto(datos.clienteNombre) || '—'
+    const decision = texto(datos.decision) || 'PRORROGAR'
     const DECISION_LABEL: Record<string, string> = {
       PRORROGAR: 'Prórroga de Plazo',
       CASTIGAR:  'Baja por Pérdida',
@@ -333,15 +364,15 @@ const aprobacionToNotificacion = (item: Aprobacion): NotificacionParaDetalle => 
       ASIGNAR_MORA: 'Asignación de Mora',
     }
     titulo = `${DECISION_LABEL[decision] || cat.label} — ${clienteNombre}`
-    if (decision === 'PRORROGAR' && datos.diasGracia) {
-      mensaje = `${item.solicitante} solicitó una prórroga de ${datos.diasGracia} días para ${clienteNombre}${datos.numeroPrestamo ? ` (${datos.numeroPrestamo})` : ''}. Saldo: ${datos.saldoPendiente ? `$${formatMilesCOP(Number(datos.saldoPendiente))}` : '—'}.`
+    if (decision === 'PRORROGAR' && numero(datos.diasGracia)) {
+      mensaje = `${item.solicitante} solicitó una prórroga de ${numero(datos.diasGracia)} días para ${clienteNombre}${texto(datos.numeroPrestamo) ? ` (${texto(datos.numeroPrestamo)})` : ''}. Saldo: ${numero(datos.saldoPendiente) ? `$${formatMilesCOP(Number(numero(datos.saldoPendiente)))}` : '—'}.`
     } else if (decision === 'ASIGNAR_MORA') {
-      mensaje = `${item.solicitante} asignó $${formatMilesCOP(Number(datos.montoInteres || 0))} de mora a ${clienteNombre}${datos.numeroPrestamo ? ` (${datos.numeroPrestamo})` : ''}.`
+      mensaje = `${item.solicitante} asignó $${formatMilesCOP(Number(numero(datos.montoInteres) || 0))} de mora a ${clienteNombre}${texto(datos.numeroPrestamo) ? ` (${texto(datos.numeroPrestamo)})` : ''}.`
     } else {
-      mensaje = `${item.solicitante} solicitó ${(DECISION_LABEL[decision] || decision).toLowerCase()} para ${clienteNombre}${datos.numeroPrestamo ? ` (${datos.numeroPrestamo})` : ''}.`
+      mensaje = `${item.solicitante} solicitó ${(DECISION_LABEL[decision] || decision).toLowerCase()} para ${clienteNombre}${texto(datos.numeroPrestamo) ? ` (${texto(datos.numeroPrestamo)})` : ''}.`
     }
   } else if (item.tipoAprobacion === 'REPROGRAMACION_CUOTA') {
-    const clienteNombre = datos.cliente || datos.clienteNombre || '—'
+    const clienteNombre = texto(datos.cliente) || texto(datos.clienteNombre) || '—'
     titulo = `Reprogramaciones — ${clienteNombre}`
     mensaje = `Solicitud de reprogramación por ${item.solicitante}`
   }
@@ -541,16 +572,16 @@ export default function RevisionesPage() {
         solicitante: item.solicitante,
         creadoEn: item.creadoEn,
         estado: item.estado,
-        cliente:                 datos.cliente || datos.clienteNombre,
-        clienteNombre:           datos.clienteNombre || datos.cliente,
-        numeroPrestamo:          datos.numeroPrestamo,
-        montoCuota:              datos.montoCuota,
+        cliente:                 texto(datos.cliente) || texto(datos.clienteNombre),
+        clienteNombre:           texto(datos.clienteNombre) || texto(datos.cliente),
+        numeroPrestamo:          texto(datos.numeroPrestamo),
+        montoCuota:              numero(datos.montoCuota),
         fechaVencimientoOriginal:
           resolveFechaOriginalReprogramacion(datos, item.creadoEn) ?? undefined,
-        fechaGestionOriginal:     datos.fechaGestionOriginal || datos.fechaOperativaRuta,
-        nuevaFechaVencimiento:   datos.nuevaFechaVencimiento || datos.nuevaFecha,
-        motivo:                  datos.motivo || datos.comentarios,
-        gestionadoPor:           datos.gestionadoPor || datos.asignadoPor || item.solicitante,
+        fechaGestionOriginal:     texto(datos.fechaGestionOriginal) || texto(datos.fechaOperativaRuta),
+        nuevaFechaVencimiento:   texto(datos.nuevaFechaVencimiento) || texto(datos.nuevaFecha),
+        motivo:                  texto(datos.motivo) || texto(datos.comentarios),
+        gestionadoPor:           texto(datos.gestionadoPor) || texto(datos.asignadoPor) || item.solicitante,
       })
       setReprogramacionModalOpen(true)
     } else if (isProrrogaOrVencida(item)) {
@@ -560,17 +591,20 @@ export default function RevisionesPage() {
         solicitante: item.solicitante,
         creadoEn: item.creadoEn,
         estado: item.estado,
-        decision:                datos.decision,
-        cliente:                 datos.cliente || datos.clienteNombre,
-        clienteNombre:           datos.clienteNombre || datos.cliente,
-        numeroPrestamo:          datos.numeroPrestamo,
-        saldoPendiente:          datos.saldoPendiente ?? item.montoSolicitud,
-        montoInteres:            datos.montoInteres,
-        diasGracia:              datos.diasGracia,
-        fechaVencimientoOriginal: datos.fechaVencimientoOriginal,
-        nuevaFechaVencimiento:   datos.nuevaFechaVencimiento,
-        comentarios:             datos.comentarios,
-        gestionadoPor:           datos.gestionadoPor || datos.asignadoPor || item.solicitante,
+        // La decision es una de tres: se normaliza contra esa union en vez de pasar texto
+        // suelto, que es lo que hacia el `any` y dejaba pintar un modal sin accion.
+        decision:                decisionDeProrroga(datos.decision),
+        cliente:                 texto(datos.cliente) || texto(datos.clienteNombre),
+        clienteNombre:           texto(datos.clienteNombre) || texto(datos.cliente),
+        numeroPrestamo:          texto(datos.numeroPrestamo),
+        saldoPendiente:
+          numero(datos.saldoPendiente) ?? item.montoSolicitud ?? undefined,
+        montoInteres:            numero(datos.montoInteres),
+        diasGracia:              numero(datos.diasGracia),
+        fechaVencimientoOriginal: texto(datos.fechaVencimientoOriginal),
+        nuevaFechaVencimiento:   texto(datos.nuevaFechaVencimiento),
+        comentarios:             texto(datos.comentarios),
+        gestionadoPor:           texto(datos.gestionadoPor) || texto(datos.asignadoPor) || item.solicitante,
       })
       setProrrogaModalOpen(true)
     } else {
@@ -777,7 +811,14 @@ export default function RevisionesPage() {
     if (filtroRuta) {
       items = items.filter(item => {
         const datos = item.datosSolicitud || {}
-        const itemRutaId = datos.rutaId || datos.ruta?.id
+        // La ruta del item llega suelta o dentro del objeto `ruta`, segun el tipo de
+        // solicitud: esa cascada es lo que el `any` escondia.
+        const rutaAnidada = datos.ruta
+        const itemRutaId =
+          texto(datos.rutaId) ||
+          (rutaAnidada && typeof rutaAnidada === 'object'
+            ? texto((rutaAnidada as { id?: unknown }).id)
+            : undefined)
         return itemRutaId === filtroRuta
       })
     }
@@ -806,9 +847,9 @@ export default function RevisionesPage() {
       // Detectar subtipo de mora/vencida primero
       if (datos.tipo === 'ASIGNAR_MORA') {
         return {
-          titulo: datos.cliente || 'Cliente',
-          subtitulo: `Préstamo ${datos.numeroPrestamo || 'N/A'} · ${datos.diasGracia} días de plazo · Asignado por ${datos.asignadoPor || 'N/A'}`,
-          monto: Number(datos.montoInteres || 0),
+          titulo: texto(datos.cliente) || 'Cliente',
+          subtitulo: `Préstamo ${texto(datos.numeroPrestamo) || 'N/A'} · ${numero(datos.diasGracia)} días de plazo · Asignado por ${texto(datos.asignadoPor) || 'N/A'}`,
+          monto: Number(numero(datos.montoInteres) || 0),
         }
       }
       if (datos.tipo === 'GESTION_VENCIDA') {
@@ -816,9 +857,9 @@ export default function RevisionesPage() {
           PRORROGAR: '📅 Prórroga', CASTIGAR: '🔴 Baja por pérdida', JURIDICO: '⚖️ Cobro jurídico',
         }
         return {
-          titulo: datos.cliente || 'Cliente',
-          subtitulo: `${LABEL_DECISION[datos.decision] || datos.decision} · Préstamo ${datos.numeroPrestamo || 'N/A'} · por ${datos.gestionadoPor || 'N/A'}`,
-          monto: Number(datos.saldoPendiente || item.montoSolicitud || 0),
+          titulo: texto(datos.cliente) || 'Cliente',
+          subtitulo: `${LABEL_DECISION[decisionDeProrroga(datos.decision) ?? ''] || texto(datos.decision)} · Préstamo ${texto(datos.numeroPrestamo) || 'N/A'} · por ${texto(datos.gestionadoPor) || 'N/A'}`,
+          monto: Number(numero(datos.saldoPendiente) || item.montoSolicitud || 0),
         }
       }
       switch (item.tipoAprobacion) {
@@ -831,7 +872,20 @@ export default function RevisionesPage() {
         case 'NUEVO_PRESTAMO': {
           const isArticulo = datos.tipo === 'ARTICULO' || datos.tipoPrestamo === 'ARTICULO';
           const cuotaInicial = Number(datos.cuotaInicial || 0);
-          const numCuotas = datos.cantidadCuotas || datos.cuotas || datos.numCuotas || '?';
+          // El numero de cuotas llega con tres nombres segun el tipo de solicitud. El '?' de
+          // respaldo es para PINTARLO, pero mas abajo se usa como NUMERO en la cuota
+          // francesa: con `any` esa mezcla compilaba, y `Math.max(1, '?')` da NaN. Se
+          // separan los dos usos.
+          const numCuotasTexto =
+            texto(datos.cantidadCuotas) ||
+            texto(datos.cuotas) ||
+            texto(datos.numCuotas) ||
+            '?';
+          const numCuotas =
+            numero(datos.cantidadCuotas) ??
+            numero(datos.cuotas) ??
+            numero(datos.numCuotas) ??
+            0;
           const freqLabel = datos.frecuenciaPago ? ` ${datos.frecuenciaPago}` : '';
 
           if (isArticulo) {
@@ -840,8 +894,8 @@ export default function RevisionesPage() {
               ? Number(datos.monto)
               : Math.max(0, valorArticulo - cuotaInicial);
             return {
-              titulo: datos.cliente || 'Crédito nuevo',
-              subtitulo: `Artículo: ${datos.articulo || 'N/A'} • ${numCuotas} cuotas${freqLabel}`,
+              titulo: texto(datos.cliente) || 'Crédito nuevo',
+              subtitulo: `Artículo: ${texto(datos.articulo) || 'N/A'} • ${numCuotasTexto} cuotas${freqLabel}`,
               monto: valorArticulo,
               labelMonto: 'Valor artículo',
               montoSecundario: aFinanciar,
@@ -866,7 +920,10 @@ export default function RevisionesPage() {
           const totalDevolver = (() => {
             if (datos.montoTotal && Number(datos.montoTotal) > 0) return Number(datos.montoTotal);
             if (datos.interesTotal && Number(datos.interesTotal) > 0) return capital + Number(datos.interesTotal);
-            if (String(datos.tipoAmortizacion || '').toUpperCase() === 'FRANCESA' && porcentaje > 0) {
+            if (
+              (texto(datos.tipoAmortizacion) || '').toUpperCase() === 'FRANCESA' &&
+              porcentaje > 0
+            ) {
               const r = porcentaje / 100;
               const n = Math.max(1, numCuotas);
               const cuotaFija = capital * r / (1 - Math.pow(1 + r, -n));
@@ -880,7 +937,7 @@ export default function RevisionesPage() {
           })();
 
           return {
-            titulo: datos.cliente || 'Crédito nuevo',
+            titulo: texto(datos.cliente) || 'Crédito nuevo',
             subtitulo: `${String(datos.tipoAmortizacion || '').toUpperCase() === 'FRANCESA' ? 'Amortizable' : 'Efectivo'} • ${numCuotas} cuotas${freqLabel}`,
             monto: capital,
             labelMonto: 'Capital',
@@ -891,11 +948,11 @@ export default function RevisionesPage() {
         case 'REPROGRAMACION_CUOTA': {
           const frecLabel: Record<string,string> = { SEMANAL:'Semanal', QUINCENAL:'Quincenal', MENSUAL:'Mensual', DIARIO:'Diario' }
           const fechaOrig = formatFechaCortaBogota(resolveFechaOriginalReprogramacion(datos, item.creadoEn))
-          const fechaNueva = formatFechaCortaBogota(datos.nuevaFechaVencimiento || datos.nuevaFecha)
+          const fechaNueva = formatFechaCortaBogota(texto(datos.nuevaFechaVencimiento) || texto(datos.nuevaFecha))
           return {
-            titulo: datos.clienteNombre || 'Cliente',
-            subtitulo: `${frecLabel[datos.frecuenciaPago]||datos.frecuenciaPago} · ${fechaOrig} → ${fechaNueva} · Motivo: ${datos.motivo || 'N/A'}`,
-            monto: Number(datos.montoCuota || 0) || null,
+            titulo: texto(datos.clienteNombre) || 'Cliente',
+            subtitulo: `${frecLabel[texto(datos.frecuenciaPago) ?? ''] || texto(datos.frecuenciaPago)} · ${fechaOrig} → ${fechaNueva} · Motivo: ${texto(datos.motivo) || 'N/A'}`,
+            monto: Number(numero(datos.montoCuota) || 0) || null,
           }
         }
         default:

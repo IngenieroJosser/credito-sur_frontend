@@ -2,6 +2,7 @@
 
 import { mensajeDeError } from '@/lib/mensaje-de-error'
 import type { CrearCreditoModalData } from '@/lib/creditos/crear-prestamo-payload'
+import type { VentaDeContado } from '@/services/sales-service'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ChevronLeft,
@@ -177,16 +178,6 @@ type CreditoDeArticulo = {
   fechaInicio?: string | null
   creadoEn?: string | null
   vendedor?: string | null
-}
-
-type VentaDeContado = {
-  id: string
-  articulo?: string | null
-  descripcion?: string | null
-  monto?: number | string | null
-  fecha?: string | null
-  vendedor?: string | null
-  cliente?: string | null
 }
 
 export default function PuntoDeVentaFloatingActions() {

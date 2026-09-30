@@ -11,8 +11,16 @@ export interface Aprobacion {
   aprobadoPorId: string | null
   estado: EstadoAprobacion
   comentarios: string | null
-  datosSolicitud: any
-  datosAprobados: any
+  /**
+   * Los datos de la solicitud y los que el revisor corrigio, tal como vienen de sus
+   * columnas `Json`.
+   *
+   * `Record<string, unknown>` y no `any`: quien los lee tiene que convertir cada campo,
+   * que es lo que hace falta en un `Json`. De estos dos colgaba la mayoria de los `any`
+   * de la pantalla de revisiones.
+   */
+  datosSolicitud: Record<string, unknown>
+  datosAprobados: Record<string, unknown> | null
   montoSolicitud: number | null
   creadoEn: string
   actualizadoEn: string
@@ -176,7 +184,7 @@ export interface AprobarDto {
   aprobadoPorId?: string
   notas?: string
   resultadoRevision?: 'RECHAZADO_CON_DEUDA' | 'RECHAZADO_CON_REINTEGRO'
-  editedData?: any
+  editedData?: Record<string, unknown>
 }
 
 export interface RechazarDto {

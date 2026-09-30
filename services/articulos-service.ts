@@ -19,6 +19,34 @@ export interface PrecioProductoApi {
   activo?: boolean
 }
 
+/**
+ * El articulo tal como lo devuelve `GET /inventory/:id`.
+ *
+ * Cada dato aparece con su nombre en espanol Y en ingles (`nombre`/`name`,
+ * `descripcion`/`description`, `categoria`/`category`, `precio`/`price`,
+ * `stock`/`quantity`) porque el endpoint ha cambiado de convencion y el mapeo de abajo
+ * lee las dos. Eso es lo que el `any` escondia: la lista completa de alternativas, que es
+ * justo lo que hay que ver para saber por que hay cascadas aqui.
+ */
+interface ArticuloDeApi {
+  id?: string
+  nombre?: string | null
+  name?: string | null
+  descripcion?: string | null
+  description?: string | null
+  categoria?: string | null
+  category?: string | null
+  costo?: number | string | null
+  precio?: number | string | null
+  price?: number | string | null
+  precioContado?: number | string | null
+  precio_contado?: number | string | null
+  stock?: number | null
+  quantity?: number | null
+  precios?: PrecioProductoApi[] | null
+}
+
+
 export interface OpcionCuotas {
   id?: string
   numeroCuotas: number
@@ -95,7 +123,10 @@ class ArticulosService {
 
         return {
           id: String(item.id),
-          nombre: item.name || item.nombre,
+          // El `|| ''` lo pidio el tipo: las dos formas del nombre son opcionales y
+          // `Articulo.nombre` es obligatorio. Con `any`, un articulo sin nombre pasaba
+          // como `undefined` y la pantalla lo pintaba vacio.
+          nombre: item.name || item.nombre || '',
           descripcion: item.description || item.descripcion || '',
           costo: Number(item.costo || 0),
           precioBase,
@@ -115,7 +146,10 @@ class ArticulosService {
 
   async obtenerArticuloPorId(id: string): Promise<Articulo | null> {
     try {
-      const item: any = await apiRequest('GET', `/inventory/${id}`)
+      const item = await apiRequest<ArticuloDeApi | null>(
+        'GET',
+        `/inventory/${id}`,
+      )
       if (!item) return null
 
       const preciosRaw = item.precios || []
@@ -142,7 +176,7 @@ class ArticulosService {
 
       return {
         id: String(item.id),
-        nombre: item.name || item.nombre,
+        nombre: item.name || item.nombre || '',
         descripcion: item.description || item.descripcion || '',
         costo: Number(item.costo || 0),
         precioBase,

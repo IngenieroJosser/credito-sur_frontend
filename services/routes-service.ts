@@ -95,6 +95,24 @@ export interface RouteStatistics {
   totalSupervisores: number
 }
 
+/**
+ * El usuario tal como lo devuelven `/routes/cobradores`, `/supervisores` y
+ * `/coordinadores`.
+ *
+ * El nombre llega de DOS formas: ya armado en `nombre`, o partido en `nombres` y
+ * `apellidos`, y los tres metodos de abajo lo resuelven con la misma cascada. Eso es lo
+ * que el `any[]` escondia, y es el motivo de que exista esa cascada: si se lee mal, el
+ * selector de cobradores sale en blanco.
+ */
+interface UsuarioDeRuta {
+  id: string
+  correo: string
+  telefono?: string
+  nombre?: string
+  nombres?: string
+  apellidos?: string
+}
+
 export interface Cobrador {
   id: string
   nombre: string
@@ -248,34 +266,34 @@ export const routesService = {
 
   // Obtener cobradores
   async getCobradores() {
-    const users = await apiRequest<any[]>('GET', '/routes/cobradores', undefined, {
+    const users = await apiRequest<UsuarioDeRuta[]>('GET', '/routes/cobradores', undefined, {
       cacheTTL: 120000,
     })
     return users.map((u) => ({
       ...u,
-      nombre: u.nombre || `${u.nombres} ${u.apellidos}`.trim(),
+      nombre: u.nombre || `${u.nombres || ''} ${u.apellidos || ''}`.trim(),
     })) as Cobrador[]
   },
 
   // Obtener supervisores
   async getSupervisores() {
-    const users = await apiRequest<any[]>('GET', '/routes/supervisores', undefined, {
+    const users = await apiRequest<UsuarioDeRuta[]>('GET', '/routes/supervisores', undefined, {
       cacheTTL: 120000,
     })
     return users.map((u) => ({
       ...u,
-      nombre: u.nombre || `${u.nombres} ${u.apellidos}`.trim(),
+      nombre: u.nombre || `${u.nombres || ''} ${u.apellidos || ''}`.trim(),
     })) as Supervisor[]
   },
 
   // Obtener coordinadores, para asignar el de la ruta
   async getCoordinadores() {
-    const users = await apiRequest<any[]>('GET', '/routes/coordinadores', undefined, {
+    const users = await apiRequest<UsuarioDeRuta[]>('GET', '/routes/coordinadores', undefined, {
       cacheTTL: 120000,
     })
     return users.map((u) => ({
       ...u,
-      nombre: u.nombre || `${u.nombres} ${u.apellidos}`.trim(),
+      nombre: u.nombre || `${u.nombres || ''} ${u.apellidos || ''}`.trim(),
     })) as Supervisor[]
   },
 

@@ -16,6 +16,23 @@ export type VentaContadoResponse = {
   journalEntryId: string | null
 }
 
+/**
+ * Una venta de contado, tal como la devuelve `GET /sales/cash`.
+ *
+ * Vive aqui y no en la pantalla porque el servicio es el dueno del contrato: la barra del
+ * punto de venta tenia este mismo tipo declarado para su `map`, y el servicio devolvia
+ * `any[]`, asi que lo que se declaraba alla no comprobaba nada de lo que llega aca.
+ */
+export interface VentaDeContado {
+  id: string
+  articulo?: string | null
+  descripcion?: string | null
+  monto?: number | string | null
+  fecha?: string | null
+  vendedor?: string | null
+  cliente?: string | null
+}
+
 export const salesService = {
   async registrarVentaContado(dataEntrada: VentaContadoPayload): Promise<VentaContadoResponse> {
     // Clave de idempotencia: misma clave online y offline, para que un reintento
@@ -56,6 +73,6 @@ export const salesService = {
   },
 
   async obtenerVentasContado() {
-    return apiRequest<any[]>('GET', '/sales/cash')
+    return apiRequest<VentaDeContado[]>('GET', '/sales/cash')
   },
 }
