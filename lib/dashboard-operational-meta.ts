@@ -1,4 +1,6 @@
 import { apiRequest } from '@/lib/api/api'
+import type { CuotaOperativa } from '@/lib/types/cobranza'
+import type { Pago, PrestamoParcial } from '@/types/domain'
 import { logger } from '@/lib/logger'
 import {
   computeMontoExigibleHastaHoyFromCuotas,
@@ -75,6 +77,24 @@ const getBeforeStartKey = (timeFilter: OperationalMetaTimeFilter, startKey: stri
  * `computeOperationalMetaByRouteIdsForTimeFilter`, justo debajo.
  */
 
+/**
+ * Lo que esta funcion lee de una ruta para calcular su meta operativa.
+ *
+ * `PrestamoParcial` y `CuotaOperativa` ya existen y son lo que
+ * `mapAsignacionesToVisitasLite` recibe despues: se reutilizan. Lo unico propio es que
+ * aqui el prestamo se REARMA con las cuotas traidas por separado
+ * (`prestamosService.obtenerCuotas`), y eso es lo que el `any` dejaba sin comprobar.
+ */
+type CuotaDeMeta = CuotaOperativa
+
+type PrestamoConCuotas = PrestamoParcial & {
+  cuotas?: CuotaDeMeta[] | null
+}
+
+type AsignacionConCuotas = {
+  cliente?: { prestamos?: PrestamoConCuotas[] | null } | null
+}
+
 export const computeOperationalMetaByRouteIdsForTimeFilter = async (
   timeFilter: OperationalMetaTimeFilter,
   routeIds: string[],
@@ -106,7 +126,13 @@ export const computeOperationalMetaByRouteIdsForTimeFilter = async (
   let recaudosHoyMap: Record<string, number> = {}
   if (timeFilter === 'today') {
     try {
-      const pagosResp: any = await apiRequest<unknown>('GET', '/payments?limit=5000', undefined, {
+      // Tres formas para la misma respuesta, y por eso la cascada: el endpoint devuelve
+      // `{pagos}`, `{data:{pagos}}` o el arreglo suelto segun la version. Declarado en vez
+      // de `any` para que la cascada se vea, que es lo que el `any` escondia.
+      const pagosResp = await apiRequest<{
+        pagos?: Partial<Pago>[]
+        data?: { pagos?: Partial<Pago>[] }
+      }>('GET', '/payments?limit=5000', undefined, {
         cacheTTL: 0,
       })
       const pagosData = pagosResp?.pagos || pagosResp?.data?.pagos || pagosResp || []
@@ -124,8 +150,13 @@ export const computeOperationalMetaByRouteIdsForTimeFilter = async (
   await Promise.all(
     idsSorted.map(async (routeId) => {
       try {
-        const rutaCompleta: any = await rutasService.obtenerRutaPorId(String(routeId))
-        let dailyVisits: any = null
+        // Sin anotacion: el servicio ya declara lo que devuelve, y el `any` solo tapaba eso.
+        const rutaCompleta = await rutasService.obtenerRutaPorId(String(routeId))
+        // Declarado, no inferido: `let x = null` sin anotacion es un `any` EVOLUTIVO que
+        // `noImplicitAny` no marca.
+        let dailyVisits: Awaited<
+          ReturnType<typeof rutasService.obtenerVisitasDelDia>
+        > | null = null
         if (timeFilter === 'today') {
           try {
             dailyVisits = await rutasService.obtenerVisitasDelDia(String(routeId), endKey)
@@ -147,15 +178,16 @@ export const computeOperationalMetaByRouteIdsForTimeFilter = async (
           : []
 
         const asigsConCuotas = await Promise.all(
-          asignaciones.map(async (asig: any) => {
+          asignaciones.map(async (asig: AsignacionConCuotas) => {
             const cliente = asig?.cliente || null
             if (!cliente) return asig
             const prestamosRaw = Array.isArray(cliente?.prestamos) ? cliente.prestamos : []
             const prestamosValidos = prestamosRaw.filter(
-              (p: any) => p && (p.estado === 'ACTIVO' || p.estado === 'EN_MORA'),
+              (p: PrestamoConCuotas) =>
+                p && (p.estado === 'ACTIVO' || p.estado === 'EN_MORA'),
             )
             const prestamos = await Promise.all(
-              prestamosValidos.map(async (p: any) => {
+              prestamosValidos.map(async (p: PrestamoConCuotas) => {
                 if (!p?.id) return p
                 const cuotasEmbebidas = Array.isArray(p?.cuotas) ? p.cuotas : []
                 const cuotas = await prestamosService
@@ -189,7 +221,7 @@ export const computeOperationalMetaByRouteIdsForTimeFilter = async (
           return true
         })
 
-        const cuotasMap = new Map<string, any[]>()
+        const cuotasMap = new Map<string, CuotaDeMeta[]>()
         for (const asig of asigsConCuotas) {
           for (const p of asig?.cliente?.prestamos || []) {
             if (p?.id && Array.isArray(p?.cuotas)) cuotasMap.set(String(p.id), p.cuotas)

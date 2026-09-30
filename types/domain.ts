@@ -79,7 +79,16 @@ export interface Prestamo {
   proximaCuotaFecha?: string | null; // Fecha de la próxima cuota a vencer
   tipoPrestamo?: string | null;
   descripcionArticulo?: string | null;
-  cuotas?: Cuota[];
+  /**
+   * Las cuotas, como PROYECCION: no son `Cuota` completas.
+   *
+   * Mismo caso que `proximaCuota` de abajo, y medido igual: las respuestas de ruta y de
+   * jornada arman la cuota con los campos que la pantalla necesita —id, numeroCuota,
+   * estado, fechas y montos— y no mandan `prestamoId`, `monto`, `montoCapital`,
+   * `montoInteres` ni `creadoEn`, que `Cuota` declara obligatorios. Prometerlos hacia
+   * mentir al tipo y obligaba a castear en los mapeadores.
+   */
+  cuotas?: Array<Partial<Cuota>>;
   extensiones?: Extension[];
   /**
    * La PROXIMA cuota, pero como proyeccion: no es una `Cuota` completa.

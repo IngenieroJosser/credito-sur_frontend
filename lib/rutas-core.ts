@@ -3,7 +3,7 @@ import type { ObligacionDeJornada } from '@/types/obligacion-jornada'
 import { mapFrecuenciaToPeriodo, type PeriodoRuta } from '@/lib/types/cobranza'
 import type { ClienteCierrePendiente } from '@/types/rutas/cierre-pendiente'
 import type { CuotaOperativa, VisitaParcial } from '@/lib/types/cobranza'
-import type { PrestamoParcial } from '@/types/domain'
+import type { PrestamoParcial, RutaDeLista } from '@/types/domain'
 import type { ContextoRegularizacion } from '@/types/rutas/cierre-pendiente'
 
 /**
@@ -117,7 +117,22 @@ const normalizeUpper = (value: unknown): string =>
     .trim()
     .toUpperCase()
 
-export const getEstadoRevisionOperacion = (source: any) => {
+// Lo que este lector necesita de un prestamo o de una obligacion para decidir su estado
+// de revision. Los cinco campos los nombro el compilador al quitar el `any`.
+export const getEstadoRevisionOperacion = (
+  source:
+    | {
+        estado?: string | null
+        estadoAprobacion?: string | null
+        estadoEfectoProvisional?: string | null
+        esProvisional?: boolean | null
+        esRevertido?: boolean | null
+        efectoProvisional?: { estado?: string | null } | null
+        efectosProvisionales?: Array<{ estado?: string | null }> | null
+      }
+    | null
+    | undefined,
+) => {
   const estadoAprobacion = normalizeUpper(source?.estadoAprobacion)
   const estadoEfectoProvisional = normalizeUpper(
     source?.estadoEfectoProvisional ??
@@ -1066,7 +1081,7 @@ export const computeDiasMoraFromCuotas = (
 }
 
 export const computeDiasMoraFromCuotaObjetivo = (
-  cuotaObjetivo: any,
+  cuotaObjetivo: CuotaOperativa | null | undefined,
   hoyBogotaKey: string,
   frecuenciaPagoRaw?: string | null,
 ): number => {
@@ -1164,8 +1179,28 @@ export const resolveCobradorIdForRouteAction = (
   return String(sessionUserId || '').trim()
 }
 
+/**
+ * Lo que este resumen lee de la ruta: seis cifras, cinco de ellas anidadas.
+ *
+ * Los saco un `grep` de los accesos, no una suposicion. Importa que esten anidadas: ya
+ * hubo cuatro pantallas que leyeron estas cifras de la RAIZ, donde el detalle no pone
+ * nada, y el `|| 0` se comia el `undefined`. Con el tipo declarado eso ya no compila.
+ */
+type RutaConEstadisticas = Partial<RutaDeLista> & {
+  // `estadisticas` anidado NO esta en `RutaDeLista`: es la forma del DETALLE
+  // (`GET /routes/:id`), mientras el LISTADO pone las mismas cifras en la raiz. Las dos
+  // conviven a proposito y esta funcion lee las dos, en ese orden.
+  estadisticas?: {
+    metaDelDia?: number | null
+    cobranzaDelDia?: number | null
+    recaudoHoy?: number | null
+    totalVisitas?: number | null
+    visitados?: number | null
+  } | null
+}
+
 export function resolveRutaDailySummary(
-  ruta: any,
+  ruta: RutaConEstadisticas | null | undefined,
   dailyVisits: DailyVisitsResponse | null | undefined,
 ) {
   // `Partial` y no el tipo a secas: el `?? {}` de la derecha mete un objeto vacio, y

@@ -1,4 +1,9 @@
-import { mapNivelRiesgo, type PeriodoRuta } from '@/lib/types/cobranza'
+import {
+  mapNivelRiesgo,
+  type CuotaOperativa,
+  type PeriodoRuta,
+} from '@/lib/types/cobranza'
+import type { PrestamoParcial } from '@/types/domain'
 import {
   computeDiasMoraFromCuotas,
   computeMontoExigibleHastaHoyFromCuotas,
@@ -84,19 +89,58 @@ const toNivel = (r: string) => {
   return mapNivelRiesgo(r)
 }
 
-const isPagada = (c: any) => {
+/**
+ * Lo que este mapeador lee de una asignacion de ruta.
+ *
+ * Los tres bloques salen de un `grep` de los accesos del archivo, no de adivinar. Eran
+ * `any[]` y `any`, asi que la cascada `prestamo?.tipoPrestamo || prestamo?.tipo` y el
+ * `cliente.prestamos` no se comprobaban en ningun sitio.
+ */
+type CuotaDelMapeo = CuotaOperativa & { estado?: string | null }
+
+// `PrestamoParcial` ya existe y es lo que los consumidores de este archivo exigen
+// (`isPrestamoOperativo`, `resolveCuotaNormalOperativa`): se reutiliza en vez de escribir
+// un tipo nuevo. Lo dijo el compilador al intentar declarar uno propio.
+type PrestamoDelMapeo = PrestamoParcial & {
+  // Estos dos los agrega el backend de la jornada y `PrestamoCamposLeidos` no los tiene.
+  recaudadoDelDia?: number | null
+  recaudadoHoy?: number | null
+}
+
+type AsignacionDelMapeo = {
+  id?: string
+  recaudadoDelDia?: number | null
+  clienteId?: string
+  ordenVisita?: number | null
+  horaSugerida?: string | null
+  estadoVisita?: string | null
+  notasVisita?: string | null
+  cliente?: {
+    id?: string
+    nombres?: string | null
+    apellidos?: string | null
+    telefono?: string | null
+    direccion?: string | null
+    nivelRiesgo?: string | null
+    prestamos?: PrestamoDelMapeo[] | null
+  } | null
+}
+
+const isPagada = (c: CuotaDelMapeo | null | undefined) => {
   // Predicado defensivo para estados "pagada".
   const e = String(c?.estado || '').toUpperCase()
   return e === 'PAGADA' || e === 'PAGADO'
 }
 
-const isAnulada = (c: any) => {
+const isAnulada = (c: CuotaDelMapeo | null | undefined) => {
   // Predicado defensivo para estados "anulada".
   const e = String(c?.estado || '').toUpperCase()
   return e === 'ANULADA' || e === 'ANULADO'
 }
 
-const getCuotaEffectiveVtoKey = (c: any): string => {
+const getCuotaEffectiveVtoKey = (
+  c: CuotaDelMapeo | null | undefined,
+): string => {
   // Obtiene la llave de vencimiento efectiva de una cuota (YYYY-MM-DD).
   //
   // Regla:
@@ -110,7 +154,7 @@ const getCuotaEffectiveVtoKey = (c: any): string => {
 }
 
 export const mapAsignacionesToVisitasLite = (params: {
-  asignaciones: any[]
+  asignaciones: AsignacionDelMapeo[]
   hoyKey?: string
   cobradorId: string
   filtrarExigibles?: boolean
@@ -125,7 +169,9 @@ export const mapAsignacionesToVisitasLite = (params: {
     const cliente = asig?.cliente || {}
 
     const prestamos = Array.isArray(cliente?.prestamos) ? cliente.prestamos : []
-    const prestamosValidos = prestamos.filter((p: any) => isPrestamoOperativo(p))
+    const prestamosValidos = prestamos.filter((p: PrestamoDelMapeo) =>
+      isPrestamoOperativo(p),
+    )
     const lista =
       prestamosValidos.length > 0
         ? prestamosValidos
@@ -133,9 +179,9 @@ export const mapAsignacionesToVisitasLite = (params: {
           ? [null]
           : []
 
-    return lista.flatMap((prestamo: any, subIdx: number) => {
+    return lista.flatMap((prestamo: PrestamoDelMapeo | null, subIdx: number) => {
       const cuotas = Array.isArray(prestamo?.cuotas) ? prestamo.cuotas : []
-      const cuotasOrdenadas = [...cuotas].sort((a, b: any) => {
+      const cuotasOrdenadas = [...cuotas].sort((a, b) => {
         const ak = getCuotaEffectiveVtoKey(a)
         const bk = getCuotaEffectiveVtoKey(b)
         if (ak && bk) return ak.localeCompare(bk)
@@ -242,7 +288,9 @@ export const mapAsignacionesToVisitasLite = (params: {
 
       const estadoCuota = String((proxima)?.estado || '').toUpperCase()
       const enProrroga = estadoCuota === 'PRORROGADA' || !!(proxima)?.fechaVencimientoProrroga
-      const fechaProrroga = (proxima)?.fechaVencimientoProrroga
+      // `?? undefined` porque la cuota trae `null` cuando no hay prorroga y `VisitaRutaLite`
+      // declara `string | undefined`. Con `any` las dos cosas eran iguales; declarado, no.
+      const fechaProrroga = proxima?.fechaVencimientoProrroga ?? undefined
       const fechaOriginalVencimiento = (proxima)?.fechaVencimiento
 
       // El campo estadoVisita puede venir del objeto de asignación cuando el backend

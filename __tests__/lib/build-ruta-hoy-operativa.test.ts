@@ -53,7 +53,24 @@ const correr = (
 ) =>
   buildRutaHoyOperativa({
     ruta: { id: 'ruta-1', cobradorId: 'cobrador-1', codigo: 'R-01' },
-    dailyVisits: { obligaciones, resumen: {} },
+    // El resumen va con sus seis cifras en 0 y no `{}`: `DailyVisitsResponse` las declara
+    // obligatorias, y 0 es lo que corresponde a una jornada sin nada. No cambia ninguna
+    // asercion: este helper saca la meta de las obligaciones, no del resumen.
+    dailyVisits: {
+      fecha: HOY,
+      rutaId: 'ruta-1',
+      totalVisitas: obligaciones.length,
+      visitas: [],
+      obligaciones,
+      resumen: {
+        recaudo: 0,
+        meta: 0,
+        gastos: 0,
+        efectividad: 0,
+        visitados: 0,
+        total: 0,
+      },
+    },
     hoyBogotaKey: HOY,
     cobradorId: 'cobrador-1',
     // Se pasa a propósito: sin esto el helper va a `prestamosService` a buscar

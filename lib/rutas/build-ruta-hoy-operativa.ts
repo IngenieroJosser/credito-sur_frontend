@@ -1,5 +1,6 @@
-import type { PrestamoParcial } from '@/types/domain'
-import type { VisitaRuta } from '@/lib/types/cobranza'
+import type { Pago, PrestamoParcial } from '@/types/domain'
+import type { DailyVisitsResponse } from '@/services/rutas-service'
+import type { CuotaOperativa, VisitaRuta } from '@/lib/types/cobranza'
 import type { Cuota } from '@/services/prestamos-service'
 import {
   resolveRutaDailySummary,
@@ -43,12 +44,15 @@ export type RutaHoyOperativaResult = {
 }
 
 export type BuildRutaHoyOperativaParams = {
-  ruta: any
-  dailyVisits: any
+  // Los tres tipos ya existen y son los que `resolveRutaDailySummary` y
+  // `computeRecaudadoDelDia` reciben: se reutilizan en vez de `any`. De este helper cuelgan
+  // cuatro pantallas, asi que era el `any` con mas alcance de la zona de rutas.
+  ruta: Parameters<typeof resolveRutaDailySummary>[0]
+  dailyVisits: DailyVisitsResponse | null | undefined
   hoyBogotaKey: string
   cobradorId: string
   getCuotasByPrestamoId?: (prestamoId: string) => Promise<Cuota[]>
-  pagos?: any[]
+  pagos?: Partial<Pago>[]
 }
 
 export async function buildRutaHoyOperativa({
@@ -63,7 +67,7 @@ export async function buildRutaHoyOperativa({
 
   // 1. Obtener daily summary y filtrar obligaciones
   const dailySummary = resolveRutaDailySummary(ruta, dailyVisits)
-  const obligacionesJornada = (dailySummary.obligaciones || []).filter((o: any) => {
+  const obligacionesJornada = (dailySummary.obligaciones || []).filter((o) => {
     const estado = String(
       o.estadoGestion ||
         o.estadoVisita ||
@@ -75,7 +79,7 @@ export async function buildRutaHoyOperativa({
   })
 
   // 2. Convertir obligaciones en formato VisitaRuta
-  const visitasOperativas: VisitaRuta[] = obligacionesJornada.map((o: any, idx: number) => {
+  const visitasOperativas: VisitaRuta[] = obligacionesJornada.map((o, idx) => {
     const clienteObj = typeof o.cliente === 'object' && o.cliente ? o.cliente : null
     // El `|| {}` mete un objeto vacio en la union y el compilador deja de
     // ver los campos. Se anota lo que estas variables contienen.
@@ -104,7 +108,11 @@ export async function buildRutaHoyOperativa({
         0,
     )
 
-    const cuotaObjetivo = o.cuotaObjetivo || prestamo?.cuotaObjetivo || prestamo?.proximaCuota || {}
+    // Anotada porque la cascada mezcla dos formas: la cuota de la obligacion es
+    // `CuotaOperativa` y la del prestamo es una proyeccion de `Cuota`. Sin la anotacion el
+    // compilador ve la union y deja de encontrar los campos que solo declara la primera.
+    const cuotaObjetivo: CuotaOperativa =
+      o.cuotaObjetivo || prestamo?.cuotaObjetivo || prestamo?.proximaCuota || {}
 
     const estadoCuota = String(
       o.cuotaObjetivo?.estadoActual ||
@@ -162,6 +170,19 @@ export async function buildRutaHoyOperativa({
 
     const visitaBase = {
       ...o,
+      // Lo que sigue son campos que el `...o` ya trae, pero con la forma del BACKEND:
+      // textos que pueden ser `null`, montos que pueden ser texto (Prisma serializa
+      // `Decimal` como string) y contadores que pueden faltar. `VisitaRuta` los declara
+      // `string` y `number`, asi que se normalizan aqui, en un solo sitio, en vez de
+      // castear la fila entera. No cambia ninguna lectura: todos los consumidores ya los
+      // pasaban por `Number(... || 0)` o `String(... || '')`.
+      montoMetaOperativaPendiente: Number(o.montoMetaOperativaPendiente ?? 0),
+      saldoPendiente: Number(o.saldoPendiente ?? 0),
+      // Los dos vienen en el `...o` con la forma del backend —`string | null` la hora, y
+      // monto-que-puede-ser-texto el recaudo— y `VisitaRuta` los declara `string` y
+      // `number`. Se normalizan aqui, que es donde se conoce el valor por defecto.
+      horaSugerida: o.horaSugerida || '08:00 AM',
+      recaudadoDelDia: Number(o.recaudadoDelDia ?? 0),
 
       id: o.id || o.prestamoId || prestamo?.id || `obligacion-${idx}`,
       cuotaId,
@@ -222,7 +243,10 @@ export async function buildRutaHoyOperativa({
       estado: estadoVisual,
 
       estadoGestion,
-      estadoVisita: o.estadoVisita || prestamo?.estadoVisita || null,
+      // `?? undefined` y no `|| null`: `VisitaRuta.estadoVisita` es `string | undefined`,
+      // y el `null` de la fila del backend no le cabe. Se lee igual con `||` en todos los
+      // consumidores.
+      estadoVisita: o.estadoVisita || prestamo?.estadoVisita || undefined,
       notasVisita: o.notasVisita || prestamo?.notasVisita || null,
 
       proximaVisita:
@@ -236,23 +260,36 @@ export async function buildRutaHoyOperativa({
       ordenVisita: Number(o.ordenVisita || idx + 1),
       prioridad: o.prioridad || 'media',
 
-      cobradorId: ruta.cobradorId,
+      cobradorId: ruta?.cobradorId || cobradorId,
       periodoRuta: frecuenciaToPeriodoRuta(frecuenciaPago),
 
       clienteId: o.clienteId || clienteObj?.id || '',
       prestamoId: o.prestamoId || prestamo?.id || '',
       diasMora,
+      // Las cinco cascadas cierran con `?? undefined` porque el ultimo eslabon sale de
+      // `PrestamoParcial`, que los declara `string | null`, y `VisitaRuta` los quiere
+      // `string | undefined`. Con `any` las dos cosas eran iguales.
       nivelRiesgoObligacion:
         o?.nivelRiesgoObligacion ??
         o?.prestamo?.nivelRiesgoObligacion ??
-        prestamo?.nivelRiesgoObligacion,
+        prestamo?.nivelRiesgoObligacion ??
+        undefined,
       nivelRiesgoCredito:
-        o?.nivelRiesgoCredito ?? o?.prestamo?.nivelRiesgoCredito ?? prestamo?.nivelRiesgoCredito,
-      riesgoCredito: o?.riesgoCredito ?? o?.prestamo?.riesgoCredito ?? prestamo?.riesgoCredito,
+        o?.nivelRiesgoCredito ??
+        o?.prestamo?.nivelRiesgoCredito ??
+        prestamo?.nivelRiesgoCredito ??
+        undefined,
+      riesgoCredito:
+        o?.riesgoCredito ??
+        o?.prestamo?.riesgoCredito ??
+        prestamo?.riesgoCredito ??
+        undefined,
       riesgoOperativo:
-        o?.riesgoOperativo ?? o?.prestamo?.riesgoOperativo ?? prestamo?.riesgoOperativo,
-      nivelRiesgoBackend:
-        o?.nivelRiesgoBackend ?? o?.cliente?.nivelRiesgo ?? clienteObj?.nivelRiesgo,
+        o?.riesgoOperativo ??
+        o?.prestamo?.riesgoOperativo ??
+        prestamo?.riesgoOperativo ??
+        undefined,
+      nivelRiesgoBackend: o?.nivelRiesgoBackend ?? clienteObj?.nivelRiesgo ?? undefined,
       prestamoRaw: prestamo,
     }
 
