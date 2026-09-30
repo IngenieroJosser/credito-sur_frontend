@@ -724,7 +724,7 @@ export const rutasService = {
 
    */
 
-  async getCierrePendiente(rutaId: string): Promise<any> {
+  async getCierrePendiente(rutaId: string): Promise<unknown> {
     return apiRequest('GET', `/routes/${rutaId}/cierre-pendiente`)
   },
 

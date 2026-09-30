@@ -3,7 +3,7 @@ import type { Prestamo } from '@/types/domain'
 /**
  * Lo que de verdad devuelve `POST /loans`.
  *
- * `crearPrestamo` estaba declarado `Promise<any>`, y como nadie sabía la forma de
+ * `crearPrestamo` estaba declarado `Promise<unknown>`, y como nadie sabía la forma de
  * la respuesta, cuatro pantallas terminaron adivinando el id por hasta seis
  * caminos distintos (`response.data.id`, `response.prestamo.id`,
  * `response.data.prestamo.id`, `response.data.data.id`, `response.data.loan.id`…).

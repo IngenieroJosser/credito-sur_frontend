@@ -816,7 +816,7 @@ export async function confirmarArqueo(
     denominaciones?: any
     observaciones?: string
   },
-): Promise<any> {
+): Promise<unknown> {
   try {
     return await apiRequest<any>('POST', `/cajas/${cajaId}/arqueos`, data)
   } catch (error) {
@@ -844,7 +844,7 @@ export async function registrarArqueo(
     diferencia: number
     observaciones?: string
   },
-): Promise<any> {
+): Promise<unknown> {
   try {
     return await apiRequest<any>('POST', `/accounting/cajas/${cajaId}/arqueos`, data)
   } catch (error) {
@@ -900,9 +900,7 @@ export async function obtenerSaldoCajaSupervisor(
   )
 }
 
-export async function getRutaCierreHoy(
-  rutaId: string,
-): Promise<{
+export async function getRutaCierreHoy(rutaId: string): Promise<{
   rutaId: string
   cerradaHoy: boolean
   cierreId: string | null
