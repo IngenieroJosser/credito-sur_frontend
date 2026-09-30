@@ -134,6 +134,26 @@ function getCumplimiento(meta: number, recaudo: number) {
   }
 }
 
+/**
+ * Los diez permisos que este modal consulta.
+ *
+ * Se exporta porque la pantalla que lo usa armaba este objeto dentro de un
+ * `((): any => {...})()`, o sea que ninguno de los diez nombres se comprobaba: un
+ * `canCerrarJornda` mal escrito habria dejado el boton apagado sin una sola queja.
+ */
+export type PermisosCierrePendiente = {
+  canExportarDetalle?: boolean
+  canSolicitarCorreccion?: boolean
+  canCerrarJornada?: boolean
+  canRegistrarPago?: boolean
+  canMarcarAusente?: boolean
+  canAnularAusencia?: boolean
+  canReprogramar?: boolean
+  canVerPago?: boolean
+  canVerComprobante?: boolean
+  canAgregarObservacion?: boolean
+}
+
 export function CierrePendienteDetalleModal({
   open,
   onClose,
@@ -163,7 +183,10 @@ export function CierrePendienteDetalleModal({
   onRegistrarAbono?: (cliente: ClienteCierrePendiente, contextoRegularizacion?: ContextoRegularizacion) => void
   onMarcarAusente?: (cliente: ClienteCierrePendiente, contextoRegularizacion?: ContextoRegularizacion) => void
   onReprogramar?: (cliente: ClienteCierrePendiente, contextoRegularizacion?: ContextoRegularizacion) => void
-  permissions?: {
+  permissions?: PermisosCierrePendiente
+  // (el tipo se declara abajo, exportado, para que quien lo pasa no tenga que usar `any`)
+  _permisosDoc?: never
+  __?: {
     canExportarDetalle?: boolean
     canSolicitarCorreccion?: boolean
     canCerrarJornada?: boolean

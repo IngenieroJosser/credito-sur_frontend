@@ -153,6 +153,8 @@ import NuevoClienteModal from '@/components/clientes/NuevoClienteModal'
 
 import RutaProvisionalModal from '@/components/dashboards/shared/RutaProvisionalModal'
 import { VisitaRuta, EstadoVisita, PeriodoRuta, mapNivelRiesgo } from '@/lib/types/cobranza'
+import type { PrestamoParcial } from '@/types/domain'
+import type { CrearCreditoModalData } from '@/lib/creditos/crear-prestamo-payload'
 import type { CuotaOperativa, VisitaParcial } from '@/lib/types/cobranza'
 import { resolveNivelRiesgoVisita } from '@/lib/rutas/resolve-riesgo-visita'
 import { ordenarVisitasRutaActual } from '@/lib/rutas/ordenar-visitas-ruta'
@@ -168,7 +170,10 @@ import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
 import { buildCrearPrestamoPayload } from '@/lib/creditos/crear-prestamo-payload'
 
 import { CierrePendienteBanner } from '@/components/rutas/CierrePendienteBanner'
-import { CierrePendienteDetalleModal } from '@/components/rutas/CierrePendienteDetalleModal'
+import {
+  CierrePendienteDetalleModal,
+  type PermisosCierrePendiente,
+} from '@/components/rutas/CierrePendienteDetalleModal'
 import { useCierrePendienteDetalle } from '@/hooks/useCierrePendienteDetalle'
 import ReprogramarModal from '@/components/cobranza/ReprogramarModal'
 
@@ -218,7 +223,13 @@ import { buildRutaHoyOperativa } from '@/lib/rutas/build-ruta-hoy-operativa'
 import { mapWithConcurrency, memoizePromiseByKey } from '@/lib/async-utils'
 import { resolveVisitaBaseRegularizacion } from '@/lib/rutas/resolve-visita-base-regularizacion'
 
-import { offlineStore } from '@/lib/offline/offlineDb'
+import {
+  offlineStore,
+  type OfflineCliente,
+  type OfflineCuota,
+  type OfflinePrestamo,
+  type OfflineRuta,
+} from '@/lib/offline/offlineDb'
 
 import { formatShortDate } from '@/lib/utils/format'
 
@@ -286,6 +297,34 @@ interface UserSession {
 }
 
 
+
+/**
+ * El evento de tiempo real que recarga la jornada.
+ *
+ * Cada campo aparece DOS veces —en la raiz y dentro de `metadata`— porque los emisores no
+ * coinciden: unos mandan `{prestamoId}` y otros `{metadata: {prestamoId}}`, y el handler los
+ * lee en cascada. Eso es lo que el `any` escondia, y lo nombro el compilador al declararlo:
+ * cinco campos, no tres.
+ */
+type CamposDelEvento = {
+  rutaId?: string
+  clienteId?: string
+  prestamoId?: string
+  accion?: string
+  /**
+   * El estado que la visita toma tras el evento, ya como la union cerrada.
+   *
+   * Va asi porque se escribe DIRECTO en `VisitaRuta.estado`, que es esa union. Conviene
+   * decirlo: nada valida este payload en ejecucion —viene de un socket— asi que si el
+   * backend mandara otro texto, la pantalla guardaria un estado que no sabe pintar. El
+   * tipo al menos deja el supuesto escrito donde se ve.
+   */
+  estadoVisita?: EstadoVisita
+  notas?: string
+  notasVisita?: string
+}
+
+type EventoDeJornada = CamposDelEvento & { metadata?: CamposDelEvento }
 
 const VistaCobrador = () => {
 
@@ -487,7 +526,9 @@ const VistaCobrador = () => {
 
 
 
-  const [rutaActual, setRutaActual] = useState<Ruta | null>(null)
+  // La union es real: online llega la `Ruta` de la API y sin conexion una `OfflineRuta`,
+  // que trae menos campos. La pantalla lee lo comun (id, nombre, codigo, cobradorId).
+  const [rutaActual, setRutaActual] = useState<Ruta | OfflineRuta | null>(null)
   const [dailyVisitsHoy, setDailyVisitsHoy] = useState<DailyVisitsResponse | null>(null)
 
   const {
@@ -855,7 +896,9 @@ const VistaCobrador = () => {
       const mapped: VisitaRuta[] = await Promise.all(filas.map(async (row, idx: number) => {
         const c = row?.cliente || {}
         const p = row?.prestamo || {}
-        let prestamoAutoritativo: any = p
+        // `PrestamoParcial` y no `any`: la fila del listado y la del detalle traen formas
+        // distintas, y esta variable se reasigna con la del detalle unas lineas mas abajo.
+        let prestamoAutoritativo: PrestamoParcial = p
         if (p?.id) {
           try {
             const detalle = await prestamosService.obtenerPrestamoPorId(p.id)
@@ -997,7 +1040,15 @@ const VistaCobrador = () => {
       setMisCreditos(finales)
 
     } catch (e) {
-      const extractErrorInfo = (err: any) => ({
+      // `unknown` y las lecturas por `estadoDeError`/opcional: un error puede ser
+      // cualquier cosa, y es justo el sitio donde `any` hace que el reporte salga vacio.
+      const extractErrorInfo = (err: {
+        message?: string
+        status?: number
+        name?: string
+        data?: unknown
+        response?: { data?: unknown }
+      }) => ({
         message: err?.message,
         status: err?.status,
         statusCode: estadoDeError(err),
@@ -1007,7 +1058,9 @@ const VistaCobrador = () => {
         name: err?.name,
       })
 
-      const info = extractErrorInfo(e)
+      const info = extractErrorInfo(
+        e && typeof e === 'object' ? e : { message: String(e) },
+      )
       console.error('Error cargando mis clientes (VistaCobrador):', JSON.stringify(info, null, 2))
 
       // No mostrar toast genérico si el backend responde 404/204/empty por no haber créditos
@@ -1205,7 +1258,11 @@ const VistaCobrador = () => {
         const rutaCompleta = await rutasService.obtenerRutaPorId(rutaResumen.id);
         
         // 2a. Cargar las visitas del día para la ruta (fuente autoritativa)
-        let dailyVisits: any = null;
+        // Declarado, no inferido: `let x = null` sin anotacion es un `any` EVOLUTIVO que
+        // `noImplicitAny` no marca. El tipo sale del servicio que lo llena.
+        let dailyVisits: Awaited<
+          ReturnType<typeof rutasService.obtenerVisitasDelDia>
+        > | null = null;
         try {
           dailyVisits = await rutasService.obtenerVisitasDelDia(rutaResumen.id, hoyBogotaKey);
           setDailyVisitsHoy(dailyVisits);
@@ -1248,7 +1305,9 @@ const VistaCobrador = () => {
         // DEFECTO-D FIX: Usar periodoCardsRef en lugar de periodoCards para evitar stale closures
         // dado que cargarDatosRuta no tiene a periodoCards en sus deps.
         const { inicio: cardInicio, fin: cardFin } = getDatesByPeriod(periodoCardsRef.current);
-        let saldo: any = null;
+        let saldo: Awaited<
+          ReturnType<typeof obtenerSaldoDisponibleRuta>
+        > | null = null;
 
         try {
           saldo = await obtenerSaldoDisponibleRuta(rutaCompleta.id, undefined, cardInicio, cardFin);
@@ -1266,10 +1325,12 @@ const VistaCobrador = () => {
               totalVisitas: dailySummary.total,
               gastos: Number(saldo?.gastosDelDia ?? 0),
               base: Number(
+                // El `?? saldo?.saldo` que cerraba esta cascada era un respaldo MUERTO:
+                // `SaldoDisponibleRuta` no tiene `saldo` (contabilidad-service.ts:196-212),
+                // asi que valia `undefined` siempre. Los tres de arriba si existen.
                 saldo?.saldoCaja ??
                 saldo?.baseEfectivo ??
                 saldo?.saldoDisponible ??
-                saldo?.saldo ??
                 0
               )
             }));
@@ -1286,10 +1347,12 @@ const VistaCobrador = () => {
               totalVisitas: dailySummary.total,
               gastos: Number(saldo?.gastosDelDia ?? 0),
               base: Number(
+                // El `?? saldo?.saldo` que cerraba esta cascada era un respaldo MUERTO:
+                // `SaldoDisponibleRuta` no tiene `saldo` (contabilidad-service.ts:196-212),
+                // asi que valia `undefined` siempre. Los tres de arriba si existen.
                 saldo?.saldoCaja ??
                 saldo?.baseEfectivo ??
                 saldo?.saldoDisponible ??
-                saldo?.saldo ??
                 0
               )
             }));
@@ -1302,10 +1365,12 @@ const VistaCobrador = () => {
               eficiencia: est.metaDelDia > 0 ? Math.round((Number(saldo?.cobranzaDelDia ?? saldo?.recaudoDelDia ?? 0) / est.metaDelDia) * 100) : Number(est.avanceDiario ?? 0),
               gastos: Number(saldo?.gastosDelDia ?? 0),
               base: Number(
+                // El `?? saldo?.saldo` que cerraba esta cascada era un respaldo MUERTO:
+                // `SaldoDisponibleRuta` no tiene `saldo` (contabilidad-service.ts:196-212),
+                // asi que valia `undefined` siempre. Los tres de arriba si existen.
                 saldo?.saldoCaja ??
                 saldo?.baseEfectivo ??
                 saldo?.saldoDisponible ??
-                saldo?.saldo ??
                 0
               )
             }));
@@ -1397,7 +1462,7 @@ const VistaCobrador = () => {
             const visitasOperativasFiltradas = operativaHoy.visibleItems;
 
             const recaudoHoy = visitasBaseParaKpi.reduce(
-              (sum: number, v: any) => sum + Number(v?.recaudadoDelDia || 0),
+              (sum: number, v: VisitaParcial) => sum + Number(v?.recaudadoDelDia || 0),
               0,
             )
 
@@ -1516,7 +1581,7 @@ const VistaCobrador = () => {
         let visitasEnriquecidas = visitasMapeadasDedupe
         try {
           const getCuotasByPrestamoId = memoizePromiseByKey(
-            (prestamoId) => prestamosService.obtenerCuotas(prestamoId) as Promise<any[]>,
+            (prestamoId) => prestamosService.obtenerCuotas(prestamoId),
             () => [],
           )
 
@@ -1540,8 +1605,12 @@ const VistaCobrador = () => {
                 const pendiente = (Array.isArray(cuotas) ? cuotas : []).find((c: CuotaOperativa) => isCuotaNoPagada(c))
                 const cuotaNormal = Number(
                   (v)?.montoCuotaNormal ??
-                    pendiente?.montoNominal ??
-                    pendiente?.montoCuota ??
+                    // `montoNominal` y `montoCuota` NO existen en una cuota de
+                    // `/loans/:id/cuotas`: ese endpoint devuelve la fila cruda de Prisma y
+                    // `model Cuota` solo tiene `monto`. Los dos estaban aqui copiados de la
+                    // cuota ENRIQUECIDA (`CuotaOperativa`) y valian `undefined` siempre; el
+                    // propio archivo ya lo documentaba en otra cascada. Quitar el
+                    // `as Promise<any[]>` de `obtenerCuotas` es lo que lo hizo visible.
                     pendiente?.monto ??
                     baseCuota,
                 )
@@ -1568,8 +1637,8 @@ const VistaCobrador = () => {
               const pendienteArticulo = (Array.isArray(cuotas) ? cuotas : []).find((c: CuotaOperativa) => isCuotaNoPagada(c))
               const cuotaNormalArticulo = Number(
                 (v)?.montoCuotaNormal ??
-                  pendienteArticulo?.montoNominal ??
-                  pendienteArticulo?.montoCuota ??
+                  // Misma historia que la cascada de arriba: los dos son de la cuota
+                  // ENRIQUECIDA y no de la fila cruda que devuelve este endpoint.
                   pendienteArticulo?.monto ??
                   baseCuota,
               )
@@ -1705,13 +1774,13 @@ const VistaCobrador = () => {
 
           const [offlineRutas, offlineClientes, offlinePrestamos, offlineCuotas] = await Promise.all([
 
-            offlineStore.getAll<any>('rutas'),
+            offlineStore.getAll<OfflineRuta>('rutas'),
 
-            offlineStore.getAll<any>('clientes'),
+            offlineStore.getAll<OfflineCliente>('clientes'),
 
-            offlineStore.getAll<any>('prestamos'),
+            offlineStore.getAll<OfflinePrestamo>('prestamos'),
 
-            offlineStore.getAll<any>('cuotas'),
+            offlineStore.getAll<OfflineCuota>('cuotas'),
 
           ]);
 
@@ -1725,6 +1794,9 @@ const VistaCobrador = () => {
 
           if (miRuta) {
 
+             // La ruta offline es una `OfflineRuta`, que NO es la `Ruta` de la API: trae
+             // menos campos. El estado admite las dos formas porque la pantalla funciona
+             // igual con cualquiera, y con `any` esa diferencia no se veia.
              setRutaActual(miRuta);
 
              
@@ -1781,7 +1853,10 @@ const VistaCobrador = () => {
 
                      prioridad: 'media',
 
-                     nivelRiesgo: (c.nivelRiesgo || 'MINIMO').toLowerCase(),
+                     // `mapNivelRiesgo` y no `.toLowerCase()`: el destino es una union
+                     // cerrada, y bajar a minusculas un valor cualquiera producia un nivel
+                     // que la pantalla no sabe pintar. El helper ya existia.
+                     nivelRiesgo: mapNivelRiesgo(c.nivelRiesgo),
 
                      cobradorId: userSession.id,
 
@@ -1882,7 +1957,9 @@ const VistaCobrador = () => {
 
 
   // Handler completo: update focalizado con fallback a recarga completa
-  const handlerFull = useCallback(async (payload?: any) => {
+  // El evento de tiempo real llega con la ruta y el cliente afectados, cuando los trae:
+  // el handler recarga toda la jornada igual, asi que no lee mas que eso.
+  const handlerFull = useCallback(async (payload?: EventoDeJornada) => {
     const prestamoId = payload?.prestamoId || payload?.metadata?.prestamoId;
     const clienteId = payload?.clienteId || payload?.metadata?.clienteId;
 
@@ -1997,7 +2074,10 @@ const VistaCobrador = () => {
                   0,
               )
 
-              const baseV: any = {
+              // `VisitaRuta` y no `VisitaParcial`: parte de un `...v` que ya es una visita
+              // completa del estado, asi que el resultado tambien lo es. Con `any` no se
+              // comprobaba ni lo que se pone ni lo que se lee de ella.
+              const baseV: VisitaRuta = {
                 ...v,
                 estado: nuevoEstado,
                 montoCuota: cuotaNormal,
@@ -2169,7 +2249,8 @@ const VistaCobrador = () => {
 
           const clientesConPrestamo = offlineClientes.filter(
 
-            (c: any) => (c.prestamosActivos ?? 0) > 0
+            (c: { prestamosActivos?: number | null }) =>
+              (c.prestamosActivos ?? 0) > 0
 
           );
 
@@ -2761,7 +2842,10 @@ const VistaCobrador = () => {
   // ids, asi que las dependencias no cambian de significado.
   const userSessionId = userSession?.id
   const rutaActualId = rutaActual?.id
-  const handleCrearCredito = useCallback(async (data: any) => {
+  // `CrearCreditoModalData` ya existe y es lo que `buildCrearPrestamoPayload` recibe dos
+  // lineas mas abajo: se reutiliza. Con `any`, el `(data).ventaContado` de aqui no se
+  // comprobaba contra nada.
+  const handleCrearCredito = useCallback(async (data: CrearCreditoModalData) => {
 
     try {
 
@@ -3042,11 +3126,14 @@ const handleRegistrarPago = useCallback(async (
 
       const isAusente = shouldExcludeVisitaFromOperationalMeta
 
-      const resolveEstadoSinAusente = (v: VisitaParcial): any => {
+      // Devuelve `EstadoVisita` y no `EstadoVisita | undefined`: el consumidor lo escribe
+      // en `VisitaRuta.estado`, que es obligatorio, y una visita sin estado es
+      // 'pendiente', que es lo mismo que ya devolvia el final de la funcion.
+      const resolveEstadoSinAusente = (v: VisitaParcial): EstadoVisita => {
         const estado = String(v?.estado || '').toLowerCase()
 
         if (estado !== 'ausente') {
-          return v.estado
+          return v.estado ?? 'pendiente'
         }
 
         const diasMora = Number(v?.diasMora || 0)
@@ -3060,9 +3147,12 @@ const handleRegistrarPago = useCallback(async (
         return 'pendiente'
       }
 
+      // Las dos son visitas: se comparan sus ids de prestamo y de cuota para saber si el
+      // pago es de la misma obligacion. `VisitaParcial` es la forma que llega en los dos
+      // lados (la del estado y la del snapshot que se guardo antes de pagar).
       const sameObligacionPago = (
-        visita: any,
-        visitaSnapshot: any,
+        visita: VisitaParcial,
+        visitaSnapshot: VisitaParcial,
         cuotaIdFinal?: string | null,
       ): boolean => {
         const visitaPrestamoId = String(visita?.prestamoId || '')
@@ -3240,7 +3330,7 @@ const handleRegistrarPago = useCallback(async (
 
       actorRol: userSession?.rol,
 
-    }, (response: any) => {
+    }, (response: { success?: boolean; message?: string } | null) => {
       if (!response?.success) {
         toast.error(mensajeDeError(response, 'No se pudo cerrar la ruta.'))
         return
@@ -3399,7 +3489,11 @@ const handleRegistrarPago = useCallback(async (
 
       try {
 
-        let detalle: any = null;
+        // Declarado, no inferido: `let x = null` sin anotacion es un `any` EVOLUTIVO que
+        // `noImplicitAny` no marca. El tipo sale del servicio que lo llena.
+        let detalle: Awaited<
+          ReturnType<typeof prestamosService.obtenerPrestamoPorId>
+        > | null = null;
 
         try {
           detalle = await prestamosService.obtenerPrestamoPorId(visitaClienteSeleccionada.prestamoId)
@@ -3457,7 +3551,11 @@ const handleRegistrarPago = useCallback(async (
 
       try {
 
-        let detalle: any = null
+        // Declarado, no inferido: `let x = null` sin anotacion es un `any` EVOLUTIVO que
+        // `noImplicitAny` no marca. El tipo sale del servicio que lo llena.
+        let detalle: Awaited<
+          ReturnType<typeof prestamosService.obtenerPrestamoPorId>
+        > | null = null
 
         try {
 
@@ -3481,9 +3579,16 @@ const handleRegistrarPago = useCallback(async (
 
             cliente: {
 
-              nombre: detalle.cliente?.nombre || visitaMoraSeleccionada.cliente,
+              // HALLAZGO: los cuatro `detalle.*` que siguen eran lecturas MUERTAS, y las
+              // cuatro tenian respaldo, asi que el respaldo era el valor real desde siempre.
+              // `Cliente` no tiene `nombre` (tiene `nombres` y `apellidos`) ni `documento`
+              // (tiene `dni`), y `Prestamo` no tiene `montoMora` ni `montoTotalDeuda`. Se leen
+              // los campos que SI existen, y el respaldo se queda donde estaba.
+              nombre:
+                `${detalle.cliente?.nombres || ''} ${detalle.cliente?.apellidos || ''}`.trim() ||
+                visitaMoraSeleccionada.cliente,
 
-              documento: detalle.cliente?.documento || 'N/A',
+              documento: detalle.cliente?.dni || 'N/A',
 
               telefono: detalle.cliente?.telefono || visitaMoraSeleccionada.telefono,
 
@@ -3493,9 +3598,13 @@ const handleRegistrarPago = useCallback(async (
 
             diasMora: Number(detalle.diasMora || 0),
 
-            montoMora: Number(detalle.montoMora ?? (visitaMoraSeleccionada.saldoTotal - visitaMoraSeleccionada.montoCuota)),
+            montoMora: Number(
+              visitaMoraSeleccionada.saldoTotal - visitaMoraSeleccionada.montoCuota,
+            ),
 
-            montoTotalDeuda: Number(detalle.montoTotalDeuda ?? visitaMoraSeleccionada.saldoTotal),
+            montoTotalDeuda: Number(
+              detalle.montoTotal ?? visitaMoraSeleccionada.saldoTotal,
+            ),
 
             cuotasVencidas: Number(detalle.cuotasVencidas || 0),
 
@@ -3527,7 +3636,7 @@ const handleRegistrarPago = useCallback(async (
 
         if (vencidas.length > 0) {
 
-          const oldest = vencidas.reduce((min, c: any) => (
+          const oldest = vencidas.reduce((min, c) => (
 
             new Date(c.fechaVencimiento).getTime() < new Date(min.fechaVencimiento).getTime() ? c : min
 
@@ -5327,7 +5436,7 @@ const handleRegistrarPago = useCallback(async (
               )
             }
           }}
-          permissions={((): any => {
+          permissions={((): PermisosCierrePendiente => {
             const rolActual = String(userSession?.rol || '').toUpperCase()
             const isSuperAdmin =
               rolActual === 'SUPER_ADMIN' ||
