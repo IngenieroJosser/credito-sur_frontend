@@ -209,16 +209,13 @@ import {
   shouldMarkVisitaAsPagado,
   shouldShowVisitaEnRutaHoy,
   toBogotaDateTimeOffsetIso,
-  computeDiasMoraFromCuotaObjetivo,
   computeDiasMoraFromCuotas,
-  resolveCuotaIdFromVisitaLike,
   frecuenciaToPeriodoRuta,
 } from '@/lib/rutas-core'
 import { mapAsignacionesToVisitasLite } from '@/lib/ruta-visitas-mapper'
 import { applyRecaudoHoyToVisitas, buildRecaudosHoyMapByPrestamoId, computeMontoCuotaPendienteDespuesDeRecaudo, indexPagosByPrestamoId, mergeVisitasPreservingLocalRecaudo } from '@/lib/ruta-recaudos'
 import { buildRutaHoyOperativa } from '@/lib/rutas/build-ruta-hoy-operativa'
 import { mapWithConcurrency, memoizePromiseByKey } from '@/lib/async-utils'
-import { enrichVisitasConCuotasYRiesgo } from '@/lib/rutas/enrich-visitas-con-cuotas-y-riesgo'
 import { resolveVisitaBaseRegularizacion } from '@/lib/rutas/resolve-visita-base-regularizacion'
 
 import { offlineStore } from '@/lib/offline/offlineDb'
@@ -1363,279 +1360,41 @@ const VistaCobrador = () => {
         // 4. Construir visitas. Si es HOY y tenemos dailyVisits, usarlo como fuente principal (usando obligaciones)
         if (periodoCardsRef.current === 'HOY' && dailyVisits) {
           try {
-            const dailySummary = resolveRutaDailySummary(rutaCompletaAutoritativa, dailyVisits);
-            const obligacionesJornada = (dailySummary.obligaciones || []).filter((o: any) => {
-              const estado = String(
-                o.estadoGestion ||
-                  o.estadoVisita ||
-                  o.prestamo?.estadoGestion ||
-                  o.prestamo?.estadoVisita ||
-                  '',
-              ).toUpperCase();
-              return !estado.includes('REPROGRAM');
-            });
-
-            // Convertir obligaciones en el formato que espera el componente (VisitaRuta)
-            const visitasOperativas: VisitaRuta[] = obligacionesJornada.map((o: any, idx: number) => {
-              const clienteObj = typeof o.cliente === 'object' && o.cliente ? o.cliente : null
-              const prestamo = o.prestamo || {}
-
-              const clienteNombre =
-                o.clienteNombre ||
-                clienteObj?.nombre ||
-                `${clienteObj?.nombres || ''} ${clienteObj?.apellidos || ''}`.trim() ||
-                (typeof o.cliente === 'string' ? o.cliente : '') ||
-                'Cliente sin nombre'
-
-              const estadoGestion = String(
-                o.estadoGestion ||
-                  o.estadoVisita ||
-                  prestamo?.estadoGestion ||
-                  prestamo?.estadoVisita ||
-                  'PENDIENTE',
-              ).toUpperCase()
-
-              const montoMetaPendiente = Number(
-                o.montoMetaOperativaPendiente ??
-                  prestamo?.montoMetaOperativaPendiente ??
-                  o.cuotaObjetivo?.saldoExigibleEnFechaOperativa ??
-                  prestamo?.cuotaObjetivo?.saldoExigibleEnFechaOperativa ??
-                  0,
-              )
-
-              const cuotaObjetivo = o.cuotaObjetivo || prestamo?.cuotaObjetivo || prestamo?.proximaCuota || {}
-
-              const estadoCuota = String(
-                o.cuotaObjetivo?.estadoActual ||
-                o.cuotaObjetivo?.estado ||
-                cuotaObjetivo?.estadoActual ||
-                cuotaObjetivo?.estado ||
-                prestamo?.proximaCuota?.estadoActual ||
-                prestamo?.proximaCuota?.estado ||
-                '',
-              ).toUpperCase()
-
-              const estaEnMora =
-                Boolean(o.cuotaObjetivo?.enMoraEnFechaOperativa) ||
-                Boolean(cuotaObjetivo?.enMoraEnFechaOperativa) ||
-                estadoCuota.includes('VENC') ||
-                estadoCuota.includes('MORA')
-
-              const estadoVisual: any = estadoGestion.includes('REPROGRAM')
-                ? 'reprogramado'
-                : estaEnMora
-                  ? 'en_mora'
-                  : 'pendiente'
-
-              const cuotaNormal = Number(
-                o.montoCuotaNormal ??
-                  o.cuotaObjetivo?.montoCuota ??
-                  o.cuotaObjetivo?.montoNominal ??
-                  cuotaObjetivo?.montoCuota ??
-                  cuotaObjetivo?.montoNominal ??
-                  cuotaObjetivo?.monto ??
-                  prestamo?.proximaCuota?.montoCuota ??
-                  prestamo?.proximaCuota?.montoNominal ??
-                  prestamo?.proximaCuota?.monto ??
-                  prestamo?.valorCuota ??
-                  prestamo?.montoCuota ??
-                  0,
-              )
-
-              const frecuenciaPago = o.frecuenciaPago || prestamo?.frecuenciaPago || 'DIARIO'
-              const diasMora = Number(
-                o.diasMora ??
-                  o.diasMoraOperativos ??
-                  o.cuotaObjetivo?.diasMora ??
-                  cuotaObjetivo?.diasMora ??
-                  computeDiasMoraFromCuotaObjetivo(cuotaObjetivo, hoyBogotaKey, frecuenciaPago) ??
-                  0,
-              )
-
-              const cuotaId = resolveCuotaIdFromVisitaLike(o, prestamo, cuotaObjetivo)
-
-              const visitaBase = {
-                ...o,
-
-                id: o.id || o.prestamoId || prestamo?.id || `obligacion-${idx}`,
-                cuotaId,
-                cuotaObjetivoId: cuotaId,
-                cuotaObjetivoPrestamoId: cuotaId,
-                cuotaObjetivo,
-                proximaCuota: cuotaObjetivo,
-
-                cliente: clienteNombre,
-                direccion: o.direccion || clienteObj?.direccion || 'Sin dirección',
-                telefono: o.telefono || clienteObj?.telefono || '',
-
-                montoCuota: cuotaNormal,
-                montoCuotaNormal: cuotaNormal,
-
-                montoCuotaPendiente: montoMetaPendiente,
-                montoMoraAcumulada: Number(
-                  o.montoMoraAcumulada ??
-                    o.saldoVencidoAcumulado ??
-                    o.cuotaObjetivo?.montoMoraAcumulada ??
-                    o.cuotaObjetivo?.saldoVencidoAcumulado ??
-                    prestamo?.cuotaObjetivo?.montoMoraAcumulada ??
-                    prestamo?.cuotaObjetivo?.saldoVencidoAcumulado ??
-                    0,
-                ),
-                montoVencidoAcumulado: Number(
-                  o.montoMoraAcumulada ??
-                    o.saldoVencidoAcumulado ??
-                    o.cuotaObjetivo?.montoMoraAcumulada ??
-                    o.cuotaObjetivo?.saldoVencidoAcumulado ??
-                    prestamo?.cuotaObjetivo?.montoMoraAcumulada ??
-                    prestamo?.cuotaObjetivo?.saldoVencidoAcumulado ??
-                    0,
-                ),
-                saldoVencidoAcumulado: Number(
-                  o.montoMoraAcumulada ??
-                    o.saldoVencidoAcumulado ??
-                    o.cuotaObjetivo?.montoMoraAcumulada ??
-                    o.cuotaObjetivo?.saldoVencidoAcumulado ??
-                    prestamo?.cuotaObjetivo?.montoMoraAcumulada ??
-                    prestamo?.cuotaObjetivo?.saldoVencidoAcumulado ??
-                    0,
-                ),
-                cuotasVencidas: Math.max(
-                  Number(
-                    o.cuotasVencidas ??
-                      o.cuotaObjetivo?.cuotasVencidas ??
-                      prestamo?.cuotaObjetivo?.cuotasVencidas ??
-                      0,
-                  ),
-                  estadoVisual === 'en_mora' ? 1 : 0,
-                ),
-
-                saldoTotal: Number(
-                  o.saldoTotal ??
-                    o.saldoPendiente ??
-                    prestamo?.saldoTotal ??
-                    prestamo?.saldoPendiente ??
-                    0,
-                ),
-
-                estado: estadoVisual,
-
-                estadoGestion,
-                estadoVisita: o.estadoVisita || prestamo?.estadoVisita || null,
-                notasVisita: o.notasVisita || prestamo?.notasVisita || null,
-
-                proximaVisita:
-                  resolveFechaEfectivaCuota(cuotaObjetivo) ||
-                  cuotaObjetivo?.fechaVencimiento ||
-                  prestamo?.proximaCuota?.fechaVencimiento ||
-                  o.proximaVisita ||
-                  o.fechaVisita ||
-                  hoyBogotaKey,
-
-                ordenVisita: Number(o.ordenVisita || idx + 1),
-                prioridad: o.prioridad || 'media',
-
-                cobradorId: rutaCompleta.cobradorId,
-                periodoRuta: frecuenciaToPeriodoRuta(frecuenciaPago),
-
-                clienteId: o.clienteId || clienteObj?.id || '',
-                prestamoId: o.prestamoId || prestamo?.id || '',
-                diasMora,
-                // Preservar señales crudas de riesgo del backend
-                nivelRiesgoObligacion: o?.nivelRiesgoObligacion ?? o?.prestamo?.nivelRiesgoObligacion ?? prestamo?.nivelRiesgoObligacion,
-                nivelRiesgoCredito: o?.nivelRiesgoCredito ?? o?.prestamo?.nivelRiesgoCredito ?? prestamo?.nivelRiesgoCredito,
-                riesgoCredito: o?.riesgoCredito ?? o?.prestamo?.riesgoCredito ?? prestamo?.riesgoCredito,
-                riesgoOperativo: o?.riesgoOperativo ?? o?.prestamo?.riesgoOperativo ?? prestamo?.riesgoOperativo,
-                nivelRiesgoBackend: o?.nivelRiesgoBackend ?? o?.cliente?.nivelRiesgo ?? clienteObj?.nivelRiesgo,
-                // Guardar préstamo fuente para reutilizar después del enriquecimiento
-                prestamoRaw: prestamo,
-              }
-
-              return {
-                ...visitaBase,
-                nivelRiesgo: resolveNivelRiesgoVisita(visitaBase, prestamo, cuotaObjetivo),
-              }
-            });
-
-            // Enriquecer con cuotas vivas antes de filtrar usando helper compartido
-            const getCuotasByPrestamoId = memoizePromiseByKey(
-              (prestamoId) => prestamosService.obtenerCuotas(prestamoId) as Promise<any[]>,
-              () => [],
-            );
-
-            const visitasOperativasVivas = await enrichVisitasConCuotasYRiesgo({
-              visitas: visitasOperativas,
-              hoyBogotaKey,
-              getCuotasByPrestamoId,
-              concurrency: 6,
-            });
-
-            // Aplicar pagos por prestamoId para limpiar recaudos agrupados por cliente
-            let visitasOperativasConPagos = visitasOperativasVivas
-
+            // La ruta del dia la arma `buildRutaHoyOperativa`, el mismo helper que
+            // usan SupervisorCobroView, ruta-client y RutasPageView. Aqui habia una
+            // copia de 246 lineas del mismo calculo, y ya se habia separado del
+            // original: le faltaban dos condiciones del filtro, asi que la lista del
+            // cobrador era mas estrecha que la del supervisor sobre la misma ruta.
+            //
+            // Este archivo ya llamaba al helper mas arriba, para "Mis clientes": la
+            // centralizacion estaba escrita a medias.
+            //
+            // Se toma `visitasConPagos`, el paso intermedio, porque de ahi salen las
+            // tres listas propias de esta pantalla. Los KPI que el helper ya calcula
+            // (`kpiItems`, `visibleItems`, `stats`) se siguen derivando abajo con los
+            // nombres que esta vista usa.
+            let pagosData: unknown[] = [];
             try {
-              const pagosResp = await pagosService.obtenerPagos({ limit: 5000 })
-              const pagosData = (pagosResp)?.pagos || pagosResp || []
-
-              const recaudosHoyMap = buildRecaudosHoyMapByPrestamoId(
-                pagosData,
-                hoyBogotaKey,
-                { includeCierrePendiente: false },
-              )
-
-              const { ultimoPagoDateByPrestamoId } = indexPagosByPrestamoId(pagosData)
-
-              visitasOperativasConPagos = applyRecaudoHoyToVisitas(
-                visitasOperativasVivas.map((v) => ({
-                  ...v,
-
-                  // Limpiar posibles recaudos agrupados por cliente que vengan del daily summary.
-                  recaudadoDelDia: 0,
-                  recaudadoTotalClient: 0,
-                  recaudadoPeriodo: 0,
-                })),
-                {
-                  hoyBogotaKey,
-                  recaudosHoyMap,
-                },
-              ).map((v) => {
-                const pid = String(v?.prestamoId || '')
-                return {
-                  ...v,
-                  fechaUltimoPago: pid
-                    ? Number(ultimoPagoDateByPrestamoId[pid] || 0)
-                    : Number(v?.fechaUltimoPago || 0),
-                }
-              })
+              const pagosResp = await pagosService.obtenerPagos({ limit: 5000 });
+              pagosData = (pagosResp)?.pagos || pagosResp || [];
             } catch {
-              visitasOperativasConPagos = visitasOperativasVivas
+              // Sin pagos la ruta se muestra igual, con el recaudo del dia en cero.
+              pagosData = [];
             }
 
-            // Filtrar visitas con la regla compartida
-            // Mismo filtro que `buildRutaHoyOperativa`, que es el que alimenta las
-            // pantallas de supervisor y admin. Esta copia se habia quedado sin dos
-            // condiciones —`cuotaNormal > 0` y el estado ABONO— asi que la lista
-            // del cobrador era mas estrecha que la del supervisor sobre la MISMA
-            // ruta y el mismo dia: un cliente que abono parcialmente le
-            // desaparecia al cobrador y le seguia apareciendo al supervisor.
-            const visitasBaseParaKpi = visitasOperativasConPagos
-              .filter((v) => {
-                const recaudado = Number(v?.recaudadoDelDia || 0)
-                const cuotaNormal = Number(v?.montoCuotaNormal ?? v?.montoCuota ?? 0)
-                const metaPendiente = Number(v?.montoCuotaPendiente || 0)
-                const estadoGestion = String(v?.estadoGestion || '').toUpperCase()
+            const operativaHoy = await buildRutaHoyOperativa({
+              ruta: rutaCompletaAutoritativa,
+              dailyVisits,
+              hoyBogotaKey,
+              cobradorId: rutaCompletaAutoritativa?.cobradorId || userSession.id,
+              pagos: pagosData as never[],
+            });
 
-                return (
-                  cuotaNormal > 0 ||
-                  metaPendiente > 0 ||
-                  recaudado > 0 ||
-                  estadoGestion.includes('PAGO') ||
-                  estadoGestion.includes('ABONO')
-                )
-              })
-              .filter((v) => !shouldExcludeVisitaFromOperationalMeta(v))
-
-            const visitasOperativasFiltradas = visitasBaseParaKpi
-              .filter((v) => shouldShowVisitaEnRutaHoy(v, hoyBogotaKey))
+            // Las dos listas salen del helper. El filtro que habia aqui ya era
+            // identico al suyo linea por linea; tomarlas en vez de repetirlas es lo
+            // que impide que vuelvan a separarse, que es como empezo todo esto.
+            const visitasBaseParaKpi = operativaHoy.kpiItems;
+            const visitasOperativasFiltradas = operativaHoy.visibleItems;
 
             const recaudoHoy = visitasBaseParaKpi.reduce(
               (sum: number, v: any) => sum + Number(v?.recaudadoDelDia || 0),

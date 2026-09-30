@@ -11,6 +11,17 @@ import { frecuenciaToPeriodoRuta } from '@/lib/rutas-core'
 export type RutaHoyOperativaResult = {
   kpiItems: VisitaRuta[]
   visibleItems: VisitaRuta[]
+  /**
+   * Las visitas ya mapeadas, enriquecidas con cuotas vivas y cruzadas con los
+   * pagos, ANTES de los filtros de KPI.
+   *
+   * Se expone porque VistaCobrador necesita ese punto intermedio para armar sus
+   * propias listas (`visitasBase`, el selector y el orden), y por no tenerlo se
+   * habia quedado con una copia entera del calculo que ya se separo de este.
+   * Devolverlo es aditivo: los otros consumidores siguen leyendo kpiItems y
+   * visibleItems sin cambiar nada.
+   */
+  visitasConPagos: VisitaRuta[]
   stats: {
     meta: number
     recaudo: number
@@ -346,6 +357,7 @@ export async function buildRutaHoyOperativa({
   return {
     kpiItems,
     visibleItems,
+    visitasConPagos: visitasOperativasConPagos,
     stats: {
       meta,
       recaudo,
