@@ -138,9 +138,22 @@ describe('resolveRutaDailySummary', () => {
     const summary = resolveRutaDailySummary(
       { estadisticas: { metaDelDia: 6_878_333, cobranzaDelDia: 0 } },
       {
+        // Los cuatro de arriba tambien son obligatorios en la respuesta y faltaban.
+        // El dato de prueba describia una respuesta que el endpoint no produce.
+        fecha: '2026-03-12',
+        rutaId: 'ruta-1',
+        totalVisitas: 2,
+        visitas: [],
         resumen: {
+          // `recaudo`, `gastos` y `efectividad` son obligatorios en la respuesta y
+          // faltaban aqui: el dato de prueba describia algo que el endpoint nunca
+          // manda. Al declarar el tipo del resumen el compilador lo señalo. Se
+          // completa el dato; las aserciones de abajo no cambian.
           meta: 6_878_333,
+          recaudo: 0,
           recaudoOperativo: 0,
+          gastos: 0,
+          efectividad: 0,
           visitados: 0,
           total: 2,
         },
@@ -595,7 +608,13 @@ describe('computeRutaHoyUiStatsFromVisitas', () => {
   it('reincorpora a meta y recaudo un cliente ausente cuando registra pago hoy', () => {
     const visitas: VisitaParcial[] = [
       { estado: 'pendiente', montoCuota: 564_998, saldoTotal: 564_998 },
-      { estado: 'ausente', estadoVisita: 'ausente', montoCuota: 425_335, saldoTotal: 425_335, recaudadoDelDia: 425_335 },
+      {
+        estado: 'ausente',
+        estadoVisita: 'ausente',
+        montoCuota: 425_335,
+        saldoTotal: 425_335,
+        recaudadoDelDia: 425_335,
+      },
     ]
 
     const visitasOperativas = visitas.filter((v) => !shouldExcludeVisitaFromOperationalMeta(v))
@@ -609,7 +628,13 @@ describe('computeRutaHoyUiStatsFromVisitas', () => {
   it('excluye de meta a un cliente ausente mientras no tenga pago operativo', () => {
     const visitas: VisitaParcial[] = [
       { estado: 'pendiente', montoCuota: 564_998, saldoTotal: 564_998 },
-      { estado: 'ausente', estadoVisita: 'ausente', montoCuota: 425_335, saldoTotal: 425_335, recaudadoDelDia: 0 },
+      {
+        estado: 'ausente',
+        estadoVisita: 'ausente',
+        montoCuota: 425_335,
+        saldoTotal: 425_335,
+        recaudadoDelDia: 0,
+      },
     ]
 
     const visitasOperativas = visitas.filter((v) => !shouldExcludeVisitaFromOperationalMeta(v))
@@ -623,7 +648,13 @@ describe('computeRutaHoyUiStatsFromVisitas', () => {
   it('excluye de meta a un cliente reprogramado mientras no tenga pago operativo', () => {
     const visitas: VisitaParcial[] = [
       { estado: 'pendiente', montoCuota: 1_957_333, saldoTotal: 1_957_333 },
-      { estado: 'reprogramado', estadoVisita: 'reprogramado', montoCuota: 86_666, saldoTotal: 86_666, recaudadoDelDia: 0 },
+      {
+        estado: 'reprogramado',
+        estadoVisita: 'reprogramado',
+        montoCuota: 86_666,
+        saldoTotal: 86_666,
+        recaudadoDelDia: 0,
+      },
     ]
 
     const visitasOperativas = visitas.filter((v) => !shouldExcludeVisitaFromOperationalMeta(v))
@@ -637,7 +668,14 @@ describe('computeRutaHoyUiStatsFromVisitas', () => {
   it('excluye de meta a una prorroga futura aunque no venga como estado reprogramado', () => {
     const visitas: VisitaParcial[] = [
       { estado: 'pendiente', montoCuota: 1_957_333, saldoTotal: 1_957_333 },
-      { estado: 'en_mora', enProrroga: true, fechaProrroga: '2999-01-01', montoCuota: 86_666, saldoTotal: 86_666, recaudadoDelDia: 0 },
+      {
+        estado: 'en_mora',
+        enProrroga: true,
+        fechaProrroga: '2999-01-01',
+        montoCuota: 86_666,
+        saldoTotal: 86_666,
+        recaudadoDelDia: 0,
+      },
     ]
 
     const visitasOperativas = visitas.filter((v) => !shouldExcludeVisitaFromOperationalMeta(v))
@@ -651,7 +689,13 @@ describe('computeRutaHoyUiStatsFromVisitas', () => {
   it('mantiene el recaudo de un cliente reprogramado sin dejarlo pendiente otra vez', () => {
     const visitas: VisitaParcial[] = [
       { estado: 'pendiente', montoCuota: 1_957_333, saldoTotal: 1_957_333 },
-      { estado: 'reprogramado', estadoVisita: 'reprogramado', montoCuota: 86_666, saldoTotal: 86_666, recaudadoDelDia: 86_666 },
+      {
+        estado: 'reprogramado',
+        estadoVisita: 'reprogramado',
+        montoCuota: 86_666,
+        saldoTotal: 86_666,
+        recaudadoDelDia: 86_666,
+      },
     ]
 
     const visitasOperativas = visitas.filter((v) => !shouldExcludeVisitaFromOperationalMeta(v))
@@ -664,7 +708,13 @@ describe('computeRutaHoyUiStatsFromVisitas', () => {
 
   it('no deja pendiente visible a una cuota que ya tuvo abono en la ruta', () => {
     const stats = computeRutaHoyUiStatsFromVisitas([
-      { estado: 'pendiente', montoCuotaPendiente: 80000, montoCuota: 180000, saldoTotal: 1180000, recaudadoDelDia: 100000 },
+      {
+        estado: 'pendiente',
+        montoCuotaPendiente: 80000,
+        montoCuota: 180000,
+        saldoTotal: 1180000,
+        recaudadoDelDia: 100000,
+      },
     ])
 
     expect(stats.pendiente).toBe(0)
