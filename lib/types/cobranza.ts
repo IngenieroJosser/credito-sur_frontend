@@ -219,6 +219,14 @@ export interface VisitaCamposLeidos {
   /** Los creditos del cliente, cuando la visita viene del detalle de ruta. */
   prestamos?: unknown[]
   fechaVencimientoProrroga?: string | null
+  /**
+   * El recaudo del dia con el otro nombre.
+   *
+   * El backend manda `recaudadoHoy` junto a `recaudadoDelDia` en las obligaciones de la
+   * jornada (routes.service: `recaudadoHoy` en PrestamoDeVisita), y `ruta-recaudos` lo lee
+   * como respaldo del primero. Faltaba aqui, asi que esa lectura iba por un `any`.
+   */
+  recaudadoHoy?: number | null
 }
 
 export type VisitaParcial = Partial<VisitaRuta & VisitaCamposLeidos>

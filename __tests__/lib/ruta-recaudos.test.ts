@@ -183,7 +183,9 @@ describe('ruta-recaudos', () => {
   })
 
   it('no pisa a cero el recaudo que ya viene autoritativo desde la ruta', () => {
-    const visitas = [
+    // Anotado porque `estado` es una union cerrada (`EstadoVisita`) y el literal suelto
+    // se ensancha a `string`. No cambia ningun valor.
+    const visitas: VisitaParcial[] = [
       {
         id: 'visita-1',
         prestamoId: 'prestamo-1',

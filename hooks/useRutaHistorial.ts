@@ -180,7 +180,9 @@ export const useRutaHistorial = (params: UseRutaHistorialParams) => {
       if (!preferLoadDayForToday && fechaClave === hoyKey && typeof getVisitasHoy === 'function') {
         const visitasHoy = getVisitasHoy() || []
         if (Array.isArray(visitasHoy) && visitasHoy.length > 0) {
-          let pagosDelDia: unknown[] = []
+          // `PagoParcial[]` y no `unknown[]`: es lo que `applyPagosDelDiaToHistorialVisitas`
+          // recibe, y con `unknown` el paso de una a otra no se comprobaba.
+          let pagosDelDia: PagoParcial[] = []
           try {
             const pagosResp = await fetchPagosRef.current()
             // La respuesta llega envuelta en `{ pagos }` o como el arreglo directo, y por eso

@@ -1,4 +1,5 @@
-import { getPagoBogotaDateKey, shouldMarkVisitaAsPagado } from '@/lib/rutas-core'
+import { getPagoBogotaDateKey, shouldMarkVisitaAsPagado } from '@/lib/rutas-core'
+import type { VisitaParcial } from '@/lib/types/cobranza'
 import type { PagoParcial } from '@/types/domain'
 
 // ============================================================================
@@ -132,7 +133,18 @@ export const indexPagosByPrestamoId = (pagos: PagoParcial[]) => {
   }
 }
 
-export const applyRecaudoHoyToVisitas = <T extends Record<string, any>>(
+/**
+ * La visita que estas funciones reciben.
+ *
+ * Es `VisitaParcial`, que ya existe, y no un tipo propio: el compilador lo demostro al
+ * intentar declarar uno —los consumidores (`shouldMarkVisitaAsPagado`,
+ * `resolveCuotaIdFromVisitaLike`) piden esa forma y las pruebas la pasan—. Antes la
+ * restriccion del generico era `Record<string, any>`, o sea que cualquier objeto valia y
+ * ninguno de los campos que se leen aqui se comprobaba.
+ */
+export type VisitaConRecaudo = VisitaParcial
+
+export const applyRecaudoHoyToVisitas = <T extends VisitaConRecaudo>(
   visitas: T[],
   params: {
     hoyBogotaKey: string
@@ -146,7 +158,7 @@ export const applyRecaudoHoyToVisitas = <T extends Record<string, any>>(
   // - Si la visita no tiene clienteId, se pone recaudo en 0 como fallback.
   const { recaudosHoyMap } = params
 
-  return (Array.isArray(visitas) ? visitas : []).map((v: any) => {
+  return (Array.isArray(visitas) ? visitas : []).map((v) => {
     if (!v?.clienteId) {
       return {
         ...v,
@@ -192,7 +204,7 @@ export const applyRecaudoHoyToVisitas = <T extends Record<string, any>>(
 }
 
 export const computeMontoCuotaPendienteDespuesDeRecaudo = (
-  visita: Record<string, any>,
+  visita: VisitaConRecaudo | null | undefined,
   recaudadoDelDia: unknown,
 ): number => {
   const cuotaPendienteActualRaw = visita?.montoCuotaPendiente
@@ -210,7 +222,9 @@ export const computeMontoCuotaPendienteDespuesDeRecaudo = (
   return Math.max(0, cuotaNominal - recaudadoNext)
 }
 
-export const resolveObligacionKey = (v: any): string => {
+export const resolveObligacionKey = (
+  v: VisitaConRecaudo | null | undefined,
+): string => {
   const prestamoId = String(v?.prestamoId || '')
   const cuotaId = String(
     v?.cuotaId ||
@@ -226,7 +240,7 @@ export const resolveObligacionKey = (v: any): string => {
   return `visita:${v?.id || ''}`
 }
 
-export const mergeVisitasPreservingLocalRecaudo = <T extends Record<string, any>>(
+export const mergeVisitasPreservingLocalRecaudo = <T extends VisitaConRecaudo>(
   prev: T[],
   fresh: T[],
 ): T[] => {

@@ -4,6 +4,7 @@ import {
   isPagoForHistorialFecha,
 } from '@/lib/ruta-historial'
 import { FrecuenciaPago } from '@/types/enums'
+import type { Cliente } from '@/types/domain'
 
 describe('isPagoForHistorialFecha', () => {
   it('asocia pagos normales por fecha de pago y pagos regularizados por fecha operativa', () => {
@@ -87,7 +88,7 @@ describe('buildHistorialDiaFromBackend', () => {
             apellidos: 'Diaz',
             direccion: 'Calle 1',
             telefono: '123',
-            nivelRiesgo: 'ROJO',
+            nivelRiesgo: 'ROJO' as Cliente['nivelRiesgo'],
           },
           prestamo: {
             id: 'prestamo-1',
@@ -95,7 +96,22 @@ describe('buildHistorialDiaFromBackend', () => {
             frecuenciaPago: FrecuenciaPago.DIARIO,
             saldoPendiente: 900000,
           },
-          detalles: [{ cuota: { numeroCuota: 2, monto: 30000 } }],
+          // El detalle del pago pide id, cuotaId y monto propios, no solo la cuota
+          // anidada: lo dijo el compilador al quitar el `any` de `pagosDelDia`.
+          detalles: [
+            {
+              id: 'detalle-1',
+              cuotaId: 'cuota-2',
+              monto: 30000,
+              cuota: {
+                id: 'cuota-2',
+                numeroCuota: 2,
+                monto: 30000,
+                estado: 'PENDIENTE',
+                montoPagado: 0,
+              },
+            },
+          ],
         },
         {
           id: 'pago-2',
@@ -108,7 +124,7 @@ describe('buildHistorialDiaFromBackend', () => {
             apellidos: 'Diaz',
             direccion: 'Calle 1',
             telefono: '123',
-            nivelRiesgo: 'ROJO',
+            nivelRiesgo: 'ROJO' as Cliente['nivelRiesgo'],
           },
           prestamo: {
             id: 'prestamo-1',

@@ -1,6 +1,7 @@
 import type { CuotaOperativa } from '@/lib/types/cobranza'
 import type { ClienteDeObligacion, PrestamoDeObligacion } from '@/types/obligacion-jornada'
-import { isPagoCierrePendiente } from '@/lib/ruta-recaudos'
+import { isPagoCierrePendiente } from '@/lib/ruta-recaudos'
+import type { SaldoDisponibleRuta } from '@/services/contabilidad-service'
 import { logger } from '@/lib/logger'
 import {
   frecuenciaToPeriodoRuta,
@@ -9,7 +10,7 @@ import {
 } from '@/lib/rutas-core'
 import { mapNivelRiesgo, type VisitaParcial, type VisitaRuta } from '@/lib/types/cobranza'
 import { resolveRiesgoObligacion } from '@/lib/rutas/riesgo-obligacion'
-import type { Cliente, Pago, PagoParcial, Prestamo, PrestamoParcial } from '@/types/domain'
+import type { Cliente, PagoParcial, Prestamo, PrestamoParcial } from '@/types/domain'
 import type { DailyVisitsResponse } from '@/services/rutas-service'
 
 /** Las cifras del resumen del dia, tal como las nombra el backend. */
@@ -153,13 +154,20 @@ export const isGestionHistorial = (v: VisitaParcial): boolean => {
   )
 }
 
-export const normalizeVisitaHistorial = (v: VisitaParcial): any => {
+/**
+ * Generico y no `any`: esta funcion NO quita campos, solo cambia tres, asi que devuelve la
+ * misma forma que recibe. Con `VisitaParcial` fijo de retorno, una pantalla que le pasa
+ * visitas completas recibia parciales y dejaba de compilar; con `any`, nadie comprobaba
+ * nada. Los tres literales van `as const` porque `estado` es una union cerrada y sin eso se
+ * ensanchan a `string`.
+ */
+export const normalizeVisitaHistorial = <T extends VisitaParcial>(v: T): T => {
   if (isReprogramadoHistorial(v)) {
     return {
       ...v,
-      estado: 'reprogramado',
-      estadoVisita: 'reprogramado',
-      estadoGestion: 'REPROGRAMADO',
+      estado: 'reprogramado' as const,
+      estadoVisita: 'reprogramado' as const,
+      estadoGestion: 'REPROGRAMADO' as const,
     }
   }
 
@@ -208,8 +216,11 @@ export function computeHistorialResumenCompartido(
     return hasGestionHistorial(v)
   }).length
 
+  // El `|| v?.montoTotal` que habia aqui era un respaldo MUERTO: `montoTotal` es un campo
+  // de un PAGO, no de una visita, y `VisitaRuta` no lo declara. Con `any` la lectura
+  // compilaba y valia `undefined` siempre, asi que el respaldo nunca entraba. Se quita.
   const recaudo = visitasOperativas.reduce(
-    (sum, v) => sum + Number(v?.recaudadoDelDia || v?.montoTotal || 0),
+    (sum, v) => sum + Number(v?.recaudadoDelDia || 0),
     0,
   )
 
@@ -237,13 +248,16 @@ export const isVisitadoHistorial = (visita: VisitaParcial) => {
   )
 }
 
-const normalizeNivelRiesgo = (raw: any): any => {
+// El tipo sale de `mapNivelRiesgo`, que ya declara lo que recibe y lo que devuelve.
+const normalizeNivelRiesgo = (
+  raw: Parameters<typeof mapNivelRiesgo>[0],
+): ReturnType<typeof mapNivelRiesgo> => {
   return mapNivelRiesgo(raw)
 }
 
 const resolveEstadoHistorialFromGestion = (
-  estadoGestion: any,
-  cuotaObjetivo: any,
+  estadoGestion: string | null | undefined,
+  cuotaObjetivo: CuotaOperativa | null | undefined,
   recaudado: number,
 ) => {
   const estado = String(estadoGestion || '').toUpperCase()
@@ -262,11 +276,11 @@ const resolveEstadoHistorialFromGestion = (
 export const applyPagosDelDiaToHistorialVisitas = (params: {
   fechaClave: string
   visitas: VisitaRuta[]
-  pagosDelDia: any[]
+  pagosDelDia: PagoParcial[]
 }) => {
   const { fechaClave, visitas, pagosDelDia } = params
   const pagosOperativos = (Array.isArray(pagosDelDia) ? pagosDelDia : []).filter(
-    (p: Pago) => !isPagoCierrePendiente(p),
+    (p: PagoParcial) => !isPagoCierrePendiente(p),
   )
   const recaudadoPorPrestamo: Record<string, number> = {}
   const pagosPorKey = new Map<string, { pago: PagoParcial; total: number; index: number }>()
@@ -386,20 +400,26 @@ export const buildHistorialDiaFromBackend = (params: {
    * que es lo que hace VistaCobrador.
    */
   visitasResp: RespuestaVisitasDelDia | null
-  saldo: any
-  pagosDelDia: any[]
+  // `SaldoDisponibleRuta` ya existe y es lo que devuelve
+  // `obtenerSaldoDisponibleRuta`, que es de donde sale este valor (lo dice el comentario
+  // de arriba). Se reutiliza en vez de `any`.
+  // `Partial` porque este helper lo lee todo con `?.` y tiene que seguir funcionando
+  // cuando la peticion del saldo fallo o devolvio la mitad, que es el caso que cubren las
+  // pruebas. El tipo base es el que ya existe.
+  saldo: Partial<SaldoDisponibleRuta> | null
+  pagosDelDia: PagoParcial[]
 }) => {
   const { fechaClave, visitasResp, saldo, pagosDelDia } = params
   const pagos = Array.isArray(pagosDelDia) ? pagosDelDia : []
-  const pagosOperativos = pagos.filter((p: Pago) => !isPagoCierrePendiente(p))
+  const pagosOperativos = pagos.filter((p: PagoParcial) => !isPagoCierrePendiente(p))
   const pagosRegularizados = pagos.filter(
-    (p: Pago) =>
+    (p: PagoParcial) =>
       isPagoCierrePendiente(p) && String(p?.fechaOperativaRuta || '').slice(0, 10) === fechaClave,
   )
 
   // 1) Índice de pagos por obligación (prestamoId + cuotaId) para evitar contaminación entre créditos del mismo cliente.
   // El recaudo histórico debe salir ÚNICAMENTE de pagosDelDia, indexado por prestamoId y opcionalmente prestamoId:cuotaId.
-  const getPagoPrestamoId = (p: Pago) => String(p?.prestamoId || p?.prestamo?.id || '').trim()
+  const getPagoPrestamoId = (p: PagoParcial) => String(p?.prestamoId || p?.prestamo?.id || '').trim()
   // Esto devuelve SIEMPRE cadena vacia, y esta bien que lo haga.
   //
   // Un Pago no tiene `cuotaId` ni relacion `cuota`: el vinculo pago->cuota vive
@@ -427,7 +447,7 @@ export const buildHistorialDiaFromBackend = (params: {
   // pero pareciendo una lectura que falla. La nota de arriba explica por que conviene
   // que sea vacio; si algun dia el historial pasa a una fila por cuota, el dato esta
   // en `p.detalles[].cuotaId`.
-  const getPagoCuotaId = (_p: Pago) => ''
+  const getPagoCuotaId = (_p: PagoParcial) => ''
 
   const pagosByPrestamo = new Map<string, number>()
   const pagosByPrestamoCuota = new Map<string, number>()
@@ -474,7 +494,7 @@ export const buildHistorialDiaFromBackend = (params: {
       `[buildHistorialDiaFromBackend] Visitas: ${Array.isArray(visitasResp?.visitas) ? visitasResp.visitas.length : 0}`,
     )
     console.table(
-      (pagosOperativos || []).map((p: Pago) => ({
+      (pagosOperativos || []).map((p: PagoParcial) => ({
         tipo: 'PAGO_HISTORIAL',
         id: p.id,
         clienteId: p.clienteId,
@@ -741,9 +761,11 @@ export const buildHistorialDiaFromBackend = (params: {
             prestamosSeleccionados.length > 0 ? prestamosSeleccionados : [prestamos[0]]
           ).filter(Boolean)
 
-          return lista.map((p: any, loanIdx: number) => {
+          return lista.map((p: PrestamoParcial, loanIdx: number) => {
             const prestamoId = String(p?.id || prestamoPreferidoId || '')
-            const cuotaId = String(p?.cuotaId || p?.cuota?.id || '')
+            // El `|| p?.cuota?.id` tambien era un respaldo muerto: el prestamo trae `cuotas`
+            // (plural) y `cuotaObjetivo`, no `cuota`. Se lee la que si existe.
+            const cuotaId = String(p?.cuotaId || p?.cuotaObjetivo?.id || '')
 
             // Cruzar pagos por obligación (prestamoId + cuotaId) o por prestamoId
             const exactKey = cuotaId ? `${prestamoId}:${cuotaId}` : ''
@@ -1002,7 +1024,7 @@ export const buildHistorialDiaFromBackend = (params: {
       id: `hist-pago-${prestamoId}`,
       cliente: cliente
         ? `${cliente?.nombres || ''} ${cliente?.apellidos || ''}`.trim()
-        : pago?.clienteNombre || 'Cliente',
+        : 'Cliente',
       direccion: cliente?.direccion || '',
       telefono: cliente?.telefono || '',
       horaSugerida: '08:00 AM',
@@ -1013,7 +1035,7 @@ export const buildHistorialDiaFromBackend = (params: {
       proximaVisita: fechaClave,
       ordenVisita: todasVisitas.length + 1,
       prioridad: 'media',
-      nivelRiesgo: cliente?.nivelRiesgo || 'MINIMO',
+      nivelRiesgo: mapNivelRiesgo(cliente?.nivelRiesgo),
       cobradorId: '',
       periodoRuta: frecuenciaToPeriodoRuta(
         prestamo?.frecuenciaRuta || prestamo?.frecuenciaPago || 'DIA',

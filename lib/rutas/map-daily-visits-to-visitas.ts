@@ -1,4 +1,6 @@
 import type { VisitaParcial } from '@/lib/types/cobranza'
+import type { ObligacionDeJornada } from '@/types/obligacion-jornada'
+import type { DailyVisitsResponse } from '@/services/rutas-service'
 import type { Cliente } from '@/types/domain'
 /**
  * Mapper compartido para convertir DailyVisitsResponse en VisitaRuta[].
@@ -47,12 +49,33 @@ import { resolveNivelRiesgoVisita } from './resolve-riesgo-visita'
 export type MapMode = 'LIVE' | 'HISTORICO'
 
 interface MapDailyVisitsToVisitasParams {
-  resp: any
+  /**
+   * La respuesta de la jornada, con las DOS formas que puede traer.
+   *
+   * `obligaciones` es la forma nueva y `visitas` la anterior: el mapeador usa la primera
+   * si viene y cae a la segunda si no (lineas 66-72). Esa cascada es lo que el `any`
+   * escondia, y es justo la que hay que ver para entender este archivo.
+   */
+  resp:
+    | DailyVisitsResponse
+    | {
+        obligaciones?: ObligacionDeJornada[] | null
+        visitas?: ObligacionDeJornada[] | null
+      }
+    | null
+    | undefined
   hoyBogotaKey?: string
-  rutaData?: any
-  initialRuta?: any
+  // Las dos rutas se leen solo por el cobrador y el codigo, para rellenar la visita.
+  rutaData?: RutaParaMapeo | null
+  initialRuta?: RutaParaMapeo | null
   modo?: MapMode
   fechaOperativa?: string
+}
+
+type RutaParaMapeo = {
+  id?: string
+  codigo?: string | null
+  cobradorId?: string | null
 }
 
 export const mapDailyVisitsResponseToVisitas = ({
@@ -71,7 +94,7 @@ export const mapDailyVisitsResponseToVisitas = ({
     ? obligaciones
     : (Array.isArray((resp)?.visitas) ? (resp).visitas : [])
 
-  const mapped = rows.map((row: any, idx: number) => {
+  const mapped = rows.map((row, idx) => {
     // Anotadas por el mismo motivo: sin tipo, el `|| {}` las deja en `{}`.
     const visita: VisitaParcial = row?.visita || row || {}
     const c: Partial<Cliente> = row?.cliente || visita?.cliente || {}
@@ -293,7 +316,7 @@ export const mapDailyVisitsResponseToVisitas = ({
   })
 
   const seen = new Set<string>()
-  const uniques = mapped.filter((v: any) => {
+  const uniques = mapped.filter((v) => {
     const key = String(v?.prestamoId || v?.clienteId || v?.id || '')
     if (!key) return true
     if (seen.has(key)) return false
@@ -301,7 +324,7 @@ export const mapDailyVisitsResponseToVisitas = ({
     return true
   })
 
-  return uniques.sort((a: any, b: any) => {
+  return uniques.sort((a, b) => {
     // Pagados al final (criterio de VistaCobrador)
     if (a.estado === 'pagado' && b.estado !== 'pagado') return 1
     if (a.estado !== 'pagado' && b.estado === 'pagado') return -1
