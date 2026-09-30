@@ -1,9 +1,21 @@
 import type { PrestamoParcial } from '@/types/domain'
 import type { VisitaRuta } from '@/lib/types/cobranza'
-import { resolveRutaDailySummary, shouldShowVisitaEnRutaHoy, shouldExcludeVisitaFromOperationalMeta, resolveCuotaIdFromVisitaLike, resolveFechaEfectivaCuota, computeDiasMoraFromCuotaObjetivo } from '@/lib/rutas-core'
+import type { Cuota } from '@/services/prestamos-service'
+import {
+  resolveRutaDailySummary,
+  shouldShowVisitaEnRutaHoy,
+  shouldExcludeVisitaFromOperationalMeta,
+  resolveCuotaIdFromVisitaLike,
+  resolveFechaEfectivaCuota,
+  computeDiasMoraFromCuotaObjetivo,
+} from '@/lib/rutas-core'
 import { resolveNivelRiesgoVisita } from '@/lib/rutas/resolve-riesgo-visita'
 import { enrichVisitasConCuotasYRiesgo } from '@/lib/rutas/enrich-visitas-con-cuotas-y-riesgo'
-import { applyRecaudoHoyToVisitas, buildRecaudosHoyMapByPrestamoId, indexPagosByPrestamoId } from '@/lib/ruta-recaudos'
+import {
+  applyRecaudoHoyToVisitas,
+  buildRecaudosHoyMapByPrestamoId,
+  indexPagosByPrestamoId,
+} from '@/lib/ruta-recaudos'
 import { memoizePromiseByKey } from '@/lib/async-utils'
 import { prestamosService } from '@/services/prestamos-service'
 import { frecuenciaToPeriodoRuta } from '@/lib/rutas-core'
@@ -35,7 +47,7 @@ export type BuildRutaHoyOperativaParams = {
   dailyVisits: any
   hoyBogotaKey: string
   cobradorId: string
-  getCuotasByPrestamoId?: (prestamoId: string) => Promise<any[]>
+  getCuotasByPrestamoId?: (prestamoId: string) => Promise<Cuota[]>
   pagos?: any[]
 }
 
@@ -54,10 +66,10 @@ export async function buildRutaHoyOperativa({
   const obligacionesJornada = (dailySummary.obligaciones || []).filter((o: any) => {
     const estado = String(
       o.estadoGestion ||
-      o.estadoVisita ||
-      o.prestamo?.estadoGestion ||
-      o.prestamo?.estadoVisita ||
-      '',
+        o.estadoVisita ||
+        o.prestamo?.estadoGestion ||
+        o.prestamo?.estadoVisita ||
+        '',
     ).toUpperCase()
     return !estado.includes('REPROGRAM')
   })
@@ -78,30 +90,30 @@ export async function buildRutaHoyOperativa({
 
     const estadoGestion = String(
       o.estadoGestion ||
-      o.estadoVisita ||
-      prestamo?.estadoGestion ||
-      prestamo?.estadoVisita ||
-      'PENDIENTE',
+        o.estadoVisita ||
+        prestamo?.estadoGestion ||
+        prestamo?.estadoVisita ||
+        'PENDIENTE',
     ).toUpperCase()
 
     const montoMetaPendiente = Number(
       o.montoMetaOperativaPendiente ??
-      prestamo?.montoMetaOperativaPendiente ??
-      o.cuotaObjetivo?.saldoExigibleEnFechaOperativa ??
-      prestamo?.cuotaObjetivo?.saldoExigibleEnFechaOperativa ??
-      0,
+        prestamo?.montoMetaOperativaPendiente ??
+        o.cuotaObjetivo?.saldoExigibleEnFechaOperativa ??
+        prestamo?.cuotaObjetivo?.saldoExigibleEnFechaOperativa ??
+        0,
     )
 
     const cuotaObjetivo = o.cuotaObjetivo || prestamo?.cuotaObjetivo || prestamo?.proximaCuota || {}
 
     const estadoCuota = String(
       o.cuotaObjetivo?.estadoActual ||
-      o.cuotaObjetivo?.estado ||
-      cuotaObjetivo?.estadoActual ||
-      cuotaObjetivo?.estado ||
-      prestamo?.proximaCuota?.estadoActual ||
-      prestamo?.proximaCuota?.estado ||
-      '',
+        o.cuotaObjetivo?.estado ||
+        cuotaObjetivo?.estadoActual ||
+        cuotaObjetivo?.estado ||
+        prestamo?.proximaCuota?.estadoActual ||
+        prestamo?.proximaCuota?.estado ||
+        '',
     ).toUpperCase()
 
     const estaEnMora =
@@ -110,7 +122,12 @@ export async function buildRutaHoyOperativa({
       estadoCuota.includes('VENC') ||
       estadoCuota.includes('MORA')
 
-    const estadoVisual: any = estadoGestion.includes('REPROGRAM')
+    // Tres palabras, no `any`: el ternario no puede producir otra cosa, y
+    // declararlas deja que el compilador avise si alguien agrega una cuarta rama con
+    // un valor que las pantallas no sepan pintar.
+    const estadoVisual: 'reprogramado' | 'en_mora' | 'pendiente' = estadoGestion.includes(
+      'REPROGRAM',
+    )
       ? 'reprogramado'
       : estaEnMora
         ? 'en_mora'
@@ -118,27 +135,27 @@ export async function buildRutaHoyOperativa({
 
     const cuotaNormal = Number(
       o.montoCuotaNormal ??
-      o.cuotaObjetivo?.montoCuota ??
-      o.cuotaObjetivo?.montoNominal ??
-      cuotaObjetivo?.montoCuota ??
-      cuotaObjetivo?.montoNominal ??
-      cuotaObjetivo?.monto ??
-      prestamo?.proximaCuota?.montoCuota ??
-      prestamo?.proximaCuota?.montoNominal ??
-      prestamo?.proximaCuota?.monto ??
-      prestamo?.valorCuota ??
-      prestamo?.montoCuota ??
-      0,
+        o.cuotaObjetivo?.montoCuota ??
+        o.cuotaObjetivo?.montoNominal ??
+        cuotaObjetivo?.montoCuota ??
+        cuotaObjetivo?.montoNominal ??
+        cuotaObjetivo?.monto ??
+        prestamo?.proximaCuota?.montoCuota ??
+        prestamo?.proximaCuota?.montoNominal ??
+        prestamo?.proximaCuota?.monto ??
+        prestamo?.valorCuota ??
+        prestamo?.montoCuota ??
+        0,
     )
 
     const frecuenciaPago = o.frecuenciaPago || prestamo?.frecuenciaPago || 'DIARIO'
     const diasMora = Number(
       o.diasMora ??
-      o.diasMoraOperativos ??
-      o.cuotaObjetivo?.diasMora ??
-      cuotaObjetivo?.diasMora ??
-      computeDiasMoraFromCuotaObjetivo(cuotaObjetivo, hoyBogotaKey, frecuenciaPago) ??
-      0,
+        o.diasMoraOperativos ??
+        o.cuotaObjetivo?.diasMora ??
+        cuotaObjetivo?.diasMora ??
+        computeDiasMoraFromCuotaObjetivo(cuotaObjetivo, hoyBogotaKey, frecuenciaPago) ??
+        0,
     )
 
     const cuotaId = resolveCuotaIdFromVisitaLike(o, prestamo, cuotaObjetivo)
@@ -163,47 +180,43 @@ export async function buildRutaHoyOperativa({
       montoCuotaPendiente: montoMetaPendiente,
       montoMoraAcumulada: Number(
         o.montoMoraAcumulada ??
-        o.saldoVencidoAcumulado ??
-        o.cuotaObjetivo?.montoMoraAcumulada ??
-        o.cuotaObjetivo?.saldoVencidoAcumulado ??
-        prestamo?.cuotaObjetivo?.montoMoraAcumulada ??
-        prestamo?.cuotaObjetivo?.saldoVencidoAcumulado ??
-        0,
+          o.saldoVencidoAcumulado ??
+          o.cuotaObjetivo?.montoMoraAcumulada ??
+          o.cuotaObjetivo?.saldoVencidoAcumulado ??
+          prestamo?.cuotaObjetivo?.montoMoraAcumulada ??
+          prestamo?.cuotaObjetivo?.saldoVencidoAcumulado ??
+          0,
       ),
       montoVencidoAcumulado: Number(
         o.montoMoraAcumulada ??
-        o.saldoVencidoAcumulado ??
-        o.cuotaObjetivo?.montoMoraAcumulada ??
-        o.cuotaObjetivo?.saldoVencidoAcumulado ??
-        prestamo?.cuotaObjetivo?.montoMoraAcumulada ??
-        prestamo?.cuotaObjetivo?.saldoVencidoAcumulado ??
-        0,
+          o.saldoVencidoAcumulado ??
+          o.cuotaObjetivo?.montoMoraAcumulada ??
+          o.cuotaObjetivo?.saldoVencidoAcumulado ??
+          prestamo?.cuotaObjetivo?.montoMoraAcumulada ??
+          prestamo?.cuotaObjetivo?.saldoVencidoAcumulado ??
+          0,
       ),
       saldoVencidoAcumulado: Number(
         o.montoMoraAcumulada ??
-        o.saldoVencidoAcumulado ??
-        o.cuotaObjetivo?.montoMoraAcumulada ??
-        o.cuotaObjetivo?.saldoVencidoAcumulado ??
-        prestamo?.cuotaObjetivo?.montoMoraAcumulada ??
-        prestamo?.cuotaObjetivo?.saldoVencidoAcumulado ??
-        0,
+          o.saldoVencidoAcumulado ??
+          o.cuotaObjetivo?.montoMoraAcumulada ??
+          o.cuotaObjetivo?.saldoVencidoAcumulado ??
+          prestamo?.cuotaObjetivo?.montoMoraAcumulada ??
+          prestamo?.cuotaObjetivo?.saldoVencidoAcumulado ??
+          0,
       ),
       cuotasVencidas: Math.max(
         Number(
           o.cuotasVencidas ??
-          o.cuotaObjetivo?.cuotasVencidas ??
-          prestamo?.cuotaObjetivo?.cuotasVencidas ??
-          0,
+            o.cuotaObjetivo?.cuotasVencidas ??
+            prestamo?.cuotaObjetivo?.cuotasVencidas ??
+            0,
         ),
         estadoVisual === 'en_mora' ? 1 : 0,
       ),
 
       saldoTotal: Number(
-        o.saldoTotal ??
-        o.saldoPendiente ??
-        prestamo?.saldoTotal ??
-        prestamo?.saldoPendiente ??
-        0,
+        o.saldoTotal ?? o.saldoPendiente ?? prestamo?.saldoTotal ?? prestamo?.saldoPendiente ?? 0,
       ),
 
       estado: estadoVisual,
@@ -229,11 +242,17 @@ export async function buildRutaHoyOperativa({
       clienteId: o.clienteId || clienteObj?.id || '',
       prestamoId: o.prestamoId || prestamo?.id || '',
       diasMora,
-      nivelRiesgoObligacion: o?.nivelRiesgoObligacion ?? o?.prestamo?.nivelRiesgoObligacion ?? prestamo?.nivelRiesgoObligacion,
-      nivelRiesgoCredito: o?.nivelRiesgoCredito ?? o?.prestamo?.nivelRiesgoCredito ?? prestamo?.nivelRiesgoCredito,
+      nivelRiesgoObligacion:
+        o?.nivelRiesgoObligacion ??
+        o?.prestamo?.nivelRiesgoObligacion ??
+        prestamo?.nivelRiesgoObligacion,
+      nivelRiesgoCredito:
+        o?.nivelRiesgoCredito ?? o?.prestamo?.nivelRiesgoCredito ?? prestamo?.nivelRiesgoCredito,
       riesgoCredito: o?.riesgoCredito ?? o?.prestamo?.riesgoCredito ?? prestamo?.riesgoCredito,
-      riesgoOperativo: o?.riesgoOperativo ?? o?.prestamo?.riesgoOperativo ?? prestamo?.riesgoOperativo,
-      nivelRiesgoBackend: o?.nivelRiesgoBackend ?? o?.cliente?.nivelRiesgo ?? clienteObj?.nivelRiesgo,
+      riesgoOperativo:
+        o?.riesgoOperativo ?? o?.prestamo?.riesgoOperativo ?? prestamo?.riesgoOperativo,
+      nivelRiesgoBackend:
+        o?.nivelRiesgoBackend ?? o?.cliente?.nivelRiesgo ?? clienteObj?.nivelRiesgo,
       prestamoRaw: prestamo,
     }
 
@@ -244,10 +263,14 @@ export async function buildRutaHoyOperativa({
   })
 
   // 3. Enriquecer con cuotas vivas
-  const getCuotasFn = getCuotasByPrestamoId || memoizePromiseByKey(
-    (prestamoId) => prestamosService.obtenerCuotas(prestamoId) as Promise<any[]>,
-    () => [],
-  )
+  // Sin el `as Promise<any[]>` que llevaba: `obtenerCuotas` ya declara
+  // `Promise<Cuota[]>`, asi que ese cast no agregaba informacion, la tiraba.
+  const getCuotasFn =
+    getCuotasByPrestamoId ||
+    memoizePromiseByKey(
+      (prestamoId) => prestamosService.obtenerCuotas(prestamoId),
+      () => [],
+    )
 
   const visitasOperativasVivas = await enrichVisitasConCuotasYRiesgo({
     visitas: visitasOperativas,
@@ -261,11 +284,9 @@ export async function buildRutaHoyOperativa({
 
   const pagosData = pagosParam || []
   if (pagosData.length > 0) {
-    const recaudosHoyMap = buildRecaudosHoyMapByPrestamoId(
-      pagosData,
-      hoyBogotaKey,
-      { includeCierrePendiente: false },
-    )
+    const recaudosHoyMap = buildRecaudosHoyMapByPrestamoId(pagosData, hoyBogotaKey, {
+      includeCierrePendiente: false,
+    })
 
     const { ultimoPagoDateByPrestamoId } = indexPagosByPrestamoId(pagosData)
 
@@ -310,8 +331,7 @@ export async function buildRutaHoyOperativa({
     .filter((v) => !shouldExcludeVisitaFromOperationalMeta(v))
 
   // 6. Construir lista visible
-  const visibleItems = kpiItems
-    .filter((v) => shouldShowVisitaEnRutaHoy(v, hoyBogotaKey))
+  const visibleItems = kpiItems.filter((v) => shouldShowVisitaEnRutaHoy(v, hoyBogotaKey))
 
   // 7. Calcular KPI exacto
   const recaudo = kpiItems.reduce((sum: number, v) => {
@@ -324,35 +344,34 @@ export async function buildRutaHoyOperativa({
 
   const pendiente = Math.max(0, meta - recaudo)
 
-  const eficiencia =
-    meta > 0
-      ? Number(((recaudo / meta) * 100).toFixed(2))
-      : recaudo > 0
-        ? 100
-        : 0
+  const eficiencia = meta > 0 ? Number(((recaudo / meta) * 100).toFixed(2)) : recaudo > 0 ? 100 : 0
 
   // Logs de validación
-  console.table(kpiItems.map((v) => ({
-    tipo: 'KPI',
-    cliente: v.cliente,
-    prestamoId: v.prestamoId,
-    cuotaId: v.cuotaId,
-    cuotaActual: v.cuotaActual,
-    montoCuotaNormal: v.montoCuotaNormal,
-    montoCuotaPendiente: v.montoCuotaPendiente,
-    recaudadoDelDia: v.recaudadoDelDia,
-    estado: v.estado,
-  })))
+  console.table(
+    kpiItems.map((v) => ({
+      tipo: 'KPI',
+      cliente: v.cliente,
+      prestamoId: v.prestamoId,
+      cuotaId: v.cuotaId,
+      cuotaActual: v.cuotaActual,
+      montoCuotaNormal: v.montoCuotaNormal,
+      montoCuotaPendiente: v.montoCuotaPendiente,
+      recaudadoDelDia: v.recaudadoDelDia,
+      estado: v.estado,
+    })),
+  )
 
-  console.table(visibleItems.map((v) => ({
-    tipo: 'VISIBLE',
-    cliente: v.cliente,
-    prestamoId: v.prestamoId,
-    cuotaId: v.cuotaId,
-    montoCuotaNormal: v.montoCuotaNormal,
-    recaudadoDelDia: v.recaudadoDelDia,
-    estado: v.estado,
-  })))
+  console.table(
+    visibleItems.map((v) => ({
+      tipo: 'VISIBLE',
+      cliente: v.cliente,
+      prestamoId: v.prestamoId,
+      cuotaId: v.cuotaId,
+      montoCuotaNormal: v.montoCuotaNormal,
+      recaudadoDelDia: v.recaudadoDelDia,
+      estado: v.estado,
+    })),
+  )
 
   return {
     kpiItems,
