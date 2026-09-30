@@ -30,6 +30,10 @@ export default defineConfig({
   // Extension propia en vez de `.spec.ts`: asi se ve de un golpe que el archivo
   // es de Playwright y no de Jest, que corre en jsdom y no sabria que hacer con el.
   testMatch: '**/*.e2e.ts',
+  // Pide /login una vez antes de empezar, para que la primera prueba no se coma
+  // la compilacion bajo demanda de Next. Sin esto la suite es intermitente: con
+  // el servidor frio fallaban las tres y con el caliente pasaban las tres.
+  globalSetup: './e2e/calentar.ts',
   // Una a la vez: comparten la misma base de datos, y dos pruebas registrando
   // pagos sobre la misma ruta se pisarían.
   workers: 1,
@@ -37,8 +41,11 @@ export default defineConfig({
   // En CI un fallo suele ser un fallo; en local se reintenta una vez para no
   // perseguir intermitencias del arranque de Next.
   retries: process.env.CI ? 0 : 1,
-  timeout: 60_000,
-  expect: { timeout: 10_000 },
+  // Generoso a proposito: `next dev` compila cada ruta la PRIMERA vez que se
+  // pide, y en esta app eso puede pasar del minuto. Con 60s la primera prueba
+  // fallaba por la compilacion, no por la pantalla.
+  timeout: 150_000,
+  expect: { timeout: 15_000 },
   reporter: process.env.CI ? [['github'], ['list']] : [['list']],
   use: {
     baseURL: BASE_URL,
@@ -46,6 +53,9 @@ export default defineConfig({
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'off',
+    // La navegacion tambien espera la compilacion bajo demanda.
+    navigationTimeout: 90_000,
+    actionTimeout: 30_000,
     locale: 'es-CO',
     timezoneId: 'America/Bogota',
   },

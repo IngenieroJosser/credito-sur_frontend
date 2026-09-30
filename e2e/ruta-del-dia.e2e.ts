@@ -20,12 +20,18 @@ import { expect, test } from '@playwright/test'
 const USUARIO = process.env.E2E_USUARIO || 'cobrador@credisur.com'
 const CLAVE = process.env.E2E_CLAVE || 'Cobrador123!'
 
-/** Entra a la app. Devuelve false si el login no llevó a ninguna parte. */
+/**
+ * Entra a la app.
+ *
+ * Los campos se buscan por placeholder y no por etiqueta: esta pantalla no tiene
+ * ni un `<label>`, asi que `getByLabel` no encuentra nada. Dicho de paso: eso es
+ * un problema de accesibilidad de la pantalla, no de la prueba.
+ */
 async function entrar(page: import('@playwright/test').Page) {
   await page.goto('/login')
-  await page.getByLabel(/usuario|correo|email/i).first().fill(USUARIO!)
-  await page.getByLabel(/contrase|clave|password/i).first().fill(CLAVE!)
-  await page.getByRole('button', { name: /entrar|ingresar|iniciar/i }).click()
+  await page.getByPlaceholder(/usuario|correo/i).fill(USUARIO)
+  await page.getByPlaceholder(/contrase/i).fill(CLAVE)
+  await page.getByRole('button', { name: /acceder/i }).click()
   await page.waitForURL((url) => !url.pathname.includes('/login'), {
     timeout: 30_000,
   })
@@ -42,8 +48,10 @@ test.describe('La app arranca', () => {
     await page.goto('/login')
 
     await expect(page).toHaveTitle(/.+/)
+    await expect(page.getByPlaceholder(/usuario|correo/i)).toBeVisible()
+    await expect(page.getByPlaceholder(/contrase/i)).toBeVisible()
     await expect(
-      page.getByRole('button', { name: /entrar|ingresar|iniciar/i }).first(),
+      page.getByRole('button', { name: /acceder/i }),
     ).toBeVisible()
 
     // Una excepción no capturada en el primer render es un fallo, aunque la
@@ -90,9 +98,16 @@ test.describe('La ruta del día del cobrador', () => {
     await entrar(page)
     await page.waitForLoadState('networkidle')
 
-    const cuerpo = (await page.locator('body').textContent()) || ''
-    expect(cuerpo).not.toContain('NaN')
-    expect(cuerpo).not.toContain('undefined')
-    expect(cuerpo).not.toContain('[object Object]')
+    // `innerText` y no `textContent`: en desarrollo Next incrusta su payload RSC
+    // dentro de un <script> del body, y ahi "$undefined" sale cientos de veces.
+    // `textContent` lo incluye y la prueba fallaba por las tripas de Next en vez de
+    // por la pantalla. `innerText` devuelve solo lo que se ve renderizado.
+    const visible = await page.locator('body').innerText()
+
+    expect(visible).not.toContain('NaN')
+    expect(visible).not.toContain('[object Object]')
+    // "undefined" se busca como palabra suelta: un texto legitimo puede contener
+    // "undefinedX" en un nombre, pero nunca la palabra sola.
+    expect(visible).not.toMatch(/undefined/)
   })
 })
