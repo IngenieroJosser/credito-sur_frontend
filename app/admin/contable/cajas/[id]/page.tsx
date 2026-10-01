@@ -84,7 +84,7 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
       const cajaData = await getCajaById(id)
       const ledgerRes = await getMovimientosLedger({ cajaId: id, limit: 500 })
 
-      const txEnRango = (t: any) => {
+      const txEnRango = (t: MovimientoLedger) => {
         const key = new Date(t.fecha).toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
         return key >= ayerKey && key <= hoyKey
       }

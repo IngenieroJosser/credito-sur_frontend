@@ -807,18 +807,65 @@ export async function getArqueoById(arqueoId: string): Promise<ArqueoDetalle> {
   }
 }
 
+/**
+ * Lo que devuelve POST /cajas/:cajaId/arqueos (cajas.service.ts:449-477).
+ *
+ * OJO con el id: viene como `arqueoId`, NO como `id`, al contrario que
+ * `ArqueoDetalle`. Antes la funcion devolvia `unknown` y la pantalla lo guardaba en un
+ * `any`, asi que la diferencia no se veia en ningun sitio.
+ *
+ * `cajaDestino` aqui nunca es null (el traslado va siempre a la caja principal) y trae
+ * `id`, que el detalle no trae.
+ */
+export interface ArqueoConfirmado {
+  arqueoId: string
+  numeroComprobanteTraslado: string | null
+  montoTransferido: number
+  cajaOrigen: {
+    id: string
+    nombre: string
+    saldoAnterior: number
+    salida: number
+    saldoNuevo: number
+  }
+  cajaDestino: { id: string; nombre: string; ingreso: number; saldoNuevo: number }
+  saldoEsperado: number
+  efectivoContado: number
+  diferencia: number
+  tipoDiferencia: string
+  responsable: UsuarioDeArqueo | null
+  creadoPor: UsuarioDeArqueo | null
+  recibidoPor: UsuarioDeArqueo | null
+  recibidoEn: string | null
+  creadoEn: string
+  observaciones: string | null
+  journalEntryId: string
+  jornadaEstado: string
+}
+
+/** Lo que devuelve la cola cuando el arqueo se encola sin red. */
+export interface ArqueoEncolado {
+  id: string
+  esOffline: true
+}
+
 export async function confirmarArqueo(
   cajaId: string,
   data: {
     fechaOperativa: string
     efectivoContado: number
     recibidoPorId?: string
-    denominaciones?: any
+    /**
+     * El desglose del efectivo contado: cuantos billetes de cada denominacion. Es
+     * `Json?` en el esquema (schema.prisma:1307). Ninguna pantalla lo manda hoy -se
+     * busco en todo el frontend-, pero el backend lo acepta y lo guarda.
+     */
+    denominaciones?: Record<string, number>
     observaciones?: string
   },
-): Promise<unknown> {
+): Promise<ArqueoConfirmado | ArqueoEncolado> {
   try {
-    return await apiRequest<unknown>('POST', `/cajas/${cajaId}/arqueos`, data)
+    return await apiRequest<ArqueoConfirmado>('POST', `/cajas/${cajaId}/arqueos`, data)
   } catch (error) {
     if (esErrorDeRed(error)) {
       logger.log('[Offline Mode] Guardando arqueo en cola...')

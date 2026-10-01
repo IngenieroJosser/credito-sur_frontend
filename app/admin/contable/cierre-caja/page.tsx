@@ -15,7 +15,13 @@ import { getEntradaCajaFisica, getSalidaCajaFisica } from '@/lib/contabilidad-cl
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { toast } from 'sonner';
 
-const parseSaldoCaja = (raw: any): number => {
+/**
+ * El saldo de una caja, que llega como numero o como texto con separadores.
+ *
+ * `unknown` y no `any`: lo que entra es el resultado de una cadena de alias
+ * (`saldo ?? saldoActual ?? saldoCaja ?? cajaSaldo`) y cada uno puede faltar.
+ */
+const parseSaldoCaja = (raw: unknown): number => {
   if (typeof raw === 'number') return Number.isFinite(raw) ? raw : 0
   if (typeof raw === 'string') {
     const cleaned = raw.replace(/[\s.,$]/g, '')
@@ -39,6 +45,46 @@ const parseSaldoCaja = (raw: any): number => {
  * porque antes caia al guion: si algun dia se le pasa el responsable de la vista
  * previa, mostraria '—' en vez del nombre.
  */
+/**
+ * Lo que el comprobante de arqueo necesita, venga de donde venga.
+ *
+ * Se imprime desde TRES origenes con formas distintas: el arqueo completo
+ * (`ArqueoDetalle`), lo que devuelve confirmar (`ArqueoConfirmado`, que trae `arqueoId`
+ * en vez de `id`) y la fila del historial (`CierreHistorialItem`, que trae el
+ * responsable como texto y no como objeto). Por eso todo es opcional y los tres
+ * usuarios aceptan las dos formas: es la union real, no un `any`.
+ */
+type UsuarioParaComprobante =
+  | string
+  | { nombres?: string; apellidos?: string; nombre?: string }
+  | null
+  | undefined
+
+type ArqueoImprimible = {
+  id?: string
+  arqueoId?: string
+  fechaOperativa?: string
+  creadoEn?: string
+  numeroComprobanteTraslado?: string | null
+  saldoEsperado?: number
+  efectivoContado?: number
+  diferencia?: number
+  tipoDiferencia?: string | null
+  montoTransferido?: number
+  journalEntryId?: string | null
+  observaciones?: string | null
+  cajaOrigen?: {
+    nombre?: string
+    saldoAnterior?: number
+    salida?: number
+    saldoNuevo?: number
+  } | null
+  cajaDestino?: { nombre?: string; ingreso?: number; saldoNuevo?: number | null } | null
+  responsable?: UsuarioParaComprobante
+  creadoPor?: UsuarioParaComprobante
+  recibidoPor?: UsuarioParaComprobante
+}
+
 const getNombreUsuario = (
   usuario: string | { nombres?: string; apellidos?: string; nombre?: string } | null | undefined,
 ) => {
@@ -107,7 +153,7 @@ export default function CierreCajaPage() {
   const [rutaCajas, setRutaCajas] = useState<Caja[]>([])
   const [selectedRutaCaja, setSelectedRutaCaja] = useState<Caja | null>(null)
   const [arqueoPreview, setArqueoPreview] = useState<ArqueoPreview | null>(null)
-  const [arqueoResult, setArqueoResult] = useState<any | null>(null)
+  const [arqueoResult, setArqueoResult] = useState<ArqueoImprimible | null>(null)
   const [filtroTipo, setFiltroTipo] = useState<'TODOS' | 'ARQUEO' | 'CONSOLIDACION'>('TODOS')
   const [soloRutas, setSoloRutas] = useState<boolean>(false)
   const [estadoFiltro, setEstadoFiltro] = useState<'TODOS' | 'CUADRADA' | 'DESCUADRADA'>('TODOS')
@@ -242,8 +288,12 @@ export default function CierreCajaPage() {
   }, [showHistorialModal, filtroTipo, soloRutas, estadoFiltro, fechaInicio, fechaFin])
 
   const saldoSistema = useMemo(() => {
-    const caja: any = selectedRutaCaja
-    const rawSaldo = arqueoPreview?.saldoEsperado ?? caja?.saldo ?? caja?.saldoActual ?? caja?.saldoCaja ?? caja?.cajaSaldo
+    // `Caja` ya declara los cuatro alias del saldo: el `any` no hacia falta.
+    const caja = selectedRutaCaja
+    // Sin `cajaSaldo`: ese nombre es de otra respuesta (contabilidad-service.ts:81),
+    // no de `Caja`. Era un eslabon que no podia resolver nunca.
+    const rawSaldo =
+      arqueoPreview?.saldoEsperado ?? caja?.saldo ?? caja?.saldoActual ?? caja?.saldoCaja
     return parseSaldoCaja(rawSaldo)
   }, [selectedRutaCaja, arqueoPreview])
 
@@ -270,7 +320,7 @@ export default function CierreCajaPage() {
   /** Mientras se pide al servidor el arqueo que se va a imprimir. */
   const [imprimiendo, setImprimiendo] = useState(false);
 
-  const handleImprimirComprobante = async (arqueo?: any) => {
+  const handleImprimirComprobante = async (arqueo?: ArqueoImprimible) => {
     if (imprimiendo) return;
     let data = arqueo ?? arqueoResult;
     if (!data) return;
@@ -581,7 +631,9 @@ export default function CierreCajaPage() {
                   </div>
                   <div class="item">
                     <div class="label">Fecha de generación</div>
-                    <div class="value">${new Date(data.creadoEn).toLocaleString('es-CO')}</div>
+                    <div class="value">${
+                      data.creadoEn ? new Date(data.creadoEn).toLocaleString('es-CO') : '—'
+                    }</div>
                   </div>
                   <div class="item highlight">
                     <div class="label">Estado</div>
@@ -601,7 +653,7 @@ export default function CierreCajaPage() {
                 <div class="grid">
                   <div class="item">
                     <div class="label">Resultado</div>
-                    <div class="status-badge ${getBadgeClass(data.tipoDiferencia)}">
+                    <div class="status-badge ${getBadgeClass(data.tipoDiferencia ?? '')}">
                       ${formatTipoDiferencia(data.tipoDiferencia)}
                     </div>
                   </div>
@@ -1164,15 +1216,15 @@ export default function CierreCajaPage() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <div className="text-[10px] font-bold text-slate-400 uppercase">Responsable</div>
-                      <div className="text-sm font-bold text-slate-900 mt-1">{arqueoResult.responsable?.nombres} {arqueoResult.responsable?.apellidos || '-'}</div>
+                      <div className="text-sm font-bold text-slate-900 mt-1">{getNombreUsuario(arqueoResult.responsable)}</div>
                     </div>
                     <div>
                       <div className="text-[10px] font-bold text-slate-400 uppercase">Creado Por</div>
-                      <div className="text-sm font-bold text-slate-900 mt-1">{arqueoResult.creadoPor?.nombres} {arqueoResult.creadoPor?.apellidos || '-'}</div>
+                      <div className="text-sm font-bold text-slate-900 mt-1">{getNombreUsuario(arqueoResult.creadoPor)}</div>
                     </div>
                     <div>
                       <div className="text-[10px] font-bold text-slate-400 uppercase">Recibido Por</div>
-                      <div className="text-sm font-bold text-slate-900 mt-1">{arqueoResult.recibidoPor?.nombres} {arqueoResult.recibidoPor?.apellidos || '-'}</div>
+                      <div className="text-sm font-bold text-slate-900 mt-1">{getNombreUsuario(arqueoResult.recibidoPor)}</div>
                     </div>
                   </div>
                   

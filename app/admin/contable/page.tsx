@@ -562,7 +562,10 @@ const ModuloContableContent = () => {
       return
     }
     try {
-      const params: any = { cajaId, limit: 500 }
+      // Los dos getters declaran su filtro: el tipo se DERIVA de ellos. Son
+      // compatibles porque este `params` se pasa a los dos (ledger y legacy).
+      const params: Parameters<typeof getMovimientosLedger>[0] &
+        Parameters<typeof getTransacciones>[0] = { cajaId, limit: 500 }
       const inicio = opts?.fechaInicio ?? fechaInicioModal
       const fin = opts?.fechaFin ?? fechaFinModal
       if (inicio) params.fechaInicio = inicio
@@ -611,7 +614,7 @@ const ModuloContableContent = () => {
         return
       }
 
-      const params: any = { tipo, limit: 500 }
+      const params: Parameters<typeof getTransacciones>[0] = { tipo, limit: 500 }
       if (fechaInicio) params.fechaInicio = fechaInicio
       if (fechaFin) params.fechaFin = fechaFin
       const resp = await getTransacciones(params)
@@ -3335,7 +3338,7 @@ const ModuloContableContent = () => {
                              if (!cajaId) return null
                              const cierresDeEstaRuta = historialCierres
                                .filter((c) => c.tipo === 'CIERRE_RUTA' && c.cajaId === cajaId)
-                               .sort((a, b: any) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
+                               .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
                              if (cierresDeEstaRuta.length === 0) {
                                return (
                                  <div className="py-10 text-center text-slate-400 font-bold text-sm">

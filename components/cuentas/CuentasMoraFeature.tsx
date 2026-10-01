@@ -68,6 +68,14 @@ interface CuentaMora {
   tieneProrroga?: boolean
 }
 
+/** Lo que devuelve GET /reports/prestamos-mora (PrestamosMoraResponseDto). */
+interface RespuestaPrestamosMora {
+  prestamos?: CuentaMora[]
+  total?: number
+  pagina?: number
+  limite?: number
+}
+
 interface EstadisticasMora {
   totalMora: number
   totalDeudaRiesgo: number
@@ -228,20 +236,29 @@ export default function CuentasMoraFeature() {
   const fetchData = useCallback(async () => {
     setIsDataLoading(true)
     try {
-      const params: any = { pagina: 1, limite: 50 }
+      // Espejo de `PrestamosMoraFiltrosDto` (prestamo-mora.dto.ts:99).
+      const params: {
+        pagina: number
+        limite: number
+        busqueda?: string
+        nivelRiesgo?: NivelRiesgo
+        rutaId?: string
+      } = { pagina: 1, limite: 50 }
       if (busqueda) params.busqueda = busqueda
       if (filtroRiesgo !== 'TODOS') params.nivelRiesgo = filtroRiesgo
       if (filtroRuta) params.rutaId = filtroRuta
 
-      const response = await apiRequest<any>('GET', '/reports/prestamos-mora', undefined, { params })
+      const response = await apiRequest<RespuestaPrestamosMora>(
+        'GET',
+        '/reports/prestamos-mora',
+        undefined,
+        { params },
+      )
 
-      const raw: any[] = Array.isArray(response)
-        ? response
-        : Array.isArray((response).prestamos)
-          ? (response).prestamos
-          : Array.isArray((response).data)
-            ? (response).data
-            : []
+      // El endpoint devuelve SIEMPRE `{ prestamos, totales, total, pagina, limite }`
+      // (PrestamosMoraResponseDto, responses.dto.ts:9). Aqui habia una cadena de tres
+      // formas -arreglo suelto, `.prestamos`, `.data`- y dos de las tres no existen.
+      const raw = Array.isArray(response?.prestamos) ? response.prestamos : []
 
       const enriched: CuentaMora[] = raw.map(p => ({
         ...p,
