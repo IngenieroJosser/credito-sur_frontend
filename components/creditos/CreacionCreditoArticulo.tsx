@@ -36,11 +36,19 @@ interface ArticuloSeleccionado extends Articulo {
     precioUnitarioCredito: number;
 }
 
+/** El cuerpo que se manda a crear el credito: se DERIVA del propio servicio. */
+type CuerpoDelCreditoDeArticulo = Parameters<typeof prestamosService.crearPrestamo>[0]
+
 interface CreacionCreditoArticuloProps {
   isModal?: boolean;
   initialClienteId?: string;
   onClose?: () => void;
-  onSuccess?: (data?: any) => void;
+  /**
+   * Que hacer cuando el credito queda creado. Recibe el cuerpo que se envio, que es lo
+   * unico que esta pantalla le pasa (linea 365); el tipo se DERIVA de ahi para que no
+   * haya una segunda declaracion.
+   */
+  onSuccess?: (data?: CuerpoDelCreditoDeArticulo) => void;
 }
 
 export default function CreacionCreditoArticulo({ 

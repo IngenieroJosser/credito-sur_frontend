@@ -29,7 +29,7 @@ import { prestamosService } from '@/services/prestamos-service'
 import { exportService } from '@/services/export-service'
 import { toast } from 'sonner'
 import { useAuth } from '@/hooks/useAuth'
-import { buildCrearPrestamoPayload } from '@/lib/creditos/crear-prestamo-payload'
+import { buildCrearPrestamoPayload, type CrearCreditoModalData } from '@/lib/creditos/crear-prestamo-payload'
 import { SkeletonDetalle } from '@/components/ui/Skeleton'
 
 
@@ -104,9 +104,9 @@ const VistaSupervisor = () => {
     }
   }, [])
 
-  const handleCreditoConfirm = async (data: any) => {
+  const handleCreditoConfirm = async (data: CrearCreditoModalData) => {
     try {
-      const esContado = Boolean((data).ventaContado)
+      const esContado = Boolean(data.ventaContado)
       const isArticulo = data.creditType === 'articulo'
       const payload = buildCrearPrestamoPayload(data, user?.id)
       const prestamo = await prestamosService.crearPrestamo(payload);

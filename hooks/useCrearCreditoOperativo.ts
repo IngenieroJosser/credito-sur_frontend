@@ -1,7 +1,7 @@
 import { mensajeDeError } from '@/lib/mensaje-de-error';
 import { useCallback } from 'react';
 import { toast } from 'sonner';
-import { buildCrearPrestamoPayload } from '@/lib/creditos/crear-prestamo-payload';
+import { buildCrearPrestamoPayload, type CrearCreditoModalData } from '@/lib/creditos/crear-prestamo-payload';
 import { prestamosService } from '@/services/prestamos-service';
 import { exportService } from '@/services/export-service';
 import { rutasService } from '@/services/rutas-service';
@@ -13,7 +13,8 @@ interface UseCrearCreditoOperativoProps {
   rutaId?: string;
   cobradorId?: string;
   onSuccess?: () => void;
-  onError?: (error: any) => void;
+  /** `unknown`: es lo que sale de un `catch`, y quien lo reciba lo convierte. */
+  onError?: (error: unknown) => void;
 }
 
 export function useCrearCreditoOperativo({
@@ -23,7 +24,7 @@ export function useCrearCreditoOperativo({
   onSuccess,
   onError,
 }: UseCrearCreditoOperativoProps) {
-  const handleCrearCredito = useCallback(async (data: any) => {
+  const handleCrearCredito = useCallback(async (data: CrearCreditoModalData) => {
     try {
       if (!userId) {
         toast.error('No se pudo crear el crédito: sesión inválida.');
@@ -45,12 +46,13 @@ export function useCrearCreditoOperativo({
       }
 
       // Asignar cliente a la ruta automáticamente si estamos en una ruta específica
+      // `data.clienteId` y `data.cliente?.id` no existen: CrearCreditoModal emite
+      // `clienteCreditoId` (CrearCreditoModal.tsx:967 y alrededores). Con `data: any`
+      // esos dos eslabones no se veian.
       const clienteIdFinal = String(
         prestamo?.clienteId ||
           prestamo?.cliente?.id ||
-          data?.clienteId ||
           data?.clienteCreditoId ||
-          data?.cliente?.id ||
           '',
       ).trim()
 
@@ -63,7 +65,6 @@ export function useCrearCreditoOperativo({
           console.warn('[Crear crédito operativo] clienteId inválido para asignación:', {
             clienteIdFinal,
             dataClienteCreditoId: data?.clienteCreditoId,
-            dataClienteId: data?.clienteId,
             prestamoClienteId: prestamo?.clienteId,
             prestamo,
           })

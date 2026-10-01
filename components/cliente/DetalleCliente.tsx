@@ -25,6 +25,7 @@ import {
 import { formatCurrency, resolveMediaUrl } from "@/lib/utils";
 import DetallePrestamoModal from "@/components/prestamos/DetallePrestamoModal";
 import PagoDetalleModal from "@/components/dashboards/shared/PagoDetalleModal";
+import type { ArchivoMultimediaPago } from '@/services/pagos-service';
 import Tooltip from '@/components/ui/Tooltip';
 
 
@@ -109,7 +110,8 @@ export interface Pago {
   estado: "confirmado" | "pendiente" | "anulado";
   referencia?: string;
   icono: React.ReactNode;
-  archivos?: any[];
+  /** Los adjuntos del pago (comprobantes). Mismo tipo que usa `pagos-service`. */
+  archivos?: ArchivoMultimediaPago[];
 }
 
 export interface Comentario {

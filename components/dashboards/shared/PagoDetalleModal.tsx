@@ -44,7 +44,7 @@ import {
 } from 'lucide-react'
 import { Portal } from '@/components/dashboards/shared/CobradorElements'
 import { formatCurrency, resolveMediaUrl } from '@/lib/utils'
-import { pagosService, Pago } from '@/services/pagos-service'
+import { pagosService, Pago, type ArchivoMultimediaPago } from '@/services/pagos-service'
 import { Skeleton, SkeletonTexto } from '@/components/ui/Skeleton'
 import Tooltip from '@/components/ui/Tooltip'
 import { useModalDialog } from '@/hooks/use-modal-dialog'
@@ -73,7 +73,8 @@ export interface PagoDetalleModalProps {
     saldoAnterior?: number
     prestamoQuedaPagado?: boolean
     cuotasAfectadas?: number
-    archivos?: any[]
+    /** Los comprobantes del pago; el mismo tipo que declara `pagos-service`. */
+    archivos?: ArchivoMultimediaPago[]
     fechaOperativaRuta?: string | null
     origenGestion?: string | null
     notaAdministrativa?: string | null

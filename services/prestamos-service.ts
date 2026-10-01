@@ -64,6 +64,22 @@ export interface CrearPrestamoDto {
   garantia?: string
 }
 
+/**
+ * Un adjunto del credito, espejo de `ArchivoPrestamoDto` del backend
+ * (update-loan.dto.ts:30-73). Solo `tipoContenido` y `tipoArchivo` son obligatorios
+ * alli; el resto es opcional.
+ */
+export interface ArchivoDePrestamo {
+  tipoContenido: string
+  tipoArchivo: string
+  nombreOriginal?: string
+  nombreAlmacenamiento?: string
+  ruta?: string
+  url?: string
+  tamanoBytes?: number
+  formato?: string
+}
+
 export interface FiltrosPrestamos {
   estado?: string
   ruta?: string
@@ -450,7 +466,7 @@ export const prestamosService = {
       fechaInicio?: string
       garantia?: string
       tipoAmortizacion?: TipoAmortizacion
-      archivos?: any[]
+      archivos?: ArchivoDePrestamo[]
     },
   ): Promise<unknown> {
     try {
