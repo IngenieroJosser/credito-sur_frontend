@@ -1,8 +1,8 @@
 'use client'
 import { datosParaRegistro, mensajeDeError } from '@/lib/mensaje-de-error'
 import { clienteComoObjeto } from '@/types/obligacion-jornada'
-import type { CrearCreditoModalData, CrearPrestamoPayload } from '@/lib/creditos/crear-prestamo-payload'
-import { FrecuenciaPago, TipoAmortizacion } from '@/types/enums'
+import { buildCrearPrestamoPayload } from '@/lib/creditos/crear-prestamo-payload'
+import type { CrearCreditoModalData } from '@/lib/creditos/crear-prestamo-payload'
 
 import { logger } from '@/lib/logger'
 
@@ -72,7 +72,7 @@ import { prestamosService } from '@/services/prestamos-service'
 import { pagosService } from '@/services/pagos-service'
 
 import { computeRutaHoyUiStatsFromVisitas, resolveRutaHoyKpiStats, getBogotaDateKey, isVisitaExigibleHoy, normalizeDateKey, shouldExcludeVisitaFromOperationalMeta,
-  shouldIncludeVisitaInRutaHoyKpis, toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
+  shouldIncludeVisitaInRutaHoyKpis } from '@/lib/rutas-core'
 import { isPagoCierrePendiente, mergeVisitasPreservingLocalRecaudo, sumMontoTotalPagosByBogotaDateKey } from '@/lib/ruta-recaudos'
 import { mapDailyVisitsResponseToVisitas as mapDailyVisitsResponseToVisitasShared, type MapMode } from '@/lib/rutas/map-daily-visits-to-visitas'
 import { ordenarVisitasRutaActual } from '@/lib/rutas/ordenar-visitas-ruta'
@@ -2334,8 +2334,6 @@ const LegacyDetalleRutaPage = () => {
 
             try {
 
-              const esContado = Boolean(data.ventaContado);
-
               // El id del creador es OBLIGATORIO en `CrearPrestamoDto`. Antes se mandaba
               // `currentUser?.id`, que con `any` podia viajar como undefined y dejar el
               // prestamo sin autor. Se corta antes, igual que en useCrearCreditoOperativo.
@@ -2344,64 +2342,41 @@ const LegacyDetalleRutaPage = () => {
                 return
               }
 
-              const payload: CrearPrestamoPayload = {
-
-                clienteId: data.clienteCreditoId,
-
-                tipoPrestamo: data.creditType === 'prestamo' ? 'EFECTIVO' : 'ARTICULO',
-
-                monto: data.monto || 0,
-
-                tasaInteres: esContado ? 0 : (data.tasaInteres || 0),
-
-                tasaInteresMora: 2.0,
-
-                plazoMeses: data.plazoMeses || 1,
-
-                cantidadCuotas: data.cantidadCuotas || data.cuotas || data.cuotasTotales || 0,
-
-                cuotas: data.cuotas || data.cantidadCuotas || data.cuotasTotales || 0,
-
-                frecuenciaPago: (esContado
-                  ? FrecuenciaPago.MENSUAL
-                  : (data.frecuenciaPago || FrecuenciaPago.DIARIO)) as FrecuenciaPago,
-
-                fechaInicio: data.fechaInicio || toBogotaDateTimeOffsetIso(new Date()),
-                fechaPrimerCobro: esContado ? undefined : data.fechaPrimerCobro,
-
-                creadoPorId: currentUser.id,
-
-                cuotaInicial: data.cuotaInicialArticulo || 0,
-
-                notas: data.creditType === 'articulo'
-
-                  ? `${esContado ? 'Venta de contado' : 'Crédito de artículo'}: ${data.articuloNombre || ''}`
-
-                  : (data.notas || ''),
-
-                tipoAmortizacion: data.tipoInteres || TipoAmortizacion.INTERES_SIMPLE,
-
-                esContado: esContado
-
-              };
-
-
-
-              if (data.creditType === 'articulo') {
-
-                payload.productoId = data.articuloId;
-
-                payload.precioProductoId = esContado ? undefined : data.precioProductoId;
-
+              // El cuerpo lo arma `buildCrearPrestamoPayload`, igual que las otras ocho
+              // pantallas que crean creditos desde este mismo modal. Aqui estaba escrito a
+              // mano y DIVERGIA en dos cosas, las dos medidas:
+              //
+              //  1. `plazoMeses: data.plazoMeses || 1`. El builder lo deduce de la
+              //     frecuencia y el numero de cuotas (`inferPlazoMeses`). Importa en
+              //     dinero: con INTERES_SIMPLE el backend calcula
+              //     `interesTotal = monto * tasa * plazoMeses` (loans.service.ts:1429), asi
+              //     que un credito diario de 60 cuotas cobraba UN mes de interes por aqui y
+              //     dos por las demas pantallas. Tambien movia la fecha de fin
+              //     (`calculateLoanEndDate`).
+              //  2. La venta de contado. El builder la rechaza a proposito: el dinero de una
+              //     venta de contado tiene que entrar a una caja institucional con su
+              //     asiento, y eso solo lo hace el flujo de ventas (`SalesService`). Creando
+              //     el prestamo con `esContado: true` las cuotas quedan PAGADAS y
+              //     `totalPagado = montoTotal` (loans.service.ts:3750-3765) pero NINGUNA caja
+              //     recibe el dinero: la venta quedaba cobrada sin que el efectivo existiera
+              //     en contabilidad. Ahora se corta antes y se dice por donde va.
+              if (data.creditType === 'articulo' && data.ventaContado) {
+                showNotification(
+                  'warning',
+                  'Las ventas de contado se registran por Punto de Venta, para que el dinero entre a una caja con su asiento contable.',
+                  'Venta de contado',
+                )
+                return
               }
 
-
+              const payload = buildCrearPrestamoPayload(data, currentUser.id);
 
               const prestamo = await prestamosService.crearPrestamo(payload);
 
 
 
-              if (data.creditType === 'articulo' && prestamo?.id && !esContado) {
+              // Sin `!esContado`: la venta de contado ya se corto arriba.
+              if (data.creditType === 'articulo' && prestamo?.id) {
 
                 try {
 
