@@ -243,31 +243,36 @@ export const apiRequest = async <T>(
 };
 
 // Función auxiliar para formatear errores para el estado del componente
-export const formatErrorForComponent = (error: any): string => {
+// `unknown`: lo que llega es lo que capturo un `catch`, que puede ser cualquier cosa.
+// Las lecturas van por `ErrorDeApi`, que describe lo que esta funcion mira de verdad.
+type ErrorDeApi = { message?: string; statusCode?: number }
+
+export const formatErrorForComponent = (error: unknown): string => {
   if (typeof error === 'string') return error;
+  const err = (error || {}) as ErrorDeApi;
   
-  if (error?.message) {
-    return error.message;
+  if (err.message) {
+    return err.message;
   }
   
-  if (error?.statusCode) {
-    switch (error.statusCode) {
+  if (err.statusCode) {
+    switch (err.statusCode) {
       case 400:
-        return normalizeApiErrorMessage(error.message, "Error de validación en la solicitud. Por favor, revise los datos.");
+        return normalizeApiErrorMessage(err.message, "Error de validación en la solicitud. Por favor, revise los datos.");
       case 403:
-        return error.message || FORBIDDEN_ERROR_MESSAGE;
+        return err.message || FORBIDDEN_ERROR_MESSAGE;
       case 404:
         return "Endpoint no encontrado. Verifique la URL de la API.";
       case 408:
         return "La solicitud está tardando demasiado. Por favor, verifique su conexión.";
       case 409:
-        return error.message || CONFLICT_ERROR_MESSAGE;
+        return err.message || CONFLICT_ERROR_MESSAGE;
       case 429:
-        return error.message || RATE_LIMIT_ERROR_MESSAGE;
+        return err.message || RATE_LIMIT_ERROR_MESSAGE;
       case 500:
         return "Error interno del servidor. Por favor, intente más tarde.";
       default:
-        return `Error ${error.statusCode}: ${mensajeDeError(error, 'Error desconocido')}`;
+        return `Error ${err.statusCode}: ${mensajeDeError(error, 'Error desconocido')}`;
     }
   }
   

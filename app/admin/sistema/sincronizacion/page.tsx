@@ -19,6 +19,30 @@ import ListaConflictos from '@/components/conflictos/ListaConflictos'
 import BotonAccion from '@/components/ui/BotonAccion'
 import { baseApi } from '@/lib/api/baseUrl'
 
+/**
+ * Un trabajo de la cola del servidor, tal como lo lista
+ * `GET /configuracion/colas/status`.
+ *
+ * `data` es el cuerpo del trabajo: en la cola conviven todos los modelos, asi que es
+ * `unknown` de verdad. Esta pantalla no lo interpreta, solo lo vuelca con
+ * `JSON.stringify`, asi que no hace falta mas que eso. Antes la forma estaba escrita dos
+ * veces (en el estado y en el generico de la peticion) y `data` era `any` en las dos.
+ */
+type TrabajoDeCola = {
+  id: string
+  name: string
+  state: 'failed' | 'delayed' | 'active' | 'waiting'
+  timestamp: number
+  processedOn: number | null
+  finishedOn: number | null
+  attemptsMade: number
+  failedReason: string | null
+  stacktrace?: string[]
+  data?: unknown
+  model?: string | null
+  action?: string | null
+}
+
 const SyncStatusPage = () => {
   const { isOnline, pendingOps, failedOps, isSyncing, syncNow, downloadForOffline } = useOffline()
   const { rol } = usePermission()
@@ -30,22 +54,7 @@ const SyncStatusPage = () => {
   const [serverQueueCounts, setServerQueueCounts] = useState<Record<string, number> | null>(null)
   const [serverQueueEnabled, setServerQueueEnabled] = useState<boolean | null>(null)
   const [serverQueueReason, setServerQueueReason] = useState<string | null>(null)
-  const [serverQueueJobs, setServerQueueJobs] = useState<
-    Array<{
-      id: string
-      name: string
-      state: 'failed' | 'delayed' | 'active' | 'waiting'
-      timestamp: number
-      processedOn: number | null
-      finishedOn: number | null
-      attemptsMade: number
-      failedReason: string | null
-      stacktrace?: string[]
-      data?: any
-      model?: string | null
-      action?: string | null
-    }>
-  >([])
+  const [serverQueueJobs, setServerQueueJobs] = useState<TrabajoDeCola[]>([])
   const [expandedServerJobId, setExpandedServerJobId] = useState<string | null>(null)
 
   const bullBoardUrl = `${baseApi()}/configuracion/colas`
@@ -64,7 +73,7 @@ const SyncStatusPage = () => {
         enabled?: boolean
         reason?: string
         counts?: Record<string, number>
-        jobs?: any[]
+        jobs?: TrabajoDeCola[]
       }>('GET', '/configuracion/colas/status', undefined, {
         cacheTTL: 0,
       })

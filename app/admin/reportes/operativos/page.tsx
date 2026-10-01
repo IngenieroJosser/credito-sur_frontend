@@ -191,16 +191,18 @@ const ReportesOperativosPage = () => {
     fechaFin: ''
   };
 
-  const pickMeta = (item: any): number => {
+  const pickMeta = (item: RoutePerformance): number => {
     const id = String(item?.id || '')
     const fromComputed = id && Object.prototype.hasOwnProperty.call(metaByRuta, id) ? Number((metaByRuta)[id] || 0) : null
     if (fromComputed !== null && Number.isFinite(fromComputed)) return Math.max(0, fromComputed)
-    const raw = item?.metaPendiente ?? item?.metaHoy ?? item?.metaDelDia ?? item?.meta
-    const meta = Number(raw || 0)
+    // Solo `meta`: el reporte la manda con ese nombre (reports.service.ts:1058, de
+    // `metaDelDia`). `metaPendiente`, `metaHoy` y `metaDelDia` estaban en la cadena y
+    // no vienen en esta respuesta; con `any` los tres eslabones muertos no se veian.
+    const meta = Number(item?.meta || 0)
     return Number.isFinite(meta) ? meta : 0
   }
 
-  const pickRecaudado = (item: any): number => {
+  const pickRecaudado = (item: RoutePerformance): number => {
     const n = Number(item?.recaudado || 0)
     return Number.isFinite(n) ? n : 0
   }

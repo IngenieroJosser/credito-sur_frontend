@@ -18,14 +18,22 @@ import {
 } from 'lucide-react'
 import { Portal } from '@/components/dashboards/shared/CobradorElements'
 import { formatCurrency, cn } from '@/lib/utils'
-import { parseCierreRutaNotif } from '@/lib/notificaciones/cierre-ruta'
+import { parseCierreRutaNotif, type NotificacionDeCierreRuta } from '@/lib/notificaciones/cierre-ruta'
 import Tooltip from '@/components/ui/Tooltip'
 import { useModalDialog } from '@/hooks/use-modal-dialog'
 
 export interface CierreRutaNotifModalProps {
   isOpen: boolean
   onClose: () => void
-  notificacion: any
+  /**
+   * La notificacion que se muestra. Lo que este modal lee es el mensaje, la fecha y la
+   * bolsa `metadata`, que es lo que declara `NotificacionDeCierreRuta`; el unico sitio
+   * que lo abre le pasa una `NotificacionParaDetalle`, que las tiene todas.
+   */
+  notificacion: NotificacionDeCierreRuta & {
+    creadoEn?: string
+    fecha?: string
+  }
 }
 
 /**

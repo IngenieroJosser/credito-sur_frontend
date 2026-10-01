@@ -15,7 +15,12 @@ interface SyncConflict {
   errorMotivo: string;
   statusCode: number;
   creadoEn: string;
-  datos: any;
+  /**
+   * El cuerpo que el cobrador intento enviar. Es `unknown` de verdad: en la cola
+   * conviven las operaciones de todos los modelos. Esta pantalla no lo interpreta, solo
+   * lo vuelca con `JSON.stringify` y lo reenvia tal cual al resolver.
+   */
+  datos: unknown;
   creadoPor: { nombres: string; apellidos: string } | null;
 }
 

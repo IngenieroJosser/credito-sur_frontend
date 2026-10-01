@@ -277,7 +277,12 @@ export function clearCachedSession(): void {
 /**
  * Restaurar sesión desde caché (para uso offline)
  */
-export function restoreOfflineSession(): { token: string; user: any } | null {
+// `user` se DERIVA de `CachedSession`, que es de donde sale el valor: una segunda
+// declaracion aqui podria separarse de la primera.
+export function restoreOfflineSession(): {
+  token: string
+  user: CachedSession['user']
+} | null {
   if (typeof window === 'undefined') return null;
   
   const cached = getCachedSession();
