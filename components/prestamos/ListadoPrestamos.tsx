@@ -39,7 +39,8 @@ import { apiRequest, formatErrorForComponent } from '@/lib/api/api'
 import { usePermission } from '@/hooks/usePermission'
 import { ExportButton } from '@/components/ui/ExportButton'
 import { exportService } from '@/services/export-service'
-import { offlineStore } from '@/lib/offline/offlineDb'
+import { offlineStore } from '@/lib/offline/offlineDb'
+import { mapearPrestamoDescargado } from '@/lib/offline/syncManager'
 import { prestamosService } from '@/services/prestamos-service'
 import { buildCrearPrestamoPayload } from '@/lib/creditos/crear-prestamo-payload'
 import { WifiOff } from 'lucide-react'
@@ -237,7 +238,16 @@ const ListadoPrestamosElegante = () => {
       setTotalPrestamos(response.paginacion.total)
       setDataSource('online')
       // Cache para offline
-      offlineStore.saveMany('prestamos', nextPrestamos).catch(() => {})
+      // HALLAZGO: esto guardaba las filas del listado TAL CUAL, sin pasar por
+      // `mapearPrestamoDescargado`, que es el otro escritor de este almacen. El resultado
+      // eran filas sin `plazoMeses` ni `cantidadCuotas` —campos que `OfflinePrestamo`
+      // declara y otras pantallas leen—, asi que una pantalla offline veia 0 cuotas en los
+      // creditos cacheados por esta pantalla y el numero correcto en los cacheados por el
+      // sync. Lo destapo atar el tipo del `saveMany` al almacen. Ahora los dos escritores
+      // usan el mismo mapeo.
+      offlineStore
+        .saveMany('prestamos', nextPrestamos.map(mapearPrestamoDescargado))
+        .catch(() => {})
     } catch (err) {
       // Fallback offline
       try {

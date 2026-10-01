@@ -301,7 +301,7 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
                   id: p.id,
                   producto: p.tipoPrestamo === 'ARTICULO' ? 'Artículo' : 'Préstamo Efectivo',
                   montoTotal: Number(p.montoTotal || p.monto || 0),
-                  montoPagado: Number(p.totalPagado || 0),
+                  montoPagado: Number(p.montoPagado || 0),
                   montoPendiente: Number(p.saldoPendiente || 0),
                   cuotasTotales: p.cantidadCuotas || 0,
                   cuotasPagadas: 0,
