@@ -1,7 +1,9 @@
-import type { VisitaParcial } from '@/lib/types/cobranza'
-import type { ObligacionDeJornada } from '@/types/obligacion-jornada'
+import {
+  clienteComoObjeto,
+  type ObligacionDeJornada,
+  type PrestamoDeObligacion,
+} from '@/types/obligacion-jornada'
 import type { DailyVisitsResponse } from '@/services/rutas-service'
-import type { Cliente } from '@/types/domain'
 /**
  * Mapper compartido para convertir DailyVisitsResponse en VisitaRuta[].
  * Centraliza la normalización de obligaciones operativas para todas las vistas:
@@ -95,10 +97,15 @@ export const mapDailyVisitsResponseToVisitas = ({
     : (Array.isArray((resp)?.visitas) ? (resp).visitas : [])
 
   const mapped = rows.map((row, idx) => {
-    // Anotadas por el mismo motivo: sin tipo, el `|| {}` las deja en `{}`.
-    const visita: VisitaParcial = row?.visita || row || {}
-    const c: Partial<Cliente> = row?.cliente || visita?.cliente || {}
-    const p = row?.prestamo || visita?.prestamo || visita?.prestamos?.[0] || {}
+    // La fila puede venir envuelta (`row.visita`) o ser la obligacion misma, y eso lo
+    // decide el endpoint. Se anota porque sin tipo el `|| {}` la deja en `{}` y el
+    // compilador deja de encontrar los campos.
+    const visita: ObligacionDeJornada = row?.visita || row || {}
+    // `clienteComoObjeto` porque el cliente puede llegar como texto con solo el nombre:
+    // leerlo como objeto a secas dejaba el id y el nombre en blanco.
+    const c = clienteComoObjeto(row?.cliente || visita?.cliente)
+    const p: PrestamoDeObligacion =
+      row?.prestamo || visita?.prestamo || visita?.prestamos?.[0] || {}
     const cuotaObjetivo =
       row?.cuotaObjetivo ||
       p?.cuotaObjetivo ||
@@ -306,7 +313,7 @@ export const mapDailyVisitsResponseToVisitas = ({
       nivelRiesgoCredito: row?.nivelRiesgoCredito ?? row?.prestamo?.nivelRiesgoCredito ?? p?.nivelRiesgoCredito,
       riesgoCredito: row?.riesgoCredito ?? row?.prestamo?.riesgoCredito ?? p?.riesgoCredito,
       riesgoOperativo: row?.riesgoOperativo ?? row?.prestamo?.riesgoOperativo ?? p?.riesgoOperativo,
-      nivelRiesgoBackend: row?.nivelRiesgoBackend ?? row?.cliente?.nivelRiesgo ?? c?.nivelRiesgo,
+      nivelRiesgoBackend: row?.nivelRiesgoBackend ?? c?.nivelRiesgo,
     }
 
     return {

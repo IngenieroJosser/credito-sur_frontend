@@ -118,7 +118,14 @@ export interface DailyVisitsResponse {
     total: number
   }
 
-  visitas: any[]
+  /**
+   * Las visitas del dia.
+   *
+   * `ObligacionDeJornada[]`, igual que `obligaciones` de abajo: son la MISMA fila con dos
+   * nombres —`obligaciones` es la forma nueva y `visitas` la anterior— y los mapeadores
+   * las leen en cascada. Con `any[]` esa igualdad no se veia.
+   */
+  visitas: ObligacionDeJornada[]
 
   obligaciones?: ObligacionDeJornada[]
 }
@@ -359,7 +366,13 @@ export interface CreditosAsignadosResponse {
 
   total: number
 
-  data: any[]
+  /**
+   * Las filas del endpoint antiguo de creditos asignados.
+   *
+   * Es la misma forma que una obligacion de jornada: `VistaCobrador` las mapea con el
+   * mismo codigo (linea 866 en adelante, leyendo `row.cliente` y `row.prestamo`).
+   */
+  data: ObligacionDeJornada[]
 }
 
 export const rutasService = {

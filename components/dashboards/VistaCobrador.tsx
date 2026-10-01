@@ -155,7 +155,10 @@ import RutaProvisionalModal from '@/components/dashboards/shared/RutaProvisional
 import { VisitaRuta, EstadoVisita, PeriodoRuta, mapNivelRiesgo } from '@/lib/types/cobranza'
 import type { PrestamoParcial } from '@/types/domain'
 import type { CrearCreditoModalData } from '@/lib/creditos/crear-prestamo-payload'
-import type { EventoDeJornada } from '@/types/obligacion-jornada'
+import {
+  clienteComoObjeto,
+  type EventoDeJornada,
+} from '@/types/obligacion-jornada'
 import type { CuotaOperativa, VisitaParcial } from '@/lib/types/cobranza'
 import { resolveNivelRiesgoVisita } from '@/lib/rutas/resolve-riesgo-visita'
 import { ordenarVisitasRutaActual } from '@/lib/rutas/ordenar-visitas-ruta'
@@ -867,7 +870,9 @@ const VistaCobrador = () => {
 
 
       const mapped: VisitaRuta[] = await Promise.all(filas.map(async (row, idx: number) => {
-        const c = row?.cliente || {}
+        // `clienteComoObjeto`: el cliente puede llegar como texto con solo el nombre, y
+        // aqui se le leen cinco campos. Con el texto salian todos en blanco.
+        const c = clienteComoObjeto(row?.cliente)
         const p = row?.prestamo || {}
         // `PrestamoParcial` y no `any`: la fila del listado y la del detalle traen formas
         // distintas, y esta variable se reasigna con la del detalle unas lineas mas abajo.

@@ -119,6 +119,14 @@ export type PrestamoDeObligacion = {
   frecuencia?: string
   frecuenciaRuta?: string
   esProvisional?: boolean | null
+  // Los cuatro los agrega el backend por CREDITO en la respuesta de la jornada
+  // (routes.service.ts los pone en `PrestamoDeVisita`), y los lee el mapeador de visitas.
+  recaudadoDelDia?: NumeroDeApi
+  recaudadoHoy?: NumeroDeApi
+  // Sin `| null`: `PrestamoCamposLeidos` lo declara `number | undefined` y el spread de
+  // este prestamo va a parar ahi. El backend lo calcula, asi que siempre manda un numero.
+  diasMora?: number
+  fechaEfectiva?: FechaDeApi
   // Los tres los agrega el backend al revisar la operacion, y los lee el mapeo del
   // listado de rutas. Los nombro el compilador al tipar ese mapeo.
   estadoEfectoProvisional?: string | null
@@ -302,3 +310,16 @@ export type CamposDelEventoDeJornada = {
 export type EventoDeJornada = CamposDelEventoDeJornada & {
   metadata?: CamposDelEventoDeJornada
 }
+
+/**
+ * El cliente de una obligacion, siempre como OBJETO.
+ *
+ * `ObligacionDeJornada.cliente` puede ser el objeto o un texto con solo el nombre, segun el
+ * endpoint. Cinco sitios lo leian como objeto a secas —`cliente.nombres`, `cliente.id`—, y
+ * con el texto eso valia `undefined`: el cliente salia sin nombre y sin id. Este
+ * normalizador hace la comprobacion una vez, en vez de repetir el `typeof` en cada sitio.
+ */
+export const clienteComoObjeto = (
+  cliente: ClienteDeObligacion | string | null | undefined,
+): ClienteDeObligacion =>
+  typeof cliente === 'object' && cliente ? cliente : {}

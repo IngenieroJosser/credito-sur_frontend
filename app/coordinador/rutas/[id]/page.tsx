@@ -1,5 +1,6 @@
 'use client'
-import { datosParaRegistro, mensajeDeError } from '@/lib/mensaje-de-error'
+import { datosParaRegistro, mensajeDeError } from '@/lib/mensaje-de-error'
+import { clienteComoObjeto } from '@/types/obligacion-jornada'
 
 import { logger } from '@/lib/logger'
 
@@ -937,7 +938,10 @@ const LegacyDetalleRutaPage = () => {
 
       const visitas: VisitaRuta[] = ((visitasResp)?.visitas || []).map((item, index: number) => {
 
-        const cliente = item.cliente || {};
+        // `clienteComoObjeto`: el cliente de una obligacion puede llegar como texto con
+        // solo el nombre, y aqui se le lee el id. Con el texto, `cliente.id` valia
+        // `undefined` y el recaudo del dia se atribuia a nadie.
+        const cliente = clienteComoObjeto(item.cliente);
 
         const prestamos = item.prestamos || [];
 
@@ -1023,7 +1027,7 @@ const LegacyDetalleRutaPage = () => {
 
           })(),
 
-          clienteId: cliente.id,
+          clienteId: cliente.id || '',
 
           recaudadoDelDia: recDia,
 

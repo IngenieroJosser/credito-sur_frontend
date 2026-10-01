@@ -1,5 +1,9 @@
 import type { CuotaOperativa } from '@/lib/types/cobranza'
-import type { ClienteDeObligacion, PrestamoDeObligacion } from '@/types/obligacion-jornada'
+import {
+  clienteComoObjeto,
+  type ClienteDeObligacion,
+  type PrestamoDeObligacion,
+} from '@/types/obligacion-jornada'
 import { isPagoCierrePendiente } from '@/lib/ruta-recaudos'
 import type { SaldoDisponibleRuta } from '@/services/contabilidad-service'
 import { logger } from '@/lib/logger'
@@ -8,9 +12,14 @@ import {
   getPagoBogotaDateKey,
   shouldExcludeVisitaFromOperationalMeta,
 } from '@/lib/rutas-core'
-import { mapNivelRiesgo, type VisitaParcial, type VisitaRuta } from '@/lib/types/cobranza'
+import {
+  mapNivelRiesgo,
+  type EstadoVisita,
+  type VisitaParcial,
+  type VisitaRuta,
+} from '@/lib/types/cobranza'
 import { resolveRiesgoObligacion } from '@/lib/rutas/riesgo-obligacion'
-import type { Cliente, PagoParcial, Prestamo, PrestamoParcial } from '@/types/domain'
+import type { Cliente, PagoParcial, PrestamoParcial } from '@/types/domain'
 import type { DailyVisitsResponse } from '@/services/rutas-service'
 
 /** Las cifras del resumen del dia, tal como las nombra el backend. */
@@ -82,6 +91,30 @@ export const isPagoForHistorialFecha = (
   const raw = pago?.fechaPago || pago?.creadoEn
   if (!raw) return false
   return getPagoBogotaDateKey(String(raw)) === fechaClave
+}
+
+/**
+ * El estado de visita, ya dentro de la union cerrada.
+ *
+ * `normalizeEstadoVisitaHistorial` (justo debajo) normaliza el TEXTO —minusculas, sin
+ * tildes— pero no garantiza que el resultado sea uno de los siete estados. Esta si, y lo
+ * que no reconozca cae en 'pendiente', que es lo que hacia el `|| 'pendiente'` de antes.
+ */
+const ESTADOS_DE_VISITA: readonly EstadoVisita[] = [
+  'pendiente',
+  'pagado',
+  'en_mora',
+  'ausente',
+  'reprogramado',
+  'en_prorroga',
+  'gestionado',
+]
+
+export const estadoVisitaDeHistorial = (raw: unknown): EstadoVisita => {
+  const estado = normalizeEstadoVisitaHistorial(raw)
+  return (ESTADOS_DE_VISITA as readonly string[]).includes(estado)
+    ? (estado as EstadoVisita)
+    : 'pendiente'
 }
 
 export const normalizeEstadoVisitaHistorial = (raw: unknown) =>
@@ -681,7 +714,10 @@ export const buildHistorialDiaFromBackend = (params: {
   })
 
   // Calcular riesgo de obligación para todas las visitas
-  const visitasConRiesgo = visitasDesdeObligaciones.map((visita: VisitaParcial) => {
+  // El retorno se ANOTA por el mismo motivo que el `flatMap` de abajo: asi cada rama se
+  // compara contra `VisitaRuta` y no contra la otra, y los literales no se ensanchan.
+  const visitasConRiesgo = visitasDesdeObligaciones.map(
+    (visita: VisitaParcial): VisitaRuta => {
     const nivelRiesgoRaw = resolveRiesgoObligacion({
       row: visita,
       prestamo: visita.prestamo || {},
@@ -692,14 +728,36 @@ export const buildHistorialDiaFromBackend = (params: {
       esProvisional: visita.esProvisional,
     })
     const nivelRiesgo = normalizeNivelRiesgo(nivelRiesgoRaw)
+    // `as const` en los dos literales y el retorno anotado: este map produce la lista de
+    // visitas del historial, y sin eso `prioridad` se ensancha a `string` y el spread de
+    // `visita` (que es PARCIAL) deja el `id` opcional. Las dos cosas hacian que el
+    // resultado no fuera una `VisitaRuta`, y el `any` de antes lo tapaba.
     const prioridad =
-      nivelRiesgoRaw === 'ROJO' || nivelRiesgoRaw === 'LISTA_NEGRA' ? 'alta' : 'media'
+      nivelRiesgoRaw === 'ROJO' || nivelRiesgoRaw === 'LISTA_NEGRA'
+        ? ('alta' as const)
+        : ('media' as const)
     return {
       ...visita,
+      id: visita.id || '',
+      clienteId: visita.clienteId || '',
+      // 'DIA' es el valor por defecto de `PeriodoRuta`, que es la union de la ruta
+      // ('DIA' | 'SEMANA' | 'QUINCENA' | 'MES') y no la frecuencia del credito.
+      periodoRuta: visita.periodoRuta || 'DIA',
+      cobradorId: visita.cobradorId || '',
+      ordenVisita: visita.ordenVisita || 0,
+      proximaVisita: visita.proximaVisita || '',
+      estado: visita.estado || 'pendiente',
+      saldoTotal: visita.saldoTotal || 0,
+      montoCuota: visita.montoCuota || 0,
+      horaSugerida: visita.horaSugerida || '',
+      telefono: visita.telefono || '',
+      direccion: visita.direccion || '',
+      cliente: visita.cliente || '',
       nivelRiesgo,
       prioridad,
-    }
-  })
+      }
+    },
+  )
 
   // 3) Mapear visitas del backend a `VisitaRuta` (shape que espera el UI).
   //    Nota: aquí NO aplicamos la lógica pesada de mapeo/asignación del día actual.
@@ -707,8 +765,15 @@ export const buildHistorialDiaFromBackend = (params: {
   const visitas: VisitaRuta[] =
     visitasConRiesgo.length > 0
       ? visitasConRiesgo
-      : (visitasResp?.visitas || []).flatMap((item, index: number) => {
-          const cliente: Partial<Cliente> = item?.cliente || {}
+      : (visitasResp?.visitas || []).flatMap((
+          item,
+          index: number,
+        ): VisitaRuta[] => {
+          // El retorno se ANOTA: este `flatMap` tiene dos ramas (con creditos y sin
+          // ellos) y sin anotacion TypeScript compara una contra la otra en vez de
+          // comparar las dos contra `VisitaRuta`, que es lo que importa.
+          // `clienteComoObjeto`: el cliente puede llegar como texto con solo el nombre.
+          const cliente = clienteComoObjeto(item?.cliente)
           const prestamos = Array.isArray(item?.prestamos) ? item.prestamos : []
 
           // Si no hay préstamos, caer a una sola visita por cliente como antes.
@@ -728,9 +793,13 @@ export const buildHistorialDiaFromBackend = (params: {
                 horaSugerida: '08:00 AM',
                 montoCuota: recaudadoDelDia > 0 ? recaudadoDelDia : 0,
                 saldoTotal: Number(item?.saldoTotal ?? 0),
-                estado:
-                  item?.estado ||
-                  (recaudadoDelDia > 0 || regularizadoDespues > 0 ? 'pagado' : 'pendiente'),
+                // `estadoVisitaDeHistorial` porque `item.estado` es texto de la API y el
+                // destino una union cerrada.
+                estado: item?.estado
+                  ? estadoVisitaDeHistorial(item.estado)
+                  : recaudadoDelDia > 0 || regularizadoDespues > 0
+                    ? ('pagado' as const)
+                    : ('pendiente' as const),
                 // Preservar estadoVisita del backend (ej: 'ausente') para mostrar el badge correcto
                 estadoVisita: item?.estadoVisita || undefined,
                 proximaVisita: item?.proximaVisita || fechaClave,
@@ -747,25 +816,25 @@ export const buildHistorialDiaFromBackend = (params: {
 
           const prestamoPreferidoId = String(
             item?.prestamoId ||
-              prestamos.find((p: Prestamo) => Number(p?.saldoPendiente || 0) > 0)?.id ||
+              prestamos.find((p: PrestamoDeObligacion) => Number(p?.saldoPendiente || 0) > 0)?.id ||
               '' ||
               prestamos[0]?.id ||
               '',
           )
 
           const prestamosSeleccionados = prestamoPreferidoId
-            ? prestamos.filter((p: Prestamo) => String(p?.id || '') === prestamoPreferidoId)
+            ? prestamos.filter((p: PrestamoDeObligacion) => String(p?.id || '') === prestamoPreferidoId)
             : prestamos
 
           const lista = (
             prestamosSeleccionados.length > 0 ? prestamosSeleccionados : [prestamos[0]]
           ).filter(Boolean)
 
-          return lista.map((p: PrestamoParcial, loanIdx: number) => {
+          return lista.map((p: PrestamoDeObligacion, loanIdx: number) => {
             const prestamoId = String(p?.id || prestamoPreferidoId || '')
             // El `|| p?.cuota?.id` tambien era un respaldo muerto: el prestamo trae `cuotas`
-            // (plural) y `cuotaObjetivo`, no `cuota`. Se lee la que si existe.
-            const cuotaId = String(p?.cuotaId || p?.cuotaObjetivo?.id || '')
+            // (plural) y `cuotaObjetivo`, no `cuota` ni `cuotaId`. Se lee la que si existe.
+            const cuotaId = String(p?.cuotaObjetivo?.id || '')
 
             // Cruzar pagos por obligación (prestamoId + cuotaId) o por prestamoId
             const exactKey = cuotaId ? `${prestamoId}:${cuotaId}` : ''
@@ -790,7 +859,11 @@ export const buildHistorialDiaFromBackend = (params: {
             const saldoTotal = Number(p?.saldoPendiente ?? 0)
             const proxEstado = String(proximaCuota?.estado || '').toUpperCase()
 
-            let estado = item?.estado || 'pendiente'
+            // `EstadoVisita` y no texto suelto: `item.estado` viene de la API como string y
+            // el destino es una union cerrada. `normalizeEstadoVisitaHistorial` ya existe en
+            // este archivo, pero devuelve TEXTO normalizado, no la union: por eso hace falta
+            // `estadoVisitaDeHistorial`, que si la garantiza.
+            let estado: EstadoVisita = estadoVisitaDeHistorial(item?.estado)
             if (!item?.estado) {
               if (saldoTotal <= 0) estado = 'pagado'
               else if (proxEstado === 'PAGADA' || proxEstado === 'PAGADO') estado = 'pagado'
@@ -892,7 +965,9 @@ export const buildHistorialDiaFromBackend = (params: {
             })
             const nivelRiesgo = normalizeNivelRiesgo(nivelRiesgoRaw)
             const prioridad =
-              nivelRiesgoRaw === 'ROJO' || nivelRiesgoRaw === 'LISTA_NEGRA' ? 'alta' : 'media'
+              nivelRiesgoRaw === 'ROJO' || nivelRiesgoRaw === 'LISTA_NEGRA'
+                ? ('alta' as const)
+                : ('media' as const)
 
             return {
               ...visitaBase,
