@@ -1,6 +1,7 @@
 'use client'
 
-import { mensajeDeError } from '@/lib/mensaje-de-error'
+import { mensajeDeError } from '@/lib/mensaje-de-error'
+import { numero, texto } from '@/lib/valores-de-api'
 /**
  * ============================================================================
  * MÓDULO DE REVISIONES - Centro de Aprobaciones
@@ -305,17 +306,9 @@ const resolveFechaOriginalReprogramacion = (
 // El retorno se ANOTA: sin eso TypeScript ensancha los literales de `estado` y `tipo` a
 // `string`, y el puente deja de comprobar que produce una notificacion valida. Que es
 // justo lo que este puente tiene que garantizar.
-/**
- * Los dos conversores para leer una columna `Json`.
- *
- * `datosSolicitud` es `Record<string, unknown>` (lo que de verdad es una columna `Json`) y
- * esta pantalla saca de ahi veinte campos para tres modales. Antes era `any`, asi que
- * ninguna de esas veinte lecturas se comprobaba: un nombre mal escrito pintaba el modal
- * vacio, y un objeto donde se esperaba texto salia como "[object Object]".
- *
- * Son el equivalente de `textoDeJson` del backend, que existe por el mismo motivo.
- */
-/** La decision de una prorroga, normalizada contra sus tres valores posibles. */
+// Los conversores viven en `lib/valores-de-api`: estaban escritos a mano aqui y en el modal
+// de pago regularizado, y hacian falta en seis sitios mas. Una sola copia.
+
 const decisionDeProrroga = (
   valor: unknown,
 ): 'PRORROGAR' | 'CASTIGAR' | 'DEJAR_QUIETO' | undefined => {
@@ -325,16 +318,7 @@ const decisionDeProrroga = (
     : undefined
 }
 
-const texto = (valor: unknown): string | undefined => {
-  if (typeof valor === 'string') return valor
-  if (typeof valor === 'number' && Number.isFinite(valor)) return String(valor)
-  return undefined
-}
 
-const numero = (valor: unknown): number | undefined => {
-  const n = Number(valor)
-  return Number.isFinite(n) ? n : undefined
-}
 
 const aprobacionToNotificacion = (item: Aprobacion): NotificacionParaDetalle => {
   const datos = item.datosSolicitud || {}

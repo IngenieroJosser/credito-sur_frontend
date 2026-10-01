@@ -1,13 +1,18 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import type { CuotaOperativa } from '@/lib/types/cobranza'
 import { createPortal } from 'react-dom';
 import { X, Loader2, FileText } from 'lucide-react';
 import DetallePrestamo, { PrestamoDetalle } from '@/components/prestamos/DetallePrestamo';
 import { prestamosService } from '@/services/prestamos-service';
 import { exportService } from '@/services/export-service';
 import { getLoanAmounts } from '@/lib/loan-calculations';
-import { offlineStore } from '@/lib/offline/offlineDb';
+import {
+  offlineStore,
+  type OfflineCuota,
+  type OfflinePrestamo,
+} from '@/lib/offline/offlineDb'
 import { normalizeDateKey } from '@/lib/rutas-core';
 import { formatLoanTerm } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -71,12 +76,12 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
           const cuotasArr = Array.isArray(cuotasData) ? cuotasData : [];
           if (cuotasArr.length === 0) return undefined;
 
-          const isNoPagada = (c: any) => {
+          const isNoPagada = (c: CuotaOperativa) => {
             const st = String(c?.estado || '').toUpperCase();
             return st !== 'PAGADA' && st !== 'PAGADO' && st !== 'ANULADA' && st !== 'ANULADO';
           };
 
-          const sorted = [...cuotasArr].sort((a, b: any) => {
+          const sorted = [...cuotasArr].sort((a, b) => {
             const ak = normalizeDateKey(String(a?.fechaVencimiento || ''));
             const bk = normalizeDateKey(String(b?.fechaVencimiento || ''));
             if (ak && bk) return ak.localeCompare(bk);
@@ -185,9 +190,11 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
         console.error('Error cargando detalle del préstamo:', err);
         // Fallback offline
         try {
-          const offP = await offlineStore.getById<any>('prestamos', id);
+          const offP = await offlineStore.getById<OfflinePrestamo>('prestamos', id);
           if (offP) {
-            const offCuotas = await offlineStore.getByIndex<any>('cuotas', 'by-prestamoId', id).catch(() => []);
+            const offCuotas = await offlineStore
+              .getByIndex<OfflineCuota>('cuotas', 'by-prestamoId', id)
+              .catch(() => []);
             setPrestamo({
               id: offP.id,
               clienteId: offP.clienteId || '',
@@ -198,13 +205,18 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
               clienteDni: offP.clienteDni || '',
               clienteTelefono: offP.clienteTelefono || '',
               clienteDireccion: offP.clienteDireccion || '',
-              montoPrestamo: offP.monto || offP.montoPrestamo || 0,
+              // La copia offline guarda los dos nombres (`monto` y `montoPrestado`,
+              // syncManager.ts:263-264), no `montoPrestamo`: ese era una lectura muerta.
+              montoPrestamo: offP.monto || offP.montoPrestado || 0,
               montoTotal: offP.montoTotal || 0,
               saldoPendiente: offP.saldoPendiente || 0,
               tasaInteres: offP.tasaInteres || 0,
               interesTotal: offP.interesTotal,
-              capitalPagado: offP.capitalPagado,
-              interesPagado: offP.interesPagado,
+              // `capitalPagado`, `interesPagado` y `tipoAmortizacion` NO estan en la copia
+              // offline: el mapeo guarda otros campos. Se dejan sin valor en vez de
+              // aparentar que se leen, que es lo que hacia el `any`.
+              capitalPagado: undefined,
+              interesPagado: undefined,
               duracion: offP.plazoMeses ? formatLoanTerm({
                 plazoMeses: offP.plazoMeses,
                 cantidadCuotas: offP.cantidadCuotas,
@@ -214,7 +226,7 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
               fechaInicio: offP.fechaInicio || '',
               fechaVencimiento: offP.fechaFin || '',
               estado: offP.estado || 'ACTIVO',
-              tipoAmortizacion: offP.tipoAmortizacion || 'INTERES_SIMPLE',
+              tipoAmortizacion: 'INTERES_SIMPLE',
               producto: offP.tipoPrestamo || 'Préstamo',
               garantia: '',
               fotos: [],
