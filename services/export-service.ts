@@ -97,7 +97,7 @@ export const exportService = {
    */
   async downloadFilePost(
     endpoint: string,
-    body: Record<string, any> = {},
+    body: Record<string, unknown> = {},
     fallbackFilename: string = 'export.pdf',
   ): Promise<void> {
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;

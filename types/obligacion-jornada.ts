@@ -305,6 +305,22 @@ export type CamposDelEventoDeJornada = {
   estadoVisita?: EstadoVisita
   notas?: string
   notasVisita?: string
+  // Los que siguen se sacaron de los emisores del backend, uno por uno:
+  // payments.service.ts:1613 (pago registrado), routes.service.ts:5804 (jornada
+  // cerrada/regularizada) y loans.service.ts:5016 (reprogramacion solicitada). El
+  // gateway le suma `timestamp` a todos (notificaciones.gateway.ts:476-540).
+  //
+  // `fechaClave` NO esta: se busco en todo el backend y no se emite en ningun sitio.
+  // El historial de ruta lo leia en una cadena junto a `fechaOperativaRuta` y ese
+  // eslabon no resolvia nunca.
+  pagoId?: string
+  cuotaId?: string
+  jornadaId?: string
+  aprobacionId?: string
+  origenGestion?: string
+  fechaOperativa?: string
+  fechaOperativaRuta?: string
+  timestamp?: string
 }
 
 export type EventoDeJornada = CamposDelEventoDeJornada & {

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
+import { numero, objeto, texto } from '@/lib/valores-de-api'
 import { usePageFocusRefresh } from '@/hooks/usePageFocusRefresh'
 import {
   Search,
@@ -181,24 +182,30 @@ const HistorialPagosPage = () => {
         try {
           const db = await getOfflineDb();
           const offQueue = await db.getAll('offline-queue');
+          // `OfflineQueueItem.data` es `unknown` de verdad: en la cola conviven los
+          // cuerpos de todas las operaciones. Se lee con los conversores en vez de por
+          // un `any`.
           const pagosOffline: Pago[] = offQueue
-            .filter((q: any) => q.type === 'pago')
-            .map((q: any) => ({
-              pagoId: q.data?.pagoId || q.data?.id || q.id,
-              id: q.id,
-              fecha: q.createdAt || toBogotaDateTimeOffsetIso(new Date()),
-              cliente: q.description || '',
-              cobrador: '',
-              ruta: '',
-              monto: q.data?.montoTotal || 0,
-              capital: q.data?.montoCapital || 0,
-              interes: q.data?.montoInteres || 0,
-              mora: q.data?.montoMora || 0,
-              metodo: 'Efectivo',
-              estado: (q.status === 'completed' ? 'completado' : 'pendiente') as EstadoPago,
-              fechaOperativaRuta: q.data?.fechaOperativaRuta || null,
-              origenGestion: q.data?.origenGestion || null,
-            }));
+            .filter((q) => q.type === 'pago')
+            .map((q) => {
+              const datos = objeto(q.data)
+              return {
+                pagoId: texto(datos.pagoId) || texto(datos.id) || q.id,
+                id: q.id,
+                fecha: q.createdAt || toBogotaDateTimeOffsetIso(new Date()),
+                cliente: q.description || '',
+                cobrador: '',
+                ruta: '',
+                monto: numero(datos.montoTotal) || 0,
+                capital: numero(datos.montoCapital) || 0,
+                interes: numero(datos.montoInteres) || 0,
+                mora: numero(datos.montoMora) || 0,
+                metodo: 'Efectivo',
+                estado: (q.status === 'completed' ? 'completado' : 'pendiente') as EstadoPago,
+                fechaOperativaRuta: texto(datos.fechaOperativaRuta) || null,
+                origenGestion: texto(datos.origenGestion) || null,
+              }
+            });
           if (pagosOffline.length > 0) setPagos(pagosOffline);
         } catch { /* ignore */ }
       } finally {

@@ -1,4 +1,5 @@
 import type { PagoParcial } from '@/types/domain'
+import type { EventoDeJornada } from '@/types/obligacion-jornada'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { getBogotaDateKey, getPagoBogotaDateKey, getLocalDateKey } from '@/lib/rutas-core'
@@ -315,16 +316,14 @@ export const useRutaHistorial = (params: UseRutaHistorialParams) => {
   )
 
   const refrescarHistorialCargado = useCallback(
-    async (payload?: any) => {
+    async (payload?: EventoDeJornada) => {
       if (!rutaId) return
 
       const metadata = payload?.metadata || {}
+      // Sin `fechaClave`: no se emite en ningun sitio del backend (ver la nota en
+      // `CamposDelEventoDeJornada`). Eran dos eslabones que no resolvian nunca.
       const fechaEvento = String(
-        payload?.fechaOperativaRuta ||
-          metadata?.fechaOperativaRuta ||
-          payload?.fechaClave ||
-          metadata?.fechaClave ||
-          '',
+        payload?.fechaOperativaRuta || metadata?.fechaOperativaRuta || '',
       ).slice(0, 10)
 
       const historialActual = historialRutasRef.current || {}
