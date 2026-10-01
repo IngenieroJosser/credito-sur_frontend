@@ -27,7 +27,7 @@ import {
   resolveMediaUrl,
 } from '@/lib/utils'
 import { normalizeDateKey } from '@/lib/rutas-core'
-import { aprobacionesService } from '@/services/aprobaciones-service'
+import { aprobacionesService, type Aprobacion } from '@/services/aprobaciones-service'
 import { articulosService } from '@/services/articulos-service'
 import ConfirmRejectModal from '@/components/ui/ConfirmRejectModal'
 import PagoDetalleModal from '@/components/dashboards/shared/PagoDetalleModal'
@@ -245,7 +245,8 @@ export default function NotificacionDetalleModal({
   const [showRejectDeudaModal, setShowRejectDeudaModal] = useState(false)
   const [showRejectReintegroModal, setShowRejectReintegroModal] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
-  const [history, setHistory] = useState<any[]>([])
+  // El tipo se DERIVA de quien lo llena: `aprobacionesService.getHistorial`.
+  const [history, setHistory] = useState<Aprobacion[]>([])
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
   const [articuloData, setArticuloData] = React.useState<ArticuloConPlazos | null>(null)
   const [planIndex, setPlanIndex] = React.useState<number | null>(null)

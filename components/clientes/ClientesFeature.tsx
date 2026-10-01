@@ -347,7 +347,8 @@ export default function ClientesFeature({
 
   const stats = useMemo(() => {
     const base = Array.isArray(filteredClientes) ? filteredClientes : []
-    const getDias = (c: any) => Number(diasMoraByClientId[String(c?.id || '')] ?? c?.diasMora ?? 0)
+    const getDias = (c: (typeof base)[number]) =>
+      Number(diasMoraByClientId[String(c?.id || '')] ?? c?.diasMora ?? 0)
 
     const buenEstado = base.filter((c) => getDias(c) <= 0).length
     const riesgoMedio = base.filter((c) => {
@@ -402,7 +403,7 @@ export default function ClientesFeature({
               if (cuotas.length === 0) continue
 
               const frecuencia = String(p?.frecuenciaPago || 'DIARIO').toUpperCase()
-              const vencidas = cuotas.some((c: any) => {
+              const vencidas = cuotas.some((c) => {
                 if (!c || !isCuotaNoPagada(c)) return false
                 const raw = resolveFechaEfectivaCuota(c) || String(c?.fechaVencimiento || '')
                 const k = normalizeDateKey(raw)

@@ -251,10 +251,16 @@ export default function PagoDetalleModal({
     a => a.tipoContenido === 'COMPROBANTE_TRANSFERENCIA'
   )
 
-  const getCuotaLabel = (det: any, fallbackIndex: number) => {
-    const n = det?.numeroCuota ?? det?.cuotaNumero ?? det?.cuota?.numeroCuota ?? det?.cuota?.numero
+  // El tipo se DERIVA de la lista que se recorre: son los detalles del pago.
+  const getCuotaLabel = (
+    det: (typeof detallesAfectados)[number],
+    fallbackIndex: number,
+  ) => {
+    // Solo `cuota.numeroCuota`: `numeroCuota` y `cuotaNumero` al nivel del detalle no
+    // son columnas de `DetallePago` (schema.prisma:455), y `cuota.numero` tampoco
+    // existe en `Cuota`. De los cuatro eslabones, resolvia uno.
+    const n = det?.cuota?.numeroCuota
     if (typeof n === 'number' && Number.isFinite(n)) return `Cuota ${n}`
-    if (typeof n === 'string' && n.trim()) return `Cuota ${n.trim()}`
     return `Cuota ${fallbackIndex + 1}`
   }
 

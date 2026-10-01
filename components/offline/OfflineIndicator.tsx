@@ -19,6 +19,20 @@ import { useOffline } from '@/hooks/useOffline';
 import { useAutoSync } from '@/hooks/use-auto-sync';
 import { offlineQueue } from '@/lib/offline/offlineQueue';
 import { OfflineQueueItem } from '@/lib/offline/offlineDb';
+
+/**
+ * Una actividad de sincronizacion efimera.
+ *
+ * La emite `logSyncActivity` por el evento `offline-activity` (offlineQueue.ts:257-267)
+ * y NO es un item de la cola: trae solo estos cuatro campos. Se mezcla con los items de
+ * la cola en la lista que se pinta, asi que esa lista es de los dos tipos.
+ */
+type ActividadManual = {
+  id: string;
+  description: string;
+  timestamp: string;
+  status: OfflineQueueItem['status'];
+};
 import { hasValidOfflineSession, getOfflineSessionDaysRemaining, isSessionExpiringSoon } from '@/lib/auth/offlineAuth';
 import Tooltip from '@/components/ui/Tooltip';
 
@@ -40,7 +54,7 @@ export default function OfflineIndicator() {
   useAutoSync(300000); 
 
   const [expanded, setExpanded] = useState(false);
-  const [queueItems, setQueueItems] = useState<OfflineQueueItem[]>([]);
+  const [queueItems, setQueueItems] = useState<Array<OfflineQueueItem | ActividadManual>>([]);
   const [showResult, setShowResult] = useState(false);
   const [hasOfflineSession, setHasOfflineSession] = useState(false);
   const [daysRemaining, setDaysRemaining] = useState(0);
@@ -48,7 +62,7 @@ export default function OfflineIndicator() {
   const [isClearModalOpen, setIsClearModalOpen] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
 
-  const [manualActivities, setManualActivities] = useState<any[]>([]);
+  const [manualActivities, setManualActivities] = useState<ActividadManual[]>([]);
 
   const [eventSyncActive, setEventSyncActive] = useState(false);
 
@@ -257,8 +271,8 @@ export default function OfflineIndicator() {
       interval = setInterval(refreshItems, 1000); // Refresco rápido mientras hay ops
     }
 
-    const handleManualActivity = (e: any) => {
-      const activity = e.detail;
+    const handleManualActivity = (e: Event) => {
+      const activity = (e as CustomEvent<ActividadManual>).detail;
       setManualActivities(prev => {
         // Evitar duplicados
         if (prev.find(a => a.description === activity.description && a.timestamp === activity.timestamp)) return prev;
@@ -507,7 +521,9 @@ export default function OfflineIndicator() {
                               {item.description}
                             </p>
 
-                            {item.lastError && (
+                            {/* `lastError` solo lo tienen los items de la cola: una
+                                actividad efimera no falla, se registra ya completada. */}
+                            {'lastError' in item && item.lastError && (
                               <p className="mt-1 line-clamp-2 rounded-xl border border-rose-200/30 bg-rose-400/[0.08] px-2 py-1 text-[10px] font-medium text-rose-700">
                                 {item.lastError}
                               </p>

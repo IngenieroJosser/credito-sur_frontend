@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { cn } from '@/lib/utils'
 import { routesService } from '@/services/routes-service'
-import { offlineStore } from '@/lib/offline/offlineDb'
+import { offlineStore, type OfflineRuta } from '@/lib/offline/offlineDb'
 
 interface RutaOption {
   id: string
@@ -50,7 +50,7 @@ export default function FiltroRuta({
     } catch (err) {
       console.error('Error cargando rutas:', err)
       try {
-        const offlineRutas = await offlineStore.getAll<any>('rutas')
+        const offlineRutas = await offlineStore.getAll<OfflineRuta>('rutas')
         setRutas(offlineRutas.map((r) => ({ id: r.id, nombre: r.nombre, codigo: r.codigo })))
       } catch {
         setRutas([])

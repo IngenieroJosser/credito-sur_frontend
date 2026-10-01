@@ -2,6 +2,7 @@ import { logger } from '@/lib/logger'
 import { apiRequest } from '@/lib/api/api';
 import { syncService } from '@/lib/offline/syncService';
 import { MetodoPago } from '@/types/enums';
+import type { Cuota } from '@/types/domain';
 import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 import { esErrorDeRed } from '@/lib/offline/conRespaldoOffline'
 
@@ -15,6 +16,16 @@ export interface DetallePago {
   montoCapital: number;
   montoInteres: number;
   montoInteresMora: number;
+  /**
+   * La cuota a la que se aplico este detalle.
+   *
+   * SI la mandan los dos endpoints de pagos: el listado la pide con un `select`
+   * acotado (payments.service.ts:1677-1689) y el detalle con `cuota: true`
+   * (payments.service.ts:1745-1749). Faltaba aqui, y por eso el modal de detalle de pago
+   * leia el numero de cuota a traves de un `any`; sin ella mostraba "Cuota 1" por el
+   * respaldo del indice.
+   */
+  cuota?: Pick<Cuota, 'id' | 'numeroCuota' | 'monto' | 'montoPagado' | 'estado'>;
 }
 
 export interface ArchivoMultimediaPago {
