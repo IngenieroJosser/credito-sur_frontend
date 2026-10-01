@@ -13,6 +13,7 @@ import BotonAccion from '@/components/ui/BotonAccion'
 import Tooltip from '@/components/ui/Tooltip'
 import { useModalDialog } from '@/hooks/use-modal-dialog'
 import type { ContextoRegularizacion } from '@/types/rutas/cierre-pendiente'
+import { clienteComoObjeto } from '@/types/obligacion-jornada'
 
 // Helper para formato de fecha compacto (ej: 18 may)
 function formatFechaDiaMes(value?: string | Date | null) {
@@ -52,6 +53,23 @@ function getJornadaSeverity(diasPendiente: number) {
     label: 'Reciente',
     className: 'border-blue-200 bg-blue-50 text-blue-700',
   }
+}
+
+/**
+ * El `estadoGestion` que el modal muestra, acotado a los cuatro valores que declara
+ * `ClienteCierrePendiente`.
+ *
+ * La obligacion lo trae como texto libre (`string | null`), asi que la conversion va
+ * aqui: cualquier otro valor cuenta como PENDIENTE, que es como ya se pintaba.
+ */
+function normalizarEstadoGestion(
+  valor: string | null | undefined,
+): ClienteCierrePendiente['estadoGestion'] {
+  const estado = String(valor || '').toUpperCase()
+  if (estado === 'PAGO_REGISTRADO' || estado === 'AUSENTE' || estado === 'REPROGRAMADO') {
+    return estado
+  }
+  return 'PENDIENTE'
 }
 
 function getSaldoOperativoJornada(cliente: ClienteCierrePendiente) {
@@ -199,8 +217,8 @@ export function CierrePendienteDetalleModal({
     canAgregarObservacion?: boolean
   }
   handlers?: {
-    onExportarDetalle?: (contexto: any) => void
-    onSolicitarCorreccion?: (contexto: any) => void
+    onExportarDetalle?: (contexto: ContextoRegularizacion) => void
+    onSolicitarCorreccion?: (contexto: ContextoRegularizacion) => void
     onAnularAusencia?: (cliente: ClienteCierrePendiente, contextoRegularizacion?: ContextoRegularizacion) => void
     onVerPago?: (cliente: ClienteCierrePendiente, contextoRegularizacion?: ContextoRegularizacion) => void
     onVerComprobante?: (cliente: ClienteCierrePendiente, contextoRegularizacion?: ContextoRegularizacion) => void
@@ -239,15 +257,17 @@ export function CierrePendienteDetalleModal({
 
   // Mapper local para transformar obligaciones al formato que el modal espera
   const obligacionesJornada = Array.isArray(jornadaActual?.obligaciones) && jornadaActual.obligaciones.length > 0
-    ? jornadaActual.obligaciones.map((item: any) => {
-        const cliente = item.cliente || item.visita?.cliente || {}
+    ? jornadaActual.obligaciones.map((item): ClienteCierrePendiente => {
+        // `cliente` llega como objeto o como el nombre en texto, segun el endpoint;
+        // `clienteComoObjeto` es el conversor que ya usa el resto de la jornada.
+        const cliente = clienteComoObjeto(item.cliente ?? item.visita?.cliente)
         const cuota = item.cuotaObjetivo || item.prestamo?.cuotaObjetivo || {}
 
         return {
           asignacionId: item.asignacionId,
-          ordenVisita: item.ordenVisita,
+          ordenVisita: item.ordenVisita ?? undefined,
 
-          clienteId: cliente.id || item.clienteId,
+          clienteId: cliente.id || item.clienteId || undefined,
           nombreCliente:
             item.nombreCliente ||
             `${cliente.nombres || ''} ${cliente.apellidos || ''}`.trim() ||
@@ -263,7 +283,7 @@ export function CierrePendienteDetalleModal({
           cuotaObjetivoPrestamoId: item.cuotaObjetivoPrestamoId || cuota.id,
           cuotaObjetivo: cuota,
 
-          estadoGestion: item.estadoGestion,
+          estadoGestion: normalizarEstadoGestion(item.estadoGestion),
           estadoVisita: item.estadoVisita,
           notasVisita: item.notasVisita,
           recaudadoDelDia: Number(item.recaudadoDelDia || 0),

@@ -70,9 +70,28 @@ export interface CuotaOperativa {
   montoVencidoAcumuladoEnFecha?: number
   saldoVencidoAcumulado?: number
 
+  /**
+   * Lo que falta de ESTA cuota, sin la mora acumulada de las anteriores.
+   * `saldoExigibleEnFechaOperativa` es lo que se le pide hoy; este es el saldo de la
+   * cuota. El backend manda los dos (routes.service.ts:4207-4208).
+   */
+  saldoCuota?: number
+
+  // Permisos y clasificacion que calcula el servidor sobre la fecha operativa
+  // (routes.service.ts:4210-4213). Faltaban aqui y estaban escritos aparte en
+  // `CuotaObjetivoCierrePendiente`, que es la MISMA cuota: el modal del cierre leia
+  // estos cuatro campos y, al mezclarse los dos tipos, no compilaba sin un `any`.
+  puedePagar?: boolean
+  puedeReprogramar?: boolean
+  esCuotaFuturaEnFechaOperativa?: boolean
+  esCuotaPagadaHistorica?: boolean
+
   // Reprogramacion y bloqueos de la jornada.
   esCuotaReprogramadaJornada?: boolean
   nuevaFechaReprogramada?: string | null
+  /** La aprobacion que respalda la reprogramacion, y en que estado esta. */
+  aprobacionReprogramacionId?: string | null
+  estadoReprogramacion?: string | null
   cubiertaPorPagoJornada?: boolean
   motivoBloqueoPago?: string | null
   motivoBloqueoReprogramacion?: string | null

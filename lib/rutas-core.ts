@@ -273,7 +273,13 @@ type RegularizedPaymentTargetInput<V extends VisitaParcial> = {
  */
 type CamposRegularizados = {
   prestamoId: string
-  cuotaActual: number
+  /**
+   * El numero de cuota, que puede faltar: sale de `cuota.numeroCuota` y la cuota
+   * operativa lo declara opcional porque no todos los endpoints la enriquecen igual.
+   * `VisitaRuta.cuotaActual` tambien es opcional, asi que aqui se dice lo mismo en vez
+   * de prometer un numero que a veces no llega.
+   */
+  cuotaActual: number | undefined
   montoCuota: number
   montoCuotaPendiente: number
   saldoTotal: number

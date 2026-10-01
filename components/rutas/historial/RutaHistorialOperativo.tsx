@@ -71,10 +71,12 @@ export default function RutaHistorialOperativo({
       let monthPagados = 0
       const daysInMonth = historyByMonth[monthKey] || []
       for (const date of daysInMonth) {
-        const data = (historialRutas as Record<string, any>)[date]
-        const resumen = data?.resumen || {}
-        monthRecaudo += Number(resumen.recaudo || 0)
-        monthPagados += Number(resumen.visitados || 0)
+        // El hook ya declara `Record<string, HistorialDia> | null`: el cast a
+        // `Record<string, any>` solo desactivaba la comprobacion.
+        const data = historialRutas?.[date]
+        const resumen = data?.resumen
+        monthRecaudo += Number(resumen?.recaudo || 0)
+        monthPagados += Number(resumen?.visitados || 0)
       }
       summary[monthKey] = { monthRecaudo, monthPagados }
     }
@@ -111,21 +113,21 @@ export default function RutaHistorialOperativo({
         <div className="space-y-3">
           <h3 className="text-sm font-bold text-slate-500 uppercase px-1">Historial de Días</h3>
           {historyDates.map((date) => {
-            const data = (historialRutas as Record<string, any>)[date]
+            const data = historialRutas?.[date]
             const isExpanded = selectedHistoryDate === date
             const [y, m, d] = date.split('-')
             const dateObj = new Date(parseInt(y), parseInt(m) - 1, parseInt(d))
             const dayName = dateObj.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })
-            const jornadaEtiqueta = (data.resumen).jornadaEtiqueta
-            const jornadaEtiquetaColor = (data.resumen).jornadaEtiquetaColor || 'bg-slate-100 text-slate-700 border-slate-200'
+            const jornadaEtiqueta = data?.resumen?.jornadaEtiqueta
+            const jornadaEtiquetaColor = data?.resumen?.jornadaEtiquetaColor || 'bg-slate-100 text-slate-700 border-slate-200'
 
-            const visitasHistorial = (data.visitas || []).map(normalizeVisitaHistorial)
-            const visitasHistorialFiltradas = visitasHistorial.filter((v: any) => {
+            const visitasHistorial = (data?.visitas || []).map(normalizeVisitaHistorial)
+            const visitasHistorialFiltradas = visitasHistorial.filter((v) => {
               const isSaldado =
                 String(v.estado || '').toLowerCase() === 'pagado' && Number(v.saldoTotal || 0) <= 0
               return !(isSaldado && !hasGestionHistorial(v))
             })
-            const resumenHistorial = computeHistorialResumenCompartido(visitasHistorial, data.resumen)
+            const resumenHistorial = computeHistorialResumenCompartido(visitasHistorial, data?.resumen)
 
             return (
               <div
@@ -138,7 +140,7 @@ export default function RutaHistorialOperativo({
                   className="px-5 py-3 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
                   onClick={() => {
                     setSelectedHistoryDate(isExpanded ? null : date)
-                    if (!isExpanded && !data.loaded) {
+                    if (!isExpanded && !data?.loaded) {
                       void cargarHistorialFecha(date)
                     }
                   }}
@@ -210,7 +212,7 @@ export default function RutaHistorialOperativo({
                       <span>Estado</span>
                     </div>
                     <div>
-                      {!data.loaded ? (
+                      {!data?.loaded ? (
                         <div className="space-y-2" aria-busy="true">
                           <span className="sr-only">Cargando…</span>
                           {Array.from({ length: 3 }).map((_, i) => (
