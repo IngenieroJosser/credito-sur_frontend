@@ -36,7 +36,14 @@ export default function DetalleCuentaMoraPage({
     const fetchData = async () => {
       setLoading(true);
       try {
-        const data: any = await prestamosService.obtenerPrestamoPorId(id);
+        const data = await prestamosService.obtenerPrestamoPorId(id);
+        // Medido contra lo que devuelve GET /loans/:id (loans.service.ts:2036-2222):
+        // el prestamo NO trae relacion `ruta` ni `cobrador` -la ruta viene por
+        // `cliente.asignacionesRuta`, que es de donde se lee ahora; antes salia en
+        // blanco-, y `montoMora`, `ultimoPago` e `historialMora` no existen ni como
+        // columna ni como campo calculado de esta respuesta. El `any` los tapaba.
+        const rutaAsignada = data.cliente?.asignacionesRuta?.[0]?.ruta;
+        const ultimoPagoRegistrado = data.pagos?.[0];
         setCuenta({
           id,
           numeroPrestamo: data.numeroPrestamo || id,
@@ -48,14 +55,16 @@ export default function DetalleCuentaMoraPage({
             referencia: data.cliente?.referencia || '',
           },
           diasMora: data.diasMora || 0,
-          montoMora: data.montoMora || data.moraAcumulada || 0,
+          montoMora: data.moraAcumulada || 0,
           montoTotalDeuda: data.saldoPendiente || data.montoPendiente || 0,
           cuotasVencidas: data.cuotasVencidas || 0,
-          ruta: data.ruta?.nombre || '',
-          cobrador: data.cobrador ? `${data.cobrador.nombres || ''} ${data.cobrador.apellidos || ''}`.trim() : '',
+          ruta: rutaAsignada?.nombre || '',
+          cobrador: '',
           nivelRiesgo: data.nivelRiesgo || 'ROJO',
-          ultimoPago: data.ultimoPago || '',
-          historialMora: data.historialMora || [],
+          // Los pagos vienen ordenados por `fechaPago` descendente, asi que el primero
+          // es el ultimo pago (loans.service.ts:2083).
+          ultimoPago: ultimoPagoRegistrado?.fechaPago || '',
+          historialMora: [],
         });
       } catch (err) {
         console.error('Error cargando cuenta mora:', err);

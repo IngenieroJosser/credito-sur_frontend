@@ -65,18 +65,23 @@ export default function EditarArticuloPage({ params }: { params: Promise<{ id: s
   useEffect(() => {
     const cargarArticulo = async () => {
       try {
-        const data: any = await inventarioService.obtenerProductoPorId(id)
+        const data = await inventarioService.obtenerProductoPorId(id)
         if (data) {
+            // `data` es un `Producto`: el endpoint devuelve el modelo tal cual
+            // (inventory.service.ts:332-347). Los alias que habia aqui -`sku`, `precio`,
+            // `cantidad` y `categoria.nombre`/`categoria.id`- no son columnas de
+            // `model Producto` (schema.prisma:236) y nunca resolvian: `categoria` es un
+            // texto, no un objeto. Antes el `any` los dejaba pasar.
           setFormData({
             nombre: data.nombre || '',
-            codigo: data.codigo || data.sku || '',
+            codigo: data.codigo || '',
             descripcion: data.descripcion || '',
-            categoria: data.categoria?.nombre || data.categoria || '',
-            categoriaId: data.categoriaId || data.categoria?.id || '',
+            categoria: data.categoria || '',
+            categoriaId: data.categoriaId || '',
             marca: data.marca || '',
             modelo: data.modelo || '',
-            costo: formatMilesCOP(data.costo || data.precio || 0),
-            stock: String(data.stock || data.cantidad || 0),
+            costo: formatMilesCOP(data.costo || 0),
+            stock: String(data.stock || 0),
             stockMinimo: String(data.stockMinimo || 0),
             precios: data.precios || []
           })

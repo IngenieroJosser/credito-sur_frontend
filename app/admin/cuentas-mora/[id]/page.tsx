@@ -67,35 +67,48 @@ export default function DetalleCuentaMoraPage({ params }: { params: Promise<{ id
     const fetchData = async () => {
       setLoading(true);
       try {
-        const detalle: any = await prestamosService.obtenerPrestamoPorId(id);
+        const detalle = await prestamosService.obtenerPrestamoPorId(id);
+        // Medido contra lo que devuelve GET /loans/:id (loans.service.ts:2036-2222):
+        // es el modelo con sus relaciones, sin desglose de mora calculado. De los
+        // nombres que se leian aqui, ONCE no existen ni como columna ni como campo
+        // enriquecido: `cliente.nombre`, `cliente.documento`, `montoOriginal`,
+        // `saldoCapital`, `cuotaPromedio`, `proximoVencimiento`, `mora.*`,
+        // `capitalVencido`, `interesMora`, `gastosCobranza`, `totalPagarYa`,
+        // `fechaInicioMora` e `historialGestion`. Con `any` la pantalla los pedia y
+        // pintaba cero sin que nada lo dijera; ahora lo dice el codigo.
+        //
+        // Lo que si llega: `monto`, `saldoPendiente`, `valorCuota`, `frecuenciaPago`,
+        // `diasMora`, `moraAcumulada`, `proximaCuotaFecha` y el cliente del modelo.
         setData({
           id,
           numeroPrestamo: detalle.numeroPrestamo || id,
           cliente: {
             id: detalle.cliente?.id || '',
-            nombre: detalle.cliente?.nombre || `${detalle.cliente?.nombres || ''} ${detalle.cliente?.apellidos || ''}`.trim(),
-            documento: detalle.cliente?.documento || detalle.cliente?.dni || '',
+            nombre: `${detalle.cliente?.nombres || ''} ${detalle.cliente?.apellidos || ''}`.trim(),
+            documento: detalle.cliente?.dni || '',
             telefono: detalle.cliente?.telefono || '',
             direccion: detalle.cliente?.direccion || '',
             estado: 'ACTIVO',
           },
           prestamo: {
-            montoOriginal: detalle.montoOriginal || detalle.monto || 0,
-            saldoCapital: detalle.saldoCapital || detalle.montoPendiente || 0,
-            cuotaPromedio: detalle.cuotaPromedio || detalle.valorCuota || 0,
+            montoOriginal: detalle.monto || 0,
+            saldoCapital: detalle.saldoPendiente || detalle.montoPendiente || 0,
+            cuotaPromedio: detalle.valorCuota || detalle.montoCuota || 0,
             frecuencia: detalle.frecuencia || detalle.frecuenciaPago || 'mensual',
-            proximoVencimiento: detalle.proximoVencimiento || '',
+            proximoVencimiento: detalle.proximaCuotaFecha || '',
           },
           mora: {
-            diasAtraso: detalle.diasMora || detalle.mora?.diasAtraso || 0,
-            capitalVencido: detalle.capitalVencido || detalle.mora?.capitalVencido || 0,
-            interesMora: detalle.interesMora || detalle.mora?.interesMora || 0,
-            gastosCobranza: detalle.gastosCobranza || 0,
-            totalPagarYa: detalle.totalPagarYa || detalle.montoMora || 0,
-            fechaInicioMora: detalle.fechaInicioMora || '',
+            diasAtraso: detalle.diasMora || 0,
+            // El reparto de lo vencido entre capital, interes de mora y gastos de
+            // cobranza NO lo manda este endpoint. Queda en cero, como ya quedaba.
+            capitalVencido: 0,
+            interesMora: 0,
+            gastosCobranza: 0,
+            totalPagarYa: detalle.moraAcumulada || 0,
+            fechaInicioMora: '',
             nivelRiesgo: detalle.nivelRiesgo || 'ROJO',
           },
-          historialGestion: detalle.historialGestion || [],
+          historialGestion: [],
         });
       } catch (err) {
         console.error('Error cargando detalle de mora:', err);

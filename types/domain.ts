@@ -55,6 +55,19 @@ export interface Cliente {
   eliminadoEn?: string | null;
   // Campos extendidos del backend
   archivos?: { id: string; url?: string; path?: string; ruta?: string; tipoArchivo?: string }[];
+  /** Columna del modelo (schema.prisma:184): la referencia de ubicacion del cliente. */
+  referencia?: string | null;
+  /**
+   * La asignacion de ruta activa, cuando la respuesta la incluye.
+   *
+   * El detalle del credito la trae (`cliente.asignacionesRuta` con `ruta`,
+   * loans.service.ts:2062-2071) y es el UNICO sitio de esa respuesta donde viene la
+   * ruta: el prestamo no trae relacion `ruta` ni `cobrador`. Las pantallas que leian
+   * `prestamo.ruta?.nombre` mostraban la ruta en blanco.
+   */
+  asignacionesRuta?: {
+    ruta?: { id?: string; nombre?: string; codigo?: string } | null;
+  }[];
 }
 
 // ─── PRÉSTAMO ────────────────────────────────────────────────────────────────
