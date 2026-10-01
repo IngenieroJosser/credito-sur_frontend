@@ -238,16 +238,16 @@ export default function CoordinadorPage() {
           },
         ];
 
-        const recentLoans = (prestamos?.prestamos || []).slice(0, 5).map((p: any) => {
-          const clientName = p.cliente
-            ? `${p.cliente.nombres || ''} ${p.cliente.apellidos || ''}`.trim()
-            : 'Cliente';
+        const recentLoans = (prestamos?.prestamos || []).slice(0, 5).map((p) => {
+          // En el LISTADO `cliente` es el nombre ya compuesto, no el objeto: leer
+          // `cliente.nombres` daba undefined y la tarjeta salia con "Cliente".
+          const clientName = p.cliente || 'Cliente';
           const dateStr = p.creadoEn
             ? new Date(p.creadoEn).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })
             : '';
           return {
             client: clientName,
-            amount: p.montoTotal || p.monto || 0,
+            amount: p.montoTotal || p.montoPrestado || 0,
             term: p.frecuenciaPago || 'Mensual',
             status: p.estado || 'PENDIENTE',
             date: dateStr,

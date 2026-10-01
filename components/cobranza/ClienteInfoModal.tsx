@@ -19,7 +19,7 @@ import { VisitaRuta } from '@/lib/types/cobranza'
 import { resolveMediaUrl, formatCurrency } from '@/lib/utils'
 import Portal, { MODAL_Z_INDEX } from '@/components/ui/Portal'
 import { resolveCuotaAcumuladaOperativa, resolveCuotaNormalOperativa } from '@/lib/rutas-core'
-import { clientesService } from '@/services/clientes-service'
+import { clientesService, type Cliente } from '@/services/clientes-service'
 import { alertasClientesService } from '@/services/alertas-clientes-service'
 import { Skeleton } from '@/components/ui/Skeleton'
 import Tooltip from '@/components/ui/Tooltip'
@@ -39,15 +39,14 @@ interface Props {
 type Tab = 'expediente' | 'detalle'
 type UserRole = 'SUPER_ADMINISTRADOR' | 'ADMIN' | 'COORDINADOR' | 'SUPERVISOR' | 'COBRADOR' | string
 
-interface ArchivoCliente {
-  id: string
-  url?: string
-  path?: string
-  ruta?: string
-  tipoArchivo?: string
-  tipoContenido?: string
-  nombreOriginal?: string
-}
+/**
+ * Un archivo del cliente, DERIVADO de lo que declara `Cliente.archivos`.
+ *
+ * Estaba escrito a mano aqui con los mismos nombres pero con `id` obligatorio y `url`
+ * no nulable, que es lo contrario de lo que manda el servicio; por eso la asignacion
+ * necesitaba un `any`.
+ */
+type ArchivoCliente = NonNullable<Cliente['archivos']>[number]
 
 // ── Etiquetas de tipo de archivo ───────────────────────────────────────────────
 
@@ -119,7 +118,7 @@ export default function ClienteInfoModal({
     setLoadingFotos(true)
     clientesService
       .obtenerPorId(visita.clienteId)
-      .then((cliente: any) => {
+      .then((cliente) => {
         if (!cliente) throw new Error('Cliente no devuelto por el servidor')
         const files: ArchivoCliente[] = cliente?.archivos || []
         setArchivos(files)

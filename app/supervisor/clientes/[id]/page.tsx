@@ -202,9 +202,11 @@ export default function ClienteDetalleSupervisorPage() {
     )
   }
 
+  // El `filter(Boolean)` no le quita el `undefined` al tipo: hace falta el guarda para
+  // que `fotos` sea de verdad `string[]`. Con `(a: any)` eso no se veia.
   const fotos: string[] = (clienteData.archivos || [])
-    .map((a: any) => a?.url || a?.path || a?.ruta)
-    .filter(Boolean)
+    .map((a) => a?.url || a?.path || a?.ruta)
+    .filter((url): url is string => Boolean(url))
 
   const cliente: Cliente = {
     ...clienteData,
@@ -214,7 +216,7 @@ export default function ClienteDetalleSupervisorPage() {
     fotos,
   }
 
-  const prestamos: Prestamo[] = (clienteData.prestamos || []).map((p: any) => {
+  const prestamos: Prestamo[] = (clienteData.prestamos || []).map((p) => {
     const cuotas = p.cuotas || []
     const cuotasPagadas = cuotas.filter(
       (c: CuotaOperativa) => c.estado === 'PAGADA' || c.estadoActual === 'PAGADA',
