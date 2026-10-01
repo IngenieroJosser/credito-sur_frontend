@@ -22,7 +22,7 @@ import type { ContextoRegularizacion } from '@/types/rutas/cierre-pendiente'
  *
  * Estaban declarados `VisitaParcial` y `PrestamoParcial`, que son la forma
  * completa de una visita y de un prestamo, para leer cinco ids. Eso rechazaba una
- * `ObligacionDeJornada` —cuyo `cliente` puede ser objeto o `null`, no solo texto—
+ * `ObligacionDeJornada` â€”cuyo `cliente` puede ser objeto o `null`, no solo textoâ€”
  * aunque ninguno de esos campos se toque aqui. Declarar lo que se lee y nada mas
  * deja pasar a cualquiera que traiga los ids, que es el contrato de verdad.
  */
