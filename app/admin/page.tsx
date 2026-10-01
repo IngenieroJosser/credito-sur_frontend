@@ -480,7 +480,7 @@ export default function DashboardPage() {
       const capitalPrestado = Number(dashboard?.metrics?.capitalPrestado ?? 0)
       const recaudo = Number(dashboard?.metrics?.recaudo ?? 0)
       const moraCount = Number(dashboard?.metrics?.delinquentAccounts ?? 0)
-      const moraMonto = (dashboard?.delinquentAccounts || []).reduce((acc: number, item: any) => acc + Number(item.amountDue || 0), 0)
+      const moraMonto = (dashboard?.delinquentAccounts || []).reduce((acc: number, item) => acc + Number(item.amountDue || 0), 0)
       const moraPercent = capitalPrestado > 0 && moraMonto > 0 ? ((moraMonto / capitalPrestado) * 100).toFixed(1) : moraCount > 0 ? '> 0' : '0'
       const gastosPeriodo = resumen?.egresosHoy || 0
       const utilidadPeriodo = resumen?.gananciaNeta || 0

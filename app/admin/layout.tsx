@@ -477,10 +477,13 @@ export default function AdminLayout({
       icon: React.ReactNode
     }> = []
 
-    navigation.forEach((item: any) => {
+    // `id` es opcional en `NavigationItem`, asi que se cae al href: es el identificador
+    // que le queda, y la lista de preferencia de abajo compara por id. Con `item: any`
+    // esto pasaba como `string` y un modulo sin id dejaba un `undefined` de clave.
+    navigation.forEach((item) => {
       if (item.href && item.href !== '#') {
         destinos.push({
-          id: item.id,
+          id: item.id || item.href,
           name: item.name,
           href: item.href,
           icon: item.icon,
@@ -490,7 +493,7 @@ export default function AdminLayout({
       const primero = item.submodulos?.[0]
       if (primero?.href) {
         destinos.push({
-          id: primero.id,
+          id: primero.id || primero.href,
           name: primero.name,
           href: primero.href,
           icon: primero.icon ?? item.icon,

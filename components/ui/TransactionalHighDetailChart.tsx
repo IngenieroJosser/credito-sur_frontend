@@ -56,7 +56,19 @@ const formatBogotaDateTime = (value: unknown): string | null => {
   }).format(date);
 };
 
-const CustomTooltip = ({ active, payload }: any) => {
+/**
+ * Lo que Recharts le pasa al contenido del tooltip.
+ *
+ * Solo se declaran las dos props que este componente usa, y el `payload` con la forma
+ * que de verdad lleva: cada punto envuelve el dato original en `payload`, que aqui es
+ * una `ChartData`.
+ */
+type PropsDelTooltip = {
+  active?: boolean
+  payload?: Array<{ payload: ChartData }>
+}
+
+const CustomTooltip = ({ active, payload }: PropsDelTooltip) => {
   if (active && payload && payload.length) {
     const d = payload[0].payload;
     const value = Number(d?.value || 0);

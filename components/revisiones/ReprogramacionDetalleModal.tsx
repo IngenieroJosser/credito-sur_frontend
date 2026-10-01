@@ -180,11 +180,26 @@ function getEstadoCreditoClasses(value: string | null | undefined) {
   return 'bg-slate-50 text-slate-700 border-slate-200'
 }
 
-function getMediaHref(item: any) {
+/**
+ * Un archivo adjunto de la solicitud, con los nombres que puede traer.
+ *
+ * Son las columnas de `model Multimedia` (`url`, `ruta`, `tipoContenido`, `tipoArchivo`,
+ * `formato`) mas `rutaArchivo`, que se deja porque esta en la cadena junto a `ruta`.
+ */
+type ArchivoDeRevision = {
+  url?: string | null
+  ruta?: string | null
+  rutaArchivo?: string | null
+  tipoContenido?: string | null
+  tipoArchivo?: string | null
+  formato?: string | null
+}
+
+function getMediaHref(item: ArchivoDeRevision | null | undefined) {
   return item?.url || item?.ruta || item?.rutaArchivo || ''
 }
 
-function isImageMedia(item: any) {
+function isImageMedia(item: ArchivoDeRevision | null | undefined) {
   const text = `${item?.tipoContenido || ''} ${item?.tipoArchivo || ''} ${item?.formato || ''} ${getMediaHref(item)}`.toLowerCase()
   return text.includes('imagen') || /\.(png|jpe?g|webp|gif|avif)$/i.test(text)
 }

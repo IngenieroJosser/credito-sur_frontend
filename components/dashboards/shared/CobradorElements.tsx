@@ -154,7 +154,7 @@ function periodoLabel(periodo: string): string {
   }
 }
 
-function normalizeEstadoVisita(raw: any): string {
+function normalizeEstadoVisita(raw: unknown): string {
   return String(raw || '')
     .trim()
     .toLowerCase()
