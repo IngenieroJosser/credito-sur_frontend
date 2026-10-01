@@ -327,7 +327,9 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
   const handleSubmit = async () => {
     setLoading(true);
     try {
-      const payload: any = {};
+      // El tipo se DERIVA del servicio que lo recibe, asi que un campo mal escrito o
+      // que el DTO del backend no acepte deja de compilar.
+      const payload: Parameters<typeof prestamosService.actualizarPrestamo>[1] = {};
 
       if (monto !== original.monto) payload.monto = monto;
       if (tasa !== original.tasa) payload.tasaInteres = tasa;

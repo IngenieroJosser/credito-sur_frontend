@@ -4,6 +4,7 @@ import { mensajeDeError } from '@/lib/mensaje-de-error'
 import Paginador from '@/components/ui/Paginador'
 import React, { useState, useEffect, useCallback } from 'react'
 import { logger } from '@/lib/logger'
+import type { RespuestaPrestamosMora } from '@/services/reportes-service'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   Search,
@@ -47,7 +48,6 @@ import { WifiOff } from 'lucide-react'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { usePageFocusRefresh } from '@/hooks/usePageFocusRefresh'
-import type { Prestamo } from '@/types/domain'
 import type { EstadoPrestamo } from '@/types/enums'
 import type { PrestamoDelListado } from '@/types/domain'
 import { idDelPrestamoCreado } from '@/lib/creditos/prestamo-creado'
@@ -166,29 +166,30 @@ const ListadoPrestamosElegante = () => {
       let moraMap = new Map<string, { diasMora: number; cuotasVencidas: number; estado?: string }>()
       let moraReportCount: number | null = null
       try {
-        const params: any = { pagina: 1, limite: 500 }
+        // Espejo de `PrestamosMoraFiltrosDto` (prestamo-mora.dto.ts:99).
+        const params: { pagina: number; limite: number; busqueda?: string; rutaId?: string } = {
+          pagina: 1,
+          limite: 500,
+        }
         if (filtros.busqueda) params.busqueda = filtros.busqueda
         if (filtros.ruta !== 'todas') params.rutaId = filtros.ruta
 
-        const moraResp: any = await apiRequest<unknown>(
+        // El endpoint devuelve SIEMPRE `{ prestamos, totales, total, pagina, limite }`
+        // (PrestamosMoraResponseDto, responses.dto.ts:9). Aqui habia una cadena de tres
+        // formas -arreglo suelto, `.prestamos`, `.data`- y dos de las tres no existen.
+        const moraResp = await apiRequest<RespuestaPrestamosMora>(
           'GET',
           '/reports/prestamos-mora',
           undefined,
           { params },
         )
-        const raw = Array.isArray(moraResp)
-          ? moraResp
-          : Array.isArray(moraResp?.prestamos)
-            ? moraResp.prestamos
-            : Array.isArray(moraResp?.data)
-              ? moraResp.data
-              : []
+        const raw = Array.isArray(moraResp?.prestamos) ? moraResp.prestamos : []
         moraReportCount = Number(moraResp?.total ?? moraResp?.totales?.totalRegistros ?? raw.length)
 
         moraMap = new Map(
           raw
-            .filter((p: Prestamo) => p && p.id)
-            .map((p: Prestamo) => [
+            .filter((p) => p && p.id)
+            .map((p) => [
               String(p.id),
               {
                 diasMora: Number(p?.diasMora || 0),

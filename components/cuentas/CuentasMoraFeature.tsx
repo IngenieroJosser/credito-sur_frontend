@@ -68,14 +68,6 @@ interface CuentaMora {
   tieneProrroga?: boolean
 }
 
-/** Lo que devuelve GET /reports/prestamos-mora (PrestamosMoraResponseDto). */
-interface RespuestaPrestamosMora {
-  prestamos?: CuentaMora[]
-  total?: number
-  pagina?: number
-  limite?: number
-}
-
 interface EstadisticasMora {
   totalMora: number
   totalDeudaRiesgo: number
@@ -248,7 +240,7 @@ export default function CuentasMoraFeature() {
       if (filtroRiesgo !== 'TODOS') params.nivelRiesgo = filtroRiesgo
       if (filtroRuta) params.rutaId = filtroRuta
 
-      const response = await apiRequest<RespuestaPrestamosMora>(
+      const response = await apiRequest<{ prestamos?: CuentaMora[] }>(
         'GET',
         '/reports/prestamos-mora',
         undefined,

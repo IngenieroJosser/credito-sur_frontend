@@ -467,6 +467,12 @@ export const prestamosService = {
       garantia?: string
       tipoAmortizacion?: TipoAmortizacion
       archivos?: ArchivoDePrestamo[]
+      /**
+       * La version cargada, para el bloqueo optimista. El DTO del backend la declara a
+       * proposito (update-loan.dto.ts:191) y el modal de editar la manda; faltaba aqui,
+       * asi que el payload tenia que ser `any` para poder incluirla.
+       */
+      version?: number
     },
   ): Promise<unknown> {
     try {

@@ -49,8 +49,9 @@ export function NotificacionesProvider({ children }: { children: React.ReactNode
       const data = await notificacionesService.obtenerTodas()
       setNotificaciones(data)
     } catch (e) {
-      const err: any = e
-      const statusCode = estadoDeError(err)
+      // Lo que sale de un `catch` es `unknown`; de el se leen dos campos para el log.
+      const err = (e || {}) as { message?: string; error?: string }
+      const statusCode = estadoDeError(e)
       if (statusCode === 401 || statusCode === 403) {
         return
       }
@@ -160,10 +161,12 @@ export function NotificacionesProvider({ children }: { children: React.ReactNode
         }
 
         if (refreshed?.usuario) {
+          // El usuario guardado en localStorage: texto JSON que puede estar ilegible,
+          // asi que se lee como objeto indexable y no por un `any`.
           const existingRaw = localStorage.getItem('user');
-          let existing: any = null;
+          let existing: Record<string, unknown> | null = null;
           try {
-            existing = existingRaw ? JSON.parse(existingRaw) : null;
+            existing = existingRaw ? (JSON.parse(existingRaw) as Record<string, unknown>) : null;
           } catch {
             existing = null;
           }

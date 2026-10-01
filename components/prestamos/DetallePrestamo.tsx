@@ -161,7 +161,10 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
 
   // Calcular saldo restante acumulado por cuota y detectar cuota actual
   const cuotasConSaldo = useMemo(() => {
-    return prestamo.cuotas.reduce((acc: any[], c) => {
+    // El acumulador es la cuota mas el saldo que se le calcula: el tipo se DERIVA de la
+    // lista que se recorre en vez de declararse aparte.
+    type CuotaConSaldo = (typeof prestamo.cuotas)[number] & { saldoRestante: number }
+    return prestamo.cuotas.reduce((acc: CuotaConSaldo[], c) => {
       const prevSaldo: number = acc.length === 0 ? prestamo.montoPrestamo : acc[acc.length - 1].saldoRestante;
       const capital = Number(c.montoCapital ?? 0);
       // El saldo siempre decrece cuota a cuota (tanto pagadas como pendientes),
@@ -231,7 +234,9 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
     })
 
     const keys = unpaid
-      .map((c: any) => normalizeDateKey(String((c)?.fecha || (c)?.fechaVencimiento || '')))
+      // Solo `fecha`: en esta pantalla la cuota se declara con `fecha` (linea 89), no con
+      // `fechaVencimiento`, asi que el segundo eslabon no resolvia nunca.
+      .map((c) => normalizeDateKey(String(c?.fecha || '')))
       .filter(Boolean) as string[]
 
     const vencidas = keys.filter((k) => !!hoyBogotaKey && k < hoyBogotaKey)
@@ -685,8 +690,11 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                     </div>
                     <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
                       <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Cuota</span>
+                      {/* Sin `montoNominal`: ese campo solo lo arma la respuesta de RUTAS
+                          para la cuota objetivo (routes.service.ts:823), no viene en las
+                          cuotas del credito que pinta esta tabla. */}
                       <span className="text-lg font-bold text-slate-900">{formatCurrency(
-                        Number((cuotaActual)?.montoNominal ?? (cuotaActual)?.monto ?? (Number((cuotaActual)?.montoCapital || 0) + Number((cuotaActual)?.montoInteres || 0)))
+                        Number(cuotaActual?.monto ?? (Number(cuotaActual?.montoCapital || 0) + Number(cuotaActual?.montoInteres || 0)))
                       )}</span>
                     </div>
                     <div className="bg-blue-50 rounded-xl p-3 border border-blue-100">
@@ -738,7 +746,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                     const esCuotaActual = cuotaActual && cuota.numero === cuotaActual.numero;
                     const montoPagado = Number(cuota?.montoPagado ?? 0)
                     const montoCuota = Number(
-                      cuota?.montoNominal ?? cuota?.monto ?? (Number(cuota?.montoCapital || 0) + Number(cuota?.montoInteres || 0))
+                      cuota?.monto ?? (Number(cuota?.montoCapital || 0) + Number(cuota?.montoInteres || 0))
                     )
                     const pendienteCuota = Math.max(0, montoCuota - montoPagado)
                     return (

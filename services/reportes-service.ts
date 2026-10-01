@@ -1,5 +1,54 @@
 import { apiRequest } from '@/lib/api/api';
 
+/**
+ * Lo que devuelve `GET /reports/prestamos-mora`: espejo de `PrestamosMoraResponseDto`
+ * (responses.dto.ts:9). Siempre esa forma, nunca un arreglo suelto ni `.data`.
+ *
+ * Las filas son `PrestamoMoraDto` (prestamo-mora.dto.ts:35), que NO es un `Prestamo` del
+ * modelo: trae el cliente aplanado y la mora ya calculada. Aqui se declara lo que leen
+ * las dos pantallas que lo consumen.
+ */
+export interface FilaPrestamoEnMora {
+  id: string
+  numeroPrestamo?: string
+  clienteId?: string
+  cliente?: {
+    id?: string
+    nombre?: string
+    documento?: string
+    telefono?: string
+    direccion?: string
+  }
+  diasMora?: number
+  montoMora?: number
+  montoTotalDeuda?: number
+  montoOriginal?: number
+  cuotasVencidas?: number
+  ruta?: string
+  cobrador?: string
+  nivelRiesgo?: string
+  estado?: string
+  ultimoPago?: string
+  fechaVencimiento?: string
+  /** Extension de pago: las agrega el servicio (reports.service.ts:540-542). */
+  fechaProrroga?: string
+  diasProrroga?: number
+  tieneProrroga?: boolean
+}
+
+export interface RespuestaPrestamosMora {
+  prestamos?: FilaPrestamoEnMora[]
+  totales?: {
+    totalMora?: number
+    totalDeuda?: number
+    totalCasosCriticos?: number
+    totalRegistros?: number
+  }
+  total?: number
+  pagina?: number
+  limite?: number
+}
+
 export interface FinancialSummary {
   ingresos: number;
   egresos: number;

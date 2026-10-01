@@ -34,7 +34,7 @@ import PagoDetalleModal from '@/components/dashboards/shared/PagoDetalleModal'
 import CierreRutaNotifModal from '@/components/dashboards/shared/CierreRutaNotifModal'
 import PagoRegularizadoNotifModal from '@/components/dashboards/shared/PagoRegularizadoNotifModal'
 import AlertaClienteDetalleModal from '@/components/notificaciones/AlertaClienteDetalleModal'
-import { alertasClientesService } from '@/services/alertas-clientes-service'
+import { alertasClientesService, type AlertaClienteParaDetalle } from '@/services/alertas-clientes-service'
 import { logger } from '@/lib/logger'
 import Tooltip from '@/components/ui/Tooltip'
 import { TipoAmortizacion } from '@/types/enums'
@@ -252,7 +252,10 @@ export default function NotificacionDetalleModal({
   const [planIndex, setPlanIndex] = React.useState<number | null>(null)
   const [autoCuotas, setAutoCuotas] = useState(true)
   const [esContado, setEsContado] = useState(false)
-  const [alertaClienteDetalle, setAlertaClienteDetalle] = useState<any | null>(null)
+  // Es lo que recibe `AlertaClienteDetalleModal` y lo que devuelve
+  // `alertasClientesService.obtenerDetalle`: el mismo tipo en los dos extremos.
+  const [alertaClienteDetalle, setAlertaClienteDetalle] =
+    useState<AlertaClienteParaDetalle | null>(null)
   const [loadingAlertaCliente, setLoadingAlertaCliente] = useState(false)
   const mouseDownTargetRef = useRef<EventTarget | null>(null)
   // Estado del modal de detalle de pago (componente separado)
