@@ -19,7 +19,10 @@ describe('conRespaldoOffline', () => {
     const res = await conRespaldoOffline(
       async () => ({ ok: true }),
       { type: 't', endpoint: '/x', method: 'POST', description: 'x' },
-      { optimista: true } as any,
+      // El valor optimista es del MISMO tipo que devuelve la llamada: asi lo declara
+      // `conRespaldoOffline<T>(ejecutar, spec, optimista: T)`. El fixture mandaba
+      // `{ optimista: true }`, una forma que nunca podria ser el valor de respaldo real.
+      { ok: false },
     );
     expect(res).toEqual({ ok: true });
     expect(enqueueOperation).not.toHaveBeenCalled();
@@ -43,7 +46,10 @@ describe('conRespaldoOffline', () => {
       conRespaldoOffline(
         async () => { throw { response: { status: 403 }, statusCode: 403 }; },
         { type: 't', endpoint: '/x', method: 'POST', description: 'x' },
-        { optimista: true },
+        // El valor optimista es del MISMO tipo que devuelve la llamada: asi lo declara
+      // `conRespaldoOffline<T>(ejecutar, spec, optimista: T)`. El fixture mandaba
+      // `{ optimista: true }`, una forma que nunca podria ser el valor de respaldo real.
+      { ok: false },
       ),
     ).rejects.toBeDefined();
     expect(enqueueOperation).not.toHaveBeenCalled();

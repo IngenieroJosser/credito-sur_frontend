@@ -1,3 +1,4 @@
+import type { VisitaParcial } from '@/lib/types/cobranza'
 import {
   applyPagosDelDiaToHistorialVisitas,
   buildHistorialDiaFromBackend,
@@ -732,7 +733,7 @@ describe('applyPagosDelDiaToHistorialVisitas', () => {
           recaudadoDelDia: 0,
           montoCuota: 180000,
           saldoTotal: 1180000,
-        } as any,
+        } satisfies VisitaParcial,
       ],
       pagosDelDia: [
         {
@@ -768,7 +769,7 @@ describe('applyPagosDelDiaToHistorialVisitas', () => {
           recaudadoDelDia: 0,
           montoCuota: 916664,
           saldoTotal: 4583336,
-        } as any,
+        } satisfies VisitaParcial,
       ],
       pagosDelDia: [
         {

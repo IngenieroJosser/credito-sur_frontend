@@ -308,7 +308,12 @@ const resolveEstadoHistorialFromGestion = (
 
 export const applyPagosDelDiaToHistorialVisitas = (params: {
   fechaClave: string
-  visitas: VisitaRuta[]
+  /**
+   * `VisitaParcial` y no `VisitaRuta`: por dentro este mapeo YA las recorre como
+   * `VisitaParcial` (linea 339) y se defiende de lo que falte, asi que pedir la visita
+   * entera prometia mas de lo que usa. Era lo que obligaba a `as any` en las pruebas.
+   */
+  visitas: VisitaParcial[]
   pagosDelDia: PagoParcial[]
 }) => {
   const { fechaClave, visitas, pagosDelDia } = params

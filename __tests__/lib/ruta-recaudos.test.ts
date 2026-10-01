@@ -58,6 +58,8 @@ describe('ruta-recaudos', () => {
   })
 
   it('preserva el recaudo local si un refresh llega antes de que pagos refleje el pago de un ausente', () => {
+    // `satisfies` en vez de `as any`: comprueba las claves y deja los literales de
+    // `estado` como la union cerrada `EstadoVisita`.
     const local = [
       {
         id: 'visita-1',
@@ -81,7 +83,7 @@ describe('ruta-recaudos', () => {
         saldoTotal: 564998,
         recaudadoDelDia: 0,
       },
-    ]
+    ] satisfies VisitaParcial[]
 
     const backendRefresh = [
       {
@@ -106,9 +108,12 @@ describe('ruta-recaudos', () => {
         saldoTotal: 564998,
         recaudadoDelDia: 0,
       },
-    ]
+    ] satisfies VisitaParcial[]
 
-    const merged = mergeVisitasPreservingLocalRecaudo(local as any, backendRefresh as any)
+    const merged = mergeVisitasPreservingLocalRecaudo<VisitaParcial>(
+      local,
+      backendRefresh,
+    )
     const operativas = merged.filter((v) => !shouldExcludeVisitaFromOperationalMeta(v))
     const stats = computeRutaHoyUiStatsFromVisitas(operativas, 0)
 
@@ -169,7 +174,10 @@ describe('ruta-recaudos', () => {
       },
     ]
 
-    const merged = mergeVisitasPreservingLocalRecaudo(local, backendRefresh)
+    const merged = mergeVisitasPreservingLocalRecaudo<VisitaParcial>(
+      local,
+      backendRefresh,
+    )
     const operativas = merged.filter((v) => !shouldExcludeVisitaFromOperationalMeta(v))
     const stats = computeRutaHoyUiStatsFromVisitas(operativas, 0)
 
