@@ -2,6 +2,8 @@
 
 
 import { mensajeDeError } from '@/lib/mensaje-de-error';
+// Con alias: esta pantalla ya tiene una variable local llamada `texto`.
+import { numero as numeroDeJson, objeto as objetoDeJson, texto as textoDeJson } from '@/lib/valores-de-api';
 import Paginador from '@/components/ui/Paginador'
 import React, { useState, useEffect } from 'react'
 
@@ -29,7 +31,7 @@ import ConfirmRejectModal from '@/components/ui/ConfirmRejectModal'
 import EditarPrestamoModal from '@/components/prestamos/EditarPrestamoModal'
 import { aprobacionesService } from '@/services/aprobaciones-service'
 import { TipoAprobacion } from '@/types/enums'
-import NotificacionDetalleModal from '@/components/dashboards/shared/NotificacionDetalleModal'
+import NotificacionDetalleModal, { type DetallesEditados } from '@/components/dashboards/shared/NotificacionDetalleModal'
 import { formatMilesCOP } from '@/lib/utils'
 import BotonAccion from '@/components/ui/BotonAccion'
 import { CapaAccion } from '@/components/ui/PantallaCarga'
@@ -48,6 +50,43 @@ import { Skeleton } from '@/components/ui/Skeleton'
  * el enum del frontend, asi que la base ya garantiza el valor. El guard esta para
  * que el tipo diga la verdad y para el dia que alguien mande otra cosa.
  */
+/**
+ * Una fila del listado: una `Notificacion` mas el `approvalType` que le pone el mapeo.
+ *
+ * El campo no es columna del modelo; sale de `metadata.tipoAprobacion` o se infiere del
+ * titulo. Es lo que decide si la fila ofrece aprobar o rechazar, asi que tiene que estar
+ * en el tipo del estado y no detras de un `any`.
+ */
+type NotificacionDeLista = Notificacion & { approvalType?: TipoAprobacion }
+
+/**
+
+ * Mezcla los detalles editados en el modal con los que ya tenia la notificacion.
+ *
+ * Hace falta porque los dos tipos NO son el mismo: `DetallesEditados` deja los cuatro
+ * importes como `number | string` (los campos del modal son texto) y trae una bolsa
+ * abierta, mientras `Notificacion['detalles']` los declara numericos, que es como los
+ * lee el listado. La conversion va aqui, en la frontera, en vez de ensanchar el tipo de
+ * la notificacion o pasar el valor por un `any`.
+ */
+const fusionarDetalles = (
+  previos: Notificacion['detalles'],
+  editados: DetallesEditados | undefined,
+): Notificacion['detalles'] => {
+  if (!editados) return previos
+  return {
+    ...previos,
+    monto: numeroDeJson(editados.monto) ?? previos?.monto,
+    valorArticulo: numeroDeJson(editados.valorArticulo) ?? previos?.valorArticulo,
+    cuotaInicial: numeroDeJson(editados.cuotaInicial) ?? previos?.cuotaInicial,
+    porcentaje: numeroDeJson(editados.porcentaje) ?? previos?.porcentaje,
+    cuotas: editados.cuotas ?? previos?.cuotas,
+    descripcion: textoDeJson(editados.descripcion) ?? previos?.descripcion,
+    motivo: textoDeJson(editados.motivo) ?? previos?.motivo,
+  }
+}
+
+
 function esTipoAprobacion(valor: unknown): valor is TipoAprobacion {
   return (
     typeof valor === 'string' &&
@@ -124,7 +163,13 @@ export default function NotificacionesPage() {
   
   // --- ESTADOS DE DATOS Y UI ---
   const [search, setSearch] = useState('')
-  const [notificacionesState, setNotificacionesState] = useState<Notificacion[]>([])
+  /**
+   * Lo que esta pantalla guarda es MAS que una `Notificacion`: el mapeo de abajo le
+   * agrega `approvalType`, que es lo que decide si la fila se puede aprobar. El estado
+   * lo declaraba como `Notificacion` y los tres sitios que leen ese campo lo sacaban
+   * por un `any`.
+   */
+  const [notificacionesState, setNotificacionesState] = useState<NotificacionDeLista[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -148,8 +193,9 @@ export default function NotificacionesPage() {
         const basePath = user?.rol === 'COBRADOR' ? '/cobranzas' : user?.rol === 'CONTADOR' ? '/contador' : user?.rol === 'COORDINADOR' ? '/coordinador' : '/admin'
         
         const notifsConLinks = notifs.map((n: Notificacion) => {
-          const raw: any = n
-          const metadata = raw.metadata || {}
+          // `metadata` es la columna `Json?` del modelo: cada valor es `unknown` de
+          // verdad, asi que se lee con los conversores en vez de por un `any`.
+          const metadata = objetoDeJson(n.metadata)
 
           let link = undefined
           if (n.tipo === 'PAGO') link = basePath
@@ -158,8 +204,8 @@ export default function NotificacionesPage() {
           if (n.tipo === 'SISTEMA') link = user?.rol === 'COBRADOR' ? `${basePath}/solicitudes` : undefined
 
           const fecha =
-            raw.creadoEn
-              ? new Date(raw.creadoEn).toLocaleString('es-CO', {
+            n.creadoEn
+              ? new Date(n.creadoEn).toLocaleString('es-CO', {
                   day: '2-digit',
                   month: '2-digit',
                   year: '2-digit',
@@ -169,9 +215,9 @@ export default function NotificacionesPage() {
                 })
               : n.fecha
 
-          const rutaId = n.rutaId || metadata.rutaId || undefined
-          const entidadId = n.entidadId ?? raw.entidadId
-          const entidad: string = raw.entidad || ''
+          const rutaId = n.rutaId || textoDeJson(metadata.rutaId) || undefined
+          const entidadId = n.entidadId
+          const entidad: string = n.entidad || ''
 
           // Asegurar que las notificaciones tengan el tipo correcto basado en la entidad para los filtros
           let tipoFinal = n.tipo;
@@ -194,10 +240,9 @@ export default function NotificacionesPage() {
             texto.includes('interes de mora')
           if (tipoFinal === 'SISTEMA' && pareceMora) tipoFinal = 'MORA'
 
-          let approvalType: TipoAprobacion | undefined = esTipoAprobacion(
-            metadata.tipoAprobacion,
-          )
-            ? metadata.tipoAprobacion
+          const tipoAprobacionMeta = textoDeJson(metadata.tipoAprobacion)
+          let approvalType: TipoAprobacion | undefined = esTipoAprobacion(tipoAprobacionMeta)
+            ? tipoAprobacionMeta
             : undefined
 
           if (!approvalType && (n.tipo === 'APROBACION' || entidad === 'Aprobacion')) {
@@ -217,8 +262,9 @@ export default function NotificacionesPage() {
             APROBADO: 'APROBADA',
             RECHAZADO: 'RECHAZADA',
           }
-          const estadoReal = metadata.estadoAprobacion
-            ? estadoAprobacionMap[metadata.estadoAprobacion] || metadata.estadoAprobacion
+          const estadoAprobacionMeta = textoDeJson(metadata.estadoAprobacion)
+          const estadoReal = estadoAprobacionMeta
+            ? estadoAprobacionMap[estadoAprobacionMeta] || estadoAprobacionMeta
             : undefined
           
           let estado = estadoReal || n.estado || (approvalType ? 'PENDIENTE' : undefined)
@@ -227,24 +273,29 @@ export default function NotificacionesPage() {
             estado = n.estado || 'LEIDA';
           }
 
-          let detalles = n.detalles || (metadata.detalles) || {}
+          let detalles: NonNullable<Notificacion['detalles']> =
+            n.detalles || objetoDeJson(metadata.detalles)
 
           // Enriquecer detalles de gastos (se puede venir como tipo GASTO o como entidad GASTO con tipo SISTEMA)
           if (n.tipo === 'GASTO' || entidad === 'GASTO' || approvalType === 'GASTO') {
             detalles = {
               ...detalles,
-              monto: detalles.monto ?? metadata.monto,
-              descripcion: metadata.descSolicitud || detalles.descripcion || metadata.descripcion || n.mensaje,
+              monto: detalles.monto ?? numeroDeJson(metadata.monto),
+              descripcion:
+                textoDeJson(metadata.descSolicitud) ||
+                detalles.descripcion ||
+                textoDeJson(metadata.descripcion) ||
+                n.mensaje,
             }
           }
 
           // Extraer nombre del solicitante de múltiples fuentes posibles
           const solicitante =
-            metadata.solicitadoPor ||
-            metadata.solicitante ||
-            metadata.usuario ||
-            metadata.cobrador ||
-            raw.solicitante ||
+            textoDeJson(metadata.solicitadoPor) ||
+            textoDeJson(metadata.solicitante) ||
+            textoDeJson(metadata.usuario) ||
+            textoDeJson(metadata.cobrador) ||
+            n.solicitante ||
             undefined
 
           return {
@@ -258,10 +309,10 @@ export default function NotificacionesPage() {
             detalles,
             solicitante,
             metadata,
-            revisadoPor: metadata.revisadoPor,
-            motivoRechazo: metadata.motivoRechazo || n.motivoRechazo,
+            revisadoPor: textoDeJson(metadata.revisadoPor),
+            motivoRechazo: textoDeJson(metadata.motivoRechazo) || n.motivoRechazo,
             ...(approvalType ? { approvalType } : {}),
-          } as Notificacion & { approvalType?: TipoAprobacion }
+          } as NotificacionDeLista
         })
         
         setNotificacionesState(notifsConLinks)
@@ -280,7 +331,7 @@ export default function NotificacionesPage() {
   }, [globalNotifs])
 
   // Estados para modales y acciones
-  const [selectedNotif, setSelectedNotif] = useState<Notificacion | null>(null)
+  const [selectedNotif, setSelectedNotif] = useState<NotificacionDeLista | null>(null)
   const [editedDetails, setEditedDetails] = useState<Notificacion['detalles']>({})
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
   const [isEditingMode, setIsEditingMode] = useState(false)
@@ -384,7 +435,7 @@ export default function NotificacionesPage() {
     }
   }
 
-  const handleOpenConfirm = (notif: Notificacion, action: 'APPROVE' | 'REJECT') => {
+  const handleOpenConfirm = (notif: NotificacionDeLista, action: 'APPROVE' | 'REJECT') => {
     setSelectedNotif(notif)
     setEditedDetails(notif.detalles || {})
     if (action === 'REJECT') {
@@ -397,8 +448,7 @@ export default function NotificacionesPage() {
   const handleApproveConfirmList = async () => {
     if (!selectedNotif) return
 
-    const anyNotif: any = selectedNotif
-    const approvalType: TipoAprobacion | undefined = anyNotif.approvalType
+    const approvalType = selectedNotif.approvalType
     const entidadId = selectedNotif.entidadId
 
     if (!approvalType || !entidadId) {
@@ -455,8 +505,7 @@ export default function NotificacionesPage() {
 
   const handleRejectConfirmList = async (reason: string) => {
     if (!selectedNotif) return
-    const anyNotif: any = selectedNotif
-    const approvalType: TipoAprobacion | undefined = anyNotif.approvalType
+    const approvalType = selectedNotif.approvalType
     const entidadId = selectedNotif.entidadId
     if (!approvalType || !entidadId) {
       setFeedbackModal({
@@ -505,13 +554,17 @@ export default function NotificacionesPage() {
     }
   }
 
-  const handleOpenDetail = (notif: Notificacion) => {
+  const handleOpenDetail = (notif: NotificacionDeLista) => {
     setSelectedNotif(notif)
     setEditedDetails(notif.detalles || {})
     setIsDetailModalOpen(true)
   }
 
-  const handleApproveFromModal = async (entityId: string, type: TipoAprobacion, details: any) => {
+  const handleApproveFromModal = async (
+    entityId: string,
+    type: TipoAprobacion,
+    details: DetallesEditados | undefined,
+  ) => {
     try {
       await aprobacionesService.aprobar(entityId, {
         type,
@@ -525,7 +578,7 @@ export default function NotificacionesPage() {
                 ...n,
                 estado: 'APROBADA',
                 leida: true,
-                detalles: { ...n.detalles, ...details },
+                detalles: fusionarDetalles(n.detalles, details),
               }
             : n,
         ),

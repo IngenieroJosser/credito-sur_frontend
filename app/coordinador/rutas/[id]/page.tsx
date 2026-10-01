@@ -1,6 +1,8 @@
 'use client'
 import { datosParaRegistro, mensajeDeError } from '@/lib/mensaje-de-error'
 import { clienteComoObjeto } from '@/types/obligacion-jornada'
+import type { CrearCreditoModalData, CrearPrestamoPayload } from '@/lib/creditos/crear-prestamo-payload'
+import { FrecuenciaPago, TipoAmortizacion } from '@/types/enums'
 
 import { logger } from '@/lib/logger'
 
@@ -619,7 +621,9 @@ const LegacyDetalleRutaPage = () => {
 
 
 
-            const ajustarEstadoConPago = (v: any): EstadoVisita => {
+            // El tipo se DERIVA del valor que recibe (`withRecaudo`, justo arriba), para que
+            // no haya una segunda declaracion que se separe de la primera.
+            const ajustarEstadoConPago = (v: (typeof withRecaudo)[number]): EstadoVisita => {
 
               if (Number(v.saldoTotal || 0) <= 0) return 'pagado';
 
@@ -1203,7 +1207,7 @@ const LegacyDetalleRutaPage = () => {
 
 
 
-    const filterByDate = (v: any) => searchQuery || isTodayOrMora(v.proximaVisita);
+    const filterByDate = (v: VisitaRuta) => searchQuery || isTodayOrMora(v.proximaVisita);
 
 
 
@@ -2326,13 +2330,21 @@ const LegacyDetalleRutaPage = () => {
 
           }}
 
-          onConfirm={async (data: any) => {
+          onConfirm={async (data: CrearCreditoModalData) => {
 
             try {
 
-              const esContado = Boolean((data).ventaContado);
+              const esContado = Boolean(data.ventaContado);
 
-              const payload: any = {
+              // El id del creador es OBLIGATORIO en `CrearPrestamoDto`. Antes se mandaba
+              // `currentUser?.id`, que con `any` podia viajar como undefined y dejar el
+              // prestamo sin autor. Se corta antes, igual que en useCrearCreditoOperativo.
+              if (!currentUser?.id) {
+                showNotification('error', 'No se pudo crear el crédito: sesión inválida.', 'Sesión')
+                return
+              }
+
+              const payload: CrearPrestamoPayload = {
 
                 clienteId: data.clienteCreditoId,
 
@@ -2350,12 +2362,14 @@ const LegacyDetalleRutaPage = () => {
 
                 cuotas: data.cuotas || data.cantidadCuotas || data.cuotasTotales || 0,
 
-                frecuenciaPago: esContado ? 'MENSUAL' : (data.frecuenciaPago || 'DIARIO'),
+                frecuenciaPago: (esContado
+                  ? FrecuenciaPago.MENSUAL
+                  : (data.frecuenciaPago || FrecuenciaPago.DIARIO)) as FrecuenciaPago,
 
                 fechaInicio: data.fechaInicio || toBogotaDateTimeOffsetIso(new Date()),
                 fechaPrimerCobro: esContado ? undefined : data.fechaPrimerCobro,
 
-                creadoPorId: currentUser?.id,
+                creadoPorId: currentUser.id,
 
                 cuotaInicial: data.cuotaInicialArticulo || 0,
 
@@ -2365,7 +2379,7 @@ const LegacyDetalleRutaPage = () => {
 
                   : (data.notas || ''),
 
-                tipoAmortizacion: data.tipoInteres || 'INTERES_SIMPLE',
+                tipoAmortizacion: data.tipoInteres || TipoAmortizacion.INTERES_SIMPLE,
 
                 esContado: esContado
 
@@ -2404,12 +2418,13 @@ const LegacyDetalleRutaPage = () => {
 
 
               // Asignar cliente a la ruta automáticamente
+              // `data.clienteId` y `data.cliente?.id` estaban en la cadena y no existen:
+              // CrearCreditoModal emite `clienteCreditoId` (CrearCreditoModal.tsx:967 y
+              // alrededores). Con `any` los dos eslabones muertos no se veian.
               const clienteIdFinal = String(
                 prestamo?.clienteId ||
                   prestamo?.cliente?.id ||
-                  data?.clienteId ||
-                  data?.clienteCreditoId ||
-                  data?.cliente?.id ||
+                  data.clienteCreditoId ||
                   '',
               ).trim()
 
@@ -2423,8 +2438,7 @@ const LegacyDetalleRutaPage = () => {
                 } else if (!isUuid(clienteIdFinal)) {
                   console.warn('[Crear crédito coordinador] clienteId inválido para asignación:', {
                     clienteIdFinal,
-                    dataClienteCreditoId: data?.clienteCreditoId,
-                    dataClienteId: data?.clienteId,
+                    dataClienteCreditoId: data.clienteCreditoId,
                     prestamoClienteId: prestamo?.clienteId,
                     prestamo,
                   })

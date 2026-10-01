@@ -37,7 +37,18 @@ export interface Notificacion {
   // Campos adicionales para aprobaciones y trazabilidad
   solicitante?: string;
   creadoEn?: string;
-  metadata?: Record<string, any>;
+  /**
+   * Columna `entidad` del modelo (schema.prisma:87). La listaba solo
+   * `NotificacionParaDetalle`, y la pantalla de notificaciones la leia por un `any`
+   * aunque viene en el listado normal: de ella sale el `tipo` con el que se filtra.
+   */
+  entidad?: string | null;
+  /**
+   * La columna `metadata` es `Json?`: una bolsa cuya forma cambia segun el tipo de
+   * notificacion. Se declara `unknown` y no `any` para que quien la lea convierta el
+   * valor (`lib/valores-de-api`) en vez de confiar en un nombre sin comprobar.
+   */
+  metadata?: Record<string, unknown>;
 }
 
 /**
@@ -65,7 +76,6 @@ export interface NotificacionParaDetalle
   extends Omit<Notificacion, 'fecha' | 'detalles'> {
   /** Opcional aqui: el puente `aprobacionToNotificacion` de revisiones no la pone. */
   fecha?: string
-  entidad?: string | null
   detalles?: Record<string, unknown>
   datosSolicitud?: Record<string, unknown>
   aprobacion?: Record<string, unknown> | null
