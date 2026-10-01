@@ -3661,16 +3661,22 @@ const handleRegistrarPago = useCallback(async (
               contextoRegularizacion,
             })
 
-            if (target.error) {
-              toast.error(target.error)
+            // La guarda comprueba los DOS campos que se usan, no solo `error`: asi el
+            // estrechamiento alcanza a los dos. Antes bastaba `target.error` porque el
+            // tipo de la visita era `any`.
+            const { contextoPagoRegularizado, visitaRegularizada } = target
+            if (!contextoPagoRegularizado || !visitaRegularizada) {
+              toast.error(
+                target.error || 'No se pudo preparar el pago regularizado.',
+              )
               return
             }
 
             setShowDetalleCierre(false)
 
             setTimeout(() => {
-              setRegularizacionContext(target.contextoPagoRegularizado)
-              setVisitaPagoRegularizada(target.visitaRegularizada)
+              setRegularizacionContext(contextoPagoRegularizado)
+              setVisitaPagoRegularizada(visitaRegularizada)
               setVisitaPagoSeleccionadaId(visitaBase.id)
               setPagoInitialIsAbono(false)
               setShowPaymentModal(true)
@@ -3690,16 +3696,22 @@ const handleRegistrarPago = useCallback(async (
               contextoRegularizacion,
             })
 
-            if (target.error) {
-              toast.error(target.error)
+            // La guarda comprueba los DOS campos que se usan, no solo `error`: asi el
+            // estrechamiento alcanza a los dos. Antes bastaba `target.error` porque el
+            // tipo de la visita era `any`.
+            const { contextoPagoRegularizado, visitaRegularizada } = target
+            if (!contextoPagoRegularizado || !visitaRegularizada) {
+              toast.error(
+                target.error || 'No se pudo preparar el pago regularizado.',
+              )
               return
             }
 
             setShowDetalleCierre(false)
 
             setTimeout(() => {
-              setRegularizacionContext(target.contextoPagoRegularizado)
-              setVisitaPagoRegularizada(target.visitaRegularizada)
+              setRegularizacionContext(contextoPagoRegularizado)
+              setVisitaPagoRegularizada(visitaRegularizada)
               setVisitaPagoSeleccionadaId(visitaBase.id)
               setPagoInitialIsAbono(true)
               setShowPaymentModal(true)
@@ -3734,15 +3746,21 @@ const handleRegistrarPago = useCallback(async (
               intent: 'reprogramacion',
             })
 
-            if (target.error) {
-              toast.error(target.error)
+            // La guarda comprueba los DOS campos que se usan, no solo `error`: asi el
+            // estrechamiento alcanza a los dos. Antes bastaba `target.error` porque el
+            // tipo de la visita era `any`.
+            const { contextoPagoRegularizado, visitaRegularizada } = target
+            if (!contextoPagoRegularizado || !visitaRegularizada) {
+              toast.error(
+                target.error || 'No se pudo preparar el pago regularizado.',
+              )
               return
             }
 
             setShowDetalleCierre(false)
 
             setTimeout(() => {
-              setRegularizacionContext(target.contextoPagoRegularizado)
+              setRegularizacionContext(contextoPagoRegularizado)
               setVisitaReprogramar(target.visitaRegularizada)
               setShowReprogramModal(true)
             }, 80)

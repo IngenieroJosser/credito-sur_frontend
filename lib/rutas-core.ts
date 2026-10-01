@@ -258,7 +258,7 @@ export const esDomingoBogota = (date: Date = new Date()): boolean => {
   return day === 'Sun'
 }
 
-type RegularizedPaymentTargetInput<V extends Record<string, any>> = {
+type RegularizedPaymentTargetInput<V extends VisitaParcial> = {
   rutaId?: string
   cliente: ClienteCierrePendiente
   visitaBase: V
@@ -301,7 +301,7 @@ type RegularizedPaymentTarget<V> =
       visitaRegularizada: V & CamposRegularizados
     }
 
-export const buildRegularizedPaymentTarget = <V extends Record<string, any>>({
+export const buildRegularizedPaymentTarget = <V extends VisitaParcial>({
   rutaId,
   cliente,
   visitaBase,

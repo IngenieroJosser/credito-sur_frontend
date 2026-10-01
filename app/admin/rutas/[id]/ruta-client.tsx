@@ -2430,17 +2430,23 @@ const RutaClientLoaded = ({
             contextoRegularizacion,
           })
 
-          if (target.error) {
-            toast.error(target.error)
+          // La guarda comprueba los DOS campos que se usan, no solo `error`: asi el
+          // estrechamiento alcanza a los dos y no hace falta castear ninguno. Antes
+          // bastaba con `target.error` porque el tipo de la visita era `any`.
+          const { contextoPagoRegularizado, visitaRegularizada } = target
+          if (!contextoPagoRegularizado || !visitaRegularizada) {
+            toast.error(
+              target.error || 'No se pudo preparar el pago regularizado.',
+            )
             return
           }
 
           setShowDetalleCierre(false)
 
           setTimeout(() => {
-            setRegularizacionContext(target.contextoPagoRegularizado)
+            setRegularizacionContext(contextoPagoRegularizado)
             setPagoVisita({
-              visita: target.visitaRegularizada,
+              visita: visitaRegularizada,
               tipo: 'PAGO',
             })
           }, 80)
@@ -2459,17 +2465,23 @@ const RutaClientLoaded = ({
             contextoRegularizacion,
           })
 
-          if (target.error) {
-            toast.error(target.error)
+          // La guarda comprueba los DOS campos que se usan, no solo `error`: asi el
+          // estrechamiento alcanza a los dos y no hace falta castear ninguno. Antes
+          // bastaba con `target.error` porque el tipo de la visita era `any`.
+          const { contextoPagoRegularizado, visitaRegularizada } = target
+          if (!contextoPagoRegularizado || !visitaRegularizada) {
+            toast.error(
+              target.error || 'No se pudo preparar el pago regularizado.',
+            )
             return
           }
 
           setShowDetalleCierre(false)
 
           setTimeout(() => {
-            setRegularizacionContext(target.contextoPagoRegularizado)
+            setRegularizacionContext(contextoPagoRegularizado)
             setPagoVisita({
-              visita: target.visitaRegularizada,
+              visita: visitaRegularizada,
               tipo: 'ABONO',
             })
           }, 80)
@@ -2502,15 +2514,21 @@ const RutaClientLoaded = ({
             contextoRegularizacion,
           })
 
-          if (target.error) {
-            toast.error(target.error)
+          // La guarda comprueba los DOS campos que se usan, no solo `error`: asi el
+          // estrechamiento alcanza a los dos y no hace falta castear ninguno. Antes
+          // bastaba con `target.error` porque el tipo de la visita era `any`.
+          const { contextoPagoRegularizado, visitaRegularizada } = target
+          if (!contextoPagoRegularizado || !visitaRegularizada) {
+            toast.error(
+              target.error || 'No se pudo preparar el pago regularizado.',
+            )
             return
           }
 
           setShowDetalleCierre(false)
 
           setTimeout(() => {
-            setRegularizacionContext(target.contextoPagoRegularizado)
+            setRegularizacionContext(contextoPagoRegularizado)
             setVisitaReprogramar(target.visitaRegularizada)
           }, 80)
         }}
