@@ -56,6 +56,16 @@ import { NivelRiesgo } from '@/types/enums'
 const CLASE_CAMPO =
   'w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 font-medium text-slate-900 transition-colors placeholder:text-slate-400 focus:border-primary focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20'
 
+/** Un archivo del cliente, derivado de lo que `Cliente.archivos` ya declara. */
+type ArchivoDeCliente = NonNullable<Cliente['archivos']>[number]
+
+type ArchivosOriginales = {
+  fotoPerfil: ArchivoDeCliente | null
+  documentoFrente: ArchivoDeCliente | null
+  documentoReverso: ArchivoDeCliente | null
+  comprobanteDomicilio: ArchivoDeCliente | null
+}
+
 export default function NuevoClienteModal({
   onClose,
   onClienteCreado,
@@ -114,10 +124,13 @@ export default function NuevoClienteModal({
 
   // Guardar archivos originales que NO se pierden al limpiar estado
   const [archivosOriginales, setArchivosOriginales] = useState<{
-    fotoPerfil: any | null
-    documentoFrente: any | null
-    documentoReverso: any | null
-    comprobanteDomicilio: any | null
+    // Lo que se guarda es el ARCHIVO del cliente tal como lo devuelve la API: el tipo se
+    // DERIVA de `Cliente.archivos`, que ya lo declara, en vez de repetirlo o dejarlo en
+    // `any`. Se guardan para no perderlos al limpiar el formulario.
+    fotoPerfil: ArchivoDeCliente | null
+    documentoFrente: ArchivoDeCliente | null
+    documentoReverso: ArchivoDeCliente | null
+    comprobanteDomicilio: ArchivoDeCliente | null
   }>({
     fotoPerfil: null,
     documentoFrente: null,
@@ -137,7 +150,7 @@ export default function NuevoClienteModal({
         .then((fullClient) => {
           if (fullClient.archivos) {
             const newExisting = { ...existingFiles }
-            const newOriginales: any = {
+            const newOriginales: ArchivosOriginales = {
               fotoPerfil: null,
               documentoFrente: null,
               documentoReverso: null,
@@ -213,9 +226,12 @@ export default function NuevoClienteModal({
         const archivoOriginal = archivosOriginales[map.key as keyof typeof archivosOriginales]
         if (archivoOriginal) {
           archivos.push({
-            tipoContenido: archivoOriginal.tipoContenido,
-            tipoArchivo: archivoOriginal.tipoArchivo,
-            nombreOriginal: archivoOriginal.nombreOriginal,
+            // Los `?? ''`: el archivo que devuelve la API los trae opcionales y el DTO de
+            // creacion los pide obligatorios (son columnas NO nulables de `Multimedia`).
+            // Con `any` esa diferencia no se veia y un archivo incompleto fallaba al guardar.
+            tipoContenido: archivoOriginal.tipoContenido ?? '',
+            tipoArchivo: archivoOriginal.tipoArchivo ?? '',
+            nombreOriginal: archivoOriginal.nombreOriginal ?? '',
             nombreAlmacenamiento: archivoOriginal.nombreAlmacenamiento,
             ruta: archivoOriginal.ruta,
             url: archivoOriginal.url,

@@ -132,6 +132,8 @@ export interface Cliente {
     tipoArchivo?: string
     tipoContenido?: string
     nombreOriginal?: string
+    /** Tambien columna de `Multimedia`: el modal la reenvia al guardar sin cambios. */
+    nombreAlmacenamiento?: string
     tamanoBytes?: number
   }[]
   /**
@@ -205,13 +207,21 @@ export interface CrearClienteDto {
   categoriaId?: string
   /** Version para el control de concurrencia optimista. Ver la nota en `Cliente`. */
   version?: number
+  /**
+   * Espejo de `CreateMultimediaDto` del backend (create-client.dto.ts:37-82).
+   *
+   * Lo que estaba declarado aqui no coincidia: pedia `nombreAlmacenamiento`, `ruta` y
+   * `tamanoBytes` obligatorios cuando los tres son `@IsOptional()`, y no declaraba
+   * `url`, que el modal SI manda (y el DTO del backend SI acepta).
+   */
   archivos?: {
     tipoContenido: string
     tipoArchivo: string
     nombreOriginal: string
-    nombreAlmacenamiento: string
-    ruta: string
-    tamanoBytes: number
+    nombreAlmacenamiento?: string
+    ruta?: string
+    url?: string | null
+    tamanoBytes?: number
   }[]
 }
 
