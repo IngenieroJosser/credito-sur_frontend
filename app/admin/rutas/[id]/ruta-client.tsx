@@ -489,7 +489,7 @@ const RutaClientLoaded = ({
       const hoyBogota = getBogotaDateKey(new Date())
 
       const getCuotasByPrestamoId = memoizePromiseByKey(
-        (prestamoId) => prestamosService.obtenerCuotas(prestamoId) as Promise<unknown[]>,
+        (prestamoId) => prestamosService.obtenerCuotas(prestamoId),
         () => [],
       )
 

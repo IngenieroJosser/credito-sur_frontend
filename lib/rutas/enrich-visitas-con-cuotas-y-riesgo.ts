@@ -23,7 +23,7 @@ import {
   computeMontoExigibleHastaHoyFromCuotas,
 } from '@/lib/rutas-core'
 import { mapWithConcurrency } from '@/lib/async-utils'
-import type { CuotaOperativa } from '@/lib/types/cobranza'
+import type { CuotaOperativa, VisitaParcial } from '@/lib/types/cobranza'
 
 // Helpers internos para mora estricta (solo cuotas vencidas antes de hoy)
 const getCuotaVtoKey = (cuota: CuotaOperativa): string => {
@@ -92,14 +92,14 @@ const resolvePrimeraCuotaPendienteKey = (cuotas: CuotaOperativa[]): string => {
  * a todo el tubo de ruta-hoy: de aqui salia el `kpiItems: any[]` de
  * `build-ruta-hoy-operativa`, y de ahi el `visitasRaw: any[]` de SupervisorCobroView.
  *
- * `Record<string, any>` como cota permite las lecturas defensivas de dentro
- * (`visita?.frecuenciaPago`, `visita?.prestamoRaw?...`) sin pedirle al llamador que las
- * declare.
+ * La cota es `VisitaParcial`: es lo que los llamadores pasan de verdad (`VisitaRuta[]`)
+ * y cubre las lecturas defensivas de dentro. Antes era `Record<string, any>`, que admite
+ * cualquier objeto y desactiva la comprobacion de todas ellas.
  */
-export async function enrichVisitasConCuotasYRiesgo<T extends Record<string, any>>(params: {
+export async function enrichVisitasConCuotasYRiesgo<T extends VisitaParcial>(params: {
   visitas: T[]
   hoyBogotaKey: string
-  getCuotasByPrestamoId: (prestamoId: string) => Promise<any[]>
+  getCuotasByPrestamoId: (prestamoId: string) => Promise<CuotaOperativa[]>
   getPrestamoById?: (prestamoId: string) => Promise<unknown>
   concurrency?: number
 }): Promise<T[]> {
@@ -174,13 +174,11 @@ export async function enrichVisitasConCuotasYRiesgo<T extends Record<string, any
       const primeraCuotaPendienteKey = resolvePrimeraCuotaPendienteKey(cuotas)
       const primeraCuotaPendienteTs = parseBogotaKeyToTs(primeraCuotaPendienteKey)
 
-      const fechaUltimoPagoTs = Number(
-        visita?.fechaUltimoPago ??
-          visita?.ultimoPagoAt ??
-          visita?.ultimoPagoEn ??
-          visita?.ultimaFechaPago ??
-          0,
-      )
+      // Solo `fechaUltimoPago`: los tres eslabones que le seguian -`ultimoPagoAt`,
+      // `ultimoPagoEn`, `ultimaFechaPago`- no los escribe NADIE, ni el backend ni quien
+      // arma estas visitas. Ya estaba medido en `ordenar-visitas-ruta` (lineas 34-38),
+      // donde estaba la misma cadena muerta.
+      const fechaUltimoPagoTs = Number(visita?.fechaUltimoPago ?? 0)
 
       const fechaOrdenRuta = fechaUltimoPagoTs > 0 ? fechaUltimoPagoTs : primeraCuotaPendienteTs
 
@@ -219,8 +217,9 @@ export async function enrichVisitasConCuotasYRiesgo<T extends Record<string, any
         fechaOrdenRuta,
       }
 
-      const prestamoRiesgo =
-        visitaFinal?.prestamoRaw || visitaFinal?.prestamoAutoritativo || visitaFinal?.prestamo || {}
+      // Sin `prestamoAutoritativo`: ese nombre es una variable local de VistaCobrador, no
+      // un campo de la visita; nunca llegaba aqui.
+      const prestamoRiesgo = visitaFinal?.prestamoRaw || visitaFinal?.prestamo || {}
 
       return {
         ...visitaFinal,

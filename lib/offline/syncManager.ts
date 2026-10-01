@@ -397,7 +397,7 @@ export const syncManager = {
             formData.append('file', item.file, item.fileName || 'upload')
 
             if (dataRemapeada && typeof dataRemapeada === 'object') {
-              Object.entries(dataRemapeada as Record<string, any>).forEach(([key, value]) => {
+              Object.entries(dataRemapeada as Record<string, unknown>).forEach(([key, value]) => {
                 formData.append(
                   key,
                   typeof value === 'object' ? JSON.stringify(value) : String(value),
@@ -561,7 +561,7 @@ export const syncManager = {
       )
 
       const clientes: OfflineCliente[] = (Array.isArray(data) ? data : data.clientes || []).map(
-        (c: any) => ({
+        (c) => ({
           id: c.id,
           codigo: c.codigo || '',
           dni: c.dni || '',

@@ -1,4 +1,6 @@
 import { prestamosService } from '@/services/prestamos-service'
+// El tipo se DERIVA de lo que devuelve el servicio: el cache guarda eso tal cual.
+type CuotasDelPrestamo = Awaited<ReturnType<typeof prestamosService.obtenerCuotas>>
 import type { CuotaOperativa, EstadoVisita, VisitaRuta } from '@/lib/types/cobranza'
 import { resolveFechaEfectivaCuota, normalizeDateKey, isCuotaNoPagada, computeMontoExigibleHastaHoyFromCuotas, computeDiasMoraFromCuotas } from '@/lib/rutas-core'
 import { resolveRiesgoObligacion, resolveNivelRiesgoUi, type NivelRiesgoUi } from '@/lib/rutas/riesgo-obligacion'
@@ -96,7 +98,7 @@ export async function enrichRutaHistorialRiesgo({
   const prestamoIds = Array.from(new Set(visitasConPrestamo.map((v: VisitaRuta) => String(v?.prestamoId || '')).filter(Boolean)))
   if (prestamoIds.length === 0) return visitas
 
-  const cuotasHistorialCacheRef = { current: new Map<string, any[]>() }
+  const cuotasHistorialCacheRef = { current: new Map<string, CuotasDelPrestamo>() }
 
   const getCuotasByPrestamoId = memoizePromiseByKey(
     async (prestamoId: string) => {

@@ -256,6 +256,17 @@ export interface VisitaCamposLeidos {
    * como respaldo del primero. Faltaba aqui, asi que esa lectura iba por un `any`.
    */
   recaudadoHoy?: number | null
+  /**
+   * El prestamo tal como vino de la API, que el frontend adjunta a la visita.
+   *
+   * NO es campo del backend: lo escriben `build-ruta-hoy-operativa` (linea 293) y
+   * `enrich-visitas-con-cuotas-y-riesgo`, y de ahi lo lee el calculo de riesgo. Faltaba
+   * aqui, asi que ese enriquecimiento tenia que recibir las visitas como
+   * `Record<string, any>`.
+   */
+  prestamoRaw?: PrestamoParcial | null
+  /** La fecha (clave `YYYY-MM-DD`) de la primera cuota pendiente, calculada al enriquecer. */
+  fechaPrimeraCuotaPendiente?: string | null
 }
 
 export type VisitaParcial = Partial<VisitaRuta & VisitaCamposLeidos>
