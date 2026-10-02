@@ -14,9 +14,10 @@
  * que el negocio no financia y que quedaron guardados en la base.
  *
  * Los precios de cada plazo no se calculan aquí: vienen del artículo, que los
- * trae cargados desde la plantilla. La cuenta con la que la empresa los fija
- * —costo × (1 + rentabilidad) y de ahí un recargo por plazo— vive en el backend,
- * en la plantilla de inventario.
+ * trae cargados desde la plantilla. La cuenta con la que la empresa los fija vive
+ * en el backend, en la plantilla de inventario: el precio de contado es
+ * `costo / divisor` (0,65 deja 35% de ganancia) y cada plazo le suma su recargo
+ * —30% a tres meses, 47% a cinco, 60% a ocho—.
  */
 // `readonly number[]` y no `as const`: con la tupla de literales, el estado de
 // los formularios quedaba tipado como `meses: 3` y no se le podia asignar el
