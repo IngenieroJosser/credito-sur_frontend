@@ -142,7 +142,11 @@ export interface SyncResult {
  * sacarlo sin otra peticion. Nadie lo lee de la copia local.
  */
 /**
- * Cuantos prestamos como maximo se le piden las cuotas, y de cuantos en cuantos.
+ * Cuantos prestamos como maximo se le piden las cuotas, y cuantos caben en UNA peticion.
+ *
+ * `CUOTAS_POR_LOTE` paso de 5 a 100 porque cambio su significado: antes eran peticiones en
+ * paralelo (una por credito) y ahora son creditos dentro de una sola peticion. El tope del
+ * endpoint es 300.
  *
  * El techo es por un admin: `GET /loans` acota por cobrador
  * (`collectorLoanScope`), asi que un cobrador baja solo los creditos de su ruta
@@ -150,7 +154,7 @@ export interface SyncResult {
  * real y no se dispara el numero de peticiones.
  */
 const CUOTAS_MAX_PRESTAMOS = 200
-const CUOTAS_POR_LOTE = 5
+const CUOTAS_POR_LOTE = 100
 
 /**
  * Una fila de `/loans/:id/cuotas` convertida en la copia local de una cuota.
@@ -202,23 +206,26 @@ async function descargarCuotasDePrestamos(ids: string[]): Promise<OfflineCuota[]
 
   for (let i = 0; i < ids.length; i += CUOTAS_POR_LOTE) {
     const lote = ids.slice(i, i + CUOTAS_POR_LOTE)
-    const respuestas = await Promise.all(
-      lote.map((id) =>
-        apiRequest<unknown[]>('GET', `/loans/${id}/cuotas`, undefined, {
-          timeout: 20000,
-          cacheTTL: 0,
-        }).catch(() => [] as unknown[]),
-      ),
-    )
 
-    respuestas.forEach((filas, k) => {
-      if (!Array.isArray(filas)) return
+    // UNA petición por lote, no una por crédito. Medido antes del cambio: abrir un tablero
+    // disparaba 104 peticiones a `/loans/:id/cuotas` —el 82% de todas las de la pantalla— y
+    // con el límite de 300 por minuto bastaban dos tableros para agotarlo.
+    const respuesta = await apiRequest<Record<string, unknown[]>>(
+      'GET',
+      `/loans/cuotas?ids=${lote.map(encodeURIComponent).join(',')}`,
+      undefined,
+      { timeout: 30000, cacheTTL: 0 },
+    ).catch(() => ({}) as Record<string, unknown[]>)
+
+    for (const prestamoId of lote) {
+      const filas = respuesta?.[prestamoId]
+      if (!Array.isArray(filas)) continue
       for (const fila of filas) {
         if (fila && typeof fila === 'object') {
-          cuotas.push(mapearCuotaDescargada(fila as Record<string, unknown>, lote[k]))
+          cuotas.push(mapearCuotaDescargada(fila as Record<string, unknown>, prestamoId))
         }
       }
-    })
+    }
   }
 
   return cuotas
