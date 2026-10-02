@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AlertCircle, AlertTriangle, CheckCircle, ChevronLeft, ChevronRight, FileSpreadsheet, Table2 } from 'lucide-react';
-import { ResultadoValidacion, ErrorValidacion, AdvertenciaValidacion } from '@/types/importaciones';
+import { ResultadoValidacion } from '@/types/importaciones';
 import { formatCurrency } from '@/lib/utils';
 import ImpactoCajaPreview from './ImpactoCajaPreview';
 
@@ -88,7 +88,7 @@ const getPreviewSections = (resultado: ResultadoValidacion): PreviewSection[] =>
       {
         title: 'Clientes',
         countLabel: 'clientes leídos',
-        rows: (resultado.clientes ?? []) as Record<string, unknown>[],
+        rows: resultado.clientes ?? [],
         columns: [
           { key: 'fila', label: 'Fila' },
           { key: 'codigoImp', label: 'Código' },
@@ -102,7 +102,7 @@ const getPreviewSections = (resultado: ResultadoValidacion): PreviewSection[] =>
       {
         title: 'Créditos',
         countLabel: 'créditos leídos',
-        rows: (resultado.creditos ?? []) as Record<string, unknown>[],
+        rows: resultado.creditos ?? [],
         columns: [
           { key: 'fila', label: 'Fila' },
           { key: 'codigoImp', label: 'Código' },
@@ -125,7 +125,7 @@ const getPreviewSections = (resultado: ResultadoValidacion): PreviewSection[] =>
     {
       title: 'Artículos',
       countLabel: 'artículos leídos',
-      rows: (resultado.articulos ?? []) as Record<string, unknown>[],
+      rows: resultado.articulos ?? [],
       columns: [
         { key: 'fila', label: 'Fila' },
         { key: 'codigo', label: 'Código' },

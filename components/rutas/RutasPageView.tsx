@@ -1,5 +1,11 @@
 'use client'
 
+import { mensajeDeError } from '@/lib/mensaje-de-error';
+import type { VisitaRuta } from '@/lib/types/cobranza';
+import type { ClienteCierrePendiente } from '@/types/rutas/cierre-pendiente';
+import type { ObligacionDeJornada } from '@/types/obligacion-jornada';
+import type { PrestamoParcial } from '@/types/domain';
+import type { OfflineRuta } from '@/lib/offline/offlineDb';
 import { useState, ChangeEvent, FormEvent, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { usePageFocusRefresh } from '@/hooks/usePageFocusRefresh'
@@ -12,6 +18,7 @@ import {
   User,
   Clock,
   Eye,
+  Loader2,
   Plus,
   Search,
   TrendingUp,
@@ -21,8 +28,6 @@ import {
   X,
   CheckCircle2,
   Trash2,
-  ChevronLeft,
-  ChevronRight,
   Save,
   ArrowRightLeft,
   XCircle,
@@ -32,15 +37,11 @@ import { formatCurrency, cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 import { routesService } from '@/services/routes-service';
 import {
-  computeRutaHoyUiStatsFromVisitas,
   esDomingoBogota,
   getBogotaDateKey,
   getEstadoRevisionOperacion,
   isPrestamoOperativo,
   resolveFechaEfectivaCuota,
-  resolveRutaDailySummary,
-  shouldExcludeVisitaFromOperationalMeta,
-  shouldShowVisitaEnRutaHoy,
 } from '@/lib/rutas-core'
 import { buildRutaHoyOperativa } from '@/lib/rutas/build-ruta-hoy-operativa'
 import { rutasService } from '@/services/rutas-service';
@@ -52,35 +53,50 @@ import { offlineStore } from '@/lib/offline/offlineDb';
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal';
 import { getCajas, consolidarCaja, obtenerSaldoDisponibleRuta, Caja } from '@/services/contabilidad-service';
 import { prestamosService } from '@/services/prestamos-service';
-import { formatRoleLabel } from '@/lib/display-labels';
+import { formatRoleLabel, riesgoOperativoLabel } from '@/lib/display-labels';
 import { buildCrearPrestamoPayload } from '@/lib/creditos/crear-prestamo-payload';
 import Paginador from '@/components/ui/Paginador'
 import { normalizarCodigoRuta } from '@/lib/rutas/codigo-ruta'
+import { logger } from '@/lib/logger'
+import type { RutaDeLista } from '@/types/domain'
+import { estaPendienteDeActivacion } from '@/lib/rutas/pendiente-de-activacion'
 
-interface Ruta {
-  id: string;
-  nombre: string;
-  codigo: string;
-  zona?: string;
-  estado: 'ACTIVA' | 'INACTIVA' | 'PENDIENTE_ACTIVACION' | 'COMPLETADA';
-  cobrador: string;
-  cobradorId?: string;
-  supervisorId?: string;
-  coordinadorId?: string;
-  clientesAsignados: number;
-  clientesNuevos: number;
-  cobranzaDelDia: number;
-  recaudoRegularizadoHoy?: number;
-  recaudoContableHoy?: number;
-  metaDelDia: number;
-  descripcion?: string;
-  nivelRiesgo?: string;
-  frecuenciaVisita?: string;
-  cierrePendienteAnterior?: any;
-  tieneCierrePendiente?: boolean;
-  totalCierresPendientes?: number;
-  cierresPendientes?: any[];
+/**
+ * La ruta del listado. La forma la define `RutaDeLista` en `types/domain.ts`.
+ *
+ * `estado` dice solo si la ruta esta habilitada (ACTIVA / INACTIVA). Que haya
+ * salido a operar hoy es `activadaHoy`, y de ahi sale la pestaña "Pendientes".
+ */
+/**
+ * El resumen del dia de una ruta, tal como lo arma `fetchDailySummaries`.
+ *
+ * Las cuatro cifras salen de `buildRutaHoyOperativa` y las dos listas son sus dos salidas
+ * (la visible y la del KPI), que ya tienen tipo.
+ */
+type ResumenDiarioDeRuta = {
+  meta: number
+  recaudo: number
+  pendiente: number
+  eficiencia: number
+  clientesOperativosHoy: number
+  visitasOperativasHoy: VisitaRuta[]
+  obligacionesKpiHoy: VisitaRuta[]
 }
+
+type Ruta = RutaDeLista & {
+  cobrador: string;
+  codigo: string;
+  // `RutaDeLista` ya los declara como `unknown`/`unknown[]`: aqui se afinan al tipo que el
+  // modal de cierre recibe, que ya existe.
+  cierrePendienteAnterior?: ClienteCierrePendiente | null;
+  cierresPendientes?: ClienteCierrePendiente[];
+}
+
+/** Clave de la pestaña que lista lo que no ha salido a operar hoy. */
+const FILTRO_PENDIENTE_ACTIVACION = 'PENDIENTE_ACTIVACION' as const
+
+// La regla de "pendiente de activar" vive en lib/rutas/pendiente-de-activacion,
+// donde se puede probar.
 
 interface PrestamoResumen {
   id: string;
@@ -107,21 +123,38 @@ interface RutasPageViewProps {
   supervisores?: { id: string; nombre: string; rol?: string }[];
 }
 
-export const mapAsignacionesToClientesRuta = (asignaciones: any[] = []): ClienteSelection[] => {
+/** La asignacion tal como la trae el detalle de ruta, con lo que este mapeo lee. */
+type AsignacionDeSeleccion = {
+  cliente?: {
+    id?: string
+    nombres?: string | null
+    apellidos?: string | null
+    dni?: string | null
+    telefono?: string | null
+    prestamos?: PrestamoParcial[] | null
+  } | null
+}
+
+export const mapAsignacionesToClientesRuta = (
+  asignaciones: AsignacionDeSeleccion[] = [],
+): ClienteSelection[] => {
   const uniqueByClienteId = new Map<string, ClienteSelection>();
 
-  asignaciones.forEach((a: any) => {
+  asignaciones.forEach((a) => {
     const clienteId = a?.cliente?.id;
     if (!clienteId || uniqueByClienteId.has(clienteId)) return;
 
     uniqueByClienteId.set(clienteId, {
       id: clienteId,
-      nombre: `${a.cliente.nombres} ${a.cliente.apellidos}`,
-      codigo: a.cliente.dni,
-      direccion: a.cliente.telefono,
-      prestamos: (a.cliente.prestamos || [])
-        .filter((p: any) => isPrestamoOperativo(p))
-        .map((p: any) => ({
+      // Los `?.` y los `?? undefined` los pidio el tipo: el cliente puede no venir (el
+      // `clienteId` de arriba sale de `a?.cliente?.id`) y los tres campos son nulables en la
+      // base. Con `any[]` esto era un `a.cliente.nombres` a pelo.
+      nombre: `${a.cliente?.nombres ?? ''} ${a.cliente?.apellidos ?? ''}`.trim(),
+      codigo: a.cliente?.dni ?? undefined,
+      direccion: a.cliente?.telefono ?? undefined,
+      prestamos: (a.cliente?.prestamos || [])
+        .filter((p) => isPrestamoOperativo(p))
+        .map((p) => ({
           id: p.id,
           tipo:
             p.tipo === 'ARTICULO' || p.tipoPrestamo === 'ARTICULO'
@@ -140,15 +173,13 @@ export const mapAsignacionesToClientesRuta = (asignaciones: any[] = []): Cliente
 const getEstadoSistemaLabel = (estado: Ruta['estado']) => {
   if (estado === 'ACTIVA') return 'Habilitada'
   if (estado === 'INACTIVA') return 'Inhabilitada'
-  if (estado === 'PENDIENTE_ACTIVACION') return 'Pendiente'
-  if (estado === 'COMPLETADA') return 'Completada'
   return estado
 }
 
 export const mapObligacionToRutaListVisita = (
-  o: any,
+  o: ObligacionDeJornada,
   hoyKey: string,
-): any => {
+) => {
   const prestamo = o?.prestamo || {}
   const estadoRevision = getEstadoRevisionOperacion({ ...prestamo, ...o })
   const cuotaObjetivo =
@@ -203,12 +234,11 @@ export const mapObligacionToRutaListVisita = (
       metaPendiente,
   )
 
-  const recaudo = Number(
-    o?.recaudadoDelDia ??
-      o?.recaudoDelDia ??
-      o?.montoPagadoHoy ??
-      0,
-  )
+  // HALLAZGO: el segundo eslabon era `recaudoDelDia`, sin la segunda "a". El campo se llama
+  // `recaudadoDelDia`, que es justo el de arriba, asi que era una lectura muerta por un error
+  // de tipeo. `montoPagadoHoy` tampoco existe en la obligacion. Los dos valian `undefined` y
+  // la cascada resolvia por el primero, que es el correcto: el resultado no cambia.
+  const recaudo = Number(o?.recaudadoDelDia ?? o?.recaudado ?? 0)
 
   const saldoRaw = prestamo?.saldoPendiente ?? o?.saldoPendiente
 
@@ -228,7 +258,10 @@ export const mapObligacionToRutaListVisita = (
 
   return {
     id: o?.id || o?.prestamoId || prestamo?.id || `${o?.clienteId || 'cliente'}-${fechaCuota}`,
-    clienteId: o?.clienteId || o?.cliente?.id || prestamo?.clienteId || '',
+    clienteId:
+      o?.clienteId ||
+      (typeof o?.cliente === 'object' ? o.cliente?.id : undefined) ||
+      '',
     prestamoId: o?.prestamoId || prestamo?.id || '',
     estado: estadoGestion.includes('REPROGRAM')
       ? 'reprogramado'
@@ -348,7 +381,12 @@ export const RutasPageView = ({
   const [saldoDisponibleRecolectar, setSaldoDisponibleRecolectar] = useState<number | null>(null)
   const [cajaRutaIdRecolectar, setCajaRutaIdRecolectar] = useState<string | null>(null)
   const [errorRecolectar, setErrorRecolectar] = useState<string | null>(null)
-  const [dailySummaries, setDailySummaries] = useState<Record<string, any>>({});
+  // El resumen del dia por ruta: lo que `fetchDailySummaries` mete y las pantallas leen.
+  // Antes era `Record<string, any>` en los dos lados, asi que ni lo que se guarda ni lo que
+  // se lee se comprobaba contra nada.
+  const [dailySummaries, setDailySummaries] = useState<
+    Record<string, ResumenDiarioDeRuta>
+  >({});
 
   const recolectarIdempotencyKeyRef = useRef<string | null>(null)
 
@@ -356,11 +394,11 @@ export const RutasPageView = ({
     if (!rutas || rutas.length === 0) return
 
     const hoyKey = getBogotaDateKey(new Date())
-    const newSummaries: Record<string, any> = {}
+    const newSummaries: Record<string, ResumenDiarioDeRuta> = {}
 
     // Obtener pagos una sola vez para todas las rutas
     const pagosResp = await pagosService.obtenerPagos({ limit: 5000 })
-    const pagos = (pagosResp as any)?.pagos || pagosResp || []
+    const pagos = (pagosResp)?.pagos || pagosResp || []
 
     await Promise.all(
       rutas.map(async (ruta) => {
@@ -378,7 +416,7 @@ export const RutasPageView = ({
 
           const clientesOperativosHoy = new Set(
             result.visibleItems
-              .map((v: any) => v.clienteId)
+              .map((v) => v.clienteId)
               .filter(Boolean),
           ).size
 
@@ -411,18 +449,24 @@ export const RutasPageView = ({
     return parseFloat(formatted.replace(/\./g, '').replace(',', '.')) || 0
   }
 
+  // El id se saca a una variable a proposito. Con `currentUser?.id` dentro del array
+  // de dependencias, el compilador de React no ve a traves del `?.` y ensancha la
+  // dependencia al objeto completo; al no coincidir con lo escrito, renuncia a
+  // optimizar TODO este componente ("Compilation Skipped"). El cuerpo solo usa el id,
+  // asi que la dependencia no cambia de significado.
+  const currentUserId = currentUser?.id
   const fetchRutas = useCallback(async () => {
     setLoading(true);
     try {
       const isSupervisorPath = (rutasBasePath || '').toLowerCase().includes('/supervisor')
       const response = await routesService.getAll({
         limit: 100,
-        ...(isSupervisorPath && currentUser?.id ? { supervisorId: currentUser.id } : {}),
+        ...(isSupervisorPath && currentUserId ? { supervisorId: currentUserId } : {}),
       });
-      const payload = (response as any)?.data ?? response
-      const data = Array.isArray(payload)
-        ? payload
-        : (Array.isArray((payload as any)?.data) ? (payload as any).data : [])
+      // `getAll` devuelve `PaginatedRoutes`, o sea que `response.data` ya es el arreglo.
+      // El segundo desempaquetado (`payload.data`) era de una forma doblemente envuelta
+      // que no existe.
+      const data = Array.isArray(response?.data) ? response.data : []
 
       // Se acepta la respuesta aunque venga vacía: cero rutas es un resultado
       // válido (un supervisor sin rutas asignadas, o todas dadas de baja).
@@ -436,18 +480,22 @@ export const RutasPageView = ({
       }
     } catch {
       try {
-        const offRutas = await offlineStore.getAll<any>('rutas');
+        const offRutas = await offlineStore.getAll<OfflineRuta>('rutas');
         if (offRutas.length > 0) {
-          setRutasList(offRutas.map((r: any) => ({
+          setRutasList(offRutas.map((r) => ({
             id: r.id, nombre: r.nombre, codigo: r.codigo, zona: r.zona || '',
             estado: r.activa ? 'ACTIVA' : 'INACTIVA', cobrador: '',
             cobradorId: r.cobradorId || '', supervisorId: r.supervisorId || '',
             clientesAsignados: 0, clientesNuevos: 0, cobranzaDelDia: 0, metaDelDia: 0,
           } as Ruta)));
         }
-      } catch {}
+      } catch (error) {
+        // Es el respaldo sin conexion: si no hay nada guardado, no hay nada que mostrar.
+        // Se avisa solo en desarrollo, que es donde sirve.
+        logger.warn('No se pudieron leer las rutas guardadas sin conexion', error)
+      }
     }
-  }, [currentUser?.id, rutasBasePath])
+  }, [currentUserId, rutasBasePath])
 
   useEffect(() => {
     const fetchLists = async () => {
@@ -465,7 +513,7 @@ export const RutasPageView = ({
           setCoordinadoresList(fetchedCoordinadores);
         }
         await fetchRutas();
-      } catch (error) { /* offline handled inside fetchRutas */ }
+      } catch { /* offline handled inside fetchRutas */ }
     };
     fetchLists();
   }, [fetchRutas]);
@@ -609,10 +657,12 @@ export const RutasPageView = ({
       // Refrescar la lista en el cliente para que la UI se actualice de inmediato
       try {
         await fetchRutas();
-      } catch (e) { /* Error refreshing routes */ }
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.message || 'No se pudo guardar la ruta';
-      showNotification('error', Array.isArray(errorMessage) ? errorMessage.join(', ') : errorMessage, 'Error');
+      } catch { /* Error refreshing routes */ }
+    } catch (error) {
+      // `mensajeDeError` ya une la lista de campos del ValidationPipe, asi que el
+      // `Array.isArray(...)` de aqui sobraba.
+      const errorMessage = mensajeDeError(error, 'No se pudo guardar la ruta');
+      showNotification('error', errorMessage, 'Error');
     }
   }
 
@@ -623,10 +673,10 @@ export const RutasPageView = ({
       // Refrescar el estado local desde el backend
       try {
          await fetchRutas();
-      } catch (e) { /* Error al recargar las rutas */ }
+      } catch { /* Error al recargar las rutas */ }
 
       showNotification('success', 'Estado de la ruta actualizado', 'Éxito');
-    } catch (error) {
+    } catch {
       showNotification('error', 'No se pudo cambiar el estado', 'Error');
     }
   }
@@ -646,7 +696,7 @@ export const RutasPageView = ({
       ])
       const saldo = saldoResp?.saldoCaja ?? saldoResp?.saldoDisponible ?? 0
       setSaldoDisponibleRecolectar(saldo)
-      const cajaIdBackend = (saldoResp as any)?.cajaId as (string | undefined)
+      const cajaIdBackend = (saldoResp)?.cajaId as (string | undefined)
       const cajaRuta = cajaIdBackend
         ? cajasResp.find(c => c.id === cajaIdBackend)
         : cajasResp.find(c => c.rutaId === ruta.id)
@@ -687,8 +737,8 @@ export const RutasPageView = ({
       }
 
       await fetchRutas()
-    } catch (e: any) {
-      setErrorRecolectar(e?.message || 'No se pudo recolectar. Intenta de nuevo.')
+    } catch (e) {
+      setErrorRecolectar(mensajeDeError(e, 'No se pudo recolectar. Intenta de nuevo.'))
     } finally {
       setProcessingTransfer(false)
     }
@@ -730,8 +780,12 @@ export const RutasPageView = ({
       
       try {
         await fetchRutas();
-      } catch {}
-    } catch (error) {
+      } catch (error) {
+        // El refresco es secundario: la accion ya se hizo.
+        // Se avisa solo en desarrollo, que es donde sirve.
+        logger.warn('Fallo el refresco del listado de rutas', error)
+      }
+    } catch {
       showNotification('error', 'No se pudo mover el cliente', 'Error');
     }
   }
@@ -747,17 +801,24 @@ export const RutasPageView = ({
         await loadClientesRuta(editingId);
       }
       await fetchRutas();
-    } catch (error) {
+    } catch {
       showNotification('error', 'No se pudo mover el crédito', 'Error');
     }
   }
+
+  /** Que cliente se esta asignando a la ruta ahora mismo, si alguno. */
+  const [asignandoClienteId, setAsignandoClienteId] = useState<string | null>(null);
 
   const confirmAddCliente = async (cliente: ClienteSelection) => {
     if (!editingId || !formData.cobradorId) {
       showNotification('warning', 'Seleccione un cobrador para la ruta primero', 'Atención');
       return;
     }
+    // Asignar son tres viajes al servidor seguidos; sin esto la lista se
+    // quedaba quieta y se podia pulsar otro cliente encima.
+    if (asignandoClienteId) return;
 
+    setAsignandoClienteId(cliente.id);
     try {
       await routesService.assignClient(editingId, cliente.id, formData.cobradorId);
       showNotification('success', `Cliente ${cliente.nombre} asignado a la ruta`, 'Éxito');
@@ -768,9 +829,15 @@ export const RutasPageView = ({
       
       try {
         await fetchRutas();
-      } catch {}
-    } catch (error) {
+      } catch (error) {
+        // El refresco es secundario: la accion ya se hizo.
+        // Se avisa solo en desarrollo, que es donde sirve.
+        logger.warn('Fallo el refresco del listado de rutas', error)
+      }
+    } catch {
       showNotification('error', 'No se pudo asignar el cliente', 'Error');
+    } finally {
+      setAsignandoClienteId(null);
     }
   }
   const [activeTab, setActiveTab] = useState<'info' | 'clientes'>('info')
@@ -782,7 +849,12 @@ export const RutasPageView = ({
   // ... (Rest of code)
 
   const rutasFiltradas = displayRutas.filter((ruta) => {
-    const cumpleEstado = estadoFiltro === 'TODAS' || ruta.estado === estadoFiltro
+    const cumpleEstado =
+      estadoFiltro === 'TODAS'
+        ? true
+        : estadoFiltro === FILTRO_PENDIENTE_ACTIVACION
+          ? estaPendienteDeActivacion(ruta)
+          : ruta.estado === estadoFiltro
     const cumpleBusqueda =
       ruta.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
       ruta.codigo.toLowerCase().includes(busqueda.toLowerCase()) ||
@@ -829,7 +901,7 @@ export const RutasPageView = ({
 
         return ruta.estado === 'ACTIVA' && clientesOperativos > 0
       }).length
-  const rutasPendientes = displayRutas.filter((ruta) => ruta.estado === 'PENDIENTE_ACTIVACION').length
+  const rutasPendientes = displayRutas.filter(estaPendienteDeActivacion).length
   const totalClientes = displayRutas.reduce((acc, curr) => acc + curr.clientesAsignados, 0)
 
   const { objetivoTotalShown, porcentajeAvance } = useMemo(() => {
@@ -840,7 +912,7 @@ export const RutasPageView = ({
       }
     }
 
-    const rutasOperativas = (Array.isArray(displayRutas) ? displayRutas : []).filter((r: any) => {
+    const rutasOperativas = (Array.isArray(displayRutas) ? displayRutas : []).filter((r) => {
       if (!r || r.estado !== 'ACTIVA') return false
 
       const clientesOperativos = Number(
@@ -926,10 +998,6 @@ export const RutasPageView = ({
     }
   }
 
-  const getRiesgoLabel = (riesgo: string) => {
-      if (!riesgo) return '';
-      return riesgo.replace('_', ' ');
-  }
 
   if (!permitido) {
     return (
@@ -1078,7 +1146,7 @@ export const RutasPageView = ({
             </div>
             <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
               {(['TODAS', 'PENDIENTE_ACTIVACION', 'ACTIVA', 'INACTIVA'] as const).map((estado) => {
-                const count = estado === 'PENDIENTE_ACTIVACION' ? rutasPendientes : null
+                const count = estado === FILTRO_PENDIENTE_ACTIVACION ? rutasPendientes : null
                 const label = estado === 'TODAS' ? 'Todas'
                   : estado === 'PENDIENTE_ACTIVACION' ? 'Pendientes'
                     : estado === 'ACTIVA' ? 'Habilitadas'
@@ -1183,21 +1251,26 @@ export const RutasPageView = ({
                           'px-3 py-1 rounded-full text-xs font-bold border',
                           ruta.estado === 'ACTIVA'
                             ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                            : ruta.estado === 'PENDIENTE_ACTIVACION'
-                              ? 'bg-orange-50 text-orange-700 border-orange-200'
-                              : ruta.estado === 'COMPLETADA'
-                                ? 'bg-blue-50 text-blue-700 border-blue-200'
-                                : 'bg-slate-50 text-slate-600 border-slate-200',
+                            : 'bg-slate-50 text-slate-600 border-slate-200',
                         )}
                       >
                         {getEstadoSistemaLabel(ruta.estado)}
                       </div>
+                      {/* Habilitada y sin salir a operar son dos cosas distintas, asi
+                          que van en dos chips y no en uno. Antes el estado tenia una
+                          rama naranja para 'PENDIENTE_ACTIVACION', un valor que el
+                          backend nunca manda. */}
+                      {estaPendienteDeActivacion(ruta) && (
+                        <div className="ml-2 px-3 py-1 rounded-full text-xs font-bold border bg-orange-50 text-orange-700 border-orange-200">
+                          Sin activar hoy
+                        </div>
+                      )}
                       {ruta.nivelRiesgo && (
                           <div className={cn(
                               'px-3 py-1 rounded-full text-[10px] font-bold border uppercase ml-2',
                               getRiesgoColor(ruta.nivelRiesgo)
                           )}>
-                              {getRiesgoLabel(ruta.nivelRiesgo)}
+                              {riesgoOperativoLabel(ruta.nivelRiesgo)}
                           </div>
                       )}
                     </div>
@@ -1409,7 +1482,7 @@ export const RutasPageView = ({
                                   getRiesgoColor(ruta.nivelRiesgo)
                                 )}
                               >
-                                {getRiesgoLabel(ruta.nivelRiesgo)}
+                                {riesgoOperativoLabel(ruta.nivelRiesgo)}
                               </span>
                           )}
                         </td>
@@ -1737,7 +1810,7 @@ export const RutasPageView = ({
                   <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-2">
-                        <label className="text-xs uppercase tracking-wider font-bold text-slate-500">Nombre de la Ruta</label>
+                        <label className="text-xs uppercase tracking-wider font-bold text-slate-500">Nombre de la Ruta<span className="ml-1 text-red-500" aria-label="obligatorio">*</span></label>
                         <input
                           type="text"
                           name="nombre"
@@ -1750,7 +1823,7 @@ export const RutasPageView = ({
                       </div>
 
                       <div className="space-y-2">
-                        <label className="text-xs uppercase tracking-wider font-bold text-slate-500">Código Identificador</label>
+                        <label className="text-xs uppercase tracking-wider font-bold text-slate-500">Código Identificador<span className="ml-1 text-red-500" aria-label="obligatorio">*</span></label>
                         <input
                           type="text"
                           name="codigo"
@@ -1771,7 +1844,7 @@ export const RutasPageView = ({
                       </div>
 
                       <div className="space-y-2">
-                        <label className="text-xs uppercase tracking-wider font-bold text-slate-500">Zona</label>
+                        <label className="text-xs uppercase tracking-wider font-bold text-slate-500">Zona<span className="ml-1 text-red-500" aria-label="obligatorio">*</span></label>
                         <div className="relative">
                           <input
                             type="text"
@@ -1787,7 +1860,7 @@ export const RutasPageView = ({
                       </div>
 
                       <div className="space-y-2">
-                        <label className="text-xs uppercase tracking-wider font-bold text-slate-500">Cobrador Asignado</label>
+                        <label className="text-xs uppercase tracking-wider font-bold text-slate-500">Cobrador Asignado<span className="ml-1 text-red-500" aria-label="obligatorio">*</span></label>
                         <div className="relative">
                           <select
                             name="cobradorId"
@@ -1808,7 +1881,7 @@ export const RutasPageView = ({
                       </div>
 
                       <div className="space-y-2">
-                        <label className="text-xs uppercase tracking-wider font-bold text-slate-500">Asignar supervisor</label>
+                        <label className="text-xs uppercase tracking-wider font-bold text-slate-500">Asignar supervisor<span className="ml-1 text-red-500" aria-label="obligatorio">*</span></label>
                         <div className="relative">
                           <select
                             name="supervisorId"
@@ -1977,7 +2050,9 @@ export const RutasPageView = ({
                                       <button
                                         key={cliente.id}
                                         onClick={() => confirmAddCliente(cliente)}
-                                        className="w-full text-left px-4 py-3 hover:bg-blue-50 transition-colors group flex items-center justify-between"
+                                        disabled={asignandoClienteId !== null}
+                                        aria-busy={asignandoClienteId === cliente.id}
+                                        className="w-full text-left px-4 py-3 hover:bg-blue-50 transition-colors group flex items-center justify-between disabled:opacity-60 disabled:hover:bg-transparent"
                                       >
                                         <div className="flex-1 min-w-0">
                                           <p className="font-bold text-sm text-slate-900 group-hover:text-blue-700 truncate">{String(cliente.nombre || 'Sin nombre')}</p>
@@ -1986,7 +2061,11 @@ export const RutasPageView = ({
                                             <span className="truncate">{String(cliente.direccion || 'Sin dirección')}</span>
                                           </div>
                                         </div>
-                                        <Plus className="h-4 w-4 text-slate-300 group-hover:text-blue-500 flex-shrink-0 ml-2" />
+                                        {asignandoClienteId === cliente.id ? (
+                                          <Loader2 className="h-4 w-4 text-blue-500 animate-spin flex-shrink-0 ml-2" aria-hidden="true" />
+                                        ) : (
+                                          <Plus className="h-4 w-4 text-slate-300 group-hover:text-blue-500 flex-shrink-0 ml-2" />
+                                        )}
                                       </button>
                                     ))}
                                 </div>
@@ -2223,7 +2302,7 @@ export const RutasPageView = ({
       <CrearCreditoModal
         isOpen={showCrearCreditoModal}
         onClose={() => setShowCrearCreditoModal(false)}
-        onConfirm={async (data: any) => {
+        onConfirm={async (data) => {
           try {
             const payload = buildCrearPrestamoPayload(data, currentUser?.id);
 
@@ -2233,7 +2312,11 @@ export const RutasPageView = ({
             setShowCrearCreditoModal(false);
             try {
               await fetchRutas();
-            } catch {}
+            } catch (error) {
+              // El refresco es secundario: la accion ya se hizo.
+              // Se avisa solo en desarrollo, que es donde sirve.
+              logger.warn('Fallo el refresco del listado de rutas', error)
+            }
           } catch (error) {
             console.error('Error al crear crédito:', error);
             showNotification('error', 'No se pudo crear el crédito', 'Error');

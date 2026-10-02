@@ -1,4 +1,5 @@
 'use client';
+import { estadoDeError } from '@/lib/mensaje-de-error'
 
 import PantallaCarga from '@/components/ui/PantallaCarga'
 
@@ -18,7 +19,6 @@ import {
 } from 'lucide-react';
 import { dashboardService } from '@/services/dashboard-coordinador-service';
 import { prestamosService } from '@/services/prestamos-service';
-import { computeOperationalMetaTotalForTimeFilter } from '@/lib/dashboard-operational-meta';
 import { useRealtimeData } from '@/hooks/useRealtimeData';
 
 interface UserData {
@@ -238,36 +238,36 @@ export default function CoordinadorPage() {
           },
         ];
 
-        const recentLoans = (prestamos?.prestamos || []).slice(0, 5).map((p: any) => {
-          const clientName = p.cliente
-            ? `${p.cliente.nombres || ''} ${p.cliente.apellidos || ''}`.trim()
-            : 'Cliente';
+        const recentLoans = (prestamos?.prestamos || []).slice(0, 5).map((p) => {
+          // En el LISTADO `cliente` es el nombre ya compuesto, no el objeto: leer
+          // `cliente.nombres` daba undefined y la tarjeta salia con "Cliente".
+          const clientName = p.cliente || 'Cliente';
           const dateStr = p.creadoEn
             ? new Date(p.creadoEn).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })
             : '';
           return {
             client: clientName,
-            amount: p.montoTotal || p.monto || 0,
+            amount: p.montoTotal || p.montoPrestado || 0,
             term: p.frecuenciaPago || 'Mensual',
             status: p.estado || 'PENDIENTE',
             date: dateStr,
           };
         });
 
-        let metaOperativaTotal = 0
-        try {
-          metaOperativaTotal = await computeOperationalMetaTotalForTimeFilter(period as any)
-        } catch {
-          metaOperativaTotal = 0
-        }
-
+        // El target lo manda el backend POR PUNTO del grafico ("meta nominal
+        // diaria"), que es lo que hace falta: `Sem` y `Mes` agrupan por dia, asi
+        // que cada barra tiene su propia meta. Aqui se pisaba con una sola cifra
+        // global del periodo, y la eficiencia de cada dia salia dividida entre
+        // el numero de barras. Se decidio asi en 247aec2 ("usar target
+        // especifico por punto del backend en lugar de meta global"), pero ese
+        // arreglo se aplico a VistaCoordinador, que no lo renderiza nadie.
         const chartData = (dashboard?.trend || []).map((t) => ({
           label: t.label,
           value: t.value,
-          target: metaOperativaTotal > 0 ? metaOperativaTotal : t.target,
+          target: Number(t.target || 0),
         }));
 
-        const topCollectors = (dashboard?.topCollectors || []).slice(0, 5).map((c: any) => ({
+        const topCollectors = (dashboard?.topCollectors || []).slice(0, 5).map((c) => ({
           name: c.name,
           collected: c.collected || 0,
           efficiency: c.efficiency || 0,
@@ -290,10 +290,10 @@ export default function CoordinadorPage() {
             shouldRedirect: null,
           });
         }
-      } catch (error: any) {
+      } catch (error) {
         console.error('Error cargando dashboard coordinador:', error);
         // Solo hacer logout en error de autenticación (401), no en errores de red
-        if (error?.response?.status === 401 || error?.statusCode === 401) {
+        if (estadoDeError(error) === 401 || estadoDeError(error) === 401) {
           localStorage.removeItem('token');
           localStorage.removeItem('user');
           router.replace('/login');

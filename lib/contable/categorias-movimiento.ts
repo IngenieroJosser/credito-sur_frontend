@@ -46,6 +46,20 @@ export const CATEGORIAS_INGRESO: CategoriaMovimiento[] = [
   },
 ];
 
+/**
+ * Entregar base a un cobrador NO esta aqui a proposito.
+ *
+ * Estaba como egreso externo contra 1.4.1 (Deuda de Cobradores), y eso decia
+ * que el cobrador queda debiendo. No es asi: la base es plata que se le entrega
+ * para que preste y trabaje con ella, no una deuda suya. Ademas, por ese camino
+ * el dinero salia de la caja de la oficina pero NO entraba a la caja del
+ * cobrador.
+ *
+ * Entregar base es un traslado entre cajas: se hace con "Transferencia entre
+ * Cajas" en el modal de movimientos (o por la solicitud de base, que ya mueve
+ * las dos cajas). El codigo BASE_COBRADOR se conserva en el backend para no
+ * reinterpretar los movimientos viejos que ya lo usaron.
+ */
 export const CATEGORIAS_EGRESO: CategoriaMovimiento[] = [
   {
     code: 'GASTO_OPERATIVO',
@@ -60,13 +74,6 @@ export const CATEGORIAS_EGRESO: CategoriaMovimiento[] = [
     cuenta: '4.2',
     cuentaNombre: 'Gastos Administrativos',
     efecto: 'Papelería, servicios, arriendo… gastos de administración.',
-  },
-  {
-    code: 'BASE_COBRADOR',
-    label: 'Entregar base a un cobrador',
-    cuenta: '1.4.1',
-    cuentaNombre: 'Deuda de Cobradores',
-    efecto: 'Le das dinero al cobrador para prestar. Queda como su deuda, no es un gasto.',
   },
   {
     code: 'RETIRO_UTILIDADES',

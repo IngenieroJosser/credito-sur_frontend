@@ -1,5 +1,6 @@
 "use client";
 
+import { datosParaRegistro, estadoDeError, mensajeDeError } from '@/lib/mensaje-de-error';
 import Paginador from '@/components/ui/Paginador'
 import { logger } from '@/lib/logger'
 
@@ -8,14 +9,16 @@ import { useRealtimeData } from '@/hooks/useRealtimeData';
 import { createPortal } from "react-dom";
 
 import { useNotification } from '@/components/providers/NotificationProvider'
-import { permisosPorRol } from '@/lib/permissions'
+import { permisosPorRol, type ModuloPermiso } from '@/lib/permissions'
+import type { RegistroAuditoria } from '@/services/auditoria-service'
 import { refreshSesion } from '@/services/autenticacion-service'
 import { useNotificaciones } from "@/components/providers/NotificacionesProvider";
 import { usuariosService } from "@/services/usuarios-service";
 import { RolUsuario, EstadoUsuario } from "@/types/enums";
-import { apiRequest, formatErrorForComponent } from "@/lib/api/api";
+import { apiRequest } from "@/lib/api/api";
 import { formatShortDateTime, formatShortDate } from "@/lib/utils/format";
 import { buildBogotaOffsetIsoFromKey, normalizeDateKey } from '@/lib/rutas-core'
+import BotonAccion from '@/components/ui/BotonAccion'
 
 import {
   Search,
@@ -100,6 +103,15 @@ function FieldLabel({
   );
 }
 
+/** Una fila de la tabla de permisos: el modulo con su grupo y sus etiquetas. */
+type PermisoAplanado = {
+  id: string
+  label: string
+  description: string
+  category: string
+  roles: ModuloPermiso['roles']
+}
+
 const GLOBAL_MODULE_CATALOG = (() => {
   const EXCLUDED_ACTION_IDS = new Set([
     'prestamos-dinero',
@@ -126,14 +138,17 @@ const GLOBAL_MODULE_CATALOG = (() => {
     ...existingRoles.filter((r) => !preferredOrder.includes(r)),
   ]
 
-  const flattenedModules: any[] = []
+  // NO es `ModuloPermiso`: este aplanado agrega `label`, `description` y `category` que
+  // la tabla de permisos pinta. El tipo se declara por eso, y no se reutiliza el del
+  // catalogo, que no los tiene.
+  const flattenedModules: PermisoAplanado[] = []
   const seen = new Set<string>()
 
   roleOrder.forEach((rol) => {
-    const modules = (permisosPorRol as any)?.[rol] || []
-    modules.forEach((module: any) => {
+    const modules = (permisosPorRol)?.[rol] || []
+    modules.forEach((module) => {
       if (module.submodulos && module.submodulos.length > 0) {
-        module.submodulos.forEach((sub: any) => {
+        module.submodulos.forEach((sub) => {
           if (!sub?.id || seen.has(sub.id) || EXCLUDED_ACTION_IDS.has(sub.id)) return
           seen.add(sub.id)
           flattenedModules.push({
@@ -198,11 +213,13 @@ const UserManagementPage = () => {
         estado: u.estado as EstadoUsuario,
         fechaCreacion: formatShortDate(u.creadoEn),
         ultimoAcceso: formatShortDateTime(u.ultimoIngreso),
-        permisos: (Array.isArray(u.permisos)
-          ? (u.permisos as any[])
-              .map((p) => (p?.codigo || p?.id || p))
-              .filter((p) => typeof p === 'string' && p.trim() !== '')
-          : []),
+        // `Usuario.permisos` es `string[]`: el backend manda las acciones ya
+        // deduplicadas (`uniquePermisos` = `p.accion`), no objetos. El `.map` que leia
+        // `p.codigo || p.id` era de una forma que no llega; el `|| p` de su final es lo
+        // unico que valia.
+        permisos: Array.isArray(u.permisos)
+          ? u.permisos.filter((p) => typeof p === 'string' && p.trim() !== '')
+          : [],
       }));
       setUsers(mappedUsers);
     } catch (error) {
@@ -244,6 +261,9 @@ const UserManagementPage = () => {
   const [userAction, setUserAction] = useState<"toggle" | "archive" | "restore" | "hide">("toggle");
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isSavingUser, setIsSavingUser] = useState(false);
+  // Sin esto el boton de crear no se bloqueaba ni mostraba nada mientras
+  // guardaba: se podia hacer clic varias veces y crear el usuario repetido.
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [actividadPage, setActividadPage] = useState(1);
   const actividadPerPage = 3;
@@ -303,7 +323,7 @@ const UserManagementPage = () => {
 
   const availableModules = GLOBAL_MODULE_CATALOG
 
-  const asNumber = (...values: any[]) => {
+  const asNumber = (...values: unknown[]) => {
     for (const value of values) {
       const parsed = Number(value)
       if (Number.isFinite(parsed)) return parsed
@@ -549,7 +569,8 @@ const UserManagementPage = () => {
           );
         }
       }
-      const audit = await apiRequest<any[]>(
+      // El historial de auditoria del usuario: `RegistroAuditoria` ya existe.
+      const audit = await apiRequest<RegistroAuditoria[]>(
         "GET",
         `/audit/user/${user.id}?${params.toString()}`,
       );
@@ -567,7 +588,7 @@ const UserManagementPage = () => {
           "caja",
         ],
         [RolUsuario.PUNTO_DE_VENTA]: ["articulo", "prestamo", "cliente"],
-      } as any;
+      };
       const permissionEntityMap: Record<string, string[]> = {
         usuarios: ["usuario"],
         auditoria: ["audit", "registro", "log"],
@@ -584,8 +605,8 @@ const UserManagementPage = () => {
         (selectedPermissions && selectedPermissions.length > 0)
           ? selectedPermissions
           : (availableModules || [])
-              .filter((m: any) => (m.roles || []).includes(user.rol))
-              .map((m: any) => m.id);
+              .filter((m) => (m.roles || []).includes(user.rol))
+              .map((m) => m.id);
       const permissionFilters = allowedModules.flatMap(
         (id: string) => permissionEntityMap[id] || [],
       );
@@ -595,13 +616,16 @@ const UserManagementPage = () => {
           : roleFilters[user.rol] || []
       ).map((s) => s.toLowerCase());
       const filtrados = filtros.length
-        ? (audit || []).filter((a: any) =>
+        ? (audit || []).filter((a) =>
             filtros.some((f) => (a.entidad || "").toLowerCase().includes(f)),
           )
         : audit || [];
-      const timeline = filtrados.slice(0, timelineLimit).map((a: any) => ({
+      const timeline = filtrados.slice(0, timelineLimit).map((a) => ({
         time: formatShortDateTime(a.creadoEn),
-        action: a.action || a.accion,
+        // El `a.action ||` que abria esta cascada era una lectura MUERTA: el registro de
+        // auditoria tiene `accion` en espanol (auditoria-service.ts:20), no `action`.
+        // Valia `undefined` siempre y el respaldo era el valor real.
+        action: a.accion,
         detail: `${a.entidad} ${a.entidadId || ""}`.trim(),
         type: "neutral" as const,
       }));
@@ -680,11 +704,11 @@ const UserManagementPage = () => {
       return;
     }
 
-    const flattenPermissionIds = (modules: any[]): string[] => {
+    const flattenPermissionIds = (modules: ModuloPermiso[]): string[] => {
       const ids: string[] = [];
       modules.forEach((m) => {
         if (m?.submodulos?.length) {
-          m.submodulos.forEach((s: any) => {
+          m.submodulos.forEach((s: ModuloPermiso) => {
             if (s?.id) ids.push(s.id);
           });
         } else if (m?.id) {
@@ -694,21 +718,21 @@ const UserManagementPage = () => {
       return ids;
     };
 
-    const permisosGuardados = Array.isArray((user as any).permisos)
-      ? (user as any).permisos
+    const permisosGuardados = Array.isArray((user).permisos)
+      ? (user).permisos
       : [];
     const permisosDefaultRol = flattenPermissionIds(
-      permisosPorRol[user.rol as any] || [],
+      permisosPorRol[user.rol] || [],
     );
 
     const expandGroupIds = (ids: string[]): string[] => {
-      const allModules = Object.values(permisosPorRol || {}).flat() as any[]
+      const allModules = Object.values(permisosPorRol || {}).flat()
       const expanded = new Set<string>()
 
       ids.forEach((id) => {
-        const group = allModules.find((m: any) => m?.id === id && Array.isArray(m?.submodulos) && m.submodulos.length > 0)
+        const group = allModules.find((m) => m?.id === id && Array.isArray(m?.submodulos) && m.submodulos.length > 0)
         if (group) {
-          group.submodulos.forEach((s: any) => {
+          group.submodulos?.forEach((s) => {
             if (s?.id) expanded.add(s.id)
           })
           return
@@ -791,6 +815,7 @@ const UserManagementPage = () => {
   };
 
   const handleCreateUser = async () => {
+    if (isCreatingUser) return;
     try {
       // Validar campos mínimos
       if (
@@ -823,6 +848,7 @@ const UserManagementPage = () => {
         return;
       }
 
+      setIsCreatingUser(true);
       await usuariosService.crear({
         ...formData,
         correo: formData.correo.trim().toLowerCase(),
@@ -836,15 +862,12 @@ const UserManagementPage = () => {
       );
       setIsCreateModalOpen(false);
       fetchUsers(); // Recargar lista
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error creating user:", error);
-      const backendMsg =
-        error?.message ||
-        (Array.isArray(error?.error?.message)
-          ? error.error.message.join(", ")
-          : error?.error?.message) ||
-        "No se pudo crear el usuario";
+      const backendMsg = mensajeDeError(error, "No se pudo crear el usuario");
       showNotification("error", backendMsg, "Error al crear usuario");
+    } finally {
+      setIsCreatingUser(false);
     }
   };
 
@@ -986,8 +1009,8 @@ const UserManagementPage = () => {
       setIsEditModalOpen(false);
       setSelectedUser(null);
       await fetchUsers();
-    } catch (error: any) {
-      const errorMsg = error?.response?.data?.message || error?.message || 'Error desconocido';
+    } catch (error) {
+      const errorMsg = mensajeDeError(error, 'Error desconocido');
       if (formData.password && formData.password.trim() !== '') {
         showNotification('warning', `Contraseña cambiada, pero falló la actualización de datos: ${errorMsg}`, 'Actualización Parcial');
       } else {
@@ -1002,7 +1025,7 @@ const UserManagementPage = () => {
     if (!selectedUser) return;
 
     try {
-      const validIds = new Set(availableModules.map((m: any) => m.id));
+      const validIds = new Set(availableModules.map((m) => m.id));
       const permissionsToSave = selectedPermissions.filter((p) => validIds.has(p));
 
       await usuariosService.asignarPermisos(selectedUser.id, permissionsToSave);
@@ -1018,7 +1041,9 @@ const UserManagementPage = () => {
 
           if (refreshed?.usuario) {
             const existingRaw = localStorage.getItem('user');
-            let existing: any = null;
+            // Lo que se guarda en localStorage bajo 'user': se leen y reescriben sus
+            // campos, asi que se declara como un mapa, no `any`.
+            let existing: Record<string, unknown> | null = null;
             try {
               existing = existingRaw ? JSON.parse(existingRaw) : null;
             } catch {
@@ -1055,16 +1080,14 @@ const UserManagementPage = () => {
         "Los permisos del usuario han sido actualizados",
         "Permisos Actualizados",
       );
-    } catch (error: any) {
-      const msg =
-        error?.response?.data?.message ??
-        error?.message ??
-        error?.toString?.() ??
-        'Error desconocido';
+    } catch (error) {
+      // Se cae el `error?.toString?.()` de la cadena: para un objeto cualquiera
+      // devuelve "[object Object]", que no le dice nada a nadie.
+      const msg = mensajeDeError(error, 'Error desconocido');
 
       console.error("Error actualizando los permisos:", msg, {
-        status: error?.response?.status,
-        data: error?.response?.data,
+        status: estadoDeError(error),
+        data: datosParaRegistro(error).data,
       });
 
       showNotification("error", msg, "Error");
@@ -1315,13 +1338,13 @@ const UserManagementPage = () => {
                   );
                   logger.log(
                     "[SEARCH] Input onChange - inputType:",
-                    (e.nativeEvent as any)?.inputType,
+                    (e.nativeEvent as InputEvent)?.inputType,
                   );
 
                   // Prevenir escritura automática de "superadmin"
                   if (
                     value.toLowerCase() === "superadmin" &&
-                    (e.nativeEvent as any)?.inputType === undefined
+                    (e.nativeEvent as InputEvent)?.inputType === undefined
                   ) {
                     logger.log(
                       '[SEARCH] ⚠️ Escritura automática detectada - bloqueando "superadmin"',
@@ -2000,16 +2023,21 @@ const UserManagementPage = () => {
                     <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-slate-100">
                       <button
                         onClick={() => setIsCreateModalOpen(false)}
-                        className="px-5 py-2.5 text-sm font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-2xl transition-colors"
+                        disabled={isCreatingUser}
+                        className="px-5 py-2.5 text-sm font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-2xl transition-colors disabled:opacity-50"
                       >
                         Cancelar
                       </button>
                       <button
                         onClick={handleCreateUser}
-                        className="px-5 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-2xl shadow-lg shadow-blue-600/20 transition-all transform active:scale-95 flex items-center gap-2"
+                        disabled={isCreatingUser}
+                        className="px-5 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-2xl shadow-lg shadow-blue-600/20 transition-all transform active:scale-95 flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-blue-600 disabled:scale-100"
                       >
-                        <UserPlus className="h-4 w-4" />
-                        <span>Crear Usuario</span>
+                        {isCreatingUser ? (
+                          <><svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg> Creando...</>
+                        ) : (
+                          <><UserPlus className="h-4 w-4" /><span>Crear Usuario</span></>
+                        )}
                       </button>
                     </div>
                   </div>
@@ -2312,13 +2340,14 @@ const UserManagementPage = () => {
                     >
                       Cancelar
                     </button>
-                    <button
+                    <BotonAccion
                       onClick={handleUpdatePermissions}
+                      textoCargando="Guardando…"
+                      icono={<Save className="h-4 w-4" />}
                       className="px-5 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-2xl shadow-lg shadow-blue-600/20 transition-all transform active:scale-95 flex items-center gap-2"
                     >
-                      <Save className="h-4 w-4" />
                       <span>Guardar Cambios</span>
-                    </button>
+                    </BotonAccion>
                   </div>
                 </div>
               </div>
@@ -2359,15 +2388,16 @@ const UserManagementPage = () => {
                       >
                         Cancelar
                       </button>
-                      <button
+                      <BotonAccion
                         onClick={handleConfirmUserAction}
+                        textoCargando="Procesando…"
                         className={cn(
                           "flex-1 px-4 py-2.5 text-sm font-bold text-white rounded-2xl shadow-lg transition-all transform active:scale-95",
                           config.button,
                         )}
                       >
                         {config.confirm}
-                      </button>
+                      </BotonAccion>
                     </div>
                   </div>
                     )
@@ -2647,7 +2677,7 @@ const UserManagementPage = () => {
                                     setFiltroFechaFin(e.target.value)
                                   }
                                 />
-                                <button
+                                <BotonAccion
                                   className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded-md border border-blue-200 hover:bg-blue-100"
                                   onClick={async () => {
                                     if (!selectedUser) return;
@@ -2656,7 +2686,7 @@ const UserManagementPage = () => {
                                   }}
                                 >
                                   Aplicar
-                                </button>
+                                </BotonAccion>
                               </div>
                             </div>
                             <div className="bg-white p-0">

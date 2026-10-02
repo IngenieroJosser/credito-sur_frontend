@@ -1,3 +1,6 @@
+import type { ObligacionDeJornada } from '@/types/obligacion-jornada'
+import type { CuotaOperativa } from '@/lib/types/cobranza'
+
 export type CierrePendienteRuta = {
   pendienteCierre?: boolean
   message?: string
@@ -13,29 +16,16 @@ export type CierrePendienteRuta = {
   requiereRegularizacion?: boolean
 }
 
-export type CuotaObjetivoCierrePendiente = {
-  id: string
-  numeroCuota: number
-  estadoActual: string
-  fechaVencimiento: string
-  fechaVencimientoProrroga?: string | null
-  fechaEfectiva: string
-  montoCuota: number
-  montoPagado: number
-  saldoCuota: number
-  saldoExigibleEnFechaOperativa: number
-  enMoraEnFechaOperativa: boolean
-  puedePagar: boolean
-  puedeReprogramar: boolean
-  esCuotaFuturaEnFechaOperativa?: boolean
-  esCuotaPagadaHistorica?: boolean
-  esCuotaReprogramadaJornada?: boolean
-  nuevaFechaReprogramada?: string | null
-  aprobacionReprogramacionId?: string | null
-  estadoReprogramacion?: string | null
-  motivoBloqueoPago?: string | null
-  motivoBloqueoReprogramacion?: string | null
-}
+/**
+ * La cuota objetivo del cierre pendiente es la MISMA que la de la ruta del dia.
+ *
+ * Estaba escrita aparte con los mismos nombres pero obligatorios, y por eso el modal
+ * del cierre no podia pasar la cuota que recibe sin un `any`. Se comprobo campo por
+ * campo contra lo que arma el backend (routes.service.ts:4198-4217): es el mismo objeto,
+ * asi que ahora es un alias y los siete campos que faltaban se agregaron a
+ * `CuotaOperativa`, que es el tipo autoritativo.
+ */
+export type CuotaObjetivoCierrePendiente = CuotaOperativa
 
 export type ProximaCuotaCierrePendiente = {
   id?: string
@@ -127,7 +117,17 @@ export type ClienteCierrePendiente = {
   cuotaObjetivo?: CuotaObjetivoCierrePendiente | null
 }
 
-export type ObligacionCierrePendiente = ClienteCierrePendiente
+/**
+ * Una obligacion de la jornada pendiente de cierre.
+ *
+ * NO es un `ClienteCierrePendiente`, que es lo que decia antes. Se comprobo contra lo
+ * que el backend arma (routes.service.ts:6903-6931): el elemento de `obligaciones` trae
+ * `cliente` (objeto), `prestamo` y `cuotaObjetivo`, y NO trae `nombreCliente`, `dni`,
+ * `telefono`, `direccion`, `nivelRiesgo` ni `saldoOperativoJornada`, que son los campos
+ * del otro tipo. Es la misma forma que ya describe `ObligacionDeJornada`, asi que se
+ * reusa en vez de escribirla una segunda vez.
+ */
+export type ObligacionCierrePendiente = ObligacionDeJornada
 
 export type CierrePendienteJornada = {
   cierrePendiente?: CierrePendienteRuta
@@ -148,4 +148,37 @@ export type CierrePendienteDetalle = {
   clientes?: ClienteCierrePendiente[]
   obligaciones?: ObligacionCierrePendiente[]
   accionesSugeridas?: string[]
+}
+
+/**
+ * Lo que viaja como "contexto de regularizacion" entre el cierre pendiente y las
+ * pantallas que registran el pago.
+ *
+ * Todos los campos son opcionales porque el estado guarda UNA DE DOS formas, segun por
+ * donde entro el usuario:
+ *
+ *  - El objeto que arma `CierrePendienteDetalleModal` (y el banner) y pasa a
+ *    `onMarcarAusente` / `onReprogramar` / `onRegularizar`: `rutaId`, `fechaOperativa`,
+ *    `activacionId`, `origenGestion`.
+ *  - La salida de `buildRegularizedPaymentTarget`, que esparce la anterior y le suma la
+ *    cuota objetivo y `fechaOperativaRuta`, DERIVADA de `fechaOperativa`.
+ *
+ * Por eso conviven `fechaOperativa` y `fechaOperativaRuta`, y por eso los lectores usan
+ * la cadena `fechaOperativaRuta || fechaOperativa`: acepta las dos formas. Antes esto
+ * era `any` en catorce sitios (tres `useState`, tres `useRef`, siete props y el
+ * builder), con la forma escrita a mano dos veces.
+ */
+export type ContextoRegularizacion = {
+  rutaId?: string
+  clienteId?: string
+  prestamoId?: string
+  cuotaId?: string
+  cuotaObjetivoId?: string
+  cuotaObjetivoPrestamoId?: string
+  cuotaNumeroEsperada?: number
+  montoCuotaEsperado?: number
+  fechaOperativa?: string
+  fechaOperativaRuta?: string
+  activacionId?: string
+  origenGestion?: string
 }

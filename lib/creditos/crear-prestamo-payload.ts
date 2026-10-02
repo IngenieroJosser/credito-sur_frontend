@@ -1,6 +1,7 @@
 import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 import type { CrearPrestamoDto } from '@/services/prestamos-service'
 import { FrecuenciaPago, TipoAmortizacion } from '@/types/enums'
+import { derivarPlazoMeses } from '@/lib/creditos/preview-credito'
 
 export type CrearCreditoModalData = {
   creditType: 'prestamo' | 'articulo'
@@ -39,6 +40,15 @@ export type VentaContadoPayload = {
   creadoPorId: string
   metodoPago: 'EFECTIVO' | 'TRANSFERENCIA'
   notas: string
+  /**
+   * Clave de idempotencia para el modo offline.
+   *
+   * `venta_contado` esta en la lista de tipos idempotentes de la cola, asi que esta
+   * clave es lo que evita que una venta encolada se registre dos veces si el sync
+   * reintenta. El servicio ya la ponia, y la leia con un `as any` porque el tipo no
+   * la declaraba.
+   */
+  idempotencyKey?: string
 }
 
 export function resolveCurrentUserId() {
@@ -66,23 +76,33 @@ export function resolveCurrentUserId() {
   }
 }
 
-function inferPlazoMeses(data: CrearCreditoModalData, frecuenciaPago: string, esArticulo: boolean, esContado: boolean) {
+/**
+ * El plazo en meses que se manda al crear.
+ *
+ * Delega en `derivarPlazoMeses`, la misma funcion que usa la VISTA PREVIA del modal, en
+ * vez de tener su propia copia: la que habia aqui redondeaba con `Math.ceil`, y eso es
+ * justo lo que la nota de `derivarPlazoMeses` advierte que infla el interes (45 cuotas
+ * diarias serian 2 meses en vez de 1,5, un 33% mas). El backend acepta el fraccionario:
+ * lo usa tal cual para el interes simple y solo lo redondea para la columna, que es `Int`
+ * (loans.service.ts:3568-3585).
+ *
+ * Medido: hoy esta rama NO se ejecuta nunca, porque `CrearCreditoModal` -el unico origen
+ * de todos los llamadores- siempre manda `plazoMeses` ya fraccionario
+ * (CrearCreditoModal.tsx:940 y :965) y la primera linea lo devuelve tal cual. Se cambia
+ * para que la copia no pueda despertar: el limite de la medicion es que se leyeron los
+ * llamadores de hoy, no los de manana.
+ */
+function inferPlazoMeses(
+  data: CrearCreditoModalData,
+  frecuenciaPago: string,
+  esArticulo: boolean,
+  esContado: boolean,
+) {
   if (data.plazoMeses && data.plazoMeses > 0) return data.plazoMeses
   if (esArticulo || esContado) return 1
 
   const totalCuotas = data.cuotasTotales || data.cuotas || data.cantidadCuotas || data.numCuotas || 1
-  switch (frecuenciaPago) {
-    case FrecuenciaPago.DIARIO:
-      return Math.max(1, Math.ceil(totalCuotas / 30))
-    case FrecuenciaPago.SEMANAL:
-      return Math.max(1, Math.ceil(totalCuotas / 4))
-    case FrecuenciaPago.QUINCENAL:
-      return Math.max(1, Math.ceil(totalCuotas / 2))
-    case FrecuenciaPago.MENSUAL:
-      return Math.max(1, totalCuotas)
-    default:
-      return 1
-  }
+  return derivarPlazoMeses(totalCuotas, frecuenciaPago) || 1
 }
 
 export function buildCrearPrestamoPayload(

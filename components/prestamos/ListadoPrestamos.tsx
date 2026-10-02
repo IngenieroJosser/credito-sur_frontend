@@ -1,11 +1,11 @@
-'use client';
+'use client'
 
-
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 import Paginador from '@/components/ui/Paginador'
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react'
 import { logger } from '@/lib/logger'
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import type { RespuestaPrestamosMora } from '@/services/reportes-service'
+import { usePathname, useRouter } from 'next/navigation'
 import {
   Search,
   TrendingUp,
@@ -26,51 +26,61 @@ import {
   Trash2,
   RefreshCw,
   Loader2,
-  FileDown
-} from 'lucide-react';
-import { formatCurrency, cn } from '@/lib/utils';
-import { useNotificaciones } from '@/components/providers/NotificacionesProvider';
-import FiltroRuta from '@/components/filtros/FiltroRuta';
-import EditarPrestamoModal from '@/components/prestamos/EditarPrestamoModal';
-import DetallePrestamoModal from '@/components/prestamos/DetallePrestamoModal';
-import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal';
-import { useNotification } from '@/components/providers/NotificationProvider';
-import { loansServiceExt as loansService, type Loan, type LoansFilters } from '@/services/loans-service';
-import { apiRequest, formatErrorForComponent } from '@/lib/api/api';
-import { usePermission } from '@/hooks/usePermission';
-import { ExportButton } from '@/components/ui/ExportButton';
-import { exportService } from '@/services/export-service';
-import { offlineStore } from '@/lib/offline/offlineDb';
-import { prestamosService } from '@/services/prestamos-service';
-import { buildCrearPrestamoPayload } from '@/lib/creditos/crear-prestamo-payload';
-import { WifiOff } from 'lucide-react';
-import ConfirmModal from '@/components/ui/ConfirmModal';
-import { useRealtimeData } from '@/hooks/useRealtimeData';
-import { usePageFocusRefresh } from '@/hooks/usePageFocusRefresh';
+  FileDown,
+} from 'lucide-react'
+import { formatCurrency, cn } from '@/lib/utils'
+import { useNotificaciones } from '@/components/providers/NotificacionesProvider'
+import FiltroRuta from '@/components/filtros/FiltroRuta'
+import EditarPrestamoModal from '@/components/prestamos/EditarPrestamoModal'
+import DetallePrestamoModal from '@/components/prestamos/DetallePrestamoModal'
+import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
+import { useNotification } from '@/components/providers/NotificationProvider'
+import { loansServiceExt as loansService, type LoansFilters } from '@/services/loans-service'
+import { apiRequest, formatErrorForComponent } from '@/lib/api/api'
+import { usePermission } from '@/hooks/usePermission'
+import { ExportButton } from '@/components/ui/ExportButton'
+import { exportService } from '@/services/export-service'
+import { offlineStore } from '@/lib/offline/offlineDb'
+import { mapearPrestamoDescargado } from '@/lib/offline/syncManager'
+import { prestamosService } from '@/services/prestamos-service'
+import { buildCrearPrestamoPayload } from '@/lib/creditos/crear-prestamo-payload'
+import { WifiOff } from 'lucide-react'
+import ConfirmModal from '@/components/ui/ConfirmModal'
+import { useRealtimeData } from '@/hooks/useRealtimeData'
+import { usePageFocusRefresh } from '@/hooks/usePageFocusRefresh'
+import type { EstadoPrestamo } from '@/types/enums'
+import type { PrestamoDelListado } from '@/types/domain'
+import { idDelPrestamoCreado } from '@/lib/creditos/prestamo-creado'
 
 interface Filtros {
-  estado: string;
-  cliente: string;
-  fechaDesde: string;
-  fechaHasta: string;
-  riesgo: string;
-  busqueda: string;
-  ruta: string;
+  estado: string
+  cliente: string
+  fechaDesde: string
+  fechaHasta: string
+  riesgo: string
+  busqueda: string
+  ruta: string
 }
 
 const ListadoPrestamosElegante = () => {
-  const { showNotification } = useNotification();
-  const router = useRouter();
-  const pathname = usePathname();
-  const { can, canForPath } = usePermission();
-  
-  const isCoordinador = pathname?.includes('/coordinador');
-  const isSupervisor = pathname?.includes('/supervisor');
-  const baseRoute = isCoordinador ? '/coordinador/creditos' : isSupervisor ? '/supervisor/creditos' : '/creditos';
-  const permitido = can('CREDITOS_VIEW') || can('LOANS_VIEW') || canForPath(baseRoute);
-  const puedeCrear = can('CREDITOS_CREATE') || can('LOANS_CREATE') || canForPath(baseRoute);
-  
-  const [prestamos, setPrestamos] = useState<Loan[]>([]);
+  const { showNotification } = useNotification()
+  const router = useRouter()
+  const pathname = usePathname()
+  const { can, canForPath } = usePermission()
+
+  const isCoordinador = pathname?.includes('/coordinador')
+  const isSupervisor = pathname?.includes('/supervisor')
+  const baseRoute = isCoordinador
+    ? '/coordinador/creditos'
+    : isSupervisor
+      ? '/supervisor/creditos'
+      : '/creditos'
+  const permitido = can('CREDITOS_VIEW') || can('LOANS_VIEW') || canForPath(baseRoute)
+  const puedeCrear = can('CREDITOS_CREATE') || can('LOANS_CREATE') || canForPath(baseRoute)
+
+  // Son filas del LISTADO, no modelos: `Loan` es un alias de `Prestamo` y esa
+  // no es la forma que devuelve GET /loans.
+  const [prestamos, setPrestamos] = useState<PrestamoDelListado[]>([])
   const [estadisticas, setEstadisticas] = useState({
     total: 0,
     activos: 0,
@@ -82,8 +92,8 @@ const ListadoPrestamosElegante = () => {
     montoPrestado: 0,
     interesTotal: 0,
     montoPendiente: 0,
-    moraTotal: 0
-  });
+    moraTotal: 0,
+  })
   const [filtros, setFiltros] = useState<Filtros>({
     estado: 'todos',
     cliente: 'todos',
@@ -91,42 +101,42 @@ const ListadoPrestamosElegante = () => {
     fechaHasta: '',
     riesgo: 'todos',
     busqueda: '',
-    ruta: 'todas'
-  });
-  const [paginaActual, setPaginaActual] = useState(1);
-  const [prestamosPorPagina] = useState(8);
-  const [cargando, setCargando] = useState(true);
-  const [mounted, setMounted] = useState(false);
-  const [idPrestamoAEditar, setIdPrestamoAEditar] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
-  const [showCrearCreditoModal, setShowCrearCreditoModal] = useState(false);
-  const [totalPrestamos, setTotalPrestamos] = useState(0);
-  const [error, setError] = useState<string | null>(null);
-  const [dataSource, setDataSource] = useState<'online' | 'offline'>('online');
-  const [prestamoAEliminar, setPrestamoAEliminar] = useState<string | null>(null);
-  const [idPrestamoDetalle, setIdPrestamoDetalle] = useState<string | null>(null);
-  const { socket } = useNotificaciones();
-  
+    ruta: 'todas',
+  })
+  const [paginaActual, setPaginaActual] = useState(1)
+  const [prestamosPorPagina] = useState(8)
+  const [cargando, setCargando] = useState(true)
+  const [mounted, setMounted] = useState(false)
+  const [idPrestamoAEditar, setIdPrestamoAEditar] = useState<string | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
+  const [showCrearCreditoModal, setShowCrearCreditoModal] = useState(false)
+  const [totalPrestamos, setTotalPrestamos] = useState(0)
+  const [error, setError] = useState<string | null>(null)
+  const [dataSource, setDataSource] = useState<'online' | 'offline'>('online')
+  const [prestamoAEliminar, setPrestamoAEliminar] = useState<string | null>(null)
+  const [idPrestamoDetalle, setIdPrestamoDetalle] = useState<string | null>(null)
+  const { socket } = useNotificaciones()
+
   // Estado local para búsqueda debounced
-  const [searchValue, setSearchValue] = useState(filtros.busqueda);
+  const [searchValue, setSearchValue] = useState(filtros.busqueda)
 
   // Debounce para la búsqueda
   useEffect(() => {
     const timer = setTimeout(() => {
       if (searchValue !== filtros.busqueda) {
-        setFiltros(prev => ({ ...prev, busqueda: searchValue }));
-        setPaginaActual(1);
+        setFiltros((prev) => ({ ...prev, busqueda: searchValue }))
+        setPaginaActual(1)
       }
-    }, 500); // 500ms de espera
+    }, 500) // 500ms de espera
 
-    return () => clearTimeout(timer);
-  }, [searchValue, filtros.busqueda]);
+    return () => clearTimeout(timer)
+  }, [searchValue, filtros.busqueda])
 
   const loadPrestamos = useCallback(async () => {
     try {
-      if (!refreshing) setCargando(true);
-      setError(null);
-      
+      if (!refreshing) setCargando(true)
+      setError(null)
+
       const wantsClientSideMoraFilter = filtros.estado === 'EN_MORA'
       const wantsClientSideActivoFilter = filtros.estado === 'ACTIVO'
 
@@ -138,40 +148,48 @@ const ListadoPrestamosElegante = () => {
         estado:
           wantsClientSideMoraFilter || wantsClientSideActivoFilter
             ? undefined
-            : (filtros.estado !== 'todos' ? filtros.estado : undefined),
+            : filtros.estado !== 'todos'
+              ? filtros.estado
+              : undefined,
         // Cuando no se filtra por PAGADO explícitamente, pedimos al backend que los excluya.
         excluirEstados: filtros.estado !== 'PAGADO' ? ['PAGADO'] : undefined,
         ruta: filtros.ruta !== 'todas' ? filtros.ruta : undefined,
         search: filtros.busqueda || undefined,
         page: paginaActual,
         limit: prestamosPorPagina,
-      };
+      }
 
-      const response = await loansService.getLoans(filters);
+      const response = await loansService.getLoans(filters)
       const nextPrestamosBase = Array.isArray(response?.prestamos) ? response.prestamos : []
 
       // Si el backend no manda `diasMora/cuotasVencidas` en /loans, cruzamos con el reporte canónico.
       let moraMap = new Map<string, { diasMora: number; cuotasVencidas: number; estado?: string }>()
       let moraReportCount: number | null = null
       try {
-        const params: any = { pagina: 1, limite: 500 }
+        // Espejo de `PrestamosMoraFiltrosDto` (prestamo-mora.dto.ts:99).
+        const params: { pagina: number; limite: number; busqueda?: string; rutaId?: string } = {
+          pagina: 1,
+          limite: 500,
+        }
         if (filtros.busqueda) params.busqueda = filtros.busqueda
         if (filtros.ruta !== 'todas') params.rutaId = filtros.ruta
 
-        const moraResp: any = await apiRequest<any>('GET', '/reports/prestamos-mora', undefined, { params } as any)
-        const raw: any[] = Array.isArray(moraResp)
-          ? moraResp
-          : Array.isArray((moraResp as any)?.prestamos)
-            ? (moraResp as any).prestamos
-            : Array.isArray((moraResp as any)?.data)
-              ? (moraResp as any).data
-              : []
-        moraReportCount = Number((moraResp as any)?.total ?? (moraResp as any)?.totales?.totalRegistros ?? raw.length)
+        // El endpoint devuelve SIEMPRE `{ prestamos, totales, total, pagina, limite }`
+        // (PrestamosMoraResponseDto, responses.dto.ts:9). Aqui habia una cadena de tres
+        // formas -arreglo suelto, `.prestamos`, `.data`- y dos de las tres no existen.
+        const moraResp = await apiRequest<RespuestaPrestamosMora>(
+          'GET',
+          '/reports/prestamos-mora',
+          undefined,
+          { params },
+        )
+        const raw = Array.isArray(moraResp?.prestamos) ? moraResp.prestamos : []
+        moraReportCount = Number(moraResp?.total ?? moraResp?.totales?.totalRegistros ?? raw.length)
 
         moraMap = new Map(
           raw
-            .filter((p: any) => p && p.id)
-            .map((p: any) => [
+            .filter((p) => p && p.id)
+            .map((p) => [
               String(p.id),
               {
                 diasMora: Number(p?.diasMora || 0),
@@ -184,7 +202,7 @@ const ListadoPrestamosElegante = () => {
         moraMap = new Map()
       }
 
-      const nextPrestamos = nextPrestamosBase.map((p: any) => {
+      const nextPrestamos = nextPrestamosBase.map((p: PrestamoDelListado) => {
         const m = moraMap.get(String(p?.id || ''))
         if (!m) return p
         return {
@@ -192,203 +210,249 @@ const ListadoPrestamosElegante = () => {
           diasMora: Number(m.diasMora || 0),
           cuotasVencidas: Number(m.cuotasVencidas || 0),
           // Si el backend de /loans no marca EN_MORA pero el reporte sí, lo reflejamos.
-          estado: String(m?.estado || p?.estado || ''),
+          estado: String(m?.estado || p?.estado || '') as EstadoPrestamo,
         }
       })
 
-      setPrestamos(nextPrestamos);
+      setPrestamos(nextPrestamos)
 
       // Respaldo local si el backend no envía estadísticas de mora.
-      const moraCount = nextPrestamos.filter((p: any) => {
+      const moraCount = nextPrestamos.filter((p: PrestamoDelListado) => {
         const diasMora = Number(p?.diasMora || 0)
         const cuotasVencidas = Number(p?.cuotasVencidas || 0)
         const estado = String(p?.estado || '').toUpperCase()
         return diasMora > 0 || cuotasVencidas > 0 || estado === 'EN_MORA'
       }).length
 
-      const stats = (response.estadisticas || {}) as any
+      const stats = response.estadisticas
       const backendMoraCount = Number(stats.atrasados ?? 0)
       setEstadisticas({
         ...stats,
+        // El tipo los marca opcionales y el estado promete `number`, asi que aqui van
+        // los valores por omision. Medido: el backend los manda siempre, en las dos
+        // ramas de `findAll` (`loans.service.ts:2041-2042` y `2066-2067`), asi que hoy
+        // estos `?? 0` no se usan nunca; estan para que el tipo no mienta.
+        montoPrestado: stats.montoPrestado ?? 0,
+        interesTotal: stats.interesTotal ?? 0,
         atrasados: Math.max(backendMoraCount, Number(moraReportCount ?? 0), moraCount),
-      });
-      setTotalPrestamos(response.paginacion.total);
-      setDataSource('online');
+      })
+      setTotalPrestamos(response.paginacion.total)
+      setDataSource('online')
       // Cache para offline
-      offlineStore.saveMany('prestamos', nextPrestamos).catch(() => {});
-      
+      // HALLAZGO: esto guardaba las filas del listado TAL CUAL, sin pasar por
+      // `mapearPrestamoDescargado`, que es el otro escritor de este almacen. El resultado
+      // eran filas sin `plazoMeses` ni `cantidadCuotas` —campos que `OfflinePrestamo`
+      // declara y otras pantallas leen—, asi que una pantalla offline veia 0 cuotas en los
+      // creditos cacheados por esta pantalla y el numero correcto en los cacheados por el
+      // sync. Lo destapo atar el tipo del `saveMany` al almacen. Ahora los dos escritores
+      // usan el mismo mapeo.
+      offlineStore
+        .saveMany('prestamos', nextPrestamos.map(mapearPrestamoDescargado))
+        .catch(() => {})
     } catch (err) {
       // Fallback offline
       try {
-        const offData = await offlineStore.getAll<Loan>('prestamos');
+        const offData = await offlineStore.getAll<PrestamoDelListado>('prestamos')
         if (offData.length > 0) {
-          setPrestamos(offData);
-          setTotalPrestamos(offData.length);
-          setDataSource('offline');
-          setError(null);
-          return;
+          setPrestamos(offData)
+          setTotalPrestamos(offData.length)
+          setDataSource('offline')
+          setError(null)
+          return
         }
-      } catch { /* ignore */ }
-      setError(formatErrorForComponent(err));
-      setPrestamos([]);
-      setTotalPrestamos(0);
+      } catch {
+        /* ignore */
+      }
+      setError(formatErrorForComponent(err))
+      setPrestamos([])
+      setTotalPrestamos(0)
     } finally {
-      setCargando(false);
-      setRefreshing(false);
+      setCargando(false)
+      setRefreshing(false)
     }
-  }, [filtros, paginaActual, prestamosPorPagina, refreshing]);
+  }, [filtros, paginaActual, prestamosPorPagina, refreshing])
 
   // Initial mount - solo se ejecuta una vez al cargar el componente
   useEffect(() => {
     const timer = setTimeout(() => {
-      setMounted(true);
-      loadPrestamos();
-    }, 500);
+      setMounted(true)
+      loadPrestamos()
+    }, 500)
 
-    return () => clearTimeout(timer);
-  }, []);
+    return () => clearTimeout(timer)
+  }, [])
 
   useEffect(() => {
     if (mounted) {
-      loadPrestamos();
+      loadPrestamos()
     }
-  }, [filtros, paginaActual, loadPrestamos, mounted]);
+  }, [filtros, paginaActual, loadPrestamos, mounted])
 
   const handleRefresh = useCallback(() => {
-    setRefreshing(true);
-    loadPrestamos();
-  }, [loadPrestamos]);
+    setRefreshing(true)
+    loadPrestamos()
+  }, [loadPrestamos])
 
   // Tiempo real: eventos del backend
   useRealtimeData(
-    ['prestamos_actualizados', 'pagos_actualizados', 'clientes_actualizados', 'dashboards_actualizados'],
+    [
+      'prestamos_actualizados',
+      'pagos_actualizados',
+      'clientes_actualizados',
+      'dashboards_actualizados',
+    ],
     handleRefresh,
-  );
+  )
 
   // Refresca silenciosamente al volver al foco o reconectar socket
-  usePageFocusRefresh(handleRefresh);
+  usePageFocusRefresh(handleRefresh)
 
   const handleEliminarPrestamo = async () => {
-    if (!prestamoAEliminar) return;
-    
-    try {
-      const userStr = localStorage.getItem('user');
-      if (!userStr) return;
-      const user = JSON.parse(userStr);
-      
-      await loansService.deleteLoan(prestamoAEliminar, user.id);
-      showNotification('success', 'El préstamo ha sido archivado exitosamente', 'Préstamo Archivado');
-      setPrestamoAEliminar(null);
-      handleRefresh();
-    } catch (error: any) {
-      const msg = error?.response?.data?.message || error?.message || 'No se pudo archivar el préstamo';
-      showNotification('error', Array.isArray(msg) ? msg.join(', ') : msg, 'Error al Archivar');
-    }
-  };
+    if (!prestamoAEliminar) return
 
+    try {
+      const userStr = localStorage.getItem('user')
+      if (!userStr) return
+      const user = JSON.parse(userStr)
+
+      await loansService.deleteLoan(prestamoAEliminar, user.id)
+      showNotification(
+        'success',
+        'El préstamo ha sido archivado exitosamente',
+        'Préstamo Archivado',
+      )
+      setPrestamoAEliminar(null)
+      handleRefresh()
+    } catch (error) {
+      const msg = mensajeDeError(error, 'No se pudo archivar el préstamo')
+      showNotification('error', Array.isArray(msg) ? msg.join(', ') : msg, 'Error al Archivar')
+    }
+  }
 
   const handleExportExcel = async () => {
     try {
-      showNotification('info', 'Generando Excel compatible con importaciones...', 'Exportando');
+      showNotification('info', 'Generando Excel compatible con importaciones...', 'Exportando')
       await exportService.exportLoans('excel', {
         estado: filtros.estado !== 'todos' ? filtros.estado : undefined,
         ruta: filtros.ruta !== 'todas' ? filtros.ruta : undefined,
         search: filtros.busqueda || undefined,
-      });
-      showNotification('success', 'Archivo compatible con importaciones generado', 'Exportación Exitosa');
-    } catch (err) {
-      showNotification('error', 'Error al exportar. Intente de nuevo.', 'Error');
+      })
+      showNotification(
+        'success',
+        'Archivo compatible con importaciones generado',
+        'Exportación Exitosa',
+      )
+    } catch {
+      showNotification('error', 'Error al exportar. Intente de nuevo.', 'Error')
     }
-  };
+  }
 
   const handleExportPDF = async () => {
     try {
-      showNotification('info', 'Generando archivo PDF...', 'Exportando');
+      showNotification('info', 'Generando archivo PDF...', 'Exportando')
       await exportService.exportLoans('pdf', {
         estado: filtros.estado !== 'todos' ? filtros.estado : undefined,
         ruta: filtros.ruta !== 'todas' ? filtros.ruta : undefined,
         search: filtros.busqueda || undefined,
-      });
-      showNotification('success', 'Archivo descargado correctamente', 'Exportación Exitosa');
-    } catch (err) {
-      showNotification('error', 'Error al exportar. Intente de nuevo.', 'Error');
+      })
+      showNotification('success', 'Archivo descargado correctamente', 'Exportación Exitosa')
+    } catch {
+      showNotification('error', 'Error al exportar. Intente de nuevo.', 'Error')
     }
-  };
+  }
 
   const handleExportPaymentsByPrestamo = async (prestamoId: string) => {
     try {
-      showNotification('info', 'Generando Historial de Pagos...', 'Exportando');
-      await exportService.exportPayments('pdf', { prestamoId });
-      showNotification('success', 'Historial guardado exitosamente', 'Exito');
-    } catch(err) {
-      showNotification('error', 'No se pudo exportar el historial de pagos', 'Error');
+      showNotification('info', 'Generando Historial de Pagos...', 'Exportando')
+      await exportService.exportPayments('pdf', { prestamoId })
+      showNotification('success', 'Historial guardado exitosamente', 'Exito')
+    } catch {
+      showNotification('error', 'No se pudo exportar el historial de pagos', 'Error')
     }
-  };
+  }
 
   // Client-side filters for fields not handled by backend
-  const prestamosFiltrados = prestamos.filter(prestamo => {
-    if (filtros.riesgo !== 'todos' && prestamo.riesgo !== filtros.riesgo) return false;
-    if (filtros.cliente !== 'todos' && prestamo.clienteId !== filtros.cliente) return false;
+  const prestamosFiltrados = prestamos.filter((prestamo) => {
+    if (filtros.riesgo !== 'todos' && prestamo.riesgo !== filtros.riesgo) return false
+    if (filtros.cliente !== 'todos' && prestamo.clienteId !== filtros.cliente) return false
 
     // Estado UI: si tiene días de mora, se considera EN_MORA aunque el backend lo marque ACTIVO.
-    const diasMora = Number((prestamo as any)?.diasMora || 0)
-    const cuotasVencidas = Number((prestamo as any)?.cuotasVencidas || 0)
-    const estadoRaw = String((prestamo as any)?.estado || '').toUpperCase()
-    const estadoUI = (diasMora > 0 || cuotasVencidas > 0) ? 'EN_MORA' : estadoRaw
+    const diasMora = Number(prestamo?.diasMora || 0)
+    const cuotasVencidas = Number(prestamo?.cuotasVencidas || 0)
+    const estadoRaw = String(prestamo?.estado || '').toUpperCase()
+    const estadoUI = diasMora > 0 || cuotasVencidas > 0 ? 'EN_MORA' : estadoRaw
 
     if (filtros.estado === 'EN_MORA') return estadoUI === 'EN_MORA'
     if (filtros.estado === 'ACTIVO') return estadoUI === 'ACTIVO'
     // Ocultar créditos PAGADOS de la vista por defecto — solo mostrar si el filtro es explícito.
-    if (filtros.estado !== 'PAGADO' && estadoRaw === 'PAGADO') return false;
-    return true;
-  });
+    if (filtros.estado !== 'PAGADO' && estadoRaw === 'PAGADO') return false
+    return true
+  })
 
   // Backend already paginates — don't slice again
-  const prestamosPaginados = prestamosFiltrados;
-  const totalPaginas = Math.ceil(prestamosFiltrados.length / prestamosPorPagina);
+  const prestamosPaginados = prestamosFiltrados
+  const totalPaginas = Math.ceil(prestamosFiltrados.length / prestamosPorPagina)
 
   const cambiarPagina = (pagina: number) => {
-    setPaginaActual(pagina);
-  };
+    setPaginaActual(pagina)
+  }
 
   const getEstadoColor = (estado: string) => {
-    switch(estado) {
-      case 'ACTIVO': return 'bg-emerald-50 text-emerald-700 border-emerald-100';
-      case 'PENDIENTE_APROBACION': return 'bg-amber-50 text-amber-700 border-amber-100';
-      case 'EN_MORA': return 'bg-rose-50 text-rose-700 border-rose-100';
-      case 'INCUMPLIDO': return 'bg-rose-50 text-rose-700 border-rose-100';
-      case 'PERDIDA': return 'bg-slate-100 text-slate-700 border-slate-200';
-      case 'PAGADO': return 'bg-blue-50 text-blue-700 border-blue-100';
-      default: return 'bg-slate-50 text-slate-600 border-slate-100';
+    switch (estado) {
+      case 'ACTIVO':
+        return 'bg-emerald-50 text-emerald-700 border-emerald-100'
+      case 'PENDIENTE_APROBACION':
+        return 'bg-amber-50 text-amber-700 border-amber-100'
+      case 'EN_MORA':
+        return 'bg-rose-50 text-rose-700 border-rose-100'
+      case 'INCUMPLIDO':
+        return 'bg-rose-50 text-rose-700 border-rose-100'
+      case 'PERDIDA':
+        return 'bg-slate-100 text-slate-700 border-slate-200'
+      case 'PAGADO':
+        return 'bg-blue-50 text-blue-700 border-blue-100'
+      default:
+        return 'bg-slate-50 text-slate-600 border-slate-100'
     }
-  };
+  }
 
   const getEstadoIcono = (estado: string) => {
-    switch(estado) {
-      case 'ACTIVO': return <TrendingUp className="w-3 h-3" />;
-      case 'PENDIENTE_APROBACION': return <Clock className="w-3 h-3" />;
-      case 'EN_MORA': return <Clock className="w-3 h-3" />;
-      case 'INCUMPLIDO': return <AlertCircle className="w-3 h-3" />;
-      case 'PERDIDA': return <Ban className="w-3 h-3" />;
-      case 'PAGADO': return <CheckCircle className="w-3 h-3" />;
-      default: return null;
+    switch (estado) {
+      case 'ACTIVO':
+        return <TrendingUp className="w-3 h-3" />
+      case 'PENDIENTE_APROBACION':
+        return <Clock className="w-3 h-3" />
+      case 'EN_MORA':
+        return <Clock className="w-3 h-3" />
+      case 'INCUMPLIDO':
+        return <AlertCircle className="w-3 h-3" />
+      case 'PERDIDA':
+        return <Ban className="w-3 h-3" />
+      case 'PAGADO':
+        return <CheckCircle className="w-3 h-3" />
+      default:
+        return null
     }
-  };
+  }
 
   const getProductoIcono = (tipo?: string) => {
-    switch(tipo) {
-      case 'electrodomestico': return <Package className="w-4 h-4" />;
-      case 'efectivo': return <DollarSign className="w-4 h-4" />;
-      case 'mueble': return <Package className="w-4 h-4" />;
-      default: return <Zap className="w-4 h-4" />;
+    switch (tipo) {
+      case 'electrodomestico':
+        return <Package className="w-4 h-4" />
+      case 'efectivo':
+        return <DollarSign className="w-4 h-4" />
+      case 'mueble':
+        return <Package className="w-4 h-4" />
+      default:
+        return <Zap className="w-4 h-4" />
     }
-  };
+  }
 
   const irADetallePrestamo = (id: string) => {
-    setIdPrestamoDetalle(id);
-  };
+    setIdPrestamoDetalle(id)
+  }
 
-  if (!mounted) return null;
+  if (!mounted) return null
 
   if (!permitido) {
     return (
@@ -423,7 +487,7 @@ const ListadoPrestamosElegante = () => {
           </button>
         </div>
       </div>
-    );
+    )
   }
 
   return (
@@ -436,129 +500,162 @@ const ListadoPrestamosElegante = () => {
 
       <div className="relative z-10">
         <div className="sticky top-0 z-30 backdrop-blur-xl bg-white/80 border-b border-slate-200 px-6 py-4 md:px-8 supports-[backdrop-filter]:bg-white/60">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="shrink-0 p-2 bg-blue-600 rounded-lg shadow-md shadow-blue-600/20">
-                <CreditCard className="w-6 h-6 text-white" />
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="shrink-0 p-2 bg-blue-600 rounded-lg shadow-md shadow-blue-600/20">
+                  <CreditCard className="w-6 h-6 text-white" />
+                </div>
+                <h1 className="text-3xl font-bold tracking-tight">
+                  <span className="text-blue-600">Listado</span>{' '}
+                  <span className="text-orange-500">Créditos</span>
+                </h1>
               </div>
-              <h1 className="text-3xl font-bold tracking-tight">
-                <span className="text-blue-600">Listado</span> <span className="text-orange-500">Créditos</span>
-              </h1>
+              <p className="text-sm font-medium text-slate-500">
+                Gestión y monitoreo de cartera de créditos.
+              </p>
             </div>
-            <p className="text-sm font-medium text-slate-500">
-              Gestión y monitoreo de cartera de créditos.
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <ExportButton
-              onExportExcel={handleExportExcel}
-              onExportPDF={handleExportPDF}
-              label="Exportar"
-              className="!px-4 !py-2 text-sm"
-            />
-            <button
-              onClick={handleRefresh}
-              disabled={refreshing}
-              className="p-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 transition-colors disabled:opacity-50"
-              title="Actualizar lista"
-            >
-              <RefreshCw className={`h-4 w-4 text-slate-600 ${refreshing ? 'animate-spin' : ''}`} />
-            </button>
-            {puedeCrear && (
+            <div className="flex items-center gap-3">
+              <ExportButton
+                onExportExcel={handleExportExcel}
+                onExportPDF={handleExportPDF}
+                label="Exportar"
+                className="!px-4 !py-2 text-sm"
+              />
               <button
-                onClick={() => setShowCrearCreditoModal(true)}
-                className="inline-flex items-center gap-2 px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-xl hover:border-slate-400 hover:bg-slate-50 transition-all duration-200 shadow-sm font-bold text-sm group"
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="p-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 transition-colors disabled:opacity-50"
+                title="Actualizar lista"
               >
-                <Plus className="w-4 h-4 text-slate-500 group-hover:text-slate-900 transition-colors" />
-                Nuevo Crédito
+                <RefreshCw
+                  className={`h-4 w-4 text-slate-600 ${refreshing ? 'animate-spin' : ''}`}
+                />
               </button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="p-6 md:p-8 space-y-8 max-w-[1600px] mx-auto">
-        {/* Estado de carga durante refresh */}
-        {refreshing && (
-          <div className="fixed top-20 right-4 z-50">
-            <div className="bg-white border border-slate-200 rounded-xl px-4 py-2 shadow-lg flex items-center gap-2">
-              <Loader2 className="h-4 w-4 text-[#08557f] animate-spin" />
-              <span className="text-xs font-bold text-slate-600">Actualizando datos...</span>
+              {puedeCrear && (
+                <button
+                  onClick={() => setShowCrearCreditoModal(true)}
+                  className="inline-flex items-center gap-2 px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-xl hover:border-slate-400 hover:bg-slate-50 transition-all duration-200 shadow-sm font-bold text-sm group"
+                >
+                  <Plus className="w-4 h-4 text-slate-500 group-hover:text-slate-900 transition-colors" />
+                  Nuevo Crédito
+                </button>
+              )}
             </div>
-          </div>
-        )}
-
-        {/* Banner offline */}
-        {dataSource === 'offline' && (
-          <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-xs font-bold text-amber-700">
-            <WifiOff className="h-3.5 w-3.5" />
-            Mostrando datos guardados localmente. Algunos datos pueden no estar actualizados.
-          </div>
-        )}
-
-        {/* Estadísticas */}
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
-          <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Créditos (visibles)</p>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-bold text-slate-900 tracking-tight">{prestamosFiltrados.length}</span>
-              <span className="text-xs font-semibold text-slate-500">de {totalPrestamos} totales</span>
-            </div>
-          </div>
-          
-          <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-            <p className="text-xs font-bold text-rose-600 uppercase tracking-wider mb-2">En Mora</p>
-            <p className="text-2xl font-bold text-slate-900 tracking-tight">{estadisticas.atrasados}</p>
-          </div>
-          
-          <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-            <p className="text-xs font-bold text-[#08557f] uppercase tracking-wider mb-2">Capital Prestado</p>
-            <p className="text-lg font-bold text-slate-900 tracking-tight truncate" title={formatCurrency(estadisticas.montoPrestado || 0)}>
-              {formatCurrency(estadisticas.montoPrestado || 0)}
-            </p>
-          </div>
-
-          <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-            <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-2">Ganancia Esperada</p>
-            <p className="text-lg font-bold text-slate-900 tracking-tight truncate" title={formatCurrency(estadisticas.interesTotal || 0)}>
-              {formatCurrency(estadisticas.interesTotal || 0)}
-            </p>
-          </div>
-
-          <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Total a Cobrar</p>
-            <p className="text-lg font-bold text-slate-900 tracking-tight truncate" title={formatCurrency(estadisticas.montoTotal || 0)}>
-              {formatCurrency(estadisticas.montoTotal || 0)}
-            </p>
-          </div>
-
-          <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-            <p className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-2">Saldo Pendiente</p>
-            <p className="text-lg font-bold text-slate-900 tracking-tight truncate" title={formatCurrency(estadisticas.montoPendiente || 0)}>
-              {formatCurrency(estadisticas.montoPendiente || 0)}
-            </p>
           </div>
         </div>
 
-        {/* Filtros */}
-        <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col md:flex-row gap-4 justify-between items-center">
-          <div className="relative w-full md:w-96">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Buscar por cliente, ID o producto..."
-              className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-900 focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900/20 transition-all placeholder:text-slate-400"
-              defaultValue={searchValue}
-              onChange={(e) => setSearchValue(e.target.value)}
-            />
+        <div className="p-6 md:p-8 space-y-8 max-w-[1600px] mx-auto">
+          {/* Estado de carga durante refresh */}
+          {refreshing && (
+            <div className="fixed top-20 right-4 z-50">
+              <div className="bg-white border border-slate-200 rounded-xl px-4 py-2 shadow-lg flex items-center gap-2">
+                <Loader2 className="h-4 w-4 text-[#08557f] animate-spin" />
+                <span className="text-xs font-bold text-slate-600">Actualizando datos...</span>
+              </div>
+            </div>
+          )}
+
+          {/* Banner offline */}
+          {dataSource === 'offline' && (
+            <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-xs font-bold text-amber-700">
+              <WifiOff className="h-3.5 w-3.5" />
+              Mostrando datos guardados localmente. Algunos datos pueden no estar actualizados.
+            </div>
+          )}
+
+          {/* Estadísticas */}
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+            <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                Créditos (visibles)
+              </p>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-bold text-slate-900 tracking-tight">
+                  {prestamosFiltrados.length}
+                </span>
+                <span className="text-xs font-semibold text-slate-500">
+                  de {totalPrestamos} totales
+                </span>
+              </div>
+            </div>
+
+            <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
+              <p className="text-xs font-bold text-rose-600 uppercase tracking-wider mb-2">
+                En Mora
+              </p>
+              <p className="text-2xl font-bold text-slate-900 tracking-tight">
+                {estadisticas.atrasados}
+              </p>
+            </div>
+
+            <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
+              <p className="text-xs font-bold text-[#08557f] uppercase tracking-wider mb-2">
+                Capital Prestado
+              </p>
+              <p
+                className="text-lg font-bold text-slate-900 tracking-tight truncate"
+                title={formatCurrency(estadisticas.montoPrestado || 0)}
+              >
+                {formatCurrency(estadisticas.montoPrestado || 0)}
+              </p>
+            </div>
+
+            <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
+              <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-2">
+                Ganancia Esperada
+              </p>
+              <p
+                className="text-lg font-bold text-slate-900 tracking-tight truncate"
+                title={formatCurrency(estadisticas.interesTotal || 0)}
+              >
+                {formatCurrency(estadisticas.interesTotal || 0)}
+              </p>
+            </div>
+
+            <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                Total a Cobrar
+              </p>
+              <p
+                className="text-lg font-bold text-slate-900 tracking-tight truncate"
+                title={formatCurrency(estadisticas.montoTotal || 0)}
+              >
+                {formatCurrency(estadisticas.montoTotal || 0)}
+              </p>
+            </div>
+
+            <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
+              <p className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-2">
+                Saldo Pendiente
+              </p>
+              <p
+                className="text-lg font-bold text-slate-900 tracking-tight truncate"
+                title={formatCurrency(estadisticas.montoPendiente || 0)}
+              >
+                {formatCurrency(estadisticas.montoPendiente || 0)}
+              </p>
+            </div>
           </div>
-          
-          <div className="flex gap-3 w-full md:w-auto items-end flex-wrap">
-              <FiltroRuta 
+
+          {/* Filtros */}
+          <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col md:flex-row gap-4 justify-between items-center">
+            <div className="relative w-full md:w-96">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Buscar por cliente, ID o producto..."
+                className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-900 focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900/20 transition-all placeholder:text-slate-400"
+                defaultValue={searchValue}
+                onChange={(e) => setSearchValue(e.target.value)}
+              />
+            </div>
+
+            <div className="flex gap-3 w-full md:w-auto items-end flex-wrap">
+              <FiltroRuta
                 onRutaChange={(r) => {
-                  setFiltros(prev => ({ ...prev, ruta: r || 'todas' }));
-                  setPaginaActual(1);
+                  setFiltros((prev) => ({ ...prev, ruta: r || 'todas' }))
+                  setPaginaActual(1)
                 }}
                 selectedRutaId={filtros.ruta === 'todas' ? null : filtros.ruta}
                 className="w-full md:w-auto"
@@ -569,23 +666,23 @@ const ListadoPrestamosElegante = () => {
 
               <div className="flex items-center gap-1.5 flex-wrap">
                 <Filter className="h-3.5 w-3.5 text-slate-400 shrink-0 mr-1" />
-                
+
                 {[
                   { id: 'todos', label: 'Todos' },
                   { id: 'ACTIVO', label: 'Activos' },
                   { id: 'EN_MORA', label: 'En Mora' },
-                  { id: 'PAGADO', label: 'Pagados' }
+                  { id: 'PAGADO', label: 'Pagados' },
                 ].map((filtro) => (
                   <button
                     key={filtro.id}
                     onClick={() => {
-                      setFiltros(prev => ({ ...prev, estado: filtro.id }));
-                      setPaginaActual(1);
+                      setFiltros((prev) => ({ ...prev, estado: filtro.id }))
+                      setPaginaActual(1)
                     }}
                     disabled={cargando}
                     className={`px-3 py-1.5 text-[11px] font-bold rounded-xl transition-all whitespace-nowrap ${
-                      filtros.estado === filtro.id 
-                        ? 'bg-primary text-white shadow-md shadow-primary/20' 
+                      filtros.estado === filtro.id
+                        ? 'bg-primary text-white shadow-md shadow-primary/20'
                         : 'bg-slate-100/50 text-slate-600 hover:bg-slate-200/70 border border-slate-200'
                     }`}
                   >
@@ -593,72 +690,289 @@ const ListadoPrestamosElegante = () => {
                   </button>
                 ))}
               </div>
+            </div>
           </div>
-        </div>
 
-        {/* Tabla - Desktop */}
-        <div className="hidden md:block bg-white rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="text-xs text-slate-500 uppercase bg-slate-50/50 border-b border-slate-100">
-                <tr>
-                  <th className="px-6 py-4 font-bold tracking-wider text-slate-600">Préstamo / Cliente</th>
-                  <th className="px-6 py-4 font-bold tracking-wider text-slate-600">Producto</th>
-                  <th className="px-6 py-4 font-bold tracking-wider text-slate-600">Estado</th>
-                  <th className="px-6 py-4 font-bold tracking-wider text-slate-600 text-right">Capital Prestado</th>
-                  <th className="px-6 py-4 font-bold tracking-wider text-slate-600 text-right">Saldo Pendiente</th>
-                  <th className="px-6 py-4 font-bold tracking-wider text-slate-600 text-center">Progreso</th>
-                  <th className="px-6 py-4 font-bold tracking-wider text-slate-600 text-right">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {cargando ? (
-                  Array.from({ length: 5 }).map((_, i) => (
-                    <tr key={i} className="animate-pulse">
-                      <td className="px-6 py-4"><div className="h-10 bg-slate-100 rounded-lg w-48"></div></td>
-                      <td className="px-6 py-4"><div className="h-4 bg-slate-100 rounded w-32"></div></td>
-                      <td className="px-6 py-4"><div className="h-6 bg-slate-100 rounded-full w-24"></div></td>
-                      <td className="px-6 py-4"><div className="h-4 bg-slate-100 rounded w-20 ml-auto"></div></td>
-                      <td className="px-6 py-4"><div className="h-4 bg-slate-100 rounded w-20 ml-auto"></div></td>
-                      <td className="px-6 py-4"><div className="h-2 bg-slate-100 rounded-full w-24 mx-auto"></div></td>
-                      <td className="px-6 py-4"><div className="h-8 bg-slate-100 rounded-lg w-8 ml-auto"></div></td>
+          {/* Tabla - Desktop */}
+          <div className="hidden md:block bg-white rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="text-xs text-slate-500 uppercase bg-slate-50/50 border-b border-slate-100">
+                  <tr>
+                    <th className="px-6 py-4 font-bold tracking-wider text-slate-600">
+                      Préstamo / Cliente
+                    </th>
+                    <th className="px-6 py-4 font-bold tracking-wider text-slate-600">Producto</th>
+                    <th className="px-6 py-4 font-bold tracking-wider text-slate-600">Estado</th>
+                    <th className="px-6 py-4 font-bold tracking-wider text-slate-600 text-right">
+                      Capital Prestado
+                    </th>
+                    <th className="px-6 py-4 font-bold tracking-wider text-slate-600 text-right">
+                      Saldo Pendiente
+                    </th>
+                    <th className="px-6 py-4 font-bold tracking-wider text-slate-600 text-center">
+                      Progreso
+                    </th>
+                    <th className="px-6 py-4 font-bold tracking-wider text-slate-600 text-right">
+                      Acciones
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {cargando ? (
+                    Array.from({ length: 5 }).map((_, i) => (
+                      <tr key={i} className="animate-pulse">
+                        <td className="px-6 py-4">
+                          <div className="h-10 bg-slate-100 rounded-lg w-48"></div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="h-4 bg-slate-100 rounded w-32"></div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="h-6 bg-slate-100 rounded-full w-24"></div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="h-4 bg-slate-100 rounded w-20 ml-auto"></div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="h-4 bg-slate-100 rounded w-20 ml-auto"></div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="h-2 bg-slate-100 rounded-full w-24 mx-auto"></div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="h-8 bg-slate-100 rounded-lg w-8 ml-auto"></div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : prestamosPaginados.length > 0 ? (
+                    prestamosPaginados.map((prestamo) => {
+                      const diasMora = Number(prestamo?.diasMora || 0)
+                      const cuotasVencidas = Number(prestamo?.cuotasVencidas || 0)
+                      const estadoUI =
+                        diasMora > 0 || cuotasVencidas > 0 ? 'EN_MORA' : prestamo.estado
+
+                      return (
+                        <tr
+                          key={prestamo.id}
+                          onClick={() => irADetallePrestamo(prestamo.id)}
+                          className="hover:bg-slate-50 transition-colors group cursor-pointer"
+                        >
+                          <td className="px-6 py-4">
+                            <div className="flex flex-col">
+                              <span className="font-bold text-slate-900 group-hover:text-slate-700 transition-colors">
+                                {prestamo.numeroPrestamo}
+                              </span>
+                              <span className="text-xs font-medium text-slate-500">
+                                {prestamo.cliente || prestamo.clienteNombre || ''}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-2 text-slate-600 font-medium">
+                              {getProductoIcono(prestamo.tipoProducto ?? undefined)}
+                              <span>{prestamo.producto || ''}</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span
+                              className={cn(
+                                'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase border',
+                                getEstadoColor(estadoUI),
+                              )}
+                            >
+                              {getEstadoIcono(estadoUI)}
+                              {String(estadoUI || '').replace(/_/g, ' ')}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <div className="font-bold text-slate-900">
+                              {formatCurrency(
+                                Number(prestamo.montoPrestado ?? prestamo.monto) || 0,
+                              )}
+                            </div>
+                            {(Number(prestamo.interesTotal) || 0) > 0 && (
+                              <div className="text-[10px] text-emerald-600 font-bold mt-0.5">
+                                + {formatCurrency(prestamo.interesTotal || 0)} int.
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <span
+                              className={cn(
+                                'font-bold',
+                                (prestamo.montoPendiente ?? 0) > 0
+                                  ? 'text-slate-700'
+                                  : 'text-emerald-600',
+                              )}
+                            >
+                              {formatCurrency(Number(prestamo.montoPendiente) || 0)}
+                            </span>
+                            {(prestamo.moraAcumulada ?? 0) > 0 && (
+                              <div className="text-[10px] text-rose-500 font-bold mt-0.5">
+                                + {formatCurrency(prestamo.moraAcumulada)} mora
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex flex-col gap-1 items-center">
+                              <div className="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                <div
+                                  className="h-full bg-slate-900 rounded-full transition-all duration-500"
+                                  style={{ width: `${prestamo.progreso ?? 0}%` }}
+                                />
+                              </div>
+                              <span className="text-[10px] text-slate-400 font-bold">
+                                {prestamo.cuotasPagadas ?? 0}/{prestamo.cuotasTotales ?? 0} cuotas
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <div
+                              className="flex items-center justify-end gap-1"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <button
+                                onClick={() => irADetallePrestamo(prestamo.id)}
+                                className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                                title="Ver detalle"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </button>
+                              {can('CREDITOS_EDIT') ||
+                              can('LOANS_EDIT') ||
+                              canForPath(baseRoute) ? (
+                                <button
+                                  onClick={() => setIdPrestamoAEditar(prestamo.id)}
+                                  className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
+                                  title="Editar préstamo"
+                                >
+                                  <Edit2 className="h-4 w-4" />
+                                </button>
+                              ) : null}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleExportPaymentsByPrestamo(prestamo.id)
+                                }}
+                                className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
+                                title="Exportar Historial Pagos (PDF)"
+                              >
+                                <FileDown className="h-4 w-4" />
+                              </button>
+                              {(can('CREDITOS_DELETE') ||
+                                can('LOANS_DELETE') ||
+                                canForPath(baseRoute)) &&
+                              prestamo.estado !== 'PENDIENTE_APROBACION' ? (
+                                <button
+                                  onClick={() => setPrestamoAEliminar(prestamo.id)}
+                                  className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                                  title="Marcar como pérdida"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              ) : null}
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan={7} className="py-16 text-center">
+                        <div className="shrink-0 inline-flex p-4 rounded-full bg-slate-50 mb-4">
+                          <Search className="h-8 w-8 text-slate-300" />
+                        </div>
+                        <h3 className="text-lg font-bold text-slate-900">
+                          No se encontraron préstamos
+                        </h3>
+                        <p className="text-slate-500 mt-1 font-medium">
+                          Intenta ajustar los filtros de búsqueda.
+                        </p>
+                      </td>
                     </tr>
-                  ))
-                ) : prestamosPaginados.length > 0 ? (
-                  prestamosPaginados.map((prestamo) => {
-                    const diasMora = Number((prestamo as any)?.diasMora || 0)
-                    const cuotasVencidas = Number((prestamo as any)?.cuotasVencidas || 0)
-                    const estadoUI = (diasMora > 0 || cuotasVencidas > 0) ? 'EN_MORA' : prestamo.estado
+                  )}
+                </tbody>
+              </table>
+            </div>
 
-                    return (
-                    <tr
-                      key={prestamo.id}
-                      onClick={() => irADetallePrestamo(prestamo.id)}
-                      className="hover:bg-slate-50 transition-colors group cursor-pointer"
-                    >
-                      <td className="px-6 py-4">
-                        <div className="flex flex-col">
-                          <span className="font-bold text-slate-900 group-hover:text-slate-700 transition-colors">{prestamo.numeroPrestamo}</span>
-                          <span className="text-xs font-medium text-slate-500">{typeof prestamo.cliente === 'string' ? prestamo.cliente : prestamo.clienteNombre || (prestamo.cliente as any)?.nombres || ''}</span>
+            {/* Paginación */}
+            <div className="p-4 border-t border-slate-100 bg-slate-50/30">
+              <Paginador
+                pagina={paginaActual}
+                totalPaginas={totalPaginas}
+                onCambiar={cambiarPagina}
+                cargando={cargando}
+                resumen={`Mostrando ${Math.min(prestamosPaginados.length, prestamosPorPagina)} de ${totalPrestamos} resultados`}
+                className="mt-0"
+              />
+            </div>
+          </div>
+
+          {/* Vista de Cards - Móvil */}
+          <div className="md:hidden space-y-4">
+            {cargando ? (
+              Array.from({ length: 3 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="bg-white rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 animate-pulse"
+                >
+                  <div className="h-6 bg-slate-100 rounded w-3/4 mb-3"></div>
+                  <div className="h-4 bg-slate-100 rounded w-1/2 mb-2"></div>
+                  <div className="h-4 bg-slate-100 rounded w-2/3"></div>
+                </div>
+              ))
+            ) : prestamosPaginados.length > 0 ? (
+              prestamosPaginados.map((prestamo) => {
+                const diasMora = Number(prestamo?.diasMora || 0)
+                const cuotasVencidas = Number(prestamo?.cuotasVencidas || 0)
+                const estadoUI = diasMora > 0 || cuotasVencidas > 0 ? 'EN_MORA' : prestamo.estado
+
+                return (
+                  <div
+                    key={prestamo.id}
+                    className="bg-white rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all"
+                    onClick={() => irADetallePrestamo(prestamo.id)}
+                  >
+                    {/* Header del Card */}
+                    <div className="flex items-start justify-between mb-3 pb-3 border-b border-slate-100">
+                      <div className="flex-1 min-w-0">
+                        <div className="font-bold text-slate-900 truncate">
+                          {prestamo.numeroPrestamo}
                         </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2 text-slate-600 font-medium">
-                          {getProductoIcono(prestamo.tipoProducto ?? undefined)}
-                          <span>{typeof prestamo.producto === 'string' ? prestamo.producto : (prestamo.producto as any)?.nombre || ''}</span>
+                        <div className="text-xs text-slate-500 font-medium mt-0.5">
+                          {prestamo.cliente || prestamo.clienteNombre || ''}
                         </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={cn(
-                          "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase border",
-                          getEstadoColor(estadoUI)
-                        )}>
-                          {getEstadoIcono(estadoUI)}
-                          {String(estadoUI || '').replace(/_/g, ' ')}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="font-bold text-slate-900">
+                      </div>
+                      <span
+                        className={cn(
+                          'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase border flex-shrink-0 ml-2',
+                          getEstadoColor(estadoUI),
+                        )}
+                      >
+                        {getEstadoIcono(estadoUI)}
+                        {String(estadoUI || '').replace(/_/g, ' ')}
+                      </span>
+                    </div>
+
+                    {/* Producto */}
+                    <div className="mb-3">
+                      <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">
+                        Producto
+                      </div>
+                      <div className="flex items-center gap-2 text-slate-700 font-medium">
+                        {getProductoIcono(prestamo.tipoProducto ?? undefined)}
+                        <span>{prestamo.producto || ''}</span>
+                      </div>
+                    </div>
+
+                    {/* Montos */}
+                    <div className="grid grid-cols-2 gap-3 mb-3 pb-3 border-b border-slate-100">
+                      <div>
+                        <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">
+                          Capital Prestado
+                        </div>
+                        <div className="text-sm font-bold text-slate-900">
                           {formatCurrency(Number(prestamo.montoPrestado ?? prestamo.monto) || 0)}
                         </div>
                         {(Number(prestamo.interesTotal) || 0) > 0 && (
@@ -666,288 +980,149 @@ const ListadoPrestamosElegante = () => {
                             + {formatCurrency(prestamo.interesTotal || 0)} int.
                           </div>
                         )}
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <span className={cn(
-                          "font-bold",
-                          (prestamo.montoPendiente ?? 0) > 0 ? "text-slate-700" : "text-emerald-600"
-                        )}>
+                      </div>
+                      <div>
+                        <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">
+                          Saldo Pendiente
+                        </div>
+                        <div
+                          className={cn(
+                            'text-sm font-bold',
+                            (prestamo.montoPendiente ?? 0) > 0
+                              ? 'text-slate-700'
+                              : 'text-emerald-600',
+                          )}
+                        >
                           {formatCurrency(Number(prestamo.montoPendiente) || 0)}
-                        </span>
+                        </div>
                         {(prestamo.moraAcumulada ?? 0) > 0 && (
                           <div className="text-[10px] text-rose-500 font-bold mt-0.5">
                             + {formatCurrency(prestamo.moraAcumulada)} mora
                           </div>
                         )}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex flex-col gap-1 items-center">
-                          <div className="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                            <div 
-                              className="h-full bg-slate-900 rounded-full transition-all duration-500"
-                              style={{ width: `${prestamo.progreso}%` }}
-                            />
-                          </div>
-                          <span className="text-[10px] text-slate-400 font-bold">
-                            {prestamo.cuotasPagadas}/{prestamo.cuotasTotales} cuotas
-                          </span>
+                      </div>
+                    </div>
+
+                    {/* Progreso */}
+                    <div className="mb-3">
+                      <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-2">
+                        Progreso
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-slate-900 rounded-full transition-all duration-500"
+                            style={{ width: `${prestamo.progreso ?? 0}%` }}
+                          />
                         </div>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <div 
-                          className="flex items-center justify-end gap-1"
-                          onClick={(e) => e.stopPropagation()}
+                        <span className="text-xs text-slate-500 font-bold">
+                          {prestamo.cuotasPagadas ?? 0}/{prestamo.cuotasTotales ?? 0} cuotas (
+                          {prestamo.progreso ?? 0}%)
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Acciones */}
+                    <div
+                      className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        onClick={() => irADetallePrestamo(prestamo.id)}
+                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                        title="Ver detalle"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </button>
+                      {can('CREDITOS_EDIT') || can('LOANS_EDIT') || canForPath(baseRoute) ? (
+                        <button
+                          onClick={() => setIdPrestamoAEditar(prestamo.id)}
+                          className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
+                          title="Editar préstamo"
                         >
-                          <button 
-                            onClick={() => irADetallePrestamo(prestamo.id)}
-                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                            title="Ver detalle"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </button>
-                          {can('CREDITOS_EDIT') || can('LOANS_EDIT') || canForPath(baseRoute) ? (
-                            <button 
-                              onClick={() => setIdPrestamoAEditar(prestamo.id)}
-                              className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
-                              title="Editar préstamo"
-                            >
-                              <Edit2 className="h-4 w-4" />
-                            </button>
-                          ) : null}
-                          <button 
-                            onClick={(e) => { e.stopPropagation(); handleExportPaymentsByPrestamo(prestamo.id); }}
-                            className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
-                            title="Exportar Historial Pagos (PDF)"
-                          >
-                            <FileDown className="h-4 w-4" />
-                          </button>
-                          {(can('CREDITOS_DELETE') || can('LOANS_DELETE') || canForPath(baseRoute)) && prestamo.estado !== 'PENDIENTE_APROBACION' ? (
-                            <button 
-                              onClick={() => setPrestamoAEliminar(prestamo.id)}
-                              className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
-                              title="Marcar como pérdida"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          ) : null}
-                        </div>
-                      </td>
-                    </tr>
-                    )
-                  })
-                ) : (
-                  <tr>
-                    <td colSpan={7} className="py-16 text-center">
-                      <div className="shrink-0 inline-flex p-4 rounded-full bg-slate-50 mb-4">
-                        <Search className="h-8 w-8 text-slate-300" />
-                      </div>
-                      <h3 className="text-lg font-bold text-slate-900">No se encontraron préstamos</h3>
-                      <p className="text-slate-500 mt-1 font-medium">Intenta ajustar los filtros de búsqueda.</p>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Paginación */}
-          <div className="p-4 border-t border-slate-100 bg-slate-50/30">
-            <Paginador
-              pagina={paginaActual}
-              totalPaginas={totalPaginas}
-              onCambiar={cambiarPagina}
-              cargando={cargando}
-              resumen={`Mostrando ${Math.min(prestamosPaginados.length, prestamosPorPagina)} de ${totalPrestamos} resultados`}
-              className="mt-0"
-            />
-          </div>
-        </div>
-
-        {/* Vista de Cards - Móvil */}
-        <div className="md:hidden space-y-4">
-          {cargando ? (
-            Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="bg-white rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 animate-pulse">
-                <div className="h-6 bg-slate-100 rounded w-3/4 mb-3"></div>
-                <div className="h-4 bg-slate-100 rounded w-1/2 mb-2"></div>
-                <div className="h-4 bg-slate-100 rounded w-2/3"></div>
+                          <Edit2 className="h-4 w-4" />
+                        </button>
+                      ) : null}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleExportPaymentsByPrestamo(prestamo.id)
+                        }}
+                        className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
+                        title="Exportar Historial Pagos (PDF)"
+                      >
+                        <FileDown className="h-4 w-4" />
+                      </button>
+                      {(can('CREDITOS_DELETE') || can('LOANS_DELETE') || canForPath(baseRoute)) &&
+                      prestamo.estado !== 'PENDIENTE_APROBACION' ? (
+                        <button
+                          onClick={() => setPrestamoAEliminar(prestamo.id)}
+                          className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                          title="Marcar como pérdida"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                )
+              })
+            ) : (
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8">
+                <div className="flex flex-col items-center gap-3 text-center">
+                  <div className="shrink-0 inline-flex p-4 rounded-full bg-slate-50">
+                    <Search className="h-8 w-8 text-slate-300" />
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-900">No se encontraron préstamos</h3>
+                  <p className="text-slate-500 font-medium">
+                    Intenta ajustar los filtros de búsqueda.
+                  </p>
+                </div>
               </div>
-            ))
-          ) : prestamosPaginados.length > 0 ? (
-            prestamosPaginados.map((prestamo) => {
-              const diasMora = Number((prestamo as any)?.diasMora || 0)
-              const cuotasVencidas = Number((prestamo as any)?.cuotasVencidas || 0)
-              const estadoUI = (diasMora > 0 || cuotasVencidas > 0) ? 'EN_MORA' : prestamo.estado
+            )}
 
-              return (
-              <div
-                key={prestamo.id}
-                className="bg-white rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all"
-                onClick={() => irADetallePrestamo(prestamo.id)}
-              >
-                {/* Header del Card */}
-                <div className="flex items-start justify-between mb-3 pb-3 border-b border-slate-100">
-                  <div className="flex-1 min-w-0">
-                    <div className="font-bold text-slate-900 truncate">{prestamo.numeroPrestamo}</div>
-                    <div className="text-xs text-slate-500 font-medium mt-0.5">{typeof prestamo.cliente === 'string' ? prestamo.cliente : prestamo.clienteNombre || (prestamo.cliente as any)?.nombres || ''}</div>
-                  </div>
-                  <span className={cn(
-                    "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase border flex-shrink-0 ml-2",
-                    getEstadoColor(estadoUI)
-                  )}>
-                    {getEstadoIcono(estadoUI)}
-                    {String(estadoUI || '').replace(/_/g, ' ')}
-                  </span>
-                </div>
-
-                {/* Producto */}
-                <div className="mb-3">
-                  <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Producto</div>
-                  <div className="flex items-center gap-2 text-slate-700 font-medium">
-                    {getProductoIcono(prestamo.tipoProducto ?? undefined)}
-                    <span>{typeof prestamo.producto === 'string' ? prestamo.producto : (prestamo.producto as any)?.nombre || ''}</span>
-                  </div>
-                </div>
-
-                {/* Montos */}
-                <div className="grid grid-cols-2 gap-3 mb-3 pb-3 border-b border-slate-100">
-                  <div>
-                    <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Capital Prestado</div>
-                    <div className="text-sm font-bold text-slate-900">
-                      {formatCurrency(Number(prestamo.montoPrestado ?? prestamo.monto) || 0)}
-                    </div>
-                    {(Number(prestamo.interesTotal) || 0) > 0 && (
-                      <div className="text-[10px] text-emerald-600 font-bold mt-0.5">
-                        + {formatCurrency(prestamo.interesTotal || 0)} int.
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Saldo Pendiente</div>
-                    <div className={cn(
-                      "text-sm font-bold",
-                      (prestamo.montoPendiente ?? 0) > 0 ? "text-slate-700" : "text-emerald-600"
-                    )}>
-                      {formatCurrency(Number(prestamo.montoPendiente) || 0)}
-                    </div>
-                    {(prestamo.moraAcumulada ?? 0) > 0 && (
-                      <div className="text-[10px] text-rose-500 font-bold mt-0.5">
-                        + {formatCurrency(prestamo.moraAcumulada)} mora
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Progreso */}
-                <div className="mb-3">
-                  <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-2">Progreso</div>
-                  <div className="flex flex-col gap-1">
-                    <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-slate-900 rounded-full transition-all duration-500"
-                        style={{ width: `${prestamo.progreso}%` }}
-                      />
-                    </div>
-                    <span className="text-xs text-slate-500 font-bold">
-                      {prestamo.cuotasPagadas}/{prestamo.cuotasTotales} cuotas ({prestamo.progreso}%)
-                    </span>
-                  </div>
-                </div>
-
-                {/* Acciones */}
-                <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100" onClick={(e) => e.stopPropagation()}>
-                  <button 
-                    onClick={() => irADetallePrestamo(prestamo.id)}
-                    className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                    title="Ver detalle"
+            {/* Paginación Móvil */}
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4">
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-3 text-xs text-slate-500 font-medium">
+                <span className="text-center">
+                  Mostrando {Math.min(prestamosPaginados.length, prestamosPorPagina)} de{' '}
+                  {totalPrestamos} resultados
+                </span>
+                <div className="flex gap-2 w-full sm:w-auto">
+                  <button
+                    onClick={() => cambiarPagina(paginaActual - 1)}
+                    disabled={paginaActual === 1 || cargando}
+                    className="flex-1 sm:flex-none px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-bold flex items-center justify-center gap-1 transition-colors text-slate-700"
                   >
-                    <Eye className="h-4 w-4" />
+                    <ChevronLeft className="h-3 w-3" /> Anterior
                   </button>
-                  {can('CREDITOS_EDIT') || can('LOANS_EDIT') || canForPath(baseRoute) ? (
-                    <button 
-                      onClick={() => setIdPrestamoAEditar(prestamo.id)}
-                      className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
-                      title="Editar préstamo"
-                    >
-                      <Edit2 className="h-4 w-4" />
-                    </button>
-                  ) : null}
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); handleExportPaymentsByPrestamo(prestamo.id); }}
-                    className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
-                    title="Exportar Historial Pagos (PDF)"
+                  <button
+                    onClick={() => cambiarPagina(paginaActual + 1)}
+                    disabled={paginaActual === totalPaginas || totalPaginas === 0 || cargando}
+                    className="flex-1 sm:flex-none px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-bold flex items-center justify-center gap-1 transition-colors text-slate-700"
                   >
-                    <FileDown className="h-4 w-4" />
+                    Siguiente <ChevronRightIcon className="h-3 w-3" />
                   </button>
-                  {(can('CREDITOS_DELETE') || can('LOANS_DELETE') || canForPath(baseRoute)) && prestamo.estado !== 'PENDIENTE_APROBACION' ? (
-                    <button 
-                      onClick={() => setPrestamoAEliminar(prestamo.id)}
-                      className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
-                      title="Marcar como pérdida"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  ) : null}
                 </div>
-              </div>
-              )
-            })
-          ) : (
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8">
-              <div className="flex flex-col items-center gap-3 text-center">
-                <div className="shrink-0 inline-flex p-4 rounded-full bg-slate-50">
-                  <Search className="h-8 w-8 text-slate-300" />
-                </div>
-                <h3 className="text-lg font-bold text-slate-900">No se encontraron préstamos</h3>
-                <p className="text-slate-500 font-medium">Intenta ajustar los filtros de búsqueda.</p>
-              </div>
-            </div>
-          )}
-
-          {/* Paginación Móvil */}
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4">
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-3 text-xs text-slate-500 font-medium">
-              <span className="text-center">
-                Mostrando {Math.min(prestamosPaginados.length, prestamosPorPagina)} de {totalPrestamos} resultados
-              </span>
-              <div className="flex gap-2 w-full sm:w-auto">
-                <button 
-                  onClick={() => cambiarPagina(paginaActual - 1)}
-                  disabled={paginaActual === 1 || cargando}
-                  className="flex-1 sm:flex-none px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-bold flex items-center justify-center gap-1 transition-colors text-slate-700"
-                >
-                  <ChevronLeft className="h-3 w-3" /> Anterior
-                </button>
-                <button 
-                  onClick={() => cambiarPagina(paginaActual + 1)}
-                  disabled={paginaActual === totalPaginas || totalPaginas === 0 || cargando}
-                  className="flex-1 sm:flex-none px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-bold flex items-center justify-center gap-1 transition-colors text-slate-700"
-                >
-                  Siguiente <ChevronRightIcon className="h-3 w-3" />
-                </button>
               </div>
             </div>
           </div>
         </div>
       </div>
-      </div>
-      
+
       {idPrestamoAEditar && (
-        <EditarPrestamoModal 
+        <EditarPrestamoModal
           id={idPrestamoAEditar}
           onClose={() => setIdPrestamoAEditar(null)}
           onSuccess={() => {
-            setIdPrestamoAEditar(null);
-            handleRefresh();
+            setIdPrestamoAEditar(null)
+            handleRefresh()
           }}
         />
       )}
 
       {idPrestamoDetalle && (
-        <DetallePrestamoModal
-          id={idPrestamoDetalle}
-          onClose={() => setIdPrestamoDetalle(null)}
-        />
+        <DetallePrestamoModal id={idPrestamoDetalle} onClose={() => setIdPrestamoDetalle(null)} />
       )}
 
       {/* Modal de Crear Crédito */}
@@ -956,46 +1131,57 @@ const ListadoPrestamosElegante = () => {
         onClose={() => setShowCrearCreditoModal(false)}
         onConfirm={async (data) => {
           try {
-            const isArticulo = String(data.creditType || '').toLowerCase() === 'articulo';
-            const esContado = isArticulo && !!data.ventaContado;
+            const isArticulo = String(data.creditType || '').toLowerCase() === 'articulo'
+            const esContado = isArticulo && !!data.ventaContado
             const backendData = buildCrearPrestamoPayload(data)
 
-            const response = await prestamosService.crearPrestamo(backendData);
-            logger.log('[CREDITO_CREADO] Respuesta del backend:', response);
-            
-            showNotification('success', 'El crédito ha sido creado exitosamente', 'Crédito Creado');
-            setShowCrearCreditoModal(false);
-            
+            const response = await prestamosService.crearPrestamo(backendData)
+            logger.log('[CREDITO_CREADO] Respuesta del backend:', response)
+
+            showNotification('success', 'El crédito ha sido creado exitosamente', 'Crédito Creado')
+            setShowCrearCreditoModal(false)
+
             // Intentar descargar automáticamente el PDF del contrato si es artículo a cuotas
             if (isArticulo && !esContado) {
               try {
-                // response puede venir estructurado de varias formas, intentamos extraer el ID
-                const loanId = response?.data?.id || response?.id || (response?.prestamo && response?.prestamo?.id) || response?.data?.prestamo?.id;
-                logger.log('ID rescatado para contrato:', loanId);
-                
+                // Un solo lugar saca el id (ver lib/creditos/prestamo-creado).
+                const loanId = idDelPrestamoCreado(response)
+                logger.log('ID rescatado para contrato:', loanId)
+
                 if (loanId) {
-                  const exportService = (await import('../../services/export-service')).exportService;
-                  await exportService.exportContrato(loanId);
+                  const exportService = (await import('../../services/export-service'))
+                    .exportService
+                  await exportService.exportContrato(loanId)
                 } else {
-                  console.warn('No se pudo determinar el ID del préstamo creado para la descarga del PDF.');
+                  console.warn(
+                    'No se pudo determinar el ID del préstamo creado para la descarga del PDF.',
+                  )
                 }
               } catch (err) {
-                console.error('Error al intentar descargar el contrato automáticamente', err);
-                showNotification('warning', 'Crédito creado. Error al descargar PDF automáticamente.', 'Aviso de PDF');
+                console.error('Error al intentar descargar el contrato automáticamente', err)
+                showNotification(
+                  'warning',
+                  'Crédito creado. Error al descargar PDF automáticamente.',
+                  'Aviso de PDF',
+                )
               }
             }
 
             // Esperar un momento para que la BD se actualice antes de refrescar
-            await new Promise(resolve => setTimeout(resolve, 300));
-            
+            await new Promise((resolve) => setTimeout(resolve, 300))
+
             if (paginaActual === 1) {
-              handleRefresh();
+              handleRefresh()
             } else {
-              setPaginaActual(1);
+              setPaginaActual(1)
             }
-          } catch (error: any) {
-            const msg = error?.response?.data?.message || error?.message || 'No se pudo crear el crédito';
-            showNotification('error', Array.isArray(msg) ? msg.join(', ') : msg, 'Error al Crear Crédito');
+          } catch (error) {
+            const msg = mensajeDeError(error, 'No se pudo crear el crédito')
+            showNotification(
+              'error',
+              Array.isArray(msg) ? msg.join(', ') : msg,
+              'Error al Crear Crédito',
+            )
           }
         }}
       />
@@ -1012,7 +1198,7 @@ const ListadoPrestamosElegante = () => {
         variant="warning"
       />
     </div>
-  );
-};
+  )
+}
 
-export default ListadoPrestamosElegante;
+export default ListadoPrestamosElegante

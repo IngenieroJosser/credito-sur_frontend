@@ -9,12 +9,10 @@ import {
   Users,
   CreditCard,
   Search,
-  RefreshCw,
   Eye,
   X,
   Calendar,
   DollarSign,
-  AlertCircle,
   CheckCircle2,
   Clock,
   Phone,
@@ -24,14 +22,13 @@ import {
   ArrowUpRight,
   Banknote,
   Filter,
-  Download,
-  Wifi,
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { getBogotaDateKey, getBogotaRangeByPeriod, normalizeDateKey } from '@/lib/rutas-core'
 import { prestamosService } from '@/services/prestamos-service'
 import { pagosService } from '@/services/pagos-service'
 import { usuariosService, type Usuario } from '@/services/usuarios-service'
+import { Skeleton } from '@/components/ui/Skeleton'
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -116,6 +113,74 @@ const isSameOrPartialName = (a: string, b: string) => {
 
 // ─── Componente Principal ─────────────────────────────────────────────────────
 
+/**
+ * El credito de punto de venta tal como lo devuelve `/loans`, con lo que esta pantalla lee.
+ *
+ * Los campos salen de un `grep` de los accesos del archivo, no de adivinar. Iban en `any`,
+ * asi que la cascada `credito.vendedor || credito.creadoPorNombre` y el filtro por
+ * `tipoPrestamo`/`tipo` no se comprobaban en ningun sitio.
+ */
+type CreditoDePuntoDeVenta = {
+  // `id` obligatorio: es la clave del credito y el endpoint siempre lo manda.
+  id: string
+  // `clienteId` obligatorio por el mismo motivo que `id`: es la relacion del credito.
+  clienteId: string
+  /**
+   * El nombre del cliente, como TEXTO.
+   *
+   * Medido en el backend: `/loans` lo arma con
+   * `cliente: \`${cliente.nombres} ${cliente.apellidos}\`` (loans.service.ts:410 y :3906).
+   * Se declaro `string | objeto` por si acaso y el compilador lo rechazo al asignarlo a
+   * `VentaPdv.cliente`, que es texto: la union de mas tambien es un tipo que miente, y en
+   * esta pantalla habria significado pintar "[object Object]" como nombre del cliente.
+   */
+  cliente?: string | null
+  clienteDni?: string | null
+  clienteTelefono?: string | null
+  tipo?: string | null
+  tipoPrestamo?: string | null
+  tipoProducto?: string | null
+  /**
+   * El nombre del articulo, como TEXTO, igual que `cliente`.
+   *
+   * Aunque la consulta de Prisma incluya el producto entero, el listado lo APLANA antes
+   * de mandarlo: `producto: prestamo.producto?.nombre || 'Prestamo en efectivo'`
+   * (loans.service.ts:1923). Es la segunda vez en este archivo que la union "por si
+   * acaso" era el tipo equivocado y no el codigo.
+   */
+  producto?: string | null
+  estado?: string | null
+  montoTotal?: number | string | null
+  montoPendiente?: number | string | null
+  cuotaInicial?: number | string | null
+  valorCuota?: number | string | null
+  tasaInteres?: number | string | null
+  cuotasPagadas?: number | null
+  cuotasTotales?: number | null
+  frecuenciaPago?: string | null
+  fechaInicio?: string | null
+  creadoEn?: string | null
+  observaciones?: string | null
+  // El vendedor llega con cuatro nombres distintos segun el endpoint: de ahi la cascada.
+  creadoPorId?: string | null
+  creadoPorNombre?: string | null
+  creadoPorRol?: string | null
+  vendedor?: string | null
+  vendedorRol?: string | null
+}
+
+/** El pago de un credito de punto de venta, con lo que esta pantalla lee de el. */
+type PagoDePuntoDeVenta = {
+  id?: string
+  numeroPago?: string | number | null
+  prestamoId?: string | null
+  creditoId?: string | null
+  montoTotal?: number | string | null
+  metodoPago?: string | null
+  fechaPago?: string | null
+  creadoEn?: string | null
+}
+
 export default function SeguimientoPuntoVenta() {
   const [ventas, setVentas] = useState<VentaPdv[]>([])
   const [usuariosPdv, setUsuariosPdv] = useState<Usuario[]>([])
@@ -133,7 +198,7 @@ export default function SeguimientoPuntoVenta() {
 
   // Detalle
   const [ventaDetalle, setVentaDetalle] = useState<VentaPdv | null>(null)
-  const [historialPagos, setHistorialPagos] = useState<any[]>([])
+  const [historialPagos, setHistorialPagos] = useState<PagoDePuntoDeVenta[]>([])
   const [loadingDetalle, setLoadingDetalle] = useState(false)
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
 
@@ -144,7 +209,7 @@ export default function SeguimientoPuntoVenta() {
       const hoyStr = getBogotaDateKey(new Date())
 
       const [resp, usuariosResp] = await Promise.all([
-        prestamosService.obtenerPrestamos({ tipo: 'ARTICULO', limit: 200 } as any),
+        prestamosService.obtenerPrestamos({ tipo: 'ARTICULO', limit: 200 }),
         usuariosService.obtenerTodos().catch(() => []),
       ])
 
@@ -154,7 +219,7 @@ export default function SeguimientoPuntoVenta() {
       )
       setUsuariosPdv(usuariosPuntoVenta)
 
-      const resolveVendedorPdv = (credito: any) => {
+      const resolveVendedorPdv = (credito: CreditoDePuntoDeVenta) => {
         const vendedorId = String(credito.creadoPorId || '')
         const vendedorNombre = String(credito.vendedor || credito.creadoPorNombre || '').trim()
         const vendedorRol = String(credito.creadoPorRol || credito.vendedorRol || '').toUpperCase()
@@ -180,7 +245,8 @@ export default function SeguimientoPuntoVenta() {
       }
 
       // 1. Cargar todos los créditos de artículos (tipo ARTICULO)
-      const todosArticulos = (resp?.prestamos || []).filter((c: any) => {
+      const todosArticulos = (resp?.prestamos || []).filter(
+        (c: CreditoDePuntoDeVenta) => {
         const tipo = String(c.tipoPrestamo || c.tipo || '').toUpperCase()
         const tipoProducto = String(c.tipoProducto || '').toLowerCase()
         return tipo === 'ARTICULO' || (tipoProducto && tipoProducto !== 'efectivo')
@@ -188,7 +254,7 @@ export default function SeguimientoPuntoVenta() {
 
       // 2. Enriquecer con pagos del día
       const enriched: VentaPdv[] = await Promise.all(
-        todosArticulos.map(async (c: any) => {
+        todosArticulos.map(async (c: CreditoDePuntoDeVenta) => {
           let pagadoHoy = 0
           let fechaUltimoPago: string | undefined
 
@@ -197,23 +263,25 @@ export default function SeguimientoPuntoVenta() {
               clienteId: c.clienteId, 
               prestamoId: c.id, 
               limit: 50 
-            } as any)
+            })
             
             // Filtrar pagos para asegurarnos que solo corresponden al préstamo actual (estricto)
-            const pagos = (pagosResp?.pagos || []).filter((p: any) => {
+            const pagos = (pagosResp?.pagos || []).filter(
+              (p: PagoDePuntoDeVenta) => {
               const pagoPrestamoId = String(p.prestamoId || p.creditoId || '').trim()
               return pagoPrestamoId === String(c.id)
             })
 
-            pagadoHoy = pagos.reduce((sum: number, p: any) => {
-              const raw = p.fechaPago || p.creadoEn
+            pagadoHoy = pagos.reduce((sum: number, p: PagoDePuntoDeVenta) => {
+              // El `|| ''` lo pidio el tipo: las dos fechas son opcionales.
+              const raw = p.fechaPago || p.creadoEn || ''
               const fechaPagoKey = getBogotaDateKey(raw)
               return fechaPagoKey === hoyStr ? sum + Number(p.montoTotal || 0) : sum
             }, 0)
 
             let maxDate = 0
-            pagos.forEach((p: any) => {
-              const raw = p.fechaPago || p.creadoEn
+            pagos.forEach((p: PagoDePuntoDeVenta) => {
+              const raw = p.fechaPago || p.creadoEn || ''
               const time = new Date(raw).getTime()
               if (!Number.isNaN(time) && time > maxDate) {
                 maxDate = time
@@ -228,8 +296,10 @@ export default function SeguimientoPuntoVenta() {
             id: c.id,
             cliente: c.cliente || 'Sin nombre',
             clienteId: c.clienteId,
-            clienteDni: c.clienteDni,
-            clienteTelefono: c.clienteTelefono,
+            // Los `?? undefined`: las dos columnas son nulables en la base y `VentaPdv` las
+            // declara `string | undefined`. Con `any` las dos cosas eran iguales.
+            clienteDni: c.clienteDni ?? undefined,
+            clienteTelefono: c.clienteTelefono ?? undefined,
             articulo: c.producto || c.tipoProducto || 'Artículo',
             montoTotal: Number(c.montoTotal || 0),
             cuotaInicial: Number(c.cuotaInicial || 0),
@@ -247,7 +317,7 @@ export default function SeguimientoPuntoVenta() {
             vendedorId: vendedorPdv.vendedorId,
             vendedorRol: vendedorPdv.vendedorRol,
             esVentaPdv: vendedorPdv.esVentaPdv,
-            observaciones: c.observaciones,
+            observaciones: c.observaciones ?? undefined,
             pagadoHoy,
           }
         })
@@ -304,15 +374,19 @@ export default function SeguimientoPuntoVenta() {
         clienteId: venta.clienteId, 
         prestamoId: venta.id, 
         limit: 100 
-      } as any)
+      })
       
       // Filtrar pagos para asegurarnos que solo corresponden al préstamo actual (estricto)
-      const pagosVenta = (resp?.pagos || []).filter((p: any) => {
+      const pagosVenta = (resp?.pagos || []).filter((p: PagoDePuntoDeVenta) => {
         const pagoPrestamoId = String(p.prestamoId || p.creditoId || '').trim()
         return pagoPrestamoId === String(venta.id)
       })
       
-      pagosVenta.sort((a: any, b: any) => new Date(b.fechaPago || b.creadoEn).getTime() - new Date(a.fechaPago || a.creadoEn).getTime())
+      pagosVenta.sort(
+        (a: PagoDePuntoDeVenta, b: PagoDePuntoDeVenta) =>
+          new Date(b.fechaPago || b.creadoEn || '').getTime() -
+          new Date(a.fechaPago || a.creadoEn || '').getTime(),
+      )
       setHistorialPagos(pagosVenta.slice(0, 20))
     } catch {
       setHistorialPagos([])
@@ -597,9 +671,11 @@ export default function SeguimientoPuntoVenta() {
           </div>
 
           {loading ? (
-            <div className="p-12 flex flex-col items-center justify-center text-slate-400">
-              <div className="w-10 h-10 border-4 border-slate-200 border-t-orange-500 rounded-full animate-spin mb-4" />
-              <p className="text-sm font-medium">Cargando datos del punto de venta…</p>
+            <div className="space-y-2" aria-busy="true">
+              <span className="sr-only">Cargando…</span>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-12 rounded-xl" />
+              ))}
             </div>
           ) : ventasFiltradas.length === 0 ? (
             <div className="p-16 flex flex-col items-center justify-center text-slate-400">
@@ -937,9 +1013,11 @@ export default function SeguimientoPuntoVenta() {
               <section>
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Historial de Pagos</p>
                 {loadingDetalle ? (
-                  <div className="text-center py-6 text-slate-400">
-                    <div className="w-6 h-6 border-2 border-slate-200 border-t-orange-500 rounded-full animate-spin mx-auto mb-2" />
-                    <p className="text-xs font-medium">Cargando historial…</p>
+                  <div className="space-y-2" aria-busy="true">
+                    <span className="sr-only">Cargando…</span>
+                    {Array.from({ length: 3 }).map((_, i) => (
+                      <Skeleton key={i} className="h-10 rounded-xl" />
+                    ))}
                   </div>
                 ) : historialPagos.length === 0 ? (
                   <div className="text-center py-6 text-slate-400">
@@ -948,7 +1026,7 @@ export default function SeguimientoPuntoVenta() {
                   </div>
                 ) : (
                   <div className="divide-y divide-slate-50 border border-slate-100 rounded-2xl overflow-hidden">
-                    {historialPagos.map((p: any) => (
+                    {historialPagos.map((p) => (
                       <div key={p.id} className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors">
                         <div className="flex items-center gap-3">
                           <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${p.metodoPago === 'TRANSFERENCIA' ? 'bg-blue-50 border border-blue-100' : 'bg-emerald-50 border border-emerald-100'}`}>
@@ -957,7 +1035,7 @@ export default function SeguimientoPuntoVenta() {
                           <div>
                             <p className="text-sm font-bold text-slate-900">{formatCurrency(Number(p.montoTotal || 0))}</p>
                             <p className="text-[10px] text-slate-400 font-medium">
-                              {fmtDate(p.fechaPago || p.creadoEn)} · {p.metodoPago === 'TRANSFERENCIA' ? 'Transferencia' : 'Efectivo'}
+                              {fmtDate(p.fechaPago || p.creadoEn || undefined)} · {p.metodoPago === 'TRANSFERENCIA' ? 'Transferencia' : 'Efectivo'}
                             </p>
                           </div>
                         </div>

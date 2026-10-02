@@ -1,5 +1,6 @@
 'use client'
 
+import { estadoDeError, mensajeDeError } from '@/lib/mensaje-de-error'
 import { Archive, Search, Filter, RefreshCw, RotateCcw, Trash2, Eye, MapPin } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
@@ -9,13 +10,14 @@ import { auditoriaService } from '@/services/auditoria-service'
 import { archivadosService } from '@/services/archivados-service'
 import { clientesService } from '@/services/clientes-service'
 import { prestamosService } from '@/services/prestamos-service'
-import { usuariosService } from '@/services/usuarios-service'
 import { inventarioService } from '@/services/inventario-service'
 import { toast } from 'sonner'
 import ClientePortalModal from '@/components/cliente/ClientePortalModal'
 import DetallePrestamoModal from '@/components/prestamos/DetallePrestamoModal'
 import DetalleProductoModal from '@/components/articulos/DetalleProductoModal'
 import Paginador from '@/components/ui/Paginador'
+import { SkeletonTabla } from '@/components/ui/Skeleton'
+import BotonAccion from '@/components/ui/BotonAccion'
 
 interface ArchivedItem {
   id: string
@@ -47,6 +49,17 @@ export default function ArchivadosPage() {
   // Permite que el boton 'Actualizar' vuelva a cargar los datos.
   const [refreshKey, setRefreshKey] = useState(0)
 
+  /**
+   * Vuelve a pedir la lista.
+   *
+   * Antes esto se hacia guardando `fetchItems` en `window.refreshArchivados` y
+   * leyendolo de vuelta con `as any` en cuatro sitios. Medido: ese nombre no se lee
+   * en ningun otro archivo del proyecto, o sea que el componente se estaba hablando
+   * a si mismo a traves del objeto global. `refreshKey` ya existia para esto y el
+   * boton de recargar (mas abajo) ya lo usaba; ahora lo usan todos.
+   */
+  const recargar = useCallback(() => setRefreshKey((k) => k + 1), [])
+
   useEffect(() => {
     setMounted(true)
     const fetchItems = async () => {
@@ -55,7 +68,7 @@ export default function ArchivadosPage() {
         const ocultos = await auditoriaService.obtenerOcultosArchivados().catch(() => [])
         const ocultosKey = new Set(
           (Array.isArray(ocultos) ? ocultos : []).map(
-            (o: any) => `${String(o.entidad || '').toLowerCase()}::${String(o.entidadId || '')}`,
+            (o) => `${String(o.entidad || '').toLowerCase()}::${String(o.entidadId || '')}`,
           ),
         )
 
@@ -92,16 +105,12 @@ export default function ArchivadosPage() {
       }
     }
     
-    // Función disponible globalmente para recargar
-    (window as any).refreshArchivados = fetchItems;
-    
-    // Carga inicial
     fetchItems();
   }, [refreshKey])
 
   // Tiempo real: cuando se archive/elimine/restaure algo vía otro módulo, actualizar lista
   useRealtimeData(['prestamos_actualizados', 'clientes_actualizados', 'inventario_actualizado', 'usuarios_actualizados', 'dashboards_actualizados'], () => {
-    if ((window as any).refreshArchivados) (window as any).refreshArchivados()
+    recargar()
   })
 
   const handleRestore = async () => {
@@ -136,13 +145,10 @@ export default function ArchivadosPage() {
       toast.success(`${selectedItem.tipo.charAt(0).toUpperCase() + selectedItem.tipo.slice(1)} restaurado correctamente`, { id: toastId })
       setItems((prev) => prev.filter((item) => !(item.tipo === selectedItem.tipo && item.entidadId === selectedItem.entidadId)))
       
-      // Recargar lista
-      if ((window as any).refreshArchivados) {
-        (window as any).refreshArchivados()
-      }
-    } catch (error: any) {
+      recargar()
+    } catch (error) {
       console.error('Error al restaurar:', error)
-      toast.error(error.message || 'Error al restaurar el elemento', { id: toastId })
+      toast.error(mensajeDeError(error, 'Error al restaurar el elemento'), { id: toastId })
     }
   }
 
@@ -158,16 +164,14 @@ export default function ArchivadosPage() {
       await auditoriaService.ocultarArchivado(tipo, entidadId)
 
       toast.success('Elemento quitado de archivados', { id: toastId })
-      if ((window as any).refreshArchivados) {
-        (window as any).refreshArchivados()
-      }
-    } catch (error: any) {
-      const statusCode = error?.statusCode
-      const rawMessage =
-        error?.message ||
-        error?.error?.message ||
-        error?.error ||
-        ''
+      recargar()
+    } catch (error) {
+      const statusCode = estadoDeError(error)
+      // El ultimo termino de la cadena que habia aqui era `error?.error` crudo, o
+      // sea un objeto en un sitio donde se espera texto. `mensajeDeError` recorre
+      // los mismos candidatos y devuelve '' si ninguno es legible, que es el mismo
+      // respaldo que tenia.
+      const rawMessage = mensajeDeError(error, '')
 
       let extra = ''
       try {
@@ -322,7 +326,19 @@ export default function ArchivadosPage() {
 
         {/* Content */}
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
-          {filteredItems.length > 0 ? (
+          {loading ? (
+
+            // Antes, mientras cargaba, se veia el mensaje de 'No hay elementos
+
+            // archivados', que decia justo lo contrario de lo que pasaba.
+
+            <div className="p-4">
+
+              <SkeletonTabla filas={5} columnas={6} />
+
+            </div>
+
+          ) : filteredItems.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-left">
                 <thead className="text-xs text-slate-500 uppercase bg-slate-50/50 border-b border-slate-200">
@@ -476,12 +492,13 @@ export default function ArchivadosPage() {
                 >
                   Cancelar
                 </button>
-                <button
+                <BotonAccion
                   onClick={handleRestore}
+                  textoCargando="Restaurando…"
                   className="flex-1 px-4 py-2.5 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-lg shadow-emerald-600/20 transition-all transform active:scale-95"
                 >
                   Restaurar
-                </button>
+                </BotonAccion>
               </div>
             </div>
           </div>
@@ -509,12 +526,13 @@ export default function ArchivadosPage() {
                 >
                   Cancelar
                 </button>
-                <button
+                <BotonAccion
                   onClick={handleHideArchived}
+                  textoCargando="Quitando…"
                   className="flex-1 px-4 py-2.5 text-sm font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow-lg shadow-rose-600/20 transition-all transform active:scale-95"
                 >
                   Quitar
-                </button>
+                </BotonAccion>
               </div>
             </div>
           </div>

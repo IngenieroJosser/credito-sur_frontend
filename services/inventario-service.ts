@@ -1,7 +1,7 @@
 import { logger } from '@/lib/logger'
 import { apiRequest } from '@/lib/api/api';
 import { syncService } from '@/lib/offline/syncService';
-import { conRespaldoOffline } from '@/lib/offline/conRespaldoOffline';
+import { conRespaldoOffline, esErrorDeRed } from '@/lib/offline/conRespaldoOffline';
 import { offlineStore } from '@/lib/offline/offlineDb';
 
 export interface PrecioProducto {
@@ -62,7 +62,13 @@ export interface EstadisticasInventario {
   totalProductos: number;
   productosActivos: number;
   productosBajoStock: number;
-  valorTotalInventario: number;
+  /**
+   * El backend lo llama `totalValorInventario` (`inventory.service.ts:171` y `202`).
+   * Aqui estaba declarado `valorTotalInventario`, con las palabras al revES, o sea que
+   * el unico nombre que el tipo conocia era el que nunca llega. La pantalla ya leia los
+   * dos en cadena, asi que no se rompia; el que sobraba era el declarado.
+   */
+  totalValorInventario: number;
 }
 
 export const inventarioService = {
@@ -108,24 +114,29 @@ export const inventarioService = {
   /**
    * Crear un nuevo producto
    */
-  async crearProducto(data: CrearProductoDto): Promise<Producto> {
+  /**
+   * Sin conexión devuelve `null`, no el registro de la cola.
+   *
+   * Antes devolvía `enqueueOperation(...)`, o sea un objeto con `endpoint`
+   * y `method` disfrazado de `Producto`. No se fabrica un producto optimista
+   * porque ninguno de los cinco sitios que llaman aquí usa el resultado: todos
+   * hacen `await` y luego recargan la lista. El `| null` es lo que de verdad pasa,
+   * y obliga a contemplarlo a quien algún día sí lo use.
+   */
+  async crearProducto(data: CrearProductoDto): Promise<Producto | null> {
     try {
       return await apiRequest<Producto>('POST', '/inventory', data);
-    } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+    } catch (error) {
+      if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando creacion de producto en cola...');
-        return await syncService.enqueueOperation(
+        await syncService.enqueueOperation(
           'producto_crear',
           '/inventory',
           'POST',
           data,
           'Crear producto: ' + data.nombre
-        ) as any;
+        );
+        return null;
       }
       throw error;
     }
@@ -134,24 +145,24 @@ export const inventarioService = {
   /**
    * Actualizar un producto existente
    */
-  async actualizarProducto(id: string, data: ActualizarProductoDto): Promise<Producto> {
+  /** Sin conexión devuelve `null`; ver la nota de `crearProducto`. */
+  async actualizarProducto(
+    id: string,
+    data: ActualizarProductoDto,
+  ): Promise<Producto | null> {
     try {
       return await apiRequest<Producto>('PATCH', `/inventory/${id}`, data);
-    } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+    } catch (error) {
+      if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando actualizacion de producto en cola...');
-        return await syncService.enqueueOperation(
+        await syncService.enqueueOperation(
           'producto_actualizar',
           `/inventory/${id}`,
           'PATCH',
           data,
           'Actualizar producto ID: ' + id
-        ) as any;
+        );
+        return null;
       }
       throw error;
     }
@@ -163,13 +174,8 @@ export const inventarioService = {
   async eliminarProducto(id: string): Promise<void> {
     try {
       return await apiRequest<void>('DELETE', `/inventory/${id}`);
-    } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+    } catch (error) {
+      if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando eliminacion de producto en cola...');
         await syncService.enqueueOperation(
           'producto_eliminar',

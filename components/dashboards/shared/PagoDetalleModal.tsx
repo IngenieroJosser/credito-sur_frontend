@@ -1,5 +1,6 @@
 'use client'
 
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 /**
  * ============================================================================
  * PagoDetalleModal
@@ -43,7 +44,10 @@ import {
 } from 'lucide-react'
 import { Portal } from '@/components/dashboards/shared/CobradorElements'
 import { formatCurrency, resolveMediaUrl } from '@/lib/utils'
-import { pagosService, Pago } from '@/services/pagos-service'
+import { pagosService, Pago, type ArchivoMultimediaPago } from '@/services/pagos-service'
+import { Skeleton, SkeletonTexto } from '@/components/ui/Skeleton'
+import Tooltip from '@/components/ui/Tooltip'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -69,7 +73,8 @@ export interface PagoDetalleModalProps {
     saldoAnterior?: number
     prestamoQuedaPagado?: boolean
     cuotasAfectadas?: number
-    archivos?: any[]
+    /** Los comprobantes del pago; el mismo tipo que declara `pagos-service`. */
+    archivos?: ArchivoMultimediaPago[]
     fechaOperativaRuta?: string | null
     origenGestion?: string | null
     notaAdministrativa?: string | null
@@ -128,6 +133,12 @@ export default function PagoDetalleModal({
   const [error, setError]             = useState<string | null>(null)
   const [imgExpanded, setImgExpanded] = useState(false)
   const [expandedUrl, setExpandedUrl] = useState('')
+  // Escape para salir y el foco en el primer campo al abrir. El hook lleva
+  // una pila, asi que con modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    abierto: isOpen,
+    onClose: () => handleClose(),
+  })
 
   // ── Cargar detalle completo del pago ──────────────────────────────────────
   useEffect(() => {
@@ -140,7 +151,7 @@ export default function PagoDetalleModal({
     pagosService
       .obtenerPagoPorId(id)
       .then(data => setPago(data))
-      .catch(err  => setError(err?.message || 'No se pudo cargar el pago'))
+      .catch(err  => setError(mensajeDeError(err, 'No se pudo cargar el pago')))
       .finally(()  => setLoading(false))
   }, [isOpen, metadata?.pagoId])
 
@@ -154,7 +165,7 @@ export default function PagoDetalleModal({
   if (!isOpen) return null
 
   // ── Datos combinados: API primero, metadata como fallback ─────────────────
-  const detallesAfectados = (pago?.detalles ?? []).filter((d: any) => {
+  const detallesAfectados = (pago?.detalles ?? []).filter((d) => {
     const capital = Number(d?.montoCapital || 0)
     const interes = Number(d?.montoInteres || 0)
     const mora = Number(d?.montoInteresMora || 0)
@@ -162,19 +173,19 @@ export default function PagoDetalleModal({
     return capital + interes + mora > 0 || monto > 0
   })
 
-  const computedCapital = detallesAfectados.reduce((s: number, d: any) => s + Number(d.montoCapital || 0), 0)
-  const computedInteres = detallesAfectados.reduce((s: number, d: any) => s + Number(d.montoInteres || 0), 0)
-  const computedMora = detallesAfectados.reduce((s: number, d: any) => s + Number(d.montoInteresMora || 0), 0)
+  const computedCapital = detallesAfectados.reduce((s: number, d) => s + Number(d.montoCapital || 0), 0)
+  const computedInteres = detallesAfectados.reduce((s: number, d) => s + Number(d.montoInteres || 0), 0)
+  const computedMora = detallesAfectados.reduce((s: number, d) => s + Number(d.montoInteresMora || 0), 0)
   const computedCuotasAfectadas = detallesAfectados.length
 
-  const computedMontoAplicado = detallesAfectados.reduce((s: number, d: any) => s + Number(d.monto || 0), 0)
+  const computedMontoAplicado = detallesAfectados.reduce((s: number, d) => s + Number(d.monto || 0), 0)
 
   const monto = (() => {
     const apiTotal = Number(pago?.montoTotal ?? 0)
     if (Number.isFinite(apiTotal) && apiTotal > 0) return apiTotal
     const sumDetalles = Number(computedCapital || 0) + Number(computedInteres || 0) + Number(computedMora || 0)
     if (Number.isFinite(sumDetalles) && sumDetalles > 0) return sumDetalles
-    const meta = Number((metadata as any)?.monto ?? 0)
+    const meta = Number((metadata)?.monto ?? 0)
     return Number.isFinite(meta) ? meta : 0
   })()
 
@@ -240,10 +251,16 @@ export default function PagoDetalleModal({
     a => a.tipoContenido === 'COMPROBANTE_TRANSFERENCIA'
   )
 
-  const getCuotaLabel = (det: any, fallbackIndex: number) => {
-    const n = det?.numeroCuota ?? det?.cuotaNumero ?? det?.cuota?.numeroCuota ?? det?.cuota?.numero
+  // El tipo se DERIVA de la lista que se recorre: son los detalles del pago.
+  const getCuotaLabel = (
+    det: (typeof detallesAfectados)[number],
+    fallbackIndex: number,
+  ) => {
+    // Solo `cuota.numeroCuota`: `numeroCuota` y `cuotaNumero` al nivel del detalle no
+    // son columnas de `DetallePago` (schema.prisma:455), y `cuota.numero` tampoco
+    // existe en `Cuota`. De los cuatro eslabones, resolvia uno.
+    const n = det?.cuota?.numeroCuota
     if (typeof n === 'number' && Number.isFinite(n)) return `Cuota ${n}`
-    if (typeof n === 'string' && n.trim()) return `Cuota ${n.trim()}`
     return `Cuota ${fallbackIndex + 1}`
   }
 
@@ -282,12 +299,15 @@ export default function PagoDetalleModal({
                 </div>
               </div>
             </div>
-            <button
-              onClick={handleClose}
-              className="shrink-0 p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400"
-            >
-              <X className="h-5 w-5" />
-            </button>
+            <Tooltip texto="Cerrar">
+              <button
+                onClick={handleClose}
+                className="shrink-0 p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400"
+                aria-label="Cerrar"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </Tooltip>
           </div>
 
           {/* ── Contenido scrollable ─────────────────────────────────────────── */}
@@ -295,9 +315,13 @@ export default function PagoDetalleModal({
 
             {/* Spinner de carga */}
             {loading && (
-              <div className="flex flex-col items-center justify-center py-12 gap-3">
-                <RefreshCw className="h-7 w-7 text-slate-300 animate-spin" />
-                <p className="text-xs text-slate-400 font-medium">Cargando detalle del pago...</p>
+              <div className="space-y-4 py-2" aria-busy="true">
+                <span className="sr-only">Cargando detalle del pago…</span>
+                <div className="grid grid-cols-2 gap-3">
+                  <Skeleton className="h-16 rounded-2xl" />
+                  <Skeleton className="h-16 rounded-2xl" />
+                </div>
+                <SkeletonTexto lineas={3} />
               </div>
             )}
 
@@ -541,10 +565,7 @@ export default function PagoDetalleModal({
 
                 {/* Esperando carga */}
                 {loading && (
-                  <div className="text-center py-8">
-                    <RefreshCw className="h-6 w-6 text-slate-300 animate-spin mx-auto mb-2" />
-                    <p className="text-xs text-slate-400 font-medium">Cargando...</p>
-                  </div>
+                  <SkeletonTexto lineas={3} className="py-4" />
                 )}
 
                 {/* Sin comprobante */}

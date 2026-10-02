@@ -26,27 +26,14 @@ import { createPortal } from 'react-dom'
 import { 
   Shield,
   Bell,
-  CreditCard,
   Banknote,
   Users,
   AlertCircle,
-  User,
-  Settings,
-  Wallet,
   Menu,
   X,
-  LogOut,
-  Mail,
-  Phone,
-  Calendar,
-  MapPin,
-  ChevronDown,
-  Eye,
-  Home
+  ChevronDown
 } from 'lucide-react'
-import { Rol, obtenerModulos, getIconComponent, tieneAcceso } from '@/lib/permissions'
-import NotFoundPage from '../not-found'
-import { notificacionesService, type Notificacion } from '@/services/notificaciones-service'
+import { Rol, obtenerModulos, getIconComponent } from '@/lib/permissions'
 import UserDropdownMenu, { formatRoleName, getRoleColor, getRoleIcon } from '@/components/ui/UserDropdownMenu'
 import { useNotificaciones } from '@/components/providers/NotificacionesProvider';
 import { aprobacionesService } from '@/services/aprobaciones-service';
@@ -54,6 +41,9 @@ import { isTokenExpired } from '@/lib/auth/offlineAuth';
 import { formatRoleLabel } from '@/lib/display-labels';
 import SupervisorFloatingActionsGate from '@/components/dashboards/SupervisorFloatingActionsGate';
 import { cerrarSesion } from '@/services/autenticacion-service';
+import { useAnchoAside } from '@/hooks/useAnchoAside'
+import BotonAccion from '@/components/ui/BotonAccion'
+import type { SidebarModulo } from '@/lib/types/autenticacion-type'
 
 interface NavigationItem {
   name: string;
@@ -64,6 +54,19 @@ interface NavigationItem {
   submodulos?: NavigationItem[];
 }
 
+/**
+ * El usuario que se guarda en localStorage al entrar.
+ *
+ * Es un tipo local de esta pantalla, y le faltaban dos campos que el login SI manda
+ * (`auth.service.ts:158-170`), por eso se leian con `as any`:
+ *
+ *  - `permisos`: las acciones del usuario, ya deduplicadas (`uniquePermisos`).
+ *  - `sidebar`: el menu agrupado por modulo, que es justo lo que `obtenerModulos`
+ *    recibe como segundo argumento.
+ *
+ * `fecha_creacion`, `direccion` y `ciudad` se quedan porque son de esta pantalla; el
+ * login no los manda.
+ */
 interface Usuario {
   id?: string
   nombres: string
@@ -71,6 +74,8 @@ interface Usuario {
   correo: string
   telefono?: string
   rol: Rol
+  permisos?: string[]
+  sidebar?: SidebarModulo[]
   fecha_creacion?: string
   direccion?: string
   ciudad?: string
@@ -122,6 +127,13 @@ export default function AdminLayout({
 }) {
   const hideSidebar = false;
   // Manejo de estado visual (menú lateral, notificaciones, confirmaciones)
+  const {
+    ancho: anchoAside,
+    ajustando: ajustandoAside,
+    iniciarAjuste: iniciarAjusteAside,
+    restablecer: restablecerAside,
+    ajustarConTeclado: ajustarAsideConTeclado,
+  } = useAnchoAside()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isPageLoaded, setIsPageLoaded] = useState(false) // Efecto visual de entrada suave
   
@@ -300,7 +312,7 @@ export default function AdminLayout({
           
           // Generamos el menú lateral: primero intenta sidebar dinámico del backend, luego fallback estático
           if (parsedUser.rol) {
-            const modulos = obtenerModulos(parsedUser.rol, (parsedUser as any).sidebar)
+            const modulos = obtenerModulos(parsedUser.rol, parsedUser.sidebar)
             
             // Transformamos los módulos de permisos a items de navegación visual
             let navItems = modulos.map(modulo => ({
@@ -319,9 +331,9 @@ export default function AdminLayout({
             }))
 
             // Fix: si el usuario tiene permiso de contable pero el menú no lo trae (sidebar dinámico ausente), agregar Movimientos.
-            const permisosUser = Array.isArray((parsedUser as any).permisos) ? (parsedUser as any).permisos : []
+            const permisosUser = Array.isArray(parsedUser.permisos) ? parsedUser.permisos : []
             const hasContablePerm = permisosUser.includes('contable') || permisosUser.includes('CONTABLE_VIEW')
-            const hasMovimientos = navItems.some((n) => n?.href === '/contable' || n?.submodulos?.some((s: any) => s?.href === '/contable'))
+            const hasMovimientos = navItems.some((n) => n?.href === '/contable' || n?.submodulos?.some((s) => s?.href === '/contable'))
             if (hasContablePerm && !hasMovimientos) {
               navItems = [
                 ...navItems,
@@ -432,14 +444,14 @@ export default function AdminLayout({
   useEffect(() => {
     if (!pathname || navigation.length === 0) return
 
-    const seccionActiva = navigation.find((item: any) =>
+    const seccionActiva = navigation.find((item) =>
       item.submodulos?.some(
-        (sub: any) =>
+        (sub) =>
           sub.href && esRutaActiva(sub.href, pathname),
       ),
     )
 
-    const id = (seccionActiva as any)?.id
+    const id = (seccionActiva)?.id
     if (!id) return
 
     setOpenMenus((prev) => (prev[id] ? prev : { ...prev, [id]: true }))
@@ -465,10 +477,13 @@ export default function AdminLayout({
       icon: React.ReactNode
     }> = []
 
-    navigation.forEach((item: any) => {
+    // `id` es opcional en `NavigationItem`, asi que se cae al href: es el identificador
+    // que le queda, y la lista de preferencia de abajo compara por id. Con `item: any`
+    // esto pasaba como `string` y un modulo sin id dejaba un `undefined` de clave.
+    navigation.forEach((item) => {
       if (item.href && item.href !== '#') {
         destinos.push({
-          id: item.id,
+          id: item.id || item.href,
           name: item.name,
           href: item.href,
           icon: item.icon,
@@ -478,7 +493,7 @@ export default function AdminLayout({
       const primero = item.submodulos?.[0]
       if (primero?.href) {
         destinos.push({
-          id: primero.id,
+          id: primero.id || primero.href,
           name: primero.name,
           href: primero.href,
           icon: primero.icon ?? item.icon,
@@ -574,7 +589,12 @@ export default function AdminLayout({
   const mostrarAccesosRapidos = showSidebar && accesosRapidos.length === 3
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-gray-50 to-white relative">
+    <div
+      className="min-h-screen bg-linear-to-br from-gray-50 to-white relative"
+      // El ancho del menu lateral lo decide cada usuario (ver useAnchoAside).
+      // Va como variable CSS para que el aside y el contenido lo compartan.
+      style={{ ['--ancho-aside' as string]: `${anchoAside}px` }}
+    >
 
       {/* Header ultra minimalista */}
       <header 
@@ -754,18 +774,35 @@ export default function AdminLayout({
           // pareja el `top` de `inset-0` puede ganarle al `top-16` según el
           // orden en que Tailwind emita las reglas, y el fondo termina tapando
           // también el encabezado.
-          className="lg:hidden fixed top-16 left-0 right-0 bottom-0 z-10 bg-slate-900/30 backdrop-blur-[1px]"
+          className="lg:hidden fixed top-16 left-0 right-0 bottom-0 z-[65] bg-slate-900/30 backdrop-blur-[1px]"
         />
       )}
 
       {/* Sidebar elegante para desktop */}
       {showSidebar && (
         <aside 
-          className={`fixed left-0 top-16 bottom-0 w-64 bg-white border-r border-gray-100 transition-all duration-300 z-20 ${
+          className={`fixed left-0 top-16 bottom-0 w-64 lg:w-[var(--ancho-aside)] bg-white border-r border-gray-100 duration-300 z-[70] ${
+            ajustandoAside ? '' : 'transition-all'
+          } ${
             isMenuOpen ? 'translate-x-0' : '-translate-x-full'
           } lg:translate-x-0 lg:block ${isPageLoaded ? 'opacity-100' : 'opacity-0'}`}
           style={{ opacity: isPageLoaded ? 1 : 0 }}
         >
+          {/* Borde para ajustar el ancho. Solo en pantallas grandes: en movil el
+              aside es un cajon deslizante y cambiarle el ancho no aporta. */}
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Ajustar ancho del menu"
+            tabIndex={0}
+            onPointerDown={iniciarAjusteAside}
+            onDoubleClick={restablecerAside}
+            onKeyDown={ajustarAsideConTeclado}
+            title="Arrastra para ajustar. Doble clic para restablecer."
+            className={`hidden lg:block absolute inset-y-0 -right-1 w-2 cursor-col-resize focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+              ajustandoAside ? 'bg-blue-500/40' : 'hover:bg-blue-500/20'
+            }`}
+          />
           <nav className="p-6 h-full overflow-y-auto custom-scrollbar">
             <div className="space-y-6">
               {/* Info del usuario en sidebar móvil */}
@@ -916,7 +953,7 @@ export default function AdminLayout({
         onClick={() => {
           if (isMenuOpen) setIsMenuOpen(false)
         }}
-        className={`pt-16 ${showSidebar ? 'lg:pl-64' : ''} transition-all duration-700 ease-out ${(isMenuOpen && showSidebar) ? 'lg:pl-64' : ''} ${mostrarAccesosRapidos ? 'pb-[calc(72px+env(safe-area-inset-bottom,0px))] lg:pb-0' : ''} ${isPageLoaded ? 'opacity-100 transform-none' : 'translate-y-4 opacity-0 scale-[0.99]'}`}
+        className={`pt-16 ${showSidebar ? 'lg:pl-[var(--ancho-aside)]' : ''} transition-all duration-700 ease-out ${(isMenuOpen && showSidebar) ? 'lg:pl-[var(--ancho-aside)]' : ''} ${mostrarAccesosRapidos ? 'pb-[calc(72px+env(safe-area-inset-bottom,0px))] lg:pb-0' : ''} ${isPageLoaded ? 'opacity-100 transform-none' : 'translate-y-4 opacity-0 scale-[0.99]'}`}
         style={{ opacity: isPageLoaded ? 1 : 0 }}
       >
         {children}
@@ -1001,7 +1038,7 @@ export default function AdminLayout({
               </p>
               
               <div className="mt-8 flex flex-col gap-2">
-                <button
+                <BotonAccion
                   type="button"
                   onClick={async () => {
                     await marcarTodasComoLeidas();
@@ -1010,7 +1047,7 @@ export default function AdminLayout({
                   className="w-full rounded-2xl bg-blue-600 py-4 text-sm font-bold text-white hover:bg-blue-700 shadow-xl shadow-blue-600/20 transition-all active:scale-[0.98]"
                 >
                   Sí, marcar todas
-                </button>
+                </BotonAccion>
                 <button
                   type="button"
                   onClick={() => setShowMarkAllConfirm(false)}

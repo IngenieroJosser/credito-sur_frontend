@@ -26,10 +26,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
-import { BarChart3, Calendar, TrendingUp, Users, FilePlus, DollarSign, MapPin, Eye } from 'lucide-react'
-import { formatCurrency, cn } from '@/lib/utils'
+import { BarChart3, TrendingUp, Users, FilePlus, DollarSign, MapPin, Eye } from 'lucide-react'
+import { formatCurrency } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
-import FiltroRuta from '@/components/filtros/FiltroRuta'
 import { TimeFilter, TimeFilterPeriod } from '@/components/ui/TimeFilter'
 import type { RoutePerformance } from '@/services/reportes-coordinador-service'
 import { useReportesCoordinador } from '@/hooks/useReportesCoordinador'
@@ -70,33 +69,28 @@ const ReportesOperativosPage = () => {
    * redirigiendo a cada uno a su sección correcta sin "sacarlos" de su layout.
    */
   const [basePath, setBasePath] = useState('')
-  const [exporting, setExporting] = useState(false)
 
   // Filtro específico para ver el rendimiento de una sola ruta
   const [filterRuta, setFilterRuta] = useState<string | null>(null);
   const [metaByRuta, setMetaByRuta] = useState<Record<string, number>>({})
 
+  // El aviso de progreso lo pone <ExportButton>: espera a que termine la
+  // promesa, ensena "Generando Excel…" y se bloquea mientras dura.
   const handleExportExcel = async () => {
-    setExporting(true)
     try {
       await exportReport({ period, routeId: filterRuta || undefined }, 'excel')
       toast.success('Reporte Excel exportado correctamente')
-    } catch (error) {
+    } catch {
       toast.error('Error al exportar el reporte')
-    } finally {
-      setExporting(false)
     }
   }
 
   const handleExportPDF = async () => {
-    setExporting(true)
     try {
       await exportReport({ period, routeId: filterRuta || undefined }, 'pdf')
       toast.success('Reporte PDF exportado correctamente')
-    } catch (error) {
+    } catch {
       toast.error('Error al exportar el reporte')
-    } finally {
-      setExporting(false)
     }
   }
 
@@ -141,8 +135,8 @@ const ReportesOperativosPage = () => {
 
   useEffect(() => {
     if (!mounted) return
-    const rutas = (reportData as any)?.rendimientoRutas
-    const ids = (Array.isArray(rutas) ? rutas : []).map((r: any) => String(r?.id || '')).filter(Boolean)
+    const rutas = (reportData)?.rendimientoRutas
+    const ids = (Array.isArray(rutas) ? rutas : []).map((r) => String(r?.id || '')).filter(Boolean)
     if (ids.length === 0) {
       setMetaByRuta({})
       return
@@ -197,31 +191,33 @@ const ReportesOperativosPage = () => {
     fechaFin: ''
   };
 
-  const pickMeta = (item: any): number => {
+  const pickMeta = (item: RoutePerformance): number => {
     const id = String(item?.id || '')
-    const fromComputed = id && Object.prototype.hasOwnProperty.call(metaByRuta, id) ? Number((metaByRuta as any)[id] || 0) : null
+    const fromComputed = id && Object.prototype.hasOwnProperty.call(metaByRuta, id) ? Number((metaByRuta)[id] || 0) : null
     if (fromComputed !== null && Number.isFinite(fromComputed)) return Math.max(0, fromComputed)
-    const raw = item?.metaPendiente ?? item?.metaHoy ?? item?.metaDelDia ?? item?.meta
-    const meta = Number(raw || 0)
+    // Solo `meta`: el reporte la manda con ese nombre (reports.service.ts:1058, de
+    // `metaDelDia`). `metaPendiente`, `metaHoy` y `metaDelDia` estaban en la cadena y
+    // no vienen en esta respuesta; con `any` los tres eslabones muertos no se veian.
+    const meta = Number(item?.meta || 0)
     return Number.isFinite(meta) ? meta : 0
   }
 
-  const pickRecaudado = (item: any): number => {
+  const pickRecaudado = (item: RoutePerformance): number => {
     const n = Number(item?.recaudado || 0)
     return Number.isFinite(n) ? n : 0
   }
 
-  const rendimientoFiltrado = (Array.isArray(data.rendimientoRutas) ? data.rendimientoRutas : []).map((item: any) => {
+  const rendimientoFiltrado = (Array.isArray(data.rendimientoRutas) ? data.rendimientoRutas : []).map((item) => {
     const meta = pickMeta(item)
     const recaudado = pickRecaudado(item)
     const eficiencia = meta > 0 ? Math.min(100, Math.max(0, Number(((recaudado / meta) * 100).toFixed(1)))) : 0
     return { ...item, meta, recaudado, eficiencia }
   })
 
-  const totalRecaudo = rendimientoFiltrado.reduce((acc: number, r: any) => acc + Number(r?.recaudado || 0), 0)
-  const totalMeta = rendimientoFiltrado.reduce((acc: number, r: any) => acc + Number(r?.meta || 0), 0)
+  const totalRecaudo = rendimientoFiltrado.reduce((acc: number, r) => acc + Number(r?.recaudado || 0), 0)
+  const totalMeta = rendimientoFiltrado.reduce((acc: number, r) => acc + Number(r?.meta || 0), 0)
   const porcentajeGlobal = (() => {
-    const raw = Number((data as any).porcentajeGlobal)
+    const raw = Number((data).porcentajeGlobal)
     if (Number.isFinite(raw) && raw >= 0) return raw
     return totalMeta > 0 ? Number(((totalRecaudo / totalMeta) * 100).toFixed(1)) : 0
   })()
@@ -414,8 +410,8 @@ const ReportesOperativosPage = () => {
               {rendimientoFiltrado.map((item: RoutePerformance, idx: number) => (
                 <div key={idx} className="space-y-2">
                   {(() => {
-                    const meta = Number((item as any).meta || 0)
-                    const recaudado = Number((item as any).recaudado || 0)
+                    const meta = Number((item).meta || 0)
+                    const recaudado = Number((item).recaudado || 0)
                     const pct = meta > 0 ? Math.min((recaudado / meta) * 100, 100) : 0
                     return (
                       <>
@@ -470,8 +466,8 @@ const ReportesOperativosPage = () => {
                       className="bg-slate-900 h-2 rounded-full transition-all duration-1000 ease-out"
                       style={{
                         width: `${(() => {
-                          const meta = Number((item as any).meta || 0)
-                          const recaudado = Number((item as any).recaudado || 0)
+                          const meta = Number((item).meta || 0)
+                          const recaudado = Number((item).recaudado || 0)
                           return meta > 0 ? Math.min((recaudado / meta) * 100, 100) : 0
                         })()}%`,
                       }}

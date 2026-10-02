@@ -1,4 +1,8 @@
 'use client'
+import { datosParaRegistro, mensajeDeError } from '@/lib/mensaje-de-error'
+import { clienteComoObjeto } from '@/types/obligacion-jornada'
+import { buildCrearPrestamoPayload } from '@/lib/creditos/crear-prestamo-payload'
+import type { CrearCreditoModalData } from '@/lib/creditos/crear-prestamo-payload'
 
 import { logger } from '@/lib/logger'
 
@@ -8,55 +12,26 @@ import { use, useState } from 'react'
 
 import RutaClient from '../../../admin/rutas/[id]/ruta-client'
 
-const isUuid = (value?: string | null) => {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-    String(value || '').trim(),
-  )
-}
 
 import {
-
-  CheckCircle2,
-
   XCircle,
-
   Banknote,
-
   ArrowLeft,
-
   Save,
-
   Search,
-
   FileText as FileTextIcon,
-
   History,
-
-  Loader2,
-
   User,
-
   Fingerprint,
-
   Star,
-
   CalendarDays,
-
   Phone,
-
   MapPin,
-
-  Calendar,
-
   ChevronDown,
-
-  Plus,
-
-  CreditCard
-
+  Plus
 } from 'lucide-react'
 
-import { formatCOPInputValue, formatCurrency, formatMilesCOP } from '@/lib/utils'
+import { formatCOPInputValue, formatCurrency, formatMilesCOP, isUuid } from '@/lib/utils'
 
 import Link from 'next/link'
 
@@ -68,17 +43,13 @@ import { Cliente, clientesService } from '@/services/clientes-service'
 
 import { rutasService } from '@/services/rutas-service'
 
-import { EstadoVisita, VisitaRuta, HistorialDia, mapNivelRiesgo, mapFrecuenciaToPeriodo } from '@/lib/types/cobranza'
+import { EstadoVisita, VisitaRuta, HistorialDia, mapNivelRiesgo } from '@/lib/types/cobranza'
 
 import {
 
     StaticVisitaItem,
 
-    SeleccionClienteModal,
-
-    Portal,
-
-    MODAL_Z_INDEX
+    SeleccionClienteModal
 
 } from '@/components/dashboards/shared/CobradorElements'
 
@@ -88,11 +59,9 @@ import PagoModal from '@/components/cobranza/PagoModal'
 
 import EstadoCuentaModal from '@/components/cobranza/EstadoCuentaModal'
 
-import AnimacionCarga from '@/components/ui/AnimacionCarga'
 
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
 
-import { creditosService } from '@/services/creditos-service'
 
 import { useNotification } from '@/components/providers/NotificationProvider'
 
@@ -103,7 +72,7 @@ import { prestamosService } from '@/services/prestamos-service'
 import { pagosService } from '@/services/pagos-service'
 
 import { computeRutaHoyUiStatsFromVisitas, resolveRutaHoyKpiStats, getBogotaDateKey, isVisitaExigibleHoy, normalizeDateKey, shouldExcludeVisitaFromOperationalMeta,
-  shouldIncludeVisitaInRutaHoyKpis, toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
+  shouldIncludeVisitaInRutaHoyKpis } from '@/lib/rutas-core'
 import { isPagoCierrePendiente, mergeVisitasPreservingLocalRecaudo, sumMontoTotalPagosByBogotaDateKey } from '@/lib/ruta-recaudos'
 import { mapDailyVisitsResponseToVisitas as mapDailyVisitsResponseToVisitasShared, type MapMode } from '@/lib/rutas/map-daily-visits-to-visitas'
 import { ordenarVisitasRutaActual } from '@/lib/rutas/ordenar-visitas-ruta'
@@ -115,6 +84,12 @@ import { obtenerSaldoDisponibleRuta } from '@/services/contabilidad-service'
 
 
 import { useRealtimeData } from '@/hooks/useRealtimeData'
+import { Skeleton, SkeletonTabla } from '@/components/ui/Skeleton'
+import Tooltip from '@/components/ui/Tooltip'
+import { nombreDelCobrador } from '@/lib/rutas/nombre-cobrador'
+import { riesgoBadgeClasses, estadoVisitaClasses, prioridadColor, riesgoOperativoLabel } from '@/lib/display-labels'
+import type { EstadisticasDeRuta, DailyVisitsResponse } from '@/services/rutas-service'
+import { resolveNivelRiesgoUi } from '@/lib/rutas/riesgo-obligacion'
 
 
 
@@ -213,7 +188,9 @@ const LegacyDetalleRutaPage = () => {
 
     nivelRiesgo?: string;
 
-    estadisticas?: any;
+    // `pendienteDelDia` no viene del backend: lo calcula esta pantalla, asi que se suma
+    // aqui y no en `EstadisticasDeRuta`, que describe la respuesta.
+    estadisticas?: EstadisticasDeRuta & { pendienteDelDia?: number };
 
   } | null>(null)
 
@@ -265,7 +242,7 @@ const LegacyDetalleRutaPage = () => {
 
   // Declarada antes de cargarMisCreditos a proposito: la usa mas abajo y
   // tenerla despues dejaba una lectura anterior a la declaracion.
-  const mapDailyVisitsResponseToVisitasCoordinador = useCallback((resp: any, cobradorId: string): VisitaRuta[] => {
+  const mapDailyVisitsResponseToVisitasCoordinador = useCallback((resp: DailyVisitsResponse | null | undefined, cobradorId: string): VisitaRuta[] => {
     const hoyBogotaKey = getBogotaDateKey(new Date())
     return ordenarVisitasRutaActual(mapDailyVisitsResponseToVisitasShared({
       resp,
@@ -290,7 +267,7 @@ const LegacyDetalleRutaPage = () => {
       const resp = await rutasService.obtenerVisitasDelDia(rutaId, getBogotaDateKey(new Date()))
       setMisCreditos(ordenarVisitasRutaActual(mapDailyVisitsResponseToVisitasCoordinador(resp, cobradorId)))
 
-    } catch (e: any) {
+    } catch (e) {
 
       console.error('Error cargando mis clientes (ruta coordinador):', e)
 
@@ -342,87 +319,6 @@ const LegacyDetalleRutaPage = () => {
 
 
 
-  const getEstadoClasses = useCallback((estado: EstadoVisita) => {
-
-    switch (estado) {
-
-      case 'pagado':
-
-        return 'bg-emerald-50 text-emerald-700 border-emerald-500/30'
-
-      case 'pendiente':
-
-        return 'bg-orange-50 text-orange-700 border-orange-500/30'
-
-      case 'ausente':
-
-        return 'bg-amber-50 text-amber-700 border-amber-200'
-
-      case 'en_mora':
-
-        return 'bg-rose-50 text-rose-700 border-rose-500/30'
-
-      default:
-
-        return 'bg-slate-50 text-slate-700 border-slate-300'
-
-    }
-
-  }, [])
-
-
-
-  const getPrioridadColor = useCallback((prioridad: 'alta' | 'media' | 'baja') => {
-
-    switch (prioridad) {
-
-      case 'alta':
-
-        return '#f97316'
-
-      case 'media':
-
-        return '#08557f'
-
-      default:
-
-        return '#94a3b8'
-
-    }
-
-  }, [])
-
-
-
-  const getRiesgoBadgeClasses = (riesgo: string) => {
-
-    switch (riesgo) {
-
-        case 'PELIGRO_MINIMO': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
-
-        case 'LEVE_RETRASO': return 'bg-blue-100 text-blue-800 border-blue-200';
-
-        case 'PRECAUCION': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-
-        case 'RIESGO_MODERADO': return 'bg-amber-100 text-amber-800 border-amber-200';
-
-        case 'ALTO_RIESGO': return 'bg-rose-100 text-rose-800 border-rose-200';
-
-        default: return 'bg-slate-100 text-slate-800 border-slate-200';
-
-    }
-
-  }
-
-
-
-  const getRiesgoLabel = (riesgo: string) => {
-
-      if (!riesgo) return 'Desconocido'
-
-      return riesgo.replace('_', ' ');
-
-  }
 
 
 
@@ -464,29 +360,36 @@ const LegacyDetalleRutaPage = () => {
               console.warn('No se pudo cargar daily-visits de coordinador, usando detalle de ruta:', dailyError)
             }
 
-            const visitas = visitasDaily.length > 0 ? visitasDaily : ruta.asignaciones.map((asig: any, index: number) => {
+            // Se anota `VisitaRuta[]`: las dos ramas construyen lo mismo, y sin el tipo la
+            // union deja fuera los campos que el codigo de abajo lee.
+            const visitas: VisitaRuta[] =
+              visitasDaily.length > 0
+                ? visitasDaily
+                : ruta.asignaciones.map((asig, index: number) => {
 
-               const cliente = asig.cliente || {};
+               const cliente = asig.cliente;
 
-               const prestamos = cliente.prestamos || [];
+               const prestamos = cliente?.prestamos || [];
 
-               const prestamoActivo = prestamos.find((p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA') || prestamos[0] || {};
+               const prestamoActivo =
+                 prestamos.find((p) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA') ??
+                 prestamos[0];
 
 
 
-               const proximaCuota = prestamoActivo.proximaCuota || {};
+               const proximaCuota = prestamoActivo?.proximaCuota;
 
-               const saldoTotal = asig.cliente?.prestamos?.reduce((sum: number, p: any) => sum + Number(p.saldoPendiente || 0), 0) || 0;
+               const saldoTotal = asig.cliente?.prestamos?.reduce((sum: number, p) => sum + Number(p.saldoPendiente || 0), 0) || 0;
 
 
 
                let estado: EstadoVisita = 'pendiente';
 
-               if (proximaCuota.estado === 'VENCIDA') estado = 'en_mora';
+               if (proximaCuota?.estado === 'VENCIDA') estado = 'en_mora';
 
-               else if (proximaCuota.estado === 'PAGADA') estado = 'pagado';
+               else if (proximaCuota?.estado === 'PAGADA') estado = 'pagado';
 
-               else if (!prestamoActivo.id) estado = 'pendiente';
+               else if (!prestamoActivo?.id) estado = 'pendiente';
 
 
 
@@ -494,49 +397,50 @@ const LegacyDetalleRutaPage = () => {
 
                 id: asig.id || `asig-${index}`,
 
-                cliente: `${cliente.nombres || ''} ${cliente.apellidos || ''}`.trim() || 'Cliente Sin Nombre',
+                cliente: `${cliente?.nombres || ''} ${cliente?.apellidos || ''}`.trim() || 'Cliente Sin Nombre',
 
-                direccion: cliente.direccion || 'Sin dirección registrada',
+                direccion: cliente?.direccion || 'Sin dirección registrada',
 
-                telefono: cliente.telefono || '',
+                telefono: cliente?.telefono || '',
 
                 horaSugerida: asig.horaSugerida || '08:00 AM',
 
-                montoCuota: Number(proximaCuota.monto || 0),
+                montoCuota: Number(proximaCuota?.monto || 0),
 
                 saldoTotal: Number(saldoTotal),
 
                 estado: estado,
 
-                proximaVisita: proximaCuota.fechaVencimiento || '9999-12-31T00:00:00.000Z',
+                proximaVisita: proximaCuota?.fechaVencimiento || '9999-12-31T00:00:00.000Z',
 
-                targetVencimiento: proximaCuota.fechaVencimiento || undefined,
+                targetVencimiento: proximaCuota?.fechaVencimiento || undefined,
 
                 ordenVisita: asig.ordenVisita || index + 1,
 
-                prioridad: (asig.prioridad?.toLowerCase()) || (estado === 'en_mora' ? 'alta' : 'media'),
-
-                nivelRiesgo: (() => {
-
-                   const r = cliente.nivelRiesgo || 'VERDE';
-
-                   if (r === 'VERDE') return 'bajo';
-
-                   if (r === 'AMARILLO') return 'precaucion' as any;
-
-                   if (r === 'ROJO') return 'moderado';
-
-                   if (r === 'LISTA_NEGRA') return 'critico';
-
-                   return 'bajo';
-
+                // `toLowerCase()` devuelve `string`, que no encaja en la union de tres
+                // literales de `VisitaRuta.prioridad`. Se comprueba contra los tres en vez de
+                // castear, igual que el resto del proyecto (`unoDeLosPermitidos` en el backend).
+                prioridad: ((): 'alta' | 'media' | 'baja' => {
+                  const cruda = asig.prioridad?.toLowerCase();
+                  if (cruda === 'alta' || cruda === 'media' || cruda === 'baja') {
+                    return cruda;
+                  }
+                  return estado === 'en_mora' ? 'alta' : 'media';
                 })(),
+
+                // Se usa `resolveNivelRiesgoUi`, que ya existia exportada. La copia que habia
+                // aqui mapeaba VERDE a 'bajo', un valor que NO esta en la union de
+                // `VisitaRuta.nivelRiesgo` (minimo | leve | precaucion | moderado | critico).
+                // Consecuencia: `ClienteInfoModal` compara contra 'minimo' para pintar el
+                // distintivo verde y la etiqueta "Minimo", asi que un cliente de riesgo bajo
+                // abierto desde esta pantalla no acertaba ninguna rama.
+                nivelRiesgo: resolveNivelRiesgoUi(cliente?.nivelRiesgo || 'VERDE'),
 
                 cobradorId: ruta.cobradorId,
 
                 periodoRuta: (() => {
 
-                   const f = prestamoActivo.frecuenciaPago || 'DIARIO';
+                   const f = prestamoActivo?.frecuenciaPago || 'DIARIO';
 
                    if (f === 'DIARIO') return 'DIA';
 
@@ -550,9 +454,9 @@ const LegacyDetalleRutaPage = () => {
 
                 })(),
 
-                clienteId: cliente.id,
+                clienteId: cliente?.id || '',
 
-                prestamoId: prestamoActivo.id,
+                prestamoId: prestamoActivo?.id,
 
                 cuotasTotales: prestamoActivo.cantidadCuotas,
 
@@ -568,7 +472,7 @@ const LegacyDetalleRutaPage = () => {
 
             // Enriquecer con cuotas
 
-            const visitasEnriquecidas = await Promise.all(visitas.map(async (v: any) => {
+            const visitasEnriquecidas = await Promise.all(visitas.map(async (v) => {
 
                 if (!v.prestamoId) return v;
 
@@ -584,14 +488,15 @@ const LegacyDetalleRutaPage = () => {
 
                        const montoReal = Number(pendiente.monto || (pendiente.montoCapital + pendiente.montoInteres) || 0);
                        const montoNormal = Number(
-                         (v as any).montoCuotaNormal ??
-                         (pendiente as any).montoNominal ??
-                         (pendiente as any).montoCuota ??
+                         (v).montoCuotaNormal ??
+                         // Ver la nota en `VistaCobrador`: `montoNominal` y `montoCuota`
+                         // no existen en una cuota de `/loans/:id/cuotas`, que devuelve
+                         // las filas crudas de Prisma. Siempre caia en `monto`.
                          pendiente.monto ??
                          v.montoCuota ??
                          0,
                        )
-                       const montoPendiente = Math.max(0, montoReal - Number((pendiente as any).montoPagado || 0))
+                       const montoPendiente = Math.max(0, montoReal - Number((pendiente).montoPagado || 0))
 
                        return {
 
@@ -599,7 +504,7 @@ const LegacyDetalleRutaPage = () => {
 
                          montoCuota: montoNormal,
                          montoCuotaNormal: montoNormal,
-                         montoCuotaPendiente: montoPendiente > 0 ? montoPendiente : (v as any).montoCuotaPendiente,
+                         montoCuotaPendiente: montoPendiente > 0 ? montoPendiente : (v).montoCuotaPendiente,
 
                          proximaVisita: (pendiente.estado === 'PRORROGADA' && pendiente.fechaVencimientoProrroga)
 
@@ -617,9 +522,9 @@ const LegacyDetalleRutaPage = () => {
 
                          fechaOriginalVencimiento: pendiente.fechaVencimiento || undefined,
 
-                         cuotaId: pendiente?.id || (v as any)?.cuotaId,
-                         cuotaObjetivoId: pendiente?.id || (v as any)?.cuotaObjetivoId,
-                         cuotaObjetivoPrestamoId: pendiente?.id || (v as any)?.cuotaObjetivoPrestamoId,
+                         cuotaId: pendiente?.id || (v)?.cuotaId,
+                         cuotaObjetivoId: pendiente?.id || (v)?.cuotaObjetivoId,
+                         cuotaObjetivoPrestamoId: pendiente?.id || (v)?.cuotaObjetivoPrestamoId,
                          proximaCuota: pendiente,
                          cuotaObjetivo: pendiente,
 
@@ -630,12 +535,16 @@ const LegacyDetalleRutaPage = () => {
 
 
                    const p = await prestamosService.obtenerPrestamoPorId(v.prestamoId);
-                   const pAny = p as any;
+                   const pAny = p;
 
-                   const proxima = (pAny.proximaCuota ?? {}) as any;
-                   const cuotaIdFromP = String(proxima?.id || pAny?.cuotaObjetivo?.id || pAny?.cuotaId || (v as any)?.cuotaId || '').trim();
+                   // Sin `?? {}`: ese objeto vacio aplastaba el tipo a `{}` y obligaba a
+                   // castear cada lectura. Con el nullable y `?.` se comprueba de verdad.
+                   const proxima = pAny.proximaCuota;
+                   const cuotaIdFromP = String(proxima?.id || pAny?.cuotaObjetivo?.id || pAny?.cuotaId || (v)?.cuotaId || '').trim();
 
-                   const montoP = Number(proxima.montoCuota || proxima.montoNominal || proxima.monto || p.montoCuota || p.valorCuota || 0);
+                   // `montoCuota` y `montoNominal` no existen en una `Cuota` (el modelo
+                   // solo tiene `monto`); vivian en la cuota enriquecida de las rutas.
+                   const montoP = Number(proxima?.monto || p.montoCuota || p.valorCuota || 0);
 
 
                    return {
@@ -644,7 +553,7 @@ const LegacyDetalleRutaPage = () => {
 
                      montoCuota: montoP > 0 ? montoP : v.montoCuota,
 
-                     proximaVisita: proxima.fechaVencimiento || v.proximaVisita,
+                     proximaVisita: proxima?.fechaVencimiento || v.proximaVisita,
 
                      cuotaId: cuotaIdFromP,
                      cuotaObjetivoId: cuotaIdFromP,
@@ -672,7 +581,7 @@ const LegacyDetalleRutaPage = () => {
 
 
 
-            const withRecaudo = await Promise.all(visitasEnriquecidas.map(async (v: any) => {
+            const withRecaudo = await Promise.all(visitasEnriquecidas.map(async (v) => {
 
               if (!v.clienteId) return { ...v, recaudadoDelDia: 0, recaudadoTotalClient: 0 };
 
@@ -692,7 +601,7 @@ const LegacyDetalleRutaPage = () => {
 
 
 
-                const totalHistorico = pagosCalc.reduce((sum: number, p: any) => {
+                const totalHistorico = pagosCalc.reduce((sum: number, p) => {
 
                   return sum + Number(p.montoTotal || 0);
 
@@ -712,13 +621,15 @@ const LegacyDetalleRutaPage = () => {
 
 
 
-            const ajustarEstadoConPago = (v: any): EstadoVisita => {
+            // El tipo se DERIVA del valor que recibe (`withRecaudo`, justo arriba), para que
+            // no haya una segunda declaracion que se separe de la primera.
+            const ajustarEstadoConPago = (v: (typeof withRecaudo)[number]): EstadoVisita => {
 
               if (Number(v.saldoTotal || 0) <= 0) return 'pagado';
 
               const saldoHoy = Number(v.recaudadoDelDia || 0);
 
-              const cuota = Number((v as any).montoCuotaPendiente ?? v.montoCuota ?? 0);
+              const cuota = Number((v).montoCuotaPendiente ?? v.montoCuota ?? 0);
 
               if (saldoHoy >= (cuota - 1) && saldoHoy > 0) return 'pagado';
 
@@ -735,24 +646,28 @@ const LegacyDetalleRutaPage = () => {
             const finalesBackend = ordenarVisitasRutaActual(
               withRecaudo.map(v => ({ ...v, estado: ajustarEstadoConPago(v) })),
             );
-            const finales = mergeVisitasPreservingLocalRecaudo(visitasCobradorRef.current as any, finalesBackend as any) as any[];
+            const finales = mergeVisitasPreservingLocalRecaudo(visitasCobradorRef.current, finalesBackend);
 
 
 
-            const cobranzaDia = finales.reduce((acc: number, curr: any) => acc + (curr.recaudadoDelDia || 0), 0)
+            const cobranzaDia = finales.reduce((acc: number, curr) => acc + (curr.recaudadoDelDia || 0), 0)
             const hoyBogota = getBogotaDateKey(new Date());
             const finalesKpiHoy = finales
               .filter(v => shouldIncludeVisitaInRutaHoyKpis(v, hoyBogota))
               .filter(v => !shouldExcludeVisitaFromOperationalMeta(v));
-            const statsHoy = computeRutaHoyUiStatsFromVisitas(finalesKpiHoy as any[], 0);
-            const rExtra = ruta as any;
+            const statsHoy = computeRutaHoyUiStatsFromVisitas(finalesKpiHoy, 0);
+            const rExtra = ruta;
+            // `ruta` sale de `obtenerRutaPorId`, o sea del DETALLE, que ANIDA las cifras
+            // bajo `estadisticas` y no pone nada en la raiz. Las lecturas de raiz valian
+            // siempre `undefined` y entraban al `Math.max` como 0; queda el 0 escrito,
+            // que es lo unico que aportaban. Tercera pantalla con esta misma confusion.
             const recaudoBackendHoy = Math.max(
-              Number(rExtra?.cobranzaDelDia || 0),
               Number(rExtra?.estadisticas?.cobranzaDelDia || 0),
+              0,
             )
             const metaBackendHoy = Math.max(
-              Number(rExtra?.metaDelDia || 0),
               Number(rExtra?.estadisticas?.metaDelDia || 0),
+              0,
             )
             const statsRutaHoy = resolveRutaHoyKpiStats(
               { ...statsHoy, recaudo: Math.max(Number(statsHoy.recaudo || 0), cobranzaDia) },
@@ -779,7 +694,12 @@ const LegacyDetalleRutaPage = () => {
 
               codigo: rExtra.codigo,
 
-              cobrador: rExtra.cobrador?.nombres ? `${rExtra.cobrador.nombres} ${rExtra.cobrador.apellidos || ''}` : rExtra.cobrador || 'Desconocido',
+              // `cobrador` en una RUTA es un nombre ya armado, no un objeto: los dos
+              // endpoints pisan la relacion de Prisma. La rama que leia `.nombres` nunca
+              // acertaba; aqui la salvaba el respaldo `|| rExtra.cobrador`, pero en otras
+              // pantallas no lo habia y el cobrador salia en blanco. `nombreDelCobrador`
+              // acepta las dos formas.
+              cobrador: nombreDelCobrador(rExtra.cobrador, 'Desconocido'),
 
               cobradorId: ruta.cobradorId,
 
@@ -808,7 +728,7 @@ const LegacyDetalleRutaPage = () => {
             });
 
             setVisitasCobrador(ordenarVisitasRutaActual(finalesFiltradas));
-            setClientes(finalesFiltradas.map((v: any) => ({
+            setClientes(finalesFiltradas.map((v) => ({
 
                 id: v.id,
 
@@ -958,7 +878,7 @@ const LegacyDetalleRutaPage = () => {
 
       const pagosResp = await pagosService.obtenerPagos({ limit: 1000 });
 
-      const pagosData = (pagosResp as any)?.pagos || pagosResp || [];
+      const pagosData = (pagosResp)?.pagos || pagosResp || [];
 
 
 
@@ -968,7 +888,7 @@ const LegacyDetalleRutaPage = () => {
 
 
 
-      const pagosDelDia = (Array.isArray(pagosData) ? pagosData : []).filter((p: any) => {
+      const pagosDelDia = (Array.isArray(pagosData) ? pagosData : []).filter((p) => {
 
         const raw = p.fechaPago || p.creadoEn;
 
@@ -981,13 +901,20 @@ const LegacyDetalleRutaPage = () => {
 
         const cobradorMatch = rutaActual?.cobradorId ? (p.cobradorId === rutaActual.cobradorId) : true;
 
-        const matchRuta = p.rutaId === rutaId ||
-
-                          normalize(p.ruta) === rutaNombreNorm ||
-
-                          (p.ruta && normalize(p.ruta).includes(rutaNombreNorm)) ||
-
-                          (rutaNombreNorm && normalize(p.ruta).includes(rutaNombreNorm));
+        // `p.ruta` es un OBJETO `{ id, nombre, codigo }` (lo manda asi el include de
+        // `payments.service`), no un nombre. Antes se le pasaba entero a `normalize`, que
+        // hace `.toLowerCase()`: eso lanzaba TypeError. Y no fallaba de forma visible, porque
+        // este bloque esta dentro de un `try` cuyo catch se lo comia, asi que la pantalla
+        // perdia los pagos del dia enteros. Se disparaba en cuanto entre los mil pagos
+        // consultados hubiera uno de OTRA ruta: para los de esta, el primer termino corta
+        // antes por cortocircuito.
+        const nombreRutaDelPago = normalize(p.ruta?.nombre || '');
+        const matchRuta =
+          p.rutaId === rutaId ||
+          (!!nombreRutaDelPago && nombreRutaDelPago === rutaNombreNorm) ||
+          (!!nombreRutaDelPago &&
+            !!rutaNombreNorm &&
+            nombreRutaDelPago.includes(rutaNombreNorm));
 
 
 
@@ -1013,13 +940,16 @@ const LegacyDetalleRutaPage = () => {
 
       const existentes = new Set();
 
-      const visitas: VisitaRuta[] = ((visitasResp as any)?.visitas || []).map((item: any, index: number) => {
+      const visitas: VisitaRuta[] = ((visitasResp)?.visitas || []).map((item, index: number) => {
 
-        const cliente = item.cliente || {};
+        // `clienteComoObjeto`: el cliente de una obligacion puede llegar como texto con
+        // solo el nombre, y aqui se le lee el id. Con el texto, `cliente.id` valia
+        // `undefined` y el recaudo del dia se atribuia a nadie.
+        const cliente = clienteComoObjeto(item.cliente);
 
         const prestamos = item.prestamos || [];
 
-        const prestamoActivo = prestamos.find((p: any) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA' || p.estado === 'PAGADO') || prestamos[0] || {};
+        const prestamoActivo = prestamos.find((p: { estado?: string }) => p.estado === 'ACTIVO' || p.estado === 'EN_MORA' || p.estado === 'PAGADO') || prestamos[0] || {};
 
         const proximaCuota = prestamoActivo?.proximaCuota || {};
 
@@ -1055,11 +985,11 @@ const LegacyDetalleRutaPage = () => {
 
           id: item.asignacionId || `hist-${fechaClave}-${index}`,
 
-          cliente: `${cliente.nombres || ''} ${cliente.apellidos || ''}`.trim() || 'Cliente Sin Nombre',
+          cliente: `${cliente?.nombres || ''} ${cliente?.apellidos || ''}`.trim() || 'Cliente Sin Nombre',
 
-          direccion: cliente.direccion || 'Sin dirección registrada',
+          direccion: cliente?.direccion || 'Sin dirección registrada',
 
-          telefono: cliente.telefono || '',
+          telefono: cliente?.telefono || '',
 
           horaSugerida: '08:00 AM',
 
@@ -1073,11 +1003,11 @@ const LegacyDetalleRutaPage = () => {
 
           ordenVisita: item.ordenVisita || index + 1,
 
-          prioridad: (cliente.nivelRiesgo === 'ROJO' ? 'alta' : 'media'),
+          prioridad: (cliente?.nivelRiesgo === 'ROJO' ? 'alta' : 'media'),
 
           nivelRiesgo: (() => {
 
-            const r = cliente.nivelRiesgo || 'VERDE';
+            const r = cliente?.nivelRiesgo || 'VERDE';
 
             return mapNivelRiesgo(r);
 
@@ -1099,9 +1029,9 @@ const LegacyDetalleRutaPage = () => {
 
             return 'DIA';
 
-          })() as any,
+          })(),
 
-          clienteId: cliente.id,
+          clienteId: cliente.id || '',
 
           recaudadoDelDia: recDia,
 
@@ -1115,13 +1045,13 @@ const LegacyDetalleRutaPage = () => {
 
       // Agregar gestiones fuera de ruta (Sintéticas)
 
-      const sinteticos: VisitaRuta[] = (pagosDelDia || []).flatMap((p: any, i: number) => {
+      const sinteticos: VisitaRuta[] = (pagosDelDia || []).flatMap((p, i: number) => {
 
         const cid = p.clienteId || (p.cliente?.id);
 
         if (!cid || existentes.has(cid)) return [];
 
-        const nombre = p.cliente ? `${p.cliente.nombres || ''} ${p.cliente.apellidos || ''}`.trim() : 'Cliente';
+        const nombre = p.cliente ? `${p.cliente?.nombres || ''} ${p.cliente?.apellidos || ''}`.trim() : 'Cliente';
 
         return [{
 
@@ -1129,9 +1059,12 @@ const LegacyDetalleRutaPage = () => {
 
             cliente: nombre || 'Cliente fuera de ruta',
 
-            direccion: p.cliente?.direccion || 'Sin dirección',
+            // El `select` de `pago.cliente` en el backend trae id, nombres, apellidos y dni:
+            // no manda direccion ni telefono, asi que estas dos siempre caian al respaldo. Se
+            // dejan los respaldos y se quitan las lecturas que no existen.
+            direccion: 'Sin dirección',
 
-            telefono: p.cliente?.telefono || '',
+            telefono: '',
 
             horaSugerida: '08:00 AM',
 
@@ -1167,7 +1100,7 @@ const LegacyDetalleRutaPage = () => {
 
       const esperado = todasVisitas.reduce((sum, v) => sum + (v.montoCuota || 0), 0);
 
-      const recaudoDia = pagosDelDia.reduce((s: number, p: any) => s + Number(p.montoTotal || 0), 0);
+      const recaudoDia = pagosDelDia.reduce((s: number, p) => s + Number(p.montoTotal || 0), 0);
 
 
 
@@ -1274,7 +1207,7 @@ const LegacyDetalleRutaPage = () => {
 
 
 
-    const filterByDate = (v: any) => searchQuery || isTodayOrMora(v.proximaVisita);
+    const filterByDate = (v: VisitaRuta) => searchQuery || isTodayOrMora(v.proximaVisita);
 
 
 
@@ -1318,7 +1251,18 @@ const LegacyDetalleRutaPage = () => {
 
   if (isLoading) {
 
-    return <AnimacionCarga texto="Cargando detalle de ruta..." />
+    return (
+      <div className="space-y-4 p-4 sm:p-6" aria-busy="true">
+        <span className="sr-only">Cargando detalle de ruta…</span>
+        <Skeleton className="h-8 w-64" />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} className="h-24 rounded-2xl" />
+          ))}
+        </div>
+        <SkeletonTabla filas={6} columnas={4} />
+      </div>
+    )
 
   }
 
@@ -1362,9 +1306,9 @@ const LegacyDetalleRutaPage = () => {
 
                     </h1>
 
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getRiesgoBadgeClasses(rutaActual?.nivelRiesgo || '')}`}>
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold border ${riesgoBadgeClasses(rutaActual?.nivelRiesgo || '')}`}>
 
-                        {getRiesgoLabel(rutaActual?.nivelRiesgo || '')}
+                        {riesgoOperativoLabel(rutaActual?.nivelRiesgo || '')}
 
                     </span>
 
@@ -1658,8 +1602,8 @@ const LegacyDetalleRutaPage = () => {
 
 
 
-                       const jornadaEtiqueta = (data.resumen as any).jornadaEtiqueta;
-                       const jornadaEtiquetaColor = (data.resumen as any).jornadaEtiquetaColor || 'bg-slate-100 text-slate-700 border-slate-200';
+                       const jornadaEtiqueta = (data.resumen).jornadaEtiqueta;
+                       const jornadaEtiquetaColor = (data.resumen).jornadaEtiquetaColor || 'bg-slate-100 text-slate-700 border-slate-200';
 
 
 
@@ -1795,12 +1739,11 @@ const LegacyDetalleRutaPage = () => {
 
                                     {!data.loaded ? (
 
-                                      <div className="flex flex-col items-center justify-center py-8 text-slate-400">
-
-                                        <Loader2 className="w-6 h-6 animate-spin mb-2 opacity-20" />
-
-                                        <span className="text-xs font-medium">Cargando detalles...</span>
-
+                                      <div className="space-y-2" aria-busy="true">
+                                        <span className="sr-only">Cargando…</span>
+                                        {Array.from({ length: 3 }).map((_, i) => (
+                                          <Skeleton key={i} className="h-12 rounded-xl" />
+                                        ))}
                                       </div>
 
                                     ) : data.visitas.length === 0 ? (
@@ -1815,7 +1758,7 @@ const LegacyDetalleRutaPage = () => {
 
                                     ) : (
 
-                                      data.visitas.map((v: any) => (
+                                      data.visitas.map((v) => (
 
                                         <StaticVisitaItem
 
@@ -1827,9 +1770,9 @@ const LegacyDetalleRutaPage = () => {
 
                                             onVerCliente={handleAbrirClienteInfo}
 
-                                            getEstadoClasses={getEstadoClasses}
+                                            getEstadoClasses={estadoVisitaClasses}
 
-                                            getPrioridadColor={getPrioridadColor}
+                                            getPrioridadColor={prioridadColor}
 
                                         />
 
@@ -1999,9 +1942,9 @@ const LegacyDetalleRutaPage = () => {
 
                                           onVerCliente={handleAbrirClienteInfo}
 
-                                          getEstadoClasses={getEstadoClasses}
+                                          getEstadoClasses={estadoVisitaClasses}
 
-                                          getPrioridadColor={getPrioridadColor}
+                                          getPrioridadColor={prioridadColor}
 
                                           actions={
 
@@ -2087,7 +2030,7 @@ const LegacyDetalleRutaPage = () => {
 
               <div className="space-y-2">
 
-                <label className="text-sm font-bold text-slate-700">Tipo de Gasto</label>
+                <label className="text-sm font-bold text-slate-700">Tipo de Gasto<span className="ml-1 text-red-500" aria-label="obligatorio">*</span></label>
 
                 <select
 
@@ -2115,7 +2058,7 @@ const LegacyDetalleRutaPage = () => {
 
               <div className="space-y-2">
 
-                <label className="text-sm font-bold text-slate-700">Descripción</label>
+                <label className="text-sm font-bold text-slate-700">Descripción<span className="ml-1 text-red-500" aria-label="obligatorio">*</span></label>
 
                 <textarea
 
@@ -2139,7 +2082,7 @@ const LegacyDetalleRutaPage = () => {
 
               <div className="space-y-2">
 
-                <label className="text-sm font-bold text-slate-700">Valor</label>
+                <label className="text-sm font-bold text-slate-700">Valor<span className="ml-1 text-red-500" aria-label="obligatorio">*</span></label>
 
                 <div className="relative">
 
@@ -2259,10 +2202,10 @@ const LegacyDetalleRutaPage = () => {
 
                 const cuotaIdFinal = String(
                   cuotaId || 
-                  (visitaReprogramar as any)?.cuotaId || 
-                  (visitaReprogramar as any)?.cuotaObjetivoId || 
-                  (visitaReprogramar as any)?.cuotaObjetivo?.id || 
-                  (visitaReprogramar as any)?.proximaCuota?.id || 
+                  (visitaReprogramar)?.cuotaId || 
+                  (visitaReprogramar)?.cuotaObjetivoId || 
+                  (visitaReprogramar)?.cuotaObjetivo?.id || 
+                  (visitaReprogramar)?.proximaCuota?.id || 
                   ''
                 ).trim();
 
@@ -2308,20 +2251,20 @@ const LegacyDetalleRutaPage = () => {
                     if (showMisClientes) {
                       await cargarMisCreditos();
                     }
-                  } catch {}
+                  } catch (error) {
+                    // El refresco es secundario: la accion ya se hizo.
+                    // Se avisa solo en desarrollo, que es donde sirve.
+                    logger.warn('Fallo el refresco de la ruta tras la accion', error)
+                  }
 
-                } catch (e: any) {
+                } catch (e) {
                   const message =
-                    e?.response?.data?.message ??
-                    e?.data?.message ??
-                    e?.message ??
-                    'Error al solicitar reprogramación.'
+                    mensajeDeError(e, 'Error al solicitar reprogramación.')
 
                   console.error('Error reprogramando cuota (coordinador):', {
                     message,
                     error: e,
-                    response: e?.response,
-                    data: e?.response?.data || e?.data,
+                    ...datosParaRegistro(e),
                   })
 
                   showNotification('error', Array.isArray(message) ? message[0] : message, 'Error')
@@ -2387,68 +2330,53 @@ const LegacyDetalleRutaPage = () => {
 
           }}
 
-          onConfirm={async (data: any) => {
+          onConfirm={async (data: CrearCreditoModalData) => {
 
             try {
 
-              const esContado = Boolean((data as any).ventaContado);
-
-              const payload: any = {
-
-                clienteId: data.clienteCreditoId,
-
-                tipoPrestamo: data.creditType === 'prestamo' ? 'EFECTIVO' : 'ARTICULO',
-
-                monto: data.monto || 0,
-
-                tasaInteres: esContado ? 0 : (data.tasaInteres || 0),
-
-                tasaInteresMora: 2.0,
-
-                plazoMeses: data.plazoMeses || 1,
-
-                cantidadCuotas: data.cantidadCuotas || data.cuotas || data.cuotasTotales || 0,
-
-                cuotas: data.cuotas || data.cantidadCuotas || data.cuotasTotales || 0,
-
-                frecuenciaPago: esContado ? 'MENSUAL' : (data.frecuenciaPago || 'DIARIO'),
-
-                fechaInicio: data.fechaInicio || toBogotaDateTimeOffsetIso(new Date()),
-                fechaPrimerCobro: esContado ? undefined : data.fechaPrimerCobro,
-
-                creadoPorId: currentUser?.id,
-
-                cuotaInicial: data.cuotaInicialArticulo || 0,
-
-                notas: data.creditType === 'articulo'
-
-                  ? `${esContado ? 'Venta de contado' : 'Crédito de artículo'}: ${data.articuloNombre || ''}`
-
-                  : (data.notas || ''),
-
-                tipoAmortizacion: data.tipoInteres || 'INTERES_SIMPLE',
-
-                esContado: esContado
-
-              };
-
-
-
-              if (data.creditType === 'articulo') {
-
-                payload.productoId = data.articuloId;
-
-                payload.precioProductoId = esContado ? undefined : data.precioProductoId;
-
+              // El id del creador es OBLIGATORIO en `CrearPrestamoDto`. Antes se mandaba
+              // `currentUser?.id`, que con `any` podia viajar como undefined y dejar el
+              // prestamo sin autor. Se corta antes, igual que en useCrearCreditoOperativo.
+              if (!currentUser?.id) {
+                showNotification('error', 'No se pudo crear el crédito: sesión inválida.', 'Sesión')
+                return
               }
 
+              // El cuerpo lo arma `buildCrearPrestamoPayload`, igual que las otras ocho
+              // pantallas que crean creditos desde este mismo modal. Aqui estaba escrito a
+              // mano y DIVERGIA en dos cosas, las dos medidas:
+              //
+              //  1. `plazoMeses: data.plazoMeses || 1`. El builder lo deduce de la
+              //     frecuencia y el numero de cuotas (`inferPlazoMeses`). Importa en
+              //     dinero: con INTERES_SIMPLE el backend calcula
+              //     `interesTotal = monto * tasa * plazoMeses` (loans.service.ts:1429), asi
+              //     que un credito diario de 60 cuotas cobraba UN mes de interes por aqui y
+              //     dos por las demas pantallas. Tambien movia la fecha de fin
+              //     (`calculateLoanEndDate`).
+              //  2. La venta de contado. El builder la rechaza a proposito: el dinero de una
+              //     venta de contado tiene que entrar a una caja institucional con su
+              //     asiento, y eso solo lo hace el flujo de ventas (`SalesService`). Creando
+              //     el prestamo con `esContado: true` las cuotas quedan PAGADAS y
+              //     `totalPagado = montoTotal` (loans.service.ts:3750-3765) pero NINGUNA caja
+              //     recibe el dinero: la venta quedaba cobrada sin que el efectivo existiera
+              //     en contabilidad. Ahora se corta antes y se dice por donde va.
+              if (data.creditType === 'articulo' && data.ventaContado) {
+                showNotification(
+                  'warning',
+                  'Las ventas de contado se registran por Punto de Venta, para que el dinero entre a una caja con su asiento contable.',
+                  'Venta de contado',
+                )
+                return
+              }
 
+              const payload = buildCrearPrestamoPayload(data, currentUser.id);
 
               const prestamo = await prestamosService.crearPrestamo(payload);
 
 
 
-              if (data.creditType === 'articulo' && prestamo?.id && !esContado) {
+              // Sin `!esContado`: la venta de contado ya se corto arriba.
+              if (data.creditType === 'articulo' && prestamo?.id) {
 
                 try {
 
@@ -2465,13 +2393,13 @@ const LegacyDetalleRutaPage = () => {
 
 
               // Asignar cliente a la ruta automáticamente
+              // `data.clienteId` y `data.cliente?.id` estaban en la cadena y no existen:
+              // CrearCreditoModal emite `clienteCreditoId` (CrearCreditoModal.tsx:967 y
+              // alrededores). Con `any` los dos eslabones muertos no se veian.
               const clienteIdFinal = String(
                 prestamo?.clienteId ||
                   prestamo?.cliente?.id ||
-                  prestamo?.cliente?.clienteId ||
-                  data?.clienteId ||
-                  data?.clienteCreditoId ||
-                  data?.cliente?.id ||
+                  data.clienteCreditoId ||
                   '',
               ).trim()
 
@@ -2485,8 +2413,7 @@ const LegacyDetalleRutaPage = () => {
                 } else if (!isUuid(clienteIdFinal)) {
                   console.warn('[Crear crédito coordinador] clienteId inválido para asignación:', {
                     clienteIdFinal,
-                    dataClienteCreditoId: data?.clienteCreditoId,
-                    dataClienteId: data?.clienteId,
+                    dataClienteCreditoId: data.clienteCreditoId,
                     prestamoClienteId: prestamo?.clienteId,
                     prestamo,
                   })
@@ -2516,7 +2443,11 @@ const LegacyDetalleRutaPage = () => {
 
                 await cargarRuta();
 
-              } catch {}
+              } catch (error) {
+                // El refresco es secundario: la accion ya se hizo.
+                // Se avisa solo en desarrollo, que es donde sirve.
+                logger.warn('Fallo el refresco de la ruta tras la accion', error)
+              }
 
               setShowNuevoCreditoModal(false);
 
@@ -2578,7 +2509,7 @@ function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose:
 
   const [loading, setLoading] = useState(true)
 
-  const [clienteCompleto, setClienteCompleto] = useState<any>(null)
+  const [clienteCompleto, setClienteCompleto] = useState<Cliente | null>(null)
 
 
 
@@ -2592,15 +2523,15 @@ function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose:
 
         if (visita.clienteId) {
 
-          const res: any = await clientesService.obtenerPorId(visita.clienteId)
+          const res = await clientesService.obtenerPorId(visita.clienteId)
 
           // Calcular score dinámico igual que getAllClients en el backend
 
           let score = res.puntaje || 100
 
-          const prestamosEnMora = (res.prestamos || []).filter((p: any) => p.estado === 'EN_MORA')
+          const prestamosEnMora = (res.prestamos || []).filter((p) => p.estado === 'EN_MORA')
 
-          const prestamosActivos = (res.prestamos || []).filter((p: any) => p.estado === 'ACTIVO')
+          const prestamosActivos = (res.prestamos || []).filter((p) => p.estado === 'ACTIVO')
 
           if (prestamosEnMora.length > 0) {
 
@@ -2620,7 +2551,8 @@ function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose:
 
             const diasDesdeUltimoPago = Math.floor(
 
-              (Date.now() - new Date(pagos[0].fechaPago).getTime()) / (1000 * 60 * 60 * 24)
+              (Date.now() - new Date(String(pagos[0].fechaPago)).getTime()) /
+              (1000 * 60 * 60 * 24)
 
             )
 
@@ -2686,7 +2618,7 @@ function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose:
 
     if (!clienteCompleto?.prestamos) return 0;
 
-    return clienteCompleto.prestamos.filter((p: any) =>
+    return clienteCompleto.prestamos.filter((p) =>
 
       p.estado !== 'PAGADO' && p.estado !== 'CANCELADO' && p.estado !== 'RECHAZADO'
 
@@ -2736,17 +2668,19 @@ function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose:
 
           </div>
 
-          <button
+          <Tooltip texto="Cerrar">
+            <button
 
-            onClick={onClose}
+              onClick={onClose}
 
-            className="shrink-0 p-2 bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all active:scale-90"
+              className="shrink-0 p-2 bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all active:scale-90"
+              aria-label="Cerrar"
+            >
 
-          >
+              <XCircle className="h-6 w-6" />
 
-            <XCircle className="h-6 w-6" />
-
-          </button>
+            </button>
+          </Tooltip>
 
         </div>
 
@@ -2758,12 +2692,11 @@ function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose:
 
           {loading ? (
 
-            <div className="py-16 flex flex-col items-center justify-center gap-4">
-
-              <Loader2 className="w-10 h-10 text-[#08557f] animate-spin" />
-
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sincronizando...</p>
-
+            <div className="space-y-2" aria-busy="true">
+              <span className="sr-only">Cargando…</span>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-12 rounded-xl" />
+              ))}
             </div>
 
           ) : (
@@ -3014,7 +2947,7 @@ function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose:
 
               {/* Fotografías del cliente (si existen) */}
 
-              {(clienteCompleto?.archivos || []).filter((a: any) => {
+              {(clienteCompleto?.archivos || []).filter((a) => {
 
                 const url = String(a.url || a.path || a.ruta || '')
 
@@ -3028,13 +2961,13 @@ function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose:
 
                   <div className="grid grid-cols-2 gap-2">
 
-                    {(clienteCompleto.archivos as any[]).filter((a) => {
+                    {(clienteCompleto?.archivos || []).filter((a) => {
 
                       const url = String(a.url || a.path || a.ruta || '')
 
                       return /(jpg|jpeg|png|gif|webp)$/i.test(url) || String(a.tipoArchivo || '').startsWith('image/')
 
-                    }).map((archivo: any, idx: number) => {
+                    }).map((archivo, idx: number) => {
 
                       const rawUrl = archivo.url || archivo.path || archivo.ruta || ''
 

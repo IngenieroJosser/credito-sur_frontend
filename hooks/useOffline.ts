@@ -50,8 +50,8 @@ export function useOffline() {
       const [pending, failed, syncing, completed] = await Promise.all([
         db.countPending(),
         db.countFailed(),
-        (db as any).countSyncing(),
-        (db as any).countCompleted(),
+        (db).countSyncing(),
+        (db).countCompleted(),
       ]);
       setState((prev) => ({
         ...prev,

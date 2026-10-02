@@ -20,7 +20,10 @@ jest.mock('next/navigation', () => ({
 // Next/Image es complejo de testear, lo reemplazamos por un img normal
 jest.mock('next/image', () => ({
   __esModule: true,
-  default: (props: any) => {
+  default: (props: React.ComponentProps<'img'> & {
+    fill?: boolean
+    priority?: boolean
+  }) => {
     // Filtramos props exclusivas de Next/Image que React lanza warning en <img>
     const { fill, priority, ...rest } = props
     return <img {...rest} alt={props.alt} />

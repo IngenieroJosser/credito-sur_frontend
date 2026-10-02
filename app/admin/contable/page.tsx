@@ -1,4 +1,5 @@
 'use client'
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 import { logger } from '@/lib/logger'
 
 /**
@@ -47,20 +48,16 @@ import {
   Eye,
   Edit2,
   Plus,
-  Receipt,
   Zap,
   CreditCard,
   BarChart3,
   Clock,
   History,
-  CheckCircle2,
   X,
   AlertTriangle,
-  ChevronLeft,
-  ChevronRight,
   ArrowRightLeft,
   Search,
-} from 'lucide-react'
+ Loader2,} from 'lucide-react'
 
 import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber, cn, formatMilesCOP } from '@/lib/utils'
 import MoneyAmount from '@/components/contable/MoneyAmount'
@@ -77,12 +74,11 @@ import {
   type Caja as ApiCaja,
   type Transaccion as ApiTransaccion,
   type MovimientoLedger as ApiMovimientoLedger,
-  type ResumenFinanciero as ApiResumen,
   getHistorialCierres,
-  consolidarCaja,
   obtenerSaldoDisponibleRuta,
   type SaldoDisponibleRuta
 } from '@/services/contabilidad-service'
+import type { CierreHistorialItem } from '@/services/contabilidad-service'
 import { toast } from 'sonner'
 import { rutasService, type Ruta as ApiRuta } from '@/services/rutas-service'
 import { exportService } from '@/services/export-service'
@@ -91,42 +87,38 @@ import AnimacionCarga from '@/components/ui/AnimacionCarga'
 import Link from 'next/link'
 import DeudorasCobradorCard from '@/components/contable/DeudorasCobradorCard'
 import FieldLabel from '@/components/ui/FieldLabel'
+import BotonAccion from '@/components/ui/BotonAccion'
 
 // --- TIPOS DE DATOS ---
 // Definimos la estructura de nuestras "Cajas".
 // Una caja puede ser la PRINCIPAL (Caja fuerte de la oficina) o DE RUTA (La billetera del cobrador).
-interface Caja {
-  id: string
-  codigo?: string
-  nombre: string
-  tipo: 'PRINCIPAL' | 'RUTA'
-  rutaId?: string // Si es de tipo RUTA, aquí guardamos a cuál pertenece
-  responsable: string // Quién responde por la plata
-  responsableId?: string
-  saldo: number
-  estado: 'ABIERTA' | 'CERRADA'
-  recaudoEsperado?: number
-  eficiencia?: number
-  ultimaActualizacion: string
-  rutasSupervisadas?: Array<{ id: string; nombre: string; codigo: string }>
-}
+/**
+ * Esta pantalla declaraba su PROPIO `Caja`, mas pobre que el del servicio, y por eso
+ * leia campos con `as any`. Le faltaba `rutaNombre`, que el backend SI manda en las
+ * dos respuestas de caja (`accounting.service.ts:531` y `583`).
+ *
+ * Los dos campos que el tipo local tenia y el del servicio no, no existen en el
+ * backend: `recaudoEsperado` no aparece ni una vez en `src/`, y `eficiencia` solo sale
+ * en los reportes de RUTAS, nunca en una caja. El bloque que los pintaba en la tarjeta
+ * ("Goal / % Efficiency") estaba guardado por `c.recaudoEsperado &&`, o sea que nunca
+ * se dibujaba; se quito con ellos.
+ *
+ * Siguen habiendo tres tipos `Caja` mas en el frontend: el del servicio, el de
+ * `types/domain.ts` y el local de `EstadoContableCard`.
+ */
+type Caja = ApiCaja
 
-// Forzar actualización de TypeScript
 type CajaWithRutas = Caja & {
   rutasSupervisadas?: Array<{ id: string; nombre: string; codigo: string }>
 }
 
 // Historial de cuando se cierra la caja (El famoso "Cuadre")
-interface HistorialCierre {
-  id: string
-  fecha: string
-  caja: string
-  responsable: string
-  saldoSistema: number // Lo que el software dice que debe haber
-  saldoReal: number    // Lo que se contó físicamente (billete sobre billete)
-  diferencia: number   // Si sobra (+) o falta (-) plata
-  estado: 'CUADRADA' | 'DESCUADRADA'
-}
+// La forma de una fila del historial de cierres vive en el servicio, como
+// `CierreHistorialItem`, espejo del tipo del backend. Antes habia aqui un
+// `interface HistorialCierre` con nueve campos que se habia quedado corto: le faltaban
+// `tipo`, `cajaId` y `clientesFaltantes`, que esta pantalla SI lee, y declaraba `estado`
+// como solo CUADRADA|DESCUADRADA cuando el backend tambien manda PENDIENTE.
+type HistorialCierre = CierreHistorialItem
 
 type OrigenMovimientoContable = 'TODOS' | 'EMPRESA' | 'COBRADOR' | 'CLIENTE' | 'SISTEMA'
 
@@ -189,8 +181,8 @@ type RutaResumen = {
 // Centraliza la lógica que antes estaba duplicada 3 veces en fetchData,
 // loadMovimientosDetalle y loadMovimientosGlobalPorTipo.
 const mapTransaccion = (t: ApiTransaccion): MovimientoContable => {
-  const tipoRefRaw = String((t as any).tipoReferencia || '').toUpperCase()
-  const origenBackend = (t as any).origen
+  const tipoRefRaw = String((t).tipoReferencia || '').toUpperCase()
+  const origenBackend = (t).origen
 
   const origenInferido = (() => {
     // Abonos de deuda del cobrador: el origen real es el COBRADOR.
@@ -215,19 +207,27 @@ const mapTransaccion = (t: ApiTransaccion): MovimientoContable => {
     categoria: t.categoria || 'GENERAL',
     responsable: t.responsable,
     origen: origenInferido as Exclude<OrigenMovimientoContable, 'TODOS'>,
-    estado: (t.estado as any) || 'APROBADO',
-    rutaId: (t as any).rutaId,
-    cajaId: (t as any).cajaId,
-    cajaOrigenId: (t as any).cajaOrigenId,
-    tipoReferencia: (t as any).tipoReferencia,
-    referenciaId: (t as any).referenciaId,
-    caja: (t as any).caja,
-    accountCode: (t as any).accountCode,
-    accountName: (t as any).accountName,
-    direction: (t as any).direction,
-    impactoCaja: (t as any).impactoCaja,
-    origenGestion: (t as any).origenGestion ?? null,
-    fechaOperativaRuta: (t as any).fechaOperativaRuta ?? null,
+    estado: (t.estado) || 'APROBADO',
+    rutaId: t.rutaId,
+    cajaId: t.cajaId,
+    cajaOrigenId: t.cajaOrigenId,
+    tipoReferencia: t.tipoReferencia,
+    referenciaId: t.referenciaId,
+    caja: t.caja,
+    accountCode: t.accountCode,
+    accountName: t.accountName,
+    direction: t.direction,
+    impactoCaja: t.impactoCaja,
+    // `/accounting/transacciones` NO manda estos dos: se comprobo en
+    // `AccountingService.mapTransaccionRow`, que devuelve id, numero, fecha, tipo,
+    // monto, descripcion, caja, cajaId, cajaOrigenId, tipoReferencia, referenciaId,
+    // responsable, estado, origen, categoria, rutaId y cajaSaldo, y nada mas.
+    // `origenGestion` y `fechaOperativaRuta` viven en el Pago y solo los adjunta el
+    // endpoint del Ledger (`getMovimientosLedger`). Aqui se leian con un cast, asi
+    // que siempre daban undefined; se deja el null explicito, que es lo que de
+    // verdad hay, y se documenta de donde salen cuando existen.
+    origenGestion: null,
+    fechaOperativaRuta: null,
   }
 }
 
@@ -276,9 +276,14 @@ const mapMovimientoLedger = (m: ApiMovimientoLedger): MovimientoContable => {
 }
 
 const esMovimientoPagoRegularizado = (m: Pick<MovimientoContable, 'origenGestion' | 'tipoReferencia'> | ApiMovimientoLedger) => {
-  const origenGestion = String((m as any).origenGestion || '').toUpperCase()
-  const tipo = String((m as any).tipo || '').toUpperCase()
-  const tipoReferencia = String((m as any).tipoReferencia || '').toUpperCase()
+  // El parametro acepta dos formas y NO comparten todos los campos: el
+  // `Pick<MovimientoContable, ...>` no trae `tipo`. Se comprueba con `in` en vez de
+  // apagar el chequeo con un cast.
+  const origenGestion = String(m.origenGestion || '').toUpperCase()
+  const tipo = String(('tipo' in m ? m.tipo : '') || '').toUpperCase()
+  const tipoReferencia = String(
+    ('tipoReferencia' in m ? m.tipoReferencia : '') || '',
+  ).toUpperCase()
   return origenGestion === 'CIERRE_PENDIENTE' && (tipo === 'PAGO' || tipoReferencia === 'PAGO')
 }
 
@@ -317,8 +322,11 @@ const mapMovimientoLedgerResultado = (m: ApiMovimientoLedger, tipoResultado: 'IN
 }
 
 const esPagoClienteEnPanelContable = (m: Pick<MovimientoContable, 'tipoReferencia'> | ApiMovimientoLedger) => {
-  const tipo = String((m as any).tipo || '').toUpperCase()
-  const tipoReferencia = String((m as any).tipoReferencia || '').toUpperCase()
+  // Igual que arriba: las dos formas no comparten `tipo`.
+  const tipo = String(('tipo' in m ? m.tipo : '') || '').toUpperCase()
+  const tipoReferencia = String(
+    ('tipoReferencia' in m ? m.tipoReferencia : '') || '',
+  ).toUpperCase()
   return tipo === 'PAGO' || tipoReferencia === 'PAGO'
 }
 
@@ -416,20 +424,20 @@ const ModuloContableContent = () => {
     saldoPerdida: number
   } | null>(null)
 
-  const esReferenciaCobranza = (m: any) => {
+  const esReferenciaCobranza = (m: MovimientoContable) => {
     const ref = String(m?.tipoReferencia || '').toUpperCase()
     return ref === 'PAGO' || ref === 'ABONO' || ref === 'CUOTA_INICIAL' || ref === 'RESTAURACION_CUOTA_INICIAL'
   }
 
-  const esTransferenciaSalida = (m: any) => {
+  const esTransferenciaSalida = (m: MovimientoContable) => {
     if (String(m?.tipo || '').toUpperCase() !== 'TRANSFERENCIA') return false
-    const numero = String((m as any)?.numero || (m as any)?.numeroTransaccion || '')
+    const numero = String(m?.numero || '')
     return numero.toUpperCase().startsWith('TRX-OUT')
   }
 
-  const esTransferenciaEntrada = (m: any) => {
+  const esTransferenciaEntrada = (m: MovimientoContable) => {
     if (String(m?.tipo || '').toUpperCase() !== 'TRANSFERENCIA') return false
-    const numero = String((m as any)?.numero || (m as any)?.numeroTransaccion || '')
+    const numero = String(m?.numero || '')
     return numero.toUpperCase().startsWith('TRX-IN')
   }
 
@@ -437,11 +445,11 @@ const ModuloContableContent = () => {
     return caja?.tipo === 'RUTA' && !caja?.rutaId;
   }
 
-  const esIngresoContable = (m: any) => {
+  const esIngresoContable = (m: MovimientoContable) => {
     return esIngresoContableGeneral(m)
   }
 
-  const esEgresoOperativo = (m: any) => {
+  const esEgresoOperativo = (m: MovimientoContable) => {
     return esEgresoOperativoContable(m)
   }
 
@@ -554,7 +562,10 @@ const ModuloContableContent = () => {
       return
     }
     try {
-      const params: any = { cajaId, limit: 500 }
+      // Los dos getters declaran su filtro: el tipo se DERIVA de ellos. Son
+      // compatibles porque este `params` se pasa a los dos (ledger y legacy).
+      const params: Parameters<typeof getMovimientosLedger>[0] &
+        Parameters<typeof getTransacciones>[0] = { cajaId, limit: 500 }
       const inicio = opts?.fechaInicio ?? fechaInicioModal
       const fin = opts?.fechaFin ?? fechaFinModal
       if (inicio) params.fechaInicio = inicio
@@ -568,9 +579,9 @@ const ModuloContableContent = () => {
           next = Array.isArray(legacyResp?.data) ? legacyResp.data.map(mapTransaccion) : []
         }
 
-        const codigoCaja = String((cajaSeleccionada as any)?.codigo || '').toUpperCase()
+        const codigoCaja = String((cajaSeleccionada)?.codigo || '').toUpperCase()
         if (codigoCaja === 'CAJA-PRINCIPAL' || codigoCaja === 'CAJA-BANCO') {
-          next = next.filter((m: any) => {
+          next = next.filter((m: MovimientoContable) => {
             const ref = String(m?.tipoReferencia || '').toUpperCase()
             return ref !== 'CUOTA_INICIAL' && ref !== 'RESTAURACION_CUOTA_INICIAL' && ref !== 'ABONO_DEUDA'
           })
@@ -603,7 +614,7 @@ const ModuloContableContent = () => {
         return
       }
 
-      const params: any = { tipo, limit: 500 }
+      const params: Parameters<typeof getTransacciones>[0] = { tipo, limit: 500 }
       if (fechaInicio) params.fechaInicio = fechaInicio
       if (fechaFin) params.fechaFin = fechaFin
       const resp = await getTransacciones(params)
@@ -633,9 +644,11 @@ const ModuloContableContent = () => {
           limit: 500,
         }),
       ])
-      const transacciones = ([] as any[])
-        .concat(Array.isArray(ingresosResp?.data) ? ingresosResp.data : [])
-        .concat(Array.isArray(egresosResp?.data) ? egresosResp.data : [])
+      // Sin la semilla `([] as any[])`: con `...` el tipo sale de los datos.
+      const transacciones = [
+        ...(Array.isArray(ingresosResp?.data) ? ingresosResp.data : []),
+        ...(Array.isArray(egresosResp?.data) ? egresosResp.data : []),
+      ]
 
       setMovimientosModalGlobal(
         transacciones
@@ -668,7 +681,7 @@ const ModuloContableContent = () => {
         }),
       ])
 
-      const merged = ([] as any[]).concat(transIngresos || [], transEgresos || [])
+      const merged = [...(transIngresos || []), ...(transEgresos || [])]
       setMovimientosModalGlobal(merged.map(mapTransaccion))
     } catch {
       setMovimientosModalGlobal([])
@@ -679,7 +692,7 @@ const ModuloContableContent = () => {
     try {
       await exportService.exportAccounting('excel')
       toast.success('Reporte contable Excel descargado')
-    } catch (e) {
+    } catch {
       toast.error('Error al exportar reporte contable')
     }
   }
@@ -688,7 +701,7 @@ const ModuloContableContent = () => {
     try {
       await exportService.exportAccounting('pdf')
       toast.success('Reporte contable PDF descargado')
-    } catch (e) {
+    } catch {
       toast.error('Error al exportar reporte contable')
     }
   }
@@ -736,7 +749,7 @@ const ModuloContableContent = () => {
         try {
           const rutasData = await rutasService.obtenerRutas({ limit: 100, activa: true });
           setRutasDisponibles(rutasData);
-        } catch (err) {
+        } catch {
           logger.warn('No se pudo cargar rutas (permiso insuficiente)');
         }
       }
@@ -753,7 +766,7 @@ const ModuloContableContent = () => {
           saldo: c.saldo,
           estado: c.estado,
           ultimaActualizacion: c.ultimaActualizacion,
-          rutasSupervisadas: (c as any).rutasSupervisadas
+          rutasSupervisadas: c.rutasSupervisadas
         })));
       }
 
@@ -775,15 +788,15 @@ const ModuloContableContent = () => {
         setResumenData({
           ingresosHoy: ingresosPanelContable,
           egresosHoy: resumen.egresosHoy,
-          cuotaInicialHoy: Number((resumen as any).cuotaInicialHoy || 0),
-          utilidadNeta: Number((resumen as any).utilidadReal ?? resumen.gananciaNeta ?? 0),
-          margenArticulosHoy: Number((resumen as any).margenArticulosHoy ?? 0),
-          deudaCobradorHoy: Number((resumen as any).deudaCobradorHoy ?? 0),
+          cuotaInicialHoy: Number(resumen.cuotaInicialHoy || 0),
+          utilidadNeta: Number(resumen.utilidadReal ?? resumen.gananciaNeta ?? 0),
+          margenArticulosHoy: Number(resumen.margenArticulosHoy ?? 0),
+          deudaCobradorHoy: Number(resumen.deudaCobradorHoy ?? 0),
           capitalEnCalle: resumen.capitalEnCalle,
           cajaActual: resumen.saldoCajas,
           porcentajeIngresosVsAyer: resumen.porcentajeIngresosVsAyer ?? null,
           porcentajeEgresosVsAyer: resumen.porcentajeEgresosVsAyer ?? null,
-          porcentajeCuotaInicialVsAyer: (resumen as any).porcentajeCuotaInicialVsAyer ?? null,
+          porcentajeCuotaInicialVsAyer: resumen.porcentajeCuotaInicialVsAyer ?? null,
           esIngresoPositivo: resumen.esIngresoPositivo ?? true,
           esEgresoPositivo: resumen.esEgresoPositivo ?? true,
           rutasTotales: resumen.rutasTotales || 0,
@@ -803,21 +816,20 @@ const ModuloContableContent = () => {
       // 5. Historial de Cierres (Real)
       const cierresResp = await getHistorialCierres();
       if (Array.isArray(cierresResp)) {
-        setHistorialCierres(cierresResp.map((c: any) => ({
-             id: c.id,
-             fecha: c.fecha,
-             caja: c.caja || 'Desconocida',
-             responsable: c.responsable || 'Sistema',
-             saldoSistema: Number(c.saldoSistema),
-             saldoReal: Number(c.saldoReal),
-             diferencia: Number(c.diferencia),
-             estado: c.estado || (Number(c.diferencia) === 0 ? 'CUADRADA' : 'DESCUADRADA'),
-             tipo: c.tipo || 'CONSOLIDACION',
-             efectividad: c.efectividad,
-             clientesFaltantes: c.clientesFaltantes,
-             cajaId: c.cajaId,
-             deudaFisica: Number(c.deudaFisica || 0),
-        })));
+        // Se esparce la fila y solo se pisan los respaldos. Antes se reconstruia campo por
+        // campo, y eso DESCARTABA el resto de lo que manda el endpoint (`descripcion`,
+        // `cajaOrigen`, `cajaDestino`, `saldoEsperado`...), que el modal de detalle si usa.
+        setHistorialCierres(
+          cierresResp.map((c) => ({
+            ...c,
+            caja: c.caja || 'Desconocida',
+            responsable: c.responsable || 'Sistema',
+            estado:
+              c.estado || (Number(c.diferencia) === 0 ? 'CUADRADA' : 'DESCUADRADA'),
+            tipo: c.tipo || 'CONSOLIDACION',
+            deudaFisica: Number(c.deudaFisica || 0),
+          })),
+        );
       }
     } catch (error) {
       console.error('Error cargando datos contables:', error);
@@ -893,21 +905,25 @@ const ModuloContableContent = () => {
       try {
         const resumen = await getResumenFinanciero(fechaInicioModal, fechaFinModal)
         if (cancelled) return
+        // `getResumenFinanciero` devuelve `| null` (lo omite por permisos, entre
+        // otros casos) y abajo se leen trece campos. El cast que habia aqui tapaba
+        // eso: si no llega el resumen, no hay panel que armar.
+        if (!resumen) return
 
-        const totalUtilidad     = Number((resumen as any).utilidadReal ?? (resumen as any).gananciaNeta ?? 0)
-        const utilidadOperativa  = Number((resumen as any).utilidadOperativa ?? 0)
-        const margen             = Number((resumen as any).margenArticulosHoy ?? 0)
-        const egresosOperativos  = Number((resumen as any).egresosHoy ?? 0)
-        const interes            = Number((resumen as any).interesHoy ?? 0)
-        const mora               = Number((resumen as any).moraHoy ?? 0)
+        const totalUtilidad     = Number(resumen.utilidadReal ?? resumen.gananciaNeta ?? 0)
+        const utilidadOperativa  = Number(resumen.utilidadOperativa ?? 0)
+        const margen             = Number(resumen.margenArticulosHoy ?? 0)
+        const egresosOperativos  = Number(resumen.egresosHoy ?? 0)
+        const interes            = Number(resumen.interesHoy ?? 0)
+        const mora               = Number(resumen.moraHoy ?? 0)
         const utilidadFinanciera = interes + mora
-        const provisionTotal     = Number((resumen as any).provisionCarteraTotal ?? 0)
-        const provisionEnMora    = Number((resumen as any).provisionCarteraEnMora ?? 0)
-        const provisionIncumplida= Number((resumen as any).provisionCarteraIncumplida ?? 0)
-        const provisionPerdida   = Number((resumen as any).provisionCarteraPerdida ?? 0)
-        const saldoEnMora        = Number((resumen as any).saldoCarteraEnMora ?? 0)
-        const saldoIncumplido    = Number((resumen as any).saldoCarteraIncumplida ?? 0)
-        const saldoPerdida       = Number((resumen as any).saldoCarteraPerdida ?? 0)
+        const provisionTotal     = Number(resumen.provisionCarteraTotal ?? 0)
+        const provisionEnMora    = Number(resumen.provisionCarteraEnMora ?? 0)
+        const provisionIncumplida= Number(resumen.provisionCarteraIncumplida ?? 0)
+        const provisionPerdida   = Number(resumen.provisionCarteraPerdida ?? 0)
+        const saldoEnMora        = Number(resumen.saldoCarteraEnMora ?? 0)
+        const saldoIncumplido    = Number(resumen.saldoCarteraIncumplida ?? 0)
+        const saldoPerdida       = Number(resumen.saldoCarteraPerdida ?? 0)
 
         setResumenUtilidadModal({
           totalUtilidad,
@@ -947,7 +963,13 @@ const ModuloContableContent = () => {
 
   /* Estado para movimientos */
   const [movimientoForm, setMovimientoForm] = useState({
-    tipo: 'INGRESO' as MovimientoContable['tipo'],
+    /**
+     * Solo INGRESO o EGRESO: son los dos unicos valores que los setters del formulario
+     * ponen. Estaba declarado con `MovimientoContable['tipo']`, que incluye
+     * DEUDA_COBRADOR, y ese valor no lo acepta `createTransaccion` (su `tipo` es
+     * INGRESO|EGRESO|TRANSFERENCIA): el `as any` de `tipoEnvio` tapaba justo eso.
+     */
+    tipo: 'INGRESO' as 'INGRESO' | 'EGRESO',
     categoria: '',
     categoriaId: '',
     montoInput: '',
@@ -988,7 +1010,7 @@ const ModuloContableContent = () => {
     // Aun así dejamos el filtro para consistencia visual.
     let cumpleTipo = filtroTipo === 'TODOS';
     if (!cumpleTipo) {
-      if (filtroTipo === 'DEUDA_COBRADOR' as any) {
+      if (filtroTipo === 'DEUDA_COBRADOR') {
         cumpleTipo = mov.tipoReferencia === 'DEUDA_COBRADOR' || mov.tipoReferencia === 'ABONO_DEUDA';
       } else if (filtroTipo === 'TRANSFERENCIA') {
         cumpleTipo = mov.tipo === 'TRANSFERENCIA' && mov.tipoReferencia !== 'DEUDA_COBRADOR';
@@ -996,23 +1018,25 @@ const ModuloContableContent = () => {
         cumpleTipo = esIngresoContable(mov);
       } else if (filtroTipo === 'EGRESO') {
         cumpleTipo = esEgresoOperativo(mov);
-      } else {
-        cumpleTipo = mov.tipo === filtroTipo;
       }
+      // No hay `else`: las cuatro ramas cubren todos los valores menos 'TODOS', y con
+      // 'TODOS' no se entra aqui (`cumpleTipo` ya seria true). El `else` que habia hacia
+      // `mov.tipo === filtroTipo`, y tsc lo confirmo al quitar el cast: entre el tipo de
+      // `mov.tipo` y 'TODOS' no hay solape, o sea que nunca podia dar true.
     }
 
     const cumpleOrigen = filtroOrigen === 'TODOS' || mov.origen === filtroOrigen
     const cumpleEstado = filtroEstado === 'TODOS' || mov.estado === filtroEstado
     const cajaRutaId = filtroRuta === 'TODOS'
       ? null
-      : (cajas.find((c: any) => c?.rutaId === filtroRuta)?.id ?? null)
+      : (cajas.find((c: Caja) => c?.rutaId === filtroRuta)?.id ?? null)
 
-    const rutaObj = filtroRuta === 'TODOS' ? null : (rutasDisponibles.find((r: any) => r?.id === filtroRuta) as any)
-    const cajaRuta = filtroRuta === 'TODOS' ? null : (cajas.find((c: any) => c?.rutaId === filtroRuta) as any)
+    const rutaObj = filtroRuta === 'TODOS' ? null : (rutasDisponibles.find((r) => r?.id === filtroRuta))
+    const cajaRuta = filtroRuta === 'TODOS' ? null : (cajas.find((c: Caja) => c?.rutaId === filtroRuta))
     const rutaKeywordRaw = String(
       rutaObj?.nombre ||
-      (cajaRuta as any)?.rutaNombre ||
-      (cajaRuta as any)?.nombre ||
+      (cajaRuta)?.rutaNombre ||
+      (cajaRuta)?.nombre ||
       ''
     )
     const rutaKeyword = rutaKeywordRaw
@@ -1033,7 +1057,12 @@ const ModuloContableContent = () => {
 
 
 
+  const [creandoCaja, setCreandoCaja] = useState(false)
+
   const handleCrearCaja = async () => {
+    // Sin bloqueo el boton no mostraba nada mientras guardaba y se podian crear
+    // cajas repetidas a fuerza de clics.
+    if (creandoCaja) return
     const saldo = parseCOPInputToNumber(crearCajaForm.saldoInicialInput)
     const ruta = rutasDisponibles.find((r) => r.id === crearCajaForm.rutaId)
     const respId = crearCajaForm.responsableId;
@@ -1044,6 +1073,7 @@ const ModuloContableContent = () => {
     }
 
     try {
+      setCreandoCaja(true)
       await apiCreateCaja({
         nombre: crearCajaForm.nombre.trim() || (crearCajaForm.tipo === 'PRINCIPAL' ? 'Caja Principal' : `Caja ${ruta?.nombre ?? 'Ruta'}`),
         tipo: crearCajaForm.tipo,
@@ -1058,6 +1088,8 @@ const ModuloContableContent = () => {
     } catch (error) {
       console.error('Error creating caja:', error)
       showNotification('error', 'No se pudo crear la caja', 'Error')
+    } finally {
+      setCreandoCaja(false)
     }
   }
 
@@ -1065,7 +1097,7 @@ const ModuloContableContent = () => {
     setCajaSeleccionada(caja)
     // Buscamos el ID del responsable basado en el nombre (fallback si no tenemos el ID directo en la interfaz)
     // Idealmente Caja debería tener responsableId. He actualizado la carga de datos para incluirlo.
-    const cajaConId = caja as any; // Cast temporal si la interfaz Caja no tiene responsableId aún
+    const cajaConId = caja; // Cast temporal si la interfaz Caja no tiene responsableId aún
     
     setEditarCajaForm({
       nombre: caja.nombre,
@@ -1108,7 +1140,7 @@ const ModuloContableContent = () => {
   const openRegistrarMovimiento = () => {
     // Buscamos el ID real de la caja principal para el admin.
     // Importante: Caja Banco también puede ser PRINCIPAL. Preferimos CAJA-PRINCIPAL si existe.
-    const cajaPrincipal = cajas.find((c: any) => c.codigo === 'CAJA-PRINCIPAL') || cajas.find(c => c.tipo === 'PRINCIPAL');
+    const cajaPrincipal = cajas.find((c: Caja) => c.codigo === 'CAJA-PRINCIPAL') || cajas.find(c => c.tipo === 'PRINCIPAL');
     const defaultCaja = (userRole === 'ADMIN' || userRole === 'SUPER_ADMINISTRADOR') 
         ? (cajaPrincipal?.id || '') 
         : (cajas.find(c => c.tipo === 'RUTA')?.id || '')
@@ -1133,7 +1165,7 @@ const ModuloContableContent = () => {
   const openRegistrarTransferencia = () => {
     // Buscamos el ID real de la caja principal para el admin.
     // Importante: Caja Banco también puede ser PRINCIPAL. Preferimos CAJA-PRINCIPAL si existe.
-    const cajaPrincipal = cajas.find((c: any) => c.codigo === 'CAJA-PRINCIPAL') || cajas.find(c => c.tipo === 'PRINCIPAL');
+    const cajaPrincipal = cajas.find((c: Caja) => c.codigo === 'CAJA-PRINCIPAL') || cajas.find(c => c.tipo === 'PRINCIPAL');
     const defaultCaja = (userRole === 'ADMIN' || userRole === 'SUPER_ADMINISTRADOR') 
         ? (cajaPrincipal?.id || '') 
         : (cajas.find(c => c.tipo === 'RUTA')?.id || '')
@@ -1180,7 +1212,7 @@ const ModuloContableContent = () => {
       
       const tipoEnvio = movimientoForm.origen === 'COBRADOR'
         ? 'TRANSFERENCIA'
-        : (movimientoForm.tipo as any)
+        : (movimientoForm.tipo)
 
       await apiCreateTransaccion({
         cajaId: isEgresoConsolidacion ? movimientoForm.cajaOrigenId : movimientoForm.cajaId,
@@ -1199,14 +1231,15 @@ const ModuloContableContent = () => {
       setShowRegistrarMovimientoModal(false)
 
       showNotification('success', 'El movimiento contable ha sido registrado', 'Movimiento Registrado')
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error creating transaccion:', error)
-      const msg =
-        error?.message ||
-        error?.response?.message ||
-        (Array.isArray(error?.response?.message) ? error.response.message.join(', ') : undefined) ||
-        'No se pudo registrar el movimiento'
-      showNotification('error', String(msg), 'Error')
+      // La cadena que habia aqui ponia `error?.response?.message` ANTES del
+      // `Array.isArray`, asi que cuando el backend mandaba la lista de campos del
+      // ValidationPipe el segundo termino la devolvia tal cual y el `join` no
+      // llegaba a correr: acababa en `String(array)`, con comas y sin espacios.
+      // `mensajeDeError` une la lista donde sea que venga.
+      const msg = mensajeDeError(error, 'No se pudo registrar el movimiento')
+      showNotification('error', msg, 'Error')
     }
   }
 
@@ -1694,12 +1727,6 @@ const ModuloContableContent = () => {
                           Ruta
                         </div>
                       )}
-                      {c.recaudoEsperado && (
-                        <div className="mt-2 flex items-center gap-3">
-                           <div className="text-[10px] font-bold text-slate-400 uppercase">Goal: <MoneyAmount value={c.recaudoEsperado} amountClassName="text-[10px] font-bold text-slate-400 uppercase" /></div>
-                           <div className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">{c.eficiencia}% Efficiency</div>
-                        </div>
-                      )}
                     </div>
                     <div className="text-right shrink-0 flex flex-col items-end gap-2">
                       <div className={cn(
@@ -1712,7 +1739,7 @@ const ModuloContableContent = () => {
                       </div>
                       <MoneyAmount value={c.saldo} amountClassName="text-sm font-extrabold text-slate-900" />
                       <div className="flex items-center gap-2">
-                        <button
+                        <BotonAccion
                           onClick={async () => {
                             setCajaSeleccionada(c)
                             setVerCajaRangoStats(null)
@@ -1787,28 +1814,28 @@ const ModuloContableContent = () => {
                                     : []
 
                                   const ingresos = movimientosCaja
-                                    .filter((m: any) => {
+                                    .filter((m: MovimientoContable) => {
                                       const tipo = String(m.tipo || '').toUpperCase()
-                                      const numero = String((m.numero || m.numeroTransaccion || '')).toUpperCase()
+                                      const numero = String(m.numero || '').toUpperCase()
 
                                       if (tipo === 'INGRESO') return true
                                       if (tipo === 'TRANSFERENCIA') return numero.startsWith('TRX-IN')
 
                                       return false
                                     })
-                                    .reduce((acc: number, m: any) => acc + Number(m.monto || 0), 0)
+                                    .reduce((acc: number, m) => acc + Number(m.monto || 0), 0)
 
                                   const egresos = movimientosCaja
-                                    .filter((m: any) => {
+                                    .filter((m: MovimientoContable) => {
                                       const tipo = String(m.tipo || '').toUpperCase()
-                                      const numero = String((m.numero || m.numeroTransaccion || '')).toUpperCase()
+                                      const numero = String(m.numero || '').toUpperCase()
 
                                       if (tipo === 'EGRESO') return true
                                       if (tipo === 'TRANSFERENCIA') return numero.startsWith('TRX-OUT')
 
                                       return false
                                     })
-                                    .reduce((acc: number, m: any) => acc + Number(m.monto || 0), 0)
+                                    .reduce((acc: number, m) => acc + Number(m.monto || 0), 0)
 
                                   setCajaHoyStats({ ingresos, egresos })
                                 } catch {
@@ -1824,36 +1851,36 @@ const ModuloContableContent = () => {
                                 const params = { cajaId: c.id, fechaInicio: hoyClave, limit: 500 }
                                 const resp = await getTransacciones(params)
                                 if (resp && Array.isArray(resp.data)) {
-                                  const codigoCaja = String((c as any)?.codigo || '').toUpperCase()
+                                  const codigoCaja = String((c)?.codigo || '').toUpperCase()
                                   const omitRefs = codigoCaja === 'CAJA-PRINCIPAL' || codigoCaja === 'CAJA-BANCO'
 
-                                  const base = resp.data.filter((m: any) => {
+                                  const base = resp.data.filter((m: ApiTransaccion) => {
                                     if (!omitRefs) return true
                                     const ref = String(m?.tipoReferencia || '').toUpperCase()
                                     return ref !== 'CUOTA_INICIAL' && ref !== 'RESTAURACION_CUOTA_INICIAL' && ref !== 'ABONO_DEUDA'
                                   })
 
                                   const ingresos = base
-                                    .filter((m: any) => m.tipo === 'INGRESO' || m.tipo === 'TRANSFERENCIA')
-                                    .filter((m: any) => {
+                                    .filter((m: ApiTransaccion) => m.tipo === 'INGRESO' || m.tipo === 'TRANSFERENCIA')
+                                    .filter((m: ApiTransaccion) => {
                                       if (m.tipo === 'TRANSFERENCIA') {
-                                        const num = String(m.numeroTransaccion || '').toUpperCase()
+                                        const num = String(m.numero || '').toUpperCase()
                                         return num.startsWith('TRX-IN')
                                       }
                                       return true
                                     })
-                                    .reduce((acc: number, m: any) => acc + Number(m.monto), 0)
+                                    .reduce((acc: number, m) => acc + Number(m.monto), 0)
 
                                   const egresos = base
-                                    .filter((m: any) => m.tipo === 'EGRESO' || m.tipo === 'TRANSFERENCIA')
-                                    .filter((m: any) => {
+                                    .filter((m: ApiTransaccion) => m.tipo === 'EGRESO' || m.tipo === 'TRANSFERENCIA')
+                                    .filter((m: ApiTransaccion) => {
                                       if (m.tipo === 'TRANSFERENCIA') {
-                                        const num = String(m.numeroTransaccion || '').toUpperCase()
+                                        const num = String(m.numero || '').toUpperCase()
                                         return num.startsWith('TRX-OUT')
                                       }
                                       return true
                                     })
-                                    .reduce((acc: number, m: any) => acc + Number(m.monto), 0)
+                                    .reduce((acc: number, m) => acc + Number(m.monto), 0)
 
                                   setCajaHoyStats({ ingresos, egresos })
                                 } else {
@@ -1870,7 +1897,7 @@ const ModuloContableContent = () => {
                         >
                           <Eye className="h-3.5 w-3.5" />
                           Ver
-                        </button>
+                        </BotonAccion>
                         <button
                           onClick={() => openEditarCaja(c)}
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 text-xs font-bold hover:bg-blue-100 transition-colors"
@@ -1987,9 +2014,11 @@ const ModuloContableContent = () => {
                 <button
                   type="button"
                   onClick={handleCrearCaja}
-                  className="px-6 py-3 rounded-2xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700"
+                  disabled={creandoCaja}
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  Crear Caja
+                  {creandoCaja && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {creandoCaja ? 'Creando...' : 'Crear Caja'}
                 </button>
               </div>
             </div>
@@ -2114,13 +2143,14 @@ const ModuloContableContent = () => {
                 >
                   Cancelar
                 </button>
-                <button
+                <BotonAccion
                   type="button"
                   onClick={handleEditarCaja}
+                  textoCargando="Guardando…"
                   className="px-6 py-3 rounded-2xl bg-amber-600 text-white text-sm font-bold hover:bg-amber-700"
                 >
                   Guardar
-                </button>
+                </BotonAccion>
               </div>
             </div>
           </div>
@@ -2635,10 +2665,10 @@ const ModuloContableContent = () => {
                     {esCajaSupervisor(cajaSeleccionada) && (
                         <div className="md:col-span-2">
                             <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Rutas Supervisadas</label>
-                            {Array.isArray((cajaSeleccionada as any).rutasSupervisadas) &&
-                            (cajaSeleccionada as any).rutasSupervisadas.length > 0 ? (
+                            {Array.isArray((cajaSeleccionada).rutasSupervisadas) &&
+                            (cajaSeleccionada).rutasSupervisadas.length > 0 ? (
                                 <div className="flex flex-wrap gap-2">
-                                    {(cajaSeleccionada as any).rutasSupervisadas.map((ruta: any) => (
+                                    {(cajaSeleccionada).rutasSupervisadas.map((ruta) => (
                                         <span key={ruta.id} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
                                             {ruta.nombre} ({ruta.codigo})
                                         </span>
@@ -2799,7 +2829,7 @@ const ModuloContableContent = () => {
                          <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                        </div>
                        <div className="font-extrabold text-slate-900 text-lg">
-                         {historialCierres.filter((c: any) => c.tipo === 'CIERRE_RUTA' && c.cajaId === cajaSeleccionada.id).length}
+                         {historialCierres.filter((c) => c.tipo === 'CIERRE_RUTA' && c.cajaId === cajaSeleccionada.id).length}
                          <span className="text-slate-400 font-bold text-sm"> registro(s)</span>
                        </div>
                      </div>
@@ -2888,7 +2918,7 @@ const ModuloContableContent = () => {
                             {(() => {
                               const cajaId = cajaSeleccionada?.id
                               if (!cajaId) return 0
-                              return historialCierres.filter((c: any) => c.tipo === 'CIERRE_RUTA' && c.cajaId === cajaId).length
+                              return historialCierres.filter((c) => c.tipo === 'CIERRE_RUTA' && c.cajaId === cajaId).length
                             })()} registros
                           </span>
                         </div>
@@ -2946,7 +2976,7 @@ const ModuloContableContent = () => {
                                         })
                                         .filter(m => {
                                             if (cajaSeleccionada && detalleCajaFocus) {
-                                              const conc = String((m as any).descripcion || m.concepto || '').toUpperCase()
+                                              const conc = String(m.concepto || '').toUpperCase()
                                               const ref = String(m.tipoReferencia || '').toUpperCase()
                                               const tipoMovimiento = String(m.tipo || '').toUpperCase()
                                               const esTransferencia = tipoMovimiento === 'TRANSFERENCIA'
@@ -2982,7 +3012,7 @@ const ModuloContableContent = () => {
                                               const esIngresoRecoleccion =
                                                 m.tipo === 'TRANSFERENCIA' &&
                                                 String(m.tipoReferencia || '').toUpperCase() === 'RECOLECCION' &&
-                                                String((m as any).descripcion || m.concepto || '').toUpperCase().includes('RECIBIDA')
+                                                String(m.concepto || '').toUpperCase().includes('RECIBIDA')
                                               return esIngresoRecoleccion || esEgresoOperativo(m)
                                             } else {
                                               return esEgresoOperativo(m);
@@ -3014,8 +3044,8 @@ const ModuloContableContent = () => {
                                       if (detalleTipo === 'CAJA_TODOS') {
                                         return filtered.reduce((acc, m) => {
                                           const monto = Number(m.monto || 0)
-                                          const tipo = String((m as any)?.tipo || '').toUpperCase()
-                                          const numero = String((m as any)?.numero || (m as any)?.numeroTransaccion || '')
+                                          const tipo = String((m)?.tipo || '').toUpperCase()
+                                          const numero = String(m?.numero || '')
                                           if (tipo === 'INGRESO') return acc + monto
                                           if (tipo === 'EGRESO') return acc - monto
                                           if (tipo === 'TRANSFERENCIA') {
@@ -3032,7 +3062,7 @@ const ModuloContableContent = () => {
                                         .filter((m) =>
                                           m.tipo === 'TRANSFERENCIA' &&
                                           String(m.tipoReferencia || '').toUpperCase() === 'RECOLECCION' &&
-                                          String((m as any).descripcion || m.concepto || '').toUpperCase().includes('RECIBIDA')
+                                          String(m.concepto || '').toUpperCase().includes('RECIBIDA')
                                         )
                                         .reduce((acc, m) => acc + m.monto, 0)
                                       const egresos = filtered
@@ -3191,7 +3221,7 @@ const ModuloContableContent = () => {
                                    ? (() => {
                                         const cajaId = cajaSeleccionada?.id
                                         if (!cajaId) return 0
-                                        return historialCierres.filter((c: any) => c.tipo === 'CIERRE_RUTA' && c.cajaId === cajaId).length
+                                        return historialCierres.filter((c) => c.tipo === 'CIERRE_RUTA' && c.cajaId === cajaId).length
                                       })()
                                   : (() => {
                                       const base = cajaSeleccionada ? movimientosDetalle : movimientosModalGlobal;
@@ -3202,7 +3232,7 @@ const ModuloContableContent = () => {
                                        })
                                        .filter(m => {
                                          if (cajaSeleccionada && detalleCajaFocus) {
-                                          const conc = String((m as any).descripcion || m.concepto || '').toUpperCase();
+                                          const conc = String(m.concepto || '').toUpperCase();
                                           const ref = String(m.tipoReferencia || '').toUpperCase();
 
                                           const esTransferencia = String(m.tipo || '').toUpperCase() === 'TRANSFERENCIA'
@@ -3239,7 +3269,7 @@ const ModuloContableContent = () => {
                                           const esIngresoRecoleccion =
                                             m.tipo === 'TRANSFERENCIA' &&
                                             String(m.tipoReferencia || '').toUpperCase() === 'RECOLECCION' &&
-                                            String((m as any).descripcion || m.concepto || '').toUpperCase().includes('RECIBIDA')
+                                            String(m.concepto || '').toUpperCase().includes('RECIBIDA')
                                            return esIngresoRecoleccion || esEgresoOperativo(m)
                                          } else {
                                            return esEgresoOperativo(m);
@@ -3307,8 +3337,8 @@ const ModuloContableContent = () => {
                              const cajaId = cajaSeleccionada?.id
                              if (!cajaId) return null
                              const cierresDeEstaRuta = historialCierres
-                               .filter((c: any) => c.tipo === 'CIERRE_RUTA' && c.cajaId === cajaId)
-                               .sort((a: any, b: any) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
+                               .filter((c) => c.tipo === 'CIERRE_RUTA' && c.cajaId === cajaId)
+                               .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
                              if (cierresDeEstaRuta.length === 0) {
                                return (
                                  <div className="py-10 text-center text-slate-400 font-bold text-sm">
@@ -3316,7 +3346,7 @@ const ModuloContableContent = () => {
                                  </div>
                                )
                              }
-                             return cierresDeEstaRuta.map((c: any) => {
+                             return cierresDeEstaRuta.map((c) => {
                                const esDescuadre = c.estado === 'DESCUADRADA'
                                return (
                                  <div
@@ -3328,9 +3358,9 @@ const ModuloContableContent = () => {
                                        {new Date(c.fecha).toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                                      </span>
                                      <span className="text-[10px] font-bold text-slate-500 truncate">{c.responsable}</span>
-                                     {c.clientesFaltantes > 0 && (
+                                     {(c.clientesFaltantes ?? 0) > 0 && (
                                        <span className="text-[10px] font-bold text-amber-700">
-                                         {c.clientesFaltantes} cliente{c.clientesFaltantes > 1 ? 's' : ''} sin cobrar
+                                         {c.clientesFaltantes} cliente{(c.clientesFaltantes ?? 0) > 1 ? 's' : ''} sin cobrar
                                        </span>
                                      )}
                                    </div>
@@ -3380,7 +3410,7 @@ const ModuloContableContent = () => {
                             .filter(m => {
                               if (!cajaSeleccionada && m.categoria === 'CONSOLIDACION') return false;
                               if (cajaSeleccionada && detalleCajaFocus) {
-                                const conc = String((m as any).descripcion || m.concepto || '').toUpperCase();
+                                const conc = String(m.concepto || '').toUpperCase();
                                 const ref = String(m.tipoReferencia || '').toUpperCase();
 
                                 const esTransferencia = String(m.tipo || '').toUpperCase() === 'TRANSFERENCIA'
@@ -3416,7 +3446,7 @@ const ModuloContableContent = () => {
                                 const esIngresoRecoleccion =
                                   m.tipo === 'TRANSFERENCIA' &&
                                   String(m.tipoReferencia || '').toUpperCase() === 'RECOLECCION' &&
-                                  String((m as any).descripcion || m.concepto || '').toUpperCase().includes('RECIBIDA')
+                                  String(m.concepto || '').toUpperCase().includes('RECIBIDA')
                                 return esIngresoRecoleccion || esEgresoOperativo(m)
                               } else {
                                 return esEgresoOperativo(m);
@@ -3445,7 +3475,7 @@ const ModuloContableContent = () => {
                                 if (m.tipo === 'TRANSFERENCIA') {
                                   const ref = String(m.tipoReferencia || '').toUpperCase()
                                   if (ref === 'TRANSFERENCIA_INTERNA') return true
-                                  const conc = String((m as any).descripcion || m.concepto || '').toUpperCase()
+                                  const conc = String(m.concepto || '').toUpperCase()
                                   if (detalleTipo === 'INGRESOS') {
                                     return conc.includes('RECIBIDA')
                                   }
@@ -3462,7 +3492,7 @@ const ModuloContableContent = () => {
                               const esIngresoRecoleccion =
                                 m.tipo === 'TRANSFERENCIA' &&
                                 String(m.tipoReferencia || '').toUpperCase() === 'RECOLECCION' &&
-                                String((m as any).descripcion || m.concepto || '').toUpperCase().includes('RECIBIDA')
+                                String(m.concepto || '').toUpperCase().includes('RECIBIDA')
 
                               const isPositivo = (() => {
                                 if (detalleTipo === 'INGRESOS') return true
@@ -3474,7 +3504,7 @@ const ModuloContableContent = () => {
                                 if (detalleTipo === 'CAJA_TODOS') {
                                   if (m.tipo === 'EGRESO') return false
                                   if (m.tipo === 'TRANSFERENCIA') {
-                                    const numero = String((m as any).numero || '')
+                                    const numero = String((m).numero || '')
                                     const esSalida = numero.toUpperCase().startsWith('TRX-OUT')
                                     return !esSalida
                                   }
@@ -3668,7 +3698,7 @@ const ModuloContableContent = () => {
                     <div className="grid grid-cols-2 gap-4">
                         <div className="p-5 rounded-[1.5rem] bg-slate-50 border border-slate-100 flex flex-col items-center justify-center gap-1 group hover:bg-white transition-colors duration-300">
                             <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Monto Consolidado</span>
-                            <span className="text-base font-black text-slate-900">{formatCurrency(Math.abs(arqueoSeleccionado.saldoSistema))}</span>
+                            <span className="text-base font-black text-slate-900">{formatCurrency(Math.abs(arqueoSeleccionado.saldoSistema ?? arqueoSeleccionado.saldoEsperado ?? 0))}</span>
                         </div>
                         <div className="p-5 rounded-[1.5rem] border border-blue-100 bg-blue-50 flex flex-col items-center justify-center gap-1">
                             <span className="text-[9px] font-bold text-blue-600 uppercase tracking-tighter">Estado</span>
@@ -3679,7 +3709,7 @@ const ModuloContableContent = () => {
                     <div className="bg-slate-50 border border-slate-200 rounded-[2rem] p-6 flex items-center justify-between shadow-sm">
                         <div className="flex items-center gap-4">
                             <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center font-black text-white text-xl shadow-lg shadow-blue-200">
-                                {arqueoSeleccionado.responsable.charAt(0)}
+                                {(arqueoSeleccionado.responsable ?? '?').charAt(0)}
                             </div>
                             <div>
                                 <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Responsable de Auditoría</div>

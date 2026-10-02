@@ -1,6 +1,6 @@
 'use client';
 
-import PantallaCarga from '@/components/ui/PantallaCarga'
+import { SkeletonDetalle } from '@/components/ui/Skeleton'
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
@@ -31,6 +31,9 @@ export default function PrestamoDetallePage() {
           clienteDni: data.cliente?.dni || '',
           clienteTelefono: data.cliente?.telefono || '',
           clienteDireccion: data.cliente?.direccion || '',
+          // Marca de cartera vieja: el detalle avisa de que las cuotas pagadas
+          // de este credito no tienen pagos detras.
+          cargaHistoricaEn: data.cargaHistoricaEn ?? null,
           montoPrestamo: data.monto || 0,
           montoTotal: data.montoTotal || (Number(data.monto || 0) + Number(data.interesTotal || 0)),
           saldoPendiente: data.saldoPendiente || data.montoPendiente || 0,
@@ -49,16 +52,18 @@ export default function PrestamoDetallePage() {
           estado: data.estado || 'ACTIVO',
           tipoPrestamo: typeof data.tipoPrestamo === 'string' ? data.tipoPrestamo : '',
           cuotaInicial: Number(data.cuotaInicial || 0),
-          producto: typeof data.producto === 'string' ? data.producto : ((data.producto as any)?.nombre || data.tipoPrestamo || 'Préstamo Personal'),
+          producto: typeof data.producto === 'string' ? data.producto : (data.producto?.nombre || data.tipoPrestamo || 'Préstamo Personal'),
+          // Aqui se leia `serie`, que no existe en ningun sitio del backend (ni columna
+          // ni mencion) y para la que tampoco habia formulario donde escribirla. La fila
+          // que la pintaba se quito de `DetallePrestamo.tsx`.
           productoInfo: data.producto ? {
-            marca: (data.producto as any).marca,
-            modelo: (data.producto as any).modelo,
-            serie: (data.producto as any).serie,
-            categoria: (data.producto as any).categoria
+            marca: data.producto.marca ?? undefined,
+            modelo: data.producto.modelo ?? undefined,
+            categoria: data.producto.categoria
           } : undefined,
           garantia: data.garantia || '',
           fotos: data.fotos || [],
-          cuotas: cuotasData.map((c: any) => ({
+          cuotas: cuotasData.map((c) => ({
             numero: c.numeroCuota,
             fecha: c.fechaVencimiento,
             monto: c.monto,
@@ -80,7 +85,7 @@ export default function PrestamoDetallePage() {
 
   if (loading) {
     return (
-      <PantallaCarga />
+      <SkeletonDetalle />
     );
   }
 

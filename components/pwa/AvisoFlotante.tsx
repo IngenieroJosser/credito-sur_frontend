@@ -2,6 +2,7 @@
 
 import { useId, type ReactNode } from 'react'
 import { X } from 'lucide-react'
+import Tooltip from '@/components/ui/Tooltip'
 
 export const BOTON_AVISO_PRINCIPAL =
   'inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-bold text-white shadow-sm transition-colors hover:bg-primary-dark disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40'
@@ -45,14 +46,16 @@ export default function AvisoFlotante({ icono, titulo, children, acciones, onCer
           {children && <div className="mt-0.5 text-xs leading-relaxed text-slate-600">{children}</div>}
           {acciones && <div className="mt-2.5 flex flex-wrap items-center gap-1.5">{acciones}</div>}
         </div>
-        <button
-          type="button"
-          onClick={onCerrar}
-          aria-label="Cerrar aviso"
-          className="shrink-0 rounded-full p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-        >
-          <X className="h-4 w-4" aria-hidden="true" />
-        </button>
+        <Tooltip texto="Cerrar aviso">
+          <button
+            type="button"
+            onClick={onCerrar}
+            aria-label="Cerrar aviso"
+            className="shrink-0 rounded-full p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </Tooltip>
       </div>
     </div>
   )

@@ -1,4 +1,10 @@
 'use client'
+import { estadoDeError } from '@/lib/mensaje-de-error'
+import type {
+  DelinquentAccount,
+  TrendData,
+} from '@/services/dashboard-coordinador-service'
+import type { PrestamoDelListado } from '@/types/domain'
 
 import PantallaCarga from '@/components/ui/PantallaCarga'
 import { logger } from '@/lib/logger'
@@ -23,7 +29,7 @@ import { dashboardService } from '@/services/dashboard-coordinador-service';
 import { prestamosService } from '@/services/prestamos-service';
 import { getResumenFinanciero } from '@/services/contabilidad-service';
 import { formatCurrency } from '@/lib/utils';
-import { computeOperationalMetaTotalForTimeFilter } from '@/lib/dashboard-operational-meta'
+import { SkeletonDetalle } from '@/components/ui/Skeleton'
 
 interface UserData {
   id: string;
@@ -251,7 +257,7 @@ export default function DashboardPage() {
         const moraCount = Number(dashboard?.metrics?.delinquentAccounts ?? 0);
         // Monto en mora: suma de saldoPendiente de los préstamos en mora
         const moraMonto = (dashboard?.delinquentAccounts || []).reduce(
-          (acc: number, item: any) => acc + Number(item.amountDue || 0),
+          (acc: number, item: DelinquentAccount) => acc + Number(item.amountDue || 0),
           0,
         );
         const moraPercent = capitalPrestado > 0 && moraMonto > 0
@@ -259,8 +265,8 @@ export default function DashboardPage() {
           : moraCount > 0 ? '> 0' : '0';
         // Gastos operativos del período (excluye DEUDA_COBRADOR)
         const gastosPeriodo = resumen?.egresosHoy || 0;
-        const utilidadPeriodo = typeof (resumen as any)?.utilidadReal === 'number'
-          ? Number((resumen as any).utilidadReal || 0)
+        const utilidadPeriodo = typeof (resumen)?.utilidadReal === 'number'
+          ? Number((resumen).utilidadReal || 0)
           : (resumen?.gananciaNeta || 0);
 
         const mainMetrics: MetricItem[] = [
@@ -344,10 +350,13 @@ export default function DashboardPage() {
         ];
 
         // Armar los créditos recientes con los préstamos reales
-        const recentLoans = (prestamos?.prestamos || []).slice(0, 5).map((p: any) => {
-          const clientName = p.cliente
-            ? `${p.cliente.nombres || ''} ${p.cliente.apellidos || ''}`.trim()
-            : 'Cliente';
+        const recentLoans = (prestamos?.prestamos || [])
+          .slice(0, 5)
+          .map((p: PrestamoDelListado) => {
+          // En el LISTADO el cliente es TEXTO (`cliente: \`${nombres} ${apellidos}\``,
+          // loans.service.ts:410), no un objeto: leerle `.nombres` daba `undefined` y el
+          // nombre salia vacio en los creditos recientes del tablero.
+          const clientName = p.cliente || 'Cliente';
           const dateStr = p.creadoEn ? new Date(p.creadoEn).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' }) : '';
           return {
             client: clientName,
@@ -358,14 +367,7 @@ export default function DashboardPage() {
           };
         });
 
-        let metaOperativaTotal = 0
-        try {
-          metaOperativaTotal = await computeOperationalMetaTotalForTimeFilter(requestedPeriod)
-        } catch {
-          metaOperativaTotal = 0
-        }
-
-        const chartData = (dashboard?.trend || []).map((t: any) => {
+        const chartData = (dashboard?.trend || []).map((t: TrendData) => {
           const value = Number(t?.value || 0);
           const target = Number(t?.target || 0);
 
@@ -373,8 +375,11 @@ export default function DashboardPage() {
             label: t.label,
             value,
             target,
-            date: t.date,
-            time: t.time,
+            // `t.date` y `t.time` eran lecturas MUERTAS: el backend manda la tendencia con
+            // `label`, `value` y `target` y nada mas (dashboard.service.ts:55-57). Las dos
+            // valian `undefined` siempre, asi que el grafico ya se pintaba con `label`.
+            date: undefined,
+            time: undefined,
             efficiency:
               target > 0
                 ? Math.min(100, Math.max(0, Number(((value / target) * 100).toFixed(2))))
@@ -441,9 +446,9 @@ export default function DashboardPage() {
           },
           shouldRedirect: null
         });
-      } catch (error: any) {
+      } catch (error) {
         console.error('Error cargando dashboard:', error);
-        if (error?.response?.status === 401 || error?.statusCode === 401) {
+        if (estadoDeError(error) === 401 || estadoDeError(error) === 401) {
           localStorage.removeItem('token');
           localStorage.removeItem('user');
           router.replace('/');
@@ -475,7 +480,7 @@ export default function DashboardPage() {
       const capitalPrestado = Number(dashboard?.metrics?.capitalPrestado ?? 0)
       const recaudo = Number(dashboard?.metrics?.recaudo ?? 0)
       const moraCount = Number(dashboard?.metrics?.delinquentAccounts ?? 0)
-      const moraMonto = (dashboard?.delinquentAccounts || []).reduce((acc: number, item: any) => acc + Number(item.amountDue || 0), 0)
+      const moraMonto = (dashboard?.delinquentAccounts || []).reduce((acc: number, item) => acc + Number(item.amountDue || 0), 0)
       const moraPercent = capitalPrestado > 0 && moraMonto > 0 ? ((moraMonto / capitalPrestado) * 100).toFixed(1) : moraCount > 0 ? '> 0' : '0'
       const gastosPeriodo = resumen?.egresosHoy || 0
       const utilidadPeriodo = resumen?.gananciaNeta || 0
@@ -509,7 +514,7 @@ export default function DashboardPage() {
 
   if (state.isLoading) {
     return (
-      <PantallaCarga texto="Preparando tu dashboard..." />
+      <SkeletonDetalle />
     );
   }
 

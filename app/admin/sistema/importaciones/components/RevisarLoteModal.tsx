@@ -1,5 +1,6 @@
 "use client";
 
+import { mensajeDeError } from '@/lib/mensaje-de-error';
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
@@ -15,7 +16,9 @@ import { importacionesService } from "@/services/importaciones-service";
 import { CreditoDeLote, DetalleLoteImportacion } from "@/types/importaciones";
 import { formatCurrency } from "@/lib/utils";
 import Portal from "@/components/ui/Portal";
-import { Cargando } from "@/components/ui/PantallaCarga";
+import { SkeletonTabla } from "@/components/ui/Skeleton";
+import Tooltip from '@/components/ui/Tooltip';
+import { useModalDialog } from "@/hooks/use-modal-dialog";
 
 /**
  * Revisar antes de deshacer.
@@ -57,6 +60,12 @@ export const RevisarLoteModal: React.FC<Props> = ({
   const [error, setError] = useState<string | null>(null);
   const [seleccion, setSeleccion] = useState<Set<string>>(new Set());
   const [busqueda, setBusqueda] = useState("");
+
+  // Escape para salir y foco al abrir. El hook lleva una pila, asi que con
+  // modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    onClose: onCerrar,
+  });
   const [confirmando, setConfirmando] = useState(false);
   const [deshaciendo, setDeshaciendo] = useState(false);
   const esInventario = detalle?.tipo === "INVENTARIO";
@@ -73,8 +82,8 @@ export const RevisarLoteModal: React.FC<Props> = ({
         // Nada viene marcado: elegir qué deshacer es del usuario, no del
         // sistema. Marcar todo por defecto invita a confirmar sin mirar.
         setSeleccion(new Set());
-      } catch (e: any) {
-        if (vivo) setError(e?.message || "No se pudo cargar la importación.");
+      } catch (e) {
+        if (vivo) setError(mensajeDeError(e, "No se pudo cargar la importación."));
       } finally {
         if (vivo) setCargando(false);
       }
@@ -177,8 +186,8 @@ export const RevisarLoteModal: React.FC<Props> = ({
       res.mensajes.slice(1).forEach((m) => toast.info(m));
       onDeshecho();
       onCerrar();
-    } catch (e: any) {
-      toast.error(e?.message || "No se pudo deshacer la importación.");
+    } catch (e) {
+      toast.error(mensajeDeError(e, "No se pudo deshacer la importación."));
     } finally {
       setDeshaciendo(false);
       setConfirmando(false);
@@ -276,17 +285,24 @@ export const RevisarLoteModal: React.FC<Props> = ({
                   : ""}
               </p>
             </div>
-            <button
-              onClick={onCerrar}
-              className="rounded-xl p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
-              aria-label="Cerrar"
-            >
-              <X className="h-5 w-5" />
-            </button>
+            <Tooltip texto="Cerrar">
+              <button
+                onClick={onCerrar}
+                className="rounded-xl p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                aria-label="Cerrar"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </Tooltip>
           </div>
 
           {cargando && (
-            <Cargando texto="Buscando lo que creó esta importación…" />
+            <div className="space-y-3 px-6 py-6" aria-busy="true">
+              <span className="sr-only">
+                Buscando lo que creó esta importación…
+              </span>
+              <SkeletonTabla filas={4} columnas={4} />
+            </div>
           )}
 
           {error && (

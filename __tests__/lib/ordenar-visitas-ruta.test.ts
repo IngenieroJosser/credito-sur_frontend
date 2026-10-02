@@ -1,29 +1,30 @@
+import type { VisitaParcial } from '@/lib/types/cobranza'
 import { ordenarVisitasRutaActual } from '@/lib/rutas/ordenar-visitas-ruta'
 
 describe('ordenarVisitasRutaActual', () => {
   it('prioriza obligaciones no gestionadas por antiguedad de pago y deja gestionadas al final', () => {
-    const sinAbonos = {
+    const sinAbonos: VisitaParcial = {
       id: 'sin-abonos',
       cliente: 'Ana',
       estado: 'pendiente',
       fechaUltimoPago: 0,
       ordenVisita: 5,
     }
-    const abonoReciente = {
+    const abonoReciente: VisitaParcial = {
       id: 'abono-reciente',
       cliente: 'Beatriz',
       estado: 'pendiente',
       fechaUltimoPago: 2000,
       ordenVisita: 1,
     }
-    const abonoAntiguo = {
+    const abonoAntiguo: VisitaParcial = {
       id: 'abono-antiguo',
       cliente: 'Carlos',
       estado: 'pendiente',
       fechaUltimoPago: 1000,
       ordenVisita: 2,
     }
-    const pagado = {
+    const pagado: VisitaParcial = {
       id: 'pagado',
       cliente: 'Diana',
       estado: 'pagado',
@@ -39,7 +40,7 @@ describe('ordenarVisitasRutaActual', () => {
   })
 
   it('desempata por mayor saldo vencido, dias de mora y cuotas vencidas', () => {
-    const bajoRiesgoOperativo = {
+    const bajoRiesgoOperativo: VisitaParcial = {
       id: 'bajo',
       cliente: 'Ana',
       estado: 'pendiente',
@@ -49,7 +50,7 @@ describe('ordenarVisitasRutaActual', () => {
       cuotasVencidas: 1,
       ordenVisita: 1,
     }
-    const altoRiesgoOperativo = {
+    const altoRiesgoOperativo: VisitaParcial = {
       id: 'alto',
       cliente: 'Beatriz',
       estado: 'pendiente',

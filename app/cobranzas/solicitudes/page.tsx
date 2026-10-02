@@ -55,12 +55,12 @@ export default function SolicitudesCobradorPage() {
           return {
             id: s.id,
             fecha: s.creadoEn,
-            monto: Number(s.montoSolicitud || (datos as any).monto || 0),
+            monto: Number(s.montoSolicitud || (datos).monto || 0),
             descripcion:
-              String((datos as any).descripcion || (datos as any).notas || s.comentarios || s.tipoAprobacion || 'Solicitud'),
+              String((datos).descripcion || (datos).notas || s.comentarios || s.tipoAprobacion || 'Solicitud'),
             estado: s.estado as SolicitudDinero['estado'],
             comentarioAdmin: s.datosAprobados
-              ? String((s.datosAprobados as any)?.comentarios || (s.datosAprobados as any)?.notas || '')
+              ? String((s.datosAprobados)?.comentarios || (s.datosAprobados)?.notas || '')
               : s.comentarios || undefined,
             solicitanteId: s.solicitadoPorId,
             solicitanteNombre,

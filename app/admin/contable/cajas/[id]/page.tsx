@@ -1,14 +1,15 @@
 'use client'
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 
 
 import Paginador from '@/components/ui/Paginador'
-import PantallaCarga from '@/components/ui/PantallaCarga'
+import { SkeletonDetalle } from '@/components/ui/Skeleton'
 
 import { createPortal } from 'react-dom'
 import { use, useCallback, useMemo, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Wallet, TrendingUp, TrendingDown, Calendar, User, DollarSign, CheckCircle, AlertCircle, XCircle, ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight, CheckCircle2, X } from 'lucide-react'
-import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber } from '@/lib/utils'
+import { ArrowLeft, Wallet, TrendingUp, TrendingDown, Calendar, User, DollarSign, CheckCircle, AlertCircle, XCircle, ArrowDownLeft, ArrowUpRight, CheckCircle2, X } from 'lucide-react'
+import { formatCOPInputValue, parseCOPInputToNumber } from '@/lib/utils'
 import MoneyAmount from '@/components/contable/MoneyAmount'
 import { useNotification } from '@/components/providers/NotificationProvider'
 import { createTransaccion, getCajaById, getMovimientosLedger, type MovimientoLedger } from '@/services/contabilidad-service'
@@ -16,6 +17,7 @@ import { usuariosService } from '@/services/usuarios-service'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { formatRoleLabel } from '@/lib/display-labels'
 import { categoriasPorTipo } from '@/lib/contable/categorias-movimiento'
+import Tooltip from '@/components/ui/Tooltip'
 
 interface CajaDetalle {
   id: string
@@ -82,13 +84,13 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
       const cajaData = await getCajaById(id)
       const ledgerRes = await getMovimientosLedger({ cajaId: id, limit: 500 })
 
-      const txEnRango = (t: any) => {
+      const txEnRango = (t: MovimientoLedger) => {
         const key = new Date(t.fecha).toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
         return key >= ayerKey && key <= hoyKey
       }
 
       const totalRegistradoRango = (ledgerRes.data || [])
-        .filter((entry: any) => txEnRango(entry))
+        .filter((entry) => txEnRango(entry))
         .reduce((s: number, entry: MovimientoLedger) => {
           const lineasCaja = entry.lineas.filter((linea) => linea.cajaId === id)
           const debitos = lineasCaja.reduce((acc, linea) => acc + Number(linea.debitAmount || 0), 0)
@@ -98,7 +100,7 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
 
       const saldoActual = cajaData?.saldo || 0
       const saldoPrevioRango = (ledgerRes.data || [])
-        .filter((entry: any) => {
+        .filter((entry) => {
           const key = new Date(entry.fecha).toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
           return key < ayerKey
         })
@@ -145,7 +147,7 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
       setEditForm({ nombre: cajaData?.nombre || '', responsable: cajaData?.responsable || '', saldoInicialInput: '' })
       try {
         const users = await usuariosService.obtenerTodos()
-        setUsuariosAutorizados((users as any[]).map((u: any) => ({ id: u.id, nombre: `${u.nombres} ${u.apellidos}`, rol: u.rol })))
+        setUsuariosAutorizados((users).map((u) => ({ id: u.id, nombre: `${u.nombres} ${u.apellidos}`, rol: u.rol })))
       } catch { /* ignore */ }
     } catch (err) {
       console.error('Error cargando caja:', err)
@@ -179,7 +181,7 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
     try {
       await createTransaccion({
         cajaId: id,
-        tipo: movimientoForm.tipo as any,
+        tipo: movimientoForm.tipo,
         monto,
         descripcion: movimientoForm.concepto,
         tipoReferencia: movimientoForm.categoria,
@@ -190,14 +192,15 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
       setShowRegistrarMovimientoModal(false)
       setMovimientoForm({ tipo: 'INGRESO', categoria: '', montoInput: '', concepto: '', referencia: '', accountCode: '' })
       await fetchCaja()
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error registrando movimiento:', error)
-      const msg =
-        error?.message ||
-        error?.response?.message ||
-        (Array.isArray(error?.response?.message) ? error.response.message.join(', ') : undefined) ||
-        'No se pudo registrar el movimiento'
-      showNotification('error', String(msg), 'Error')
+      // La cadena que habia aqui ponia `error?.response?.message` ANTES del
+      // `Array.isArray`, asi que cuando el backend mandaba la lista de campos del
+      // ValidationPipe el segundo termino la devolvia tal cual y el `join` no
+      // llegaba a correr: acababa en `String(array)`, con comas y sin espacios.
+      // `mensajeDeError` une la lista donde sea que venga.
+      const msg = mensajeDeError(error, 'No se pudo registrar el movimiento')
+      showNotification('error', msg, 'Error')
     }
   }
 
@@ -248,7 +251,7 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
 
   if (loadingCaja) {
     return (
-      <PantallaCarga />
+      <SkeletonDetalle />
     )
   }
 
@@ -595,13 +598,16 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
                                 placeholder="Nombre nueva categoría..."
                                 className="flex-1 px-4 py-3 rounded-xl border border-blue-200 bg-blue-50 text-sm font-bold text-blue-900 focus:ring-2 focus:ring-blue-100 outline-none placeholder:text-blue-300"
                              />
-                             <button
-                                type="button" 
-                                onClick={handleCrearCategoria}
-                                className="shrink-0 p-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
-                             >
-                                <CheckCircle2 className="h-5 w-5" />
-                             </button>
+                             <Tooltip texto="Confirmar">
+                               <button
+                                  type="button" 
+                                  onClick={handleCrearCategoria}
+                                  className="shrink-0 p-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
+                                 aria-label="Confirmar"
+                               >
+                                  <CheckCircle2 className="h-5 w-5" />
+                               </button>
+                             </Tooltip>
                              <button 
                                 type="button"
                                 onClick={() => setIsCreatingCategory(false)}

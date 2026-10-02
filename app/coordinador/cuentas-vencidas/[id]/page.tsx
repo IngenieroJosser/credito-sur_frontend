@@ -1,9 +1,9 @@
 'use client';
 
-import PantallaCarga from '@/components/ui/PantallaCarga'
+import { SkeletonDetalle } from '@/components/ui/Skeleton'
 
 import { use, useState, useEffect } from 'react';
-import { ChevronLeft, Archive, Scale, FileText, User } from 'lucide-react';
+import { ChevronLeft, Archive, User } from 'lucide-react';
 import Link from 'next/link';
 import { formatCurrency } from '@/lib/utils';
 import { vencidasService, CuentaVencida } from '@/services/vencidas-service';
@@ -35,7 +35,7 @@ export default function DetalleCuentaVencidaPage({
 
   if (loading) {
     return (
-      <PantallaCarga />
+      <SkeletonDetalle />
     );
   }
 

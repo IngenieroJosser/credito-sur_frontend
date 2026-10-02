@@ -1,6 +1,8 @@
 'use client'
 
-import PantallaCarga from '@/components/ui/PantallaCarga'
+import type { OfflineCliente, OfflinePrestamo } from '@/lib/offline/offlineDb'
+
+import { SkeletonDetalle } from '@/components/ui/Skeleton'
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
@@ -13,15 +15,21 @@ import {
   ArrowLeft,
   Banknote,
   Package,
-  CheckCircle2
+  CheckCircle2,
 } from 'lucide-react'
-import { formatCOPInputValue, formatCurrency, formatMilesCOP, parseCOPInputToNumber, cn } from '@/lib/utils'
+import {
+  formatCOPInputValue,
+  formatCurrency,
+  formatMilesCOP,
+  parseCOPInputToNumber,
+  cn,
+} from '@/lib/utils'
 import { clientesService } from '@/services/cliente-service'
 import { prestamosService } from '@/services/prestamos-service'
 import { pagosService, type DescomposicionPago } from '@/services/pagos-service'
 import { offlineStore } from '@/lib/offline/offlineDb'
-import { enqueuePago } from '@/lib/offline/offlineQueue'
 import { resolveCobradorIdForRouteAction } from '@/lib/rutas-core'
+import { MetodoPago } from '@/types/enums'
 
 type TipoProducto = 'PRESTAMO_EFECTIVO' | 'CREDITO_ARTICULO'
 
@@ -59,6 +67,9 @@ const RegistrarPagoClientePage = () => {
   const [comentarios, setComentarios] = useState('')
   const [estadoEnvio, setEstadoEnvio] = useState<'idle' | 'enviando' | 'exito' | 'error'>('idle')
   const [descomposicion, setDescomposicion] = useState<DescomposicionPago | null>(null)
+  // El pago puede quedar registrado sin desglose: sin conexion queda en la cola y
+  // el reparto entre capital, interes y mora lo decide el backend al sincronizar.
+  const [pagoSinConexion, setPagoSinConexion] = useState(false)
 
   useEffect(() => {
     const loadData = async () => {
@@ -68,16 +79,25 @@ const RegistrarPagoClientePage = () => {
         setCliente({
           id: clienteData.id,
           nombre: `${clienteData.nombres} ${clienteData.apellidos}`,
-          dni: clienteData.dni || (clienteData as any).cedula || '',
-          direccion: clienteData.direccion || ''
+          // Se quito el respaldo `clienteData.cedula`: la columna real es `dni`
+          // (`model Cliente.dni`), y `cedula` solo existe en el backend como alias de
+          // salida en aprobaciones e importaciones, nunca en el detalle de un cliente.
+          dni: clienteData.dni || '',
+          direccion: clienteData.direccion || '',
         })
 
-        const prestamosResp = await prestamosService.obtenerPrestamos({ search: clienteId, limit: 1 })
+        const prestamosResp = await prestamosService.obtenerPrestamos({
+          search: clienteId,
+          limit: 1,
+        })
         const prestamo = prestamosResp?.prestamos?.[0]
         if (prestamo) {
           const tipoPrestamoRaw = prestamo.tipoPrestamo || prestamo.producto || ''
-          const tipoPrestamo: string = typeof tipoPrestamoRaw === 'string' ? tipoPrestamoRaw : (tipoPrestamoRaw as any)?.nombre || ''
-          const esArticulo = tipoPrestamo.toLowerCase() !== 'efectivo' && tipoPrestamo.toLowerCase() !== 'préstamo'
+          // `tipoPrestamo` y `producto` llegan siempre como texto en el
+          // listado, asi que la rama del objeto no se alcanzaba nunca.
+          const tipoPrestamo: string = String(tipoPrestamoRaw || '')
+          const esArticulo =
+            tipoPrestamo.toLowerCase() !== 'efectivo' && tipoPrestamo.toLowerCase() !== 'préstamo'
           setProducto({
             id: prestamo.id,
             tipo: esArticulo ? 'CREDITO_ARTICULO' : 'PRESTAMO_EFECTIVO',
@@ -94,16 +114,20 @@ const RegistrarPagoClientePage = () => {
         console.error('Error cargando datos del cliente:', err)
         // Fallback offline: cargar de IndexedDB
         try {
-          const offCliente = await offlineStore.getById<any>('clientes', clienteId)
+          const offCliente = await offlineStore.getById<OfflineCliente>('clientes', clienteId)
           if (offCliente) {
             setCliente({
               id: offCliente.id,
               nombre: `${offCliente.nombres || ''} ${offCliente.apellidos || ''}`.trim(),
               dni: offCliente.dni || '',
-              direccion: offCliente.direccion || ''
+              direccion: offCliente.direccion || '',
             })
           }
-          const offPrestamos = await offlineStore.getByIndex<any>('prestamos', 'by-clienteId', clienteId)
+          const offPrestamos = await offlineStore.getByIndex<OfflinePrestamo>(
+            'prestamos',
+            'by-clienteId',
+            clienteId,
+          )
           const offPrestamo = offPrestamos[0]
           if (offPrestamo) {
             setProducto({
@@ -113,12 +137,20 @@ const RegistrarPagoClientePage = () => {
               descripcion: offPrestamo.frecuenciaPago || 'Préstamo',
               saldoPendiente: offPrestamo.saldoPendiente || 0,
               proximaCuota: offPrestamo.fechaFin || '',
-              valorCuota: offPrestamo.saldoPendiente ? Math.round(offPrestamo.saldoPendiente / (offPrestamo.cantidadCuotas || 1)) : 0,
+              valorCuota: offPrestamo.saldoPendiente
+                ? Math.round(offPrestamo.saldoPendiente / (offPrestamo.cantidadCuotas || 1))
+                : 0,
               diasMora: 0,
-              cobradorId: offPrestamo.cobradorId || undefined,
+              // Aqui iba `cobradorId: offPrestamo.cobradorId || undefined`, y la copia
+              // offline del prestamo NO guarda ese campo: `cobradorId` solo existe en
+              // `OfflineRuta`, y el mapeador que llena `prestamos` nunca lo escribe. Al
+              // declarar el tipo, el compilador lo dijo. Sin esto quedaba undefined
+              // igual, asi que no cambia nada: deja de prometer un dato que no hay.
             })
           }
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       } finally {
         setLoading(false)
       }
@@ -142,45 +174,25 @@ const RegistrarPagoClientePage = () => {
         prestamoId: producto.id,
         cobradorId,
         montoTotal: parseCOPInputToNumber(monto),
-        metodoPago: 'EFECTIVO' as any,
+        metodoPago: MetodoPago.EFECTIVO,
         notas: comentarios || undefined,
       })
-      setDescomposicion(resultado.descomposicion)
+      setDescomposicion(resultado.descomposicion ?? null)
+      setPagoSinConexion(Boolean(resultado.esOffline))
       setEstadoEnvio('exito')
     } catch (err) {
       console.error('Error registrando pago:', err)
-      // Fallback offline: encolar pago
-      if (!navigator.onLine) {
-        try {
-          await enqueuePago({
-            clienteId: cliente.id,
-            prestamoId: producto.id,
-            cobradorId,
-            montoTotal: parseCOPInputToNumber(monto),
-            notas: comentarios || undefined,
-            clienteNombre: cliente.nombre,
-          })
-          setEstadoEnvio('exito')
-          setDescomposicion({
-            montoTotal: parseCOPInputToNumber(monto),
-            capitalRecuperado: 0,
-            interesRecuperado: 0,
-            saldoAnterior: producto.saldoPendiente,
-            saldoNuevo: producto.saldoPendiente - parseCOPInputToNumber(monto),
-            cuotasAfectadas: 0,
-            prestamoQuedaPagado: false,
-          })
-          return
-        } catch { /* ignore */ }
-      }
+      // Aqui NO se vuelve a encolar. `pagosService.registrarPago` ya encola ante
+      // error de red y devuelve el pago optimista, asi que este catch solo recibe
+      // errores que no son de red; encolar aqui duplicaba el pago. El bloque que
+      // habia era inalcanzable y ademas fabricaba un desglose con capital e
+      // interes en cero.
       setEstadoEnvio('error')
     }
   }
 
   if (loading) {
-    return (
-      <PantallaCarga />
-    )
+    return <SkeletonDetalle />
   }
 
   const esCreditoArticulo = producto?.tipo === 'CREDITO_ARTICULO'
@@ -196,7 +208,7 @@ const RegistrarPagoClientePage = () => {
         <div className="relative z-10 w-full p-8 space-y-8">
           {/* Header Artículo */}
           <div className="flex items-center gap-4">
-            <button 
+            <button
               onClick={() => router.back()}
               className="shrink-0 p-2 bg-white rounded-full shadow-sm hover:bg-slate-100 transition-colors"
             >
@@ -218,32 +230,40 @@ const RegistrarPagoClientePage = () => {
               <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm overflow-hidden relative group">
                 {/* Placeholder de imagen de producto */}
                 <div className="aspect-square rounded-2xl bg-slate-100 mb-6 flex items-center justify-center relative overflow-hidden">
-                   <Package className="h-32 w-32 text-slate-300" />
-                   {/* Badge de estado */}
-                   <div className="absolute top-4 right-4">
-                     <span className="px-3 py-1 bg-white/90 backdrop-blur text-slate-900 text-xs font-bold rounded-full border border-slate-200 shadow-sm">
-                       {producto.codigo}
-                     </span>
-                   </div>
+                  <Package className="h-32 w-32 text-slate-300" />
+                  {/* Badge de estado */}
+                  <div className="absolute top-4 right-4">
+                    <span className="px-3 py-1 bg-white/90 backdrop-blur text-slate-900 text-xs font-bold rounded-full border border-slate-200 shadow-sm">
+                      {producto.codigo}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="space-y-4">
                   <div>
                     <h3 className="text-2xl font-bold text-slate-900">{producto.descripcion}</h3>
                     <div className="flex items-center gap-2 mt-2 text-sm text-slate-600">
-                       <User className="h-4 w-4" />
-                       {cliente?.nombre}
+                      <User className="h-4 w-4" />
+                      {cliente?.nombre}
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4 py-4 border-t border-slate-100">
                     <div>
-                       <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Saldo Total</p>
-                       <p className="text-xl font-bold text-slate-900">{formatCurrency(producto.saldoPendiente)}</p>
+                      <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                        Saldo Total
+                      </p>
+                      <p className="text-xl font-bold text-slate-900">
+                        {formatCurrency(producto.saldoPendiente)}
+                      </p>
                     </div>
                     <div>
-                       <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Valor Cuota</p>
-                       <p className="text-xl font-bold text-blue-600">{formatCurrency(producto.valorCuota)}</p>
+                      <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                        Valor Cuota
+                      </p>
+                      <p className="text-xl font-bold text-blue-600">
+                        {formatCurrency(producto.valorCuota)}
+                      </p>
                     </div>
                   </div>
 
@@ -254,7 +274,9 @@ const RegistrarPagoClientePage = () => {
                       </div>
                       <div>
                         <p className="text-sm font-bold text-rose-700">Cuenta en Mora</p>
-                        <p className="text-xs text-rose-600">Este cliente tiene {producto.diasMora} días de retraso.</p>
+                        <p className="text-xs text-rose-600">
+                          Este cliente tiene {producto.diasMora} días de retraso.
+                        </p>
                       </div>
                     </div>
                   )}
@@ -265,34 +287,42 @@ const RegistrarPagoClientePage = () => {
             {/* Columna Derecha: Formulario de Pago */}
             <div className="lg:col-span-7">
               <div className="bg-white rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/50 p-8 h-full">
-                <form onSubmit={handleSubmit} className="space-y-8 h-full flex flex-col justify-center">
-                   <div>
-                      <h3 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2">
-                        <Banknote className="h-6 w-6 text-emerald-600" />
-                        Registrar Abono
-                      </h3>
-                      
-                      {/* Input Gigante */}
-                      <div className="relative mb-8">
-                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Monto a abonar</label>
-                        <div className="relative">
-                          <span className="absolute left-0 top-1/2 -translate-y-1/2 text-4xl font-light text-slate-300">$</span>
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            value={monto}
-                            onChange={(e) => setMonto(formatCOPInputValue(e.target.value))}
-                            placeholder="0"
-                            className="w-full pl-8 pr-4 py-2 bg-transparent border-b-2 border-slate-200 text-5xl font-bold text-slate-900 focus:border-blue-600 focus:ring-0 outline-none transition-all placeholder:text-slate-200"
-                            autoFocus
-                          />
-                        </div>
-                      </div>
+                <form
+                  onSubmit={handleSubmit}
+                  className="space-y-8 h-full flex flex-col justify-center"
+                >
+                  <div>
+                    <h3 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2">
+                      <Banknote className="h-6 w-6 text-emerald-600" />
+                      Registrar Abono
+                    </h3>
 
-                      {/* Botones rápidos */}
-                      <div className="grid grid-cols-3 gap-3 mb-8">
-                        {[producto.valorCuota, producto.valorCuota * 2, producto.saldoPendiente].map((val, idx) => (
-                           val && (
+                    {/* Input Gigante */}
+                    <div className="relative mb-8">
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">
+                        Monto a abonar
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-0 top-1/2 -translate-y-1/2 text-4xl font-light text-slate-300">
+                          $
+                        </span>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={monto}
+                          onChange={(e) => setMonto(formatCOPInputValue(e.target.value))}
+                          placeholder="0"
+                          className="w-full pl-8 pr-4 py-2 bg-transparent border-b-2 border-slate-200 text-5xl font-bold text-slate-900 focus:border-blue-600 focus:ring-0 outline-none transition-all placeholder:text-slate-200"
+                          autoFocus
+                        />
+                      </div>
+                    </div>
+
+                    {/* Botones rápidos */}
+                    <div className="grid grid-cols-3 gap-3 mb-8">
+                      {[producto.valorCuota, producto.valorCuota * 2, producto.saldoPendiente].map(
+                        (val, idx) =>
+                          val && (
                             <button
                               key={idx}
                               type="button"
@@ -301,75 +331,117 @@ const RegistrarPagoClientePage = () => {
                             >
                               {idx === 2 ? 'Pago Total' : formatCurrency(val)}
                             </button>
-                           )
-                        ))}
-                      </div>
+                          ),
+                      )}
+                    </div>
 
-                      <div className="space-y-2">
-                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Notas adicionales</label>
-                         <textarea 
-                            value={comentarios}
-                            onChange={(e) => setComentarios(e.target.value)}
-                            className="w-full p-4 bg-slate-50 border-0 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-100 outline-none resize-none transition-all"
-                            rows={3}
-                            placeholder="Agregar comentario sobre el estado del artículo o pago..."
-                          />
-                      </div>
-                   </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                        Notas adicionales
+                      </label>
+                      <textarea
+                        value={comentarios}
+                        onChange={(e) => setComentarios(e.target.value)}
+                        className="w-full p-4 bg-slate-50 border-0 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-100 outline-none resize-none transition-all"
+                        rows={3}
+                        placeholder="Agregar comentario sobre el estado del artículo o pago..."
+                      />
+                    </div>
+                  </div>
 
-                   <div className="pt-4">
+                  <div className="pt-4">
+                    <button
+                      type="submit"
+                      disabled={
+                        parseCOPInputToNumber(monto) <= 0 ||
+                        estadoEnvio === 'enviando' ||
+                        estadoEnvio === 'exito'
+                      }
+                      className={cn(
+                        'w-full py-5 rounded-2xl font-bold text-lg text-white transition-all transform active:scale-[0.99] shadow-lg hover:shadow-xl',
+                        estadoEnvio === 'exito'
+                          ? 'bg-emerald-500 shadow-emerald-500/30'
+                          : 'bg-slate-900 hover:bg-slate-800 shadow-slate-900/20',
+                      )}
+                    >
+                      {estadoEnvio === 'enviando'
+                        ? 'Procesando...'
+                        : estadoEnvio === 'exito'
+                          ? '¡Pago Exitoso!'
+                          : 'Confirmar Pago de Artículo'}
+                    </button>
+                  </div>
+
+                  {estadoEnvio === 'exito' && pagoSinConexion && !descomposicion && (
+                    <div className="mt-6 bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-3">
+                      <h4 className="font-bold text-amber-800 flex items-center gap-2">
+                        <CheckCircle2 className="h-5 w-5" />
+                        Pago guardado sin conexion
+                      </h4>
+                      <p className="text-sm text-amber-800">
+                        Se registro <strong>{formatCurrency(parseCOPInputToNumber(monto))}</strong>{' '}
+                        y se enviara automaticamente al reconectar.
+                      </p>
+                      <p className="text-xs text-amber-700">
+                        El reparto entre capital, interes y mora lo calcula el servidor al
+                        sincronizar, asi que todavia no se puede mostrar.
+                      </p>
                       <button
-                        type="submit"
-                        disabled={parseCOPInputToNumber(monto) <= 0 || estadoEnvio === 'enviando' || estadoEnvio === 'exito'}
-                        className={cn(
-                          "w-full py-5 rounded-2xl font-bold text-lg text-white transition-all transform active:scale-[0.99] shadow-lg hover:shadow-xl",
-                          estadoEnvio === 'exito' 
-                            ? "bg-emerald-500 shadow-emerald-500/30"
-                            : "bg-slate-900 hover:bg-slate-800 shadow-slate-900/20"
-                        )}
+                        type="button"
+                        onClick={() => router.back()}
+                        className="w-full mt-2 py-3 rounded-xl border border-amber-300 text-amber-700 font-bold text-sm hover:bg-amber-100 transition-colors"
                       >
-                        {estadoEnvio === 'enviando' ? 'Procesando...' : estadoEnvio === 'exito' ? '¡Pago Exitoso!' : 'Confirmar Pago de Artículo'}
+                        Volver
                       </button>
-                   </div>
+                    </div>
+                  )}
 
-                   {estadoEnvio === 'exito' && descomposicion && (
-                     <div className="mt-6 bg-emerald-50 border border-emerald-200 rounded-2xl p-5 space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                       <h4 className="font-bold text-emerald-800 flex items-center gap-2">
-                         <CheckCircle2 className="h-5 w-5" />
-                         Resumen del Pago
-                       </h4>
-                       <div className="grid grid-cols-2 gap-3 text-sm">
-                         <div>
-                           <p className="text-emerald-600 font-medium">Capital Recuperado</p>
-                           <p className="text-lg font-bold text-slate-900">{formatCurrency(descomposicion.capitalRecuperado)}</p>
-                         </div>
-                         <div>
-                           <p className="text-emerald-600 font-medium">Interés Recuperado</p>
-                           <p className="text-lg font-bold text-slate-900">{formatCurrency(descomposicion.interesRecuperado)}</p>
-                         </div>
-                         <div>
-                           <p className="text-emerald-600 font-medium">Saldo Anterior</p>
-                           <p className="font-bold text-slate-700">{formatCurrency(descomposicion.saldoAnterior)}</p>
-                         </div>
-                         <div>
-                           <p className="text-emerald-600 font-medium">Nuevo Saldo</p>
-                           <p className="font-bold text-slate-900">{formatCurrency(descomposicion.saldoNuevo)}</p>
-                         </div>
-                       </div>
-                       {descomposicion.prestamoQuedaPagado && (
-                         <div className="mt-2 text-center py-2 bg-emerald-100 rounded-xl text-emerald-800 font-bold text-sm">
-                           Préstamo pagado en su totalidad
-                         </div>
-                       )}
-                       <button
-                         type="button"
-                         onClick={() => router.back()}
-                         className="w-full mt-2 py-3 rounded-xl border border-emerald-300 text-emerald-700 font-bold text-sm hover:bg-emerald-100 transition-colors"
-                       >
-                         Volver
-                       </button>
-                     </div>
-                   )}
+                  {estadoEnvio === 'exito' && descomposicion && (
+                    <div className="mt-6 bg-emerald-50 border border-emerald-200 rounded-2xl p-5 space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                      <h4 className="font-bold text-emerald-800 flex items-center gap-2">
+                        <CheckCircle2 className="h-5 w-5" />
+                        Resumen del Pago
+                      </h4>
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <p className="text-emerald-600 font-medium">Capital Recuperado</p>
+                          <p className="text-lg font-bold text-slate-900">
+                            {formatCurrency(descomposicion.capitalRecuperado)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-emerald-600 font-medium">Interés Recuperado</p>
+                          <p className="text-lg font-bold text-slate-900">
+                            {formatCurrency(descomposicion.interesRecuperado)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-emerald-600 font-medium">Saldo Anterior</p>
+                          <p className="font-bold text-slate-700">
+                            {formatCurrency(descomposicion.saldoAnterior)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-emerald-600 font-medium">Nuevo Saldo</p>
+                          <p className="font-bold text-slate-900">
+                            {formatCurrency(descomposicion.saldoNuevo)}
+                          </p>
+                        </div>
+                      </div>
+                      {descomposicion.prestamoQuedaPagado && (
+                        <div className="mt-2 text-center py-2 bg-emerald-100 rounded-xl text-emerald-800 font-bold text-sm">
+                          Préstamo pagado en su totalidad
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => router.back()}
+                        className="w-full mt-2 py-3 rounded-xl border border-emerald-300 text-emerald-700 font-bold text-sm hover:bg-emerald-100 transition-colors"
+                      >
+                        Volver
+                      </button>
+                    </div>
+                  )}
                 </form>
               </div>
             </div>
@@ -390,7 +462,7 @@ const RegistrarPagoClientePage = () => {
       <div className="relative z-10 w-full p-8 space-y-8">
         {/* Header con botón de regreso */}
         <div className="flex items-center gap-4">
-          <button 
+          <button
             onClick={() => router.back()}
             className="shrink-0 p-2 bg-white rounded-full shadow-sm hover:bg-slate-100 transition-colors"
           >
@@ -398,7 +470,8 @@ const RegistrarPagoClientePage = () => {
           </button>
           <div>
             <h1 className="text-3xl font-bold tracking-tight">
-              <span className="text-blue-600">Registrar</span> <span className="text-orange-500">Pago</span>
+              <span className="text-blue-600">Registrar</span>{' '}
+              <span className="text-orange-500">Pago</span>
             </h1>
             <p className="text-slate-600 text-sm font-medium">
               {esCreditoArticulo ? 'Abono a Crédito de Artículo' : 'Abono a Préstamo Personal'}
@@ -421,7 +494,9 @@ const RegistrarPagoClientePage = () => {
                 </div>
               </div>
               <div className="text-sm text-slate-600 flex items-start gap-2">
-                <div className="mt-0.5"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500" /></div>
+                <div className="mt-0.5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                </div>
                 {cliente?.direccion}
               </div>
             </div>
@@ -430,23 +505,35 @@ const RegistrarPagoClientePage = () => {
             <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm relative overflow-hidden">
               <div className="flex items-start justify-between mb-4 relative z-10">
                 <div className="flex items-center gap-3">
-                  <div className={cn(
-                    "p-2 rounded-lg",
-                    esCreditoArticulo ? "bg-indigo-100 text-indigo-700" : "bg-emerald-100 text-emerald-700"
-                  )}>
-                    {esCreditoArticulo ? <ShoppingBag className="h-5 w-5" /> : <Banknote className="h-5 w-5" />}
+                  <div
+                    className={cn(
+                      'p-2 rounded-lg',
+                      esCreditoArticulo
+                        ? 'bg-indigo-100 text-indigo-700'
+                        : 'bg-emerald-100 text-emerald-700',
+                    )}
+                  >
+                    {esCreditoArticulo ? (
+                      <ShoppingBag className="h-5 w-5" />
+                    ) : (
+                      <Banknote className="h-5 w-5" />
+                    )}
                   </div>
                   <div>
-                    <h3 className={cn(
-                      "font-bold",
-                      esCreditoArticulo ? "text-indigo-900" : "text-emerald-900"
-                    )}>
+                    <h3
+                      className={cn(
+                        'font-bold',
+                        esCreditoArticulo ? 'text-indigo-900' : 'text-emerald-900',
+                      )}
+                    >
                       {esCreditoArticulo ? 'Crédito Artículo' : 'Préstamo Efectivo'}
                     </h3>
-                    <p className={cn(
-                      "text-xs font-medium",
-                      esCreditoArticulo ? "text-indigo-600" : "text-emerald-600"
-                    )}>
+                    <p
+                      className={cn(
+                        'text-xs font-medium',
+                        esCreditoArticulo ? 'text-indigo-600' : 'text-emerald-600',
+                      )}
+                    >
                       {producto?.codigo}
                     </p>
                   </div>
@@ -456,17 +543,23 @@ const RegistrarPagoClientePage = () => {
               <div className="space-y-3 relative z-10">
                 <div>
                   <p className="text-xs font-bold text-slate-500 mb-1">Producto / Detalle</p>
-                  <p className="font-bold text-lg leading-tight text-slate-900">{producto?.descripcion}</p>
+                  <p className="font-bold text-lg leading-tight text-slate-900">
+                    {producto?.descripcion}
+                  </p>
                 </div>
-                
+
                 <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-100">
                   <div>
                     <p className="text-xs font-bold text-slate-500 mb-1">Saldo Pendiente</p>
-                    <p className="font-bold text-slate-900">{formatCurrency(producto?.saldoPendiente || 0)}</p>
+                    <p className="font-bold text-slate-900">
+                      {formatCurrency(producto?.saldoPendiente || 0)}
+                    </p>
                   </div>
                   <div>
                     <p className="text-xs font-bold text-slate-500 mb-1">Valor Cuota</p>
-                    <p className="font-bold text-slate-900">{formatCurrency(producto?.valorCuota || 0)}</p>
+                    <p className="font-bold text-slate-900">
+                      {formatCurrency(producto?.valorCuota || 0)}
+                    </p>
                   </div>
                 </div>
 
@@ -480,7 +573,11 @@ const RegistrarPagoClientePage = () => {
 
               {/* Decoración de fondo */}
               <div className="absolute -right-4 -bottom-4 opacity-10">
-                {esCreditoArticulo ? <Package className="h-32 w-32" /> : <CreditCard className="h-32 w-32" />}
+                {esCreditoArticulo ? (
+                  <Package className="h-32 w-32" />
+                ) : (
+                  <CreditCard className="h-32 w-32" />
+                )}
               </div>
             </div>
           </div>
@@ -492,7 +589,9 @@ const RegistrarPagoClientePage = () => {
                 <form onSubmit={handleSubmit} className="space-y-6">
                   {/* Selección de Método */}
                   <div>
-                    <label className="text-sm font-bold text-slate-700 mb-3 block">Método de Pago</label>
+                    <label className="text-sm font-bold text-slate-700 mb-3 block">
+                      Método de Pago
+                    </label>
                     <button
                       type="button"
                       className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-slate-900 bg-slate-50 text-slate-900"
@@ -502,7 +601,9 @@ const RegistrarPagoClientePage = () => {
                       </div>
                       <div className="text-left">
                         <p className="font-bold text-sm">Efectivo</p>
-                        <p className="text-xs text-slate-600 font-medium">Pago directo al cobrador</p>
+                        <p className="text-xs text-slate-600 font-medium">
+                          Pago directo al cobrador
+                        </p>
                       </div>
                       <div className="ml-auto">
                         <div className="h-5 w-5 rounded-full border-2 border-slate-900 bg-slate-900 flex items-center justify-center">
@@ -514,9 +615,13 @@ const RegistrarPagoClientePage = () => {
 
                   {/* Input Monto */}
                   <div>
-                    <label className="text-sm font-bold text-slate-700 mb-3 block">Monto a Pagar</label>
+                    <label className="text-sm font-bold text-slate-700 mb-3 block">
+                      Monto a Pagar
+                    </label>
                     <div className="relative">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-light text-xl">$</div>
+                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-light text-xl">
+                        $
+                      </div>
                       <input
                         type="text"
                         inputMode="numeric"
@@ -532,25 +637,32 @@ const RegistrarPagoClientePage = () => {
                     </div>
                     {/* Accesos rápidos */}
                     <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
-                      {[producto?.valorCuota, (producto?.valorCuota || 0) * 2, (producto?.saldoPendiente || 0)].map((val) => (
-                         val && (
-                          <button
-                            key={val}
-                            type="button"
-                            onClick={() => setMonto(formatMilesCOP(val))}
-                            className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors whitespace-nowrap"
-                          >
-                            {formatCurrency(val)}
-                          </button>
-                         )
-                      ))}
+                      {[
+                        producto?.valorCuota,
+                        (producto?.valorCuota || 0) * 2,
+                        producto?.saldoPendiente || 0,
+                      ].map(
+                        (val) =>
+                          val && (
+                            <button
+                              key={val}
+                              type="button"
+                              onClick={() => setMonto(formatMilesCOP(val))}
+                              className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors whitespace-nowrap"
+                            >
+                              {formatCurrency(val)}
+                            </button>
+                          ),
+                      )}
                     </div>
                   </div>
 
                   {/* Comentarios */}
                   <div>
-                    <label className="text-sm font-bold text-slate-700 mb-2 block">Notas (Opcional)</label>
-                    <textarea 
+                    <label className="text-sm font-bold text-slate-700 mb-2 block">
+                      Notas (Opcional)
+                    </label>
+                    <textarea
                       value={comentarios}
                       onChange={(e) => setComentarios(e.target.value)}
                       className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none"
@@ -561,12 +673,16 @@ const RegistrarPagoClientePage = () => {
 
                   <button
                     type="submit"
-                    disabled={parseCOPInputToNumber(monto) <= 0 || estadoEnvio === 'enviando' || estadoEnvio === 'exito'}
+                    disabled={
+                      parseCOPInputToNumber(monto) <= 0 ||
+                      estadoEnvio === 'enviando' ||
+                      estadoEnvio === 'exito'
+                    }
                     className={cn(
-                      "w-full py-4 rounded-xl font-bold text-white transition-all transform active:scale-[0.98]",
-                      estadoEnvio === 'exito' 
-                        ? "bg-emerald-500 hover:bg-emerald-600"
-                        : "bg-slate-900 hover:bg-slate-800 shadow-lg shadow-slate-900/20"
+                      'w-full py-4 rounded-xl font-bold text-white transition-all transform active:scale-[0.98]',
+                      estadoEnvio === 'exito'
+                        ? 'bg-emerald-500 hover:bg-emerald-600'
+                        : 'bg-slate-900 hover:bg-slate-800 shadow-lg shadow-slate-900/20',
                     )}
                   >
                     {estadoEnvio === 'enviando' ? (
@@ -580,10 +696,33 @@ const RegistrarPagoClientePage = () => {
                         ¡Pago Registrado!
                       </span>
                     ) : (
-                      "Confirmar Pago"
+                      'Confirmar Pago'
                     )}
                   </button>
 
+                  {estadoEnvio === 'exito' && pagoSinConexion && !descomposicion && (
+                    <div className="mt-6 bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-3">
+                      <h4 className="font-bold text-amber-800 flex items-center gap-2">
+                        <CheckCircle2 className="h-5 w-5" />
+                        Pago guardado sin conexion
+                      </h4>
+                      <p className="text-sm text-amber-800">
+                        Se registro <strong>{formatCurrency(parseCOPInputToNumber(monto))}</strong>{' '}
+                        y se enviara automaticamente al reconectar.
+                      </p>
+                      <p className="text-xs text-amber-700">
+                        El reparto entre capital, interes y mora lo calcula el servidor al
+                        sincronizar, asi que todavia no se puede mostrar.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => router.back()}
+                        className="w-full mt-2 py-3 rounded-xl border border-amber-300 text-amber-700 font-bold text-sm hover:bg-amber-100 transition-colors"
+                      >
+                        Volver
+                      </button>
+                    </div>
+                  )}
                   {estadoEnvio === 'exito' && descomposicion && (
                     <div className="mt-6 bg-emerald-50 border border-emerald-200 rounded-2xl p-5 space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-500">
                       <h4 className="font-bold text-emerald-800 flex items-center gap-2">
@@ -593,19 +732,27 @@ const RegistrarPagoClientePage = () => {
                       <div className="grid grid-cols-2 gap-3 text-sm">
                         <div>
                           <p className="text-emerald-600 font-medium">Capital Recuperado</p>
-                          <p className="text-lg font-bold text-slate-900">{formatCurrency(descomposicion.capitalRecuperado)}</p>
+                          <p className="text-lg font-bold text-slate-900">
+                            {formatCurrency(descomposicion.capitalRecuperado)}
+                          </p>
                         </div>
                         <div>
                           <p className="text-emerald-600 font-medium">Interés Recuperado</p>
-                          <p className="text-lg font-bold text-slate-900">{formatCurrency(descomposicion.interesRecuperado)}</p>
+                          <p className="text-lg font-bold text-slate-900">
+                            {formatCurrency(descomposicion.interesRecuperado)}
+                          </p>
                         </div>
                         <div>
                           <p className="text-emerald-600 font-medium">Saldo Anterior</p>
-                          <p className="font-bold text-slate-700">{formatCurrency(descomposicion.saldoAnterior)}</p>
+                          <p className="font-bold text-slate-700">
+                            {formatCurrency(descomposicion.saldoAnterior)}
+                          </p>
                         </div>
                         <div>
                           <p className="text-emerald-600 font-medium">Nuevo Saldo</p>
-                          <p className="font-bold text-slate-900">{formatCurrency(descomposicion.saldoNuevo)}</p>
+                          <p className="font-bold text-slate-900">
+                            {formatCurrency(descomposicion.saldoNuevo)}
+                          </p>
                         </div>
                       </div>
                       {descomposicion.prestamoQuedaPagado && (

@@ -1,6 +1,8 @@
 export type MovimientoClasificable = {
   tipo?: string
   tipoReferencia?: string
+  /** Lo manda el backend (`accounting.service.ts:100`); el tipo no lo declaraba. */
+  referenciaId?: string | null
   monto?: number
   concepto?: string | null
   accountCode?: string | null
@@ -147,7 +149,7 @@ export const getEtiquetaMovimientoContable = (m: MovimientoClasificable): Etique
   const ref = normalize(m.tipoReferencia)
   const accountCode = String(m.accountCode || '')
   const concepto = normalize(m.concepto)
-  const referenciaId = normalize((m as any).referenciaId)
+  const referenciaId = normalize(m.referenciaId)
   const esReversa =
     (ref === 'AJUSTE' && referenciaId.startsWith('REVERSA:')) ||
     concepto.startsWith('REVERSA DE ASIENTO') ||

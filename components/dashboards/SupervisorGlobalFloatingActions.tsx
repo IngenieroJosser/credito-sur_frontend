@@ -88,7 +88,8 @@ export default function SupervisorGlobalFloatingActions({
         <NuevoClienteModal
           onClose={() => setShowNewClientModal(false)}
           onClienteCreado={() => {
-            toast.success('Cliente creado correctamente');
+            // Sin aviso propio: NuevoClienteModal ya avisa, y este se apilaba
+            // encima del suyo en la misma esquina.
             setShowNewClientModal(false);
           }}
         />

@@ -1,6 +1,22 @@
 import { apiRequest } from '@/lib/api/api';
 import { conRespaldoOffline } from '@/lib/offline/conRespaldoOffline';
 
+/**
+ * Un valor tal como viene de una columna JSON de la base.
+ *
+ * Los bloques de auditoria —lo que habia antes, lo que quedo, los cambios y la
+ * metadata— son JSON arbitrario: no tienen una forma fija porque guardan la fila de
+ * cualquier tabla. `any` renunciaba a describirlos; esto los describe tan bien como
+ * se pueden describir, y obliga a comprobar antes de leerles un campo.
+ */
+export type ValorJson =
+  | string
+  | number
+  | boolean
+  | null
+  | ValorJson[]
+  | { [clave: string]: ValorJson };
+
 export interface RegistroAuditoria {
   id: string;
   usuarioId: string;
@@ -13,9 +29,9 @@ export interface RegistroAuditoria {
   accion: string;
   entidad: string;
   entidadId: string;
-  valoresAnteriores?: any;
-  valoresNuevos?: any;
-  cambios?: any;
+  valoresAnteriores?: ValorJson;
+  valoresNuevos?: ValorJson;
+  cambios?: ValorJson;
   direccionIP?: string | null;
   agenteUsuario?: string | null;
   endpoint?: string | null;
@@ -27,9 +43,9 @@ export interface CrearAuditoriaDto {
   accion: string;
   entidad: string;
   entidadId: string;
-  datosAnteriores?: any;
-  datosNuevos?: any;
-  metadata?: any;
+  datosAnteriores?: ValorJson;
+  datosNuevos?: ValorJson;
+  metadata?: ValorJson;
 }
 
 export interface RegistroAuditoriaPaginado {
@@ -75,7 +91,7 @@ export const auditoriaService = {
     return conRespaldoOffline(
       () => apiRequest<RegistroAuditoria>('POST', '/audit', data),
       { type: 'auditoria_crear', endpoint: '/audit', method: 'POST', data, description: `Registro de auditoría`, tempId },
-      { id: tempId, ...(data as any) } as RegistroAuditoria,
+      { id: tempId, ...(data) } as RegistroAuditoria,
     );
   },
 

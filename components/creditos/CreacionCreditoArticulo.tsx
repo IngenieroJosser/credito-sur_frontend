@@ -1,5 +1,6 @@
 'use client';
 
+import { mensajeDeError } from '@/lib/mensaje-de-error';
 import React, { useState, useMemo } from 'react';
 import { logger } from '@/lib/logger'
 import { useRouter, usePathname } from 'next/navigation';
@@ -19,21 +20,35 @@ import { prestamosService } from '@/services/prestamos-service';
 import { resolveCurrentUserId } from '@/lib/creditos/crear-prestamo-payload';
 import { obtenerPerfil } from '@/services/autenticacion-service';
 import { TipoAmortizacion } from '@/types/enums';
+import { repartoConInteresConocido } from '@/lib/creditos/preview-credito';
 import { exportService } from '@/services/export-service';
 import FieldLabel from '@/components/ui/FieldLabel';
+import { idDelPrestamoCreado } from '@/lib/creditos/prestamo-creado';
+import { FrecuenciaPago } from '@/types/enums'
 
-type FrecuenciaPago = 'DIARIO' | 'SEMANAL' | 'QUINCENAL' | 'MENSUAL';
+// Esta pantalla declaraba su propia copia de este tipo (la tercera del proyecto: hay
+// otra en `lib/types/cobranza.ts`, ensanchada con `| string`). Los valores son los del
+// enum, y `crearPrestamo` pide el enum, asi que el literal no le valia y habia que
+// castear el cuerpo entero. Ahora se usa `FrecuenciaPago` de `types/enums`.
 
 interface ArticuloSeleccionado extends Articulo {
     cantidad: number;
     precioUnitarioCredito: number;
 }
 
+/** El cuerpo que se manda a crear el credito: se DERIVA del propio servicio. */
+type CuerpoDelCreditoDeArticulo = Parameters<typeof prestamosService.crearPrestamo>[0]
+
 interface CreacionCreditoArticuloProps {
   isModal?: boolean;
   initialClienteId?: string;
   onClose?: () => void;
-  onSuccess?: (data?: any) => void;
+  /**
+   * Que hacer cuando el credito queda creado. Recibe el cuerpo que se envio, que es lo
+   * unico que esta pantalla le pasa (linea 365); el tipo se DERIVA de ahi para que no
+   * haya una segunda declaracion.
+   */
+  onSuccess?: (data?: CuerpoDelCreditoDeArticulo) => void;
 }
 
 export default function CreacionCreditoArticulo({ 
@@ -63,7 +78,7 @@ export default function CreacionCreditoArticulo({
      }
   }, [initialClienteId]);
 
-  const [frecuenciaPago, setFrecuenciaPago] = useState<FrecuenciaPago>('DIARIO');
+  const [frecuenciaPago, setFrecuenciaPago] = useState<FrecuenciaPago>(FrecuenciaPago.DIARIO);
   const [cuotaInicial, setCuotaInicial] = useState<number>(0);
   const [fechaInicio, setFechaInicio] = useState<string>(new Date().toLocaleDateString('en-CA'));
   
@@ -191,18 +206,27 @@ export default function CreacionCreditoArticulo({
     const saldoAFinanciar = totalFinanciadoBruto - cuotaInicial;
     
     let factorFrecuencia = 1;
-    if (frecuenciaPago === 'DIARIO') factorFrecuencia = 30;
-    else if (frecuenciaPago === 'SEMANAL') factorFrecuencia = 4;
-    else if (frecuenciaPago === 'QUINCENAL') factorFrecuencia = 2;
+    if (frecuenciaPago === FrecuenciaPago.DIARIO) factorFrecuencia = 30;
+    else if (frecuenciaPago === FrecuenciaPago.SEMANAL) factorFrecuencia = 4;
+    else if (frecuenciaPago === FrecuenciaPago.QUINCENAL) factorFrecuencia = 2;
 
     const cuotasTotales = Math.ceil(numeroCuotas * factorFrecuencia);
-    const valorCuotaTotal = cuotasTotales > 0 ? Math.ceil(saldoAFinanciar / cuotasTotales) : 0;
+    // Mismo reparto que hace el backend: interes 0 (el recargo ya esta en el
+    // precio del plan), cuota base truncada y la ultima absorbe el residuo. Antes
+    // era `Math.ceil`, un peso mas que lo que se cobra en la mitad de los casos.
+    const { valorCuota, valorUltimaCuota } = repartoConInteresConocido(
+      TipoAmortizacion.INTERES_SIMPLE,
+      saldoAFinanciar,
+      0,
+      cuotasTotales,
+    );
 
     return {
       totalBase,
       totalFinanciadoBruto,
       saldoAFinanciar,
-      valorCuota: valorCuotaTotal,
+      valorCuota,
+      valorUltimaCuota,
       numeroCuotas: cuotasTotales,
       meses: numeroCuotas
     };
@@ -210,7 +234,7 @@ export default function CreacionCreditoArticulo({
 
   const margenEstimado = useMemo(() => {
     const costoTotal = articulosSeleccionados.reduce((sum, item) => {
-      const costoUnit = Number((item as any).costo || 0)
+      const costoUnit = Number((item).costo || 0)
       return sum + (costoUnit * item.cantidad)
     }, 0)
 
@@ -251,8 +275,10 @@ export default function CreacionCreditoArticulo({
   };
 
   const siguientePaso = () => {
-    if (step === 1 && !clienteId) return alert('Seleccione un cliente');
-    if (step === 2 && articulosSeleccionados.length === 0) return alert('Seleccione al menos un artículo');
+    if (step === 1 && !clienteId)
+      return showNotification('warning', 'Seleccione un cliente');
+    if (step === 2 && articulosSeleccionados.length === 0)
+      return showNotification('warning', 'Seleccione al menos un artículo');
     
     setAnimating(true);
     setTimeout(() => {
@@ -272,10 +298,15 @@ export default function CreacionCreditoArticulo({
   };
 
   const confirmarCredito = async () => {
-    if (!clienteSeleccionado) return alert('Seleccione un cliente');
-    if (articulosSeleccionados.length === 0) return alert('Seleccione al menos un artículo');
+    if (!clienteSeleccionado)
+      return showNotification('warning', 'Seleccione un cliente');
+    if (articulosSeleccionados.length === 0)
+      return showNotification('warning', 'Seleccione al menos un artículo');
     if (!esContado && !(cuotaInicial > 0)) {
-      return alert('Escriba la cuota inicial: en un crédito de artículo es obligatoria.');
+      return showNotification(
+        'warning',
+        'Escriba la cuota inicial: en un crédito de artículo es obligatoria.',
+      );
     }
 
     try {
@@ -310,7 +341,7 @@ export default function CreacionCreditoArticulo({
         tasaInteresMora: 2.0,
         plazoMeses: esContado ? 1 : numeroCuotas,
         cantidadCuotas: esContado ? 1 : resumenFinanciero.numeroCuotas,
-        frecuenciaPago: esContado ? 'MENSUAL' : frecuenciaPago,
+        frecuenciaPago: esContado ? FrecuenciaPago.MENSUAL : frecuenciaPago,
         fechaInicio: fechaInicio,
         creadoPorId: creadorId,
         cuotaInicial: cuotaInicial,
@@ -319,26 +350,18 @@ export default function CreacionCreditoArticulo({
         esContado
       };
 
-      const creado = await prestamosService.crearPrestamo(payload as any);
+      const creado = await prestamosService.crearPrestamo(payload);
 
       try {
-        const loanIdRaw =
-          creado?.data?.id ||
-          creado?.id ||
-          (creado?.prestamo && creado?.prestamo?.id) ||
-          creado?.data?.prestamo?.id ||
-          creado?.data?.data?.id ||
-          creado?.data?.loan?.id ||
-          creado?.data?.prestamoId;
-
-        const loanId = typeof loanIdRaw === 'string' || typeof loanIdRaw === 'number' ? String(loanIdRaw) : '';
+        // `idDelPrestamoCreado` ya descarta el id temporal de la cola, que era
+        // lo que estas seis alternativas intentaban cubrir a mano.
+        const loanId = idDelPrestamoCreado(creado);
 
         logger.log('ID rescatado para el PDF: ', loanId);
-        const esOffline = Boolean(creado?.esOffline) || String(loanId || '').startsWith('temp-loan-');
-        if (loanId && !esOffline && !esContado) {
+        if (loanId && !esContado) {
           await exportService.exportContrato(loanId);
-        } else if (!esOffline && !esContado) {
-          console.warn('No se encontró el id del prestamo para imprimir contrato.', { loanIdRaw });
+        } else if (!creado?.esOffline && !esContado) {
+          console.warn('No se encontró el id del prestamo para imprimir contrato.', { creado });
         }
       } catch (err) {
         console.error('Error exportando contrato automáticamente:', err);
@@ -352,9 +375,9 @@ export default function CreacionCreditoArticulo({
       }
 
       router.push('/prestamos');
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error al crear crédito de artículo:', error);
-      showNotification('error', error.message || 'No se pudo crear el crédito. Verifique los datos.');
+      showNotification('error', mensajeDeError(error, 'No se pudo crear el crédito. Verifique los datos.'));
     } finally {
       setLoadingDatos(false);
     }

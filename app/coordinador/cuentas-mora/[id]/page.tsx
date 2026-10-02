@@ -1,13 +1,12 @@
 'use client';
 
-import PantallaCarga from '@/components/ui/PantallaCarga'
+import { SkeletonDetalle } from '@/components/ui/Skeleton'
 
 import { use, useState, useEffect } from 'react';
-import { ChevronLeft, AlertCircle, Calendar, Phone, MapPin, User, ArrowRight, DollarSign } from 'lucide-react';
+import { ChevronLeft, AlertCircle, Calendar, Phone, MapPin, User } from 'lucide-react';
 import Link from 'next/link';
-import { formatCurrency, cn } from '@/lib/utils';
+import { formatCurrency } from '@/lib/utils';
 import { prestamosService } from '@/services/prestamos-service';
-import { toast } from 'sonner';
 
 interface CuentaMora {
   id: string;
@@ -37,7 +36,14 @@ export default function DetalleCuentaMoraPage({
     const fetchData = async () => {
       setLoading(true);
       try {
-        const data: any = await prestamosService.obtenerPrestamoPorId(id);
+        const data = await prestamosService.obtenerPrestamoPorId(id);
+        // Medido contra lo que devuelve GET /loans/:id (loans.service.ts:2036-2222):
+        // el prestamo NO trae relacion `ruta` ni `cobrador` -la ruta viene por
+        // `cliente.asignacionesRuta`, que es de donde se lee ahora; antes salia en
+        // blanco-, y `montoMora`, `ultimoPago` e `historialMora` no existen ni como
+        // columna ni como campo calculado de esta respuesta. El `any` los tapaba.
+        const rutaAsignada = data.cliente?.asignacionesRuta?.[0]?.ruta;
+        const ultimoPagoRegistrado = data.pagos?.[0];
         setCuenta({
           id,
           numeroPrestamo: data.numeroPrestamo || id,
@@ -49,14 +55,16 @@ export default function DetalleCuentaMoraPage({
             referencia: data.cliente?.referencia || '',
           },
           diasMora: data.diasMora || 0,
-          montoMora: data.montoMora || data.moraAcumulada || 0,
+          montoMora: data.moraAcumulada || 0,
           montoTotalDeuda: data.saldoPendiente || data.montoPendiente || 0,
           cuotasVencidas: data.cuotasVencidas || 0,
-          ruta: data.ruta?.nombre || '',
-          cobrador: data.cobrador ? `${data.cobrador.nombres || ''} ${data.cobrador.apellidos || ''}`.trim() : '',
+          ruta: rutaAsignada?.nombre || '',
+          cobrador: '',
           nivelRiesgo: data.nivelRiesgo || 'ROJO',
-          ultimoPago: data.ultimoPago || '',
-          historialMora: data.historialMora || [],
+          // Los pagos vienen ordenados por `fechaPago` descendente, asi que el primero
+          // es el ultimo pago (loans.service.ts:2083).
+          ultimoPago: ultimoPagoRegistrado?.fechaPago || '',
+          historialMora: [],
         });
       } catch (err) {
         console.error('Error cargando cuenta mora:', err);
@@ -69,7 +77,7 @@ export default function DetalleCuentaMoraPage({
 
   if (loading) {
     return (
-      <PantallaCarga />
+      <SkeletonDetalle />
     );
   }
 
@@ -109,18 +117,7 @@ export default function DetalleCuentaMoraPage({
               </div>
             </div>
             <div className="flex items-center gap-2">
-                 <button
-                   onClick={() => {
-                     // No hay endpoint para escalar a supervisión: antes hacía
-                     // toast.success sin llamar a nada (falso éxito). Se informa
-                     // con honestidad hasta que exista el backend.
-                     toast('Enviar cuentas a supervisión aún no está disponible.', { icon: 'ℹ️' });
-                   }}
-                   className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-orange-200 text-orange-600 font-black rounded-xl hover:bg-orange-50 transition-all text-xs shadow-sm hover:shadow-md active:scale-95"
-                 >
-                   Pasar a Supervisión
-                 </button>
-                 
+                 {/* Aqui habia un "Pasar a Supervisión" sin endpoint detras. */}
                  <Link 
                    href={`/coordinador/creditos/${id}`} 
                    className="px-4 py-2 text-sm font-bold text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
