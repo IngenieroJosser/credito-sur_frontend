@@ -46,8 +46,14 @@ test('captura el estado actual de las pantallas candidatas a rediseño', async (
     for (const pantalla of objetivo.pantallas) {
       await page.goto(pantalla, { waitUntil: 'domcontentloaded' })
       // Espera a que la pantalla pida sus datos y pinte: una captura del esqueleto de carga
-      // no serviría para juzgar el diseño.
-      await page.waitForTimeout(3500)
+      // no serviría para juzgar el diseño. Medido: con 3,5 s el tablero del cobrador salía
+      // en "Cargando sesión…", así que hace falta más.
+      await page.waitForTimeout(12000)
+      // Y si aún está cargando, se espera a que ese texto desaparezca.
+      await page
+        .getByText(/Cargando sesi/i)
+        .waitFor({ state: 'detached', timeout: 30000 })
+        .catch(() => {})
       const nombre = `${objetivo.rol}${pantalla.replace(/\//g, '-')}${
         objetivo.movil ? '-movil' : '-escritorio'
       }`
