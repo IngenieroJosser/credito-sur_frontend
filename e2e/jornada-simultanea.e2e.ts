@@ -94,9 +94,9 @@ const JORNADAS: Record<Rol, Accion[]> = {
       },
     },
     {
-      nombre: 'revisa sus clientes',
+      nombre: 'revisa sus solicitudes',
       hacer: async (page) => {
-        await page.goto('/cobranzas/clientes', { waitUntil: 'domcontentloaded' })
+        await page.goto('/cobranzas/solicitudes', { waitUntil: 'domcontentloaded' })
         await page.waitForTimeout(2500)
       },
     },
@@ -119,9 +119,9 @@ const JORNADAS: Record<Rol, Accion[]> = {
       },
     },
     {
-      nombre: 'mira su historial',
+      nombre: 'mira la auditoría',
       hacer: async (page) => {
-        await page.goto('/cobranzas/historial', { waitUntil: 'domcontentloaded' })
+        await page.goto('/cobranzas/auditoria', { waitUntil: 'domcontentloaded' })
         await page.waitForTimeout(2500)
       },
     },
@@ -203,7 +203,7 @@ const JORNADAS: Record<Rol, Accion[]> = {
     {
       nombre: 'revisa pagos',
       hacer: async (page) => {
-        await page.goto('/admin/pagos', { waitUntil: 'domcontentloaded' })
+        await page.goto('/admin/pagos/historial', { waitUntil: 'domcontentloaded' })
         await page.waitForTimeout(3000)
       },
     },
@@ -217,9 +217,9 @@ const JORNADAS: Record<Rol, Accion[]> = {
       },
     },
     {
-      nombre: 'revisa usuarios',
+      nombre: 'revisa revisiones',
       hacer: async (page) => {
-        await page.goto('/admin/usuarios', { waitUntil: 'domcontentloaded' })
+        await page.goto('/admin/revisiones', { waitUntil: 'domcontentloaded' })
         await page.waitForTimeout(3000)
       },
     },
@@ -240,24 +240,24 @@ const JORNADAS: Record<Rol, Accion[]> = {
       },
     },
     {
-      nombre: 'revisa la caja',
+      nombre: 'revisa contabilidad',
       hacer: async (page) => {
-        await page.goto('/contador/caja', { waitUntil: 'domcontentloaded' })
+        await page.goto('/contador/contable', { waitUntil: 'domcontentloaded' })
         await page.waitForTimeout(3000)
       },
     },
     {
       nombre: 'abre el arqueo de caja',
       hacer: async (page) => {
-        await page.goto('/contador/caja', { waitUntil: 'domcontentloaded' })
+        await page.goto('/contador/contable', { waitUntil: 'domcontentloaded' })
         await page.waitForTimeout(2500)
         await intentarClic(page, /arqueo|cerrar caja|cuadrar/i, [], 'arqueo de caja')
       },
     },
     {
-      nombre: 'revisa movimientos',
+      nombre: 'revisa cuentas en mora',
       hacer: async (page) => {
-        await page.goto('/contador/movimientos', { waitUntil: 'domcontentloaded' })
+        await page.goto('/contador/cuentas-mora', { waitUntil: 'domcontentloaded' })
         await page.waitForTimeout(3000)
       },
     },
@@ -279,9 +279,9 @@ const JORNADAS: Record<Rol, Accion[]> = {
       },
     },
     {
-      nombre: 'revisa ventas',
+      nombre: 'revisa créditos de artículo',
       hacer: async (page) => {
-        await page.goto('/punto-de-venta/ventas', { waitUntil: 'domcontentloaded' })
+        await page.goto('/punto-de-venta/creditos-articulos', { waitUntil: 'domcontentloaded' })
         await page.waitForTimeout(3000)
       },
     },
