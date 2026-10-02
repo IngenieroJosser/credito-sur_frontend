@@ -55,16 +55,36 @@ export type Rol = keyof typeof USUARIOS
  * un `<label>`, así que `getByLabel` no encuentra nada. Dicho de paso, eso es un problema
  * de accesibilidad de la pantalla, no de la prueba.
  */
-export async function entrarComo(page: Page, rol: Rol) {
+export async function entrarComo(page: Page, rol: Rol): Promise<number> {
   const { usuario, clave } = USUARIOS[rol]
   await page.goto('/login')
   await page.getByPlaceholder(/usuario|correo/i).fill(usuario)
   await page.getByPlaceholder(/contrase/i).fill(clave)
+
+  const empezo = Date.now()
+  // Se espera la respuesta de la API ADEMÁS de la navegación: así se distingue "el backend
+  // no contestó" de "contestó pero la pantalla tardó en cambiar", que son dos problemas
+  // distintos y con el `waitForURL` solo se veían iguales.
+  const respuesta = page.waitForResponse(
+    (r) => r.url().includes('/auth/login') && r.request().method() === 'POST',
+    { timeout: TIEMPO_DE_LOGIN },
+  )
   await page.getByRole('button', { name: /acceder/i }).click()
+  await respuesta
   await page.waitForURL((url) => !url.pathname.includes('/login'), {
-    timeout: 60_000,
+    timeout: TIEMPO_DE_LOGIN,
   })
+  return Date.now() - empezo
 }
+
+/**
+ * Cuánto se espera a que termine un login.
+ *
+ * Generoso a propósito: medido con los siete roles entrando a la vez, salir de /login pasa
+ * del minuto, porque cada sesión dispara la descarga offline (unas cien peticiones) y el
+ * backend se satura. Con 60 s la prueba fallaba por eso y no por la pantalla.
+ */
+const TIEMPO_DE_LOGIN = 180_000
 
 /** Un problema visto en la pantalla, con el sitio donde salió. */
 export type Hallazgo = { pantalla: string; tipo: string; detalle: string }
