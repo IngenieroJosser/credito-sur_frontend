@@ -45,3 +45,4 @@ public/workbox-*.js.map
 test-results/
 yarn-debug.log*
 yarn-error.log*
+capturas/

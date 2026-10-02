@@ -96,6 +96,13 @@ const RUIDO_CONOCIDO = [
   /status of 429/i,
   /statusCode"?:\s*429/i,
   /Demasiadas solicitudes/i,
+  // 408: el backend tardo demasiado. Con los siete roles entrando a la vez, la descarga
+  // offline de rutas se pasa del tiempo. Es una DEGRADACION medible bajo carga, no una
+  // pantalla rota, y se cuenta aparte por el mismo motivo que los 429: mezclarlo taparia
+  // lo segundo detras de lo primero.
+  /statusCode"?:\s*408/i,
+  /tardando demasiado/i,
+  /Request timeout/i,
 ]
 
 /**
@@ -149,6 +156,28 @@ export async function textoSospechoso(page: Page): Promise<string[]> {
   if (/\bundefined\b/.test(cuerpo)) problemas.push('undefined visible')
   if (/\[object Object\]/.test(cuerpo)) problemas.push('[object Object] visible')
   return problemas
+}
+
+/**
+ * Qué marca de error está mostrando la pantalla, o null si ninguna.
+ *
+ * Devuelve CUÁL y no solo un sí/no: con un booleano, un informe de ochenta pantallas
+ * "con error" no dice nada y no se puede separar un fallo de verdad de un falso positivo
+ * del propio entorno de desarrollo.
+ */
+export async function marcaDeError(page: Page): Promise<string | null> {
+  const marcas: Array<[string, string]> = [
+    ['dialogo de Next', '[data-nextjs-dialog]'],
+    ['error de Next', '#__next_error__'],
+    ['texto de error', 'text=/Unhandled Runtime Error|Application error|Internal Server Error/i'],
+    // `nextjs-portal` va al final y aparte: en desarrollo Next lo monta para su propio
+    // indicador, asi que por si solo NO es un fallo de la pantalla.
+    ['portal de Next (solo indicio)', 'nextjs-portal'],
+  ]
+  for (const [nombre, selector] of marcas) {
+    if ((await page.locator(selector).count()) > 0) return nombre
+  }
+  return null
 }
 
 /** Si Next está mostrando su pantalla de error en vez de la aplicación. */

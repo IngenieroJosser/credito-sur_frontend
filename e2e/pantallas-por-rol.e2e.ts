@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test'
 import { PANTALLAS_ESTATICAS } from './pantallas.generado'
 import {
   entrarComo,
-  hayPantallaDeError,
+  marcaDeError,
   textoSospechoso,
   USUARIOS,
   vigilar,
@@ -54,6 +54,7 @@ for (const rol of ROLES) {
       const hallazgos: Hallazgo[] = []
       const recorrido = vigilar(page, 'global')
       let limitados = 0
+      const indicios: string[] = []
       page.on('response', (r) => {
         if (r.status() === 429) limitados += 1
       })
@@ -85,12 +86,13 @@ for (const rol of ROLES) {
           hallazgos.push({ pantalla, tipo: `http ${codigo}`, detalle: 'el servidor falló' })
         }
 
-        if (await hayPantallaDeError(page)) {
-          hallazgos.push({
-            pantalla,
-            tipo: 'pantalla de error',
-            detalle: 'Next mostró su error en vez de la aplicación',
-          })
+        // El portal de Next se monta en desarrollo para su propio indicador, asi que por si
+        // solo no es un fallo: se anota como indicio y no tumba la prueba.
+        const marca = await marcaDeError(page)
+        if (marca && !marca.includes('solo indicio')) {
+          hallazgos.push({ pantalla, tipo: 'pantalla de error', detalle: marca })
+        } else if (marca) {
+          indicios.push(`${pantalla}: ${marca}`)
         }
 
         for (const problema of await textoSospechoso(page)) {
@@ -127,7 +129,7 @@ for (const rol of ROLES) {
       mkdirSync('test-results', { recursive: true })
       writeFileSync(
         `test-results/hallazgos-${rol}.json`,
-        JSON.stringify({ rol, resumen, hallazgos }, null, 1),
+        JSON.stringify({ rol, resumen, hallazgos, indicios }, null, 1),
       )
 
       const texto = hallazgos
