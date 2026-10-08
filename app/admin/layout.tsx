@@ -5,14 +5,14 @@ import { logger } from '@/lib/logger'
  * ============================================================================
  * LAYOUT PRINCIPAL DE ADMINISTRACIÓN (SHELL)
  * ============================================================================
- * 
+ *
  * @description
  * Estructura base para todas las páginas autenticadas (/admin/*, /coordinador/*, etc).
  * Proporciona elementos comunes como:
  * - Sidebar de navegación dinámico basado en Roles (Permissions-driven).
  * - Header con perfil de usuario y notificaciones.
  * - Validación de sesión (Simple Route Guard).
- * 
+ *
  * @security
  * Implementa protección de rutas client-side verificando la existencia del usuario
  * en localStorage. Si no existe, redirige al Login.
@@ -23,35 +23,30 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { createPortal } from 'react-dom'
-import { 
-  Shield,
-  Bell,
-  Banknote,
-  Users,
-  AlertCircle,
-  Menu,
-  X,
-  ChevronDown
-} from 'lucide-react'
+import { Shield, Bell, Banknote, Users, AlertCircle, Menu, X, ChevronDown } from 'lucide-react'
 import { Rol, obtenerModulos, getIconComponent } from '@/lib/permissions'
-import UserDropdownMenu, { formatRoleName, getRoleColor, getRoleIcon } from '@/components/ui/UserDropdownMenu'
-import { useNotificaciones } from '@/components/providers/NotificacionesProvider';
-import { aprobacionesService } from '@/services/aprobaciones-service';
-import { isTokenExpired } from '@/lib/auth/offlineAuth';
-import { formatRoleLabel } from '@/lib/display-labels';
-import SupervisorFloatingActionsGate from '@/components/dashboards/SupervisorFloatingActionsGate';
-import { cerrarSesion } from '@/services/autenticacion-service';
+import UserDropdownMenu, {
+  formatRoleName,
+  getRoleColor,
+  getRoleIcon,
+} from '@/components/ui/UserDropdownMenu'
+import { useNotificaciones } from '@/components/providers/NotificacionesProvider'
+import { aprobacionesService } from '@/services/aprobaciones-service'
+import { isTokenExpired } from '@/lib/auth/offlineAuth'
+import { formatRoleLabel } from '@/lib/display-labels'
+import SupervisorFloatingActionsGate from '@/components/dashboards/SupervisorFloatingActionsGate'
+import { cerrarSesion } from '@/services/autenticacion-service'
 import { useAnchoAside } from '@/hooks/useAnchoAside'
 import BotonAccion from '@/components/ui/BotonAccion'
 import type { SidebarModulo } from '@/lib/types/autenticacion-type'
 
 interface NavigationItem {
-  name: string;
-  href: string;
-  icon: React.ReactNode;
-  id?: string;
-  isNew?: boolean;
-  submodulos?: NavigationItem[];
+  name: string
+  href: string
+  icon: React.ReactNode
+  id?: string
+  isNew?: boolean
+  submodulos?: NavigationItem[]
 }
 
 /**
@@ -95,7 +90,7 @@ const RAICES_DE_ROL = new Set([
   '/contador',
   '/cobranzas',
   '/punto-de-venta',
-]);
+])
 
 /**
  * Roles "de campo": su escritorio ocupa la pantalla completa y no necesitan
@@ -111,21 +106,17 @@ const RAICES_DE_ROL = new Set([
 const MODULOS_BASE_POR_ROL: Partial<Record<string, Set<string>>> = {
   COBRADOR: new Set(['dashboard', 'notificaciones', 'solicitudes']),
   PUNTO_DE_VENTA: new Set(['dashboard', 'notificaciones', 'creditos-articulos', 'articulos']),
-};
+}
 
 /** Un enlace esta activo si la ruta actual es la suya o cuelga de ella. */
 function esRutaActiva(href: string | undefined, actual: string | null | undefined): boolean {
-  if (!href || !actual || href === '#') return false;
-  if (RAICES_DE_ROL.has(href)) return actual === href;
-  return actual === href || actual.startsWith(`${href}/`);
+  if (!href || !actual || href === '#') return false
+  if (RAICES_DE_ROL.has(href)) return actual === href
+  return actual === href || actual.startsWith(`${href}/`)
 }
 
-export default function AdminLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const hideSidebar = false;
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  const hideSidebar = false
   // Manejo de estado visual (menú lateral, notificaciones, confirmaciones)
   const {
     ancho: anchoAside,
@@ -136,28 +127,40 @@ export default function AdminLayout({
   } = useAnchoAside()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isPageLoaded, setIsPageLoaded] = useState(false) // Efecto visual de entrada suave
-  
+
   // Datos y estado de autenticación
   const [user, setUser] = useState<Usuario | null>(null)
   const [authChecked, setAuthChecked] = useState(false)
-  
+
   // Proveedor global WebSocket
-  const { socket, notificaciones, unreadCount, showDropdown: showNotifications, setShowDropdown: setShowNotifications, isBellRinging, marcarTodasComoLeidas, marcarComoLeida } = useNotificaciones();
-  
+  const {
+    socket,
+    notificaciones,
+    unreadCount,
+    showDropdown: showNotifications,
+    setShowDropdown: setShowNotifications,
+    isBellRinging,
+    marcarTodasComoLeidas,
+    marcarComoLeida,
+  } = useNotificaciones()
+
   const [isLoadingNotificaciones, setIsLoadingNotificaciones] = useState(false)
-  
+
   // Paginación de notificaciones en el dropdown
   const [notifPage, setNotifPage] = useState(1)
   const notifPerPage = 5
   const totalNotifPages = Math.ceil(notificaciones.length / notifPerPage)
-  const currentNotificaciones = notificaciones.slice((notifPage - 1) * notifPerPage, notifPage * notifPerPage)
+  const currentNotificaciones = notificaciones.slice(
+    (notifPage - 1) * notifPerPage,
+    notifPage * notifPerPage,
+  )
 
   // Estado para modal de confirmación de "Marcar todas como leídas"
   const [showMarkAllConfirm, setShowMarkAllConfirm] = useState(false)
-  
+
   // Construcción dinámica del menú lateral
   const [navigation, setNavigation] = useState<NavigationItem[]>([])
-  
+
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({}) // Controla qué submenús están expandidos
   const [seenModules, setSeenModules] = useState<string[]>([]) // Rastrea qué módulos "Nuevos" ya vio el usuario
 
@@ -175,12 +178,12 @@ export default function AdminLayout({
 
   // Abre o cierra los submenús del sidebar
   const toggleMenu = (id: string) => {
-    setOpenMenus(prev => ({
+    setOpenMenus((prev) => ({
       ...prev,
-      [id]: !prev[id]
+      [id]: !prev[id],
     }))
   }
-  
+
   // Marca un módulo nuevo como "visto" para que deje de brillar
   const handleModuleClick = (moduleId?: string, isNew?: boolean) => {
     if (moduleId && isNew && !seenModules.includes(moduleId)) {
@@ -195,15 +198,14 @@ export default function AdminLayout({
   // Al abrir la app: si hubo un logout hace mas de 8 h y no se volvio a
   // entrar, se purga la cache offline de datos sensibles (periodo de gracia).
   useEffect(() => {
-    import('@/lib/auth/offlineAuth')
-      .then((m) => m.purgarDatosOfflineSiVencio())
-      .catch(() => {})
+    import('@/lib/auth/offlineAuth').then((m) => m.purgarDatosOfflineSiVencio()).catch(() => {})
   }, [])
 
   useEffect(() => {
     if (!seenModulesStorageKey) return
     try {
-      const stored = localStorage.getItem(seenModulesStorageKey) || localStorage.getItem('seenModules')
+      const stored =
+        localStorage.getItem(seenModulesStorageKey) || localStorage.getItem('seenModules')
       setSeenModules(stored ? JSON.parse(stored) : [])
     } catch {
       setSeenModules([])
@@ -237,7 +239,9 @@ export default function AdminLayout({
       try {
         const res = await aprobacionesService.obtenerPendientes()
         setPendingRevisiones(res?.total ?? 0)
-      } catch (err) { logger.warn('[Revisiones] No se pudo actualizar el badge de revisiones pendientes:', err) }
+      } catch (err) {
+        logger.warn('[Revisiones] No se pudo actualizar el badge de revisiones pendientes:', err)
+      }
     }
 
     fetchPending()
@@ -256,7 +260,7 @@ export default function AdminLayout({
         const res = await aprobacionesService.obtenerPendientes()
         setPendingRevisiones(res?.total ?? 0)
       } catch (err) {
-        logger.warn('[Revisiones/WS] Error al actualizar badge desde WebSocket:', err);
+        logger.warn('[Revisiones/WS] Error al actualizar badge desde WebSocket:', err)
       }
     }
 
@@ -309,31 +313,34 @@ export default function AdminLayout({
         if (userData) {
           const parsedUser = JSON.parse(userData) as Usuario
           setUser(parsedUser)
-          
+
           // Generamos el menú lateral: primero intenta sidebar dinámico del backend, luego fallback estático
           if (parsedUser.rol) {
             const modulos = obtenerModulos(parsedUser.rol, parsedUser.sidebar)
-            
+
             // Transformamos los módulos de permisos a items de navegación visual
-            let navItems = modulos.map(modulo => ({
+            let navItems = modulos.map((modulo) => ({
               name: modulo.nombre,
               href: modulo.path,
               icon: getIconComponent(modulo.icono),
               id: modulo.id,
               isNew: modulo.isNew,
-              submodulos: modulo.submodulos?.map(sub => ({
+              submodulos: modulo.submodulos?.map((sub) => ({
                 id: sub.id,
                 name: sub.nombre,
                 href: sub.path,
                 isNew: sub.isNew,
-                icon: getIconComponent(sub.icono)
-              }))
+                icon: getIconComponent(sub.icono),
+              })),
             }))
 
             // Fix: si el usuario tiene permiso de contable pero el menú no lo trae (sidebar dinámico ausente), agregar Movimientos.
             const permisosUser = Array.isArray(parsedUser.permisos) ? parsedUser.permisos : []
-            const hasContablePerm = permisosUser.includes('contable') || permisosUser.includes('CONTABLE_VIEW')
-            const hasMovimientos = navItems.some((n) => n?.href === '/contable' || n?.submodulos?.some((s) => s?.href === '/contable'))
+            const hasContablePerm =
+              permisosUser.includes('contable') || permisosUser.includes('CONTABLE_VIEW')
+            const hasMovimientos = navItems.some(
+              (n) => n?.href === '/contable' || n?.submodulos?.some((s) => s?.href === '/contable'),
+            )
             if (hasContablePerm && !hasMovimientos) {
               navItems = [
                 ...navItems,
@@ -347,12 +354,14 @@ export default function AdminLayout({
                 },
               ]
             }
-            
+
             // Filtro de seguridad para PUNTO_DE_VENTA (ocultar por defecto)
             if (parsedUser.rol === 'PUNTO_DE_VENTA') {
-              navItems = navItems.filter(item => item.id !== 'dashboard' && item.id !== 'gestion-clientes');
+              navItems = navItems.filter(
+                (item) => item.id !== 'dashboard' && item.id !== 'gestion-clientes',
+              )
             }
-            
+
             setNavigation(navItems)
           }
         }
@@ -369,11 +378,11 @@ export default function AdminLayout({
 
     // Escuchar actualizaciones de perfil en tiempo real (mismo tab)
     const handleUserUpdate = () => {
-      loadUserData();
-    };
+      loadUserData()
+    }
 
-    window.addEventListener('userUpdated', handleUserUpdate);
-    return () => window.removeEventListener('userUpdated', handleUserUpdate);
+    window.addEventListener('userUpdated', handleUserUpdate)
+    return () => window.removeEventListener('userUpdated', handleUserUpdate)
   }, [router])
 
   // Seguridad Proactiva: Redirección automática si estás en el lugar equivocado
@@ -382,26 +391,35 @@ export default function AdminLayout({
 
     // Si un usuario con rol específico intenta entrar al admin general, lo movemos a su dashboard
     const roleRedirects: Record<string, string> = {
-      'COBRADOR': '/cobranzas',
-      'COORDINADOR': '/coordinador',
-      'SUPERVISOR': '/supervisor',
-      'CONTADOR': '/contador/contable',
-      'PUNTO_DE_VENTA': '/punto-de-venta'
+      COBRADOR: '/cobranzas',
+      COORDINADOR: '/coordinador',
+      SUPERVISOR: '/supervisor',
+      CONTADOR: '/contador/contable',
+      PUNTO_DE_VENTA: '/punto-de-venta',
     }
 
     const hasAllowedAdminRoute = (() => {
       if (!pathname?.startsWith('/admin')) return false
 
-      const allHrefs = navigation.flatMap((n) => [n.href, ...(n.submodulos?.map((s) => s.href) ?? [])])
-      const allowedAdminBases = allHrefs.filter((h) => typeof h === 'string' && h.startsWith('/admin'))
+      const allHrefs = navigation.flatMap((n) => [
+        n.href,
+        ...(n.submodulos?.map((s) => s.href) ?? []),
+      ])
+      const allowedAdminBases = allHrefs.filter(
+        (h) => typeof h === 'string' && h.startsWith('/admin'),
+      )
 
       // Revisar tambien si la ruta /admin actual tiene una URL limpia equivalente en el menu lateral
       // e.g. /admin/creditos is allowed if /creditos is in the sidebar (via rewrites)
       const cleanPath = pathname.replace(/^\/admin/, '')
-      const allowedCleanBases = allHrefs.filter((h) => typeof h === 'string' && !h.startsWith('/admin') && h !== '#' && h !== '/')
+      const allowedCleanBases = allHrefs.filter(
+        (h) => typeof h === 'string' && !h.startsWith('/admin') && h !== '#' && h !== '/',
+      )
 
-      return allowedAdminBases.some((base) => pathname === base || pathname.startsWith(`${base}/`)) ||
-             allowedCleanBases.some((base) => cleanPath === base || cleanPath.startsWith(`${base}/`))
+      return (
+        allowedAdminBases.some((base) => pathname === base || pathname.startsWith(`${base}/`)) ||
+        allowedCleanBases.some((base) => cleanPath === base || cleanPath.startsWith(`${base}/`))
+      )
     })()
 
     if (roleRedirects[user.rol] && pathname?.startsWith('/admin') && !hasAllowedAdminRoute) {
@@ -445,13 +463,10 @@ export default function AdminLayout({
     if (!pathname || navigation.length === 0) return
 
     const seccionActiva = navigation.find((item) =>
-      item.submodulos?.some(
-        (sub) =>
-          sub.href && esRutaActiva(sub.href, pathname),
-      ),
+      item.submodulos?.some((sub) => sub.href && esRutaActiva(sub.href, pathname)),
     )
 
-    const id = (seccionActiva)?.id
+    const id = seccionActiva?.id
     if (!id) return
 
     setOpenMenus((prev) => (prev[id] ? prev : { ...prev, [id]: true }))
@@ -504,9 +519,20 @@ export default function AdminLayout({
     // Lo que se abre todo el día va primero. Lo que no esté en esta lista
     // conserva el orden del aside.
     const preferencia = [
-      'dashboard', 'cobranza', 'ruta', 'rutas', 'prestamos-dinero',
-      'gestion-creditos', 'creditos', 'clientes', 'gestion-clientes',
-      'pagos', 'revisiones', 'aprobaciones', 'contable', 'articulos',
+      'dashboard',
+      'cobranza',
+      'ruta',
+      'rutas',
+      'prestamos-dinero',
+      'gestion-creditos',
+      'creditos',
+      'clientes',
+      'gestion-clientes',
+      'pagos',
+      'revisiones',
+      'aprobaciones',
+      'contable',
+      'articulos',
     ]
     const peso = (id: string) => {
       const i = preferencia.indexOf(id)
@@ -576,12 +602,12 @@ export default function AdminLayout({
   // Los roles de campo solo ven el menú lateral (y su hamburguesa) si les
   // activaron módulos fuera de su conjunto base; si no, su escritorio ocupa
   // todo. Los roles de oficina no están en el mapa: siempre tienen menú.
-  const baseDelRol = MODULOS_BASE_POR_ROL[user?.rol ?? ''];
-  const esRolDeCampo = !!baseDelRol;
+  const baseDelRol = MODULOS_BASE_POR_ROL[user?.rol ?? '']
+  const esRolDeCampo = !!baseDelRol
   const rolDeCampoConModulosExtra =
-    esRolDeCampo && navigation.some((m) => !baseDelRol!.has(m.id ?? ''));
+    esRolDeCampo && navigation.some((m) => !baseDelRol!.has(m.id ?? ''))
 
-  const showSidebar = !hideSidebar && (!esRolDeCampo || rolDeCampoConModulosExtra);
+  const showSidebar = !hideSidebar && (!esRolDeCampo || rolDeCampoConModulosExtra)
 
   // La barra existe para ahorrarse abrir el aside, así que solo aparece donde
   // hay aside que ahorrarse. Con menos de tres destinos el aside ya es corto y
@@ -595,9 +621,8 @@ export default function AdminLayout({
       // Va como variable CSS para que el aside y el contenido lo compartan.
       style={{ ['--ancho-aside' as string]: `${anchoAside}px` }}
     >
-
       {/* Header ultra minimalista */}
-      <header 
+      <header
         className={`fixed top-0 left-0 right-0 z-40 bg-white border-b border-gray-100 shadow-sm transition-opacity duration-300 ${isPageLoaded ? 'opacity-100' : 'opacity-0'}`}
         style={{ opacity: isPageLoaded ? 1 : 0 }}
       >
@@ -606,23 +631,31 @@ export default function AdminLayout({
             {/* Logo y título */}
             <div className="flex items-center space-x-3">
               {showSidebar && (
-                <button 
+                <button
                   onClick={() => setIsMenuOpen(!isMenuOpen)}
                   className="p-2 hover:bg-gray-100 rounded-lg transition-colors lg:hidden"
                 >
                   {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
                 </button>
               )}
-              
+
               <div className="flex items-center">
-                <div 
+                <div
                   className="w-12 h-12 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/10 overflow-hidden bg-white border border-gray-100 p-1.5 transition-transform hover:scale-105 relative"
                   style={{ width: '48px', height: '48px', flexShrink: 0, position: 'relative' }}
                 >
-                  <Image src="/favicon.ico" alt="Logo" width={48} height={48} className="object-contain w-full h-full" priority />
+                  <Image
+                    src="/favicon.ico"
+                    alt="Logo"
+                    width={48}
+                    height={48}
+                    className="object-contain w-full h-full"
+                    priority
+                  />
                 </div>
                 <h1 className="ml-3 text-xl font-bold tracking-tight">
-                  <span className="text-blue-600">Credi</span><span className="text-orange-500">Sur</span>
+                  <span className="text-blue-600">Credi</span>
+                  <span className="text-orange-500">Sur</span>
                 </h1>
               </div>
 
@@ -641,11 +674,13 @@ export default function AdminLayout({
               {/* Notificaciones */}
               {user && (
                 <div className="relative">
-                   <button 
+                  <button
                     onClick={() => setShowNotifications(!showNotifications)}
                     className="p-2.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all relative group"
                   >
-                    <Bell className={`h-5 w-5 transition-transform ${isBellRinging ? 'bell-ringing' : ''}`} />
+                    <Bell
+                      className={`h-5 w-5 transition-transform ${isBellRinging ? 'bell-ringing' : ''}`}
+                    />
                     {unreadCount > 0 && (
                       <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-orange-500 border-2 border-white rounded-full animate-pulse" />
                     )}
@@ -653,28 +688,33 @@ export default function AdminLayout({
 
                   {/* Panel de notificaciones */}
                   {showNotifications && (
-                    <div className="fixed top-16 inset-x-3 sm:inset-x-auto sm:absolute sm:top-auto sm:right-0 sm:mt-3 w-auto sm:w-80 max-w-sm mx-auto sm:mx-0 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200 z-[60]" ref={notificationRef}>
+                    <div
+                      className="fixed top-16 inset-x-3 sm:inset-x-auto sm:absolute sm:top-auto sm:right-0 sm:mt-3 w-auto sm:w-80 max-w-sm mx-auto sm:mx-0 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200 z-[60]"
+                      ref={notificationRef}
+                    >
                       <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
                         <h3 className="font-bold text-gray-900">Notificaciones</h3>
-                        <span className="px-2 py-0.5 bg-blue-100 text-blue-600 text-[10px] font-bold rounded-full">{unreadCount} NUEVAS</span>
+                        <span className="px-2 py-0.5 bg-blue-100 text-blue-600 text-[10px] font-bold rounded-full">
+                          {unreadCount} NUEVAS
+                        </span>
                       </div>
                       <div className="max-h-96 overflow-y-auto">
                         {notificaciones.length > 0 ? (
                           <div className="divide-y divide-gray-50">
                             {currentNotificaciones.map((n) => (
-                              <div 
-                                key={n.id} 
+                              <div
+                                key={n.id}
                                 onClick={() => {
-                                  if (!n.leida) marcarComoLeida(n.id);
-                                  if (n.link) router.push(n.link);
+                                  if (!n.leida) marcarComoLeida(n.id)
+                                  if (n.link) router.push(n.link)
                                 }}
                                 className={`p-4 hover:bg-gray-50 transition-colors cursor-pointer group relative ${!n.leida ? 'bg-blue-50/40 border-l-4 border-blue-500' : 'border-l-4 border-transparent'}`}
                               >
                                 <div className="flex items-start gap-3">
-                                  <div 
+                                  <div
                                     className={`p-2 rounded-lg transition-colors ${
-                                      n.tipo === 'PAGO' 
-                                        ? 'bg-emerald-50 text-emerald-600' 
+                                      n.tipo === 'PAGO'
+                                        ? 'bg-emerald-50 text-emerald-600'
                                         : n.tipo === 'CLIENTE'
                                           ? 'bg-blue-50 text-blue-600'
                                           : n.tipo === 'MORA'
@@ -682,15 +722,27 @@ export default function AdminLayout({
                                             : 'bg-gray-50 text-gray-600'
                                     }`}
                                   >
-                                    {n.tipo === 'PAGO' ? <Banknote className="h-4 w-4" /> : n.tipo === 'CLIENTE' ? <Users className="h-4 w-4" /> : n.tipo === 'MORA' ? <AlertCircle className="h-4 w-4" /> : <Bell className="h-4 w-4" />}
+                                    {n.tipo === 'PAGO' ? (
+                                      <Banknote className="h-4 w-4" />
+                                    ) : n.tipo === 'CLIENTE' ? (
+                                      <Users className="h-4 w-4" />
+                                    ) : n.tipo === 'MORA' ? (
+                                      <AlertCircle className="h-4 w-4" />
+                                    ) : (
+                                      <Bell className="h-4 w-4" />
+                                    )}
                                   </div>
                                   <div className="flex-1 pr-4">
-                                    <p className={`text-sm ${!n.leida ? 'font-bold text-gray-900' : 'font-medium text-gray-700'}`}>{n.titulo}</p>
-                                    <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{n.mensaje}</p>
+                                    <p
+                                      className={`text-sm ${!n.leida ? 'font-bold text-gray-900' : 'font-medium text-gray-700'}`}
+                                    >
+                                      {n.titulo}
+                                    </p>
+                                    <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">
+                                      {n.mensaje}
+                                    </p>
                                     <div className="flex items-center justify-between mt-2">
-                                      <p className="text-[10px] text-gray-400 flex items-center gap-1">
-                                       
-                                      </p>
+                                      <p className="text-[10px] text-gray-400 flex items-center gap-1"></p>
                                       {!n.leida && (
                                         <span className="flex h-2 w-2 rounded-full bg-blue-600 shadow-[0_0_8px_rgba(37,99,235,0.6)] animate-pulse"></span>
                                       )}
@@ -701,15 +753,20 @@ export default function AdminLayout({
                             ))}
                           </div>
                         ) : (
-                          <div className="p-6 text-center text-xs text-gray-500">Sin notificaciones</div>
+                          <div className="p-6 text-center text-xs text-gray-500">
+                            Sin notificaciones
+                          </div>
                         )}
                       </div>
                       {/* Paginador simple */}
                       {totalNotifPages > 1 && (
                         <div className="p-3 border-t border-gray-100 flex items-center justify-between bg-white">
-                          <button 
+                          <button
                             disabled={notifPage === 1}
-                            onClick={(e) => { e.stopPropagation(); setNotifPage(p => Math.max(1, p - 1))}}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setNotifPage((p) => Math.max(1, p - 1))
+                            }}
                             className="px-3 py-1 text-xs font-medium text-gray-500 hover:text-blue-600 disabled:opacity-30 disabled:hover:text-gray-500"
                           >
                             Anterior
@@ -717,9 +774,12 @@ export default function AdminLayout({
                           <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
                             Página {notifPage} de {totalNotifPages}
                           </span>
-                          <button 
+                          <button
                             disabled={notifPage === totalNotifPages}
-                            onClick={(e) => { e.stopPropagation(); setNotifPage(p => Math.min(totalNotifPages, p + 1))}}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setNotifPage((p) => Math.min(totalNotifPages, p + 1))
+                            }}
                             className="px-3 py-1 text-xs font-medium text-gray-500 hover:text-blue-600 disabled:opacity-30 disabled:hover:text-gray-500"
                           >
                             Siguiente
@@ -729,17 +789,17 @@ export default function AdminLayout({
 
                       <div className="p-3 border-t border-gray-100 bg-gray-50/50 flex flex-col gap-2">
                         {unreadCount > 0 && (
-                          <button 
+                          <button
                             onClick={(e) => {
-                              e.stopPropagation();
-                              setShowMarkAllConfirm(true);
+                              e.stopPropagation()
+                              setShowMarkAllConfirm(true)
                             }}
                             className="w-full py-2.5 text-xs font-bold text-blue-600 bg-blue-50/50 hover:bg-blue-600 hover:text-white rounded-xl transition-all border border-blue-100 hover:border-blue-600 shadow-sm"
                           >
                             Marcar todas como leídas
                           </button>
                         )}
-                        <button 
+                        <button
                           onClick={() => {
                             setShowNotifications(false)
                             router.push('/notificaciones')
@@ -774,14 +834,14 @@ export default function AdminLayout({
           // pareja el `top` de `inset-0` puede ganarle al `top-16` según el
           // orden en que Tailwind emita las reglas, y el fondo termina tapando
           // también el encabezado.
-          className="lg:hidden fixed top-16 left-0 right-0 bottom-0 z-[65] bg-slate-900/30 backdrop-blur-[1px]"
+          className="lg:hidden fixed top-16 left-0 right-0 bottom-0 z-[44] bg-slate-900/30 backdrop-blur-[1px]"
         />
       )}
 
       {/* Sidebar elegante para desktop */}
       {showSidebar && (
-        <aside 
-          className={`fixed left-0 top-16 bottom-0 w-64 lg:w-[var(--ancho-aside)] bg-white border-r border-gray-100 duration-300 z-[70] ${
+        <aside
+          className={`fixed left-0 top-16 bottom-0 w-64 lg:w-[var(--ancho-aside)] bg-white border-r border-gray-100 duration-300 z-[45] ${
             ajustandoAside ? '' : 'transition-all'
           } ${
             isMenuOpen ? 'translate-x-0' : '-translate-x-full'
@@ -810,22 +870,19 @@ export default function AdminLayout({
 
               {/* Navegación principal filtrada por rol */}
               <div>
-                <div className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-4">Principal</div>
+                <div className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-4">
+                  Principal
+                </div>
                 <div className="space-y-1">
                   {navigation.map((item) => {
                     const isActive = esRutaActiva(item.href, pathname)
                     const hasSubmenu = item.submodulos && item.submodulos.length > 0
                     const isSubRouteActive = !!(
-                      hasSubmenu &&
-                      item.submodulos?.some(
-                        (sub) => esRutaActiva(sub.href, pathname),
-                      )
+                      hasSubmenu && item.submodulos?.some((sub) => esRutaActiva(sub.href, pathname))
                     )
                     // Manda lo que el usuario haya decidido; si no ha tocado
                     // esta sección, se abre cuando la ruta está dentro.
-                    const decisionDelUsuario = item.id
-                      ? openMenus[item.id]
-                      : undefined
+                    const decisionDelUsuario = item.id ? openMenus[item.id] : undefined
                     const isOpen = decisionDelUsuario ?? isSubRouteActive
 
                     if (hasSubmenu && item.id) {
@@ -836,24 +893,31 @@ export default function AdminLayout({
                             onClick={() => toggleMenu(item.id!)}
                             className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-75 border group ${
                               isOpen || isActive
-                                ? 'text-[#08557f] bg-gray-50/50 font-medium border-gray-200' 
+                                ? 'text-[#08557f] bg-gray-50/50 font-medium border-gray-200'
                                 : 'text-gray-600 border-transparent hover:text-[#08557f] hover:bg-gray-50 hover:border-gray-200'
                             }`}
                           >
                             <div className="flex items-center gap-3">
-                              <div className={`transition-colors ${isOpen || isActive ? 'text-[#08557f]' : 'text-gray-400 group-hover:text-[#08557f]'}`}>
+                              <div
+                                className={`transition-colors ${isOpen || isActive ? 'text-[#08557f]' : 'text-gray-400 group-hover:text-[#08557f]'}`}
+                              >
                                 {item.icon}
                               </div>
                               <span className="text-sm">{item.name}</span>
                             </div>
-                            <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+                            <ChevronDown
+                              className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+                            />
                           </button>
-                          
-                          <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
+
+                          <div
+                            className={`overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}
+                          >
                             <div className="pl-4 space-y-1 mt-1 border-l-2 border-gray-100 ml-4">
                               {item.submodulos?.map((subItem) => {
                                 const isSubActive = pathname === subItem.href
-                                const isNew = subItem.isNew && subItem.id &&!seenModules.includes(subItem.id);
+                                const isNew =
+                                  subItem.isNew && subItem.id && !seenModules.includes(subItem.id)
                                 return (
                                   <Link
                                     key={subItem.id}
@@ -866,12 +930,20 @@ export default function AdminLayout({
                                     onClick={() => handleModuleClick(subItem.id, subItem.isNew)}
                                   >
                                     <div className="flex items-center gap-3 min-w-0">
-                                      <div className={`transition-colors shrink-0 ${
-                                        isNew ? 'text-orange-500' : isSubActive ? 'text-[#08557f]' : 'text-gray-300 group-hover:text-[#08557f]'
-                                      }`}>
+                                      <div
+                                        className={`transition-colors shrink-0 ${
+                                          isNew
+                                            ? 'text-orange-500'
+                                            : isSubActive
+                                              ? 'text-[#08557f]'
+                                              : 'text-gray-300 group-hover:text-[#08557f]'
+                                        }`}
+                                      >
                                         {subItem.icon}
                                       </div>
-                                      <span className={`text-sm truncate ${isNew ? 'text-orange-600 font-bold' : ''}`}>
+                                      <span
+                                        className={`text-sm truncate ${isNew ? 'text-orange-600 font-bold' : ''}`}
+                                      >
                                         {subItem.name}
                                       </span>
                                     </div>
@@ -889,7 +961,7 @@ export default function AdminLayout({
                       )
                     }
 
-                    const isNew = item.isNew && item.id && !seenModules.includes(item.id);
+                    const isNew = item.isNew && item.id && !seenModules.includes(item.id)
 
                     return (
                       <Link
@@ -903,19 +975,29 @@ export default function AdminLayout({
                         onClick={() => handleModuleClick(item.id, item.isNew)}
                       >
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className={`transition-colors shrink-0 ${
-                            isNew ? 'text-orange-500' : isActive ? 'text-[#08557f]' : 'text-gray-400 group-hover:text-[#08557f]'
-                          }`}>
+                          <div
+                            className={`transition-colors shrink-0 ${
+                              isNew
+                                ? 'text-orange-500'
+                                : isActive
+                                  ? 'text-[#08557f]'
+                                  : 'text-gray-400 group-hover:text-[#08557f]'
+                            }`}
+                          >
                             {item.icon}
                           </div>
                           {/* Módulo nuevo: el NOMBRE también va resaltado, porque
                               el badge "NUEVO" se recorta con el ancho del aside. */}
-                          <span className={`text-sm truncate ${isNew ? 'text-orange-600 font-bold' : ''}`}>
+                          <span
+                            className={`text-sm truncate ${isNew ? 'text-orange-600 font-bold' : ''}`}
+                          >
                             {item.name}
                           </span>
                         </div>
                         {/* Badge revisiones pendientes */}
-                        {typeof item.href === 'string' && item.href.includes('/revisiones') && pendingRevisiones > 0 ? (
+                        {typeof item.href === 'string' &&
+                        item.href.includes('/revisiones') &&
+                        pendingRevisiones > 0 ? (
                           <span className="min-w-[20px] h-5 px-1.5 flex items-center justify-center text-[10px] font-black text-white bg-rose-500 rounded-full shadow-sm animate-pulse">
                             {pendingRevisiones > 99 ? '99+' : pendingRevisiones}
                           </span>
@@ -929,7 +1011,7 @@ export default function AdminLayout({
                   })}
                 </div>
               </div>
-              
+
               <div className="mt-8 px-4 pb-4 border-t border-gray-50 pt-4">
                 <p className="text-[10px] text-gray-400 font-medium text-center uppercase tracking-widest bg-gray-50/50 py-1 rounded-full">
                   Versión Alpha 1.5
@@ -953,7 +1035,7 @@ export default function AdminLayout({
         onClick={() => {
           if (isMenuOpen) setIsMenuOpen(false)
         }}
-        className={`pt-16 ${showSidebar ? 'lg:pl-[var(--ancho-aside)]' : ''} transition-all duration-700 ease-out ${(isMenuOpen && showSidebar) ? 'lg:pl-[var(--ancho-aside)]' : ''} ${mostrarAccesosRapidos ? 'pb-[calc(72px+env(safe-area-inset-bottom,0px))] lg:pb-0' : ''} ${isPageLoaded ? 'opacity-100 transform-none' : 'translate-y-4 opacity-0 scale-[0.99]'}`}
+        className={`pt-16 ${showSidebar ? 'lg:pl-[var(--ancho-aside)]' : ''} transition-all duration-700 ease-out ${isMenuOpen && showSidebar ? 'lg:pl-[var(--ancho-aside)]' : ''} ${mostrarAccesosRapidos ? 'pb-[calc(72px+env(safe-area-inset-bottom,0px))] lg:pb-0' : ''} ${isPageLoaded ? 'opacity-100 transform-none' : 'translate-y-4 opacity-0 scale-[0.99]'}`}
         style={{ opacity: isPageLoaded ? 1 : 0 }}
       >
         {children}
@@ -972,16 +1054,20 @@ export default function AdminLayout({
                 onClick={() => setIsMenuOpen(false)}
                 className="flex flex-col items-center px-2 py-1 rounded-xl transition-all group"
               >
-                <div className={`p-2 rounded-lg transition-all ${
-                  pathname === item.href 
-                    ? 'bg-gradient-to-br from-[#08557f] to-[#063a58] text-white shadow-md' 
-                    : 'text-gray-500 group-hover:bg-gray-100'
-                }`}>
+                <div
+                  className={`p-2 rounded-lg transition-all ${
+                    pathname === item.href
+                      ? 'bg-gradient-to-br from-[#08557f] to-[#063a58] text-white shadow-md'
+                      : 'text-gray-500 group-hover:bg-gray-100'
+                  }`}
+                >
                   {item.icon}
                 </div>
-                <span className={`text-xs mt-1 transition-colors ${
-                  pathname === item.href ? 'font-medium text-[#08557f]' : 'text-gray-600'
-                }`}>
+                <span
+                  className={`text-xs mt-1 transition-colors ${
+                    pathname === item.href ? 'font-medium text-[#08557f]' : 'text-gray-600'
+                  }`}
+                >
                   {item.name}
                 </span>
               </Link>
@@ -990,78 +1076,86 @@ export default function AdminLayout({
         </div>
       )}
       {/* Overlay de Transición Anti-FOUC (Blanco Puro para transición invisible desde Login) */}
-      <div 
+      <div
         role="presentation"
         className="fixed inset-0 bg-white transition-opacity duration-1000 ease-out z-[9999] flex flex-col items-center justify-center"
-        style={{ 
-            opacity: isPageLoaded ? 0 : 1,
-            pointerEvents: isPageLoaded ? 'none' : 'all',
-            position: 'fixed',
-            top: 0, 
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: '#ffffff',
-            zIndex: 9999
+        style={{
+          opacity: isPageLoaded ? 0 : 1,
+          pointerEvents: isPageLoaded ? 'none' : 'all',
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: '#ffffff',
+          zIndex: 9999,
         }}
       >
-         {/* Spinner de respaldo minimalista, solo visible si tarda mucho */}
-         {/* Overlay Simplificado (Blanco + Spinner Robusto) para evitar FOUC de logo complejo */}
-         <div 
-            className={`flex items-center justify-center transition-all duration-700 ${isPageLoaded ? 'opacity-0' : 'opacity-100'}`}
-            style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-         >
-            <div 
-                className="w-12 h-12 border-4 border-slate-100 border-t-[#08557f] border-r-[#08557f] rounded-full animate-spin" 
-                style={{ 
-                    width: '48px', 
-                    height: '48px', 
-                    border: '4px solid #f1f5f9', 
-                    borderTop: '4px solid #08557f', 
-                    borderRight: '4px solid #08557f', 
-                    borderRadius: '50%' 
-                }}
-            ></div>
-         </div>
+        {/* Spinner de respaldo minimalista, solo visible si tarda mucho */}
+        {/* Overlay Simplificado (Blanco + Spinner Robusto) para evitar FOUC de logo complejo */}
+        <div
+          className={`flex items-center justify-center transition-all duration-700 ${isPageLoaded ? 'opacity-0' : 'opacity-100'}`}
+          style={{
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <div
+            className="w-12 h-12 border-4 border-slate-100 border-t-[#08557f] border-r-[#08557f] rounded-full animate-spin"
+            style={{
+              width: '48px',
+              height: '48px',
+              border: '4px solid #f1f5f9',
+              borderTop: '4px solid #08557f',
+              borderRight: '4px solid #08557f',
+              borderRadius: '50%',
+            }}
+          ></div>
+        </div>
       </div>
       {/* Modal Confirmación Marcar Todas */}
-      {showMarkAllConfirm && typeof document !== 'undefined' && createPortal(
-        <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-sm rounded-[2rem] bg-white shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-8 text-center">
-              <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <Bell className="h-8 w-8" />
-              </div>
-              <h3 className="text-xl font-black text-slate-900 mb-2">Marcar todas como leídas</h3>
-              <p className="text-sm text-slate-500 leading-relaxed">
-                ¿Estás seguro de que deseas marcar todas las notificaciones como leídas? Esta acción no se puede deshacer.
-              </p>
-              
-              <div className="mt-8 flex flex-col gap-2">
-                <BotonAccion
-                  type="button"
-                  onClick={async () => {
-                    await marcarTodasComoLeidas();
-                    setShowMarkAllConfirm(false);
-                  }}
-                  className="w-full rounded-2xl bg-blue-600 py-4 text-sm font-bold text-white hover:bg-blue-700 shadow-xl shadow-blue-600/20 transition-all active:scale-[0.98]"
-                >
-                  Sí, marcar todas
-                </BotonAccion>
-                <button
-                  type="button"
-                  onClick={() => setShowMarkAllConfirm(false)}
-                  className="w-full rounded-2xl bg-slate-50 py-4 text-sm font-bold text-slate-500 hover:bg-slate-100 transition-all"
-                >
-                  Cancelar
-                </button>
+      {showMarkAllConfirm &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="w-full max-w-sm rounded-[2rem] bg-white shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+              <div className="p-8 text-center">
+                <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                  <Bell className="h-8 w-8" />
+                </div>
+                <h3 className="text-xl font-black text-slate-900 mb-2">Marcar todas como leídas</h3>
+                <p className="text-sm text-slate-500 leading-relaxed">
+                  ¿Estás seguro de que deseas marcar todas las notificaciones como leídas? Esta
+                  acción no se puede deshacer.
+                </p>
+
+                <div className="mt-8 flex flex-col gap-2">
+                  <BotonAccion
+                    type="button"
+                    onClick={async () => {
+                      await marcarTodasComoLeidas()
+                      setShowMarkAllConfirm(false)
+                    }}
+                    className="w-full rounded-2xl bg-blue-600 py-4 text-sm font-bold text-white hover:bg-blue-700 shadow-xl shadow-blue-600/20 transition-all active:scale-[0.98]"
+                  >
+                    Sí, marcar todas
+                  </BotonAccion>
+                  <button
+                    type="button"
+                    onClick={() => setShowMarkAllConfirm(false)}
+                    className="w-full rounded-2xl bg-slate-50 py-4 text-sm font-bold text-slate-500 hover:bg-slate-100 transition-all"
+                  >
+                    Cancelar
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        </div>,
-        document.body
-      )}
+          </div>,
+          document.body,
+        )}
     </div>
   )
 }
-

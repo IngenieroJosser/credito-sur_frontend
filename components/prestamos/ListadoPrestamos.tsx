@@ -40,7 +40,8 @@ import { apiRequest, formatErrorForComponent } from '@/lib/api/api'
 import { usePermission } from '@/hooks/usePermission'
 import { ExportButton } from '@/components/ui/ExportButton'
 import { exportService } from '@/services/export-service'
-import { offlineStore } from '@/lib/offline/offlineDb'
+import { offlineStore } from '@/lib/offline/offlineDb'
+
 import { mapearPrestamoDescargado } from '@/lib/offline/syncManager'
 import { prestamosService } from '@/services/prestamos-service'
 import { buildCrearPrestamoPayload } from '@/lib/creditos/crear-prestamo-payload'
@@ -560,7 +561,9 @@ const ListadoPrestamosElegante = () => {
           {dataSource === 'offline' && (
             <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-xs font-bold text-amber-700">
               <WifiOff className="h-3.5 w-3.5" />
-              Mostrando datos guardados localmente. Algunos datos pueden no estar actualizados.
+              {typeof navigator !== 'undefined' && navigator.onLine === false
+                ? 'Sin conexión: mostrando los datos guardados en este equipo.'
+                : 'No se pudo actualizar la lista; se muestran los últimos datos guardados.'}
             </div>
           )}
 

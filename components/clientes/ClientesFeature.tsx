@@ -81,7 +81,11 @@ export default function ClientesFeature({
     if (initialClientes.length === 0) {
       // Precarga desde caché para pintar algo al instante. NO se marca como
       // "offline": todavía no se ha intentado la petición online. Marcarlo aquí
-      // hacía parpadear el aviso "Mostrando datos guardados localmente" en cada
+      {
+        typeof navigator !== 'undefined' && navigator.onLine === false
+          ? 'Sin conexión: mostrando los datos guardados en este equipo.'
+          : 'No se pudo actualizar la lista; se muestran los últimos datos guardados.'
+      }
       // carga, aun con conexión. El aviso solo debe salir si la petición falla.
       offlineStore
         .getAll<ClienteAdmin>('clientes')

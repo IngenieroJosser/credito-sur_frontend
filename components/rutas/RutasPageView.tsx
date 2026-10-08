@@ -1,11 +1,11 @@
 'use client'
 
-import { mensajeDeError } from '@/lib/mensaje-de-error';
-import type { VisitaRuta } from '@/lib/types/cobranza';
-import type { ClienteCierrePendiente } from '@/types/rutas/cierre-pendiente';
-import type { ObligacionDeJornada } from '@/types/obligacion-jornada';
-import type { PrestamoParcial } from '@/types/domain';
-import type { OfflineRuta } from '@/lib/offline/offlineDb';
+import { mensajeDeError } from '@/lib/mensaje-de-error'
+import type { VisitaRuta } from '@/lib/types/cobranza'
+import type { ClienteCierrePendiente } from '@/types/rutas/cierre-pendiente'
+import type { ObligacionDeJornada } from '@/types/obligacion-jornada'
+import type { PrestamoParcial } from '@/types/domain'
+import type { OfflineRuta } from '@/lib/offline/offlineDb'
 import { useState, ChangeEvent, FormEvent, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { usePageFocusRefresh } from '@/hooks/usePageFocusRefresh'
@@ -35,7 +35,7 @@ import {
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
-import { routesService } from '@/services/routes-service';
+import { routesService } from '@/services/routes-service'
 import {
   esDomingoBogota,
   getBogotaDateKey,
@@ -44,22 +44,29 @@ import {
   resolveFechaEfectivaCuota,
 } from '@/lib/rutas-core'
 import { buildRutaHoyOperativa } from '@/lib/rutas/build-ruta-hoy-operativa'
-import { rutasService } from '@/services/rutas-service';
-import { clientesService } from '@/services/clientes-service';
-import { pagosService } from '@/services/pagos-service';
-import { useNotification } from '@/components/providers/NotificationProvider';
-import { usePermission } from '@/hooks/usePermission';
-import { offlineStore } from '@/lib/offline/offlineDb';
-import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal';
-import { getCajas, consolidarCaja, obtenerSaldoDisponibleRuta, Caja } from '@/services/contabilidad-service';
-import { prestamosService } from '@/services/prestamos-service';
-import { formatRoleLabel, riesgoOperativoLabel } from '@/lib/display-labels';
-import { buildCrearPrestamoPayload } from '@/lib/creditos/crear-prestamo-payload';
+import { rutasService } from '@/services/rutas-service'
+import { clientesService } from '@/services/clientes-service'
+import { pagosService } from '@/services/pagos-service'
+import { useNotification } from '@/components/providers/NotificationProvider'
+import { usePermission } from '@/hooks/usePermission'
+import { offlineStore } from '@/lib/offline/offlineDb'
+import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
+import {
+  getCajas,
+  consolidarCaja,
+  obtenerSaldoDisponibleRuta,
+  Caja,
+} from '@/services/contabilidad-service'
+import { prestamosService } from '@/services/prestamos-service'
+import { formatRoleLabel, riesgoOperativoLabel } from '@/lib/display-labels'
+import { buildCrearPrestamoPayload } from '@/lib/creditos/crear-prestamo-payload'
 import Paginador from '@/components/ui/Paginador'
 import { normalizarCodigoRuta } from '@/lib/rutas/codigo-ruta'
 import { logger } from '@/lib/logger'
 import type { RutaDeLista } from '@/types/domain'
 import { estaPendienteDeActivacion } from '@/lib/rutas/pendiente-de-activacion'
+
+import { SkeletonTablero } from '@/components/ui/Skeleton'
 
 /**
  * La ruta del listado. La forma la define `RutaDeLista` en `types/domain.ts`.
@@ -84,12 +91,12 @@ type ResumenDiarioDeRuta = {
 }
 
 type Ruta = RutaDeLista & {
-  cobrador: string;
-  codigo: string;
+  cobrador: string
+  codigo: string
   // `RutaDeLista` ya los declara como `unknown`/`unknown[]`: aqui se afinan al tipo que el
   // modal de cierre recibe, que ya existe.
-  cierrePendienteAnterior?: ClienteCierrePendiente | null;
-  cierresPendientes?: ClienteCierrePendiente[];
+  cierrePendienteAnterior?: ClienteCierrePendiente | null
+  cierresPendientes?: ClienteCierrePendiente[]
 }
 
 /** Clave de la pestaña que lista lo que no ha salido a operar hoy. */
@@ -99,28 +106,28 @@ const FILTRO_PENDIENTE_ACTIVACION = 'PENDIENTE_ACTIVACION' as const
 // donde se puede probar.
 
 interface PrestamoResumen {
-  id: string;
-  tipo: 'EFECTIVO' | 'ARTICULO';
-  articulo?: string;
-  frecuencia: string;
-  saldoPendiente: number;
+  id: string
+  tipo: 'EFECTIVO' | 'ARTICULO'
+  articulo?: string
+  frecuencia: string
+  saldoPendiente: number
 }
 
 interface ClienteSelection {
-  id: string;
-  nombre?: string;
-  codigo?: string;
-  prestamos?: PrestamoResumen[];
+  id: string
+  nombre?: string
+  codigo?: string
+  prestamos?: PrestamoResumen[]
   // Se permiten otras propiedades para no acoplar esta vista a la forma exacta de la respuesta del backend
-  [key: string]: unknown;
+  [key: string]: unknown
 }
 
 interface RutasPageViewProps {
-  readOnly?: boolean;
-  rutasBasePath?: string;
-  rutas?: Ruta[];
-  cobradores?: { id: string; nombre: string; rol?: string }[];
-  supervisores?: { id: string; nombre: string; rol?: string }[];
+  readOnly?: boolean
+  rutasBasePath?: string
+  rutas?: Ruta[]
+  cobradores?: { id: string; nombre: string; rol?: string }[]
+  supervisores?: { id: string; nombre: string; rol?: string }[]
 }
 
 /** La asignacion tal como la trae el detalle de ruta, con lo que este mapeo lee. */
@@ -138,11 +145,11 @@ type AsignacionDeSeleccion = {
 export const mapAsignacionesToClientesRuta = (
   asignaciones: AsignacionDeSeleccion[] = [],
 ): ClienteSelection[] => {
-  const uniqueByClienteId = new Map<string, ClienteSelection>();
+  const uniqueByClienteId = new Map<string, ClienteSelection>()
 
   asignaciones.forEach((a) => {
-    const clienteId = a?.cliente?.id;
-    if (!clienteId || uniqueByClienteId.has(clienteId)) return;
+    const clienteId = a?.cliente?.id
+    if (!clienteId || uniqueByClienteId.has(clienteId)) return
 
     uniqueByClienteId.set(clienteId, {
       id: clienteId,
@@ -156,19 +163,16 @@ export const mapAsignacionesToClientesRuta = (
         .filter((p) => isPrestamoOperativo(p))
         .map((p) => ({
           id: p.id,
-          tipo:
-            p.tipo === 'ARTICULO' || p.tipoPrestamo === 'ARTICULO'
-              ? 'ARTICULO'
-              : 'EFECTIVO',
+          tipo: p.tipo === 'ARTICULO' || p.tipoPrestamo === 'ARTICULO' ? 'ARTICULO' : 'EFECTIVO',
           articulo: p.articulo || p.descripcionArticulo || undefined,
           frecuencia: p.frecuenciaPago || 'DIARIO',
           saldoPendiente: Number(p.saldoPendiente || 0),
         })) as PrestamoResumen[],
-    });
-  });
+    })
+  })
 
-  return Array.from(uniqueByClienteId.values());
-};
+  return Array.from(uniqueByClienteId.values())
+}
 
 const getEstadoSistemaLabel = (estado: Ruta['estado']) => {
   if (estado === 'ACTIVA') return 'Habilitada'
@@ -176,17 +180,10 @@ const getEstadoSistemaLabel = (estado: Ruta['estado']) => {
   return estado
 }
 
-export const mapObligacionToRutaListVisita = (
-  o: ObligacionDeJornada,
-  hoyKey: string,
-) => {
+export const mapObligacionToRutaListVisita = (o: ObligacionDeJornada, hoyKey: string) => {
   const prestamo = o?.prestamo || {}
   const estadoRevision = getEstadoRevisionOperacion({ ...prestamo, ...o })
-  const cuotaObjetivo =
-    o?.cuotaObjetivo ||
-    prestamo?.cuotaObjetivo ||
-    prestamo?.proximaCuota ||
-    {}
+  const cuotaObjetivo = o?.cuotaObjetivo || prestamo?.cuotaObjetivo || prestamo?.proximaCuota || {}
 
   const fechaCuota =
     resolveFechaEfectivaCuota(cuotaObjetivo) ||
@@ -199,11 +196,7 @@ export const mapObligacionToRutaListVisita = (
     hoyKey
 
   const estadoGestion = String(
-    o?.estadoGestion ||
-      o?.estadoVisita ||
-      prestamo?.estadoGestion ||
-      prestamo?.estadoVisita ||
-      '',
+    o?.estadoGestion || o?.estadoVisita || prestamo?.estadoGestion || prestamo?.estadoVisita || '',
   ).toUpperCase()
 
   const estadoCuota = String(
@@ -243,13 +236,9 @@ export const mapObligacionToRutaListVisita = (
   const saldoRaw = prestamo?.saldoPendiente ?? o?.saldoPendiente
 
   const tieneSaldoInformado =
-    saldoRaw !== undefined &&
-    saldoRaw !== null &&
-    String(saldoRaw).trim() !== ''
+    saldoRaw !== undefined && saldoRaw !== null && String(saldoRaw).trim() !== ''
 
-  const estaPagado =
-    estadoCuota.includes('PAGAD') ||
-    (tieneSaldoInformado && Number(saldoRaw) <= 0)
+  const estaPagado = estadoCuota.includes('PAGAD') || (tieneSaldoInformado && Number(saldoRaw) <= 0)
 
   const estaEnMora =
     Boolean(cuotaObjetivo?.enMoraEnFechaOperativa) ||
@@ -258,10 +247,7 @@ export const mapObligacionToRutaListVisita = (
 
   return {
     id: o?.id || o?.prestamoId || prestamo?.id || `${o?.clienteId || 'cliente'}-${fechaCuota}`,
-    clienteId:
-      o?.clienteId ||
-      (typeof o?.cliente === 'object' ? o.cliente?.id : undefined) ||
-      '',
+    clienteId: o?.clienteId || (typeof o?.cliente === 'object' ? o.cliente?.id : undefined) || '',
     prestamoId: o?.prestamoId || prestamo?.id || '',
     estado: estadoGestion.includes('REPROGRAM')
       ? 'reprogramado'
@@ -277,14 +263,9 @@ export const mapObligacionToRutaListVisita = (
     montoCuotaNormal: cuotaNormal,
     montoCuotaPendiente: metaPendiente,
     pendienteAprobacion: estadoRevision.esProvisional,
-    estadoAprobacion:
-      o?.estadoAprobacion ??
-      prestamo?.estadoAprobacion ??
-      undefined,
+    estadoAprobacion: o?.estadoAprobacion ?? prestamo?.estadoAprobacion ?? undefined,
     estadoEfectoProvisional:
-      o?.estadoEfectoProvisional ??
-      prestamo?.estadoEfectoProvisional ??
-      null,
+      o?.estadoEfectoProvisional ?? prestamo?.estadoEfectoProvisional ?? null,
     esProvisional: estadoRevision.esProvisional,
     esRevertido: estadoRevision.esRevertido,
     etiquetaRevision: estadoRevision.etiquetaRevision,
@@ -312,11 +293,11 @@ const buildRecolectarIdempotencyKey = (cajaRutaId: string) => {
 }
 
 export const RutasPageView = ({
-  readOnly = false, 
-  rutasBasePath = '/admin/rutas', 
+  readOnly = false,
+  rutasBasePath = '/admin/rutas',
   rutas = [],
   cobradores = [],
-  supervisores = [] 
+  supervisores = [],
 }: RutasPageViewProps) => {
   const router = useRouter()
   const { user: currentUser } = useAuth()
@@ -332,8 +313,11 @@ export const RutasPageView = ({
     }
     return 'grid'
   })
-  const [loading, setLoading] = useState(false)
-  const { showNotification } = useNotification();
+  // Arranca en `true`: la primera pintada es ANTES de que lleguen las rutas, y con
+  // `false` la pantalla salia con la lista vacia. Eso hacia creer que no habia rutas
+  // cuando solo estaban tardando, y llevaba a crear una que ya existia.
+  const [loading, setLoading] = useState(true)
+  const { showNotification } = useNotification()
   const [showModal, setShowModal] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [showCrearCreditoModal, setShowCrearCreditoModal] = useState(false)
@@ -348,45 +332,43 @@ export const RutasPageView = ({
     cobradorId: '',
     supervisorId: '',
     coordinadorId: '',
-    descripcion: ''
+    descripcion: '',
   })
-  
+
   // Mocks removed. Data now passed via props.
   // const [cobradores]... removed
   // const [supervisores]... removed
-  
+
   const [clientesRuta, setClientesRuta] = useState<ClienteSelection[]>([]) // Typed array
-  const [clientesDisponibles, setClientesDisponibles] = useState<ClienteSelection[]>([]) 
+  const [clientesDisponibles, setClientesDisponibles] = useState<ClienteSelection[]>([])
   const [loadingClientes, setLoadingClientes] = useState(false)
   const [isAddingCliente, setIsAddingCliente] = useState(false)
-  
+
   // Las rutas se guardan en estado para poder actualizarlas desde el cliente
-  const [rutasList, setRutasList] = useState<Ruta[]>(rutas as Ruta[]);
-  
-  const displayRutas: Ruta[] = rutasList;
-  
+  const [rutasList, setRutasList] = useState<Ruta[]>(rutas as Ruta[])
+
+  const displayRutas: Ruta[] = rutasList
+
   // State for lists with fallback fetching
-  const [cobradoresList, setCobradoresList] = useState(cobradores);
-  const [supervisoresList, setSupervisoresList] = useState(supervisores);
+  const [cobradoresList, setCobradoresList] = useState(cobradores)
+  const [supervisoresList, setSupervisoresList] = useState(supervisores)
   const [coordinadoresList, setCoordinadoresList] = useState<
     { id: string; nombre: string; rol?: string }[]
-  >([]);
+  >([])
   const [showSelectPrincipalModal, setShowSelectPrincipalModal] = useState(false)
   const [principalOptions, setPrincipalOptions] = useState<Caja[]>([])
   const [processingTransfer, setProcessingTransfer] = useState(false)
   const [routeForTransfer, setRouteForTransfer] = useState<Ruta | null>(null)
   const showRecolectar = currentUser?.rol === 'SUPER_ADMINISTRADOR' || currentUser?.rol === 'ADMIN'
   const [showRecolectarModal, setShowRecolectarModal] = useState(false)
-  const [montoRecolectar, setMontoRecolectar] = useState('')      // valor formateado con puntos
+  const [montoRecolectar, setMontoRecolectar] = useState('') // valor formateado con puntos
   const [saldoDisponibleRecolectar, setSaldoDisponibleRecolectar] = useState<number | null>(null)
   const [cajaRutaIdRecolectar, setCajaRutaIdRecolectar] = useState<string | null>(null)
   const [errorRecolectar, setErrorRecolectar] = useState<string | null>(null)
   // El resumen del dia por ruta: lo que `fetchDailySummaries` mete y las pantallas leen.
   // Antes era `Record<string, any>` en los dos lados, asi que ni lo que se guarda ni lo que
   // se lee se comprobaba contra nada.
-  const [dailySummaries, setDailySummaries] = useState<
-    Record<string, ResumenDiarioDeRuta>
-  >({});
+  const [dailySummaries, setDailySummaries] = useState<Record<string, ResumenDiarioDeRuta>>({})
 
   const recolectarIdempotencyKeyRef = useRef<string | null>(null)
 
@@ -398,7 +380,7 @@ export const RutasPageView = ({
 
     // Obtener pagos una sola vez para todas las rutas
     const pagosResp = await pagosService.obtenerPagos({ limit: 5000 })
-    const pagos = (pagosResp)?.pagos || pagosResp || []
+    const pagos = pagosResp?.pagos || pagosResp || []
 
     await Promise.all(
       rutas.map(async (ruta) => {
@@ -415,9 +397,7 @@ export const RutasPageView = ({
           })
 
           const clientesOperativosHoy = new Set(
-            result.visibleItems
-              .map((v) => v.clienteId)
-              .filter(Boolean),
+            result.visibleItems.map((v) => v.clienteId).filter(Boolean),
           ).size
 
           newSummaries[ruta.id] = {
@@ -456,13 +436,13 @@ export const RutasPageView = ({
   // asi que la dependencia no cambia de significado.
   const currentUserId = currentUser?.id
   const fetchRutas = useCallback(async () => {
-    setLoading(true);
+    setLoading(true)
     try {
       const isSupervisorPath = (rutasBasePath || '').toLowerCase().includes('/supervisor')
       const response = await routesService.getAll({
         limit: 100,
         ...(isSupervisorPath && currentUserId ? { supervisorId: currentUserId } : {}),
-      });
+      })
       // `getAll` devuelve `PaginatedRoutes`, o sea que `response.data` ya es el arreglo.
       // El segundo desempaquetado (`payload.data`) era de una forma doblemente envuelta
       // que no existe.
@@ -476,24 +456,41 @@ export const RutasPageView = ({
         // se recalculan con obtenerVisitasDelDia y dailySummaries.
         // No se mezcla con saldo de caja porque ahí entran regularizaciones,
         // bases y movimientos contables que no son productividad de HOY.
-        setRutasList(data as Ruta[]);
+        setRutasList(data as Ruta[])
       }
     } catch {
       try {
-        const offRutas = await offlineStore.getAll<OfflineRuta>('rutas');
+        const offRutas = await offlineStore.getAll<OfflineRuta>('rutas')
         if (offRutas.length > 0) {
-          setRutasList(offRutas.map((r) => ({
-            id: r.id, nombre: r.nombre, codigo: r.codigo, zona: r.zona || '',
-            estado: r.activa ? 'ACTIVA' : 'INACTIVA', cobrador: '',
-            cobradorId: r.cobradorId || '', supervisorId: r.supervisorId || '',
-            clientesAsignados: 0, clientesNuevos: 0, cobranzaDelDia: 0, metaDelDia: 0,
-          } as Ruta)));
+          setRutasList(
+            offRutas.map(
+              (r) =>
+                ({
+                  id: r.id,
+                  nombre: r.nombre,
+                  codigo: r.codigo,
+                  zona: r.zona || '',
+                  estado: r.activa ? 'ACTIVA' : 'INACTIVA',
+                  cobrador: '',
+                  cobradorId: r.cobradorId || '',
+                  supervisorId: r.supervisorId || '',
+                  clientesAsignados: 0,
+                  clientesNuevos: 0,
+                  cobranzaDelDia: 0,
+                  metaDelDia: 0,
+                }) as Ruta,
+            ),
+          )
         }
       } catch (error) {
         // Es el respaldo sin conexion: si no hay nada guardado, no hay nada que mostrar.
         // Se avisa solo en desarrollo, que es donde sirve.
         logger.warn('No se pudieron leer las rutas guardadas sin conexion', error)
       }
+    } finally {
+      // `setLoading(true)` estaba al entrar pero NUNCA se apagaba: con el estado
+      // arrancando en `true` eso habria dejado la pantalla cargando para siempre.
+      setLoading(false)
     }
   }, [currentUserId, rutasBasePath])
 
@@ -501,22 +498,24 @@ export const RutasPageView = ({
     const fetchLists = async () => {
       try {
         if (cobradoresList.length === 0) {
-          const fetchedCobradores = await routesService.getCobradores();
-          setCobradoresList(fetchedCobradores);
+          const fetchedCobradores = await routesService.getCobradores()
+          setCobradoresList(fetchedCobradores)
         }
         if (supervisoresList.length === 0) {
-          const fetchedSupervisores = await routesService.getSupervisores();
-          setSupervisoresList(fetchedSupervisores);
+          const fetchedSupervisores = await routesService.getSupervisores()
+          setSupervisoresList(fetchedSupervisores)
         }
         if (coordinadoresList.length === 0) {
-          const fetchedCoordinadores = await routesService.getCoordinadores();
-          setCoordinadoresList(fetchedCoordinadores);
+          const fetchedCoordinadores = await routesService.getCoordinadores()
+          setCoordinadoresList(fetchedCoordinadores)
         }
-        await fetchRutas();
-      } catch { /* offline handled inside fetchRutas */ }
-    };
-    fetchLists();
-  }, [fetchRutas]);
+        await fetchRutas()
+      } catch {
+        /* offline handled inside fetchRutas */
+      }
+    }
+    fetchLists()
+  }, [fetchRutas])
 
   // Tiempo real: rutas o clientes actualizados
   useRealtimeData(
@@ -527,10 +526,9 @@ export const RutasPageView = ({
 
   useEffect(() => {
     if (rutasList.length > 0) {
-      fetchDailySummaries(rutasList);
+      fetchDailySummaries(rutasList)
     }
-  }, [rutasList, fetchDailySummaries]);
-
+  }, [rutasList, fetchDailySummaries])
 
   const [clienteSearch, setClienteSearch] = useState('')
   const [clienteAMover, setClienteAMover] = useState<string | null>(null)
@@ -539,41 +537,43 @@ export const RutasPageView = ({
   const [rutaDestinoMap, setRutaDestinoMap] = useState<Record<string, string>>({})
 
   const loadClientesRuta = useCallback(async (rutaId: string) => {
-    const rutaDetalle = await routesService.getById(rutaId);
-    setClientesRuta(mapAsignacionesToClientesRuta(rutaDetalle.asignaciones || []));
+    const rutaDetalle = await routesService.getById(rutaId)
+    setClientesRuta(mapAsignacionesToClientesRuta(rutaDetalle.asignaciones || []))
   }, [])
 
   // Efecto para buscar clientes disponibles
   useEffect(() => {
     if (!isAddingCliente) {
-      setClientesDisponibles([]);
-      return;
+      setClientesDisponibles([])
+      return
     }
 
     const searchTimer = setTimeout(async () => {
-      setLoadingClientes(true);
+      setLoadingClientes(true)
       try {
         // Si no hay búsqueda, traemos los más recientes (omitiendo el filtro search)
-        const results = await clientesService.obtenerTodos({ 
-          search: clienteSearch.length >= 1 ? clienteSearch : undefined 
-        });
-        
-        setClientesDisponibles(results.map(c => ({
-          id: c.id,
-          nombre: `${c.nombres} ${c.apellidos}`,
-          codigo: c.dni,
-          direccion: c.direccion || '',
-          deuda: c.montoTotal || 0
-        })));
-      } catch (error) {
-        console.error('Error buscando clientes:', error);
-      } finally {
-        setLoadingClientes(false);
-      }
-    }, 300); // Un poco más rápido
+        const results = await clientesService.obtenerTodos({
+          search: clienteSearch.length >= 1 ? clienteSearch : undefined,
+        })
 
-    return () => clearTimeout(searchTimer);
-  }, [clienteSearch, isAddingCliente]);
+        setClientesDisponibles(
+          results.map((c) => ({
+            id: c.id,
+            nombre: `${c.nombres} ${c.apellidos}`,
+            codigo: c.dni,
+            direccion: c.direccion || '',
+            deuda: c.montoTotal || 0,
+          })),
+        )
+      } catch (error) {
+        console.error('Error buscando clientes:', error)
+      } finally {
+        setLoadingClientes(false)
+      }
+    }, 300) // Un poco más rápido
+
+    return () => clearTimeout(searchTimer)
+  }, [clienteSearch, isAddingCliente])
 
   const handleCreateClick = () => {
     if (!puedeCrear) return
@@ -587,7 +587,7 @@ export const RutasPageView = ({
       cobradorId: '',
       supervisorId: '',
       coordinadorId: '',
-      descripcion: ''
+      descripcion: '',
     })
     setShowModal(true)
   }
@@ -604,28 +604,30 @@ export const RutasPageView = ({
       cobradorId: ruta.cobradorId || '',
       supervisorId: ruta.supervisorId || '',
       coordinadorId: ruta.coordinadorId || '',
-      descripcion: ruta.descripcion || ''
+      descripcion: ruta.descripcion || '',
     })
-    
+
     // Cargar clientes de la ruta
     try {
-      await loadClientesRuta(ruta.id);
+      await loadClientesRuta(ruta.id)
     } catch (error) {
-      console.error('Error cargando clientes de la ruta:', error);
-      setClientesRuta([]);
+      console.error('Error cargando clientes de la ruta:', error)
+      setClientesRuta([])
     }
-    
+
     setShowModal(true)
   }
 
-  const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (
+    e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
+  ) => {
     const { name, value } = e.target
-    setFormData(prev => ({ ...prev, [name]: value }))
+    setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    
+
     try {
       if (editingId) {
         await routesService.update(editingId, {
@@ -636,9 +638,9 @@ export const RutasPageView = ({
           supervisorId: formData.supervisorId || undefined,
           coordinadorId: formData.coordinadorId || undefined,
           descripcion: formData.descripcion,
-          activa: formData.estado === 'ACTIVA'
-        });
-        showNotification('success', 'Ruta actualizada correctamente', 'Éxito');
+          activa: formData.estado === 'ACTIVA',
+        })
+        showNotification('success', 'Ruta actualizada correctamente', 'Éxito')
       } else {
         await routesService.create({
           nombre: formData.nombre,
@@ -647,37 +649,41 @@ export const RutasPageView = ({
           cobradorId: formData.cobradorId,
           supervisorId: formData.supervisorId || undefined,
           coordinadorId: formData.coordinadorId || undefined,
-          descripcion: formData.descripcion
-        });
-        showNotification('success', 'Ruta creada correctamente', 'Éxito');
+          descripcion: formData.descripcion,
+        })
+        showNotification('success', 'Ruta creada correctamente', 'Éxito')
       }
-      
-      setShowModal(false);
-      
+
+      setShowModal(false)
+
       // Refrescar la lista en el cliente para que la UI se actualice de inmediato
       try {
-        await fetchRutas();
-      } catch { /* Error refreshing routes */ }
+        await fetchRutas()
+      } catch {
+        /* Error refreshing routes */
+      }
     } catch (error) {
       // `mensajeDeError` ya une la lista de campos del ValidationPipe, asi que el
       // `Array.isArray(...)` de aqui sobraba.
-      const errorMessage = mensajeDeError(error, 'No se pudo guardar la ruta');
-      showNotification('error', errorMessage, 'Error');
+      const errorMessage = mensajeDeError(error, 'No se pudo guardar la ruta')
+      showNotification('error', errorMessage, 'Error')
     }
   }
 
   const handleToggleEstado = async (id: string) => {
     try {
-      await routesService.toggleActive(id);
-      
+      await routesService.toggleActive(id)
+
       // Refrescar el estado local desde el backend
       try {
-         await fetchRutas();
-      } catch { /* Error al recargar las rutas */ }
+        await fetchRutas()
+      } catch {
+        /* Error al recargar las rutas */
+      }
 
-      showNotification('success', 'Estado de la ruta actualizado', 'Éxito');
+      showNotification('success', 'Estado de la ruta actualizado', 'Éxito')
     } catch {
-      showNotification('error', 'No se pudo cambiar el estado', 'Error');
+      showNotification('error', 'No se pudo cambiar el estado', 'Error')
     }
   }
   const handleRecolectarDinero = async (ruta: Ruta) => {
@@ -696,10 +702,10 @@ export const RutasPageView = ({
       ])
       const saldo = saldoResp?.saldoCaja ?? saldoResp?.saldoDisponible ?? 0
       setSaldoDisponibleRecolectar(saldo)
-      const cajaIdBackend = (saldoResp)?.cajaId as (string | undefined)
+      const cajaIdBackend = saldoResp?.cajaId as string | undefined
       const cajaRuta = cajaIdBackend
-        ? cajasResp.find(c => c.id === cajaIdBackend)
-        : cajasResp.find(c => c.rutaId === ruta.id)
+        ? cajasResp.find((c) => c.id === cajaIdBackend)
+        : cajasResp.find((c) => c.rutaId === ruta.id)
       setCajaRutaIdRecolectar(cajaRuta?.id || null)
     } catch (e) {
       console.error('Error cargando saldo:', e)
@@ -711,18 +717,25 @@ export const RutasPageView = ({
     if (processingTransfer) return
 
     const monto = parseMonto(montoRecolectar)
-    if (!monto || monto <= 0) { setErrorRecolectar('Ingresa un monto valido'); return }
-    if (saldoDisponibleRecolectar !== null && monto > saldoDisponibleRecolectar) {
-      setErrorRecolectar(`El monto supera el saldo disponible (${formatCurrency(saldoDisponibleRecolectar)})`);
+    if (!monto || monto <= 0) {
+      setErrorRecolectar('Ingresa un monto valido')
       return
     }
-    if (!cajaRutaIdRecolectar) { setErrorRecolectar('No se encontro la caja de la ruta'); return }
+    if (saldoDisponibleRecolectar !== null && monto > saldoDisponibleRecolectar) {
+      setErrorRecolectar(
+        `El monto supera el saldo disponible (${formatCurrency(saldoDisponibleRecolectar)})`,
+      )
+      return
+    }
+    if (!cajaRutaIdRecolectar) {
+      setErrorRecolectar('No se encontro la caja de la ruta')
+      return
+    }
     setProcessingTransfer(true)
     setErrorRecolectar(null)
     try {
       const idempotencyKey =
-        recolectarIdempotencyKeyRef.current ??
-        buildRecolectarIdempotencyKey(cajaRutaIdRecolectar)
+        recolectarIdempotencyKeyRef.current ?? buildRecolectarIdempotencyKey(cajaRutaIdRecolectar)
 
       recolectarIdempotencyKeyRef.current = idempotencyKey
 
@@ -731,9 +744,17 @@ export const RutasPageView = ({
       recolectarIdempotencyKeyRef.current = null
 
       if (result?.idempotente) {
-        showNotification('info', 'Esta recolección ya había sido procesada previamente.', 'Recolección Idempotente')
+        showNotification(
+          'info',
+          'Esta recolección ya había sido procesada previamente.',
+          'Recolección Idempotente',
+        )
       } else {
-        showNotification('success', `Se recolectaron ${formatCurrency(monto)} de la ruta hacia Caja de Oficina`, 'Recoleccion exitosa')
+        showNotification(
+          'success',
+          `Se recolectaron ${formatCurrency(monto)} de la ruta hacia Caja de Oficina`,
+          'Recoleccion exitosa',
+        )
       }
 
       await fetchRutas()
@@ -748,8 +769,8 @@ export const RutasPageView = ({
       setProcessingTransfer(true)
       if (!routeForTransfer) return
       const cajas = await getCajas()
-      const cajaRuta = cajas.find(c => c.tipo === 'RUTA' && c.rutaId === routeForTransfer.id)
-      const destino = cajas.find(c => c.id === destinoId)
+      const cajaRuta = cajas.find((c) => c.tipo === 'RUTA' && c.rutaId === routeForTransfer.id)
+      const destino = cajas.find((c) => c.id === destinoId)
       if (!cajaRuta || !destino) return
       const idempotencyKey = buildRecolectarIdempotencyKey(cajaRuta.id)
       const result = await consolidarCaja(cajaRuta.id, undefined, idempotencyKey)
@@ -757,7 +778,11 @@ export const RutasPageView = ({
       setRouteForTransfer(null)
 
       if (result?.idempotente) {
-        showNotification('info', 'Esta transferencia ya había sido procesada previamente.', 'Transferencia Idempotente')
+        showNotification(
+          'info',
+          'Esta transferencia ya había sido procesada previamente.',
+          'Transferencia Idempotente',
+        )
       } else {
         showNotification('success', `Dinero enviado a ${destino.nombre}`, 'Éxito')
       }
@@ -768,76 +793,80 @@ export const RutasPageView = ({
     }
   }
   const handleMoveCliente = async (clienteId: string) => {
-    if (!editingId || !rutaDestinoId) return;
-    
+    if (!editingId || !rutaDestinoId) return
+
     try {
-      await routesService.moveClient(clienteId, editingId, rutaDestinoId);
-      showNotification('success', 'Cliente movido exitosamente', 'Éxito');
-      
-      setClientesRuta(prev => prev.filter(c => c.id !== clienteId));
-      setClienteAMover(null);
-      setRutaDestinoId('');
-      
+      await routesService.moveClient(clienteId, editingId, rutaDestinoId)
+      showNotification('success', 'Cliente movido exitosamente', 'Éxito')
+
+      setClientesRuta((prev) => prev.filter((c) => c.id !== clienteId))
+      setClienteAMover(null)
+      setRutaDestinoId('')
+
       try {
-        await fetchRutas();
+        await fetchRutas()
       } catch (error) {
         // El refresco es secundario: la accion ya se hizo.
         // Se avisa solo en desarrollo, que es donde sirve.
         logger.warn('Fallo el refresco del listado de rutas', error)
       }
     } catch {
-      showNotification('error', 'No se pudo mover el cliente', 'Error');
+      showNotification('error', 'No se pudo mover el cliente', 'Error')
     }
   }
 
   const handleMoveLoan = async (prestamoId: string) => {
-    const toRutaId = rutaDestinoMap[prestamoId];
-    if (!toRutaId) return;
+    const toRutaId = rutaDestinoMap[prestamoId]
+    if (!toRutaId) return
     try {
-      await routesService.moveLoan(prestamoId, toRutaId);
-      showNotification('success', 'Crédito asignado a la ruta correctamente', 'Éxito');
-      setRutaDestinoMap(prev => { const n = { ...prev }; delete n[prestamoId]; return n; });
+      await routesService.moveLoan(prestamoId, toRutaId)
+      showNotification('success', 'Crédito asignado a la ruta correctamente', 'Éxito')
+      setRutaDestinoMap((prev) => {
+        const n = { ...prev }
+        delete n[prestamoId]
+        return n
+      })
       if (editingId) {
-        await loadClientesRuta(editingId);
+        await loadClientesRuta(editingId)
       }
-      await fetchRutas();
+      await fetchRutas()
     } catch {
-      showNotification('error', 'No se pudo mover el crédito', 'Error');
+      showNotification('error', 'No se pudo mover el crédito', 'Error')
     }
   }
 
   /** Que cliente se esta asignando a la ruta ahora mismo, si alguno. */
-  const [asignandoClienteId, setAsignandoClienteId] = useState<string | null>(null);
+  const [asignandoClienteId, setAsignandoClienteId] = useState<string | null>(null)
 
   const confirmAddCliente = async (cliente: ClienteSelection) => {
     if (!editingId || !formData.cobradorId) {
-      showNotification('warning', 'Seleccione un cobrador para la ruta primero', 'Atención');
-      return;
+      showNotification('warning', 'Seleccione un cobrador para la ruta primero', 'Atención')
+      return
     }
     // Asignar son tres viajes al servidor seguidos; sin esto la lista se
     // quedaba quieta y se podia pulsar otro cliente encima.
-    if (asignandoClienteId) return;
+    if (asignandoClienteId) return
 
-    setAsignandoClienteId(cliente.id);
+    setAsignandoClienteId(cliente.id)
     try {
-      await routesService.assignClient(editingId, cliente.id, formData.cobradorId);
-      showNotification('success', `Cliente ${cliente.nombre} asignado a la ruta`, 'Éxito');
-      
-      await loadClientesRuta(editingId);
-      setIsAddingCliente(false);
-      setClienteSearch('');
-      
+      await routesService.assignClient(editingId, cliente.id, formData.cobradorId)
+      showNotification('success', `Cliente ${cliente.nombre} asignado a la ruta`, 'Éxito')
+
+      await loadClientesRuta(editingId)
+      setIsAddingCliente(false)
+      setClienteSearch('')
+
       try {
-        await fetchRutas();
+        await fetchRutas()
       } catch (error) {
         // El refresco es secundario: la accion ya se hizo.
         // Se avisa solo en desarrollo, que es donde sirve.
         logger.warn('Fallo el refresco del listado de rutas', error)
       }
     } catch {
-      showNotification('error', 'No se pudo asignar el cliente', 'Error');
+      showNotification('error', 'No se pudo asignar el cliente', 'Error')
     } finally {
-      setAsignandoClienteId(null);
+      setAsignandoClienteId(null)
     }
   }
   const [activeTab, setActiveTab] = useState<'info' | 'clientes'>('info')
@@ -864,10 +893,10 @@ export const RutasPageView = ({
   })
 
   // Lógica de Paginación
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentRutas = rutasFiltradas.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(rutasFiltradas.length / itemsPerPage);
+  const indexOfLastItem = currentPage * itemsPerPage
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage
+  const currentRutas = rutasFiltradas.slice(indexOfFirstItem, indexOfLastItem)
+  const totalPages = Math.ceil(rutasFiltradas.length / itemsPerPage)
 
   // Reiniciar la página al filtrar
   useEffect(() => {
@@ -894,9 +923,7 @@ export const RutasPageView = ({
     ? 0
     : displayRutas.filter((ruta) => {
         const clientesOperativos = Number(
-          dailySummaries[ruta.id]?.clientesOperativosHoy ??
-            ruta.clientesAsignados ??
-            0,
+          dailySummaries[ruta.id]?.clientesOperativosHoy ?? ruta.clientesAsignados ?? 0,
         )
 
         return ruta.estado === 'ACTIVA' && clientesOperativos > 0
@@ -916,9 +943,7 @@ export const RutasPageView = ({
       if (!r || r.estado !== 'ACTIVA') return false
 
       const clientesOperativos = Number(
-        dailySummaries[r.id]?.clientesOperativosHoy ??
-          r.clientesAsignados ??
-          0,
+        dailySummaries[r.id]?.clientesOperativosHoy ?? r.clientesAsignados ?? 0,
       )
 
       return clientesOperativos > 0
@@ -945,9 +970,9 @@ export const RutasPageView = ({
 
   const getRecaudoOperativoRuta = useCallback(
     (ruta: Ruta) => {
-      if (esDiaNoLaboral) return 0;
-      const summary = dailySummaries[ruta.id];
-      return summary ? Number(summary.recaudo ?? 0) : Number(ruta?.cobranzaDelDia ?? 0);
+      if (esDiaNoLaboral) return 0
+      const summary = dailySummaries[ruta.id]
+      return summary ? Number(summary.recaudo ?? 0) : Number(ruta?.cobranzaDelDia ?? 0)
     },
     [esDiaNoLaboral, dailySummaries],
   )
@@ -967,19 +992,15 @@ export const RutasPageView = ({
       if (esDiaNoLaboral) return 0
 
       const summary = dailySummaries[ruta.id]
-      return Number(
-        summary?.clientesOperativosHoy ??
-          ruta?.clientesAsignados ??
-          0,
-      )
+      return Number(summary?.clientesOperativosHoy ?? ruta?.clientesAsignados ?? 0)
     },
     [dailySummaries, esDiaNoLaboral],
   )
 
   const getAvanceOperativoRuta = useCallback(
     (ruta: Ruta) => {
-      const meta = getMetaOperativoRuta(ruta);
-      if (meta <= 0) return 0;
+      const meta = getMetaOperativoRuta(ruta)
+      if (meta <= 0) return 0
       return Math.min(100, (getRecaudoOperativoRuta(ruta) / meta) * 100)
     },
     [getRecaudoOperativoRuta, getMetaOperativoRuta],
@@ -987,17 +1008,22 @@ export const RutasPageView = ({
 
   // Determine risk color classes
   const getRiesgoColor = (riesgo: string) => {
-    if (!riesgo) return 'hidden';
+    if (!riesgo) return 'hidden'
     switch (riesgo) {
-        case 'PELIGRO_MINIMO': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-        case 'LEVE_RETRASO': return 'bg-blue-50 text-blue-700 border-blue-200';
-        case 'PRECAUCION': return 'bg-yellow-50 text-yellow-700 border-yellow-200';
-        case 'RIESGO_MODERADO': return 'bg-amber-50 text-amber-700 border-amber-200';
-        case 'ALTO_RIESGO': return 'bg-rose-50 text-rose-700 border-rose-200';
-        default: return 'bg-slate-50 text-slate-600 border-slate-200';
+      case 'PELIGRO_MINIMO':
+        return 'bg-emerald-50 text-emerald-700 border-emerald-200'
+      case 'LEVE_RETRASO':
+        return 'bg-blue-50 text-blue-700 border-blue-200'
+      case 'PRECAUCION':
+        return 'bg-yellow-50 text-yellow-700 border-yellow-200'
+      case 'RIESGO_MODERADO':
+        return 'bg-amber-50 text-amber-700 border-amber-200'
+      case 'ALTO_RIESGO':
+        return 'bg-rose-50 text-rose-700 border-rose-200'
+      default:
+        return 'bg-slate-50 text-slate-600 border-slate-200'
     }
   }
-
 
   if (!permitido) {
     return (
@@ -1009,6 +1035,16 @@ export const RutasPageView = ({
           </div>
           <p className="mt-4 text-slate-500 font-medium">No tienes permisos para ver Rutas.</p>
         </div>
+      </div>
+    )
+  }
+
+  // Despues del guard de permisos: quien no puede ver las rutas tampoco debe ver su
+  // esqueleto. Antes aqui no habia nada y la lista salia vacia mientras cargaba.
+  if (loading && rutasList.length === 0) {
+    return (
+      <div className="p-4 sm:p-6">
+        <SkeletonTablero />
       </div>
     )
   }
@@ -1034,7 +1070,8 @@ export const RutasPageView = ({
               <span className="text-orange-500">Cobradores</span>
             </h1>
             <p className="text-slate-500 mt-1 font-medium text-sm max-w-2xl">
-              Administra la asignación geográfica de clientes y monitorea el rendimiento de cada zona operativa.
+              Administra la asignación geográfica de clientes y monitorea el rendimiento de cada
+              zona operativa.
             </p>
           </div>
           <div className="flex gap-4">
@@ -1051,7 +1088,11 @@ export const RutasPageView = ({
               <button
                 onClick={() => setShowCrearCreditoModal(true)}
                 disabled={esDiaNoLaboral}
-                title={esDiaNoLaboral ? 'Domingo no laborable: creación operativa deshabilitada' : 'Crear crédito'}
+                title={
+                  esDiaNoLaboral
+                    ? 'Domingo no laborable: creación operativa deshabilitada'
+                    : 'Crear crédito'
+                }
                 className={cn(
                   'inline-flex items-center gap-2 px-6 py-2.5 rounded-xl transition-all duration-200 shadow-sm font-bold text-sm group',
                   esDiaNoLaboral
@@ -1121,10 +1162,16 @@ export const RutasPageView = ({
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">{stat.label}</p>
-                  <h3 className={`text-3xl font-bold ${stat.color} tracking-tight`}>{stat.value}</h3>
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    {stat.label}
+                  </p>
+                  <h3 className={`text-3xl font-bold ${stat.color} tracking-tight`}>
+                    {stat.value}
+                  </h3>
                 </div>
-                <div className={`mt-4 text-xs font-medium ${stat.subColor} flex items-center gap-1.5`}>
+                <div
+                  className={`mt-4 text-xs font-medium ${stat.subColor} flex items-center gap-1.5`}
+                >
                   <Eye className="h-3.5 w-3.5" />
                   {stat.sub}
                 </div>
@@ -1147,11 +1194,16 @@ export const RutasPageView = ({
             <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
               {(['TODAS', 'PENDIENTE_ACTIVACION', 'ACTIVA', 'INACTIVA'] as const).map((estado) => {
                 const count = estado === FILTRO_PENDIENTE_ACTIVACION ? rutasPendientes : null
-                const label = estado === 'TODAS' ? 'Todas'
-                  : estado === 'PENDIENTE_ACTIVACION' ? 'Pendientes'
-                    : estado === 'ACTIVA' ? 'Habilitadas'
-                      : estado === 'INACTIVA' ? 'Inhabilitadas'
-                        : getEstadoSistemaLabel(estado)
+                const label =
+                  estado === 'TODAS'
+                    ? 'Todas'
+                    : estado === 'PENDIENTE_ACTIVACION'
+                      ? 'Pendientes'
+                      : estado === 'ACTIVA'
+                        ? 'Habilitadas'
+                        : estado === 'INACTIVA'
+                          ? 'Inhabilitadas'
+                          : getEstadoSistemaLabel(estado)
 
                 return (
                   <button
@@ -1166,12 +1218,14 @@ export const RutasPageView = ({
                   >
                     {label}
                     {count !== null && count > 0 && (
-                      <span className={cn(
-                        'px-2 py-0.5 rounded-full text-xs font-bold',
-                        estadoFiltro === estado
-                          ? 'bg-orange-500 text-white'
-                          : 'bg-orange-100 text-orange-600'
-                      )}>
+                      <span
+                        className={cn(
+                          'px-2 py-0.5 rounded-full text-xs font-bold',
+                          estadoFiltro === estado
+                            ? 'bg-orange-500 text-white'
+                            : 'bg-orange-100 text-orange-600',
+                        )}
+                      >
                         {count}
                       </span>
                     )}
@@ -1181,26 +1235,30 @@ export const RutasPageView = ({
             </div>
 
             {!rutasBasePath.includes('/coordinador') && !rutasBasePath.includes('/admin') && (
-            <div className="flex gap-1 bg-slate-100 p-1 rounded-xl">
-              <button
-                onClick={() => setVista('grid')}
-                className={cn(
-                  'p-2.5 rounded-lg transition-all',
-                  vista === 'grid' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600',
-                )}
-              >
-                <LayoutGrid className="h-5 w-5" />
-              </button>
-              <button
-                onClick={() => setVista('list')}
-                className={cn(
-                  'p-2.5 rounded-lg transition-all',
-                  vista === 'list' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600',
-                )}
-              >
-                <List className="h-5 w-5" />
-              </button>
-            </div>
+              <div className="flex gap-1 bg-slate-100 p-1 rounded-xl">
+                <button
+                  onClick={() => setVista('grid')}
+                  className={cn(
+                    'p-2.5 rounded-lg transition-all',
+                    vista === 'grid'
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-400 hover:text-slate-600',
+                  )}
+                >
+                  <LayoutGrid className="h-5 w-5" />
+                </button>
+                <button
+                  onClick={() => setVista('list')}
+                  className={cn(
+                    'p-2.5 rounded-lg transition-all',
+                    vista === 'list'
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-400 hover:text-slate-600',
+                  )}
+                >
+                  <List className="h-5 w-5" />
+                </button>
+              </div>
             )}
           </div>
 
@@ -1211,13 +1269,18 @@ export const RutasPageView = ({
                 <div
                   key={ruta.id}
                   className={cn(
-                    "group bg-white/80 backdrop-blur-sm rounded-2xl border shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col",
-                    ruta.nivelRiesgo === 'ALTO_RIESGO' ? "border-rose-200 shadow-rose-100" :
-                    ruta.nivelRiesgo === 'RIESGO_MODERADO' ? "border-amber-200 shadow-amber-100" :
-                    ruta.nivelRiesgo === 'PRECAUCION' ? "border-yellow-200 shadow-yellow-100" :
-                    ruta.nivelRiesgo === 'LEVE_RETRASO' ? "border-blue-200 shadow-blue-100" :
-                    ruta.nivelRiesgo === 'PELIGRO_MINIMO' ? "border-emerald-200 shadow-emerald-100" :
-                    "border-slate-200"
+                    'group bg-white/80 backdrop-blur-sm rounded-2xl border shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col',
+                    ruta.nivelRiesgo === 'ALTO_RIESGO'
+                      ? 'border-rose-200 shadow-rose-100'
+                      : ruta.nivelRiesgo === 'RIESGO_MODERADO'
+                        ? 'border-amber-200 shadow-amber-100'
+                        : ruta.nivelRiesgo === 'PRECAUCION'
+                          ? 'border-yellow-200 shadow-yellow-100'
+                          : ruta.nivelRiesgo === 'LEVE_RETRASO'
+                            ? 'border-blue-200 shadow-blue-100'
+                            : ruta.nivelRiesgo === 'PELIGRO_MINIMO'
+                              ? 'border-emerald-200 shadow-emerald-100'
+                              : 'border-slate-200',
                   )}
                 >
                   <div className="p-8 flex-1 space-y-6">
@@ -1266,12 +1329,14 @@ export const RutasPageView = ({
                         </div>
                       )}
                       {ruta.nivelRiesgo && (
-                          <div className={cn(
-                              'px-3 py-1 rounded-full text-[10px] font-bold border uppercase ml-2',
-                              getRiesgoColor(ruta.nivelRiesgo)
-                          )}>
-                              {riesgoOperativoLabel(ruta.nivelRiesgo)}
-                          </div>
+                        <div
+                          className={cn(
+                            'px-3 py-1 rounded-full text-[10px] font-bold border uppercase ml-2',
+                            getRiesgoColor(ruta.nivelRiesgo),
+                          )}
+                        >
+                          {riesgoOperativoLabel(ruta.nivelRiesgo)}
+                        </div>
                       )}
                     </div>
 
@@ -1281,7 +1346,9 @@ export const RutasPageView = ({
                           <User className="h-4 w-4" />
                         </div>
                         <div>
-                          <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Cobrador</p>
+                          <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">
+                            Cobrador
+                          </p>
                           <p className="font-bold text-slate-900">{ruta.cobrador}</p>
                         </div>
                       </div>
@@ -1291,8 +1358,12 @@ export const RutasPageView = ({
                           <Users className="h-4 w-4" />
                         </div>
                         <div>
-                          <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Clientes operativos hoy</p>
-                          <p className="font-bold text-slate-900">{getClientesOperativosRuta(ruta)} operativos hoy</p>
+                          <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">
+                            Clientes operativos hoy
+                          </p>
+                          <p className="font-bold text-slate-900">
+                            {getClientesOperativosRuta(ruta)} operativos hoy
+                          </p>
                         </div>
                       </div>
 
@@ -1301,7 +1372,9 @@ export const RutasPageView = ({
                           <Clock className="h-4 w-4" />
                         </div>
                         <div>
-                          <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Frecuencia</p>
+                          <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">
+                            Frecuencia
+                          </p>
                           <p className="font-bold text-slate-900">{ruta.frecuenciaVisita}</p>
                         </div>
                       </div>
@@ -1312,11 +1385,16 @@ export const RutasPageView = ({
                       <div className="pt-6 border-t border-slate-100">
                         <div className="flex justify-between items-end mb-2">
                           <div className="min-w-0">
-                            <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">Recaudo Diario</p>
-                            <p className="font-bold text-slate-900">{formatCurrency(getRecaudoOperativoRuta(ruta))}</p>
+                            <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">
+                              Recaudo Diario
+                            </p>
+                            <p className="font-bold text-slate-900">
+                              {formatCurrency(getRecaudoOperativoRuta(ruta))}
+                            </p>
                             {Number(ruta.recaudoRegularizadoHoy || 0) > 0 && (
                               <p className="mt-0.5 text-[10px] font-bold text-amber-600">
-                                Regularizado hoy: {formatCurrency(Number(ruta.recaudoRegularizadoHoy || 0))}
+                                Regularizado hoy:{' '}
+                                {formatCurrency(Number(ruta.recaudoRegularizadoHoy || 0))}
                               </p>
                             )}
                           </div>
@@ -1332,12 +1410,17 @@ export const RutasPageView = ({
                             }}
                           ></div>
                         </div>
-                        <p className="text-xs text-right text-slate-400 mt-2 font-medium">Objetivo: {formatCurrency(getMetaOperativoRuta(ruta))}</p>
+                        <p className="text-xs text-right text-slate-400 mt-2 font-medium">
+                          Objetivo: {formatCurrency(getMetaOperativoRuta(ruta))}
+                        </p>
                       </div>
                     )}
                   </div>
 
-                  <div className="p-4 bg-slate-50/50 border-t border-slate-100 group-hover:bg-blue-50/30 transition-colors" onClick={(e) => e.stopPropagation()}>
+                  <div
+                    className="p-4 bg-slate-50/50 border-t border-slate-100 group-hover:bg-blue-50/30 transition-colors"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <div className="flex justify-between items-center gap-3">
                       <span className="text-xs text-slate-400 font-bold">ID: {ruta.id}</span>
 
@@ -1358,35 +1441,41 @@ export const RutasPageView = ({
                           )}
                           {!readOnly && (
                             <button
-                                onClick={(e) => {
-                                    e.stopPropagation()
-                                    handleToggleEstado(ruta.id)
-                                }}
-                                className={cn(
-                                    "p-2 rounded-lg transition-all",
-                                    ruta.estado === 'ACTIVA' 
-                                        ? "text-slate-400 hover:text-rose-600 hover:bg-rose-50" 
-                                        : "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
-                                )}
-                                title={ruta.estado === 'ACTIVA' ? "Inhabilitar ruta" : "Habilitar ruta"}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleToggleEstado(ruta.id)
+                              }}
+                              className={cn(
+                                'p-2 rounded-lg transition-all',
+                                ruta.estado === 'ACTIVA'
+                                  ? 'text-slate-400 hover:text-rose-600 hover:bg-rose-50'
+                                  : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50',
+                              )}
+                              title={
+                                ruta.estado === 'ACTIVA' ? 'Inhabilitar ruta' : 'Habilitar ruta'
+                              }
                             >
-                                {ruta.estado === 'ACTIVA' ? <Trash2 className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
+                              {ruta.estado === 'ACTIVA' ? (
+                                <Trash2 className="h-4 w-4" />
+                              ) : (
+                                <CheckCircle2 className="h-4 w-4" />
+                              )}
                             </button>
                           )}
                           <Link
                             href={`${rutasBasePath}/${ruta.id}`}
                             className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
                             title="Ver detalle"
-                              onClick={(e) => {
-                                e.preventDefault()
-                                e.stopPropagation()
-                                router.push(`${rutasBasePath}/${ruta.id}`)
-                              }}
+                            onClick={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              router.push(`${rutasBasePath}/${ruta.id}`)
+                            }}
                           >
                             <Eye className="h-4 w-4" />
                           </Link>
                           {showRecolectar && (
-                          <button
+                            <button
                               onClick={(e) => {
                                 e.stopPropagation()
                                 handleRecolectarDinero(ruta)
@@ -1423,314 +1512,351 @@ export const RutasPageView = ({
             </div>
           ) : (
             <>
-            {/* Tabla - Desktop */}
-            <div className="hidden md:block bg-white/80 backdrop-blur-sm rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-200 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-500">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left">
-                  <thead className="text-xs text-slate-500 uppercase bg-slate-50/50 border-b border-slate-200">
-                    <tr>
-                      <th className="px-6 py-4 font-bold tracking-wider">Ruta / Código</th>
-                      <th className="px-6 py-4 font-bold tracking-wider">Estado</th>
-                      <th className="px-6 py-4 font-bold tracking-wider">Cobrador</th>
-                      <th className="px-6 py-4 font-bold tracking-wider">Clientes operativos hoy</th>
-                      <th className="px-6 py-4 font-bold tracking-wider">Avance Diario</th>
-                      <th className="px-6 py-4 font-bold tracking-wider text-right">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {currentRutas.map((ruta) => (
-                      <tr
-                        key={ruta.id}
-                        onClick={() => router.push(`${rutasBasePath}/${ruta.id}`)}
-                        className="hover:bg-slate-50/50 transition-colors group cursor-pointer"
-                      >
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-blue-50 text-primary flex items-center justify-center border border-blue-100">
-                              <Route className="w-5 h-5" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <div className="font-bold text-slate-900">{String(ruta.nombre || 'Ruta sin nombre')}</div>
-                                {ruta.tieneCierrePendiente && (
-                                  <span className="inline-flex items-center rounded-full border border-red-200 bg-red-50 px-2 py-1 text-xs font-bold text-red-700">
-                                    {ruta.totalCierresPendientes === 1
-                                      ? 'Pendiente de cierre'
-                                      : `${ruta.totalCierresPendientes} jornadas pendientes`}
-                                  </span>
-                                )}
+              {/* Tabla - Desktop */}
+              <div className="hidden md:block bg-white/80 backdrop-blur-sm rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-200 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-500">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="text-xs text-slate-500 uppercase bg-slate-50/50 border-b border-slate-200">
+                      <tr>
+                        <th className="px-6 py-4 font-bold tracking-wider">Ruta / Código</th>
+                        <th className="px-6 py-4 font-bold tracking-wider">Estado</th>
+                        <th className="px-6 py-4 font-bold tracking-wider">Cobrador</th>
+                        <th className="px-6 py-4 font-bold tracking-wider">
+                          Clientes operativos hoy
+                        </th>
+                        <th className="px-6 py-4 font-bold tracking-wider">Avance Diario</th>
+                        <th className="px-6 py-4 font-bold tracking-wider text-right">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {currentRutas.map((ruta) => (
+                        <tr
+                          key={ruta.id}
+                          onClick={() => router.push(`${rutasBasePath}/${ruta.id}`)}
+                          className="hover:bg-slate-50/50 transition-colors group cursor-pointer"
+                        >
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-xl bg-blue-50 text-primary flex items-center justify-center border border-blue-100">
+                                <Route className="w-5 h-5" />
                               </div>
-                              <div className="text-xs text-slate-500">{String(ruta.codigo || 'S/C')}</div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <div className="font-bold text-slate-900">
+                                    {String(ruta.nombre || 'Ruta sin nombre')}
+                                  </div>
+                                  {ruta.tieneCierrePendiente && (
+                                    <span className="inline-flex items-center rounded-full border border-red-200 bg-red-50 px-2 py-1 text-xs font-bold text-red-700">
+                                      {ruta.totalCierresPendientes === 1
+                                        ? 'Pendiente de cierre'
+                                        : `${ruta.totalCierresPendientes} jornadas pendientes`}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-xs text-slate-500">
+                                  {String(ruta.codigo || 'S/C')}
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span
-                            className={cn(
-                              'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border',
-                              ruta.estado === 'ACTIVA'
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
-                                : 'bg-slate-50 text-slate-600 border-slate-100',
-                            )}
-                          >
-                            {getEstadoSistemaLabel(ruta.estado)}
-                          </span>
-                          {ruta.nivelRiesgo && (
+                          </td>
+                          <td className="px-6 py-4">
+                            <span
+                              className={cn(
+                                'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border',
+                                ruta.estado === 'ACTIVA'
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                                  : 'bg-slate-50 text-slate-600 border-slate-100',
+                              )}
+                            >
+                              {getEstadoSistemaLabel(ruta.estado)}
+                            </span>
+                            {ruta.nivelRiesgo && (
                               <span
                                 className={cn(
                                   'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ml-2 lowercase first-letter:uppercase',
-                                  getRiesgoColor(ruta.nivelRiesgo)
+                                  getRiesgoColor(ruta.nivelRiesgo),
                                 )}
                               >
                                 {riesgoOperativoLabel(ruta.nivelRiesgo)}
                               </span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600 border border-slate-200">
-                              {ruta.cobrador.charAt(0)}
-                            </div>
-                            <span className="text-slate-700 font-medium">{ruta.cobrador}</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-1.5 text-slate-600 font-medium">
-                            <Users className="w-4 h-4 text-slate-400" />
-                            <span>{getClientesOperativosRuta(ruta)}</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          {ruta.estado === 'ACTIVA' ? (
-                            <div className="w-32 space-y-1">
-                              <div className="flex justify-between text-xs">
-                                <span className="font-bold text-primary">{getAvanceOperativoRuta(ruta).toFixed(1)}%</span>
-                                <span className="text-slate-500 font-medium">{formatCurrency(getRecaudoOperativoRuta(ruta))}</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600 border border-slate-200">
+                                {ruta.cobrador.charAt(0)}
                               </div>
-                              {Number(ruta.recaudoRegularizadoHoy || 0) > 0 && (
-                                <div className="text-[10px] font-bold text-amber-600">
-                                  Regularizado hoy: {formatCurrency(Number(ruta.recaudoRegularizadoHoy || 0))}
+                              <span className="text-slate-700 font-medium">{ruta.cobrador}</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-1.5 text-slate-600 font-medium">
+                              <Users className="w-4 h-4 text-slate-400" />
+                              <span>{getClientesOperativosRuta(ruta)}</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            {ruta.estado === 'ACTIVA' ? (
+                              <div className="w-32 space-y-1">
+                                <div className="flex justify-between text-xs">
+                                  <span className="font-bold text-primary">
+                                    {getAvanceOperativoRuta(ruta).toFixed(1)}%
+                                  </span>
+                                  <span className="text-slate-500 font-medium">
+                                    {formatCurrency(getRecaudoOperativoRuta(ruta))}
+                                  </span>
                                 </div>
-                              )}
-                              <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden border border-slate-200">
-                                <div
-                                  className="bg-slate-900 h-1.5 rounded-full"
-                                  style={{ width: `${getAvanceOperativoRuta(ruta)}%` }}
-                                ></div>
-                              </div>
-                            </div>
-                          ) : (
-                            <span className="text-xs text-slate-400 font-medium">-</span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                router.push(`${rutasBasePath}/${ruta.id}`)
-                              }}
-                              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                              title="Ver detalle"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </button>
-                            {!readOnly && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleEditClick(ruta)
-                                }}
-                                className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                                title="Editar"
-                              >
-                                <Pencil className="w-4 h-4" />
-                              </button>
-                            )}
-                            {!readOnly && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleToggleEstado(ruta.id)
-                                }}
-                                className={cn(
-                                    "p-2 rounded-lg transition-all",
-                                    ruta.estado === 'ACTIVA'
-                                        ? "text-slate-400 hover:text-rose-600 hover:bg-rose-50"
-                                        : "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
+                                {Number(ruta.recaudoRegularizadoHoy || 0) > 0 && (
+                                  <div className="text-[10px] font-bold text-amber-600">
+                                    Regularizado hoy:{' '}
+                                    {formatCurrency(Number(ruta.recaudoRegularizadoHoy || 0))}
+                                  </div>
                                 )}
-                                title={ruta.estado === 'ACTIVA' ? "Inhabilitar ruta" : "Habilitar ruta"}
-                              >
-                                {ruta.estado === 'ACTIVA' ? <Trash2 className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
-                              </button>
+                                <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden border border-slate-200">
+                                  <div
+                                    className="bg-slate-900 h-1.5 rounded-full"
+                                    style={{ width: `${getAvanceOperativoRuta(ruta)}%` }}
+                                  ></div>
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-slate-400 font-medium">-</span>
                             )}
-                            {showRecolectar && (
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <div className="flex items-center justify-end gap-2">
                               <button
-                                type="button"
                                 onClick={(e) => {
-                                  e.preventDefault()
                                   e.stopPropagation()
-                                  handleRecolectarDinero(ruta)
+                                  router.push(`${rutasBasePath}/${ruta.id}`)
                                 }}
-                                disabled={processingTransfer}
-                                className="p-2 text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors"
-                                title="Recolectar Dinero"
+                                className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                title="Ver detalle"
                               >
-                                <Wallet className="w-4 h-4" />
+                                <Eye className="w-4 h-4" />
                               </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                              {!readOnly && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleEditClick(ruta)
+                                  }}
+                                  className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                                  title="Editar"
+                                >
+                                  <Pencil className="w-4 h-4" />
+                                </button>
+                              )}
+                              {!readOnly && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleToggleEstado(ruta.id)
+                                  }}
+                                  className={cn(
+                                    'p-2 rounded-lg transition-all',
+                                    ruta.estado === 'ACTIVA'
+                                      ? 'text-slate-400 hover:text-rose-600 hover:bg-rose-50'
+                                      : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50',
+                                  )}
+                                  title={
+                                    ruta.estado === 'ACTIVA' ? 'Inhabilitar ruta' : 'Habilitar ruta'
+                                  }
+                                >
+                                  {ruta.estado === 'ACTIVA' ? (
+                                    <Trash2 className="w-4 h-4" />
+                                  ) : (
+                                    <CheckCircle2 className="w-4 h-4" />
+                                  )}
+                                </button>
+                              )}
+                              {showRecolectar && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault()
+                                    e.stopPropagation()
+                                    handleRecolectarDinero(ruta)
+                                  }}
+                                  disabled={processingTransfer}
+                                  className="p-2 text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors"
+                                  title="Recolectar Dinero"
+                                >
+                                  <Wallet className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
 
-            {/* Vista de Cards - Móvil */}
-            <div className="md:hidden space-y-4">
-              {currentRutas.map((ruta) => (
-                <div
-                  key={ruta.id}
-                  className="bg-white rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all"
-                  onClick={() => router.push(`${rutasBasePath}/${ruta.id}`)}
-                >
-                  {/* Header */}
-                  <div className="flex items-start justify-between mb-3 pb-3 border-b border-slate-100">
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <div className="w-10 h-10 rounded-xl bg-blue-50 text-primary flex items-center justify-center border border-blue-100 flex-shrink-0">
-                        <Route className="w-5 h-5" />
+              {/* Vista de Cards - Móvil */}
+              <div className="md:hidden space-y-4">
+                {currentRutas.map((ruta) => (
+                  <div
+                    key={ruta.id}
+                    className="bg-white rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all"
+                    onClick={() => router.push(`${rutasBasePath}/${ruta.id}`)}
+                  >
+                    {/* Header */}
+                    <div className="flex items-start justify-between mb-3 pb-3 border-b border-slate-100">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className="w-10 h-10 rounded-xl bg-blue-50 text-primary flex items-center justify-center border border-blue-100 flex-shrink-0">
+                          <Route className="w-5 h-5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-bold text-slate-900 truncate">{ruta.nombre}</div>
+                          <div className="text-xs text-slate-500">{ruta.codigo}</div>
+                          {ruta.tieneCierrePendiente && (
+                            <span className="mt-1 inline-flex w-fit items-center rounded-full border border-red-200 bg-red-50 px-2 py-1 text-[10px] font-bold text-red-700">
+                              {ruta.totalCierresPendientes === 1
+                                ? 'Pendiente de cierre'
+                                : `${ruta.totalCierresPendientes} jornadas pendientes`}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-bold text-slate-900 truncate">{ruta.nombre}</div>
-                        <div className="text-xs text-slate-500">{ruta.codigo}</div>
-                        {ruta.tieneCierrePendiente && (
-                          <span className="mt-1 inline-flex w-fit items-center rounded-full border border-red-200 bg-red-50 px-2 py-1 text-[10px] font-bold text-red-700">
-                            {ruta.totalCierresPendientes === 1
-                              ? 'Pendiente de cierre'
-                              : `${ruta.totalCierresPendientes} jornadas pendientes`}
-                          </span>
+                      <span
+                        className={cn(
+                          'inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border flex-shrink-0 ml-2',
+                          ruta.estado === 'ACTIVA'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                            : 'bg-slate-50 text-slate-600 border-slate-100',
                         )}
+                      >
+                        {getEstadoSistemaLabel(ruta.estado)}
+                      </span>
+                    </div>
+
+                    {/* Cobrador */}
+                    <div className="mb-3">
+                      <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">
+                        Cobrador
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600 border border-slate-200">
+                          {ruta.cobrador.charAt(0)}
+                        </div>
+                        <span className="text-slate-700 font-medium">{ruta.cobrador}</span>
                       </div>
                     </div>
-                    <span
-                      className={cn(
-                        'inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border flex-shrink-0 ml-2',
-                        ruta.estado === 'ACTIVA'
-                          ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
-                          : 'bg-slate-50 text-slate-600 border-slate-100',
-                      )}
-                    >
-                      {getEstadoSistemaLabel(ruta.estado)}
-                    </span>
-                  </div>
 
-                  {/* Cobrador */}
-                  <div className="mb-3">
-                    <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Cobrador</div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600 border border-slate-200">
-                        {ruta.cobrador.charAt(0)}
+                    {/* Clientes */}
+                    <div className="mb-3">
+                      <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">
+                        Clientes operativos hoy
                       </div>
-                      <span className="text-slate-700 font-medium">{ruta.cobrador}</span>
-                    </div>
-                  </div>
-
-                  {/* Clientes */}
-                  <div className="mb-3">
-                      <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Clientes operativos hoy</div>
                       <div className="flex items-center gap-1.5 text-slate-700 font-bold">
                         <Users className="w-4 h-4 text-slate-400" />
                         <span>{getClientesOperativosRuta(ruta)}</span>
                       </div>
                     </div>
 
-                  {/* Avance Diario */}
-                  {ruta.estado === 'ACTIVA' && (
-                    <div className="mb-3 pb-3 border-b border-slate-100">
-                      <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-2">Avance Diario</div>
-                      <div className="space-y-2">
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm font-bold text-slate-900">{formatCurrency(getRecaudoOperativoRuta(ruta))}</span>
-                          <span className="text-sm font-bold text-primary">{getAvanceOperativoRuta(ruta).toFixed(1)}%</span>
+                    {/* Avance Diario */}
+                    {ruta.estado === 'ACTIVA' && (
+                      <div className="mb-3 pb-3 border-b border-slate-100">
+                        <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-2">
+                          Avance Diario
                         </div>
-                        {Number(ruta.recaudoRegularizadoHoy || 0) > 0 && (
-                          <div className="text-[10px] font-bold text-amber-600">
-                            Regularizado hoy: {formatCurrency(Number(ruta.recaudoRegularizadoHoy || 0))}
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-bold text-slate-900">
+                              {formatCurrency(getRecaudoOperativoRuta(ruta))}
+                            </span>
+                            <span className="text-sm font-bold text-primary">
+                              {getAvanceOperativoRuta(ruta).toFixed(1)}%
+                            </span>
                           </div>
-                        )}
-                        <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden border border-slate-200">
-                          <div
-                            className="bg-slate-900 h-2 rounded-full"
-                            style={{ width: `${getAvanceOperativoRuta(ruta)}%` }}
-                          ></div>
+                          {Number(ruta.recaudoRegularizadoHoy || 0) > 0 && (
+                            <div className="text-[10px] font-bold text-amber-600">
+                              Regularizado hoy:{' '}
+                              {formatCurrency(Number(ruta.recaudoRegularizadoHoy || 0))}
+                            </div>
+                          )}
+                          <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden border border-slate-200">
+                            <div
+                              className="bg-slate-900 h-2 rounded-full"
+                              style={{ width: `${getAvanceOperativoRuta(ruta)}%` }}
+                            ></div>
+                          </div>
+                          <div className="text-xs text-slate-500">
+                            Objetivo: {formatCurrency(getMetaOperativoRuta(ruta))}
+                          </div>
                         </div>
-                        <div className="text-xs text-slate-500">Objetivo: {formatCurrency(getMetaOperativoRuta(ruta))}</div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {/* Acciones */}
-                  <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100" onClick={(e) => e.stopPropagation()}>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        router.push(`${rutasBasePath}/${ruta.id}`)
-                      }}
-                      className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      title="Ver detalle"
+                    {/* Acciones */}
+                    <div
+                      className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100"
+                      onClick={(e) => e.stopPropagation()}
                     >
-                      <Eye className="w-4 h-4" />
-                    </button>
-                    {!readOnly && puedeEditar && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation()
-                          handleEditClick(ruta)
+                          router.push(`${rutasBasePath}/${ruta.id}`)
                         }}
-                        className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                        title="Editar"
+                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="Ver detalle"
                       >
-                        <Pencil className="w-4 h-4" />
+                        <Eye className="w-4 h-4" />
                       </button>
-                    )}
-                    {!readOnly && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleToggleEstado(ruta.id)
-                        }}
-                        className={cn(
-                          "p-2 rounded-lg transition-all",
-                          ruta.estado === 'ACTIVA' 
-                            ? "text-slate-400 hover:text-rose-600 hover:bg-rose-50" 
-                            : "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
-                        )}
-                        title={ruta.estado === 'ACTIVA' ? "Inhabilitar ruta" : "Habilitar ruta"}
-                      >
-                        {ruta.estado === 'ACTIVA' ? <Trash2 className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
-                      </button>
-                    )}
-                    {showRecolectar && (
-                          <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault()
-                          e.stopPropagation()
-                          handleRecolectarDinero(ruta)
-                        }}
-                        disabled={processingTransfer}
-                        className="p-2 text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors"
-                        title="Recolectar Dinero"
-                      >
-                        <Wallet className="w-4 h-4" />
-                      </button>
-                    )}
+                      {!readOnly && puedeEditar && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleEditClick(ruta)
+                          }}
+                          className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                          title="Editar"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                      )}
+                      {!readOnly && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleToggleEstado(ruta.id)
+                          }}
+                          className={cn(
+                            'p-2 rounded-lg transition-all',
+                            ruta.estado === 'ACTIVA'
+                              ? 'text-slate-400 hover:text-rose-600 hover:bg-rose-50'
+                              : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50',
+                          )}
+                          title={ruta.estado === 'ACTIVA' ? 'Inhabilitar ruta' : 'Habilitar ruta'}
+                        >
+                          {ruta.estado === 'ACTIVA' ? (
+                            <Trash2 className="w-4 h-4" />
+                          ) : (
+                            <CheckCircle2 className="w-4 h-4" />
+                          )}
+                        </button>
+                      )}
+                      {showRecolectar && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            handleRecolectarDinero(ruta)
+                          }}
+                          disabled={processingTransfer}
+                          className="p-2 text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors"
+                          title="Recolectar Dinero"
+                        >
+                          <Wallet className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
             </>
           )}
 
@@ -1751,7 +1877,10 @@ export const RutasPageView = ({
       {/* Modal Nueva Ruta */}
       {!readOnly && showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
-          <div className="absolute inset-0 bg-slate-900/30 backdrop-blur-sm transition-opacity" onClick={() => setShowModal(false)} />
+          <div
+            className="absolute inset-0 bg-slate-900/30 backdrop-blur-sm transition-opacity"
+            onClick={() => setShowModal(false)}
+          />
 
           <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl ring-1 ring-slate-900/5 transform transition-all animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
             <div className="flex flex-col h-full max-h-[90vh]">
@@ -1762,10 +1891,13 @@ export const RutasPageView = ({
                   </div>
                   <div>
                     <h3 className="text-lg font-bold">
-                      <span className="text-blue-600">{editingId ? 'Editar' : 'Nueva'}</span> <span className="text-orange-500">Ruta</span>
+                      <span className="text-blue-600">{editingId ? 'Editar' : 'Nueva'}</span>{' '}
+                      <span className="text-orange-500">Ruta</span>
                     </h3>
                     <p className="text-xs text-slate-500 font-medium">
-                      {editingId ? 'Modifique los datos de la ruta existente' : 'Configure una nueva zona de cobranza'}
+                      {editingId
+                        ? 'Modifique los datos de la ruta existente'
+                        : 'Configure una nueva zona de cobranza'}
                     </p>
                   </div>
                 </div>
@@ -1786,7 +1918,7 @@ export const RutasPageView = ({
                       'px-4 py-3 text-sm font-bold border-b-2 transition-colors',
                       activeTab === 'info'
                         ? 'border-blue-600 text-blue-600'
-                        : 'border-transparent text-slate-500 hover:text-slate-700'
+                        : 'border-transparent text-slate-500 hover:text-slate-700',
                     )}
                   >
                     Información General
@@ -1797,7 +1929,7 @@ export const RutasPageView = ({
                       'px-4 py-3 text-sm font-bold border-b-2 transition-colors',
                       activeTab === 'clientes'
                         ? 'border-blue-600 text-blue-600'
-                        : 'border-transparent text-slate-500 hover:text-slate-700'
+                        : 'border-transparent text-slate-500 hover:text-slate-700',
                     )}
                   >
                     Clientes Asignados
@@ -1810,7 +1942,12 @@ export const RutasPageView = ({
                   <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-2">
-                        <label className="text-xs uppercase tracking-wider font-bold text-slate-500">Nombre de la Ruta<span className="ml-1 text-red-500" aria-label="obligatorio">*</span></label>
+                        <label className="text-xs uppercase tracking-wider font-bold text-slate-500">
+                          Nombre de la Ruta
+                          <span className="ml-1 text-red-500" aria-label="obligatorio">
+                            *
+                          </span>
+                        </label>
                         <input
                           type="text"
                           name="nombre"
@@ -1823,7 +1960,12 @@ export const RutasPageView = ({
                       </div>
 
                       <div className="space-y-2">
-                        <label className="text-xs uppercase tracking-wider font-bold text-slate-500">Código Identificador<span className="ml-1 text-red-500" aria-label="obligatorio">*</span></label>
+                        <label className="text-xs uppercase tracking-wider font-bold text-slate-500">
+                          Código Identificador
+                          <span className="ml-1 text-red-500" aria-label="obligatorio">
+                            *
+                          </span>
+                        </label>
                         <input
                           type="text"
                           name="codigo"
@@ -1834,17 +1976,22 @@ export const RutasPageView = ({
                           required
                         />
                         {formData.codigo.trim() && (
-                        <p className="text-xs font-medium text-slate-500">
-                          Se guardará como{' '}
-                          <span className="font-bold text-slate-700">
-                            {normalizarCodigoRuta(formData.codigo)}
-                          </span>
-                        </p>
-                      )}
+                          <p className="text-xs font-medium text-slate-500">
+                            Se guardará como{' '}
+                            <span className="font-bold text-slate-700">
+                              {normalizarCodigoRuta(formData.codigo)}
+                            </span>
+                          </p>
+                        )}
                       </div>
 
                       <div className="space-y-2">
-                        <label className="text-xs uppercase tracking-wider font-bold text-slate-500">Zona<span className="ml-1 text-red-500" aria-label="obligatorio">*</span></label>
+                        <label className="text-xs uppercase tracking-wider font-bold text-slate-500">
+                          Zona
+                          <span className="ml-1 text-red-500" aria-label="obligatorio">
+                            *
+                          </span>
+                        </label>
                         <div className="relative">
                           <input
                             type="text"
@@ -1860,7 +2007,12 @@ export const RutasPageView = ({
                       </div>
 
                       <div className="space-y-2">
-                        <label className="text-xs uppercase tracking-wider font-bold text-slate-500">Cobrador Asignado<span className="ml-1 text-red-500" aria-label="obligatorio">*</span></label>
+                        <label className="text-xs uppercase tracking-wider font-bold text-slate-500">
+                          Cobrador Asignado
+                          <span className="ml-1 text-red-500" aria-label="obligatorio">
+                            *
+                          </span>
+                        </label>
                         <div className="relative">
                           <select
                             name="cobradorId"
@@ -1881,7 +2033,12 @@ export const RutasPageView = ({
                       </div>
 
                       <div className="space-y-2">
-                        <label className="text-xs uppercase tracking-wider font-bold text-slate-500">Asignar supervisor<span className="ml-1 text-red-500" aria-label="obligatorio">*</span></label>
+                        <label className="text-xs uppercase tracking-wider font-bold text-slate-500">
+                          Asignar supervisor
+                          <span className="ml-1 text-red-500" aria-label="obligatorio">
+                            *
+                          </span>
+                        </label>
                         <div className="relative">
                           <select
                             name="supervisorId"
@@ -1902,7 +2059,9 @@ export const RutasPageView = ({
                       </div>
 
                       <div className="space-y-2">
-                        <label className="text-xs uppercase tracking-wider font-bold text-slate-500">Asignar coordinador</label>
+                        <label className="text-xs uppercase tracking-wider font-bold text-slate-500">
+                          Asignar coordinador
+                        </label>
                         <div className="relative">
                           <select
                             name="coordinadorId"
@@ -1922,29 +2081,38 @@ export const RutasPageView = ({
                       </div>
 
                       <div className="space-y-2">
-                        <label className="text-xs uppercase tracking-wider font-bold text-slate-500">Estado de la Ruta</label>
+                        <label className="text-xs uppercase tracking-wider font-bold text-slate-500">
+                          Estado de la Ruta
+                        </label>
                         <div className="flex bg-slate-100 p-1 rounded-xl">
                           <button
-                            type="button" 
-                            onClick={() => setFormData(prev => ({ ...prev, estado: 'ACTIVA' }))}
+                            type="button"
+                            onClick={() => setFormData((prev) => ({ ...prev, estado: 'ACTIVA' }))}
                             className={cn(
-                              "flex-1 py-2.5 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2",
-                              formData.estado === 'ACTIVA' 
-                                ? "bg-white text-emerald-700 shadow-sm ring-1 ring-black/5" 
-                                : "text-slate-400 hover:text-slate-600"
+                              'flex-1 py-2.5 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2',
+                              formData.estado === 'ACTIVA'
+                                ? 'bg-white text-emerald-700 shadow-sm ring-1 ring-black/5'
+                                : 'text-slate-400 hover:text-slate-600',
                             )}
                           >
-                            <CheckCircle2 className={cn("h-4 w-4", formData.estado === 'ACTIVA' ? "text-emerald-500" : "text-slate-400")} />
+                            <CheckCircle2
+                              className={cn(
+                                'h-4 w-4',
+                                formData.estado === 'ACTIVA'
+                                  ? 'text-emerald-500'
+                                  : 'text-slate-400',
+                              )}
+                            />
                             Habilitada
                           </button>
                           <button
                             type="button"
-                            onClick={() => setFormData(prev => ({ ...prev, estado: 'INACTIVA' }))}
+                            onClick={() => setFormData((prev) => ({ ...prev, estado: 'INACTIVA' }))}
                             className={cn(
-                              "flex-1 py-2.5 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2",
+                              'flex-1 py-2.5 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2',
                               formData.estado === 'INACTIVA'
-                                ? "bg-white text-slate-700 shadow-sm ring-1 ring-black/5"
-                                : "text-slate-400 hover:text-slate-600"
+                                ? 'bg-white text-slate-700 shadow-sm ring-1 ring-black/5'
+                                : 'text-slate-400 hover:text-slate-600',
                             )}
                           >
                             <XCircle className="h-4 w-4" />
@@ -1954,7 +2122,9 @@ export const RutasPageView = ({
                       </div>
 
                       <div className="col-span-full space-y-2">
-                        <label className="text-xs uppercase tracking-wider font-bold text-slate-500">Descripción</label>
+                        <label className="text-xs uppercase tracking-wider font-bold text-slate-500">
+                          Descripción
+                        </label>
                         <textarea
                           name="descripcion"
                           value={formData.descripcion}
@@ -1991,7 +2161,9 @@ export const RutasPageView = ({
                           <Users className="h-5 w-5" />
                         </div>
                         <div>
-                          <p className="text-xs font-bold text-blue-600 uppercase tracking-wider">Total Clientes</p>
+                          <p className="text-xs font-bold text-blue-600 uppercase tracking-wider">
+                            Total Clientes
+                          </p>
                           <p className="text-2xl font-bold text-slate-900">{clientesRuta.length}</p>
                         </div>
                       </div>
@@ -2014,7 +2186,7 @@ export const RutasPageView = ({
                               placeholder="Buscar por nombre..."
                               className="w-full pl-9 pr-9 py-2.5 text-sm border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-sm text-slate-900"
                               value={clienteSearch}
-                              onChange={e => setClienteSearch(e.target.value)}
+                              onChange={(e) => setClienteSearch(e.target.value)}
                             />
                             <button
                               onClick={() => {
@@ -2028,150 +2200,208 @@ export const RutasPageView = ({
                           </div>
 
                           {/* Dropdown Results */}
-                          {isAddingCliente && (clientesDisponibles.length > 0 || loadingClientes) && (
-                            <div className="absolute top-full mt-2 left-0 w-full bg-white rounded-xl shadow-xl border border-slate-100 max-h-64 overflow-y-auto z-50 animate-in fade-in slide-in-from-top-2">
-                              {loadingClientes && (
-                                <div className="sticky top-0 z-10 bg-blue-50/90 backdrop-blur-sm px-4 py-2 border-b border-blue-100">
-                                  <p className="text-[10px] text-blue-600 font-bold uppercase tracking-widest animate-pulse">Actualizando lista...</p>
-                                </div>
-                              )}
-                              
-                              {clientesDisponibles.filter(c =>
-                                !clientesRuta.some(existing => existing.id === c.id) &&
-                                (clienteSearch === '' || String(c.nombre || '').toLowerCase().includes(clienteSearch.toLowerCase()))
-                              ).length > 0 ? (
-                                <div className="divide-y divide-slate-50">
-                                  {clientesDisponibles
-                                    .filter(c =>
-                                      !clientesRuta.some(existing => existing.id === c.id) &&
-                                      (clienteSearch === '' || String(c.nombre || '').toLowerCase().includes(clienteSearch.toLowerCase()))
-                                    )
-                                    .map(cliente => (
-                                      <button
-                                        key={cliente.id}
-                                        onClick={() => confirmAddCliente(cliente)}
-                                        disabled={asignandoClienteId !== null}
-                                        aria-busy={asignandoClienteId === cliente.id}
-                                        className="w-full text-left px-4 py-3 hover:bg-blue-50 transition-colors group flex items-center justify-between disabled:opacity-60 disabled:hover:bg-transparent"
-                                      >
-                                        <div className="flex-1 min-w-0">
-                                          <p className="font-bold text-sm text-slate-900 group-hover:text-blue-700 truncate">{String(cliente.nombre || 'Sin nombre')}</p>
-                                          <div className="flex items-center gap-2 text-[10px] text-slate-500 mt-0.5">
-                                            <span className="font-bold bg-slate-100 px-1.5 py-0.5 rounded uppercase">{String(cliente.codigo || 'S/D')}</span>
-                                            <span className="truncate">{String(cliente.direccion || 'Sin dirección')}</span>
+                          {isAddingCliente &&
+                            (clientesDisponibles.length > 0 || loadingClientes) && (
+                              <div className="absolute top-full mt-2 left-0 w-full bg-white rounded-xl shadow-xl border border-slate-100 max-h-64 overflow-y-auto z-50 animate-in fade-in slide-in-from-top-2">
+                                {loadingClientes && (
+                                  <div className="sticky top-0 z-10 bg-blue-50/90 backdrop-blur-sm px-4 py-2 border-b border-blue-100">
+                                    <p className="text-[10px] text-blue-600 font-bold uppercase tracking-widest animate-pulse">
+                                      Actualizando lista...
+                                    </p>
+                                  </div>
+                                )}
+
+                                {clientesDisponibles.filter(
+                                  (c) =>
+                                    !clientesRuta.some((existing) => existing.id === c.id) &&
+                                    (clienteSearch === '' ||
+                                      String(c.nombre || '')
+                                        .toLowerCase()
+                                        .includes(clienteSearch.toLowerCase())),
+                                ).length > 0 ? (
+                                  <div className="divide-y divide-slate-50">
+                                    {clientesDisponibles
+                                      .filter(
+                                        (c) =>
+                                          !clientesRuta.some((existing) => existing.id === c.id) &&
+                                          (clienteSearch === '' ||
+                                            String(c.nombre || '')
+                                              .toLowerCase()
+                                              .includes(clienteSearch.toLowerCase())),
+                                      )
+                                      .map((cliente) => (
+                                        <button
+                                          key={cliente.id}
+                                          onClick={() => confirmAddCliente(cliente)}
+                                          disabled={asignandoClienteId !== null}
+                                          aria-busy={asignandoClienteId === cliente.id}
+                                          className="w-full text-left px-4 py-3 hover:bg-blue-50 transition-colors group flex items-center justify-between disabled:opacity-60 disabled:hover:bg-transparent"
+                                        >
+                                          <div className="flex-1 min-w-0">
+                                            <p className="font-bold text-sm text-slate-900 group-hover:text-blue-700 truncate">
+                                              {String(cliente.nombre || 'Sin nombre')}
+                                            </p>
+                                            <div className="flex items-center gap-2 text-[10px] text-slate-500 mt-0.5">
+                                              <span className="font-bold bg-slate-100 px-1.5 py-0.5 rounded uppercase">
+                                                {String(cliente.codigo || 'S/D')}
+                                              </span>
+                                              <span className="truncate">
+                                                {String(cliente.direccion || 'Sin dirección')}
+                                              </span>
+                                            </div>
                                           </div>
-                                        </div>
-                                        {asignandoClienteId === cliente.id ? (
-                                          <Loader2 className="h-4 w-4 text-blue-500 animate-spin flex-shrink-0 ml-2" aria-hidden="true" />
-                                        ) : (
-                                          <Plus className="h-4 w-4 text-slate-300 group-hover:text-blue-500 flex-shrink-0 ml-2" />
-                                        )}
-                                      </button>
-                                    ))}
-                                </div>
-                              ) : !loadingClientes && (
-                                <div className="shrink-0 p-8 text-center bg-slate-50">
-                                  <Search className="h-8 w-8 text-slate-200 mx-auto mb-2" />
-                                  <p className="text-xs text-slate-500 font-medium">No se encontraron clientes disponibles</p>
-                                </div>
-                              )}
-                            </div>
-                          )}
+                                          {asignandoClienteId === cliente.id ? (
+                                            <Loader2
+                                              className="h-4 w-4 text-blue-500 animate-spin flex-shrink-0 ml-2"
+                                              aria-hidden="true"
+                                            />
+                                          ) : (
+                                            <Plus className="h-4 w-4 text-slate-300 group-hover:text-blue-500 flex-shrink-0 ml-2" />
+                                          )}
+                                        </button>
+                                      ))}
+                                  </div>
+                                ) : (
+                                  !loadingClientes && (
+                                    <div className="shrink-0 p-8 text-center bg-slate-50">
+                                      <Search className="h-8 w-8 text-slate-200 mx-auto mb-2" />
+                                      <p className="text-xs text-slate-500 font-medium">
+                                        No se encontraron clientes disponibles
+                                      </p>
+                                    </div>
+                                  )
+                                )}
+                              </div>
+                            )}
                         </div>
                       )}
                     </div>
 
                     <div className="space-y-4">
                       {clientesRuta.map((cliente) => {
-                        const prestamos = (cliente.prestamos as PrestamoResumen[]) || [];
+                        const prestamos = (cliente.prestamos as PrestamoResumen[]) || []
                         const FREQ_LABEL: Record<string, string> = {
                           DIARIO: 'Diario',
                           SEMANAL: 'Semanal',
                           QUINCENAL: 'Quincenal',
                           MENSUAL: 'Mensual',
-                        };
+                        }
                         const FREQ_COLOR: Record<string, string> = {
                           DIARIO: 'bg-blue-50 text-blue-700 border-blue-200',
                           SEMANAL: 'bg-purple-50 text-purple-700 border-purple-200',
                           QUINCENAL: 'bg-amber-50 text-amber-700 border-amber-200',
                           MENSUAL: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-                        };
+                        }
                         return (
-                        <div key={cliente.id} className="bg-white border border-slate-200 rounded-xl hover:shadow-md transition-shadow group overflow-hidden">
-                          {/* Cabecera del cliente */}
-                          <div className="flex items-center gap-4 p-4">
-                            <div className="h-10 w-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 font-bold border border-slate-200 flex-shrink-0">
-                              {String(cliente.nombre || '?').charAt(0)}
+                          <div
+                            key={cliente.id}
+                            className="bg-white border border-slate-200 rounded-xl hover:shadow-md transition-shadow group overflow-hidden"
+                          >
+                            {/* Cabecera del cliente */}
+                            <div className="flex items-center gap-4 p-4">
+                              <div className="h-10 w-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 font-bold border border-slate-200 flex-shrink-0">
+                                {String(cliente.nombre || '?').charAt(0)}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-bold text-slate-900 truncate">
+                                  {String(cliente.nombre || 'Sin nombre')}
+                                </h4>
+                                <p className="text-xs text-slate-500 truncate">
+                                  {String(cliente.codigo || cliente.direccion || '')}
+                                </p>
+                              </div>
+                              <div className="text-right flex-shrink-0">
+                                <p className="text-[10px] text-slate-400 font-bold uppercase">
+                                  {prestamos.length} crédito{prestamos.length !== 1 ? 's' : ''}
+                                </p>
+                              </div>
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <h4 className="font-bold text-slate-900 truncate">{String(cliente.nombre || 'Sin nombre')}</h4>
-                              <p className="text-xs text-slate-500 truncate">{String(cliente.codigo || cliente.direccion || '')}</p>
-                            </div>
-                            <div className="text-right flex-shrink-0">
-                              <p className="text-[10px] text-slate-400 font-bold uppercase">{prestamos.length} crédito{prestamos.length !== 1 ? 's' : ''}</p>
-                            </div>
-                          </div>
 
-                          {/* Créditos individuales con selector de ruta por crédito */}
-                          {prestamos.length > 0 ? (
-                            <div className="border-t border-slate-100 divide-y divide-slate-100">
-                              {prestamos.map((p) => (
-                                <div key={p.id} className="px-4 py-3 space-y-2">
-                                  <div className="flex items-center justify-between gap-3">
-                                    <div className="flex items-center gap-2 min-w-0">
-                                      <span className={`flex-shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                                        p.tipo === 'ARTICULO' ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-slate-100 text-slate-600 border-slate-200'
-                                      }`}>
-                                        {p.tipo === 'ARTICULO' ? `Artículo${p.articulo ? `: ${p.articulo}` : ''}` : 'Efectivo'}
-                                      </span>
-                                      <span className={`flex-shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full border ${FREQ_COLOR[p.frecuencia] || 'bg-slate-100 text-slate-600 border-slate-200'}`}>
-                                        {FREQ_LABEL[p.frecuencia] || p.frecuencia}
-                                      </span>
+                            {/* Créditos individuales con selector de ruta por crédito */}
+                            {prestamos.length > 0 ? (
+                              <div className="border-t border-slate-100 divide-y divide-slate-100">
+                                {prestamos.map((p) => (
+                                  <div key={p.id} className="px-4 py-3 space-y-2">
+                                    <div className="flex items-center justify-between gap-3">
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        <span
+                                          className={`flex-shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                                            p.tipo === 'ARTICULO'
+                                              ? 'bg-rose-50 text-rose-700 border-rose-200'
+                                              : 'bg-slate-100 text-slate-600 border-slate-200'
+                                          }`}
+                                        >
+                                          {p.tipo === 'ARTICULO'
+                                            ? `Artículo${p.articulo ? `: ${p.articulo}` : ''}`
+                                            : 'Efectivo'}
+                                        </span>
+                                        <span
+                                          className={`flex-shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full border ${FREQ_COLOR[p.frecuencia] || 'bg-slate-100 text-slate-600 border-slate-200'}`}
+                                        >
+                                          {FREQ_LABEL[p.frecuencia] || p.frecuencia}
+                                        </span>
+                                      </div>
+                                      <div className="text-right flex-shrink-0">
+                                        <p className="font-bold text-slate-900 text-sm">
+                                          {formatCurrency(p.saldoPendiente)}
+                                        </p>
+                                        <p className="text-[10px] text-slate-400">
+                                          Saldo pendiente
+                                        </p>
+                                      </div>
                                     </div>
-                                    <div className="text-right flex-shrink-0">
-                                      <p className="font-bold text-slate-900 text-sm">{formatCurrency(p.saldoPendiente)}</p>
-                                      <p className="text-[10px] text-slate-400">Saldo pendiente</p>
-                                    </div>
-                                  </div>
-                                  {/* Selector de ruta individual por crédito */}
-                                  <div className="flex items-center gap-2">
-                                    <div className="flex-1 relative">
-                                      <select
-                                        className="w-full text-xs pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-600 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                                        value={rutaDestinoMap[p.id] || ''}
-                                        onChange={(e) => setRutaDestinoMap(prev => ({ ...prev, [p.id]: e.target.value }))}
+                                    {/* Selector de ruta individual por crédito */}
+                                    <div className="flex items-center gap-2">
+                                      <div className="flex-1 relative">
+                                        <select
+                                          className="w-full text-xs pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-600 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                                          value={rutaDestinoMap[p.id] || ''}
+                                          onChange={(e) =>
+                                            setRutaDestinoMap((prev) => ({
+                                              ...prev,
+                                              [p.id]: e.target.value,
+                                            }))
+                                          }
+                                        >
+                                          <option value="">Asignar a otra ruta...</option>
+                                          {rutas
+                                            .filter((r) => r.id !== editingId)
+                                            .map((r) => (
+                                              <option key={r.id} value={r.id}>
+                                                {r.nombre}
+                                              </option>
+                                            ))}
+                                        </select>
+                                        <ArrowRightLeft className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-400 pointer-events-none" />
+                                      </div>
+                                      <button
+                                        disabled={!rutaDestinoMap[p.id]}
+                                        onClick={() => handleMoveLoan(p.id)}
+                                        className="px-3 py-1.5 bg-slate-800 text-white text-xs font-bold rounded-lg hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                                       >
-                                        <option value="">Asignar a otra ruta...</option>
-                                        {rutas.filter(r => r.id !== editingId).map(r => (
-                                          <option key={r.id} value={r.id}>{r.nombre}</option>
-                                        ))}
-                                      </select>
-                                      <ArrowRightLeft className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-400 pointer-events-none" />
+                                        Asignar
+                                      </button>
                                     </div>
-                                    <button
-                                      disabled={!rutaDestinoMap[p.id]}
-                                      onClick={() => handleMoveLoan(p.id)}
-                                      className="px-3 py-1.5 bg-slate-800 text-white text-xs font-bold rounded-lg hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                                    >
-                                      Asignar
-                                    </button>
                                   </div>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <div className="border-t border-slate-100 px-4 py-3">
-                              <p className="text-xs text-slate-400 italic">Sin créditos vigentes</p>
-                            </div>
-                          )}
-                        </div>
-                        );
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="border-t border-slate-100 px-4 py-3">
+                                <p className="text-xs text-slate-400 italic">
+                                  Sin créditos vigentes
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        )
                       })}
 
                       {clientesRuta.length === 0 && (
                         <div className="text-center py-10 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50">
                           <Users className="h-10 w-10 text-slate-300 mx-auto mb-3" />
-                          <p className="text-slate-500 font-medium">No hay clientes asignados a esta ruta.</p>
+                          <p className="text-slate-500 font-medium">
+                            No hay clientes asignados a esta ruta.
+                          </p>
                         </div>
                       )}
                     </div>
@@ -2182,11 +2412,17 @@ export const RutasPageView = ({
           </div>
         </div>
       )}
-      
+
       {/* Modal de Recolectar Dinero con monto personalizable */}
       {showRecolectarModal && routeForTransfer && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200 motion-reduce:animate-none" onClick={() => setShowRecolectarModal(false)}>
-          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 ease-out motion-reduce:animate-none" onClick={e => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200 motion-reduce:animate-none"
+          onClick={() => setShowRecolectarModal(false)}
+        >
+          <div
+            className="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 ease-out motion-reduce:animate-none"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="bg-emerald-600 px-6 py-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Wallet className="h-5 w-5 text-white" />
@@ -2195,7 +2431,10 @@ export const RutasPageView = ({
                   <p className="text-emerald-100 text-xs">{routeForTransfer.nombre}</p>
                 </div>
               </div>
-              <button onClick={() => setShowRecolectarModal(false)} className="p-1 rounded-full hover:bg-white/20 transition-colors">
+              <button
+                onClick={() => setShowRecolectarModal(false)}
+                className="p-1 rounded-full hover:bg-white/20 transition-colors"
+              >
                 <X className="h-5 w-5 text-white" />
               </button>
             </div>
@@ -2203,7 +2442,9 @@ export const RutasPageView = ({
             <div className="p-6 space-y-5">
               {/* Saldo disponible */}
               <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Saldo disponible en ruta</p>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
+                  Saldo disponible en ruta
+                </p>
                 {saldoDisponibleRecolectar === null ? (
                   <div className="flex items-center gap-2 text-slate-400 text-sm" />
                 ) : (
@@ -2211,12 +2452,18 @@ export const RutasPageView = ({
                     {formatCurrency(saldoDisponibleRecolectar)}
                   </p>
                 )}
-                <p className="text-xs text-slate-400 mt-1">Sera enviado a la <strong>Caja de Oficina</strong></p>
+                <p className="text-xs text-slate-400 mt-1">
+                  Sera enviado a la <strong>Caja de Oficina</strong>
+                </p>
               </div>
               <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">Monto a recolectar</label>
+                <label className="block text-sm font-bold text-slate-700 mb-2">
+                  Monto a recolectar
+                </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold">$</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold">
+                    $
+                  </span>
                   <input
                     type="text"
                     inputMode="numeric"
@@ -2230,8 +2477,13 @@ export const RutasPageView = ({
                   />
                 </div>
                 {saldoDisponibleRecolectar !== null && saldoDisponibleRecolectar > 0 && (
-                  <button type="button" onClick={() => setMontoRecolectar(formatInputMonto(saldoDisponibleRecolectar.toString()))}
-                    className="mt-1 text-xs text-emerald-600 font-bold hover:underline">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setMontoRecolectar(formatInputMonto(saldoDisponibleRecolectar.toString()))
+                    }
+                    className="mt-1 text-xs text-emerald-600 font-bold hover:underline"
+                  >
                     Recolectar monto completo
                   </button>
                 )}
@@ -2245,15 +2497,25 @@ export const RutasPageView = ({
               )}
 
               <div className="flex gap-3 pt-1">
-                <button onClick={() => setShowRecolectarModal(false)}
+                <button
+                  onClick={() => setShowRecolectarModal(false)}
                   className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-700 font-bold hover:bg-slate-50 transition-colors"
-                  disabled={processingTransfer}>
+                  disabled={processingTransfer}
+                >
                   Cancelar
                 </button>
-                <button onClick={handleConfirmarRecolectar}
+                <button
+                  onClick={handleConfirmarRecolectar}
                   disabled={processingTransfer || !montoRecolectar || !cajaRutaIdRecolectar}
-                  className="flex-1 py-3 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-                  {processingTransfer ? 'Recolectando...' : <><Wallet className="h-4 w-4" /> Confirmar</>}
+                  className="flex-1 py-3 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {processingTransfer ? (
+                    'Recolectando...'
+                  ) : (
+                    <>
+                      <Wallet className="h-4 w-4" /> Confirmar
+                    </>
+                  )}
                 </button>
               </div>
             </div>
@@ -2263,23 +2525,34 @@ export const RutasPageView = ({
 
       {showSelectPrincipalModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
-          <div className="absolute inset-0 bg-slate-900/30 backdrop-blur-sm transition-opacity" onClick={() => setShowSelectPrincipalModal(false)} />
+          <div
+            className="absolute inset-0 bg-slate-900/30 backdrop-blur-sm transition-opacity"
+            onClick={() => setShowSelectPrincipalModal(false)}
+          />
           <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl ring-1 ring-slate-900/5 transform transition-all animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
               <div className="flex items-center gap-2">
                 <Wallet className="h-5 w-5 text-blue-600" />
                 <h3 className="text-sm font-bold text-slate-900">Seleccionar Caja Principal</h3>
               </div>
-              <button onClick={() => setShowSelectPrincipalModal(false)} className="shrink-0 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+              <button
+                onClick={() => setShowSelectPrincipalModal(false)}
+                className="shrink-0 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+              >
                 <X className="h-5 w-5" />
               </button>
             </div>
             <div className="p-6 space-y-3">
               {principalOptions.map((caja) => (
-                <div key={caja.id} className="flex items-center justify-between p-3 rounded-xl border border-slate-200">
+                <div
+                  key={caja.id}
+                  className="flex items-center justify-between p-3 rounded-xl border border-slate-200"
+                >
                   <div className="min-w-0">
                     <div className="text-sm font-bold text-slate-900">{caja.nombre}</div>
-                    <div className="text-xs text-slate-500 font-medium">Saldo: {formatCurrency(caja.saldo)}</div>
+                    <div className="text-xs text-slate-500 font-medium">
+                      Saldo: {formatCurrency(caja.saldo)}
+                    </div>
                   </div>
                   <button
                     onClick={() => confirmarEnvioA(caja.id)}
@@ -2292,40 +2565,38 @@ export const RutasPageView = ({
               ))}
             </div>
             <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 text-xs text-slate-500">
-              El dinero será transferido desde la caja de la ruta seleccionada a la caja principal elegida.
+              El dinero será transferido desde la caja de la ruta seleccionada a la caja principal
+              elegida.
             </div>
           </div>
         </div>
       )}
-      
+
       {/* Modal de Crear Crédito */}
       <CrearCreditoModal
         isOpen={showCrearCreditoModal}
         onClose={() => setShowCrearCreditoModal(false)}
         onConfirm={async (data) => {
           try {
-            const payload = buildCrearPrestamoPayload(data, currentUser?.id);
+            const payload = buildCrearPrestamoPayload(data, currentUser?.id)
 
-            await prestamosService.crearPrestamo(payload);
-            
-            showNotification('success', 'Crédito creado exitosamente', 'Operación completada');
-            setShowCrearCreditoModal(false);
+            await prestamosService.crearPrestamo(payload)
+
+            showNotification('success', 'Crédito creado exitosamente', 'Operación completada')
+            setShowCrearCreditoModal(false)
             try {
-              await fetchRutas();
+              await fetchRutas()
             } catch (error) {
               // El refresco es secundario: la accion ya se hizo.
               // Se avisa solo en desarrollo, que es donde sirve.
               logger.warn('Fallo el refresco del listado de rutas', error)
             }
           } catch (error) {
-            console.error('Error al crear crédito:', error);
-            showNotification('error', 'No se pudo crear el crédito', 'Error');
+            console.error('Error al crear crédito:', error)
+            showNotification('error', 'No se pudo crear el crédito', 'Error')
           }
         }}
       />
     </div>
   )
 }
-
-
-
