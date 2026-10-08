@@ -320,6 +320,42 @@ export const prestamosService = {
   },
 
   /**
+   * Las cuotas de VARIOS créditos en una sola petición.
+   *
+   * Existe porque pedirlas de una en una dentro de un bucle era el patrón más caro de la
+   * app: el tablero operativo recorría rutas, dentro de cada ruta sus asignaciones y
+   * dentro de cada asignación sus préstamos, llamando a `obtenerCuotas` en el nivel más
+   * hondo. Cien préstamos eran cien peticiones.
+   *
+   * Devuelve un objeto indexado por id de préstamo. Los ids que no existan o que el rol
+   * no pueda ver simplemente no aparecen: el backend filtra por alcance, así que un
+   * cobrador no ve las cuotas de una ruta ajena ni aunque mande el id.
+   *
+   * El backend rechaza más de 300 ids de golpe, así que se trocea aquí.
+   */
+  async obtenerCuotasDeVarios(prestamoIds: string[]): Promise<Record<string, Cuota[]>> {
+    const ids = [...new Set(prestamoIds.filter(Boolean))]
+    if (ids.length === 0) return {}
+
+    const TAMANO_LOTE = 200
+    const lotes: string[][] = []
+    for (let i = 0; i < ids.length; i += TAMANO_LOTE) {
+      lotes.push(ids.slice(i, i + TAMANO_LOTE))
+    }
+
+    const respuestas = await Promise.all(
+      lotes.map((lote) =>
+        apiRequest<Record<string, Cuota[]>>(
+          'GET',
+          `/loans/cuotas?ids=${lote.map(encodeURIComponent).join(',')}`,
+        ).catch(() => ({}) as Record<string, Cuota[]>),
+      ),
+    )
+
+    return Object.assign({}, ...respuestas) as Record<string, Cuota[]>
+  },
+
+  /**
    * Simular el plan de cuotas sin guardar. El backend usa exactamente la misma
    * fórmula que la creación, así que la vista previa del modal de edición
    * coincide al peso con lo que se guardaría.

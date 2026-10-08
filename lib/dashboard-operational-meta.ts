@@ -154,9 +154,7 @@ export const computeOperationalMetaByRouteIdsForTimeFilter = async (
         const rutaCompleta = await rutasService.obtenerRutaPorId(String(routeId))
         // Declarado, no inferido: `let x = null` sin anotacion es un `any` EVOLUTIVO que
         // `noImplicitAny` no marca.
-        let dailyVisits: Awaited<
-          ReturnType<typeof rutasService.obtenerVisitasDelDia>
-        > | null = null
+        let dailyVisits: Awaited<ReturnType<typeof rutasService.obtenerVisitasDelDia>> | null = null
         if (timeFilter === 'today') {
           try {
             dailyVisits = await rutasService.obtenerVisitasDelDia(String(routeId), endKey)
@@ -177,28 +175,39 @@ export const computeOperationalMetaByRouteIdsForTimeFilter = async (
           ? rutaCompleta.asignaciones
           : []
 
-        const asigsConCuotas = await Promise.all(
-          asignaciones.map(async (asig: AsignacionConCuotas) => {
-            const cliente = asig?.cliente || null
-            if (!cliente) return asig
-            const prestamosRaw = Array.isArray(cliente?.prestamos) ? cliente.prestamos : []
-            const prestamosValidos = prestamosRaw.filter(
-              (p: PrestamoConCuotas) =>
-                p && (p.estado === 'ACTIVO' || p.estado === 'EN_MORA'),
-            )
-            const prestamos = await Promise.all(
-              prestamosValidos.map(async (p: PrestamoConCuotas) => {
-                if (!p?.id) return p
-                const cuotasEmbebidas = Array.isArray(p?.cuotas) ? p.cuotas : []
-                const cuotas = await prestamosService
-                  .obtenerCuotas(p.id)
-                  .catch(() => cuotasEmbebidas)
-                return { ...p, cuotas }
-              }),
-            )
-            return { ...asig, cliente: { ...cliente, prestamos } }
-          }),
+        // Primero se juntan TODOS los préstamos de la ruta, y después se piden sus cuotas
+        // de una sola vez.
+        //
+        // Antes esto eran tres bucles metidos uno dentro de otro —ruta, asignaciones,
+        // préstamos— con una petición por préstamo en el nivel más hondo: una ruta con
+        // cien créditos activos disparaba cien peticiones, y eso por cada ruta del
+        // tablero. Era el patrón más caro de la app.
+        const esActivo = (p: PrestamoConCuotas) =>
+          p && (p.estado === 'ACTIVO' || p.estado === 'EN_MORA')
+
+        const idsDeLaRuta = asignaciones.flatMap((asig: AsignacionConCuotas) => {
+          const prestamos = Array.isArray(asig?.cliente?.prestamos) ? asig.cliente.prestamos : []
+          return prestamos.filter(esActivo).map((p: PrestamoConCuotas) => String(p?.id || ''))
+        })
+
+        const cuotasPorPrestamo = await prestamosService.obtenerCuotasDeVarios(
+          idsDeLaRuta.filter(Boolean),
         )
+
+        const asigsConCuotas = asignaciones.map((asig: AsignacionConCuotas) => {
+          const cliente = asig?.cliente || null
+          if (!cliente) return asig
+          const prestamosRaw = Array.isArray(cliente?.prestamos) ? cliente.prestamos : []
+          const prestamos = prestamosRaw.filter(esActivo).map((p: PrestamoConCuotas) => {
+            if (!p?.id) return p
+            // Si el lote no trajo ese préstamo —sin permiso, o la petición fallo— se
+            // conserva lo que ya venía embebido en vez de dejar la fila sin cuotas.
+            const cuotasEmbebidas = Array.isArray(p?.cuotas) ? p.cuotas : []
+            const delLote = cuotasPorPrestamo[String(p.id)]
+            return { ...p, cuotas: Array.isArray(delLote) ? delLote : cuotasEmbebidas }
+          })
+          return { ...asig, cliente: { ...cliente, prestamos } }
+        })
 
         const visitasLite = mapAsignacionesToVisitasLite({
           asignaciones: asigsConCuotas,
