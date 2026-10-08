@@ -47,3 +47,36 @@ Formas en `components/ui/Skeleton.tsx`: `SkeletonTablero`, `SkeletonTabla`,
 - `/admin/rutas/[id]` — el trabajo va en `ruta-client.tsx`, no en la pagina
 - `/admin/users` — ya tiene `loading` en `true`; le falta el guard antes del return
 - `/coordinador` — el tablero del coordinador, con varios efectos encadenados
+
+---
+
+# Listado de clientes: lo que falta
+
+## El cero que mentia (ARREGLADO)
+
+Al recargar, la columna de deuda pintaba `$ 0` con `cliente.montoTotal ?? 0`
+mientras el dato no habia llegado. Un cero se lee como un dato —"este cliente no
+debe nada"—, y aqui significaba "todavia no se". Ahora sale un bloque gris hasta
+que llega la cifra, que es el mismo criterio que la columna de estado ya usaba
+para no decir "Al dia" sin saberlo.
+
+## El N+1 (PENDIENTE, es la causa de la lentitud)
+
+Medido en local con 8 clientes:
+
+    33 peticiones en 3,9 s
+       8x  /api-credisur/clients/:id   <- UNA POR CLIENTE
+       5x  /api-credisur/clients       <- el listado, cinco veces
+       4x  /api-credisur/routes
+
+El listado pide el detalle de cada cliente para calcular su mora. Con 8 son 8
+peticiones; con 300 clientes en produccion son 300, y por eso "tarda una
+eternidad".
+
+El arreglo es el mismo que se hizo con las cuotas del sync offline: un endpoint
+por lote. Algo como `GET /clients/resumen?ids=a,b,c` que devuelva el monto y los
+dias de mora de todos de una vez, y que el listado lo llame UNA vez por pagina en
+vez de una por fila.
+
+Y aparte, averiguar por que `/clients` se pide cinco veces: eso suele ser un
+`useEffect` con una dependencia que cambia de identidad en cada render.

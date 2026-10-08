@@ -738,9 +738,20 @@ export default function ClientesFeature({
 
                         <td className="px-6 py-4">
                           <div className="space-y-1">
-                            <div className="text-sm font-bold text-slate-900">
-                              {formatCurrency(cliente.montoTotal ?? 0)}
-                            </div>
+                            {/*
+                              Mientras no se sabe cuánto debe, NO se escribe "$ 0".
+                              Un cero se lee como un dato: que ese cliente no debe nada.
+                              Y aquí el cero no significaba eso, significaba "todavía no
+                              ha llegado la cifra" —el mismo criterio que ya se aplicaba
+                              dos columnas antes para no decir "Al día" sin saberlo—.
+                            */}
+                            {cliente.montoTotal == null ? (
+                              <div className="h-5 w-24 animate-pulse rounded bg-slate-200/70" />
+                            ) : (
+                              <div className="text-sm font-bold text-slate-900">
+                                {formatCurrency(cliente.montoTotal)}
+                              </div>
+                            )}
                             {(cliente.montoMora ?? 0) > 0 && (
                               <div className="text-xs text-rose-600 font-bold flex items-center">
                                 Mora: {formatCurrency(cliente.montoMora ?? 0)}
