@@ -1,6 +1,7 @@
 import type { PrestamoParcial } from '@/types/domain'
 import type { EstadoCuota } from '@/types/enums'
-export type EstadoVisita = 'pendiente' | 'pagado' | 'en_mora' | 'ausente' | 'reprogramado' | 'en_prorroga' | 'gestionado'
+export type EstadoVisita =
+  'pendiente' | 'pagado' | 'en_mora' | 'ausente' | 'reprogramado' | 'en_prorroga' | 'gestionado'
 export type PeriodoRuta = 'DIA' | 'SEMANA' | 'QUINCENA' | 'MES'
 
 /**
@@ -108,9 +109,9 @@ export interface VisitaRuta {
   recaudadoDelDia?: number
   recaudadoRegularizadoDespues?: number
   recaudadoTotalClient?: number
-  recaudadoPeriodo?: number  // Total pagado en el período actual (semana/quincena/mes/día)
+  recaudadoPeriodo?: number // Total pagado en el período actual (semana/quincena/mes/día)
   estado: EstadoVisita
-  estadoVisita?: string      // Estado de la visita del día registrado (ej: 'ausente')
+  estadoVisita?: string // Estado de la visita del día registrado (ej: 'ausente')
   /** Como quedo gestionada la obligacion: PENDIENTE, REPROGRAMADO, AUSENTE… */
   estadoGestion?: string
   /** Estado del prestamo completo (routes.service: estadoPrestamo: p.estado). */
@@ -172,7 +173,8 @@ export interface VisitaRuta {
    * omiten.
    */
   prioridad?: 'alta' | 'media' | 'baja'
-  nivelRiesgo?: 'minimo' | 'leve' | 'precaucion' | 'moderado' | 'critico'
+  /** `desconocido` mientras no se sabe: pintarlo de verde seria mentir. */
+  nivelRiesgo?: 'minimo' | 'leve' | 'precaucion' | 'moderado' | 'critico' | 'desconocido'
   cobradorId: string
   periodoRuta: PeriodoRuta
   clienteId: string
@@ -185,8 +187,8 @@ export interface VisitaRuta {
   articuloNombre?: string
   // Prórroga activa
   enProrroga?: boolean
-  fechaProrroga?: string        // ISO string — nueva fecha límite de pago
-  fechaOriginalVencimiento?: string  // fecha original antes de la prórroga
+  fechaProrroga?: string // ISO string — nueva fecha límite de pago
+  fechaOriginalVencimiento?: string // fecha original antes de la prórroga
   // Detalle de cuotas
   cuotaActual?: number
   cuotasTotales?: number
@@ -210,7 +212,7 @@ export interface VisitaRuta {
   esProvisional?: boolean
   esRevertido?: boolean
   etiquetaRevision?: string | null
-  fechaUltimoPago?: number      // Timestamp del último pago realizado para ordenamiento rápido
+  fechaUltimoPago?: number // Timestamp del último pago realizado para ordenamiento rápido
   /**
    * Las dos llaves con las que se ORDENA la ruta, y las dos las calcula el frontend.
    *
@@ -226,7 +228,6 @@ export interface VisitaRuta {
   /** La siguiente cuota; misma forma que la objetivo. */
   proximaCuota?: CuotaOperativa | null
 }
-
 
 /**
  * Una visita con lo que haya llegado.
@@ -272,20 +273,20 @@ export interface VisitaCamposLeidos {
 export type VisitaParcial = Partial<VisitaRuta & VisitaCamposLeidos>
 export interface HistorialDia {
   resumen: {
-    recaudo: number;
-    efectividad: number;
-    visitados: number;
-    total: number;
-    gastos: number;
-    jornadaId?: string | null;
-    jornadaEstado?: string | null;
-    jornadaCerradaEn?: string | null;
-    jornadaRegularizadaEn?: string | null;
-    jornadaEtiqueta?: string;
-    jornadaEtiquetaColor?: string;
-  };
-  visitas: VisitaRuta[];
-  loaded?: boolean;
+    recaudo: number
+    efectividad: number
+    visitados: number
+    total: number
+    gastos: number
+    jornadaId?: string | null
+    jornadaEstado?: string | null
+    jornadaCerradaEn?: string | null
+    jornadaRegularizadaEn?: string | null
+    jornadaEtiqueta?: string
+    jornadaEtiquetaColor?: string
+  }
+  visitas: VisitaRuta[]
+  loaded?: boolean
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -345,16 +346,24 @@ type FrecuenciaPago = 'DIARIO' | 'SEMANAL' | 'QUINCENAL' | 'MENSUAL' | string
  */
 export const mapFrecuenciaToPeriodo = (frecuencia?: FrecuenciaPago | null): PeriodoRuta => {
   switch (frecuencia) {
-    case 'DIARIO':    return 'DIA'
-    case 'SEMANAL':   return 'SEMANA'
-    case 'QUINCENAL': return 'QUINCENA'
-    case 'MENSUAL':   return 'MES'
+    case 'DIARIO':
+      return 'DIA'
+    case 'SEMANAL':
+      return 'SEMANA'
+    case 'QUINCENAL':
+      return 'QUINCENA'
+    case 'MENSUAL':
+      return 'MES'
     // Acepta también el valor ya convertido (idempotente)
-    case 'DIA':       return 'DIA'
-    case 'SEMANA':    return 'SEMANA'
-    case 'QUINCENA':  return 'QUINCENA'
-    case 'MES':       return 'MES'
-    default:          return 'DIA'
+    case 'DIA':
+      return 'DIA'
+    case 'SEMANA':
+      return 'SEMANA'
+    case 'QUINCENA':
+      return 'QUINCENA'
+    case 'MES':
+      return 'MES'
+    default:
+      return 'DIA'
   }
 }
-

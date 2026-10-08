@@ -151,7 +151,8 @@ export const resolveRiesgoObligacion = (params: {
   cuotasVencidas?: number
   esProvisional?: boolean
 }): string => {
-  const { row, prestamo, cuotaObjetivo, estadoCalculado, diasMora, cuotasVencidas, esProvisional } = params
+  const { row, prestamo, cuotaObjetivo, estadoCalculado, diasMora, cuotasVencidas, esProvisional } =
+    params
 
   // Créditos nuevos pendientes de aprobación sin mora: riesgo mínimo
   if (esProvisional && estadoCalculado === 'pendiente' && (diasMora || 0) === 0) {
@@ -188,12 +189,7 @@ export const resolveRiesgoObligacion = (params: {
   const cuotas = Number(cuotasVencidas || 0)
 
   const tieneMoraEstricta =
-    estadoCalculado === 'en_mora' &&
-    (
-      montoVencidoAcumulado > 0 ||
-      dias > 0 ||
-      cuotas > 0
-    )
+    estadoCalculado === 'en_mora' && (montoVencidoAcumulado > 0 || dias > 0 || cuotas > 0)
 
   if (!tieneMoraEstricta) {
     return 'VERDE'
@@ -311,19 +307,25 @@ export type NivelRiesgoUi =
   | 'precaucion'
   | 'moderado'
   | 'critico'
+  /** Todavia no se sabe. NO es 'minimo': ver la nota en `resolveNivelRiesgoUi`. */
+  | 'desconocido'
 
-export const resolveNivelRiesgoUi = (
-  nivelRiesgoRaw: string,
-): NivelRiesgoUi => {
+export const resolveNivelRiesgoUi = (nivelRiesgoRaw: string): NivelRiesgoUi => {
   const nivel = String(nivelRiesgoRaw || '').toUpperCase()
 
   const nivelMap: Record<string, NivelRiesgoUi> = {
-    'VERDE': 'minimo',
-    'LEVE': 'leve',
-    'PRECAUCION': 'precaucion',
-    'ROJO': 'moderado',
-    'LISTA_NEGRA': 'critico',
+    VERDE: 'minimo',
+    LEVE: 'leve',
+    PRECAUCION: 'precaucion',
+    ROJO: 'moderado',
+    LISTA_NEGRA: 'critico',
   }
 
-  return nivelMap[nivel] || 'minimo'
+  // Si el nivel no viene, NO se asume 'minimo'.
+  //
+  // Caia aqui mientras los datos todavia estaban cargando, y el cobrador veia la
+  // ruta entera en verde —'MINIMO', el mas tranquilizador— para que un segundo
+  // despues la mitad pasara a CRITICO con cientos de miles vencidos. En ese hueco
+  // alguien decide a quien visita primero.
+  return nivelMap[nivel] || 'desconocido'
 }
