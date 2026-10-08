@@ -47,7 +47,14 @@ interface VentaPdv {
   cuotasPagadas: number
   frecuencia: string
   tasaInteres: number
-  estado: 'ACTIVO' | 'PENDIENTE' | 'COMPLETADO' | 'PENDIENTE_APROBACION' | 'EN_MORA' | 'PAGADO' | 'RECHAZADO'
+  estado:
+    | 'ACTIVO'
+    | 'PENDIENTE'
+    | 'COMPLETADO'
+    | 'PENDIENTE_APROBACION'
+    | 'EN_MORA'
+    | 'PAGADO'
+    | 'RECHAZADO'
   fechaVenta: string
   fechaPrimerCobro: string
   fechaUltimoPago?: string
@@ -75,18 +82,62 @@ const fmtDate = (s: string | undefined) => {
     const d = new Date(s)
     if (isNaN(d.getTime())) return '—'
     return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
-  } catch { return '—' }
+  } catch {
+    return '—'
+  }
 }
 
 const estadoCfg = (estado: string) => {
   switch (estado) {
-    case 'ACTIVO': return { label: 'Activo', bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', dot: 'bg-emerald-500' }
-    case 'PENDIENTE': return { label: 'Pendiente', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', dot: 'bg-amber-400' }
-    case 'PENDIENTE_APROBACION': return { label: 'En Aprobación', bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', dot: 'bg-blue-400' }
+    case 'ACTIVO':
+      return {
+        label: 'Activo',
+        bg: 'bg-emerald-50',
+        text: 'text-emerald-700',
+        border: 'border-emerald-200',
+        dot: 'bg-emerald-500',
+      }
+    case 'PENDIENTE':
+      return {
+        label: 'Pendiente',
+        bg: 'bg-amber-50',
+        text: 'text-amber-700',
+        border: 'border-amber-200',
+        dot: 'bg-amber-400',
+      }
+    case 'PENDIENTE_APROBACION':
+      return {
+        label: 'En Aprobación',
+        bg: 'bg-blue-50',
+        text: 'text-blue-700',
+        border: 'border-blue-200',
+        dot: 'bg-blue-400',
+      }
     case 'COMPLETADO':
-    case 'PAGADO': return { label: 'Completado', bg: 'bg-slate-50', text: 'text-slate-500', border: 'border-slate-200', dot: 'bg-slate-400' }
-    case 'EN_MORA': return { label: 'En Mora', bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200', dot: 'bg-rose-500' }
-    default: return { label: (estado || 'Desconocido').replace(/_/g, ' '), bg: 'bg-slate-50', text: 'text-slate-500', border: 'border-slate-200', dot: 'bg-slate-400' }
+    case 'PAGADO':
+      return {
+        label: 'Completado',
+        bg: 'bg-slate-50',
+        text: 'text-slate-500',
+        border: 'border-slate-200',
+        dot: 'bg-slate-400',
+      }
+    case 'EN_MORA':
+      return {
+        label: 'En Mora',
+        bg: 'bg-rose-50',
+        text: 'text-rose-700',
+        border: 'border-rose-200',
+        dot: 'bg-rose-500',
+      }
+    default:
+      return {
+        label: (estado || 'Desconocido').replace(/_/g, ' '),
+        bg: 'bg-slate-50',
+        text: 'text-slate-500',
+        border: 'border-slate-200',
+        dot: 'bg-slate-400',
+      }
   }
 }
 
@@ -96,14 +147,18 @@ type Periodo = 'HOY' | 'SEM' | 'MES' | 'AÑO'
 
 const getUsuarioNombre = (usuario: Pick<Usuario, 'nombres' | 'apellidos' | 'correo'>) =>
   [usuario.nombres, usuario.apellidos]
-    .map(part => String(part ?? '').trim())
+    .map((part) => String(part ?? '').trim())
     .filter(Boolean)
-    .join(' ')
-    || usuario.correo
-    || 'Punto de Venta'
+    .join(' ') ||
+  usuario.correo ||
+  'Punto de Venta'
 
 const normalizeText = (value: string) =>
-  value.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  value
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
 
 const isSameOrPartialName = (a: string, b: string) => {
   const left = normalizeText(a)
@@ -213,9 +268,10 @@ export default function SeguimientoPuntoVenta() {
         usuariosService.obtenerTodos().catch(() => []),
       ])
 
-      const usuariosPuntoVenta = (usuariosResp || []).filter((usuario: Usuario) =>
-        String(usuario.rol || '').toUpperCase() === 'PUNTO_DE_VENTA' &&
-        String(usuario.estado || '').toUpperCase() === 'ACTIVO'
+      const usuariosPuntoVenta = (usuariosResp || []).filter(
+        (usuario: Usuario) =>
+          String(usuario.rol || '').toUpperCase() === 'PUNTO_DE_VENTA' &&
+          String(usuario.estado || '').toUpperCase() === 'ACTIVO',
       )
       setUsuariosPdv(usuariosPuntoVenta)
 
@@ -237,7 +293,7 @@ export default function SeguimientoPuntoVenta() {
         const usuario = usuarioPorId || usuarioPorNombre
 
         return {
-          vendedor: usuario ? getUsuarioNombre(usuario) : (vendedorNombre || 'Punto de Venta'),
+          vendedor: usuario ? getUsuarioNombre(usuario) : vendedorNombre || 'Punto de Venta',
           vendedorId: usuario?.id || vendedorId,
           vendedorRol: usuario ? 'PUNTO_DE_VENTA' : vendedorRol,
           esVentaPdv: Boolean(usuario) || vendedorRol === 'PUNTO_DE_VENTA',
@@ -245,91 +301,94 @@ export default function SeguimientoPuntoVenta() {
       }
 
       // 1. Cargar todos los créditos de artículos (tipo ARTICULO)
-      const todosArticulos = (resp?.prestamos || []).filter(
-        (c: CreditoDePuntoDeVenta) => {
+      const todosArticulos = (resp?.prestamos || []).filter((c: CreditoDePuntoDeVenta) => {
         const tipo = String(c.tipoPrestamo || c.tipo || '').toUpperCase()
         const tipoProducto = String(c.tipoProducto || '').toLowerCase()
         return tipo === 'ARTICULO' || (tipoProducto && tipoProducto !== 'efectivo')
       })
 
-      // 2. Enriquecer con pagos del día
-      const enriched: VentaPdv[] = await Promise.all(
-        todosArticulos.map(async (c: CreditoDePuntoDeVenta) => {
-          let pagadoHoy = 0
-          let fechaUltimoPago: string | undefined
+      // 2. Enriquecer con pagos del día.
+      //
+      // Los pagos se traen UNA vez y se indexan por crédito. Antes se pedían dentro del
+      // bucle, uno por cada artículo: medido en esta pantalla, 50 llamadas a /payments de
+      // las 69 que hacía, y 8,6 s en pintar.
+      const pagosResp = await pagosService
+        .obtenerPagos({ limit: 5000 })
+        .catch(() => ({ pagos: [] as PagoDePuntoDeVenta[] }))
+      const pagosPorPrestamo = new Map<string, PagoDePuntoDeVenta[]>()
+      for (const p of (pagosResp?.pagos || []) as PagoDePuntoDeVenta[]) {
+        const clave = String(p.prestamoId || p.creditoId || '').trim()
+        if (!clave) continue
+        const lista = pagosPorPrestamo.get(clave)
+        if (lista) lista.push(p)
+        else pagosPorPrestamo.set(clave, [p])
+      }
 
-          try {
-            const pagosResp = await pagosService.obtenerPagos({ 
-              clienteId: c.clienteId, 
-              prestamoId: c.id, 
-              limit: 50 
-            })
-            
-            // Filtrar pagos para asegurarnos que solo corresponden al préstamo actual (estricto)
-            const pagos = (pagosResp?.pagos || []).filter(
-              (p: PagoDePuntoDeVenta) => {
-              const pagoPrestamoId = String(p.prestamoId || p.creditoId || '').trim()
-              return pagoPrestamoId === String(c.id)
-            })
+      const enriched: VentaPdv[] = todosArticulos.map((c: CreditoDePuntoDeVenta) => {
+        let pagadoHoy = 0
+        let fechaUltimoPago: string | undefined
 
-            pagadoHoy = pagos.reduce((sum: number, p: PagoDePuntoDeVenta) => {
-              // El `|| ''` lo pidio el tipo: las dos fechas son opcionales.
-              const raw = p.fechaPago || p.creadoEn || ''
-              const fechaPagoKey = getBogotaDateKey(raw)
-              return fechaPagoKey === hoyStr ? sum + Number(p.montoTotal || 0) : sum
-            }, 0)
+        try {
+          const pagos = pagosPorPrestamo.get(String(c.id)) || []
 
-            let maxDate = 0
-            pagos.forEach((p: PagoDePuntoDeVenta) => {
-              const raw = p.fechaPago || p.creadoEn || ''
-              const time = new Date(raw).getTime()
-              if (!Number.isNaN(time) && time > maxDate) {
-                maxDate = time
-                fechaUltimoPago = raw
-              }
-            })
-          } catch { /* skip */ }
+          pagadoHoy = pagos.reduce((sum: number, p: PagoDePuntoDeVenta) => {
+            // El `|| ''` lo pidio el tipo: las dos fechas son opcionales.
+            const raw = p.fechaPago || p.creadoEn || ''
+            const fechaPagoKey = getBogotaDateKey(raw)
+            return fechaPagoKey === hoyStr ? sum + Number(p.montoTotal || 0) : sum
+          }, 0)
 
-          const vendedorPdv = resolveVendedorPdv(c)
+          let maxDate = 0
+          pagos.forEach((p: PagoDePuntoDeVenta) => {
+            const raw = p.fechaPago || p.creadoEn || ''
+            const time = new Date(raw).getTime()
+            if (!Number.isNaN(time) && time > maxDate) {
+              maxDate = time
+              fechaUltimoPago = raw
+            }
+          })
+        } catch {
+          /* skip */
+        }
 
-          return {
-            id: c.id,
-            cliente: c.cliente || 'Sin nombre',
-            clienteId: c.clienteId,
-            // Los `?? undefined`: las dos columnas son nulables en la base y `VentaPdv` las
-            // declara `string | undefined`. Con `any` las dos cosas eran iguales.
-            clienteDni: c.clienteDni ?? undefined,
-            clienteTelefono: c.clienteTelefono ?? undefined,
-            articulo: c.producto || c.tipoProducto || 'Artículo',
-            montoTotal: Number(c.montoTotal || 0),
-            cuotaInicial: Number(c.cuotaInicial || 0),
-            saldoPendiente: Number(c.montoPendiente || 0),
-            valorCuota: Number(c.valorCuota || 0),
-            cuotas: Number(c.cuotasTotales || 0),
-            cuotasPagadas: Number(c.cuotasPagadas || 0),
-            frecuencia: c.frecuenciaPago || 'QUINCENAL',
-            tasaInteres: Number(c.tasaInteres || 0),
-            estado: c.estado as VentaPdv['estado'],
-            fechaVenta: c.creadoEn || '',
-            fechaPrimerCobro: c.fechaInicio || '',
-            fechaUltimoPago,
-            vendedor: vendedorPdv.vendedor,
-            vendedorId: vendedorPdv.vendedorId,
-            vendedorRol: vendedorPdv.vendedorRol,
-            esVentaPdv: vendedorPdv.esVentaPdv,
-            observaciones: c.observaciones ?? undefined,
-            pagadoHoy,
-          }
-        })
-      )
+        const vendedorPdv = resolveVendedorPdv(c)
+
+        return {
+          id: c.id,
+          cliente: c.cliente || 'Sin nombre',
+          clienteId: c.clienteId,
+          // Los `?? undefined`: las dos columnas son nulables en la base y `VentaPdv` las
+          // declara `string | undefined`. Con `any` las dos cosas eran iguales.
+          clienteDni: c.clienteDni ?? undefined,
+          clienteTelefono: c.clienteTelefono ?? undefined,
+          articulo: c.producto || c.tipoProducto || 'Artículo',
+          montoTotal: Number(c.montoTotal || 0),
+          cuotaInicial: Number(c.cuotaInicial || 0),
+          saldoPendiente: Number(c.montoPendiente || 0),
+          valorCuota: Number(c.valorCuota || 0),
+          cuotas: Number(c.cuotasTotales || 0),
+          cuotasPagadas: Number(c.cuotasPagadas || 0),
+          frecuencia: c.frecuenciaPago || 'QUINCENAL',
+          tasaInteres: Number(c.tasaInteres || 0),
+          estado: c.estado as VentaPdv['estado'],
+          fechaVenta: c.creadoEn || '',
+          fechaPrimerCobro: c.fechaInicio || '',
+          fechaUltimoPago,
+          vendedor: vendedorPdv.vendedor,
+          vendedorId: vendedorPdv.vendedorId,
+          vendedorRol: vendedorPdv.vendedorRol,
+          esVentaPdv: vendedorPdv.esVentaPdv,
+          observaciones: c.observaciones ?? undefined,
+          pagadoHoy,
+        }
+      })
 
       // Solo mantener los que fueron creados por PUNTO_DE_VENTA
-      const soloVentasPdv = enriched.filter(v => 
-        v.vendedorRol === 'PUNTO_DE_VENTA' || v.esVentaPdv
+      const soloVentasPdv = enriched.filter(
+        (v) => v.vendedorRol === 'PUNTO_DE_VENTA' || v.esVentaPdv,
       )
 
       setVentas(soloVentasPdv)
-
     } catch (err) {
       console.error('[SeguimientoPdv] Error cargando datos:', err)
     }
@@ -353,7 +412,12 @@ export default function SeguimientoPuntoVenta() {
   }, [cargarDatos])
 
   useRealtimeData(
-    ['prestamos_actualizados', 'pagos_actualizados', 'clientes_actualizados', 'dashboards_actualizados'],
+    [
+      'prestamos_actualizados',
+      'pagos_actualizados',
+      'clientes_actualizados',
+      'dashboards_actualizados',
+    ],
     handleRealtimeRefresh,
   )
 
@@ -370,18 +434,18 @@ export default function SeguimientoPuntoVenta() {
     setVentaDetalle(venta)
     setLoadingDetalle(true)
     try {
-      const resp = await pagosService.obtenerPagos({ 
-        clienteId: venta.clienteId, 
-        prestamoId: venta.id, 
-        limit: 100 
+      const resp = await pagosService.obtenerPagos({
+        clienteId: venta.clienteId,
+        prestamoId: venta.id,
+        limit: 100,
       })
-      
+
       // Filtrar pagos para asegurarnos que solo corresponden al préstamo actual (estricto)
       const pagosVenta = (resp?.pagos || []).filter((p: PagoDePuntoDeVenta) => {
         const pagoPrestamoId = String(p.prestamoId || p.creditoId || '').trim()
         return pagoPrestamoId === String(venta.id)
       })
-      
+
       pagosVenta.sort(
         (a: PagoDePuntoDeVenta, b: PagoDePuntoDeVenta) =>
           new Date(b.fechaPago || b.creadoEn || '').getTime() -
@@ -401,23 +465,27 @@ export default function SeguimientoPuntoVenta() {
   // completo en alguna venta, solo dejamos respaldos que no coincidan con ningún usuario real.
   const vendedoresFiltro = useMemo(() => {
     const seen = new Set<string>()
-    const usuarios = usuariosPdv.map(usuario => ({
+    const usuarios = usuariosPdv.map((usuario) => ({
       id: usuario.id,
       nombre: getUsuarioNombre(usuario),
       normalizedName: normalizeText(getUsuarioNombre(usuario)),
     }))
 
-    usuarios.forEach(usuario => {
+    usuarios.forEach((usuario) => {
       seen.add(usuario.id)
       seen.add(usuario.normalizedName)
     })
 
     const respaldos = ventas
-      .filter(v => v.vendedor && v.vendedor !== 'Punto de Venta')
-      .map(v => ({ id: v.vendedorId || v.vendedor, nombre: v.vendedor, normalizedName: normalizeText(v.vendedor) }))
-      .filter(v => {
+      .filter((v) => v.vendedor && v.vendedor !== 'Punto de Venta')
+      .map((v) => ({
+        id: v.vendedorId || v.vendedor,
+        nombre: v.vendedor,
+        normalizedName: normalizeText(v.vendedor),
+      }))
+      .filter((v) => {
         const key = v.id || v.normalizedName
-        const matchesUsuarioReal = usuarios.some(usuario =>
+        const matchesUsuarioReal = usuarios.some((usuario) =>
           isSameOrPartialName(usuario.nombre, v.nombre),
         )
         if (!key || seen.has(key) || seen.has(v.normalizedName) || matchesUsuarioReal) return false
@@ -433,32 +501,34 @@ export default function SeguimientoPuntoVenta() {
     let result = ventas
     if (search.trim()) {
       const q = search.toLowerCase()
-      result = result.filter(v =>
-        v.cliente.toLowerCase().includes(q) ||
-        v.articulo.toLowerCase().includes(q) ||
-        (v.clienteDni || '').includes(q) ||
-        (v.clienteTelefono || '').includes(q)
+      result = result.filter(
+        (v) =>
+          v.cliente.toLowerCase().includes(q) ||
+          v.articulo.toLowerCase().includes(q) ||
+          (v.clienteDni || '').includes(q) ||
+          (v.clienteTelefono || '').includes(q),
       )
     }
     if (filtroEstado !== 'TODOS') {
-      result = result.filter(v => v.estado === filtroEstado)
+      result = result.filter((v) => v.estado === filtroEstado)
     }
     if (filtroVendedor !== 'TODOS') {
-      const usuario = vendedoresFiltro.find(v => v.id === filtroVendedor)
-      result = result.filter(v =>
-        (v.vendedorId && v.vendedorId === filtroVendedor) ||
-        (!!usuario && isSameOrPartialName(v.vendedor, usuario.nombre)) ||
-        (!usuario && (v.vendedorId || v.vendedor) === filtroVendedor)
+      const usuario = vendedoresFiltro.find((v) => v.id === filtroVendedor)
+      result = result.filter(
+        (v) =>
+          (v.vendedorId && v.vendedorId === filtroVendedor) ||
+          (!!usuario && isSameOrPartialName(v.vendedor, usuario.nombre)) ||
+          (!usuario && (v.vendedorId || v.vendedor) === filtroVendedor),
       )
     }
     if (filtroFechaDesde) {
-      result = result.filter(v => {
+      result = result.filter((v) => {
         const f = normalizeDateKey(v.fechaVenta)
         return f >= filtroFechaDesde
       })
     }
     if (filtroFechaHasta) {
-      result = result.filter(v => {
+      result = result.filter((v) => {
         const f = normalizeDateKey(v.fechaVenta)
         return f <= filtroFechaHasta
       })
@@ -469,41 +539,52 @@ export default function SeguimientoPuntoVenta() {
       // Convertir los rangos a keys YYYY-MM-DD
       const inicioKey = inicio ? normalizeDateKey(inicio) : ''
       const finKey = fin ? normalizeDateKey(fin) : ''
-      
-      result = result.filter(v => {
+
+      result = result.filter((v) => {
         const f = normalizeDateKey(v.fechaVenta)
         return inicioKey && finKey && f >= inicioKey && f <= finKey
       })
     }
     return result
-  }, [ventas, search, filtroEstado, filtroVendedor, filtroFechaDesde, filtroFechaHasta, periodoVentas, vendedoresFiltro])
+  }, [
+    ventas,
+    search,
+    filtroEstado,
+    filtroVendedor,
+    filtroFechaDesde,
+    filtroFechaHasta,
+    periodoVentas,
+    vendedoresFiltro,
+  ])
 
   const totalPages = Math.max(1, Math.ceil(ventasFiltradas.length / PER_PAGE))
   const ventasPaginadas = ventasFiltradas.slice((page - 1) * PER_PAGE, page * PER_PAGE)
 
   const resetFiltros = () => {
-    setSearch(''); setFiltroEstado('TODOS'); setFiltroVendedor('TODOS')
-    setFiltroFechaDesde(''); setFiltroFechaHasta(''); setPeriodoVentas('TODOS'); setPage(1)
+    setSearch('')
+    setFiltroEstado('TODOS')
+    setFiltroVendedor('TODOS')
+    setFiltroFechaDesde('')
+    setFiltroFechaHasta('')
+    setPeriodoVentas('TODOS')
+    setPage(1)
   }
 
   // ─── KPIs reactivos — derivados del conjunto filtrado ───────────────────────
   const kpis = useMemo(() => {
     // Filtrar solo los créditos que ya han sido desembolsados o aprobados (que afectan capital real)
-    const ventasEfectivas = ventasFiltradas.filter(v => 
-      v.estado !== 'PENDIENTE_APROBACION' && 
-      v.estado !== 'RECHAZADO'
+    const ventasEfectivas = ventasFiltradas.filter(
+      (v) => v.estado !== 'PENDIENTE_APROBACION' && v.estado !== 'RECHAZADO',
     )
-    
-    const activos = ventasFiltradas.filter(v =>
-      v.estado === 'ACTIVO' ||
-      v.estado === 'PENDIENTE' ||
-      v.estado === 'EN_MORA'
+
+    const activos = ventasFiltradas.filter(
+      (v) => v.estado === 'ACTIVO' || v.estado === 'PENDIENTE' || v.estado === 'EN_MORA',
     )
 
     return {
       ventas: ventasEfectivas.length,
       montoVentas: ventasEfectivas.reduce((s, v) => s + v.montoTotal, 0),
-      cuotaInicial: ventasFiltradas.reduce((s, v) => s + v.cuotaInicial, 0), 
+      cuotaInicial: ventasFiltradas.reduce((s, v) => s + v.cuotaInicial, 0),
       carteraTotal: activos.reduce((s, v) => s + v.saldoPendiente, 0),
       clientesActivos: activos.length,
     }
@@ -521,8 +602,12 @@ export default function SeguimientoPuntoVenta() {
               <ShoppingBag className="h-5 w-5 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-black text-slate-900 leading-tight">Seguimiento · Punto de Venta</h1>
-              <p className="text-xs text-slate-500 font-medium">Monitoreo de créditos de artículos creados por usuarios Punto de Venta.</p>
+              <h1 className="text-xl font-black text-slate-900 leading-tight">
+                Seguimiento · Punto de Venta
+              </h1>
+              <p className="text-xs text-slate-500 font-medium">
+                Monitoreo de créditos de artículos creados por usuarios Punto de Venta.
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -532,29 +617,73 @@ export default function SeguimientoPuntoVenta() {
       </div>
 
       <div className="px-6 py-6 space-y-6 w-full">
-
         {/* ── KPIs del día ───────────────────────────────────────── */}
         {loading ? (
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="h-24 bg-white rounded-2xl border border-slate-100 animate-pulse" />
+              <div
+                key={i}
+                className="h-24 bg-white rounded-2xl border border-slate-100 animate-pulse"
+              />
             ))}
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             {[
-              { label: `Ventas ${periodoVentas === 'TODOS' ? 'totales' : periodoVentas.toLowerCase()}`, value: kpis.ventas.toString(), icon: ShoppingBag, color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-100' },
-              { label: `Monto ${periodoVentas === 'TODOS' ? 'total' : periodoVentas.toLowerCase()}`, value: formatCurrency(kpis.montoVentas), icon: TrendingUp, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100' },
-              { label: 'Cuota inicial', value: formatCurrency(kpis.cuotaInicial), icon: CreditCard, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100' },
-              { label: 'Cartera activa', value: formatCurrency(kpis.carteraTotal), icon: BarChart3, color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-100' },
-              { label: 'Créditos vigentes', value: kpis.clientesActivos.toString(), icon: Users, color: 'text-slate-600', bg: 'bg-slate-100', border: 'border-slate-200' },
+              {
+                label: `Ventas ${periodoVentas === 'TODOS' ? 'totales' : periodoVentas.toLowerCase()}`,
+                value: kpis.ventas.toString(),
+                icon: ShoppingBag,
+                color: 'text-orange-600',
+                bg: 'bg-orange-50',
+                border: 'border-orange-100',
+              },
+              {
+                label: `Monto ${periodoVentas === 'TODOS' ? 'total' : periodoVentas.toLowerCase()}`,
+                value: formatCurrency(kpis.montoVentas),
+                icon: TrendingUp,
+                color: 'text-blue-600',
+                bg: 'bg-blue-50',
+                border: 'border-blue-100',
+              },
+              {
+                label: 'Cuota inicial',
+                value: formatCurrency(kpis.cuotaInicial),
+                icon: CreditCard,
+                color: 'text-emerald-600',
+                bg: 'bg-emerald-50',
+                border: 'border-emerald-100',
+              },
+              {
+                label: 'Cartera activa',
+                value: formatCurrency(kpis.carteraTotal),
+                icon: BarChart3,
+                color: 'text-purple-600',
+                bg: 'bg-purple-50',
+                border: 'border-purple-100',
+              },
+              {
+                label: 'Créditos vigentes',
+                value: kpis.clientesActivos.toString(),
+                icon: Users,
+                color: 'text-slate-600',
+                bg: 'bg-slate-100',
+                border: 'border-slate-200',
+              },
             ].map((kpi, i) => (
-              <div key={i} className="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm hover:shadow-md transition-shadow">
+              <div
+                key={i}
+                className="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm hover:shadow-md transition-shadow"
+              >
                 <div className="flex items-center gap-2 mb-2">
-                  <div className={`w-7 h-7 rounded-lg ${kpi.bg} ${kpi.border} border flex items-center justify-center`}>
+                  <div
+                    className={`w-7 h-7 rounded-lg ${kpi.bg} ${kpi.border} border flex items-center justify-center`}
+                  >
                     <kpi.icon className={`h-3.5 w-3.5 ${kpi.color}`} />
                   </div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider leading-tight">{kpi.label}</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider leading-tight">
+                    {kpi.label}
+                  </span>
                 </div>
                 <p className={`text-lg font-black ${kpi.color} leading-tight`}>{kpi.value}</p>
               </div>
@@ -566,12 +695,19 @@ export default function SeguimientoPuntoVenta() {
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 space-y-3">
           {/* Botones Periodo */}
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Periodo de venta</span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              Periodo de venta
+            </span>
             <div className="flex gap-1 ml-auto">
-              {(['TODOS', 'HOY', 'SEM', 'MES', 'AÑO'] as const).map(p => (
+              {(['TODOS', 'HOY', 'SEM', 'MES', 'AÑO'] as const).map((p) => (
                 <button
                   key={p}
-                  onClick={() => { setPeriodoVentas(p); setFiltroFechaDesde(''); setFiltroFechaHasta(''); setPage(1) }}
+                  onClick={() => {
+                    setPeriodoVentas(p)
+                    setFiltroFechaDesde('')
+                    setFiltroFechaHasta('')
+                    setPage(1)
+                  }}
                   className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
                     periodoVentas === p
                       ? 'bg-orange-500 text-white shadow-sm shadow-orange-500/30'
@@ -592,7 +728,10 @@ export default function SeguimientoPuntoVenta() {
                 type="text"
                 placeholder="Buscar cliente, artículo, cédula, teléfono…"
                 value={search}
-                onChange={e => { setSearch(e.target.value); setPage(1) }}
+                onChange={(e) => {
+                  setSearch(e.target.value)
+                  setPage(1)
+                }}
                 className="w-full pl-9 pr-3 py-2.5 text-sm text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400 font-medium placeholder:text-slate-400"
               />
             </div>
@@ -602,7 +741,10 @@ export default function SeguimientoPuntoVenta() {
               <Filter className="h-3.5 w-3.5 text-slate-400" />
               <select
                 value={filtroEstado}
-                onChange={e => { setFiltroEstado(e.target.value); setPage(1) }}
+                onChange={(e) => {
+                  setFiltroEstado(e.target.value)
+                  setPage(1)
+                }}
                 className="text-sm font-bold text-slate-700 bg-transparent border-none outline-none cursor-pointer"
               >
                 <option value="TODOS">Todos los estados</option>
@@ -618,12 +760,17 @@ export default function SeguimientoPuntoVenta() {
               <Users className="h-3.5 w-3.5 text-orange-500" />
               <select
                 value={filtroVendedor}
-                onChange={e => { setFiltroVendedor(e.target.value); setPage(1) }}
+                onChange={(e) => {
+                  setFiltroVendedor(e.target.value)
+                  setPage(1)
+                }}
                 className="max-w-[220px] text-sm font-bold text-orange-700 bg-transparent border-none outline-none cursor-pointer"
               >
                 <option value="TODOS">Todos los puntos de venta</option>
-                {vendedoresFiltro.map(v => (
-                  <option key={v.id} value={v.id}>{v.nombre}</option>
+                {vendedoresFiltro.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.nombre}
+                  </option>
                 ))}
               </select>
             </div>
@@ -632,20 +779,31 @@ export default function SeguimientoPuntoVenta() {
             <input
               type="date"
               value={filtroFechaDesde}
-              onChange={e => { setFiltroFechaDesde(e.target.value); setPage(1) }}
+              onChange={(e) => {
+                setFiltroFechaDesde(e.target.value)
+                setPage(1)
+              }}
               title="Desde"
               className="px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-orange-500/20 text-slate-700 font-medium"
             />
             <input
               type="date"
               value={filtroFechaHasta}
-              onChange={e => { setFiltroFechaHasta(e.target.value); setPage(1) }}
+              onChange={(e) => {
+                setFiltroFechaHasta(e.target.value)
+                setPage(1)
+              }}
               title="Hasta"
               className="px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-orange-500/20 text-slate-700 font-medium"
             />
 
             {/* Reset */}
-            {(search || filtroEstado !== 'TODOS' || filtroVendedor !== 'TODOS' || filtroFechaDesde || filtroFechaHasta || periodoVentas !== 'TODOS') && (
+            {(search ||
+              filtroEstado !== 'TODOS' ||
+              filtroVendedor !== 'TODOS' ||
+              filtroFechaDesde ||
+              filtroFechaHasta ||
+              periodoVentas !== 'TODOS') && (
               <button
                 onClick={resetFiltros}
                 className="flex items-center gap-1.5 px-3 py-2.5 text-sm font-bold text-rose-600 bg-rose-50 border border-rose-100 rounded-xl hover:bg-rose-100 transition-colors"
@@ -663,10 +821,16 @@ export default function SeguimientoPuntoVenta() {
           <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
             <div className="min-w-0">
               <h2 className="text-base font-black text-slate-900">Créditos Artículo</h2>
-              <p className="text-xs text-slate-500 font-medium mt-0.5">{ventasFiltradas.length} registros encontrados</p>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">
+                {ventasFiltradas.length} registros encontrados
+              </p>
             </div>
             <div className="flex items-center gap-2">
-              {refreshing && <span className="text-xs text-slate-400 animate-pulse font-medium">Actualizando…</span>}
+              {refreshing && (
+                <span className="text-xs text-slate-400 animate-pulse font-medium">
+                  Actualizando…
+                </span>
+              )}
             </div>
           </div>
 
@@ -681,7 +845,9 @@ export default function SeguimientoPuntoVenta() {
             <div className="p-16 flex flex-col items-center justify-center text-slate-400">
               <ShoppingBag className="h-14 w-14 text-slate-200 mb-4" />
               <p className="text-base font-bold text-slate-700">Sin resultados</p>
-              <p className="text-sm font-medium mt-1">No hay créditos artículo registrados por usuarios Punto de Venta.</p>
+              <p className="text-sm font-medium mt-1">
+                No hay créditos artículo registrados por usuarios Punto de Venta.
+              </p>
             </div>
           ) : (
             <>
@@ -702,35 +868,55 @@ export default function SeguimientoPuntoVenta() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
-                    {ventasPaginadas.map(venta => {
+                    {ventasPaginadas.map((venta) => {
                       const cfg = estadoCfg(venta.estado)
-                      const progreso = venta.cuotas > 0 ? Math.round((venta.cuotasPagadas / venta.cuotas) * 100) : 0
+                      const progreso =
+                        venta.cuotas > 0
+                          ? Math.round((venta.cuotasPagadas / venta.cuotas) * 100)
+                          : 0
                       return (
                         <tr key={venta.id} className="hover:bg-slate-50/60 transition-colors group">
                           <td className="px-6 py-3">
                             <div className="flex items-center gap-2.5">
                               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-100 to-rose-100 border border-orange-200 flex items-center justify-center flex-shrink-0">
                                 <span className="text-[10px] font-black text-orange-700">
-                                  {venta.cliente.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                                  {venta.cliente
+                                    .split(' ')
+                                    .map((n) => n[0])
+                                    .join('')
+                                    .slice(0, 2)
+                                    .toUpperCase()}
                                 </span>
                               </div>
                               <div className="min-w-0">
-                                <p className="text-sm font-bold text-slate-900 truncate max-w-[140px]">{venta.cliente}</p>
-                                {venta.clienteDni && <p className="text-[10px] text-slate-400 font-mono">CC: {venta.clienteDni}</p>}
+                                <p className="text-sm font-bold text-slate-900 truncate max-w-[140px]">
+                                  {venta.cliente}
+                                </p>
+                                {venta.clienteDni && (
+                                  <p className="text-[10px] text-slate-400 font-mono">
+                                    CC: {venta.clienteDni}
+                                  </p>
+                                )}
                               </div>
                             </div>
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-1.5">
                               <Package className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                              <span className="text-sm font-medium text-slate-700 truncate max-w-[120px]">{venta.articulo}</span>
+                              <span className="text-sm font-medium text-slate-700 truncate max-w-[120px]">
+                                {venta.articulo}
+                              </span>
                             </div>
                           </td>
                           <td className="px-4 py-3">
-                            <span className="text-sm font-black text-slate-900">{formatCurrency(venta.montoTotal)}</span>
+                            <span className="text-sm font-black text-slate-900">
+                              {formatCurrency(venta.montoTotal)}
+                            </span>
                           </td>
                           <td className="px-4 py-3">
-                            <span className={`text-sm font-black ${venta.saldoPendiente > 0 ? 'text-amber-700' : 'text-emerald-600'}`}>
+                            <span
+                              className={`text-sm font-black ${venta.saldoPendiente > 0 ? 'text-amber-700' : 'text-emerald-600'}`}
+                            >
                               {formatCurrency(venta.saldoPendiente)}
                             </span>
                           </td>
@@ -742,7 +928,9 @@ export default function SeguimientoPuntoVenta() {
                                   style={{ width: `${Math.min(100, progreso)}%` }}
                                 />
                               </div>
-                              <span className="text-[11px] font-bold text-slate-600 whitespace-nowrap">{venta.cuotasPagadas}/{venta.cuotas}</span>
+                              <span className="text-[11px] font-bold text-slate-600 whitespace-nowrap">
+                                {venta.cuotasPagadas}/{venta.cuotas}
+                              </span>
                             </div>
                           </td>
                           <td className="px-4 py-3">
@@ -756,10 +944,14 @@ export default function SeguimientoPuntoVenta() {
                             )}
                           </td>
                           <td className="px-4 py-3">
-                            <span className="text-[11px] font-medium text-slate-500">{fmtDate(venta.fechaUltimoPago)}</span>
+                            <span className="text-[11px] font-medium text-slate-500">
+                              {fmtDate(venta.fechaUltimoPago)}
+                            </span>
                           </td>
                           <td className="px-4 py-3">
-                            <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${cfg.bg} ${cfg.text} ${cfg.border}`}>
+                            <span
+                              className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${cfg.bg} ${cfg.text} ${cfg.border}`}
+                            >
                               <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
                               {cfg.label}
                             </span>
@@ -782,49 +974,73 @@ export default function SeguimientoPuntoVenta() {
 
               {/* Mobile Cards */}
               <div className="md:hidden divide-y divide-slate-50">
-                {ventasPaginadas.map(venta => {
+                {ventasPaginadas.map((venta) => {
                   const cfg = estadoCfg(venta.estado)
-                  const progreso = venta.cuotas > 0 ? Math.round((venta.cuotasPagadas / venta.cuotas) * 100) : 0
+                  const progreso =
+                    venta.cuotas > 0 ? Math.round((venta.cuotasPagadas / venta.cuotas) * 100) : 0
                   return (
                     <div key={venta.id} className="px-4 py-3">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-center gap-2 flex-1 min-w-0">
                           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-100 to-rose-100 border border-orange-200 flex items-center justify-center flex-shrink-0">
                             <span className="text-[10px] font-black text-orange-700">
-                              {venta.cliente.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                              {venta.cliente
+                                .split(' ')
+                                .map((n) => n[0])
+                                .join('')
+                                .slice(0, 2)
+                                .toUpperCase()}
                             </span>
                           </div>
                           <div className="min-w-0">
-                            <p className="text-sm font-bold text-slate-900 truncate">{venta.cliente}</p>
+                            <p className="text-sm font-bold text-slate-900 truncate">
+                              {venta.cliente}
+                            </p>
                             <p className="text-xs text-slate-500 truncate">{venta.articulo}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
-                          <span className={`inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${cfg.bg} ${cfg.text} ${cfg.border}`}>
+                          <span
+                            className={`inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${cfg.bg} ${cfg.text} ${cfg.border}`}
+                          >
                             <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
                             {cfg.label}
                           </span>
-                          <button onClick={() => abrirDetalle(venta)} className="shrink-0 p-1.5 rounded-lg bg-slate-50 hover:bg-orange-50 text-slate-400 hover:text-orange-600 transition-colors">
+                          <button
+                            onClick={() => abrirDetalle(venta)}
+                            className="shrink-0 p-1.5 rounded-lg bg-slate-50 hover:bg-orange-50 text-slate-400 hover:text-orange-600 transition-colors"
+                          >
                             <Eye className="h-4 w-4" />
                           </button>
                         </div>
                       </div>
                       <div className="mt-2 flex items-center gap-3">
-                        <span className="text-xs font-black text-slate-900">{formatCurrency(venta.montoTotal)}</span>
+                        <span className="text-xs font-black text-slate-900">
+                          {formatCurrency(venta.montoTotal)}
+                        </span>
                         <span className="text-[10px] text-slate-400">·</span>
-                        <span className="text-[11px] font-bold text-amber-700">Saldo: {formatCurrency(venta.saldoPendiente)}</span>
+                        <span className="text-[11px] font-bold text-amber-700">
+                          Saldo: {formatCurrency(venta.saldoPendiente)}
+                        </span>
                         {venta.pagadoHoy > 0 && (
                           <>
                             <span className="text-[10px] text-slate-400">·</span>
-                            <span className="text-[11px] font-black text-emerald-600">+{formatCurrency(venta.pagadoHoy)} hoy</span>
+                            <span className="text-[11px] font-black text-emerald-600">
+                              +{formatCurrency(venta.pagadoHoy)} hoy
+                            </span>
                           </>
                         )}
                       </div>
                       <div className="mt-1.5 flex items-center gap-2">
                         <div className="flex-1 bg-slate-200 rounded-full h-1">
-                          <div className={`h-1 rounded-full ${progreso >= 100 ? 'bg-emerald-500' : 'bg-orange-400'}`} style={{ width: `${Math.min(100, progreso)}%` }} />
+                          <div
+                            className={`h-1 rounded-full ${progreso >= 100 ? 'bg-emerald-500' : 'bg-orange-400'}`}
+                            style={{ width: `${Math.min(100, progreso)}%` }}
+                          />
                         </div>
-                        <span className="text-[10px] font-bold text-slate-500">{venta.cuotasPagadas}/{venta.cuotas}</span>
+                        <span className="text-[10px] font-bold text-slate-500">
+                          {venta.cuotasPagadas}/{venta.cuotas}
+                        </span>
                       </div>
                     </div>
                   )
@@ -834,19 +1050,22 @@ export default function SeguimientoPuntoVenta() {
               {/* Paginador */}
               <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between bg-slate-50/50">
                 <span className="text-[11px] text-slate-400 font-medium">
-                  {(page - 1) * PER_PAGE + 1}–{Math.min(page * PER_PAGE, ventasFiltradas.length)} de {ventasFiltradas.length}
+                  {(page - 1) * PER_PAGE + 1}–{Math.min(page * PER_PAGE, ventasFiltradas.length)} de{' '}
+                  {ventasFiltradas.length}
                 </span>
                 <div className="flex items-center gap-1">
                   <button
-                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
                     disabled={page === 1}
                     className="p-1.5 rounded-lg hover:bg-white border border-transparent hover:border-slate-200 text-slate-500 disabled:opacity-30 transition-all"
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </button>
-                  <span className="text-xs font-bold text-slate-700 px-3">{page} / {totalPages}</span>
+                  <span className="text-xs font-bold text-slate-700 px-3">
+                    {page} / {totalPages}
+                  </span>
                   <button
-                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                     disabled={page === totalPages}
                     className="p-1.5 rounded-lg hover:bg-white border border-transparent hover:border-slate-200 text-slate-500 disabled:opacity-30 transition-all"
                   >
@@ -867,7 +1086,7 @@ export default function SeguimientoPuntoVenta() {
         >
           <div
             className="w-full max-w-2xl rounded-3xl bg-white shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[92vh]"
-            onClick={e => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
           >
             {/* Header modal */}
             <div className="px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-orange-50 to-rose-50 flex-shrink-0">
@@ -882,11 +1101,18 @@ export default function SeguimientoPuntoVenta() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full border ${estadoCfg(ventaDetalle.estado).bg} ${estadoCfg(ventaDetalle.estado).text} ${estadoCfg(ventaDetalle.estado).border}`}>
-                    <span className={`w-2 h-2 rounded-full ${estadoCfg(ventaDetalle.estado).dot}`} />
+                  <span
+                    className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full border ${estadoCfg(ventaDetalle.estado).bg} ${estadoCfg(ventaDetalle.estado).text} ${estadoCfg(ventaDetalle.estado).border}`}
+                  >
+                    <span
+                      className={`w-2 h-2 rounded-full ${estadoCfg(ventaDetalle.estado).dot}`}
+                    />
                     {estadoCfg(ventaDetalle.estado).label}
                   </span>
-                  <button onClick={() => setVentaDetalle(null)} className="p-2 rounded-xl hover:bg-white/50 text-slate-400 hover:text-slate-600 transition-colors">
+                  <button
+                    onClick={() => setVentaDetalle(null)}
+                    className="p-2 rounded-xl hover:bg-white/50 text-slate-400 hover:text-slate-600 transition-colors"
+                  >
                     <X className="h-5 w-5" />
                   </button>
                 </div>
@@ -895,23 +1121,34 @@ export default function SeguimientoPuntoVenta() {
 
             {/* Body modal */}
             <div className="flex-1 overflow-y-auto p-6 space-y-5">
-
               {/* Información del cliente */}
               <section>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Información del Cliente</p>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                  Información del Cliente
+                </p>
                 <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 flex items-center gap-3">
                   <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-100 to-rose-100 border border-orange-200 flex items-center justify-center shrink-0">
                     <span className="text-sm font-black text-orange-700">
-                      {ventaDetalle.cliente.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                      {ventaDetalle.cliente
+                        .split(' ')
+                        .map((n) => n[0])
+                        .join('')
+                        .slice(0, 2)
+                        .toUpperCase()}
                     </span>
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-black text-slate-900">{ventaDetalle.cliente}</p>
                     <div className="flex items-center gap-4 mt-1 flex-wrap">
-                      {ventaDetalle.clienteDni && <span className="text-xs text-slate-500 font-mono">CC: {ventaDetalle.clienteDni}</span>}
+                      {ventaDetalle.clienteDni && (
+                        <span className="text-xs text-slate-500 font-mono">
+                          CC: {ventaDetalle.clienteDni}
+                        </span>
+                      )}
                       {ventaDetalle.clienteTelefono && (
                         <span className="inline-flex items-center gap-1 text-xs text-slate-500">
-                          <Phone className="h-3 w-3" />{ventaDetalle.clienteTelefono}
+                          <Phone className="h-3 w-3" />
+                          {ventaDetalle.clienteTelefono}
                         </span>
                       )}
                     </div>
@@ -921,23 +1158,41 @@ export default function SeguimientoPuntoVenta() {
 
               {/* Desglose financiero */}
               <section>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Desglose Financiero</p>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                  Desglose Financiero
+                </p>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-blue-50 rounded-2xl p-4 border border-blue-100">
-                    <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">Monto Total</p>
-                    <p className="text-xl font-black text-blue-900">{formatCurrency(ventaDetalle.montoTotal)}</p>
+                    <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">
+                      Monto Total
+                    </p>
+                    <p className="text-xl font-black text-blue-900">
+                      {formatCurrency(ventaDetalle.montoTotal)}
+                    </p>
                   </div>
                   <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100">
-                    <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">Cuota Inicial</p>
-                    <p className="text-xl font-black text-emerald-800">{formatCurrency(ventaDetalle.cuotaInicial)}</p>
+                    <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">
+                      Cuota Inicial
+                    </p>
+                    <p className="text-xl font-black text-emerald-800">
+                      {formatCurrency(ventaDetalle.cuotaInicial)}
+                    </p>
                   </div>
                   <div className="bg-amber-50 rounded-2xl p-4 border border-amber-100">
-                    <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest mb-1">Saldo Pendiente</p>
-                    <p className="text-xl font-black text-amber-900">{formatCurrency(ventaDetalle.saldoPendiente)}</p>
+                    <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest mb-1">
+                      Saldo Pendiente
+                    </p>
+                    <p className="text-xl font-black text-amber-900">
+                      {formatCurrency(ventaDetalle.saldoPendiente)}
+                    </p>
                   </div>
                   <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Valor Cuota</p>
-                    <p className="text-xl font-black text-slate-900">{formatCurrency(ventaDetalle.valorCuota)}</p>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                      Valor Cuota
+                    </p>
+                    <p className="text-xl font-black text-slate-900">
+                      {formatCurrency(ventaDetalle.valorCuota)}
+                    </p>
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-2 mt-2">
@@ -945,10 +1200,17 @@ export default function SeguimientoPuntoVenta() {
                     { label: 'Tasa', value: `${ventaDetalle.tasaInteres}%` },
                     { label: 'Frecuencia', value: ventaDetalle.frecuencia },
                     { label: 'Vendedor', value: ventaDetalle.vendedor },
-                  ].map(item => (
-                    <div key={item.label} className="bg-slate-50 rounded-xl p-3 border border-slate-100 text-center">
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">{item.label}</p>
-                      <p className="text-sm font-black text-slate-800 mt-0.5 truncate">{item.value}</p>
+                  ].map((item) => (
+                    <div
+                      key={item.label}
+                      className="bg-slate-50 rounded-xl p-3 border border-slate-100 text-center"
+                    >
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">
+                        {item.label}
+                      </p>
+                      <p className="text-sm font-black text-slate-800 mt-0.5 truncate">
+                        {item.value}
+                      </p>
                     </div>
                   ))}
                 </div>
@@ -956,15 +1218,26 @@ export default function SeguimientoPuntoVenta() {
 
               {/* Progreso cuotas */}
               <section>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Progreso de Cuotas</p>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                  Progreso de Cuotas
+                </p>
                 <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
                   {(() => {
-                    const progreso = ventaDetalle.cuotas > 0 ? Math.round((ventaDetalle.cuotasPagadas / ventaDetalle.cuotas) * 100) : 0
+                    const progreso =
+                      ventaDetalle.cuotas > 0
+                        ? Math.round((ventaDetalle.cuotasPagadas / ventaDetalle.cuotas) * 100)
+                        : 0
                     return (
                       <>
                         <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-bold text-slate-700">{ventaDetalle.cuotasPagadas} de {ventaDetalle.cuotas} cuotas</span>
-                          <span className={`text-sm font-black ${progreso >= 100 ? 'text-emerald-600' : 'text-orange-600'}`}>{progreso}%</span>
+                          <span className="text-sm font-bold text-slate-700">
+                            {ventaDetalle.cuotasPagadas} de {ventaDetalle.cuotas} cuotas
+                          </span>
+                          <span
+                            className={`text-sm font-black ${progreso >= 100 ? 'text-emerald-600' : 'text-orange-600'}`}
+                          >
+                            {progreso}%
+                          </span>
                         </div>
                         <div className="w-full bg-slate-200 rounded-full h-3">
                           <div
@@ -973,8 +1246,12 @@ export default function SeguimientoPuntoVenta() {
                           />
                         </div>
                         <div className="flex justify-between mt-1.5">
-                          <span className="text-[11px] text-slate-400">Pagadas: {ventaDetalle.cuotasPagadas}</span>
-                          <span className="text-[11px] text-slate-400">Restantes: {ventaDetalle.cuotas - ventaDetalle.cuotasPagadas}</span>
+                          <span className="text-[11px] text-slate-400">
+                            Pagadas: {ventaDetalle.cuotasPagadas}
+                          </span>
+                          <span className="text-[11px] text-slate-400">
+                            Restantes: {ventaDetalle.cuotas - ventaDetalle.cuotasPagadas}
+                          </span>
                         </div>
                       </>
                     )
@@ -984,16 +1261,34 @@ export default function SeguimientoPuntoVenta() {
 
               {/* Fechas */}
               <section>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Fechas</p>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                  Fechas
+                </p>
                 <div className="space-y-2">
                   {[
-                    { icon: Calendar, label: 'Fecha de venta', value: fmtDate(ventaDetalle.fechaVenta) },
-                    { icon: ArrowUpRight, label: 'Primer cobro', value: fmtDate(ventaDetalle.fechaPrimerCobro) },
-                    { icon: CheckCircle2, label: 'Último pago', value: fmtDate(ventaDetalle.fechaUltimoPago) },
-                  ].map(item => (
-                    <div key={item.label} className="flex items-center justify-between px-4 py-2.5 bg-slate-50 rounded-xl border border-slate-100">
+                    {
+                      icon: Calendar,
+                      label: 'Fecha de venta',
+                      value: fmtDate(ventaDetalle.fechaVenta),
+                    },
+                    {
+                      icon: ArrowUpRight,
+                      label: 'Primer cobro',
+                      value: fmtDate(ventaDetalle.fechaPrimerCobro),
+                    },
+                    {
+                      icon: CheckCircle2,
+                      label: 'Último pago',
+                      value: fmtDate(ventaDetalle.fechaUltimoPago),
+                    },
+                  ].map((item) => (
+                    <div
+                      key={item.label}
+                      className="flex items-center justify-between px-4 py-2.5 bg-slate-50 rounded-xl border border-slate-100"
+                    >
                       <span className="text-sm text-slate-500 flex items-center gap-2">
-                        <item.icon className="h-3.5 w-3.5" />{item.label}
+                        <item.icon className="h-3.5 w-3.5" />
+                        {item.label}
                       </span>
                       <span className="text-sm font-bold text-slate-900">{item.value}</span>
                     </div>
@@ -1001,9 +1296,12 @@ export default function SeguimientoPuntoVenta() {
                   {ventaDetalle.pagadoHoy > 0 && (
                     <div className="flex items-center justify-between px-4 py-2.5 bg-emerald-50 rounded-xl border border-emerald-100">
                       <span className="text-sm text-emerald-600 flex items-center gap-2 font-bold">
-                        <DollarSign className="h-3.5 w-3.5" />Pagado HOY
+                        <DollarSign className="h-3.5 w-3.5" />
+                        Pagado HOY
                       </span>
-                      <span className="text-sm font-black text-emerald-700">{formatCurrency(ventaDetalle.pagadoHoy)}</span>
+                      <span className="text-sm font-black text-emerald-700">
+                        {formatCurrency(ventaDetalle.pagadoHoy)}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -1011,7 +1309,9 @@ export default function SeguimientoPuntoVenta() {
 
               {/* Historial de pagos */}
               <section>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Historial de Pagos</p>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                  Historial de Pagos
+                </p>
                 {loadingDetalle ? (
                   <div className="space-y-2" aria-busy="true">
                     <span className="sr-only">Cargando…</span>
@@ -1027,15 +1327,25 @@ export default function SeguimientoPuntoVenta() {
                 ) : (
                   <div className="divide-y divide-slate-50 border border-slate-100 rounded-2xl overflow-hidden">
                     {historialPagos.map((p) => (
-                      <div key={p.id} className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors">
+                      <div
+                        key={p.id}
+                        className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors"
+                      >
                         <div className="flex items-center gap-3">
-                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${p.metodoPago === 'TRANSFERENCIA' ? 'bg-blue-50 border border-blue-100' : 'bg-emerald-50 border border-emerald-100'}`}>
-                            <Banknote className={`h-3.5 w-3.5 ${p.metodoPago === 'TRANSFERENCIA' ? 'text-blue-500' : 'text-emerald-500'}`} />
+                          <div
+                            className={`w-7 h-7 rounded-lg flex items-center justify-center ${p.metodoPago === 'TRANSFERENCIA' ? 'bg-blue-50 border border-blue-100' : 'bg-emerald-50 border border-emerald-100'}`}
+                          >
+                            <Banknote
+                              className={`h-3.5 w-3.5 ${p.metodoPago === 'TRANSFERENCIA' ? 'text-blue-500' : 'text-emerald-500'}`}
+                            />
                           </div>
                           <div>
-                            <p className="text-sm font-bold text-slate-900">{formatCurrency(Number(p.montoTotal || 0))}</p>
+                            <p className="text-sm font-bold text-slate-900">
+                              {formatCurrency(Number(p.montoTotal || 0))}
+                            </p>
                             <p className="text-[10px] text-slate-400 font-medium">
-                              {fmtDate(p.fechaPago || p.creadoEn || undefined)} · {p.metodoPago === 'TRANSFERENCIA' ? 'Transferencia' : 'Efectivo'}
+                              {fmtDate(p.fechaPago || p.creadoEn || undefined)} ·{' '}
+                              {p.metodoPago === 'TRANSFERENCIA' ? 'Transferencia' : 'Efectivo'}
                             </p>
                           </div>
                         </div>
@@ -1050,7 +1360,9 @@ export default function SeguimientoPuntoVenta() {
 
               {ventaDetalle.observaciones && (
                 <section>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Observaciones</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                    Observaciones
+                  </p>
                   <div className="bg-amber-50 rounded-2xl p-4 border border-amber-100">
                     <p className="text-sm text-amber-900">{ventaDetalle.observaciones}</p>
                   </div>
