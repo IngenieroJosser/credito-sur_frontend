@@ -460,7 +460,7 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
         </div>
 
         {showEditarCajaModal && renderInPortal(
-          <div className="fixed inset-0 z-[2147483646] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none">
+          <div className="fixed inset-0 z-[2147483600] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none">
             <div className="w-full max-w-xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden">
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
                 <div className="min-w-0">
@@ -542,7 +542,7 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
         )}
 
         {showRegistrarMovimientoModal && renderInPortal(
-          <div className="fixed inset-0 z-[2147483646] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none">
+          <div className="fixed inset-0 z-[2147483600] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none">
             <div className="w-full max-w-2xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden">
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
                 <div className="min-w-0">

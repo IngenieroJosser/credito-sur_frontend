@@ -135,7 +135,7 @@ export const ImportacionesClient = () => {
 
   const reporteModal = reporteActivo && activeResult && typeof document !== 'undefined' ? createPortal(
     <div
-      className="fixed inset-0 z-[2147483646] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none"
+      className="fixed inset-0 z-[2147483600] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none"
       onClick={closeReporte}
     >
       <div

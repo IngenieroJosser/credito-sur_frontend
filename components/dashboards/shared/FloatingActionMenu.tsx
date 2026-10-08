@@ -88,7 +88,7 @@ export default function FloatingActionMenu({ actions }: FloatingActionMenuProps)
     <>
       {isOpen && (
         <div
-          className="fixed inset-0 z-[2147483645] bg-slate-950/[0.08] backdrop-blur-[2px]"
+          className="fixed inset-0 z-[2147483600] bg-slate-950/[0.08] backdrop-blur-[2px]"
           onClick={() => setIsOpen(false)}
           aria-hidden="true"
         />
