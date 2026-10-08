@@ -280,10 +280,7 @@ export async function buildRutaHoyOperativa({
         prestamo?.nivelRiesgoCredito ??
         undefined,
       riesgoCredito:
-        o?.riesgoCredito ??
-        o?.prestamo?.riesgoCredito ??
-        prestamo?.riesgoCredito ??
-        undefined,
+        o?.riesgoCredito ?? o?.prestamo?.riesgoCredito ?? prestamo?.riesgoCredito ?? undefined,
       riesgoOperativo:
         o?.riesgoOperativo ??
         o?.prestamo?.riesgoOperativo ??
@@ -302,12 +299,38 @@ export async function buildRutaHoyOperativa({
   // 3. Enriquecer con cuotas vivas
   // Sin el `as Promise<unknown[]>` que llevaba: `obtenerCuotas` ya declara
   // `Promise<Cuota[]>`, asi que ese cast no agregaba informacion, la tiraba.
-  const getCuotasFn =
-    getCuotasByPrestamoId ||
-    memoizePromiseByKey(
-      (prestamoId) => prestamosService.obtenerCuotas(prestamoId),
+  // Las cuotas de TODAS las visitas se piden de una vez, antes de enriquecer.
+  //
+  // Antes se pedían de una en una —con `concurrency: 6`, que reparte la espera pero no
+  // quita ni una petición—: medido en /rutas, 17 llamadas a `/loans/:id/cuotas` de las 76
+  // de la pantalla, y 10,9 s en pintar. Una ruta con cien créditos haría cien.
+  //
+  // Si quien llama ya trae su propia función —el modo offline la inyecta para leer de
+  // IndexedDB— se respeta y no se pide nada por red.
+  let getCuotasFn = getCuotasByPrestamoId
+  if (!getCuotasFn) {
+    const ids = [
+      ...new Set(
+        visitasOperativas
+          .map((v) => String((v as { prestamoId?: string })?.prestamoId || ''))
+          .filter(Boolean),
+      ),
+    ]
+    const cuotasPorPrestamo = await prestamosService
+      .obtenerCuotasDeVarios(ids)
+      .catch(() => ({}) as Record<string, Cuota[]>)
+
+    getCuotasFn = memoizePromiseByKey(
+      async (prestamoId) => {
+        const delLote = cuotasPorPrestamo[String(prestamoId)]
+        if (Array.isArray(delLote)) return delLote
+        // El lote no lo trajo: se pide suelto antes que dejar la fila sin cuotas, que
+        // haría parecer que ese cliente no debe nada.
+        return prestamosService.obtenerCuotas(prestamoId)
+      },
       () => [],
     )
+  }
 
   const visitasOperativasVivas = await enrichVisitasConCuotasYRiesgo({
     visitas: visitasOperativas,
