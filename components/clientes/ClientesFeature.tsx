@@ -278,6 +278,13 @@ export default function ClientesFeature({
   }
 
   const getEstadoCuentaFiltro = (cliente: ClienteAdmin) => {
+    // Pendiente de aprobación va PRIMERO, antes que la mora: un cliente sin aprobar
+    // todavía no tiene créditos, así que caía en "Al día" junto a los que están al
+    // corriente de pago. Son dos cosas distintas —uno no debe nada, el otro ni
+    // siquiera ha empezado— y mezclarlos dejaba sin manera de encontrar los que
+    // esperan aprobación.
+    if (cliente.estadoAprobacion === 'PENDIENTE') return 'PENDIENTE'
+
     if (cliente.nivelRiesgo === 'LISTA_NEGRA') return 'LISTA_NEGRA'
 
     switch (calcularNivelMora(getDiasMoraCliente(cliente))) {
@@ -504,6 +511,7 @@ export default function ClientesFeature({
 
               {[
                 { id: 'all', label: 'Estado: Todos' },
+                { id: 'PENDIENTE', label: 'Pendientes' },
                 { id: 'AL_DIA', label: 'Al día' },
                 { id: 'LEVE', label: 'Leve' },
                 { id: 'PRECAUCION', label: 'Precaución' },
