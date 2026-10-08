@@ -4,20 +4,20 @@
  * ============================================================================
  * PÁGINA DE REPORTES OPERATIVOS
  * ============================================================================
- * 
+ *
  * @description
  * Dashboard centralizado para visualizar el rendimiento operativo de la empresa.
  * Muestra KPIs críticos como eficiencia de cobranza, cobertura de rutas y métricas
  * de crecimiento de cartera.
- * 
+ *
  * @roles ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'SUPERVISOR']
- * 
+ *
  * @functionality
  * 1. Visualización de KPIs globales (Recaudo, Eficiencia, Cobertura, Mora).
  * 2. Desglose detallado por Ruta de cobro.
  * 3. Navegación contextual (Smart Routing): Detecta el rol del usuario para
  *    redirigir a las vistas de detalle correspondientes (/admin vs /coordinador).
- * 
+ *
  * @maintenance
  * - Para agregar nuevos roles con acceso: Actualizar el hook useEffect que define `basePath`.
  * - Para conectar API real: Reemplazar `ARTICULOS_MOCK` y `rendimientoRutas` con llamadas fetch/axios.
@@ -34,6 +34,7 @@ import type { RoutePerformance } from '@/services/reportes-coordinador-service'
 import { useReportesCoordinador } from '@/hooks/useReportesCoordinador'
 import { computeOperationalMetaByRouteIdsForTimeFilter } from '@/lib/dashboard-operational-meta'
 import { toast } from 'sonner'
+import { SkeletonTablero } from '@/components/ui/Skeleton'
 
 const ReportesOperativosPage = () => {
   const router = useRouter()
@@ -41,28 +42,19 @@ const ReportesOperativosPage = () => {
   const searchParams = useSearchParams()
   const period = (searchParams.get('period') as TimeFilterPeriod) || 'today'
 
-
-  
-  const {
-      loading,
-      error,
-      reportData,
-      fetchOperationalReport,
-      exportReport
-  } = useReportesCoordinador()
-
-
+  const { loading, error, reportData, fetchOperationalReport, exportReport } =
+    useReportesCoordinador()
 
   const handlePeriodChange = (newPeriod: TimeFilterPeriod) => {
     const params = new URLSearchParams(searchParams.toString())
     params.set('period', newPeriod)
     router.replace(`${pathname}?${params.toString()}`, { scroll: false })
   }
-  
+
   // --- ESTADO & RUTAS ---
   // Controlamos si el componente ya se montó en el cliente para evitar errores de hidratación
   const [mounted, setMounted] = useState(false)
-  
+
   /**
    * Ruta base dinámica para navegación inteligente.
    * Esto permite que este mismo reporte sirva para Admin, Coordinadores y Supervisores,
@@ -71,7 +63,7 @@ const ReportesOperativosPage = () => {
   const [basePath, setBasePath] = useState('')
 
   // Filtro específico para ver el rendimiento de una sola ruta
-  const [filterRuta, setFilterRuta] = useState<string | null>(null);
+  const [filterRuta, setFilterRuta] = useState<string | null>(null)
   const [metaByRuta, setMetaByRuta] = useState<Record<string, number>>({})
 
   // El aviso de progreso lo pone <ExportButton>: espera a que termine la
@@ -102,12 +94,12 @@ const ReportesOperativosPage = () => {
   useEffect(() => {
     const timer = setTimeout(() => {
       setMounted(true)
-      
+
       const userData = localStorage.getItem('user')
       if (userData) {
         try {
           const user = JSON.parse(userData)
-          
+
           if (user.rol === 'COORDINADOR') {
             setBasePath('/coordinador')
           } else if (user.rol === 'SUPERVISOR') {
@@ -119,7 +111,7 @@ const ReportesOperativosPage = () => {
         }
       }
     }, 0)
-    
+
     return () => clearTimeout(timer)
   }, [])
 
@@ -128,14 +120,14 @@ const ReportesOperativosPage = () => {
     if (mounted) {
       fetchOperationalReport({
         period,
-        routeId: filterRuta || undefined
-      }).catch(err => console.error("Error loading report:", err));
+        routeId: filterRuta || undefined,
+      }).catch((err) => console.error('Error loading report:', err))
     }
-  }, [period, filterRuta, mounted, fetchOperationalReport]);
+  }, [period, filterRuta, mounted, fetchOperationalReport])
 
   useEffect(() => {
     if (!mounted) return
-    const rutas = (reportData)?.rendimientoRutas
+    const rutas = reportData?.rendimientoRutas
     const ids = (Array.isArray(rutas) ? rutas : []).map((r) => String(r?.id || '')).filter(Boolean)
     if (ids.length === 0) {
       setMetaByRuta({})
@@ -161,9 +153,10 @@ const ReportesOperativosPage = () => {
   }, [mounted, period, reportData])
 
   const handleRealtimeRefresh = useCallback(() => {
-    if (!mounted) return;
-    fetchOperationalReport({ period, routeId: filterRuta || undefined })
-      .catch(err => console.error('Error loading report (rt):', err))
+    if (!mounted) return
+    fetchOperationalReport({ period, routeId: filterRuta || undefined }).catch((err) =>
+      console.error('Error loading report (rt):', err),
+    )
   }, [mounted, period, filterRuta, fetchOperationalReport])
 
   useRealtimeData(
@@ -171,9 +164,12 @@ const ReportesOperativosPage = () => {
     handleRealtimeRefresh,
   )
 
-
   if (!mounted) {
-    return null
+    return (
+      <div className="p-4 sm:p-6">
+        <SkeletonTablero />
+      </div>
+    )
   }
 
   // Usamos los datos reales del hook, o valores por defecto seguros si aún no cargan
@@ -188,12 +184,15 @@ const ReportesOperativosPage = () => {
     rendimientoRutas: [],
     periodo: period,
     fechaInicio: '',
-    fechaFin: ''
-  };
+    fechaFin: '',
+  }
 
   const pickMeta = (item: RoutePerformance): number => {
     const id = String(item?.id || '')
-    const fromComputed = id && Object.prototype.hasOwnProperty.call(metaByRuta, id) ? Number((metaByRuta)[id] || 0) : null
+    const fromComputed =
+      id && Object.prototype.hasOwnProperty.call(metaByRuta, id)
+        ? Number(metaByRuta[id] || 0)
+        : null
     if (fromComputed !== null && Number.isFinite(fromComputed)) return Math.max(0, fromComputed)
     // Solo `meta`: el reporte la manda con ese nombre (reports.service.ts:1058, de
     // `metaDelDia`). `metaPendiente`, `metaHoy` y `metaDelDia` estaban en la cadena y
@@ -207,22 +206,26 @@ const ReportesOperativosPage = () => {
     return Number.isFinite(n) ? n : 0
   }
 
-  const rendimientoFiltrado = (Array.isArray(data.rendimientoRutas) ? data.rendimientoRutas : []).map((item) => {
+  const rendimientoFiltrado = (
+    Array.isArray(data.rendimientoRutas) ? data.rendimientoRutas : []
+  ).map((item) => {
     const meta = pickMeta(item)
     const recaudado = pickRecaudado(item)
-    const eficiencia = meta > 0 ? Math.min(100, Math.max(0, Number(((recaudado / meta) * 100).toFixed(1)))) : 0
+    const eficiencia =
+      meta > 0 ? Math.min(100, Math.max(0, Number(((recaudado / meta) * 100).toFixed(1)))) : 0
     return { ...item, meta, recaudado, eficiencia }
   })
 
-  const totalRecaudo = rendimientoFiltrado.reduce((acc: number, r) => acc + Number(r?.recaudado || 0), 0)
+  const totalRecaudo = rendimientoFiltrado.reduce(
+    (acc: number, r) => acc + Number(r?.recaudado || 0),
+    0,
+  )
   const totalMeta = rendimientoFiltrado.reduce((acc: number, r) => acc + Number(r?.meta || 0), 0)
   const porcentajeGlobal = (() => {
-    const raw = Number((data).porcentajeGlobal)
+    const raw = Number(data.porcentajeGlobal)
     if (Number.isFinite(raw) && raw >= 0) return raw
     return totalMeta > 0 ? Number(((totalRecaudo / totalMeta) * 100).toFixed(1)) : 0
   })()
-
-
 
   return (
     <div className="min-h-screen bg-slate-50 relative">
@@ -233,25 +236,26 @@ const ReportesOperativosPage = () => {
       </div>
 
       <div className="relative z-10 w-full space-y-6 md:space-y-8 p-4 md:p-8">
-      <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between animate-in fade-in slide-in-from-bottom-4 duration-700">
-        <div className="space-y-3 md:space-y-4">
-          <div className="inline-flex items-center gap-2 self-start px-3 py-1 rounded-full bg-slate-100 text-xs text-slate-600 tracking-wide font-bold border border-slate-200">
-            <BarChart3 className="h-3.5 w-3.5" />
-            <span>Reportes Operativos</span>
-          </div>
+        <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <div className="space-y-3 md:space-y-4">
+            <div className="inline-flex items-center gap-2 self-start px-3 py-1 rounded-full bg-slate-100 text-xs text-slate-600 tracking-wide font-bold border border-slate-200">
+              <BarChart3 className="h-3.5 w-3.5" />
+              <span>Reportes Operativos</span>
+            </div>
             <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight">
               <span className="text-blue-600">Rendimiento</span>
             </h1>
             <p className="text-sm md:text-base lg:text-lg text-slate-500 mt-2 max-w-2xl font-medium leading-relaxed">
-              Consolidado de operaciones del día: cobranza, colocación de créditos y captación de clientes.
+              Consolidado de operaciones del día: cobranza, colocación de créditos y captación de
+              clientes.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <TimeFilter activePeriod={period} onPeriodChange={handlePeriodChange} />
-            <ExportButton 
-              label="Exportar" 
-              onExportExcel={handleExportExcel} 
-              onExportPDF={handleExportPDF} 
+            <ExportButton
+              label="Exportar"
+              onExportExcel={handleExportExcel}
+              onExportPDF={handleExportPDF}
             />
           </div>
         </header>
@@ -264,9 +268,13 @@ const ReportesOperativosPage = () => {
                 <div className="shrink-0 p-1.5 bg-emerald-50 group-hover:scale-110 transition-transform border border-emerald-100 rounded-lg">
                   <DollarSign className="h-4 w-4 text-emerald-600" />
                 </div>
-                <p className="min-w-0 truncate text-xs font-bold text-slate-500 uppercase tracking-wider">Recaudo Total</p>
+                <p className="min-w-0 truncate text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Recaudo Total
+                </p>
               </div>
-              <h3 className="whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold text-slate-900 mt-2 leading-tight">{formatCurrency(totalRecaudo)}</h3>
+              <h3 className="whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold text-slate-900 mt-2 leading-tight">
+                {formatCurrency(totalRecaudo)}
+              </h3>
             </div>
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100">
@@ -283,13 +291,20 @@ const ReportesOperativosPage = () => {
                 <div className="shrink-0 p-1.5 bg-blue-50 group-hover:scale-110 transition-transform border border-blue-100 rounded-lg">
                   <FilePlus className="h-4 w-4 text-blue-600" />
                 </div>
-                <p className="min-w-0 truncate text-xs font-bold text-slate-500 uppercase tracking-wider">Préstamos Nuevos</p>
+                <p className="min-w-0 truncate text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Préstamos Nuevos
+                </p>
               </div>
-              <h3 className="whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold text-slate-900 mt-2 leading-tight">{data.totalPrestamosNuevos}</h3>
+              <h3 className="whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold text-slate-900 mt-2 leading-tight">
+                {data.totalPrestamosNuevos}
+              </h3>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-medium text-slate-500">
-                Total colocado: <span className="text-slate-900 font-bold">{formatCurrency(data.totalMontoPrestamosNuevos)}</span>
+                Total colocado:{' '}
+                <span className="text-slate-900 font-bold">
+                  {formatCurrency(data.totalMontoPrestamosNuevos)}
+                </span>
               </span>
             </div>
           </div>
@@ -300,12 +315,20 @@ const ReportesOperativosPage = () => {
                 <div className="shrink-0 p-1.5 bg-purple-50 group-hover:scale-110 transition-transform border border-purple-100 rounded-lg">
                   <Users className="h-4 w-4 text-purple-600" />
                 </div>
-                <p className="min-w-0 truncate text-xs font-bold text-slate-500 uppercase tracking-wider">Clientes Nuevos</p>
+                <p className="min-w-0 truncate text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Clientes Nuevos
+                </p>
               </div>
-              <h3 className="whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold text-slate-900 mt-2 leading-tight">{data.totalAfiliaciones}</h3>
+              <h3 className="whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold text-slate-900 mt-2 leading-tight">
+                {data.totalAfiliaciones}
+              </h3>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-500 font-medium">En {data.rendimientoRutas.filter((r: RoutePerformance) => r.nuevosClientes > 0).length} rutas diferentes</span>
+              <span className="text-xs text-slate-500 font-medium">
+                En{' '}
+                {data.rendimientoRutas.filter((r: RoutePerformance) => r.nuevosClientes > 0).length}{' '}
+                rutas diferentes
+              </span>
             </div>
           </div>
 
@@ -315,9 +338,13 @@ const ReportesOperativosPage = () => {
                 <div className="shrink-0 p-1.5 bg-amber-50 group-hover:scale-110 transition-transform border border-amber-100 rounded-lg">
                   <TrendingUp className="h-4 w-4 text-amber-600" />
                 </div>
-                <p className="min-w-0 truncate text-xs font-bold text-slate-500 uppercase tracking-wider">Efectividad Global</p>
+                <p className="min-w-0 truncate text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Efectividad Global
+                </p>
               </div>
-              <h3 className="whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold text-slate-900 mt-2 leading-tight">{data.efectividadPromedio}%</h3>
+              <h3 className="whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold text-slate-900 mt-2 leading-tight">
+                {data.efectividadPromedio}%
+              </h3>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs text-slate-500 font-medium">Promedio rutas</span>
@@ -335,7 +362,7 @@ const ReportesOperativosPage = () => {
               Desglose por Ruta
             </h3>
             <div className="flex items-center gap-3">
-              <button 
+              <button
                 onClick={() => router.push(`${basePath}/rutas`)}
                 className="text-xs font-bold text-slate-700 hover:text-slate-900 hover:underline transition-colors whitespace-nowrap"
                 title="Ver lista completa"
@@ -363,23 +390,31 @@ const ReportesOperativosPage = () => {
                   <tr key={idx} className="hover:bg-slate-50/50 transition-colors bg-white/0">
                     <td className="px-6 py-4 font-bold text-slate-900">{item.ruta}</td>
                     <td className="px-6 py-4 text-slate-600 font-medium">{item.cobrador}</td>
-                    <td className="px-6 py-4 text-right text-slate-500 font-medium">{formatCurrency(item.meta)}</td>
-                    <td className="px-6 py-4 text-right font-bold text-slate-900">{formatCurrency(item.recaudado)}</td>
+                    <td className="px-6 py-4 text-right text-slate-500 font-medium">
+                      {formatCurrency(item.meta)}
+                    </td>
+                    <td className="px-6 py-4 text-right font-bold text-slate-900">
+                      {formatCurrency(item.recaudado)}
+                    </td>
                     <td className="px-6 py-4 text-center">
                       <div className="flex flex-col items-center gap-1.5">
                         <span className="text-xs font-bold px-2 py-0.5 rounded-full border text-emerald-700 bg-emerald-50 border-emerald-100">
                           {item.eficiencia}%
                         </span>
                         <div className="w-20 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                          <div 
+                          <div
                             className="h-full rounded-full transition-all duration-500 bg-emerald-500"
                             style={{ width: `${item.eficiencia}%` }}
                           />
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-center text-slate-600 font-medium">{item.nuevosPrestamos}</td>
-                    <td className="px-6 py-4 text-center text-slate-600 font-medium">{item.nuevosClientes}</td>
+                    <td className="px-6 py-4 text-center text-slate-600 font-medium">
+                      {item.nuevosPrestamos}
+                    </td>
+                    <td className="px-6 py-4 text-center text-slate-600 font-medium">
+                      {item.nuevosClientes}
+                    </td>
                     <td className="px-6 py-4 text-right">
                       {/* 
                           BOTÓN DE DETALLE CON REDIRECCIÓN INTELIGENTE 
@@ -387,7 +422,7 @@ const ReportesOperativosPage = () => {
                           - Admin -> /admin/rutas/ID
                           - Coordinador -> /coordinador/rutas/ID
                       */}
-                      <button 
+                      <button
                         onClick={() => router.push(`${basePath}/rutas/${item.id}`)}
                         className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                         title="Ver Detalles"
@@ -405,13 +440,15 @@ const ReportesOperativosPage = () => {
         {/* Vista de Cards - Móvil */}
         <section className="md:hidden space-y-4 mb-8">
           <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-            <h3 className="font-bold text-slate-900 mb-6 text-lg">Comparativa de Recaudo vs Meta</h3>
+            <h3 className="font-bold text-slate-900 mb-6 text-lg">
+              Comparativa de Recaudo vs Meta
+            </h3>
             <div className="space-y-6">
               {rendimientoFiltrado.map((item: RoutePerformance, idx: number) => (
                 <div key={idx} className="space-y-2">
                   {(() => {
-                    const meta = Number((item).meta || 0)
-                    const recaudado = Number((item).recaudado || 0)
+                    const meta = Number(item.meta || 0)
+                    const recaudado = Number(item.recaudado || 0)
                     const pct = meta > 0 ? Math.min((recaudado / meta) * 100, 100) : 0
                     return (
                       <>
@@ -420,7 +457,9 @@ const ReportesOperativosPage = () => {
                           <span className="text-slate-500">Meta: {formatCurrency(item.meta)}</span>
                         </div>
                         <div className="flex justify-between text-sm">
-                          <span className="font-bold text-slate-700">Recaudado: {formatCurrency(item.recaudado)}</span>
+                          <span className="font-bold text-slate-700">
+                            Recaudado: {formatCurrency(item.recaudado)}
+                          </span>
                           <span className="text-slate-500">{pct.toFixed(0)}%</span>
                         </div>
                       </>
@@ -445,29 +484,39 @@ const ReportesOperativosPage = () => {
               {/* Objetivo y Recaudado */}
               <div className="grid grid-cols-2 gap-3 mb-3 pb-3 border-b border-slate-100">
                 <div>
-                  <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Meta</div>
-                  <div className="text-sm font-bold text-slate-600">{formatCurrency(item.meta)}</div>
+                  <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">
+                    Meta
+                  </div>
+                  <div className="text-sm font-bold text-slate-600">
+                    {formatCurrency(item.meta)}
+                  </div>
                 </div>
                 <div>
-                  <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Recaudado</div>
-                  <div className="text-lg font-bold text-slate-900">{formatCurrency(item.recaudado)}</div>
+                  <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">
+                    Recaudado
+                  </div>
+                  <div className="text-lg font-bold text-slate-900">
+                    {formatCurrency(item.recaudado)}
+                  </div>
                 </div>
               </div>
 
               {/* Eficiencia */}
               <div className="mb-3 pb-3 border-b border-slate-100">
-                <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-2">Eficiencia</div>
+                <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-2">
+                  Eficiencia
+                </div>
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-bold px-3 py-1 rounded-full border text-emerald-700 bg-emerald-50 border-emerald-100">
                     {item.eficiencia}%
                   </span>
                   <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
-                    <div 
+                    <div
                       className="bg-slate-900 h-2 rounded-full transition-all duration-1000 ease-out"
                       style={{
                         width: `${(() => {
-                          const meta = Number((item).meta || 0)
-                          const recaudado = Number((item).recaudado || 0)
+                          const meta = Number(item.meta || 0)
+                          const recaudado = Number(item.recaudado || 0)
                           return meta > 0 ? Math.min((recaudado / meta) * 100, 100) : 0
                         })()}%`,
                       }}
@@ -479,18 +528,22 @@ const ReportesOperativosPage = () => {
               {/* Nuevos Préstamos y Clientes */}
               <div className="grid grid-cols-2 gap-3 mb-3">
                 <div>
-                  <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Nuevos Prést.</div>
+                  <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">
+                    Nuevos Prést.
+                  </div>
                   <div className="text-lg font-bold text-blue-600">{item.nuevosPrestamos}</div>
                 </div>
                 <div>
-                  <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Nuevos Clientes</div>
+                  <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">
+                    Nuevos Clientes
+                  </div>
                   <div className="text-lg font-bold text-purple-600">{item.nuevosClientes}</div>
                 </div>
               </div>
 
               {/* Acción */}
               <div className="flex justify-end pt-3 border-t border-slate-100">
-                <button 
+                <button
                   onClick={() => router.push(`${basePath}/rutas/${item.id}`)}
                   className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
                 >
@@ -501,8 +554,6 @@ const ReportesOperativosPage = () => {
             </div>
           ))}
         </section>
-
-
       </div>
     </div>
   )

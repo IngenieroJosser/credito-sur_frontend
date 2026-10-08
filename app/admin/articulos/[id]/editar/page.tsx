@@ -13,12 +13,19 @@ import {
   DollarSign,
   Plus,
   Trash2,
-  AlertCircle
+  AlertCircle,
 } from 'lucide-react'
-import { formatCOPInputValue, formatCurrency, formatMilesCOP, parseCOPInputToNumber } from '@/lib/utils'
+import {
+  formatCOPInputValue,
+  formatCurrency,
+  formatMilesCOP,
+  parseCOPInputToNumber,
+} from '@/lib/utils'
 import SelectCategoria from '@/components/ui/SelectCategoria'
 import { inventarioService } from '@/services/inventario-service'
 import { toast } from 'sonner'
+
+import { SkeletonFormulario } from '@/components/ui/Skeleton'
 
 // Types
 interface PrecioCuota {
@@ -45,8 +52,12 @@ interface Articulo {
 export default function EditarArticuloPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
   const { id } = use(params)
-  
+
   const [loading, setLoading] = useState(false)
+  // `loading` es el del botón de guardar. Este es otro: el de traer el artículo al
+  // abrir. Arranca en `true` porque al pintar la primera vez los datos aún no están,
+  // y sin él la pantalla salía con el formulario vacío y luego saltaba al rellenarse.
+  const [cargandoArticulo, setCargandoArticulo] = useState(true)
   const [formData, setFormData] = useState({
     nombre: '',
     codigo: '',
@@ -58,7 +69,7 @@ export default function EditarArticuloPage({ params }: { params: Promise<{ id: s
     costo: '',
     stock: '',
     stockMinimo: '',
-    precios: [] as PrecioCuota[]
+    precios: [] as PrecioCuota[],
   })
   const [nuevaCuota, setNuevaCuota] = useState({ meses: PLAZOS_ARTICULO_MESES[0], precio: '' })
 
@@ -67,11 +78,11 @@ export default function EditarArticuloPage({ params }: { params: Promise<{ id: s
       try {
         const data = await inventarioService.obtenerProductoPorId(id)
         if (data) {
-            // `data` es un `Producto`: el endpoint devuelve el modelo tal cual
-            // (inventory.service.ts:332-347). Los alias que habia aqui -`sku`, `precio`,
-            // `cantidad` y `categoria.nombre`/`categoria.id`- no son columnas de
-            // `model Producto` (schema.prisma:236) y nunca resolvian: `categoria` es un
-            // texto, no un objeto. Antes el `any` los dejaba pasar.
+          // `data` es un `Producto`: el endpoint devuelve el modelo tal cual
+          // (inventory.service.ts:332-347). Los alias que habia aqui -`sku`, `precio`,
+          // `cantidad` y `categoria.nombre`/`categoria.id`- no son columnas de
+          // `model Producto` (schema.prisma:236) y nunca resolvian: `categoria` es un
+          // texto, no un objeto. Antes el `any` los dejaba pasar.
           setFormData({
             nombre: data.nombre || '',
             codigo: data.codigo || '',
@@ -83,11 +94,15 @@ export default function EditarArticuloPage({ params }: { params: Promise<{ id: s
             costo: formatMilesCOP(data.costo || 0),
             stock: String(data.stock || 0),
             stockMinimo: String(data.stockMinimo || 0),
-            precios: data.precios || []
+            precios: data.precios || [],
           })
         }
       } catch (err) {
         console.error('Error cargando artículo:', err)
+      } finally {
+        // En `finally` y no tras el `try`: si la petición falla hay que quitar el
+        // esqueleto igual, o la pantalla se queda cargando para siempre.
+        setCargandoArticulo(false)
       }
     }
     cargarArticulo()
@@ -118,19 +133,30 @@ export default function EditarArticuloPage({ params }: { params: Promise<{ id: s
   const addPrecioCuota = () => {
     const precio = parseCOPInputToNumber(nuevaCuota.precio)
     if (nuevaCuota.meses > 0 && precio > 0) {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
-        precios: [...prev.precios, { meses: nuevaCuota.meses, precio }].sort((a, b) => a.meses - b.meses)
+        precios: [...prev.precios, { meses: nuevaCuota.meses, precio }].sort(
+          (a, b) => a.meses - b.meses,
+        ),
       }))
       setNuevaCuota({ meses: PLAZOS_ARTICULO_MESES[0], precio: '' })
     }
   }
 
   const removePrecioCuota = (index: number) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      precios: prev.precios.filter((_, i) => i !== index)
+      precios: prev.precios.filter((_, i) => i !== index),
     }))
+  }
+
+  // Mientras llega el articulo, la pantalla ya tiene la forma del formulario.
+  if (cargandoArticulo) {
+    return (
+      <div className="min-h-screen bg-slate-50 p-4 sm:p-6">
+        <SkeletonFormulario />
+      </div>
+    )
   }
 
   return (
@@ -144,285 +170,315 @@ export default function EditarArticuloPage({ params }: { params: Promise<{ id: s
       <div className="relative z-10 p-6 md:p-8">
         {/* Header */}
         <div className="max-w-[1600px] mx-auto mb-8 animate-in fade-in slide-in-from-top-4 duration-500">
-        <div className="flex items-center justify-between">
-          <div className="min-w-0">
-            <button 
+          <div className="flex items-center justify-between">
+            <div className="min-w-0">
+              <button
+                onClick={() => router.back()}
+                className="mb-4 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-900"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                <span>Volver al catálogo</span>
+              </button>
+              <h1 className="text-4xl font-bold tracking-tight text-slate-900 mb-2">
+                <span className="text-blue-600">Editar</span>{' '}
+                <span className="text-orange-500">Artículo</span>
+              </h1>
+              <p className="text-slate-500 font-medium text-lg">
+                Modifique los detalles del artículo y sus precios a crédito.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <form
+          onSubmit={handleSave}
+          className="max-w-[1600px] mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-100"
+        >
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+            {/* Columna Izquierda (Información Principal) */}
+            <div className="xl:col-span-8 space-y-6">
+              {/* Información Básica */}
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div className="p-8">
+                  <h3 className="text-xl font-bold text-slate-900 flex items-center gap-3 pb-6 border-b border-slate-100 mb-8">
+                    <div className="shrink-0 p-2.5 bg-blue-50 rounded-xl text-blue-600">
+                      <Layers className="h-6 w-6" />
+                    </div>
+                    Información Básica
+                  </h3>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="md:col-span-2">
+                      <FieldLabel required className="mb-1">
+                        Nombre del Artículo
+                      </FieldLabel>
+                      <input
+                        type="text"
+                        required
+                        value={formData.nombre}
+                        onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                        className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 placeholder:text-slate-400"
+                        placeholder="Ej: Televisor Smart TV 50"
+                      />
+                    </div>
+
+                    <div>
+                      <FieldLabel required className="mb-1">
+                        Código
+                      </FieldLabel>
+                      <input
+                        type="text"
+                        required
+                        value={formData.codigo}
+                        onChange={(e) => setFormData({ ...formData, codigo: e.target.value })}
+                        className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 placeholder:text-slate-400"
+                        placeholder="Ej: TV-50-SMART"
+                      />
+                    </div>
+
+                    <div>
+                      <SelectCategoria
+                        tipo="ARTICULO"
+                        label="Categoría"
+                        required
+                        placeholder="Seleccionar..."
+                        value={formData.categoriaId}
+                        onChange={(val) =>
+                          setFormData({ ...formData, categoriaId: val, categoria: '' })
+                        }
+                      />
+                    </div>
+
+                    <div>
+                      <FieldLabel className="mb-1">Marca</FieldLabel>
+                      <input
+                        type="text"
+                        value={formData.marca}
+                        onChange={(e) => setFormData({ ...formData, marca: e.target.value })}
+                        className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 placeholder:text-slate-400"
+                        placeholder="Ej: Samsung"
+                      />
+                    </div>
+
+                    <div>
+                      <FieldLabel className="mb-1">Modelo</FieldLabel>
+                      <input
+                        type="text"
+                        value={formData.modelo}
+                        onChange={(e) => setFormData({ ...formData, modelo: e.target.value })}
+                        className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 placeholder:text-slate-400"
+                        placeholder="Ej: UN50AU7000"
+                      />
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <FieldLabel className="mb-1">Descripción</FieldLabel>
+                      <textarea
+                        rows={3}
+                        value={formData.descripcion}
+                        onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
+                        className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 placeholder:text-slate-400 resize-none"
+                        placeholder="Detalles adicionales del producto..."
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Precios a Crédito */}
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div className="p-8">
+                  <h3 className="text-xl font-bold text-slate-900 flex items-center gap-3 pb-6 border-b border-slate-100 mb-8">
+                    <div className="shrink-0 p-2.5 bg-blue-50 rounded-xl text-blue-600">
+                      <Tag className="h-6 w-6" />
+                    </div>
+                    Precios a Crédito
+                  </h3>
+
+                  <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 mb-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                      <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-1">Meses</label>
+                        <select
+                          value={nuevaCuota.meses}
+                          onChange={(e) =>
+                            setNuevaCuota({ ...nuevaCuota, meses: Number(e.target.value) })
+                          }
+                          className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900"
+                        >
+                          {PLAZOS_ARTICULO_MESES.map((m) => (
+                            <option key={m} value={m}>
+                              {m} Mes{m > 1 ? 'es' : ''}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-1">
+                          Precio Total
+                        </label>
+                        <div className="relative">
+                          <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={nuevaCuota.precio}
+                            onChange={(e) =>
+                              setNuevaCuota({
+                                ...nuevaCuota,
+                                precio: formatCOPInputValue(e.target.value),
+                              })
+                            }
+                            className="w-full pl-10 pr-4 py-2.5 rounded-xl border-slate-200 bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 placeholder:text-slate-400"
+                            placeholder="0"
+                          />
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={addPrecioCuota}
+                        className="px-6 py-2.5 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-colors font-bold flex items-center justify-center shadow-lg shadow-orange-500/20"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Agregar Precio
+                      </button>
+                    </div>
+                  </div>
+
+                  {formData.precios.length === 0 ? (
+                    <div className="text-center py-8 text-slate-500 bg-slate-50 rounded-lg border border-dashed border-slate-300">
+                      <AlertCircle className="h-8 w-8 mx-auto mb-2 text-slate-400" />
+                      <p>No se han configurado precios a crédito</p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto rounded-lg border border-slate-200">
+                      <table className="w-full text-sm text-left">
+                        <thead className="bg-slate-50 text-slate-700 font-medium border-b border-slate-200">
+                          <tr>
+                            <th className="px-4 py-3">Meses</th>
+                            <th className="px-4 py-3">Precio total</th>
+                            <th className="px-4 py-3 text-right">Cuota Mensual (Aprox)</th>
+                            <th className="px-4 py-3 text-right">Acciones</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200 bg-white">
+                          {formData.precios.map((p, index) => (
+                            <tr key={index} className="hover:bg-slate-50">
+                              <td className="px-4 py-3 font-medium text-slate-900">
+                                {p.meses} Mes{p.meses > 1 ? 'es' : ''}
+                              </td>
+                              <td className="px-4 py-3 text-slate-600">
+                                {formatCurrency(p.precio)}
+                              </td>
+                              <td className="px-4 py-3 text-right text-slate-500">
+                                {formatCurrency(p.precio / p.meses)}
+                              </td>
+                              <td className="px-4 py-3 text-right">
+                                <button
+                                  type="button"
+                                  onClick={() => removePrecioCuota(index)}
+                                  className="shrink-0 text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded-md transition-colors"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Columna Derecha (Inventario y Costos) */}
+            <div className="xl:col-span-4 space-y-6">
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden sticky top-6">
+                <div className="p-8">
+                  <h3 className="text-xl font-bold text-slate-900 flex items-center gap-3 pb-6 border-b border-slate-100 mb-8">
+                    <div className="shrink-0 p-2.5 bg-orange-50 rounded-xl text-orange-600">
+                      <Box className="h-6 w-6" />
+                    </div>
+                    Inventario y Costos
+                  </h3>
+
+                  <div className="space-y-6">
+                    <div>
+                      <FieldLabel required className="mb-2">
+                        Costo Unitario
+                      </FieldLabel>
+                      <div className="relative">
+                        <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          required
+                          value={formData.costo}
+                          onChange={(e) =>
+                            setFormData({ ...formData, costo: formatCOPInputValue(e.target.value) })
+                          }
+                          className="w-full pl-10 pr-4 py-3 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 placeholder:text-slate-400"
+                          placeholder="0"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <FieldLabel className="mb-2">Stock Actual</FieldLabel>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={formData.stock}
+                        onChange={(e) =>
+                          setFormData({ ...formData, stock: e.target.value.replace(/\D/g, '') })
+                        }
+                        className="w-full px-4 py-3 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 placeholder:text-slate-400"
+                        placeholder="0"
+                      />
+                    </div>
+
+                    <div>
+                      <FieldLabel className="mb-2">Stock Mínimo</FieldLabel>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={formData.stockMinimo}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            stockMinimo: e.target.value.replace(/\D/g, ''),
+                          })
+                        }
+                        className="w-full px-4 py-3 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 placeholder:text-slate-400"
+                        placeholder="0"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-center justify-end gap-4 pt-6 border-t border-slate-200">
+            <button
+              type="button"
               onClick={() => router.back()}
-              className="mb-4 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-900"
+              className="px-6 py-2.5 text-sm font-bold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm"
             >
-              <ArrowLeft className="h-4 w-4" />
-              <span>Volver al catálogo</span>
+              Cancelar
             </button>
-            <h1 className="text-4xl font-bold tracking-tight text-slate-900 mb-2">
-              <span className="text-blue-600">Editar</span> <span className="text-orange-500">Artículo</span>
-            </h1>
-            <p className="text-slate-500 font-medium text-lg">
-              Modifique los detalles del artículo y sus precios a crédito.
-            </p>
+            <button
+              onClick={handleSave}
+              disabled={loading}
+              className="flex items-center px-8 py-2.5 text-sm font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 disabled:opacity-50"
+            >
+              <Save className="h-4 w-4 mr-2" />
+              {loading ? 'Guardando...' : 'Guardar Cambios'}
+            </button>
           </div>
-        </div>
-      </div>
-
-      <form onSubmit={handleSave} className="max-w-[1600px] mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-100">
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-          {/* Columna Izquierda (Información Principal) */}
-          <div className="xl:col-span-8 space-y-6">
-            {/* Información Básica */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-              <div className="p-8">
-                <h3 className="text-xl font-bold text-slate-900 flex items-center gap-3 pb-6 border-b border-slate-100 mb-8">
-                  <div className="shrink-0 p-2.5 bg-blue-50 rounded-xl text-blue-600">
-                    <Layers className="h-6 w-6" />
-                  </div>
-                  Información Básica
-                </h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="md:col-span-2">
-                <FieldLabel required className="mb-1">Nombre del Artículo</FieldLabel>
-                <input
-                  type="text"
-                  required
-                  value={formData.nombre}
-                  onChange={e => setFormData({ ...formData, nombre: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 placeholder:text-slate-400"
-                  placeholder="Ej: Televisor Smart TV 50"
-                />
-              </div>
-
-              <div>
-                <FieldLabel required className="mb-1">Código</FieldLabel>
-                <input
-                  type="text"
-                  required
-                  value={formData.codigo}
-                  onChange={e => setFormData({ ...formData, codigo: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 placeholder:text-slate-400"
-                  placeholder="Ej: TV-50-SMART"
-                />
-              </div>
-
-              <div>
-                <SelectCategoria
-                  tipo="ARTICULO"
-                  label="Categoría"
-                  required
-                  placeholder="Seleccionar..."
-                  value={formData.categoriaId}
-                  onChange={(val) => setFormData({ ...formData, categoriaId: val, categoria: '' })}
-                />
-              </div>
-
-              <div>
-                <FieldLabel className="mb-1">Marca</FieldLabel>
-                <input
-                  type="text"
-                  value={formData.marca}
-                  onChange={e => setFormData({ ...formData, marca: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 placeholder:text-slate-400"
-                  placeholder="Ej: Samsung"
-                />
-              </div>
-
-              <div>
-                <FieldLabel className="mb-1">Modelo</FieldLabel>
-                <input
-                  type="text"
-                  value={formData.modelo}
-                  onChange={e => setFormData({ ...formData, modelo: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 placeholder:text-slate-400"
-                  placeholder="Ej: UN50AU7000"
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <FieldLabel className="mb-1">Descripción</FieldLabel>
-                <textarea
-                  rows={3}
-                  value={formData.descripcion}
-                  onChange={e => setFormData({ ...formData, descripcion: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 placeholder:text-slate-400 resize-none"
-                  placeholder="Detalles adicionales del producto..."
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Precios a Crédito */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-          <div className="p-8">
-            <h3 className="text-xl font-bold text-slate-900 flex items-center gap-3 pb-6 border-b border-slate-100 mb-8">
-              <div className="shrink-0 p-2.5 bg-blue-50 rounded-xl text-blue-600">
-                <Tag className="h-6 w-6" />
-              </div>
-              Precios a Crédito
-            </h3>
-
-            <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 mb-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1">Meses</label>
-                  <select
-                    value={nuevaCuota.meses}
-                    onChange={e => setNuevaCuota({ ...nuevaCuota, meses: Number(e.target.value) })}
-                    className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900"
-                  >
-                    {PLAZOS_ARTICULO_MESES.map(m => (
-                      <option key={m} value={m}>{m} Mes{m > 1 ? 'es' : ''}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1">
-                    Precio Total
-                  </label>
-                  <div className="relative">
-                    <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      value={nuevaCuota.precio}
-                      onChange={e => setNuevaCuota({ ...nuevaCuota, precio: formatCOPInputValue(e.target.value) })}
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border-slate-200 bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 placeholder:text-slate-400"
-                      placeholder="0"
-                    />
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={addPrecioCuota}
-                  className="px-6 py-2.5 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-colors font-bold flex items-center justify-center shadow-lg shadow-orange-500/20"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Agregar Precio
-                </button>
-              </div>
-            </div>
-
-            {formData.precios.length === 0 ? (
-              <div className="text-center py-8 text-slate-500 bg-slate-50 rounded-lg border border-dashed border-slate-300">
-                <AlertCircle className="h-8 w-8 mx-auto mb-2 text-slate-400" />
-                <p>No se han configurado precios a crédito</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto rounded-lg border border-slate-200">
-                <table className="w-full text-sm text-left">
-                  <thead className="bg-slate-50 text-slate-700 font-medium border-b border-slate-200">
-                    <tr>
-                      <th className="px-4 py-3">Meses</th>
-                      <th className="px-4 py-3">Precio total</th>
-                      <th className="px-4 py-3 text-right">Cuota Mensual (Aprox)</th>
-                      <th className="px-4 py-3 text-right">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200 bg-white">
-                    {formData.precios.map((p, index) => (
-                      <tr key={index} className="hover:bg-slate-50">
-                        <td className="px-4 py-3 font-medium text-slate-900">
-                          {p.meses} Mes{p.meses > 1 ? 'es' : ''}
-                        </td>
-                        <td className="px-4 py-3 text-slate-600">
-                          {formatCurrency(p.precio)}
-                        </td>
-                        <td className="px-4 py-3 text-right text-slate-500">
-                          {formatCurrency(p.precio / p.meses)}
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <button
-                            type="button"
-                            onClick={() => removePrecioCuota(index)}
-                            className="shrink-0 text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded-md transition-colors"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Columna Derecha (Inventario y Costos) */}
-      <div className="xl:col-span-4 space-y-6">
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden sticky top-6">
-          <div className="p-8">
-            <h3 className="text-xl font-bold text-slate-900 flex items-center gap-3 pb-6 border-b border-slate-100 mb-8">
-              <div className="shrink-0 p-2.5 bg-orange-50 rounded-xl text-orange-600">
-                <Box className="h-6 w-6" />
-              </div>
-              Inventario y Costos
-            </h3>
-
-            <div className="space-y-6">
-              <div>
-                <FieldLabel required className="mb-2">Costo Unitario</FieldLabel>
-                <div className="relative">
-                  <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    required
-                    value={formData.costo}
-                    onChange={e => setFormData({ ...formData, costo: formatCOPInputValue(e.target.value) })}
-                    className="w-full pl-10 pr-4 py-3 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 placeholder:text-slate-400"
-                    placeholder="0"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <FieldLabel className="mb-2">Stock Actual</FieldLabel>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={formData.stock}
-                  onChange={e => setFormData({ ...formData, stock: e.target.value.replace(/\D/g, '') })}
-                  className="w-full px-4 py-3 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 placeholder:text-slate-400"
-                  placeholder="0"
-                />
-              </div>
-
-              <div>
-                <FieldLabel className="mb-2">Stock Mínimo</FieldLabel>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={formData.stockMinimo}
-                  onChange={e => setFormData({ ...formData, stockMinimo: e.target.value.replace(/\D/g, '') })}
-                  className="w-full px-4 py-3 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 placeholder:text-slate-400"
-                  placeholder="0"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    {/* Action Buttons */}
-        <div className="flex items-center justify-end gap-4 pt-6 border-t border-slate-200">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="px-6 py-2.5 text-sm font-bold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm"
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={loading}
-            className="flex items-center px-8 py-2.5 text-sm font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 disabled:opacity-50"
-          >
-            <Save className="h-4 w-4 mr-2" />
-            {loading ? 'Guardando...' : 'Guardar Cambios'}
-          </button>
-        </div>
-      </form>
+        </form>
       </div>
     </div>
   )

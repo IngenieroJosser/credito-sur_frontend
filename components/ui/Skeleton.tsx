@@ -190,3 +190,87 @@ export function SkeletonDetalle({ className }: { className?: string }) {
     </div>
   )
 }
+
+/**
+ * Tablero: la fila de indicadores arriba, un gráfico ancho y una tabla corta.
+ *
+ * Es la forma de las pantallas de entrada de cada rol. Importa que los
+ * indicadores vayan en UNA fila y no apilados: si el esqueleto los apila y el
+ * contenido real no, la página pega un salto al cargar, que es justo lo que
+ * estos esqueletos existen para evitar.
+ */
+export function SkeletonTablero({
+  indicadores = 4,
+  className,
+}: {
+  indicadores?: number
+  className?: string
+}) {
+  return (
+    <div className={cn('space-y-6', className)} aria-busy="true">
+      <div className="space-y-2">
+        <Skeleton className="h-7 w-56" />
+        <Skeleton className="h-4 w-80" />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {Array.from({ length: indicadores }).map((_, i) => (
+          <div
+            key={i}
+            className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+          >
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="mt-3 h-7 w-32" />
+            <Skeleton className="mt-2 h-3 w-20" />
+          </div>
+        ))}
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <Skeleton className="h-4 w-40" />
+        <Skeleton className="mt-4 h-48 w-full" />
+      </div>
+
+      <SkeletonTabla filas={4} />
+    </div>
+  )
+}
+
+/**
+ * Formulario: el título, los campos en dos columnas y los botones al pie.
+ *
+ * Los campos van emparejados porque así se muestran en el escritorio; en móvil
+ * la rejilla los baja a uno por fila, igual que el formulario de verdad.
+ */
+export function SkeletonFormulario({
+  campos = 6,
+  className,
+}: {
+  campos?: number
+  className?: string
+}) {
+  return (
+    <div className={cn('space-y-6', className)} aria-busy="true">
+      <div className="space-y-2">
+        <Skeleton className="h-7 w-64" />
+        <Skeleton className="h-4 w-96" />
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="grid gap-5 sm:grid-cols-2">
+          {Array.from({ length: campos }).map((_, i) => (
+            <div key={i} className="space-y-2">
+              <Skeleton className="h-3 w-28" />
+              <Skeleton className="h-10 w-full rounded-lg" />
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-6 flex justify-end gap-3">
+          <Skeleton className="h-10 w-28 rounded-lg" />
+          <Skeleton className="h-10 w-36 rounded-lg" />
+        </div>
+      </div>
+    </div>
+  )
+}

@@ -26,6 +26,7 @@ import FieldLabel from '@/components/ui/FieldLabel';
 import { idDelPrestamoCreado } from '@/lib/creditos/prestamo-creado';
 import { FrecuenciaPago } from '@/types/enums'
 
+import { SkeletonFormulario } from '@/components/ui/Skeleton'
 // Esta pantalla declaraba su propia copia de este tipo (la tercera del proyecto: hay
 // otra en `lib/types/cobranza.ts`, ensanchada con `| string`). Los valores son los del
 // enum, y `crearPrestamo` pide el enum, asi que el literal no le valia y habia que
@@ -394,6 +395,16 @@ export default function CreacionCreditoArticulo({
     const numId = parseInt(String(id).match(/\d+/)?.[0] || '0');
     return colors[numId % 3];
   };
+
+  // Mientras llegan los datos, la pantalla ya tiene la forma que va a tener:
+  // sin esto se quedaba en blanco y al cargar pegaba un salto.
+  if (loadingDatos) {
+    return (
+      <div className="p-4 sm:p-6">
+        <SkeletonFormulario />
+      </div>
+    )
+  }
 
   return (
     <div className="bg-slate-50 relative pb-12">

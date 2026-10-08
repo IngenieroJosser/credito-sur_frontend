@@ -7,8 +7,11 @@ import { BarChart3, DollarSign, FilePlus, MapPin, TrendingUp, Users, Eye } from 
 import { cn, formatCurrency } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
 import { TimeFilter, TimeFilterPeriod } from '@/components/ui/TimeFilter'
-import { reportesCoordinadorService, type RoutePerformance } from '@/services/reportes-coordinador-service'
-
+import {
+  reportesCoordinadorService,
+  type RoutePerformance,
+} from '@/services/reportes-coordinador-service'
+import { SkeletonTablero } from '@/components/ui/Skeleton'
 
 const ReportesOperativosSupervisorPage = () => {
   const router = useRouter()
@@ -27,8 +30,6 @@ const ReportesOperativosSupervisorPage = () => {
   const [totalRecaudo, setTotalRecaudo] = useState(0)
   const [totalObjetivo, setTotalObjetivo] = useState(0)
   const [porcentajeGlobal, setPorcentajeGlobal] = useState(0)
-
-
 
   const handleExportExcel = () => {
     reportesCoordinadorService.exportReport({ period }, 'excel').catch(console.error)
@@ -55,14 +56,21 @@ const ReportesOperativosSupervisorPage = () => {
     }
   }, [period])
 
-  useEffect(() => { fetchData() }, [fetchData])
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
 
   useRealtimeData(
     ['dashboards_actualizados', 'pagos_actualizados', 'prestamos_actualizados'],
     fetchData,
   )
 
-  if (!mounted) return null
+  if (!mounted)
+    return (
+      <div className="p-4 sm:p-6">
+        <SkeletonTablero />
+      </div>
+    )
 
   return (
     <div className="min-h-screen bg-slate-50 relative">
@@ -83,12 +91,17 @@ const ReportesOperativosSupervisorPage = () => {
               <span className="text-orange-500">Diario</span>
             </h1>
             <p className="text-lg text-slate-500 mt-2 max-w-2xl font-medium leading-relaxed">
-              Consolidado de operaciones del día: cobranza, colocación de créditos y captación de clientes.
+              Consolidado de operaciones del día: cobranza, colocación de créditos y captación de
+              clientes.
             </p>
           </div>
           <div className="flex items-center gap-3">
             <TimeFilter activePeriod={period} onPeriodChange={handlePeriodChange} />
-            <ExportButton label="Exportar" onExportExcel={handleExportExcel} onExportPDF={handleExportPDF} />
+            <ExportButton
+              label="Exportar"
+              onExportExcel={handleExportExcel}
+              onExportPDF={handleExportPDF}
+            />
           </div>
         </header>
 
@@ -99,9 +112,13 @@ const ReportesOperativosSupervisorPage = () => {
                 <div className="shrink-0 p-1.5 bg-emerald-50 group-hover:scale-110 transition-transform border border-emerald-100 rounded-lg">
                   <DollarSign className="h-4 w-4 text-emerald-600" />
                 </div>
-                <p className="min-w-0 truncate text-xs font-bold text-slate-500 uppercase tracking-wider">Recaudo Total</p>
+                <p className="min-w-0 truncate text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Recaudo Total
+                </p>
               </div>
-              <h3 className="whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold text-slate-900 mt-2 leading-tight">{formatCurrency(totalRecaudo)}</h3>
+              <h3 className="whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold text-slate-900 mt-2 leading-tight">
+                {formatCurrency(totalRecaudo)}
+              </h3>
             </div>
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100">
@@ -118,13 +135,18 @@ const ReportesOperativosSupervisorPage = () => {
                 <div className="shrink-0 p-1.5 bg-blue-50 group-hover:scale-110 transition-transform border border-blue-100 rounded-lg">
                   <FilePlus className="h-4 w-4 text-blue-600" />
                 </div>
-                <p className="min-w-0 truncate text-xs font-bold text-slate-500 uppercase tracking-wider">Préstamos Nuevos</p>
+                <p className="min-w-0 truncate text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Préstamos Nuevos
+                </p>
               </div>
-              <h3 className="whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold text-slate-900 mt-2 leading-tight">3</h3>
+              <h3 className="whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold text-slate-900 mt-2 leading-tight">
+                3
+              </h3>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-medium text-slate-500">
-                Total colocado: <span className="text-slate-900 font-bold">{formatCurrency(450000)}</span>
+                Total colocado:{' '}
+                <span className="text-slate-900 font-bold">{formatCurrency(450000)}</span>
               </span>
             </div>
           </div>
@@ -135,9 +157,13 @@ const ReportesOperativosSupervisorPage = () => {
                 <div className="shrink-0 p-1.5 bg-purple-50 group-hover:scale-110 transition-transform border border-purple-100 rounded-lg">
                   <Users className="h-4 w-4 text-purple-600" />
                 </div>
-                <p className="min-w-0 truncate text-xs font-bold text-slate-500 uppercase tracking-wider">Clientes Nuevos</p>
+                <p className="min-w-0 truncate text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Clientes Nuevos
+                </p>
               </div>
-              <h3 className="whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold text-slate-900 mt-2 leading-tight">3</h3>
+              <h3 className="whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold text-slate-900 mt-2 leading-tight">
+                3
+              </h3>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs text-slate-500 font-medium">En 2 rutas diferentes</span>
@@ -150,9 +176,13 @@ const ReportesOperativosSupervisorPage = () => {
                 <div className="shrink-0 p-1.5 bg-amber-50 group-hover:scale-110 transition-transform border border-amber-100 rounded-lg">
                   <TrendingUp className="h-4 w-4 text-amber-600" />
                 </div>
-                <p className="min-w-0 truncate text-xs font-bold text-slate-500 uppercase tracking-wider">Efectividad Global</p>
+                <p className="min-w-0 truncate text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Efectividad Global
+                </p>
               </div>
-              <h3 className="whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold text-slate-900 mt-2 leading-tight">{porcentajeGlobal}%</h3>
+              <h3 className="whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold text-slate-900 mt-2 leading-tight">
+                {porcentajeGlobal}%
+              </h3>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs text-slate-500 font-medium">Promedio rutas</span>
@@ -188,8 +218,12 @@ const ReportesOperativosSupervisorPage = () => {
                   <tr key={idx} className="hover:bg-slate-50/50 transition-colors bg-white/0">
                     <td className="px-6 py-4 font-bold text-slate-900">{item.ruta}</td>
                     <td className="px-6 py-4 text-slate-600 font-medium">{item.cobrador}</td>
-                    <td className="px-6 py-4 text-right text-slate-500 font-medium">{formatCurrency(item.meta)}</td>
-                    <td className="px-6 py-4 text-right font-bold text-slate-900">{formatCurrency(item.recaudado)}</td>
+                    <td className="px-6 py-4 text-right text-slate-500 font-medium">
+                      {formatCurrency(item.meta)}
+                    </td>
+                    <td className="px-6 py-4 text-right font-bold text-slate-900">
+                      {formatCurrency(item.recaudado)}
+                    </td>
                     <td className="px-6 py-4 text-center">
                       <div className="flex flex-col items-center gap-1.5">
                         <span
@@ -219,8 +253,12 @@ const ReportesOperativosSupervisorPage = () => {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-center text-slate-600 font-medium">{item.nuevosPrestamos}</td>
-                    <td className="px-6 py-4 text-center text-slate-600 font-medium">{item.nuevosClientes}</td>
+                    <td className="px-6 py-4 text-center text-slate-600 font-medium">
+                      {item.nuevosPrestamos}
+                    </td>
+                    <td className="px-6 py-4 text-center text-slate-600 font-medium">
+                      {item.nuevosClientes}
+                    </td>
                     <td className="px-6 py-4 text-right">
                       <button
                         onClick={() => router.push(`/supervisor/rutas/${item.id}`)}
@@ -239,14 +277,18 @@ const ReportesOperativosSupervisorPage = () => {
 
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-            <h3 className="font-bold text-slate-900 mb-6 text-lg">Comparativa de Recaudo vs Meta</h3>
+            <h3 className="font-bold text-slate-900 mb-6 text-lg">
+              Comparativa de Recaudo vs Meta
+            </h3>
             <div className="space-y-6">
               {rendimientoRutas.map((item, idx) => (
                 <div key={idx} className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="font-bold text-slate-700">{item.ruta}</span>
                     <span className="text-slate-500 font-medium">
-                      <span className="text-slate-900 font-bold">{formatCurrency(item.recaudado)}</span>
+                      <span className="text-slate-900 font-bold">
+                        {formatCurrency(item.recaudado)}
+                      </span>
                       <span className="mx-1 text-slate-300">/</span>
                       {formatCurrency(item.meta)}
                     </span>
@@ -254,7 +296,9 @@ const ReportesOperativosSupervisorPage = () => {
                   <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
                     <div
                       className="bg-slate-900 h-2 rounded-full transition-all duration-1000 ease-out"
-                      style={{ width: `${item.meta > 0 ? Math.min((item.recaudado / item.meta) * 100, 100) : 0}%` }}
+                      style={{
+                        width: `${item.meta > 0 ? Math.min((item.recaudado / item.meta) * 100, 100) : 0}%`,
+                      }}
                     ></div>
                   </div>
                 </div>
@@ -266,7 +310,8 @@ const ReportesOperativosSupervisorPage = () => {
             <div className="relative z-10">
               <h3 className="font-bold text-xl mb-3 text-slate-900">Resumen</h3>
               <p className="text-slate-500 text-sm mb-8 leading-relaxed font-medium">
-                La operación de hoy muestra un rendimiento sólido en la Ruta Centro. Se recomienda revisar la Ruta Sur que está por debajo del 70% de cumplimiento.
+                La operación de hoy muestra un rendimiento sólido en la Ruta Centro. Se recomienda
+                revisar la Ruta Sur que está por debajo del 70% de cumplimiento.
               </p>
 
               <div className="space-y-4">
@@ -275,7 +320,9 @@ const ReportesOperativosSupervisorPage = () => {
                     <TrendingUp className="h-5 w-5 text-emerald-600" />
                   </div>
                   <div>
-                    <p className="text-xs text-slate-500 uppercase tracking-wider font-bold">Mejor Ruta</p>
+                    <p className="text-xs text-slate-500 uppercase tracking-wider font-bold">
+                      Mejor Ruta
+                    </p>
                     <p className="font-bold text-slate-900">Ruta Centro (83%)</p>
                   </div>
                 </div>
@@ -284,7 +331,9 @@ const ReportesOperativosSupervisorPage = () => {
                     <Users className="h-5 w-5 text-slate-600" />
                   </div>
                   <div>
-                    <p className="text-xs text-slate-500 uppercase tracking-wider font-bold">Clientes Atendidos</p>
+                    <p className="text-xs text-slate-500 uppercase tracking-wider font-bold">
+                      Clientes Atendidos
+                    </p>
                     <p className="font-bold text-slate-900">95 visitas realizadas</p>
                   </div>
                 </div>
