@@ -18,7 +18,8 @@ import { RolUsuario, EstadoUsuario } from "@/types/enums";
 import { apiRequest } from "@/lib/api/api";
 import { formatShortDateTime, formatShortDate } from "@/lib/utils/format";
 import { buildBogotaOffsetIsoFromKey, normalizeDateKey } from '@/lib/rutas-core'
-import BotonAccion from '@/components/ui/BotonAccion'
+import BotonAccion from '@/components/ui/BotonAccion'
+import { SkeletonTabla } from '@/components/ui/Skeleton';
 
 import {
   Search,
@@ -1197,6 +1198,16 @@ const UserManagementPage = () => {
             No tienes permisos para ver Usuarios.
           </p>
         </div>
+      </div>
+    );
+  }
+
+  // Despues del guard de permisos, nunca antes: quien no puede ver esta pantalla
+  // tampoco debe ver su esqueleto, que ya adelanta que hay una tabla de usuarios.
+  if (loading) {
+    return (
+      <div className="p-4 sm:p-6">
+        <SkeletonTabla filas={8} />
       </div>
     );
   }

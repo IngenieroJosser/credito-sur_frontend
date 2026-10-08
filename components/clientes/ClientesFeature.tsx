@@ -185,7 +185,6 @@ export default function ClientesFeature({
   const [isClientModalOpen, setIsClientModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [clientToEdit, setClientToEdit] = useState<ClienteAdmin | null>(null)
-  const [diasMoraByClientId, setDiasMoraByClientId] = useState<Record<string, number>>({})
 
   const normalizeEstadoFilter = (value: string) => {
     if (value === 'VERDE') return 'AL_DIA'
@@ -238,6 +237,22 @@ export default function ClientesFeature({
     }
   }
 
+  // Los dias de mora llegan YA en el listado (`clients.service.ts`: la consulta trae la
+  // cuota impaga mas antigua de cada prestamo y calcula los dias ahi mismo).
+  //
+  // Aqui habia un efecto que, por cada cliente visible, pedia su detalle completo con
+  // sus prestamos y sus cuotas solo para sacar ese numero. Medido: 33 peticiones en 3,9 s
+  // con OCHO clientes, de las cuales 8 eran `/clients/:id`. Con trescientos clientes eran
+  // trescientas peticiones, y de ahi que el listado tardara una eternidad en dejar de
+  // decir "Calculando...".
+  const diasMoraByClientId = useMemo(() => {
+    const mapa: Record<string, number> = {}
+    for (const c of Array.isArray(clientes) ? clientes : []) {
+      const id = String(c?.id || '')
+      if (id) mapa[id] = Number(c?.diasMora ?? 0)
+    }
+    return mapa
+  }, [clientes])
   const getDiasMoraCliente = (cliente: ClienteAdmin) =>
     Number(diasMoraByClientId[String(cliente?.id || '')] ?? cliente?.diasMora ?? 0)
 
@@ -371,67 +386,6 @@ export default function ClientesFeature({
   const indexOfLastItem = currentPage * itemsPerPage
   const indexOfFirstItem = indexOfLastItem - itemsPerPage
   const currentItems = filteredClientes.slice(indexOfFirstItem, indexOfLastItem)
-
-  useEffect(() => {
-    let cancelled = false
-
-    const run = async () => {
-      const visibles = (Array.isArray(currentItems) ? currentItems : [])
-        .map((c) => ({ id: String(c?.id || ''), isPending: c?.estadoAprobacion === 'PENDIENTE' }))
-        .filter(
-          (c) => !!c.id && !c.id.includes('offline') && !c.id.includes('temp') && !c.isPending,
-        )
-
-      if (visibles.length === 0) return
-
-      const hoyKey = getBogotaDateKey(new Date())
-      const updates: Record<string, number> = {}
-
-      await Promise.all(
-        visibles.map(async ({ id }) => {
-          try {
-            // Solo recalcular si el backend no manda diasMora o viene en 0.
-            const existing = Number(diasMoraByClientId?.[id])
-            if (existing > 0) return
-
-            const detalle = await clientesService.obtenerPorId(id)
-            const prestamos = Array.isArray(detalle?.prestamos) ? detalle.prestamos : []
-
-            let maxDias = 0
-            for (const p of prestamos) {
-              const cuotas = Array.isArray(p?.cuotas) ? p.cuotas : []
-              if (cuotas.length === 0) continue
-
-              const frecuencia = String(p?.frecuenciaPago || 'DIARIO').toUpperCase()
-              const vencidas = cuotas.some((c) => {
-                if (!c || !isCuotaNoPagada(c)) return false
-                const raw = resolveFechaEfectivaCuota(c) || String(c?.fechaVencimiento || '')
-                const k = normalizeDateKey(raw)
-                return !!k && !!hoyKey && k < hoyKey
-              })
-              if (!vencidas) continue
-
-              const dm = computeDiasMoraFromCuotas(cuotas, hoyKey, frecuencia)
-              if (dm > maxDias) maxDias = dm
-            }
-
-            updates[id] = maxDias
-          } catch {
-            // ignore
-          }
-        }),
-      )
-
-      if (cancelled) return
-      if (Object.keys(updates).length === 0) return
-      setDiasMoraByClientId((prev) => ({ ...prev, ...updates }))
-    }
-
-    run()
-    return () => {
-      cancelled = true
-    }
-  }, [currentItems.map((c) => c.id).join(',')])
 
   if (!permitido) {
     return (
