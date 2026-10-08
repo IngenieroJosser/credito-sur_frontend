@@ -1,7 +1,7 @@
 'use client'
 
 import { datosParaRegistro, estadoDeError, mensajeDeError } from '@/lib/mensaje-de-error'
-import { Skeleton, SkeletonDetalle } from '@/components/ui/Skeleton'
+import { Skeleton, SkeletonTablero } from '@/components/ui/Skeleton'
 
 import { logger } from '@/lib/logger'
 
@@ -321,10 +321,12 @@ const RutaClientLoaded = ({
   const mapearAsignacionesAVisitas = useCallback(
     // La ruta trae las asignaciones con dos nombres segun el endpoint: esa cascada es lo
     // que el `any` escondia.
-    (data: {
-      asignaciones?: AsignacionDelMapeo[] | null
-      asignacionesRuta?: AsignacionDelMapeo[] | null
-    } | null) => {
+    (
+      data: {
+        asignaciones?: AsignacionDelMapeo[] | null
+        asignacionesRuta?: AsignacionDelMapeo[] | null
+      } | null,
+    ) => {
       const asignaciones = data?.asignaciones || data?.asignacionesRuta
       if (!asignaciones || !Array.isArray(asignaciones)) return []
 
@@ -2329,10 +2331,7 @@ const RutaClientLoaded = ({
               // `clienteCreditoId` y `CrearCreditoModalData` no declara las otras dos. Mismo
               // bloque duplicado que en SupervisorCobroView, corregido igual.
               const clienteIdFinal = String(
-                prestamo?.clienteId ||
-                  prestamo?.cliente?.id ||
-                  data?.clienteCreditoId ||
-                  '',
+                prestamo?.clienteId || prestamo?.cliente?.id || data?.clienteCreditoId || '',
               ).trim()
 
               const cobradorResponsableId = String(initialRuta?.cobradorId || '').trim()
@@ -2435,9 +2434,7 @@ const RutaClientLoaded = ({
           // bastaba con `target.error` porque el tipo de la visita era `any`.
           const { contextoPagoRegularizado, visitaRegularizada } = target
           if (!contextoPagoRegularizado || !visitaRegularizada) {
-            toast.error(
-              target.error || 'No se pudo preparar el pago regularizado.',
-            )
+            toast.error(target.error || 'No se pudo preparar el pago regularizado.')
             return
           }
 
@@ -2470,9 +2467,7 @@ const RutaClientLoaded = ({
           // bastaba con `target.error` porque el tipo de la visita era `any`.
           const { contextoPagoRegularizado, visitaRegularizada } = target
           if (!contextoPagoRegularizado || !visitaRegularizada) {
-            toast.error(
-              target.error || 'No se pudo preparar el pago regularizado.',
-            )
+            toast.error(target.error || 'No se pudo preparar el pago regularizado.')
             return
           }
 
@@ -2519,9 +2514,7 @@ const RutaClientLoaded = ({
           // bastaba con `target.error` porque el tipo de la visita era `any`.
           const { contextoPagoRegularizado, visitaRegularizada } = target
           if (!contextoPagoRegularizado || !visitaRegularizada) {
-            toast.error(
-              target.error || 'No se pudo preparar el pago regularizado.',
-            )
+            toast.error(target.error || 'No se pudo preparar el pago regularizado.')
             return
           }
 
@@ -2675,7 +2668,14 @@ const RutaClient = ({ initialRuta: initialRutaProp, rutaId }: RutaClientProps) =
   const initialRuta = rutaData
 
   if (loadingRuta) {
-    return <SkeletonDetalle />
+    // `SkeletonTablero` y no `SkeletonDetalle`: esta pantalla no es una ficha, es el
+    // tablero de la ruta —cabecera, los indicadores del día y la lista de visitas—, y el
+    // esqueleto tiene que ocupar ese mismo sitio para que no salte al cargar.
+    return (
+      <div className="p-4 sm:p-6">
+        <SkeletonTablero />
+      </div>
+    )
   }
 
   if (!initialRuta) {

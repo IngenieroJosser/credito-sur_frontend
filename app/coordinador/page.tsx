@@ -1,12 +1,12 @@
-'use client';
+'use client'
 import { estadoDeError } from '@/lib/mensaje-de-error'
 
 import PantallaCarga from '@/components/ui/PantallaCarga'
 
-import { useEffect, useState, useCallback } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { DashboardClient } from '@/app/admin/dashboard-client';
-import { TimeFilterPeriod } from '@/components/ui/TimeFilter';
+import { useEffect, useState, useCallback } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { DashboardClient } from '@/app/admin/dashboard-client'
+import { TimeFilterPeriod } from '@/components/ui/TimeFilter'
 import {
   CreditCard,
   Target,
@@ -16,64 +16,66 @@ import {
   Wallet,
   PieChart,
   Route,
-} from 'lucide-react';
-import { dashboardService } from '@/services/dashboard-coordinador-service';
-import { prestamosService } from '@/services/prestamos-service';
-import { useRealtimeData } from '@/hooks/useRealtimeData';
+} from 'lucide-react'
+import { dashboardService } from '@/services/dashboard-coordinador-service'
+import { prestamosService } from '@/services/prestamos-service'
+import { useRealtimeData } from '@/hooks/useRealtimeData'
+
+import { SkeletonTablero } from '@/components/ui/Skeleton'
 
 interface UserData {
-  id: string;
-  nombres: string;
-  apellidos: string;
-  rol: string;
-  correo?: string;
-  telefono?: string;
+  id: string
+  nombres: string
+  apellidos: string
+  rol: string
+  correo?: string
+  telefono?: string
 }
 
 interface MetricItem {
-  title: string;
-  value: number | string;
-  subValue?: string;
-  isCurrency: boolean;
-  change: number | null;
-  icon: React.ReactNode;
-  color: string;
+  title: string
+  value: number | string
+  subValue?: string
+  isCurrency: boolean
+  change: number | null
+  icon: React.ReactNode
+  color: string
 }
 
 interface QuickAccessItem {
-  title: string;
-  subtitle: string;
-  icon: React.ReactNode;
-  color: string;
-  badge?: number;
-  href: string;
+  title: string
+  subtitle: string
+  icon: React.ReactNode
+  color: string
+  badge?: number
+  href: string
 }
 
 interface FrontendDashboardData {
-  mainMetrics: MetricItem[];
-  quickAccess: QuickAccessItem[];
+  mainMetrics: MetricItem[]
+  quickAccess: QuickAccessItem[]
   recentLoans: Array<{
-    client: string;
-    amount: number;
-    term: string;
-    status: string;
-    date: string;
-  }>;
+    client: string
+    amount: number
+    term: string
+    status: string
+    date: string
+  }>
   topCollectors: Array<{
-    name: string;
-    collected: number;
-    efficiency: number;
-    trend: 'up' | 'down';
-  }>;
+    name: string
+    collected: number
+    efficiency: number
+    trend: 'up' | 'down'
+  }>
   chartData: Array<{
-    label: string;
-    value: number;
-    target?: number;
-    date?: string;
-    time?: string;
-  }>;
-  userFullName: string;
-  userRole: string;
+    label: string
+    value: number
+    target?: number
+    date?: string
+    time?: string
+  }>
+  userFullName: string
+  userRole: string
 }
 
 const TIME_FILTER_MAP: Record<TimeFilterPeriod, string> = {
@@ -81,43 +83,43 @@ const TIME_FILTER_MAP: Record<TimeFilterPeriod, string> = {
   week: 'week',
   month: 'month',
   year: 'year',
-};
+}
 
 const PERIOD_LABEL: Record<TimeFilterPeriod, string> = {
   today: 'Hoy',
   week: 'Semana',
   month: 'Mes',
   year: 'Año',
-};
+}
 
 export default function CoordinadorPage() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const period = (searchParams.get('period') as TimeFilterPeriod) || 'today';
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const period = (searchParams.get('period') as TimeFilterPeriod) || 'today'
 
   const [state, setState] = useState<{
-    isLoading: boolean;
-    userData: UserData | null;
-    dashboardData: FrontendDashboardData | null;
-    shouldRedirect: string | null;
+    isLoading: boolean
+    userData: UserData | null
+    dashboardData: FrontendDashboardData | null
+    shouldRedirect: string | null
   }>({
     isLoading: true,
     userData: null,
     dashboardData: null,
     shouldRedirect: null,
-  });
+  })
 
   const initializeDashboard = useCallback(async () => {
-    let isMounted = true;
-    const userStr = localStorage.getItem('user');
+    let isMounted = true
+    const userStr = localStorage.getItem('user')
 
     if (!userStr) {
-      router.replace('/login');
-      return;
+      router.replace('/login')
+      return
     }
 
     try {
-      const parsedUser = JSON.parse(userStr) as UserData;
+      const parsedUser = JSON.parse(userStr) as UserData
 
       if (parsedUser.rol !== 'COORDINADOR') {
         const ROLE_REDIRECT_MAP: Record<string, string> = {
@@ -127,209 +129,219 @@ export default function CoordinadorPage() {
           COBRADOR: '/cobranzas',
           CONTADOR: '/contador/contable',
           PUNTO_DE_VENTA: '/punto-de-venta',
-        };
+        }
         if (isMounted) {
           setState({
             isLoading: false,
             userData: parsedUser,
             dashboardData: null,
             shouldRedirect: ROLE_REDIRECT_MAP[parsedUser.rol] || '/login',
-          });
+          })
         }
-        return;
+        return
       }
 
-        const [backendData, prestamosData] = await Promise.allSettled([
-          dashboardService.getDashboardData(TIME_FILTER_MAP[period]),
-          prestamosService.obtenerPrestamos({ limit: 5 }),
-        ]);
+      const [backendData, prestamosData] = await Promise.allSettled([
+        dashboardService.getDashboardData(TIME_FILTER_MAP[period]),
+        prestamosService.obtenerPrestamos({ limit: 5 }),
+      ])
 
-        const dashboard = backendData.status === 'fulfilled' ? backendData.value : null;
-        const prestamos = prestamosData.status === 'fulfilled' ? prestamosData.value : null;
-        const stats = prestamos?.estadisticas;
+      const dashboard = backendData.status === 'fulfilled' ? backendData.value : null
+      const prestamos = prestamosData.status === 'fulfilled' ? prestamosData.value : null
+      const stats = prestamos?.estadisticas
 
-        const moraPercent =
-          stats && stats.montoTotal > 0
-            ? ((stats.moraTotal / stats.montoTotal) * 100).toFixed(1)
-            : '0';
+      const moraPercent =
+        stats && stats.montoTotal > 0
+          ? ((stats.moraTotal / stats.montoTotal) * 100).toFixed(1)
+          : '0'
 
-        const mainMetrics: MetricItem[] = [
-          {
-            title: `Capital Prestado (${PERIOD_LABEL[period]})`,
-            value: Number(dashboard?.metrics?.capitalPrestado ?? 0),
-            isCurrency: true,
-            change: null,
-            icon: <CreditCard className="h-4 w-4" />,
-            color: '#3b82f6',
-          },
-          {
-            title: 'Eficiencia de Cobro',
-            value: dashboard ? `${dashboard.metrics.efficiency}%` : '0%',
-            subValue: `${stats?.pagados || 0} pagados de ${stats?.total || 0}`,
-            isCurrency: false,
-            change: null,
-            icon: <Target className="h-4 w-4" />,
-            color: '#8b5cf6',
-          },
-          {
-            title: 'Cartera en Mora',
-            value: stats?.moraTotal || 0,
-            subValue: `${moraPercent}% del total · ${stats?.atrasados || 0} cuentas`,
-            isCurrency: true,
-            change: null,
-            icon: <AlertCircle className="h-4 w-4" />,
-            color: '#f43f5e',
-          },
-          {
-            title: 'Saldo Pendiente',
-            value: stats?.montoPendiente || 0,
-            subValue: `${stats?.activos || 0} créditos vigentes`,
-            isCurrency: true,
-            change: null,
-            icon: <Banknote className="h-4 w-4" />,
-            color: '#f59e0b',
-          },
-        ];
+      const mainMetrics: MetricItem[] = [
+        {
+          title: `Capital Prestado (${PERIOD_LABEL[period]})`,
+          value: Number(dashboard?.metrics?.capitalPrestado ?? 0),
+          isCurrency: true,
+          change: null,
+          icon: <CreditCard className="h-4 w-4" />,
+          color: '#3b82f6',
+        },
+        {
+          title: 'Eficiencia de Cobro',
+          value: dashboard ? `${dashboard.metrics.efficiency}%` : '0%',
+          subValue: `${stats?.pagados || 0} pagados de ${stats?.total || 0}`,
+          isCurrency: false,
+          change: null,
+          icon: <Target className="h-4 w-4" />,
+          color: '#8b5cf6',
+        },
+        {
+          title: 'Cartera en Mora',
+          value: stats?.moraTotal || 0,
+          subValue: `${moraPercent}% del total · ${stats?.atrasados || 0} cuentas`,
+          isCurrency: true,
+          change: null,
+          icon: <AlertCircle className="h-4 w-4" />,
+          color: '#f43f5e',
+        },
+        {
+          title: 'Saldo Pendiente',
+          value: stats?.montoPendiente || 0,
+          subValue: `${stats?.activos || 0} créditos vigentes`,
+          isCurrency: true,
+          change: null,
+          icon: <Banknote className="h-4 w-4" />,
+          color: '#f59e0b',
+        },
+      ]
 
-        const quickAccess: QuickAccessItem[] = [
-          {
-            title: 'Nuevo Crédito',
-            subtitle: 'Definir tasas y cuotas',
-            icon: <CreditCard className="h-5 w-5" />,
-            color: '#0f172a',
-            badge: dashboard?.metrics.pendingApprovals || undefined,
-            href: '#',
-          },
-          {
-            title: 'Cobranza',
-            subtitle: 'Gestionar pagos',
-            icon: <Wallet className="h-5 w-5" />,
-            color: '#10b981',
-            badge: dashboard?.metrics.delinquentAccounts || undefined,
-            href: '/coordinador/pagos/registro',
-          },
-          {
-            title: 'Rutas',
-            subtitle: 'Asignación y supervisión',
-            icon: <Route className="h-5 w-5" />,
-            color: '#6366f1',
-            href: '/coordinador/rutas',
-          },
-          {
-            title: 'Clientes',
-            subtitle: 'Base de datos',
-            icon: <Users className="h-5 w-5" />,
-            color: '#08557f',
-            href: '/coordinador/clientes',
-          },
-          {
-            title: 'Cuentas Vencidas',
-            subtitle: 'Plazos expirados',
-            icon: <AlertCircle className="h-5 w-5" />,
-            color: '#e11d48',
-            href: '/coordinador/cuentas-vencidas',
-          },
-          {
-            title: 'Reportes',
-            subtitle: 'Flujo de caja y rendimiento',
-            icon: <PieChart className="h-5 w-5" />,
-            color: '#f59e0b',
-            href: '/coordinador/reportes',
-          },
-        ];
+      const quickAccess: QuickAccessItem[] = [
+        {
+          title: 'Nuevo Crédito',
+          subtitle: 'Definir tasas y cuotas',
+          icon: <CreditCard className="h-5 w-5" />,
+          color: '#0f172a',
+          badge: dashboard?.metrics.pendingApprovals || undefined,
+          href: '#',
+        },
+        {
+          title: 'Cobranza',
+          subtitle: 'Gestionar pagos',
+          icon: <Wallet className="h-5 w-5" />,
+          color: '#10b981',
+          badge: dashboard?.metrics.delinquentAccounts || undefined,
+          href: '/coordinador/pagos/registro',
+        },
+        {
+          title: 'Rutas',
+          subtitle: 'Asignación y supervisión',
+          icon: <Route className="h-5 w-5" />,
+          color: '#6366f1',
+          href: '/coordinador/rutas',
+        },
+        {
+          title: 'Clientes',
+          subtitle: 'Base de datos',
+          icon: <Users className="h-5 w-5" />,
+          color: '#08557f',
+          href: '/coordinador/clientes',
+        },
+        {
+          title: 'Cuentas Vencidas',
+          subtitle: 'Plazos expirados',
+          icon: <AlertCircle className="h-5 w-5" />,
+          color: '#e11d48',
+          href: '/coordinador/cuentas-vencidas',
+        },
+        {
+          title: 'Reportes',
+          subtitle: 'Flujo de caja y rendimiento',
+          icon: <PieChart className="h-5 w-5" />,
+          color: '#f59e0b',
+          href: '/coordinador/reportes',
+        },
+      ]
 
-        const recentLoans = (prestamos?.prestamos || []).slice(0, 5).map((p) => {
-          // En el LISTADO `cliente` es el nombre ya compuesto, no el objeto: leer
-          // `cliente.nombres` daba undefined y la tarjeta salia con "Cliente".
-          const clientName = p.cliente || 'Cliente';
-          const dateStr = p.creadoEn
-            ? new Date(p.creadoEn).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })
-            : '';
-          return {
-            client: clientName,
-            amount: p.montoTotal || p.montoPrestado || 0,
-            term: p.frecuenciaPago || 'Mensual',
-            status: p.estado || 'PENDIENTE',
-            date: dateStr,
-          };
-        });
-
-        // El target lo manda el backend POR PUNTO del grafico ("meta nominal
-        // diaria"), que es lo que hace falta: `Sem` y `Mes` agrupan por dia, asi
-        // que cada barra tiene su propia meta. Aqui se pisaba con una sola cifra
-        // global del periodo, y la eficiencia de cada dia salia dividida entre
-        // el numero de barras. Se decidio asi en 247aec2 ("usar target
-        // especifico por punto del backend en lugar de meta global"), pero ese
-        // arreglo se aplico a VistaCoordinador, que no lo renderiza nadie.
-        const chartData = (dashboard?.trend || []).map((t) => ({
-          label: t.label,
-          value: t.value,
-          target: Number(t.target || 0),
-        }));
-
-        const topCollectors = (dashboard?.topCollectors || []).slice(0, 5).map((c) => ({
-          name: c.name,
-          collected: c.collected || 0,
-          efficiency: c.efficiency || 0,
-          trend: (c.trend || 'up') as 'up' | 'down',
-        }));
-
-        if (isMounted) {
-          setState({
-            isLoading: false,
-            userData: parsedUser,
-            dashboardData: {
-              mainMetrics,
-              quickAccess,
-              recentLoans,
-              topCollectors,
-              chartData,
-              userFullName: `${parsedUser.nombres} ${parsedUser.apellidos}`,
-              userRole: 'COORDINADOR',
-            },
-            shouldRedirect: null,
-          });
+      const recentLoans = (prestamos?.prestamos || []).slice(0, 5).map((p) => {
+        // En el LISTADO `cliente` es el nombre ya compuesto, no el objeto: leer
+        // `cliente.nombres` daba undefined y la tarjeta salia con "Cliente".
+        const clientName = p.cliente || 'Cliente'
+        const dateStr = p.creadoEn
+          ? new Date(p.creadoEn).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })
+          : ''
+        return {
+          client: clientName,
+          amount: p.montoTotal || p.montoPrestado || 0,
+          term: p.frecuenciaPago || 'Mensual',
+          status: p.estado || 'PENDIENTE',
+          date: dateStr,
         }
-      } catch (error) {
-        console.error('Error cargando dashboard coordinador:', error);
-        // Solo hacer logout en error de autenticación (401), no en errores de red
-        if (estadoDeError(error) === 401 || estadoDeError(error) === 401) {
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          router.replace('/login');
-        }
+      })
+
+      // El target lo manda el backend POR PUNTO del grafico ("meta nominal
+      // diaria"), que es lo que hace falta: `Sem` y `Mes` agrupan por dia, asi
+      // que cada barra tiene su propia meta. Aqui se pisaba con una sola cifra
+      // global del periodo, y la eficiencia de cada dia salia dividida entre
+      // el numero de barras. Se decidio asi en 247aec2 ("usar target
+      // especifico por punto del backend en lugar de meta global"), pero ese
+      // arreglo se aplico a VistaCoordinador, que no lo renderiza nadie.
+      const chartData = (dashboard?.trend || []).map((t) => ({
+        label: t.label,
+        value: t.value,
+        target: Number(t.target || 0),
+      }))
+
+      const topCollectors = (dashboard?.topCollectors || []).slice(0, 5).map((c) => ({
+        name: c.name,
+        collected: c.collected || 0,
+        efficiency: c.efficiency || 0,
+        trend: (c.trend || 'up') as 'up' | 'down',
+      }))
+
+      if (isMounted) {
+        setState({
+          isLoading: false,
+          userData: parsedUser,
+          dashboardData: {
+            mainMetrics,
+            quickAccess,
+            recentLoans,
+            topCollectors,
+            chartData,
+            userFullName: `${parsedUser.nombres} ${parsedUser.apellidos}`,
+            userRole: 'COORDINADOR',
+          },
+          shouldRedirect: null,
+        })
       }
-      isMounted = false;
+    } catch (error) {
+      console.error('Error cargando dashboard coordinador:', error)
+      // Solo hacer logout en error de autenticación (401), no en errores de red
+      if (estadoDeError(error) === 401 || estadoDeError(error) === 401) {
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
+        router.replace('/login')
+      }
+    }
+    isMounted = false
   }, [router, period])
 
   useEffect(() => {
-    initializeDashboard();
-  }, [initializeDashboard]);
+    initializeDashboard()
+  }, [initializeDashboard])
 
   // Tiempo real: refrescar dashboard cuando pagos o préstamos cambien
-  useRealtimeData(['pagos_actualizados', 'prestamos_actualizados', 'rutas_actualizadas'], initializeDashboard)
+  useRealtimeData(
+    ['pagos_actualizados', 'prestamos_actualizados', 'rutas_actualizadas'],
+    initializeDashboard,
+  )
 
   useEffect(() => {
     if (state.shouldRedirect) {
-      router.replace(state.shouldRedirect);
+      router.replace(state.shouldRedirect)
     }
-  }, [state.shouldRedirect, router]);
+  }, [state.shouldRedirect, router])
 
   if (state.isLoading) {
+    // Esqueleto con la forma del tablero y no un spinner: el spinner no dice qué va a
+    // aparecer y, al llegar los datos, la pantalla salta de golpe. Esto ocupa el mismo
+    // sitio que el tablero real, así que no se mueve nada.
+    //
+    // La redirección de abajo sí sigue con `PantallaCarga`: ahí no se está cargando esta
+    // pantalla, se está yendo a otra, y un esqueleto del tablero prometería algo que no
+    // va a llegar.
     return (
-      <PantallaCarga texto="Preparando tu dashboard..." />
-    );
+      <div className="p-4 sm:p-6">
+        <SkeletonTablero />
+      </div>
+    )
   }
 
   if (state.shouldRedirect) {
-    return (
-      <PantallaCarga texto="Te estamos redirigiendo..." />
-    );
+    return <PantallaCarga texto="Te estamos redirigiendo..." />
   }
 
   if (!state.dashboardData) {
-    return null;
+    return null
   }
 
-  return <DashboardClient data={state.dashboardData} />;
+  return <DashboardClient data={state.dashboardData} />
 }
