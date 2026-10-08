@@ -1,5 +1,7 @@
 'use client'
 
+import { mensajeDeError } from '@/lib/mensaje-de-error'
+import { numero, texto } from '@/lib/valores-de-api'
 /**
  * ============================================================================
  * MÓDULO DE REVISIONES - Centro de Aprobaciones
@@ -31,7 +33,6 @@ import {
   XCircle,
   AlertTriangle,
   Loader2,
-  RefreshCw,
   Eye,
   User,
   Ban,
@@ -43,6 +44,7 @@ import {
   MapPin,
   X,
 } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { formatCurrency, formatMilesCOP } from '@/lib/utils'
 import { aprobacionesService, type Aprobacion, type PendingResponse, type SuperadminReviewResponse } from '@/services/aprobaciones-service'
 import { alertasClientesService, type AlertaCliente } from '@/services/alertas-clientes-service'
@@ -51,14 +53,33 @@ import { rutasService, type Ruta } from '@/services/rutas-service'
 import { TipoAprobacion } from '@/types/enums'
 import { toast } from 'sonner'
 
-import NotificacionDetalleModal from '@/components/dashboards/shared/NotificacionDetalleModal'
+import NotificacionDetalleModal, {
+  type DetallesEditados,
+} from '@/components/dashboards/shared/NotificacionDetalleModal'
+import type {
+  Notificacion,
+  NotificacionParaDetalle,
+} from '@/services/notificaciones-service'
 import AlertaClienteDetalleModal from '@/components/notificaciones/AlertaClienteDetalleModal'
 import ProrrogaDetalleModal, { type ProrrogaData } from '@/components/revisiones/ProrrogaDetalleModal'
 import ReprogramacionDetalleModal, { type ReprogramacionData } from '@/components/revisiones/ReprogramacionDetalleModal'
 import ConfirmRejectModal from '@/components/ui/ConfirmRejectModal'
+import { SkeletonTarjetas } from '@/components/ui/Skeleton'
 
 // Configuración de categorías con meta visual
-const CATEGORIAS: Record<string, { label: string; icon: any; color: string; bgColor: string; borderColor: string; tipoNotif: string }> = {
+// `icon` es un componente de lucide-react, no `any`: `LucideIcon` es el tipo que la propia
+// libreria exporta para eso, y con el un icono mal importado deja de compilar.
+const CATEGORIAS: Record<
+  string,
+  {
+    label: string
+    icon: LucideIcon
+    color: string
+    bgColor: string
+    borderColor: string
+    tipoNotif: string
+  }
+> = {
   NUEVO_CLIENTE: {
     label: 'Clientes',
     icon: Users,
@@ -146,7 +167,7 @@ const CATEGORIAS: Record<string, { label: string; icon: any; color: string; bgCo
 const formatFecha = (iso: string | null | undefined) => {
   if (!iso) return '—'
   const d = new Date(iso)
-  return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true })
+  return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true })
 }
 
 const toBogotaDateKey = (value: string | null | undefined) => {
@@ -175,7 +196,7 @@ const formatFechaCortaBogota = (value: string | null | undefined) => {
   return date.toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })
 }
 
-const textValue = (...values: any[]) => {
+const textValue = (...values: unknown[]) => {
   for (const value of values) {
     if (value === null || value === undefined) continue
     const str = String(value).trim()
@@ -188,7 +209,6 @@ const getAlertaClienteNombre = (alerta: AlertaCliente) => {
   const snapshot = alerta.snapshotCliente || {}
   const cliente = snapshot.cliente || alerta.cliente || {}
   return textValue(
-    cliente.nombreCompleto,
     `${cliente.nombres || ''} ${cliente.apellidos || ''}`,
     'Cliente sin nombre',
   )
@@ -197,7 +217,18 @@ const getAlertaClienteNombre = (alerta: AlertaCliente) => {
 const getAlertaMetricas = (alerta: AlertaCliente) => {
   const snapshot = alerta.snapshotCliente || {}
   const creditos = Array.isArray(snapshot.creditos) ? snapshot.creditos : []
-  const esActiva = (credito: any) => {
+  // Los tres callbacks leen los mismos cinco campos del credito del snapshot: se declaran
+  // una vez. Con `any`, un `esCarteraActiva` mal escrito habria hecho que TODO credito
+  // contara como activo, y de ahi salen el saldo de cartera y las cuotas vencidas que ve
+  // quien aprueba.
+  type CreditoDelSnapshot = {
+    esCarteraActiva?: boolean | null
+    estado?: string | null
+    estadoAprobacion?: string | null
+    saldoPendiente?: number | string | null
+    cuotasVencidas?: number | null
+  }
+  const esActiva = (credito: CreditoDelSnapshot) => {
     if (credito?.esCarteraActiva === true) return true
     if (credito?.esCarteraActiva === false) return false
 
@@ -210,10 +241,18 @@ const getAlertaMetricas = (alerta: AlertaCliente) => {
   }
   const saldoCarteraActiva = creditos
     .filter(esActiva)
-    .reduce((sum: number, credito: any) => sum + Number(credito.saldoPendiente || 0), 0)
+    .reduce(
+      (sum: number, credito: CreditoDelSnapshot) =>
+        sum + Number(credito.saldoPendiente || 0),
+      0,
+    )
   const cuotasVencidas = creditos
     .filter(esActiva)
-    .reduce((sum: number, credito: any) => sum + Number(credito.cuotasVencidas || 0), 0)
+    .reduce(
+      (sum: number, credito: CreditoDelSnapshot) =>
+        sum + Number(credito.cuotasVencidas || 0),
+      0,
+    )
   const metricas = snapshot.metricas || {}
   const tieneDetalleCreditos = creditos.length > 0
 
@@ -223,7 +262,6 @@ const getAlertaMetricas = (alerta: AlertaCliente) => {
       ? saldoCarteraActiva
       : (
       metricas.saldoPendienteCarteraActiva ??
-      metricas.saldoCarteraActiva ??
       metricas.saldoPendienteTotal ??
       0
       ),
@@ -234,12 +272,20 @@ const getAlertaMetricas = (alerta: AlertaCliente) => {
       ? creditos.filter(esActiva).length
       : (metricas.creditosActivos ?? 0),
     creditosPendientesRevision: tieneDetalleCreditos
-      ? creditos.filter((credito: any) => !esActiva(credito)).length
+      ? creditos.filter((credito) => !esActiva(credito)).length
       : (metricas.creditosPendientesRevision ?? 0),
   }
 }
 
-const resolveFechaOriginalReprogramacion = (datos: any, creadoEn?: string | null) => {
+const resolveFechaOriginalReprogramacion = (
+  // Los tres campos que se leen de los datos de la solicitud, que es una columna `Json`.
+  datos: {
+    fechaGestionOriginal?: string | null
+    fechaOperativaRuta?: string | null
+    fechaVencimientoOriginal?: string | null
+  } | null,
+  creadoEn?: string | null,
+) => {
   const fechaGestion =
     toBogotaDateKey(datos?.fechaGestionOriginal) ||
     toBogotaDateKey(datos?.fechaOperativaRuta)
@@ -257,7 +303,24 @@ const resolveFechaOriginalReprogramacion = (datos: any, creadoEn?: string | null
 /**
  * Transforma un objeto de aprobación al formato que recibe NotificacionDetalleModal
  */
-const aprobacionToNotificacion = (item: Aprobacion) => {
+// El retorno se ANOTA: sin eso TypeScript ensancha los literales de `estado` y `tipo` a
+// `string`, y el puente deja de comprobar que produce una notificacion valida. Que es
+// justo lo que este puente tiene que garantizar.
+// Los conversores viven en `lib/valores-de-api`: estaban escritos a mano aqui y en el modal
+// de pago regularizado, y hacian falta en seis sitios mas. Una sola copia.
+
+const decisionDeProrroga = (
+  valor: unknown,
+): 'PRORROGAR' | 'CASTIGAR' | 'DEJAR_QUIETO' | undefined => {
+  const d = String(valor ?? '').trim().toUpperCase()
+  return d === 'PRORROGAR' || d === 'CASTIGAR' || d === 'DEJAR_QUIETO'
+    ? d
+    : undefined
+}
+
+
+
+const aprobacionToNotificacion = (item: Aprobacion): NotificacionParaDetalle => {
   const datos = item.datosSolicitud || {}
   const cat = CATEGORIAS[item.tipoAprobacion] || CATEGORIAS.BAJA_POR_PERDIDA
 
@@ -276,8 +339,8 @@ const aprobacionToNotificacion = (item: Aprobacion) => {
   }
 
   if (item.tipoAprobacion === 'PRORROGA_PAGO' || datos.tipo === 'GESTION_VENCIDA' || datos.tipo === 'ASIGNAR_MORA') {
-    const clienteNombre = datos.cliente || datos.clienteNombre || '—'
-    const decision = datos.decision || 'PRORROGAR'
+    const clienteNombre = texto(datos.cliente) || texto(datos.clienteNombre) || '—'
+    const decision = texto(datos.decision) || 'PRORROGAR'
     const DECISION_LABEL: Record<string, string> = {
       PRORROGAR: 'Prórroga de Plazo',
       CASTIGAR:  'Baja por Pérdida',
@@ -285,15 +348,15 @@ const aprobacionToNotificacion = (item: Aprobacion) => {
       ASIGNAR_MORA: 'Asignación de Mora',
     }
     titulo = `${DECISION_LABEL[decision] || cat.label} — ${clienteNombre}`
-    if (decision === 'PRORROGAR' && datos.diasGracia) {
-      mensaje = `${item.solicitante} solicitó una prórroga de ${datos.diasGracia} días para ${clienteNombre}${datos.numeroPrestamo ? ` (${datos.numeroPrestamo})` : ''}. Saldo: ${datos.saldoPendiente ? `$${formatMilesCOP(Number(datos.saldoPendiente))}` : '—'}.`
+    if (decision === 'PRORROGAR' && numero(datos.diasGracia)) {
+      mensaje = `${item.solicitante} solicitó una prórroga de ${numero(datos.diasGracia)} días para ${clienteNombre}${texto(datos.numeroPrestamo) ? ` (${texto(datos.numeroPrestamo)})` : ''}. Saldo: ${numero(datos.saldoPendiente) ? `$${formatMilesCOP(Number(numero(datos.saldoPendiente)))}` : '—'}.`
     } else if (decision === 'ASIGNAR_MORA') {
-      mensaje = `${item.solicitante} asignó $${formatMilesCOP(Number(datos.montoInteres || 0))} de mora a ${clienteNombre}${datos.numeroPrestamo ? ` (${datos.numeroPrestamo})` : ''}.`
+      mensaje = `${item.solicitante} asignó $${formatMilesCOP(Number(numero(datos.montoInteres) || 0))} de mora a ${clienteNombre}${texto(datos.numeroPrestamo) ? ` (${texto(datos.numeroPrestamo)})` : ''}.`
     } else {
-      mensaje = `${item.solicitante} solicitó ${(DECISION_LABEL[decision] || decision).toLowerCase()} para ${clienteNombre}${datos.numeroPrestamo ? ` (${datos.numeroPrestamo})` : ''}.`
+      mensaje = `${item.solicitante} solicitó ${(DECISION_LABEL[decision] || decision).toLowerCase()} para ${clienteNombre}${texto(datos.numeroPrestamo) ? ` (${texto(datos.numeroPrestamo)})` : ''}.`
     }
   } else if (item.tipoAprobacion === 'REPROGRAMACION_CUOTA') {
-    const clienteNombre = datos.cliente || datos.clienteNombre || '—'
+    const clienteNombre = texto(datos.cliente) || texto(datos.clienteNombre) || '—'
     titulo = `Reprogramaciones — ${clienteNombre}`
     mensaje = `Solicitud de reprogramación por ${item.solicitante}`
   }
@@ -302,11 +365,24 @@ const aprobacionToNotificacion = (item: Aprobacion) => {
     id: item.id,
     titulo,
     mensaje,
-    tipo: cat.tipoNotif as any,
+    // `as Notificacion['tipo']`: `tipoNotif` es texto en la tabla de categorias y el
+    // destino es una union cerrada. Los valores de esa tabla estan dentro de la union.
+    tipo: cat.tipoNotif as Notificacion['tipo'],
     creadoEn: item.creadoEn,
     leida: false,
     entidadId: item.id,
-    estado: item.estado === 'PENDIENTE' ? 'PENDIENTE' : item.estado,
+    // HALLAZGO: los dos enums no coinciden en el genero. `Aprobacion.estado` es
+    // PENDIENTE/APROBADO/RECHAZADO/CANCELADO (masculino, enums.ts:104) y
+    // `Notificacion.estado` es PENDIENTE/APROBADA/RECHAZADA (femenino,
+    // notificaciones-service.ts:17). Este puente pasaba el masculino tal cual, asi que la
+    // notificacion quedaba con un estado que su propia union no contiene, y cualquier
+    // comparacion contra 'APROBADA' daba falso. Se traduce.
+    estado:
+      item.estado === 'APROBADO'
+        ? 'APROBADA'
+        : item.estado === 'RECHAZADO'
+          ? 'RECHAZADA'
+          : 'PENDIENTE',
     solicitante: item.solicitante || 'Desconocido',
     approvalType: item.tipoAprobacion,
     detalles: datos,
@@ -320,8 +396,9 @@ const aprobacionToNotificacion = (item: Aprobacion) => {
       motivoRechazo: item.comentarios,
       monto: datos.monto || item.montoSolicitud,
     },
-    motivoRechazo: item.comentarios,
-    revisadoPor: item.rechazadoPor,
+    // Los dos son nulables en la base y la notificacion los quiere opcionales.
+    motivoRechazo: item.comentarios ?? undefined,
+    revisadoPor: item.rechazadoPor ?? undefined,
   }
 }
 
@@ -348,7 +425,9 @@ export default function RevisionesPage() {
   const [filtroPuntoVenta, setFiltroPuntoVenta] = useState<boolean>(false)
 
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
-  const [selectedItem, setSelectedItem] = useState<any>(null)
+  const [selectedItem, setSelectedItem] = useState<NotificacionParaDetalle | null>(
+    null,
+  )
   const [selectedAlertaCliente, setSelectedAlertaCliente] = useState<AlertaCliente | null>(null)
   const [resolveAlertaCliente, setResolveAlertaCliente] = useState<AlertaCliente | null>(null)
 
@@ -389,7 +468,7 @@ export default function RevisionesPage() {
       ])
 
       if (pendientes.status === 'fulfilled') setData(pendientes.value)
-      if (superadmin.status === 'fulfilled') setSuperadminData(superadmin.value as any)
+      if (superadmin.status === 'fulfilled') setSuperadminData(superadmin.value)
       if (rutasData.status === 'fulfilled') setRutas(rutasData.value)
       if (alertasData.status === 'fulfilled') setAlertasCliente(alertasData.value)
     } catch (error) {
@@ -425,7 +504,7 @@ export default function RevisionesPage() {
 
   // Helper para detectar si un item corresponde a una prorroga o gestion vencida
   const isProrrogaOrVencida = (item: Aprobacion) => {
-    const datos = item.datosSolicitud || {} as any
+    const datos = item.datosSolicitud || {}
     return (
       item.tipoAprobacion === 'PRORROGA_PAGO' ||
       datos.tipo === 'GESTION_VENCIDA' ||
@@ -434,40 +513,59 @@ export default function RevisionesPage() {
   }
 
   // Helper para detectar si es un gasto provisional real
-  const isGastoProvisional = (item: Aprobacion) => {
-    const datos = item.datosSolicitud || {} as any
+  // Acepta las dos formas por el mismo motivo que `isGastoProvisionalLegacy`, que la
+  // llama: en una notificacion el tipo viene en `approvalType`, no en `tipoAprobacion`.
+  const isGastoProvisional = (
+    item: Aprobacion | NotificacionParaDetalle,
+  ) => {
+    const datos = item.datosSolicitud || {}
+    const tipo =
+      'tipoAprobacion' in item ? item.tipoAprobacion : item.approvalType
     return (
-      item.tipoAprobacion === 'GASTO' &&
+      tipo === 'GASTO' &&
       (datos.esProvisional === true || datos.esProvisional === 'true')
     )
   }
 
-  // Helper para detectar si es una solicitud legacy de gasto (sin impacto de caja)
-  const isGastoProvisionalLegacy = (item: Aprobacion) => {
-    const datos = item.datosSolicitud || {} as any
-    return (
-      item.tipoAprobacion === 'GASTO' &&
-      !isGastoProvisional(item)
-    )
+  /**
+   * Si es una solicitud de gasto de las viejas, sin impacto de caja.
+   *
+   * HALLAZGO al tipar `selectedItem`: esta funcion pedia una `Aprobacion` y se la llamaba
+   * con las dos cosas: una `Aprobacion` en la lista y una notificacion en el modal. En la
+   * notificacion el tipo de aprobacion NO se llama `tipoAprobacion` sino `approvalType` (lo
+   * pone `aprobacionToNotificacion` mas arriba), asi que desde el modal la comparacion era
+   * `undefined === 'GASTO'`: siempre falsa, y el aviso de solicitud antigua no se mostraba
+   * nunca ahi.
+   *
+   * Ahora acepta las dos formas y lee la que traiga cada una. Se quito tambien un
+   * `const datos = item.datosSolicitud || {}` que no se usaba.
+   */
+  const isGastoProvisionalLegacy = (
+    item: Aprobacion | NotificacionParaDetalle,
+  ) => {
+    const tipo =
+      'tipoAprobacion' in item ? item.tipoAprobacion : item.approvalType
+    return tipo === 'GASTO' && !isGastoProvisional(item)
   }
 
   const handleOpenDetail = (item: Aprobacion) => {
-    const datos = (item.datosSolicitud || {}) as any
+    const datos = (item.datosSolicitud || {})
     if (item.tipoAprobacion === 'REPROGRAMACION_CUOTA') {
       setSelectedReprogramacion({
         id: item.id,
         solicitante: item.solicitante,
         creadoEn: item.creadoEn,
         estado: item.estado,
-        cliente:                 datos.cliente || datos.clienteNombre,
-        clienteNombre:           datos.clienteNombre || datos.cliente,
-        numeroPrestamo:          datos.numeroPrestamo,
-        montoCuota:              datos.montoCuota,
-        fechaVencimientoOriginal: resolveFechaOriginalReprogramacion(datos, item.creadoEn),
-        fechaGestionOriginal:     datos.fechaGestionOriginal || datos.fechaOperativaRuta,
-        nuevaFechaVencimiento:   datos.nuevaFechaVencimiento || datos.nuevaFecha,
-        motivo:                  datos.motivo || datos.comentarios,
-        gestionadoPor:           datos.gestionadoPor || datos.asignadoPor || item.solicitante,
+        cliente:                 texto(datos.cliente) || texto(datos.clienteNombre),
+        clienteNombre:           texto(datos.clienteNombre) || texto(datos.cliente),
+        numeroPrestamo:          texto(datos.numeroPrestamo),
+        montoCuota:              numero(datos.montoCuota),
+        fechaVencimientoOriginal:
+          resolveFechaOriginalReprogramacion(datos, item.creadoEn) ?? undefined,
+        fechaGestionOriginal:     texto(datos.fechaGestionOriginal) || texto(datos.fechaOperativaRuta),
+        nuevaFechaVencimiento:   texto(datos.nuevaFechaVencimiento) || texto(datos.nuevaFecha),
+        motivo:                  texto(datos.motivo) || texto(datos.comentarios),
+        gestionadoPor:           texto(datos.gestionadoPor) || texto(datos.asignadoPor) || item.solicitante,
       })
       setReprogramacionModalOpen(true)
     } else if (isProrrogaOrVencida(item)) {
@@ -477,17 +575,20 @@ export default function RevisionesPage() {
         solicitante: item.solicitante,
         creadoEn: item.creadoEn,
         estado: item.estado,
-        decision:                datos.decision,
-        cliente:                 datos.cliente || datos.clienteNombre,
-        clienteNombre:           datos.clienteNombre || datos.cliente,
-        numeroPrestamo:          datos.numeroPrestamo,
-        saldoPendiente:          datos.saldoPendiente ?? item.montoSolicitud,
-        montoInteres:            datos.montoInteres,
-        diasGracia:              datos.diasGracia,
-        fechaVencimientoOriginal: datos.fechaVencimientoOriginal,
-        nuevaFechaVencimiento:   datos.nuevaFechaVencimiento,
-        comentarios:             datos.comentarios,
-        gestionadoPor:           datos.gestionadoPor || datos.asignadoPor || item.solicitante,
+        // La decision es una de tres: se normaliza contra esa union en vez de pasar texto
+        // suelto, que es lo que hacia el `any` y dejaba pintar un modal sin accion.
+        decision:                decisionDeProrroga(datos.decision),
+        cliente:                 texto(datos.cliente) || texto(datos.clienteNombre),
+        clienteNombre:           texto(datos.clienteNombre) || texto(datos.cliente),
+        numeroPrestamo:          texto(datos.numeroPrestamo),
+        saldoPendiente:
+          numero(datos.saldoPendiente) ?? item.montoSolicitud ?? undefined,
+        montoInteres:            numero(datos.montoInteres),
+        diasGracia:              numero(datos.diasGracia),
+        fechaVencimientoOriginal: texto(datos.fechaVencimientoOriginal),
+        nuevaFechaVencimiento:   texto(datos.nuevaFechaVencimiento),
+        comentarios:             texto(datos.comentarios),
+        gestionadoPor:           texto(datos.gestionadoPor) || texto(datos.asignadoPor) || item.solicitante,
       })
       setProrrogaModalOpen(true)
     } else {
@@ -527,8 +628,8 @@ export default function RevisionesPage() {
       setSelectedAlertaCliente(null)
       setMotivoResolucionAlerta('')
       await loadData()
-    } catch (error: any) {
-      toast.error(error?.message || 'Error al resolver la alerta')
+    } catch (error) {
+      toast.error(mensajeDeError(error, 'Error al resolver la alerta'))
     } finally {
       setResolvingAlertaId(null)
     }
@@ -537,7 +638,7 @@ export default function RevisionesPage() {
   const handleApproveFromModal = async (
     entityId: string,
     type?: string,
-    editedDetails?: any,
+    editedDetails?: DetallesEditados,
   ) => {
     const item = Object.values(data?.items || {}).flat().find(i => i.id === entityId)
     if (!item) return
@@ -555,8 +656,8 @@ export default function RevisionesPage() {
       toast.success('Solicitud aprobada correctamente')
       closeAllDetailModals()
       await loadData()
-    } catch (error: any) {
-      toast.error(error?.message || 'Error al aprobar')
+    } catch (error) {
+      toast.error(mensajeDeError(error, 'Error al aprobar'))
     } finally {
       setProcessingId(null)
     }
@@ -588,8 +689,8 @@ export default function RevisionesPage() {
       toast.success('Solicitud aprobada correctamente')
       setConfirmModal(null)
       await loadData()
-    } catch (error: any) {
-      toast.error(error?.message || 'Error al aprobar')
+    } catch (error) {
+      toast.error(mensajeDeError(error, 'Error al aprobar'))
     } finally {
       setProcessingId(null)
     }
@@ -638,8 +739,8 @@ export default function RevisionesPage() {
       toast.success('Solicitud rechazada')
       setConfirmModal(null)
       await loadData()
-    } catch (error: any) {
-      toast.error(error?.message || 'Error al rechazar')
+    } catch (error) {
+      toast.error(mensajeDeError(error, 'Error al rechazar'))
     } finally {
       setProcessingId(null)
     }
@@ -651,15 +752,15 @@ export default function RevisionesPage() {
     try {
       await aprobacionesService.confirmarAccionSuperadmin(
         confirmModal.item.id,
-        confirmModal.type as any,
+        confirmModal.type,
         notaSuperadmin || undefined,
       )
       toast.success(confirmModal.type === 'CONFIRMAR' ? 'Eliminación confirmada' : 'Solicitud restaurada')
       setConfirmModal(null)
       setNotaSuperadmin('')
       await loadData()
-    } catch (error: any) {
-      toast.error(error?.message || 'Error al procesar')
+    } catch (error) {
+      toast.error(mensajeDeError(error, 'Error al procesar'))
     } finally {
       setProcessingId(null)
     }
@@ -694,7 +795,14 @@ export default function RevisionesPage() {
     if (filtroRuta) {
       items = items.filter(item => {
         const datos = item.datosSolicitud || {}
-        const itemRutaId = datos.rutaId || datos.ruta?.id
+        // La ruta del item llega suelta o dentro del objeto `ruta`, segun el tipo de
+        // solicitud: esa cascada es lo que el `any` escondia.
+        const rutaAnidada = datos.ruta
+        const itemRutaId =
+          texto(datos.rutaId) ||
+          (rutaAnidada && typeof rutaAnidada === 'object'
+            ? texto((rutaAnidada as { id?: unknown }).id)
+            : undefined)
         return itemRutaId === filtroRuta
       })
     }
@@ -723,9 +831,9 @@ export default function RevisionesPage() {
       // Detectar subtipo de mora/vencida primero
       if (datos.tipo === 'ASIGNAR_MORA') {
         return {
-          titulo: datos.cliente || 'Cliente',
-          subtitulo: `Préstamo ${datos.numeroPrestamo || 'N/A'} · ${datos.diasGracia} días de plazo · Asignado por ${datos.asignadoPor || 'N/A'}`,
-          monto: Number(datos.montoInteres || 0),
+          titulo: texto(datos.cliente) || 'Cliente',
+          subtitulo: `Préstamo ${texto(datos.numeroPrestamo) || 'N/A'} · ${numero(datos.diasGracia)} días de plazo · Asignado por ${texto(datos.asignadoPor) || 'N/A'}`,
+          monto: Number(numero(datos.montoInteres) || 0),
         }
       }
       if (datos.tipo === 'GESTION_VENCIDA') {
@@ -733,9 +841,9 @@ export default function RevisionesPage() {
           PRORROGAR: '📅 Prórroga', CASTIGAR: '🔴 Baja por pérdida', JURIDICO: '⚖️ Cobro jurídico',
         }
         return {
-          titulo: datos.cliente || 'Cliente',
-          subtitulo: `${LABEL_DECISION[datos.decision] || datos.decision} · Préstamo ${datos.numeroPrestamo || 'N/A'} · por ${datos.gestionadoPor || 'N/A'}`,
-          monto: Number(datos.saldoPendiente || item.montoSolicitud || 0),
+          titulo: texto(datos.cliente) || 'Cliente',
+          subtitulo: `${LABEL_DECISION[decisionDeProrroga(datos.decision) ?? ''] || texto(datos.decision)} · Préstamo ${texto(datos.numeroPrestamo) || 'N/A'} · por ${texto(datos.gestionadoPor) || 'N/A'}`,
+          monto: Number(numero(datos.saldoPendiente) || item.montoSolicitud || 0),
         }
       }
       switch (item.tipoAprobacion) {
@@ -748,7 +856,20 @@ export default function RevisionesPage() {
         case 'NUEVO_PRESTAMO': {
           const isArticulo = datos.tipo === 'ARTICULO' || datos.tipoPrestamo === 'ARTICULO';
           const cuotaInicial = Number(datos.cuotaInicial || 0);
-          const numCuotas = datos.cantidadCuotas || datos.cuotas || datos.numCuotas || '?';
+          // El numero de cuotas llega con tres nombres segun el tipo de solicitud. El '?' de
+          // respaldo es para PINTARLO, pero mas abajo se usa como NUMERO en la cuota
+          // francesa: con `any` esa mezcla compilaba, y `Math.max(1, '?')` da NaN. Se
+          // separan los dos usos.
+          const numCuotasTexto =
+            texto(datos.cantidadCuotas) ||
+            texto(datos.cuotas) ||
+            texto(datos.numCuotas) ||
+            '?';
+          const numCuotas =
+            numero(datos.cantidadCuotas) ??
+            numero(datos.cuotas) ??
+            numero(datos.numCuotas) ??
+            0;
           const freqLabel = datos.frecuenciaPago ? ` ${datos.frecuenciaPago}` : '';
 
           if (isArticulo) {
@@ -757,8 +878,8 @@ export default function RevisionesPage() {
               ? Number(datos.monto)
               : Math.max(0, valorArticulo - cuotaInicial);
             return {
-              titulo: datos.cliente || 'Crédito nuevo',
-              subtitulo: `Artículo: ${datos.articulo || 'N/A'} • ${numCuotas} cuotas${freqLabel}`,
+              titulo: texto(datos.cliente) || 'Crédito nuevo',
+              subtitulo: `Artículo: ${texto(datos.articulo) || 'N/A'} • ${numCuotasTexto} cuotas${freqLabel}`,
               monto: valorArticulo,
               labelMonto: 'Valor artículo',
               montoSecundario: aFinanciar,
@@ -783,7 +904,10 @@ export default function RevisionesPage() {
           const totalDevolver = (() => {
             if (datos.montoTotal && Number(datos.montoTotal) > 0) return Number(datos.montoTotal);
             if (datos.interesTotal && Number(datos.interesTotal) > 0) return capital + Number(datos.interesTotal);
-            if (String(datos.tipoAmortizacion || '').toUpperCase() === 'FRANCESA' && porcentaje > 0) {
+            if (
+              (texto(datos.tipoAmortizacion) || '').toUpperCase() === 'FRANCESA' &&
+              porcentaje > 0
+            ) {
               const r = porcentaje / 100;
               const n = Math.max(1, numCuotas);
               const cuotaFija = capital * r / (1 - Math.pow(1 + r, -n));
@@ -797,7 +921,7 @@ export default function RevisionesPage() {
           })();
 
           return {
-            titulo: datos.cliente || 'Crédito nuevo',
+            titulo: texto(datos.cliente) || 'Crédito nuevo',
             subtitulo: `${String(datos.tipoAmortizacion || '').toUpperCase() === 'FRANCESA' ? 'Amortizable' : 'Efectivo'} • ${numCuotas} cuotas${freqLabel}`,
             monto: capital,
             labelMonto: 'Capital',
@@ -808,11 +932,11 @@ export default function RevisionesPage() {
         case 'REPROGRAMACION_CUOTA': {
           const frecLabel: Record<string,string> = { SEMANAL:'Semanal', QUINCENAL:'Quincenal', MENSUAL:'Mensual', DIARIO:'Diario' }
           const fechaOrig = formatFechaCortaBogota(resolveFechaOriginalReprogramacion(datos, item.creadoEn))
-          const fechaNueva = formatFechaCortaBogota(datos.nuevaFechaVencimiento || datos.nuevaFecha)
+          const fechaNueva = formatFechaCortaBogota(texto(datos.nuevaFechaVencimiento) || texto(datos.nuevaFecha))
           return {
-            titulo: datos.clienteNombre || 'Cliente',
-            subtitulo: `${frecLabel[datos.frecuenciaPago]||datos.frecuenciaPago} · ${fechaOrig} → ${fechaNueva} · Motivo: ${datos.motivo || 'N/A'}`,
-            monto: Number(datos.montoCuota || 0) || null,
+            titulo: texto(datos.clienteNombre) || 'Cliente',
+            subtitulo: `${frecLabel[texto(datos.frecuenciaPago) ?? ''] || texto(datos.frecuenciaPago)} · ${fechaOrig} → ${fechaNueva} · Motivo: ${texto(datos.motivo) || 'N/A'}`,
+            monto: Number(numero(datos.montoCuota) || 0) || null,
           }
         }
         default:
@@ -1080,10 +1204,9 @@ export default function RevisionesPage() {
       </div>
 
       {loading ? (
-        <div className="py-20 text-center text-slate-500">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p className="font-medium">Cargando datos...</p>
-        </div>
+        // Esqueleto con la forma de las tarjetas que van a llegar: la pantalla
+        // no salta al cargar y se ve que hay contenido en camino.
+        <SkeletonTarjetas cantidad={6} />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {activeTab === 'alertas-clientes' ? (

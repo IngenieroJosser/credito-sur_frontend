@@ -21,6 +21,7 @@ import { exportService } from '@/services/export-service';
 import { toast } from 'sonner';
 import { prestamosService } from '@/services/prestamos-service';
 import { buildCrearPrestamoPayload } from '@/lib/creditos/crear-prestamo-payload';
+import { mensajeDeError } from '@/lib/mensaje-de-error';
 
 interface MetricItem {
   title: string;
@@ -110,16 +111,14 @@ export function DashboardClient({ data }: DashboardClientProps) {
   const handleExportExcel = async () => {
     try {
       await exportService.exportOperationalReport('excel', { period: activePeriod });
-    } catch {
-      toast.error('Error al exportar. Intenta de nuevo.');
+    } catch (error) { toast.error(mensajeDeError(error, 'Error al exportar. Intenta de nuevo.'));
     }
   };
 
   const handleExportPDF = async () => {
     try {
       await exportService.exportOperationalReport('pdf', { period: activePeriod });
-    } catch {
-      toast.error('Error al exportar. Intenta de nuevo.');
+    } catch (error) { toast.error(mensajeDeError(error, 'Error al exportar. Intenta de nuevo.'));
     }
   };
 
@@ -198,7 +197,7 @@ export function DashboardClient({ data }: DashboardClientProps) {
                   className="p-4 rounded-2xl transition-all duration-500 shadow-sm group-hover:shadow-md group-hover:scale-110"
                   style={{ backgroundColor: `${metric.color}15`, color: metric.color }}
                 >
-                  {React.cloneElement(metric.icon as React.ReactElement<any>, { size: 24 })}
+                  {React.cloneElement(metric.icon as React.ReactElement<{ size?: number }>, { size: 24 })}
                 </div>
                 {metric.change !== null && (
                   <div className={`flex items-center space-x-1.5 text-[11px] font-black px-3 py-1 rounded-full shadow-sm ${
@@ -313,8 +312,8 @@ export function DashboardClient({ data }: DashboardClientProps) {
             toast.success('Crédito creado y enviado a revisión.');
             setShowCrearCreditoModal(false);
             router.refresh();
-          } catch (err: any) {
-            const msg = err?.response?.data?.message || err?.message || 'No se pudo crear el crédito.';
+          } catch (err) {
+            const msg = mensajeDeError(err, 'No se pudo crear el crédito.');
             toast.error(Array.isArray(msg) ? msg.join(', ') : msg);
           }
         }}

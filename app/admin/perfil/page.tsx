@@ -1,15 +1,19 @@
 'use client'
 
-import { User, Lock, Phone, Calendar, Clock, FileText, CheckCircle2, X, Eye, EyeOff, ChevronLeft, Loader2, AlertCircle } from 'lucide-react'
+import { mensajeDeError } from '@/lib/mensaje-de-error'
+import { User, Lock, Phone, Calendar, Clock, FileText, CheckCircle2, X, Eye, EyeOff, ChevronLeft, AlertCircle } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { usuariosService, type Usuario } from '@/services/usuarios-service'
+import { esEstadoUsuario, esRolUsuario, EstadoUsuario } from '@/types/enums'
 import { obtenerPerfil } from '@/services/autenticacion-service'
 import { formatRoleName, getRoleColor, getRoleIcon } from '@/components/ui/UserDropdownMenu'
 import PushNotificationManager from '@/components/push/PushNotificationManager'
 import { logger } from '@/lib/logger'
+import { Skeleton, SkeletonTexto } from '@/components/ui/Skeleton'
+import { mezclarPerfilEnCache } from '@/lib/auth/mezclar-perfil-en-cache'
 
 const VOLVER_RUTAS: Record<string, string> = {
   'SUPER_ADMINISTRADOR': '/admin',
@@ -77,44 +81,72 @@ const PerfilUsuarioPage = () => {
       // failover CORS en consola). Online sí trae los datos completos.
       const hayRed = typeof navigator === 'undefined' || navigator.onLine
       if (perfil.id && hayRed) {
-        try { fullUser = await usuariosService.obtenerPorId(perfil.id) } catch {}
+        try { fullUser = await usuariosService.obtenerPorId(perfil.id) } catch (error) {
+          // El perfil completo es un extra: si no llega, se muestra el basico.
+          // Se avisa solo en desarrollo, que es donde sirve.
+          logger.warn('No se pudo traer el perfil completo; se usa el de la sesion', error)
+        }
       }
-      setBackendUser(fullUser || {
-        id: perfil.id,
-        correo: perfil.correo || '',
-        nombres: perfil.nombres,
-        apellidos: perfil.apellidos,
-        telefono: perfil.telefono || null,
-        rol: perfil.rol as any,
-        estado: (perfil.estado || 'ACTIVO') as any,
-        ultimoIngreso: null,
-        intentosFallidos: 0,
-        debeCambiarContrasena: false,
-        creadoEn: '',
-        actualizadoEn: '',
-        eliminadoEn: null,
-        permisos: perfil.permisos,
-      })
+      // Si no se pudo traer el usuario completo se arma uno con lo que hay. El
+      // apellido y el correo pueden faltar (son NULL-ables), asi que se completan
+      // con lo que ya estuviera guardado antes de caer a cadena vacia.
+      const guardado = (() => {
+        try {
+          const crudo = localStorage.getItem('user')
+          return crudo ? (JSON.parse(crudo) as Record<string, unknown>) : {}
+        } catch {
+          return {}
+        }
+      })()
+      // `perfil.rol` y `perfil.estado` llegan como texto y el tipo pide los enums, asi
+      // que se comprueban en vez de afirmarse. Los dos guards son inofensivos: las dos
+      // columnas del backend SON esos enums, con los mismos miembros.
+      //
+      // Si el rol no fuera valido NO se arma el usuario de respaldo. Poner un rol por
+      // omision seria inventar privilegios, y esta pantalla los usa para decidir que
+      // muestra; es mejor quedarse sin respaldo que con uno mal.
+      const rolDelPerfil = esRolUsuario(perfil.rol) ? perfil.rol : null
+      if (fullUser) {
+        setBackendUser(fullUser)
+      } else if (rolDelPerfil) {
+        setBackendUser({
+          id: perfil.id,
+          correo: perfil.correo || String(guardado.correo || ''),
+          nombres: perfil.nombres,
+          apellidos: perfil.apellidos || String(guardado.apellidos || ''),
+          telefono: perfil.telefono || null,
+          rol: rolDelPerfil,
+          estado: esEstadoUsuario(perfil.estado) ? perfil.estado : EstadoUsuario.ACTIVO,
+          ultimoIngreso: null,
+          intentosFallidos: 0,
+          debeCambiarContrasena: false,
+          creadoEn: '',
+          actualizadoEn: '',
+          eliminadoEn: null,
+          permisos: perfil.permisos,
+        })
+      } else {
+        logger.warn('El perfil llego con un rol que no se reconoce; no se arma el respaldo', perfil.rol)
+      }
       const cachedUser = localStorage.getItem('user')
       if (cachedUser && (fullUser || perfil)) {
         try {
           const parsed = JSON.parse(cachedUser)
-          const updated = {
-            ...parsed,
-            nombres: fullUser?.nombres || perfil.nombres,
-            apellidos: fullUser?.apellidos || perfil.apellidos,
-            correo: fullUser?.correo || perfil.correo || parsed.correo,
-            telefono: fullUser?.telefono || perfil.telefono || parsed.telefono,
-            rol: fullUser?.rol || perfil.rol || parsed.rol,
-          }
+          // El respaldo al cache lo aplica `mezclarPerfilEnCache` para TODOS los
+          // campos. Aqui `apellidos` no lo tenia, y como `/auth/perfil` devuelve
+          // los claims del token —que no traen apellidos— cuando fallaba la
+          // llamada del usuario completo se escribia `undefined` encima del
+          // apellido que si estaba guardado, y despues el perfil offline lo
+          // mostraba en blanco.
+          const updated = mezclarPerfilEnCache(parsed, perfil, fullUser)
           localStorage.setItem('user', JSON.stringify(updated))
           window.dispatchEvent(new Event('userUpdated'))
-        } catch (e) {
+        } catch {
           logger.warn('Error sincronizando datos de perfil en caché.')
         }
       }
       setError(null)
-    } catch (err) {
+    } catch {
       logger.warn('Perfil: usando datos locales (sin red o backend no disponible).')
       try {
         const userStr = localStorage.getItem('user')
@@ -182,8 +214,8 @@ const PerfilUsuarioPage = () => {
       })
       setPasswordSuccess(true)
       setTimeout(() => setIsPasswordModalOpen(false), 1500)
-    } catch (err: any) {
-      setPasswordError(err?.message || 'Error al cambiar la contraseña. Verifica tu contraseña actual.')
+    } catch (err) {
+      setPasswordError(mensajeDeError(err, 'Error al cambiar la contraseña. Verifica tu contraseña actual.'))
     } finally {
       setIsSavingPassword(false)
     }
@@ -206,9 +238,19 @@ const PerfilUsuarioPage = () => {
 
       <div className="relative z-10 w-full px-6 md:px-8 py-8 space-y-8">
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-32">
-            <Loader2 className="h-10 w-10 text-blue-600 animate-spin mb-4" />
-            <p className="text-slate-500 font-medium">Cargando perfil...</p>
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3" aria-busy="true">
+            <span className="sr-only">Cargando perfil…</span>
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="flex flex-col items-center gap-3">
+                <Skeleton className="h-20 w-20 rounded-full" />
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-3 w-24" />
+              </div>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
+              <Skeleton className="h-4 w-40" />
+              <SkeletonTexto lineas={6} className="mt-5" />
+            </div>
           </div>
         ) : error ? (
           <div className="flex flex-col items-center justify-center py-32">
@@ -285,7 +327,7 @@ const PerfilUsuarioPage = () => {
                       </span>
                       <span className="font-bold text-slate-900">
                         {backendUser.creadoEn && !isNaN(new Date(backendUser.creadoEn).getTime())
-                          ? new Date(backendUser.creadoEn).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' })
+                          ? new Date(backendUser.creadoEn).toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })
                           : 'No disponible'}
                       </span>
                     </div>
@@ -334,7 +376,7 @@ const PerfilUsuarioPage = () => {
                     {backendUser.ultimoIngreso && (
                       <span className="text-xs font-medium text-slate-500 flex items-center gap-1">
                         <Clock className="h-3 w-3" />
-                        Último ingreso: {new Date(backendUser.ultimoIngreso).toLocaleString('es-ES')}
+                        Último ingreso: {new Date(backendUser.ultimoIngreso).toLocaleString('es-CO')}
                       </span>
                     )}
                   </div>

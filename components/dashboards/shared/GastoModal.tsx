@@ -9,6 +9,8 @@ import { obtenerSaldoDisponibleRuta } from '@/services/contabilidad-service'
 import type { SaldoDisponibleRuta } from '@/services/contabilidad-service'
 import { rutasService } from '@/services/rutas-service'
 import { getBogotaDateKey } from '@/lib/rutas-core'
+import Tooltip from '@/components/ui/Tooltip'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 
 interface GastoModalProps {
   isOpen: boolean
@@ -31,6 +33,12 @@ export default function GastoModal({ isOpen, onClose, onConfirm, cobradorId, rut
   const [errorSaldo, setErrorSaldo] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [esPersonal, setEsPersonal] = useState(false)
+  // Escape para salir y el foco en el primer campo al abrir. El hook lleva
+  // una pila, asi que con modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    abierto: isOpen,
+    onClose: () => handleReset(),
+  })
 
   // Cargar saldo disponible al abrir el modal
   useEffect(() => {
@@ -134,30 +142,38 @@ export default function GastoModal({ isOpen, onClose, onConfirm, cobradorId, rut
   return (
     <Portal>
       <div
-        className="fixed inset-0 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
+        className="fixed inset-0 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
         style={{ zIndex: MODAL_Z_INDEX }}
         onClick={handleReset}
       >
         <div
-          className="w-full max-w-md bg-white rounded-3xl shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden"
+          className="flex w-full flex-col overflow-hidden bg-white shadow-2xl animate-in zoom-in-95 duration-200 h-[100dvh] sm:h-auto sm:max-h-[90vh] rounded-none sm:rounded-3xl sm:max-w-md"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+          <div className="shrink-0 px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
             <div className="flex items-center gap-2">
               <div className="shrink-0 p-2 bg-rose-100 rounded-lg text-rose-600">
                 <Receipt className="h-5 w-5" />
               </div>
               <h3 className="font-bold text-lg text-slate-900">Registrar Gasto</h3>
             </div>
-            <button
-              onClick={handleReset}
-              className="shrink-0 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
-            >
-              <X className="h-5 w-5" />
-            </button>
+            <Tooltip texto="Cerrar">
+              <button
+                onClick={handleReset}
+                className="shrink-0 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
+                aria-label="Cerrar"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </Tooltip>
           </div>
 
-          <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {/* El formulario es la columna; dentro, el cuerpo hace scroll y los
+              botones se quedan abajo. Antes la caja tenia overflow-hidden y
+              ningun tope de alto: en un movil el boton de guardar quedaba
+              recortado fuera de la pantalla. */}
+          <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+            <div className="min-h-0 flex-1 overflow-y-auto p-6 space-y-4">
             {/* Saldo disponible */}
             {loadingSaldo ? (
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-sm text-blue-800">
@@ -210,7 +226,7 @@ export default function GastoModal({ isOpen, onClose, onConfirm, cobradorId, rut
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-700">Descripción</label>|
+              <label className="text-sm font-bold text-slate-700">Descripción<span className="ml-1 text-red-500" aria-label="obligatorio">*</span></label>
               <textarea
                 required
                 rows={2}
@@ -222,7 +238,7 @@ export default function GastoModal({ isOpen, onClose, onConfirm, cobradorId, rut
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-700">Valor</label>
+              <label className="text-sm font-bold text-slate-700">Valor<span className="ml-1 text-red-500" aria-label="obligatorio">*</span></label>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
                 <input
@@ -326,7 +342,9 @@ export default function GastoModal({ isOpen, onClose, onConfirm, cobradorId, rut
               </div>
             )}
 
-            <div className="flex gap-3 pt-2">
+            </div>
+
+            <div className="shrink-0 flex gap-3 border-t border-slate-100 p-6">
               <button
                 type="button"
                 onClick={handleReset}

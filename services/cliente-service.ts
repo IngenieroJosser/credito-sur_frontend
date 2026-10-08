@@ -12,6 +12,5 @@ export {
   type ActualizarClienteDto,
   type FiltrosClientes,
   type AgregarListaNegraDto,
-  type AsignarRutaDto,
 } from '@/services/clientes-service';
 

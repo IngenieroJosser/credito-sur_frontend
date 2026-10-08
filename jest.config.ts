@@ -13,6 +13,10 @@ const config: Config = {
   // Opciones que se ejecutan antes de cada prueba
   setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
   // Alias de módulos
+  // Las pruebas de Playwright viven en e2e/ y las corre `npm run e2e`, no Jest:
+  // sin esto Jest las recoge, intenta ejecutarlas en jsdom y fallan al importar
+  // @playwright/test.
+  testPathIgnorePatterns: ['<rootDir>/node_modules/', '<rootDir>/e2e/'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
   },

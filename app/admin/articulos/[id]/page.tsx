@@ -1,6 +1,6 @@
 'use client'
 
-import PantallaCarga from '@/components/ui/PantallaCarga'
+import { SkeletonDetalle } from '@/components/ui/Skeleton'
 
 import { use, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
@@ -34,19 +34,23 @@ export default function DetalleArticuloPage({ params }: { params: Promise<{ id: 
     const fetchArticulo = async () => {
       setLoading(true)
       try {
-        const data: any = await inventarioService.obtenerProductoPorId(id)
+        const data = await inventarioService.obtenerProductoPorId(id)
+        // `data` es un `Producto`: el endpoint devuelve el modelo tal cual
+        // (inventory.service.ts:332-347). Los alias `sku`, `precio`, `cantidad`,
+        // `estado` y `categoria.nombre` no son columnas de `model Producto`
+        // (schema.prisma:236); el estado del producto es la columna `activo`.
         setArticulo({
           id: data.id || id,
           nombre: data.nombre || '',
-          codigo: data.codigo || data.sku || '',
+          codigo: data.codigo || '',
           descripcion: data.descripcion || '',
-          categoria: data.categoria?.nombre || data.categoria || '',
+          categoria: data.categoria || '',
           marca: data.marca || '',
           modelo: data.modelo || '',
-          costo: data.costo || data.precio || 0,
-          stock: data.stock || data.cantidad || 0,
+          costo: data.costo || 0,
+          stock: data.stock || 0,
           stockMinimo: data.stockMinimo || 0,
-          estado: data.estado || 'activo',
+          estado: data.activo === false ? 'inactivo' : 'activo',
           fechaCreacion: data.creadoEn || '',
           precios: data.precios || [],
         })
@@ -61,7 +65,7 @@ export default function DetalleArticuloPage({ params }: { params: Promise<{ id: 
 
   if (loading) {
     return (
-      <PantallaCarga />
+      <SkeletonDetalle />
     )
   }
 

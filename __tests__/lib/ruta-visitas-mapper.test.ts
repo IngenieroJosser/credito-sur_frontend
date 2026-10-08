@@ -1,3 +1,4 @@
+import { FrecuenciaPago } from '@/types/enums'
 import { mapAsignacionesToVisitasLite } from '@/lib/ruta-visitas-mapper'
 
 describe('mapAsignacionesToVisitasLite', () => {
@@ -21,7 +22,7 @@ describe('mapAsignacionesToVisitasLite', () => {
                 estadoAprobacion: 'PENDIENTE',
                 efectoProvisional: { estado: 'PENDIENTE_REVISION' },
                 tipoPrestamo: 'EFECTIVO',
-                frecuenciaPago: 'DIARIO',
+                frecuenciaPago: FrecuenciaPago.DIARIO,
                 valorCuota: 100_000,
                 saldoPendiente: 300_000,
                 cantidadCuotas: 3,
@@ -41,7 +42,7 @@ describe('mapAsignacionesToVisitasLite', () => {
                 estado: 'PENDIENTE_APROBACION',
                 estadoAprobacion: 'RECHAZADO',
                 tipoPrestamo: 'EFECTIVO',
-                frecuenciaPago: 'DIARIO',
+                frecuenciaPago: FrecuenciaPago.DIARIO,
                 valorCuota: 200_000,
                 saldoPendiente: 600_000,
                 cantidadCuotas: 3,
@@ -89,7 +90,7 @@ describe('mapAsignacionesToVisitasLite', () => {
                 id: 'prestamo-1',
                 estado: 'EN_MORA',
                 tipo: 'EFECTIVO',
-                frecuenciaPago: 'DIARIO',
+                frecuenciaPago: FrecuenciaPago.DIARIO,
                 valorCuota: 100_000,
                 saldoPendiente: 300_000,
                 cantidadCuotas: 3,
@@ -146,7 +147,7 @@ describe('mapAsignacionesToVisitasLite', () => {
                 id: 'prestamo-1',
                 estado: 'ACTIVO',
                 tipo: 'EFECTIVO',
-                frecuenciaPago: 'DIARIO',
+                frecuenciaPago: FrecuenciaPago.DIARIO,
                 valorCuota: 100_000,
                 saldoPendiente: 300_000,
                 cantidadCuotas: 3,
@@ -188,7 +189,7 @@ describe('mapAsignacionesToVisitasLite', () => {
                 id: 'prestamo-rechazado',
                 estado: 'PENDIENTE_APROBACION',
                 estadoAprobacion: 'RECHAZADO',
-                frecuenciaPago: 'DIARIO',
+                frecuenciaPago: FrecuenciaPago.DIARIO,
                 valorCuota: 100_000,
                 saldoPendiente: 300_000,
                 cuotas: [

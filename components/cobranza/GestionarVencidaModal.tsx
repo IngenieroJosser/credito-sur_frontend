@@ -16,10 +16,11 @@ import React, { useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
   X, AlertCircle, DollarSign, Save, Ban, Clock,
-  CalendarClock, Check, Loader2, Scale, Info,
-  ChevronRight
+  CalendarClock, Check, Loader2, Scale, Info
 } from 'lucide-react'
 import { formatCurrency, cn, formatCOPDecimalTypingInputValue, formatCOPDecimalBlurInputValue, parseCOPDecimalInputToNumber } from '@/lib/utils'
+import Tooltip from '@/components/ui/Tooltip'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 
 interface CuentaVencida {
   id: string
@@ -96,6 +97,12 @@ export default function GestionarVencidaModal({ cuenta, onClose, onConfirm }: Ge
   const [diasGracia, setDiasGracia] = useState<string>('')
   const [comentarios, setComentarios] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  // Escape para salir y foco al abrir. El hook lleva una pila, asi que con
+  // modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    onClose: onClose,
+  })
+
 
   const cfg = DECISION_CONFIG[decision]
 
@@ -164,12 +171,15 @@ export default function GestionarVencidaModal({ cuenta, onClose, onConfirm }: Ge
                   </p>
                 </div>
               </div>
-              <button
-                onClick={onClose}
-                className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors"
-              >
-                <X className="h-4 w-4" />
-              </button>
+              <Tooltip texto="Cerrar">
+                <button
+                  onClick={onClose}
+                  className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors"
+                  aria-label="Cerrar"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </Tooltip>
             </div>
           </div>
 

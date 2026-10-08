@@ -1,3 +1,4 @@
+import { mensajeDeError } from '@/lib/mensaje-de-error';
 import { logger } from '@/lib/logger'
 // app/lib/api/api.ts
 import { AxiosRequestConfig, Method, AxiosError } from "axios";
@@ -19,6 +20,27 @@ export interface ApiError {
   message: string;
   error?: unknown;
   isConflict?: boolean;
+}
+
+/**
+ * Si el fallo es uno de los que lanza `apiRequest`.
+ *
+ * `ApiError` estaba declarado y exportado desde el principio, pero NADIE fuera de
+ * este fichero lo importaba: los 43 `catch (error)` del proyecto leian sus
+ * campos a mano. Con esto se puede escribir `catch (error)` y preguntar por
+ * `isConflict` o `statusCode` sabiendo que existen.
+ *
+ * No todo fallo es un `ApiError` —hay Error normales, fallos de axios que no pasan
+ * por aqui y cosas lanzadas desde el navegador—, asi que para el mensaje y el
+ * estado en general siguen sirviendo `mensajeDeError` y `estadoDeError`. Esto es
+ * para lo que solo tiene sentido en NUESTRO error, como `isConflict`.
+ */
+export function esApiError(error: unknown): error is ApiError {
+  if (!error || typeof error !== 'object') return false;
+  const posible = error as Partial<ApiError>;
+  return (
+    typeof posible.statusCode === 'number' && typeof posible.message === 'string'
+  );
 }
 
 const CONFLICT_ERROR_MESSAGE =
@@ -104,7 +126,7 @@ export const apiRequest = async <T>(
           const { logSyncActivity } = await import('@/lib/offline/offlineQueue');
           const description = `${method.toUpperCase()} ${url.split('?')[0]}`;
           logSyncActivity(description);
-        } catch (e) {
+        } catch {
           // Ignorar si falla el log
         }
       }
@@ -221,31 +243,36 @@ export const apiRequest = async <T>(
 };
 
 // Función auxiliar para formatear errores para el estado del componente
-export const formatErrorForComponent = (error: any): string => {
+// `unknown`: lo que llega es lo que capturo un `catch`, que puede ser cualquier cosa.
+// Las lecturas van por `ErrorDeApi`, que describe lo que esta funcion mira de verdad.
+type ErrorDeApi = { message?: string; statusCode?: number }
+
+export const formatErrorForComponent = (error: unknown): string => {
   if (typeof error === 'string') return error;
+  const err = (error || {}) as ErrorDeApi;
   
-  if (error?.message) {
-    return error.message;
+  if (err.message) {
+    return err.message;
   }
   
-  if (error?.statusCode) {
-    switch (error.statusCode) {
+  if (err.statusCode) {
+    switch (err.statusCode) {
       case 400:
-        return normalizeApiErrorMessage(error.message, "Error de validación en la solicitud. Por favor, revise los datos.");
+        return normalizeApiErrorMessage(err.message, "Error de validación en la solicitud. Por favor, revise los datos.");
       case 403:
-        return error.message || FORBIDDEN_ERROR_MESSAGE;
+        return err.message || FORBIDDEN_ERROR_MESSAGE;
       case 404:
         return "Endpoint no encontrado. Verifique la URL de la API.";
       case 408:
         return "La solicitud está tardando demasiado. Por favor, verifique su conexión.";
       case 409:
-        return error.message || CONFLICT_ERROR_MESSAGE;
+        return err.message || CONFLICT_ERROR_MESSAGE;
       case 429:
-        return error.message || RATE_LIMIT_ERROR_MESSAGE;
+        return err.message || RATE_LIMIT_ERROR_MESSAGE;
       case 500:
         return "Error interno del servidor. Por favor, intente más tarde.";
       default:
-        return `Error ${error.statusCode}: ${error.message || 'Error desconocido'}`;
+        return `Error ${err.statusCode}: ${mensajeDeError(error, 'Error desconocido')}`;
     }
   }
   

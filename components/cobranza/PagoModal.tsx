@@ -8,10 +8,13 @@ import {
   Loader2
 } from 'lucide-react'
 import { VisitaRuta } from '@/lib/types/cobranza'
+import { MetodoPago } from '@/types/enums'
 import { resolveCuotaNormalOperativa } from '@/lib/rutas-core'
 import { formatCOPInputValue, parseCOPInputToNumber, formatMilesCOP, getDisplayedCOPInteger, isSameDisplayedCOPAmount } from '@/lib/utils'
 import FieldLabel from '@/components/ui/FieldLabel'
 import Portal, { MODAL_Z_INDEX } from '@/components/ui/Portal'
+import Tooltip from '@/components/ui/Tooltip'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 
 const MONTO_MINIMO_ABONO_COP = 1000
 
@@ -21,7 +24,13 @@ interface PagoModalProps {
   onClose: () => void
   onConfirm: (
     monto: number,
-    metodo: 'EFECTIVO' | 'TRANSFERENCIA',
+    /**
+     * El enum, no una union literal repetida. Los dos valores son los mismos, pero
+     * `CrearPagoDto.metodoPago` pide `MetodoPago` y un literal no le vale (los enum
+     * de TypeScript son nominales): eso obligaba a castear el cuerpo del pago en las
+     * pantallas que usan este modal.
+     */
+    metodo: MetodoPago,
     comprobante: File | null,
     contexto: { tipoRegistro: 'PAGO' | 'ABONO'; cuotaNumeroEsperada?: number; montoCuotaEsperado: number; cuotaId?: string },
   ) => void | Promise<void>
@@ -37,10 +46,10 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm, montoCuota
       return montoCuotaEsperadoOverride
     }
     const cuotaBase = resolveCuotaNormalOperativa(visita)
-    const saldo = Number((visita as any)?.saldoTotal || 0)
+    const saldo = Number((visita)?.saldoTotal || 0)
     return Math.max(0, Math.min(cuotaBase, saldo > 0 ? saldo : cuotaBase))
   })()
-  const [metodoPago, setMetodoPago] = useState<'EFECTIVO' | 'TRANSFERENCIA'>('EFECTIVO')
+  const [metodoPago, setMetodoPago] = useState<MetodoPago>(MetodoPago.EFECTIVO)
   const [montoPagoInput, setMontoPagoInput] = useState(
     tipo === 'PAGO' ? formatMilesCOP(montoCuotaEsperado) : ''
   )
@@ -48,6 +57,22 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm, montoCuota
   const [comprobanteTransferenciaPreviewUrl, setComprobanteTransferenciaPreviewUrl] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+
+  // Para un PAGO el monto viene prellenado con la cuota esperada, asi que "hay
+  // datos" no es "el campo tiene algo": es que la persona haya cambiado algo
+  // respecto a como abrio el modal.
+  const montoInicial = tipo === 'PAGO' ? formatMilesCOP(montoCuotaEsperado) : ''
+  const hayDatosSinGuardar =
+    isSubmitting ||
+    comprobanteTransferencia !== null ||
+    metodoPago !== MetodoPago.EFECTIVO ||
+    montoPagoInput !== montoInicial
+
+  // Escape cierra, salvo mientras se esta enviando el pago.
+  const { contenedorRef, alTocarElFondo, propsDialogo } = useModalDialog<HTMLDivElement>({
+    onClose,
+    cerrarConEscape: !isSubmitting,
+  })
 
   // Cleanup preview URL on unmount or change
   useEffect(() => {
@@ -101,7 +126,7 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm, montoCuota
         tipoRegistro: tipo,
         cuotaNumeroEsperada:
           cuotaNumeroEsperadaOverride ??
-          (Number((visita as any)?.cuotaActual || 0) || undefined),
+          (Number((visita)?.cuotaActual || 0) || undefined),
         montoCuotaEsperado,
       })
     } catch (error) {
@@ -115,22 +140,30 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm, montoCuota
       <div
         className="fixed inset-0 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
         style={{ zIndex: MODAL_Z_INDEX }}
-        onClick={onClose}
+        // Un toque fuera de la tarjeta cerraba el modal con el monto escrito y el
+        // comprobante ya adjunto: habia que volver a tomar la foto. Ahora el
+        // fondo solo cierra si no hay nada que perder; la X siempre cierra.
+        onClick={(evento) => alTocarElFondo(evento, hayDatosSinGuardar)}
       >
         <div
-          className="w-full max-w-md bg-white rounded-3xl shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto"
+          ref={contenedorRef}
+          className="w-full max-w-md bg-white rounded-3xl shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto focus:outline-none"
+          {...propsDialogo}
           onClick={(e) => e.stopPropagation()}
         >
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold text-slate-900">{tipo === 'ABONO' ? 'Registrar Abono' : 'Registrar Pago'}</h3>
-              <button 
-                onClick={onClose}
-                className="p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
-                type="button"
-              >
-                <X className="h-5 w-5" />
-              </button>
+              <Tooltip texto="Cerrar">
+                <button 
+                  onClick={onClose}
+                  className="p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
+                  type="button"
+                  aria-label="Cerrar"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </Tooltip>
             </div>
             
             <div className="space-y-6">
@@ -146,9 +179,9 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm, montoCuota
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
-                    onClick={() => setMetodoPago('EFECTIVO')}
+                    onClick={() => setMetodoPago(MetodoPago.EFECTIVO)}
                     className={`py-3 rounded-xl border text-sm font-bold transition-colors ${
-                      metodoPago === 'EFECTIVO'
+                      metodoPago === MetodoPago.EFECTIVO
                         ? 'bg-[#08557f] text-white border-[#08557f]'
                         : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                     }`}
@@ -157,9 +190,9 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm, montoCuota
                   </button>
                   <button
                     type="button"
-                    onClick={() => setMetodoPago('TRANSFERENCIA')}
+                    onClick={() => setMetodoPago(MetodoPago.TRANSFERENCIA)}
                     className={`py-3 rounded-xl border text-sm font-bold transition-colors ${
-                      metodoPago === 'TRANSFERENCIA'
+                      metodoPago === MetodoPago.TRANSFERENCIA
                         ? 'bg-[#08557f] text-white border-[#08557f]'
                         : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                     }`}
@@ -209,7 +242,7 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm, montoCuota
                   isSubmitting ||
                   parseCOPInputToNumber(montoPagoInput) <= 0 ||
                   (tipo === 'ABONO' && parseCOPInputToNumber(montoPagoInput) < MONTO_MINIMO_ABONO_COP) ||
-                  (metodoPago === 'TRANSFERENCIA' && !comprobanteTransferencia)
+                  (metodoPago === MetodoPago.TRANSFERENCIA && !comprobanteTransferencia)
                 }
                 className="w-full bg-[#08557f] text-white font-bold py-4 rounded-xl shadow-lg shadow-[#08557f]/20 hover:bg-[#063a58] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
               >
@@ -221,7 +254,7 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm, montoCuota
                 {isSubmitting ? 'Procesando...' : (tipo === 'ABONO' ? 'Confirmar Abono' : 'Confirmar Pago')}
               </button>
 
-              {metodoPago === 'TRANSFERENCIA' && (
+              {metodoPago === MetodoPago.TRANSFERENCIA && (
                 <div className="pt-2">
                   <FieldLabel required>Comprobante</FieldLabel>
                   <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4">

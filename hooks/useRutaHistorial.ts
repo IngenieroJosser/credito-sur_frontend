@@ -1,3 +1,5 @@
+import type { PagoParcial } from '@/types/domain'
+import type { EventoDeJornada } from '@/types/obligacion-jornada'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { getBogotaDateKey, getPagoBogotaDateKey, getLocalDateKey } from '@/lib/rutas-core'
@@ -21,7 +23,7 @@ export type UseRutaHistorialParams = {
 
   getVisitasHoy?: () => VisitaRuta[]
 
-  fetchPagos: () => Promise<any>
+  fetchPagos: () => Promise<{ pagos?: PagoParcial[] } | PagoParcial[]>
 
   loadDay: (fechaClave: string) => Promise<{
     resumen?: Partial<ResumenBase>
@@ -91,7 +93,9 @@ export const useRutaHistorial = (params: UseRutaHistorialParams) => {
 
     try {
       const pagosResp = await fetchPagosRef.current()
-      const pagosData = (pagosResp as any)?.pagos || pagosResp || []
+      // La respuesta llega envuelta en `{ pagos }` o como el arreglo directo, y por eso
+      // el `||` de siempre. Con el tipo declarado hay que distinguirlas.
+      const pagosData = Array.isArray(pagosResp) ? pagosResp : pagosResp?.pagos || []
 
       setHistorialRutas((prev) => {
         if (!prev) return prev
@@ -100,8 +104,8 @@ export const useRutaHistorial = (params: UseRutaHistorialParams) => {
         const keys = Object.keys(next)
 
         const cobradorIdActual = cobradorIdRef.current
-        const pagosFiltrados = (Array.isArray(pagosData) ? pagosData : []).filter((p: any) => {
-          const cobradorMatch = cobradorIdActual ? (p?.cobradorId === cobradorIdActual) : true
+        const pagosFiltrados = (Array.isArray(pagosData) ? pagosData : []).filter((p) => {
+          const cobradorMatch = cobradorIdActual ? p?.cobradorId === cobradorIdActual : true
           return cobradorMatch
         })
 
@@ -110,7 +114,7 @@ export const useRutaHistorial = (params: UseRutaHistorialParams) => {
         for (const k of keys) {
           if (next[k]?.loaded) continue
 
-          const pagosOperativosDelDia = pagosFiltrados.filter((p: any) => {
+          const pagosOperativosDelDia = pagosFiltrados.filter((p) => {
             if (isPagoCierrePendiente(p)) return false
 
             const fechaOperativa = String(p?.fechaOperativaRuta || '').slice(0, 10)
@@ -121,16 +125,14 @@ export const useRutaHistorial = (params: UseRutaHistorialParams) => {
             return getPagoBogotaDateKey(raw) === k
           })
 
-          const recaudo = sumMontoTotalPagosByBogotaDateKey(
-            pagosOperativosDelDia as any,
-            k,
-            { includeCierrePendiente: false },
-          )
+          const recaudo = sumMontoTotalPagosByBogotaDateKey(pagosOperativosDelDia, k, {
+            includeCierrePendiente: false,
+          })
           const visitadosKeys = new Set<string>()
-          pagosOperativosDelDia.forEach((p: any) => {
+          pagosOperativosDelDia.forEach((p) => {
             const pid = String(p?.prestamoId || p?.prestamo?.id || '')
             const cid = String(p?.clienteId || p?.cliente?.id || '')
-            const key = pid ? `loan-${pid}` : (cid ? `client-${cid}` : String(p?.id || ''))
+            const key = pid ? `loan-${pid}` : cid ? `client-${cid}` : String(p?.id || '')
             if (key) visitadosKeys.add(key)
           })
           const visitados = visitadosKeys.size
@@ -155,7 +157,7 @@ export const useRutaHistorial = (params: UseRutaHistorialParams) => {
 
   const deriveVisitadosFromVisitas = useCallback((visitas: VisitaRuta[]) => {
     if (!Array.isArray(visitas) || visitas.length === 0) return 0
-    return visitas.reduce((count: number, v: any) => {
+    return visitas.reduce((count: number, v) => {
       const rec = Number(v?.recaudadoDelDia || 0)
       const estado = String(v?.estado || '')
       if (rec > 0 || estado === 'pagado') return count + 1
@@ -168,145 +170,175 @@ export const useRutaHistorial = (params: UseRutaHistorialParams) => {
     return Math.round((visitados / total) * 100)
   }, [])
 
-  const cargarHistorialFecha = useCallback(async (fechaClave: string) => {
-    if (!rutaId) return
+  const cargarHistorialFecha = useCallback(
+    async (fechaClave: string) => {
+      if (!rutaId) return
 
-    const hoyKey = getBogotaDateKey(new Date())
-      || `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`
+      const hoyKey =
+        getBogotaDateKey(new Date()) ||
+        `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`
 
-    if (!preferLoadDayForToday && fechaClave === hoyKey && typeof getVisitasHoy === 'function') {
-      const visitasHoy = getVisitasHoy() || []
-      if (Array.isArray(visitasHoy) && visitasHoy.length > 0) {
-        let pagosDelDia: any[] = []
-        try {
-          const pagosResp = await fetchPagosRef.current()
-          const pagosData = (pagosResp as any)?.pagos || pagosResp || []
-          const cobradorIdActual = cobradorIdRef.current
-          pagosDelDia = (Array.isArray(pagosData) ? pagosData : []).filter((p: any) => {
-            const raw = p?.fechaPago || p?.creadoEn
-            if (!raw) return false
-            const pk = getPagoBogotaDateKey(raw)
-            if (pk !== fechaClave) return false
-            if (isPagoCierrePendiente(p)) return false
-            return cobradorIdActual ? p?.cobradorId === cobradorIdActual : true
+      if (!preferLoadDayForToday && fechaClave === hoyKey && typeof getVisitasHoy === 'function') {
+        const visitasHoy = getVisitasHoy() || []
+        if (Array.isArray(visitasHoy) && visitasHoy.length > 0) {
+          // `PagoParcial[]` y no `unknown[]`: es lo que `applyPagosDelDiaToHistorialVisitas`
+          // recibe, y con `unknown` el paso de una a otra no se comprobaba.
+          let pagosDelDia: PagoParcial[] = []
+          try {
+            const pagosResp = await fetchPagosRef.current()
+            // La respuesta llega envuelta en `{ pagos }` o como el arreglo directo, y por eso
+            // el `||` de siempre. Con el tipo declarado hay que distinguirlas.
+            const pagosData = Array.isArray(pagosResp) ? pagosResp : pagosResp?.pagos || []
+            const cobradorIdActual = cobradorIdRef.current
+            pagosDelDia = (Array.isArray(pagosData) ? pagosData : []).filter((p) => {
+              const raw = p?.fechaPago || p?.creadoEn
+              if (!raw) return false
+              const pk = getPagoBogotaDateKey(raw)
+              if (pk !== fechaClave) return false
+              if (isPagoCierrePendiente(p)) return false
+              return cobradorIdActual ? p?.cobradorId === cobradorIdActual : true
+            })
+          } catch {
+            pagosDelDia = []
+          }
+
+          const aplicado = applyPagosDelDiaToHistorialVisitas({
+            fechaClave,
+            visitas: visitasHoy,
+            pagosDelDia,
           })
-        } catch {
-          pagosDelDia = []
+
+          setHistorialRutas((prev) => {
+            const prevDia = (prev || {})[fechaClave] || {}
+            const totalPrevio = Number((prevDia.resumen || {})?.total || 0)
+            const visitadosPrevios = Number((prevDia.resumen || {})?.visitados || 0)
+            const total = totalPrevio > 0 ? totalPrevio : aplicado.visitas.length
+            const visitados = Math.max(
+              visitadosPrevios,
+              deriveVisitadosFromVisitas(aplicado.visitas),
+              aplicado.visitados,
+            )
+            const recaudo = Math.max(
+              Number((prevDia.resumen || {})?.recaudo || 0),
+              aplicado.recaudo,
+            )
+            return {
+              ...(prev || {}),
+              [fechaClave]: {
+                resumen: {
+                  ...(prevDia.resumen || {
+                    recaudo: 0,
+                    gastos: 0,
+                    efectividad: 0,
+                    visitados: 0,
+                    total: 0,
+                  }),
+                  recaudo,
+                  total,
+                  visitados,
+                  efectividad: deriveEfectividad(visitados, total),
+                },
+                visitas: aplicado.visitas,
+                loaded: true,
+              },
+            }
+          })
+          return
         }
+      }
 
-        const aplicado = applyPagosDelDiaToHistorialVisitas({
-          fechaClave,
-          visitas: visitasHoy,
-          pagosDelDia,
-        })
+      try {
+        const data = await loadDay(fechaClave)
 
-        setHistorialRutas((prev: any) => {
+        setHistorialRutas((prev) => {
           const prevDia = (prev || {})[fechaClave] || {}
-          const totalPrevio = Number((prevDia.resumen || {})?.total || 0)
-          const visitadosPrevios = Number((prevDia.resumen || {})?.visitados || 0)
-          const total = totalPrevio > 0 ? totalPrevio : aplicado.visitas.length
-          const visitados = Math.max(
-            visitadosPrevios,
-            deriveVisitadosFromVisitas(aplicado.visitas),
-            aplicado.visitados,
-          )
-          const recaudo = Math.max(
-            Number((prevDia.resumen || {})?.recaudo || 0),
-            aplicado.recaudo,
-          )
+          const baseResumen = prevDia.resumen || {
+            recaudo: 0,
+            gastos: 0,
+            efectividad: 0,
+            visitados: 0,
+            total: 0,
+          }
+
+          const visitas = (data?.visitas || []) as VisitaRuta[]
+          const totalBackend = Number(data?.resumen?.total)
+          const total =
+            Number.isFinite(totalBackend) && totalBackend >= 0
+              ? totalBackend
+              : Number(visitas.length)
+          const visitadosDerivados = deriveVisitadosFromVisitas(visitas)
+          const visitadosBackend = Number(data?.resumen?.visitados)
+          const visitados =
+            Number.isFinite(visitadosBackend) && visitadosBackend >= 0
+              ? visitadosBackend
+              : visitadosDerivados
+
           return {
             ...(prev || {}),
             [fechaClave]: {
               resumen: {
-                ...(prevDia.resumen || { recaudo: 0, gastos: 0, efectividad: 0, visitados: 0, total: 0 }),
-                recaudo,
+                ...baseResumen,
+                ...(data?.resumen || {}),
                 total,
                 visitados,
-                efectividad: deriveEfectividad(visitados, total),
+                efectividad:
+                  typeof data?.resumen?.efectividad === 'number'
+                    ? data.resumen.efectividad
+                    : deriveEfectividad(visitados, total),
               },
-              visitas: aplicado.visitas,
+              visitas,
               loaded: true,
             },
           }
         })
-        return
-      }
-    }
-
-    try {
-      const data = await loadDay(fechaClave)
-
-      setHistorialRutas((prev: any) => {
-        const prevDia = (prev || {})[fechaClave] || {}
-        const baseResumen = prevDia.resumen || { recaudo: 0, gastos: 0, efectividad: 0, visitados: 0, total: 0 }
-
-        const visitas = (data?.visitas || []) as VisitaRuta[]
-        const totalBackend = Number((data as any)?.resumen?.total)
-        const total = Number.isFinite(totalBackend) && totalBackend >= 0
-          ? totalBackend
-          : Number(visitas.length)
-        const visitadosDerivados = deriveVisitadosFromVisitas(visitas)
-        const visitadosBackend = Number((data as any)?.resumen?.visitados)
-        const visitados = Number.isFinite(visitadosBackend) && visitadosBackend >= 0
-          ? visitadosBackend
-          : visitadosDerivados
-
-        return {
-          ...(prev || {}),
-          [fechaClave]: {
-            resumen: {
-              ...baseResumen,
-              ...(data?.resumen || {}),
-              total,
-              visitados,
-              efectividad: typeof (data as any)?.resumen?.efectividad === 'number'
-                ? (data as any).resumen.efectividad
-                : deriveEfectividad(visitados, total),
+      } catch {
+        setHistorialRutas((prev) => {
+          if ((prev || {})[fechaClave]?.loaded) return prev
+          return {
+            ...(prev || {}),
+            [fechaClave]: {
+              resumen: { recaudo: 0, gastos: 0, efectividad: 0, visitados: 0, total: 0 },
+              visitas: [],
+              loaded: true,
             },
-            visitas,
-            loaded: true,
-          },
-        }
-      })
-    } catch {
-      setHistorialRutas((prev: any) => {
-        if ((prev || {})[fechaClave]?.loaded) return prev
-        return {
-          ...(prev || {}),
-          [fechaClave]: {
-            resumen: { recaudo: 0, gastos: 0, efectividad: 0, visitados: 0, total: 0 },
-            visitas: [],
-            loaded: true,
-          },
-        }
-      })
-    }
-  }, [rutaId, getVisitasHoy, loadDay, deriveVisitadosFromVisitas, deriveEfectividad, preferLoadDayForToday])
+          }
+        })
+      }
+    },
+    [
+      rutaId,
+      getVisitasHoy,
+      loadDay,
+      deriveVisitadosFromVisitas,
+      deriveEfectividad,
+      preferLoadDayForToday,
+    ],
+  )
 
-  const refrescarHistorialCargado = useCallback(async (payload?: any) => {
-    if (!rutaId) return
+  const refrescarHistorialCargado = useCallback(
+    async (payload?: EventoDeJornada) => {
+      if (!rutaId) return
 
-    const metadata = payload?.metadata || {}
-    const fechaEvento = String(
-      payload?.fechaOperativaRuta ||
-      metadata?.fechaOperativaRuta ||
-      payload?.fechaClave ||
-      metadata?.fechaClave ||
-      '',
-    ).slice(0, 10)
+      const metadata = payload?.metadata || {}
+      // Sin `fechaClave`: no se emite en ningun sitio del backend (ver la nota en
+      // `CamposDelEventoDeJornada`). Eran dos eslabones que no resolvian nunca.
+      const fechaEvento = String(
+        payload?.fechaOperativaRuta || metadata?.fechaOperativaRuta || '',
+      ).slice(0, 10)
 
-    const historialActual = historialRutasRef.current || {}
-    const fechasCargadas = Object.entries(historialActual)
-      .filter(([, dia]) => dia?.loaded)
-      .map(([fecha]) => fecha)
+      const historialActual = historialRutasRef.current || {}
+      const fechasCargadas = Object.entries(historialActual)
+        .filter(([, dia]) => dia?.loaded)
+        .map(([fecha]) => fecha)
 
-    const fechasAReload = fechaEvento && historialActual[fechaEvento]?.loaded
-      ? [fechaEvento]
-      : fechasCargadas
+      const fechasAReload =
+        fechaEvento && historialActual[fechaEvento]?.loaded ? [fechaEvento] : fechasCargadas
 
-    if (fechasAReload.length === 0) return
-    await Promise.all(fechasAReload.map((fecha) => cargarHistorialFecha(fecha)))
-  }, [rutaId, cargarHistorialFecha])
+      if (fechasAReload.length === 0) return
+      await Promise.all(fechasAReload.map((fecha) => cargarHistorialFecha(fecha)))
+    },
+    [rutaId, cargarHistorialFecha],
+  )
 
   useRealtimeData(
     ['pagos_actualizados', 'prestamos_actualizados', 'jornadas_actualizadas'],

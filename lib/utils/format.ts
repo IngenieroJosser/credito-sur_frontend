@@ -8,7 +8,10 @@
  * @param fallback Valor a devolver si la fecha es inválida
  * @returns String formateado o fallback
  */
-export const formatShortDateTime = (date: any, fallback: string = 'Nunca'): string => {
+export const formatShortDateTime = (
+  // Lo que llega de la API: texto ISO, un Date ya construido, o nada.
+  date: string | Date | null | undefined,
+  fallback: string = 'Nunca'): string => {
   if (!date) return fallback;
   try {
     const d = new Date(date);
@@ -27,7 +30,7 @@ export const formatShortDateTime = (date: any, fallback: string = 'Nunca'): stri
     });
 
     return `${fecha}, ${hora}`;
-  } catch (error) {
+  } catch {
     return fallback;
   }
 };
@@ -37,7 +40,9 @@ export const formatShortDateTime = (date: any, fallback: string = 'Nunca'): stri
  * @param date Fecha a formatear
  * @param fallback Valor a devolver si la fecha es inválida
  */
-export const formatShortDate = (date: any, fallback: string = '—'): string => {
+export const formatShortDate = (
+  date: string | Date | null | undefined,
+  fallback: string = '—'): string => {
   if (!date) return fallback;
   try {
     let d: Date;
@@ -62,7 +67,7 @@ export const formatShortDate = (date: any, fallback: string = '—'): string => 
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const year = d.getFullYear();
     return `${day}/${month}/${year}`;
-  } catch (error) {
+  } catch {
     return fallback;
   }
 };

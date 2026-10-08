@@ -16,25 +16,73 @@ export interface OfflineCliente {
   prestamosActivos?: number;
   montoTotal?: number;
   montoMora?: number;
-  [key: string]: unknown;
+  // Aqui NO va `[key: string]: unknown`. Lo habia, y era la puerta por la que tres
+  // pantallas leian campos que esta copia NO guarda: `offCliente.referencia`,
+  // `offPrestamo.totalPagado` y `offPrestamo.montoCuota`, los tres `undefined` siempre.
+  // Quitarla cuesta tres sitios y evita que vuelva a pasar.
 }
 
+/**
+ * La copia local de un prestamo.
+ *
+ * Dos sitios escriben en este almacen: `mapearPrestamoDescargado` (syncManager, tras
+ * cada login) y `ListadoPrestamos`, que guarda las filas del listado tal cual. Los
+ * campos de abajo son los que las pantallas offline leen de verdad, y los dos
+ * escritores los rellenan.
+ *
+ * Hay pares que son el mismo dato con dos nombres (`monto`/`montoPrestado`,
+ * `saldoPendiente`/`montoPendiente`, `cantidadCuotas`/`cuotasTotales`): el primero es
+ * el nombre historico de este almacen y el segundo el que usa `GET /loans`. Se
+ * guardan los dos porque hay pantallas leyendo cada uno.
+ */
 export interface OfflinePrestamo {
   id: string;
   numeroPrestamo: string;
   clienteId: string;
   clienteNombre?: string;
+  /** El nombre ya compuesto, igual que `clienteNombre`; asi lo llama `GET /loans`. */
+  cliente?: string;
+  clienteDni?: string;
+  clienteTelefono?: string;
+  clienteDireccion?: string;
+
   monto: number;
+  montoPrestado?: number;
   montoTotal: number;
   saldoPendiente: number;
+  montoPendiente?: number;
+  montoPagado?: number;
+  interesTotal?: number;
+  moraAcumulada?: number;
+  cuotaInicial?: number;
+  valorCuota?: number;
+
   tasaInteres: number;
+  /** `GET /loans` no lo manda: queda en 0 y nadie lo lee de la copia local. */
   plazoMeses: number;
   frecuenciaPago: string;
   estado: string;
+
   cantidadCuotas: number;
+  cuotasTotales?: number;
+  cuotasPagadas?: number;
+  cuotasVencidas?: number;
+  progreso?: number;
+
+  producto?: string;
+  tipoProducto?: string;
+  tipoPrestamo?: string;
+  riesgo?: string;
+  ruta?: string;
+  rutaNombre?: string;
+
   fechaInicio: string;
   fechaFin: string;
-  [key: string]: unknown;
+  creadoEn?: string;
+  // Aqui NO va `[key: string]: unknown`. Lo habia, y era la puerta por la que tres
+  // pantallas leian campos que esta copia NO guarda: `offCliente.referencia`,
+  // `offPrestamo.totalPagado` y `offPrestamo.montoCuota`, los tres `undefined` siempre.
+  // Quitarla cuesta tres sitios y evita que vuelva a pasar.
 }
 
 export interface OfflineCuota {
@@ -49,6 +97,12 @@ export interface OfflineCuota {
   estado: string;
   montoPagado: number;
   fechaPago: string | null;
+  /**
+   * De ella depende el distintivo de prorroga que calcula
+   * `enrich-ruta-historial-riesgo` sobre las visitas, y ese calculo tambien corre sin
+   * conexion. Es columna de `model Cuota`.
+   */
+  fechaVencimientoProrroga?: string | null;
 }
 
 export interface OfflineRuta {
@@ -59,7 +113,10 @@ export interface OfflineRuta {
   activa: boolean;
   cobradorId: string;
   supervisorId: string | null;
-  [key: string]: unknown;
+  // Aqui NO va `[key: string]: unknown`. Lo habia, y era la puerta por la que tres
+  // pantallas leian campos que esta copia NO guarda: `offCliente.referencia`,
+  // `offPrestamo.totalPagado` y `offPrestamo.montoCuota`, los tres `undefined` siempre.
+  // Quitarla cuesta tres sitios y evita que vuelva a pasar.
 }
 
 export interface OfflineQueueItem {
@@ -93,6 +150,45 @@ export interface SyncMeta {
 }
 
 // ─── Schema de IndexedDB ─────────────────────────────────────────
+/**
+ * Las tres copias locales que faltaban por declarar.
+ *
+ * Los campos son EXACTAMENTE los que `syncManager` guarda en cada almacen
+ * (lineas 768-776, 794-801 y 836-842): se sacaron de ahi, no de los modelos del backend,
+ * porque la copia local guarda menos. Antes eran `any`, asi que una pantalla offline podia
+ * leer un campo que no esta guardado y recibir `undefined` sin que nadie avisara, que es
+ * exactamente lo que ya paso con el cliente.
+ */
+export interface OfflineProducto {
+  id: string;
+  codigo: string;
+  nombre: string;
+  descripcion: string;
+  categoria: string;
+  stock: number;
+  costo: number;
+  activo: boolean;
+}
+
+export interface OfflineCaja {
+  id: string;
+  codigo: string;
+  nombre: string;
+  tipo: string;
+  responsable: string;
+  saldo: number;
+  estado: string;
+}
+
+export interface OfflineUsuario {
+  id: string;
+  nombres: string;
+  apellidos: string;
+  correo: string;
+  rol: string;
+  estado: string;
+}
+
 interface OfflineDB extends DBSchema {
   clientes: {
     key: string;
@@ -116,17 +212,17 @@ interface OfflineDB extends DBSchema {
   };
   productos: {
     key: string;
-    value: any;
+    value: OfflineProducto;
     indexes: { 'by-categoria': string };
   };
   cajas: {
     key: string;
-    value: any;
+    value: OfflineCaja;
     indexes: { 'by-tipo': string };
   };
   usuarios: {
     key: string;
-    value: any;
+    value: OfflineUsuario;
     indexes: { 'by-rol': string };
   };
   'offline-queue': {
@@ -228,7 +324,19 @@ type StoreName = 'clientes' | 'prestamos' | 'cuotas' | 'rutas' | 'productos' | '
 
 export const offlineStore = {
   // Guardar múltiples registros (bulk upsert o overwrite completo)
-  async saveMany<T extends { id: string }>(store: StoreName, items: T[], overwrite = false): Promise<void> {
+  /**
+   * El generico va ATADO al almacen: `OfflineDB[K]['value']`.
+   *
+   * Antes era `<T extends { id: string }>`, o sea que cualquier objeto con id entraba en
+   * cualquier almacen: guardar clientes en el almacen de prestamos compilaba. Se pudo
+   * cerrar al declarar los tres almacenes que seguian en `any` (productos, cajas y
+   * usuarios): mientras uno fuera `any`, la union aceptaba todo.
+   */
+  async saveMany<K extends StoreName>(
+    store: K,
+    items: OfflineDB[K]['value'][],
+    overwrite = false,
+  ): Promise<void> {
     const db = await getOfflineDb();
     
     if (overwrite) {
@@ -243,7 +351,7 @@ export const offlineStore = {
 
     const tx = db.transaction(store, 'readwrite');
     for (const item of items) {
-      await tx.store.put(item as any);
+      await tx.store.put(item);
     }
     await tx.done;
 
@@ -270,9 +378,25 @@ export const offlineStore = {
   },
 
   // Obtener registros por índice
+  /**
+   * El cast del nombre del indice es de la firma de idb, no del dato.
+   *
+   * idb tipa `getAllFromIndex` contra UN almacen concreto; con `store: StoreName` (la
+   * union entera) los indices validos son la interseccion de todos, o sea `never`. Se
+   * probo hacer la funcion generica sobre el almacen para que idb resolviera los
+   * indices de cada uno, y no sirve: los tres llamadores pasan el tipo del resultado
+   * explicitamente (`getByIndex<T>(...)`), y cuando se dan algunos argumentos de tipo
+   * a mano TypeScript deja de inferir el resto y usa su valor por omision, que vuelve
+   * a ser la union entera.
+   *
+   * Antes el cast era `(db)`, que apagaba la comprobacion de TODA la llamada.
+   * Ahora se usa la vista SIN esquema de idb (`IDBPDatabase` a secas), que acepta
+   * nombres de almacen e indice como texto: se sigue comprobando que el metodo exista y
+   * que los argumentos sean los que pide, en vez de no comprobar nada.
+   */
   async getByIndex<T>(store: StoreName, indexName: string, value: string): Promise<T[]> {
-    const db = await getOfflineDb();
-    return (db as any).getAllFromIndex(store, indexName, value) as Promise<T[]>;
+    const db = (await getOfflineDb()) as IDBPDatabase;
+    return db.getAllFromIndex(store, indexName, value) as Promise<T[]>;
   },
 
   // Obtener metadata de sincronización

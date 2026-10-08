@@ -1,6 +1,11 @@
 'use client'
 
-import PantallaCarga from '@/components/ui/PantallaCarga'
+import { mensajeDeError } from '@/lib/mensaje-de-error'
+import type { CuotaOperativa } from '@/lib/types/cobranza'
+import type {
+  PagoDeCliente,
+} from '@/services/clientes-service'
+import { SkeletonDetalle } from '@/components/ui/Skeleton'
 
 import { logger } from '@/lib/logger'
 
@@ -32,12 +37,19 @@ import {
 } from '@/lib/rutas-core'
 import { clientesService } from '@/services/clientes-service'
 import { prestamosService } from '@/services/prestamos-service'
-import { pagosService } from '@/services/pagos-service'
 import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 import { resolveCurrentUserId } from '@/lib/creditos/crear-prestamo-payload'
 import { useNotification } from '@/components/providers/NotificationProvider'
-import { formatCurrency, formatCOPInputValue, formatMilesCOP, parseCOPInputToNumber } from '@/lib/utils'
+import { formatCOPInputValue, formatMilesCOP, parseCOPInputToNumber } from '@/lib/utils'
 import { TipoAmortizacion } from '@/types/enums'
+import BotonAccion from '@/components/ui/BotonAccion'
+import Tooltip from '@/components/ui/Tooltip'
+import { FrecuenciaPago } from '@/types/enums'
+// El `Cliente` del SERVICIO, con alias: la vista (`DetalleCliente`) exporta otro
+// `Cliente` distinto, que es el de presentacion y exige `fechaRegistro` (un nombre
+// de pantalla; en el esquema la columna es `creadoEn`). El estado guarda la
+// respuesta del endpoint, no el objeto de presentacion.
+import type { Cliente as ClienteDelServicio } from '@/services/clientes-service'
 
 const MODAL_Z_INDEX = 2147483647
 
@@ -86,7 +98,7 @@ export default function ClienteDetalleSupervisorPage() {
     comprobanteDomicilio: null as File | null,
   })
 
-  const [clienteData, setClienteData] = useState<any>(null)
+  const [clienteData, setClienteData] = useState<ClienteDelServicio | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -98,13 +110,13 @@ export default function ClienteDetalleSupervisorPage() {
            // Asegurar campos para UI
            setClienteData({ 
                 ...data, 
-                prestamos: (data as any).prestamos || [], 
-                pagos: (data as any).pagos || []
+                prestamos: (data).prestamos || [], 
+                pagos: (data).pagos || []
            })
         } else {
            setError('Cliente no encontrado')
         }
-      } catch (e) {
+      } catch {
         setError('Error al cargar cliente')
       } finally {
         setIsLoading(false)
@@ -165,7 +177,7 @@ export default function ClienteDetalleSupervisorPage() {
 
   if (isLoading) {
     return (
-      <PantallaCarga texto="Cargando información del cliente..." />
+      <SkeletonDetalle />
     )
   }
 
@@ -190,9 +202,11 @@ export default function ClienteDetalleSupervisorPage() {
     )
   }
 
+  // El `filter(Boolean)` no le quita el `undefined` al tipo: hace falta el guarda para
+  // que `fotos` sea de verdad `string[]`. Con `(a: any)` eso no se veia.
   const fotos: string[] = (clienteData.archivos || [])
-    .map((a: any) => a?.url || a?.path || a?.ruta)
-    .filter(Boolean)
+    .map((a) => a?.url || a?.path || a?.ruta)
+    .filter((url): url is string => Boolean(url))
 
   const cliente: Cliente = {
     ...clienteData,
@@ -202,20 +216,22 @@ export default function ClienteDetalleSupervisorPage() {
     fotos,
   }
 
-  const prestamos: Prestamo[] = (clienteData.prestamos || []).map((p: any) => {
+  const prestamos: Prestamo[] = (clienteData.prestamos || []).map((p) => {
     const cuotas = p.cuotas || []
-    const cuotasPagadas = cuotas.filter((c: any) => c.estado === 'PAGADO' || c.estado === 'PAGADA').length
+    const cuotasPagadas = cuotas.filter(
+      (c: CuotaOperativa) => c.estado === 'PAGADA' || c.estadoActual === 'PAGADA',
+    ).length
     const totalCuotas = p.cantidadCuotas || cuotas.length || 0
 
     const hoyKey = getBogotaDateKey(new Date())
     const frecuencia = String(p.frecuenciaPago || 'DIARIO').toUpperCase()
-    const cuotasVencidas = (Array.isArray(cuotas) ? cuotas : []).filter((c: any) => {
+    const cuotasVencidas = (Array.isArray(cuotas) ? cuotas : []).filter((c) => {
       if (!c || !isCuotaNoPagada(c)) return false
       const raw = resolveFechaEfectivaCuota(c) || String(c?.fechaVencimiento || '')
       const k = normalizeDateKey(raw)
       return !!k && !!hoyKey && k < hoyKey
     }).length
-    const diasMora = computeDiasMoraFromCuotas(cuotas as any, hoyKey, frecuencia)
+    const diasMora = computeDiasMoraFromCuotas(cuotas, hoyKey, frecuencia)
     const estadoUI = cuotasVencidas > 0 || diasMora > 0 ? 'EN_MORA' : p.estado
 
     const principal = Number(p.monto || 0)
@@ -241,7 +257,12 @@ export default function ClienteDetalleSupervisorPage() {
       cuotasPendientes: Math.max(0, totalCuotas - cuotasPagadas),
       fechaInicio: p.fechaInicio,
       fechaVencimiento: p.fechaFin,
-      proximoPago: cuotas.find((c: any) => c.estado === 'PENDIENTE' || c.estado === 'PARCIAL' || c.estado === 'VENCIDA' || c.estado === 'VENCIDO')?.fechaVencimiento || p.fechaFin,
+      // `isCuotaNoPagada` en vez de la lista a mano: es el predicado compartido, y la
+      // lista de aqui incluia 'VENCIDO', que no es un estado de cuota (el enum es
+      // VENCIDA), asi que ese eslabon nunca se cumplia.
+      proximoPago:
+        cuotas.find((c: CuotaOperativa) => isCuotaNoPagada(c))?.fechaVencimiento ||
+        p.fechaFin,
       estado: estadoUI,
       tasaInteres: tasa,
       moraAcumulada: Number(p.interesMoraPagado || 0),
@@ -252,15 +273,27 @@ export default function ClienteDetalleSupervisorPage() {
     } as Prestamo
   })
 
-  const pagos: Pago[] = (clienteData.pagos || []).map((p: any) => {
+  const pagos: Pago[] = (clienteData.pagos || []).map((p: PagoDeCliente) => {
     return {
-      id: p.id,
-      fecha: p.fechaPago,
+      // Los `?? ''` y el `String(...)`: el pago del backend trae estos campos nulables y
+
+      // la `Pago` de la UI los declara obligatorios. Antes esto se resolvia con un
+
+      // `as Pago` al final, que tapaba justo esa diferencia.
+
+      id: p.id ?? '',
+
+      fecha: p.fechaPago ?? '',
+
       monto: Number(p.montoTotal || 0),
-      cuota: p.detalles?.[0]?.cuota?.numeroCuota || 1,
-      metodo: p.metodoPago,
-      estado: 'confirmado',
-      referencia: p.numeroPago,
+
+      cuota: String(p.detalles?.[0]?.cuota?.numeroCuota || 1),
+
+      metodo: p.metodoPago ?? '',
+
+      estado: 'confirmado' as const,
+
+      referencia: p.numeroPago == null ? undefined : String(p.numeroPago),
       icono: <DollarSign className="w-5 h-5" />,
       archivos: p.archivos || [],
     } as Pago
@@ -364,13 +397,16 @@ export default function ClienteDetalleSupervisorPage() {
               <div className="p-6">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-xl font-bold text-slate-900">Registrar Pago</h3>
-                  <button
-                    type="button"
-                    onClick={resetPagoModal}
-                    className="shrink-0 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
+                  <Tooltip texto="Cerrar">
+                    <button
+                      type="button"
+                      onClick={resetPagoModal}
+                      className="shrink-0 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
+                      aria-label="Cerrar"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  </Tooltip>
                 </div>
 
                 <div className="space-y-6">
@@ -442,7 +478,7 @@ export default function ClienteDetalleSupervisorPage() {
 
                   {metodoPago === 'TRANSFERENCIA' && (
                     <div className="pt-2">
-                      <label className="block text-sm font-bold text-slate-700 mb-2">Comprobante (Obligatorio)</label>
+                      <label className="block text-sm font-bold text-slate-700 mb-2">Comprobante<span className="ml-1 text-red-500" aria-label="obligatorio">*</span></label>
                       <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4">
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex-1">
@@ -495,7 +531,7 @@ export default function ClienteDetalleSupervisorPage() {
                     </div>
                   )}
 
-                  <button
+                  <BotonAccion
                     type="button"
                     onClick={async () => {
                       if (isSaving) return;
@@ -520,9 +556,9 @@ export default function ClienteDetalleSupervisorPage() {
                         const data = await clientesService.obtenerPorId(id);
                         setClienteData(data);
                         resetPagoModal();
-                      } catch (err: any) {
+                      } catch (err) {
                         console.error('Error al registrar pago:', err);
-                        showNotification('error', err.message || 'No se pudo registrar el pago');
+                        showNotification('error', mensajeDeError(err, 'No se pudo registrar el pago'));
                       } finally {
                         setIsSaving(false);
                       }
@@ -536,7 +572,7 @@ export default function ClienteDetalleSupervisorPage() {
                   >
                     {isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <CheckCircle className="h-5 w-5" />}
                     {isSaving ? 'Registrando...' : 'Confirmar Pago'}
-                  </button>
+                  </BotonAccion>
                 </div>
               </div>
             </div>
@@ -558,13 +594,16 @@ export default function ClienteDetalleSupervisorPage() {
               <div className="p-6">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-xl font-bold text-slate-900">Crear Nuevo Crédito</h3>
-                  <button
-                    type="button"
-                    onClick={resetCreditoModal}
-                    className="shrink-0 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
+                  <Tooltip texto="Cerrar">
+                    <button
+                      type="button"
+                      onClick={resetCreditoModal}
+                      className="shrink-0 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
+                      aria-label="Cerrar"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  </Tooltip>
                 </div>
 
                 <div className="mb-6">
@@ -735,7 +774,7 @@ export default function ClienteDetalleSupervisorPage() {
                             tasaInteresMora: 5, // Default
                             plazoMeses: Math.max(1, Math.ceil(cuotas / 4)), // Estimado si es semanal
                             cantidadCuotas: cuotas,
-                            frecuenciaPago: 'SEMANAL' as any,
+                            frecuenciaPago: FrecuenciaPago.SEMANAL,
                             fechaInicio: toBogotaDateTimeOffsetIso(new Date()),
                             creadoPorId,
                             tipoAmortizacion: TipoAmortizacion.INTERES_SIMPLE,
@@ -746,9 +785,9 @@ export default function ClienteDetalleSupervisorPage() {
                           const data = await clientesService.obtenerPorId(id);
                           setClienteData(data);
                           resetCreditoModal();
-                        } catch (err: any) {
+                        } catch (err) {
                           console.error('Error al crear crédito:', err);
-                          showNotification('error', err.message || 'No se pudo crear el crédito');
+                          showNotification('error', mensajeDeError(err, 'No se pudo crear el crédito'));
                         } finally {
                           setIsSaving(false);
                         }
@@ -780,13 +819,16 @@ export default function ClienteDetalleSupervisorPage() {
               <div className="p-6">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-xl font-bold text-slate-900">Crear Cliente</h3>
-                  <button
-                    type="button"
-                    onClick={resetNuevoClienteForm}
-                    className="shrink-0 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
+                  <Tooltip texto="Cerrar">
+                    <button
+                      type="button"
+                      onClick={resetNuevoClienteForm}
+                      className="shrink-0 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
+                      aria-label="Cerrar"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  </Tooltip>
                 </div>
 
                 <form
@@ -799,7 +841,7 @@ export default function ClienteDetalleSupervisorPage() {
                 >
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">Cédula / CC</label>
+                      <label className="block text-sm font-bold text-slate-700 mb-2">Cédula / CC<span className="ml-1 text-red-500" aria-label="obligatorio">*</span></label>
                       <input
                         type="text"
                         inputMode="numeric"
@@ -816,7 +858,7 @@ export default function ClienteDetalleSupervisorPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">Teléfono</label>
+                      <label className="block text-sm font-bold text-slate-700 mb-2">Teléfono<span className="ml-1 text-red-500" aria-label="obligatorio">*</span></label>
                       <input
                         type="tel"
                         inputMode="tel"
@@ -836,7 +878,7 @@ export default function ClienteDetalleSupervisorPage() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">Nombres</label>
+                      <label className="block text-sm font-bold text-slate-700 mb-2">Nombres<span className="ml-1 text-red-500" aria-label="obligatorio">*</span></label>
                       <input
                         value={formularioNuevoCliente.nombres}
                         onChange={(e) => setFormularioNuevoCliente((prev) => ({ ...prev, nombres: e.target.value }))}
@@ -845,7 +887,7 @@ export default function ClienteDetalleSupervisorPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">Apellidos</label>
+                      <label className="block text-sm font-bold text-slate-700 mb-2">Apellidos<span className="ml-1 text-red-500" aria-label="obligatorio">*</span></label>
                       <input
                         value={formularioNuevoCliente.apellidos}
                         onChange={(e) => setFormularioNuevoCliente((prev) => ({ ...prev, apellidos: e.target.value }))}

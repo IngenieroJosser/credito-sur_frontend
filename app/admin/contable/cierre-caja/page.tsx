@@ -3,16 +3,25 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { logger } from '@/lib/logger'
 import Link from 'next/link'
-import { ArrowLeft, CheckCircle2, AlertCircle, Calculator, Wallet, Receipt, Eye } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, AlertCircle, Calculator, Wallet, Receipt, Eye, Loader2 } from 'lucide-react'
+import Tooltip from '@/components/ui/Tooltip'
 import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber, cn } from '@/lib/utils'
 import MoneyAmount from '@/components/contable/MoneyAmount'
 import { getResumenFinanciero, getHistorialCierres, getHistorialCierresFiltrado, getCajas, getMovimientosLedger, getArqueoPreview, confirmarArqueo, getArqueoById } from '@/services/contabilidad-service';
+import type { ArqueoPreview, Caja, CierreHistorialItem, ResumenFinanciero } from '@/services/contabilidad-service'
 import { Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
 import { getBogotaDateKey } from '@/lib/rutas-core'
 import { getEntradaCajaFisica, getSalidaCajaFisica } from '@/lib/contabilidad-clasificacion'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
+import { toast } from 'sonner';
 
-const parseSaldoCaja = (raw: any): number => {
+/**
+ * El saldo de una caja, que llega como numero o como texto con separadores.
+ *
+ * `unknown` y no `any`: lo que entra es el resultado de una cadena de alias
+ * (`saldo ?? saldoActual ?? saldoCaja ?? cajaSaldo`) y cada uno puede faltar.
+ */
+const parseSaldoCaja = (raw: unknown): number => {
   if (typeof raw === 'number') return Number.isFinite(raw) ? raw : 0
   if (typeof raw === 'string') {
     const cleaned = raw.replace(/[\s.,$]/g, '')
@@ -23,27 +32,83 @@ const parseSaldoCaja = (raw: any): number => {
   return Number.isFinite(n) ? n : 0
 }
 
-const getNombreUsuario = (usuario: any) => {
+/**
+ * El nombre de un usuario del arqueo, que llega en tres formas distintas.
+ *
+ * Rastreado endpoint por endpoint (ver los tipos en `contabilidad-service`):
+ *
+ *   `/accounting/cierres`        -> un string ya armado
+ *   `/cajas/arqueos/:id`         -> el usuario de Prisma, con nombres y apellidos
+ *   `/cajas/:id/arqueo/preview`  -> { id, nombre }, con `nombre` en SINGULAR
+ *
+ * A esta pantalla le llegan la primera y la segunda. La tercera se cubre igual,
+ * porque antes caia al guion: si algun dia se le pasa el responsable de la vista
+ * previa, mostraria '—' en vez del nombre.
+ */
+/**
+ * Lo que el comprobante de arqueo necesita, venga de donde venga.
+ *
+ * Se imprime desde TRES origenes con formas distintas: el arqueo completo
+ * (`ArqueoDetalle`), lo que devuelve confirmar (`ArqueoConfirmado`, que trae `arqueoId`
+ * en vez de `id`) y la fila del historial (`CierreHistorialItem`, que trae el
+ * responsable como texto y no como objeto). Por eso todo es opcional y los tres
+ * usuarios aceptan las dos formas: es la union real, no un `any`.
+ */
+type UsuarioParaComprobante =
+  | string
+  | { nombres?: string; apellidos?: string; nombre?: string }
+  | null
+  | undefined
+
+type ArqueoImprimible = {
+  id?: string
+  arqueoId?: string
+  fechaOperativa?: string
+  creadoEn?: string
+  numeroComprobanteTraslado?: string | null
+  saldoEsperado?: number
+  efectivoContado?: number
+  diferencia?: number
+  tipoDiferencia?: string | null
+  montoTransferido?: number
+  journalEntryId?: string | null
+  observaciones?: string | null
+  cajaOrigen?: {
+    nombre?: string
+    saldoAnterior?: number
+    salida?: number
+    saldoNuevo?: number
+  } | null
+  cajaDestino?: { nombre?: string; ingreso?: number; saldoNuevo?: number | null } | null
+  responsable?: UsuarioParaComprobante
+  creadoPor?: UsuarioParaComprobante
+  recibidoPor?: UsuarioParaComprobante
+}
+
+const getNombreUsuario = (
+  usuario: string | { nombres?: string; apellidos?: string; nombre?: string } | null | undefined,
+) => {
   if (!usuario) return '—'
   if (typeof usuario === 'string') return usuario
-  return `${usuario.nombres ?? ''} ${usuario.apellidos ?? ''}`.trim() || '—'
+  const armado = `${usuario.nombres ?? ''} ${usuario.apellidos ?? ''}`.trim()
+  return armado || usuario.nombre?.trim() || '—'
 }
 
 // Helper to get principal caja (strict, no Oficina fallback)
-const getCajaPrincipal = (cajas: any[]) => {
+const getCajaPrincipal = (cajas: Caja[]): Caja | null => {
   if (!Array.isArray(cajas)) return null;
 
   return (
     cajas.find(
-      (c: any) => 
+      (c: Caja) => 
         String(c?.codigo || '').trim().toUpperCase() === 'CAJA-PRINCIPAL'
     ) || 
     cajas.find(
-      (c: any) => 
+      (c: Caja) => 
         String(c?.nombre || '').trim().toUpperCase() === 'CAJA PRINCIPAL'
     ) || 
     cajas.find(
-      (c: any) => 
+      (c: Caja) => 
         String(c?.tipo || '').trim().toUpperCase() === 'PRINCIPAL' && 
         String(c?.nombre || '').trim().toUpperCase() !== 'CAJA BANCO' && 
         String(c?.nombre || '').trim().toUpperCase() !== 'CAJA DE OFICINA'
@@ -53,7 +118,7 @@ const getCajaPrincipal = (cajas: any[]) => {
 };
 
 // Helper to get saldo from various fields using parseSaldoCaja
-const getSaldoCaja = (caja: any) => {
+const getSaldoCaja = (caja: Caja | null | undefined) => {
   if (!caja) return 0;
 
   const raw = 
@@ -78,17 +143,17 @@ export default function CierreCajaPage() {
     efectivoContado: '',
     observaciones: 'Cierre normal sin novedades.'
   })
-  const [resumen, setResumen] = useState<any | null>(null)
-  const [ultimoCierre, setUltimoCierre] = useState<any | null>(null)
-  const [cierres, setCierres] = useState<any[]>([])
+  const [resumen, setResumen] = useState<ResumenFinanciero | null>(null)
+  const [ultimoCierre, setUltimoCierre] = useState<CierreHistorialItem | null>(null)
+  const [cierres, setCierres] = useState<CierreHistorialItem[]>([])
   const [showHistorialModal, setShowHistorialModal] = useState(false)
-  const [selectedCierre, setSelectedCierre] = useState<any | null>(null)
+  const [selectedCierre, setSelectedCierre] = useState<CierreHistorialItem | null>(null)
   const [cargando, setCargando] = useState(false)
-  const [principalCaja, setPrincipalCaja] = useState<any | null>(null)
-  const [rutaCajas, setRutaCajas] = useState<any[]>([])
-  const [selectedRutaCaja, setSelectedRutaCaja] = useState<any | null>(null)
-  const [arqueoPreview, setArqueoPreview] = useState<any | null>(null)
-  const [arqueoResult, setArqueoResult] = useState<any | null>(null)
+  const [principalCaja, setPrincipalCaja] = useState<Caja | null>(null)
+  const [rutaCajas, setRutaCajas] = useState<Caja[]>([])
+  const [selectedRutaCaja, setSelectedRutaCaja] = useState<Caja | null>(null)
+  const [arqueoPreview, setArqueoPreview] = useState<ArqueoPreview | null>(null)
+  const [arqueoResult, setArqueoResult] = useState<ArqueoImprimible | null>(null)
   const [filtroTipo, setFiltroTipo] = useState<'TODOS' | 'ARQUEO' | 'CONSOLIDACION'>('TODOS')
   const [soloRutas, setSoloRutas] = useState<boolean>(false)
   const [estadoFiltro, setEstadoFiltro] = useState<'TODOS' | 'CUADRADA' | 'DESCUADRADA'>('TODOS')
@@ -98,7 +163,7 @@ export default function CierreCajaPage() {
     const total = cierres.length
     let cuadradas = 0
     let descuadradas = 0
-    cierres.forEach((c: any) => {
+    cierres.forEach((c) => {
       if (String(c.estado) === 'DESCUADRADA') descuadradas++
       else cuadradas++
     })
@@ -123,28 +188,23 @@ export default function CierreCajaPage() {
       const list = Array.isArray(cierresResp) ? cierresResp : []
       setCierres(list)
       setUltimoCierre(list.length ? list[0] : null)
-      // Cargar las cajas soportando distintas formas de respuesta del backend
-      const cajasRespAny = cajasResp as any
-      const cajasList = Array.isArray(cajasRespAny)
-        ? cajasRespAny
-        : Array.isArray(cajasRespAny?.data)
-          ? cajasRespAny.data
-          : Array.isArray(cajasRespAny?.cajas)
-            ? cajasRespAny.cajas
-            : []
+      // `getCajas` devuelve un arreglo plano (`Promise<Caja[]>`), asi que los respaldos
+      // `.data` y `.cajas` que habia aqui —para "distintas formas de respuesta"— no
+      // podian usarse nunca. Se queda la comprobacion de que sea un arreglo.
+      const cajasList = Array.isArray(cajasResp) ? cajasResp : []
 
       // Strict selection of principal caja (no fallback to Oficina)
       const principal = getCajaPrincipal(cajasList)
       setPrincipalCaja(principal)
       
-      const rutas = cajasList.filter((c: any) => String(c?.tipo || '').trim().toUpperCase() === 'RUTA')
+      const rutas = cajasList.filter((c: Caja) => String(c?.tipo || '').trim().toUpperCase() === 'RUTA')
       setRutaCajas(rutas)
       
       // Detailed debug: log all caja fields (only in dev)
       if (process.env.NODE_ENV === 'development') {
         logger.log('[loadCierreCaja] Starting load...')
         logger.log('[loadCierreCaja] Fetched data:', { res, cierresResp, cajasResp })
-        console.table(cajasList.map((c: any) => ({
+        console.table(cajasList.map((c: Caja) => ({
           id: c.id,
           nombre: c.nombre,
           tipo: c.tipo,
@@ -165,8 +225,8 @@ export default function CierreCajaPage() {
           limit: 1000,
         })
         const data = Array.isArray(movimientosCaja?.data) ? movimientosCaja.data : []
-        setIngresosHoyCalc(data.reduce((acc: number, m: any) => acc + getEntradaCajaFisica(m), 0))
-        setEgresosHoyCalc(data.reduce((acc: number, m: any) => acc + getSalidaCajaFisica(m), 0))
+        setIngresosHoyCalc(data.reduce((acc: number, m) => acc + getEntradaCajaFisica(m), 0))
+        setEgresosHoyCalc(data.reduce((acc: number, m) => acc + getSalidaCajaFisica(m), 0))
       } else {
         setIngresosHoyCalc(0)
         setEgresosHoyCalc(0)
@@ -176,21 +236,28 @@ export default function CierreCajaPage() {
     }
   }, [])
 
-  const selectRutaCaja = useCallback(async (caja: any) => {
+  /** Mientras se pide al servidor el arqueo de la caja elegida. */
+  const [cargandoPreview, setCargandoPreview] = useState(false)
+
+  const selectRutaCaja = useCallback(async (caja: Caja) => {
     setSelectedRutaCaja(caja)
     setForm((prev) => ({
       ...prev,
       efectivoContado: '',
     }))
     setArqueoPreview(null)
+    // Mientras no llega el arqueo, el saldo esperado que se muestra es el
+    // saldo guardado de la caja y cambia cuando responde el servidor. Se
+    // avisa para que nadie lea esa cifra como la definitiva.
+    setCargandoPreview(true)
     try {
       const preview = await getArqueoPreview(caja.id, form.fechaOperativa)
       setArqueoPreview(preview)
     } catch (e) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('[selectRutaCaja] Error loading arqueo preview:', e)
-      }
+      logger.error('No se pudo cargar el arqueo previo de la caja', e)
       setArqueoPreview(null)
+    } finally {
+      setCargandoPreview(false)
     }
   }, [form.fechaOperativa])
 
@@ -201,7 +268,7 @@ export default function CierreCajaPage() {
   useRealtimeData(['dashboards_actualizados', 'pagos_actualizados', 'prestamos_actualizados', 'rutas_actualizadas'], loadCierreCaja)
   
   const rutasPendientesCount = useMemo(() => {
-    return rutaCajas.filter((caja: any) => getSaldoCaja(caja) > 0).length
+    return rutaCajas.filter((caja: Caja) => getSaldoCaja(caja) > 0).length
   }, [rutaCajas])
 
   useEffect(() => {
@@ -221,8 +288,12 @@ export default function CierreCajaPage() {
   }, [showHistorialModal, filtroTipo, soloRutas, estadoFiltro, fechaInicio, fechaFin])
 
   const saldoSistema = useMemo(() => {
-    const caja: any = selectedRutaCaja as any
-    const rawSaldo = arqueoPreview?.saldoEsperado ?? caja?.saldo ?? caja?.saldoActual ?? caja?.saldoCaja ?? caja?.cajaSaldo
+    // `Caja` ya declara los cuatro alias del saldo: el `any` no hacia falta.
+    const caja = selectedRutaCaja
+    // Sin `cajaSaldo`: ese nombre es de otra respuesta (contabilidad-service.ts:81),
+    // no de `Caja`. Era un eslabon que no podia resolver nunca.
+    const rawSaldo =
+      arqueoPreview?.saldoEsperado ?? caja?.saldo ?? caja?.saldoActual ?? caja?.saldoCaja
     return parseSaldoCaja(rawSaldo)
   }, [selectedRutaCaja, arqueoPreview])
 
@@ -233,7 +304,7 @@ export default function CierreCajaPage() {
   const ingresosHoy = useMemo(() => ingresosHoyCalc ?? (resumen ? resumen.ingresosHoy : 0), [ingresosHoyCalc, resumen])
   const egresosHoy = useMemo(() => egresosHoyCalc ?? (resumen ? resumen.egresosHoy : 0), [egresosHoyCalc, resumen])
 
-  const formatTipoDiferencia = (tipo?: string) => {
+  const formatTipoDiferencia = (tipo?: string | null) => {
     switch (tipo) {
       case 'SIN_DIFERENCIA':
         return 'Sin diferencia'
@@ -246,19 +317,28 @@ export default function CierreCajaPage() {
     }
   };
 
-  const handleImprimirComprobante = async (arqueo?: any) => {
+  /** Mientras se pide al servidor el arqueo que se va a imprimir. */
+  const [imprimiendo, setImprimiendo] = useState(false);
+
+  const handleImprimirComprobante = async (arqueo?: ArqueoImprimible) => {
+    if (imprimiendo) return;
     let data = arqueo ?? arqueoResult;
     if (!data) return;
 
     // Si el item viene del historial y no trae todos los campos, se pide completo por ID
     if (arqueo && !arqueo.cajaOrigen && arqueo.id) {
+      // Este es el unico tramo que espera al servidor: lo de despues -armar
+      // el HTML y abrir la ventana- es sincrono y no necesita aviso.
+      setImprimiendo(true);
       try {
         const fullArqueo = await getArqueoById(arqueo.id);
         if (fullArqueo) {
           data = fullArqueo;
         }
       } catch (err) {
-        console.error('Failed to fetch full arqueo for printing:', err);
+        logger.error('No se pudo traer el arqueo completo para imprimirlo', err);
+      } finally {
+        setImprimiendo(false);
       }
     }
 
@@ -551,7 +631,9 @@ export default function CierreCajaPage() {
                   </div>
                   <div class="item">
                     <div class="label">Fecha de generación</div>
-                    <div class="value">${new Date(data.creadoEn).toLocaleString('es-CO')}</div>
+                    <div class="value">${
+                      data.creadoEn ? new Date(data.creadoEn).toLocaleString('es-CO') : '—'
+                    }</div>
                   </div>
                   <div class="item highlight">
                     <div class="label">Estado</div>
@@ -571,7 +653,7 @@ export default function CierreCajaPage() {
                 <div class="grid">
                   <div class="item">
                     <div class="label">Resultado</div>
-                    <div class="status-badge ${getBadgeClass(data.tipoDiferencia)}">
+                    <div class="status-badge ${getBadgeClass(data.tipoDiferencia ?? '')}">
                       ${formatTipoDiferencia(data.tipoDiferencia)}
                     </div>
                   </div>
@@ -701,7 +783,9 @@ export default function CierreCajaPage() {
     const printWindow = window.open('', '_blank', 'width=950,height=850');
 
     if (!printWindow) {
-      alert('El navegador bloqueó la ventana de impresión. Permite ventanas emergentes para imprimir el comprobante.');
+      toast.error(
+        'El navegador bloqueó la ventana de impresión. Permite ventanas emergentes para imprimir el comprobante.',
+      );
       return;
     }
 
@@ -825,7 +909,7 @@ export default function CierreCajaPage() {
                 <div className="p-6">
                   {rutaCajas.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                      {rutaCajas.map((caja: any) => (
+                      {rutaCajas.map((caja: Caja) => (
                         <button
                           key={caja.id}
                           type="button"
@@ -881,9 +965,18 @@ export default function CierreCajaPage() {
 
                     <div>
                       <div className="text-xs font-bold text-slate-500 uppercase mb-1">Saldo Esperado de la Caja Origen</div>
-                      <div className="text-lg font-bold text-slate-900 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                      <div
+                        aria-busy={cargandoPreview}
+                        className={`text-lg font-bold text-slate-900 bg-slate-50 p-3 rounded-xl border border-slate-200 ${cargandoPreview ? 'animate-pulse' : ''}`}
+                      >
                         {formatCurrency(saldoSistema)}
                       </div>
+                      {cargandoPreview ? (
+                        <p className="mt-1 flex items-center gap-1.5 text-xs font-medium text-slate-500">
+                          <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
+                          Calculando el saldo esperado de esta caja…
+                        </p>
+                      ) : null}
                     </div>
 
                     <div>
@@ -1123,15 +1216,15 @@ export default function CierreCajaPage() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <div className="text-[10px] font-bold text-slate-400 uppercase">Responsable</div>
-                      <div className="text-sm font-bold text-slate-900 mt-1">{arqueoResult.responsable?.nombres} {arqueoResult.responsable?.apellidos || '-'}</div>
+                      <div className="text-sm font-bold text-slate-900 mt-1">{getNombreUsuario(arqueoResult.responsable)}</div>
                     </div>
                     <div>
                       <div className="text-[10px] font-bold text-slate-400 uppercase">Creado Por</div>
-                      <div className="text-sm font-bold text-slate-900 mt-1">{arqueoResult.creadoPor?.nombres} {arqueoResult.creadoPor?.apellidos || '-'}</div>
+                      <div className="text-sm font-bold text-slate-900 mt-1">{getNombreUsuario(arqueoResult.creadoPor)}</div>
                     </div>
                     <div>
                       <div className="text-[10px] font-bold text-slate-400 uppercase">Recibido Por</div>
-                      <div className="text-sm font-bold text-slate-900 mt-1">{arqueoResult.recibidoPor?.nombres} {arqueoResult.recibidoPor?.apellidos || '-'}</div>
+                      <div className="text-sm font-bold text-slate-900 mt-1">{getNombreUsuario(arqueoResult.recibidoPor)}</div>
                     </div>
                   </div>
                   
@@ -1312,7 +1405,7 @@ export default function CierreCajaPage() {
                             {c.responsable ? `Resp: ${getNombreUsuario(c.responsable)}` : ''}
                           </span>
                           <span className="text-[11px] text-slate-400">
-                            {new Date(c.fecha || c.creadoEn || c.fechaOperativa).toLocaleString('es-CO')}
+                            {new Date(c.fecha).toLocaleString('es-CO')}
                           </span>
                         </div>
                         
@@ -1326,12 +1419,17 @@ export default function CierreCajaPage() {
                           </button>
                           
                           {c.numeroComprobanteTraslado && (
-                            <button
-                              onClick={() => handleImprimirComprobante(c)}
-                              className="flex-1 px-3 py-2 bg-blue-50 border border-blue-200 text-xs font-bold text-blue-700 rounded-xl hover:bg-blue-100 transition-colors text-center"
-                            >
-                              Imprimir Comprobante
-                            </button>
+                            <Tooltip texto="Abre el comprobante de traslado listo para imprimir">
+                              <button
+                                onClick={() => handleImprimirComprobante(c)}
+                                disabled={imprimiendo}
+                                aria-busy={imprimiendo}
+                                className="flex-1 px-3 py-2 bg-blue-50 border border-blue-200 text-xs font-bold text-blue-700 rounded-xl hover:bg-blue-100 transition-colors text-center disabled:opacity-60 inline-flex items-center justify-center gap-1.5"
+                              >
+                                {imprimiendo ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                                {imprimiendo ? 'Preparando…' : 'Imprimir Comprobante'}
+                              </button>
+                            </Tooltip>
                           )}
                         </div>
                       </div>
@@ -1367,10 +1465,21 @@ export default function CierreCajaPage() {
                 
                 <div className="flex gap-2 items-center">
                   {selectedCierre.numeroComprobanteTraslado && (
-                    <button onClick={() => handleImprimirComprobante(selectedCierre)} className="px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-xl hover:bg-blue-700 transition-colors flex items-center gap-2">
-                      <Receipt className="h-4 w-4" />
-                      Imprimir Comprobante
-                    </button>
+                    <Tooltip texto="Abre el comprobante de traslado listo para imprimir">
+                      <button
+                        onClick={() => handleImprimirComprobante(selectedCierre)}
+                        disabled={imprimiendo}
+                        aria-busy={imprimiendo}
+                        className="px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-xl hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-60"
+                      >
+                        {imprimiendo ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Receipt className="h-4 w-4" />
+                        )}
+                        {imprimiendo ? 'Preparando…' : 'Imprimir Comprobante'}
+                      </button>
+                    </Tooltip>
                   )}
                   <button onClick={() => setShowDetalleCierreModal(false)} className="px-4 py-2 bg-white border border-slate-200 text-sm font-bold text-slate-600 rounded-xl hover:bg-slate-50 transition-colors">
                     Cerrar
@@ -1391,7 +1500,7 @@ export default function CierreCajaPage() {
                     <div className="flex-1 min-w-[150px]">
                       <div className="text-[10px] font-bold text-slate-400 uppercase">Fecha generación</div>
                       <div className="text-sm font-bold text-slate-900">
-                        {new Date(selectedCierre.creadoEn || selectedCierre.fecha).toLocaleString('es-CO')}
+                        {new Date(selectedCierre.fecha).toLocaleString('es-CO')}
                       </div>
                     </div>
                     <div className="flex-1 min-w-[150px]">
@@ -1534,10 +1643,10 @@ export default function CierreCajaPage() {
                   )}
 
                   {/* Observaciones */}
-                  { (selectedCierre.observaciones || selectedCierre.descripcion) && (
+                  { selectedCierre.descripcion && (
                     <div className="bg-slate-50 border border-slate-200 rounded-2xl px-4 py-4">
                       <div className="text-[10px] font-bold text-slate-400 uppercase">Observaciones</div>
-                      <div className="mt-1 text-sm font-medium text-slate-900 whitespace-pre-line">{selectedCierre.observaciones || selectedCierre.descripcion}</div>
+                      <div className="mt-1 text-sm font-medium text-slate-900 whitespace-pre-line">{selectedCierre.descripcion}</div>
                     </div>
                   )}
                 </div>
@@ -1545,12 +1654,17 @@ export default function CierreCajaPage() {
 
               <div className="p-4 sm:p-6 border-t border-slate-100 flex flex-col sm:flex-row justify-between sm:justify-end gap-2">
                 {selectedCierre.numeroComprobanteTraslado && (
-                  <button
-                    onClick={() => handleImprimirComprobante(selectedCierre)}
-                    className="w-full sm:w-auto px-6 py-2 bg-blue-600 text-white text-sm font-bold rounded-xl hover:bg-blue-700 transition-colors"
-                  >
-                    Imprimir comprobante
-                  </button>
+                  <Tooltip texto="Abre el comprobante de traslado listo para imprimir">
+                    <button
+                      onClick={() => handleImprimirComprobante(selectedCierre)}
+                      disabled={imprimiendo}
+                      aria-busy={imprimiendo}
+                      className="w-full sm:w-auto px-6 py-2 bg-blue-600 text-white text-sm font-bold rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-60 inline-flex items-center justify-center gap-2"
+                    >
+                      {imprimiendo ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                      {imprimiendo ? 'Preparando…' : 'Imprimir comprobante'}
+                    </button>
+                  </Tooltip>
                 )}
                 
                 <button

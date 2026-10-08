@@ -1,114 +1,148 @@
 import { logger } from '@/lib/logger'
-import { apiRequest } from '@/lib/api/api';
-import { syncService } from '@/lib/offline/syncService';
-import { conRespaldoOffline } from '@/lib/offline/conRespaldoOffline';
-import { EstadoPrestamo, FrecuenciaPago, EstadoCuota, TipoAmortizacion } from '@/types/enums';
-import type { Prestamo } from '@/types/domain';
+import { apiRequest } from '@/lib/api/api'
+import { syncService } from '@/lib/offline/syncService'
+import { conRespaldoOffline, esErrorDeRed } from '@/lib/offline/conRespaldoOffline'
+import { EstadoPrestamo, FrecuenciaPago, EstadoCuota, TipoAmortizacion } from '@/types/enums'
+import type { Prestamo } from '@/types/domain'
 import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
+import type { PrestamoDelListado } from '@/types/domain'
+import type { PrestamoCreado } from '@/lib/creditos/prestamo-creado'
 
 const generarIdempotencyKey = (prefix: string) => {
   const random =
     typeof crypto !== 'undefined' && 'randomUUID' in crypto
       ? crypto.randomUUID()
-      : Math.random().toString(36).slice(2, 12);
-  return `${prefix}-${Date.now()}-${random}`;
-};
+      : Math.random().toString(36).slice(2, 12)
+  return `${prefix}-${Date.now()}-${random}`
+}
 
-export type { EstadoPrestamo, FrecuenciaPago, EstadoCuota, Prestamo };
+export type { EstadoPrestamo, FrecuenciaPago, EstadoCuota, Prestamo }
 
 export interface Cuota {
-  id: string;
-  prestamoId: string;
-  numeroCuota: number;
-  fechaVencimiento: string;
-  monto: number;
-  montoCapital: number;
-  montoInteres: number;
-  montoInteresMora: number;
-  estado: EstadoCuota;
-  montoPagado: number;
-  fechaPago: string | null;
-  fechaVencimientoProrroga: string | null;
-  creadoEn: string;
-  actualizadoEn: string;
+  id: string
+  prestamoId: string
+  numeroCuota: number
+  fechaVencimiento: string
+  monto: number
+  montoCapital: number
+  montoInteres: number
+  montoInteresMora: number
+  estado: EstadoCuota
+  montoPagado: number
+  fechaPago: string | null
+  fechaVencimientoProrroga: string | null
+  creadoEn: string
+  actualizadoEn: string
 }
 
 export interface CrearPrestamoDto {
-  clienteId: string;
-  productoId?: string;
-  precioProductoId?: string;
-  tipoPrestamo: string;
-  monto: number;
-  tasaInteres: number;
-  tasaInteresMora: number;
-  plazoMeses: number;
-  cantidadCuotas?: number;
-  frecuenciaPago: FrecuenciaPago;
-  tipoAmortizacion?: TipoAmortizacion;
-  fechaInicio: string;
-  fechaPrimerCobro?: string;
-  creadoPorId: string;
-  cuotaInicial?: number;
-  notas?: string;
-  garantia?: string;
+  /**
+   * Clave de idempotencia para el modo offline.
+   *
+   * La cola trata esta operación como idempotente (ver `idempotentTypes` en
+   * `syncService`), así que esta clave es lo que evita que una creación encolada se
+   * aplique dos veces si el sync reintenta. El servicio ya la ponía —y la leía con
+   * un `as any`, porque la interfaz no la declaraba—; ahora está declarada.
+   */
+  idempotencyKey?: string
+  clienteId: string
+  productoId?: string
+  precioProductoId?: string
+  tipoPrestamo: string
+  monto: number
+  tasaInteres: number
+  tasaInteresMora: number
+  plazoMeses: number
+  cantidadCuotas?: number
+  frecuenciaPago: FrecuenciaPago
+  tipoAmortizacion?: TipoAmortizacion
+  fechaInicio: string
+  fechaPrimerCobro?: string
+  creadoPorId: string
+  cuotaInicial?: number
+  notas?: string
+  garantia?: string
+}
+
+/**
+ * Un adjunto del credito, espejo de `ArchivoPrestamoDto` del backend
+ * (update-loan.dto.ts:30-73). Solo `tipoContenido` y `tipoArchivo` son obligatorios
+ * alli; el resto es opcional.
+ */
+export interface ArchivoDePrestamo {
+  tipoContenido: string
+  tipoArchivo: string
+  nombreOriginal?: string
+  nombreAlmacenamiento?: string
+  ruta?: string
+  url?: string
+  tamanoBytes?: number
+  formato?: string
 }
 
 export interface FiltrosPrestamos {
-  estado?: string;
-  ruta?: string;
-  search?: string;
-  tipo?: string;
-  page?: number;
-  limit?: number;
+  estado?: string
+  ruta?: string
+  search?: string
+  tipo?: string
+  page?: number
+  limit?: number
   /** Estados a excluir de los resultados */
-  excluirEstados?: string[];
+  excluirEstados?: string[]
 }
 
 export interface EstadisticasPrestamos {
-  total: number;
-  activos: number;
-  atrasados: number;
-  morosos: number;
-  pagados: number;
-  cancelados: number;
-  montoTotal: number;
-  montoPrestado?: number;
-  interesTotal?: number;
-  montoPendiente: number;
-  moraTotal: number;
+  total: number
+  activos: number
+  atrasados: number
+  morosos: number
+  pagados: number
+  cancelados: number
+  montoTotal: number
+  montoPrestado?: number
+  interesTotal?: number
+  montoPendiente: number
+  moraTotal: number
 }
 
 export interface RespuestaPrestamos {
-  prestamos: Prestamo[];
-  estadisticas: EstadisticasPrestamos;
+  /**
+   * Ojo: NO son modelos `Prestamo`. GET /loans devuelve una vista ya
+   * calculada, con otro vocabulario -`montoTotal`, `montoPendiente`,
+   * `cuotasTotales`- y el cliente y la ruta aplanados a texto. Decir aqui
+   * `Prestamo[]` hacia que las pantallas del listado tuvieran que tratar cada
+   * fila como `any` para poder leerla.
+   */
+  prestamos: PrestamoDelListado[]
+  estadisticas: EstadisticasPrestamos
   paginacion: {
-    total: number;
-    pagina: number;
-    limite: number;
-    totalPaginas: number;
-  };
+    total: number
+    pagina: number
+    limite: number
+    totalPaginas: number
+  }
 }
 
-export type OrigenGestionReprogramacion = 'CIERRE_PENDIENTE';
+export type OrigenGestionReprogramacion = 'CIERRE_PENDIENTE'
 
 export type ReprogramacionContextoPayload = {
-  fechaOperativaRuta?: string;
-  origenGestion?: OrigenGestionReprogramacion;
-  idempotencyKey?: string;
-};
+  fechaOperativaRuta?: string
+  origenGestion?: OrigenGestionReprogramacion
+  idempotencyKey?: string
+}
 
 export type SolicitarReprogramacionCuotaPayload = {
-  prestamoId: string;
-  cuotaId: string;
-  nuevaFecha: string;
-  motivo: string;
-} & ReprogramacionContextoPayload;
+  prestamoId: string
+  cuotaId: string
+  nuevaFecha: string
+  motivo: string
+} & ReprogramacionContextoPayload
 
 export type ReprogramarPrestamoPayload = {
-  fecha: string;
-  motivo: string;
-  cobradorId: string;
-} & ReprogramacionContextoPayload;
+  fecha: string
+  motivo: string
+  cobradorId: string
+} & ReprogramacionContextoPayload
 
 export function buildReprogramacionCierrePendienteKey({
   rutaId,
@@ -118,12 +152,12 @@ export function buildReprogramacionCierrePendienteKey({
   cuotaId,
   nuevaFecha,
 }: {
-  rutaId?: string;
-  fechaOperativa?: string;
-  clienteId?: string;
-  prestamoId?: string;
-  cuotaId?: string;
-  nuevaFecha?: string;
+  rutaId?: string
+  fechaOperativa?: string
+  clienteId?: string
+  prestamoId?: string
+  cuotaId?: string
+  nuevaFecha?: string
 }) {
   return [
     'REPROGRAMACION_CIERRE_PENDIENTE',
@@ -133,7 +167,7 @@ export function buildReprogramacionCierrePendienteKey({
     prestamoId || 'SIN_PRESTAMO',
     cuotaId || 'SIN_CUOTA',
     nuevaFecha || 'SIN_NUEVA_FECHA',
-  ].join(':');
+  ].join(':')
 }
 
 export const prestamosService = {
@@ -141,34 +175,34 @@ export const prestamosService = {
    * Obtener todos los préstamos con filtros
    */
   async obtenerPrestamos(filtros?: FiltrosPrestamos): Promise<RespuestaPrestamos> {
-    const params = new URLSearchParams();
-    
-    if (filtros?.estado) params.append('estado', filtros.estado);
-    if (filtros?.ruta) params.append('ruta', filtros.ruta);
-    if (filtros?.search) params.append('search', filtros.search);
-    if (filtros?.tipo) params.append('tipo', filtros.tipo);
-    if (filtros?.page) params.append('page', filtros.page.toString());
-    if (filtros?.limit) params.append('limit', filtros.limit.toString());
+    const params = new URLSearchParams()
+
+    if (filtros?.estado) params.append('estado', filtros.estado)
+    if (filtros?.ruta) params.append('ruta', filtros.ruta)
+    if (filtros?.search) params.append('search', filtros.search)
+    if (filtros?.tipo) params.append('tipo', filtros.tipo)
+    if (filtros?.page) params.append('page', filtros.page.toString())
+    if (filtros?.limit) params.append('limit', filtros.limit.toString())
     // Exclusiones: cada estado se envía como parámetro repetido al backend
     if (filtros?.excluirEstados?.length) {
-      filtros.excluirEstados.forEach(e => params.append('excluirEstado', e));
+      filtros.excluirEstados.forEach((e) => params.append('excluirEstado', e))
     }
-    
-    const query = params.toString();
-    const endpoint = query ? `/loans?${query}` : '/loans';
-    
-    return apiRequest<RespuestaPrestamos>('GET', endpoint);
+
+    const query = params.toString()
+    const endpoint = query ? `/loans?${query}` : '/loans'
+
+    return apiRequest<RespuestaPrestamos>('GET', endpoint)
   },
 
   /**
    * Obtener un préstamo por ID
    */
   async obtenerPrestamoPorId(id: string): Promise<Prestamo> {
-    return apiRequest<Prestamo>('GET', `/loans/${id}`);
+    return apiRequest<Prestamo>('GET', `/loans/${id}`)
   },
 
   async obtenerPrestamoArchivadoPorId(id: string): Promise<Prestamo> {
-    return apiRequest<Prestamo>('GET', `/loans/${id}/archived`);
+    return apiRequest<Prestamo>('GET', `/loans/${id}/archived`)
   },
 
   /**
@@ -177,9 +211,15 @@ export const prestamosService = {
   async restaurarPrestamo(id: string): Promise<Prestamo> {
     return conRespaldoOffline(
       () => apiRequest<Prestamo>('PATCH', `/loans/${id}/restore`, {}),
-      { type: 'prestamo_restaurar', endpoint: `/loans/${id}/restore`, method: 'PATCH', data: {}, description: `Restaurar préstamo ${id}` },
+      {
+        type: 'prestamo_restaurar',
+        endpoint: `/loans/${id}/restore`,
+        method: 'PATCH',
+        data: {},
+        description: `Restaurar préstamo ${id}`,
+      },
       { id } as Prestamo,
-    );
+    )
   },
 
   /**
@@ -187,73 +227,66 @@ export const prestamosService = {
    */
   async archivarPrestamo(prestamoId: string, data: { motivo: string; notas?: string }) {
     try {
-      return await apiRequest('POST', `/loans/${prestamoId}/archive`, data);
-    } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
-        logger.log('[Offline Mode] Guardando archivado de prestamo en cola...');
+      return await apiRequest('POST', `/loans/${prestamoId}/archive`, data)
+    } catch (error) {
+      if (esErrorDeRed(error)) {
+        logger.log('[Offline Mode] Guardando archivado de prestamo en cola...')
         await syncService.enqueueOperation(
           'prestamo_archivar',
           `/loans/${prestamoId}/archive`,
           'POST',
           data,
-          `Archivar préstamo ID: ${prestamoId}`
-        );
-        return { esOffline: true };
+          `Archivar préstamo ID: ${prestamoId}`,
+        )
+        return { esOffline: true }
       }
-      throw error;
+      throw error
     }
   },
 
   /**
    * Crear un nuevo préstamo (con soporte Offline)
    */
-  async crearPrestamo(data: CrearPrestamoDto): Promise<any> {
+  async crearPrestamo(data: CrearPrestamoDto): Promise<PrestamoCreado> {
     const payload = {
       ...data,
-      idempotencyKey: (data as any).idempotencyKey || generarIdempotencyKey('prestamo'),
-    };
+      idempotencyKey: data.idempotencyKey || generarIdempotencyKey('prestamo'),
+    }
 
     try {
-      return await apiRequest('POST', '/loans', payload);
-    } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
-         logger.log('[Offline Mode] Guardando creacion de préstamo en cola...');
-         const tempId = `temp-loan-${Date.now()}`;
-         
-         await syncService.enqueueOperation(
-           'prestamo_create',
-           '/loans',
-           'POST',
-           payload,
-           `Nuevo Préstamo (Offline): $${payload.monto}`,
-           undefined,
-           tempId,
-         );
+      return await apiRequest<PrestamoCreado>('POST', '/loans', payload)
+    } catch (error) {
+      if (esErrorDeRed(error)) {
+        logger.log('[Offline Mode] Guardando creacion de préstamo en cola...')
+        const tempId = `temp-loan-${Date.now()}`
 
-         // Retornar objeto temporal
-         return {
-           id: tempId,
-           numeroPrestamo: 'OFFLINE',
-           clienteId: payload.clienteId,
-           monto: payload.monto,
-           tasaInteres: payload.tasaInteres,
-           plazoMeses: payload.plazoMeses,
-           fechaInicio: payload.fechaInicio,
-           estado: 'PENDIENTE',
-           esOffline: true
-         };
+        await syncService.enqueueOperation(
+          'prestamo_create',
+          '/loans',
+          'POST',
+          payload,
+          `Nuevo Préstamo (Offline): $${payload.monto}`,
+          undefined,
+          tempId,
+        )
+
+        // Retornar objeto temporal
+        return {
+          id: tempId,
+          numeroPrestamo: 'OFFLINE',
+          clienteId: payload.clienteId,
+          monto: payload.monto,
+          tasaInteres: payload.tasaInteres,
+          plazoMeses: payload.plazoMeses,
+          fechaInicio: payload.fechaInicio,
+          // 'PENDIENTE' no es un estado de prestamo: la union EstadoPrestamo no
+          // lo tiene. Un prestamo que espera aprobacion es PENDIENTE_APROBACION,
+          // que es el que pone el backend (loans.service, estadoInicial).
+          estado: 'PENDIENTE_APROBACION',
+          esOffline: true,
+        }
       }
-      throw error;
+      throw error
     }
   },
 
@@ -262,25 +295,20 @@ export const prestamosService = {
    */
   async eliminarPrestamo(id: string, userId: string): Promise<void> {
     try {
-      return await apiRequest<void>('DELETE', `/loans/${id}`, { userId });
-    } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
-        logger.log('[Offline Mode] Guardando eliminacion de prestamo en cola...');
+      return await apiRequest<void>('DELETE', `/loans/${id}`, { userId })
+    } catch (error) {
+      if (esErrorDeRed(error)) {
+        logger.log('[Offline Mode] Guardando eliminacion de prestamo en cola...')
         await syncService.enqueueOperation(
           'prestamo_eliminar',
           `/loans/${id}`,
           'DELETE',
           { userId },
-          `Eliminar préstamo ID: ${id}`
-        );
-        return;
+          `Eliminar préstamo ID: ${id}`,
+        )
+        return
       }
-      throw error;
+      throw error
     }
   },
 
@@ -288,7 +316,43 @@ export const prestamosService = {
    * Obtener cuotas de un préstamo
    */
   async obtenerCuotas(prestamoId: string): Promise<Cuota[]> {
-    return apiRequest<Cuota[]>('GET', `/loans/${prestamoId}/cuotas`);
+    return apiRequest<Cuota[]>('GET', `/loans/${prestamoId}/cuotas`)
+  },
+
+  /**
+   * Las cuotas de VARIOS créditos en una sola petición.
+   *
+   * Existe porque pedirlas de una en una dentro de un bucle era el patrón más caro de la
+   * app: el tablero operativo recorría rutas, dentro de cada ruta sus asignaciones y
+   * dentro de cada asignación sus préstamos, llamando a `obtenerCuotas` en el nivel más
+   * hondo. Cien préstamos eran cien peticiones.
+   *
+   * Devuelve un objeto indexado por id de préstamo. Los ids que no existan o que el rol
+   * no pueda ver simplemente no aparecen: el backend filtra por alcance, así que un
+   * cobrador no ve las cuotas de una ruta ajena ni aunque mande el id.
+   *
+   * El backend rechaza más de 300 ids de golpe, así que se trocea aquí.
+   */
+  async obtenerCuotasDeVarios(prestamoIds: string[]): Promise<Record<string, Cuota[]>> {
+    const ids = [...new Set(prestamoIds.filter(Boolean))]
+    if (ids.length === 0) return {}
+
+    const TAMANO_LOTE = 200
+    const lotes: string[][] = []
+    for (let i = 0; i < ids.length; i += TAMANO_LOTE) {
+      lotes.push(ids.slice(i, i + TAMANO_LOTE))
+    }
+
+    const respuestas = await Promise.all(
+      lotes.map((lote) =>
+        apiRequest<Record<string, Cuota[]>>(
+          'GET',
+          `/loans/cuotas?ids=${lote.map(encodeURIComponent).join(',')}`,
+        ).catch(() => ({}) as Record<string, Cuota[]>),
+      ),
+    )
+
+    return Object.assign({}, ...respuestas) as Record<string, Cuota[]>
   },
 
   /**
@@ -297,127 +361,65 @@ export const prestamosService = {
    * coincide al peso con lo que se guardaría.
    */
   async simularPlan(payload: {
-    tipoAmortizacion?: string;
-    monto: number;
-    tasaInteres: number;
-    cantidadCuotas: number;
-    plazoMeses: number;
-    frecuenciaPago: string;
-    fechaInicio?: string;
-    tipoPrestamo?: string;
-    cuotaInicial?: number;
+    tipoAmortizacion?: string
+    monto: number
+    tasaInteres: number
+    cantidadCuotas: number
+    plazoMeses: number
+    frecuenciaPago: string
+    fechaInicio?: string
+    tipoPrestamo?: string
+    cuotaInicial?: number
   }): Promise<{
-    interesTotal: number;
-    totalFinal: number;
-    cuotaProyectada: number;
+    interesTotal: number
+    totalFinal: number
+    cuotaProyectada: number
     cuotas: Array<{
-      numeroCuota: number;
-      fechaVencimiento: string;
-      monto: number;
-      montoCapital: number;
-      montoInteres: number;
-    }>;
+      numeroCuota: number
+      fechaVencimiento: string
+      monto: number
+      montoCapital: number
+      montoInteres: number
+    }>
   }> {
-    return apiRequest('POST', '/loans/simular', payload);
-  },
-
-  /**
-   * Aprobar un préstamo
-   */
-  async aprobarPrestamo(id: string, aprobadoPorId: string): Promise<any> {
-    try {
-      return await apiRequest('POST', `/loans/${id}/approve`, { aprobadoPorId });
-    } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
-        logger.log('[Offline Mode] Guardando aprobacion de prestamo en cola...');
-        await syncService.enqueueOperation(
-          'prestamo_aprobar',
-          `/loans/${id}/approve`,
-          'POST',
-          { aprobadoPorId },
-          `Aprobar préstamo ID: ${id}`
-        );
-        return { esOffline: true };
-      }
-      throw error;
-    }
-  },
-
-  /**
-   * Rechazar un préstamo
-   */
-  async rechazarPrestamo(id: string, rechazadoPorId: string, motivo?: string): Promise<any> {
-    try {
-      return await apiRequest('POST', `/loans/${id}/reject`, { 
-        rechazadoPorId, 
-        motivo 
-      });
-    } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
-        logger.log('[Offline Mode] Guardando rechazo de prestamo en cola...');
-        await syncService.enqueueOperation(
-          'prestamo_rechazar',
-          `/loans/${id}/reject`,
-          'POST',
-          { rechazadoPorId, motivo },
-          `Rechazar préstamo ID: ${id}`
-        );
-        return { esOffline: true };
-      }
-      throw error;
-    }
+    return apiRequest('POST', '/loans/simular', payload)
   },
 
   /**
    * Registrar un pago o abono
    */
   async registrarPago(data: {
-    prestamoId: string;
-    clienteId?: string;
-    monto: number;
-    metodoPago: 'EFECTIVO' | 'TRANSFERENCIA';
-    comprobante?: File | null;
-    esAbono?: boolean;
-    cobradorId?: string;
-    fecha?: string;
-  }): Promise<any> {
+    prestamoId: string
+    clienteId?: string
+    monto: number
+    metodoPago: 'EFECTIVO' | 'TRANSFERENCIA'
+    comprobante?: File | null
+    esAbono?: boolean
+    cobradorId?: string
+    fecha?: string
+  }): Promise<unknown> {
     try {
-      const formData = new FormData();
-      formData.append('prestamoId', data.prestamoId);
-      if (data.clienteId) formData.append('clienteId', data.clienteId);
-      formData.append('montoTotal', data.monto.toString());
-      formData.append('metodoPago', data.metodoPago);
-      
-      if (data.esAbono) formData.append('tipo', 'ABONO');
-      else formData.append('tipo', 'PAGO');
+      const formData = new FormData()
+      formData.append('prestamoId', data.prestamoId)
+      if (data.clienteId) formData.append('clienteId', data.clienteId)
+      formData.append('montoTotal', data.monto.toString())
+      formData.append('metodoPago', data.metodoPago)
 
-      if (data.cobradorId) formData.append('cobradorId', data.cobradorId);
-      if (data.fecha) formData.append('fechaPago', data.fecha);
-      
+      if (data.esAbono) formData.append('tipo', 'ABONO')
+      else formData.append('tipo', 'PAGO')
+
+      if (data.cobradorId) formData.append('cobradorId', data.cobradorId)
+      if (data.fecha) formData.append('fechaPago', data.fecha)
+
       if (data.comprobante) {
-        formData.append('comprobante', data.comprobante);
+        formData.append('comprobante', data.comprobante)
       }
-      
-      return await apiRequest('POST', '/payments', formData);
-    } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
-        logger.log('[Offline Mode] Guardando pago en cola...');
-        
+
+      return await apiRequest('POST', '/payments', formData)
+    } catch (error) {
+      if (esErrorDeRed(error)) {
+        logger.log('[Offline Mode] Guardando pago en cola...')
+
         const payload = {
           prestamoId: data.prestamoId,
           clienteId: data.clienteId,
@@ -425,8 +427,8 @@ export const prestamosService = {
           metodoPago: data.metodoPago,
           tipo: data.esAbono ? 'ABONO' : 'PAGO',
           cobradorId: data.cobradorId,
-          fechaPago: data.fecha || toBogotaDateTimeOffsetIso(new Date())
-        };
+          fechaPago: data.fecha || toBogotaDateTimeOffsetIso(new Date()),
+        }
 
         await syncService.enqueueOperation(
           'pago',
@@ -434,18 +436,18 @@ export const prestamosService = {
           'POST',
           payload,
           `Pago $${data.monto.toLocaleString()} - ${data.prestamoId}`,
-          data.comprobante || undefined
-        );
+          data.comprobante || undefined,
+        )
 
         return {
           id: `temp-pago-${Date.now()}`,
           estado: 'PENDIENTE',
           montoTotal: data.monto,
           esOffline: true,
-          mensaje: 'Almacenado localmente para sincronizar'
-        };
+          mensaje: 'Almacenado localmente para sincronizar',
+        }
       }
-      throw error;
+      throw error
     }
   },
 
@@ -455,7 +457,7 @@ export const prestamosService = {
   async reprogramarPrestamo(
     prestamoId: string,
     data: ReprogramarPrestamoPayload,
-  ): Promise<any> {
+  ): Promise<unknown> {
     const payload = {
       nuevaFecha: data.fecha,
       motivo: data.motivo,
@@ -463,77 +465,74 @@ export const prestamosService = {
       fechaOperativaRuta: data.fechaOperativaRuta,
       origenGestion: data.origenGestion,
       idempotencyKey: data.idempotencyKey,
-    };
+    }
     try {
-      return await apiRequest('POST', `/loans/${prestamoId}/reprogramacion`, payload);
-    } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
-        logger.log('[Offline Mode] Guardando reprogramacion de prestamo en cola...');
+      return await apiRequest('POST', `/loans/${prestamoId}/reprogramacion`, payload)
+    } catch (error) {
+      if (esErrorDeRed(error)) {
+        logger.log('[Offline Mode] Guardando reprogramacion de prestamo en cola...')
         await syncService.enqueueOperation(
           'prestamo_reprogramar',
           `/loans/${prestamoId}/reprogramacion`,
           'POST',
           payload,
-          `Reprogramar préstamo ID: ${prestamoId}`
-        );
-        return { esOffline: true };
+          `Reprogramar préstamo ID: ${prestamoId}`,
+        )
+        return { esOffline: true }
       }
-      throw error;
+      throw error
     }
   },
-  
+
   /**
    * Actualizar un préstamo existente
    */
-  async actualizarPrestamo(id: string, data: {
-    monto?: number;
-    tasaInteres?: number;
-    plazoMeses?: number;
-    cantidadCuotas?: number;
-    frecuenciaPago?: string;
-    estado?: string;
-    notas?: string;
-    tasaInteresMora?: number;
-    cuotaInicial?: number;
-    fechaInicio?: string;
-    garantia?: string;
-    tipoAmortizacion?: TipoAmortizacion;
-    archivos?: any[];
-  }): Promise<any> {
+  async actualizarPrestamo(
+    id: string,
+    data: {
+      monto?: number
+      tasaInteres?: number
+      plazoMeses?: number
+      cantidadCuotas?: number
+      frecuenciaPago?: string
+      estado?: string
+      notas?: string
+      tasaInteresMora?: number
+      cuotaInicial?: number
+      fechaInicio?: string
+      garantia?: string
+      tipoAmortizacion?: TipoAmortizacion
+      archivos?: ArchivoDePrestamo[]
+      /**
+       * La version cargada, para el bloqueo optimista. El DTO del backend la declara a
+       * proposito (update-loan.dto.ts:191) y el modal de editar la manda; faltaba aqui,
+       * asi que el payload tenia que ser `any` para poder incluirla.
+       */
+      version?: number
+    },
+  ): Promise<unknown> {
     try {
-      return await apiRequest('PATCH', `/loans/${id}`, data);
-    } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
-        logger.log('[Offline Mode] Guardando actualizacion de prestamo en cola...');
+      return await apiRequest('PATCH', `/loans/${id}`, data)
+    } catch (error) {
+      if (esErrorDeRed(error)) {
+        logger.log('[Offline Mode] Guardando actualizacion de prestamo en cola...')
         await syncService.enqueueOperation(
           'prestamo_actualizar',
           `/loans/${id}`,
           'PATCH',
           data,
-          `Actualizar préstamo ID: ${id}`
-        );
-        return { id, ...data };
+          `Actualizar préstamo ID: ${id}`,
+        )
+        return { id, ...data }
       }
-      throw error;
+      throw error
     }
   },
 
   /**
    * Solicitar reprogramación de cuota al supervisor/admin para aprobación.
    */
-  async solicitarReprogramacionCuota(
-    data: SolicitarReprogramacionCuotaPayload,
-  ): Promise<any> {
+  async solicitarReprogramacionCuota(data: SolicitarReprogramacionCuotaPayload): Promise<unknown> {
     const payload = {
       cuotaId: data.cuotaId,
       nuevaFecha: data.nuevaFecha,
@@ -541,59 +540,67 @@ export const prestamosService = {
       fechaOperativaRuta: data.fechaOperativaRuta,
       origenGestion: data.origenGestion,
       idempotencyKey: data.idempotencyKey,
-    };
+    }
     try {
-      return await apiRequest('POST', `/loans/${data.prestamoId}/reprogramacion`, payload);
-    } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 ||
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
-        logger.log('[Offline Mode] Guardando solicitud de reprogramacion de cuota en cola...');
+      return await apiRequest('POST', `/loans/${data.prestamoId}/reprogramacion`, payload)
+    } catch (error) {
+      if (esErrorDeRed(error)) {
+        logger.log('[Offline Mode] Guardando solicitud de reprogramacion de cuota en cola...')
         await syncService.enqueueOperation(
           'reprogramacion_cuota_solicitar',
           `/loans/${data.prestamoId}/reprogramacion`,
           'POST',
           payload,
-          `Solicitar reprogramación de cuota (préstamo ${data.prestamoId})`
-        );
-        return { esOffline: true };
+          `Solicitar reprogramación de cuota (préstamo ${data.prestamoId})`,
+        )
+        return { esOffline: true }
       }
-      throw error;
+      throw error
     }
   },
 
   /**
    * Listar solicitudes de reprogramación (módulo de revisiones para admin/supervisor).
    */
-  async listarReprogramacionesPendientes(estado?: string): Promise<any[]> {
+  async listarReprogramacionesPendientes(estado?: string): Promise<unknown[]> {
     const endpoint = estado
       ? `/loans/reprogramaciones-pendientes?estado=${estado}`
-      : '/loans/reprogramaciones-pendientes';
-    return apiRequest('GET', endpoint);
+      : '/loans/reprogramaciones-pendientes'
+    return apiRequest('GET', endpoint)
   },
 
   /**
    * Aprobar una solicitud de reprogramación.
    */
-  async aprobarReprogramacion(aprobacionId: string): Promise<any> {
+  async aprobarReprogramacion(aprobacionId: string): Promise<unknown> {
     return conRespaldoOffline(
       () => apiRequest('PATCH', `/loans/reprogramaciones/${aprobacionId}/aprobar`, {}),
-      { type: 'reprogramacion_aprobar', endpoint: `/loans/reprogramaciones/${aprobacionId}/aprobar`, method: 'PATCH', data: {}, description: `Aprobar reprogramación ${aprobacionId}` },
+      {
+        type: 'reprogramacion_aprobar',
+        endpoint: `/loans/reprogramaciones/${aprobacionId}/aprobar`,
+        method: 'PATCH',
+        data: {},
+        description: `Aprobar reprogramación ${aprobacionId}`,
+      },
       { esOffline: true },
-    );
+    )
   },
 
   /**
    * Rechazar una solicitud de reprogramación.
    */
-  async rechazarReprogramacion(aprobacionId: string, comentarios?: string): Promise<any> {
+  async rechazarReprogramacion(aprobacionId: string, comentarios?: string): Promise<unknown> {
     return conRespaldoOffline(
-      () => apiRequest('PATCH', `/loans/reprogramaciones/${aprobacionId}/rechazar`, { comentarios }),
-      { type: 'reprogramacion_rechazar', endpoint: `/loans/reprogramaciones/${aprobacionId}/rechazar`, method: 'PATCH', data: { comentarios }, description: `Rechazar reprogramación ${aprobacionId}` },
+      () =>
+        apiRequest('PATCH', `/loans/reprogramaciones/${aprobacionId}/rechazar`, { comentarios }),
+      {
+        type: 'reprogramacion_rechazar',
+        endpoint: `/loans/reprogramaciones/${aprobacionId}/rechazar`,
+        method: 'PATCH',
+        data: { comentarios },
+        description: `Rechazar reprogramación ${aprobacionId}`,
+      },
       { esOffline: true },
-    );
+    )
   },
-};
+}

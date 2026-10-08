@@ -7,11 +7,16 @@
 
 import { resolveRiesgoObligacion, resolveNivelRiesgoUi } from './riesgo-obligacion'
 
+// Los tres parametros son los MISMOS que recibe `resolveRiesgoObligacion`, al que este
+// helper delega entero: se derivan de su firma con `Parameters<...>` en vez de escribirlos
+// otra vez. Asi no pueden separarse. El retorno lo infiere de `resolveNivelRiesgoUi`.
+type ParamsDeRiesgo = Parameters<typeof resolveRiesgoObligacion>[0]
+
 export function resolveNivelRiesgoVisita(
-  visita: any,
-  prestamo?: any,
-  cuotaObjetivo?: any
-): any {
+  visita: ParamsDeRiesgo['row'],
+  prestamo?: ParamsDeRiesgo['prestamo'],
+  cuotaObjetivo?: ParamsDeRiesgo['cuotaObjetivo'],
+) {
   const estadoCalculado = visita?.estado || 'pendiente'
   const diasMora = Number(
     cuotaObjetivo?.diasMora || prestamo?.diasMora || visita?.diasMora || 0

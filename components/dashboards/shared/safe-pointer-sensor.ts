@@ -1,3 +1,4 @@
+import type React from 'react'
 import { PointerSensor } from '@dnd-kit/core'
 
 /**
@@ -8,7 +9,7 @@ export class SafePointerSensor extends PointerSensor {
   static activators = [
     {
       eventName: 'onPointerDown' as const,
-      handler: ({ nativeEvent: event }: any) => {
+      handler: ({ nativeEvent: event }: React.PointerEvent) => {
         const target = event.target as HTMLElement | null
         if (!target) return true
 

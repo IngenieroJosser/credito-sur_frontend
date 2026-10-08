@@ -1,5 +1,16 @@
 import { cookies } from 'next/headers';
+import { raizBackend } from '@/lib/api/baseUrl';
+import type { RutaDeLista } from '@/types/domain';
 
+/**
+ * Las cifras del dia tal como las ANIDA el detalle, `GET /routes/:id`
+ * (`routes.service.ts:2413-2422`). El listado manda las mismas cifras pero PLANAS
+ * en la raiz, y esa otra forma esta en `RutaDeListado` (`services/rutas-service.ts`).
+ *
+ * Los dos tipos estan repetidos a proposito: este archivo importa `next/headers`,
+ * o sea que solo corre en el servidor, y el servicio de rutas corre en el cliente.
+ * Si se cambia uno hay que cambiar el otro.
+ */
 export interface RutaEstadisticas {
   clientesAsignados: number;
   cobranzaDelDia: number;
@@ -8,6 +19,11 @@ export interface RutaEstadisticas {
   totalDeuda: number;
   prestamosActivos: number;
   avanceDiario: number;
+  /**
+   * Efectivo que el cobrador ya entrego hoy. Solo lo manda el detalle
+   * (`routes.service.ts:2421`); el listado no lo incluye, de ahi el opcional.
+   */
+  efectivoEntregado?: number;
 }
 
 
@@ -36,7 +52,7 @@ export async function getRutaDetalle(id: string): Promise<RutaDetalleMock | null
     if (!token) {
       return null;
     }
-    const apiUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
+    const apiUrl = raizBackend();
 
     const res = await fetch(`${apiUrl}/api-credisur/routes/${id}`, {
       headers: {
@@ -61,23 +77,16 @@ export async function getRutaDetalle(id: string): Promise<RutaDetalleMock | null
 }
 
 
-export interface Ruta {
-  id: string;
-  nombre: string;
-  codigo: string;
-  zona?: string;
-  estado: 'ACTIVA' | 'INACTIVA' | 'PENDIENTE_ACTIVACION' | 'COMPLETADA';
-  cobrador: string;
-  cobradorId?: string;
-  supervisorId?: string;
-  clientesAsignados: number;
-  clientesNuevos: number;
-  cobranzaDelDia: number;
-  metaDelDia: number;
-  descripcion?: string;
-  nivelRiesgo?: string;
-  frecuenciaVisita?: string;
-}
+/**
+ * La forma de una ruta del listado vive en `types/domain.ts`.
+ *
+ * Aqui habia una cuarta copia de la misma interfaz. Se deja como alias para que no
+ * puedan volver a separarse.
+ *
+ * Nota: ni `getRutasList` ni `getRutaDetalle` de este archivo tienen consumidores
+ * hoy; lo unico que se usa de aqui es el tipo `RutaDetalleMock`.
+ */
+export type Ruta = RutaDeLista;
 
 export async function getRutasList(): Promise<Ruta[]> {
   try {
@@ -90,7 +99,7 @@ export async function getRutasList(): Promise<Ruta[]> {
       return [];
     }
 
-    const apiUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
+    const apiUrl = raizBackend();
 
     // Traer las rutas con un límite prudente para evitar timeouts
     const res = await fetch(`${apiUrl}/api-credisur/routes?limit=20`, { 

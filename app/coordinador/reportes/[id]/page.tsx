@@ -1,6 +1,6 @@
 'use client';
 
-import PantallaCarga from '@/components/ui/PantallaCarga'
+import { SkeletonDetalle } from '@/components/ui/Skeleton'
 
 import { use, useState, useEffect } from 'react';
 import { ChevronLeft, BarChart3, TrendingUp, Users, Calendar, ArrowRight, DollarSign } from 'lucide-react';
@@ -48,7 +48,7 @@ export default function DetalleReporteOperativoPage({
           nuevosClientes: 0,
           gastosDia: 0,
           novedades: '',
-          movimientos: (data.pagosRecientes || []).map((p: any) => ({
+          movimientos: (data.pagosRecientes || []).map((p) => ({
             id: p.id,
             cliente: p.cliente || '',
             tipo: 'COBRO',
@@ -67,7 +67,7 @@ export default function DetalleReporteOperativoPage({
 
   if (loading) {
     return (
-      <PantallaCarga />
+      <SkeletonDetalle />
     );
   }
 

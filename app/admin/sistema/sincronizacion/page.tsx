@@ -14,9 +14,34 @@ import { usePermission } from '@/hooks/usePermission'
 import { apiRequest } from '@/lib/api/api'
 import { offlineQueue } from '@/lib/offline/offlineQueue'
 import { offlineStore } from '@/lib/offline/offlineDb'
-import { syncManager } from '@/lib/offline/syncManager'
 import type { OfflineQueueItem, SyncMeta } from '@/lib/offline/offlineDb'
 import ListaConflictos from '@/components/conflictos/ListaConflictos'
+import BotonAccion from '@/components/ui/BotonAccion'
+import { baseApi } from '@/lib/api/baseUrl'
+
+/**
+ * Un trabajo de la cola del servidor, tal como lo lista
+ * `GET /configuracion/colas/status`.
+ *
+ * `data` es el cuerpo del trabajo: en la cola conviven todos los modelos, asi que es
+ * `unknown` de verdad. Esta pantalla no lo interpreta, solo lo vuelca con
+ * `JSON.stringify`, asi que no hace falta mas que eso. Antes la forma estaba escrita dos
+ * veces (en el estado y en el generico de la peticion) y `data` era `any` en las dos.
+ */
+type TrabajoDeCola = {
+  id: string
+  name: string
+  state: 'failed' | 'delayed' | 'active' | 'waiting'
+  timestamp: number
+  processedOn: number | null
+  finishedOn: number | null
+  attemptsMade: number
+  failedReason: string | null
+  stacktrace?: string[]
+  data?: unknown
+  model?: string | null
+  action?: string | null
+}
 
 const SyncStatusPage = () => {
   const { isOnline, pendingOps, failedOps, isSyncing, syncNow, downloadForOffline } = useOffline()
@@ -29,34 +54,10 @@ const SyncStatusPage = () => {
   const [serverQueueCounts, setServerQueueCounts] = useState<Record<string, number> | null>(null)
   const [serverQueueEnabled, setServerQueueEnabled] = useState<boolean | null>(null)
   const [serverQueueReason, setServerQueueReason] = useState<string | null>(null)
-  const [serverQueueJobs, setServerQueueJobs] = useState<
-    Array<{
-      id: string
-      name: string
-      state: 'failed' | 'delayed' | 'active' | 'waiting'
-      timestamp: number
-      processedOn: number | null
-      finishedOn: number | null
-      attemptsMade: number
-      failedReason: string | null
-      stacktrace?: string[]
-      data?: any
-      model?: string | null
-      action?: string | null
-    }>
-  >([])
+  const [serverQueueJobs, setServerQueueJobs] = useState<TrabajoDeCola[]>([])
   const [expandedServerJobId, setExpandedServerJobId] = useState<string | null>(null)
 
-  const bullBoardUrl = (() => {
-    const rawBase = process.env.NEXT_PUBLIC_BASE_URL ||
-      (process.env.NODE_ENV === 'production'
-        ? 'https://credito-sur-backend.onrender.com'
-        : 'http://127.0.0.1:3001')
-
-    const normalized = rawBase.replace(/\/$/, '')
-    const base = normalized.endsWith('/api-credisur') ? normalized : `${normalized}/api-credisur`
-    return `${base}/configuracion/colas`
-  })()
+  const bullBoardUrl = `${baseApi()}/configuracion/colas`
 
   const loadServerQueueStatus = useCallback(async () => {
     if (rol !== 'SUPER_ADMINISTRADOR' || !isOnline) {
@@ -72,7 +73,7 @@ const SyncStatusPage = () => {
         enabled?: boolean
         reason?: string
         counts?: Record<string, number>
-        jobs?: any[]
+        jobs?: TrabajoDeCola[]
       }>('GET', '/configuracion/colas/status', undefined, {
         cacheTTL: 0,
       })
@@ -88,7 +89,7 @@ const SyncStatusPage = () => {
       setServerQueueEnabled(true)
       setServerQueueReason(null)
       setServerQueueCounts(res?.counts || null)
-      setServerQueueJobs(Array.isArray(res?.jobs) ? (res.jobs as any) : [])
+      setServerQueueJobs(Array.isArray(res?.jobs) ? (res.jobs) : [])
     } catch {
       setServerQueueCounts(null)
       setServerQueueEnabled(null)
@@ -482,12 +483,13 @@ const SyncStatusPage = () => {
                     </div>
                   </div>
                   {queueItems.length > 0 && (
-                    <button
+                    <BotonAccion
                       onClick={handleClearCompleted}
+                      textoCargando="Limpiando…"
                       className="text-xs font-bold text-slate-500 hover:text-slate-700 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors"
                     >
                       Limpiar
-                    </button>
+                    </BotonAccion>
                   )}
                 </div>
               </div>

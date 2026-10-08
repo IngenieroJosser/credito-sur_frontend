@@ -56,7 +56,19 @@ const formatBogotaDateTime = (value: unknown): string | null => {
   }).format(date);
 };
 
-const CustomTooltip = ({ active, payload }: any) => {
+/**
+ * Lo que Recharts le pasa al contenido del tooltip.
+ *
+ * Solo se declaran las dos props que este componente usa, y el `payload` con la forma
+ * que de verdad lleva: cada punto envuelve el dato original en `payload`, que aqui es
+ * una `ChartData`.
+ */
+type PropsDelTooltip = {
+  active?: boolean
+  payload?: Array<{ payload: ChartData }>
+}
+
+const CustomTooltip = ({ active, payload }: PropsDelTooltip) => {
   if (active && payload && payload.length) {
     const d = payload[0].payload;
     const value = Number(d?.value || 0);
@@ -68,7 +80,7 @@ const CustomTooltip = ({ active, payload }: any) => {
         : 0;
     const tooltipTime = formatBogotaTime(d.time) ?? formatBogotaDateTime(d.time);
     return (
-      <div className="bg-white/95 backdrop-blur-md p-5 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.12)] border border-slate-100 min-w-[220px] pointer-events-none animate-in fade-in zoom-in duration-300 relative z-[9999]">
+      <div className="bg-white/95 backdrop-blur-md p-5 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.12)] border border-slate-100 min-w-[220px] pointer-events-none animate-in fade-in zoom-in duration-300 relative z-[60]">
         <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
           <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">{d.label}</p>
           {d.time && (
@@ -182,7 +194,7 @@ export const TransactionalHighDetailChart = ({
               data={data}
               margin={{ top: 10, right: 40, left: 10, bottom: 20 }}
               barGap={type === 'single' && hasTarget ? -barSize : barGapValue}
-              barCategoryGap={barCategoryGapValue as any}
+              barCategoryGap={barCategoryGapValue}
             >
               <defs>
                 <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
@@ -271,7 +283,7 @@ export const TransactionalHighDetailChart = ({
                 animationDuration={1500}
               >
                 {data.map((entry, index) => {
-                  let color = 'url(#barGradient)';
+                  const color = 'url(#barGradient)';
                   return <Cell key={`cell-${index}`} fill={color} />;
                 })}
               </Bar>

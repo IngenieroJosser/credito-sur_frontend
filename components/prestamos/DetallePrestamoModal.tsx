@@ -1,17 +1,26 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import type { CuotaOperativa } from '@/lib/types/cobranza'
 import { createPortal } from 'react-dom';
 import { X, Loader2, FileText } from 'lucide-react';
 import DetallePrestamo, { PrestamoDetalle } from '@/components/prestamos/DetallePrestamo';
 import { prestamosService } from '@/services/prestamos-service';
 import { exportService } from '@/services/export-service';
 import { getLoanAmounts } from '@/lib/loan-calculations';
-import { offlineStore } from '@/lib/offline/offlineDb';
+import {
+  offlineStore,
+  type OfflineCuota,
+  type OfflinePrestamo,
+} from '@/lib/offline/offlineDb'
 import { normalizeDateKey } from '@/lib/rutas-core';
 import { formatLoanTerm } from '@/lib/utils';
 import { toast } from 'sonner';
 
+import { Skeleton, SkeletonTexto, SkeletonTabla } from '@/components/ui/Skeleton'
+import Tooltip from '@/components/ui/Tooltip'
+import { mensajeDeError } from '@/lib/mensaje-de-error'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 interface DetallePrestamoModalProps {
   id: string;
   onClose: () => void;
@@ -24,6 +33,11 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
   const [downloadingContract, setDownloadingContract] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
+  // Escape para salir y el foco en el primer campo al abrir. El hook lleva
+  // una pila, asi que con modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    onClose: onClose,
+  })
 
   useEffect(() => {
     setMounted(true);
@@ -43,8 +57,7 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
     try {
       await exportService.exportContrato(id);
       toast.success('Contrato descargado');
-    } catch {
-      toast.error('Error al descargar contrato');
+    } catch (error) { toast.error(mensajeDeError(error, 'Error al descargar contrato'));
     } finally {
       setDownloadingContract(false);
     }
@@ -63,12 +76,12 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
           const cuotasArr = Array.isArray(cuotasData) ? cuotasData : [];
           if (cuotasArr.length === 0) return undefined;
 
-          const isNoPagada = (c: any) => {
+          const isNoPagada = (c: CuotaOperativa) => {
             const st = String(c?.estado || '').toUpperCase();
             return st !== 'PAGADA' && st !== 'PAGADO' && st !== 'ANULADA' && st !== 'ANULADO';
           };
 
-          const sorted = [...cuotasArr].sort((a: any, b: any) => {
+          const sorted = [...cuotasArr].sort((a, b) => {
             const ak = normalizeDateKey(String(a?.fechaVencimiento || ''));
             const bk = normalizeDateKey(String(b?.fechaVencimiento || ''));
             if (ak && bk) return ak.localeCompare(bk);
@@ -104,18 +117,18 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
           ? data.fotos
           : Array.isArray(data.archivos) && data.archivos.length > 0
             ? data.archivos
-              .map((a: any) => a?.url || a?.path || a?.ruta)
+              .map((a) => a?.url || a?.path || a?.ruta)
               .filter(Boolean)
             : Array.isArray(data?.cliente?.archivos)
               ? data.cliente.archivos
-                .map((a: any) => a?.url || a?.path || a?.ruta)
+                .map((a) => a?.url || a?.path || a?.ruta)
                 .filter(Boolean)
               : [];
 
         const fotos: string[] = Array.from(
           new Set(
             (rawFotos || [])
-              .map((u: any) => String(u || '').trim())
+              .map((u) => String(u || '').trim())
               .filter(Boolean)
               // filtrar entradas rotas tipo "oxz...jpg" sin ruta/publicId ni URL
               .filter((u: string) => u.startsWith('http://') || u.startsWith('https://') || u.includes('/'))
@@ -150,17 +163,19 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
           tipoAmortizacion: (data.tipoAmortizacion || 'INTERES_SIMPLE') as 'INTERES_SIMPLE' | 'FRANCESA',
           tipoPrestamo: (typeof data.tipoPrestamo === 'string' ? data.tipoPrestamo : '').toUpperCase(),
           cuotaInicial: amounts.cuotaInicial,
-          producto: typeof data.producto === 'string' ? data.producto : ((data.producto as any)?.nombre || data.tipoPrestamo || 'Préstamo'),
+          producto: typeof data.producto === 'string' ? data.producto : (data.producto?.nombre || data.tipoPrestamo || 'Préstamo'),
+          // Aqui se leia `serie`, que no existe en ningun sitio del backend (ni columna
+          // ni mencion) y para la que tampoco habia formulario donde escribirla. La fila
+          // que la pintaba se quito de `DetallePrestamo.tsx`.
           productoInfo: data.producto ? {
-            marca: (data.producto as any).marca,
-            modelo: (data.producto as any).modelo,
-            serie: (data.producto as any).serie,
-            categoria: (data.producto as any).categoria
+            marca: data.producto.marca ?? undefined,
+            modelo: data.producto.modelo ?? undefined,
+            categoria: data.producto.categoria
           } : undefined,
           garantia: data.garantia || '',
           notas: data.notas || '',
           fotos,
-          cuotas: cuotasData.map((c: any) => ({
+          cuotas: cuotasData.map((c) => ({
             numero: c.numeroCuota,
             fecha: c.fechaVencimiento,
             monto: c.monto,
@@ -175,23 +190,33 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
         console.error('Error cargando detalle del préstamo:', err);
         // Fallback offline
         try {
-          const offP = await offlineStore.getById<any>('prestamos', id);
+          const offP = await offlineStore.getById<OfflinePrestamo>('prestamos', id);
           if (offP) {
-            const offCuotas = await offlineStore.getByIndex<any>('cuotas', 'by-prestamoId', id).catch(() => []);
+            const offCuotas = await offlineStore
+              .getByIndex<OfflineCuota>('cuotas', 'by-prestamoId', id)
+              .catch(() => []);
             setPrestamo({
               id: offP.id,
               clienteId: offP.clienteId || '',
-              clienteNombre: offP.clienteNombre || '',
-              clienteDni: '',
-              clienteTelefono: '',
-              clienteDireccion: '',
-              montoPrestamo: offP.monto || offP.montoPrestamo || 0,
+              clienteNombre: offP.clienteNombre || offP.cliente || '',
+              // Los tres estaban fijos en cadena vacia porque la copia local no los
+              // guardaba. Ya los guarda: el documento y el telefono los mandaba
+              // `GET /loans`, y la direccion se agrego a ese listado para esto.
+              clienteDni: offP.clienteDni || '',
+              clienteTelefono: offP.clienteTelefono || '',
+              clienteDireccion: offP.clienteDireccion || '',
+              // La copia offline guarda los dos nombres (`monto` y `montoPrestado`,
+              // syncManager.ts:263-264), no `montoPrestamo`: ese era una lectura muerta.
+              montoPrestamo: offP.monto || offP.montoPrestado || 0,
               montoTotal: offP.montoTotal || 0,
               saldoPendiente: offP.saldoPendiente || 0,
               tasaInteres: offP.tasaInteres || 0,
               interesTotal: offP.interesTotal,
-              capitalPagado: offP.capitalPagado,
-              interesPagado: offP.interesPagado,
+              // `capitalPagado`, `interesPagado` y `tipoAmortizacion` NO estan en la copia
+              // offline: el mapeo guarda otros campos. Se dejan sin valor en vez de
+              // aparentar que se leen, que es lo que hacia el `any`.
+              capitalPagado: undefined,
+              interesPagado: undefined,
               duracion: offP.plazoMeses ? formatLoanTerm({
                 plazoMeses: offP.plazoMeses,
                 cantidadCuotas: offP.cantidadCuotas,
@@ -201,11 +226,11 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
               fechaInicio: offP.fechaInicio || '',
               fechaVencimiento: offP.fechaFin || '',
               estado: offP.estado || 'ACTIVO',
-              tipoAmortizacion: offP.tipoAmortizacion || 'INTERES_SIMPLE',
+              tipoAmortizacion: 'INTERES_SIMPLE',
               producto: offP.tipoPrestamo || 'Préstamo',
               garantia: '',
               fotos: [],
-              cuotas: offCuotas.map((c: any) => ({
+              cuotas: offCuotas.map((c) => ({
                 numero: c.numeroCuota,
                 fecha: c.fechaVencimiento,
                 monto: c.monto,
@@ -262,19 +287,28 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
           </button>
         )}
 
-        <button
-          onClick={handleClose}
-          className="absolute top-4 right-4 z-20 p-2 bg-white/80 backdrop-blur-sm rounded-full shadow-sm border border-slate-200 text-slate-400 hover:text-slate-900 hover:bg-white transition-all"
-        >
-          <X className="w-5 h-5" />
-        </button>
+        <Tooltip texto="Cerrar">
+          <button
+            onClick={handleClose}
+            className="absolute top-4 right-4 z-20 p-2 bg-white/80 backdrop-blur-sm rounded-full shadow-sm border border-slate-200 text-slate-400 hover:text-slate-900 hover:bg-white transition-all"
+            aria-label="Cerrar"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </Tooltip>
 
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto sm:rounded-2xl">
           {loading ? (
-            <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3">
-              <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
-              <p className="text-sm font-medium text-slate-500">Cargando detalle del crédito...</p>
+            <div className="space-y-6 p-1" aria-busy="true">
+              <span className="sr-only">Cargando detalle del crédito…</span>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <Skeleton className="h-20 rounded-2xl" />
+                <Skeleton className="h-20 rounded-2xl" />
+                <Skeleton className="h-20 rounded-2xl" />
+              </div>
+              <SkeletonTexto lineas={3} />
+              <SkeletonTabla filas={6} columnas={5} />
             </div>
           ) : prestamo ? (
             <DetallePrestamo prestamo={prestamo} />

@@ -1,5 +1,6 @@
 'use client'
 
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 /**
  * ============================================================================
  * PagoDetalleModal
@@ -43,7 +44,10 @@ import {
 } from 'lucide-react'
 import { Portal } from '@/components/dashboards/shared/CobradorElements'
 import { formatCurrency, resolveMediaUrl } from '@/lib/utils'
-import { pagosService, Pago } from '@/services/pagos-service'
+import { pagosService, Pago, type ArchivoMultimediaPago } from '@/services/pagos-service'
+import { Skeleton, SkeletonTexto } from '@/components/ui/Skeleton'
+import Tooltip from '@/components/ui/Tooltip'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -69,7 +73,8 @@ export interface PagoDetalleModalProps {
     saldoAnterior?: number
     prestamoQuedaPagado?: boolean
     cuotasAfectadas?: number
-    archivos?: any[]
+    /** Los comprobantes del pago; el mismo tipo que declara `pagos-service`. */
+    archivos?: ArchivoMultimediaPago[]
     fechaOperativaRuta?: string | null
     origenGestion?: string | null
     notaAdministrativa?: string | null
@@ -93,7 +98,9 @@ const DataFila = ({
     <span className="text-[10px] text-slate-400 uppercase font-black tracking-wide shrink-0 mr-3">
       {label}
     </span>
-    <span className={`text-sm text-right ${bold ? 'font-black text-slate-900' : 'font-bold text-slate-700'}`}>
+    <span
+      className={`text-sm text-right ${bold ? 'font-black text-slate-900' : 'font-bold text-slate-700'}`}
+    >
       {value}
     </span>
   </div>
@@ -118,16 +125,18 @@ const MetodoBadge = ({ metodo }: { metodo: string }) => {
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export default function PagoDetalleModal({
-  isOpen,
-  onClose,
-  metadata,
-}: PagoDetalleModalProps) {
-  const [pago, setPago]               = useState<Pago | null>(null)
-  const [loading, setLoading]         = useState(false)
-  const [error, setError]             = useState<string | null>(null)
+export default function PagoDetalleModal({ isOpen, onClose, metadata }: PagoDetalleModalProps) {
+  const [pago, setPago] = useState<Pago | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [imgExpanded, setImgExpanded] = useState(false)
   const [expandedUrl, setExpandedUrl] = useState('')
+  // Escape para salir y el foco en el primer campo al abrir. El hook lleva
+  // una pila, asi que con modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    abierto: isOpen,
+    onClose: () => handleClose(),
+  })
 
   // ── Cargar detalle completo del pago ──────────────────────────────────────
   useEffect(() => {
@@ -139,9 +148,9 @@ export default function PagoDetalleModal({
     setError(null)
     pagosService
       .obtenerPagoPorId(id)
-      .then(data => setPago(data))
-      .catch(err  => setError(err?.message || 'No se pudo cargar el pago'))
-      .finally(()  => setLoading(false))
+      .then((data) => setPago(data))
+      .catch((err) => setError(mensajeDeError(err, 'No se pudo cargar el pago')))
+      .finally(() => setLoading(false))
   }, [isOpen, metadata?.pagoId])
 
   const handleClose = () => {
@@ -154,7 +163,7 @@ export default function PagoDetalleModal({
   if (!isOpen) return null
 
   // ── Datos combinados: API primero, metadata como fallback ─────────────────
-  const detallesAfectados = (pago?.detalles ?? []).filter((d: any) => {
+  const detallesAfectados = (pago?.detalles ?? []).filter((d) => {
     const capital = Number(d?.montoCapital || 0)
     const interes = Number(d?.montoInteres || 0)
     const mora = Number(d?.montoInteresMora || 0)
@@ -162,65 +171,79 @@ export default function PagoDetalleModal({
     return capital + interes + mora > 0 || monto > 0
   })
 
-  const computedCapital = detallesAfectados.reduce((s: number, d: any) => s + Number(d.montoCapital || 0), 0)
-  const computedInteres = detallesAfectados.reduce((s: number, d: any) => s + Number(d.montoInteres || 0), 0)
-  const computedMora = detallesAfectados.reduce((s: number, d: any) => s + Number(d.montoInteresMora || 0), 0)
+  const computedCapital = detallesAfectados.reduce(
+    (s: number, d) => s + Number(d.montoCapital || 0),
+    0,
+  )
+  const computedInteres = detallesAfectados.reduce(
+    (s: number, d) => s + Number(d.montoInteres || 0),
+    0,
+  )
+  const computedMora = detallesAfectados.reduce(
+    (s: number, d) => s + Number(d.montoInteresMora || 0),
+    0,
+  )
   const computedCuotasAfectadas = detallesAfectados.length
 
-  const computedMontoAplicado = detallesAfectados.reduce((s: number, d: any) => s + Number(d.monto || 0), 0)
+  const computedMontoAplicado = detallesAfectados.reduce(
+    (s: number, d) => s + Number(d.monto || 0),
+    0,
+  )
 
   const monto = (() => {
     const apiTotal = Number(pago?.montoTotal ?? 0)
     if (Number.isFinite(apiTotal) && apiTotal > 0) return apiTotal
-    const sumDetalles = Number(computedCapital || 0) + Number(computedInteres || 0) + Number(computedMora || 0)
+    const sumDetalles =
+      Number(computedCapital || 0) + Number(computedInteres || 0) + Number(computedMora || 0)
     if (Number.isFinite(sumDetalles) && sumDetalles > 0) return sumDetalles
-    const meta = Number((metadata as any)?.monto ?? 0)
+    const meta = Number(metadata?.monto ?? 0)
     return Number.isFinite(meta) ? meta : 0
   })()
 
-  const computedSaldoNuevo = pago?.prestamo?.saldoPendiente != null
-    ? Number(pago.prestamo.saldoPendiente)
-    : null
-  const computedSaldoAnterior = computedSaldoNuevo != null
-    ? computedSaldoNuevo + Number(computedCapital || 0)
-    : null
-  const computedQuedoPagado = computedSaldoNuevo != null
-    ? computedSaldoNuevo <= 0
-    : false
+  const computedSaldoNuevo =
+    pago?.prestamo?.saldoPendiente != null ? Number(pago.prestamo.saldoPendiente) : null
+  const computedSaldoAnterior =
+    computedSaldoNuevo != null ? computedSaldoNuevo + Number(computedCapital || 0) : null
+  const computedQuedoPagado = computedSaldoNuevo != null ? computedSaldoNuevo <= 0 : false
 
-  const capitalRec = metadata.capitalRecuperado != null
-    ? metadata.capitalRecuperado
-    : computedCapital
-  const interesRec = metadata.interesRecuperado != null
-    ? metadata.interesRecuperado
-    : computedInteres
-  const saldoAnterior = metadata.saldoAnterior != null
-    ? metadata.saldoAnterior
-    : (computedSaldoAnterior ?? 0)
-  const saldoNuevo = metadata.saldoNuevo != null
-    ? metadata.saldoNuevo
-    : (computedSaldoNuevo ?? 0)
-  const cuotasAfectadas = metadata.cuotasAfectadas != null
-    ? metadata.cuotasAfectadas
-    : computedCuotasAfectadas
-  const quedoPagado = metadata.prestamoQuedaPagado != null
-    ? metadata.prestamoQuedaPagado
-    : computedQuedoPagado
-  const metodoPago        = pago?.metodoPago ?? metadata.metodoPago ?? 'EFECTIVO'
-  const esTransferencia   = metodoPago === 'TRANSFERENCIA'
-  const numeroPago        = pago?.numeroPago ?? metadata.numeroPago       ?? '—'
-  const numeroPrestamo    = pago?.prestamo?.numeroPrestamo ?? metadata.numeroPrestamo ?? '—'
-  const clienteNombre     = pago?.cliente
+  const capitalRec =
+    metadata.capitalRecuperado != null ? metadata.capitalRecuperado : computedCapital
+  const interesRec =
+    metadata.interesRecuperado != null ? metadata.interesRecuperado : computedInteres
+  const saldoAnterior =
+    metadata.saldoAnterior != null ? metadata.saldoAnterior : (computedSaldoAnterior ?? 0)
+  const saldoNuevo = metadata.saldoNuevo != null ? metadata.saldoNuevo : (computedSaldoNuevo ?? 0)
+  const cuotasAfectadas =
+    metadata.cuotasAfectadas != null ? metadata.cuotasAfectadas : computedCuotasAfectadas
+  const quedoPagado =
+    metadata.prestamoQuedaPagado != null ? metadata.prestamoQuedaPagado : computedQuedoPagado
+  const metodoPago = pago?.metodoPago ?? metadata.metodoPago ?? 'EFECTIVO'
+  const esTransferencia = metodoPago === 'TRANSFERENCIA'
+  const numeroPago = pago?.numeroPago ?? metadata.numeroPago ?? '—'
+  const numeroPrestamo = pago?.prestamo?.numeroPrestamo ?? metadata.numeroPrestamo ?? '—'
+
+  // A que credito fue el pago. Un cliente con un prestamo Y un credito de articulo
+  // recibia dos recibos identicos salvo por el numero, y habia que buscarlo aparte
+  // para saber cual era cual.
+  //
+  // Se mira el tipo del prestamo y, si no viene, el prefijo del numero: los creditos
+  // de articulo se numeran `ART-` y los de dinero `PRES-`.
+  const esArticulo =
+    String(
+      (pago?.prestamo as { tipoPrestamo?: string } | undefined)?.tipoPrestamo ?? '',
+    ).toUpperCase() === 'ARTICULO' || /^ART-/i.test(String(numeroPrestamo))
+  const clienteNombre = pago?.cliente
     ? `${pago.cliente.nombres} ${pago.cliente.apellidos}`
     : (metadata.cliente ?? '—')
-  const clienteDni        = pago?.cliente?.dni ?? metadata.clienteDni ?? '—'
-  const cobrador          = pago?.cobrador
-    ? `${pago.cobrador.nombres} ${pago.cobrador.apellidos}`
-    : '—'
-  const fechaPago         = pago?.fechaPago
+  const clienteDni = pago?.cliente?.dni ?? metadata.clienteDni ?? '—'
+  const cobrador = pago?.cobrador ? `${pago.cobrador.nombres} ${pago.cobrador.apellidos}` : '—'
+  const fechaPago = pago?.fechaPago
     ? new Date(pago.fechaPago).toLocaleString('es-CO', {
-        day: '2-digit', month: 'short', year: 'numeric',
-        hour: '2-digit', minute: '2-digit',
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
       })
     : '—'
   const origenGestion = String(pago?.origenGestion ?? metadata.origenGestion ?? '').toUpperCase()
@@ -237,13 +260,16 @@ export default function PagoDetalleModal({
     : '—'
 
   const comprobantes = (pago?.archivos ?? metadata.archivos ?? []).filter(
-    a => a.tipoContenido === 'COMPROBANTE_TRANSFERENCIA'
+    (a) => a.tipoContenido === 'COMPROBANTE_TRANSFERENCIA',
   )
 
-  const getCuotaLabel = (det: any, fallbackIndex: number) => {
-    const n = det?.numeroCuota ?? det?.cuotaNumero ?? det?.cuota?.numeroCuota ?? det?.cuota?.numero
+  // El tipo se DERIVA de la lista que se recorre: son los detalles del pago.
+  const getCuotaLabel = (det: (typeof detallesAfectados)[number], fallbackIndex: number) => {
+    // Solo `cuota.numeroCuota`: `numeroCuota` y `cuotaNumero` al nivel del detalle no
+    // son columnas de `DetallePago` (schema.prisma:455), y `cuota.numero` tampoco
+    // existe en `Cuota`. De los cuatro eslabones, resolvia uno.
+    const n = det?.cuota?.numeroCuota
     if (typeof n === 'number' && Number.isFinite(n)) return `Cuota ${n}`
-    if (typeof n === 'string' && n.trim()) return `Cuota ${n.trim()}`
     return `Cuota ${fallbackIndex + 1}`
   }
 
@@ -252,25 +278,29 @@ export default function PagoDetalleModal({
     <Portal>
       {/* Backdrop — mismo estilo que NotificacionDetalleModal */}
       <div
-        className="fixed inset-0 z-[2147483640] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
+        className="fixed inset-0 z-[2147483600] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
         onClick={handleClose}
       >
         {/* Panel — mismo estilo border-radius que el resto del sistema */}
         <div
           className="bg-white shadow-2xl w-full flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-100 h-[100dvh] sm:h-auto sm:max-h-[90vh] rounded-none sm:rounded-[2.5rem] sm:max-w-lg"
-          onClick={e => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
         >
           {/* ── Header ──────────────────────────────────────────────────────── */}
           <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-white sticky top-0 z-10">
             <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-xl border shadow-sm ${
-                esTransferencia
-                  ? 'bg-blue-50 text-blue-600 border-blue-100'
-                  : 'bg-emerald-50 text-emerald-600 border-emerald-100'
-              }`}>
-                {esTransferencia
-                  ? <Banknote className="h-5 w-5" />
-                  : <ReceiptText className="h-5 w-5" />}
+              <div
+                className={`p-2 rounded-xl border shadow-sm ${
+                  esTransferencia
+                    ? 'bg-blue-50 text-blue-600 border-blue-100'
+                    : 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                }`}
+              >
+                {esTransferencia ? (
+                  <Banknote className="h-5 w-5" />
+                ) : (
+                  <ReceiptText className="h-5 w-5" />
+                )}
               </div>
               <div className="min-w-0">
                 <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight leading-tight">
@@ -282,22 +312,28 @@ export default function PagoDetalleModal({
                 </div>
               </div>
             </div>
-            <button
-              onClick={handleClose}
-              className="shrink-0 p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400"
-            >
-              <X className="h-5 w-5" />
-            </button>
+            <Tooltip texto="Cerrar">
+              <button
+                onClick={handleClose}
+                className="shrink-0 p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400"
+                aria-label="Cerrar"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </Tooltip>
           </div>
 
           {/* ── Contenido scrollable ─────────────────────────────────────────── */}
           <div className="p-6 space-y-5 overflow-y-auto flex-1 custom-scrollbar">
-
             {/* Spinner de carga */}
             {loading && (
-              <div className="flex flex-col items-center justify-center py-12 gap-3">
-                <RefreshCw className="h-7 w-7 text-slate-300 animate-spin" />
-                <p className="text-xs text-slate-400 font-medium">Cargando detalle del pago...</p>
+              <div className="space-y-4 py-2" aria-busy="true">
+                <span className="sr-only">Cargando detalle del pago…</span>
+                <div className="grid grid-cols-2 gap-3">
+                  <Skeleton className="h-16 rounded-2xl" />
+                  <Skeleton className="h-16 rounded-2xl" />
+                </div>
+                <SkeletonTexto lineas={3} />
               </div>
             )}
 
@@ -308,7 +344,8 @@ export default function PagoDetalleModal({
                 <div>
                   <p className="text-xs font-black text-amber-700">Datos parciales</p>
                   <p className="text-[11px] text-amber-600 mt-0.5">
-                    No se pudo cargar el detalle completo (cuotas, cobrador). Se muestran los datos de la notificación.
+                    No se pudo cargar el detalle completo (cuotas, cobrador). Se muestran los datos
+                    de la notificación.
                   </p>
                 </div>
               </div>
@@ -345,7 +382,8 @@ export default function PagoDetalleModal({
                       Pago regularizado
                     </p>
                     <p className="mt-1 text-xs font-bold leading-relaxed text-amber-800">
-                      El dinero entra contablemente en la fecha real del pago, pero se asocia operativamente a la jornada {fechaOperativaLabel}.
+                      El dinero entra contablemente en la fecha real del pago, pero se asocia
+                      operativamente a la jornada {fechaOperativaLabel}.
                     </p>
                     {notaRegularizacion && (
                       <p className="mt-2 rounded-xl border border-amber-200 bg-white/70 p-2 text-[11px] font-semibold text-amber-900">
@@ -370,7 +408,9 @@ export default function PagoDetalleModal({
                 {/* Capital */}
                 <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
                   <p className="text-[9px] text-slate-400 font-black uppercase mb-1">Capital</p>
-                  <p className="text-xl font-black text-emerald-600">{formatCurrency(capitalRec)}</p>
+                  <p className="text-xl font-black text-emerald-600">
+                    {formatCurrency(capitalRec)}
+                  </p>
                 </div>
                 {/* Interés */}
                 <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
@@ -381,16 +421,24 @@ export default function PagoDetalleModal({
 
               {/* Saldo anterior → nuevo */}
               <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
-                <p className="text-[9px] text-slate-400 font-black uppercase mb-2">Saldo del Préstamo</p>
+                <p className="text-[9px] text-slate-400 font-black uppercase mb-2">
+                  Saldo del Préstamo
+                </p>
                 <div className="flex items-center gap-2 justify-between">
                   <div className="text-center">
                     <p className="text-[9px] text-slate-400 font-bold mb-0.5">Anterior</p>
-                    <p className="text-base font-black text-slate-600">{formatCurrency(saldoAnterior)}</p>
+                    <p className="text-base font-black text-slate-600">
+                      {formatCurrency(saldoAnterior)}
+                    </p>
                   </div>
-                  <ArrowRight className={`h-4 w-4 shrink-0 ${quedoPagado ? 'text-emerald-500' : 'text-slate-300'}`} />
+                  <ArrowRight
+                    className={`h-4 w-4 shrink-0 ${quedoPagado ? 'text-emerald-500' : 'text-slate-300'}`}
+                  />
                   <div className="text-center">
                     <p className="text-[9px] text-slate-400 font-bold mb-0.5">Nuevo</p>
-                    <p className={`text-base font-black ${quedoPagado ? 'text-emerald-600' : 'text-slate-900'}`}>
+                    <p
+                      className={`text-base font-black ${quedoPagado ? 'text-emerald-600' : 'text-slate-900'}`}
+                    >
                       {formatCurrency(saldoNuevo)}
                     </p>
                   </div>
@@ -401,7 +449,8 @@ export default function PagoDetalleModal({
                 <div className="flex items-center gap-2 mt-3 px-3 py-2 bg-slate-50 rounded-xl border border-slate-100">
                   <Info className="h-3.5 w-3.5 text-slate-400 shrink-0" />
                   <p className="text-[11px] text-slate-600 font-medium">
-                    Aplicado a <strong>{cuotasAfectadas}</strong> cuota{cuotasAfectadas > 1 ? 's' : ''}
+                    Aplicado a <strong>{cuotasAfectadas}</strong> cuota
+                    {cuotasAfectadas > 1 ? 's' : ''}
                   </p>
                 </div>
               )}
@@ -418,10 +467,16 @@ export default function PagoDetalleModal({
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="min-w-0">
-                    <p className="text-[10px] text-emerald-600 font-bold uppercase mb-1">Interés Recaudado</p>
-                    <p className="text-3xl font-black text-emerald-700 tabular-nums">{formatCurrency(interesRec)}</p>
+                    <p className="text-[10px] text-emerald-600 font-bold uppercase mb-1">
+                      Interés Recaudado
+                    </p>
+                    <p className="text-3xl font-black text-emerald-700 tabular-nums">
+                      {formatCurrency(interesRec)}
+                    </p>
                     <p className="text-[10px] text-emerald-500 font-medium mt-1">
-                      {capitalRec > 0 ? `${((interesRec / (capitalRec + interesRec)) * 100).toFixed(1)}% del pago total` : ''}
+                      {capitalRec > 0
+                        ? `${((interesRec / (capitalRec + interesRec)) * 100).toFixed(1)}% del pago total`
+                        : ''}
                     </p>
                   </div>
                   <div className="w-14 h-14 rounded-2xl bg-emerald-100 border border-emerald-200 flex items-center justify-center">
@@ -439,9 +494,13 @@ export default function PagoDetalleModal({
                   Datos del Pago
                 </p>
               </div>
-              <DataFila label="N° Pago"     value={numeroPago}     bold />
+              <DataFila label="N° Pago" value={numeroPago} bold />
               <DataFila label="N° Préstamo" value={numeroPrestamo} />
-              <DataFila label="Método"      value={<MetodoBadge metodo={metodoPago} />} />
+              <DataFila
+                label="Tipo de crédito"
+                value={esArticulo ? 'Crédito de artículo' : 'Préstamo en efectivo'}
+              />
+              <DataFila label="Método" value={<MetodoBadge metodo={metodoPago} />} />
               {esTransferencia && (pago?.numeroReferencia || metadata.numeroReferencia) && (
                 <DataFila
                   label="N° Referencia"
@@ -457,7 +516,9 @@ export default function PagoDetalleModal({
                   </span>
                 }
               />
-              {esRegularizado && <DataFila label="Jornada regularizada" value={fechaOperativaLabel} />}
+              {esRegularizado && (
+                <DataFila label="Jornada regularizada" value={fechaOperativaLabel} />
+              )}
               <DataFila label="Cobrador" value={cobrador} />
             </div>
 
@@ -470,7 +531,7 @@ export default function PagoDetalleModal({
                 </p>
               </div>
               <DataFila label="Nombre" value={clienteNombre} bold />
-              <DataFila label="CC"     value={clienteDni} />
+              <DataFila label="CC" value={clienteDni} />
             </div>
 
             {/* ── 6. Detalle por cuotas (solo si disponible desde API) ─────────── */}
@@ -483,7 +544,7 @@ export default function PagoDetalleModal({
                   </p>
                 </div>
                 <div className="space-y-2">
-                  {detallesAfectados.map((det, idx) => (
+                  {detallesAfectados.map((det, idx) =>
                     (() => {
                       const detMonto = Number(det?.monto || 0)
                       const detCapitalRaw = Number(det?.montoCapital || 0)
@@ -491,37 +552,57 @@ export default function PagoDetalleModal({
                       const detMoraRaw = Number(det?.montoInteresMora || 0)
                       const detTieneDesglose = detCapitalRaw + detInteresRaw + detMoraRaw > 0
 
-                      const ratio = computedMontoAplicado > 0 ? (detMonto / computedMontoAplicado) : 0
-                      const detCapitalUI = detTieneDesglose ? detCapitalRaw : (ratio > 0 ? (capitalRec * ratio) : 0)
-                      const detInteresUI = detTieneDesglose ? detInteresRaw : (ratio > 0 ? (interesRec * ratio) : 0)
-                      const detMoraUI = detTieneDesglose ? detMoraRaw : (ratio > 0 ? ((pago ? computedMora : 0) * ratio) : 0)
+                      const ratio = computedMontoAplicado > 0 ? detMonto / computedMontoAplicado : 0
+                      const detCapitalUI = detTieneDesglose
+                        ? detCapitalRaw
+                        : ratio > 0
+                          ? capitalRec * ratio
+                          : 0
+                      const detInteresUI = detTieneDesglose
+                        ? detInteresRaw
+                        : ratio > 0
+                          ? interesRec * ratio
+                          : 0
+                      const detMoraUI = detTieneDesglose
+                        ? detMoraRaw
+                        : ratio > 0
+                          ? (pago ? computedMora : 0) * ratio
+                          : 0
 
                       return (
-                    <div
-                      key={det.id || idx}
-                      className="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-100 text-xs"
-                    >
-                      <span className="font-black text-slate-700">{getCuotaLabel(det, idx)}</span>
-                      <div className="flex gap-4">
-                        <div className="text-right">
-                          <p className="text-[9px] text-slate-400">Capital</p>
-                          <p className="font-bold text-emerald-600">{formatCurrency(detCapitalUI)}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-[9px] text-slate-400">Interés</p>
-                          <p className="font-bold text-amber-500">{formatCurrency(detInteresUI)}</p>
-                        </div>
-                        {detMoraUI > 0 && (
-                          <div className="text-right">
-                            <p className="text-[9px] text-slate-400">Mora</p>
-                            <p className="font-bold text-rose-500">{formatCurrency(detMoraUI)}</p>
+                        <div
+                          key={det.id || idx}
+                          className="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-100 text-xs"
+                        >
+                          <span className="font-black text-slate-700">
+                            {getCuotaLabel(det, idx)}
+                          </span>
+                          <div className="flex gap-4">
+                            <div className="text-right">
+                              <p className="text-[9px] text-slate-400">Capital</p>
+                              <p className="font-bold text-emerald-600">
+                                {formatCurrency(detCapitalUI)}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-[9px] text-slate-400">Interés</p>
+                              <p className="font-bold text-amber-500">
+                                {formatCurrency(detInteresUI)}
+                              </p>
+                            </div>
+                            {detMoraUI > 0 && (
+                              <div className="text-right">
+                                <p className="text-[9px] text-slate-400">Mora</p>
+                                <p className="font-bold text-rose-500">
+                                  {formatCurrency(detMoraUI)}
+                                </p>
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
-                    </div>
+                        </div>
                       )
-                    })()
-                  ))}
+                    })(),
+                  )}
                 </div>
               </div>
             )}
@@ -540,12 +621,7 @@ export default function PagoDetalleModal({
                 </div>
 
                 {/* Esperando carga */}
-                {loading && (
-                  <div className="text-center py-8">
-                    <RefreshCw className="h-6 w-6 text-slate-300 animate-spin mx-auto mb-2" />
-                    <p className="text-xs text-slate-400 font-medium">Cargando...</p>
-                  </div>
-                )}
+                {loading && <SkeletonTexto lineas={3} className="py-4" />}
 
                 {/* Sin comprobante */}
                 {!loading && comprobantes.length === 0 && (
@@ -563,11 +639,12 @@ export default function PagoDetalleModal({
                 {comprobantes.length > 0 && (
                   <div className="space-y-3">
                     {comprobantes.map((archivo, idx) => {
-                      const url     = archivo.url || archivo.ruta || ''
+                      const url = archivo.url || archivo.ruta || ''
                       const fullUrl = resolveMediaUrl(url)
-                      const mime    = (archivo.tipoArchivo || '').toLowerCase()
-                      const ext     = (fullUrl.split('.').pop() || '').toLowerCase()
-                      const isImage = mime.startsWith('image/') || /(jpg|jpeg|png|gif|webp)$/i.test(ext)
+                      const mime = (archivo.tipoArchivo || '').toLowerCase()
+                      const ext = (fullUrl.split('.').pop() || '').toLowerCase()
+                      const isImage =
+                        mime.startsWith('image/') || /(jpg|jpeg|png|gif|webp)$/i.test(ext)
 
                       return (
                         <div
@@ -593,7 +670,10 @@ export default function PagoDetalleModal({
                           {/* Vista previa imagen */}
                           {isImage && (
                             <button
-                              onClick={() => { setExpandedUrl(fullUrl); setImgExpanded(true) }}
+                              onClick={() => {
+                                setExpandedUrl(fullUrl)
+                                setImgExpanded(true)
+                              }}
                               className="w-full"
                             >
                               <img
@@ -607,7 +687,7 @@ export default function PagoDetalleModal({
                           {/* Archivo genérico (si no es imagen, se muestra link) */}
                           {!isImage && (
                             <div className="p-6 flex flex-col items-center gap-3">
-                               <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center border border-slate-200">
+                              <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center border border-slate-200">
                                 <FileImage className="h-7 w-7 text-slate-400" />
                               </div>
                               <p className="text-xs text-slate-500 font-medium text-center break-all">
@@ -633,8 +713,11 @@ export default function PagoDetalleModal({
                             </span>
                             <span>
                               {new Date(archivo.creadoEn).toLocaleString('es-CO', {
-                                day: '2-digit', month: 'short', year: 'numeric',
-                                hour: '2-digit', minute: '2-digit',
+                                day: '2-digit',
+                                month: 'short',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
                               })}
                             </span>
                           </div>
@@ -662,14 +745,14 @@ export default function PagoDetalleModal({
       {/* ── Lightbox de imagen expandida ──────────────────────────────────────── */}
       {imgExpanded && (
         <div
-          className="fixed inset-0 z-[2147483630] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none"
+          className="fixed inset-0 z-[2147483610] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none"
           onClick={() => setImgExpanded(false)}
         >
           <img
             src={expandedUrl}
             alt="Comprobante ampliado"
             className="max-w-[90vw] max-h-[90vh] object-contain rounded-2xl shadow-2xl"
-            onClick={e => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
           />
           <button
             onClick={() => setImgExpanded(false)}

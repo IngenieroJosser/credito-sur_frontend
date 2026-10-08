@@ -3,12 +3,24 @@
 import React, { ReactNode } from 'react'
 import { logger } from '@/lib/logger'
 import { createPortal } from 'react-dom'
-import { MapPin, Eye, Phone, GripVertical, XCircle, ChevronDown, Timer, CheckCircle2 } from 'lucide-react'
+import {
+  MapPin,
+  Eye,
+  Phone,
+  GripVertical,
+  XCircle,
+  ChevronDown,
+  Timer,
+  CheckCircle2,
+  Package,
+  Banknote,
+} from 'lucide-react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { VisitaRuta, EstadoVisita, mapNivelRiesgo } from '@/lib/types/cobranza'
+import { VisitaRuta, EstadoVisita } from '@/lib/types/cobranza'
 import { formatCurrency } from '@/lib/utils'
 import { resolveCuotaAcumuladaOperativa, resolveCuotaNormalOperativa } from '@/lib/rutas-core'
+import Tooltip from '@/components/ui/Tooltip'
 
 export const MODAL_Z_INDEX = 2147483600
 
@@ -25,19 +37,32 @@ const formatMontoCompleto = (amount: number): string => formatCurrency(amount)
 
 function dotColor(nivelRiesgo: string | undefined): string {
   switch (nivelRiesgo) {
-    case 'bajo':       return 'bg-emerald-500'
-    case 'minimo':     return 'bg-emerald-500'
-    case 'leve':       return 'bg-blue-500'
-    case 'precaucion': return 'bg-yellow-500'
-    case 'moderado':   return 'bg-orange-500'
-    case 'critico':    return 'bg-red-600'
-    case 'VERDE':      return 'bg-emerald-500'
-    case 'AMARILLO':   return 'bg-yellow-500'
-    case 'PRECAUCION': return 'bg-yellow-500'
-    case 'ROJO':       return 'bg-red-600'
-    case 'ALTO_RIESGO':return 'bg-red-600'
-    case 'LISTA_NEGRA':return 'bg-red-600'
-    default:           return 'bg-slate-300'
+    case 'bajo':
+      return 'bg-emerald-500'
+    case 'minimo':
+      return 'bg-emerald-500'
+    case 'leve':
+      return 'bg-blue-500'
+    case 'precaucion':
+      return 'bg-yellow-500'
+    case 'moderado':
+      return 'bg-orange-500'
+    case 'critico':
+      return 'bg-red-600'
+    case 'VERDE':
+      return 'bg-emerald-500'
+    case 'AMARILLO':
+      return 'bg-yellow-500'
+    case 'PRECAUCION':
+      return 'bg-yellow-500'
+    case 'ROJO':
+      return 'bg-red-600'
+    case 'ALTO_RIESGO':
+      return 'bg-red-600'
+    case 'LISTA_NEGRA':
+      return 'bg-red-600'
+    default:
+      return 'bg-slate-300'
   }
 }
 
@@ -48,55 +73,94 @@ function resolveNivelRiesgoForVisita(visita: VisitaRuta): string | undefined {
 
 function nivelBadgeColor(nivelRiesgo: string | undefined): string {
   switch (nivelRiesgo) {
-    case 'bajo':       return 'text-emerald-700 bg-emerald-50 border-emerald-100'
-    case 'minimo':     return 'text-emerald-700 bg-emerald-50 border-emerald-100'
-    case 'leve':       return 'text-blue-700 bg-blue-50 border-blue-100'
-    case 'precaucion': return 'text-yellow-700 bg-yellow-50 border-yellow-200'
-    case 'moderado':   return 'text-orange-700 bg-orange-50 border-orange-100'
-    case 'critico':    return 'text-red-700 bg-red-50 border-red-100'
-    case 'VERDE':      return 'text-emerald-700 bg-emerald-50 border-emerald-100'
-    case 'AMARILLO':   return 'text-yellow-700 bg-yellow-50 border-yellow-200'
-    case 'PRECAUCION': return 'text-yellow-700 bg-yellow-50 border-yellow-200'
-    case 'ROJO':       return 'text-red-700 bg-red-50 border-red-100'
-    case 'ALTO_RIESGO':return 'text-red-700 bg-red-50 border-red-100'
-    case 'LISTA_NEGRA':return 'text-red-700 bg-red-50 border-red-100'
-    default:           return 'text-slate-400 bg-slate-50 border-slate-200'
+    case 'bajo':
+      return 'text-emerald-700 bg-emerald-50 border-emerald-100'
+    case 'minimo':
+      return 'text-emerald-700 bg-emerald-50 border-emerald-100'
+    case 'leve':
+      return 'text-blue-700 bg-blue-50 border-blue-100'
+    case 'precaucion':
+      return 'text-yellow-700 bg-yellow-50 border-yellow-200'
+    case 'moderado':
+      return 'text-orange-700 bg-orange-50 border-orange-100'
+    case 'critico':
+      return 'text-red-700 bg-red-50 border-red-100'
+    case 'VERDE':
+      return 'text-emerald-700 bg-emerald-50 border-emerald-100'
+    case 'AMARILLO':
+      return 'text-yellow-700 bg-yellow-50 border-yellow-200'
+    case 'PRECAUCION':
+      return 'text-yellow-700 bg-yellow-50 border-yellow-200'
+    case 'ROJO':
+      return 'text-red-700 bg-red-50 border-red-100'
+    case 'ALTO_RIESGO':
+      return 'text-red-700 bg-red-50 border-red-100'
+    case 'LISTA_NEGRA':
+      return 'text-red-700 bg-red-50 border-red-100'
+    default:
+      return 'text-slate-400 bg-slate-50 border-slate-200'
   }
 }
 
 function nivelLabel(nivelRiesgo: string | undefined): string {
   switch (nivelRiesgo) {
-    case 'bajo':       return 'Mínimo'
-    case 'minimo':     return 'Mínimo'
-    case 'leve':       return 'Leve'
-    case 'precaucion': return 'Precaución'
-    case 'moderado':   return 'Moderado'
-    case 'critico':    return 'Crítico'
-    case 'VERDE':      return 'Mínimo'
-    case 'AMARILLO':   return 'Precaución'
-    case 'PRECAUCION': return 'Precaución'
-    case 'ROJO':       return 'Crítico'
-    case 'ALTO_RIESGO':return 'Crítico'
-    case 'LISTA_NEGRA':return 'Crítico'
-    default:           return '—'
+    case 'bajo':
+      return 'Mínimo'
+    case 'minimo':
+      return 'Mínimo'
+    case 'leve':
+      return 'Leve'
+    case 'precaucion':
+      return 'Precaución'
+    case 'moderado':
+      return 'Moderado'
+    case 'critico':
+      return 'Crítico'
+    case 'VERDE':
+      return 'Mínimo'
+    case 'AMARILLO':
+      return 'Precaución'
+    case 'PRECAUCION':
+      return 'Precaución'
+    case 'ROJO':
+      return 'Crítico'
+    case 'ALTO_RIESGO':
+      return 'Crítico'
+    case 'LISTA_NEGRA':
+      return 'Crítico'
+    default:
+      return '—'
   }
 }
 
 function nivelTitle(nivelRiesgo: string | undefined): string {
   switch (nivelRiesgo) {
-    case 'bajo':       return 'Al día'
-    case 'minimo':     return 'Al día'
-    case 'leve':       return 'Riesgo leve'
-    case 'precaucion': return 'Precaución'
-    case 'moderado':   return 'En mora'
-    case 'critico':    return 'Crítico / Lista negra'
-    case 'VERDE':      return 'Al día'
-    case 'AMARILLO':   return 'Precaución'
-    case 'PRECAUCION': return 'Precaución'
-    case 'ROJO':       return 'Crítico / Lista negra'
-    case 'ALTO_RIESGO':return 'Crítico / Lista negra'
-    case 'LISTA_NEGRA':return 'Crítico / Lista negra'
-    default:           return ''
+    case 'bajo':
+      return 'Al día'
+    case 'minimo':
+      return 'Al día'
+    case 'leve':
+      return 'Riesgo leve'
+    case 'precaucion':
+      return 'Precaución'
+    case 'moderado':
+      return 'En mora'
+    case 'critico':
+      return 'Crítico / Lista negra'
+    case 'VERDE':
+      return 'Al día'
+    case 'AMARILLO':
+      return 'Precaución'
+    case 'PRECAUCION':
+      return 'Precaución'
+    case 'ROJO':
+      return 'Crítico / Lista negra'
+    case 'ALTO_RIESGO':
+      return 'Crítico / Lista negra'
+    case 'LISTA_NEGRA':
+      return 'Crítico / Lista negra'
+    default:
+      return ''
   }
 }
 
@@ -118,42 +182,60 @@ function shouldShowMoraBadge(visita: VisitaRuta): boolean {
   if (estado === 'en_mora') return false
 
   return (
-    Boolean((visita as any)?.enMoraHistorico) ||
+    Boolean(visita?.enMoraHistorico) ||
     Number(visita?.diasMora || 0) > 0 ||
-    Number((visita as any)?.montoVencidoAcumulado || (visita as any)?.saldoVencidoAcumulado || 0) > 0
+    Number(visita?.montoVencidoAcumulado || visita?.saldoVencidoAcumulado || 0) > 0
   )
 }
 
 function borderColor(nivelRiesgo: string | undefined, isSelected: boolean): string {
   if (isSelected) return 'ring-2 ring-[#08557f] shadow-md bg-blue-50/30 border-[#08557f]'
   switch (nivelRiesgo) {
-    case 'bajo':       return 'border-emerald-400 shadow-sm'
-    case 'minimo':     return 'border-emerald-400 shadow-sm'
-    case 'leve':       return 'border-blue-400 shadow-sm'
-    case 'precaucion': return 'border-yellow-400 shadow-sm'
-    case 'moderado':   return 'border-orange-500 shadow-sm'
-    case 'critico':    return 'border-red-600 shadow-md'
-    case 'VERDE':      return 'border-emerald-400 shadow-sm'
-    case 'AMARILLO':   return 'border-yellow-400 shadow-sm'
-    case 'PRECAUCION': return 'border-yellow-400 shadow-sm'
-    case 'ROJO':       return 'border-red-600 shadow-md'
-    case 'ALTO_RIESGO':return 'border-red-600 shadow-md'
-    case 'LISTA_NEGRA':return 'border-red-600 shadow-md'
-    default:           return 'border-slate-200'
+    case 'bajo':
+      return 'border-emerald-400 shadow-sm'
+    case 'minimo':
+      return 'border-emerald-400 shadow-sm'
+    case 'leve':
+      return 'border-blue-400 shadow-sm'
+    case 'precaucion':
+      return 'border-yellow-400 shadow-sm'
+    case 'moderado':
+      return 'border-orange-500 shadow-sm'
+    case 'critico':
+      return 'border-red-600 shadow-md'
+    case 'VERDE':
+      return 'border-emerald-400 shadow-sm'
+    case 'AMARILLO':
+      return 'border-yellow-400 shadow-sm'
+    case 'PRECAUCION':
+      return 'border-yellow-400 shadow-sm'
+    case 'ROJO':
+      return 'border-red-600 shadow-md'
+    case 'ALTO_RIESGO':
+      return 'border-red-600 shadow-md'
+    case 'LISTA_NEGRA':
+      return 'border-red-600 shadow-md'
+    default:
+      return 'border-slate-200'
   }
 }
 
 function periodoLabel(periodo: string): string {
   switch (periodo) {
-    case 'DIA':      return 'Día'
-    case 'SEMANA':   return 'Sem'
-    case 'QUINCENA': return 'Qna'
-    case 'MES':      return 'Mes'
-    default:         return periodo
+    case 'DIA':
+      return 'Día'
+    case 'SEMANA':
+      return 'Sem'
+    case 'QUINCENA':
+      return 'Qna'
+    case 'MES':
+      return 'Mes'
+    default:
+      return periodo
   }
 }
 
-function normalizeEstadoVisita(raw: any): string {
+function normalizeEstadoVisita(raw: unknown): string {
   return String(raw || '')
     .trim()
     .toLowerCase()
@@ -185,36 +267,40 @@ function VisitaCardContent({
   actions?: ReactNode
   children?: ReactNode
 }) {
-  const estadoLower = String((visita as any)?.estado || '').toLowerCase().replace(/\s+/g, '_')
+  const estadoLower = String(visita?.estado || '')
+    .toLowerCase()
+    .replace(/\s+/g, '_')
   const cuotaNormal = resolveCuotaNormalOperativa(visita)
   const cuotaBase = cuotaNormal
-  const recHoy = Number((visita as any)?.recaudadoDelDia || 0)
-  const saldo = Number((visita as any)?.saldoTotal || 0)
+  const recHoy = Number(visita?.recaudadoDelDia || 0)
+  const saldo = Number(visita?.saldoTotal || 0)
   const cuotaPendiente = Math.max(0, cuotaBase - recHoy)
-  const cuotaOperativa = estadoLower === 'pagado'
-    ? (cuotaBase > 0 ? cuotaBase : recHoy)
-    : Math.min(cuotaPendiente, saldo > 0 ? saldo : cuotaPendiente)
-  const cuotaUI = cuotaNormal > 0 ? Math.min(cuotaNormal, saldo > 0 ? saldo : cuotaNormal) : cuotaOperativa
+  const cuotaOperativa =
+    estadoLower === 'pagado'
+      ? cuotaBase > 0
+        ? cuotaBase
+        : recHoy
+      : Math.min(cuotaPendiente, saldo > 0 ? saldo : cuotaPendiente)
+  const cuotaUI =
+    cuotaNormal > 0 ? Math.min(cuotaNormal, saldo > 0 ? saldo : cuotaNormal) : cuotaOperativa
   const acumuladoVencido = resolveCuotaAcumuladaOperativa(visita)
   const montoVencido = Number(
     visita?.montoVencidoAcumulado ??
-    visita?.montoMoraAcumulada ??
-    visita?.saldoVencidoAcumulado ??
-    0
+      visita?.montoMoraAcumulada ??
+      visita?.saldoVencidoAcumulado ??
+      0,
   )
   const mostrarAcumuladoVencido =
-    String(visita?.estado || '').toLowerCase() === 'en_mora' &&
-    montoVencido > 0
+    String(visita?.estado || '').toLowerCase() === 'en_mora' && montoVencido > 0
   const saldado = estadoLower === 'pagado' && cuotaUI === 0 && saldo === 0
-  const estadoVisitaNorm = normalizeEstadoVisita((visita as any)?.estadoVisita)
+  const estadoVisitaNorm = normalizeEstadoVisita(visita?.estadoVisita)
   const esReprogramadoHistorial =
     estadoVisitaNorm === 'reprogramado' ||
     estadoVisitaNorm === 'reprogramada' ||
     estadoVisitaNorm === 'reprogramacion'
-  const regularizadoDespues = Number((visita as any)?.recaudadoRegularizadoDespues || 0)
+  const regularizadoDespues = Number(visita?.recaudadoRegularizadoDespues || 0)
   const esAbonoRegularizado =
-    regularizadoDespues > 0 &&
-    String((visita as any)?.estado || '').toLowerCase() !== 'pagado'
+    regularizadoDespues > 0 && String(visita?.estado || '').toLowerCase() !== 'pagado'
 
   const nivelRiesgoUI = resolveNivelRiesgoForVisita(visita)
   return (
@@ -222,6 +308,27 @@ function VisitaCardContent({
       {/* Fila 1: grip + nombre + botón ojo */}
       <div className="flex items-center gap-2">
         {grip}
+
+        {/* Si es artículo o dinero. Un cliente puede tener los dos a la vez, y hasta
+            ahora sus dos tarjetas se veían idénticas: mismo nombre, misma dirección,
+            mismo teléfono. El icono es lo que las separa de un vistazo. */}
+        {visita.tipoPrestamo === 'ARTICULO' ? (
+          <span
+            title="Crédito de artículo"
+            className="inline-flex shrink-0 items-center justify-center h-5 w-5 rounded-md bg-violet-50 text-violet-600 ring-1 ring-inset ring-violet-200"
+          >
+            <Package className="h-3 w-3" aria-hidden="true" />
+            <span className="sr-only">Crédito de artículo</span>
+          </span>
+        ) : (
+          <span
+            title="Préstamo en efectivo"
+            className="inline-flex shrink-0 items-center justify-center h-5 w-5 rounded-md bg-emerald-50 text-emerald-600 ring-1 ring-inset ring-emerald-200"
+          >
+            <Banknote className="h-3 w-3" aria-hidden="true" />
+            <span className="sr-only">Préstamo en efectivo</span>
+          </span>
+        )}
 
         {/* Nombre (ocupa todo el espacio disponible) */}
         <p className="flex-1 min-w-0 text-xs font-black text-slate-900 leading-snug break-words">
@@ -251,7 +358,7 @@ function VisitaCardContent({
 
             onVerCliente?.(visita)
           }}
-          className="relative z-[80] pointer-events-auto p-2.5 sm:p-2 bg-slate-100/60 rounded-lg hover:bg-white text-slate-400 hover:text-[#08557f] transition-all border border-transparent hover:border-slate-200 shrink-0 active:scale-95 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center cursor-pointer"
+          className="relative z-20 pointer-events-auto p-2.5 sm:p-2 bg-slate-100/60 rounded-lg hover:bg-white text-slate-400 hover:text-[#08557f] transition-all border border-transparent hover:border-slate-200 shrink-0 active:scale-95 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center cursor-pointer"
           title="Ver expediente del cliente"
           aria-label={`Ver detalle de ${visita.cliente}`}
         >
@@ -269,21 +376,26 @@ function VisitaCardContent({
             className={`w-2 h-2 rounded-full shrink-0 ${dotColor(nivelRiesgoUI)}`}
           />
           {/* Badge nivel riesgo */}
-          <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded border ${nivelBadgeColor(nivelRiesgoUI)}`}>
+          <span
+            className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded border ${nivelBadgeColor(nivelRiesgoUI)}`}
+          >
             {nivelLabel(nivelRiesgoUI)}
           </span>
           {/* Badge cuota actual */}
           {visita.cuotaActual && (
             <span className="text-[9px] font-black bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200">
-              Cuota: {visita.cuotaActual}{visita.cuotasTotales ? `/${visita.cuotasTotales}` : ''}
+              Cuota: {visita.cuotaActual}
+              {visita.cuotasTotales ? `/${visita.cuotasTotales}` : ''}
             </span>
           )}
           {/* Badge estado visita */}
-          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md border uppercase ${getEstadoClasses(visita.estado)}`}>
+          <span
+            className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md border uppercase ${getEstadoClasses(visita.estado)}`}
+          >
             {visita.estado?.replace('_', ' ') || visita.estado || ''}
           </span>
 
-          {(visita.estadoVisita === 'ausente' && visita.estado !== 'ausente') && (
+          {visita.estadoVisita === 'ausente' && visita.estado !== 'ausente' && (
             <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md border uppercase bg-amber-100 text-amber-700 border-amber-300">
               ausente
             </span>
@@ -301,7 +413,7 @@ function VisitaCardContent({
             </span>
           )}
 
-          {(((visita as any)?.enProrrogaHistorico) || (visita as any)?.enProrroga || !!(visita as any)?.fechaProrroga) && (
+          {(visita?.enProrrogaHistorico || visita?.enProrroga || !!visita?.fechaProrroga) && (
             <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md border uppercase bg-amber-50 text-amber-700 border-amber-200">
               prórroga
             </span>
@@ -326,13 +438,21 @@ function VisitaCardContent({
           ) : (
             <>
               <div className="text-center">
-                <div className="text-[8px] font-bold text-slate-400 uppercase leading-none mb-0.5">Cuota</div>
-                <div className="text-[11px] font-black text-slate-800 tabular-nums">{formatMontoCompleto(cuotaUI)}</div>
+                <div className="text-[8px] font-bold text-slate-400 uppercase leading-none mb-0.5">
+                  Cuota
+                </div>
+                <div className="text-[11px] font-black text-slate-800 tabular-nums">
+                  {formatMontoCompleto(cuotaUI)}
+                </div>
               </div>
               <div className="w-px h-5 bg-slate-200" />
               <div className="text-center">
-                <div className="text-[8px] font-bold text-slate-400 uppercase leading-none mb-0.5">Saldo</div>
-                <div className={`text-[11px] font-black tabular-nums ${visita.saldoTotal > 0 ? 'text-slate-700' : 'text-emerald-600'}`}>
+                <div className="text-[8px] font-bold text-slate-400 uppercase leading-none mb-0.5">
+                  Saldo
+                </div>
+                <div
+                  className={`text-[11px] font-black tabular-nums ${visita.saldoTotal > 0 ? 'text-slate-700' : 'text-emerald-600'}`}
+                >
                   {formatMontoCompleto(visita.saldoTotal)}
                 </div>
               </div>
@@ -379,39 +499,44 @@ function VisitaCardContent({
       )}
 
       {/* Fila 4: prórroga activa */}
-      {visita.enProrroga && (() => {
-        const diasRestantes = (() => {
-          if (!visita.fechaProrroga) return null
-          const hoy = new Date(); hoy.setHours(0, 0, 0, 0)
-          const limite = new Date(visita.fechaProrroga); limite.setHours(0, 0, 0, 0)
-          return Math.ceil((limite.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24))
-        })()
-        const color =
-          diasRestantes === null || diasRestantes < 0
-            ? 'bg-rose-50 border-rose-200 text-rose-700'
-            : diasRestantes <= 1
-              ? 'bg-amber-50 border-amber-200 text-amber-700'
-              : 'bg-blue-50 border-blue-200 text-blue-700'
-        return (
-          <div className={`mt-1 flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[9px] font-black uppercase tracking-wide ${color}`}>
-            <Timer className="w-3 h-3 shrink-0" />
-            {diasRestantes === null
-              ? 'En prórroga activa'
-              : diasRestantes < 0
-                ? 'Prórroga vencida'
-                : diasRestantes === 0
-                  ? 'Prórroga vence HOY'
-                  : `Prórroga — vence ${new Date(visita.fechaProrroga!).toLocaleDateString('es-CO')} (${diasRestantes}d)`}
-          </div>
-        )
-      })()}
+      {visita.enProrroga &&
+        (() => {
+          const diasRestantes = (() => {
+            if (!visita.fechaProrroga) return null
+            const hoy = new Date()
+            hoy.setHours(0, 0, 0, 0)
+            const limite = new Date(visita.fechaProrroga)
+            limite.setHours(0, 0, 0, 0)
+            return Math.ceil((limite.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24))
+          })()
+          const color =
+            diasRestantes === null || diasRestantes < 0
+              ? 'bg-rose-50 border-rose-200 text-rose-700'
+              : diasRestantes <= 1
+                ? 'bg-amber-50 border-amber-200 text-amber-700'
+                : 'bg-blue-50 border-blue-200 text-blue-700'
+          return (
+            <div
+              className={`mt-1 flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[9px] font-black uppercase tracking-wide ${color}`}
+            >
+              <Timer className="w-3 h-3 shrink-0" />
+              {diasRestantes === null
+                ? 'En prórroga activa'
+                : diasRestantes < 0
+                  ? 'Prórroga vencida'
+                  : diasRestantes === 0
+                    ? 'Prórroga vence HOY'
+                    : `Prórroga — vence ${new Date(visita.fechaProrroga!).toLocaleDateString('es-CO')} (${diasRestantes}d)`}
+            </div>
+          )
+        })()}
 
       {/* Fila extra: monto pagado hoy (visible en historial) */}
-      {(visita as any).recaudadoDelDia > 0 && (
+      {(visita.recaudadoDelDia ?? 0) > 0 && (
         <div className="mt-1 flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-50 border border-emerald-100 w-fit">
           <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" />
           <span className="text-[9px] font-black text-emerald-700 uppercase tracking-wide">
-            Pagó hoy: {formatMontoCompleto((visita as any).recaudadoDelDia)}
+            Pagó hoy: {formatMontoCompleto(visita.recaudadoDelDia ?? 0)}
           </span>
         </div>
       )}
@@ -420,7 +545,8 @@ function VisitaCardContent({
         <div className="mt-1 flex items-center gap-1 px-2 py-0.5 rounded-lg bg-blue-50 border border-blue-100 w-fit">
           <CheckCircle2 className="w-3 h-3 text-blue-500 shrink-0" />
           <span className="text-[9px] font-black text-blue-700 uppercase tracking-wide">
-            {esAbonoRegularizado ? 'Abono regularizado' : 'Regularizado después'}: {formatMontoCompleto(regularizadoDespues)}
+            {esAbonoRegularizado ? 'Abono regularizado' : 'Regularizado después'}:{' '}
+            {formatMontoCompleto(regularizadoDespues)}
           </span>
         </div>
       )}
@@ -435,11 +561,7 @@ function VisitaCardContent({
       )}
 
       {/* Fila extra: children (fallback para contenido adicional) */}
-      {children && (
-        <div className="mt-1 pt-1 border-t border-slate-100">
-          {children}
-        </div>
-      )}
+      {children && <div className="mt-1 pt-1 border-t border-slate-100">{children}</div>}
     </>
   )
 }
@@ -608,12 +730,15 @@ export function SeleccionClienteModal({
         <div className="bg-white sm:rounded-[2rem] rounded-t-[2rem] w-full sm:max-w-sm shadow-2xl animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200 overflow-hidden">
           <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
             <h3 className="font-bold text-lg text-slate-900 flex-1">{titulo}</h3>
-            <button
-              onClick={onClose}
-              className="shrink-0 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
-            >
-              <XCircle className="h-5 w-5" />
-            </button>
+            <Tooltip texto="Cerrar">
+              <button
+                onClick={onClose}
+                className="shrink-0 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
+                aria-label="Cerrar"
+              >
+                <XCircle className="h-5 w-5" />
+              </button>
+            </Tooltip>
           </div>
           <div className="p-6 space-y-6">
             <div className="space-y-3">
@@ -641,11 +766,15 @@ export function SeleccionClienteModal({
                           : 'Artículo'
                         : 'Efectivo'
                     const periodoCred =
-                      v.periodoRuta === 'DIA'      ? 'Diario'    :
-                      v.periodoRuta === 'SEMANA'   ? 'Semanal'   :
-                      v.periodoRuta === 'QUINCENA' ? 'Quincenal' :
-                      v.periodoRuta === 'MES'      ? 'Mensual'   :
-                      v.periodoRuta
+                      v.periodoRuta === 'DIA'
+                        ? 'Diario'
+                        : v.periodoRuta === 'SEMANA'
+                          ? 'Semanal'
+                          : v.periodoRuta === 'QUINCENA'
+                            ? 'Quincenal'
+                            : v.periodoRuta === 'MES'
+                              ? 'Mensual'
+                              : v.periodoRuta
                     return (
                       <option key={v.id} value={v.id} className="text-slate-900 bg-white">
                         {`${v.cliente} — ${tipoCred} · ${periodoCred}`}

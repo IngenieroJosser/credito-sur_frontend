@@ -1,6 +1,8 @@
+import type { TipoAprobacion } from '@/types/enums'
 import { logger } from '@/lib/logger'
 import { apiRequest } from '@/lib/api/api';
 import { syncService } from '@/lib/offline/syncService';
+import { esErrorDeRed } from '@/lib/offline/conRespaldoOffline';
 
 export interface Notificacion {
   id: string;
@@ -35,7 +37,50 @@ export interface Notificacion {
   // Campos adicionales para aprobaciones y trazabilidad
   solicitante?: string;
   creadoEn?: string;
-  metadata?: Record<string, any>;
+  /**
+   * Columna `entidad` del modelo (schema.prisma:87). La listaba solo
+   * `NotificacionParaDetalle`, y la pantalla de notificaciones la leia por un `any`
+   * aunque viene en el listado normal: de ella sale el `tipo` con el que se filtra.
+   */
+  entidad?: string | null;
+  /**
+   * La columna `metadata` es `Json?`: una bolsa cuya forma cambia segun el tipo de
+   * notificacion. Se declara `unknown` y no `any` para que quien la lea convierta el
+   * valor (`lib/valores-de-api`) en vez de confiar en un nombre sin comprobar.
+   */
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Lo que recibe `NotificacionDetalleModal`, que es MAS que una `Notificacion`.
+ *
+ * Tres campos vienen del backend y no estaban declarados (comprobado en
+ * `notificaciones.service.ts`, `enrichNotificationForUi`):
+ *
+ *  - `entidad`, que SI es columna del modelo `Notificacion`.
+ *  - `datosSolicitud` y `aprobacion`, que el enriquecimiento agrega al nivel superior
+ *    cuando la notificacion apunta a una aprobacion (`notif.entidadId`).
+ *
+ * `approvalType` lo agregan las dos pantallas que alimentan el modal.
+ *
+ * `detalles` y `metadata` se quedan como bolsas: son el JSON de la solicitud, cuya forma
+ * CAMBIA segun `tipoAprobacion` (nuevo prestamo, gasto, prorroga, reprogramacion...). El
+ * modal lee unos setenta nombres distintos de ahi, muchos alias de otros. Declararlos todos
+ * como opcionales no comprobaria nada y daria una falsa sensacion de contrato; lo honesto es
+ * decir que es un JSON y que quien lo lee se defiende.
+ *
+ * NO se declaran `revisadoEn` ni `actualizadoEn`: se comprobo que no son columnas del modelo
+ * y que el enriquecimiento no los agrega.
+ */
+export interface NotificacionParaDetalle
+  extends Omit<Notificacion, 'fecha' | 'detalles'> {
+  /** Opcional aqui: el puente `aprobacionToNotificacion` de revisiones no la pone. */
+  fecha?: string
+  detalles?: Record<string, unknown>
+  datosSolicitud?: Record<string, unknown>
+  aprobacion?: Record<string, unknown> | null
+  approvalType?: TipoAprobacion
+  revisadoPor?: string | null
 }
 
 export const notificacionesService = {
@@ -49,16 +94,11 @@ export const notificacionesService = {
   /**
    * Marcar una notificación como leída
    */
-  async marcarComoLeida(id: string): Promise<Notificacion> {
+  async marcarComoLeida(id: string): Promise<Notificacion | null> {
     try {
       return await apiRequest<Notificacion>('PATCH', `/notificaciones/${id}/read`);
-    } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
+    } catch (error) {
+      if (esErrorDeRed(error)) {
         logger.log('[Offline Mode] Guardando marcar notificacion como leida en cola...');
         await syncService.enqueueOperation(
           'notificacion_leer',
@@ -67,7 +107,9 @@ export const notificacionesService = {
           null,
           'Marcar notificación como leída ID: ' + id
         );
-        return { id, leida: true } as any;
+        // Los tres sitios que llaman descartan el resultado; `{ id, leida: true }`
+        // no era una Notificacion (sin titulo, mensaje, tipo ni fecha).
+        return null;
       }
       throw error;
     }

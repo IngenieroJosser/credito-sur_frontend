@@ -1,6 +1,12 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState } from 'react'
+import {
+  booleano,
+  numero,
+  objeto,
+  texto,
+} from '@/lib/valores-de-api'
 import {
   X,
   CalendarClock,
@@ -16,27 +22,21 @@ import {
 import { Portal } from '@/components/dashboards/shared/CobradorElements'
 import { formatCurrency } from '@/lib/utils'
 import PagoDetalleModal from '@/components/dashboards/shared/PagoDetalleModal'
+import Tooltip from '@/components/ui/Tooltip'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 
 export interface PagoRegularizadoNotifModalProps {
   isOpen: boolean
   onClose: () => void
-  notificacion: any
+  // Solo se le leen `creadoEn` y `metadata`: el resto del modal sale de ahi dentro.
+  notificacion: { creadoEn?: string | null; metadata?: unknown } | null
 }
 
-const safeJsonParse = (value: any) => {
-  if (!value) return {}
-  if (typeof value === 'object') return value
-  try {
-    return JSON.parse(value)
-  } catch {
-    return {}
-  }
-}
 
-const formatFechaHora = (raw: any, fallback = 'No disponible') => {
+const formatFechaHora = (raw: unknown, fallback = 'No disponible') => {
   if (!raw) return fallback
   try {
-    const date = new Date(raw)
+    const date = new Date(String(raw))
     if (Number.isNaN(date.getTime())) return String(raw)
     return date.toLocaleString('es-CO', {
       day: '2-digit',
@@ -51,9 +51,9 @@ const formatFechaHora = (raw: any, fallback = 'No disponible') => {
   }
 }
 
-const formatFechaOperativa = (raw: any) => {
+const formatFechaOperativa = (raw: unknown) => {
   const key = String(raw || '').slice(0, 10)
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) return raw || 'No disponible'
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) return key || 'No disponible'
   try {
     return new Date(`${key}T12:00:00-05:00`).toLocaleDateString('es-CO', {
       weekday: 'long',
@@ -92,17 +92,23 @@ export default function PagoRegularizadoNotifModal({
   notificacion,
 }: PagoRegularizadoNotifModalProps) {
   const [showPagoDetalle, setShowPagoDetalle] = useState(false)
+  // Escape para salir y el foco en el primer campo al abrir. El hook lleva
+  // una pila, asi que con modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    abierto: isOpen,
+    onClose: onClose,
+  })
 
   if (!isOpen || !notificacion) return null
 
-  const meta = safeJsonParse(notificacion.metadata)
-  const monto = Number(meta.montoTotal || meta.monto || 0)
-  const capital = Number(meta.capitalRecuperado || 0)
-  const interes = Number(meta.interesRecuperado || 0)
-  const saldoAnterior = Number(meta.saldoAnterior || 0)
-  const saldoNuevo = Number(meta.saldoNuevo || 0)
+  const meta = objeto(notificacion.metadata)
+  const monto = Number(numero(texto(meta.montoTotal)) || numero(texto(meta.monto)) || 0)
+  const capital = Number(texto(meta.capitalRecuperado) || 0)
+  const interes = Number(texto(meta.interesRecuperado) || 0)
+  const saldoAnterior = Number(texto(meta.saldoAnterior) || 0)
+  const saldoNuevo = Number(texto(meta.saldoNuevo) || 0)
   const notaAdministrativa = String(
-    meta.notaAdministrativa || meta.notas || meta.observaciones || '',
+    texto(meta.notaAdministrativa) || texto(meta.notas) || texto(meta.observaciones) || '',
   ).trim()
 
   return (
@@ -114,13 +120,15 @@ export default function PagoRegularizadoNotifModal({
       >
         <div className="flex max-h-[100dvh] w-full flex-col overflow-hidden rounded-t-3xl border border-slate-100 bg-white shadow-2xl sm:max-h-[92vh] sm:max-w-3xl sm:rounded-[2rem]">
           <div className="relative overflow-hidden bg-slate-950 px-6 pb-6 pt-7 text-white">
-            <button
-              onClick={onClose}
-              className="absolute right-4 top-4 rounded-full bg-white/10 p-2 text-white transition-colors hover:bg-white/20"
-              aria-label="Cerrar"
-            >
-              <X className="h-5 w-5" />
-            </button>
+            <Tooltip texto="Cerrar">
+              <button
+                onClick={onClose}
+                className="absolute right-4 top-4 rounded-full bg-white/10 p-2 text-white transition-colors hover:bg-white/20"
+                aria-label="Cerrar"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </Tooltip>
 
             <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/20 bg-white/10">
@@ -157,9 +165,9 @@ export default function PagoRegularizadoNotifModal({
                 label="Cliente"
                 value={
                   <div>
-                    <p>{meta.clienteNombre || meta.cliente || 'Cliente'}</p>
-                    {meta.clienteDni && (
-                      <p className="mt-0.5 text-xs font-bold text-slate-500">CC: {meta.clienteDni}</p>
+                    <p>{texto(meta.clienteNombre) || texto(meta.cliente) || 'Cliente'}</p>
+                    {texto(meta.clienteDni) && (
+                      <p className="mt-0.5 text-xs font-bold text-slate-500">CC: {texto(meta.clienteDni)}</p>
                     )}
                   </div>
                 }
@@ -169,9 +177,9 @@ export default function PagoRegularizadoNotifModal({
                 label="Ruta"
                 value={
                   <div>
-                    <p>{meta.rutaNombre || 'Ruta'}</p>
-                    {meta.rutaCodigo && (
-                      <p className="mt-0.5 text-xs font-bold text-slate-500">{meta.rutaCodigo}</p>
+                    <p>{texto(meta.rutaNombre) || 'Ruta'}</p>
+                    {texto(meta.rutaCodigo) && (
+                      <p className="mt-0.5 text-xs font-bold text-slate-500">{texto(meta.rutaCodigo)}</p>
                     )}
                   </div>
                 }
@@ -179,26 +187,26 @@ export default function PagoRegularizadoNotifModal({
               <InfoCard
                 icon={<CalendarClock className="h-4 w-4" />}
                 label="Jornada regularizada"
-                value={formatFechaOperativa(meta.fechaOperativaRuta)}
+                value={formatFechaOperativa(texto(meta.fechaOperativaRuta))}
               />
               <InfoCard
                 icon={<Clock className="h-4 w-4" />}
                 label="Fecha real del pago"
-                value={formatFechaHora(meta.fechaRealPago || notificacion.creadoEn)}
+                value={formatFechaHora(texto(meta.fechaRealPago) || notificacion.creadoEn)}
               />
               <InfoCard
                 icon={<Banknote className="h-4 w-4" />}
                 label="Cobrador de la ruta"
-                value={meta.cobradorNombre || 'No disponible'}
+                value={texto(meta.cobradorNombre) || 'No disponible'}
               />
               <InfoCard
                 icon={<ReceiptText className="h-4 w-4" />}
                 label="Pago / préstamo"
                 value={
                   <div>
-                    <p>{meta.numeroPago || meta.pagoId || 'Pago'}</p>
-                    {meta.numeroPrestamo && (
-                      <p className="mt-0.5 text-xs font-bold text-slate-500">{meta.numeroPrestamo}</p>
+                    <p>{texto(meta.numeroPago) || texto(meta.pagoId) || 'Pago'}</p>
+                    {texto(meta.numeroPrestamo) && (
+                      <p className="mt-0.5 text-xs font-bold text-slate-500">{texto(meta.numeroPrestamo)}</p>
                     )}
                   </div>
                 }
@@ -220,7 +228,7 @@ export default function PagoRegularizadoNotifModal({
                 </div>
                 <div className="rounded-xl border border-blue-100 bg-blue-50 p-3">
                   <p className="text-[9px] font-black uppercase tracking-widest text-blue-600">Cuotas afectadas</p>
-                  <p className="mt-1 text-lg font-black text-blue-700">{Number(meta.cuotasAfectadas || 0)}</p>
+                  <p className="mt-1 text-lg font-black text-blue-700">{Number(texto(meta.cuotasAfectadas) || 0)}</p>
                 </div>
               </div>
 
@@ -264,7 +272,7 @@ export default function PagoRegularizadoNotifModal({
           </div>
 
           <div className="flex flex-col gap-3 border-t border-slate-100 bg-white p-5 sm:flex-row">
-            {meta.pagoId && (
+            {texto(meta.pagoId) && (
               <button
                 onClick={() => setShowPagoDetalle(true)}
                 className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-3.5 text-[11px] font-black uppercase tracking-widest text-white shadow-lg shadow-slate-900/15 transition-colors hover:bg-slate-800"
@@ -287,21 +295,23 @@ export default function PagoRegularizadoNotifModal({
         isOpen={showPagoDetalle}
         onClose={() => setShowPagoDetalle(false)}
         metadata={{
-          pagoId: meta.pagoId,
-          numeroPago: meta.numeroPago,
-          numeroPrestamo: meta.numeroPrestamo,
-          prestamoId: meta.prestamoId,
-          metodoPago: meta.metodoPago,
-          cliente: meta.clienteNombre,
-          clienteId: meta.clienteId,
-          clienteDni: meta.clienteDni,
+          pagoId: texto(meta.pagoId),
+          numeroPago: texto(meta.numeroPago),
+          numeroPrestamo: texto(meta.numeroPrestamo),
+          prestamoId: texto(meta.prestamoId),
+          metodoPago: texto(meta.metodoPago),
+          cliente: texto(meta.clienteNombre),
+          clienteId: texto(meta.clienteId),
+          clienteDni: texto(meta.clienteDni),
           monto,
           capitalRecuperado: capital,
           interesRecuperado: interes,
           saldoNuevo,
           saldoAnterior,
-          prestamoQuedaPagado: meta.prestamoQuedaPagado,
-          cuotasAfectadas: meta.cuotasAfectadas,
+          // `booleano` porque llega como 'true'/'false' en texto desde el metadata, y
+          // `numero` porque `cuotasAfectadas` es un CONTADOR, no una lista.
+          prestamoQuedaPagado: booleano(meta.prestamoQuedaPagado),
+          cuotasAfectadas: numero(meta.cuotasAfectadas),
         }}
       />
     </Portal>

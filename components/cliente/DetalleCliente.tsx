@@ -25,6 +25,8 @@ import {
 import { formatCurrency, resolveMediaUrl } from "@/lib/utils";
 import DetallePrestamoModal from "@/components/prestamos/DetallePrestamoModal";
 import PagoDetalleModal from "@/components/dashboards/shared/PagoDetalleModal";
+import type { ArchivoMultimediaPago } from '@/services/pagos-service';
+import Tooltip from '@/components/ui/Tooltip';
 
 
 // Interfaces alineadas con Prisma y el Dominio
@@ -95,12 +97,21 @@ export interface Pago {
   id: string;
   fecha: string;
   monto: number;
-  cuota: number;
+  /**
+   * Las cuotas que cubrio el pago, en texto.
+   *
+   * Era `number` y siempre valia 1, porque el portal lo sacaba de
+   * `p.detalles[0].cuota.numeroCuota` y el detalle del cliente no traia `detalles`. Ya
+   * los trae, y un pago puede repartirse entre VARIAS cuotas, asi que un solo numero no
+   * alcanza: viene la lista ("9" o "9, 10"), o '—' si no se sabe.
+   */
+  cuota: string;
   metodo: string;
   estado: "confirmado" | "pendiente" | "anulado";
   referencia?: string;
   icono: React.ReactNode;
-  archivos?: any[];
+  /** Los adjuntos del pago (comprobantes). Mismo tipo que usa `pagos-service`. */
+  archivos?: ArchivoMultimediaPago[];
 }
 
 export interface Comentario {
@@ -278,7 +289,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
   const formatFecha = (fechaStr: string) => {
     if (!fechaStr || fechaStr === '---' || !fechaStr.includes('T')) return fechaStr;
     try {
-      return new Date(fechaStr).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+      return new Date(fechaStr).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' });
     } catch {
       return fechaStr;
     }
@@ -792,7 +803,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
                           <div className="flex items-center gap-4 text-sm text-slate-500 font-medium">
                             <span>{formatFechaHoraBogota(pago.fecha)}</span>
                             <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-xs rounded-md font-bold border border-slate-200">
-                              Cuota {pago.cuota}
+                              {String(pago.cuota).includes(',') ? 'Cuotas' : 'Cuota'} {pago.cuota}
                             </span>
                             <span>{pago.metodo}</span>
                             {pago.referencia && (
@@ -1013,50 +1024,56 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
                           {lightboxIndex != null ? lightboxIndex + 1 : 1} de{" "}
                           {fotosArr.length}
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => setLightboxIndex(null)}
-                          className="w-9 h-9 rounded-full bg-white border border-slate-200 text-slate-900 font-black shadow-sm hover:bg-slate-50"
-                          aria-label="Cerrar"
-                        >
-                          ×
-                        </button>
+                        <Tooltip texto="Cerrar">
+                          <button
+                            type="button"
+                            onClick={() => setLightboxIndex(null)}
+                            className="w-9 h-9 rounded-full bg-white border border-slate-200 text-slate-900 font-black shadow-sm hover:bg-slate-50"
+                            aria-label="Cerrar"
+                          >
+                            ×
+                          </button>
+                        </Tooltip>
                       </div>
 
                       <div
                         className={`relative bg-black flex items-center justify-center ${isZoomed ? "overflow-auto" : "overflow-hidden"} max-h-[78vh]`}
                       >
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (!fotosArr.length) return;
-                            setLightboxIndex((prev) => {
-                              if (prev == null) return prev;
-                              return (
-                                (prev - 1 + fotosArr.length) % fotosArr.length
-                              );
-                            });
-                          }}
-                          className="absolute left-3 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white/20 border border-white/30 text-white font-black backdrop-blur-sm"
-                          aria-label="Anterior"
-                        >
-                          ‹
-                        </button>
+                        <Tooltip texto="Anterior">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!fotosArr.length) return;
+                              setLightboxIndex((prev) => {
+                                if (prev == null) return prev;
+                                return (
+                                  (prev - 1 + fotosArr.length) % fotosArr.length
+                                );
+                              });
+                            }}
+                            className="absolute left-3 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white/20 border border-white/30 text-white font-black backdrop-blur-sm"
+                            aria-label="Anterior"
+                          >
+                            ‹
+                          </button>
+                        </Tooltip>
 
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (!fotosArr.length) return;
-                            setLightboxIndex((prev) => {
-                              if (prev == null) return prev;
-                              return (prev + 1) % fotosArr.length;
-                            });
-                          }}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white/20 border border-white/30 text-white font-black backdrop-blur-sm"
-                          aria-label="Siguiente"
-                        >
-                          ›
-                        </button>
+                        <Tooltip texto="Siguiente">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!fotosArr.length) return;
+                              setLightboxIndex((prev) => {
+                                if (prev == null) return prev;
+                                return (prev + 1) % fotosArr.length;
+                              });
+                            }}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white/20 border border-white/30 text-white font-black backdrop-blur-sm"
+                            aria-label="Siguiente"
+                          >
+                            ›
+                          </button>
+                        </Tooltip>
 
                         {/\.(mp4|webm|ogg|mov)$/i.test(lightboxItem) ? (
                           <video
@@ -1094,7 +1111,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
             <div className="w-2.5 h-2.5 rounded-full bg-green-500 ring-4 ring-green-100"></div>
             <span>
               Cliente activo desde{" "}
-              {new Date(cliente.fechaRegistro).toLocaleDateString("es-ES", {
+              {new Date(cliente.fechaRegistro).toLocaleDateString("es-CO", {
                 day: "numeric",
                 month: "short",
                 year: "numeric",

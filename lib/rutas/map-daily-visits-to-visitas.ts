@@ -1,3 +1,9 @@
+import {
+  clienteComoObjeto,
+  type ObligacionDeJornada,
+  type PrestamoDeObligacion,
+} from '@/types/obligacion-jornada'
+import type { DailyVisitsResponse } from '@/services/rutas-service'
 /**
  * Mapper compartido para convertir DailyVisitsResponse en VisitaRuta[].
  * Centraliza la normalización de obligaciones operativas para todas las vistas:
@@ -45,12 +51,33 @@ import { resolveNivelRiesgoVisita } from './resolve-riesgo-visita'
 export type MapMode = 'LIVE' | 'HISTORICO'
 
 interface MapDailyVisitsToVisitasParams {
-  resp: any
+  /**
+   * La respuesta de la jornada, con las DOS formas que puede traer.
+   *
+   * `obligaciones` es la forma nueva y `visitas` la anterior: el mapeador usa la primera
+   * si viene y cae a la segunda si no (lineas 66-72). Esa cascada es lo que el `any`
+   * escondia, y es justo la que hay que ver para entender este archivo.
+   */
+  resp:
+    | DailyVisitsResponse
+    | {
+        obligaciones?: ObligacionDeJornada[] | null
+        visitas?: ObligacionDeJornada[] | null
+      }
+    | null
+    | undefined
   hoyBogotaKey?: string
-  rutaData?: any
-  initialRuta?: any
+  // Las dos rutas se leen solo por el cobrador y el codigo, para rellenar la visita.
+  rutaData?: RutaParaMapeo | null
+  initialRuta?: RutaParaMapeo | null
   modo?: MapMode
   fechaOperativa?: string
+}
+
+type RutaParaMapeo = {
+  id?: string
+  codigo?: string | null
+  cobradorId?: string | null
 }
 
 export const mapDailyVisitsResponseToVisitas = ({
@@ -61,18 +88,24 @@ export const mapDailyVisitsResponseToVisitas = ({
   modo = 'LIVE',
   fechaOperativa = hoyBogotaKey,
 }: MapDailyVisitsToVisitasParams): VisitaRuta[] => {
-  const obligaciones = Array.isArray((resp as any)?.obligaciones)
-    ? (resp as any).obligaciones
+  const obligaciones = Array.isArray((resp)?.obligaciones)
+    ? (resp).obligaciones
     : []
 
   const rows = obligaciones.length > 0
     ? obligaciones
-    : (Array.isArray((resp as any)?.visitas) ? (resp as any).visitas : [])
+    : (Array.isArray((resp)?.visitas) ? (resp).visitas : [])
 
-  const mapped = rows.map((row: any, idx: number) => {
-    const visita = row?.visita || row || {}
-    const c = row?.cliente || visita?.cliente || {}
-    const p = row?.prestamo || visita?.prestamo || visita?.prestamos?.[0] || {}
+  const mapped = rows.map((row, idx) => {
+    // La fila puede venir envuelta (`row.visita`) o ser la obligacion misma, y eso lo
+    // decide el endpoint. Se anota porque sin tipo el `|| {}` la deja en `{}` y el
+    // compilador deja de encontrar los campos.
+    const visita: ObligacionDeJornada = row?.visita || row || {}
+    // `clienteComoObjeto` porque el cliente puede llegar como texto con solo el nombre:
+    // leerlo como objeto a secas dejaba el id y el nombre en blanco.
+    const c = clienteComoObjeto(row?.cliente || visita?.cliente)
+    const p: PrestamoDeObligacion =
+      row?.prestamo || visita?.prestamo || visita?.prestamos?.[0] || {}
     const cuotaObjetivo =
       row?.cuotaObjetivo ||
       p?.cuotaObjetivo ||
@@ -250,10 +283,10 @@ export const mapDailyVisitsResponseToVisitas = ({
       proximaVisita: fechaEfectiva,
       targetVencimiento: proximaCuota?.fechaVencimiento || cuotaObjetivo?.fechaVencimiento,
       ordenVisita: Number(visita?.ordenVisita || row?.ordenVisita || idx + 1),
-      prioridad: nivel === 'ROJO' || nivel === 'LISTA_NEGRA' ? 'alta' : 'media' as any,
+      prioridad: nivel === 'ROJO' || nivel === 'LISTA_NEGRA' ? 'alta' : 'media',
       diasMora,
       cobradorId: rutaData?.cobradorId || initialRuta?.cobradorId || '',
-      periodoRuta: mapFrecuenciaToPeriodo(frecuencia as any) as any,
+      periodoRuta: mapFrecuenciaToPeriodo(frecuencia),
       clienteId: c?.id || visita?.clienteId || '',
       prestamoId: p?.id || row?.prestamoId || '',
       tipoPrestamo: esArticulo ? 'ARTICULO' : 'EFECTIVO',
@@ -280,17 +313,17 @@ export const mapDailyVisitsResponseToVisitas = ({
       nivelRiesgoCredito: row?.nivelRiesgoCredito ?? row?.prestamo?.nivelRiesgoCredito ?? p?.nivelRiesgoCredito,
       riesgoCredito: row?.riesgoCredito ?? row?.prestamo?.riesgoCredito ?? p?.riesgoCredito,
       riesgoOperativo: row?.riesgoOperativo ?? row?.prestamo?.riesgoOperativo ?? p?.riesgoOperativo,
-      nivelRiesgoBackend: row?.nivelRiesgoBackend ?? row?.cliente?.nivelRiesgo ?? c?.nivelRiesgo,
+      nivelRiesgoBackend: row?.nivelRiesgoBackend ?? c?.nivelRiesgo,
     }
 
     return {
       ...visitaBase,
-      nivelRiesgo: resolveNivelRiesgoVisita(visitaBase, p, cuotaObjetivo) as any,
+      nivelRiesgo: resolveNivelRiesgoVisita(visitaBase, p, cuotaObjetivo),
     } as VisitaRuta
   })
 
   const seen = new Set<string>()
-  const uniques = mapped.filter((v: any) => {
+  const uniques = mapped.filter((v) => {
     const key = String(v?.prestamoId || v?.clienteId || v?.id || '')
     if (!key) return true
     if (seen.has(key)) return false
@@ -298,7 +331,7 @@ export const mapDailyVisitsResponseToVisitas = ({
     return true
   })
 
-  return uniques.sort((a: any, b: any) => {
+  return uniques.sort((a, b) => {
     // Pagados al final (criterio de VistaCobrador)
     if (a.estado === 'pagado' && b.estado !== 'pagado') return 1
     if (a.estado !== 'pagado' && b.estado === 'pagado') return -1

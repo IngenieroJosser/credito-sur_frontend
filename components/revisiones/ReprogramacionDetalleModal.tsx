@@ -1,5 +1,6 @@
 'use client'
 
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 import React, { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
@@ -22,6 +23,9 @@ import {
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { aprobacionesService, type ApprovalContext } from '@/services/aprobaciones-service'
+import { Skeleton, SkeletonTexto } from '@/components/ui/Skeleton'
+import Tooltip from '@/components/ui/Tooltip'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 
 export interface ReprogramacionData {
   id: string
@@ -176,11 +180,26 @@ function getEstadoCreditoClasses(value: string | null | undefined) {
   return 'bg-slate-50 text-slate-700 border-slate-200'
 }
 
-function getMediaHref(item: any) {
+/**
+ * Un archivo adjunto de la solicitud, con los nombres que puede traer.
+ *
+ * Son las columnas de `model Multimedia` (`url`, `ruta`, `tipoContenido`, `tipoArchivo`,
+ * `formato`) mas `rutaArchivo`, que se deja porque esta en la cadena junto a `ruta`.
+ */
+type ArchivoDeRevision = {
+  url?: string | null
+  ruta?: string | null
+  rutaArchivo?: string | null
+  tipoContenido?: string | null
+  tipoArchivo?: string | null
+  formato?: string | null
+}
+
+function getMediaHref(item: ArchivoDeRevision | null | undefined) {
   return item?.url || item?.ruta || item?.rutaArchivo || ''
 }
 
-function isImageMedia(item: any) {
+function isImageMedia(item: ArchivoDeRevision | null | undefined) {
   const text = `${item?.tipoContenido || ''} ${item?.tipoArchivo || ''} ${item?.formato || ''} ${getMediaHref(item)}`.toLowerCase()
   return text.includes('imagen') || /\.(png|jpe?g|webp|gif|avif)$/i.test(text)
 }
@@ -197,6 +216,15 @@ export default function ReprogramacionDetalleModal({
   const [activeTab, setActiveTab] = useState<TabKey>('solicitud')
   const [context, setContext] = useState<ApprovalContext | null>(null)
   const [loadingContext, setLoadingContext] = useState(false)
+  // Escape para salir y foco al abrir. El hook lleva una pila, asi que con
+  // modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    abierto: isOpen,
+    onClose: onClose,
+    // Modal de solo lectura: no hay campo que enfocar.
+    enfocarAlAbrir: false,
+  })
+
   const [contextError, setContextError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -214,7 +242,7 @@ export default function ReprogramacionDetalleModal({
       .catch((error) => {
         if (!cancelled) {
           setContext(null)
-          setContextError(error?.message || 'No se pudo cargar el contexto')
+          setContextError(mensajeDeError(error, 'No se pudo cargar el contexto'))
         }
       })
       .finally(() => {
@@ -238,9 +266,10 @@ export default function ReprogramacionDetalleModal({
   const metricas = context?.metricas
 
   const renderLoading = () => (
-    <div className="py-8 text-center text-slate-400">
-      <Loader2 className="h-6 w-6 animate-spin mx-auto mb-3" />
-      <p className="text-xs font-bold">Cargando contexto...</p>
+    <div className="space-y-3 py-4" aria-busy="true">
+      <span className="sr-only">Cargando contexto…</span>
+      <Skeleton className="h-4 w-1/3" />
+      <SkeletonTexto lineas={3} />
     </div>
   )
 
@@ -332,7 +361,10 @@ export default function ReprogramacionDetalleModal({
         <InfoTile label="Dirección" value={cliente.direccion} />
         <InfoTile
           label="Ruta activa"
-          value={ruta ? `${ruta.nombre || ruta.codigo} · ${ruta.cobrador?.nombres || ''} ${ruta.cobrador?.apellidos || ''}`.trim() : '—'}
+          // La ruta viene anidada en el cliente, y ese select del backend trae
+          // solo id, nombre y codigo: no hay cobrador. Antes se intentaba
+          // `ruta.cobrador?.nombres` y quedaba un " · " suelto al final.
+          value={ruta ? String(ruta.nombre || ruta.codigo || '').trim() || '—' : '—'}
         />
       </div>
     )
@@ -345,8 +377,8 @@ export default function ReprogramacionDetalleModal({
     return (
       <div className="space-y-3">
         {context.creditosCliente.map((credito) => {
-          const vencidas = (credito.cuotas || []).filter((cuota: any) => cuota.estado === 'VENCIDA').length
-          const pagadas = (credito.cuotas || []).filter((cuota: any) => cuota.estado === 'PAGADA').length
+          const vencidas = (credito.cuotas || []).filter((cuota) => cuota.estado === 'VENCIDA').length
+          const pagadas = (credito.cuotas || []).filter((cuota) => cuota.estado === 'PAGADA').length
           const isTarget = credito.id === context.creditoSolicitud?.id
           return (
             <div key={credito.id} className={`rounded-2xl border p-4 ${isTarget ? 'border-orange-300 bg-orange-50' : 'border-slate-200 bg-white'}`}>
@@ -401,7 +433,7 @@ export default function ReprogramacionDetalleModal({
             <span>{formatFechaHora(pago.fechaPago)}</span>
             <span>{humanizeToken(pago.metodoPago)}</span>
             <span className="font-black text-emerald-700">{formatCurrency(Number(pago.montoTotal || 0))}</span>
-            <span>{humanizeToken(pago.origenGestion || pago.tipo || pago.tipoReferencia, 'Ruta')}</span>
+            <span>{humanizeToken(pago.origenGestion, 'Ruta')}</span>
           </div>
         ))}
       </div>
@@ -510,12 +542,15 @@ export default function ReprogramacionDetalleModal({
                   </p>
                 </div>
               </div>
-              <button
-                onClick={onClose}
-                className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors shrink-0"
-              >
-                <X className="h-4 w-4" />
-              </button>
+              <Tooltip texto="Cerrar">
+                <button
+                  onClick={onClose}
+                  className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors shrink-0"
+                  aria-label="Cerrar"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </Tooltip>
             </div>
           </div>
 

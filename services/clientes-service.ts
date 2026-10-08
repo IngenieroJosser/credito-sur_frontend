@@ -1,123 +1,268 @@
 import { logger } from '@/lib/logger'
-import { apiRequest } from "@/lib/api/api";
-import { syncService } from '@/lib/offline/syncService';
-import { conRespaldoOffline } from '@/lib/offline/conRespaldoOffline';
-import { NivelRiesgo, EstadoAprobacion } from '@/types/enums';
+import type { CuotaOperativa } from '@/lib/types/cobranza'
+import type { ArchivoMultimediaPago } from '@/services/pagos-service'
+import { apiRequest } from '@/lib/api/api'
+import { syncService } from '@/lib/offline/syncService'
+import { conRespaldoOffline, esErrorDeRed } from '@/lib/offline/conRespaldoOffline'
+import { NivelRiesgo, EstadoAprobacion } from '@/types/enums'
 import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 
 const generarIdempotencyKey = (prefix: string) => {
   const random =
     typeof crypto !== 'undefined' && 'randomUUID' in crypto
       ? crypto.randomUUID()
-      : Math.random().toString(36).slice(2, 12);
-  return `${prefix}-${Date.now()}-${random}`;
-};
+      : Math.random().toString(36).slice(2, 12)
+  return `${prefix}-${Date.now()}-${random}`
+}
 
-export type { NivelRiesgo, EstadoAprobacion };
+export type { NivelRiesgo, EstadoAprobacion }
+
+/**
+ * El prestamo y el pago que `GET /clients/:id` trae anidados.
+ *
+ * Los campos son los que las tres pantallas de detalle de cliente leen; los saco un `grep`
+ * de sus accesos. Estaban declarados `Record<string, unknown>[]`, que no miente pero obliga
+ * a que cada pantalla los lea con un `any`, y por ese `any` pasaban las cascadas sin
+ * comprobar. Las dos notas de arriba (sobre `cuotas` y `detalles`) siguen valiendo: van
+ * opcionales justamente porque esa consulta no las trae.
+ */
+export type PrestamoDeCliente = {
+  id?: string
+  tipoPrestamo?: string | null
+  producto?: { nombre?: string | null } | null
+  estado?: string | null
+  monto?: number | string | null
+  montoTotal?: number | string | null
+  saldoPendiente?: number | string | null
+  totalPagado?: number | string | null
+  interesTotal?: number | string | null
+  interesMoraPagado?: number | string | null
+  tasaInteres?: number | string | null
+  cantidadCuotas?: number | null
+  plazoMeses?: number | null
+  frecuenciaPago?: string | null
+  fechaInicio?: string | null
+  fechaFin?: string | null
+  cuotas?: CuotaOperativa[] | null
+}
+
+export type PagoDeCliente = {
+  id?: string
+  numeroPago?: string | number | null
+  fechaPago?: string | null
+  montoTotal?: number | string | null
+  metodoPago?: string | null
+  /**
+   * Los detalles del pago, con la cuota anidada.
+   *
+   * La nota de arriba dice que `pagos: true` NO los trae, y es cierto: van opcionales por
+   * eso. Se declara la forma igual porque las pantallas los leen (`detalles[0].cuota`), y
+   * asi se ve que ese acceso es el que siempre acaba en el '1' por defecto.
+   */
+  detalles?: Array<{ cuota?: { numeroCuota?: number | null } | null }> | null
+  archivos?: ArchivoMultimediaPago[] | null
+}
 
 export interface Cliente {
-  id: string;
-  codigo: string;
-  dni: string;
-  nombres: string;
-  apellidos: string;
-  correo: string | null;
-  telefono: string;
-  direccion: string | null;
-  referencia: string | null;
-  referencia1Nombre: string | null;
-  referencia1Telefono: string | null;
-  referencia2Nombre: string | null;
-  referencia2Telefono: string | null;
-  nivelRiesgo: NivelRiesgo;
-  puntaje: number;
-  enListaNegra: boolean;
-  estadoAprobacion: EstadoAprobacion;
-  razonListaNegra?: string | null;
-  fechaListaNegra?: string | null;
-  creadoEn: string;
-  actualizadoEn: string;
-  eliminadoEn?: string | null;
+  id: string
+  codigo: string
+  dni: string
+  nombres: string
+  apellidos: string
+  correo: string | null
+  telefono: string
+  direccion: string | null
+  referencia: string | null
+  referencia1Nombre: string | null
+  referencia1Telefono: string | null
+  referencia2Nombre: string | null
+  referencia2Telefono: string | null
+  nivelRiesgo: NivelRiesgo
+  puntaje: number
+  enListaNegra: boolean
+  estadoAprobacion: EstadoAprobacion
+  razonListaNegra?: string | null
+  fechaListaNegra?: string | null
+  creadoEn: string
+  actualizadoEn: string
+  eliminadoEn?: string | null
   // Campos calculados que vienen del backend
-  prestamosActivos?: number;
-  montoTotal?: number;
-  montoMora?: number;
-  diasMora?: number;
-  ultimoPago?: string;
-  rutaId?: string;
-  categoriaId?: string;
+  prestamosActivos?: number
+  montoTotal?: number
+  montoMora?: number
+  diasMora?: number
+  ultimoPago?: string
+  rutaId?: string
+  categoriaId?: string
+  /**
+   * Version para el control de concurrencia optimista.
+   *
+   * La cadena completa existe y funciona: la columna es `Cliente.version Int
+   * @default(1)` en Prisma, `CreateClientDto` y `UpdateClientDto` la declaran, y
+   * `ClientsService` compara la version que manda la pantalla contra la de la base
+   * para rechazar una edicion sobre datos desactualizados en vez de sobrescribir.
+   *
+   * Lo unico que faltaba era declararla aqui: la pantalla la leia y la escribia con
+   * `as any`, asi que la funcion estaba escondida detras de un cast.
+   */
+  version?: number
+
+  /**
+   * Los dos los calcula el backend en la fila del LISTADO de clientes
+   * (`clients.service.ts:648-649`), no son columnas. `tendencia` compara el puntaje
+   * contra su historia y `ultimaVisita` sale del ultimo pago ('Nunca' si no hay).
+   */
+  tendencia?: 'SUBE' | 'BAJA' | 'ESTABLE'
+  ultimaVisita?: string
+  /** El puntaje redondeado que calcula el listado (`clients.service.ts:647`). */
+  score?: number
+
+  /**
+   * Las relaciones que trae SOLO el detalle, `GET /clients/:id`
+   * (`clients.service.ts:153`, el `include` de `findOne`). El listado no las manda,
+   * de ahi que todas vayan opcionales.
+   */
+  archivos?: {
+    id?: string
+    /** Columnas de `model Multimedia`. `url` es nulable; `ruta` siempre viene. */
+    url?: string | null
+    ruta?: string
+    /** No es columna; queda porque varias pantallas lo leen en una cadena `a || b`. */
+    path?: string
+    tipoArchivo?: string
+    tipoContenido?: string
+    nombreOriginal?: string
+    /** Tambien columna de `Multimedia`: el modal la reenvia al guardar sin cambios. */
+    nombreAlmacenamiento?: string
+    tamanoBytes?: number
+  }[]
+  /**
+   * La asignacion activa, con la ruta. Solo viene la primera (`take: 1`).
+   *
+   * El detalle NO la incluia y el portal del cliente la lee de aqui, asi que
+   * mostraba "Sin Ruta" en todos. Arreglado en el backend; ver el commit
+   * "clientes: el detalle tambien trae la ruta asignada".
+   */
+  asignacionesRuta?: {
+    ruta?: { id?: string; nombre?: string; codigo?: string } | null
+  }[]
+  /**
+   * Los prestamos del cliente, como filas del modelo.
+   *
+   * OJO: `prestamos: true` NO trae la relacion `cuotas`, asi que `p.cuotas` siempre
+   * llega vacio y todo lo que se calcule de ahi (las cuotas pagadas del portal) sale
+   * en cero. `cantidadCuotas` si es columna y si llega.
+   */
+  prestamos?: PrestamoDeCliente[]
+  /**
+   * Los pagos del cliente.
+   *
+   * OJO: `pagos: true` NO trae la relacion `detalles`, asi que no se puede saber a
+   * que cuota fue cada pago; el portal acaba mostrando "cuota 1" en todos.
+   */
+  pagos?: PagoDeCliente[]
 }
 
 export interface CrearClienteDto {
-  dni: string;
-  nombres: string;
-  apellidos: string;
-  telefono: string;
-  direccion?: string;
-  correo?: string;
-  referencia?: string;
-  referencia1Nombre?: string;
-  referencia1Telefono?: string;
-  referencia2Nombre?: string;
-  referencia2Telefono?: string;
-  nivelRiesgo?: NivelRiesgo;
-  puntaje?: number;
-  enListaNegra?: boolean;
-  creadoPorId?: string;
-  rutaId?: string;
-  observaciones?: string;
-  categoriaId?: string;
+  /**
+   * Clave de idempotencia para el modo offline.
+   *
+   * La cola trata esta operación como idempotente (ver `idempotentTypes` en
+   * `syncService`), así que esta clave es lo que evita que una creación encolada se
+   * aplique dos veces si el sync reintenta. El servicio ya la ponía —y la leía con
+   * un `as any`, porque la interfaz no la declaraba—; ahora está declarada.
+   */
+  idempotencyKey?: string
+  dni: string
+  nombres: string
+  apellidos: string
+  telefono: string
+  direccion?: string
+  correo?: string
+  referencia?: string
+  referencia1Nombre?: string
+  referencia1Telefono?: string
+  referencia2Nombre?: string
+  referencia2Telefono?: string
+  nivelRiesgo?: NivelRiesgo
+  puntaje?: number
+  enListaNegra?: boolean
+  creadoPorId?: string
+  rutaId?: string
+  observaciones?: string
+  /**
+   * OJO: el backend NO lo acepta todavia.
+   *
+   * La columna existe (`Cliente.categoriaId`, con su relacion `categoria`), pero
+   * `CreateClientDto` y `UpdateClientDto` no la declaran, y el ValidationPipe global
+   * va con `whitelist: true` SIN `forbidNonWhitelisted`: un campo que el DTO no
+   * declara se descarta EN SILENCIO, sin error ni aviso.
+   *
+   * Hoy no rompe nada porque ninguna pantalla lo manda (se comprobo: los
+   * `categoriaId` del frontend son de articulos y de contabilidad). Si se agrega un
+   * selector de categoria al formulario de cliente, hay que declararlo primero en
+   * el DTO del backend y usarlo en `ClientsService`, o el valor se pierde sin que
+   * nadie se entere.
+   */
+  categoriaId?: string
+  /** Version para el control de concurrencia optimista. Ver la nota en `Cliente`. */
+  version?: number
+  /**
+   * Espejo de `CreateMultimediaDto` del backend (create-client.dto.ts:37-82).
+   *
+   * Lo que estaba declarado aqui no coincidia: pedia `nombreAlmacenamiento`, `ruta` y
+   * `tamanoBytes` obligatorios cuando los tres son `@IsOptional()`, y no declaraba
+   * `url`, que el modal SI manda (y el DTO del backend SI acepta).
+   */
   archivos?: {
-    tipoContenido: string;
-    tipoArchivo: string;
-    nombreOriginal: string;
-    nombreAlmacenamiento: string;
-    ruta: string;
-    tamanoBytes: number;
-  }[];
+    tipoContenido: string
+    tipoArchivo: string
+    nombreOriginal: string
+    nombreAlmacenamiento?: string
+    ruta?: string
+    url?: string | null
+    tamanoBytes?: number
+  }[]
 }
 
 export interface ActualizarClienteDto {
-  nombres?: string;
-  apellidos?: string;
-  telefono?: string;
-  correo?: string;
-  direccion?: string;
-  referencia?: string;
-  referencia1Nombre?: string;
-  referencia1Telefono?: string;
-  referencia2Nombre?: string;
-  referencia2Telefono?: string;
-  nivelRiesgo?: NivelRiesgo;
-  puntaje?: number;
-  dni?: string; // Permitir dni si es editable
-  enListaNegra?: boolean;
-  rutaId?: string;
-  categoriaId?: string;
-  observaciones?: string;
+  nombres?: string
+  apellidos?: string
+  telefono?: string
+  correo?: string
+  direccion?: string
+  referencia?: string
+  referencia1Nombre?: string
+  referencia1Telefono?: string
+  referencia2Nombre?: string
+  referencia2Telefono?: string
+  nivelRiesgo?: NivelRiesgo
+  puntaje?: number
+  dni?: string // Permitir dni si es editable
+  enListaNegra?: boolean
+  rutaId?: string
+  /** Igual que en `CrearClienteDto`: el backend lo descarta en silencio. Ver la nota de alla. */
+  categoriaId?: string
+  /** Version para el control de concurrencia optimista. Ver la nota en `Cliente`. */
+  version?: number
+  observaciones?: string
 }
 
 export interface AgregarListaNegraDto {
-  razon: string;
-  agregadoPorId: string;
-}
-
-export interface AsignarRutaDto {
-  rutaId: string;
-  cobradorId: string;
-  diaSemana?: number;
+  razon: string
+  agregadoPorId: string
 }
 
 export interface FiltrosClientes {
-  nivelRiesgo?: string;
-  ruta?: string;
-  search?: string;
+  nivelRiesgo?: string
+  ruta?: string
+  search?: string
   /**
    * Cuando es `true`, el backend retorna todos los clientes no bloqueados
    * sin restringir por ruta del cobrador. Úsese solo en selectores de
    * creación de crédito.
    */
-  forCredit?: boolean;
+  forCredit?: boolean
 }
 
 export const clientesService = {
@@ -125,26 +270,31 @@ export const clientesService = {
    * Obtener todos los clientes
    */
   async obtenerTodos(filtros?: FiltrosClientes): Promise<Cliente[]> {
-    const params = new URLSearchParams();
+    const params = new URLSearchParams()
 
-    if (filtros?.nivelRiesgo) params.append('nivelRiesgo', filtros.nivelRiesgo);
-    if (filtros?.ruta) params.append('ruta', filtros.ruta);
-    if (filtros?.search) params.append('search', filtros.search);
-    if (filtros?.forCredit) params.append('forCredit', 'true');
+    if (filtros?.nivelRiesgo) params.append('nivelRiesgo', filtros.nivelRiesgo)
+    if (filtros?.ruta) params.append('ruta', filtros.ruta)
+    if (filtros?.search) params.append('search', filtros.search)
+    if (filtros?.forCredit) params.append('forCredit', 'true')
 
-    const query = params.toString();
-    const endpoint = query ? `/clients?${query}` : '/clients';
+    const query = params.toString()
+    const endpoint = query ? `/clients?${query}` : '/clients'
 
     // El backend puede devolver un array directo o un objeto { clientes: [] }
-    const response = await apiRequest<Cliente[] | { clientes: Cliente[] }>('GET', endpoint, undefined, { cacheTTL: 0 });
-    return Array.isArray(response) ? response : (response.clientes || []);
+    const response = await apiRequest<Cliente[] | { clientes: Cliente[] }>(
+      'GET',
+      endpoint,
+      undefined,
+      { cacheTTL: 0 },
+    )
+    return Array.isArray(response) ? response : response.clientes || []
   },
 
   /**
    * Obtener un cliente por ID
    */
   async obtenerPorId(id: string): Promise<Cliente> {
-    return apiRequest<Cliente>('GET', `/clients/${id}`, undefined, { cacheTTL: 0 });
+    return apiRequest<Cliente>('GET', `/clients/${id}`, undefined, { cacheTTL: 0 })
   },
 
   /**
@@ -153,27 +303,22 @@ export const clientesService = {
   async crear(data: CrearClienteDto): Promise<Cliente> {
     const payload = {
       ...data,
-      idempotencyKey: (data as any).idempotencyKey || generarIdempotencyKey('cliente'),
-    };
+      idempotencyKey: data.idempotencyKey || generarIdempotencyKey('cliente'),
+    }
 
     try {
-      const result = await apiRequest<Cliente>('POST', '/clients', payload);
+      const result = await apiRequest<Cliente>('POST', '/clients', payload)
 
       // Feedback visual inmediato en la cola de sync
-      const { logSyncActivity } = await import('@/lib/offline/offlineQueue');
-      logSyncActivity(`Crear cliente: ${payload.nombres} ${payload.apellidos}`);
+      const { logSyncActivity } = await import('@/lib/offline/offlineQueue')
+      logSyncActivity(`Crear cliente: ${payload.nombres} ${payload.apellidos}`)
 
-      return result;
-    } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 ||
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
-        logger.log('[Offline Mode] Guardando creacion de cliente en cola...');
+      return result
+    } catch (error) {
+      if (esErrorDeRed(error)) {
+        logger.log('[Offline Mode] Guardando creacion de cliente en cola...')
         // Usar un ID temporal
-        const tempId = `temp-${Date.now()}`;
+        const tempId = `temp-${Date.now()}`
 
         await syncService.enqueueOperation(
           'cliente_create',
@@ -183,7 +328,7 @@ export const clientesService = {
           `Crear cliente: ${payload.nombres} ${payload.apellidos}`,
           undefined,
           tempId,
-        );
+        )
 
         // Retornar objeto temporal para UI optimista
         return {
@@ -195,6 +340,10 @@ export const clientesService = {
           telefono: payload.telefono,
           direccion: payload.direccion || null,
           referencia: payload.referencia || null,
+          referencia1Nombre: payload.referencia1Nombre || null,
+          referencia1Telefono: payload.referencia1Telefono || null,
+          referencia2Nombre: payload.referencia2Nombre || null,
+          referencia2Telefono: payload.referencia2Telefono || null,
           correo: payload.correo || null,
           nivelRiesgo: payload.nivelRiesgo || NivelRiesgo.VERDE,
           puntaje: payload.puntaje || 0,
@@ -202,36 +351,34 @@ export const clientesService = {
           estadoAprobacion: EstadoAprobacion.PENDIENTE,
           creadoEn: toBogotaDateTimeOffsetIso(new Date()),
           actualizadoEn: toBogotaDateTimeOffsetIso(new Date()),
-        } as any;
+        }
       }
-      throw error;
+      throw error
     }
   },
 
   /**
    * Actualizar un cliente existente (con soporte Offline)
    */
-  async actualizar(id: string, data: ActualizarClienteDto): Promise<Cliente> {
+  async actualizar(id: string, data: ActualizarClienteDto): Promise<Cliente | null> {
     try {
-      return await apiRequest<Cliente>('PUT', `/clients/${id}`, data);
-    } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 ||
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
-        logger.log('[Offline Mode] Guardando actualizacion de cliente en cola...');
+      return await apiRequest<Cliente>('PUT', `/clients/${id}`, data)
+    } catch (error) {
+      if (esErrorDeRed(error)) {
+        logger.log('[Offline Mode] Guardando actualizacion de cliente en cola...')
         await syncService.enqueueOperation(
           'cliente_update',
           `/clients/${id}`,
           'PUT',
           data,
-          `Actualizar cliente: ${id}`
-        );
-        return { id, ...data } as any;
+          `Actualizar cliente: ${id}`,
+        )
+        // Sin conexion solo conocemos el id y los campos enviados; eso no es un
+        // Cliente. Devolver `null` deja que la pantalla siga mostrando lo que ya
+        // tenia en lugar de recibir una entidad con huecos.
+        return null
       }
-      throw error;
+      throw error
     }
   },
 
@@ -240,25 +387,20 @@ export const clientesService = {
    */
   async eliminar(id: string): Promise<void> {
     try {
-      return await apiRequest<void>('DELETE', `/clients/${id}`);
-    } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 ||
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
-        logger.log('[Offline Mode] Guardando eliminacion de cliente en cola...');
+      return await apiRequest<void>('DELETE', `/clients/${id}`)
+    } catch (error) {
+      if (esErrorDeRed(error)) {
+        logger.log('[Offline Mode] Guardando eliminacion de cliente en cola...')
         await syncService.enqueueOperation(
           'cliente_delete',
           `/clients/${id}`,
           'DELETE',
           {},
-          `Eliminar cliente: ${id}`
-        );
-        return;
+          `Eliminar cliente: ${id}`,
+        )
+        return
       }
-      throw error;
+      throw error
     }
   },
 
@@ -268,138 +410,118 @@ export const clientesService = {
   async restaurar(id: string): Promise<Cliente> {
     return conRespaldoOffline(
       () => apiRequest<Cliente>('PATCH', `/clients/${id}/restore`, {}),
-      { type: 'cliente_restaurar', endpoint: `/clients/${id}/restore`, method: 'PATCH', data: {}, description: `Restaurar cliente ${id}` },
+      {
+        type: 'cliente_restaurar',
+        endpoint: `/clients/${id}/restore`,
+        method: 'PATCH',
+        data: {},
+        description: `Restaurar cliente ${id}`,
+      },
       { id } as Cliente,
-    );
+    )
   },
 
   /**
    * Aprobar un cliente
    */
-  async aprobar(id: string, aprobadoPorId: string, datosAprobados?: unknown): Promise<Cliente> {
+  async aprobar(
+    id: string,
+    aprobadoPorId: string,
+    datosAprobados?: unknown,
+  ): Promise<Cliente | null> {
     try {
       return await apiRequest<Cliente>('POST', `/clients/approve/${id}`, {
         aprobadoPorId,
-        datosAprobados
-      });
-    } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 ||
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
-        logger.log('[Offline Mode] Guardando aprobacion de cliente en cola...');
-        return await syncService.enqueueOperation(
+        datosAprobados,
+      })
+    } catch (error) {
+      if (esErrorDeRed(error)) {
+        logger.log('[Offline Mode] Guardando aprobacion de cliente en cola...')
+        await syncService.enqueueOperation(
           'cliente_aprobar',
           `/clients/approve/${id}`,
           'POST',
           { aprobadoPorId, datosAprobados },
-          `Aprobar cliente: ${id}`
-        ) as any;
+          `Aprobar cliente: ${id}`,
+        )
+        // Sin conexion no conocemos la entidad que el backend devolvera, asi que no
+        // se fabrica una: el tipo es `| null` y quien llama ya descarta el resultado.
+        return null
       }
-      throw error;
+      throw error
     }
   },
 
   /**
    * Agregar cliente a lista negra
    */
-  async agregarListaNegra(id: string, data: AgregarListaNegraDto): Promise<Cliente> {
+  async agregarListaNegra(id: string, data: AgregarListaNegraDto): Promise<Cliente | null> {
     try {
-      return await apiRequest<Cliente>('POST', `/clients/${id}/blacklist`, data);
-    } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 ||
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
-        logger.log('[Offline Mode] Guardando agregar a lista negra en cola...');
-        return await syncService.enqueueOperation(
+      return await apiRequest<Cliente>('POST', `/clients/${id}/blacklist`, data)
+    } catch (error) {
+      if (esErrorDeRed(error)) {
+        logger.log('[Offline Mode] Guardando agregar a lista negra en cola...')
+        await syncService.enqueueOperation(
           'cliente_blacklist_add',
           `/clients/${id}/blacklist`,
           'POST',
           data,
-          `Agregar a lista negra cliente: ${id}`
-        ) as any;
+          `Agregar a lista negra cliente: ${id}`,
+        )
+        // Sin conexion no conocemos la entidad que el backend devolvera, asi que no
+        // se fabrica una: el tipo es `| null` y quien llama ya descarta el resultado.
+        return null
       }
-      throw error;
+      throw error
     }
   },
 
   /**
    * Remover cliente de lista negra
    */
-  async removerListaNegra(id: string): Promise<Cliente> {
+  async removerListaNegra(id: string): Promise<Cliente | null> {
     try {
-      return await apiRequest<Cliente>('DELETE', `/clients/${id}/blacklist`);
-    } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 ||
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
-        logger.log('[Offline Mode] Guardando remover de lista negra en cola...');
-        return await syncService.enqueueOperation(
+      return await apiRequest<Cliente>('DELETE', `/clients/${id}/blacklist`)
+    } catch (error) {
+      if (esErrorDeRed(error)) {
+        logger.log('[Offline Mode] Guardando remover de lista negra en cola...')
+        await syncService.enqueueOperation(
           'cliente_blacklist_remove',
           `/clients/${id}/blacklist`,
           'DELETE',
           null,
-          `Remover de lista negra cliente: ${id}`
-        ) as any;
+          `Remover de lista negra cliente: ${id}`,
+        )
+        // Sin conexion no conocemos la entidad que el backend devolvera, asi que no
+        // se fabrica una: el tipo es `| null` y quien llama ya descarta el resultado.
+        return null
       }
-      throw error;
-    }
-  },
-
-  /**
-   * Asignar cliente a una ruta
-   */
-  async asignarRuta(clienteId: string, data: AsignarRutaDto): Promise<void> {
-    try {
-      return await apiRequest<void>('POST', `/clients/${clienteId}/assign-route`, data);
-    } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 ||
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
-        logger.log('[Offline Mode] Guardando asignacion de ruta en cola...');
-        await syncService.enqueueOperation(
-          'cliente_assign_route',
-          `/clients/${clienteId}/assign-route`,
-          'POST',
-          data,
-          `Asignar ruta a cliente: ${clienteId}`
-        );
-        return;
-      }
-      throw error;
+      throw error
     }
   },
 
   /**
    * Obtener estado de cuenta financiero del cliente
    */
-  async obtenerEstadoCuenta(clienteId: string): Promise<any> {
-    return apiRequest<any>('GET', `/clients/${clienteId}/estado-cuenta`, undefined, { cacheTTL: 0 });
+  async obtenerEstadoCuenta(clienteId: string): Promise<unknown> {
+    return apiRequest<unknown>('GET', `/clients/${clienteId}/estado-cuenta`, undefined, {
+      cacheTTL: 0,
+    })
   },
 
   // Alias para compatibilidad
-  obtenerClientes: function(filtros?: FiltrosClientes): Promise<Cliente[]> {
-    return this.obtenerTodos(filtros);
+  obtenerClientes: function (filtros?: FiltrosClientes): Promise<Cliente[]> {
+    return this.obtenerTodos(filtros)
   },
 
-  eliminarCliente: function(id: string): Promise<void> {
-    return this.eliminar(id);
+  eliminarCliente: function (id: string): Promise<void> {
+    return this.eliminar(id)
   },
 
-  actualizarCliente: function(id: string, data: ActualizarClienteDto): Promise<Cliente> {
-    return this.actualizar(id, data);
-  }
-};
+  // Nota: este alias no tiene consumidores hoy. Hereda el `| null` de `actualizar`.
+  actualizarCliente: function (id: string, data: ActualizarClienteDto): Promise<Cliente | null> {
+    return this.actualizar(id, data)
+  },
+}
 
 // MOCK_CLIENTES eliminado - usar clientesService.obtenerTodos() para obtener datos reales
