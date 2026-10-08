@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import { X, Calendar, Clock, ShoppingBag, History } from 'lucide-react'
+import { X, Calendar, Clock, ShoppingBag, History, Package, Banknote } from 'lucide-react'
 import { VisitaRuta } from '@/lib/types/cobranza'
 import { formatMilesCOP } from '@/lib/utils'
 import { Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
@@ -171,9 +171,7 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
       fechaInicio: formatDateBogota(loanData.fechaInicio),
       fechaVencimiento: formatDateBogota(
         loanData.fechaFin ||
-          (cuotas.length > 0
-            ? cuotas[cuotas.length - 1].fechaVencimiento || ''
-            : ''),
+          (cuotas.length > 0 ? cuotas[cuotas.length - 1].fechaVencimiento || '' : ''),
       ),
       nextPaymentDate: prox?.fecha ? formatDateBogota(prox.fecha) : '---',
       nextPaymentAmount: (() => {
@@ -493,6 +491,28 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
                                 <td className="px-4 py-3">
                                   <div className="font-black text-slate-900 uppercase">
                                     {p.fecha}
+                                  </div>
+                                  {/* A que fue el pago. Un cliente con un prestamo Y un
+                                      credito de articulo veia dos lineas identicas y
+                                      tenia que adivinar cual era cual. */}
+                                  <div className="mt-1 inline-flex items-center gap-1 text-[9px] font-bold uppercase text-slate-500">
+                                    {loanData?.tipoPrestamo === 'ARTICULO' ? (
+                                      <>
+                                        <Package
+                                          className="h-2.5 w-2.5 text-violet-500"
+                                          aria-hidden="true"
+                                        />
+                                        Artículo
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Banknote
+                                          className="h-2.5 w-2.5 text-emerald-500"
+                                          aria-hidden="true"
+                                        />
+                                        Préstamo
+                                      </>
+                                    )}
                                   </div>
                                 </td>
                                 <td className="px-4 py-3 text-slate-600">
