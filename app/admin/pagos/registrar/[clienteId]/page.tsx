@@ -195,7 +195,43 @@ const RegistrarPagoClientePage = () => {
     return <SkeletonDetalle />
   }
 
-  const esCreditoArticulo = producto?.tipo === 'CREDITO_ARTICULO'
+  // `producto` se queda en null cuando el cliente no tiene ningun credito que
+  // cobrar: `loadData` solo lo escribe dentro de `if (prestamo)`, y el respaldo
+  // offline dentro de `if (offPrestamo)`. Sin este corte la pantalla seguia de
+  // largo y pintaba el formulario de pago completo con "Saldo Pendiente $ 0" y
+  // "Valor Cuota $ 0". Dos problemas a la vez: el cero se lee como "este cliente
+  // no debe nada" cuando en realidad significa "no se encontro el credito", y al
+  // enviar el formulario `handleSubmit` salia por `!producto` sin decir nada, asi
+  // que el cobrador escribia el monto, pulsaba y no pasaba absolutamente nada.
+  if (!producto) {
+    return (
+      <div className="min-h-screen bg-slate-50 p-8">
+        <div className="mx-auto max-w-md space-y-4 text-center">
+          <button
+            onClick={() => router.back()}
+            className="mx-auto flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-100"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Volver
+          </button>
+          <div className="rounded-2xl border border-amber-100 bg-white p-8 shadow-sm">
+            <AlertCircle className="mx-auto mb-3 h-10 w-10 text-amber-500" />
+            <h1 className="text-xl font-bold text-slate-900">
+              No hay un crédito al que abonar
+            </h1>
+            <p className="mt-2 text-sm font-medium text-slate-600">
+              {cliente?.nombre
+                ? `No se encontró ningún crédito activo de ${cliente.nombre}.`
+                : 'No se encontró ningún crédito activo para este cliente.'}{' '}
+              Si deberías ver uno, revisa la conexión y vuelve a entrar.
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  const esCreditoArticulo = producto.tipo === 'CREDITO_ARTICULO'
 
   // VISTA DIFERENCIADA PARA ARTÍCULOS
   if (esCreditoArticulo) {
@@ -534,7 +570,7 @@ const RegistrarPagoClientePage = () => {
                         esCreditoArticulo ? 'text-indigo-600' : 'text-emerald-600',
                       )}
                     >
-                      {producto?.codigo}
+                      {producto.codigo}
                     </p>
                   </div>
                 </div>
@@ -544,7 +580,7 @@ const RegistrarPagoClientePage = () => {
                 <div>
                   <p className="text-xs font-bold text-slate-500 mb-1">Producto / Detalle</p>
                   <p className="font-bold text-lg leading-tight text-slate-900">
-                    {producto?.descripcion}
+                    {producto.descripcion}
                   </p>
                 </div>
 
@@ -552,18 +588,18 @@ const RegistrarPagoClientePage = () => {
                   <div>
                     <p className="text-xs font-bold text-slate-500 mb-1">Saldo Pendiente</p>
                     <p className="font-bold text-slate-900">
-                      {formatCurrency(producto?.saldoPendiente || 0)}
+                      {formatCurrency(producto.saldoPendiente)}
                     </p>
                   </div>
                   <div>
                     <p className="text-xs font-bold text-slate-500 mb-1">Valor Cuota</p>
                     <p className="font-bold text-slate-900">
-                      {formatCurrency(producto?.valorCuota || 0)}
+                      {formatCurrency(producto.valorCuota)}
                     </p>
                   </div>
                 </div>
 
-                {producto?.diasMora && producto.diasMora > 0 ? (
+                {producto.diasMora > 0 ? (
                   <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-100 text-rose-700 text-xs font-bold">
                     <AlertCircle className="h-3 w-3" />
                     {producto.diasMora} días en mora
@@ -638,9 +674,9 @@ const RegistrarPagoClientePage = () => {
                     {/* Accesos rápidos */}
                     <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
                       {[
-                        producto?.valorCuota,
-                        (producto?.valorCuota || 0) * 2,
-                        producto?.saldoPendiente || 0,
+                        producto.valorCuota,
+                        producto.valorCuota * 2,
+                        producto.saldoPendiente,
                       ].map(
                         (val) =>
                           val && (

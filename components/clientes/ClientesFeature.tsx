@@ -35,13 +35,6 @@ import { offlineStore } from '@/lib/offline/offlineDb'
 import { WifiOff } from 'lucide-react'
 import { ExportButton } from '@/components/ui/ExportButton'
 import { exportService } from '@/services/export-service'
-import {
-  computeDiasMoraFromCuotas,
-  getBogotaDateKey,
-  isCuotaNoPagada,
-  normalizeDateKey,
-  resolveFechaEfectivaCuota,
-} from '@/lib/rutas-core'
 
 // Tipos locales
 type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA'
@@ -81,11 +74,7 @@ export default function ClientesFeature({
     if (initialClientes.length === 0) {
       // Precarga desde caché para pintar algo al instante. NO se marca como
       // "offline": todavía no se ha intentado la petición online. Marcarlo aquí
-      {
-        typeof navigator !== 'undefined' && navigator.onLine === false
-          ? 'Sin conexión: mostrando los datos guardados en este equipo.'
-          : 'No se pudo actualizar la lista; se muestran los últimos datos guardados.'
-      }
+      // hacía parpadear el aviso "Mostrando datos guardados localmente" en cada
       // carga, aun con conexión. El aviso solo debe salir si la petición falla.
       offlineStore
         .getAll<ClienteAdmin>('clientes')
@@ -253,7 +242,17 @@ export default function ClientesFeature({
     const mapa: Record<string, number> = {}
     for (const c of Array.isArray(clientes) ? clientes : []) {
       const id = String(c?.id || '')
-      if (id) mapa[id] = Number(c?.diasMora ?? 0)
+      if (!id) continue
+      // Aqui habia un `?? 0`, y con el el mapa acababa teniendo una entrada para
+      // TODOS los clientes: la del que no traia `diasMora` valia 0. Como
+      // `getDiasMoraOrNull` pregunta si la entrada existe, nunca volvia a
+      // devolver null, el estado neutro "Calculando..." no se pintaba jamas y cada
+      // cliente salia en verde "Al dia" —justo lo que el comentario de esa funcion
+      // dice que hay que evitar—. Y el listado ni siquiera recibia el campo: el
+      // backend no lo mandaba.
+      const dias = c?.diasMora
+      if (dias === undefined || dias === null) continue
+      mapa[id] = Number(dias)
     }
     return mapa
   }, [clientes])
@@ -462,7 +461,9 @@ export default function ClientesFeature({
         {dataSource === 'offline' && (
           <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-xs font-bold text-amber-700">
             <WifiOff className="h-3.5 w-3.5" />
-            Mostrando datos guardados localmente. Algunos datos pueden no estar actualizados.
+            {typeof navigator !== 'undefined' && navigator.onLine === false
+              ? 'Sin conexión: mostrando los datos guardados en este equipo.'
+              : 'No se pudo actualizar la lista; se muestran los últimos datos guardados.'}
           </div>
         )}
 
@@ -901,9 +902,17 @@ export default function ClientesFeature({
                     </div>
                   </div>
                   <div className="flex justify-between items-center pt-3 border-t border-slate-100">
-                    <div className="text-sm font-bold text-slate-900">
-                      {formatCurrency(cliente.montoTotal ?? 0)}
-                    </div>
+                    {/* Mismo criterio que la vista de tabla: mientras no se sabe cuánto
+                        debe, NO se escribe "$ 0". El arreglo se habia aplicado solo a la
+                        tabla, y esta es la vista de tarjetas: la que ve el cobrador en el
+                        movil, que es justo donde mas se consulta. */}
+                    {cliente.montoTotal == null ? (
+                      <div className="h-5 w-24 animate-pulse rounded bg-slate-200/70" />
+                    ) : (
+                      <div className="text-sm font-bold text-slate-900">
+                        {formatCurrency(cliente.montoTotal)}
+                      </div>
+                    )}
                     <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
                       <button
                         onClick={(e) => {

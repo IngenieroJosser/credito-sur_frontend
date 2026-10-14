@@ -568,78 +568,100 @@ const ListadoPrestamosElegante = () => {
           )}
 
           {/* Estadísticas */}
-          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
-            <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
-                Créditos (visibles)
-              </p>
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-bold text-slate-900 tracking-tight">
-                  {prestamosFiltrados.length}
-                </span>
-                <span className="text-xs font-semibold text-slate-500">
-                  de {totalPrestamos} totales
-                </span>
+          {/*
+            Durante la primera carga este panel pintaba los seis recuadros con
+            "$ 0". No esta detras de `cargando` y el estado inicial de
+            `estadisticas` son ceros, asi que "Total a Cobrar: $ 0" se leia como
+            un dato —que no hay nada que cobrar— cuando lo que significaba era
+            que la cifra todavia no habia llegado. Mismo criterio que en el
+            listado de clientes: mientras no se sabe, no se escribe un numero.
+          */}
+          {cargando && !prestamos.length ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)]"
+                >
+                  <div className="mb-3 h-3 w-24 animate-pulse rounded bg-slate-200/70" />
+                  <div className="h-6 w-28 animate-pulse rounded bg-slate-200/70" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+              <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                  Créditos (visibles)
+                </p>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-2xl font-bold text-slate-900 tracking-tight">
+                    {prestamosFiltrados.length}
+                  </span>
+                  <span className="text-xs font-semibold text-slate-500">
+                    de {totalPrestamos} totales
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
+                <p className="text-xs font-bold text-rose-600 uppercase tracking-wider mb-2">
+                  En Mora
+                </p>
+                <p className="text-2xl font-bold text-slate-900 tracking-tight">
+                  {estadisticas.atrasados}
+                </p>
+              </div>
+
+              <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
+                <p className="text-xs font-bold text-[#08557f] uppercase tracking-wider mb-2">
+                  Capital Prestado
+                </p>
+                <p
+                  className="text-lg font-bold text-slate-900 tracking-tight truncate"
+                  title={formatCurrency(estadisticas.montoPrestado)}
+                >
+                  {formatCurrency(estadisticas.montoPrestado)}
+                </p>
+              </div>
+
+              <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
+                <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-2">
+                  Ganancia Esperada
+                </p>
+                <p
+                  className="text-lg font-bold text-slate-900 tracking-tight truncate"
+                  title={formatCurrency(estadisticas.interesTotal)}
+                >
+                  {formatCurrency(estadisticas.interesTotal)}
+                </p>
+              </div>
+
+              <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                  Total a Cobrar
+                </p>
+                <p
+                  className="text-lg font-bold text-slate-900 tracking-tight truncate"
+                  title={formatCurrency(estadisticas.montoTotal)}
+                >
+                  {formatCurrency(estadisticas.montoTotal)}
+                </p>
+              </div>
+
+              <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
+                <p className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-2">
+                  Saldo Pendiente
+                </p>
+                <p
+                  className="text-lg font-bold text-slate-900 tracking-tight truncate"
+                  title={formatCurrency(estadisticas.montoPendiente)}
+                >
+                  {formatCurrency(estadisticas.montoPendiente)}
+                </p>
               </div>
             </div>
-
-            <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-              <p className="text-xs font-bold text-rose-600 uppercase tracking-wider mb-2">
-                En Mora
-              </p>
-              <p className="text-2xl font-bold text-slate-900 tracking-tight">
-                {estadisticas.atrasados}
-              </p>
-            </div>
-
-            <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-              <p className="text-xs font-bold text-[#08557f] uppercase tracking-wider mb-2">
-                Capital Prestado
-              </p>
-              <p
-                className="text-lg font-bold text-slate-900 tracking-tight truncate"
-                title={formatCurrency(estadisticas.montoPrestado || 0)}
-              >
-                {formatCurrency(estadisticas.montoPrestado || 0)}
-              </p>
-            </div>
-
-            <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-              <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-2">
-                Ganancia Esperada
-              </p>
-              <p
-                className="text-lg font-bold text-slate-900 tracking-tight truncate"
-                title={formatCurrency(estadisticas.interesTotal || 0)}
-              >
-                {formatCurrency(estadisticas.interesTotal || 0)}
-              </p>
-            </div>
-
-            <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                Total a Cobrar
-              </p>
-              <p
-                className="text-lg font-bold text-slate-900 tracking-tight truncate"
-                title={formatCurrency(estadisticas.montoTotal || 0)}
-              >
-                {formatCurrency(estadisticas.montoTotal || 0)}
-              </p>
-            </div>
-
-            <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-              <p className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-2">
-                Saldo Pendiente
-              </p>
-              <p
-                className="text-lg font-bold text-slate-900 tracking-tight truncate"
-                title={formatCurrency(estadisticas.montoPendiente || 0)}
-              >
-                {formatCurrency(estadisticas.montoPendiente || 0)}
-              </p>
-            </div>
-          </div>
+          )}
 
           {/* Filtros */}
           <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col md:flex-row gap-4 justify-between items-center">

@@ -90,7 +90,15 @@ export interface Cliente {
   prestamosActivos?: number
   montoTotal?: number
   montoMora?: number
-  diasMora?: number
+  /**
+   * Dias de mora, o `null` cuando el backend no pudo calcularlos.
+   *
+   * El `null` NO es cero: un cero significa "al dia" y se pinta en verde. Hay
+   * que distinguirlos antes de mostrarlo, porque un hueco disfrazado de cero es
+   * un cliente con meses de atraso pintado de verde. Pasó: el listado no mandaba
+   * este campo y el frontend lo resolvia con un `?? 0`.
+   */
+  diasMora?: number | null
   ultimoPago?: string
   rutaId?: string
   categoriaId?: string
