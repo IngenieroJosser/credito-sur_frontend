@@ -146,6 +146,13 @@ const LegacyDetalleRutaPage = () => {
   // Estado de carga
 
   const [isLoading, setIsLoading] = useState(true)
+  // Por que hace falta: `cargarRuta` se come su error en su propio `catch` y el
+  // `setIsLoading(false)` corre igual. Si la peticion fallaba, la pantalla se
+  // pintaba ENTERA con `rutaActual` en null: nombre de ruta inventado ('Diaria',
+  // que es el respaldo del `||`), badge de riesgo por omision y Cobranza y Meta
+  // en $ 0. Un cero en la meta y en el recaudo del dia no es un dato neutro: se
+  // lee como que no hay nada que cobrar.
+  const [errorCarga, setErrorCarga] = useState<string | null>(null)
 
   const [clientes, setClientes] = useState<ClienteRuta[]>([])
 
@@ -314,6 +321,10 @@ const LegacyDetalleRutaPage = () => {
 
   const cargarRuta = useCallback(async () => {
     if (!rutaId || rutaId === 'Desconocida') return
+
+    // Se limpia al empezar: esto tambien corre en cada refresco de tiempo real,
+    // y un error viejo no debe sobrevivir a una carga que si funciono.
+    setErrorCarga(null)
 
     try {
       const ruta = await rutasService.obtenerRutaPorId(rutaId)
@@ -680,6 +691,7 @@ const LegacyDetalleRutaPage = () => {
       }
     } catch (error) {
       console.error('Error cargando ruta', error)
+      setErrorCarga(mensajeDeError(error, 'No se pudo cargar la ruta.'))
     }
   }, [rutaId])
 
@@ -1102,6 +1114,36 @@ const LegacyDetalleRutaPage = () => {
           ))}
         </div>
         <SkeletonTabla filas={6} columnas={4} />
+      </div>
+    )
+  }
+
+  // Ya no esta cargando y no hay ruta: la peticion fallo. Se corta aqui en vez de
+  // seguir y pintar la pantalla con los valores por omision de cada `||`.
+  // La condicion mira los DATOS y no un flag a proposito: asi un refresco de
+  // tiempo real que falle no borra una pantalla que ya estaba funcionando.
+  if (!rutaActual) {
+    return (
+      <div className="min-h-screen bg-slate-50 p-4 sm:p-6">
+        <div className="mx-auto max-w-md space-y-4 text-center">
+          <div className="rounded-2xl border border-rose-100 bg-white p-8 shadow-sm">
+            <XCircle className="mx-auto mb-3 h-10 w-10 text-rose-500" />
+            <h1 className="text-xl font-bold text-slate-900">No se pudo cargar la ruta</h1>
+            <p className="mt-2 text-sm font-medium text-slate-600">
+              {errorCarga || 'Revisa la conexión e intentalo de nuevo.'}
+            </p>
+            <button
+              onClick={async () => {
+                setIsLoading(true)
+                await cargarRuta()
+                setIsLoading(false)
+              }}
+              className="mt-5 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-slate-800"
+            >
+              Reintentar
+            </button>
+          </div>
+        </div>
       </div>
     )
   }
