@@ -1,11 +1,15 @@
 import type { VisitaParcial } from '@/lib/types/cobranza'
+import type { PagoParcial } from '@/types/domain'
+import { MetodoPago } from '@/types/enums'
 import {
   applyRecaudoHoyToVisitas,
   buildRecaudosHoyMapByPrestamoId,
   computeMontoCuotaPendienteDespuesDeRecaudo,
   isPagoCierrePendiente,
+  isPagoConfirmadoParaRecaudo,
   mergeVisitasPreservingLocalRecaudo,
   sumMontoTotalPagosByBogotaDateKey,
+  sumMontoTotalPagosHistorico,
 } from '@/lib/ruta-recaudos'
 import {
   computeRutaHoyUiStatsFromVisitas,
@@ -55,6 +59,30 @@ describe('ruta-recaudos', () => {
         includeCierrePendiente: false,
       }),
     ).toBe(15000)
+  })
+
+  it('no cuenta solicitudes de transferencia pendientes como recaudo diario ni historico', () => {
+    const pagos = [
+      {
+        prestamoId: 'prestamo-1',
+        fechaPago: '2026-10-08T13:57:02-05:00',
+        montoTotal: 27_500,
+        metodoPago: MetodoPago.TRANSFERENCIA,
+        pendingVerification: true,
+        estadoAprobacion: 'PENDIENTE',
+        tipoAprobacion: 'PAGO_TRANSFERENCIA',
+      },
+      {
+        prestamoId: 'prestamo-1',
+        fechaPago: '2026-10-08T14:20:00-05:00',
+        montoTotal: 27_500,
+        metodoPago: MetodoPago.EFECTIVO,
+      },
+    ] satisfies PagoParcial[]
+
+    expect(isPagoConfirmadoParaRecaudo(pagos[0])).toBe(false)
+    expect(sumMontoTotalPagosByBogotaDateKey(pagos, '2026-10-08')).toBe(27_500)
+    expect(sumMontoTotalPagosHistorico(pagos)).toBe(27_500)
   })
 
   it('preserva el recaudo local si un refresh llega antes de que pagos refleje el pago de un ausente', () => {

@@ -1,10 +1,8 @@
-import { prestamosService } from '@/services/prestamos-service'
-// El tipo se DERIVA de lo que devuelve el servicio: el cache guarda eso tal cual.
-type CuotasDelPrestamo = Awaited<ReturnType<typeof prestamosService.obtenerCuotas>>
 import type { CuotaOperativa, EstadoVisita, VisitaRuta } from '@/lib/types/cobranza'
 import { resolveFechaEfectivaCuota, normalizeDateKey, isCuotaNoPagada, computeMontoExigibleHastaHoyFromCuotas, computeDiasMoraFromCuotas } from '@/lib/rutas-core'
 import { resolveRiesgoObligacion, resolveNivelRiesgoUi, type NivelRiesgoUi } from '@/lib/rutas/riesgo-obligacion'
-import { mapWithConcurrency, memoizePromiseByKey } from '@/lib/async-utils'
+import { mapWithConcurrency } from '@/lib/async-utils'
+import { crearProveedorCuotasEnLote } from '@/lib/rutas/cuotas-en-lote'
 
 interface EnrichRutaHistorialRiesgoOptions {
   visitas: VisitaRuta[]
@@ -51,9 +49,9 @@ export async function enrichRutaHistorialRiesgo({
       if (!live) {
         return {
           ...v,
-          nivelRiesgo: (v?.nivelRiesgo ||
-            v?.nivelRiesgoObligacion ||
-            'minimo') as NivelRiesgoUi,
+          nivelRiesgo: (v?.nivelRiesgo || v?.nivelRiesgoObligacion) as
+            | NivelRiesgoUi
+            | undefined,
           riesgoHistoricoUiCalculado: true,
           riesgoHistoricoUiSource: 'ruta-hoy-v1-fallback',
         }
@@ -98,18 +96,7 @@ export async function enrichRutaHistorialRiesgo({
   const prestamoIds = Array.from(new Set(visitasConPrestamo.map((v: VisitaRuta) => String(v?.prestamoId || '')).filter(Boolean)))
   if (prestamoIds.length === 0) return visitas
 
-  const cuotasHistorialCacheRef = { current: new Map<string, CuotasDelPrestamo>() }
-
-  const getCuotasByPrestamoId = memoizePromiseByKey(
-    async (prestamoId: string) => {
-      const cache = cuotasHistorialCacheRef.current
-      if (cache.has(prestamoId)) return cache.get(prestamoId) || []
-      const cuotas = await prestamosService.obtenerCuotas(prestamoId).catch(() => [])
-      cache.set(prestamoId, cuotas)
-      return cuotas
-    },
-    () => [],
-  )
+  const getCuotasByPrestamoId = await crearProveedorCuotasEnLote(prestamoIds)
 
   const nextVisitas = await mapWithConcurrency(
     visitas,

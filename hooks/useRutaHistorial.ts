@@ -3,7 +3,11 @@ import type { EventoDeJornada } from '@/types/obligacion-jornada'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { getBogotaDateKey, getPagoBogotaDateKey, getLocalDateKey } from '@/lib/rutas-core'
-import { isPagoCierrePendiente, sumMontoTotalPagosByBogotaDateKey } from '@/lib/ruta-recaudos'
+import {
+  isPagoCierrePendiente,
+  isPagoConfirmadoParaRecaudo,
+  sumMontoTotalPagosByBogotaDateKey,
+} from '@/lib/ruta-recaudos'
 import { applyPagosDelDiaToHistorialVisitas } from '@/lib/ruta-historial'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 
@@ -105,6 +109,7 @@ export const useRutaHistorial = (params: UseRutaHistorialParams) => {
 
         const cobradorIdActual = cobradorIdRef.current
         const pagosFiltrados = (Array.isArray(pagosData) ? pagosData : []).filter((p) => {
+          if (!isPagoConfirmadoParaRecaudo(p)) return false
           const cobradorMatch = cobradorIdActual ? p?.cobradorId === cobradorIdActual : true
           return cobradorMatch
         })
@@ -191,6 +196,7 @@ export const useRutaHistorial = (params: UseRutaHistorialParams) => {
             const pagosData = Array.isArray(pagosResp) ? pagosResp : pagosResp?.pagos || []
             const cobradorIdActual = cobradorIdRef.current
             pagosDelDia = (Array.isArray(pagosData) ? pagosData : []).filter((p) => {
+              if (!isPagoConfirmadoParaRecaudo(p)) return false
               const raw = p?.fechaPago || p?.creadoEn
               if (!raw) return false
               const pk = getPagoBogotaDateKey(raw)

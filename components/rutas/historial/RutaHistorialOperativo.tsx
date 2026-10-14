@@ -9,6 +9,7 @@ import { formatMilesCOP } from '@/lib/utils'
 import type { VisitaRuta, EstadoVisita } from '@/lib/types/cobranza'
 import { StaticVisitaItem } from '@/components/dashboards/shared/CobradorElements'
 import { Skeleton } from '@/components/ui/Skeleton'
+import AyudaContextual from '@/components/ui/AyudaContextual'
 
 type RutaHistorialOperativoProps = {
   rutaId?: string
@@ -127,7 +128,10 @@ export default function RutaHistorialOperativo({
                 String(v.estado || '').toLowerCase() === 'pagado' && Number(v.saldoTotal || 0) <= 0
               return !(isSaldado && !hasGestionHistorial(v))
             })
-            const resumenHistorial = computeHistorialResumenCompartido(visitasHistorial, data?.resumen)
+            const resumenCalculado = computeHistorialResumenCompartido(visitasHistorial, data?.resumen)
+            const resumenHistorial = data?.loaded
+              ? { ...resumenCalculado, ...data.resumen }
+              : resumenCalculado
 
             return (
               <div
@@ -180,9 +184,10 @@ export default function RutaHistorialOperativo({
                   <div className="border-t border-slate-100 bg-white p-4 space-y-3 animate-in slide-in-from-top-2 duration-200">
                     <div className="grid grid-cols-3 gap-2">
                       <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-center">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">
-                          Recaudo
-                        </p>
+                        <div className="flex items-center justify-center gap-1 text-[9px] font-black uppercase tracking-widest text-slate-400">
+                          <span>Recaudo</span>
+                          <AyudaContextual texto="Suma de pagos confirmados asociados a esta jornada. Las transferencias pendientes de revisión no se incluyen." />
+                        </div>
                         <p className="mt-1 text-xs font-black text-slate-900">
                           ${formatMilesCOP(data?.resumen?.recaudo || 0)}
                         </p>
@@ -198,9 +203,10 @@ export default function RutaHistorialOperativo({
                       </div>
 
                       <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-center">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">
-                          Gestionados
-                        </p>
+                        <div className="flex items-center justify-center gap-1 text-[9px] font-black uppercase tracking-widest text-slate-400">
+                          <span>Gestionados</span>
+                          <AyudaContextual texto="Obligaciones con un pago confirmado, visita ausente o reprogramación registrada durante la jornada." />
+                        </div>
                         <p className="mt-1 text-xs font-black text-blue-700">
                           {data?.resumen?.visitados || 0}/{data?.resumen?.total || 0}
                         </p>
@@ -311,7 +317,10 @@ export default function RutaHistorialOperativo({
                             String(v.estado || '').toLowerCase() === 'pagado' && Number(v.saldoTotal || 0) <= 0
                           return !(isSaldado && !hasGestionHistorial(v))
                         })
-                        const resumenHistorial = computeHistorialResumenCompartido(visitasHistorial, dayData?.resumen)
+                        const resumenCalculado = computeHistorialResumenCompartido(visitasHistorial, dayData?.resumen)
+                        const resumenHistorial = dayData?.loaded
+                          ? { ...resumenCalculado, ...dayData.resumen }
+                          : resumenCalculado
                         const isDayExpanded = selectedHistoryDate === date
                         const [dy, dm, dd] = date.split('-')
                         const dateObj = new Date(parseInt(dy), parseInt(dm) - 1, parseInt(dd))

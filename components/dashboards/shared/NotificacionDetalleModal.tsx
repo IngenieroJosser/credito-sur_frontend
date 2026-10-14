@@ -46,6 +46,8 @@ import {
   derivarPlazoMeses,
   repartoConInteresConocido,
 } from '@/lib/creditos/preview-credito'
+import TipoCreditoIndicador from '@/components/creditos/TipoCreditoIndicador'
+import { formatFechaHumanaBogota } from '@/lib/format-date'
 
 export interface NotificacionDetalleModalProps {
   isOpen: boolean
@@ -74,6 +76,15 @@ const countValue = (value: unknown) => {
   if (Array.isArray(value)) return value.length
   const n = Number(value)
   return Number.isFinite(n) ? n : 0
+}
+
+const valorNumericoConocido = (...values: unknown[]): number | undefined => {
+  for (const value of values) {
+    if (value === null || value === undefined || value === '') continue
+    const normalized = Number(value)
+    if (Number.isFinite(normalized)) return normalized
+  }
+  return undefined
 }
 
 /**
@@ -450,7 +461,10 @@ export default function NotificacionDetalleModal({
         isArticuloSolicitud,
       )
 
-      const initialVal = {
+      const isPrestamoEff =
+        notificacion?.tipo === 'PRESTAMO' || notificacion?.approvalType === 'NUEVO_PRESTAMO'
+
+      const initialVal = isPrestamoEff ? {
         ...combined,
 
         cliente: pickString(
@@ -487,10 +501,8 @@ export default function NotificacionDetalleModal({
         articulo: combined.articulo || combined.articuloNombre || '',
         notas: combined.notas || combined.observaciones || combined.comentarios || '',
         garantia: String(combined.garantia ?? ''),
-      }
+      } : { ...combined }
 
-      const isPrestamoEff =
-        notificacion?.tipo === 'PRESTAMO' || notificacion?.approvalType === 'NUEVO_PRESTAMO'
       const isArticleEff =
         isPrestamoEff && (combined.tipo === 'ARTICULO' || combined.tipoPrestamo === 'ARTICULO')
 
@@ -919,6 +931,7 @@ export default function NotificacionDetalleModal({
   const isPrestamo = tipo === 'PRESTAMO' || approvalType === 'NUEVO_PRESTAMO'
   const isGasto = tipo === 'GASTO' || approvalType === 'GASTO'
   const isSolicitudBase = tipo === 'SOLICITUD_DINERO' || approvalType === 'SOLICITUD_BASE_EFECTIVO'
+  const isPagoTransferencia = approvalType === 'PAGO_TRANSFERENCIA'
   const isArticle =
     isPrestamo &&
     (editedDetails?.tipo === 'ARTICULO' ||
@@ -1110,7 +1123,7 @@ export default function NotificacionDetalleModal({
   }
 
   const renderMedia = () => {
-    if (!isNuevoCliente) return null
+    if (!isNuevoCliente && !isPagoTransferencia) return null
     return (
       <div className="mt-6">
         <div className="flex items-center justify-between mb-2">
@@ -1125,8 +1138,9 @@ export default function NotificacionDetalleModal({
         </div>
         {mediaArchivos.length === 0 ? (
           <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-600">
-            Esta solicitud no incluye fotos ni videos. Puedes aprobar o rechazar con base en los
-            datos capturados.
+            {isPagoTransferencia
+              ? 'Esta solicitud no tiene un comprobante de transferencia disponible.'
+              : 'Esta solicitud no incluye fotos ni videos. Puedes aprobar o rechazar con base en los datos capturados.'}
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -2051,7 +2065,13 @@ export default function NotificacionDetalleModal({
                       Monto de la Base
                     </p>
                     <h4 className="text-3xl font-black text-slate-900 tabular-nums">
-                      {formatCurrency(editedDetails?.monto || safeMeta?.monto)}
+                      {(() => {
+                        const monto = valorNumericoConocido(
+                          editedDetails?.monto,
+                          safeMeta?.monto,
+                        )
+                        return monto === undefined ? 'No informado' : formatCurrency(monto)
+                      })()}
                     </h4>
                   </div>
                   <div className="pt-1">
@@ -2066,6 +2086,76 @@ export default function NotificacionDetalleModal({
                         mensaje}
                     </p>
                   </div>
+                </div>
+              )}
+
+              {isPagoTransferencia && (
+                <div className="rounded-2xl border border-blue-100 bg-blue-50/50 p-5 space-y-4">
+                  <div className="flex flex-col gap-3 border-b border-blue-100 pb-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-blue-600">
+                        Pago por transferencia
+                      </p>
+                      <p className="mt-1 text-lg font-black text-slate-900">
+                        {String(editedDetails?.cliente || safeMeta?.cliente || 'Cliente no informado')}
+                      </p>
+                      <TipoCreditoIndicador
+                        tipo={String(editedDetails?.tipoPrestamo || safeMeta?.tipoPrestamo || '')}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div className="sm:text-right">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-blue-600">
+                        Valor transferido
+                      </p>
+                      <p className="mt-1 text-2xl font-black tabular-nums text-slate-900">
+                        {(() => {
+                          const monto = valorNumericoConocido(
+                            editedDetails?.montoTotal,
+                            safeMeta?.montoTotal,
+                            editedDetails?.monto,
+                            safeMeta?.monto,
+                          )
+                          return monto === undefined ? 'No informado' : formatCurrency(monto)
+                        })()}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <ClientInfoField
+                      label="Crédito"
+                      value={String(
+                        editedDetails?.numeroPrestamo || safeMeta?.numeroPrestamo || 'No informado',
+                      )}
+                    />
+                    {(editedDetails?.numeroReferencia || safeMeta?.numeroReferencia) && (
+                      <ClientInfoField
+                        label="Referencia bancaria"
+                        value={String(
+                          editedDetails?.numeroReferencia || safeMeta?.numeroReferencia,
+                        )}
+                      />
+                    )}
+                    <ClientInfoField
+                      label="Fecha del pago"
+                      value={formatFechaHumanaBogota(
+                        editedDetails?.fechaPago || safeMeta?.fechaPago,
+                      )}
+                    />
+                    <ClientInfoField
+                      label="Ruta"
+                      value={String(
+                        editedDetails?.rutaNombre || safeMeta?.rutaNombre ||
+                          editedDetails?.rutaCodigo || safeMeta?.rutaCodigo || 'No informada',
+                      )}
+                    />
+                  </div>
+                  {(editedDetails?.notas || safeMeta?.notas) && (
+                    <p className="border-l-4 border-blue-300 pl-3 text-xs font-medium text-slate-700">
+                      {String(editedDetails?.notas || safeMeta?.notas)}
+                    </p>
+                  )}
+                  {renderMedia()}
                 </div>
               )}
 

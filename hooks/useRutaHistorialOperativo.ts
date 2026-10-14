@@ -5,7 +5,6 @@ import {
   buildHistorialDiaFromBackend,
   isPagoForHistorialFecha,
   normalizeVisitaHistorial,
-  computeHistorialResumenCompartido,
 } from '@/lib/ruta-historial'
 import {
   filterPagosDelDiaByRuta,
@@ -148,15 +147,15 @@ export const useRutaHistorialOperativo = ({
       })
 
       const visitasNormalizadas = visitasEnriquecidas.map(normalizeVisitaHistorial)
-      const resumenActualizado = computeHistorialResumenCompartido(
-        visitasNormalizadas,
-        diaMerged?.resumen,
-      )
 
       return {
         ...diaMerged,
         visitas: visitasNormalizadas,
-        resumen: resumenActualizado,
+        // El resumen ya fue reconciliado por buildHistorialDiaFromBackend y
+        // mergePagosDelDiaIntoHistorialDia. Volver a sumarlo desde tarjetas
+        // puede contar dos veces una misma gestión cuando hay más de una forma
+        // de la obligación en la respuesta.
+        resumen: diaMerged?.resumen,
       }
     } catch {
       return {

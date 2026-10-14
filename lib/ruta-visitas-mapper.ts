@@ -4,6 +4,7 @@ import {
   type PeriodoRuta,
 } from '@/lib/types/cobranza'
 import type { PrestamoParcial } from '@/types/domain'
+import { normalizarTipoCredito } from '@/lib/creditos/tipo-credito'
 import {
   computeDiasMoraFromCuotas,
   computeMontoExigibleHastaHoyFromCuotas,
@@ -52,7 +53,7 @@ export type VisitaRutaLite = {
   targetVencimiento?: string
   ordenVisita: number
   prioridad: 'alta' | 'media' | 'baja'
-  nivelRiesgo: 'minimo' | 'leve' | 'precaucion' | 'moderado' | 'critico'
+  nivelRiesgo?: 'minimo' | 'leve' | 'precaucion' | 'moderado' | 'critico'
   cobradorId: string
   periodoRuta: PeriodoRuta
   clienteId: string
@@ -85,7 +86,7 @@ const toPeriodo = (f: string): PeriodoRuta => {
   return 'DIA'
 }
 
-const toNivel = (r: string) => {
+const toNivel = (r?: string | null) => {
   return mapNivelRiesgo(r)
 }
 
@@ -252,7 +253,8 @@ export const mapAsignacionesToVisitasLite = (params: {
 
       if (!apareceHoy && params.filtrarExigibles !== false) return []
 
-      const esArticulo = prestamo?.tipo === 'ARTICULO' || prestamo?.tipoPrestamo === 'ARTICULO'
+      const tipoPrestamo = normalizarTipoCredito(prestamo?.tipoPrestamo, prestamo?.tipo)
+      const esArticulo = tipoPrestamo === 'ARTICULO'
       const estadoRevision = getEstadoRevisionOperacion(prestamo)
 
       const montoNominalProxima = Number((proxima)?.montoNominal ?? (proxima)?.monto ?? 0)
@@ -322,7 +324,7 @@ export const mapAsignacionesToVisitasLite = (params: {
         targetVencimiento: (proxima)?.fechaVencimiento,
         ordenVisita: asig.ordenVisita || index + 1,
         prioridad: (cliente.nivelRiesgo === 'ROJO' ? 'alta' : 'media'),
-        nivelRiesgo: toNivel(cliente.nivelRiesgo || 'VERDE'),
+        nivelRiesgo: toNivel(cliente.nivelRiesgo),
         cobradorId: params.cobradorId,
         periodoRuta,
         clienteId: cliente.id || asig.clienteId || '',
@@ -332,7 +334,7 @@ export const mapAsignacionesToVisitasLite = (params: {
         cuotaActual: (proxima)?.numeroCuota,
         cuotasTotales: prestamo?.cantidadCuotas,
         diasMora,
-        tipoPrestamo: esArticulo ? 'ARTICULO' : 'EFECTIVO',
+        tipoPrestamo,
         articuloNombre: nombreCredito,
         pendienteAprobacion: estadoRevision.esProvisional,
         estadoAprobacion: estadoRevision.estadoAprobacion,

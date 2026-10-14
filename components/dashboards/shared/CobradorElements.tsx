@@ -12,9 +12,8 @@ import {
   ChevronDown,
   Timer,
   CheckCircle2,
-  Package,
-  Banknote,
 } from 'lucide-react'
+import TipoCreditoIndicador from '@/components/creditos/TipoCreditoIndicador'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { VisitaRuta, EstadoVisita } from '@/lib/types/cobranza'
@@ -68,7 +67,7 @@ function dotColor(nivelRiesgo: string | undefined): string {
 
 function resolveNivelRiesgoForVisita(visita: VisitaRuta): string | undefined {
   // Función puramente visual: solo retorna el riesgo ya calculado por el mapper/helper compartido
-  return visita?.nivelRiesgo || 'minimo'
+  return visita?.nivelRiesgo
 }
 
 function nivelBadgeColor(nivelRiesgo: string | undefined): string {
@@ -312,23 +311,12 @@ function VisitaCardContent({
         {/* Si es artículo o dinero. Un cliente puede tener los dos a la vez, y hasta
             ahora sus dos tarjetas se veían idénticas: mismo nombre, misma dirección,
             mismo teléfono. El icono es lo que las separa de un vistazo. */}
-        {visita.tipoPrestamo === 'ARTICULO' ? (
-          <span
-            title="Crédito de artículo"
-            className="inline-flex shrink-0 items-center justify-center h-5 w-5 rounded-md bg-violet-50 text-violet-600 ring-1 ring-inset ring-violet-200"
-          >
-            <Package className="h-3 w-3" aria-hidden="true" />
-            <span className="sr-only">Crédito de artículo</span>
-          </span>
-        ) : (
-          <span
-            title="Préstamo en efectivo"
-            className="inline-flex shrink-0 items-center justify-center h-5 w-5 rounded-md bg-emerald-50 text-emerald-600 ring-1 ring-inset ring-emerald-200"
-          >
-            <Banknote className="h-3 w-3" aria-hidden="true" />
-            <span className="sr-only">Préstamo en efectivo</span>
-          </span>
-        )}
+        <TipoCreditoIndicador
+          tipo={visita.tipoPrestamo}
+          credito={visita}
+          mostrarTexto={false}
+          modo="icono"
+        />
 
         {/* Nombre (ocupa todo el espacio disponible) */}
         <p className="flex-1 min-w-0 text-xs font-black text-slate-900 leading-snug break-words">

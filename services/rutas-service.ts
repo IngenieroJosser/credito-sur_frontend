@@ -731,6 +731,17 @@ export const rutasService = {
     return apiRequest<DailyVisitsResponse>('GET', `/routes/${rutaId}/daily-visits${params}`)
   },
 
+  async obtenerVisitasDelDiaEnLote(
+    rutaIds: string[],
+    fecha: string,
+  ): Promise<Record<string, DailyVisitsResponse>> {
+    return apiRequest<Record<string, DailyVisitsResponse>>(
+      'POST',
+      '/routes/daily-visits/batch',
+      { rutaIds, fecha },
+    )
+  },
+
   /**
 
    * Consultar si la ruta tiene una jornada anterior pendiente de cierre

@@ -47,6 +47,7 @@ import { getPagoBogotaDateKey } from '@/lib/rutas-core'
 import { mapFrecuenciaToPeriodo, type VisitaRuta, type EstadoVisita } from '@/lib/types/cobranza'
 import { resolveRiesgoObligacion, resolveMontoVencidoAcumulado } from './riesgo-obligacion'
 import { resolveNivelRiesgoVisita } from './resolve-riesgo-visita'
+import { normalizarTipoCredito } from '@/lib/creditos/tipo-credito'
 
 export type MapMode = 'LIVE' | 'HISTORICO'
 
@@ -203,7 +204,8 @@ export const mapDailyVisitsResponseToVisitas = ({
             : 'pendiente'
     }
 
-    const esArticulo = p?.tipo === 'ARTICULO' || p?.tipoPrestamo === 'ARTICULO'
+    const tipoPrestamo = normalizarTipoCredito(p?.tipoPrestamo, p?.tipo)
+    const esArticulo = tipoPrestamo === 'ARTICULO'
     const cuotaId = String(
       row?.cuotaObjetivoId ||
         cuotaObjetivo?.id ||
@@ -289,8 +291,12 @@ export const mapDailyVisitsResponseToVisitas = ({
       periodoRuta: mapFrecuenciaToPeriodo(frecuencia),
       clienteId: c?.id || visita?.clienteId || '',
       prestamoId: p?.id || row?.prestamoId || '',
-      tipoPrestamo: esArticulo ? 'ARTICULO' : 'EFECTIVO',
-      articuloNombre: esArticulo ? (p?.articulo || p?.producto?.nombre || 'Artículo') : 'Préstamo',
+      tipoPrestamo,
+      articuloNombre: esArticulo
+        ? p?.articulo || p?.producto?.nombre || 'Artículo'
+        : tipoPrestamo === 'EFECTIVO'
+          ? 'Préstamo'
+          : undefined,
       cuotaActual: Number(cuotaObjetivo?.numeroCuota || proximaCuota?.numeroCuota || 1),
       cuotasTotales: Number(p?.cantidadCuotas || 0),
       cuotaId,

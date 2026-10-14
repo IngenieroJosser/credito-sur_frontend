@@ -74,15 +74,18 @@ import {
   shouldIncludeVisitaInRutaHoyKpis,
 } from '@/lib/rutas-core'
 import {
+  isPagoConfirmadoParaRecaudo,
   isPagoCierrePendiente,
   mergeVisitasPreservingLocalRecaudo,
   sumMontoTotalPagosByBogotaDateKey,
+  sumMontoTotalPagosHistorico,
 } from '@/lib/ruta-recaudos'
 import {
   mapDailyVisitsResponseToVisitas as mapDailyVisitsResponseToVisitasShared,
   type MapMode,
 } from '@/lib/rutas/map-daily-visits-to-visitas'
 import { ordenarVisitasRutaActual } from '@/lib/rutas/ordenar-visitas-ruta'
+import { normalizarTipoCredito } from '@/lib/creditos/tipo-credito'
 
 import { exportService } from '@/services/export-service'
 
@@ -400,7 +403,7 @@ const LegacyDetalleRutaPage = () => {
                   // Consecuencia: `ClienteInfoModal` compara contra 'minimo' para pintar el
                   // distintivo verde y la etiqueta "Minimo", asi que un cliente de riesgo bajo
                   // abierto desde esta pantalla no acertaba ninguna rama.
-                  nivelRiesgo: resolveNivelRiesgoUi(cliente?.nivelRiesgo || 'VERDE'),
+                  nivelRiesgo: resolveNivelRiesgoUi(cliente?.nivelRiesgo),
 
                   cobradorId: ruta.cobradorId,
 
@@ -424,10 +427,14 @@ const LegacyDetalleRutaPage = () => {
 
                   cuotasTotales: prestamoActivo.cantidadCuotas,
 
-                  tipoPrestamo: prestamoActivo.tipo === 'ARTICULO' ? 'ARTICULO' : 'EFECTIVO',
+                  tipoPrestamo: normalizarTipoCredito(
+                    prestamoActivo.tipoPrestamo,
+                    prestamoActivo.tipo,
+                  ),
 
                   articuloNombre:
-                    prestamoActivo.tipo === 'ARTICULO'
+                    normalizarTipoCredito(prestamoActivo.tipoPrestamo, prestamoActivo.tipo) ===
+                    'ARTICULO'
                       ? prestamoActivo.articulo || 'Artículo'
                       : 'Préstamo',
                 }
@@ -451,9 +458,11 @@ const LegacyDetalleRutaPage = () => {
             try {
               // Del lote; si no vino —sin permiso o fallo la peticion— se pide
               // suelto, antes que dejar la visita sin cuota pendiente.
-              const cuotas =
-                cuotasPorPrestamo[String(v.prestamoId)] ??
-                (await prestamosService.obtenerCuotas(v.prestamoId))
+              const key = String(v.prestamoId)
+              if (!Object.prototype.hasOwnProperty.call(cuotasPorPrestamo, key)) {
+                return v
+              }
+              const cuotas = cuotasPorPrestamo[key] || []
 
               const pendiente = cuotas.find((c) => c.estado !== 'PAGADA')
 
@@ -503,33 +512,7 @@ const LegacyDetalleRutaPage = () => {
                 }
               }
 
-              const p = await prestamosService.obtenerPrestamoPorId(v.prestamoId)
-              const pAny = p
-
-              // Sin `?? {}`: ese objeto vacio aplastaba el tipo a `{}` y obligaba a
-              // castear cada lectura. Con el nullable y `?.` se comprueba de verdad.
-              const proxima = pAny.proximaCuota
-              const cuotaIdFromP = String(
-                proxima?.id || pAny?.cuotaObjetivo?.id || pAny?.cuotaId || v?.cuotaId || '',
-              ).trim()
-
-              // `montoCuota` y `montoNominal` no existen en una `Cuota` (el modelo
-              // solo tiene `monto`); vivian en la cuota enriquecida de las rutas.
-              const montoP = Number(proxima?.monto || p.montoCuota || p.valorCuota || 0)
-
-              return {
-                ...v,
-
-                montoCuota: montoP > 0 ? montoP : v.montoCuota,
-
-                proximaVisita: proxima?.fechaVencimiento || v.proximaVisita,
-
-                cuotaId: cuotaIdFromP,
-                cuotaObjetivoId: cuotaIdFromP,
-                cuotaObjetivoPrestamoId: cuotaIdFromP,
-                cuotaObjetivo: proxima || pAny?.cuotaObjetivo,
-                proximaCuota: proxima,
-              }
+              return v
             } catch (e) {
               return v
             }
@@ -568,9 +551,7 @@ const LegacyDetalleRutaPage = () => {
                 includeCierrePendiente: false,
               })
 
-              const totalHistorico = pagosCalc.reduce((sum: number, p) => {
-                return sum + Number(p.montoTotal || 0)
-              }, 0)
+              const totalHistorico = sumMontoTotalPagosHistorico(pagosCalc)
 
               return { ...v, recaudadoDelDia: totalHoy, recaudadoTotalClient: totalHistorico }
             } catch {
@@ -814,6 +795,7 @@ const LegacyDetalleRutaPage = () => {
           const raw = p.fechaPago || p.creadoEn
 
           if (!raw) return false
+          if (!isPagoConfirmadoParaRecaudo(p)) return false
           if (isPagoCierrePendiente(p)) return false
 
           const key = getLocalIsoKey(raw)

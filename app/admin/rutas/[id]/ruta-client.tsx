@@ -77,7 +77,11 @@ import {
   prestamosService,
 } from '@/services/prestamos-service'
 
-import { pagosService } from '@/services/pagos-service'
+import {
+  debeReflejarPagoEnRuta,
+  pagoQuedoPendienteRevision,
+  pagosService,
+} from '@/services/pagos-service'
 
 import { obtenerSaldoDisponibleRuta } from '@/services/contabilidad-service'
 
@@ -124,12 +128,13 @@ import {
   indexPagosByPrestamoId,
   mergeVisitasPreservingLocalRecaudo,
 } from '@/lib/ruta-recaudos'
-import { mapWithConcurrency, memoizePromiseByKey } from '@/lib/async-utils'
+import { mapWithConcurrency } from '@/lib/async-utils'
 import {
   mapDailyVisitsResponseToVisitas as mapDailyVisitsResponseToVisitasShared,
   type MapMode,
 } from '@/lib/rutas/map-daily-visits-to-visitas'
 import { enrichVisitasConCuotasYRiesgo } from '@/lib/rutas/enrich-visitas-con-cuotas-y-riesgo'
+import { crearProveedorCuotasEnLote } from '@/lib/rutas/cuotas-en-lote'
 import { resolveVisitaBaseRegularizacion } from '@/lib/rutas/resolve-visita-base-regularizacion'
 import { buildRutaHoyOperativa } from '@/lib/rutas/build-ruta-hoy-operativa'
 import type { ContextoRegularizacion } from '@/types/rutas/cierre-pendiente'
@@ -490,9 +495,8 @@ const RutaClientLoaded = ({
     const enriquecerConPagos = async () => {
       const hoyBogota = getBogotaDateKey(new Date())
 
-      const getCuotasByPrestamoId = memoizePromiseByKey(
-        (prestamoId) => prestamosService.obtenerCuotas(prestamoId),
-        () => [],
+      const getCuotasByPrestamoId = await crearProveedorCuotasEnLote(
+        visitasCobrador.map((visita) => visita.prestamoId),
       )
 
       // 1. Enriquecer visitas con cuotas vivas y riesgo usando helper compartido
@@ -1896,11 +1900,13 @@ const RutaClientLoaded = ({
                 ? contextoRegularizacionSnapshot?.montoCuotaEsperado
                 : contexto?.montoCuotaEsperado
 
-              await pagosService.registrarPago({
+              const resultado = await pagosService.registrarPago({
                 clienteId: pagoActual.visita.clienteId,
                 prestamoId: prestamoIdFinal,
                 cobradorId: initialRuta.cobradorId,
                 montoTotal: monto,
+                numeroReferencia: contexto?.numeroReferencia,
+                notas: contexto?.notas,
                 metodoPago: metodo,
                 comprobante: comprobante,
                 tipoRegistro: contexto?.tipoRegistro || pagoActual.tipo,
@@ -1929,8 +1935,10 @@ const RutaClientLoaded = ({
                   : undefined,
               })
 
+              const pendienteRevision = pagoQuedoPendienteRevision(resultado)
+
               // Actualizacion optimista solo para pagos operativos de hoy.
-              if (!esCierrePendiente) {
+              if (debeReflejarPagoEnRuta(resultado, esCierrePendiente)) {
                 const prestamoIdPago = String(prestamoIdFinal || pagoActual.visita.prestamoId || '')
                 const visitaIdPago = String(pagoActual.visita.id || '')
                 setVisitasCobrador((prev) => {
@@ -1981,8 +1989,10 @@ const RutaClientLoaded = ({
               }
               showNotification(
                 'success',
-                `${pagoActual.tipo === 'ABONO' ? 'Abono' : 'Pago'} registrado correctamente`,
-                'Éxito',
+                pendienteRevision
+                  ? 'La transferencia se reflejará cuando sea aprobada.'
+                  : `${pagoActual.tipo === 'ABONO' ? 'Abono' : 'Pago'} registrado correctamente`,
+                pendienteRevision ? 'En revisión' : 'Éxito',
               )
 
               // Refrescar desde cuotas/pagos reales para no mostrar una ruta parcialmente parcheada.

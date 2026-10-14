@@ -23,7 +23,18 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { createPortal } from 'react-dom'
-import { Shield, Bell, Banknote, Users, AlertCircle, Menu, X, ChevronDown } from 'lucide-react'
+import {
+  Shield,
+  Bell,
+  Banknote,
+  Users,
+  AlertCircle,
+  Menu,
+  X,
+  ChevronDown,
+  PanelLeftClose,
+  PanelLeftOpen,
+} from 'lucide-react'
 import { Rol, obtenerModulos, getIconComponent } from '@/lib/permissions'
 import UserDropdownMenu, {
   formatRoleName,
@@ -36,7 +47,6 @@ import { isTokenExpired } from '@/lib/auth/offlineAuth'
 import { formatRoleLabel } from '@/lib/display-labels'
 import SupervisorFloatingActionsGate from '@/components/dashboards/SupervisorFloatingActionsGate'
 import { cerrarSesion } from '@/services/autenticacion-service'
-import { useAnchoAside } from '@/hooks/useAnchoAside'
 import BotonAccion from '@/components/ui/BotonAccion'
 import type { SidebarModulo } from '@/lib/types/autenticacion-type'
 
@@ -118,14 +128,8 @@ function esRutaActiva(href: string | undefined, actual: string | null | undefine
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const hideSidebar = false
   // Manejo de estado visual (menú lateral, notificaciones, confirmaciones)
-  const {
-    ancho: anchoAside,
-    ajustando: ajustandoAside,
-    iniciarAjuste: iniciarAjusteAside,
-    restablecer: restablecerAside,
-    ajustarConTeclado: ajustarAsideConTeclado,
-  } = useAnchoAside()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [asideDesktopVisible, setAsideDesktopVisible] = useState(true)
   const [isPageLoaded, setIsPageLoaded] = useState(false) // Efecto visual de entrada suave
 
   // Datos y estado de autenticación
@@ -169,6 +173,26 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const pathname = usePathname()
   const router = useRouter()
+
+  useEffect(() => {
+    try {
+      setAsideDesktopVisible(localStorage.getItem('credisur_aside_desktop_visible') !== 'false')
+    } catch {
+      setAsideDesktopVisible(true)
+    }
+  }, [])
+
+  const toggleAsideDesktop = () => {
+    setAsideDesktopVisible((visible) => {
+      const next = !visible
+      try {
+        localStorage.setItem('credisur_aside_desktop_visible', String(next))
+      } catch {
+        // La preferencia sigue funcionando durante la sesión.
+      }
+      return next
+    })
+  }
 
   const notificationRef = useRef<HTMLDivElement>(null)
   const seenModulesStorageKey = useMemo(() => {
@@ -615,12 +639,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const mostrarAccesosRapidos = showSidebar && accesosRapidos.length === 3
 
   return (
-    <div
-      className="min-h-screen bg-linear-to-br from-gray-50 to-white relative"
-      // El ancho del menu lateral lo decide cada usuario (ver useAnchoAside).
-      // Va como variable CSS para que el aside y el contenido lo compartan.
-      style={{ ['--ancho-aside' as string]: `${anchoAside}px` }}
-    >
+    <div className="min-h-screen bg-linear-to-br from-gray-50 to-white relative">
       {/* Header ultra minimalista */}
       <header
         className={`fixed top-0 left-0 right-0 z-40 bg-white border-b border-gray-100 shadow-sm transition-opacity duration-300 ${isPageLoaded ? 'opacity-100' : 'opacity-0'}`}
@@ -841,28 +860,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Sidebar elegante para desktop */}
       {showSidebar && (
         <aside
-          className={`fixed left-0 top-16 bottom-0 w-64 lg:w-[var(--ancho-aside)] bg-white border-r border-gray-100 duration-300 z-[45] ${
-            ajustandoAside ? '' : 'transition-all'
-          } ${
+          className={`fixed left-0 top-16 bottom-0 w-64 bg-white border-r border-gray-100 duration-300 z-[45] transition-transform ${
             isMenuOpen ? 'translate-x-0' : '-translate-x-full'
-          } lg:translate-x-0 lg:block ${isPageLoaded ? 'opacity-100' : 'opacity-0'}`}
+          } ${asideDesktopVisible ? 'lg:translate-x-0' : 'lg:-translate-x-full'} lg:block ${isPageLoaded ? 'opacity-100' : 'opacity-0'}`}
           style={{ opacity: isPageLoaded ? 1 : 0 }}
         >
-          {/* Borde para ajustar el ancho. Solo en pantallas grandes: en movil el
-              aside es un cajon deslizante y cambiarle el ancho no aporta. */}
-          <div
-            role="separator"
-            aria-orientation="vertical"
-            aria-label="Ajustar ancho del menu"
-            tabIndex={0}
-            onPointerDown={iniciarAjusteAside}
-            onDoubleClick={restablecerAside}
-            onKeyDown={ajustarAsideConTeclado}
-            title="Arrastra para ajustar. Doble clic para restablecer."
-            className={`hidden lg:block absolute inset-y-0 -right-1 w-2 cursor-col-resize focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
-              ajustandoAside ? 'bg-blue-500/40' : 'hover:bg-blue-500/20'
-            }`}
-          />
+          <button
+            type="button"
+            onClick={toggleAsideDesktop}
+            aria-label="Ocultar menú lateral"
+            title="Ocultar menú lateral"
+            className="hidden lg:inline-flex absolute right-0 top-5 translate-x-1/2 h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-md hover:text-blue-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+          >
+            <PanelLeftClose className="h-4 w-4" />
+          </button>
           <nav className="p-6 h-full overflow-y-auto custom-scrollbar">
             <div className="space-y-6">
               {/* Info del usuario en sidebar móvil */}
@@ -1022,6 +1033,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </aside>
       )}
 
+      {showSidebar && !asideDesktopVisible && (
+        <button
+          type="button"
+          onClick={toggleAsideDesktop}
+          aria-label="Mostrar menú lateral"
+          title="Mostrar menú lateral"
+          className="hidden lg:inline-flex fixed left-0 top-24 z-[46] h-11 w-9 items-center justify-center rounded-r-lg border border-l-0 border-slate-200 bg-white text-slate-500 shadow-md hover:text-blue-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+        >
+          <PanelLeftOpen className="h-4 w-4" />
+        </button>
+      )}
+
       {/* Contenido principal animado */}
       <main
         // Segundo camino para cerrar el menú.
@@ -1035,7 +1058,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         onClick={() => {
           if (isMenuOpen) setIsMenuOpen(false)
         }}
-        className={`pt-16 ${showSidebar ? 'lg:pl-[var(--ancho-aside)]' : ''} transition-all duration-700 ease-out ${isMenuOpen && showSidebar ? 'lg:pl-[var(--ancho-aside)]' : ''} ${mostrarAccesosRapidos ? 'pb-[calc(72px+env(safe-area-inset-bottom,0px))] lg:pb-0' : ''} ${isPageLoaded ? 'opacity-100 transform-none' : 'translate-y-4 opacity-0 scale-[0.99]'}`}
+        className={`pt-16 ${showSidebar && asideDesktopVisible ? 'lg:pl-64' : ''} transition-all duration-300 ease-out ${mostrarAccesosRapidos ? 'pb-[calc(72px+env(safe-area-inset-bottom,0px))] lg:pb-0' : ''} ${isPageLoaded ? 'opacity-100 transform-none' : 'translate-y-4 opacity-0 scale-[0.99]'}`}
         style={{ opacity: isPageLoaded ? 1 : 0 }}
       >
         {children}

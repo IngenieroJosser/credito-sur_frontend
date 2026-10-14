@@ -2,6 +2,8 @@ import { EstadoVisita, PeriodoRuta, VisitaRuta, mapNivelRiesgo } from '@/lib/typ
 import type { PagoParcial, PrestamoParcial } from '@/types/domain';
 import type { CuotaOperativa } from '@/lib/types/cobranza';
 import { frecuenciaToPeriodoRuta } from '@/lib/rutas-core'
+import { normalizarTipoCredito } from '@/lib/creditos/tipo-credito'
+import { isPagoConfirmadoParaRecaudo } from '@/lib/ruta-recaudos'
 
 /**
  * Un pago tal como le llega al historial.
@@ -149,13 +151,14 @@ export const buildVisitaHistorialFromPago = (
     cuotaActual: Number(cuota?.numeroCuota || pago?.cuotaNumero || 0) || undefined,
     cuotasTotales: Number(prestamo?.cantidadCuotas || 0) || undefined,
 
-    tipoPrestamo:
-      String(prestamo?.tipo || pago?.tipoPrestamo || '').toUpperCase() === 'ARTICULO'
-        ? 'ARTICULO'
-        : 'EFECTIVO',
+    tipoPrestamo: normalizarTipoCredito(
+      prestamo?.tipoPrestamo || pago?.tipoPrestamo,
+      prestamo?.tipo,
+    ),
 
     articuloNombre:
-      String(prestamo?.tipo || pago?.tipoPrestamo || '').toUpperCase() === 'ARTICULO'
+      normalizarTipoCredito(prestamo?.tipoPrestamo || pago?.tipoPrestamo, prestamo?.tipo) ===
+      'ARTICULO'
         ? 'Artículo'
         : 'Préstamo',
 
@@ -179,7 +182,9 @@ export const mergePagosDelDiaIntoHistorialDia = ({
   pagosDelDia: PagoHistorial[]
   rutaCobradorId: string
 }) => {
-  const pagos = Array.isArray(pagosDelDia) ? pagosDelDia : []
+  const pagos = (Array.isArray(pagosDelDia) ? pagosDelDia : []).filter(
+    isPagoConfirmadoParaRecaudo,
+  )
   const visitasBase = Array.isArray(diaBase?.visitas) ? diaBase.visitas : []
 
   if (pagos.length === 0) {
@@ -295,6 +300,7 @@ export const filterPagosDelDiaByRuta = ({
   // decia `any[]`, que perdia el tipo que el propio parametro ya declaraba.
 }) => {
   return (Array.isArray(pagosData) ? pagosData : []).filter((p) => {
+    if (!isPagoConfirmadoParaRecaudo(p)) return false
     if (!isPagoForHistorialFecha(p, fechaClave)) return false;
 
     const pagoRutaId = String(

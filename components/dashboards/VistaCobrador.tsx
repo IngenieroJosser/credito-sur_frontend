@@ -136,7 +136,7 @@ import {
 import { SafePointerSensor } from '@/components/dashboards/shared/safe-pointer-sensor'
 import EstadoCuentaModal from '@/components/cobranza/EstadoCuentaModal'
 
-import PagoModal from '@/components/cobranza/PagoModal'
+import PagoModal, { type PagoConfirmContext } from '@/components/cobranza/PagoModal'
 
 import AusenteModal from '@/components/cobranza/AusenteModal'
 
@@ -199,8 +199,10 @@ import {
   mergeVisitasPreservingLocalRecaudo,
 } from '@/lib/ruta-recaudos'
 import { buildRutaHoyOperativa } from '@/lib/rutas/build-ruta-hoy-operativa'
-import { mapWithConcurrency, memoizePromiseByKey } from '@/lib/async-utils'
+import { mapWithConcurrency } from '@/lib/async-utils'
+import { crearProveedorCuotasEnLote } from '@/lib/rutas/cuotas-en-lote'
 import { resolveVisitaBaseRegularizacion } from '@/lib/rutas/resolve-visita-base-regularizacion'
+import { normalizarTipoCredito } from '@/lib/creditos/tipo-credito'
 
 import {
   offlineStore,
@@ -212,7 +214,11 @@ import {
 
 import { formatShortDate } from '@/lib/utils/format'
 
-import { pagosService } from '@/services/pagos-service'
+import {
+  debeReflejarPagoEnRuta,
+  pagoQuedoPendienteRevision,
+  pagosService,
+} from '@/services/pagos-service'
 
 import { MetodoPago } from '@/types/enums'
 
@@ -757,6 +763,9 @@ const VistaCobrador = () => {
           )
         }
 
+        const getCuotasByPrestamoId = await crearProveedorCuotasEnLote(
+          filas.map((row) => row?.prestamo?.id),
+        )
         const mapped: VisitaRuta[] = await Promise.all(
           filas.map(async (row, idx: number) => {
             // `clienteComoObjeto`: el cliente puede llegar como texto con solo el nombre, y
@@ -766,14 +775,6 @@ const VistaCobrador = () => {
             // `PrestamoParcial` y no `any`: la fila del listado y la del detalle traen formas
             // distintas, y esta variable se reasigna con la del detalle unas lineas mas abajo.
             let prestamoAutoritativo: PrestamoParcial = p
-            if (p?.id) {
-              try {
-                const detalle = await prestamosService.obtenerPrestamoPorId(p.id)
-                if (detalle) prestamoAutoritativo = detalle
-              } catch {
-                // ignore
-              }
-            }
 
             // Asegurar cuotas autoritativas para calcular exigible (incluye abonos).
             try {
@@ -784,7 +785,7 @@ const VistaCobrador = () => {
                 (c: CuotaOperativa) => c && c.montoPagado === undefined,
               )
               if (p?.id && (cuotasEmb.length === 0 || faltanAbonos)) {
-                const cuotas = await prestamosService.obtenerCuotas(p.id)
+                const cuotas = await getCuotasByPrestamoId(p.id)
                 prestamoAutoritativo = { ...prestamoAutoritativo, cuotas }
               }
             } catch {
@@ -793,19 +794,16 @@ const VistaCobrador = () => {
 
             const { cuota: prox, fechaEfectiva } =
               resolveProximaCuotaFromPrestamo(prestamoAutoritativo)
-            const esArticulo = p?.tipo === 'ARTICULO'
-            const toNivel = (nivel: string) => {
-              if (nivel === 'VERDE') return 'minimo'
-              if (nivel === 'AMARILLO') return 'leve'
-              if (nivel === 'ROJO') return 'moderado'
-              if (nivel === 'LISTA_NEGRA') return 'critico'
-              // Sin nivel NO es 'minimo': ver `resolveNivelRiesgoUi`. Pintar de verde lo
-              // que todavia no se sabe hacia que la ruta apareciera entera en MINIMO y un
-              // segundo despues la mitad saltara a CRITICO.
-              return 'desconocido'
-            }
-
-            const nombreCredito = esArticulo ? p?.articulo || 'Artículo' : 'Préstamo'
+            const tipoPrestamo = normalizarTipoCredito(
+              prestamoAutoritativo?.tipoPrestamo,
+              p?.tipo,
+            )
+            const esArticulo = tipoPrestamo === 'ARTICULO'
+            const nombreCredito = esArticulo
+              ? p?.articulo || 'Artículo'
+              : tipoPrestamo === 'EFECTIVO'
+                ? 'Préstamo'
+                : undefined
             const { cuotaActual, cuotasTotales } =
               resolveCuotaProgressFromPrestamo(prestamoAutoritativo)
             const cuotasForMonto = Array.isArray(prestamoAutoritativo?.cuotas)
@@ -895,7 +893,7 @@ const VistaCobrador = () => {
               periodoRuta: frecuenciaToPeriodoRuta(p?.frecuenciaPago || 'DIARIO'),
               clienteId: c?.id || '',
               prestamoId: p?.id || '',
-              tipoPrestamo: esArticulo ? ('ARTICULO' as const) : ('EFECTIVO' as const),
+              tipoPrestamo,
               articuloNombre: nombreCredito,
               enProrroga: !!prox?.enProrroga,
               fechaProrroga: prox?.fechaVencimientoProrroga || undefined,
@@ -1439,9 +1437,8 @@ const VistaCobrador = () => {
 
         let visitasEnriquecidas = visitasMapeadasDedupe
         try {
-          const getCuotasByPrestamoId = memoizePromiseByKey(
-            (prestamoId) => prestamosService.obtenerCuotas(prestamoId),
-            () => [],
+          const getCuotasByPrestamoId = await crearProveedorCuotasEnLote(
+            visitasMapeadasDedupe.map((visita) => visita.prestamoId),
           )
 
           visitasEnriquecidas = await mapWithConcurrency(
@@ -2661,12 +2658,7 @@ const VistaCobrador = () => {
       monto: number,
       metodo: 'EFECTIVO' | 'TRANSFERENCIA',
       comprobante: File | null,
-      contexto?: {
-        tipoRegistro: 'PAGO' | 'ABONO'
-        cuotaNumeroEsperada?: number
-        montoCuotaEsperado: number
-        cuotaId?: string
-      },
+      contexto?: PagoConfirmContext,
     ) => {
       // Helpers para matching por obligación (prestamoId + cuotaId)
       const resolveCuotaIdLocal = (v: VisitaParcial): string => {
@@ -2772,6 +2764,10 @@ const VistaCobrador = () => {
 
           montoTotal: monto,
 
+          numeroReferencia: contexto?.numeroReferencia,
+
+          notas: contexto?.notas,
+
           metodoPago: metodo as MetodoPago,
 
           comprobante,
@@ -2810,6 +2806,8 @@ const VistaCobrador = () => {
               ].join(':')
             : undefined,
         })
+
+        const pendienteRevision = pagoQuedoPendienteRevision(resultado)
 
         console.table([
           {
@@ -2881,7 +2879,7 @@ const VistaCobrador = () => {
           return cuotaVisita === cuotaSnapshot
         }
 
-        if (!esCierrePendiente) {
+        if (debeReflejarPagoEnRuta(resultado, esCierrePendiente)) {
           setVisitasBase((prev) => {
             const next = prev.map((v) => {
               const esVisitaPagada = sameObligacionPago(v, visitaSnapshot, cuotaIdFinal)
@@ -2927,7 +2925,7 @@ const VistaCobrador = () => {
 
         const montoRegistrado = Number(resultado?.descomposicion?.montoTotal ?? monto)
 
-        if (!esCierrePendiente) {
+        if (debeReflejarPagoEnRuta(resultado, esCierrePendiente)) {
           setRutaStats((prev) => {
             const nuevoRecaudo = prev.recaudo + montoRegistrado
             const nuevaEficiencia =
@@ -2936,6 +2934,16 @@ const VistaCobrador = () => {
                 : prev.eficiencia
 
             return { ...prev, recaudo: nuevoRecaudo, eficiencia: nuevaEficiencia }
+          })
+        }
+
+        if (pendienteRevision) {
+          setModalAlerta({
+            titulo: 'Transferencia enviada a revisión',
+            mensaje:
+              resultado.message ||
+              'El pago se reflejará en el recaudo y en el historial cuando sea aprobado.',
+            tipo: 'info',
           })
         }
 

@@ -146,6 +146,7 @@ export const routesService = {
     activa?: boolean
     cobradorId?: string
     supervisorId?: string
+    includeStats?: boolean
   }) {
     const params = new URLSearchParams()
 
@@ -155,6 +156,7 @@ export const routesService = {
     if (options?.activa !== undefined) params.append('activa', options.activa.toString())
     if (options?.cobradorId) params.append('cobradorId', options.cobradorId)
     if (options?.supervisorId) params.append('supervisorId', options.supervisorId)
+    params.append('includeStats', String(options?.includeStats === true))
 
     const queryString = params.toString()
     const endpoint = queryString ? `/routes?${queryString}` : '/routes'

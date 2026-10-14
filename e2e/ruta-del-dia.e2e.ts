@@ -91,6 +91,28 @@ test.describe('La ruta del día del cobrador', () => {
     expect(errores).toEqual([])
   })
 
+  test('carga las cuotas en lote y no una peticion por credito', async ({ page }) => {
+    const peticionesIndividuales: string[] = []
+    const peticionesEnLote: string[] = []
+
+    page.on('request', (request) => {
+      const url = request.url()
+      if (!url.includes('/loans/') || !url.includes('/cuotas')) return
+
+      if (/\/loans\/cuotas\?ids=/.test(url)) {
+        peticionesEnLote.push(url)
+      } else if (/\/loans\/[^/?]+\/cuotas(?:\?|$)/.test(url)) {
+        peticionesIndividuales.push(url)
+      }
+    })
+
+    await entrar(page)
+    await page.waitForLoadState('networkidle')
+
+    expect(peticionesIndividuales).toEqual([])
+    expect(peticionesEnLote.length).toBeLessThanOrEqual(2)
+  })
+
   test('la meta y el recaudo del día son números, no NaN', async ({ page }) => {
     // El refactor movió de dónde salen estos dos: antes los calculaba el propio
     // componente, ahora los deriva del helper. Un NaN aquí es la señal de que la

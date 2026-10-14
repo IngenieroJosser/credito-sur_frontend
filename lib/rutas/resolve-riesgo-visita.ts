@@ -38,5 +38,9 @@ export function resolveNivelRiesgoVisita(
     esProvisional,
   })
 
-  return resolveNivelRiesgoUi(nivelRiesgoRaw)
+  const nivelUi = resolveNivelRiesgoUi(nivelRiesgoRaw)
+  if (!nivelUi) {
+    throw new Error(`Nivel de riesgo calculado no soportado: ${nivelRiesgoRaw}`)
+  }
+  return nivelUi
 }

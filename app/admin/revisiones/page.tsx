@@ -65,6 +65,12 @@ import ProrrogaDetalleModal, { type ProrrogaData } from '@/components/revisiones
 import ReprogramacionDetalleModal, { type ReprogramacionData } from '@/components/revisiones/ReprogramacionDetalleModal'
 import ConfirmRejectModal from '@/components/ui/ConfirmRejectModal'
 import { SkeletonTarjetas } from '@/components/ui/Skeleton'
+import TipoCreditoIndicador from '@/components/creditos/TipoCreditoIndicador'
+import {
+  enriquecerAprobacionConContexto,
+  montoSolicitudConocido,
+  resumenAprobacionOperativa,
+} from '@/lib/aprobaciones/presentacion-aprobacion'
 
 // Configuración de categorías con meta visual
 // `icon` es un componente de lucide-react, no `any`: `LucideIcon` es el tipo que la propia
@@ -323,10 +329,16 @@ const decisionDeProrroga = (
 const aprobacionToNotificacion = (item: Aprobacion): NotificacionParaDetalle => {
   const datos = item.datosSolicitud || {}
   const cat = CATEGORIAS[item.tipoAprobacion] || CATEGORIAS.BAJA_POR_PERDIDA
+  const resumenOperativo = resumenAprobacionOperativa(item)
 
   // Construir titulo y mensaje ricos segun el tipo
   let titulo = cat.label
   let mensaje = `Solicitud de ${cat.label.toLowerCase()} por ${item.solicitante}`
+
+  if (resumenOperativo) {
+    titulo = resumenOperativo.titulo
+    mensaje = resumenOperativo.subtitulo
+  }
 
   // Ajuste específico para gastos provisionales
   if (item.tipoAprobacion === 'GASTO' && (datos.esProvisional === true || datos.esProvisional === 'true')) {
@@ -371,6 +383,7 @@ const aprobacionToNotificacion = (item: Aprobacion): NotificacionParaDetalle => 
     creadoEn: item.creadoEn,
     leida: false,
     entidadId: item.id,
+    entidad: 'APROBACION',
     // HALLAZGO: los dos enums no coinciden en el genero. `Aprobacion.estado` es
     // PENDIENTE/APROBADO/RECHAZADO/CANCELADO (masculino, enums.ts:104) y
     // `Notificacion.estado` es PENDIENTE/APROBADA/RECHAZADA (femenino,
@@ -386,6 +399,7 @@ const aprobacionToNotificacion = (item: Aprobacion): NotificacionParaDetalle => 
     solicitante: item.solicitante || 'Desconocido',
     approvalType: item.tipoAprobacion,
     detalles: datos,
+    datosSolicitud: datos,
     metadata: {
       ...datos,
       tipoAprobacion: item.tipoAprobacion,
@@ -394,7 +408,7 @@ const aprobacionToNotificacion = (item: Aprobacion): NotificacionParaDetalle => 
       revisadoPor: item.rechazadoPor,
       fechaRevision: item.revisadoEn,
       motivoRechazo: item.comentarios,
-      monto: datos.monto || item.montoSolicitud,
+      monto: montoSolicitudConocido(item),
     },
     // Los dos son nulables en la base y la notificacion los quiere opcionales.
     motivoRechazo: item.comentarios ?? undefined,
@@ -548,7 +562,7 @@ export default function RevisionesPage() {
     return tipo === 'GASTO' && !isGastoProvisional(item)
   }
 
-  const handleOpenDetail = (item: Aprobacion) => {
+  const handleOpenDetail = async (item: Aprobacion) => {
     const datos = (item.datosSolicitud || {})
     if (item.tipoAprobacion === 'REPROGRAMACION_CUOTA') {
       setSelectedReprogramacion({
@@ -593,7 +607,16 @@ export default function RevisionesPage() {
       setProrrogaModalOpen(true)
     } else {
       // Modal generico para el resto
-      const notifData = aprobacionToNotificacion(item)
+      let itemDetallado = item
+      if (item.tipoAprobacion === 'PAGO_TRANSFERENCIA') {
+        try {
+          const contexto = await aprobacionesService.obtenerContexto(item.id)
+          itemDetallado = enriquecerAprobacionConContexto(item, contexto)
+        } catch (error) {
+          logger.warn('[Revisiones] No se pudo enriquecer el pago por transferencia', error)
+        }
+      }
+      const notifData = aprobacionToNotificacion(itemDetallado)
       setSelectedItem(notifData)
       setIsDetailModalOpen(true)
     }
@@ -663,9 +686,46 @@ export default function RevisionesPage() {
     }
   }
 
-  const handleRejectFromModal = async (entityId: string) => {
+  const enviarRechazo = async (
+    item: Aprobacion,
+    reason: string,
+    resultadoRevision?: 'RECHAZADO_CON_DEUDA' | 'RECHAZADO_CON_REINTEGRO',
+  ) => {
+    if (item.tipoAprobacion === TipoAprobacion.REPROGRAMACION_CUOTA) {
+      await prestamosService.rechazarReprogramacion(item.id, reason || undefined)
+      return
+    }
+
+    await aprobacionesService.rechazar(item.id, {
+      type: item.tipoAprobacion as TipoAprobacion,
+      motivoRechazo: reason,
+      resultadoRevision,
+    })
+  }
+
+  const handleRejectFromModal = async (
+    entityId: string,
+    _type?: string,
+    reason = '',
+    resultadoRevision?: 'RECHAZADO_CON_DEUDA' | 'RECHAZADO_CON_REINTEGRO',
+  ) => {
     const item = Object.values(data?.items || {}).flat().find(i => i.id === entityId)
-    if (item) handleRechazar(item)
+    if (!item) {
+      throw new Error('La solicitud ya no está disponible para revisión')
+    }
+
+    setProcessingId(item.id)
+    try {
+      await enviarRechazo(item, reason, resultadoRevision)
+      toast.success('Solicitud rechazada')
+      closeAllDetailModals()
+      await loadData()
+    } catch (error) {
+      toast.error(mensajeDeError(error, 'Error al rechazar'))
+      throw error
+    } finally {
+      setProcessingId(null)
+    }
   }
 
   const handleAprobar = (item: Aprobacion) => {
@@ -727,15 +787,14 @@ export default function RevisionesPage() {
     const { item } = confirmModal
     setProcessingId(item.id)
     try {
-      // Las reprogramaciones tienen su propio endpoint dedicado
-      if (item.tipoAprobacion === TipoAprobacion.REPROGRAMACION_CUOTA) {
-        await prestamosService.rechazarReprogramacion(item.id, reason || undefined)
-      } else {
-        await aprobacionesService.rechazar(item.id, {
-          type: item.tipoAprobacion as TipoAprobacion,
-          motivoRechazo: reason
-        })
-      }
+      const resultadoRevision =
+        confirmModal.type === 'CREAR_DEUDA'
+          ? 'RECHAZADO_CON_DEUDA'
+          : confirmModal.type === 'REINTEGRAR'
+            ? 'RECHAZADO_CON_REINTEGRO'
+            : undefined
+
+      await enviarRechazo(item, reason, resultadoRevision)
       toast.success('Solicitud rechazada')
       setConfirmModal(null)
       await loadData()
@@ -826,8 +885,14 @@ export default function RevisionesPage() {
     const Icon = cat.icon
     const datos = item.datosSolicitud || {}
     const isProcessing = processingId === item.id
+    const puedeRestaurarse =
+      item.tipoAprobacion !== TipoAprobacion.REPROGRAMACION_CUOTA &&
+      !isGastoProvisional(item)
 
     const getResumen = () => {
+      const resumenOperativo = resumenAprobacionOperativa(item)
+      if (resumenOperativo) return resumenOperativo
+
       // Detectar subtipo de mora/vencida primero
       if (datos.tipo === 'ASIGNAR_MORA') {
         return {
@@ -942,8 +1007,8 @@ export default function RevisionesPage() {
         default:
           return {
             titulo: item.tipoAprobacion.replace(/_/g, ' '),
-            subtitulo: 'Pendiente revisión',
-            monto: Number(item.montoSolicitud || 0) || null,
+            subtitulo: `Solicitado por ${item.solicitante || 'usuario no informado'}`,
+            monto: montoSolicitudConocido(item) ?? null,
           }
       }
     }
@@ -961,6 +1026,13 @@ export default function RevisionesPage() {
               <div>
                 <h3 className="font-bold text-slate-900 leading-tight">{resumen.titulo}</h3>
                 <p className="text-xs text-slate-500 mt-0.5">{resumen.subtitulo}</p>
+                {(item.tipoAprobacion === 'NUEVO_PRESTAMO' ||
+                  item.tipoAprobacion === 'PAGO_TRANSFERENCIA') && (
+                  <TipoCreditoIndicador
+                    tipo={texto(datos.tipoPrestamo) || texto(datos.tipo)}
+                    className="mt-1.5"
+                  />
+                )}
               </div>
             </div>
             {resumen.monto !== null && (
@@ -1024,7 +1096,9 @@ export default function RevisionesPage() {
             ) : (
               <>
                 <button onClick={() => setConfirmModal({ isOpen: true, type: 'CONFIRMAR', item })} disabled={isProcessing} className="flex-1 py-2.5 bg-rose-600 text-white rounded-xl text-xs font-bold hover:bg-rose-700 transition-colors">Eliminar</button>
-                <button onClick={() => setConfirmModal({ isOpen: true, type: 'REVERTIR', item })} disabled={isProcessing} className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700 transition-colors">Restaurar</button>
+                {puedeRestaurarse && (
+                  <button onClick={() => setConfirmModal({ isOpen: true, type: 'REVERTIR', item })} disabled={isProcessing} className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700 transition-colors">Restaurar</button>
+                )}
               </>
             )}
           </div>

@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import { X, Calendar, Clock, ShoppingBag, History, Package, Banknote } from 'lucide-react'
+import { X, Calendar, Clock, ShoppingBag, History } from 'lucide-react'
+import TipoCreditoIndicador from '@/components/creditos/TipoCreditoIndicador'
 import { VisitaRuta } from '@/lib/types/cobranza'
 import { formatMilesCOP } from '@/lib/utils'
 import { Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
@@ -495,25 +496,11 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
                                   {/* A que fue el pago. Un cliente con un prestamo Y un
                                       credito de articulo veia dos lineas identicas y
                                       tenia que adivinar cual era cual. */}
-                                  <div className="mt-1 inline-flex items-center gap-1 text-[9px] font-bold uppercase text-slate-500">
-                                    {loanData?.tipoPrestamo === 'ARTICULO' ? (
-                                      <>
-                                        <Package
-                                          className="h-2.5 w-2.5 text-violet-500"
-                                          aria-hidden="true"
-                                        />
-                                        Artículo
-                                      </>
-                                    ) : (
-                                      <>
-                                        <Banknote
-                                          className="h-2.5 w-2.5 text-emerald-500"
-                                          aria-hidden="true"
-                                        />
-                                        Préstamo
-                                      </>
-                                    )}
-                                  </div>
+                                  <TipoCreditoIndicador
+                                    tipo={loanData?.tipoPrestamo}
+                                    modo="compacto"
+                                    className="mt-1"
+                                  />
                                 </td>
                                 <td className="px-4 py-3 text-slate-600">
                                   <div className="font-medium">{p.detalle}</div>

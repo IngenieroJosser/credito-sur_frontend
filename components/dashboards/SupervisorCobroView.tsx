@@ -30,7 +30,9 @@ import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { useCierrePendienteRuta } from '@/hooks/useCierrePendienteRuta'
 import RutaHistorialOperativo from '@/components/rutas/historial/RutaHistorialOperativo'
 
-import { mapWithConcurrency, memoizePromiseByKey } from '@/lib/async-utils'
+import { mapWithConcurrency } from '@/lib/async-utils'
+import { crearProveedorCuotasEnLote } from '@/lib/rutas/cuotas-en-lote'
+import { normalizarTipoCredito } from '@/lib/creditos/tipo-credito'
 import { mapNivelRiesgo } from '@/lib/types/cobranza'
 import { ordenarVisitasRutaActual } from '@/lib/rutas/ordenar-visitas-ruta'
 import { resolveVisitaBaseRegularizacion } from '@/lib/rutas/resolve-visita-base-regularizacion'
@@ -81,7 +83,7 @@ import NuevoClienteModal from '@/components/clientes/NuevoClienteModal'
 import ClienteInfoModal from '@/components/cobranza/ClienteInfoModal'
 import { StaticVisitaItem, SeleccionClienteModal } from '@/components/dashboards/shared/CobradorElements'
 import EstadoCuentaModal from '@/components/cobranza/EstadoCuentaModal'
-import PagoModal from '@/components/cobranza/PagoModal'
+import PagoModal, { type PagoConfirmContext } from '@/components/cobranza/PagoModal'
 import AusenteModal from '@/components/cobranza/AusenteModal'
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
 import { CierrePendienteBanner } from '@/components/rutas/CierrePendienteBanner'
@@ -113,7 +115,11 @@ import {
   prestamosService,
 } from '@/services/prestamos-service'
 import { buildCrearPrestamoPayload } from '@/lib/creditos/crear-prestamo-payload'
-import { pagosService } from '@/services/pagos-service'
+import {
+  debeReflejarPagoEnRuta,
+  pagoQuedoPendienteRevision,
+  pagosService,
+} from '@/services/pagos-service'
 
 import { computeMontoCuotaPendienteDespuesDeRecaudo, indexPagosByPrestamoId } from '@/lib/ruta-recaudos'
 
@@ -244,8 +250,15 @@ const mapDailyVisitToVisitaRuta = (
     proximaCuota: prestamoObjetivo?.proximaCuota,
     cuotaActual: Number(cuotaObjetivo?.numeroCuota || 0) || undefined,
     cuotasTotales: Number(prestamoObjetivo?.cantidadCuotas || 0) || undefined,
-    tipoPrestamo: String(prestamoObjetivo?.tipo || '').toUpperCase() === 'ARTICULO' ? 'ARTICULO' : 'EFECTIVO',
-    articuloNombre: String(prestamoObjetivo?.tipo || '').toUpperCase() === 'ARTICULO' ? 'Artículo' : 'Préstamo',
+    tipoPrestamo: normalizarTipoCredito(
+      prestamoObjetivo?.tipoPrestamo,
+      prestamoObjetivo?.tipo,
+    ),
+    articuloNombre:
+      normalizarTipoCredito(prestamoObjetivo?.tipoPrestamo, prestamoObjetivo?.tipo) ===
+      'ARTICULO'
+        ? 'Artículo'
+        : 'Préstamo',
     enProrroga: Boolean(cuotaObjetivo?.fechaVencimientoProrroga),
     fechaProrroga: cuotaObjetivo?.fechaVencimientoProrroga || undefined,
     fechaOriginalVencimiento: cuotaObjetivo?.fechaVencimiento || undefined,
@@ -970,11 +983,6 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
       if (ruta) {
         const hoyKey = getBogotaDateKey(new Date())
 
-        const getCuotasByPrestamoId = memoizePromiseByKey(
-          (prestamoId) => prestamosService.obtenerCuotas(prestamoId),
-          () => [],
-        )
-
         let visitasRaw: VisitaRuta[] = []
         let dailyVisitsData: DailyVisitsResponse | null = null
         let pagosRecientes: PagoParcial[] = []
@@ -995,6 +1003,10 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
             cobradorId: ruta.cobradorId,
             pagos: pagosRecientes,
           })
+
+          const getCuotasByPrestamoId = await crearProveedorCuotasEnLote(
+            helperResult.kpiItems.map((visita) => visita.prestamoId),
+          )
 
           // Aplicar lógica específica de SupervisorCobroView (prorrogas, targetVencimiento, etc.)
           const visitasConLogicaSupervisor = await mapWithConcurrency(
@@ -1829,7 +1841,7 @@ const handleRegistrarPago = useCallback(async (
     metodo: 'EFECTIVO' | 'TRANSFERENCIA',
     comprobante: File | null,
     esAbono: boolean,
-    contexto?: { tipoRegistro: 'PAGO' | 'ABONO'; cuotaNumeroEsperada?: number; montoCuotaEsperado: number; cuotaId?: string },
+    contexto?: PagoConfirmContext,
   ) => {
 
     const contextoRegularizacionSnapshot = contextoRegularizacionRef.current
@@ -1893,13 +1905,17 @@ const handleRegistrarPago = useCallback(async (
         ? contextoRegularizacionSnapshot?.montoCuotaEsperado
         : contexto?.montoCuotaEsperado
 
-      await pagosService.registrarPago({
+      const resultado = await pagosService.registrarPago({
 
         prestamoId: prestamoIdFinal,
 
         clienteId: visita.clienteId,
 
         montoTotal: montoPagado,
+
+        numeroReferencia: contexto?.numeroReferencia,
+
+        notas: contexto?.notas,
 
         metodoPago: metodo as MetodoPago,
 
@@ -1939,6 +1955,8 @@ const handleRegistrarPago = useCallback(async (
 
       })
 
+      const pendienteRevision = pagoQuedoPendienteRevision(resultado)
+
 
 
       // Marcar como pagado si completó la cuota del período (para que desaparezca del diario)
@@ -1950,7 +1968,7 @@ const handleRegistrarPago = useCallback(async (
 
       const clienteIdPago = visita.clienteId
 
-      if (!esCierrePendiente) {
+      if (debeReflejarPagoEnRuta(resultado, esCierrePendiente)) {
         setVisitasBaseAndRef((prev) => prev.map((v) => {
           if (v.clienteId !== clienteIdPago) return v
 
@@ -1993,7 +2011,11 @@ const handleRegistrarPago = useCallback(async (
 
 
 
-      toast.success('Pago registrado')
+      toast.success(
+        pendienteRevision
+          ? 'Transferencia enviada a revisión; aún no cuenta como recaudo'
+          : 'Pago registrado',
+      )
 
       refreshHistorialOperativo()
 

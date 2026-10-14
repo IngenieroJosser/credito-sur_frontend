@@ -48,6 +48,9 @@ import { pagosService, Pago, type ArchivoMultimediaPago } from '@/services/pagos
 import { Skeleton, SkeletonTexto } from '@/components/ui/Skeleton'
 import Tooltip from '@/components/ui/Tooltip'
 import { useModalDialog } from '@/hooks/use-modal-dialog'
+import TipoCreditoIndicador from '@/components/creditos/TipoCreditoIndicador'
+import { resolverTipoCreditoDeEntidad } from '@/lib/creditos/tipo-credito'
+import { formatFechaHumanaBogota } from '@/lib/format-date'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -228,24 +231,16 @@ export default function PagoDetalleModal({ isOpen, onClose, metadata }: PagoDeta
   //
   // Se mira el tipo del prestamo y, si no viene, el prefijo del numero: los creditos
   // de articulo se numeran `ART-` y los de dinero `PRES-`.
-  const esArticulo =
-    String(
-      (pago?.prestamo as { tipoPrestamo?: string } | undefined)?.tipoPrestamo ?? '',
-    ).toUpperCase() === 'ARTICULO' || /^ART-/i.test(String(numeroPrestamo))
+  const tipoCredito = resolverTipoCreditoDeEntidad({
+    ...pago?.prestamo,
+    numeroPrestamo,
+  })
   const clienteNombre = pago?.cliente
     ? `${pago.cliente.nombres} ${pago.cliente.apellidos}`
     : (metadata.cliente ?? '—')
   const clienteDni = pago?.cliente?.dni ?? metadata.clienteDni ?? '—'
   const cobrador = pago?.cobrador ? `${pago.cobrador.nombres} ${pago.cobrador.apellidos}` : '—'
-  const fechaPago = pago?.fechaPago
-    ? new Date(pago.fechaPago).toLocaleString('es-CO', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    : '—'
+  const fechaPago = pago?.fechaPago ? formatFechaHumanaBogota(pago.fechaPago) : '—'
   const origenGestion = String(pago?.origenGestion ?? metadata.origenGestion ?? '').toUpperCase()
   const fechaOperativaRuta = pago?.fechaOperativaRuta ?? metadata.fechaOperativaRuta ?? null
   const esRegularizado = origenGestion === 'CIERRE_PENDIENTE'
@@ -498,7 +493,7 @@ export default function PagoDetalleModal({ isOpen, onClose, metadata }: PagoDeta
               <DataFila label="N° Préstamo" value={numeroPrestamo} />
               <DataFila
                 label="Tipo de crédito"
-                value={esArticulo ? 'Crédito de artículo' : 'Préstamo en efectivo'}
+                value={<TipoCreditoIndicador tipo={tipoCredito} />}
               />
               <DataFila label="Método" value={<MetodoBadge metodo={metodoPago} />} />
               {esTransferencia && (pago?.numeroReferencia || metadata.numeroReferencia) && (

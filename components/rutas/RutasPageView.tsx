@@ -381,11 +381,18 @@ export const RutasPageView = ({
     // Obtener pagos una sola vez para todas las rutas
     const pagosResp = await pagosService.obtenerPagos({ limit: 5000 })
     const pagos = pagosResp?.pagos || pagosResp || []
+    const dailyVisitsByRoute = await rutasService.obtenerVisitasDelDiaEnLote(
+      rutas.map((ruta) => ruta.id),
+      hoyKey,
+    )
 
     await Promise.all(
       rutas.map(async (ruta) => {
         try {
-          const dailyVisits = await rutasService.obtenerVisitasDelDia(ruta.id, hoyKey)
+          const dailyVisits = dailyVisitsByRoute[ruta.id]
+          if (!dailyVisits) {
+            throw new Error('La ruta no fue incluida en la respuesta del lote')
+          }
 
           // Usar helper compartido para construir fuente completa de KPI
           const result = await buildRutaHoyOperativa({

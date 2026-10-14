@@ -307,25 +307,34 @@ export type NivelRiesgoUi =
   | 'precaucion'
   | 'moderado'
   | 'critico'
-  /** Todavia no se sabe. NO es 'minimo': ver la nota en `resolveNivelRiesgoUi`. */
-  | 'desconocido'
 
-export const resolveNivelRiesgoUi = (nivelRiesgoRaw: string): NivelRiesgoUi => {
-  const nivel = String(nivelRiesgoRaw || '').toUpperCase()
+export const resolveNivelRiesgoUi = (
+  nivelRiesgoRaw: string | null | undefined,
+): NivelRiesgoUi | undefined => {
+  const nivel = String(nivelRiesgoRaw || '')
+    .trim()
+    .toUpperCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
 
   const nivelMap: Record<string, NivelRiesgoUi> = {
     VERDE: 'minimo',
+    MINIMO: 'minimo',
+    PELIGRO_MINIMO: 'minimo',
+    BAJO: 'minimo',
     LEVE: 'leve',
+    LEVE_RETRASO: 'leve',
     PRECAUCION: 'precaucion',
+    AMARILLO: 'precaucion',
+    MODERADO: 'moderado',
+    RIESGO_MODERADO: 'moderado',
     ROJO: 'moderado',
     LISTA_NEGRA: 'critico',
+    CRITICO: 'critico',
+    ALTO_RIESGO: 'critico',
+    RIESGO_CRITICO: 'critico',
   }
 
-  // Si el nivel no viene, NO se asume 'minimo'.
-  //
-  // Caia aqui mientras los datos todavia estaban cargando, y el cobrador veia la
-  // ruta entera en verde —'MINIMO', el mas tranquilizador— para que un segundo
-  // despues la mitad pasara a CRITICO con cientos de miles vencidos. En ese hueco
-  // alguien decide a quien visita primero.
-  return nivelMap[nivel] || 'desconocido'
+  // Ausencia sigue siendo ausencia: el componente omite el distintivo, no inventa verde.
+  return nivelMap[nivel]
 }

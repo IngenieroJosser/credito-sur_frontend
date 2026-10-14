@@ -1,5 +1,6 @@
 import type { PrestamoParcial } from '@/types/domain'
 import type { EstadoCuota } from '@/types/enums'
+import type { NivelRiesgoUi } from '@/lib/rutas/riesgo-obligacion'
 export type EstadoVisita =
   'pendiente' | 'pagado' | 'en_mora' | 'ausente' | 'reprogramado' | 'en_prorroga' | 'gestionado'
 export type PeriodoRuta = 'DIA' | 'SEMANA' | 'QUINCENA' | 'MES'
@@ -173,8 +174,7 @@ export interface VisitaRuta {
    * omiten.
    */
   prioridad?: 'alta' | 'media' | 'baja'
-  /** `desconocido` mientras no se sabe: pintarlo de verde seria mentir. */
-  nivelRiesgo?: 'minimo' | 'leve' | 'precaucion' | 'moderado' | 'critico' | 'desconocido'
+  nivelRiesgo?: NivelRiesgoUi
   cobradorId: string
   periodoRuta: PeriodoRuta
   clienteId: string
@@ -295,20 +295,25 @@ export interface HistorialDia {
 // ─────────────────────────────────────────────────────────────────────────────
 
 type NivelRiesgoBackend = 'VERDE' | 'AMARILLO' | 'PRECAUCION' | 'ROJO' | 'LISTA_NEGRA' | string
-type NivelRiesgoFrontend = 'minimo' | 'leve' | 'precaucion' | 'moderado' | 'critico'
+type NivelRiesgoFrontend = NivelRiesgoUi
 
 /**
  * Convierte el nivel de riesgo del backend al formato del frontend.
  * Centraliza la lógica duplicada en VistaCobrador, SupervisorCobroView,
  * ruta-client y coordinador/rutas.
  */
-export const mapNivelRiesgo = (nivel?: NivelRiesgoBackend | null): NivelRiesgoFrontend => {
+export const mapNivelRiesgo = (
+  nivel?: NivelRiesgoBackend | null,
+): NivelRiesgoFrontend | undefined => {
   const normalized = String(nivel || '')
     .trim()
     .toUpperCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
 
+  // Esta escala corresponde al nivel persistido del CLIENTE. No se puede delegar a
+  // resolveNivelRiesgoUi: alli ROJO es el tramo moderado de una OBLIGACION calculada,
+  // mientras aqui ROJO es el nivel critico del enum historico del cliente.
   switch (normalized) {
     case 'PELIGRO_MINIMO':
     case 'MINIMO':
@@ -327,13 +332,11 @@ export const mapNivelRiesgo = (nivel?: NivelRiesgoBackend | null): NivelRiesgoFr
     case 'ALTO_RIESGO':
     case 'ROJO':
     case 'CRITICO':
-    case 'CRÍTICO':
     case 'RIESGO_CRITICO':
-    case 'RIESGO_CRÍTICO':
     case 'LISTA_NEGRA':
       return 'critico'
     default:
-      return 'minimo'
+      return undefined
   }
 }
 

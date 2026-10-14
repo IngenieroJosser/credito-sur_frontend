@@ -500,6 +500,11 @@ export interface Pago {
   numeroPago?: string | null;
   /** De dónde salió la gestión: CIERRE_PENDIENTE y similares. */
   origenGestion?: string | null;
+  /** Campos presentes cuando una fuente mezcla solicitudes de aprobación con pagos. */
+  pendingVerification?: boolean | null;
+  pagoPendiente?: boolean | null;
+  estadoAprobacion?: string | null;
+  tipoAprobacion?: string | null;
   /** Cuánto se esperaba de la cuota cuando se cobró. */
   montoCuotaEsperado?: number | null;
   /** Saldo del crédito después de aplicar este pago. */

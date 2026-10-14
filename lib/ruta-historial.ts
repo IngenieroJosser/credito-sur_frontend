@@ -4,7 +4,7 @@ import {
   type ClienteDeObligacion,
   type PrestamoDeObligacion,
 } from '@/types/obligacion-jornada'
-import { isPagoCierrePendiente } from '@/lib/ruta-recaudos'
+import { isPagoCierrePendiente, isPagoConfirmadoParaRecaudo } from '@/lib/ruta-recaudos'
 import type { SaldoDisponibleRuta } from '@/services/contabilidad-service'
 import { logger } from '@/lib/logger'
 import {
@@ -19,6 +19,7 @@ import {
   type VisitaRuta,
 } from '@/lib/types/cobranza'
 import { resolveRiesgoObligacion } from '@/lib/rutas/riesgo-obligacion'
+import { normalizarTipoCredito } from '@/lib/creditos/tipo-credito'
 import type { Cliente, PagoParcial, PrestamoParcial } from '@/types/domain'
 import type { DailyVisitsResponse } from '@/services/rutas-service'
 
@@ -84,6 +85,7 @@ export const isPagoForHistorialFecha = (
   pago: PagoParcial | null | undefined,
   fechaClave: string,
 ) => {
+  if (!isPagoConfirmadoParaRecaudo(pago)) return false
   if (isPagoCierrePendiente(pago)) {
     return String(pago?.fechaOperativaRuta || '').slice(0, 10) === fechaClave
   }
@@ -318,7 +320,7 @@ export const applyPagosDelDiaToHistorialVisitas = (params: {
 }) => {
   const { fechaClave, visitas, pagosDelDia } = params
   const pagosOperativos = (Array.isArray(pagosDelDia) ? pagosDelDia : []).filter(
-    (p: PagoParcial) => !isPagoCierrePendiente(p),
+    (p: PagoParcial) => isPagoConfirmadoParaRecaudo(p) && !isPagoCierrePendiente(p),
   )
   const recaudadoPorPrestamo: Record<string, number> = {}
   const pagosPorKey = new Map<string, { pago: PagoParcial; total: number; index: number }>()
@@ -448,7 +450,9 @@ export const buildHistorialDiaFromBackend = (params: {
   pagosDelDia: PagoParcial[]
 }) => {
   const { fechaClave, visitasResp, saldo, pagosDelDia } = params
-  const pagos = Array.isArray(pagosDelDia) ? pagosDelDia : []
+  const pagos = (Array.isArray(pagosDelDia) ? pagosDelDia : []).filter(
+    isPagoConfirmadoParaRecaudo,
+  )
   const pagosOperativos = pagos.filter((p: PagoParcial) => !isPagoCierrePendiente(p))
   const pagosRegularizados = pagos.filter(
     (p: PagoParcial) =>
@@ -695,12 +699,9 @@ export const buildHistorialDiaFromBackend = (params: {
       // `?? undefined` porque el campo destino no admite null y el backend si puede
       // mandarlo: ausente y null significan lo mismo aqui.
       cuotasTotales: prestamo?.cantidadCuotas ?? undefined,
-      tipoPrestamo:
-        String(prestamo?.tipoPrestamo || prestamo?.tipo || '').toUpperCase() === 'ARTICULO'
-          ? 'ARTICULO'
-          : 'EFECTIVO',
+      tipoPrestamo: normalizarTipoCredito(prestamo?.tipoPrestamo, prestamo?.tipo),
       articuloNombre:
-        String(prestamo?.tipoPrestamo || prestamo?.tipo || '').toUpperCase() === 'ARTICULO'
+        normalizarTipoCredito(prestamo?.tipoPrestamo, prestamo?.tipo) === 'ARTICULO'
           ? prestamo?.articulo || prestamo?.descripcionArticulo || 'Artículo'
           : 'Préstamo',
       recaudadoDelDia: recaudadoDelDia,
@@ -1066,12 +1067,9 @@ export const buildHistorialDiaFromBackend = (params: {
         prestamoId: pid,
         cuotaActual: cuotaDetalle?.numeroCuota,
         cuotasTotales: prestamo?.cantidadCuotas,
-        tipoPrestamo:
-          String(prestamo?.tipoPrestamo || prestamo?.tipo || '').toUpperCase() === 'ARTICULO'
-            ? 'ARTICULO'
-            : 'EFECTIVO',
+        tipoPrestamo: normalizarTipoCredito(prestamo?.tipoPrestamo, prestamo?.tipo),
         articuloNombre:
-          String(prestamo?.tipoPrestamo || prestamo?.tipo || '').toUpperCase() === 'ARTICULO'
+          normalizarTipoCredito(prestamo?.tipoPrestamo, prestamo?.tipo) === 'ARTICULO'
             ? prestamo?.articulo || prestamo?.descripcionArticulo || 'Artículo'
             : 'Préstamo',
         recaudadoDelDia: isPagoCierrePendiente(p) ? 0 : item.total,
@@ -1124,12 +1122,9 @@ export const buildHistorialDiaFromBackend = (params: {
       prestamoId,
       cuotaActual: pago?.cuota?.numeroCuota,
       cuotasTotales: prestamo?.cantidadCuotas,
-      tipoPrestamo:
-        String(prestamo?.tipoPrestamo || prestamo?.tipo || '').toUpperCase() === 'ARTICULO'
-          ? 'ARTICULO'
-          : 'EFECTIVO',
+      tipoPrestamo: normalizarTipoCredito(prestamo?.tipoPrestamo, prestamo?.tipo),
       articuloNombre:
-        String(prestamo?.tipoPrestamo || prestamo?.tipo || '').toUpperCase() === 'ARTICULO'
+        normalizarTipoCredito(prestamo?.tipoPrestamo, prestamo?.tipo) === 'ARTICULO'
           ? prestamo?.articulo || prestamo?.descripcionArticulo || 'Artículo'
           : 'Préstamo',
       recaudadoDelDia: Number(pago?.montoTotal || 0),

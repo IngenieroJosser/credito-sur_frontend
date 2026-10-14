@@ -43,6 +43,22 @@ describe('isPagoForHistorialFecha', () => {
       ),
     ).toBe(false)
   })
+
+  it('no incluye solicitudes de transferencia pendientes como recaudo', () => {
+    expect(
+      isPagoForHistorialFecha(
+        {
+          fechaPago: '2026-10-08T13:57:02.000-05:00',
+          montoTotal: 27500,
+          metodoPago: 'TRANSFERENCIA' as never,
+          tipoAprobacion: 'PAGO_TRANSFERENCIA',
+          estadoAprobacion: 'PENDIENTE',
+          pagoPendiente: true,
+        },
+        '2026-10-08',
+      ),
+    ).toBe(false)
+  })
 })
 
 describe('buildHistorialDiaFromBackend', () => {

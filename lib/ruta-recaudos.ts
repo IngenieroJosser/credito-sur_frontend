@@ -32,10 +32,25 @@ export const isPagoCierrePendiente = (pago: PagoParcial | null | undefined): boo
   return String(pago?.origenGestion || '').toUpperCase() === 'CIERRE_PENDIENTE'
 }
 
+/** Evita tratar una solicitud de transferencia como dinero ya recaudado. */
+export const isPagoConfirmadoParaRecaudo = (
+  pago: PagoParcial | null | undefined,
+): boolean => {
+  if (!pago) return false
+  if (pago.pendingVerification === true || pago.pagoPendiente === true) return false
+
+  const estado = String(pago.estadoAprobacion || '').toUpperCase()
+  if (estado === 'PENDIENTE' || estado === 'RECHAZADO') return false
+
+  const tipoAprobacion = String(pago.tipoAprobacion || '').toUpperCase()
+  return tipoAprobacion !== 'PAGO_TRANSFERENCIA' || estado === 'APROBADO'
+}
+
 const shouldIncludePagoForOperationalToday = (
   pago: PagoParcial | null | undefined,
   options?: PagoFilterOptions,
 ): boolean => {
+  if (!isPagoConfirmadoParaRecaudo(pago)) return false
   if (options?.includeCierrePendiente) return true
   return !isPagoCierrePendiente(pago)
 }
@@ -79,6 +94,7 @@ export const sumMontoTotalPagosByBogotaDateKey = (
   // Suma el montoTotal de una lista de pagos que pertenezcan a un día específico
   // (comparación por llave Bogotá YYYY-MM-DD).
   return (Array.isArray(pagos) ? pagos : []).reduce((sum: number, p) => {
+    if (!isPagoConfirmadoParaRecaudo(p)) return sum
     if (options && !shouldIncludePagoForOperationalToday(p, options)) return sum
 
     const rawDate = p?.fechaPago || p?.creadoEn
@@ -94,6 +110,7 @@ export const sumMontoTotalPagosByBogotaDateKey = (
 export const sumMontoTotalPagosHistorico = (pagos: PagoParcial[]): number => {
   // Suma total histórica de una lista de pagos (sin filtro por fecha).
   return (Array.isArray(pagos) ? pagos : []).reduce((sum: number, p) => {
+    if (!isPagoConfirmadoParaRecaudo(p)) return sum
     return sum + Number(p?.montoTotal ?? p?.monto ?? p?.valor ?? 0)
   }, 0)
 }
@@ -110,6 +127,7 @@ export const indexPagosByPrestamoId = (pagos: PagoParcial[]) => {
   const ultimoPagoDateByPrestamoId: Record<string, number> = {}
 
   ;(Array.isArray(pagos) ? pagos : []).forEach((p) => {
+    if (!isPagoConfirmadoParaRecaudo(p)) return
     const pid = p?.prestamoId
     if (!pid) return
 

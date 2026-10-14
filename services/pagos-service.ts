@@ -67,7 +67,13 @@ export interface Pago {
   cliente?: { id: string; nombres: string; apellidos: string; dni?: string };
   cobrador?: { id: string; nombres: string; apellidos: string };
   ruta?: { id: string; nombre: string; codigo?: string | null } | null;
-  prestamo?: { id: string; numeroPrestamo: string; saldoPendiente: number };
+  prestamo?: {
+    id: string;
+    numeroPrestamo: string;
+    saldoPendiente: number;
+    tipoPrestamo?: string | null;
+    productoId?: string | null;
+  };
   creadoEn: string;
   actualizadoEn: string;
 }
@@ -114,6 +120,16 @@ export interface ResultadoPago {
   /** Quedo en la cola: el id es temporal y el desglose todavia no existe. */
   esOffline?: boolean;
 }
+
+/** Una transferencia pendiente no debe alterar recaudo, cuotas ni estados locales. */
+export const pagoQuedoPendienteRevision = (
+  resultado: ResultadoPago | null | undefined,
+) => resultado?.pendingVerification === true
+
+export const debeReflejarPagoEnRuta = (
+  resultado: ResultadoPago | null | undefined,
+  esCierrePendiente: boolean,
+) => !esCierrePendiente && !pagoQuedoPendienteRevision(resultado)
 
 export interface PagosResponse {
   pagos: Pago[];
@@ -177,14 +193,56 @@ export const pagosService = {
     page?: number;
     limit?: number;
   }): Promise<PagosResponse> {
-    const params = new URLSearchParams();
-    if (filtros?.prestamoId) params.set('prestamoId', filtros.prestamoId);
-    if (filtros?.clienteId) params.set('clienteId', filtros.clienteId);
-    if (filtros?.rutaId) params.set('rutaId', filtros.rutaId);
-    if (filtros?.page) params.set('page', String(filtros.page));
-    if (filtros?.limit) params.set('limit', String(filtros.limit));
-    const qs = params.toString();
-    return apiRequest<PagosResponse>('GET', `/payments${qs ? `?${qs}` : ''}`);
+    const requestedLimit = Math.max(1, filtros?.limit || 20);
+    const requestedPage = Math.max(1, filtros?.page || 1);
+    const backendPageSize = Math.min(requestedLimit, 200);
+    const requestedOffset = (requestedPage - 1) * requestedLimit;
+    const firstBackendPage = Math.floor(requestedOffset / backendPageSize) + 1;
+    const offsetInFirstPage = requestedOffset % backendPageSize;
+
+    const fetchPage = (page: number) => {
+      const params = new URLSearchParams();
+      if (filtros?.prestamoId) params.set('prestamoId', filtros.prestamoId);
+      if (filtros?.clienteId) params.set('clienteId', filtros.clienteId);
+      if (filtros?.rutaId) params.set('rutaId', filtros.rutaId);
+      params.set('page', String(page));
+      params.set('limit', String(backendPageSize));
+      return apiRequest<PagosResponse>('GET', `/payments?${params.toString()}`);
+    };
+
+    const first = await fetchPage(firstBackendPage);
+    if (requestedLimit <= backendPageSize) return first;
+
+    const total = first.paginacion.total;
+    const lastRequestedIndex = Math.min(total, requestedOffset + requestedLimit);
+    const lastBackendPage = Math.ceil(lastRequestedIndex / backendPageSize);
+    const remainingPages = Array.from(
+      { length: Math.max(0, lastBackendPage - firstBackendPage) },
+      (_, index) => firstBackendPage + index + 1,
+    );
+    const responses: PagosResponse[] = [];
+
+    // Evita disparar decenas de peticiones simultáneas sobre Render.
+    for (let index = 0; index < remainingPages.length; index += 4) {
+      responses.push(
+        ...(await Promise.all(remainingPages.slice(index, index + 4).map(fetchPage))),
+      );
+    }
+
+    const pagos = [
+      ...first.pagos.slice(offsetInFirstPage),
+      ...responses.flatMap((response) => response.pagos),
+    ].slice(0, requestedLimit);
+
+    return {
+      pagos,
+      paginacion: {
+        total,
+        pagina: requestedPage,
+        limite: requestedLimit,
+        totalPaginas: Math.ceil(total / requestedLimit),
+      },
+    };
   },
 
   /**
