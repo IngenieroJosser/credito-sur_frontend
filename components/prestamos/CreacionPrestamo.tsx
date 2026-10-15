@@ -1,4 +1,5 @@
 'use client';
+import { formatFechaBogota } from '@/lib/format-date'
 
 import { mensajeDeError } from '@/lib/mensaje-de-error';
 import React, { useState, useMemo, useEffect } from 'react';
@@ -172,7 +173,7 @@ const calcularCuotasYResumen = (form: FormularioPrestamo) => {
 
     cuotasCalculadas.push({
       numero: i,
-      fecha: fechaPago.toLocaleDateString('es-CO', {
+      fecha: formatFechaBogota(fechaPago, {
         day: '2-digit',
         month: 'short',
         year: 'numeric'
@@ -253,7 +254,7 @@ const CreacionPrestamoElegante = ({ initialClienteId, isModal }: { initialClient
     cantidadCuotas: 0,
     frecuenciaPago: FrecuenciaPago.DIARIO,
     tipoInteres: TipoAmortizacion.INTERES_SIMPLE,
-    fechaInicio: new Date().toLocaleDateString('en-CA'),
+    fechaInicio: formatFechaBogota(new Date(), undefined, 'en-CA'),
     tasaInteresMora: 2.0,
     cuotaInicial: 0,
     gastosAdministrativos: 10000,

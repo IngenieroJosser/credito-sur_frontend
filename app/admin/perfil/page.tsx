@@ -1,4 +1,5 @@
 'use client'
+import { formatFechaBogota } from '@/lib/format-date'
 
 import { mensajeDeError } from '@/lib/mensaje-de-error'
 import { User, Lock, Phone, Calendar, Clock, FileText, CheckCircle2, X, Eye, EyeOff, ChevronLeft, AlertCircle } from 'lucide-react'
@@ -327,7 +328,7 @@ const PerfilUsuarioPage = () => {
                       </span>
                       <span className="font-bold text-slate-900">
                         {backendUser.creadoEn && !isNaN(new Date(backendUser.creadoEn).getTime())
-                          ? new Date(backendUser.creadoEn).toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })
+                          ? formatFechaBogota(backendUser.creadoEn, { year: 'numeric', month: 'long', day: 'numeric' })
                           : 'No disponible'}
                       </span>
                     </div>

@@ -1,4 +1,5 @@
 'use client'
+import { formatFechaBogota } from '@/lib/format-date'
 
 /**
  * ProrrogaDetalleModal
@@ -64,7 +65,7 @@ function formatFecha(iso: string | null | undefined) {
     const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(iso.trim())
     const dateToParse = isDateOnly ? `${iso.trim()}T12:00:00` : iso
 
-    return new Date(dateToParse).toLocaleDateString('es-CO', {
+    return formatFechaBogota(dateToParse, {
       day: '2-digit', month: 'short', year: 'numeric',
     })
   } catch { return '—' }
@@ -73,7 +74,7 @@ function formatFecha(iso: string | null | undefined) {
 function formatFechaHora(iso: string | null | undefined) {
   if (!iso) return '—'
   try {
-    return new Date(iso).toLocaleDateString('es-CO', {
+    return formatFechaBogota(iso, {
       day: '2-digit', month: 'short', year: 'numeric',
       hour: '2-digit', minute: '2-digit',
       hour12: true,

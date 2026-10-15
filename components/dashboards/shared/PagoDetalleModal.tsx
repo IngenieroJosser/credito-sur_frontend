@@ -50,7 +50,7 @@ import Tooltip from '@/components/ui/Tooltip'
 import { useModalDialog } from '@/hooks/use-modal-dialog'
 import TipoCreditoIndicador from '@/components/creditos/TipoCreditoIndicador'
 import { resolverTipoCreditoDeEntidad } from '@/lib/creditos/tipo-credito'
-import { formatFechaHumanaBogota } from '@/lib/format-date'
+import { formatFechaBogota, formatFechaHumanaBogota } from '@/lib/format-date'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -247,7 +247,7 @@ export default function PagoDetalleModal({ isOpen, onClose, metadata }: PagoDeta
   const notaRegularizacion = pago?.notas ?? metadata.notaAdministrativa ?? metadata.notas ?? ''
 
   const fechaOperativaLabel = fechaOperativaRuta
-    ? new Date(`${fechaOperativaRuta}T00:00:00-05:00`).toLocaleDateString('es-CO', {
+    ? formatFechaBogota(`${fechaOperativaRuta}T00:00:00-05:00`, {
         day: '2-digit',
         month: 'short',
         year: 'numeric',

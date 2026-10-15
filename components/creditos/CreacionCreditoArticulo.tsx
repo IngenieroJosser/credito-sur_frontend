@@ -1,4 +1,5 @@
 'use client';
+import { formatFechaBogota } from '@/lib/format-date'
 
 import { mensajeDeError } from '@/lib/mensaje-de-error';
 import React, { useState, useMemo } from 'react';
@@ -81,7 +82,7 @@ export default function CreacionCreditoArticulo({
 
   const [frecuenciaPago, setFrecuenciaPago] = useState<FrecuenciaPago>(FrecuenciaPago.DIARIO);
   const [cuotaInicial, setCuotaInicial] = useState<number>(0);
-  const [fechaInicio, setFechaInicio] = useState<string>(new Date().toLocaleDateString('en-CA'));
+  const [fechaInicio, setFechaInicio] = useState<string>(formatFechaBogota(new Date(), undefined, 'en-CA'));
   
   // Estados UI Auxiliares
   const [busquedaCliente, setBusquedaCliente] = useState('');

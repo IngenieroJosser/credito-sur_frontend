@@ -1,4 +1,5 @@
 'use client'
+import { formatFechaBogota } from '@/lib/format-date'
 
 import { mensajeDeError } from '@/lib/mensaje-de-error'
 import React, { useEffect, useMemo, useState } from 'react'
@@ -72,7 +73,7 @@ function formatFecha(iso: string | null | undefined) {
     const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(raw)
     const dateToParse = isDateOnly ? `${raw}T12:00:00-05:00` : raw
 
-    return new Date(dateToParse).toLocaleDateString('es-CO', {
+    return formatFechaBogota(dateToParse, {
       day: '2-digit',
       month: 'short',
       year: 'numeric',
@@ -85,7 +86,7 @@ function formatFecha(iso: string | null | undefined) {
 function formatFechaHora(iso: string | null | undefined) {
   if (!iso) return '—'
   try {
-    return new Date(iso).toLocaleDateString('es-CO', {
+    return formatFechaBogota(iso, {
       day: '2-digit',
       month: 'short',
       year: 'numeric',

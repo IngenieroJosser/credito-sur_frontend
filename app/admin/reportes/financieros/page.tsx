@@ -1,4 +1,5 @@
 'use client'
+import { formatFechaBogota } from '@/lib/format-date'
 
 import React, { useState, useEffect, useCallback } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
@@ -317,7 +318,7 @@ const ReportesFinancierosPage = () => {
 
         const labels = range.map(d => {
           try {
-            const w = d.toLocaleDateString('es-CO', { weekday: 'short' })
+            const w = formatFechaBogota(d, { weekday: 'short' })
             return w.replace('.', '').slice(0, 3).charAt(0).toUpperCase() + w.replace('.', '').slice(1, 3)
           } catch {
             const map = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
@@ -452,7 +453,7 @@ const ReportesFinancierosPage = () => {
           const series: MonthlyEvolution[] = days.map(d => {
             const key = getBogotaDateKey(d)
             const v = dayMap[key]
-            const label = d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })
+            const label = formatFechaBogota(d, { day: '2-digit', month: 'short' })
             return {
               mes: label,
               ingresos: v?.ingresos || 0,

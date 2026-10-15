@@ -1,4 +1,5 @@
 'use client'
+import { formatFechaBogota, formatHoraBogota } from '@/lib/format-date'
 import { datosParaRegistro, mensajeDeError } from '@/lib/mensaje-de-error'
 
 import { clienteComoObjeto } from '@/types/obligacion-jornada'
@@ -1090,11 +1091,11 @@ const LegacyDetalleRutaPage = () => {
   const handleGuardarGasto = (e: React.FormEvent) => {
     e.preventDefault()
 
-    const horaActual = new Date().toLocaleTimeString('en-US', {
+    const horaActual = formatHoraBogota(new Date(), {
       hour: '2-digit',
       minute: '2-digit',
       hour12: true,
-    })
+    }, 'en-US')
 
     logger.log('Guardando gasto:', { ...nuevoGasto, hora: horaActual })
 
@@ -1183,7 +1184,7 @@ const LegacyDetalleRutaPage = () => {
                 </div>
 
                 <p className="text-slate-500 font-medium text-sm">
-                  {new Date().toLocaleDateString('es-CO', {
+                  {formatFechaBogota(new Date(), {
                     weekday: 'long',
                     day: 'numeric',
                     month: 'long',
@@ -1380,7 +1381,7 @@ const LegacyDetalleRutaPage = () => {
 
                   const dateObj = new Date(parseInt(y), parseInt(m) - 1, parseInt(d))
 
-                  const dayName = dateObj.toLocaleDateString('es-CO', {
+                  const dayName = formatFechaBogota(dateObj, {
                     weekday: 'long',
                     day: 'numeric',
                     month: 'long',

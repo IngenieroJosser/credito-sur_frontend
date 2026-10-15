@@ -1,4 +1,5 @@
 'use client'
+import { formatFechaBogota } from '@/lib/format-date'
 
 import { mensajeDeError } from '@/lib/mensaje-de-error'
 
@@ -167,7 +168,7 @@ const VistaSupervisor = () => {
       month: 'short',
       year: 'numeric',
     }
-    return date.toLocaleDateString('es-CO', options)
+    return formatFechaBogota(date, options)
   }
 
   const mainMetrics: MetricCard[] = useMemo(() => {

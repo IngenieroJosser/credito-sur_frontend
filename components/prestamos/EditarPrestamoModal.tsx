@@ -1,4 +1,5 @@
 'use client';
+import { formatFechaBogota } from '@/lib/format-date'
 
 import { useState, useEffect, useRef } from 'react';
 import { X, Save, Clock, Edit3, Lock, User, Loader2, Package } from 'lucide-react';
@@ -316,7 +317,7 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
     const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
     if (m) return `${m[3]}/${m[2]}/${m[1]}`;
     const d = new Date(iso);
-    return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('es-CO');
+    return isNaN(d.getTime()) ? '—' : formatFechaBogota(d);
   };
 
   const handleClose = () => {

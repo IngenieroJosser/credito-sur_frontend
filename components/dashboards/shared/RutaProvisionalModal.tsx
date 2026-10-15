@@ -1,4 +1,5 @@
 'use client'
+import { formatFechaBogota } from '@/lib/format-date'
 
 import React, { useState, useEffect } from 'react'
 import { Portal, SortableVisita } from '@/components/dashboards/shared/CobradorElements'
@@ -74,7 +75,7 @@ export default function RutaProvisionalModal({
   const activeVisita = activeId ? visitas.find(v => v.id === activeId) : null
 
   const handleExportarTxt = () => {
-    const hoy = new Date().toLocaleDateString('es-CO', {
+    const hoy = formatFechaBogota(new Date(), {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',

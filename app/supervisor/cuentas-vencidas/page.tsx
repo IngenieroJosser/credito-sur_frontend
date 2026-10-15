@@ -1,4 +1,5 @@
 'use client'
+import { formatFechaBogota } from '@/lib/format-date'
 
 /**
  * Vista de Cuentas Vencidas para el Supervisor.
@@ -261,7 +262,7 @@ function CuentasVencidasContent() {
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-1.5 text-slate-600 text-xs">
                             <Calendar className="h-3.5 w-3.5 text-slate-400" />
-                            {new Date(c.fechaVencimiento).toLocaleDateString('es-CO')}
+                            {formatFechaBogota(c.fechaVencimiento)}
                           </div>
                         </td>
                         <td className="px-6 py-4 text-center">
@@ -310,7 +311,7 @@ function CuentasVencidasContent() {
                     </div>
                     <div className="flex items-center gap-2 text-xs">
                       <Calendar className="h-3.5 w-3.5 text-slate-400" />
-                      <span className="text-slate-500">Venció: <span className="font-bold text-slate-700">{new Date(cuenta.fechaVencimiento).toLocaleDateString('es-CO')}</span></span>
+                      <span className="text-slate-500">Venció: <span className="font-bold text-slate-700">{formatFechaBogota(cuenta.fechaVencimiento)}</span></span>
                     </div>
                     <div className="flex items-center justify-between">
                       {getEstadoBadge(cuenta.estado)}

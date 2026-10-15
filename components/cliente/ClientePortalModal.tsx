@@ -1,4 +1,5 @@
 'use client';
+import { formatFechaBogota } from '@/lib/format-date'
 
 import { useState, useEffect } from 'react';
 import { X, BarChart3 } from 'lucide-react';
@@ -393,7 +394,7 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
 
                 const newComment: Comentario = {
                   id: Math.random().toString(36).substr(2, 9),
-                  fecha: new Date().toLocaleDateString(),
+                  fecha: formatFechaBogota(new Date()),
                   autor: autorNombre,
                   rolAutor: rolEtiqueta,
                   contenido: note,

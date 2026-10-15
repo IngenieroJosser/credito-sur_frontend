@@ -47,7 +47,7 @@ import {
   repartoConInteresConocido,
 } from '@/lib/creditos/preview-credito'
 import TipoCreditoIndicador from '@/components/creditos/TipoCreditoIndicador'
-import { formatFechaHumanaBogota } from '@/lib/format-date'
+import { formatFechaBogota, formatFechaHumanaBogota } from '@/lib/format-date'
 
 export interface NotificacionDetalleModalProps {
   isOpen: boolean
@@ -1794,7 +1794,7 @@ export default function NotificacionDetalleModal({
                               const key = normalizeDateKey(String(dateStr))
                               if (key) {
                                 const base = new Date(`${key}T12:00:00-05:00`)
-                                return base.toLocaleDateString('es-CO')
+                                return formatFechaBogota(base)
                               }
                             } catch {
                               return String(dateStr)

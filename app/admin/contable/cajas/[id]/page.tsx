@@ -1,4 +1,5 @@
 'use client'
+import { formatHoraBogota } from '@/lib/format-date'
 import { mensajeDeError } from '@/lib/mensaje-de-error'
 
 
@@ -46,7 +47,7 @@ const mapLedgerCajaMovimiento = (entry: MovimientoLedger, cajaId: string) => {
     tipo: debitoCaja >= creditoCaja ? 'INGRESO' : 'EGRESO',
     concepto: entry.descripcion || entry.tipo,
     monto: Math.max(debitoCaja, creditoCaja),
-    hora: new Date(entry.fecha).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }),
+    hora: formatHoraBogota(entry.fecha, { hour: '2-digit', minute: '2-digit' }),
     usuario: entry.creadoPorId || 'Sistema',
   }
 }

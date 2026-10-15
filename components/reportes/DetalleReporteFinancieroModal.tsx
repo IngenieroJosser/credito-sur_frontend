@@ -1,4 +1,5 @@
 'use client'
+import { formatFechaBogota, formatHoraBogota } from '@/lib/format-date'
 
 import { useMemo, useState, useEffect } from 'react'
 import { X, Calendar, LineChart } from 'lucide-react'
@@ -45,7 +46,7 @@ export default function DetalleReporteFinancieroModal({ id, onClose }: DetalleRe
         start.setHours(0,0,0,0)
         end = new Date(d)
         end.setHours(23,59,59,999)
-        setPeriodoLabel(d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' }))
+        setPeriodoLabel(formatFechaBogota(d, { day: '2-digit', month: 'short', year: 'numeric' }))
       } else if (id.startsWith('MES:')) {
         const ym = id.replace('MES:', '')
         const [yStr, mStr] = ym.split('-')
@@ -55,7 +56,7 @@ export default function DetalleReporteFinancieroModal({ id, onClose }: DetalleRe
         start.setHours(0,0,0,0)
         end = new Date(y, m + 1, 0)
         end.setHours(23,59,59,999)
-        setPeriodoLabel(start.toLocaleDateString('es-CO', { month: 'short', year: 'numeric' }))
+        setPeriodoLabel(formatFechaBogota(start, { month: 'short', year: 'numeric' }))
       } else {
         const parts = decodeURIComponent(id).split('-')
         const mes = parts[0] || 'Periodo'
@@ -117,8 +118,8 @@ export default function DetalleReporteFinancieroModal({ id, onClose }: DetalleRe
 
       const formatFechaHora = (iso: string) => {
         const d = new Date(iso)
-        const fecha = d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
-        const hora = d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })
+        const fecha = formatFechaBogota(d, { day: '2-digit', month: 'short', year: 'numeric' })
+        const hora = formatHoraBogota(d, { hour: '2-digit', minute: '2-digit', hour12: true })
         return { fecha, hora }
       }
 
@@ -168,9 +169,9 @@ export default function DetalleReporteFinancieroModal({ id, onClose }: DetalleRe
   // entre dos renders React tumba la pantalla con el error 310.
   const fechaReporteTexto = useMemo(() => {
     try {
-      return new Date().toLocaleDateString('es-CO', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })
+      return formatFechaBogota(new Date(), { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })
     } catch {
-      return new Date().toLocaleDateString()
+      return formatFechaBogota(new Date())
     }
   }, [])
 

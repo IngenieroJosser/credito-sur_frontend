@@ -1,4 +1,5 @@
 'use client'
+import { formatFechaBogota } from '@/lib/format-date'
 
 import { useState, useMemo } from 'react'
 import { ChevronDown, History } from 'lucide-react'
@@ -118,7 +119,7 @@ export default function RutaHistorialOperativo({
             const isExpanded = selectedHistoryDate === date
             const [y, m, d] = date.split('-')
             const dateObj = new Date(parseInt(y), parseInt(m) - 1, parseInt(d))
-            const dayName = dateObj.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })
+            const dayName = formatFechaBogota(dateObj, { weekday: 'long', day: 'numeric', month: 'long' })
             const jornadaEtiqueta = data?.resumen?.jornadaEtiqueta
             const jornadaEtiquetaColor = data?.resumen?.jornadaEtiquetaColor || 'bg-slate-100 text-slate-700 border-slate-200'
 
@@ -267,7 +268,7 @@ export default function RutaHistorialOperativo({
             {historyMonthKeys.map((monthKey) => {
               const [my, mm] = monthKey.split('-')
               const monthObj = new Date(parseInt(my), parseInt(mm) - 1, 1)
-              const monthName = monthObj.toLocaleDateString('es-CO', { month: 'long', year: 'numeric' })
+              const monthName = formatFechaBogota(monthObj, { month: 'long', year: 'numeric' })
               const daysInMonth = historyByMonth[monthKey] || []
               const isMonthExpanded = selectedHistoryMonth === monthKey
               const monthRecaudo = Number(historyMonthSummaryByKey[monthKey]?.monthRecaudo || 0)
@@ -324,7 +325,7 @@ export default function RutaHistorialOperativo({
                         const isDayExpanded = selectedHistoryDate === date
                         const [dy, dm, dd] = date.split('-')
                         const dateObj = new Date(parseInt(dy), parseInt(dm) - 1, parseInt(dd))
-                        const dayName = dateObj.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric' })
+                        const dayName = formatFechaBogota(dateObj, { weekday: 'long', day: 'numeric' })
 
                         return (
                           <div

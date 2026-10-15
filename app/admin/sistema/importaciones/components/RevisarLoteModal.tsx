@@ -1,4 +1,5 @@
 "use client";
+import { formatFechaBogota } from '@/lib/format-date'
 
 import { mensajeDeError } from '@/lib/mensaje-de-error';
 import React, { useCallback, useEffect, useMemo, useState } from "react";
@@ -37,7 +38,7 @@ const formatearFecha = (valor: string | null) => {
   if (!valor) return "—";
   const fecha = new Date(valor);
   if (Number.isNaN(fecha.getTime())) return "—";
-  return fecha.toLocaleDateString("es-CO", {
+  return formatFechaBogota(fecha, {
     day: "2-digit",
     month: "short",
     year: "numeric",

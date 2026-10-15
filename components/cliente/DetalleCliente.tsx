@@ -1,4 +1,5 @@
 "use client";
+import { formatFechaBogota } from '@/lib/format-date'
 
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
@@ -289,7 +290,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
   const formatFecha = (fechaStr: string) => {
     if (!fechaStr || fechaStr === '---' || !fechaStr.includes('T')) return fechaStr;
     try {
-      return new Date(fechaStr).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' });
+      return formatFechaBogota(fechaStr, { day: 'numeric', month: 'short', year: 'numeric' });
     } catch {
       return fechaStr;
     }
@@ -1111,7 +1112,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
             <div className="w-2.5 h-2.5 rounded-full bg-green-500 ring-4 ring-green-100"></div>
             <span>
               Cliente activo desde{" "}
-              {new Date(cliente.fechaRegistro).toLocaleDateString("es-CO", {
+              {formatFechaBogota(cliente.fechaRegistro, {
                 day: "numeric",
                 month: "short",
                 year: "numeric",

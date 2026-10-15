@@ -1,4 +1,5 @@
 'use client'
+import { formatFechaBogota, formatHoraBogota } from '@/lib/format-date'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
@@ -66,8 +67,8 @@ const HistorialPagosPage = () => {
   const formatFechaPago = (fechaRaw: string) => {
     const d = new Date(fechaRaw)
     if (Number.isNaN(d.getTime())) return fechaRaw
-    const fecha = d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
-    const hora = d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })
+    const fecha = formatFechaBogota(d, { day: '2-digit', month: 'short', year: 'numeric' })
+    const hora = formatHoraBogota(d, { hour: '2-digit', minute: '2-digit', hour12: true })
     return `${fecha} • ${hora}`
   }
 

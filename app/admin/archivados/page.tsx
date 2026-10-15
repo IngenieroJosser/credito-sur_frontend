@@ -1,4 +1,5 @@
 'use client'
+import { formatFechaBogota } from '@/lib/format-date'
 
 import { estadoDeError, mensajeDeError } from '@/lib/mensaje-de-error'
 import { Archive, Search, Filter, RefreshCw, RotateCcw, Trash2, Eye, MapPin } from 'lucide-react'
@@ -390,7 +391,7 @@ export default function ArchivadosPage() {
                         )}
                       </td>
                       <td className="px-6 py-5 whitespace-nowrap text-slate-600 font-medium">
-                        {new Date(item.fechaEliminacion).toLocaleDateString()}
+                        {formatFechaBogota(item.fechaEliminacion)}
                       </td>
                       <td className="px-6 py-5 text-slate-600 font-medium">
                         {item.motivo}

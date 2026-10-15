@@ -1,4 +1,5 @@
 'use client'
+import { formatFechaBogota } from '@/lib/format-date'
 
 /**
  * GestionarVencidaModal — Gestionar una cuenta cuyo contrato ya venció
@@ -109,7 +110,7 @@ export default function GestionarVencidaModal({ cuenta, onClose, onConfirm }: Ge
   const nuevaFecha = (() => {
     const d = new Date()
     d.setDate(d.getDate() + Number(diasGracia || 0))
-    return d.toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
+    return formatFechaBogota(d, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
   })()
 
   const montoInteresNum = cobrarInteres ? parseCOPDecimalInputToNumber(montoInteres) : 0

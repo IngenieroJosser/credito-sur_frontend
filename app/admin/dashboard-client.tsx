@@ -1,4 +1,5 @@
 'use client';
+import { formatFechaBogota } from '@/lib/format-date'
 
 import Link from 'next/link';
 import React, { useState, useCallback } from 'react';
@@ -130,7 +131,7 @@ export function DashboardClient({ data }: DashboardClientProps) {
       month: 'short',
       year: 'numeric'
     };
-    return date.toLocaleDateString('es-CO', options);
+    return formatFechaBogota(date, options);
   };
 
   return (

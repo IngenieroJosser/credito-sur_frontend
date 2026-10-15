@@ -1,3 +1,4 @@
+import { formatFechaBogota, formatHoraBogota } from '@/lib/format-date'
 /**
  * Utilidades para formateo de fechas y horas en el sistema
  */
@@ -17,17 +18,16 @@ export const formatShortDateTime = (
     const d = new Date(date);
     if (isNaN(d.getTime())) return fallback;
     
-    const fecha = d
-      .toLocaleDateString('es-CO', {
+    const fecha = formatFechaBogota(d, {
         day: '2-digit',
         month: 'short',
       })
       .replace('.', '');
-    const hora = d.toLocaleTimeString('en-US', {
+    const hora = formatHoraBogota(d, {
       hour: '2-digit',
       minute: '2-digit',
       hour12: true,
-    });
+    }, 'en-US');
 
     return `${fecha}, ${hora}`;
   } catch {

@@ -1,4 +1,5 @@
 'use client'
+import { formatFechaBogota } from '@/lib/format-date'
 
 import { mensajeDeError } from '@/lib/mensaje-de-error'
 /**
@@ -189,7 +190,7 @@ const RegistroPagoPage = () => {
   }
 
   const formatDate = (dateStr: string) =>
-    new Date(dateStr).toLocaleDateString('es-CO', {
+    formatFechaBogota(dateStr, {
       day: '2-digit', month: '2-digit', year: 'numeric'
     })
 

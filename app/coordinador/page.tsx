@@ -1,4 +1,5 @@
 'use client'
+import { formatFechaBogota } from '@/lib/format-date'
 import { estadoDeError } from '@/lib/mensaje-de-error'
 
 import PantallaCarga from '@/components/ui/PantallaCarga'
@@ -245,7 +246,7 @@ export default function CoordinadorPage() {
         // `cliente.nombres` daba undefined y la tarjeta salia con "Cliente".
         const clientName = p.cliente || 'Cliente'
         const dateStr = p.creadoEn
-          ? new Date(p.creadoEn).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })
+          ? formatFechaBogota(p.creadoEn, { day: '2-digit', month: 'short' })
           : ''
         return {
           client: clientName,

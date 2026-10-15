@@ -1,4 +1,5 @@
 'use client'
+import { formatFechaBogota } from '@/lib/format-date'
 
 import { mensajeDeError } from '@/lib/mensaje-de-error'
 import type { CrearCreditoModalData } from '@/lib/creditos/crear-prestamo-payload'
@@ -142,7 +143,7 @@ const formatDateShort = (dateStr: string) => {
   if (!dateStr) return 'N/A'
   const d = new Date(dateStr)
   if (Number.isNaN(d.getTime())) return 'N/A'
-  return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
+  return formatFechaBogota(d, { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
 /**

@@ -1,4 +1,5 @@
 'use client';
+import { formatHoraBogota } from '@/lib/format-date'
 
 import { SkeletonDetalle } from '@/components/ui/Skeleton'
 
@@ -53,7 +54,7 @@ export default function DetalleReporteOperativoPage({
             cliente: p.cliente || '',
             tipo: 'COBRO',
             monto: p.monto || 0,
-            hora: p.fecha ? new Date(p.fecha).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }) : '',
+            hora: p.fecha ? formatHoraBogota(p.fecha, { hour: '2-digit', minute: '2-digit' }) : '',
           })),
         });
       } catch (err) {

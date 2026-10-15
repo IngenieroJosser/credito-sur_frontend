@@ -7,6 +7,7 @@ import {
   objeto,
   texto,
 } from '@/lib/valores-de-api'
+import { formatFechaBogota } from '@/lib/format-date'
 import {
   X,
   CalendarClock,
@@ -55,7 +56,7 @@ const formatFechaOperativa = (raw: unknown) => {
   const key = String(raw || '').slice(0, 10)
   if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) return key || 'No disponible'
   try {
-    return new Date(`${key}T12:00:00-05:00`).toLocaleDateString('es-CO', {
+    return formatFechaBogota(`${key}T12:00:00-05:00`, {
       weekday: 'long',
       day: '2-digit',
       month: 'long',

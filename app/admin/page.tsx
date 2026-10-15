@@ -5,6 +5,7 @@ import type {
   TrendData,
 } from '@/services/dashboard-coordinador-service'
 import type { PrestamoDelListado } from '@/types/domain'
+import { formatFechaBogota } from '@/lib/format-date'
 
 import PantallaCarga from '@/components/ui/PantallaCarga'
 import { logger } from '@/lib/logger'
@@ -357,7 +358,7 @@ export default function DashboardPage() {
           // loans.service.ts:410), no un objeto: leerle `.nombres` daba `undefined` y el
           // nombre salia vacio en los creditos recientes del tablero.
           const clientName = p.cliente || 'Cliente';
-          const dateStr = p.creadoEn ? new Date(p.creadoEn).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' }) : '';
+          const dateStr = p.creadoEn ? formatFechaBogota(p.creadoEn, { day: '2-digit', month: 'short' }) : '';
           return {
             client: clientName,
             amount: p.montoTotal || p.monto || 0,

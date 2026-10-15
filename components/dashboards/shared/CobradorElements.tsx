@@ -1,4 +1,5 @@
 'use client'
+import { formatFechaBogota } from '@/lib/format-date'
 
 import React, { ReactNode } from 'react'
 import { logger } from '@/lib/logger'
@@ -514,7 +515,7 @@ function VisitaCardContent({
                   ? 'Prórroga vencida'
                   : diasRestantes === 0
                     ? 'Prórroga vence HOY'
-                    : `Prórroga — vence ${new Date(visita.fechaProrroga!).toLocaleDateString('es-CO')} (${diasRestantes}d)`}
+                    : `Prórroga — vence ${formatFechaBogota(visita.fechaProrroga!)} (${diasRestantes}d)`}
             </div>
           )
         })()}

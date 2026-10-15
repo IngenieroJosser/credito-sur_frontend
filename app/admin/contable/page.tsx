@@ -1,4 +1,5 @@
 'use client'
+import { formatFechaBogota, formatHoraBogota } from '@/lib/format-date'
 import { mensajeDeError } from '@/lib/mensaje-de-error'
 import { logger } from '@/lib/logger'
 
@@ -290,7 +291,7 @@ const esMovimientoPagoRegularizado = (m: Pick<MovimientoContable, 'origenGestion
 const formatFechaOperativaRuta = (fecha?: string | null) => {
   const key = String(fecha || '').slice(0, 10)
   if (!key) return 'sin fecha'
-  return new Date(`${key}T00:00:00-05:00`).toLocaleDateString('es-CO', {
+  return formatFechaBogota(`${key}T00:00:00-05:00`, {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
@@ -1604,10 +1605,10 @@ const ModuloContableContent = () => {
                         <td className="px-4 py-2 align-middle whitespace-nowrap">
                           <div className="flex flex-col">
                             <span className="text-xs font-bold text-slate-700">
-                              {new Date(m.fecha).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}
+                              {formatFechaBogota(m.fecha, { day: '2-digit', month: 'short', year: 'numeric' })}
                             </span>
                             <span className="text-[10px] text-slate-400 font-medium">
-                              {new Date(m.fecha).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                              {formatHoraBogota(m.fecha, { hour: '2-digit', minute: '2-digit', hour12: true })}
                             </span>
                           </div>
                         </td>
@@ -3299,7 +3300,7 @@ const ModuloContableContent = () => {
                                    <div key={c.id} className="p-4 border border-slate-200 bg-white rounded-xl hover:bg-slate-50 transition-all flex items-center justify-between">
                                        <div className="flex flex-col">
                                            <span className="text-xs font-black text-slate-900 uppercase">
-                                              {new Date(c.fecha).toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric' })}
+                                              {formatFechaBogota(c.fecha, { day: '2-digit', month: 'long', year: 'numeric' })}
                                            </span>
                                            <span className="text-[10px] font-bold text-slate-500 uppercase">{c.caja}</span>
                                        </div>
@@ -3355,7 +3356,7 @@ const ModuloContableContent = () => {
                                  >
                                    <div className="flex flex-col min-w-0">
                                      <span className="text-xs font-black text-slate-900 uppercase">
-                                       {new Date(c.fecha).toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                       {formatFechaBogota(c.fecha, { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                                      </span>
                                      <span className="text-[10px] font-bold text-slate-500 truncate">{c.responsable}</span>
                                      {(c.clientesFaltantes ?? 0) > 0 && (
@@ -3565,12 +3566,12 @@ const ModuloContableContent = () => {
                                       <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Fecha y Hora</span>
                                       <div className="flex flex-col">
                                         <span className="text-[11px] font-black text-slate-900 uppercase leading-tight">
-                                          {new Date(m.fecha).toLocaleDateString('es-CO', { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' })}
+                                          {formatFechaBogota(m.fecha, { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' })}
                                         </span>
                                         <div className="flex items-center gap-1 mt-0.5 text-blue-600 font-bold">
                                           <Clock className="w-2.5 h-2.5" />
                                           <span className="text-[10px] uppercase">
-                                            {new Date(m.fecha).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                                            {formatHoraBogota(m.fecha, { hour: '2-digit', minute: '2-digit', hour12: true })}
                                           </span>
                                         </div>
                                       </div>
@@ -3675,10 +3676,10 @@ const ModuloContableContent = () => {
                             </span>
                             <div className="space-y-1">
                                 <div className="font-black text-slate-900 text-base uppercase tracking-tight">
-                                    {new Date(arqueoSeleccionado.fecha).toLocaleDateString('es-CO', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
+                                    {formatFechaBogota(arqueoSeleccionado.fecha, { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
                                 </div>
                                 <div className="inline-flex items-center px-2 py-0.5 rounded-lg bg-blue-50 text-blue-600 text-xs font-black">
-                                    {new Date(arqueoSeleccionado.fecha).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true }).toUpperCase()}
+                                    {formatHoraBogota(arqueoSeleccionado.fecha, { hour: '2-digit', minute: '2-digit', hour12: true }).toUpperCase()}
                                 </div>
                             </div>
                         </div>

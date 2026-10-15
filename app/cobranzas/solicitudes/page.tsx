@@ -1,4 +1,5 @@
 'use client'
+import { formatFechaBogota } from '@/lib/format-date'
 import { logger } from '@/lib/logger'
 
 import { useMemo, useState, useEffect } from 'react'
@@ -243,7 +244,7 @@ export default function SolicitudesCobradorPage() {
                 ) : solicitudesFiltradas.map((sol) => (
                   <tr key={sol.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="px-6 py-4 font-medium text-slate-900">
-                      {new Date(sol.fecha).toLocaleDateString('es-CO', {
+                      {formatFechaBogota(sol.fecha, {
                         weekday: 'short',
                         day: 'numeric',
                         month: 'short',

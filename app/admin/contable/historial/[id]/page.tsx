@@ -1,4 +1,5 @@
 'use client'
+import { formatFechaBogota } from '@/lib/format-date'
 
 import { SkeletonDetalle } from '@/components/ui/Skeleton'
 
@@ -186,7 +187,7 @@ export default function DetalleCierrePage({ params }: { params: Promise<{ id: st
                     <div className="space-y-1">
                         <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Fecha de Cierre</span>
                         <div className="text-lg font-bold text-slate-900">
-                            {new Date(cierre.fecha).toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            {formatFechaBogota(cierre.fecha, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                         </div>
                     </div>
                     <div className="grid grid-cols-2 gap-6">

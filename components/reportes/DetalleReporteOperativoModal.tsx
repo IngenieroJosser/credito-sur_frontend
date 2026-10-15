@@ -1,3 +1,4 @@
+import { formatFechaBogota, formatHoraBogota } from '@/lib/format-date'
 // ... (imports remain the same, ensure all icons are imported)
 import React from 'react';
 import { 
@@ -154,10 +155,10 @@ export default function DetalleReporteOperativoModal({ id, onClose }: DetalleRep
                                     <td className="px-6 py-3">
                                         <div className="flex flex-col">
                                             <span className="text-slate-900 font-bold tabular-nums">
-                                                {new Date(m.fecha).toLocaleTimeString('en-US', { hour: '2-digit', minute:'2-digit', second:'2-digit', hour12:true })}
+                                                {formatHoraBogota(m.fecha, { hour: '2-digit', minute:'2-digit', second:'2-digit', hour12:true }, 'en-US')}
                                             </span>
                                             <span className="text-[10px] text-slate-400 font-semibold group-hover:text-blue-500 transition-colors">
-                                                {new Date(m.fecha).toLocaleDateString()}
+                                                {formatFechaBogota(m.fecha)}
                                             </span>
                                         </div>
                                     </td>

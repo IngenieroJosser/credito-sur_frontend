@@ -1,4 +1,5 @@
 'use client'
+import { formatFechaBogota } from '@/lib/format-date'
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
@@ -81,7 +82,7 @@ const fmtDate = (s: string | undefined) => {
   try {
     const d = new Date(s)
     if (isNaN(d.getTime())) return '—'
-    return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
+    return formatFechaBogota(d, { day: '2-digit', month: 'short', year: 'numeric' })
   } catch {
     return '—'
   }

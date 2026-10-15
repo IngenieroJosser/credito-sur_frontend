@@ -1,4 +1,5 @@
 'use client'
+import { formatFechaBogota, formatHoraBogota } from '@/lib/format-date'
 
 import { useState, useEffect, useCallback } from 'react'
 import { 
@@ -116,7 +117,7 @@ const SyncStatusPage = () => {
 
   useEffect(() => {
     const updateTime = () => {
-      setClientTime(new Date().toLocaleTimeString('es-CO', { hour12: true }))
+      setClientTime(formatHoraBogota(new Date(), { hour12: true }))
     }
     updateTime()
     const timeInterval = setInterval(updateTime, 1000)
@@ -179,7 +180,7 @@ const SyncStatusPage = () => {
     if (diffMin < 60) return `Hace ${diffMin} min`
     const diffHrs = Math.floor(diffMin / 60)
     if (diffHrs < 24) return `Hace ${diffHrs}h`
-    return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+    return formatFechaBogota(d, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
   }
 
   const renderServerQueuePanel = () => {
@@ -295,7 +296,7 @@ const SyncStatusPage = () => {
                       <td className="py-2 pr-2 text-right font-black text-slate-900 align-top">{j.attemptsMade ?? '-'}</td>
                       <td className="py-2 text-right text-slate-500 font-bold align-top">
                         {j.timestamp
-                          ? new Date(j.timestamp).toLocaleTimeString('es-CO', {
+                          ? formatHoraBogota(j.timestamp, {
                               hour: '2-digit',
                               minute: '2-digit',
                               hour12: true,

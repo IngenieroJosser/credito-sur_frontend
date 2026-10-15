@@ -1,4 +1,5 @@
 'use client'
+import { formatFechaBogota } from '@/lib/format-date'
 
 import type { PagoParcial } from '@/types/domain'
 
@@ -3215,7 +3216,7 @@ const handleRegistrarPago = useCallback(async (
 
               const localDate = new Date(year, month - 1, day);
 
-              return localDate.toLocaleDateString('es-CO', { 
+              return formatFechaBogota(localDate, { 
 
                 year: 'numeric', 
 

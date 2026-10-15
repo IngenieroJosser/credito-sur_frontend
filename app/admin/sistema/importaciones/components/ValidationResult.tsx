@@ -1,3 +1,4 @@
+import { formatFechaBogota } from '@/lib/format-date'
 import React, { useState } from 'react';
 import { AlertCircle, AlertTriangle, CheckCircle, ChevronLeft, ChevronRight, FileSpreadsheet, Table2 } from 'lucide-react';
 import { ResultadoValidacion } from '@/types/importaciones';
@@ -15,7 +16,7 @@ const ISO_FECHA = /^(\d{4})-(\d{2})-(\d{2})T/;
 
 const formatValor = (valor: unknown, esMoneda = false): string => {
   if (valor === null || valor === undefined || valor === '') return '-';
-  if (valor instanceof Date) return valor.toLocaleDateString('es-CO');
+  if (valor instanceof Date) return formatFechaBogota(valor);
   if (typeof valor === 'string') {
     const m = ISO_FECHA.exec(valor);
     if (m) return `${m[3]}/${m[2]}/${m[1]}`;

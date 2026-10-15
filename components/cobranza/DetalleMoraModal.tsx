@@ -1,4 +1,5 @@
 'use client'
+import { formatFechaBogota } from '@/lib/format-date'
 
 /**
  * Modal de detalle de mora — Muestra información completa del préstamo en mora
@@ -174,7 +175,7 @@ export default function DetalleMoraModal({
                 </p>
                 {cuenta.fechaVencimiento && (
                   <p className="text-[10px] text-slate-500 mt-0.5">
-                    Fecha límite: {new Date(cuenta.fechaVencimiento).toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                    Fecha límite: {formatFechaBogota(cuenta.fechaVencimiento, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                   </p>
                 )}
               </div>

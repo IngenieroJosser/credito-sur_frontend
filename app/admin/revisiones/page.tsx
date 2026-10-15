@@ -2,6 +2,7 @@
 
 import { mensajeDeError } from '@/lib/mensaje-de-error'
 import { numero, texto } from '@/lib/valores-de-api'
+import { formatFechaBogota } from '@/lib/format-date'
 /**
  * ============================================================================
  * MÓDULO DE REVISIONES - Centro de Aprobaciones
@@ -173,7 +174,7 @@ const CATEGORIAS: Record<
 const formatFecha = (iso: string | null | undefined) => {
   if (!iso) return '—'
   const d = new Date(iso)
-  return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true })
+  return formatFechaBogota(d, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true })
 }
 
 const toBogotaDateKey = (value: string | null | undefined) => {
@@ -199,7 +200,7 @@ const formatFechaCortaBogota = (value: string | null | undefined) => {
   const key = toBogotaDateKey(value)
   if (!key) return '?'
   const date = new Date(`${key}T12:00:00-05:00`)
-  return date.toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })
+  return formatFechaBogota(date, { day: '2-digit', month: 'short' })
 }
 
 const textValue = (...values: unknown[]) => {

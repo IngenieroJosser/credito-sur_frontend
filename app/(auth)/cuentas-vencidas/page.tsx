@@ -1,4 +1,5 @@
 'use client'
+import { formatFechaBogota } from '@/lib/format-date'
 
 import type { OfflineCliente, OfflinePrestamo } from '@/lib/offline/offlineDb'
 
@@ -585,7 +586,7 @@ function CuentasVencidasContent() {
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-1.5 text-slate-600 text-xs">
                             <Calendar className="h-3.5 w-3.5 text-slate-400" />
-                            {new Date(c.fechaVencimiento).toLocaleDateString('es-CO')}
+                            {formatFechaBogota(c.fechaVencimiento)}
                           </div>
                         </td>
                         <td className="px-6 py-4 text-center">
@@ -690,7 +691,7 @@ function CuentasVencidasContent() {
                         <span className="text-slate-500">
                           Venció:{' '}
                           <span className="font-bold text-slate-700">
-                            {new Date(cuenta.fechaVencimiento).toLocaleDateString('es-CO')}
+                            {formatFechaBogota(cuenta.fechaVencimiento)}
                           </span>
                         </span>
                       </div>

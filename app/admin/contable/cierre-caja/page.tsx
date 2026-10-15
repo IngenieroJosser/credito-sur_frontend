@@ -1,4 +1,5 @@
 'use client'
+import { formatFechaBogota } from '@/lib/format-date'
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { logger } from '@/lib/logger'
@@ -840,7 +841,7 @@ export default function CierreCajaPage() {
             <p className="text-slate-500 font-medium mt-1">
               {'Caja Principal'}
               <span className="mx-2 text-slate-300">•</span>
-              {new Date().toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+              {formatFechaBogota(new Date(), { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
             </p>
           </div>
         </div>
