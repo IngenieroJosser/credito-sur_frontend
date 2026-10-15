@@ -5,7 +5,6 @@ import {
   buildHistorialDiaFromBackend,
   isPagoForHistorialFecha,
   normalizeVisitaHistorial,
-  computeHistorialResumenCompartido,
 } from '@/lib/ruta-historial'
 import {
   filterPagosDelDiaByRuta,
@@ -20,6 +19,7 @@ import {
 } from '@/services/contabilidad-service'
 import { RolUsuario } from '@/types/enums'
 import { getBogotaDateKey } from '@/lib/rutas-core'
+import type { Pago } from '@/types/domain'
 
 export type UseRutaHistorialOperativoProps = {
   rutaId?: string
@@ -39,8 +39,8 @@ export const useRutaHistorialOperativo = ({
   initialDays = 30,
   preferLoadDayForToday = false,
 }: UseRutaHistorialOperativoProps) => {
-  const [pagosCache, setPagosCache] = useState<any[]>([])
-  const pagosCacheRef = useRef<any[]>([])
+  const [pagosCache, setPagosCache] = useState<Pago[]>([])
+  const pagosCacheRef = useRef<Pago[]>([])
 
   useEffect(() => {
     pagosCacheRef.current = pagosCache
@@ -52,7 +52,7 @@ export const useRutaHistorialOperativo = ({
     const loadPagos = async () => {
       try {
         const pagosResp = await pagosService.obtenerPagos({ limit: 5000 })
-        const pagosData = (pagosResp as any)?.pagos || pagosResp || []
+        const pagosData = (pagosResp)?.pagos || pagosResp || []
         setPagosCache(Array.isArray(pagosData) ? pagosData : [])
         pagosCacheRef.current = Array.isArray(pagosData) ? pagosData : []
       } catch {
@@ -84,23 +84,22 @@ export const useRutaHistorialOperativo = ({
       const saldoRuta = await obtenerSaldoDisponibleRuta(rutaId, fechaClave)
 
       const pagosResp = await pagosService.obtenerPagos({ limit: 5000 })
-      const pagosData = (pagosResp as any)?.pagos || pagosResp || []
+      const pagosData = (pagosResp)?.pagos || pagosResp || []
 
-      const obligacionesRuta = Array.isArray((visitasResp as any)?.resumen?.obligaciones)
-        ? (visitasResp as any).resumen.obligaciones
-        : []
-
-      const obligaciones = Array.isArray((visitasResp as any)?.obligaciones)
-        ? (visitasResp as any).obligaciones
-        : obligacionesRuta.length > 0
-          ? obligacionesRuta
-          : Array.isArray((visitasResp as any)?.visitas)
-            ? (visitasResp as any).visitas
-            : []
+      // Habia una rama de respaldo que leia `visitasResp.resumen.obligaciones`. Ahi no
+      // esta: el backend pone `obligaciones` en la RAIZ de la respuesta, al mismo nivel
+      // que `visitas` y `resumen` (`routes.service.ts:4606-4638`). Esa lectura valia
+      // siempre `undefined`, la rama nunca se alcanzaba (la comprobacion de la raiz va
+      // primero y gana) y cuando no habia obligaciones se caia igual a `visitas`.
+      const obligaciones = Array.isArray(visitasResp?.obligaciones)
+        ? visitasResp.obligaciones
+        : Array.isArray(visitasResp?.visitas)
+          ? visitasResp.visitas
+          : []
 
       const prestamosRuta: Set<string> = new Set(
         obligaciones
-          .map((o: any) =>
+          .map((o) =>
             String(
               o?.prestamoId ||
               o?.prestamo?.id ||
@@ -141,22 +140,22 @@ export const useRutaHistorialOperativo = ({
       const visitasHoy = getVisitasHoy()
 
       const visitasEnriquecidas = await enrichRutaHistorialRiesgo({
-        visitas: diaMerged.visitas || [],
+        visitas: diaMerged?.visitas || [],
         fechaClave,
         hoyBogotaKey,
         visitasHoy,
       })
 
       const visitasNormalizadas = visitasEnriquecidas.map(normalizeVisitaHistorial)
-      const resumenActualizado = computeHistorialResumenCompartido(
-        visitasNormalizadas,
-        diaMerged.resumen,
-      )
 
       return {
         ...diaMerged,
         visitas: visitasNormalizadas,
-        resumen: resumenActualizado,
+        // El resumen ya fue reconciliado por buildHistorialDiaFromBackend y
+        // mergePagosDelDiaIntoHistorialDia. Volver a sumarlo desde tarjetas
+        // puede contar dos veces una misma gestión cuando hay más de una forma
+        // de la obligación en la respuesta.
+        resumen: diaMerged?.resumen,
       }
     } catch {
       return {

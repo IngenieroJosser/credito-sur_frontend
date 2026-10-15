@@ -1,9 +1,11 @@
 'use client'
 
+import { estadoDeError, mensajeDeError } from '@/lib/mensaje-de-error'
 import Paginador from '@/components/ui/Paginador'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Database, Cloud, RefreshCw, HardDrive, ShieldCheck, Clock, Download } from 'lucide-react'
+import { Database, Cloud, RefreshCw, HardDrive, ShieldCheck, Clock, Download, Loader2 } from 'lucide-react'
+import Tooltip from '@/components/ui/Tooltip'
 import { apiRequest } from '@/lib/api/api'
 import { exportService } from '@/services/export-service'
 
@@ -68,8 +70,8 @@ const BackupsSistemaPage = () => {
       ])
       setStatus(s || null)
       setHistory(Array.isArray(h?.items) ? h.items : [])
-    } catch (e: any) {
-      setError(e?.message || 'No se pudo cargar el estado de backups')
+    } catch (e) {
+      setError(mensajeDeError(e, 'No se pudo cargar el estado de backups'))
       setStatus(null)
       setHistory([])
     } finally {
@@ -99,13 +101,19 @@ const BackupsSistemaPage = () => {
     setPage(1)
   }, [history.length])
 
+  /** Cual descarga esta en curso, como `id:tipo`, o null si ninguna. */
+  const [descargando, setDescargando] = useState<string | null>(null)
+
   const downloadArtifact = useCallback(async (id: string, type: 'dump' | 'xlsx') => {
+    // Un dump pesa; si se vuelve a pulsar mientras baja, se pide dos veces.
+    if (descargando) return
     const ext = type === 'xlsx' ? 'xlsx' : 'dump'
     setError(null)
+    setDescargando(`${id}:${type}`)
     try {
       await exportService.downloadFile(`backup/${id}/download`, { type }, `backup_${id}.${ext}`)
-    } catch (e: any) {
-      const status = e?.response?.status
+    } catch (e) {
+      const status = estadoDeError(e)
       if (status === 404) {
         setError(
           type === 'dump'
@@ -114,9 +122,11 @@ const BackupsSistemaPage = () => {
         )
         return
       }
-      setError(e?.message || 'No se pudo descargar el archivo')
+      setError(mensajeDeError(e, 'No se pudo descargar el archivo'))
+    } finally {
+      setDescargando(null)
     }
-  }, [])
+  }, [descargando])
 
   const runBackup = useCallback(async () => {
     setRunning(true)
@@ -124,8 +134,8 @@ const BackupsSistemaPage = () => {
     try {
       await apiRequest('POST', '/backup/run', undefined, { cacheTTL: 0, timeout: 15 * 60 * 1000 })
       await loadAll()
-    } catch (e: any) {
-      setError(e?.message || 'No se pudo ejecutar el backup')
+    } catch (e) {
+      setError(mensajeDeError(e, 'No se pudo ejecutar el backup'))
     } finally {
       setRunning(false)
     }
@@ -142,8 +152,8 @@ const BackupsSistemaPage = () => {
         { cacheTTL: 0 },
       )
       setIntegrity(res)
-    } catch (e: any) {
-      setError(e?.message || 'No se pudo verificar la integridad contable')
+    } catch (e) {
+      setError(mensajeDeError(e, 'No se pudo verificar la integridad contable'))
     } finally {
       setCheckingIntegrity(false)
     }
@@ -309,6 +319,8 @@ const BackupsSistemaPage = () => {
                   const tipoLabel = r.tipo === 'MANUAL' ? 'Manual' : 'Programado'
                   const canDownloadDump = r.estado === 'EXITOSO'
                   const canDownloadExcel = r.estado !== 'EN_PROCESO'
+                  const bajandoDump = descargando === `${r.id}:dump`
+                  const bajandoExcel = descargando === `${r.id}:xlsx`
                   return (
                     <tr key={r.id} className="hover:bg-slate-50/50 transition-colors">
                       <td className="px-6 py-4 text-slate-900 font-medium">{formatDateTime(r.finishedAt || r.startedAt)}</td>
@@ -319,24 +331,38 @@ const BackupsSistemaPage = () => {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => downloadArtifact(r.id, 'dump')}
-                            disabled={!canDownloadDump}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 transition-all disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-slate-600 disabled:hover:border-slate-200"
-                          >
-                            <Download className="h-3.5 w-3.5" />
-                            Dump
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => downloadArtifact(r.id, 'xlsx')}
-                            disabled={!canDownloadExcel}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 transition-all disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-slate-600 disabled:hover:border-slate-200"
-                          >
-                            <Download className="h-3.5 w-3.5" />
-                            Excel
-                          </button>
+                          <Tooltip texto="Copia completa de la base de datos, para restaurarla">
+                            <button
+                              type="button"
+                              aria-busy={bajandoDump}
+                              onClick={() => downloadArtifact(r.id, 'dump')}
+                              disabled={!canDownloadDump || descargando !== null}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 transition-all disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-slate-600 disabled:hover:border-slate-200"
+                            >
+                              {bajandoDump ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Download className="h-3.5 w-3.5" />
+                              )}
+                              {bajandoDump ? 'Descargando…' : 'Dump'}
+                            </button>
+                          </Tooltip>
+                          <Tooltip texto="Los datos del backup en una hoja de calculo">
+                            <button
+                              type="button"
+                              aria-busy={bajandoExcel}
+                              onClick={() => downloadArtifact(r.id, 'xlsx')}
+                              disabled={!canDownloadExcel || descargando !== null}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 transition-all disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-slate-600 disabled:hover:border-slate-200"
+                            >
+                              {bajandoExcel ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Download className="h-3.5 w-3.5" />
+                              )}
+                              {bajandoExcel ? 'Descargando…' : 'Excel'}
+                            </button>
+                          </Tooltip>
                         </div>
                       </td>
                     </tr>
@@ -388,6 +414,8 @@ const BackupsSistemaPage = () => {
             const tipoLabel = r.tipo === 'MANUAL' ? 'Manual' : 'Programado'
             const canDownloadDump = r.estado === 'EXITOSO'
             const canDownloadExcel = r.estado !== 'EN_PROCESO'
+            const bajandoDump = descargando === `${r.id}:dump`
+            const bajandoExcel = descargando === `${r.id}:xlsx`
 
             return (
               <div key={r.id} className="bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 p-4">
@@ -410,24 +438,38 @@ const BackupsSistemaPage = () => {
                 </div>
 
                 <div className="mt-4 grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => downloadArtifact(r.id, 'dump')}
-                    disabled={!canDownloadDump}
-                    className="py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-slate-600 disabled:hover:border-slate-200"
-                  >
-                    <Download className="h-4 w-4" />
-                    Dump
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => downloadArtifact(r.id, 'xlsx')}
-                    disabled={!canDownloadExcel}
-                    className="py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-slate-600 disabled:hover:border-slate-200"
-                  >
-                    <Download className="h-4 w-4" />
-                    Excel
-                  </button>
+                  <Tooltip texto="Copia completa de la base de datos, para restaurarla">
+                    <button
+                      type="button"
+                      aria-busy={bajandoDump}
+                      onClick={() => downloadArtifact(r.id, 'dump')}
+                      disabled={!canDownloadDump || descargando !== null}
+                      className="py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-slate-600 disabled:hover:border-slate-200"
+                    >
+                      {bajandoDump ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Download className="h-4 w-4" />
+                      )}
+                      {bajandoDump ? 'Descargando…' : 'Dump'}
+                    </button>
+                  </Tooltip>
+                  <Tooltip texto="Los datos del backup en una hoja de calculo">
+                    <button
+                      type="button"
+                      aria-busy={bajandoExcel}
+                      onClick={() => downloadArtifact(r.id, 'xlsx')}
+                      disabled={!canDownloadExcel || descargando !== null}
+                      className="py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-slate-600 disabled:hover:border-slate-200"
+                    >
+                      {bajandoExcel ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Download className="h-4 w-4" />
+                      )}
+                      {bajandoExcel ? 'Descargando…' : 'Excel'}
+                    </button>
+                  </Tooltip>
                 </div>
               </div>
             )

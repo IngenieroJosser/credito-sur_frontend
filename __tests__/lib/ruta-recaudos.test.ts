@@ -1,10 +1,15 @@
+import type { VisitaParcial } from '@/lib/types/cobranza'
+import type { PagoParcial } from '@/types/domain'
+import { MetodoPago } from '@/types/enums'
 import {
   applyRecaudoHoyToVisitas,
   buildRecaudosHoyMapByPrestamoId,
   computeMontoCuotaPendienteDespuesDeRecaudo,
   isPagoCierrePendiente,
+  isPagoConfirmadoParaRecaudo,
   mergeVisitasPreservingLocalRecaudo,
   sumMontoTotalPagosByBogotaDateKey,
+  sumMontoTotalPagosHistorico,
 } from '@/lib/ruta-recaudos'
 import {
   computeRutaHoyUiStatsFromVisitas,
@@ -56,7 +61,33 @@ describe('ruta-recaudos', () => {
     ).toBe(15000)
   })
 
+  it('no cuenta solicitudes de transferencia pendientes como recaudo diario ni historico', () => {
+    const pagos = [
+      {
+        prestamoId: 'prestamo-1',
+        fechaPago: '2026-10-08T13:57:02-05:00',
+        montoTotal: 27_500,
+        metodoPago: MetodoPago.TRANSFERENCIA,
+        pendingVerification: true,
+        estadoAprobacion: 'PENDIENTE',
+        tipoAprobacion: 'PAGO_TRANSFERENCIA',
+      },
+      {
+        prestamoId: 'prestamo-1',
+        fechaPago: '2026-10-08T14:20:00-05:00',
+        montoTotal: 27_500,
+        metodoPago: MetodoPago.EFECTIVO,
+      },
+    ] satisfies PagoParcial[]
+
+    expect(isPagoConfirmadoParaRecaudo(pagos[0])).toBe(false)
+    expect(sumMontoTotalPagosByBogotaDateKey(pagos, '2026-10-08')).toBe(27_500)
+    expect(sumMontoTotalPagosHistorico(pagos)).toBe(27_500)
+  })
+
   it('preserva el recaudo local si un refresh llega antes de que pagos refleje el pago de un ausente', () => {
+    // `satisfies` en vez de `as any`: comprueba las claves y deja los literales de
+    // `estado` como la union cerrada `EstadoVisita`.
     const local = [
       {
         id: 'visita-1',
@@ -80,7 +111,7 @@ describe('ruta-recaudos', () => {
         saldoTotal: 564998,
         recaudadoDelDia: 0,
       },
-    ]
+    ] satisfies VisitaParcial[]
 
     const backendRefresh = [
       {
@@ -105,9 +136,12 @@ describe('ruta-recaudos', () => {
         saldoTotal: 564998,
         recaudadoDelDia: 0,
       },
-    ]
+    ] satisfies VisitaParcial[]
 
-    const merged = mergeVisitasPreservingLocalRecaudo(local as any, backendRefresh as any)
+    const merged = mergeVisitasPreservingLocalRecaudo<VisitaParcial>(
+      local,
+      backendRefresh,
+    )
     const operativas = merged.filter((v) => !shouldExcludeVisitaFromOperationalMeta(v))
     const stats = computeRutaHoyUiStatsFromVisitas(operativas, 0)
 
@@ -120,7 +154,7 @@ describe('ruta-recaudos', () => {
   })
 
   it('preserva recaudo de un ausente pagado aunque el refresh cambie el id visual de la visita', () => {
-    const local = [
+    const local: VisitaParcial[] = [
       {
         id: 'asig-anterior-prestamo-1',
         prestamoId: 'prestamo-1',
@@ -144,7 +178,7 @@ describe('ruta-recaudos', () => {
       },
     ]
 
-    const backendRefresh = [
+    const backendRefresh: VisitaParcial[] = [
       {
         id: 'asig-nueva-prestamo-1',
         prestamoId: 'prestamo-1',
@@ -168,7 +202,10 @@ describe('ruta-recaudos', () => {
       },
     ]
 
-    const merged = mergeVisitasPreservingLocalRecaudo(local as any, backendRefresh as any)
+    const merged = mergeVisitasPreservingLocalRecaudo<VisitaParcial>(
+      local,
+      backendRefresh,
+    )
     const operativas = merged.filter((v) => !shouldExcludeVisitaFromOperationalMeta(v))
     const stats = computeRutaHoyUiStatsFromVisitas(operativas, 0)
 
@@ -182,7 +219,9 @@ describe('ruta-recaudos', () => {
   })
 
   it('no pisa a cero el recaudo que ya viene autoritativo desde la ruta', () => {
-    const visitas = [
+    // Anotado porque `estado` es una union cerrada (`EstadoVisita`) y el literal suelto
+    // se ensancha a `string`. No cambia ningun valor.
+    const visitas: VisitaParcial[] = [
       {
         id: 'visita-1',
         prestamoId: 'prestamo-1',
@@ -195,7 +234,7 @@ describe('ruta-recaudos', () => {
       },
     ]
 
-    const result = applyRecaudoHoyToVisitas(visitas as any, {
+    const result = applyRecaudoHoyToVisitas(visitas, {
       hoyBogotaKey: '2026-06-03',
       recaudosHoyMap: {},
     })
@@ -216,7 +255,7 @@ describe('ruta-recaudos', () => {
         saldoTotal: 1330003,
         recaudadoDelDia: 0,
       },
-    ] as any, {
+    ], {
       hoyBogotaKey: '2026-06-11',
       recaudosHoyMap: {
         'prestamo-1': 126666,

@@ -1,4 +1,5 @@
 'use client'
+import { estadoDeError } from '@/lib/mensaje-de-error'
 
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react'
 import { io, Socket } from 'socket.io-client'
@@ -8,6 +9,7 @@ import { formatShortDateTime } from "@/lib/utils/format";
 import { showLocalNotification } from '@/lib/push/pushNotifications'
 import { refreshSesion } from '@/services/autenticacion-service'
 import { logger } from '@/lib/logger'
+import { raizBackend } from '@/lib/api/baseUrl'
 
 interface NotificacionesContextProps {
   socket: Socket | null;
@@ -47,8 +49,9 @@ export function NotificacionesProvider({ children }: { children: React.ReactNode
       const data = await notificacionesService.obtenerTodas()
       setNotificaciones(data)
     } catch (e) {
-      const err: any = e as any
-      const statusCode = err?.statusCode || err?.response?.status
+      // Lo que sale de un `catch` es `unknown`; de el se leen dos campos para el log.
+      const err = (e || {}) as { message?: string; error?: string }
+      const statusCode = estadoDeError(e)
       if (statusCode === 401 || statusCode === 403) {
         return
       }
@@ -95,11 +98,14 @@ export function NotificacionesProvider({ children }: { children: React.ReactNode
         const payload = JSON.parse(atob(base64 + padding));
         currentUserId = payload.sub || payload.id
       }
-    } catch(e) {}
+    } catch (error) {
+      // Un token ilegible solo significa que no se conoce al usuario aqui.
+      // Se avisa solo en desarrollo, que es donde sirve.
+      logger.warn('No se pudo leer el token para identificar al usuario', error)
+    }
 
     // Inicialización del socket
-    const rawBaseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://127.0.0.1:3001'
-    const baseUrl = rawBaseUrl.replace(/\/api-credisur\/?$/, '') // Socket.io suele ir a la raíz o /socket.io
+    const baseUrl = raizBackend() // Socket.io va a la raíz, sin /api-credisur
 
     logger.log(`[Socket] Intentando conectar a: ${baseUrl}`);
 
@@ -143,7 +149,7 @@ export function NotificacionesProvider({ children }: { children: React.ReactNode
 
     // Cuando un admin actualiza permisos de un usuario, el backend emite usuarios_actualizados.
     // Si aplica a este usuario, refrescamos sesión (token + permisos + sidebar) sin requerir re-login.
-    newSocket.on('usuarios_actualizados', async (payload: any) => {
+    newSocket.on('usuarios_actualizados', async (payload) => {
       try {
         if (!currentUserId) return;
         if (payload?.accion !== 'PERMISOS_ACTUALIZADOS') return;
@@ -155,10 +161,12 @@ export function NotificacionesProvider({ children }: { children: React.ReactNode
         }
 
         if (refreshed?.usuario) {
+          // El usuario guardado en localStorage: texto JSON que puede estar ilegible,
+          // asi que se lee como objeto indexable y no por un `any`.
           const existingRaw = localStorage.getItem('user');
-          let existing: any = null;
+          let existing: Record<string, unknown> | null = null;
           try {
-            existing = existingRaw ? JSON.parse(existingRaw) : null;
+            existing = existingRaw ? (JSON.parse(existingRaw) as Record<string, unknown>) : null;
           } catch {
             existing = null;
           }
@@ -170,7 +178,7 @@ export function NotificacionesProvider({ children }: { children: React.ReactNode
         }
 
         window.dispatchEvent(new Event('userUpdated'));
-      } catch (e) {
+      } catch {
         // No interrumpir la app si falla el refresh; el cambio se aplicará en el próximo login.
       }
     })
@@ -192,7 +200,7 @@ export function NotificacionesProvider({ children }: { children: React.ReactNode
     const handleIncomingNotification = (notificacion: Notificacion, forceInfo = false) => {
       const formattedNotif = {
         ...notificacion,
-        fecha: formatShortDateTime((notificacion as any).creadoEn || notificacion.fecha, 'Fecha desconocida'),
+        fecha: formatShortDateTime((notificacion).creadoEn || notificacion.fecha, 'Fecha desconocida'),
       };
       setNotificaciones(prev => [formattedNotif, ...prev]);
       ringBell();

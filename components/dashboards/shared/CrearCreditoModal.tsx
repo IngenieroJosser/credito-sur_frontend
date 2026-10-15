@@ -13,7 +13,7 @@ import {
   Loader2
 } from 'lucide-react'
 import { formatCOPInputValue, formatCurrency, formatLoanTerm, parseCOPInputToNumber } from '@/lib/utils'
-import { calcularInteresPlano, calcularInteresSimple } from '@/lib/interes'
+import { calcularPrestamoPreview, repartoConInteresConocido } from '@/lib/creditos/preview-credito'
 import { Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
 import { clientesService, Cliente } from '@/services/clientes-service'
 import { articulosService, Articulo } from '@/services/articulos-service'
@@ -22,6 +22,8 @@ import { TipoAmortizacion } from '@/types/enums'
 import { getBogotaDateKey, toBogotaDateTimeLocalInputValue } from '@/lib/rutas-core'
 import FieldLabel from '@/components/ui/FieldLabel'
 import { useAuth } from '@/hooks/useAuth'
+import Tooltip from '@/components/ui/Tooltip'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 
 interface CrearCreditoModalProps {
   isOpen: boolean
@@ -126,63 +128,6 @@ const getDefaultFirstCollectionDate = (frecuencia: string, base: Date = new Date
   }
 }
 
-const calcularPrestamoPreview = (params: {
-  monto: number
-  cuotas: number
-  tasa: number
-  meses: number
-  tipoInteres: TipoAmortizacion
-}) => {
-  const monto = Number(params.monto || 0)
-  const cuotas = Number(params.cuotas || 0)
-  const tasa = Number(params.tasa || 0)
-
-  if (!(monto > 0) || !(cuotas > 0)) {
-    return null
-  }
-
-  if (params.tipoInteres === TipoAmortizacion.INTERES_PLANO || params.tipoInteres === TipoAmortizacion.FRANCESA) {
-    // Interés plano (nuevo) / Amortización.
-    const intereses = calcularInteresPlano(monto, tasa)
-    const total = monto + intereses
-    // Protegido contra cuotas=0 (el campo puede estar vacío mientras se
-    // escribe): sin esto la división da Infinity y el preview muestra "$∞".
-    const valorCuota = cuotas > 0 ? Math.floor(total / cuotas) : 0
-    // La última cuota absorbe el residuo
-    const residuo = cuotas > 0 ? total - valorCuota * cuotas : 0
-
-    return {
-      meses: params.meses,
-      monto,
-      intereses,
-      total,
-      valorCuota, // cuotas 1..n-1
-      valorUltimaCuota: valorCuota + residuo, // última cuota
-      numCuotas: cuotas,
-      sistema: 'Amortización',
-    }
-  }
-
-  // INTERES_SIMPLE: la tasa se aplica por cada mes de plazo.
-  const mesesInteres = Math.max(1, params.meses)
-  const intereses = calcularInteresSimple(monto, tasa, mesesInteres)
-  const total = monto + intereses
-  // Reparto como el backend en interés simple: trunca capital e interés por
-  // separado (la última cuota absorbe el residuo), no una división directa.
-  const valorCuota = cuotas > 0
-    ? Math.floor((total - intereses) / cuotas) + Math.floor(intereses / cuotas)
-    : 0
-
-  return {
-    meses: params.meses,
-    monto,
-    intereses,
-    total,
-    valorCuota,
-    numCuotas: cuotas,
-    sistema: 'Interés Simple',
-  }
-}
 
 export default function CrearCreditoModal({
   isOpen,
@@ -223,6 +168,12 @@ export default function CrearCreditoModal({
 
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [articulos, setArticulos] = useState<Articulo[]>([])
+  // Escape para salir y el foco en el primer campo al abrir. El hook lleva
+  // una pila, asi que con modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    abierto: isOpen,
+    onClose: () => handleReset(),
+  })
 
   const puedeUsarFechaAntiguaCredito = [
     'ADMIN',
@@ -295,7 +246,7 @@ export default function CrearCreditoModal({
       const aFinanciar = precioTotal
       const numCuotas = 1
       const valorCuota = precioTotal
-      return { meses: 0, precioTotal, aFinanciar, numCuotas, valorCuota }
+      return { meses: 0, precioTotal, aFinanciar, numCuotas, valorCuota, valorUltimaCuota: valorCuota }
     }
     if (!planSeleccionado || !mesesPlan) return null
     const precioTotal = planSeleccionado.precioTotal
@@ -305,8 +256,20 @@ export default function CrearCreditoModal({
     else if (frecuenciaPago === 'SEMANAL') numCuotas = Math.ceil(mesesPlan * 4)
     else if (frecuenciaPago === 'QUINCENAL') numCuotas = Math.ceil(mesesPlan * 2)
     else if (frecuenciaPago === 'MENSUAL') numCuotas = Math.ceil(mesesPlan * 1)
-    const valorCuota = numCuotas > 0 ? Math.ceil(aFinanciar / numCuotas) : 0
-    return { meses: mesesPlan, precioTotal, aFinanciar, numCuotas, valorCuota }
+    // Un credito de articulo no cobra tasa: el recargo ya viene en el precio del
+    // plan, asi que el backend lo reparte con interes 0 y cuota base
+    // `floor(aFinanciar / n)`, con la ultima absorbiendo el residuo.
+    //
+    // Aqui era `Math.ceil`, que da un peso MAS que lo que se cobra. Medido sobre
+    // 1540 combinaciones de precio, cuota inicial, frecuencia y plazo tipicas:
+    // 780 (50,6%) mostraban un peso de mas.
+    const { valorCuota, valorUltimaCuota } = repartoConInteresConocido(
+      TipoAmortizacion.INTERES_PLANO,
+      aFinanciar,
+      0,
+      numCuotas,
+    )
+    return { meses: mesesPlan, precioTotal, aFinanciar, numCuotas, valorCuota, valorUltimaCuota }
   }, [planSeleccionado, mesesPlan, frecuenciaPago, cuotaInicialArticuloInput, articuloSeleccionado, esContado])
 
   const calculoPrestamo = useMemo(() => {
@@ -330,6 +293,17 @@ export default function CrearCreditoModal({
       tipoInteres,
     })
   }, [creditType, montoPrestamoInput, cuotasPrestamoInput, frecuenciaPago, tasaInteresInput, tipoInteres])
+
+  // Este es el formulario mas caro de perder del sistema: cliente, monto, tasa,
+  // cuotas, fechas y, en articulos, el plan elegido. Un clic en el fondo lo
+  // borraba todo sin preguntar.
+  const hayDatosSinGuardar =
+    isSubmitting ||
+    clienteCreditoId !== '' ||
+    montoPrestamoInput !== '' ||
+    articuloSeleccionadoId !== '' ||
+    cuotaInicialArticuloInput !== '' ||
+    notasInput !== ''
 
   if (!isOpen) return null
 
@@ -358,35 +332,48 @@ export default function CrearCreditoModal({
         style={{ zIndex: MODAL_Z_INDEX }}
         onMouseDown={(e) => { mouseDownTargetRef.current = e.target }}
         onMouseUp={(e) => {
-          if (e.target === e.currentTarget && mouseDownTargetRef.current === e.currentTarget) {
+          if (
+            e.target === e.currentTarget &&
+            mouseDownTargetRef.current === e.currentTarget &&
+            !hayDatosSinGuardar
+          ) {
             handleReset()
           }
           mouseDownTargetRef.current = null
         }}
       >
         <div
-          className="w-full bg-white shadow-2xl animate-in zoom-in-95 duration-200 h-[100dvh] sm:h-auto sm:max-h-[90vh] rounded-none sm:rounded-3xl sm:max-w-2xl overflow-y-auto"
+          className="flex w-full flex-col overflow-hidden bg-white shadow-2xl animate-in zoom-in-95 duration-200 h-[100dvh] sm:h-auto sm:max-h-[90vh] rounded-none sm:rounded-3xl sm:max-w-2xl"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="p-6">
-            <div className="flex justify-between items-start mb-6">
-              <div className="min-w-0">
-                <h3 className="text-xl font-bold text-slate-900">
-                  {creditType === 'articulo' && esContado ? 'Registrar Venta' : 'Crear Nuevo Crédito'}
-                </h3>
-              </div>
+          {/* Encabezado fijo: antes se iba con el scroll y en el celular se
+              perdia el titulo y la X al bajar por el formulario. */}
+          <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-100 p-4 sm:p-6">
+            <div className="min-w-0">
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                {creditType === 'articulo' && esContado ? 'Punto de venta' : 'Gestión de créditos'}
+              </p>
+              <h3 className="text-lg font-bold text-slate-900">
+                {creditType === 'articulo' && esContado ? 'Registrar venta' : 'Nuevo crédito'}
+              </h3>
+            </div>
+            <Tooltip texto="Cerrar">
               <button
                 type="button"
                 onClick={handleReset}
-                className="p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
-                title="Cerrar modal"
+                aria-label="Cerrar"
+                className="shrink-0 rounded-xl p-2 text-slate-500 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
               >
                 <X className="h-5 w-5" />
               </button>
-            </div>
+            </Tooltip>
+          </div>
+
+          {/* Lo unico que se desplaza */}
+          <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
 
             {!hideTypeSelector ? (
-              <div className="mb-6">
+              <div className="mb-6 rounded-2xl border border-slate-200 bg-slate-50 p-5">
                 <FieldLabel required className="mb-3">Tipo de Crédito</FieldLabel>
                 <div className="grid grid-cols-2 gap-3">
                   <button
@@ -428,7 +415,7 @@ export default function CrearCreditoModal({
               </div>
             )}
 
-            <div className="space-y-4">
+            <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-5">
               <div>
                 <FieldLabel required>Cliente</FieldLabel>
                 <select
@@ -447,7 +434,7 @@ export default function CrearCreditoModal({
 
               {creditType === 'prestamo' ? (
                 <>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <FieldLabel required>Monto del Préstamo</FieldLabel>
                       <div className="relative">
@@ -474,7 +461,7 @@ export default function CrearCreditoModal({
                       </select>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <FieldLabel required>Tasa de Interés (%)</FieldLabel>
                       <input
@@ -498,7 +485,7 @@ export default function CrearCreditoModal({
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <FieldLabel required>Frecuencia de Pago</FieldLabel>
                       <select
@@ -544,7 +531,7 @@ export default function CrearCreditoModal({
                         </div>
                         <span className="font-black text-blue-900 text-xl">{formatCurrency(calculoPrestamo.total)}</span>
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="bg-white/50 p-3 rounded-xl border border-blue-100">
                           <div className="text-[10px] text-blue-800 font-bold uppercase mb-1 flex items-center gap-1.5">
                             <Calculator className="w-3 h-3" />
@@ -581,6 +568,27 @@ export default function CrearCreditoModal({
                             {formatCurrency(calculoPrestamo.valorCuota)}
                           </div>
                         </div>
+                        {/* La última cuota absorbe el residuo del reparto, así que
+                            casi nunca vale lo mismo que las demás. El dato ya se
+                            calculaba y no se mostraba: quien vende el crédito
+                            cotizaba la cuota normal para todas. Solo aparece
+                            cuando de verdad difiere. */}
+                        {calculoPrestamo.valorUltimaCuota != null &&
+                          calculoPrestamo.valorUltimaCuota !== calculoPrestamo.valorCuota && (
+                          <div className="bg-white/50 p-3 rounded-xl border border-blue-100 sm:col-span-2">
+                            <div className="text-[10px] text-blue-800 font-bold uppercase mb-1 flex items-center gap-1.5">
+                              <DollarSign className="w-3 h-3" />
+                              Última cuota (cuota {calculoPrestamo.numCuotas})
+                            </div>
+                            <div className="font-black text-blue-900 text-lg">
+                              {formatCurrency(calculoPrestamo.valorUltimaCuota)}
+                            </div>
+                            <div className="text-[10px] text-blue-600 font-medium mt-1">
+                              Cierra el crédito con el resto del reparto: las cuotas 1 a{' '}
+                              {calculoPrestamo.numCuotas - 1} son de {formatCurrency(calculoPrestamo.valorCuota)}.
+                            </div>
+                          </div>
+                        )}
                       </div>
                       <div className="text-[11px] text-blue-600 font-medium italic text-center">
                         Duración: {formatLoanTerm({
@@ -754,7 +762,7 @@ export default function CrearCreditoModal({
                         </div>
                         <span className="font-black text-emerald-900 text-xl">{formatCurrency(esContado ? calculoCreditoArticulo.precioTotal : calculoCreditoArticulo.aFinanciar)}</span>
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="bg-white/50 p-3 rounded-xl border border-emerald-100">
                           <div className="text-[10px] text-emerald-800 font-bold uppercase mb-1 flex items-center gap-1.5">
                             <Calendar className="w-3 h-3" />
@@ -773,6 +781,28 @@ export default function CrearCreditoModal({
                             {formatCurrency(esContado ? calculoCreditoArticulo.precioTotal : calculoCreditoArticulo.valorCuota)}
                           </div>
                         </div>
+                        {/* La ultima cuota absorbe el residuo del reparto. En un
+                            articulo el residuo llega a ser de casi un peso por
+                            cuota, asi que con 180 cuotas diarias la ultima puede
+                            estar cientos de pesos por encima. Solo aparece cuando
+                            de verdad difiere. */}
+                        {!esContado &&
+                          calculoCreditoArticulo.valorUltimaCuota != null &&
+                          calculoCreditoArticulo.valorUltimaCuota !== calculoCreditoArticulo.valorCuota && (
+                          <div className="bg-white/50 p-3 rounded-xl border border-emerald-100 sm:col-span-2">
+                            <div className="text-[10px] text-emerald-800 font-bold uppercase mb-1 flex items-center gap-1.5">
+                              <DollarSign className="w-3 h-3" />
+                              Ultima cuota (cuota {calculoCreditoArticulo.numCuotas})
+                            </div>
+                            <div className="font-black text-emerald-900 text-lg">
+                              {formatCurrency(calculoCreditoArticulo.valorUltimaCuota)}
+                            </div>
+                            <div className="text-[10px] text-emerald-600 font-medium mt-1">
+                              Cierra el credito: las cuotas 1 a {calculoCreditoArticulo.numCuotas - 1} son de{' '}
+                              {formatCurrency(calculoCreditoArticulo.valorCuota)}.
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
@@ -877,10 +907,16 @@ export default function CrearCreditoModal({
                   )}
                 </div>
               </div>
-              <div className="flex gap-3 pt-6 mt-6 border-t border-slate-100">
+          </div>
+
+          {/* Acciones fijas: en el celular quedan siempre a la vista, sin tener
+              que bajar hasta el final del formulario. */}
+          <div className="flex shrink-0 gap-3 border-t border-slate-200 bg-slate-50 px-4 py-4 sm:px-6 pb-[max(1rem,env(safe-area-inset-bottom))]">
                 <button
+                  type="button"
                   onClick={handleReset}
-                  className="flex-1 bg-white border border-slate-200 text-slate-700 font-bold py-4 rounded-2xl hover:bg-slate-50 transition-all uppercase tracking-widest text-xs"
+                  disabled={isSubmitting}
+                  className="flex-1 rounded-xl border border-slate-300 bg-white py-3 font-bold text-slate-700 transition-all hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 disabled:opacity-50"
                 >
                   Cancelar
                 </button>
@@ -933,7 +969,7 @@ export default function CrearCreditoModal({
                           }
                       
                       logger.log('[CrearCreditoModal] payload to send:', payload);
-                      await onConfirm(payload as any)
+                      await onConfirm(payload)
                       handleReset()
                     } catch (error) {
                       console.error('Error al crear crédito:', error)
@@ -952,17 +988,16 @@ export default function CrearCreditoModal({
                     (fechaPrimerCobro ? fechaPrimerCobro < fechaCreditoKey : false) ||
                     (!puedeUsarFechaAntiguaCredito && fechaPrimerCobro ? fechaPrimerCobro < hoyBogotaKey : false)
                   }
-                  className="flex-1 bg-slate-900 text-white font-bold py-4 rounded-2xl shadow-xl shadow-slate-200 hover:bg-slate-800 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-widest text-xs"
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary py-3 font-bold text-white shadow-lg shadow-primary/25 transition-all hover:bg-primary-dark active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {isSubmitting ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <Loader2 className="h-5 w-5 animate-spin" />
                   ) : (
-                    <Plus className="w-4 h-4" />
+                    <Plus className="h-5 w-5" />
                   )}
-                  {isSubmitting ? 'Procesando...' : (creditType === 'articulo' && esContado ? 'Registrar Venta' : 'Crear Crédito')}
+                  {isSubmitting ? 'Procesando...' : (creditType === 'articulo' && esContado ? 'Registrar venta' : 'Crear crédito')}
                 </button>
-              </div>
-            </div>
+          </div>
           </div>
         </div>
       </div>

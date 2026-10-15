@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { rutasService } from '@/services/rutas-service'
+import { nombreDelCobrador } from '@/lib/rutas/nombre-cobrador'
 
 interface Cobrador {
   id: string
@@ -42,22 +43,39 @@ const AsignacionCobradoresPage = () => {
     try {
       const [cobradoresRes, rutasRes] = await Promise.all([
         rutasService.obtenerCobradores().catch(() => []),
-        rutasService.obtenerRutas().catch(() => ({ data: [] })),
+        // `obtenerRutas` ya devuelve un arreglo plano: desenvuelve `response.data` por
+        // dentro. El `catch` devolvia `{ data: [] }`, la forma vieja envuelta, y de ahi
+        // salia la lectura `rutasRes?.data` de mas abajo, que sobre un arreglo daba
+        // siempre `undefined` y caia en `rutasRes`.
+        rutasService.obtenerRutas().catch(() => []),
       ])
-      setCobradores((cobradoresRes as any[]).map((c: any) => ({
+      // `GET /routes/cobradores` manda `nombre` ya compuesto; el respaldo que armaba
+      // `${c.nombres} ${c.apellidos}` leia campos que ese endpoint no devuelve.
+      //
+      // `rutasAsignadas`, `clientesTotales` y `capacidadMaxima` TAMPOCO las manda, asi
+      // que estos tres valores son siempre 0, 0 y 120. Se dejan porque la pantalla los
+      // pinta; calcularlos de verdad es trabajo del backend.
+      setCobradores(cobradoresRes.map((c) => ({
         id: c.id,
-        nombre: c.nombre || `${c.nombres || ''} ${c.apellidos || ''}`.trim(),
-        rutasAsignadas: c.rutasAsignadas || 0,
-        clientesTotales: c.clientesTotales || 0,
-        capacidadMaxima: c.capacidadMaxima || 120,
+        nombre: c.nombre,
+        rutasAsignadas: 0,
+        clientesTotales: 0,
+        capacidadMaxima: 120,
       })))
-      const rutasList = (rutasRes as any)?.data || rutasRes || []
-      setRutas((rutasList as any[]).map((r: any) => ({
+      const rutasList = rutasRes
+      setRutas(rutasList.map((r) => ({
         id: r.id,
         nombre: r.nombre || '',
         codigo: r.codigo || '',
-        clientes: r.totalClientes || r.clientes || 0,
-        cobradorActual: r.cobrador ? `${r.cobrador.nombres || ''} ${r.cobrador.apellidos || ''}`.trim() : 'Sin asignar',
+        // `totalClientes` y `clientes` no existen en la fila del listado: el campo es
+        // `clientesAsignados` (`routes.service.ts:1665`). Los dos valian `undefined`,
+        // asi que esta columna mostraba 0 clientes en TODAS las rutas.
+        clientes: r.clientesAsignados || 0,
+        // `GET /routes` manda el cobrador como NOMBRE ya armado, no como objeto.
+        // Antes esto hacia `r.cobrador.nombres` sobre un string: como el string es
+        // truthy entraba a esa rama, sacaba undefined y la columna quedaba EN
+        // BLANCO para toda ruta que si tenia cobrador.
+        cobradorActual: nombreDelCobrador(r.cobrador, 'Sin asignar'),
       })))
     } catch (err) {
       console.error('Error cargando datos de asignación:', err)

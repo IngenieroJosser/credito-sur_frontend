@@ -15,7 +15,7 @@ export {
 } from '@/services/prestamos-service';
 
 import { prestamosService } from '@/services/prestamos-service';
-import type { FiltrosPrestamos, Prestamo } from '@/services/prestamos-service';
+import type { FiltrosPrestamos } from '@/services/prestamos-service';
 
 /** @deprecated usa prestamosService.obtenerPrestamos directamente */
 export const loansServiceExt = {

@@ -5,6 +5,8 @@ import { X, Archive, AlertTriangle, FileText, CheckCircle, Calculator } from 'lu
 import { formatCurrency, cn } from '@/lib/utils'
 import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 import { createPortal } from 'react-dom'
+import Tooltip from '@/components/ui/Tooltip'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 
 interface CastigoData {
   cuentaId: string
@@ -38,6 +40,12 @@ function Portal({ children }: { children: React.ReactNode }) {
 export default function ProcesarCastigoModal({ cuenta, onClose, onConfirm }: ProcesarCastigoModalProps) {
   const [motivo, setMotivo] = useState('')
   const [tipoCastigo, setTipoCastigo] = useState('TOTAL')
+  // Escape para salir y foco al abrir. El hook lleva una pila, asi que con
+  // modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    onClose: onClose,
+  })
+
 
   const handleConfirm = () => {
     onConfirm({
@@ -52,16 +60,16 @@ export default function ProcesarCastigoModal({ cuenta, onClose, onConfirm }: Pro
   return (
     <Portal>
       <div
-        className="fixed inset-0 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
+        className="fixed inset-0 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
         style={{ zIndex: MODAL_Z_INDEX }}
         onClick={onClose}
       >
         <div
-          className="w-full max-w-lg bg-white rounded-3xl shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden"
+          className="flex w-full flex-col overflow-hidden bg-white shadow-2xl animate-in zoom-in-95 duration-200 h-[100dvh] sm:h-auto sm:max-h-[90vh] rounded-none sm:rounded-3xl sm:max-w-lg"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="p-6 border-b border-slate-100 flex items-start justify-between bg-slate-50/50">
+          <div className="shrink-0 p-6 border-b border-slate-100 flex items-start justify-between bg-slate-50/50">
             <div className="flex items-center gap-3">
               <div className="shrink-0 p-2 bg-slate-900 rounded-xl">
                 <Archive className="w-6 h-6 text-white" />
@@ -71,15 +79,18 @@ export default function ProcesarCastigoModal({ cuenta, onClose, onConfirm }: Pro
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Contabilidad de Cartera</p>
               </div>
             </div>
-            <button 
-              onClick={onClose}
-              className="p-2 bg-white border border-slate-200 rounded-full text-slate-400 hover:text-slate-700 transition-all active:scale-95 shadow-sm"
-            >
-              <X className="h-5 w-5" />
-            </button>
+            <Tooltip texto="Cerrar">
+              <button 
+                onClick={onClose}
+                className="p-2 bg-white border border-slate-200 rounded-full text-slate-400 hover:text-slate-700 transition-all active:scale-95 shadow-sm"
+                aria-label="Cerrar"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </Tooltip>
           </div>
 
-          <div className="p-6 space-y-6">
+          <div className="min-h-0 flex-1 overflow-y-auto p-6 space-y-6">
             {/* Resumen de la cuenta */}
             <div className="p-5 bg-rose-50 rounded-2xl border border-rose-100">
                <div className="flex justify-between items-start mb-4">
@@ -151,7 +162,10 @@ export default function ProcesarCastigoModal({ cuenta, onClose, onConfirm }: Pro
             </div>
 
             {/* Footer de Acciones */}
-            <div className="pt-2 flex gap-3">
+          </div>
+
+          {/* Botones fuera del cuerpo: en un movil quedaban por debajo del pliegue. */}
+          <div className="shrink-0 flex gap-3 border-t border-slate-100 p-6">
                 <button 
                   onClick={onClose}
                   className="flex-1 px-6 py-4 bg-white border border-slate-200 text-slate-600 font-bold rounded-2xl hover:bg-slate-50 transition-all text-xs uppercase tracking-widest"
@@ -166,7 +180,6 @@ export default function ProcesarCastigoModal({ cuenta, onClose, onConfirm }: Pro
                     <FileText className="w-4 h-4" />
                     Confirmar Castigo
                 </button>
-            </div>
           </div>
         </div>
       </div>

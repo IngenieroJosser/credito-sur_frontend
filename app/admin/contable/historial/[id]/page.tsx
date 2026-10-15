@@ -1,6 +1,7 @@
 'use client'
+import { formatFechaBogota } from '@/lib/format-date'
 
-import PantallaCarga from '@/components/ui/PantallaCarga'
+import { SkeletonDetalle } from '@/components/ui/Skeleton'
 
 import { use, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
@@ -37,20 +38,29 @@ export default function DetalleCierrePage({ params }: { params: Promise<{ id: st
       setLoading(true)
       try {
         const cierres = await getHistorialCierres()
-        const found: any = cierres.find((c: any) => c.id === id)
+        const found = cierres.find((c) => c.id === id)
         if (found) {
+          // Lo que `GET /accounting/cierres` manda de verdad (accounting.service.ts:3472
+          // y el armado de :3668). Antes `found` era `any` y esta pantalla leia SIETE
+          // nombres que el endpoint no manda nunca: `creadoEn`, `caja.nombre`,
+          // `cajaNombre`, `usuario`, `efectivoReal`, `observaciones` y `billetes`.
+          // `caja` es un texto, no un objeto, y las observaciones del arqueo viajan en
+          // `descripcion`, que es donde el backend las pone.
           setCierre({
             id: found.id,
-            fecha: found.fecha || found.creadoEn || '',
-            caja: found.caja?.nombre || found.cajaNombre || '',
-            responsable: found.responsable || found.usuario || '',
+            fecha: found.fecha || '',
+            caja: found.caja || '',
+            responsable: found.responsable || '',
             saldoSistema: found.saldoSistema || 0,
-            saldoReal: found.saldoReal || found.efectivoReal || 0,
+            saldoReal: found.saldoReal || 0,
             diferencia: found.diferencia || 0,
             estado: found.estado || (found.diferencia === 0 ? 'CUADRADA' : 'DESCUADRADA'),
-            billetes: found.billetes || [],
+            // El desglose por denominacion NO viene en este endpoint: el arqueo lo guarda
+            // en su columna `denominaciones`, que solo devuelve `GET /cajas/arqueos/:id`.
+            // Queda vacio, que es lo que pasaba ya; la seccion que lo pinta no se muestra.
+            billetes: [],
           })
-          setObservaciones(found.observaciones || '')
+          setObservaciones(found.descripcion || '')
         }
       } catch (err) {
         console.error('Error cargando cierre:', err)
@@ -63,7 +73,7 @@ export default function DetalleCierrePage({ params }: { params: Promise<{ id: st
 
   if (loading) {
     return (
-      <PantallaCarga />
+      <SkeletonDetalle />
     )
   }
 
@@ -177,7 +187,7 @@ export default function DetalleCierrePage({ params }: { params: Promise<{ id: st
                     <div className="space-y-1">
                         <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Fecha de Cierre</span>
                         <div className="text-lg font-bold text-slate-900">
-                            {new Date(cierre.fecha).toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            {formatFechaBogota(cierre.fecha, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                         </div>
                     </div>
                     <div className="grid grid-cols-2 gap-6">

@@ -8,7 +8,12 @@ import {
   formatFechaCortaBogota,
   formatFechaHumanaBogota,
 } from '@/lib/format-date'
-import type { CierrePendienteDetalle } from '@/types/rutas/cierre-pendiente'
+import type { CierrePendienteDetalle, ClienteCierrePendiente } from '@/types/rutas/cierre-pendiente'
+import BotonAccion from '@/components/ui/BotonAccion'
+import Tooltip from '@/components/ui/Tooltip'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
+import type { ContextoRegularizacion } from '@/types/rutas/cierre-pendiente'
+import { clienteComoObjeto } from '@/types/obligacion-jornada'
 
 // Helper para formato de fecha compacto (ej: 18 may)
 function formatFechaDiaMes(value?: string | Date | null) {
@@ -50,13 +55,30 @@ function getJornadaSeverity(diasPendiente: number) {
   }
 }
 
-function getSaldoOperativoJornada(cliente: any) {
+/**
+ * El `estadoGestion` que el modal muestra, acotado a los cuatro valores que declara
+ * `ClienteCierrePendiente`.
+ *
+ * La obligacion lo trae como texto libre (`string | null`), asi que la conversion va
+ * aqui: cualquier otro valor cuenta como PENDIENTE, que es como ya se pintaba.
+ */
+function normalizarEstadoGestion(
+  valor: string | null | undefined,
+): ClienteCierrePendiente['estadoGestion'] {
+  const estado = String(valor || '').toUpperCase()
+  if (estado === 'PAGO_REGISTRADO' || estado === 'AUSENTE' || estado === 'REPROGRAMADO') {
+    return estado
+  }
+  return 'PENDIENTE'
+}
+
+function getSaldoOperativoJornada(cliente: ClienteCierrePendiente) {
   const saldoBackend = Number(cliente?.saldoOperativoJornada ?? NaN)
   if (Number.isFinite(saldoBackend)) return saldoBackend
 
   const saldoPrestamos = Array.isArray(cliente?.prestamos)
     ? cliente.prestamos.reduce(
-        (sum: number, prestamo: any) =>
+        (sum: number, prestamo) =>
           sum + Number(prestamo?.montoMetaOperativaPendiente || 0),
         0,
       )
@@ -130,6 +152,26 @@ function getCumplimiento(meta: number, recaudo: number) {
   }
 }
 
+/**
+ * Los diez permisos que este modal consulta.
+ *
+ * Se exporta porque la pantalla que lo usa armaba este objeto dentro de un
+ * `((): any => {...})()`, o sea que ninguno de los diez nombres se comprobaba: un
+ * `canCerrarJornda` mal escrito habria dejado el boton apagado sin una sola queja.
+ */
+export type PermisosCierrePendiente = {
+  canExportarDetalle?: boolean
+  canSolicitarCorreccion?: boolean
+  canCerrarJornada?: boolean
+  canRegistrarPago?: boolean
+  canMarcarAusente?: boolean
+  canAnularAusencia?: boolean
+  canReprogramar?: boolean
+  canVerPago?: boolean
+  canVerComprobante?: boolean
+  canAgregarObservacion?: boolean
+}
+
 export function CierrePendienteDetalleModal({
   open,
   onClose,
@@ -154,12 +196,15 @@ export function CierrePendienteDetalleModal({
     activacionId?: string
     origenGestion: 'CIERRE_PENDIENTE'
   }, observaciones?: string) => void | Promise<void>
-  onVerEstadoCuenta?: (cliente: any, contextoRegularizacion?: any) => void
-  onRegistrarPago?: (cliente: any, contextoRegularizacion?: any) => void
-  onRegistrarAbono?: (cliente: any, contextoRegularizacion?: any) => void
-  onMarcarAusente?: (cliente: any, contextoRegularizacion?: any) => void
-  onReprogramar?: (cliente: any, contextoRegularizacion?: any) => void
-  permissions?: {
+  onVerEstadoCuenta?: (cliente: ClienteCierrePendiente, contextoRegularizacion?: ContextoRegularizacion) => void
+  onRegistrarPago?: (cliente: ClienteCierrePendiente, contextoRegularizacion?: ContextoRegularizacion) => void
+  onRegistrarAbono?: (cliente: ClienteCierrePendiente, contextoRegularizacion?: ContextoRegularizacion) => void
+  onMarcarAusente?: (cliente: ClienteCierrePendiente, contextoRegularizacion?: ContextoRegularizacion) => void
+  onReprogramar?: (cliente: ClienteCierrePendiente, contextoRegularizacion?: ContextoRegularizacion) => void
+  permissions?: PermisosCierrePendiente
+  // (el tipo se declara abajo, exportado, para que quien lo pasa no tenga que usar `any`)
+  _permisosDoc?: never
+  __?: {
     canExportarDetalle?: boolean
     canSolicitarCorreccion?: boolean
     canCerrarJornada?: boolean
@@ -172,12 +217,12 @@ export function CierrePendienteDetalleModal({
     canAgregarObservacion?: boolean
   }
   handlers?: {
-    onExportarDetalle?: (contexto: any) => void
-    onSolicitarCorreccion?: (contexto: any) => void
-    onAnularAusencia?: (cliente: any, contextoRegularizacion?: any) => void
-    onVerPago?: (cliente: any, contextoRegularizacion?: any) => void
-    onVerComprobante?: (cliente: any, contextoRegularizacion?: any) => void
-    onAgregarObservacion?: (cliente: any, contextoRegularizacion?: any) => void
+    onExportarDetalle?: (contexto: ContextoRegularizacion) => void
+    onSolicitarCorreccion?: (contexto: ContextoRegularizacion) => void
+    onAnularAusencia?: (cliente: ClienteCierrePendiente, contextoRegularizacion?: ContextoRegularizacion) => void
+    onVerPago?: (cliente: ClienteCierrePendiente, contextoRegularizacion?: ContextoRegularizacion) => void
+    onVerComprobante?: (cliente: ClienteCierrePendiente, contextoRegularizacion?: ContextoRegularizacion) => void
+    onAgregarObservacion?: (cliente: ClienteCierrePendiente, contextoRegularizacion?: ContextoRegularizacion) => void
   }
 }) {
   const [jornadaSeleccionada, setJornadaSeleccionada] = useState(0)
@@ -185,6 +230,11 @@ export function CierrePendienteDetalleModal({
   const [processingCierre, setProcessingCierre] = useState(false)
   const [showObservacionCierre, setShowObservacionCierre] = useState(false)
   const [observacionCierre, setObservacionCierre] = useState('')
+  // Escape para salir y el foco en el primer campo al abrir. El hook lleva
+  // una pila, asi que con modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    onClose: onClose,
+  })
 
   // Resetear selección cuando cambia el detalle
   useEffect(() => {
@@ -207,15 +257,17 @@ export function CierrePendienteDetalleModal({
 
   // Mapper local para transformar obligaciones al formato que el modal espera
   const obligacionesJornada = Array.isArray(jornadaActual?.obligaciones) && jornadaActual.obligaciones.length > 0
-    ? jornadaActual.obligaciones.map((item: any) => {
-        const cliente = item.cliente || item.visita?.cliente || {}
+    ? jornadaActual.obligaciones.map((item): ClienteCierrePendiente => {
+        // `cliente` llega como objeto o como el nombre en texto, segun el endpoint;
+        // `clienteComoObjeto` es el conversor que ya usa el resto de la jornada.
+        const cliente = clienteComoObjeto(item.cliente ?? item.visita?.cliente)
         const cuota = item.cuotaObjetivo || item.prestamo?.cuotaObjetivo || {}
 
         return {
           asignacionId: item.asignacionId,
-          ordenVisita: item.ordenVisita,
+          ordenVisita: item.ordenVisita ?? undefined,
 
-          clienteId: cliente.id || item.clienteId,
+          clienteId: cliente.id || item.clienteId || undefined,
           nombreCliente:
             item.nombreCliente ||
             `${cliente.nombres || ''} ${cliente.apellidos || ''}`.trim() ||
@@ -231,7 +283,7 @@ export function CierrePendienteDetalleModal({
           cuotaObjetivoPrestamoId: item.cuotaObjetivoPrestamoId || cuota.id,
           cuotaObjetivo: cuota,
 
-          estadoGestion: item.estadoGestion,
+          estadoGestion: normalizarEstadoGestion(item.estadoGestion),
           estadoVisita: item.estadoVisita,
           notasVisita: item.notasVisita,
           recaudadoDelDia: Number(item.recaudadoDelDia || 0),
@@ -261,13 +313,13 @@ export function CierrePendienteDetalleModal({
   }
 
   // Lógica para cierre de jornada
-  const obligacionesPendientesCount = Number((resumen as any)?.obligacionesPendientes ?? NaN)
-  const obligacionesAusentesCount = Number((resumen as any)?.obligacionesAusentes ?? NaN)
+  const obligacionesPendientesCount = Number((resumen)?.obligacionesPendientes ?? NaN)
+  const obligacionesAusentesCount = Number((resumen)?.obligacionesAusentes ?? NaN)
   const clientesPendientesCount = Number(resumen?.clientesPendientes || 0)
   const clientesAusentesCount = Number(resumen?.clientesAusentes || 0)
   const pendientesCount = Number.isFinite(obligacionesPendientesCount) ? obligacionesPendientesCount : clientesPendientesCount
   const ausentesCount = Number.isFinite(obligacionesAusentesCount) ? obligacionesAusentesCount : clientesAusentesCount
-  const usaObligaciones = Number.isFinite(Number((resumen as any)?.totalObligaciones ?? NaN))
+  const usaObligaciones = Number.isFinite(Number((resumen)?.totalObligaciones ?? NaN))
   const requiereObservacionAdministrativa = pendientesCount > 0 || ausentesCount > 0
   const puedeCerrarJornada = Boolean(permissions?.canCerrarJornada && onRegularizar)
   const canShowAccionesJornada = puedeCerrarJornada || Boolean(permissions?.canExportarDetalle && handlers?.onExportarDetalle) || Boolean(permissions?.canSolicitarCorreccion && handlers?.onSolicitarCorreccion)
@@ -312,14 +364,17 @@ export function CierrePendienteDetalleModal({
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={processingCierre}
-            className="shrink-0 rounded-xl p-2 text-slate-400 hover:bg-white hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <X className="h-5 w-5" />
-          </button>
+          <Tooltip texto="Cerrar">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={processingCierre}
+              className="shrink-0 rounded-xl p-2 text-slate-400 hover:bg-white hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+              aria-label="Cerrar"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </Tooltip>
         </div>
 
         {/* Selector de jornadas si hay múltiples jornadas pendientes */}
@@ -583,10 +638,10 @@ export function CierrePendienteDetalleModal({
                 <div className="divide-y divide-slate-100 pb-8 sm:max-h-[520px] sm:overflow-y-auto sm:pb-10">
                   {(() => {
                     // Ordenar obligaciones por estado de gestión: pendientes, ausentes, pagos
-                    const obligacionesPendientes = obligacionesJornada.filter((c: any) => c.estadoGestion === 'PENDIENTE')
-                    const obligacionesAusentes = obligacionesJornada.filter((c: any) => c.estadoGestion === 'AUSENTE')
-                    const obligacionesReprogramados = obligacionesJornada.filter((c: any) => c.estadoGestion === 'REPROGRAMADO')
-                    const obligacionesPagaron = obligacionesJornada.filter((c: any) => c.estadoGestion === 'PAGO_REGISTRADO')
+                    const obligacionesPendientes = obligacionesJornada.filter((c) => c.estadoGestion === 'PENDIENTE')
+                    const obligacionesAusentes = obligacionesJornada.filter((c) => c.estadoGestion === 'AUSENTE')
+                    const obligacionesReprogramados = obligacionesJornada.filter((c) => c.estadoGestion === 'REPROGRAMADO')
+                    const obligacionesPagaron = obligacionesJornada.filter((c) => c.estadoGestion === 'PAGO_REGISTRADO')
                     const obligacionesOrdenadas = [...obligacionesPendientes, ...obligacionesAusentes, ...obligacionesReprogramados, ...obligacionesPagaron]
 
                     return obligacionesOrdenadas.map((cliente) => {
@@ -758,7 +813,7 @@ export function CierrePendienteDetalleModal({
                             return (
                               <>
                                 {puedeRegistrarPagoRegularizado && permissions?.canRegistrarPago && onRegistrarPago && (
-                                  <button
+                                  <BotonAccion
                                     type="button"
                                     onClick={async () => {
                                       const cuota = cliente.cuotaObjetivo
@@ -798,11 +853,11 @@ export function CierrePendienteDetalleModal({
                                     className="w-full rounded-xl bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                                   >
                                     {processingCliente === clienteId ? 'Procesando...' : 'Registrar pago regularizado'}
-                                  </button>
+                                  </BotonAccion>
                                 )}
 
                                 {puedeRegistrarPagoRegularizado && permissions?.canRegistrarPago && onRegistrarAbono && (
-                                  <button
+                                  <BotonAccion
                                     type="button"
                                     onClick={async () => {
                                       const cuota = cliente.cuotaObjetivo
@@ -842,11 +897,11 @@ export function CierrePendienteDetalleModal({
                                     className="w-full rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                                   >
                                     {processingCliente === clienteId ? 'Procesando...' : 'Registrar abono regularizado'}
-                                  </button>
+                                  </BotonAccion>
                                 )}
 
                                 {puedeReprogramarRegularizado && permissions?.canReprogramar && onReprogramar && (
-                                  <button
+                                  <BotonAccion
                                     type="button"
                                     onClick={async () => {
                                       const cuota = cliente.cuotaObjetivo
@@ -886,7 +941,7 @@ export function CierrePendienteDetalleModal({
                                     className="w-full rounded-xl border border-orange-300 bg-orange-50 px-3 py-2 text-xs font-bold text-orange-800 hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                                   >
                                     {processingCliente === clienteId ? 'Procesando...' : 'Reprogramar cuota'}
-                                  </button>
+                                  </BotonAccion>
                                 )}
 
                                 {puedeMarcarAusente && permissions?.canMarcarAusente && onMarcarAusente && (

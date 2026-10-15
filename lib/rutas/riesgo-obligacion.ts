@@ -14,9 +14,60 @@
  */
 
 /**
+ * Lo que este helper lee de cada uno de sus tres argumentos, y nada mas.
+ *
+ * No son `ObligacionDeJornada` ni `VisitaRuta`: este helper lo llaman SEIS pantallas con
+ * las dos formas, y el compilador lo demostro al intentar declararlo con una sola. Lo
+ * comun entre ellas es lo que se lee, que son estos campos —los saco un `grep` de las
+ * cascadas de `maxPositive`—. Antes eran `any`, asi que un `montoVencidoAcomulado` mal
+ * escrito habria valido 0 y bajado el riesgo de un cliente sin que nadie lo viera.
+ *
+ * Los montos admiten texto porque Prisma serializa `Decimal` como string y todo entra por
+ * `toPositiveNumber`.
+ */
+type MontoLeido = number | string | null | undefined
+
+type FilaDeRiesgo = {
+  // Los tres que siguen no los lee ESTE archivo: los lee `resolveNivelRiesgoVisita`, que
+  // deriva sus parametros de esta firma. Por eso viven aqui.
+  estado?: string | null
+  diasMora?: number | null
+  estadoAprobacion?: string | null
+  esProvisional?: boolean | null
+  montoCuota?: MontoLeido
+  montoCuotaNormal?: MontoLeido
+  montoMetaOperativaPendiente?: MontoLeido
+  montoMoraAcumulada?: MontoLeido
+  montoVencidoAcumulado?: MontoLeido
+  saldoVencidoAcumulado?: MontoLeido
+  cuotasVencidas?: number | null
+  nivelRiesgoBackend?: string | null
+  nivelRiesgoCredito?: string | null
+  nivelRiesgoObligacion?: string | null
+  riesgoCredito?: string | null
+  riesgoOperativo?: string | null
+}
+
+type PrestamoDeRiesgo = FilaDeRiesgo & {
+  valorCuota?: MontoLeido
+}
+
+type CuotaDeRiesgo = {
+  diasMora?: number | null
+  cuotasVencidas?: number | null
+  monto?: MontoLeido
+  montoCuota?: MontoLeido
+  montoNominal?: MontoLeido
+  montoMoraAcumulada?: MontoLeido
+  montoVencidoAcumulado?: MontoLeido
+  saldoVencidoAcumulado?: MontoLeido
+  numeroCuotasVencidas?: number | null
+}
+
+/**
  * Convierte un valor a número positivo. Si el valor no es finito o es <= 0, devuelve 0.
  */
-const toPositiveNumber = (value: any): number => {
+const toPositiveNumber = (value: unknown): number => {
   const n = Number(value)
   return Number.isFinite(n) && n > 0 ? n : 0
 }
@@ -25,7 +76,7 @@ const toPositiveNumber = (value: any): number => {
  * Devuelve el máximo valor positivo de una lista de valores.
  * Si todos son <= 0 o no válidos, devuelve 0.
  */
-const maxPositive = (...values: any[]): number => {
+const maxPositive = (...values: unknown[]): number => {
   return Math.max(0, ...values.map(toPositiveNumber))
 }
 
@@ -43,7 +94,7 @@ const RISK_WEIGHT: Record<string, number> = {
 /**
  * Normaliza un valor de riesgo a los valores estándar del sistema.
  */
-const normalizeRisk = (value: any): string | null => {
+const normalizeRisk = (value: unknown): string | null => {
   const nivel = String(value || '')
     .trim()
     .toUpperCase()
@@ -92,15 +143,16 @@ const maxRisk = (...values: Array<string | null | undefined>): string => {
  * El riesgoFuente del backend se usa solo como fallback cuando no hay acumulado vencido suficiente.
  */
 export const resolveRiesgoObligacion = (params: {
-  row?: any
-  prestamo?: any
-  cuotaObjetivo?: any
+  row?: FilaDeRiesgo | null
+  prestamo?: PrestamoDeRiesgo | null
+  cuotaObjetivo?: CuotaDeRiesgo | null
   estadoCalculado?: string
   diasMora?: number
   cuotasVencidas?: number
   esProvisional?: boolean
 }): string => {
-  const { row, prestamo, cuotaObjetivo, estadoCalculado, diasMora, cuotasVencidas, esProvisional } = params
+  const { row, prestamo, cuotaObjetivo, estadoCalculado, diasMora, cuotasVencidas, esProvisional } =
+    params
 
   // Créditos nuevos pendientes de aprobación sin mora: riesgo mínimo
   if (esProvisional && estadoCalculado === 'pendiente' && (diasMora || 0) === 0) {
@@ -137,12 +189,7 @@ export const resolveRiesgoObligacion = (params: {
   const cuotas = Number(cuotasVencidas || 0)
 
   const tieneMoraEstricta =
-    estadoCalculado === 'en_mora' &&
-    (
-      montoVencidoAcumulado > 0 ||
-      dias > 0 ||
-      cuotas > 0
-    )
+    estadoCalculado === 'en_mora' && (montoVencidoAcumulado > 0 || dias > 0 || cuotas > 0)
 
   if (!tieneMoraEstricta) {
     return 'VERDE'
@@ -198,9 +245,9 @@ export const resolveRiesgoObligacion = (params: {
  * Usa maxPositive para evitar que 0 bloquee el fallback a saldoTotal cuando está en mora.
  */
 export const resolveMontoVencidoAcumulado = (params: {
-  row?: any
-  prestamo?: any
-  cuotaObjetivo?: any
+  row?: FilaDeRiesgo | null
+  prestamo?: PrestamoDeRiesgo | null
+  cuotaObjetivo?: CuotaDeRiesgo | null
   estadoCalculado?: string
 }): number => {
   const { row, prestamo, cuotaObjetivo, estadoCalculado } = params
@@ -253,16 +300,41 @@ export const resolveMontoVencidoAcumulado = (params: {
 /**
  * Normalizar el nivel de riesgo para UI.
  */
-export const resolveNivelRiesgoUi = (nivelRiesgoRaw: string): string => {
-  const nivel = String(nivelRiesgoRaw || '').toUpperCase()
+/** Los cinco niveles que entiende la interfaz. */
+export type NivelRiesgoUi =
+  | 'minimo'
+  | 'leve'
+  | 'precaucion'
+  | 'moderado'
+  | 'critico'
 
-  const nivelMap: Record<string, string> = {
-    'VERDE': 'minimo',
-    'LEVE': 'leve',
-    'PRECAUCION': 'precaucion',
-    'ROJO': 'moderado',
-    'LISTA_NEGRA': 'critico',
+export const resolveNivelRiesgoUi = (
+  nivelRiesgoRaw: string | null | undefined,
+): NivelRiesgoUi | undefined => {
+  const nivel = String(nivelRiesgoRaw || '')
+    .trim()
+    .toUpperCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+
+  const nivelMap: Record<string, NivelRiesgoUi> = {
+    VERDE: 'minimo',
+    MINIMO: 'minimo',
+    PELIGRO_MINIMO: 'minimo',
+    BAJO: 'minimo',
+    LEVE: 'leve',
+    LEVE_RETRASO: 'leve',
+    PRECAUCION: 'precaucion',
+    AMARILLO: 'precaucion',
+    MODERADO: 'moderado',
+    RIESGO_MODERADO: 'moderado',
+    ROJO: 'moderado',
+    LISTA_NEGRA: 'critico',
+    CRITICO: 'critico',
+    ALTO_RIESGO: 'critico',
+    RIESGO_CRITICO: 'critico',
   }
 
-  return nivelMap[nivel] || 'minimo'
+  // Ausencia sigue siendo ausencia: el componente omite el distintivo, no inventa verde.
+  return nivelMap[nivel]
 }

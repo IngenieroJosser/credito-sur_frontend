@@ -1,5 +1,6 @@
 'use client'
 
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 import { useMemo, useState } from 'react'
 import { Modal } from '@/components/ui/Modal'
 import { inventarioService } from '@/services/inventario-service'
@@ -61,11 +62,9 @@ export default function IngresoMercanciaModal({
       reset()
       onClose()
       toast.success('Ingreso registrado correctamente')
-    } catch (e: any) {
+    } catch (e) {
       const msg =
-        e?.response?.data?.message ||
-        e?.message ||
-        'No se pudo registrar el ingreso de mercancía'
+        mensajeDeError(e, 'No se pudo registrar el ingreso de mercancía')
       toast.error(String(msg))
     } finally {
       setLoading(false)

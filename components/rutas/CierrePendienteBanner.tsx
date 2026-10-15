@@ -1,5 +1,6 @@
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 import { AlertTriangle, CalendarClock, User, RefreshCw } from 'lucide-react'
-import type { CierrePendienteRuta } from '@/types/rutas/cierre-pendiente'
+import type { CierrePendienteRuta, ContextoRegularizacion } from '@/types/rutas/cierre-pendiente'
 import {
   formatFechaCortaBogota,
   formatFechaHumanaBogota,
@@ -17,12 +18,7 @@ export function CierrePendienteBanner({
   cierrePendiente: CierrePendienteRuta | null
   variant?: 'warning' | 'danger'
   onRefresh?: () => void
-  onRegularizar?: (contexto: {
-    rutaId?: string
-    fechaOperativa?: string
-    activacionId?: string
-    origenGestion: 'CIERRE_PENDIENTE'
-  }) => void
+  onRegularizar?: (contexto: ContextoRegularizacion) => void
   onVerDetalles?: () => void
   canRegularizar?: boolean
   loading?: boolean
@@ -88,8 +84,7 @@ export function CierrePendienteBanner({
                 isDanger ? 'text-red-800' : 'text-amber-800',
               ].join(' ')}
             >
-              {cierrePendiente.message ||
-                'La ruta tiene una jornada anterior pendiente de cierre.'}
+              {mensajeDeError(cierrePendiente, 'La ruta tiene una jornada anterior pendiente de cierre.')}
             </p>
           </div>
 

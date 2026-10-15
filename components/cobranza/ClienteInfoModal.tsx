@@ -1,5 +1,6 @@
 'use client'
 
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 /**
  * Modal de Información del Cliente — Vista Cobrador
  *
@@ -12,15 +13,17 @@
  */
 
 import { useState, useEffect } from 'react'
-import { X, User, MapPin, Phone, Camera, AlertCircle, Loader2, Megaphone } from 'lucide-react'
+import { X, MapPin, Phone, Camera, AlertCircle, Megaphone } from 'lucide-react'
 import { toast } from 'sonner'
 import { VisitaRuta } from '@/lib/types/cobranza'
 import { resolveMediaUrl, formatCurrency } from '@/lib/utils'
 import Portal, { MODAL_Z_INDEX } from '@/components/ui/Portal'
 import { resolveCuotaAcumuladaOperativa, resolveCuotaNormalOperativa } from '@/lib/rutas-core'
-import { clientesService } from '@/services/clientes-service'
-import { rutasService, type HistorialVisitaCliente } from '@/services/rutas-service'
+import { clientesService, type Cliente } from '@/services/clientes-service'
 import { alertasClientesService } from '@/services/alertas-clientes-service'
+import { Skeleton } from '@/components/ui/Skeleton'
+import Tooltip from '@/components/ui/Tooltip'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 
 // ── Tipos ──────────────────────────────────────────────────────────────────────
 
@@ -36,15 +39,14 @@ interface Props {
 type Tab = 'expediente' | 'detalle'
 type UserRole = 'SUPER_ADMINISTRADOR' | 'ADMIN' | 'COORDINADOR' | 'SUPERVISOR' | 'COBRADOR' | string
 
-interface ArchivoCliente {
-  id: string
-  url?: string
-  path?: string
-  ruta?: string
-  tipoArchivo?: string
-  tipoContenido?: string
-  nombreOriginal?: string
-}
+/**
+ * Un archivo del cliente, DERIVADO de lo que declara `Cliente.archivos`.
+ *
+ * Estaba escrito a mano aqui con los mismos nombres pero con `id` obligatorio y `url`
+ * no nulable, que es lo contrario de lo que manda el servicio; por eso la asignacion
+ * necesitaba un `any`.
+ */
+type ArchivoCliente = NonNullable<Cliente['archivos']>[number]
 
 // ── Etiquetas de tipo de archivo ───────────────────────────────────────────────
 
@@ -90,6 +92,12 @@ export default function ClienteInfoModal({
     observacionesReportante: '',
   })
 
+  // Escape para salir y el foco en el primer campo al abrir. El hook lleva
+  // una pila, asi que con modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    onClose: onClose,
+  })
+
   useEffect(() => {
     try {
       const raw = localStorage.getItem('user')
@@ -110,7 +118,7 @@ export default function ClienteInfoModal({
     setLoadingFotos(true)
     clientesService
       .obtenerPorId(visita.clienteId)
-      .then((cliente: any) => {
+      .then((cliente) => {
         if (!cliente) throw new Error('Cliente no devuelto por el servidor')
         const files: ArchivoCliente[] = cliente?.archivos || []
         setArchivos(files)
@@ -151,9 +159,9 @@ export default function ClienteInfoModal({
   const cuotaNormalOperativa = resolveCuotaNormalOperativa(visita)
   const acumuladoVencido = resolveCuotaAcumuladaOperativa(visita)
   const cuotaProyectada = nextPagoMonto ?? cuotaNormalOperativa
-  const estadoVisitaGestion = String((visita as any)?.estadoVisita || visita.estado || '').toLowerCase()
+  const estadoVisitaGestion = String((visita)?.estadoVisita || visita.estado || '').toLowerCase()
   const esAusenteGestion = estadoVisitaGestion === 'ausente'
-  const notaAusencia = String((visita as any)?.notasVisita || '').trim()
+  const notaAusencia = String((visita)?.notasVisita || '').trim()
   const puedeReportarClienteNoUbicado = ROLES_ALERTA_CLIENTE.includes(String(userRole || '').toUpperCase())
 
   const handleReportarClienteNoUbicado = async () => {
@@ -173,7 +181,11 @@ export default function ClienteInfoModal({
     try {
       await alertasClientesService.reportarClienteNoUbicado({
         clienteId: visita.clienteId,
-        rutaId: String((visita as any)?.rutaId || '').trim() || undefined,
+        // Una visita no lleva `rutaId`: ningun builder del frontend lo pone y el backend
+        // tampoco en las obligaciones. Esta lectura valia siempre `undefined`, o sea que
+        // la alerta se reporta SIN ruta. Este modal solo recibe la visita como prop, asi
+        // que darle la ruta pide pasarsela desde quien lo abre; queda anotado.
+        rutaId: undefined,
         motivo: alertaForm.motivo,
         descripcion,
         observacionesReportante,
@@ -187,8 +199,8 @@ export default function ClienteInfoModal({
         ultimaUbicacionConocida: '',
         observacionesReportante: '',
       })
-    } catch (error: any) {
-      toast.error(error?.message || 'No se pudo crear la alerta.')
+    } catch (error) {
+      toast.error(mensajeDeError(error, 'No se pudo crear la alerta.'))
     } finally {
       setAlertaSubmitting(false)
     }
@@ -246,12 +258,15 @@ export default function ClienteInfoModal({
                 )}
               </div>
             </div>
-            <button
-              onClick={onClose}
-              className="shrink-0 ml-3 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors shrink-0"
-            >
-              <X className="h-5 w-5" />
-            </button>
+            <Tooltip texto="Cerrar">
+              <button
+                onClick={onClose}
+                className="shrink-0 ml-3 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors shrink-0"
+                aria-label="Cerrar"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </Tooltip>
           </div>
 
           {/* Tabs */}
@@ -319,9 +334,11 @@ export default function ClienteInfoModal({
                   </div>
 
                   {loadingFotos ? (
-                    <div className="flex flex-col items-center py-8 text-slate-400">
-                      <Loader2 className="w-8 h-8 animate-spin mb-2" />
-                      <span className="text-xs font-medium">Cargando fotos...</span>
+                    <div className="grid grid-cols-3 gap-2 py-2" aria-busy="true">
+                      <span className="sr-only">Cargando fotos…</span>
+                      {[0, 1, 2].map((i) => (
+                        <Skeleton key={i} className="aspect-square rounded-xl" />
+                      ))}
                     </div>
                   ) : archivos.filter(isImage).length === 0 ? (
                     <div className="flex flex-col items-center py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
@@ -460,7 +477,7 @@ export default function ClienteInfoModal({
                   <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl text-right">
                     <p className="text-[10px] text-slate-500 font-black uppercase mb-1">Cuotas vencidas</p>
                     <p className="text-slate-900 font-black text-lg">
-                      {Number((visita as any)?.cuotasVencidas || 0)}
+                      {Number((visita)?.cuotasVencidas || 0)}
                     </p>
                   </div>
                 </div>

@@ -14,7 +14,10 @@ const ROLES: Rol[] = [
   'SUPER_ADMINISTRADOR','ADMIN','COORDINADOR','SUPERVISOR','CONTADOR','COBRADOR','PUNTO_DE_VENTA',
 ] as Rol[]
 
-const recolectar = (mods: any[]): string[] =>
+/** Un modulo del menu, con lo unico que esta prueba recorre. */
+type ModuloDelMenu = { path?: string; submodulos?: ModuloDelMenu[] }
+
+const recolectar = (mods: ModuloDelMenu[]): string[] =>
   mods.flatMap((m) => [
     ...(m?.path && m.path !== '#' ? [m.path] : []),
     ...(Array.isArray(m?.submodulos) ? recolectar(m.submodulos) : []),

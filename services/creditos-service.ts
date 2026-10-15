@@ -1,256 +1,186 @@
 import { logger } from '@/lib/logger'
-import { apiRequest } from '@/lib/api/api';
-import { syncService } from '@/lib/offline/syncService';
+import { apiRequest } from '@/lib/api/api'
+import { syncService } from '@/lib/offline/syncService'
+import { esErrorDeRed } from '@/lib/offline/conRespaldoOffline'
 
 export interface CreateCreditDto {
-  clienteId: string;
-  productoId?: string;
-  precioProductoId?: string;
-  tipoPrestamo: string;
-  monto: number;
-  tasaInteres: number;
-  tasaInteresMora: number;
-  plazoMeses: number;
-  cantidadCuotas?: number;
-  frecuenciaPago: string;
-  fechaInicio: string;
-  creadoPorId: string;
-  notas?: string;
+  clienteId: string
+  productoId?: string
+  precioProductoId?: string
+  tipoPrestamo: string
+  monto: number
+  tasaInteres: number
+  tasaInteresMora: number
+  plazoMeses: number
+  cantidadCuotas?: number
+  frecuenciaPago: string
+  fechaInicio: string
+  creadoPorId: string
+  notas?: string
 }
 
 export interface LoanResponse {
-  id: string;
-  numeroPrestamo: string;
-  clienteId: string;
-  cliente: string;
-  clienteDni: string;
-  clienteTelefono: string;
-  producto: string;
-  tipoProducto: string;
-  montoTotal: number;
-  montoPendiente: number;
-  montoPagado: number;
-  moraAcumulada: number;
-  cuotasPagadas: number;
-  cuotasTotales: number;
-  cuotasVencidas: number;
-  estado: string;
-  riesgo: string;
-  ruta: string;
-  rutaNombre: string;
-  fechaInicio: string;
-  fechaFin: string;
-  progreso: number;
+  id: string
+  numeroPrestamo: string
+  clienteId: string
+  cliente: string
+  clienteDni: string
+  clienteTelefono: string
+  producto: string
+  tipoProducto: string
+  montoTotal: number
+  montoPendiente: number
+  montoPagado: number
+  moraAcumulada: number
+  cuotasPagadas: number
+  cuotasTotales: number
+  cuotasVencidas: number
+  estado: string
+  riesgo: string
+  ruta: string
+  rutaNombre: string
+  fechaInicio: string
+  fechaFin: string
+  progreso: number
 }
 
 export interface LoansStats {
-  total: number;
-  activos: number;
-  atrasados: number;
-  morosos: number;
-  pagados: number;
-  cancelados: number;
-  montoTotal: number;
-  montoPendiente: number;
-  moraTotal: number;
+  total: number
+  activos: number
+  atrasados: number
+  morosos: number
+  pagados: number
+  cancelados: number
+  montoTotal: number
+  montoPendiente: number
+  moraTotal: number
 }
 
 export interface LoansResponse {
-  prestamos: LoanResponse[];
-  estadisticas: LoansStats;
+  prestamos: LoanResponse[]
+  estadisticas: LoansStats
   paginacion: {
-    total: number;
-    pagina: number;
-    limite: number;
-    totalPaginas: number;
-  };
+    total: number
+    pagina: number
+    limite: number
+    totalPaginas: number
+  }
 }
 
 class CreditosService {
   async crearCredito(creditData: CreateCreditDto) {
     try {
-      const response = await apiRequest<any>('POST', 'loans', creditData);
-      return response;
-    } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
-        logger.log('[Offline Mode] Guardando creacion de credito en cola...');
+      const response = await apiRequest<unknown>('POST', 'loans', creditData)
+      return response
+    } catch (error) {
+      if (esErrorDeRed(error)) {
+        logger.log('[Offline Mode] Guardando creacion de credito en cola...')
         return await syncService.enqueueOperation(
           'prestamo_crear',
           'loans',
           'POST',
           creditData,
-          `Crear crédito para cliente ID: ${creditData.clienteId}`
-        );
+          `Crear crédito para cliente ID: ${creditData.clienteId}`,
+        )
       }
-      console.error('Error creating credit:', error);
-      throw error;
+      console.error('Error creating credit:', error)
+      throw error
     }
   }
 
   async obtenerCreditos(filters: {
-    estado?: string;
-    ruta?: string;
-    search?: string;
-    page?: number;
-    limit?: number;
+    estado?: string
+    ruta?: string
+    search?: string
+    page?: number
+    limit?: number
   }): Promise<LoansResponse> {
     try {
-      const params = new URLSearchParams();
-      
-      if (filters.estado) params.append('estado', filters.estado);
-      if (filters.ruta) params.append('ruta', filters.ruta);
-      if (filters.search) params.append('search', filters.search);
-      if (filters.page) params.append('page', filters.page.toString());
-      if (filters.limit) params.append('limit', filters.limit.toString());
+      const params = new URLSearchParams()
+
+      if (filters.estado) params.append('estado', filters.estado)
+      if (filters.ruta) params.append('ruta', filters.ruta)
+      if (filters.search) params.append('search', filters.search)
+      if (filters.page) params.append('page', filters.page.toString())
+      if (filters.limit) params.append('limit', filters.limit.toString())
 
       const response = await apiRequest<LoansResponse>(
         'GET',
         `loans?${params.toString()}`,
         undefined,
-        { cacheTTL: 2 * 60 * 1000 } // 2 minutos de cache
-      );
+        { cacheTTL: 2 * 60 * 1000 }, // 2 minutos de cache
+      )
 
-      return response;
+      return response
     } catch (error) {
-      console.error('Error fetching credits:', error);
-      throw error;
+      console.error('Error fetching credits:', error)
+      throw error
     }
   }
 
   async obtenerCreditoPorId(id: string) {
     try {
-      const response = await apiRequest<any>('GET', `loans/${id}`);
-      return response;
+      const response = await apiRequest<unknown>('GET', `loans/${id}`)
+      return response
     } catch (error) {
-      console.error('Error fetching credit:', error);
-      throw error;
-    }
-  }
-
-  async aprobarCredito(id: string, aprobadoPorId: string) {
-    try {
-      const response = await apiRequest<any>('POST', `loans/${id}/approve`, {
-        aprobadoPorId
-      });
-      return response;
-    } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
-        logger.log('[Offline Mode] Guardando aprobacion de credito en cola...');
-        return await syncService.enqueueOperation(
-          'prestamo_aprobar',
-          `loans/${id}/approve`,
-          'POST',
-          { aprobadoPorId },
-          `Aprobar crédito ID: ${id}`
-        );
-      }
-      console.error('Error approving credit:', error);
-      throw error;
-    }
-  }
-
-  async rechazarCredito(id: string, rechazadoPorId: string, motivo?: string) {
-    try {
-      const response = await apiRequest<any>('POST', `loans/${id}/reject`, {
-        rechazadoPorId,
-        motivo
-      });
-      return response;
-    } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
-        logger.log('[Offline Mode] Guardando rechazo de credito en cola...');
-        return await syncService.enqueueOperation(
-          'prestamo_rechazar',
-          `loans/${id}/reject`,
-          'POST',
-          { rechazadoPorId, motivo },
-          `Rechazar crédito ID: ${id}`
-        );
-      }
-      console.error('Error rejecting credit:', error);
-      throw error;
+      console.error('Error fetching credit:', error)
+      throw error
     }
   }
 
   async obtenerCuotas(prestamoId: string) {
     try {
-      const response = await apiRequest<any>('GET', `loans/${prestamoId}/cuotas`);
-      return response;
+      const response = await apiRequest<unknown>('GET', `loans/${prestamoId}/cuotas`)
+      return response
     } catch (error) {
-      console.error('Error fetching cuotas:', error);
-      throw error;
+      console.error('Error fetching cuotas:', error)
+      throw error
     }
   }
 
   async eliminarCredito(id: string, userId: string) {
     try {
-      const response = await apiRequest<any>('DELETE', `loans/${id}`, {
-        userId
-      });
-      return response;
-    } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
-        logger.log('[Offline Mode] Guardando eliminacion de credito en cola...');
+      const response = await apiRequest<unknown>('DELETE', `loans/${id}`, {
+        userId,
+      })
+      return response
+    } catch (error) {
+      if (esErrorDeRed(error)) {
+        logger.log('[Offline Mode] Guardando eliminacion de credito en cola...')
         return await syncService.enqueueOperation(
           'prestamo_eliminar',
           `loans/${id}`,
           'DELETE',
           { userId },
-          `Eliminar crédito ID: ${id}`
-        );
+          `Eliminar crédito ID: ${id}`,
+        )
       }
-      console.error('Error deleting credit:', error);
-      throw error;
+      console.error('Error deleting credit:', error)
+      throw error
     }
   }
 
   async restaurarCredito(id: string, userId: string) {
     try {
-      const response = await apiRequest<any>('PATCH', `loans/${id}/restore`, {
-        userId
-      });
-      return response;
-    } catch (error: any) {
-      if (
-        (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error?.statusCode === 0 || 
-        error?.message?.includes('network') ||
-        error?.code === 'ERR_NETWORK'
-      ) {
-        logger.log('[Offline Mode] Guardando restauracion de credito en cola...');
+      const response = await apiRequest<unknown>('PATCH', `loans/${id}/restore`, {
+        userId,
+      })
+      return response
+    } catch (error) {
+      if (esErrorDeRed(error)) {
+        logger.log('[Offline Mode] Guardando restauracion de credito en cola...')
         return await syncService.enqueueOperation(
           'prestamo_restaurar',
           `loans/${id}/restore`,
           'PATCH',
           { userId },
-          `Restaurar crédito ID: ${id}`
-        );
+          `Restaurar crédito ID: ${id}`,
+        )
       }
-      console.error('Error restoring credit:', error);
-      throw error;
+      console.error('Error restoring credit:', error)
+      throw error
     }
   }
 }
 
-export const creditosService = new CreditosService();
-
+export const creditosService = new CreditosService()

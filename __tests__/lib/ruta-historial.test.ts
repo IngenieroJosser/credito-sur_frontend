@@ -1,25 +1,63 @@
-import { applyPagosDelDiaToHistorialVisitas, buildHistorialDiaFromBackend, isPagoForHistorialFecha } from '@/lib/ruta-historial'
+import type { VisitaParcial } from '@/lib/types/cobranza'
+import {
+  applyPagosDelDiaToHistorialVisitas,
+  buildHistorialDiaFromBackend,
+  isPagoForHistorialFecha,
+} from '@/lib/ruta-historial'
+import { FrecuenciaPago } from '@/types/enums'
+import type { Cliente } from '@/types/domain'
 
 describe('isPagoForHistorialFecha', () => {
   it('asocia pagos normales por fecha de pago y pagos regularizados por fecha operativa', () => {
-    expect(isPagoForHistorialFecha({
-      fechaPago: '2026-06-05T09:00:00-05:00',
-      montoTotal: 1000,
-    }, '2026-06-05')).toBe(true)
+    expect(
+      isPagoForHistorialFecha(
+        {
+          fechaPago: '2026-06-05T09:00:00-05:00',
+          montoTotal: 1000,
+        },
+        '2026-06-05',
+      ),
+    ).toBe(true)
 
-    expect(isPagoForHistorialFecha({
-      fechaPago: '2026-06-05T09:00:00-05:00',
-      fechaOperativaRuta: '2026-06-03',
-      origenGestion: 'CIERRE_PENDIENTE',
-      montoTotal: 1000,
-    }, '2026-06-03')).toBe(true)
+    expect(
+      isPagoForHistorialFecha(
+        {
+          fechaPago: '2026-06-05T09:00:00-05:00',
+          fechaOperativaRuta: '2026-06-03',
+          origenGestion: 'CIERRE_PENDIENTE',
+          montoTotal: 1000,
+        },
+        '2026-06-03',
+      ),
+    ).toBe(true)
 
-    expect(isPagoForHistorialFecha({
-      fechaPago: '2026-06-05T09:00:00-05:00',
-      fechaOperativaRuta: '2026-06-03',
-      origenGestion: 'CIERRE_PENDIENTE',
-      montoTotal: 1000,
-    }, '2026-06-05')).toBe(false)
+    expect(
+      isPagoForHistorialFecha(
+        {
+          fechaPago: '2026-06-05T09:00:00-05:00',
+          fechaOperativaRuta: '2026-06-03',
+          origenGestion: 'CIERRE_PENDIENTE',
+          montoTotal: 1000,
+        },
+        '2026-06-05',
+      ),
+    ).toBe(false)
+  })
+
+  it('no incluye solicitudes de transferencia pendientes como recaudo', () => {
+    expect(
+      isPagoForHistorialFecha(
+        {
+          fechaPago: '2026-10-08T13:57:02.000-05:00',
+          montoTotal: 27500,
+          metodoPago: 'TRANSFERENCIA' as never,
+          tipoAprobacion: 'PAGO_TRANSFERENCIA',
+          estadoAprobacion: 'PENDIENTE',
+          pagoPendiente: true,
+        },
+        '2026-10-08',
+      ),
+    ).toBe(false)
   })
 })
 
@@ -67,15 +105,30 @@ describe('buildHistorialDiaFromBackend', () => {
             apellidos: 'Diaz',
             direccion: 'Calle 1',
             telefono: '123',
-            nivelRiesgo: 'ROJO',
+            nivelRiesgo: 'ROJO' as Cliente['nivelRiesgo'],
           },
           prestamo: {
             id: 'prestamo-1',
             cantidadCuotas: 30,
-            frecuenciaPago: 'DIARIO',
+            frecuenciaPago: FrecuenciaPago.DIARIO,
             saldoPendiente: 900000,
           },
-          detalles: [{ cuota: { numeroCuota: 2, monto: 30000 } }],
+          // El detalle del pago pide id, cuotaId y monto propios, no solo la cuota
+          // anidada: lo dijo el compilador al quitar el `any` de `pagosDelDia`.
+          detalles: [
+            {
+              id: 'detalle-1',
+              cuotaId: 'cuota-2',
+              monto: 30000,
+              cuota: {
+                id: 'cuota-2',
+                numeroCuota: 2,
+                monto: 30000,
+                estado: 'PENDIENTE',
+                montoPagado: 0,
+              },
+            },
+          ],
         },
         {
           id: 'pago-2',
@@ -88,12 +141,12 @@ describe('buildHistorialDiaFromBackend', () => {
             apellidos: 'Diaz',
             direccion: 'Calle 1',
             telefono: '123',
-            nivelRiesgo: 'ROJO',
+            nivelRiesgo: 'ROJO' as Cliente['nivelRiesgo'],
           },
           prestamo: {
             id: 'prestamo-1',
             cantidadCuotas: 30,
-            frecuenciaPago: 'DIARIO',
+            frecuenciaPago: FrecuenciaPago.DIARIO,
             saldoPendiente: 900000,
           },
         },
@@ -140,7 +193,7 @@ describe('buildHistorialDiaFromBackend', () => {
                 id: 'prestamo-1',
                 saldoPendiente: 4583336,
                 proximaCuota: { monto: 916664, estado: 'PENDIENTE' },
-                frecuenciaPago: 'DIARIO',
+                frecuenciaPago: FrecuenciaPago.DIARIO,
               },
             ],
           },
@@ -205,7 +258,7 @@ describe('buildHistorialDiaFromBackend', () => {
                 id: 'prestamo-1',
                 saldoPendiente: 4583336,
                 proximaCuota: { monto: 916664, estado: 'PENDIENTE' },
-                frecuenciaPago: 'DIARIO',
+                frecuenciaPago: FrecuenciaPago.DIARIO,
               },
             ],
           },
@@ -260,7 +313,7 @@ describe('buildHistorialDiaFromBackend', () => {
                 id: 'prestamo-encarnacion',
                 saldoPendiente: 1773334,
                 proximaCuota: { monto: 126666, estado: 'PENDIENTE' },
-                frecuenciaPago: 'DIARIO',
+                frecuenciaPago: FrecuenciaPago.DIARIO,
               },
             ],
           },
@@ -338,7 +391,7 @@ describe('buildHistorialDiaFromBackend', () => {
                 id: 'prestamo-1',
                 saldoPendiente: 4583336,
                 proximaCuota: { monto: 916664, estado: 'PENDIENTE' },
-                frecuenciaPago: 'DIARIO',
+                frecuenciaPago: FrecuenciaPago.DIARIO,
               },
             ],
           },
@@ -430,7 +483,7 @@ describe('buildHistorialDiaFromBackend', () => {
                 id: 'prestamo-epifanio',
                 saldoPendiente: 2296669,
                 proximaCuota: { monto: 43333, estado: 'PRORROGADA' },
-                frecuenciaPago: 'DIARIO',
+                frecuenciaPago: FrecuenciaPago.DIARIO,
               },
             ],
           },
@@ -497,7 +550,7 @@ describe('buildHistorialDiaFromBackend', () => {
             prestamo: {
               id: 'prestamo-epifanio-1',
               saldoPendiente: 190000,
-              frecuenciaPago: 'DIARIO',
+              frecuenciaPago: FrecuenciaPago.DIARIO,
               cantidadCuotas: 12,
             },
           },
@@ -555,7 +608,7 @@ describe('buildHistorialDiaFromBackend', () => {
             prestamo: {
               id: 'prestamo-viejo',
               saldoPendiente: 2296669,
-              frecuenciaPago: 'DIARIO',
+              frecuenciaPago: FrecuenciaPago.DIARIO,
               cantidadCuotas: 24,
               cuotaObjetivo: {
                 numeroCuota: 8,
@@ -582,7 +635,7 @@ describe('buildHistorialDiaFromBackend', () => {
             prestamo: {
               id: 'prestamo-nuevo',
               saldoPendiente: 190000,
-              frecuenciaPago: 'DIARIO',
+              frecuenciaPago: FrecuenciaPago.DIARIO,
               cantidadCuotas: 12,
               cuotaObjetivo: {
                 numeroCuota: 1,
@@ -645,7 +698,7 @@ describe('buildHistorialDiaFromBackend', () => {
             prestamo: {
               id: 'prestamo-1',
               saldoPendiente: 190000,
-              frecuenciaPago: 'DIARIO',
+              frecuenciaPago: FrecuenciaPago.DIARIO,
             },
           },
           {
@@ -664,7 +717,7 @@ describe('buildHistorialDiaFromBackend', () => {
             prestamo: {
               id: 'prestamo-2',
               saldoPendiente: 240000,
-              frecuenciaPago: 'DIARIO',
+              frecuenciaPago: FrecuenciaPago.DIARIO,
               cuotaObjetivo: {
                 numeroCuota: 3,
                 montoCuota: 43333,
@@ -696,7 +749,7 @@ describe('applyPagosDelDiaToHistorialVisitas', () => {
           recaudadoDelDia: 0,
           montoCuota: 180000,
           saldoTotal: 1180000,
-        } as any,
+        } satisfies VisitaParcial,
       ],
       pagosDelDia: [
         {
@@ -732,7 +785,7 @@ describe('applyPagosDelDiaToHistorialVisitas', () => {
           recaudadoDelDia: 0,
           montoCuota: 916664,
           saldoTotal: 4583336,
-        } as any,
+        } satisfies VisitaParcial,
       ],
       pagosDelDia: [
         {
@@ -754,5 +807,78 @@ describe('applyPagosDelDiaToHistorialVisitas', () => {
       recaudadoDelDia: 0,
       estado: 'pendiente',
     })
+  })
+})
+
+describe('buildHistorialDiaFromBackend: saldados sin gestión', () => {
+  /**
+   * El filtro que oculta créditos ya saldados sin gestión del día no ocultaba
+   * nada.
+   *
+   * Usaba `isGestionHistorial`, cuya cadena arranca por `v.estado` — que en un
+   * saldado vale justamente 'pagado' — así que su `estado.includes('PAGADO')`
+   * daba true para todos y la condición `!(isSaldado && !gestion)` dejaba pasar
+   * la visita entera. El filtro gemelo de `applyPagosDelDiaToHistorialVisitas`
+   * siempre usó `hasGestionHistorial`, que mira el estado de la VISITA.
+   *
+   * Consecuencia: `total` contaba tarjetas de créditos saldados que `visitados`
+   * nunca iba a contar, así que la razón visitados/total salía peor de lo real.
+   */
+  const diaCon = (visitas: unknown[]) =>
+    buildHistorialDiaFromBackend({
+      fechaClave: '2026-06-10',
+      visitasResp: {
+        resumen: {
+          recaudo: 0,
+          recaudoOperativo: 0,
+          recaudoRegularizado: 0,
+          recaudoContable: 0,
+          meta: 0,
+          jornadaEstado: 'PENDIENTE_CIERRE',
+        },
+        visitas,
+      },
+      saldo: {},
+      pagosDelDia: [],
+    } as never)
+
+  const saldadoSinGestion = {
+    asignacionId: 'asig-saldado',
+    estado: 'pagado',
+    saldoTotal: 0,
+    cliente: { id: 'cliente-saldado', nombres: 'Ya', apellidos: 'Pagó' },
+  }
+
+  const pendienteNormal = {
+    asignacionId: 'asig-pendiente',
+    estado: 'pendiente',
+    saldoTotal: 500_000,
+    cliente: { id: 'cliente-pendiente', nombres: 'Aún', apellidos: 'Debe' },
+  }
+
+  it('no muestra un crédito saldado al que no se le hizo nada ese día', () => {
+    const result = diaCon([saldadoSinGestion, pendienteNormal])
+
+    expect(result.visitas).toHaveLength(1)
+    expect(result.visitas[0]).toMatchObject({ clienteId: 'cliente-pendiente' })
+    expect(result.resumen.total).toBe(1)
+  })
+
+  it('sí lo muestra cuando ese día tuvo gestión', () => {
+    const result = diaCon([{ ...saldadoSinGestion, estadoVisita: 'ausente' }, pendienteNormal])
+
+    expect(result.visitas).toHaveLength(2)
+    expect(result.resumen.total).toBe(2)
+  })
+
+  it('un día entero de saldados sin gestión no infla el total', () => {
+    const result = diaCon([
+      saldadoSinGestion,
+      { ...saldadoSinGestion, asignacionId: 'asig-saldado-2', cliente: { id: 'c2' } },
+      { ...saldadoSinGestion, asignacionId: 'asig-saldado-3', cliente: { id: 'c3' } },
+    ])
+
+    expect(result.visitas).toHaveLength(0)
+    expect(result.resumen.total).toBe(0)
   })
 })

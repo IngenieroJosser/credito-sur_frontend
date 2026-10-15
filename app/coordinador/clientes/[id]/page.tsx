@@ -1,6 +1,6 @@
 'use client';
 
-import PantallaCarga from '@/components/ui/PantallaCarga'
+import { SkeletonDetalle } from '@/components/ui/Skeleton'
 
 import { use, useState, useEffect } from 'react';
 import { ChevronLeft, User, Phone, CreditCard, TrendingUp, DollarSign } from 'lucide-react';
@@ -39,23 +39,39 @@ export default function DetalleClienteCoordinadorPage({
     const fetchCliente = async () => {
       setLoading(true);
       try {
-        const data: any = await clientesService.obtenerPorId(id);
+        const data = await clientesService.obtenerPorId(id);
+        // `GET /clients/:id` devuelve el modelo mas sus relaciones: prestamos (con
+        // cuotas), pagos, archivos y la asignacion de ruta activa
+        // (clients.service.ts:185-245). Lo que se leia por el `any` y NO existe:
+        // `documento` (es `dni`), `ciudad`, `estrato`, `estado`, `totalPrestado`,
+        // `saldoActual`, `rutas`, `historial`, y `score`/`prestamosActivos`, que los
+        // calcula el LISTADO, no el detalle.
+        //
+        // Lo que se puede saber de verdad se calcula aqui sobre los prestamos que si
+        // llegan; `ciudad` y `estrato` no estan en ningun sitio del sistema y se quedan
+        // vacios, que es lo que ya mostraban.
+        const prestamosDelCliente = data.prestamos || [];
+        const sumar = (valor: number | string | null | undefined) => Number(valor || 0);
         setCliente({
           id: data.id || id,
           nombre: `${data.nombres || ''} ${data.apellidos || ''}`.trim(),
-          documento: data.dni || data.documento || '',
+          documento: data.dni || '',
           telefono: data.telefono || '',
           direccion: data.direccion || '',
-          ciudad: data.ciudad || '',
-          estrato: data.estrato || 0,
-          score: data.score || 0,
-          estado: data.estado || 'ACTIVO',
+          ciudad: '',
+          estrato: 0,
+          // `puntaje` SI es columna del modelo (schema.prisma:190); `score` es el mismo
+          // numero redondeado que agrega el listado.
+          score: data.puntaje || 0,
+          estado: data.enListaNegra ? 'LISTA_NEGRA' : 'ACTIVO',
           fechaRegistro: data.creadoEn || '',
-          prestamosActivos: data.prestamosActivos || 0,
-          totalPrestado: data.totalPrestado || 0,
-          saldoActual: data.saldoActual || 0,
-          rutasAsociadas: data.rutas?.map((r: any) => r.nombre) || [],
-          historial: data.historial || [],
+          prestamosActivos: prestamosDelCliente.filter((p) => p.estado === 'ACTIVO').length,
+          totalPrestado: prestamosDelCliente.reduce((acc, p) => acc + sumar(p.monto), 0),
+          saldoActual: prestamosDelCliente.reduce((acc, p) => acc + sumar(p.saldoPendiente), 0),
+          rutasAsociadas: (data.asignacionesRuta || [])
+            .map((a) => a.ruta?.nombre || '')
+            .filter(Boolean),
+          historial: [],
         });
       } catch (err) {
         console.error('Error cargando cliente:', err);
@@ -68,7 +84,7 @@ export default function DetalleClienteCoordinadorPage({
 
   if (loading) {
     return (
-      <PantallaCarga />
+      <SkeletonDetalle />
     );
   }
 

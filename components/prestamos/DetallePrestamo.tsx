@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Calendar, User, FileText, TrendingUp, Package, Image as ImageIcon, ChevronRight, ChevronLeft, Clock, BarChart3, AlertTriangle } from 'lucide-react';
+import { Calendar, User, FileText, TrendingUp, Package, Image as ImageIcon, ChevronRight, Clock, BarChart3, AlertTriangle, History } from 'lucide-react';
 import { formatCurrency, cn, resolveMediaUrl } from '@/lib/utils';
 import ClientePortalModal from '@/components/cliente/ClientePortalModal';
 import { getBogotaDateKey, normalizeDateKey } from '@/lib/rutas-core'
@@ -43,6 +43,11 @@ export interface PrestamoDetalle {
   clienteDni: string;
   clienteTelefono?: string;
   clienteDireccion?: string;
+  /**
+   * Cuando se cargo este credito desde cartera vieja, si fue asi.
+   * Null o ausente = credito nacido en el sistema.
+   */
+  cargaHistoricaEn?: string | null;
   montoPrestamo: number;
   montoTotal: number;
   saldoPendiente: number;
@@ -64,7 +69,6 @@ export interface PrestamoDetalle {
   productoInfo?: {
     marca?: string;
     modelo?: string;
-    serie?: string;
     categoria?: string;
   };
   garantia?: string;
@@ -157,7 +161,10 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
 
   // Calcular saldo restante acumulado por cuota y detectar cuota actual
   const cuotasConSaldo = useMemo(() => {
-    return prestamo.cuotas.reduce((acc: any[], c) => {
+    // El acumulador es la cuota mas el saldo que se le calcula: el tipo se DERIVA de la
+    // lista que se recorre en vez de declararse aparte.
+    type CuotaConSaldo = (typeof prestamo.cuotas)[number] & { saldoRestante: number }
+    return prestamo.cuotas.reduce((acc: CuotaConSaldo[], c) => {
       const prevSaldo: number = acc.length === 0 ? prestamo.montoPrestamo : acc[acc.length - 1].saldoRestante;
       const capital = Number(c.montoCapital ?? 0);
       // El saldo siempre decrece cuota a cuota (tanto pagadas como pendientes),
@@ -181,7 +188,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
   const progresoCuotas = totalCuotas > 0 ? Math.round((cuotasPagadas / totalCuotas) * 100) : 0;
 
   const totalesDesdePagos = useMemo(() => {
-    const pagos = Array.isArray((prestamo as any)?.pagos) ? ((prestamo as any).pagos as any[]) : []
+    const pagos = Array.isArray((prestamo)?.pagos) ? ((prestamo).pagos) : []
     let capital = 0
     let interes = 0
     let interesMora = 0
@@ -201,13 +208,13 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
   }, [prestamo])
 
   const capitalPagadoUI = (() => {
-    const v = Number((prestamo as any)?.capitalPagado ?? 0)
+    const v = Number((prestamo)?.capitalPagado ?? 0)
     if (v > 0) return v
     return totalesDesdePagos.capitalPagado
   })()
 
   const interesPagadoUI = (() => {
-    const v = Number((prestamo as any)?.interesPagado ?? 0)
+    const v = Number((prestamo)?.interesPagado ?? 0)
     if (v > 0) return v
     return totalesDesdePagos.interesPagado
   })()
@@ -220,14 +227,16 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
 
   const { cuotaVencidaDesdeKey, proximoPagoProgramadoKey } = useMemo(() => {
     const cuotas = Array.isArray(prestamo?.cuotas) ? prestamo.cuotas : []
-    const unpaid = cuotas.filter((c: any) => {
+    const unpaid = cuotas.filter((c) => {
       const st = String(c?.estado || '').toUpperCase()
       if (st === 'PAGADA' || st === 'PAGADO' || st === 'ANULADA' || st === 'ANULADO') return false
       return true
     })
 
     const keys = unpaid
-      .map((c: any) => normalizeDateKey(String((c as any)?.fecha || (c as any)?.fechaVencimiento || '')))
+      // Solo `fecha`: en esta pantalla la cuota se declara con `fecha` (linea 89), no con
+      // `fechaVencimiento`, asi que el segundo eslabon no resolvia nunca.
+      .map((c) => normalizeDateKey(String(c?.fecha || '')))
       .filter(Boolean) as string[]
 
     const vencidas = keys.filter((k) => !!hoyBogotaKey && k < hoyBogotaKey)
@@ -259,7 +268,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
       .reduce((min, k) => (k < min ? k : min), normalizeDateKey(vencidas[0].fecha))
 
     if (!oldestKey) return 0
-    const isDiario = String((prestamo as any)?.frecuencia || '').toUpperCase() === 'DIARIO'
+    const isDiario = String((prestamo)?.frecuencia || '').toUpperCase() === 'DIARIO'
     if (!isDiario) {
       const parseKeyToBogotaMidday = (key: string) => new Date(`${key}T12:00:00-05:00`)
       const start = parseKeyToBogotaMidday(oldestKey)
@@ -303,7 +312,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
   }, [prestamo.estado, diasMora])
 
   const cuotasConSaldoUI = useMemo(() => {
-    return (cuotasConSaldo || []).map((c: any) => {
+    return (cuotasConSaldo || []).map((c) => {
       const st = String(c?.estado || '').toUpperCase()
       const vtoKey = normalizeDateKey(c?.fecha)
       const esNoPagada = st !== 'PAGADA' && st !== 'PAGADO' && st !== 'ANULADA' && st !== 'ANULADO'
@@ -324,8 +333,8 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
 
   const cuotaActualUI = useMemo(() => {
     if (!cuotaActual) return cuotaActual
-    const st = String((cuotaActual as any)?.estado || '').toUpperCase()
-    const vtoKey = normalizeDateKey((cuotaActual as any)?.fecha)
+    const st = String((cuotaActual)?.estado || '').toUpperCase()
+    const vtoKey = normalizeDateKey((cuotaActual)?.fecha)
     const esNoPagada = st !== 'PAGADA' && st !== 'PAGADO' && st !== 'ANULADA' && st !== 'ANULADO'
     const esVencidaHoyBackend = (st === 'VENCIDA' || st === 'VENCIDO') && vtoKey && hoyBogotaKey && vtoKey === hoyBogotaKey
     const esVencidaPorFecha = esNoPagada && vtoKey && hoyBogotaKey && vtoKey < hoyBogotaKey
@@ -333,9 +342,9 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
       ? 'PENDIENTE'
       : esVencidaPorFecha
         ? 'VENCIDA'
-        : (cuotaActual as any).estado
+        : (cuotaActual).estado
     return {
-      ...(cuotaActual as any),
+      ...(cuotaActual),
       estadoUI,
     }
   }, [cuotaActual, hoyBogotaKey])
@@ -614,6 +623,32 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
       <div className="min-h-[300px]">
         {activeTab === 'cuotas' && (
           <div className="space-y-4">
+            {/*
+              Sin esto, un credito traido de cartera vieja se ve exactamente
+              igual que uno normal: cuotas en PAGADA y ni un recibo detras.
+              Quien lo mire va a pensar que se perdieron pagos.
+            */}
+            {prestamo.cargaHistoricaEn ? (
+              <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <History className="h-5 w-5 shrink-0 text-amber-600 mt-0.5" aria-hidden="true" />
+                <div className="min-w-0 text-sm text-amber-900">
+                  <p className="font-bold">Crédito cargado desde el histórico</p>
+                  <p className="mt-1 leading-relaxed">
+                    Se importó el{' '}
+                    {formatDate(prestamo.cargaHistoricaEn)} como cartera que ya se venía
+                    cobrando. Las cuotas marcadas como pagadas vienen de esa carga:{' '}
+                    <strong>no tienen pagos ni recibos en el sistema</strong>, porque se
+                    cobraron antes de que existiera. Tampoco aparecen en el recaudo de
+                    días anteriores ni en los movimientos de caja.
+                  </p>
+                  <p className="mt-1 leading-relaxed">
+                    El saldo, las cuotas pendientes y el estado del crédito sí son
+                    correctos: es a partir de aquí que se cobra.
+                  </p>
+                </div>
+              </div>
+            ) : null}
+
             {/* Tarjeta de Amortización - Cuota Actual */}
             {cuotaActual && (
               <div className="bg-white border-2 border-blue-100 rounded-2xl p-5 relative overflow-hidden shadow-sm">
@@ -655,8 +690,11 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                     </div>
                     <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
                       <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Cuota</span>
+                      {/* Sin `montoNominal`: ese campo solo lo arma la respuesta de RUTAS
+                          para la cuota objetivo (routes.service.ts:823), no viene en las
+                          cuotas del credito que pinta esta tabla. */}
                       <span className="text-lg font-bold text-slate-900">{formatCurrency(
-                        Number((cuotaActual as any)?.montoNominal ?? (cuotaActual as any)?.monto ?? (Number((cuotaActual as any)?.montoCapital || 0) + Number((cuotaActual as any)?.montoInteres || 0)))
+                        Number(cuotaActual?.monto ?? (Number(cuotaActual?.montoCapital || 0) + Number(cuotaActual?.montoInteres || 0)))
                       )}</span>
                     </div>
                     <div className="bg-blue-50 rounded-xl p-3 border border-blue-100">
@@ -704,11 +742,11 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-slate-100">
-                {cuotasConSaldoUI.map((cuota: any) => {
+                {cuotasConSaldoUI.map((cuota) => {
                     const esCuotaActual = cuotaActual && cuota.numero === cuotaActual.numero;
                     const montoPagado = Number(cuota?.montoPagado ?? 0)
                     const montoCuota = Number(
-                      cuota?.montoNominal ?? cuota?.monto ?? (Number(cuota?.montoCapital || 0) + Number(cuota?.montoInteres || 0))
+                      cuota?.monto ?? (Number(cuota?.montoCapital || 0) + Number(cuota?.montoInteres || 0))
                     )
                     const pendienteCuota = Math.max(0, montoCuota - montoPagado)
                     return (
@@ -816,10 +854,6 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                     <div className="flex justify-between border-b border-slate-50 pb-2">
                       <dt className="text-xs font-bold text-slate-400">Modelo</dt>
                       <dd className="text-sm font-bold text-slate-700">{prestamo.productoInfo.modelo || '—'}</dd>
-                    </div>
-                    <div className="flex justify-between border-b border-slate-50 pb-2">
-                      <dt className="text-xs font-bold text-slate-400">Serie / IMEI</dt>
-                      <dd className="text-sm font-bold text-slate-700">{prestamo.productoInfo.serie || '—'}</dd>
                     </div>
                     <div className="flex justify-between border-b border-slate-50 pb-2">
                       <dt className="text-xs font-bold text-slate-400">Categoría</dt>

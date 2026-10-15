@@ -11,16 +11,32 @@ export interface Rol {
   actualizadoEn: string;
 }
 
+/**
+ * OJO: este servicio no tiene NINGUN consumidor, y dos de estos campos no existen
+ * en el backend.
+ *
+ * Se comprobo con una sonda que compara los DTOs de los dos lados: `CreateRoleDto`
+ * declara solo `nombre`, `descripcion` y `esSistema`, y el modelo `Rol` del schema
+ * no tiene columnas `activo` ni `codigo`. Como el ValidationPipe global va con
+ * `whitelist: true` sin `forbidNonWhitelisted`, si alguna pantalla llegara a usar
+ * esto, esos dos campos se descartarian EN SILENCIO.
+ *
+ * Antes de conectar este servicio a una pantalla: declarar en el backend lo que se
+ * necesite, o quitar de aqui lo que no existe.
+ */
 export interface CrearRolDto {
+  /** No existe en el backend. */
   codigo: string;
   nombre: string;
   descripcion?: string;
+  /** No existe en el backend. */
   activo?: boolean;
 }
 
 export interface ActualizarRolDto {
   nombre?: string;
   descripcion?: string;
+  /** No existe en el backend. Ver la nota de `CrearRolDto`. */
   activo?: boolean;
 }
 

@@ -41,7 +41,7 @@ export default function RutaKpiSection({ periodo, onPeriodoChange, rutaStats, us
         </div>
       </div>
 
-      <RutaStatsCards rutaStats={rutaStats as any} periodo={periodo as any} userRol={userRol} />
+      <RutaStatsCards rutaStats={rutaStats} periodo={periodo} userRol={userRol} />
     </div>
   )
 }
