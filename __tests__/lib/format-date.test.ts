@@ -10,6 +10,12 @@ import {
  * Esa eleccion es cosa de ICU y no es lo que se esta comprobando aqui: lo que
  * importa es el dia y la hora. Se normalizan los espacios para que la prueba
  * no dependa de un detalle invisible.
+ *
+ * Por lo mismo, las pruebas de `formatFechaHumanaBogota` comprueban el dia y la
+ * hora por separado y NO el texto entero: ICU tambien cambia el separador entre
+ * los dos —hasta Node 24.13 era ", " y desde ICU 78 es " a las "—, y esas dos
+ * pruebas empezaron a fallar con una actualizacion de Node sin que el codigo
+ * hubiera cambiado.
  */
 const conEspaciosNormales = (texto: string) => texto.replace(/[\u00a0\u202f]/g, ' ')
 
@@ -61,15 +67,19 @@ describe('formatFechaCortaBogota', () => {
 
 describe('formatFechaHumanaBogota', () => {
   it('da la hora de Bogota, no la de quien abre la pantalla', () => {
-    expect(conEspaciosNormales(formatFechaHumanaBogota('2026-03-09T02:30:00Z'))).toBe(
-      '08 de marzo de 2026, 9:30 p. m.',
+    const texto = conEspaciosNormales(
+      formatFechaHumanaBogota('2026-03-09T02:30:00Z'),
     )
+
+    expect(texto).toContain('08 de marzo de 2026')
+    expect(texto).toContain('9:30 p. m.')
   })
 
   it('la fecha operativa se ancla al mediodia, lejos de los bordes del dia', () => {
-    expect(conEspaciosNormales(formatFechaHumanaBogota('2026-03-08'))).toBe(
-      '08 de marzo de 2026, 12:00 p. m.',
-    )
+    const texto = conEspaciosNormales(formatFechaHumanaBogota('2026-03-08'))
+
+    expect(texto).toContain('08 de marzo de 2026')
+    expect(texto).toContain('12:00 p. m.')
   })
 
   it('no inventa una fecha cuando no hay nada que mostrar', () => {
