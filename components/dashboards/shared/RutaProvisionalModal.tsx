@@ -1,4 +1,5 @@
 'use client'
+import { formatFechaBogota } from '@/lib/format-date'
 
 import React, { useState, useEffect } from 'react'
 import { Portal, SortableVisita } from '@/components/dashboards/shared/CobradorElements'
@@ -22,6 +23,8 @@ import {
 } from '@dnd-kit/sortable'
 import { VisitaRuta, EstadoVisita } from '@/lib/types/cobranza'
 import { formatCurrency } from '@/lib/utils'
+import Tooltip from '@/components/ui/Tooltip'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 
 interface RutaProvisionalModalProps {
   visitas: VisitaRuta[]
@@ -38,6 +41,11 @@ export default function RutaProvisionalModal({
 }: RutaProvisionalModalProps) {
   const [orden, setOrden] = useState<string[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
+  // Escape para salir y el foco en el primer campo al abrir. El hook lleva
+  // una pila, asi que con modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    onClose: onClose,
+  })
 
   useEffect(() => {
     const validIds = visitas.map(v => v.id)
@@ -67,7 +75,7 @@ export default function RutaProvisionalModal({
   const activeVisita = activeId ? visitas.find(v => v.id === activeId) : null
 
   const handleExportarTxt = () => {
-    const hoy = new Date().toLocaleDateString('es-CO', {
+    const hoy = formatFechaBogota(new Date(), {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
@@ -117,12 +125,15 @@ export default function RutaProvisionalModal({
                 Ordena los clientes y exporta la ruta como archivo de texto.
               </p>
             </div>
-            <button
-              onClick={onClose}
-              className="shrink-0 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors shrink-0"
-            >
-              <X className="h-5 w-5" />
-            </button>
+            <Tooltip texto="Cerrar">
+              <button
+                onClick={onClose}
+                className="shrink-0 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors shrink-0"
+                aria-label="Cerrar"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </Tooltip>
           </div>
 
           {/* List */}

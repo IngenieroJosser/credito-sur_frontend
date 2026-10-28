@@ -3,7 +3,6 @@
 import { useMemo, useState, useEffect } from 'react';
 import {
   WifiOff,
-  Wifi,
   RefreshCw,
   CloudUpload,
   AlertTriangle,
@@ -11,7 +10,6 @@ import {
   X,
   ChevronUp,
   ChevronDown,
-  Download,
   Clock,
   Trash2,
 } from 'lucide-react';
@@ -21,7 +19,22 @@ import { useOffline } from '@/hooks/useOffline';
 import { useAutoSync } from '@/hooks/use-auto-sync';
 import { offlineQueue } from '@/lib/offline/offlineQueue';
 import { OfflineQueueItem } from '@/lib/offline/offlineDb';
+
+/**
+ * Una actividad de sincronizacion efimera.
+ *
+ * La emite `logSyncActivity` por el evento `offline-activity` (offlineQueue.ts:257-267)
+ * y NO es un item de la cola: trae solo estos cuatro campos. Se mezcla con los items de
+ * la cola en la lista que se pinta, asi que esa lista es de los dos tipos.
+ */
+type ActividadManual = {
+  id: string;
+  description: string;
+  timestamp: string;
+  status: OfflineQueueItem['status'];
+};
 import { hasValidOfflineSession, getOfflineSessionDaysRemaining, isSessionExpiringSoon } from '@/lib/auth/offlineAuth';
+import Tooltip from '@/components/ui/Tooltip';
 
 export default function OfflineIndicator() {
   const {
@@ -41,7 +54,7 @@ export default function OfflineIndicator() {
   useAutoSync(300000); 
 
   const [expanded, setExpanded] = useState(false);
-  const [queueItems, setQueueItems] = useState<OfflineQueueItem[]>([]);
+  const [queueItems, setQueueItems] = useState<Array<OfflineQueueItem | ActividadManual>>([]);
   const [showResult, setShowResult] = useState(false);
   const [hasOfflineSession, setHasOfflineSession] = useState(false);
   const [daysRemaining, setDaysRemaining] = useState(0);
@@ -49,7 +62,7 @@ export default function OfflineIndicator() {
   const [isClearModalOpen, setIsClearModalOpen] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
 
-  const [manualActivities, setManualActivities] = useState<any[]>([]);
+  const [manualActivities, setManualActivities] = useState<ActividadManual[]>([]);
 
   const [eventSyncActive, setEventSyncActive] = useState(false);
 
@@ -67,11 +80,11 @@ export default function OfflineIndicator() {
   };
 
   // Separar actividades activas de completadas
-  const activeManualActivities = manualActivities.filter((activity: any) => {
+  const activeManualActivities = manualActivities.filter((activity) => {
     return !isCompletedStatus(activity?.status);
   });
 
-  const completedManualActivities = manualActivities.filter((activity: any) => {
+  const completedManualActivities = manualActivities.filter((activity) => {
     return isCompletedStatus(activity?.status);
   });
 
@@ -258,8 +271,8 @@ export default function OfflineIndicator() {
       interval = setInterval(refreshItems, 1000); // Refresco rápido mientras hay ops
     }
 
-    const handleManualActivity = (e: any) => {
-      const activity = e.detail;
+    const handleManualActivity = (e: Event) => {
+      const activity = (e as CustomEvent<ActividadManual>).detail;
       setManualActivities(prev => {
         // Evitar duplicados
         if (prev.find(a => a.description === activity.description && a.timestamp === activity.timestamp)) return prev;
@@ -329,7 +342,7 @@ export default function OfflineIndicator() {
   };
 
   // Filtrar items visibles (excluir completados)
-  const visibleQueueItems = queueItems.filter((item: any) => {
+  const visibleQueueItems = queueItems.filter((item) => {
     return !isCompletedStatus(item?.status);
   });
 
@@ -340,7 +353,7 @@ export default function OfflineIndicator() {
 
   return (
     <>
-      <div className="fixed left-1/2 top-[calc(env(safe-area-inset-top)+0.75rem)] z-[80] w-[min(94vw,48rem)] -translate-x-1/2 pointer-events-none">
+      <div className="fixed left-1/2 top-[calc(env(safe-area-inset-top)+0.75rem)] z-[60] w-[min(94vw,48rem)] -translate-x-1/2 pointer-events-none">
         {/* Resultado de sync */}
         {showResult && lastSyncResult && (
           <div className="relative mb-2 overflow-hidden rounded-[1.6rem] border border-white/20 bg-white/[0.08] p-3 shadow-[0_24px_80px_rgba(15,23,42,0.18)] ring-1 ring-white/15 backdrop-blur-[34px] backdrop-saturate-[1.9] animate-in fade-in slide-in-from-top-2 duration-300 pointer-events-auto">
@@ -356,14 +369,16 @@ export default function OfflineIndicator() {
                 </span>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setShowResult(false)}
-                className="rounded-full p-1 text-slate-500 transition hover:bg-white/30 hover:text-slate-800"
-                aria-label="Cerrar resultado de sincronización"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
+              <Tooltip texto="Cerrar resultado de sincronización">
+                <button
+                  type="button"
+                  onClick={() => setShowResult(false)}
+                  className="rounded-full p-1 text-slate-500 transition hover:bg-white/30 hover:text-slate-800"
+                  aria-label="Cerrar resultado de sincronización"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </Tooltip>
             </div>
           </div>
         )}
@@ -403,14 +418,16 @@ export default function OfflineIndicator() {
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={handleExpand}
-                  className="absolute right-3 top-3 rounded-full p-1.5 text-slate-500 transition hover:bg-white/30 hover:text-slate-800 md:static"
-                  aria-label="Contraer estado del sistema"
-                >
-                  <ChevronUp className="h-4 w-4" />
-                </button>
+                <Tooltip texto="Contraer estado del sistema">
+                  <button
+                    type="button"
+                    onClick={handleExpand}
+                    className="absolute right-3 top-3 rounded-full p-1.5 text-slate-500 transition hover:bg-white/30 hover:text-slate-800 md:static"
+                    aria-label="Contraer estado del sistema"
+                  >
+                    <ChevronUp className="h-4 w-4" />
+                  </button>
+                </Tooltip>
               </div>
 
               {hasOfflineSession && (
@@ -504,7 +521,9 @@ export default function OfflineIndicator() {
                               {item.description}
                             </p>
 
-                            {item.lastError && (
+                            {/* `lastError` solo lo tienen los items de la cola: una
+                                actividad efimera no falla, se registra ya completada. */}
+                            {'lastError' in item && item.lastError && (
                               <p className="mt-1 line-clamp-2 rounded-xl border border-rose-200/30 bg-rose-400/[0.08] px-2 py-1 text-[10px] font-medium text-rose-700">
                                 {item.lastError}
                               </p>

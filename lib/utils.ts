@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
+import { baseApi } from '@/lib/api/baseUrl'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -225,11 +226,19 @@ export const resolveMediaUrl = (rawUrl: unknown) => {
   }
 
   // 4. Fallback a servidor local (API base)
-  let baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://127.0.0.1:3001'
-  if (!baseUrl.endsWith('/api-credisur')) {
-    baseUrl = baseUrl.replace(/\/$/, '') + '/api-credisur'
-  }
-
   const cleanUrl = url.startsWith('/') ? url : `/${url}`
-  return `${baseUrl}${cleanUrl}`
+  return `${baseApi()}${cleanUrl}`
+}
+
+/**
+ * Si el texto es un UUID (version 1 a 5).
+ *
+ * Estaba copiado BYTE A BYTE en cuatro sitios: el detalle de ruta de admin y de
+ * coordinador, SupervisorCobroView y `useCrearCreditoOperativo`. Se usa para distinguir un
+ * id real de un id temporal offline (`temp-...`), asi que conviene que la regla sea una.
+ */
+export const isUuid = (value?: string | null) => {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    String(value || '').trim(),
+  )
 }

@@ -1,6 +1,9 @@
 'use client'
 
 
+import { mensajeDeError } from '@/lib/mensaje-de-error';
+// Con alias: esta pantalla ya tiene una variable local llamada `texto`.
+import { numero as numeroDeJson, objeto as objetoDeJson, texto as textoDeJson } from '@/lib/valores-de-api';
 import Paginador from '@/components/ui/Paginador'
 import React, { useState, useEffect } from 'react'
 
@@ -18,12 +21,7 @@ import {
   CheckCircle2, 
   Clock,
   ChevronLeft,
-  ChevronRight,
-  Check,
-  X,
-  Eye,
-  AlertTriangle,
-  Info
+  Eye
 } from 'lucide-react'
 import FiltroRuta from '@/components/filtros/FiltroRuta'
 import { notificacionesService, type Notificacion } from '@/services/notificaciones-service'
@@ -33,15 +31,71 @@ import ConfirmRejectModal from '@/components/ui/ConfirmRejectModal'
 import EditarPrestamoModal from '@/components/prestamos/EditarPrestamoModal'
 import { aprobacionesService } from '@/services/aprobaciones-service'
 import { TipoAprobacion } from '@/types/enums'
-import NotificacionDetalleModal from '@/components/dashboards/shared/NotificacionDetalleModal'
-import { formatCurrency, formatMilesCOP } from '@/lib/utils'
+import NotificacionDetalleModal, { type DetallesEditados } from '@/components/dashboards/shared/NotificacionDetalleModal'
+import { formatMilesCOP } from '@/lib/utils'
+import BotonAccion from '@/components/ui/BotonAccion'
+import { CapaAccion } from '@/components/ui/PantallaCarga'
+import { Skeleton } from '@/components/ui/Skeleton'
 
 // MOCKS ELIMINADOS - La aplicación solo funciona con datos reales del backend
 
 // Las notificaciones que requieren aprobación se identifican por metadata.tipoAprobacion
 // o porque el backend las marcó explícitamente como de tipo APROBACION.
 // Inferir tipo de aprobación a partir del título de la notificación (último recurso)
-function inferirApprovalTypePorTitulo(titulo: string): string | undefined {
+/**
+ * Narrowing de lo que llega en `metadata.tipoAprobacion`.
+ *
+ * Comprobado que no descarta nada real: en el backend la columna es el enum
+ * `TipoAprobacion` de Prisma (`schema.prisma:558`) con los mismos ocho miembros que
+ * el enum del frontend, asi que la base ya garantiza el valor. El guard esta para
+ * que el tipo diga la verdad y para el dia que alguien mande otra cosa.
+ */
+/**
+ * Una fila del listado: una `Notificacion` mas el `approvalType` que le pone el mapeo.
+ *
+ * El campo no es columna del modelo; sale de `metadata.tipoAprobacion` o se infiere del
+ * titulo. Es lo que decide si la fila ofrece aprobar o rechazar, asi que tiene que estar
+ * en el tipo del estado y no detras de un `any`.
+ */
+type NotificacionDeLista = Notificacion & { approvalType?: TipoAprobacion }
+
+/**
+
+ * Mezcla los detalles editados en el modal con los que ya tenia la notificacion.
+ *
+ * Hace falta porque los dos tipos NO son el mismo: `DetallesEditados` deja los cuatro
+ * importes como `number | string` (los campos del modal son texto) y trae una bolsa
+ * abierta, mientras `Notificacion['detalles']` los declara numericos, que es como los
+ * lee el listado. La conversion va aqui, en la frontera, en vez de ensanchar el tipo de
+ * la notificacion o pasar el valor por un `any`.
+ */
+const fusionarDetalles = (
+  previos: Notificacion['detalles'],
+  editados: DetallesEditados | undefined,
+): Notificacion['detalles'] => {
+  if (!editados) return previos
+  return {
+    ...previos,
+    monto: numeroDeJson(editados.monto) ?? previos?.monto,
+    valorArticulo: numeroDeJson(editados.valorArticulo) ?? previos?.valorArticulo,
+    cuotaInicial: numeroDeJson(editados.cuotaInicial) ?? previos?.cuotaInicial,
+    porcentaje: numeroDeJson(editados.porcentaje) ?? previos?.porcentaje,
+    cuotas: editados.cuotas ?? previos?.cuotas,
+    descripcion: textoDeJson(editados.descripcion) ?? previos?.descripcion,
+    motivo: textoDeJson(editados.motivo) ?? previos?.motivo,
+  }
+}
+
+
+function esTipoAprobacion(valor: unknown): valor is TipoAprobacion {
+  return (
+    typeof valor === 'string' &&
+    (Object.values(TipoAprobacion) as string[]).includes(valor)
+  )
+}
+
+/** Solo devuelve miembros del enum; antes lo declaraba como `string`. */
+function inferirApprovalTypePorTitulo(titulo: string): TipoAprobacion | undefined {
   const t = titulo.toLowerCase()
   if (t.includes('gasto')) return TipoAprobacion.GASTO
   if (t.includes('préstamo') || t.includes('prestamo')) return TipoAprobacion.NUEVO_PRESTAMO
@@ -52,13 +106,29 @@ function inferirApprovalTypePorTitulo(titulo: string): string | undefined {
 }
 
 // Roles que pueden aprobar/rechazar solicitudes
+/**
+ * Los ordenes de la lista, con su etiqueta. Un solo origen: el `<select>` se dibuja
+ * de aqui y el tipo del estado sale de aqui, asi que la lista de opciones y los
+ * valores que el codigo compara no pueden separarse.
+ */
+const ORDENES = {
+  RECENT: 'Más recientes',
+  OLD: 'Más antiguos',
+  CATEGORY: 'Por Categoría',
+  STATUS: 'Por Estado',
+} as const
+
+type Orden = keyof typeof ORDENES
+
+const esOrden = (valor: string): valor is Orden => valor in ORDENES
+
 const ROLES_APROBADORES = ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR']
 // Roles que tienen acceso a filtro de rutas
 const ROLES_CON_RUTAS = ['SUPER_ADMINISTRADOR', 'ADMIN', 'COORDINADOR', 'SUPERVISOR']
 type TipoNotificacionFiltro = 'TODOS' | Notificacion['tipo'] | 'REGULARIZADAS'
 
 const isPagoRegularizadoNotif = (notif: Notificacion) => {
-  const metadata = (notif as any)?.metadata || {}
+  const metadata = (notif)?.metadata || {}
   return (
     metadata.tipoEvento === 'PAGO_REGULARIZADO' ||
     String(notif.titulo || '').toLowerCase().includes('pago regularizado')
@@ -89,11 +159,17 @@ export default function NotificacionesPage() {
   const [filter, setFilter] = useState<'TODAS' | 'NO_LEIDAS' | 'LEIDAS' | 'APROBADAS' | 'RECHAZADAS'>('TODAS')
   const [tipoFilter, setTipoFilter] = useState<TipoNotificacionFiltro>('TODOS')
   const [filterRuta, setFilterRuta] = useState<string | null>(null)
-  const [sortBy, setSortBy] = useState<'RECENT' | 'OLD' | 'CATEGORY' | 'STATUS'>('RECENT')
+  const [sortBy, setSortBy] = useState<Orden>('RECENT')
   
   // --- ESTADOS DE DATOS Y UI ---
   const [search, setSearch] = useState('')
-  const [notificacionesState, setNotificacionesState] = useState<Notificacion[]>([])
+  /**
+   * Lo que esta pantalla guarda es MAS que una `Notificacion`: el mapeo de abajo le
+   * agrega `approvalType`, que es lo que decide si la fila se puede aprobar. El estado
+   * lo declaraba como `Notificacion` y los tres sitios que leen ese campo lo sacaban
+   * por un `any`.
+   */
+  const [notificacionesState, setNotificacionesState] = useState<NotificacionDeLista[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -117,8 +193,9 @@ export default function NotificacionesPage() {
         const basePath = user?.rol === 'COBRADOR' ? '/cobranzas' : user?.rol === 'CONTADOR' ? '/contador' : user?.rol === 'COORDINADOR' ? '/coordinador' : '/admin'
         
         const notifsConLinks = notifs.map((n: Notificacion) => {
-          const raw: any = n as any
-          const metadata = raw.metadata || {}
+          // `metadata` es la columna `Json?` del modelo: cada valor es `unknown` de
+          // verdad, asi que se lee con los conversores en vez de por un `any`.
+          const metadata = objetoDeJson(n.metadata)
 
           let link = undefined
           if (n.tipo === 'PAGO') link = basePath
@@ -127,8 +204,8 @@ export default function NotificacionesPage() {
           if (n.tipo === 'SISTEMA') link = user?.rol === 'COBRADOR' ? `${basePath}/solicitudes` : undefined
 
           const fecha =
-            raw.creadoEn
-              ? new Date(raw.creadoEn).toLocaleString('es-CO', {
+            n.creadoEn
+              ? new Date(n.creadoEn).toLocaleString('es-CO', {
                   day: '2-digit',
                   month: '2-digit',
                   year: '2-digit',
@@ -138,9 +215,9 @@ export default function NotificacionesPage() {
                 })
               : n.fecha
 
-          const rutaId = n.rutaId || metadata.rutaId || undefined
-          const entidadId = n.entidadId ?? raw.entidadId
-          const entidad: string = raw.entidad || ''
+          const rutaId = n.rutaId || textoDeJson(metadata.rutaId) || undefined
+          const entidadId = n.entidadId
+          const entidad: string = n.entidad || ''
 
           // Asegurar que las notificaciones tengan el tipo correcto basado en la entidad para los filtros
           let tipoFinal = n.tipo;
@@ -163,7 +240,10 @@ export default function NotificacionesPage() {
             texto.includes('interes de mora')
           if (tipoFinal === 'SISTEMA' && pareceMora) tipoFinal = 'MORA'
 
-          let approvalType: string | undefined = metadata.tipoAprobacion as string | undefined
+          const tipoAprobacionMeta = textoDeJson(metadata.tipoAprobacion)
+          let approvalType: TipoAprobacion | undefined = esTipoAprobacion(tipoAprobacionMeta)
+            ? tipoAprobacionMeta
+            : undefined
 
           if (!approvalType && (n.tipo === 'APROBACION' || entidad === 'Aprobacion')) {
             if (n.titulo && (n.titulo.toLowerCase().includes('aprobación') || n.titulo.toLowerCase().includes('requiere'))) {
@@ -182,8 +262,9 @@ export default function NotificacionesPage() {
             APROBADO: 'APROBADA',
             RECHAZADO: 'RECHAZADA',
           }
-          const estadoReal = metadata.estadoAprobacion
-            ? estadoAprobacionMap[metadata.estadoAprobacion] || metadata.estadoAprobacion
+          const estadoAprobacionMeta = textoDeJson(metadata.estadoAprobacion)
+          const estadoReal = estadoAprobacionMeta
+            ? estadoAprobacionMap[estadoAprobacionMeta] || estadoAprobacionMeta
             : undefined
           
           let estado = estadoReal || n.estado || (approvalType ? 'PENDIENTE' : undefined)
@@ -192,29 +273,34 @@ export default function NotificacionesPage() {
             estado = n.estado || 'LEIDA';
           }
 
-          let detalles = n.detalles || (metadata.detalles as any) || {}
+          let detalles: NonNullable<Notificacion['detalles']> =
+            n.detalles || objetoDeJson(metadata.detalles)
 
           // Enriquecer detalles de gastos (se puede venir como tipo GASTO o como entidad GASTO con tipo SISTEMA)
           if (n.tipo === 'GASTO' || entidad === 'GASTO' || approvalType === 'GASTO') {
             detalles = {
               ...detalles,
-              monto: detalles.monto ?? metadata.monto,
-              descripcion: metadata.descSolicitud || detalles.descripcion || metadata.descripcion || n.mensaje,
+              monto: detalles.monto ?? numeroDeJson(metadata.monto),
+              descripcion:
+                textoDeJson(metadata.descSolicitud) ||
+                detalles.descripcion ||
+                textoDeJson(metadata.descripcion) ||
+                n.mensaje,
             }
           }
 
           // Extraer nombre del solicitante de múltiples fuentes posibles
           const solicitante =
-            metadata.solicitadoPor ||
-            metadata.solicitante ||
-            metadata.usuario ||
-            metadata.cobrador ||
-            raw.solicitante ||
+            textoDeJson(metadata.solicitadoPor) ||
+            textoDeJson(metadata.solicitante) ||
+            textoDeJson(metadata.usuario) ||
+            textoDeJson(metadata.cobrador) ||
+            n.solicitante ||
             undefined
 
           return {
             ...n,
-            tipo: tipoFinal as any,
+            tipo: tipoFinal,
             link,
             fecha,
             rutaId,
@@ -223,10 +309,10 @@ export default function NotificacionesPage() {
             detalles,
             solicitante,
             metadata,
-            revisadoPor: metadata.revisadoPor,
-            motivoRechazo: metadata.motivoRechazo || n.motivoRechazo,
+            revisadoPor: textoDeJson(metadata.revisadoPor),
+            motivoRechazo: textoDeJson(metadata.motivoRechazo) || n.motivoRechazo,
             ...(approvalType ? { approvalType } : {}),
-          } as Notificacion & { approvalType?: string }
+          } as NotificacionDeLista
         })
         
         setNotificacionesState(notifsConLinks)
@@ -245,7 +331,7 @@ export default function NotificacionesPage() {
   }, [globalNotifs])
 
   // Estados para modales y acciones
-  const [selectedNotif, setSelectedNotif] = useState<Notificacion | null>(null)
+  const [selectedNotif, setSelectedNotif] = useState<NotificacionDeLista | null>(null)
   const [editedDetails, setEditedDetails] = useState<Notificacion['detalles']>({})
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
   const [isEditingMode, setIsEditingMode] = useState(false)
@@ -255,7 +341,14 @@ export default function NotificacionesPage() {
   const [prestamoModalOpen, setPrestamoModalOpen] = useState(false)
   const [selectedPrestamoId, setSelectedPrestamoId] = useState<string | null>(null)
   const [feedbackModal, setFeedbackModal] = useState<{titulo: string, mensaje: string, tipo: 'success' | 'danger'} | null>(null)
-  const [isProcessing, setIsProcessing] = useState(false)
+  /**
+   * Que decision se esta aplicando ahora, o null.
+   *
+   * Era `isProcessing`, un booleano que se escribia al aprobar y al rechazar
+   * y no se leia en ningun sitio: no bloqueaba nada. Aprobar no es
+   * idempotente, asi que dos pulsaciones son dos decisiones.
+   */
+  const [decisionEnCurso, setDecisionEnCurso] = useState<string | null>(null)
   
   // Paginación
   const [currentPage, setCurrentPage] = useState(1);
@@ -342,7 +435,7 @@ export default function NotificacionesPage() {
     }
   }
 
-  const handleOpenConfirm = (notif: Notificacion, action: 'APPROVE' | 'REJECT') => {
+  const handleOpenConfirm = (notif: NotificacionDeLista, action: 'APPROVE' | 'REJECT') => {
     setSelectedNotif(notif)
     setEditedDetails(notif.detalles || {})
     if (action === 'REJECT') {
@@ -355,8 +448,7 @@ export default function NotificacionesPage() {
   const handleApproveConfirmList = async () => {
     if (!selectedNotif) return
 
-    const anyNotif: any = selectedNotif
-    const approvalType: string | undefined = anyNotif.approvalType
+    const approvalType = selectedNotif.approvalType
     const entidadId = selectedNotif.entidadId
 
     if (!approvalType || !entidadId) {
@@ -369,11 +461,12 @@ export default function NotificacionesPage() {
       return
     }
 
-    setIsProcessing(true)
+    if (decisionEnCurso) return
+    setDecisionEnCurso('Aprobando la solicitud…')
 
     try {
       await aprobacionesService.aprobar(entidadId, {
-        type: approvalType as any,
+        type: approvalType,
         notas: editedDetails ? JSON.stringify(editedDetails) : undefined,
       })
 
@@ -395,15 +488,15 @@ export default function NotificacionesPage() {
         mensaje: `La solicitud ha sido aprobada correctamente y se ha reflejado en el sistema.`,
           tipo: 'success'
         })
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error procesando aprobación/rechazo:', err)
       setFeedbackModal({
         titulo: 'Error al procesar',
-        mensaje: err?.message || 'Ocurrió un error al procesar la solicitud. Verifique su conexión e intente de nuevo.',
+        mensaje: mensajeDeError(err, 'Ocurrió un error al procesar la solicitud. Verifique su conexión e intente de nuevo.'),
         tipo: 'danger'
       })
     } finally {
-      setIsProcessing(false)
+      setDecisionEnCurso(null)
     }
 
     setShowApproveModalList(false)
@@ -412,8 +505,7 @@ export default function NotificacionesPage() {
 
   const handleRejectConfirmList = async (reason: string) => {
     if (!selectedNotif) return
-    const anyNotif: any = selectedNotif
-    const approvalType: string | undefined = anyNotif.approvalType
+    const approvalType = selectedNotif.approvalType
     const entidadId = selectedNotif.entidadId
     if (!approvalType || !entidadId) {
       setFeedbackModal({
@@ -424,10 +516,11 @@ export default function NotificacionesPage() {
       setShowRejectModalList(false)
       return
     }
-    setIsProcessing(true)
+    if (decisionEnCurso) return
+    setDecisionEnCurso('Rechazando la solicitud…')
     try {
       await aprobacionesService.rechazar(entidadId, {
-        type: approvalType as any,
+        type: approvalType,
         motivoRechazo: reason || 'Rechazado por el administrador',
       })
       setNotificacionesState(prev =>
@@ -447,30 +540,34 @@ export default function NotificacionesPage() {
         mensaje: `La solicitud ha sido rechazada correctamente.`,
         tipo: 'danger'
       })
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error procesando rechazo:', err)
       setFeedbackModal({
         titulo: 'Error al procesar',
-        mensaje: err?.message || 'Ocurrió un error al procesar el rechazo.',
+        mensaje: mensajeDeError(err, 'Ocurrió un error al procesar el rechazo.'),
         tipo: 'danger'
       })
     } finally {
-      setIsProcessing(false)
+      setDecisionEnCurso(null)
       setShowRejectModalList(false)
       setSelectedNotif(null)
     }
   }
 
-  const handleOpenDetail = (notif: Notificacion) => {
+  const handleOpenDetail = (notif: NotificacionDeLista) => {
     setSelectedNotif(notif)
     setEditedDetails(notif.detalles || {})
     setIsDetailModalOpen(true)
   }
 
-  const handleApproveFromModal = async (entityId: string, type: string, details: any) => {
+  const handleApproveFromModal = async (
+    entityId: string,
+    type: TipoAprobacion,
+    details: DetallesEditados | undefined,
+  ) => {
     try {
       await aprobacionesService.aprobar(entityId, {
-        type: type as any,
+        type,
         notas: details ? JSON.stringify(details) : undefined,
       })
 
@@ -481,7 +578,7 @@ export default function NotificacionesPage() {
                 ...n,
                 estado: 'APROBADA',
                 leida: true,
-                detalles: { ...n.detalles, ...details },
+                detalles: fusionarDetalles(n.detalles, details),
               }
             : n,
         ),
@@ -492,16 +589,16 @@ export default function NotificacionesPage() {
         mensaje: `La solicitud ha sido aprobada correctamente.`,
         tipo: 'success'
       })
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error in handleApproveFromModal:', err)
       throw err
     }
   }
 
-  const handleRejectFromModal = async (entityId: string, type: string, reason: string, resultadoRevision?: 'RECHAZADO_CON_DEUDA' | 'RECHAZADO_CON_REINTEGRO') => {
+  const handleRejectFromModal = async (entityId: string, type: TipoAprobacion, reason: string, resultadoRevision?: 'RECHAZADO_CON_DEUDA' | 'RECHAZADO_CON_REINTEGRO') => {
     try {
       await aprobacionesService.rechazar(entityId, {
-        type: type as any,
+        type,
         motivoRechazo: reason || 'Rechazado por el administrador',
         resultadoRevision,
       })
@@ -524,7 +621,7 @@ export default function NotificacionesPage() {
         mensaje: `La solicitud ha sido rechazada correctamente.`,
         tipo: 'danger'
       })
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error in handleRejectFromModal:', err)
       throw err
     }
@@ -532,6 +629,8 @@ export default function NotificacionesPage() {
 
   return (
     <div className="min-h-screen relative bg-white">
+      <CapaAccion texto={decisionEnCurso} />
+
       {/* Fondo Arquitectónico */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
@@ -691,13 +790,19 @@ export default function NotificacionesPage() {
                       <div className="md:w-48">
                         <select 
                           value={sortBy}
-                          onChange={(e) => setSortBy(e.target.value as any)}
+                          onChange={(e) => {
+                            // `e.target.value` es un `string`: se comprueba en vez de
+                            // afirmarlo. Los valores posibles son las llaves de ORDENES,
+                            // que es de donde se dibujan las opciones.
+                            if (esOrden(e.target.value)) setSortBy(e.target.value)
+                          }}
                           className="w-full h-[42px] px-4 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 transition-all cursor-pointer"
                         >
-                          <option value="RECENT">Más recientes</option>
-                          <option value="OLD">Más antiguos</option>
-                          <option value="CATEGORY">Por Categoría</option>
-                          <option value="STATUS">Por Estado</option>
+                          {Object.entries(ORDENES).map(([valor, etiqueta]) => (
+                            <option key={valor} value={valor}>
+                              {etiqueta}
+                            </option>
+                          ))}
                         </select>
                       </div>
                     </div>
@@ -719,9 +824,18 @@ export default function NotificacionesPage() {
             {/* Lista */}
             <div className="divide-y divide-slate-100">
               {isLoading ? (
-                <div className="p-16 text-center">
-                  <div className="animate-spin mx-auto mb-4 h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full"></div>
-                  <p className="text-slate-500 text-sm font-medium">Cargando notificaciones...</p>
+                <div className="divide-y divide-slate-100" aria-busy="true">
+                  <span className="sr-only">Cargando notificaciones…</span>
+                  {[0, 1, 2, 3, 4].map((i) => (
+                    <div key={i} className="flex items-start gap-4 p-5">
+                      <Skeleton className="h-10 w-10 shrink-0 rounded-xl" />
+                      <div className="min-w-0 flex-1 space-y-2">
+                        <Skeleton className="h-3.5 w-1/3" />
+                        <Skeleton className="h-3 w-2/3" />
+                      </div>
+                      <Skeleton className="h-3 w-16 shrink-0" />
+                    </div>
+                  ))}
                 </div>
               ) : error ? (
                 <div className="p-16 text-center">
@@ -789,7 +903,7 @@ export default function NotificacionesPage() {
                         </button>
 
                          {!notif.leida && (
-                           <button
+                           <BotonAccion
                              onClick={async () => {
                                try {
                                  await notificacionesService.marcarComoLeida(notif.id)
@@ -804,7 +918,7 @@ export default function NotificacionesPage() {
                              title="Marcar como leída"
                            >
                              <CheckCircle2 className="h-4 w-4" />
-                           </button>
+                           </BotonAccion>
                          )}
                       </div>
                     </div>

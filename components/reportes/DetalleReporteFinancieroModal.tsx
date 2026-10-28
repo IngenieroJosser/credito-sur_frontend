@@ -1,11 +1,14 @@
 'use client'
+import { formatFechaBogota, formatHoraBogota } from '@/lib/format-date'
 
 import { useMemo, useState, useEffect } from 'react'
-import { X, Calendar, TrendingUp, TrendingDown, Eye, LineChart } from 'lucide-react'
+import { X, Calendar, LineChart } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { getMovimientosLedger } from '@/services/contabilidad-service'
-import { buildBogotaOffsetIsoFromKey, getBogotaDateKey, normalizeDateKey } from '@/lib/rutas-core'
+import { buildBogotaOffsetIsoFromKey, getBogotaDateKey } from '@/lib/rutas-core'
 import Paginador from '@/components/ui/Paginador'
+import Tooltip from '@/components/ui/Tooltip'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 
 interface DetalleReporteFinancieroModalProps {
   id: string
@@ -43,7 +46,7 @@ export default function DetalleReporteFinancieroModal({ id, onClose }: DetalleRe
         start.setHours(0,0,0,0)
         end = new Date(d)
         end.setHours(23,59,59,999)
-        setPeriodoLabel(d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' }))
+        setPeriodoLabel(formatFechaBogota(d, { day: '2-digit', month: 'short', year: 'numeric' }))
       } else if (id.startsWith('MES:')) {
         const ym = id.replace('MES:', '')
         const [yStr, mStr] = ym.split('-')
@@ -53,7 +56,7 @@ export default function DetalleReporteFinancieroModal({ id, onClose }: DetalleRe
         start.setHours(0,0,0,0)
         end = new Date(y, m + 1, 0)
         end.setHours(23,59,59,999)
-        setPeriodoLabel(start.toLocaleDateString('es-CO', { month: 'short', year: 'numeric' }))
+        setPeriodoLabel(formatFechaBogota(start, { month: 'short', year: 'numeric' }))
       } else {
         const parts = decodeURIComponent(id).split('-')
         const mes = parts[0] || 'Periodo'
@@ -115,8 +118,8 @@ export default function DetalleReporteFinancieroModal({ id, onClose }: DetalleRe
 
       const formatFechaHora = (iso: string) => {
         const d = new Date(iso)
-        const fecha = d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
-        const hora = d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })
+        const fecha = formatFechaBogota(d, { day: '2-digit', month: 'short', year: 'numeric' })
+        const hora = formatHoraBogota(d, { hour: '2-digit', minute: '2-digit', hour12: true })
         return { fecha, hora }
       }
 
@@ -166,13 +169,18 @@ export default function DetalleReporteFinancieroModal({ id, onClose }: DetalleRe
   // entre dos renders React tumba la pantalla con el error 310.
   const fechaReporteTexto = useMemo(() => {
     try {
-      return new Date().toLocaleDateString('es-CO', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })
+      return formatFechaBogota(new Date(), { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })
     } catch {
-      return new Date().toLocaleDateString()
+      return formatFechaBogota(new Date())
     }
   }, [])
 
   const [pagina, setPagina] = useState(1)
+  // Escape para salir y el foco en el primer campo al abrir. El hook lleva
+  // una pila, asi que con modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    onClose: onClose,
+  })
 
   if (!id) return null
 
@@ -201,12 +209,15 @@ export default function DetalleReporteFinancieroModal({ id, onClose }: DetalleRe
               </p>
             </div>
           </div>
-          <button 
-            onClick={onClose}
-            className="shrink-0 p-2 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors"
-          >
-            <X className="h-5 w-5" />
-          </button>
+          <Tooltip texto="Cerrar">
+            <button 
+              onClick={onClose}
+              className="shrink-0 p-2 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors"
+              aria-label="Cerrar"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </Tooltip>
         </div>
 
         {/* Content */}

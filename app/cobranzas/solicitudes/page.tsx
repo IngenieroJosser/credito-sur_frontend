@@ -1,4 +1,5 @@
 'use client'
+import { formatFechaBogota } from '@/lib/format-date'
 import { logger } from '@/lib/logger'
 
 import { useMemo, useState, useEffect } from 'react'
@@ -16,6 +17,7 @@ import {
 import { formatCurrency, cn } from '@/lib/utils'
 import { aprobacionesService, type Aprobacion } from '@/services/aprobaciones-service'
 
+import { SkeletonTabla } from '@/components/ui/Skeleton'
 interface SolicitudDinero {
   id: string
   fecha: string
@@ -55,12 +57,12 @@ export default function SolicitudesCobradorPage() {
           return {
             id: s.id,
             fecha: s.creadoEn,
-            monto: Number(s.montoSolicitud || (datos as any).monto || 0),
+            monto: Number(s.montoSolicitud || (datos).monto || 0),
             descripcion:
-              String((datos as any).descripcion || (datos as any).notas || s.comentarios || s.tipoAprobacion || 'Solicitud'),
+              String((datos).descripcion || (datos).notas || s.comentarios || s.tipoAprobacion || 'Solicitud'),
             estado: s.estado as SolicitudDinero['estado'],
             comentarioAdmin: s.datosAprobados
-              ? String((s.datosAprobados as any)?.comentarios || (s.datosAprobados as any)?.notas || '')
+              ? String((s.datosAprobados)?.comentarios || (s.datosAprobados)?.notas || '')
               : s.comentarios || undefined,
             solicitanteId: s.solicitadoPorId,
             solicitanteNombre,
@@ -115,6 +117,16 @@ export default function SolicitudesCobradorPage() {
       default:
         return <Clock className="h-4 w-4" />
     }
+  }
+
+  // Mientras llegan los datos, la pantalla ya tiene la forma que va a tener:
+  // sin esto se quedaba en blanco y al cargar pegaba un salto.
+  if (loadingSolicitudes) {
+    return (
+      <div className="p-4 sm:p-6">
+        <SkeletonTabla />
+      </div>
+    )
   }
 
   return (
@@ -232,7 +244,7 @@ export default function SolicitudesCobradorPage() {
                 ) : solicitudesFiltradas.map((sol) => (
                   <tr key={sol.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="px-6 py-4 font-medium text-slate-900">
-                      {new Date(sol.fecha).toLocaleDateString('es-CO', {
+                      {formatFechaBogota(sol.fecha, {
                         weekday: 'short',
                         day: 'numeric',
                         month: 'short',

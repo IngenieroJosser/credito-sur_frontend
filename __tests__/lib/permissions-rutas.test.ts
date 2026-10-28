@@ -36,7 +36,10 @@ const ROLES: Rol[] = [
   'PUNTO_DE_VENTA',
 ] as Rol[];
 
-const recolectarPaths = (mods: any[]): string[] =>
+/** Un modulo del menu, con lo unico que esta prueba recorre. */
+type ModuloDelMenu = { path?: string; submodulos?: ModuloDelMenu[] }
+
+const recolectarPaths = (mods: ModuloDelMenu[]): string[] =>
   mods.flatMap((m) => [
     ...(m?.path ? [m.path] : []),
     ...(Array.isArray(m?.submodulos) ? recolectarPaths(m.submodulos) : []),

@@ -398,7 +398,7 @@ export const buildSidebarFromApi = (sidebarData: SidebarModulo[]): ModuloPermiso
 };
 
 export const obtenerModulos = (rol: Rol, sidebarData?: SidebarModulo[]): ModuloPermiso[] => {
-  const getRolePrefix = (r: Rol) => ({ COBRADOR: 'cobranzas', COORDINADOR: 'coordinador', SUPERVISOR: 'supervisor', CONTADOR: 'contador', PUNTO_DE_VENTA: 'punto-de-venta' } as any)[r] || null;
+  const getRolePrefix = (r: Rol) => ({ COBRADOR: 'cobranzas', COORDINADOR: 'coordinador', SUPERVISOR: 'supervisor', CONTADOR: 'contador', PUNTO_DE_VENTA: 'punto-de-venta' })[r] || null;
   // Rutas que el proxy REDIRIGE quitando el prefijo /admin. Si el menú enlaza a
   // la versión con /admin, cada clic dispara una redirección de servidor, que es
   // una navegación COMPLETA: se recarga toda la vista (el aside se remonta y se

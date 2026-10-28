@@ -1,13 +1,25 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 
-// Mock de lucide-react para evitar problemas en tests
-jest.mock('lucide-react', () => ({
-  AlertTriangle: () => <div data-testid="icon-alert" />,
-  Info: () => <div data-testid="icon-info" />,
-  XCircle: () => <div data-testid="icon-error" />,
-  X: () => <div data-testid="icon-close" />
-}));
+// Mock de lucide-react para evitar problemas en tests.
+//
+// Devuelve un icono para CUALQUIER nombre: el mock anterior listaba solo los
+// cuatro que usaba el modal, y al agregar uno nuevo (el spinner del boton de
+// confirmar) la prueba fallaba con 'Element type is invalid' en vez de por algo
+// real del modal.
+jest.mock('lucide-react', () => {
+  const iconos: Record<string, unknown> = {
+    AlertTriangle: () => <div data-testid="icon-alert" />,
+    Info: () => <div data-testid="icon-info" />,
+    XCircle: () => <div data-testid="icon-error" />,
+    X: () => <div data-testid="icon-close" />,
+  };
+  return new Proxy(iconos, {
+    get: (destino, nombre: string) =>
+      destino[nombre] ??
+      (() => <div data-testid={`icon-${String(nombre).toLowerCase()}`} />),
+  });
+});
 
 describe('ConfirmModal Component', () => {
   const defaultProps = {

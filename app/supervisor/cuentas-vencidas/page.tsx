@@ -1,4 +1,5 @@
 'use client'
+import { formatFechaBogota } from '@/lib/format-date'
 
 /**
  * Vista de Cuentas Vencidas para el Supervisor.
@@ -11,18 +12,18 @@ import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { usePageFocusRefresh } from '@/hooks/usePageFocusRefresh'
 import {
   Archive, Search, Clock, LayoutGrid, List, Calendar,
-  AlertCircle as AlertCircleIcon, RefreshCw, DollarSign, Timer,
+  AlertCircle as AlertCircleIcon, RefreshCw, DollarSign,
   TrendingDown, CalendarX
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import FiltroRuta from '@/components/filtros/FiltroRuta'
 import ProtectedPage from '@/components/auth/ProtectedPage'
-import { usePermission } from '@/hooks/usePermission'
 import {
   vencidasService,
   type CuentaVencida,
 } from '@/services/vencidas-service'
 import { toast } from 'sonner'
+import { SkeletonTabla } from '@/components/ui/Skeleton'
 
 type ViewMode = 'list' | 'grid'
 
@@ -72,7 +73,7 @@ function CuentasVencidasContent() {
       })
       setCuentas(response.cuentas)
       setTotales({ totalVencido: response.totales.totalVencido, diasPromedioVencimiento: response.totales.diasPromedioVencimiento })
-    } catch (err) {
+    } catch {
       setError('Error al cargar las cuentas vencidas')
       toast.error('No se pudieron cargar las cuentas vencidas')
     } finally {
@@ -207,9 +208,9 @@ function CuentasVencidasContent() {
 
         {/* Contenido */}
         {loading && cuentasFiltradas.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <RefreshCw className="h-10 w-10 animate-spin text-primary mb-4" />
-            <p className="text-slate-500 font-medium">Cargando cuentas vencidas...</p>
+          <div aria-busy="true">
+            <span className="sr-only">Cargando cuentas vencidas…</span>
+            <SkeletonTabla filas={6} columnas={5} />
           </div>
         ) : error && cuentasFiltradas.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-2xl border border-slate-200 border-dashed">
@@ -261,7 +262,7 @@ function CuentasVencidasContent() {
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-1.5 text-slate-600 text-xs">
                             <Calendar className="h-3.5 w-3.5 text-slate-400" />
-                            {new Date(c.fechaVencimiento).toLocaleDateString('es-CO')}
+                            {formatFechaBogota(c.fechaVencimiento)}
                           </div>
                         </td>
                         <td className="px-6 py-4 text-center">
@@ -310,7 +311,7 @@ function CuentasVencidasContent() {
                     </div>
                     <div className="flex items-center gap-2 text-xs">
                       <Calendar className="h-3.5 w-3.5 text-slate-400" />
-                      <span className="text-slate-500">Venció: <span className="font-bold text-slate-700">{new Date(cuenta.fechaVencimiento).toLocaleDateString('es-CO')}</span></span>
+                      <span className="text-slate-500">Venció: <span className="font-bold text-slate-700">{formatFechaBogota(cuenta.fechaVencimiento)}</span></span>
                     </div>
                     <div className="flex items-center justify-between">
                       {getEstadoBadge(cuenta.estado)}

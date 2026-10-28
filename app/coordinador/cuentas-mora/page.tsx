@@ -5,7 +5,6 @@
  * @migration Permission-Based Routing
  */
 import { useEffect } from 'react'
-import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { useRouter } from 'next/navigation'
 
 export default function CoordinadorCuentasMoraRedirect() {

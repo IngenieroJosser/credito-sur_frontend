@@ -4,6 +4,7 @@ import React from 'react'
 import { DollarSign, Target, Receipt, Wallet } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { RolUsuario } from '@/types/enums'
+import Tooltip from '@/components/ui/Tooltip'
 
 // ─────────────────────────────────────────────────
 // Tipos
@@ -39,11 +40,26 @@ const labelPeriodo = (periodo: Periodo, caso: 'capital' | 'minuscula') => {
   return labels[periodo][caso === 'capital' ? 0 : 1]
 }
 
+/** Los dos cortes que deciden el color y el rotulo de la efectividad. */
+const CORTE_OPTIMO = 90
+const CORTE_REGULAR = 70
+
 const eficienciaLabel = (eficiencia: number) => {
-  if (eficiencia >= 90) return { texto: 'ÓPTIMO', clase: 'text-emerald-600 bg-emerald-50' }
-  if (eficiencia >= 70) return { texto: 'REGULAR', clase: 'text-orange-600 bg-orange-50' }
+  if (eficiencia >= CORTE_OPTIMO) return { texto: 'ÓPTIMO', clase: 'text-emerald-600 bg-emerald-50' }
+  if (eficiencia >= CORTE_REGULAR) return { texto: 'REGULAR', clase: 'text-orange-600 bg-orange-50' }
   return { texto: 'BAJO', clase: 'text-rose-600 bg-rose-50' }
 }
+
+/**
+ * Que significan OPTIMO, REGULAR y BAJO. Se arma con las mismas constantes
+ * que deciden el color, para que no puedan decir cosas distintas.
+ */
+const AYUDA_RANGOS =
+  `Desde ${CORTE_OPTIMO}% es ÓPTIMO, desde ${CORTE_REGULAR}% REGULAR, y por debajo BAJO.`
+
+/** Como sale la efectividad. Es la misma cifra que acompaña al recaudo. */
+const AYUDA_EFECTIVIDAD =
+  'Cuánto llevas recaudado de lo que se esperaba: recaudo dividido por la meta.'
 
 // ─────────────────────────────────────────────────
 // Componente de tarjeta base reutilizable
@@ -98,9 +114,14 @@ export function RutaStatsCards({ rutaStats, periodo = 'HOY', userRol }: RutaStat
               <h3 className="text-2xl font-bold text-slate-900 tabular-nums break-words min-w-0">
                 {formatCurrency(recaudo)}
               </h3>
-              <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
-                {porcentajeRecaudo}
-              </span>
+              <Tooltip texto={`${AYUDA_EFECTIVIDAD} Es la misma cifra de la tarjeta de Efectividad.`}>
+                <span
+                  tabIndex={0}
+                  className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full cursor-help"
+                >
+                  {porcentajeRecaudo}
+                </span>
+              </Tooltip>
             </div>
           </div>
           <div className="shrink-0 p-3 bg-blue-50/50 rounded-xl border border-blue-100 group-hover:scale-110 transition-transform shrink-0">
@@ -116,16 +137,26 @@ export function RutaStatsCards({ rutaStats, periodo = 'HOY', userRol }: RutaStat
       <StatCard>
         <div className="flex justify-between items-start mb-4 gap-3">
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-              Efectividad
-            </p>
+            <Tooltip texto={AYUDA_EFECTIVIDAD}>
+              <p
+                tabIndex={0}
+                className="text-xs font-bold text-slate-500 uppercase tracking-wider cursor-help"
+              >
+                Efectividad
+              </p>
+            </Tooltip>
             <div className="flex items-baseline gap-2 mt-2 min-w-0 flex-wrap">
               <h3 className="text-2xl font-bold text-slate-900 tabular-nums break-words min-w-0">
                 {eficienciaShown}%
               </h3>
-              <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${ef.clase}`}>
-                {ef.texto}
-              </span>
+              <Tooltip texto={AYUDA_RANGOS}>
+                <span
+                  tabIndex={0}
+                  className={`text-xs font-bold px-2 py-0.5 rounded-full cursor-help ${ef.clase}`}
+                >
+                  {ef.texto}
+                </span>
+              </Tooltip>
             </div>
           </div>
           <div className="shrink-0 p-3 bg-emerald-50 rounded-xl border border-emerald-100 group-hover:scale-110 transition-transform shrink-0">

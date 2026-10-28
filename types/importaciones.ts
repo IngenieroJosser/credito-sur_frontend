@@ -1,9 +1,18 @@
+/**
+ * El valor de una celda que la validacion reporta, para mostrarselo al usuario.
+ *
+ * Espeja `ValorDeCelda` del backend (importaciones/parsers/cell-value.util.ts), que es
+ * lo que sale de sus lectores de celda. Eran `any` en los dos lados: en el backend eso
+ * dejaba pasar doce reportes con la celda cruda, que llegaban aqui como "[object Object]".
+ */
+export type ValorDeCelda = string | number | boolean | Date | null;
+
 export interface ErrorValidacion {
   hoja: string;
   fila: number;
   campo: string;
   mensaje: string;
-  valor: any;
+  valor: ValorDeCelda;
 }
 
 export interface AdvertenciaValidacion {
@@ -11,7 +20,7 @@ export interface AdvertenciaValidacion {
   fila: number;
   campo: string;
   mensaje: string;
-  valor: any;
+  valor: ValorDeCelda;
 }
 
 export interface ResumenHoja {
@@ -61,10 +70,15 @@ export interface ResultadoValidacion {
     porHoja: Record<string, ResumenHoja>;
   };
   impactoCaja?: ImpactoCaja;
-  clientes?: any[];
-  creditos?: any[];
-  articulos?: any[];
-  precios?: any[];
+  // Las cuatro son filas de la vista previa, y el UNICO consumidor las lee como un mapa
+  // de columnas para pintar una tabla (ValidationResult.tsx:91 y :128, que hasta ahora
+  // tenian que castearlas). `Record<string, unknown>` es lo que de verdad son de este lado:
+  // el backend si tiene tipos concretos para ellas, pero el frontend no interpreta ninguna
+  // columna, solo las muestra.
+  clientes?: Record<string, unknown>[];
+  creditos?: Record<string, unknown>[];
+  articulos?: Record<string, unknown>[];
+  precios?: Record<string, unknown>[];
   errores: ErrorValidacion[];
   advertencias: AdvertenciaValidacion[];
 }

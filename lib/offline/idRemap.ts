@@ -149,18 +149,32 @@ function contieneTempEnValor(valor: unknown): boolean {
   return false;
 }
 
+/** El `id` de un objeto cualquiera, o null si no lo tiene o no es un objeto. */
+const idDe = (valor: unknown): unknown =>
+  valor && typeof valor === 'object'
+    ? (valor as { id?: unknown }).id
+    : undefined;
+
+/** Lo que hay en una clave de un objeto cualquiera. */
+const campo = (valor: unknown, clave: string): unknown =>
+  valor && typeof valor === 'object'
+    ? (valor as Record<string, unknown>)[clave]
+    : undefined;
+
 export function extraerIdReal(cuerpo: unknown): string | null {
   if (!cuerpo || typeof cuerpo !== 'object') return null;
-  const c = cuerpo as Record<string, any>;
-  const candidatos = [
-    c.id,
-    c.data?.id,
-    c.cliente?.id,
-    c.prestamo?.id,
-    c.loan?.id,
-    c.pago?.id,
-    c.result?.id,
-    c.data?.data?.id,
+  // Cada respuesta de creacion mete el id en un sitio distinto y nadie valida ninguna:
+  // la cadena se recorre con dos lectores que comprueban el tipo en cada paso, en vez
+  // de con un `Record<string, any>` que desactiva la comprobacion de todo el objeto.
+  const candidatos: unknown[] = [
+    idDe(cuerpo),
+    idDe(campo(cuerpo, 'data')),
+    idDe(campo(cuerpo, 'cliente')),
+    idDe(campo(cuerpo, 'prestamo')),
+    idDe(campo(cuerpo, 'loan')),
+    idDe(campo(cuerpo, 'pago')),
+    idDe(campo(cuerpo, 'result')),
+    idDe(campo(campo(cuerpo, 'data'), 'data')),
   ];
   for (const cand of candidatos) {
     if (typeof cand === 'string' && cand.length > 0) return cand;

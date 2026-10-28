@@ -1,6 +1,7 @@
 import { logger } from '@/lib/logger'
 import { cookies } from 'next/headers';
 import { Cliente } from '@/services/clientes-service';
+import { raizBackend } from '@/lib/api/baseUrl';
 
 export type ClienteAdmin = Cliente & {
   score?: number;
@@ -19,7 +20,7 @@ export async function getClientesData(): Promise<ClienteAdmin[]> {
       return [];
     }
 
-    const apiUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
+    const apiUrl = raizBackend();
     
     logger.log(`[SSR] Fetching clients from: ${apiUrl}/api-credisur/clients`);
     

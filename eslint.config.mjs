@@ -1,4 +1,5 @@
 import { defineConfig, globalIgnores } from "eslint/config";
+import unusedImports from "eslint-plugin-unused-imports";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 
@@ -15,9 +16,20 @@ const eslintConfig = defineConfig([
     "public/**",
   ]),
   {
+    plugins: { "unused-imports": unusedImports },
     rules: {
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-unused-vars": "off",
+      /**
+       * ENCENDIDA, y no se vuelve a apagar: los imports sin usar se limpiaron todos
+       * (241) y esta regla es lo unico que impide que vuelvan. `no-unused-vars` sigue
+       * apagada porque aun quedan 195 variables sin usar, que necesitan criterio una por
+       * una (hay llamadas cuyo resultado se descarta y borrarlas cambiaria el
+       * comportamiento); esta solo mira imports, que es el caso seguro y ya esta en cero.
+       *
+       * La arregla `eslint --fix`.
+       */
+      "unused-imports/no-unused-imports": "error",
       "react-hooks/exhaustive-deps": "off",
       "react-hooks/set-state-in-effect": "off",
       "@next/next/no-img-element": "off",
@@ -31,7 +43,8 @@ const eslintConfig = defineConfig([
       "react/no-unescaped-entities": "off",
       "no-unused-disable": "off",
       "eslint-comments/no-unused-disable": "off",
-      "prefer-const": "off",
+      /** ENCENDIDA: quedaban dos y se arreglaron. La arregla `eslint --fix`. */
+      "prefer-const": "error",
     },
   },
 ]);

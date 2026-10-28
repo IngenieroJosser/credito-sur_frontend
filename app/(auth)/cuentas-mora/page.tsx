@@ -1,5 +1,4 @@
 'use client'
-import { logger } from '@/lib/logger'
 
 /**
  * Página de Cuentas en Mora para Admin/SuperAdmin/Coordinador/Contador.

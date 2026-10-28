@@ -3,19 +3,7 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { useMemo } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
-import { 
-  Shield, 
-  Search, 
-  Clock, 
-  User, 
-  AlertCircle, 
-  Calendar, 
-  Eye, 
-  ChevronLeft, 
-  ChevronRight,
-  X,
-  Laptop
-} from 'lucide-react'
+import { Shield, Search, Clock, User, AlertCircle, Calendar, Eye, X, Laptop } from 'lucide-react'
 import Paginador from '@/components/ui/Paginador'
 import { auditoriaService, type RegistroAuditoria } from '@/services/auditoria-service'
 import { routesService, type Route } from '@/services/routes-service'
@@ -24,15 +12,21 @@ import { exportService } from '@/services/export-service'
 import { toast } from 'sonner'
 import { ExportButton } from '@/components/ui/ExportButton'
 import { usePermission } from '@/hooks/usePermission'
+import { SkeletonTabla } from '@/components/ui/Skeleton'
 
 const AuditoriaSistemaPage = () => {
   const { can, canForPath } = usePermission()
-  const permitido = useMemo(() => can('AUDIT_VIEW') || canForPath('/admin/auditoria') || canForPath('/auditoria'), [can, canForPath])
+  const permitido = useMemo(
+    () => can('AUDIT_VIEW') || canForPath('/admin/auditoria') || canForPath('/auditoria'),
+    [can, canForPath],
+  )
   const [busqueda, setBusqueda] = useState('')
-  const [filtroNivel, setFiltroNivel] = useState<'TODOS' | 'INFORMATIVO' | 'ADVERTENCIA' | 'CRITICO'>('TODOS')
+  const [filtroNivel, setFiltroNivel] = useState<
+    'TODOS' | 'INFORMATIVO' | 'ADVERTENCIA' | 'CRITICO'
+  >('TODOS')
   const [selectedLog, setSelectedLog] = useState<LogItem | null>(null)
   const [logs, setLogs] = useState<LogItem[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [filtroRuta, setFiltroRuta] = useState<string>('Todas')
   const [rutas, setRutas] = useState<Route[]>([])
@@ -70,13 +64,13 @@ const AuditoriaSistemaPage = () => {
       setError(null)
       const [registrosResp, rutasResp] = await Promise.all([
         auditoriaService.obtenerRegistrosPaginados(pagina, LIMITE),
-        routesService.getAll({ limit: 1000 })
+        routesService.getAll({ limit: 1000 }),
       ])
       const rutasList = rutasResp?.data || []
       setRutas(rutasList)
-      const registros = (registrosResp as any).registros ?? registrosResp
-      const total = (registrosResp as any).total ?? registros.length
-      const totPag = (registrosResp as any).totalPaginas ?? 1
+      const registros = registrosResp.registros ?? registrosResp
+      const total = registrosResp.total ?? registros.length
+      const totPag = registrosResp.totalPaginas ?? 1
       setTotalRegistros(total)
       setTotalPaginas(totPag)
       const rutaMap = new Map<string, string>()
@@ -91,21 +85,29 @@ const AuditoriaSistemaPage = () => {
         fecha: r.creadoEn,
         ip: r.direccionIP || '',
         nivel: deriveNivel(r.accion),
-        rutaNombre: r.entidad?.toLowerCase() === 'ruta' ? (rutaMap.get(r.entidadId) || '') : ''
+        rutaNombre: r.entidad?.toLowerCase() === 'ruta' ? rutaMap.get(r.entidadId) || '' : '',
       }))
       setLogs(items)
-    } catch (e: any) {
+    } catch {
       setError('No se pudo cargar auditoria')
     } finally {
       setLoading(false)
     }
   }, [pagina])
 
-  useEffect(() => { cargarDatos() }, [cargarDatos])
+  useEffect(() => {
+    cargarDatos()
+  }, [cargarDatos])
 
   // Tiempo real: refrescar log cuando haya actividad en el sistema
   useRealtimeData(
-    ['usuarios_actualizados', 'prestamos_actualizados', 'pagos_actualizados', 'clientes_actualizados', 'dashboards_actualizados'],
+    [
+      'usuarios_actualizados',
+      'prestamos_actualizados',
+      'pagos_actualizados',
+      'clientes_actualizados',
+      'dashboards_actualizados',
+    ],
     cargarDatos,
   )
 
@@ -113,7 +115,7 @@ const AuditoriaSistemaPage = () => {
     try {
       await exportService.exportAudit('excel')
       toast.success('Log de auditoría Excel descargado')
-    } catch (e) {
+    } catch {
       toast.error('Error al exportar log de auditoría')
     }
   }
@@ -121,51 +123,56 @@ const AuditoriaSistemaPage = () => {
     try {
       await exportService.exportAudit('pdf')
       toast.success('Log de auditoría PDF descargado')
-    } catch (e) {
+    } catch {
       toast.error('Error al exportar log de auditoría')
     }
   }
 
-  const logsFiltrados = logs.filter(log => {
-    const coincideTexto = 
+  const logsFiltrados = logs.filter((log) => {
+    const coincideTexto =
       log.usuario.toLowerCase().includes(busqueda.toLowerCase()) ||
       log.accion.toLowerCase().includes(busqueda.toLowerCase()) ||
       log.detalle.toLowerCase().includes(busqueda.toLowerCase())
-    
+
     const coincideNivel = filtroNivel === 'TODOS' || log.nivel === filtroNivel
     const coincideRuta = filtroRuta === 'Todas' || (log.rutaNombre && log.rutaNombre === filtroRuta)
 
     return coincideTexto && coincideNivel && coincideRuta
   })
 
-  const toLocalKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  const toLocalKey = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
   const todayStr = toLocalKey(new Date())
-  const eventosHoy = logs.filter(l => {
-    const raw = l.fecha;
-    const f = raw ? (raw.includes('T') ? raw.split('T')[0] : raw) : '';
-    return f === todayStr;
+  const eventosHoy = logs.filter((l) => {
+    const raw = l.fecha
+    const f = raw ? (raw.includes('T') ? raw.split('T')[0] : raw) : ''
+    return f === todayStr
   }).length
-  const alertasCriticas = logs.filter(l => l.nivel === 'CRITICO').length
-  const usuariosActivos = new Set(logs.map(l => l.usuario)).size
+  const alertasCriticas = logs.filter((l) => l.nivel === 'CRITICO').length
+  const usuariosActivos = new Set(logs.map((l) => l.usuario)).size
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
+    const date = new Date(dateString)
     return new Intl.DateTimeFormat('es-CO', {
       day: '2-digit',
       month: 'short',
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
-      hour12: true
+      hour12: true,
     }).format(date)
   }
 
   const getNivelBadge = (nivel: string) => {
-    switch(nivel) {
-      case 'CRITICO': return 'bg-rose-50 text-rose-700 border-rose-100'
-      case 'ADVERTENCIA': return 'bg-amber-50 text-amber-700 border-amber-100'
-      case 'INFORMATIVO': return 'bg-blue-50 text-blue-700 border-blue-100'
-      default: return 'bg-slate-50 text-slate-700 border-slate-100'
+    switch (nivel) {
+      case 'CRITICO':
+        return 'bg-rose-50 text-rose-700 border-rose-100'
+      case 'ADVERTENCIA':
+        return 'bg-amber-50 text-amber-700 border-amber-100'
+      case 'INFORMATIVO':
+        return 'bg-blue-50 text-blue-700 border-blue-100'
+      default:
+        return 'bg-slate-50 text-slate-700 border-slate-100'
     }
   }
 
@@ -179,6 +186,16 @@ const AuditoriaSistemaPage = () => {
           </div>
           <p className="mt-4 text-slate-500 font-medium">No tienes permisos para ver Auditoría.</p>
         </div>
+      </div>
+    )
+  }
+
+  // La primera pintada ya tiene la forma de la pantalla: antes salia en
+  // blanco y daba un salto al llegar los datos.
+  if (loading) {
+    return (
+      <div className="p-4 sm:p-6">
+        <SkeletonTabla />
       </div>
     )
   }
@@ -199,17 +216,19 @@ const AuditoriaSistemaPage = () => {
               <span>Auditoría del Sistema</span>
             </div>
             <h1 className="text-3xl font-bold tracking-tight">
-              <span className="text-blue-600">Trazabilidad de </span><span className="text-orange-500">Eventos</span>
+              <span className="text-blue-600">Trazabilidad de </span>
+              <span className="text-orange-500">Eventos</span>
             </h1>
             <p className="text-slate-500 mt-2 font-medium text-sm max-w-2xl">
-              Registro inmutable de todas las acciones críticas, cambios de configuración y movimientos financieros.
+              Registro inmutable de todas las acciones críticas, cambios de configuración y
+              movimientos financieros.
             </p>
           </div>
           <div className="flex gap-3">
-            <ExportButton 
-              label="Exportar " 
-              onExportExcel={handleExportExcel} 
-              onExportPDF={handleExportPDF} 
+            <ExportButton
+              label="Exportar "
+              onExportExcel={handleExportExcel}
+              onExportPDF={handleExportPDF}
             />
           </div>
         </header>
@@ -222,7 +241,9 @@ const AuditoriaSistemaPage = () => {
                 <Clock className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Eventos Hoy</p>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Eventos Hoy
+                </p>
                 <h3 className="text-3xl font-bold text-slate-900 tracking-tight">{eventosHoy}</h3>
               </div>
             </div>
@@ -233,8 +254,12 @@ const AuditoriaSistemaPage = () => {
                 <AlertCircle className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Alertas Críticas</p>
-                <h3 className="text-3xl font-bold text-slate-900 tracking-tight">{alertasCriticas}</h3>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Alertas Críticas
+                </p>
+                <h3 className="text-3xl font-bold text-slate-900 tracking-tight">
+                  {alertasCriticas}
+                </h3>
               </div>
             </div>
           </div>
@@ -244,8 +269,12 @@ const AuditoriaSistemaPage = () => {
                 <User className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Usuarios Activos</p>
-                <h3 className="text-3xl font-bold text-slate-900 tracking-tight">{usuariosActivos}</h3>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Usuarios Activos
+                </p>
+                <h3 className="text-3xl font-bold text-slate-900 tracking-tight">
+                  {usuariosActivos}
+                </h3>
               </div>
             </div>
           </div>
@@ -269,10 +298,10 @@ const AuditoriaSistemaPage = () => {
                   key={nivel}
                   onClick={() => setFiltroNivel(nivel)}
                   className={cn(
-                    "px-4 py-2 rounded-lg text-xs font-bold tracking-wide transition-all duration-300",
-                    filtroNivel === nivel 
-                      ? 'bg-white text-slate-900 shadow-sm' 
-                      : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
+                    'px-4 py-2 rounded-lg text-xs font-bold tracking-wide transition-all duration-300',
+                    filtroNivel === nivel
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50',
                   )}
                 >
                   {nivel}
@@ -281,21 +310,21 @@ const AuditoriaSistemaPage = () => {
             </div>
             <div className="flex gap-1 w-full md:w-auto overflow-x-auto p-1 bg-slate-100 rounded-xl border border-slate-200">
               {['Todas', 'Ruta Centro', 'Ruta Norte', 'Ruta Este', 'Ruta Sur - Expansión']
-                .filter(label => label === 'Todas' || rutas.some(r => r.nombre === label))
-                .map(label => (
-                <button
-                  key={label}
-                  onClick={() => setFiltroRuta(label)}
-                  className={cn(
-                    "px-4 py-2 rounded-lg text-xs font-bold tracking-wide transition-all duration-300",
-                    filtroRuta === label 
-                      ? 'bg-white text-slate-900 shadow-sm' 
-                      : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
-                  )}
-                >
-                  {label}
-                </button>
-              ))}
+                .filter((label) => label === 'Todas' || rutas.some((r) => r.nombre === label))
+                .map((label) => (
+                  <button
+                    key={label}
+                    onClick={() => setFiltroRuta(label)}
+                    className={cn(
+                      'px-4 py-2 rounded-lg text-xs font-bold tracking-wide transition-all duration-300',
+                      filtroRuta === label
+                        ? 'bg-white text-slate-900 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50',
+                    )}
+                  >
+                    {label}
+                  </button>
+                ))}
             </div>
           </div>
 
@@ -334,23 +363,33 @@ const AuditoriaSistemaPage = () => {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-col">
-                        <span className="font-bold text-slate-900">{log.accion.replace(/_/g, ' ')}</span>
-                        <span className="text-xs text-slate-400 font-medium">{log.modulo}{log.rutaNombre ? ` · ${log.rutaNombre}` : ''}</span>
+                        <span className="font-bold text-slate-900">
+                          {log.accion.replace(/_/g, ' ')}
+                        </span>
+                        <span className="text-xs text-slate-400 font-medium">
+                          {log.modulo}
+                          {log.rutaNombre ? ` · ${log.rutaNombre}` : ''}
+                        </span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 max-w-xs truncate text-slate-600 font-medium" title={log.detalle}>
+                    <td
+                      className="px-6 py-4 max-w-xs truncate text-slate-600 font-medium"
+                      title={log.detalle}
+                    >
                       {log.detalle}
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <span className={cn(
-                        "inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase border",
-                        getNivelBadge(log.nivel)
-                      )}>
+                      <span
+                        className={cn(
+                          'inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase border',
+                          getNivelBadge(log.nivel),
+                        )}
+                      >
                         {log.nivel}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button 
+                      <button
                         onClick={() => setSelectedLog(log)}
                         className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                         title="Ver Detalle"
@@ -382,25 +421,36 @@ const AuditoriaSistemaPage = () => {
                       <div className="text-xs text-slate-500 font-medium">{log.rol}</div>
                     </div>
                   </div>
-                  <span className={cn(
-                    "inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide uppercase border flex-shrink-0 ml-2",
-                    getNivelBadge(log.nivel)
-                  )}>
+                  <span
+                    className={cn(
+                      'inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide uppercase border flex-shrink-0 ml-2',
+                      getNivelBadge(log.nivel),
+                    )}
+                  >
                     {log.nivel}
                   </span>
                 </div>
 
                 {/* Módulo/Acción */}
                 <div className="mb-3 pb-3 border-b border-slate-100">
-                  <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Módulo / Acción</div>
+                  <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">
+                    Módulo / Acción
+                  </div>
                   <div className="font-bold text-slate-900">{log.accion.replace(/_/g, ' ')}</div>
-                  <div className="text-xs text-slate-400 font-medium mt-0.5">{log.modulo}{log.rutaNombre ? ` · ${log.rutaNombre}` : ''}</div>
+                  <div className="text-xs text-slate-400 font-medium mt-0.5">
+                    {log.modulo}
+                    {log.rutaNombre ? ` · ${log.rutaNombre}` : ''}
+                  </div>
                 </div>
 
                 {/* Detalle */}
                 <div className="mb-3 pb-3 border-b border-slate-100">
-                  <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Detalle</div>
-                  <div className="text-sm text-slate-600 font-medium break-words">{log.detalle}</div>
+                  <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">
+                    Detalle
+                  </div>
+                  <div className="text-sm text-slate-600 font-medium break-words">
+                    {log.detalle}
+                  </div>
                 </div>
 
                 {/* Fecha y Acción */}
@@ -409,7 +459,7 @@ const AuditoriaSistemaPage = () => {
                     <Calendar className="h-3.5 w-3.5 text-slate-400" />
                     {formatDate(log.fecha)}
                   </div>
-                  <button 
+                  <button
                     onClick={() => setSelectedLog(log)}
                     className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
                   >
@@ -420,17 +470,19 @@ const AuditoriaSistemaPage = () => {
               </div>
             ))}
           </div>
-            
+
           {logsFiltrados.length === 0 && (
             <div className="py-16 text-center">
               <div className="shrink-0 inline-flex p-4 rounded-full bg-slate-50 mb-4 border border-slate-100">
                 <Search className="h-8 w-8 text-slate-300" />
               </div>
               <h3 className="text-lg font-bold text-slate-900">No se encontraron registros</h3>
-              <p className="text-slate-500 mt-1 font-medium">Intenta ajustar los términos de búsqueda o filtros.</p>
+              <p className="text-slate-500 mt-1 font-medium">
+                Intenta ajustar los términos de búsqueda o filtros.
+              </p>
             </div>
           )}
-          
+
           <div className="p-4 border-t border-slate-100 bg-slate-50/30">
             <Paginador
               pagina={pagina}
@@ -454,14 +506,14 @@ const AuditoriaSistemaPage = () => {
                 <span className="text-blue-600">Detalle del</span>
                 <span className="text-orange-500">Evento</span>
               </h3>
-              <button 
+              <button
                 onClick={() => setSelectedLog(null)}
                 className="shrink-0 p-2 hover:bg-slate-200/50 rounded-full transition-colors"
               >
                 <X className="h-5 w-5 text-slate-400" />
               </button>
             </div>
-            
+
             <div className="p-6 space-y-6">
               {/* Info Usuario */}
               <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
@@ -485,34 +537,45 @@ const AuditoriaSistemaPage = () => {
               {/* Grid de Detalles */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Fecha y Hora</span>
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                    Fecha y Hora
+                  </span>
                   <p className="font-medium text-slate-900 flex items-center gap-2">
                     <Calendar className="h-4 w-4 text-slate-400" />
                     {formatDate(selectedLog.fecha)}
                   </p>
                 </div>
                 <div className="space-y-1">
-                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Nivel</span>
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                    Nivel
+                  </span>
                   <div>
-                    <span className={cn(
-                      "inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase border",
-                      getNivelBadge(selectedLog.nivel)
-                    )}>
+                    <span
+                      className={cn(
+                        'inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase border',
+                        getNivelBadge(selectedLog.nivel),
+                      )}
+                    >
                       {selectedLog.nivel}
                     </span>
                   </div>
                 </div>
                 <div className="space-y-1 col-span-2">
-                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Módulo / Acción</span>
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                    Módulo / Acción
+                  </span>
                   <p className="font-medium text-slate-900">
-                    {selectedLog.modulo} <span className="text-slate-300">/</span> {selectedLog.accion}
+                    {selectedLog.modulo} <span className="text-slate-300">/</span>{' '}
+                    {selectedLog.accion}
                   </p>
                 </div>
               </div>
 
               {/* Detalle Texto */}
               <div className="space-y-2">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Detalle del Registro</span>
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                  Detalle del Registro
+                </span>
                 <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 text-sm text-slate-600 font-medium leading-relaxed">
                   {selectedLog.detalle}
                 </div>
@@ -520,7 +583,7 @@ const AuditoriaSistemaPage = () => {
             </div>
 
             <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-end">
-              <button 
+              <button
                 onClick={() => setSelectedLog(null)}
                 className="px-6 py-2 rounded-xl bg-orange-500 text-white font-bold hover:bg-orange-600 transition-all shadow-lg shadow-orange-500/20"
               >

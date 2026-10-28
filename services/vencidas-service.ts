@@ -86,11 +86,14 @@ export const vencidasService = {
   },
 
   // Procesar decisión de castigo
-  async procesarDecision(decision: DecisionCastigoRequest): Promise<DecisionCastigoResponse> {
+  async procesarDecision(decision: DecisionCastigoRequest): Promise<DecisionCastigoResponse | null> {
     return conRespaldoOffline(
       () => apiRequest<DecisionCastigoResponse>('POST', 'reports/cuentas-vencidas/decision', decision),
       { type: 'vencidas_decision', endpoint: 'reports/cuentas-vencidas/decision', method: 'POST', data: decision, description: `Decisión sobre cuenta vencida` },
-      { esOffline: true } as any,
+      // `{ esOffline: true }` no es una DecisionCastigoResponse: le faltan el
+      // mensaje, el aprobacionId y el nuevo estado. Nadie llama a este metodo
+      // todavia, asi que sin conexion no se devuelve nada.
+      null,
     );
   },
 
@@ -104,7 +107,7 @@ export const vencidasService = {
         formato,
         filtros
       });
-    } catch (error: any) {
+    } catch (error) {
       if (esErrorDeRed(error)) {
         throw new Error('La exportación de reportes requiere conexión. Vuelve a intentarlo cuando tengas red.');
       }

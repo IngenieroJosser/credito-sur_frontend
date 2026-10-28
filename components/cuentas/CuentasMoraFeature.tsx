@@ -33,7 +33,8 @@ import { apiRequest } from '@/lib/api/api'
 import { formatErrorForComponent } from '@/lib/api/api'
 import { exportService } from '@/services/export-service'
 import { toast } from 'sonner'
-import { resolveRiesgoObligacion } from '@/lib/rutas/riesgo-obligacion'
+import { SkeletonTarjetas } from '@/components/ui/Skeleton'
+import { estadoDeError, mensajeDeError } from '@/lib/mensaje-de-error'
 
 type NivelRiesgo = 'VERDE' | 'LEVE' | 'PRECAUCION' | 'ROJO' | 'LISTA_NEGRA'
 type EstadoPrestamo = 'EN_MORA' | 'INCUMPLIDO' | 'PERDIDA'
@@ -227,20 +228,29 @@ export default function CuentasMoraFeature() {
   const fetchData = useCallback(async () => {
     setIsDataLoading(true)
     try {
-      const params: any = { pagina: 1, limite: 50 }
+      // Espejo de `PrestamosMoraFiltrosDto` (prestamo-mora.dto.ts:99).
+      const params: {
+        pagina: number
+        limite: number
+        busqueda?: string
+        nivelRiesgo?: NivelRiesgo
+        rutaId?: string
+      } = { pagina: 1, limite: 50 }
       if (busqueda) params.busqueda = busqueda
       if (filtroRiesgo !== 'TODOS') params.nivelRiesgo = filtroRiesgo
       if (filtroRuta) params.rutaId = filtroRuta
 
-      const response = await apiRequest<any>('GET', '/reports/prestamos-mora', undefined, { params })
+      const response = await apiRequest<{ prestamos?: CuentaMora[] }>(
+        'GET',
+        '/reports/prestamos-mora',
+        undefined,
+        { params },
+      )
 
-      const raw: any[] = Array.isArray(response)
-        ? response
-        : Array.isArray((response as any).prestamos)
-          ? (response as any).prestamos
-          : Array.isArray((response as any).data)
-            ? (response as any).data
-            : []
+      // El endpoint devuelve SIEMPRE `{ prestamos, totales, total, pagina, limite }`
+      // (PrestamosMoraResponseDto, responses.dto.ts:9). Aqui habia una cadena de tres
+      // formas -arreglo suelto, `.prestamos`, `.data`- y dos de las tres no existen.
+      const raw = Array.isArray(response?.prestamos) ? response.prestamos : []
 
       const enriched: CuentaMora[] = raw.map(p => ({
         ...p,
@@ -259,12 +269,12 @@ export default function CuentasMoraFeature() {
         : soloEnMora.filter(c => c.etiquetaMora === filtroNivel)
 
       setCuentas(filtradas)
-    } catch (error: any) {
+    } catch (error) {
       const msg = formatErrorForComponent(error)
       console.error('Error al cargar cuentas en mora:', {
         error,
-        statusCode: error?.statusCode,
-        message: error?.message,
+        statusCode: estadoDeError(error),
+        message: mensajeDeError(error, ''),
         serialized: (() => {
           try { return JSON.stringify(error) } catch { return String(error) }
         })(),
@@ -318,14 +328,14 @@ export default function CuentasMoraFeature() {
     try {
       await exportService.exportMora('excel', { busqueda, nivelRiesgo: filtroRiesgo !== 'TODOS' ? filtroRiesgo : undefined, rutaId: filtroRuta || undefined })
       toast.success('Reporte descargado')
-    } catch { toast.error('Error al exportar') }
+    } catch (error) { toast.error(mensajeDeError(error, 'Error al exportar')) }
   }
 
   const handleExportPDF = async () => {
     try {
       await exportService.exportMora('pdf', { busqueda, nivelRiesgo: filtroRiesgo !== 'TODOS' ? filtroRiesgo : undefined, rutaId: filtroRuta || undefined })
       toast.success('Reporte descargado')
-    } catch { toast.error('Error al exportar') }
+    } catch (error) { toast.error(mensajeDeError(error, 'Error al exportar')) }
   }
 
   const totalMora = estadisticas?.totalMora ?? cuentas.reduce((a, c) => a + c.montoMora, 0)
@@ -474,10 +484,7 @@ export default function CuentasMoraFeature() {
 
         {/* Contenido */}
         {isDataLoading ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <RefreshCw className="h-10 w-10 animate-spin text-primary mb-4" />
-            <p className="text-slate-500 font-medium">Cargando cuentas en mora...</p>
-          </div>
+          <SkeletonTarjetas cantidad={6} />
         ) : cuentas.length === 0 ? (
           <div className="col-span-full text-center py-16 bg-white rounded-2xl border border-slate-200 border-dashed">
             <div className="shrink-0 inline-flex p-4 rounded-full bg-emerald-50 mb-4">
@@ -585,7 +592,7 @@ export default function CuentasMoraFeature() {
 
         ) : (
           <>
-          /* GRID */
+          {/* GRID */}
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {cuentasPagina.map(cuenta => {
               const nivel = (cuenta.etiquetaMora || calcularNivelMora(cuenta)) as NivelMoraKey

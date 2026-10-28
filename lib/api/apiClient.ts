@@ -1,12 +1,10 @@
 import { logger } from '@/lib/logger'
+import { estadoDeError } from '@/lib/mensaje-de-error'
 import axios from "axios";
+import { baseApi, conPrefijoApi } from '@/lib/api/baseUrl';
 
-// URL Principal (VPS en la nube o servidor por defecto)
-const primaryUrl =
-  process.env.NEXT_PUBLIC_BASE_URL ||
-  (process.env.NODE_ENV === "production"
-    ? "https://credito-sur-backend.onrender.com"
-    : "http://127.0.0.1:3001");
+// La URL principal ya no se calcula aqui: la decide lib/api/baseUrl, que es
+// el unico sitio del proyecto que sabe a que backend se apunta.
 
 // URL de Contingencia (Servidor Físico en LAN local).
 //
@@ -24,13 +22,8 @@ const getSecondaryUrl = (): string | null =>
 
 const secondaryUrl = getSecondaryUrl();
 
-const normalizeUrl = (url: string) => {
-  const normalized = url.replace(/\/$/, "");
-  return normalized.endsWith("/api-credisur") ? normalized : `${normalized}/api-credisur`;
-};
-
-const primaryBase = normalizeUrl(primaryUrl);
-const secondaryBase = secondaryUrl ? normalizeUrl(secondaryUrl) : null;
+const primaryBase = baseApi();
+const secondaryBase = secondaryUrl ? conPrefijoApi(secondaryUrl) : null;
 
 export const apiClient = axios.create({
   baseURL: `${primaryBase}/`,
@@ -77,7 +70,9 @@ apiClient.interceptors.response.use(
         logger.log('Operación exitosa en servidor de contingencia.');
         return response;
       } catch (localError) {
-        const status = (localError as any)?.response?.status;
+        // `estadoDeError` ya recorre `statusCode`, `status`, `response.status` y
+        // `response.data.statusCode`, que es justo lo que aqui se leia a mano casteando.
+        const status = estadoDeError(localError);
         if (status) {
           // Hubo respuesta HTTP: NO es un problema de conectividad.
           // Ej: 401/403 = token/permisos, 404 = ruta, 500 = error servidor.

@@ -19,32 +19,50 @@ import {
 } from 'lucide-react'
 import Portal, { MODAL_Z_INDEX } from '@/components/ui/Portal'
 import { formatCurrency, resolveMediaUrl } from '@/lib/utils'
+import Tooltip from '@/components/ui/Tooltip'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
+import type { AlertaClienteParaDetalle, SnapshotClienteAlerta } from '@/services/alertas-clientes-service'
 
 interface AlertaClienteDetalleModalProps {
-  alerta: any
+  alerta: AlertaClienteParaDetalle | null
   onClose: () => void
   loading?: boolean
 }
 
-const text = (...values: any[]) => {
+const text = (...values: unknown[]) => {
   for (const value of values) {
     if (value === null || value === undefined) continue
 
-    let candidate = value
+    let candidate: unknown = value
     if (value instanceof Date) {
       candidate = value.toISOString()
     } else if (typeof value === 'object') {
+      // Los diez nombres que este helper prueba cuando le llega un objeto, en un tipo: es
+      // la lista de formas con las que el backend manda "lo mismo" segun el endpoint, y
+      // con `any[]` no habia donde verla.
+      const posible = value as {
+        label?: unknown
+        nombre?: unknown
+        valor?: unknown
+        value?: unknown
+        fechaPago?: unknown
+        fecha?: unknown
+        fechaVisita?: unknown
+        creadoEn?: unknown
+        date?: unknown
+        iso?: unknown
+      }
       candidate =
-        value.label ??
-        value.nombre ??
-        value.valor ??
-        value.value ??
-        value.fechaPago ??
-        value.fecha ??
-        value.fechaVisita ??
-        value.creadoEn ??
-        value.date ??
-        value.iso
+        posible.label ??
+        posible.nombre ??
+        posible.valor ??
+        posible.value ??
+        posible.fechaPago ??
+        posible.fecha ??
+        posible.fechaVisita ??
+        posible.creadoEn ??
+        posible.date ??
+        posible.iso
       if (candidate === null || candidate === undefined || candidate === value) {
         continue
       }
@@ -56,18 +74,13 @@ const text = (...values: any[]) => {
   return ''
 }
 
-const money = (value: any) => formatCurrency(Number(value || 0))
+const money = (value: unknown) => formatCurrency(Number(value || 0))
 
-const formatDate = (value: any) => {
-  const raw = text(
-    value?.fechaPago,
-    value?.fecha,
-    value?.fechaVisita,
-    value?.creadoEn,
-    value?.date,
-    value?.iso,
-    value,
-  )
+const formatDate = (value: unknown) => {
+  // La fecha llega con seis nombres distintos segun el endpoint, o suelta. `text` ya prueba
+  // esa misma lista cuando recibe un objeto, asi que aqui basta con pasarle el valor: se
+  // quitaron las seis lecturas repetidas, que con `any` compilaban sobre cualquier cosa.
+  const raw = text(value)
   if (!raw) return 'Sin fecha'
   const date = new Date(raw)
   if (Number.isNaN(date.getTime())) return raw
@@ -88,7 +101,10 @@ const estadoLabel: Record<string, string> = {
   PAGADO: 'Pagado',
 }
 
-const esCarteraActiva = (credito: any) => {
+/** El credito del snapshot, derivado del propio tipo del snapshot. */
+type CreditoDelSnapshot = NonNullable<SnapshotClienteAlerta['creditos']>[number]
+
+const esCarteraActiva = (credito: CreditoDelSnapshot) => {
   if (credito?.esCarteraActiva === true) return true
   if (credito?.esCarteraActiva === false) return false
 
@@ -133,7 +149,9 @@ function Field({
 }: {
   icon: React.ReactNode
   label: string
-  value?: any
+  // Lo que se pinta en la fila: texto o numero ya formateado, o un nodo cuando la fila
+  // lleva una insignia. `any` aqui dejaba pasar un objeto, que sale como "[object Object]".
+  value?: React.ReactNode
 }) {
   return (
     <div className="flex gap-3 rounded-xl border border-slate-200 bg-white px-3 py-3">
@@ -177,50 +195,56 @@ export default function AlertaClienteDetalleModal({
   onClose,
   loading = false,
 }: AlertaClienteDetalleModalProps) {
+  // Escape para salir y foco al abrir. El hook lleva una pila, asi que con
+  // modales anidados Escape cierra solo el de encima.
+  useModalDialog({
+    onClose: onClose,
+    // Modal de solo lectura: no hay campo que enfocar.
+    enfocarAlAbrir: false,
+  })
+
   const metadata = alerta?.metadata || {}
   const snapshot = alerta?.snapshotCliente || metadata.snapshotCliente || {}
-  const cliente = snapshot.cliente || alerta?.cliente || {}
+  const cliente: NonNullable<SnapshotClienteAlerta['cliente']> =
+    snapshot.cliente || alerta?.cliente || {}
   const ruta = snapshot.ruta || {}
   const cobrador = ruta?.cobrador || snapshot.cobrador || {}
   const referencias = Array.isArray(snapshot.referencias) ? snapshot.referencias : []
   const creditos = Array.isArray(snapshot.creditos) ? snapshot.creditos : []
   const visitas = Array.isArray(snapshot.historialVisitas) ? snapshot.historialVisitas : []
   const evidencias = Array.isArray(snapshot.evidencias) ? snapshot.evidencias : []
-  const pagos = creditos.flatMap((credito: any) =>
+  const pagos = creditos.flatMap((credito) =>
     Array.isArray(credito.pagosRecientes) ? credito.pagosRecientes : [],
   )
   const rawMetricas = snapshot.metricas || metadata || {}
   const saldoCarteraActivaCalculado = creditos
     .filter(esCarteraActiva)
-    .reduce((sum: number, credito: any) => sum + Number(credito.saldoPendiente || 0), 0)
+    .reduce((sum: number, credito: CreditoDelSnapshot) => sum + Number(credito.saldoPendiente || 0), 0)
   const saldoPendienteRevisionCalculado = creditos
-    .filter((credito: any) => !esCarteraActiva(credito))
-    .reduce((sum: number, credito: any) => sum + Number(credito.saldoPendiente || 0), 0)
+    .filter((credito) => !esCarteraActiva(credito))
+    .reduce((sum: number, credito: CreditoDelSnapshot) => sum + Number(credito.saldoPendiente || 0), 0)
   const cuotasVencidasCalculadas = creditos
     .filter(esCarteraActiva)
-    .reduce((sum: number, credito: any) => sum + Number(credito.cuotasVencidas || 0), 0)
+    .reduce((sum: number, credito: CreditoDelSnapshot) => sum + Number(credito.cuotasVencidas || 0), 0)
   const metricas = {
     ...rawMetricas,
     saldoPendienteTotal:
       rawMetricas.saldoPendienteCarteraActiva ??
-      rawMetricas.saldoCarteraActiva ??
       saldoCarteraActivaCalculado,
     saldoPendientePendienteRevision:
       rawMetricas.saldoPendientePendienteRevision ??
       saldoPendienteRevisionCalculado,
     cuotasVencidas:
-      rawMetricas.saldoPendienteCarteraActiva !== undefined ||
-      rawMetricas.saldoCarteraActiva !== undefined
+      rawMetricas.saldoPendienteCarteraActiva !== undefined
         ? rawMetricas.cuotasVencidas
         : cuotasVencidasCalculadas,
   }
 
   const clienteNombre = text(
     metadata.clienteNombre,
-    cliente.nombreCompleto,
     `${cliente.nombres || ''} ${cliente.apellidos || ''}`,
   )
-  const documento = text(metadata.documento, cliente.documento, cliente.dni)
+  const documento = text(metadata.documento, cliente.dni)
   const estado = text(alerta?.estado, metadata.estadoAlerta, 'ACTIVA')
   const activa = estado.toUpperCase() === 'ACTIVA'
 
@@ -260,13 +284,16 @@ export default function AlertaClienteDetalleModal({
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={onClose}
-                className="shrink-0 rounded-2xl bg-slate-100 p-2 text-slate-500 transition hover:bg-slate-200 hover:text-slate-900"
-              >
-                <X className="h-5 w-5" />
-              </button>
+              <Tooltip texto="Cerrar">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="shrink-0 rounded-2xl bg-slate-100 p-2 text-slate-500 transition hover:bg-slate-200 hover:text-slate-900"
+                  aria-label="Cerrar"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </Tooltip>
             </div>
 
             <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-2 xl:grid-cols-4">
@@ -335,7 +362,6 @@ export default function AlertaClienteDetalleModal({
                         label="Cobrador"
                         value={text(
                           metadata.cobradorNombre,
-                          cobrador.nombreCompleto,
                           `${cobrador.nombres || ''} ${cobrador.apellidos || ''}`,
                         )}
                       />
@@ -345,7 +371,7 @@ export default function AlertaClienteDetalleModal({
                   <Section title="Referencias personales" icon={<Users className="h-4 w-4" />}>
                     {referencias.length > 0 ? (
                       <div className="grid gap-3">
-                        {referencias.map((ref: any, index: number) => (
+                        {referencias.map((ref, index) => (
                           <div key={`${ref.tipo || 'ref'}-${index}`} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
                             <p className="text-sm font-black text-slate-900">
                               {text(ref.nombre) || 'Referencia sin nombre'}
@@ -369,7 +395,7 @@ export default function AlertaClienteDetalleModal({
                   <Section title="Obligaciones asociadas" icon={<CreditCard className="h-4 w-4" />}>
                     {creditos.length > 0 ? (
                       <div className="space-y-3">
-                        {creditos.map((credito: any) => {
+                        {creditos.map((credito) => {
                           const vencidas = Number(credito.cuotasVencidas || 0)
                           const sumaSaldoActivo = esCarteraActiva(credito)
                           return (
@@ -406,16 +432,16 @@ export default function AlertaClienteDetalleModal({
                   <Section title="Evidencias cargadas" icon={<ImageIcon className="h-4 w-4" />}>
                     {evidencias.length > 0 ? (
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        {evidencias.map((ev: any) => {
-                          const url = resolveMediaUrl(ev.url || ev.path || ev.ruta || '')
-                          const kind = String(ev.tipoContenido || ev.tipoArchivo || '').toLowerCase()
+                        {evidencias.map((ev) => {
+                          const url = resolveMediaUrl(ev.url || '')
+                          const kind = String(ev.tipoContenido || '').toLowerCase()
                           const isVideo = kind.includes('video') || /\.(mp4|mov|webm)$/i.test(url)
                           const isImage = kind.includes('foto') || kind.includes('imagen') || /\.(jpg|jpeg|png|webp|gif)$/i.test(url)
 
                           return (
                             <div key={ev.id || url} className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
                               {url && isImage ? (
-                                <img src={url} alt={text(ev.descripcion, ev.nombreOriginal, 'Evidencia')} className="h-40 w-full object-cover" />
+                                <img src={url} alt={text(ev.descripcion, 'Evidencia')} className="h-40 w-full object-cover" />
                               ) : url && isVideo ? (
                                 <video src={url} controls className="h-40 w-full bg-black object-cover" />
                               ) : (
@@ -426,7 +452,7 @@ export default function AlertaClienteDetalleModal({
                               )}
                               <div className="px-3 py-2">
                                 <p className="truncate text-xs font-black text-slate-800">
-                                  {text(ev.descripcion, ev.nombreOriginal, ev.tipoContenido, 'Evidencia')}
+                                  {text(ev.descripcion, ev.tipoContenido, 'Evidencia')}
                                 </p>
                               </div>
                             </div>
@@ -442,17 +468,17 @@ export default function AlertaClienteDetalleModal({
                     <Section title="Últimos pagos" icon={<CheckCircle2 className="h-4 w-4" />}>
                       {pagos.length > 0 ? (
                         <div className="space-y-2">
-                          {pagos.slice(0, 5).map((pago: any, index: number) => (
-                            <div key={pago.id || pago.numeroPago || `pago-${index}`} className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2">
+                          {pagos.slice(0, 5).map((pago, index) => (
+                            <div key={pago.id || `pago-${index}`} className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2">
                               <div className="min-w-0">
                                 <p className="truncate text-xs font-bold text-slate-600">{formatDate(pago)}</p>
-                                {text(pago.metodoPago, pago.metodo) ? (
+                                {pago.metodoPago ? (
                                   <p className="mt-0.5 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                                    {text(pago.metodoPago, pago.metodo).replace(/_/g, ' ')}
+                                    {text(pago.metodoPago).replace(/_/g, ' ')}
                                   </p>
                                 ) : null}
                               </div>
-                              <p className="text-sm font-black text-emerald-700">{money(pago.montoTotal ?? pago.monto ?? pago.valor)}</p>
+                              <p className="text-sm font-black text-emerald-700">{money(pago.montoTotal)}</p>
                             </div>
                           ))}
                         </div>
@@ -464,10 +490,10 @@ export default function AlertaClienteDetalleModal({
                     <Section title="Últimas gestiones" icon={<Calendar className="h-4 w-4" />}>
                       {visitas.length > 0 ? (
                         <div className="space-y-2">
-                          {visitas.slice(0, 5).map((visita: any) => (
+                          {visitas.slice(0, 5).map((visita) => (
                             <div key={visita.id || `${visita.fechaVisita}-${visita.estadoVisita}`} className="rounded-xl bg-slate-50 px-3 py-2">
                               <p className="text-xs font-black text-slate-800">
-                                {text(visita.fechaVisita, visita.creadoEn)} · {text(visita.estadoVisita).replace(/_/g, ' ') || 'Sin estado'}
+                                {text(visita.fechaVisita)} · {text(visita.estadoVisita).replace(/_/g, ' ') || 'Sin estado'}
                               </p>
                               <p className="mt-1 line-clamp-2 text-xs font-semibold text-slate-500">
                                 {text(visita.notas) || 'Sin observaciones'}

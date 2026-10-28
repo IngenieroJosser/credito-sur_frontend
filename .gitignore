@@ -1,49 +1,49 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# dependencies
-/node_modules
-/.pnp
-.pnp.*
-.yarn/*
 !.yarn/patches
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
-
-# testing
-/coverage
-
-# next.js
-/.next/
-/out/
-
-# production
-/build
-
-# misc
-.DS_Store
-*.pem
-
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-
-# env files (can opt-in for committing if needed)
-.env*
-
-# vercel
-.vercel
-
-# typescript
-*.tsbuildinfo
-next-env.d.ts
-
 # PWA auto-generated files
+# Playwright
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# debug
+# dependencies
+# env files (can opt-in for committing if needed)
+# misc
+# next.js
+# production
+# testing
+# typescript
+# vercel
+*.pem
+*.tsbuildinfo
+.DS_Store
+.env*
+.pnp.*
+.pnpm-debug.log*
+.vercel
+.yarn/*
+/.next/
+/.pnp
+/blob-report/
+/build
+/coverage
+/node_modules
+/out/
+/playwright-report/
+/playwright/.cache/
+/test-results/
+next-env.d.ts
+npm-debug.log*
+playwright-report/
+public/fallback-*.js
 public/sw.js
 public/sw.js.map
+public/swe-worker-*.js
 public/workbox-*.js
 public/workbox-*.js.map
-public/swe-worker-*.js
-public/fallback-*.js
+test-results/
+yarn-debug.log*
+yarn-error.log*
+capturas/
+e2e/.tmp-*

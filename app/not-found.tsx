@@ -1,4 +1,5 @@
 'use client'
+import { formatFechaBogota } from '@/lib/format-date'
 import { logger } from '@/lib/logger'
 
 import Link from 'next/link'
@@ -337,7 +338,7 @@ const NotFoundPage = () => {
               </div>
               <div className="w-px h-4 bg-gray-200"></div>
               <div className="text-xs text-gray-400 font-light">
-                {new Date().toLocaleDateString('es-ES', { 
+                {formatFechaBogota(new Date(), { 
                   day: '2-digit', 
                   month: 'short', 
                   year: 'numeric' 

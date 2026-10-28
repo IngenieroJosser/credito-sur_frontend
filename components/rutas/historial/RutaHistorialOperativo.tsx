@@ -1,4 +1,5 @@
 'use client'
+import { formatFechaBogota } from '@/lib/format-date'
 
 import { useState, useMemo } from 'react'
 import { ChevronDown, History } from 'lucide-react'
@@ -8,6 +9,8 @@ import { normalizeVisitaHistorial, computeHistorialResumenCompartido, hasGestion
 import { formatMilesCOP } from '@/lib/utils'
 import type { VisitaRuta, EstadoVisita } from '@/lib/types/cobranza'
 import { StaticVisitaItem } from '@/components/dashboards/shared/CobradorElements'
+import { Skeleton } from '@/components/ui/Skeleton'
+import AyudaContextual from '@/components/ui/AyudaContextual'
 
 type RutaHistorialOperativoProps = {
   rutaId?: string
@@ -70,10 +73,12 @@ export default function RutaHistorialOperativo({
       let monthPagados = 0
       const daysInMonth = historyByMonth[monthKey] || []
       for (const date of daysInMonth) {
-        const data = (historialRutas as Record<string, any>)[date]
-        const resumen = data?.resumen || {}
-        monthRecaudo += Number(resumen.recaudo || 0)
-        monthPagados += Number(resumen.visitados || 0)
+        // El hook ya declara `Record<string, HistorialDia> | null`: el cast a
+        // `Record<string, any>` solo desactivaba la comprobacion.
+        const data = historialRutas?.[date]
+        const resumen = data?.resumen
+        monthRecaudo += Number(resumen?.recaudo || 0)
+        monthPagados += Number(resumen?.visitados || 0)
       }
       summary[monthKey] = { monthRecaudo, monthPagados }
     }
@@ -110,21 +115,24 @@ export default function RutaHistorialOperativo({
         <div className="space-y-3">
           <h3 className="text-sm font-bold text-slate-500 uppercase px-1">Historial de Días</h3>
           {historyDates.map((date) => {
-            const data = (historialRutas as Record<string, any>)[date]
+            const data = historialRutas?.[date]
             const isExpanded = selectedHistoryDate === date
             const [y, m, d] = date.split('-')
             const dateObj = new Date(parseInt(y), parseInt(m) - 1, parseInt(d))
-            const dayName = dateObj.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })
-            const jornadaEtiqueta = (data.resumen as any).jornadaEtiqueta
-            const jornadaEtiquetaColor = (data.resumen as any).jornadaEtiquetaColor || 'bg-slate-100 text-slate-700 border-slate-200'
+            const dayName = formatFechaBogota(dateObj, { weekday: 'long', day: 'numeric', month: 'long' })
+            const jornadaEtiqueta = data?.resumen?.jornadaEtiqueta
+            const jornadaEtiquetaColor = data?.resumen?.jornadaEtiquetaColor || 'bg-slate-100 text-slate-700 border-slate-200'
 
-            const visitasHistorial = (data.visitas || []).map(normalizeVisitaHistorial)
-            const visitasHistorialFiltradas = visitasHistorial.filter((v: any) => {
+            const visitasHistorial = (data?.visitas || []).map(normalizeVisitaHistorial)
+            const visitasHistorialFiltradas = visitasHistorial.filter((v) => {
               const isSaldado =
                 String(v.estado || '').toLowerCase() === 'pagado' && Number(v.saldoTotal || 0) <= 0
               return !(isSaldado && !hasGestionHistorial(v))
             })
-            const resumenHistorial = computeHistorialResumenCompartido(visitasHistorial, data.resumen)
+            const resumenCalculado = computeHistorialResumenCompartido(visitasHistorial, data?.resumen)
+            const resumenHistorial = data?.loaded
+              ? { ...resumenCalculado, ...data.resumen }
+              : resumenCalculado
 
             return (
               <div
@@ -137,7 +145,7 @@ export default function RutaHistorialOperativo({
                   className="px-5 py-3 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
                   onClick={() => {
                     setSelectedHistoryDate(isExpanded ? null : date)
-                    if (!isExpanded && !data.loaded) {
+                    if (!isExpanded && !data?.loaded) {
                       void cargarHistorialFecha(date)
                     }
                   }}
@@ -177,9 +185,10 @@ export default function RutaHistorialOperativo({
                   <div className="border-t border-slate-100 bg-white p-4 space-y-3 animate-in slide-in-from-top-2 duration-200">
                     <div className="grid grid-cols-3 gap-2">
                       <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-center">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">
-                          Recaudo
-                        </p>
+                        <div className="flex items-center justify-center gap-1 text-[9px] font-black uppercase tracking-widest text-slate-400">
+                          <span>Recaudo</span>
+                          <AyudaContextual texto="Suma de pagos confirmados asociados a esta jornada. Las transferencias pendientes de revisión no se incluyen." />
+                        </div>
                         <p className="mt-1 text-xs font-black text-slate-900">
                           ${formatMilesCOP(data?.resumen?.recaudo || 0)}
                         </p>
@@ -195,9 +204,10 @@ export default function RutaHistorialOperativo({
                       </div>
 
                       <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-center">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">
-                          Gestionados
-                        </p>
+                        <div className="flex items-center justify-center gap-1 text-[9px] font-black uppercase tracking-widest text-slate-400">
+                          <span>Gestionados</span>
+                          <AyudaContextual texto="Obligaciones con un pago confirmado, visita ausente o reprogramación registrada durante la jornada." />
+                        </div>
                         <p className="mt-1 text-xs font-black text-blue-700">
                           {data?.resumen?.visitados || 0}/{data?.resumen?.total || 0}
                         </p>
@@ -209,10 +219,12 @@ export default function RutaHistorialOperativo({
                       <span>Estado</span>
                     </div>
                     <div>
-                      {!data.loaded ? (
-                        <div className="flex flex-col items-center justify-center py-8 text-slate-400">
-                          <div className="w-6 h-6 border-2 border-slate-300 border-t-[#08557f] rounded-full animate-spin mb-2" />
-                          <span className="text-xs font-medium">Cargando detalles...</span>
+                      {!data?.loaded ? (
+                        <div className="space-y-2" aria-busy="true">
+                          <span className="sr-only">Cargando…</span>
+                          {Array.from({ length: 3 }).map((_, i) => (
+                            <Skeleton key={i} className="h-10 rounded-xl" />
+                          ))}
                         </div>
                       ) : visitasHistorialFiltradas.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-10 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
@@ -256,7 +268,7 @@ export default function RutaHistorialOperativo({
             {historyMonthKeys.map((monthKey) => {
               const [my, mm] = monthKey.split('-')
               const monthObj = new Date(parseInt(my), parseInt(mm) - 1, 1)
-              const monthName = monthObj.toLocaleDateString('es-CO', { month: 'long', year: 'numeric' })
+              const monthName = formatFechaBogota(monthObj, { month: 'long', year: 'numeric' })
               const daysInMonth = historyByMonth[monthKey] || []
               const isMonthExpanded = selectedHistoryMonth === monthKey
               const monthRecaudo = Number(historyMonthSummaryByKey[monthKey]?.monthRecaudo || 0)
@@ -299,18 +311,21 @@ export default function RutaHistorialOperativo({
                   {isMonthExpanded && (
                     <div className="border-t border-slate-100">
                       {daysInMonth.map((date) => {
-                        const dayData = (historialRutas as any)[date]
+                        const dayData = historialRutas?.[date] ?? null
                         const visitasHistorial = (dayData?.visitas || []).map(normalizeVisitaHistorial)
-                        const visitasHistorialFiltradas = visitasHistorial.filter((v: any) => {
+                        const visitasHistorialFiltradas = visitasHistorial.filter((v) => {
                           const isSaldado =
                             String(v.estado || '').toLowerCase() === 'pagado' && Number(v.saldoTotal || 0) <= 0
                           return !(isSaldado && !hasGestionHistorial(v))
                         })
-                        const resumenHistorial = computeHistorialResumenCompartido(visitasHistorial, dayData?.resumen)
+                        const resumenCalculado = computeHistorialResumenCompartido(visitasHistorial, dayData?.resumen)
+                        const resumenHistorial = dayData?.loaded
+                          ? { ...resumenCalculado, ...dayData.resumen }
+                          : resumenCalculado
                         const isDayExpanded = selectedHistoryDate === date
                         const [dy, dm, dd] = date.split('-')
                         const dateObj = new Date(parseInt(dy), parseInt(dm) - 1, parseInt(dd))
-                        const dayName = dateObj.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric' })
+                        const dayName = formatFechaBogota(dateObj, { weekday: 'long', day: 'numeric' })
 
                         return (
                           <div
@@ -320,7 +335,7 @@ export default function RutaHistorialOperativo({
                             <div
                               className="px-5 py-3 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
                               onClick={async () => {
-                                if (!isDayExpanded && !dayData.loaded) {
+                                if (!isDayExpanded && !dayData?.loaded) {
                                   await cargarHistorialFecha(date)
                                 }
                                 setSelectedHistoryDate(isDayExpanded ? null : date)
@@ -388,10 +403,12 @@ export default function RutaHistorialOperativo({
                                   <span>Estado</span>
                                 </div>
                                 <div>
-                                  {!dayData.loaded ? (
-                                    <div className="flex flex-col items-center justify-center py-8 text-slate-400">
-                                      <div className="w-6 h-6 border-2 border-slate-300 border-t-[#08557f] rounded-full animate-spin mb-2" />
-                                      <span className="text-xs font-medium">Cargando detalles...</span>
+                                  {!dayData?.loaded ? (
+                                    <div className="space-y-2" aria-busy="true">
+                                      <span className="sr-only">Cargando…</span>
+                                      {Array.from({ length: 3 }).map((_, i) => (
+                                        <Skeleton key={i} className="h-10 rounded-xl" />
+                                      ))}
                                     </div>
                                   ) : visitasHistorialFiltradas.length === 0 ? (
                                     <div className="flex flex-col items-center justify-center py-10 bg-slate-50 rounded-2xl border border-dashed border-slate-200">

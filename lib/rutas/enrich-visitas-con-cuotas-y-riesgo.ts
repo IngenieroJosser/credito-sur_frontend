@@ -23,15 +23,14 @@ import {
   computeMontoExigibleHastaHoyFromCuotas,
 } from '@/lib/rutas-core'
 import { mapWithConcurrency } from '@/lib/async-utils'
+import type { CuotaOperativa, VisitaParcial } from '@/lib/types/cobranza'
 
 // Helpers internos para mora estricta (solo cuotas vencidas antes de hoy)
-const getCuotaVtoKey = (cuota: any): string => {
-  return normalizeDateKey(
-    resolveFechaEfectivaCuota(cuota) || String(cuota?.fechaVencimiento || '')
-  )
+const getCuotaVtoKey = (cuota: CuotaOperativa): string => {
+  return normalizeDateKey(resolveFechaEfectivaCuota(cuota) || String(cuota?.fechaVencimiento || ''))
 }
 
-const isCuotaVencidaAntesDeHoy = (cuota: any, hoyBogotaKey: string): boolean => {
+const isCuotaVencidaAntesDeHoy = (cuota: CuotaOperativa, hoyBogotaKey: string): boolean => {
   if (!cuota || !isCuotaNoPagada(cuota)) return false
 
   const vtoKey = getCuotaVtoKey(cuota)
@@ -39,13 +38,8 @@ const isCuotaVencidaAntesDeHoy = (cuota: any, hoyBogotaKey: string): boolean => 
   return !!vtoKey && !!hoyBogotaKey && vtoKey < hoyBogotaKey
 }
 
-const getMontoPendienteCuota = (cuota: any): number => {
-  const nominal = Number(
-    cuota?.montoNominal ??
-    cuota?.montoCuota ??
-    cuota?.monto ??
-    0
-  )
+const getMontoPendienteCuota = (cuota: CuotaOperativa): number => {
+  const nominal = Number(cuota?.montoNominal ?? cuota?.montoCuota ?? cuota?.monto ?? 0)
 
   const pagado = Number(cuota?.montoPagado ?? 0)
 
@@ -53,8 +47,8 @@ const getMontoPendienteCuota = (cuota: any): number => {
 }
 
 const computeMontoVencidoAntesDeHoyFromCuotas = (
-  cuotas: any[],
-  hoyBogotaKey: string
+  cuotas: CuotaOperativa[],
+  hoyBogotaKey: string,
 ): number => {
   return (Array.isArray(cuotas) ? cuotas : [])
     .filter((cuota) => isCuotaVencidaAntesDeHoy(cuota, hoyBogotaKey))
@@ -62,12 +56,12 @@ const computeMontoVencidoAntesDeHoyFromCuotas = (
 }
 
 const computeCuotasVencidasAntesDeHoyFromCuotas = (
-  cuotas: any[],
-  hoyBogotaKey: string
+  cuotas: CuotaOperativa[],
+  hoyBogotaKey: string,
 ): number => {
-  return (Array.isArray(cuotas) ? cuotas : [])
-    .filter((cuota) => isCuotaVencidaAntesDeHoy(cuota, hoyBogotaKey))
-    .length
+  return (Array.isArray(cuotas) ? cuotas : []).filter((cuota) =>
+    isCuotaVencidaAntesDeHoy(cuota, hoyBogotaKey),
+  ).length
 }
 
 // Helpers para calcular fechaOrdenRuta
@@ -79,7 +73,7 @@ const parseBogotaKeyToTs = (key?: string | null): number => {
   return Number.isFinite(ts) ? ts : 0
 }
 
-const resolvePrimeraCuotaPendienteKey = (cuotas: any[]): string => {
+const resolvePrimeraCuotaPendienteKey = (cuotas: CuotaOperativa[]): string => {
   const pendientes = (Array.isArray(cuotas) ? cuotas : [])
     .filter((c) => c && isCuotaNoPagada(c))
     .map((c) => normalizeDateKey(resolveFechaEfectivaCuota(c) || String(c?.fechaVencimiento || '')))
@@ -89,24 +83,35 @@ const resolvePrimeraCuotaPendienteKey = (cuotas: any[]): string => {
   return pendientes[0] || ''
 }
 
-export async function enrichVisitasConCuotasYRiesgo(params: {
-  visitas: any[]
+/**
+ * Generica sobre la forma de la visita, como `applyRecaudoHoyToVisitas` y
+ * `mergeVisitasPreservingLocalRecaudo` en `ruta-recaudos`: enriquece y DEVUELVE LA MISMA
+ * forma, asi que no tiene por que perderla.
+ *
+ * Antes era `(visitas: any[]): Promise<any[]>` y era la puerta por la que el `any` entraba
+ * a todo el tubo de ruta-hoy: de aqui salia el `kpiItems: any[]` de
+ * `build-ruta-hoy-operativa`, y de ahi el `visitasRaw: any[]` de SupervisorCobroView.
+ *
+ * La cota es `VisitaParcial`: es lo que los llamadores pasan de verdad (`VisitaRuta[]`)
+ * y cubre las lecturas defensivas de dentro. Antes era `Record<string, any>`, que admite
+ * cualquier objeto y desactiva la comprobacion de todas ellas.
+ */
+export async function enrichVisitasConCuotasYRiesgo<T extends VisitaParcial>(params: {
+  visitas: T[]
   hoyBogotaKey: string
-  getCuotasByPrestamoId: (prestamoId: string) => Promise<any[]>
-  getPrestamoById?: (prestamoId: string) => Promise<any>
+  getCuotasByPrestamoId: (prestamoId: string) => Promise<CuotaOperativa[]>
+  getPrestamoById?: (prestamoId: string) => Promise<unknown>
   concurrency?: number
-}): Promise<any[]> {
+}): Promise<T[]> {
   const { visitas, hoyBogotaKey, getCuotasByPrestamoId, getPrestamoById, concurrency = 6 } = params
 
   const visitasFinales = await mapWithConcurrency(
     visitas,
-    async (visita: any) => {
+    async (visita) => {
       if (!visita?.prestamoId) return visita
 
       const cuotas = await getCuotasByPrestamoId(String(visita.prestamoId))
-      const pendiente = (Array.isArray(cuotas) ? cuotas : []).find((c: any) =>
-        isCuotaNoPagada(c),
-      )
+      const pendiente = (Array.isArray(cuotas) ? cuotas : []).find((c) => isCuotaNoPagada(c))
 
       if (!pendiente) {
         return {
@@ -120,70 +125,62 @@ export async function enrichVisitasConCuotasYRiesgo(params: {
       // Cálculo de mora estricta: solo cuotas vencidas antes de hoy (< hoyBogotaKey)
       const cuotasVencidasCalculadas = computeCuotasVencidasAntesDeHoyFromCuotas(
         cuotas,
-        hoyBogotaKey
+        hoyBogotaKey,
       )
 
       const montoVencidoAcumuladoFinal = computeMontoVencidoAntesDeHoyFromCuotas(
         cuotas,
-        hoyBogotaKey
+        hoyBogotaKey,
       )
 
       // Cálculo de días de mora con mora estricta (solo cuotas vencidas antes de hoy)
       const diasMoraRaw = computeDiasMoraFromCuotas(
         cuotas,
         hoyBogotaKey,
-        visita?.frecuenciaPago || visita?.prestamoRaw?.frecuenciaPago || visita?.periodoRuta || 'DIARIO'
+        visita?.frecuenciaPago ||
+          visita?.prestamoRaw?.frecuenciaPago ||
+          visita?.periodoRuta ||
+          'DIARIO',
       )
 
       // La mora solo existe si hay cuotas vencidas estrictamente antes de hoy.
       // Si la cuota vence hoy, no debe generar mora ni riesgo.
-      const diasMoraFinal =
-        cuotasVencidasCalculadas > 0
-          ? Math.max(1, Number(diasMoraRaw || 0))
-          : 0
+      const diasMoraFinal = cuotasVencidasCalculadas > 0 ? Math.max(1, Number(diasMoraRaw || 0)) : 0
 
       // Monto operativo exigible de hoy (puede incluir cuota de hoy para meta/cobro)
       const montoOperativoExigibleFinal = computeMontoExigibleHastaHoyFromCuotas(
         cuotas,
-        hoyBogotaKey
+        hoyBogotaKey,
       )
 
       // Tiene mora solo si hay cuotas vencidas antes de hoy
       const tieneMora = cuotasVencidasCalculadas > 0
 
-      const cuotasVencidasFinal = tieneMora
-        ? Math.max(Number(cuotasVencidasCalculadas || 0), 1)
-        : 0
+      const cuotasVencidasFinal = tieneMora ? Math.max(Number(cuotasVencidasCalculadas || 0), 1) : 0
 
       const fechaReal =
-        resolveFechaEfectivaCuota(pendiente) ||
-        pendiente?.fechaVencimiento ||
-        visita?.proximaVisita
+        resolveFechaEfectivaCuota(pendiente) || pendiente?.fechaVencimiento || visita?.proximaVisita
 
       const montoCuotaNormal = Number(
         pendiente?.montoNominal ??
-        pendiente?.montoCuota ??
-        pendiente?.monto ??
-        visita?.montoCuotaNormal ??
-        visita?.montoCuota ??
-        0
+          pendiente?.montoCuota ??
+          pendiente?.monto ??
+          visita?.montoCuotaNormal ??
+          visita?.montoCuota ??
+          0,
       )
 
       // Calcular fechaOrdenRuta para ordenamiento de ruta
       const primeraCuotaPendienteKey = resolvePrimeraCuotaPendienteKey(cuotas)
       const primeraCuotaPendienteTs = parseBogotaKeyToTs(primeraCuotaPendienteKey)
 
-      const fechaUltimoPagoTs = Number(
-        visita?.fechaUltimoPago ??
-        visita?.ultimoPagoAt ??
-        visita?.ultimoPagoEn ??
-        visita?.ultimaFechaPago ??
-        0
-      )
+      // Solo `fechaUltimoPago`: los tres eslabones que le seguian -`ultimoPagoAt`,
+      // `ultimoPagoEn`, `ultimaFechaPago`- no los escribe NADIE, ni el backend ni quien
+      // arma estas visitas. Ya estaba medido en `ordenar-visitas-ruta` (lineas 34-38),
+      // donde estaba la misma cadena muerta.
+      const fechaUltimoPagoTs = Number(visita?.fechaUltimoPago ?? 0)
 
-      const fechaOrdenRuta = fechaUltimoPagoTs > 0
-        ? fechaUltimoPagoTs
-        : primeraCuotaPendienteTs
+      const fechaOrdenRuta = fechaUltimoPagoTs > 0 ? fechaUltimoPagoTs : primeraCuotaPendienteTs
 
       const visitaFinal = {
         ...visita,
@@ -220,19 +217,13 @@ export async function enrichVisitasConCuotasYRiesgo(params: {
         fechaOrdenRuta,
       }
 
-      const prestamoRiesgo =
-        visitaFinal?.prestamoRaw ||
-        visitaFinal?.prestamoAutoritativo ||
-        visitaFinal?.prestamo ||
-        {}
+      // Sin `prestamoAutoritativo`: ese nombre es una variable local de VistaCobrador, no
+      // un campo de la visita; nunca llegaba aqui.
+      const prestamoRiesgo = visitaFinal?.prestamoRaw || visitaFinal?.prestamo || {}
 
       return {
         ...visitaFinal,
-        nivelRiesgo: resolveNivelRiesgoVisita(
-          visitaFinal,
-          prestamoRiesgo,
-          pendiente
-        ),
+        nivelRiesgo: resolveNivelRiesgoVisita(visitaFinal, prestamoRiesgo, pendiente),
       }
     },
     concurrency,
@@ -240,20 +231,22 @@ export async function enrichVisitasConCuotasYRiesgo(params: {
 
   // Log temporal en desarrollo
   if (process.env.NODE_ENV !== 'production') {
-    console.table(visitasFinales.map((v: any) => ({
-      cliente: v.cliente,
-      prestamoId: v.prestamoId,
-      cuotaActual: v.cuotaActual,
-      estado: v.estado,
-      nivelRiesgo: v.nivelRiesgo,
-      fechaUltimoPago: v.fechaUltimoPago,
-      fechaPrimeraCuotaPendiente: v.fechaPrimeraCuotaPendiente,
-      fechaPrimeraCuotaPendienteTs: v.fechaPrimeraCuotaPendienteTs,
-      fechaOrdenRuta: v.fechaOrdenRuta,
-      montoVencidoAcumulado: v.montoVencidoAcumulado,
-      cuotasVencidas: v.cuotasVencidas,
-      diasMora: v.diasMora,
-    })))
+    console.table(
+      visitasFinales.map((v) => ({
+        cliente: v.cliente,
+        prestamoId: v.prestamoId,
+        cuotaActual: v.cuotaActual,
+        estado: v.estado,
+        nivelRiesgo: v.nivelRiesgo,
+        fechaUltimoPago: v.fechaUltimoPago,
+        fechaPrimeraCuotaPendiente: v.fechaPrimeraCuotaPendiente,
+        fechaPrimeraCuotaPendienteTs: v.fechaPrimeraCuotaPendienteTs,
+        fechaOrdenRuta: v.fechaOrdenRuta,
+        montoVencidoAcumulado: v.montoVencidoAcumulado,
+        cuotasVencidas: v.cuotasVencidas,
+        diasMora: v.diasMora,
+      })),
+    )
   }
 
   return visitasFinales
