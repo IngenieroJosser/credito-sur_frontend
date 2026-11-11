@@ -4,7 +4,8 @@ import { useState, useRef } from 'react'
 import { X, CheckCircle2 } from 'lucide-react'
 import { Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
 import Tooltip from '@/components/ui/Tooltip'
-import { useModalDialog } from '@/hooks/use-modal-dialog'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
+import { BARRA_DE_ARRASTRE, FONDO_HOJA_MODAL } from '@/lib/ui/hoja-modal'
 
 interface ConfirmApproveModalProps {
   isOpen: boolean
@@ -51,7 +52,7 @@ export default function ConfirmApproveModal({
   return (
     <Portal>
       <div
-        className="fixed inset-0 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none"
+        className={`${FONDO_HOJA_MODAL} bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none`}
         style={{ zIndex: MODAL_Z_INDEX }}
         onMouseDown={(e) => { mouseDownTargetRef.current = e.target }}
         onMouseUp={(e) => {
@@ -62,9 +63,11 @@ export default function ConfirmApproveModal({
         }}
       >
         <div
-          className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden border border-emerald-100"
+          className="bg-white rounded-t-2xl max-h-[100dvh] pb-[env(safe-area-inset-bottom)] sm:rounded-[2rem] sm:max-h-[90dvh] sm:pb-0 shadow-2xl w-full max-w-md overflow-hidden border border-emerald-100"
           onClick={(e) => e.stopPropagation()}
         >
+          {/* La barra que indica «esto se cierra hacia abajo». Solo en móvil. */}
+          <div className={BARRA_DE_ARRASTRE} aria-hidden="true" />
           <div className="p-6 border-b border-emerald-100 flex justify-between items-center bg-emerald-50/50">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center">

@@ -26,7 +26,8 @@ import { formatCurrency } from '@/lib/utils'
 import { aprobacionesService, type ApprovalContext } from '@/services/aprobaciones-service'
 import { Skeleton, SkeletonTexto } from '@/components/ui/Skeleton'
 import Tooltip from '@/components/ui/Tooltip'
-import { useModalDialog } from '@/hooks/use-modal-dialog'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
+import { BARRA_DE_ARRASTRE, FONDO_HOJA_MODAL } from '@/lib/ui/hoja-modal'
 
 export interface ReprogramacionData {
   id: string
@@ -285,7 +286,9 @@ export default function ReprogramacionDetalleModal({
         <InfoTile label="Nueva fecha" value={formatFecha(data.nuevaFechaVencimiento)} tone="orange" />
       </div>
 
-      <div className="flex items-center gap-3 p-4 bg-orange-50 rounded-2xl border border-orange-100">
+      <div className="flex items-center gap-3 p-4 bg-orange-50 rounded-t-2xl max-h-[100dvh] pb-[env(safe-area-inset-bottom)] sm:rounded-2xl sm:max-h-[90dvh] sm:pb-0 border border-orange-100">
+        {/* La barra que indica «esto se cierra hacia abajo». Solo en móvil. */}
+        <div className={BARRA_DE_ARRASTRE} aria-hidden="true" />
         <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 shrink-0">
           <User className="h-5 w-5" />
         </div>
@@ -517,7 +520,7 @@ export default function ReprogramacionDetalleModal({
       />
 
       <div
-        className="fixed inset-0 flex items-center justify-center p-4"
+        className={`${FONDO_HOJA_MODAL} `}
         style={{ zIndex: 2147483601 }}
         onClick={onClose}
       >

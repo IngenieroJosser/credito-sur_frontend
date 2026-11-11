@@ -4,7 +4,8 @@ import { ReactNode, useRef } from 'react'
 import { AlertTriangle, Info, XCircle, CheckCircle2 } from 'lucide-react'
 import Portal, { ALERT_Z_INDEX } from '@/components/ui/Portal'
 import BotonAccion from '@/components/ui/BotonAccion'
-import { useModalDialog } from '@/hooks/use-modal-dialog'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
+import { BARRA_DE_ARRASTRE, FONDO_HOJA_MODAL } from '@/lib/ui/hoja-modal'
 
 interface ConfirmModalProps {
   isOpen: boolean
@@ -83,7 +84,7 @@ export default function ConfirmModal({
   return (
     <Portal>
       <div 
-        className="fixed inset-0 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
+        className={`${FONDO_HOJA_MODAL} bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200`}
         style={{ zIndex: ALERT_Z_INDEX }}
         onMouseDown={(e) => { mouseDownTargetRef.current = e.target }}
         onMouseUp={(e) => {
@@ -94,9 +95,11 @@ export default function ConfirmModal({
         }}
       >
         <div 
-          className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200"
+          className="bg-white rounded-t-2xl max-h-[100dvh] pb-[env(safe-area-inset-bottom)] sm:rounded-2xl sm:max-h-[90dvh] sm:pb-0 shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200"
           onClick={(e) => e.stopPropagation()}
         >
+          {/* La barra que indica «esto se cierra hacia abajo». Solo en móvil. */}
+          <div className={BARRA_DE_ARRASTRE} aria-hidden="true" />
           {/* Header con icono */}
           <div className={`p-6 ${currentVariant.bg} ${currentVariant.border} border-b flex items-start gap-4`}>
             <div className={`p-2 rounded-xl bg-white shadow-sm ${currentVariant.iconColor}`}>

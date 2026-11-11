@@ -18,7 +18,8 @@ import {
 import { formatCurrency, cn } from '@/lib/utils'
 import { createPortal } from 'react-dom'
 import Tooltip from '@/components/ui/Tooltip'
-import { useModalDialog } from '@/hooks/use-modal-dialog'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
+import { BARRA_DE_ARRASTRE, FONDO_HOJA_MODAL } from '@/lib/ui/hoja-modal'
 
 interface DetalleMoraModalProps {
   cuenta: {
@@ -87,7 +88,7 @@ export default function DetalleMoraModal({
 
   return createPortal(
     <div
-      className="fixed inset-0 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
+      className={`${FONDO_HOJA_MODAL} bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200`}
       style={{ zIndex: 2147483600 }}
       onClick={onClose}
     >
@@ -103,7 +104,9 @@ export default function DetalleMoraModal({
           </div>
           <div className="relative z-10 flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="p-3 bg-white/15 rounded-2xl">
+              <div className="p-3 bg-white/15 rounded-t-2xl max-h-[100dvh] pb-[env(safe-area-inset-bottom)] sm:rounded-2xl sm:max-h-[90dvh] sm:pb-0">
+                {/* La barra que indica «esto se cierra hacia abajo». Solo en móvil. */}
+                <div className={BARRA_DE_ARRASTRE} aria-hidden="true" />
                 <ShieldAlert className="w-6 h-6 text-white" />
               </div>
               <div>

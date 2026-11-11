@@ -6,6 +6,12 @@ import { createPortal } from 'react-dom';
 import { MODAL_Z_INDEX } from '@/components/ui/Portal';
 import Tooltip from '@/components/ui/Tooltip';
 import { useModalDialog } from '@/hooks/use-modal-dialog';
+import {
+  BARRA_DE_ARRASTRE,
+  CUERPO_HOJA_MODAL,
+  FONDO_HOJA_MODAL,
+  PANEL_HOJA_MODAL,
+} from '@/lib/ui/hoja-modal';
 
 interface ModalProps {
   isOpen: boolean;
@@ -60,8 +66,13 @@ export const Modal: React.FC<ModalProps> = ({
   };
 
   return createPortal(
-    <div 
-      className="fixed inset-0 flex items-center justify-center p-4 sm:p-6"
+    /* Hoja desde abajo en el móvil y tarjeta centrada en escritorio. Antes
+       salía centrado también en el teléfono: los botones quedaban en la mitad
+       de la pantalla, lejos del pulgar, y al salir el teclado el panel se
+       partía. Las clases viven en `lib/ui/hoja-modal` porque hay 102 diálogos
+       escritos a mano que tienen que poder adoptar lo mismo. */
+    <div
+      className={FONDO_HOJA_MODAL}
       style={{ zIndex: MODAL_Z_INDEX }}
       onMouseDown={backdropClosable ? (e) => { mouseDownTargetRef.current = e.target } : undefined}
       onMouseUp={backdropClosable ? (e) => {
@@ -81,10 +92,14 @@ export const Modal: React.FC<ModalProps> = ({
           de golpe. Respeta prefers-reduced-motion. */}
       <div
         ref={contenedorRef}
-        className={`relative w-full ${sizeClasses[size]} bg-white rounded-2xl shadow-2xl flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-200 ease-out motion-reduce:animate-none focus:outline-none`}
+        className={`${PANEL_HOJA_MODAL} ${sizeClasses[size]}`}
         {...propsDialogo}
         onClick={(e) => e.stopPropagation()}
       >
+        {/* La barra que indica «esto se cierra hacia abajo». Solo en movil:
+            en escritorio no significa nada. */}
+        <div className={BARRA_DE_ARRASTRE} aria-hidden="true" />
+
         {/* Cabecera con el azul de la marca: da identidad al dialogo y separa
             con claridad el titulo del contenido, que antes eran dos bloques de
             texto oscuro sobre el mismo blanco. */}
@@ -102,13 +117,18 @@ export const Modal: React.FC<ModalProps> = ({
         </div>
 
         {/* Body */}
-        <div className="min-h-0 flex-1 overflow-y-auto p-6">
+        <div className={`${CUERPO_HOJA_MODAL} p-6`}>
           {children}
         </div>
 
-        {/* Footer */}
+        {/* Pie con los botones.
+
+            `sm:rounded-b-2xl` y no `rounded-b-2xl`: en el móvil el panel está
+            pegado al borde inferior, así que redondear el pie deja dos muescas
+            de fondo en las esquinas. En escritorio sí va redondeado, porque
+            ahí el panel flota. */}
         {footer && (
-          <div className="shrink-0 px-6 py-4 bg-slate-50 border-t border-slate-200 rounded-b-2xl flex justify-end gap-3">
+          <div className="shrink-0 px-6 py-4 bg-slate-50 border-t border-slate-200 sm:rounded-b-2xl flex justify-end gap-3">
             {footer}
           </div>
         )}

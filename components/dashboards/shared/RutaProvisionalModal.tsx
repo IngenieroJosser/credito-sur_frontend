@@ -25,6 +25,7 @@ import { VisitaRuta, EstadoVisita } from '@/lib/types/cobranza'
 import { formatCurrency } from '@/lib/utils'
 import Tooltip from '@/components/ui/Tooltip'
 import { useModalDialog } from '@/hooks/use-modal-dialog'
+import { BARRA_DE_ARRASTRE } from '@/lib/ui/hoja-modal'
 
 interface RutaProvisionalModalProps {
   visitas: VisitaRuta[]
@@ -115,8 +116,16 @@ export default function RutaProvisionalModal({
 
   return (
     <Portal>
-      <div className="fixed inset-0 z-[2147483600] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-        <div className="bg-white rounded-[2rem] w-full max-w-lg shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh] overflow-hidden">
+      {/* Las mismas clases que `FONDO_HOJA_MODAL` pero escritas aquí, porque
+          este diálogo lleva un z-index propio altísimo para quedar encima de
+          otro modal, y poner dos clases `z-*` no es fiable: Tailwind resuelve
+          el conflicto por el orden del CSS generado, no por el orden en que se
+          escriben. Si se cambia la hoja en `lib/ui/hoja-modal`, hay que
+          cambiar también esta línea. */}
+      <div className="fixed inset-0 z-[2147483600] flex items-end justify-center p-0 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none sm:items-center sm:p-4">
+        <div className="bg-white rounded-t-2xl max-h-[100dvh] pb-[env(safe-area-inset-bottom)] sm:rounded-[2rem] sm:max-h-[90dvh] sm:pb-0 w-full max-w-lg shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh] overflow-hidden">
+          {/* La barra que indica «esto se cierra hacia abajo». Solo en móvil. */}
+          <div className={BARRA_DE_ARRASTRE} aria-hidden="true" />
           {/* Header */}
           <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 shrink-0">
             <div className="min-w-0">

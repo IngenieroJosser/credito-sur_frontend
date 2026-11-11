@@ -44,7 +44,8 @@ import { useAuth } from '@/hooks/useAuth'
 import Tooltip from '@/components/ui/Tooltip'
 import { useModalDialog } from '@/hooks/use-modal-dialog'
 import { EstadoAprobacion } from '@/types/enums'
-import { NivelRiesgo } from '@/types/enums'
+import { NivelRiesgo } from '@/types/enums'
+import { BARRA_DE_ARRASTRE, FONDO_HOJA_MODAL } from '@/lib/ui/hoja-modal'
 
 /**
  * Estilo unico de los campos del formulario.
@@ -390,7 +391,7 @@ export default function NuevoClienteModal({
   return (
     <Portal>
       <div
-        className="fixed inset-0 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
+        className={`${FONDO_HOJA_MODAL} bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200`}
         style={{ zIndex: MODAL_Z_INDEX }}
         onMouseDown={(e) => {
           mouseDownTargetRef.current = e.target
@@ -403,9 +404,11 @@ export default function NuevoClienteModal({
         }}
       >
         <div
-          className="flex w-full max-w-4xl max-h-[90vh] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl animate-in zoom-in-95 duration-200"
+          className="flex w-full max-w-4xl max-h-[90vh] flex-col overflow-hidden rounded-t-2xl max-h-[100dvh] pb-[env(safe-area-inset-bottom)] sm:rounded-2xl sm:max-h-[90dvh] sm:pb-0 border border-slate-200 bg-white shadow-2xl animate-in zoom-in-95 duration-200"
           onClick={(e) => e.stopPropagation()}
         >
+          {/* La barra que indica «esto se cierra hacia abajo». Solo en móvil. */}
+          <div className={BARRA_DE_ARRASTRE} aria-hidden="true" />
           {/* Cabecera sobria: un rótulo gris sobre el título, como en el resto
               de modales de gestión. Va fuera del área que se desplaza para que
               el título siga a la vista al bajar por el formulario, que es largo. */}

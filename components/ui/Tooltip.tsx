@@ -52,8 +52,47 @@ interface TooltipProps {
 /** Milisegundos de pulsación para que cuente como «toque largo». */
 const ESPERA_TOQUE_LARGO = 400
 
+/**
+ * Si el dedo es el puntero principal.
+ *
+ * Decide la forma de la ayuda, y no es un detalle de estética: en un teléfono,
+ * un globo anclado a un icono de 20 píxeles pegado al borde de la pantalla sale
+ * recortado o tapando justo lo que se quiere mirar. La misma explicación como
+ * hoja desde abajo se lee de corrido y deja el control a la vista.
+ *
+ * Y resuelve algo peor. El globo se abre con un toque largo y se cierra con
+ * Escape, con un scroll o al cambiar el tamaño de la ventana: en un teléfono
+ * no hay Escape, así que una vez abierto solo se iba haciendo scroll. La hoja
+ * trae un fondo que se cierra al tocarlo, que es lo que cualquiera intenta
+ * primero.
+ *
+ * Se mide `pointer: coarse` y no el ancho de la pantalla: lo que importa es con
+ * qué se está señalando, no cuánto mide el cristal. Una tableta grande con
+ * dedo se comporta como un teléfono, y una ventana estrecha con ratón no.
+ */
+function usePunteroGrueso(): boolean {
+  const [grueso, setGrueso] = useState(false)
+
+  useEffect(() => {
+    // `matchMedia` no existe durante el renderizado en el servidor, y el
+    // valor se lee en un efecto para que la primera pintura del servidor y la
+    // del navegador coincidan.
+    if (typeof window === 'undefined' || !window.matchMedia) return
+
+    const consulta = window.matchMedia('(pointer: coarse)')
+    setGrueso(consulta.matches)
+
+    const alCambiar = (evento: MediaQueryListEvent) => setGrueso(evento.matches)
+    consulta.addEventListener('change', alCambiar)
+    return () => consulta.removeEventListener('change', alCambiar)
+  }, [])
+
+  return grueso
+}
+
 export default function Tooltip({ texto, children, lado = 'arriba' }: TooltipProps) {
   const id = useId()
+  const punteroGrueso = usePunteroGrueso()
   const [visible, setVisible] = useState(false)
   const [posicion, setPosicion] = useState<{
     top: number
@@ -174,6 +213,39 @@ export default function Tooltip({ texto, children, lado = 'arriba' }: TooltipPro
     },
     onTouchCancel: ocultar,
   } as Record<string, unknown>)
+
+  // En el teléfono la explicación sale como hoja desde abajo. Se mira
+  // `punteroGrueso` y no el tamaño: lo que decide es con qué se señala.
+  if (visible && punteroGrueso) {
+    return (
+      <>
+        {conAncla}
+        <Portal>
+          {/* El fondo cierra al tocarlo, que es lo que cualquiera intenta
+              primero. Sin esto, en el móvil la ayuda se quedaba abierta: se
+              cerraba con Escape —que no existe en un teléfono— o haciendo
+              scroll. */}
+          <div
+            style={{ zIndex: TOOLTIP_Z_INDEX }}
+            className="fixed inset-0 flex items-end justify-center bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-150 motion-reduce:animate-none"
+            onClick={ocultar}
+          >
+            <div
+              id={id}
+              role="tooltip"
+              className="w-full rounded-t-2xl bg-slate-900/95 px-5 pt-3 pb-[calc(1rem+env(safe-area-inset-bottom))] text-sm font-medium leading-relaxed text-white shadow-2xl animate-in slide-in-from-bottom duration-200 ease-out motion-reduce:animate-none"
+            >
+              <div
+                className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-white/30"
+                aria-hidden="true"
+              />
+              {texto}
+            </div>
+          </div>
+        </Portal>
+      </>
+    )
+  }
 
   return (
     <>

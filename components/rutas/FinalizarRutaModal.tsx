@@ -3,7 +3,8 @@
 import { AlertTriangle, ArrowRight, CheckCircle2, Info, ShieldAlert, XCircle } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { MODAL_Z_INDEX, Portal } from '@/components/dashboards/shared/CobradorElements'
-import { useModalDialog } from '@/hooks/use-modal-dialog'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
+import { BARRA_DE_ARRASTRE, FONDO_HOJA_MODAL } from '@/lib/ui/hoja-modal'
 
 type AusenteConNota = {
   nombre: string
@@ -91,14 +92,16 @@ export function FinalizarRutaModal({
   return (
     <Portal>
       <div
-        className="fixed inset-0 flex items-center justify-center bg-slate-950/60 p-3 backdrop-blur-sm animate-in fade-in duration-200 sm:p-4"
+        className={`${FONDO_HOJA_MODAL} bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-200 sm:`}
         style={{ zIndex: MODAL_Z_INDEX }}
         onClick={onClose}
       >
         <div
-          className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl animate-in zoom-in-95 duration-200"
+          className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl max-h-[100dvh] pb-[env(safe-area-inset-bottom)] sm:rounded-2xl sm:max-h-[90dvh] sm:pb-0 border border-slate-200 bg-white shadow-2xl animate-in zoom-in-95 duration-200"
           onClick={(event) => event.stopPropagation()}
         >
+          {/* La barra que indica «esto se cierra hacia abajo». Solo en móvil. */}
+          <div className={BARRA_DE_ARRASTRE} aria-hidden="true" />
           <div className="border-b border-slate-100 px-5 py-4 sm:px-6">
             <div className="flex items-start gap-3">
               <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border ${doubleConfirm ? 'border-red-200 bg-red-50 text-red-600' : alCien ? 'border-emerald-200 bg-emerald-50 text-emerald-600' : 'border-orange-200 bg-orange-50 text-orange-600'}`}>
