@@ -67,11 +67,12 @@ import ReprogramacionDetalleModal, { type ReprogramacionData } from '@/component
 import ConfirmRejectModal from '@/components/ui/ConfirmRejectModal'
 import { SkeletonTarjetas } from '@/components/ui/Skeleton'
 import TipoCreditoIndicador from '@/components/creditos/TipoCreditoIndicador'
-import {
+import {
   enriquecerAprobacionConContexto,
   montoSolicitudConocido,
   resumenAprobacionOperativa,
 } from '@/lib/aprobaciones/presentacion-aprobacion'
+import { DECISIONES_CUENTA_VENCIDA } from '@/lib/display-labels'
 
 // Configuración de categorías con meta visual
 // `icon` es un componente de lucide-react, no `any`: `LucideIcon` es el tipo que la propia
@@ -354,10 +355,22 @@ const aprobacionToNotificacion = (item: Aprobacion): NotificacionParaDetalle => 
   if (item.tipoAprobacion === 'PRORROGA_PAGO' || datos.tipo === 'GESTION_VENCIDA' || datos.tipo === 'ASIGNAR_MORA') {
     const clienteNombre = texto(datos.cliente) || texto(datos.clienteNombre) || '—'
     const decision = texto(datos.decision) || 'PRORROGAR'
+    // Los nombres de las decisiones salen de `lib/display-labels`. Este mapa
+    // decía «Prórroga de Plazo», «Baja por Pérdida» y «Cobro Jurídico», y el
+    // de más abajo en este MISMO archivo decía «📅 Prórroga», «🔴 Baja por
+    // pérdida» y «⚖️ Cobro jurídico». Ninguno coincidía con los tres nombres
+    // que ven las pantallas donde se PIDE la gestión, y esta es la pantalla
+    // donde se aprueba: quien aprueba leía otra cosa que quien pidió.
+    //
+    // `ASIGNAR_MORA` se queda aquí: no es una decisión sobre una cuenta
+    // vencida sino otro tipo de solicitud, y solo aparece en esta pantalla.
     const DECISION_LABEL: Record<string, string> = {
-      PRORROGAR: 'Prórroga de Plazo',
-      CASTIGAR:  'Baja por Pérdida',
-      JURIDICO:  'Cobro Jurídico',
+      ...Object.fromEntries(
+        Object.entries(DECISIONES_CUENTA_VENCIDA).map(([clave, d]) => [
+          clave,
+          d.label,
+        ]),
+      ),
       ASIGNAR_MORA: 'Asignación de Mora',
     }
     titulo = `${DECISION_LABEL[decision] || cat.label} — ${clienteNombre}`
@@ -903,9 +916,15 @@ export default function RevisionesPage() {
         }
       }
       if (datos.tipo === 'GESTION_VENCIDA') {
-        const LABEL_DECISION: Record<string, string> = {
-          PRORROGAR: '📅 Prórroga', CASTIGAR: '🔴 Baja por pérdida', JURIDICO: '⚖️ Cobro jurídico',
-        }
+        // Mismo origen que el mapa de arriba. Los emoji se quitan: aquí el
+        // texto va dentro de un subtítulo junto al préstamo y a quién lo
+        // gestionó, y el icono lo pone la tarjeta por su cuenta.
+        const LABEL_DECISION: Record<string, string> = Object.fromEntries(
+          Object.entries(DECISIONES_CUENTA_VENCIDA).map(([clave, d]) => [
+            clave,
+            d.label,
+          ]),
+        )
         return {
           titulo: texto(datos.cliente) || 'Cliente',
           subtitulo: `${LABEL_DECISION[decisionDeProrroga(datos.decision) ?? ''] || texto(datos.decision)} · Préstamo ${texto(datos.numeroPrestamo) || 'N/A'} · por ${texto(datos.gestionadoPor) || 'N/A'}`,

@@ -21,7 +21,8 @@ import Portal, { MODAL_Z_INDEX } from '@/components/ui/Portal'
 import { formatCurrency, resolveMediaUrl } from '@/lib/utils'
 import Tooltip from '@/components/ui/Tooltip'
 import { useModalDialog } from '@/hooks/use-modal-dialog'
-import type { AlertaClienteParaDetalle, SnapshotClienteAlerta } from '@/services/alertas-clientes-service'
+import type { AlertaClienteParaDetalle, SnapshotClienteAlerta } from '@/services/alertas-clientes-service'
+import { humanizeEnumLabel } from '@/lib/display-labels'
 
 interface AlertaClienteDetalleModalProps {
   alerta: AlertaClienteParaDetalle | null
@@ -93,13 +94,14 @@ const formatDate = (value: unknown) => {
   })
 }
 
-const estadoLabel: Record<string, string> = {
-  ACTIVO: 'Activo',
-  EN_MORA: 'En mora',
-  INCUMPLIDO: 'Incumplido',
-  PENDIENTE_APROBACION: 'Pendiente de revisión',
-  PAGADO: 'Pagado',
-}
+/**
+ * Los estados de un crédito, desde el sitio compartido.
+ *
+ * Este mapa decía «Pendiente de revisión» donde `lib/display-labels` dice
+ * «Pendiente de aprobación». Es el mismo estado del mismo crédito, y el
+ * backend también lo llama «Pendiente de aprobación» en sus mensajes.
+ */
+const estadoLabel = (estado?: string | null) => humanizeEnumLabel(estado)
 
 /** El credito del snapshot, derivado del propio tipo del snapshot. */
 type CreditoDelSnapshot = NonNullable<SnapshotClienteAlerta['creditos']>[number]
@@ -406,7 +408,7 @@ export default function AlertaClienteDetalleModal({
                                     {credito.numeroPrestamo || credito.id || 'Crédito'}
                                   </p>
                                   <p className="mt-1 text-xs font-bold text-slate-500">
-                                    {estadoLabel[String(credito.estado || '').toUpperCase()] ||
+                                    {estadoLabel(String(credito.estado || '').toUpperCase()) ||
                                       text(credito.estado).replace(/_/g, ' ') ||
                                       'Sin estado'}
                                   </p>

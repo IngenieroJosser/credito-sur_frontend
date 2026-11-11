@@ -20,6 +20,16 @@ const ENUM_LABELS: Record<string, string> = {
   NUEVO_CLIENTE: 'Nuevo cliente',
   NUEVO_PRESTAMO: 'Nuevo préstamo',
   PENDIENTE_APROBACION: 'Pendiente de aprobación',
+  // Los estados de un crédito. Estaban escritos a mano en las pantallas que
+  // los muestran, y `PENDIENTE_APROBACION` decía «Pendiente de revisión» en el
+  // modal de alertas de cliente y «Pendiente de aprobación» aquí. Es el mismo
+  // estado del mismo crédito: se queda el que dice el enum y el que usa el
+  // backend en sus mensajes.
+  ACTIVO: 'Activo',
+  EN_MORA: 'En mora',
+  INCUMPLIDO: 'Incumplido',
+  PAGADO: 'Pagado',
+  CANCELADO: 'Cancelado',
 }
 
 export function formatRoleLabel(role?: string | null) {
