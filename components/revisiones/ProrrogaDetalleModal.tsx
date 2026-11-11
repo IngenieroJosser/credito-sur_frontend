@@ -22,7 +22,9 @@ import {
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import Tooltip from '@/components/ui/Tooltip'
-import { useModalDialog } from '@/hooks/use-modal-dialog'
+import { DECISIONES_CUENTA_VENCIDA } from '@/lib/display-labels'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
+import { BARRA_DE_ARRASTRE, FONDO_HOJA_MODAL } from '@/lib/ui/hoja-modal'
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -86,7 +88,7 @@ function formatFechaHora(iso: string | null | undefined) {
 
 const DECISION_CONFIG = {
   PRORROGAR: {
-    label:   'Prórroga de Plazo',
+    label:   DECISIONES_CUENTA_VENCIDA.PRORROGAR.label,
     badge:   'bg-blue-100 text-blue-800 border-blue-200',
     header:  'from-[#08557f] to-blue-800',
     section: 'bg-blue-50/60 border-blue-200',
@@ -95,7 +97,7 @@ const DECISION_CONFIG = {
     icon:    CalendarClock,
   },
   CASTIGAR: {
-    label:   'Baja por Pérdida',
+    label:   DECISIONES_CUENTA_VENCIDA.CASTIGAR.label,
     badge:   'bg-rose-100 text-rose-800 border-rose-200',
     header:  'from-rose-700 to-rose-900',
     section: 'bg-rose-50/60 border-rose-200',
@@ -104,7 +106,7 @@ const DECISION_CONFIG = {
     icon:    FileX,
   },
   DEJAR_QUIETO: {
-    label:   'Sin Mora por Ahora',
+    label:   DECISIONES_CUENTA_VENCIDA.DEJAR_QUIETO.label,
     badge:   'bg-slate-100 text-slate-700 border-slate-200',
     header:  'from-slate-700 to-slate-900',
     section: 'bg-slate-50/60 border-slate-200',
@@ -164,7 +166,7 @@ export default function ProrrogaDetalleModal({
 
       {/* Modal */}
       <div
-        className="fixed inset-0 flex items-center justify-center p-4"
+        className={`${FONDO_HOJA_MODAL} `}
         style={{ zIndex: 2147483601 }}
         onClick={onClose}
       >
@@ -207,7 +209,9 @@ export default function ProrrogaDetalleModal({
           <div className="overflow-y-auto flex-1 p-6 space-y-4">
 
             {/* Solicitante + fecha */}
-            <div className="flex items-center gap-3 p-4 bg-amber-50 rounded-2xl border border-amber-100">
+            <div className="flex items-center gap-3 p-4 bg-amber-50 rounded-t-2xl max-h-[100dvh] pb-[env(safe-area-inset-bottom)] sm:rounded-2xl sm:max-h-[90dvh] sm:pb-0 border border-amber-100">
+              {/* La barra que indica «esto se cierra hacia abajo». Solo en móvil. */}
+              <div className={BARRA_DE_ARRASTRE} aria-hidden="true" />
               <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 shrink-0">
                 <User className="h-5 w-5" />
               </div>

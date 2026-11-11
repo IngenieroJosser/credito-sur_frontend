@@ -131,3 +131,79 @@ export function riesgoOperativoLabel(riesgo?: string | null) {
   if (!riesgo) return 'Sin riesgo'
   return riesgo.replace('_', ' ')
 }
+
+/**
+ * Cómo se llama cada decisión sobre una cuenta vencida, y qué pasa al tomarla.
+ *
+ * ── Por qué vive aquí y no en cada pantalla ─────────────────────────────────
+ *
+ * Estaba escrito cuatro veces, y las cuatro decían cosas distintas. La misma
+ * decisión, vista por la misma persona en dos pantallas seguidas:
+ *
+ *   enum            modal de gestión     modal de revisión     listado
+ *   ───────────────────────────────────────────────────────────────────────────
+ *   PRORROGAR       Prorrogar Plan       Prórroga de Plazo     Prorroga
+ *   CASTIGAR        Reportar Pérdida     Baja por Pérdida      Baja por perdida
+ *   DEJAR_QUIETO    Dejar Quieto         Sin Mora por Ahora    Sin mora por ahora
+ *   JURIDICO        —                    —                     Cobro juridico
+ *
+ * Tres nombres por decisión, y en el listado además sin tildes. Quien pide la
+ * gestión lee un nombre, quien la aprueba lee otro y la notificación trae un
+ * tercero: no hay forma de saber que se está hablando de lo mismo.
+ *
+ * ── Sobre los nombres elegidos ──────────────────────────────────────────────
+ *
+ * «Dejar quieto» se cambió por «Dejar en seguimiento». Lo primero es del habla
+ * de la oficina: quien lo dice sabe qué significa, pero quien entra nuevo tiene
+ * que preguntarlo, y en una lista de tres opciones que deciden qué se hace con
+ * la deuda de alguien eso no puede pasar. El nombre nuevo dice lo que ocurre.
+ *
+ * Cada decisión lleva también su `efecto`: una línea en presente que explica
+ * qué le pasa al crédito. El nombre dice cuál es la opción; el efecto dice qué
+ * se está firmando.
+ *
+ * Los COLORES y los ICONOS no están aquí a propósito. Eso es presentación y
+ * puede cambiar con la pantalla —un badge en un listado y una tarjeta grande en
+ * un modal no se pintan igual—. Lo que no puede cambiar es el nombre.
+ */
+export const DECISIONES_CUENTA_VENCIDA = {
+  PRORROGAR: {
+    label: 'Prorrogar el plan',
+    efecto: 'Se amplía el plazo. Se puede cobrar mora o no.',
+  },
+  DEJAR_QUIETO: {
+    label: 'Dejar en seguimiento',
+    efecto: 'No se cobra mora. El crédito sigue vigilado.',
+  },
+  CASTIGAR: {
+    label: 'Dar de baja por pérdida',
+    efecto: 'La deuda se declara incobrable y sale de la cartera.',
+  },
+  JURIDICO: {
+    label: 'Pasar a cobro jurídico',
+    efecto: 'El caso se entrega para cobro por vía legal.',
+  },
+} as const
+
+export type DecisionCuentaVencida = keyof typeof DECISIONES_CUENTA_VENCIDA
+
+/**
+ * El nombre de una decisión, o el enum humanizado si llega una que no está.
+ *
+ * El respaldo existe porque el backend podría enviar una decisión nueva antes
+ * de que esta lista la conozca, y en ese caso es mejor «Algo Nuevo» que un
+ * hueco en la pantalla.
+ */
+export function decisionCuentaVencidaLabel(decision?: string | null): string {
+  const clave = String(decision || '').trim().toUpperCase()
+  if (!clave) return 'Sin decisión'
+  const conocida = DECISIONES_CUENTA_VENCIDA[clave as DecisionCuentaVencida]
+  return conocida ? conocida.label : humanizeEnumLabel(clave)
+}
+
+/** Qué le pasa al crédito con esa decisión, o cadena vacía si no se sabe. */
+export function decisionCuentaVencidaEfecto(decision?: string | null): string {
+  const clave = String(decision || '').trim().toUpperCase()
+  const conocida = DECISIONES_CUENTA_VENCIDA[clave as DecisionCuentaVencida]
+  return conocida ? conocida.efecto : ''
+}

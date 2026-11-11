@@ -59,7 +59,9 @@ import { offlineStore } from '@/lib/offline/offlineDb'
 import { resolveRiesgoObligacion } from '@/lib/rutas/riesgo-obligacion'
 import Paginador from '@/components/ui/Paginador'
 import { SkeletonTabla } from '@/components/ui/Skeleton'
-import { mensajeDeError } from '@/lib/mensaje-de-error'
+import { mensajeDeError } from '@/lib/mensaje-de-error'
+import { DECISIONES_CUENTA_VENCIDA } from '@/lib/display-labels'
+import Tooltip from '@/components/ui/Tooltip'
 
 type ViewMode = 'list' | 'grid'
 
@@ -278,12 +280,16 @@ function CuentasVencidasContent() {
         { esOffline: true },
       )
 
-      const LABEL: Record<string, string> = {
-        PRORROGAR: 'Prorroga',
-        CASTIGAR: 'Baja por perdida',
-        JURIDICO: 'Cobro juridico',
-        DEJAR_QUIETO: 'Sin mora por ahora',
-      }
+      // Los nombres vienen de `lib/display-labels`. Este mapa local decia
+      // «Prorroga», «Baja por perdida» y «Cobro juridico» —sin tildes— y
+      // «Sin mora por ahora», mientras los dos modales de la misma gestion
+      // usaban otros tres nombres para las mismas cuatro decisiones.
+      const LABEL: Record<string, string> = Object.fromEntries(
+        Object.entries(DECISIONES_CUENTA_VENCIDA).map(([clave, d]) => [
+          clave,
+          d.label,
+        ]),
+      )
 
       const descripcion =
         data.decision === 'PRORROGAR'
@@ -371,13 +377,15 @@ function CuentasVencidasContent() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <button
-              onClick={fetchCuentasVencidas}
-              className="p-2 text-slate-400 hover:text-blue-600 bg-white border border-slate-200 rounded-xl shadow-sm transition-all"
-              title="Actualizar"
-            >
-              <RefreshCw className={cn('h-5 w-5', loading && 'animate-spin')} />
-            </button>
+            <Tooltip texto="Actualizar">
+              <button aria-label="Actualizar"
+                onClick={fetchCuentasVencidas}
+                className="p-2 text-slate-400 hover:text-blue-600 bg-white border border-slate-200 rounded-xl shadow-sm transition-all"
+                title="Actualizar"
+              >
+                <RefreshCw className={cn('h-5 w-5', loading && 'animate-spin')} />
+              </button>
+            </Tooltip>
             {puedeExportar && (
               <ExportButton
                 label="Exportar"

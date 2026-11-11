@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 import { formatCurrency, cn, formatCOPDecimalTypingInputValue, formatCOPDecimalBlurInputValue, parseCOPDecimalInputToNumber } from '@/lib/utils'
 import Tooltip from '@/components/ui/Tooltip'
+import { DECISIONES_CUENTA_VENCIDA } from '@/lib/display-labels'
 import { useModalDialog } from '@/hooks/use-modal-dialog'
 
 interface CuentaVencida {
@@ -60,25 +61,31 @@ const DECISION_CONFIG: Record<Decision, {
   activeBorder: string
   activeBg: string
 }> = {
+  // El nombre y el efecto salen de `lib/display-labels`: la misma decisión se
+  // llamaba de tres formas distintas según la pantalla —aquí «Dejar Quieto»,
+  // en el modal de revisión «Sin Mora por Ahora» y en el listado «Sin mora por
+  // ahora»—, así que quien pedía la gestión y quien la aprobaba leían nombres
+  // diferentes para lo mismo. El color y el icono sí se quedan aquí: eso es
+  // presentación de esta pantalla y puede diferir sin confundir a nadie.
   PRORROGAR: {
-    label: 'Prorrogar Plan',
-    description: 'Extender plazo + cobrar mora opcional',
+    label: DECISIONES_CUENTA_VENCIDA.PRORROGAR.label,
+    description: DECISIONES_CUENTA_VENCIDA.PRORROGAR.efecto,
     icon: <Clock className="h-5 w-5" />,
     activeColor: 'text-[#08557f]',
     activeBorder: 'border-[#08557f]',
     activeBg: 'bg-blue-50/50',
   },
   DEJAR_QUIETO: {
-    label: 'Dejar Quieto',
-    description: 'Sin mora por ahora, queda en seguimiento',
+    label: DECISIONES_CUENTA_VENCIDA.DEJAR_QUIETO.label,
+    description: DECISIONES_CUENTA_VENCIDA.DEJAR_QUIETO.efecto,
     icon: <Ban className="h-5 w-5" />,
     activeColor: 'text-slate-700',
     activeBorder: 'border-slate-400',
     activeBg: 'bg-slate-50',
   },
   CASTIGAR: {
-    label: 'Reportar Pérdida',
-    description: 'Castigar cartera como incobrable',
+    label: DECISIONES_CUENTA_VENCIDA.CASTIGAR.label,
+    description: DECISIONES_CUENTA_VENCIDA.CASTIGAR.efecto,
     icon: <Scale className="h-5 w-5" />,
     activeColor: 'text-rose-700',
     activeBorder: 'border-rose-500',
