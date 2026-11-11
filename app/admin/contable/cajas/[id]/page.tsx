@@ -18,7 +18,8 @@ import { usuariosService } from '@/services/usuarios-service'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { formatRoleLabel } from '@/lib/display-labels'
 import { categoriasPorTipo } from '@/lib/contable/categorias-movimiento'
-import Tooltip from '@/components/ui/Tooltip'
+import Tooltip from '@/components/ui/Tooltip'
+import { listaDeRespuesta } from '@/lib/lista-de-respuesta'
 
 interface CajaDetalle {
   id: string
@@ -143,7 +144,7 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
         ingresosDia: ingresos,
         egresosDia: egresos,
         fechaApertura: cajaData?.ultimaActualizacion || '',
-        movimientos: ledgerRes.data.map((entry) => mapLedgerCajaMovimiento(entry, id)),
+        movimientos: listaDeRespuesta(ledgerRes).map((entry) => mapLedgerCajaMovimiento(entry, id)),
       })
       setEditForm({ nombre: cajaData?.nombre || '', responsable: cajaData?.responsable || '', saldoInicialInput: '' })
       try {

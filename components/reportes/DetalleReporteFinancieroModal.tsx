@@ -8,7 +8,8 @@ import { getMovimientosLedger } from '@/services/contabilidad-service'
 import { buildBogotaOffsetIsoFromKey, getBogotaDateKey } from '@/lib/rutas-core'
 import Paginador from '@/components/ui/Paginador'
 import Tooltip from '@/components/ui/Tooltip'
-import { useModalDialog } from '@/hooks/use-modal-dialog'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
+import { listaDeRespuesta } from '@/lib/lista-de-respuesta'
 
 interface DetalleReporteFinancieroModalProps {
   id: string
@@ -92,7 +93,7 @@ export default function DetalleReporteFinancieroModal({ id, onClose }: DetalleRe
         '3.1': 0, '3.2': 0, '3.3': 0, '3.4': 0
       }
 
-      ingRes.data.forEach(t => {
+      listaDeRespuesta(ingRes).forEach(t => {
         t.lineas.forEach(l => {
           if (String(l.accountCode).startsWith('3.')) {
             const prefix = String(l.accountCode).substring(0, 3)
@@ -104,8 +105,8 @@ export default function DetalleReporteFinancieroModal({ id, onClose }: DetalleRe
       })
 
       const ingresosTotales = Object.values(ingMap).reduce((a, b) => a + b, 0)
-      const gastosTotales = egreRes.data.reduce((acc, t) => acc + Number(t.totalDebito || 0), 0)
-      const costosTotales = costoRes.data.reduce((acc, t) => acc + Number(t.totalDebito || 0), 0)
+      const gastosTotales = listaDeRespuesta(egreRes).reduce((acc, t) => acc + Number(t.totalDebito || 0), 0)
+      const costosTotales = listaDeRespuesta(costoRes).reduce((acc, t) => acc + Number(t.totalDebito || 0), 0)
 
       const utilOperativa = ingresosTotales - gastosTotales - costosTotales
       const utilNeta = utilOperativa // Si hubiera impuestos o financieros irían acá
@@ -123,7 +124,7 @@ export default function DetalleReporteFinancieroModal({ id, onClose }: DetalleRe
         return { fecha, hora }
       }
 
-      const filasIng: DetalleRow[] = ingRes.data.map(t => {
+      const filasIng: DetalleRow[] = listaDeRespuesta(ingRes).map(t => {
         const { fecha, hora } = formatFechaHora(t.fecha)
         return {
           label: t.descripcion || 'Movimiento',
@@ -134,7 +135,7 @@ export default function DetalleReporteFinancieroModal({ id, onClose }: DetalleRe
           hora
         }
       })
-      const filasEgr: DetalleRow[] = egreRes.data.map(t => {
+      const filasEgr: DetalleRow[] = listaDeRespuesta(egreRes).map(t => {
         const { fecha, hora } = formatFechaHora(t.fecha)
         return {
           label: t.descripcion || 'Movimiento',
@@ -145,7 +146,7 @@ export default function DetalleReporteFinancieroModal({ id, onClose }: DetalleRe
           hora
         }
       })
-      const filasCos: DetalleRow[] = costoRes.data.map(t => {
+      const filasCos: DetalleRow[] = listaDeRespuesta(costoRes).map(t => {
         const { fecha, hora } = formatFechaHora(t.fecha)
         return {
           label: t.descripcion || 'Movimiento',
