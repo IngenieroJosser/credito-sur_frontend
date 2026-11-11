@@ -5,6 +5,7 @@ import PantallaCarga from '@/components/ui/PantallaCarga'
 import { usePermission } from '@/hooks/usePermission'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
+import { nombreDePermiso } from '@/lib/nombre-de-permiso'
 import { Shield } from 'lucide-react'
 
 /**
@@ -70,8 +71,26 @@ export default function ProtectedPage({ permiso, roles, children, fallback }: Pr
             No tienes permisos para acceder a este módulo.
             Contacta a tu administrador si necesitas acceso.
           </p>
-          <div className="text-xs text-slate-400 bg-slate-100 px-3 py-2 rounded-lg inline-block">
-            Permiso requerido: <code className="font-mono">{permiso}</code>
+          {/*
+            El permiso se nombra como lo nombra el sistema —«Ver Módulo
+            Contable»— y no por su código. Antes decía «Permiso requerido:
+            CONTABLE_VIEW», que no le dice a nadie qué módulo es ni qué pedir.
+            El código se conserva debajo y en pequeño porque sí sirve para
+            soporte: con él, quien administre encuentra el permiso exacto en la
+            lista sin tener que adivinar a qué pantalla se refiere.
+          */}
+          <div className="text-sm text-slate-500 bg-slate-100 px-4 py-3 rounded-lg inline-block">
+            <div>
+              Necesitas el permiso{' '}
+              <span className="font-semibold text-slate-700">
+                «{nombreDePermiso(permiso)}»
+              </span>
+            </div>
+            {permiso && (
+              <div className="text-[11px] text-slate-400 mt-1">
+                Para tu administrador: <code className="font-mono">{permiso}</code>
+              </div>
+            )}
           </div>
         </div>
       </div>
