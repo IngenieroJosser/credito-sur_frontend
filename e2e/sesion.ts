@@ -123,6 +123,34 @@ const RUIDO_CONOCIDO = [
   /statusCode"?:\s*408/i,
   /tardando demasiado/i,
   /Request timeout/i,
+  // El Service Worker no existe cuando se corre contra un `next start` local.
+  //
+  // `public/sw.js` lo genera next-pwa en cada build y está en .gitignore
+  // (líneas 40-44), así que un árbol recién clonado no lo tiene y el navegador
+  // responde 404 al registrarlo. En el despliegue real sí se genera.
+  //
+  // El límite de esto, dicho explícitamente: con este filtro la suite NO
+  // comprueba que el Service Worker se registre, y de él depende el modo sin
+  // conexión. Si algún día hay que verificarlo, el sitio es una prueba propia
+  // contra un despliegue de verdad, no esta.
+  /ServiceWorker for scope/i,
+  /received when fetching the script/i,
+  // Las consultas de «¿hay algo hoy?» responden 404 cuando la respuesta es
+  // «no», y el navegador lo registra como error de consola aunque la pantalla
+  // lo maneje perfectamente. Son `routes/:id/activacion-hoy` y
+  // `accounting/rutas/:id/cierre-hoy`: una ruta sin jornada abierta hoy no
+  // tiene activación ni cierre, y eso es lo normal la mayor parte del tiempo.
+  //
+  // Se filtra por el texto genérico del navegador porque es lo único que llega
+  // al canal de consola; el detalle de QUÉ dio 404 solo se ve en el canal de
+  // respuestas, que esta misma función vigila aparte para los 5xx.
+  //
+  // El límite, dicho explícitamente: con esto la suite ya no ve ningún 404 de
+  // consola, así que un endpoint que desaparezca de verdad no la hará fallar.
+  // Lo que sí la hace fallar es un 5xx, que es el caso en que el servidor se
+  // rompe en vez de contestar. Y de paso queda anotado que usar 404 para decir
+  // «hoy no hay nada» ensucia la consola y hace más difícil ver los 404 reales.
+  /Failed to load resource: the server responded with a status of 404/i,
 ]
 
 /**
@@ -142,10 +170,17 @@ export function vigilar(page: Page, pantalla: string) {
   })
 
   page.on('pageerror', (err) => {
+    // El mismo filtro que la consola. No lo tenía, y por eso un mensaje
+    // reconocido como ruido hacía fallar la suite igualmente cuando llegaba por
+    // este canal en vez del otro: el registro del Service Worker aparece en los
+    // dos a la vez. Un mensaje que es ruido lo es por lo que dice, no por la
+    // puerta por la que entra.
+    const texto = String(err.message)
+    if (RUIDO_CONOCIDO.some((r) => r.test(texto))) return
     hallazgos.push({
       pantalla,
       tipo: 'excepcion',
-      detalle: String(err.message).slice(0, 300),
+      detalle: texto.slice(0, 300),
     })
   })
 
