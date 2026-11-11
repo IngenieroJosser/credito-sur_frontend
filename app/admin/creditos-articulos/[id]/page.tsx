@@ -11,7 +11,8 @@ import { prestamosService } from '@/services/prestamos-service';
 import { exportService } from '@/services/export-service';
 import { toast } from 'sonner';
 import { formatLoanTerm } from '@/lib/utils';
-import BotonAccion from '@/components/ui/BotonAccion'
+import BotonAccion from '@/components/ui/BotonAccion'
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 
 export default function CreditoDetallePage() {
   const params = useParams();
@@ -129,8 +130,8 @@ export default function CreditoDetallePage() {
                   try {
                     await exportService.exportContrato(id);
                     toast.success('Contrato descargado');
-                  } catch {
-                    toast.error('Error al descargar contrato');
+                  } catch (error) {
+                    toast.error(mensajeDeError(error, 'Error al descargar contrato'));
                   }
                 }}
                 className="px-4 py-2 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-all text-sm shadow-sm hover:shadow-md flex items-center gap-2"

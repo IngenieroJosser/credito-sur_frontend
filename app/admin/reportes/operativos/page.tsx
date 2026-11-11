@@ -34,7 +34,8 @@ import type { RoutePerformance } from '@/services/reportes-coordinador-service'
 import { useReportesCoordinador } from '@/hooks/useReportesCoordinador'
 import { computeOperationalMetaByRouteIdsForTimeFilter } from '@/lib/dashboard-operational-meta'
 import { toast } from 'sonner'
-import { SkeletonTablero } from '@/components/ui/Skeleton'
+import { SkeletonTablero } from '@/components/ui/Skeleton'
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 
 const ReportesOperativosPage = () => {
   const router = useRouter()
@@ -72,8 +73,8 @@ const ReportesOperativosPage = () => {
     try {
       await exportReport({ period, routeId: filterRuta || undefined }, 'excel')
       toast.success('Reporte Excel exportado correctamente')
-    } catch {
-      toast.error('Error al exportar el reporte')
+    } catch (error) {
+      toast.error(mensajeDeError(error, 'Error al exportar el reporte'))
     }
   }
 
@@ -81,8 +82,8 @@ const ReportesOperativosPage = () => {
     try {
       await exportReport({ period, routeId: filterRuta || undefined }, 'pdf')
       toast.success('Reporte PDF exportado correctamente')
-    } catch {
-      toast.error('Error al exportar el reporte')
+    } catch (error) {
+      toast.error(mensajeDeError(error, 'Error al exportar el reporte'))
     }
   }
 

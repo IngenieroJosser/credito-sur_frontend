@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Download, FileSpreadsheet } from 'lucide-react';
 import { importacionesService } from '@/services/importaciones-service';
-import { toast } from 'sonner';
+import { toast } from 'sonner';
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 
 export const PlantillasCard = () => {
   const [loadingClientes, setLoadingClientes] = useState(false);
@@ -12,8 +13,8 @@ export const PlantillasCard = () => {
     try {
       await importacionesService.descargarPlantillaClientesCreditos();
       toast.success('Plantilla de clientes descargada');
-    } catch {
-      toast.error('Error al descargar la plantilla de clientes');
+    } catch (error) {
+      toast.error(mensajeDeError(error, 'Error al descargar la plantilla de clientes'));
     } finally {
       setLoadingClientes(false);
     }
@@ -24,8 +25,8 @@ export const PlantillasCard = () => {
     try {
       await importacionesService.descargarPlantillaInventario();
       toast.success('Plantilla de inventario descargada');
-    } catch {
-      toast.error('Error al descargar la plantilla de inventario');
+    } catch (error) {
+      toast.error(mensajeDeError(error, 'Error al descargar la plantilla de inventario'));
     } finally {
       setLoadingInventario(false);
     }

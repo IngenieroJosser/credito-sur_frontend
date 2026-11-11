@@ -88,7 +88,8 @@ import AnimacionCarga from '@/components/ui/AnimacionCarga'
 import Link from 'next/link'
 import DeudorasCobradorCard from '@/components/contable/DeudorasCobradorCard'
 import FieldLabel from '@/components/ui/FieldLabel'
-import BotonAccion from '@/components/ui/BotonAccion'
+import BotonAccion from '@/components/ui/BotonAccion'
+import { listaDeRespuesta } from '@/lib/lista-de-respuesta'
 
 // --- TIPOS DE DATOS ---
 // Definimos la estructura de nuestras "Cajas".
@@ -573,11 +574,11 @@ const ModuloContableContent = () => {
       if (fin) params.fechaFin = fin
       const resp = await getMovimientosLedger(params)
       if (resp && Array.isArray(resp.data)) {
-        let next = resp.data.map(mapMovimientoLedger)
+        let next = listaDeRespuesta(resp).map(mapMovimientoLedger)
 
         if (next.length === 0) {
           const legacyResp = await getTransacciones(params)
-          next = Array.isArray(legacyResp?.data) ? legacyResp.data.map(mapTransaccion) : []
+          next = Array.isArray(legacyResp?.data) ? listaDeRespuesta(legacyResp).map(mapTransaccion) : []
         }
 
         const codigoCaja = String((cajaSeleccionada)?.codigo || '').toUpperCase()
@@ -620,7 +621,7 @@ const ModuloContableContent = () => {
       if (fechaFin) params.fechaFin = fechaFin
       const resp = await getTransacciones(params)
       if (resp && Array.isArray(resp.data)) {
-        setMovimientosModalGlobal(resp.data.map(mapTransaccion))
+        setMovimientosModalGlobal(listaDeRespuesta(resp).map(mapTransaccion))
       } else {
         setMovimientosModalGlobal([])
       }
@@ -693,8 +694,8 @@ const ModuloContableContent = () => {
     try {
       await exportService.exportAccounting('excel')
       toast.success('Reporte contable Excel descargado')
-    } catch {
-      toast.error('Error al exportar reporte contable')
+    } catch (error) {
+      toast.error(mensajeDeError(error, 'Error al exportar reporte contable'))
     }
   }
 
@@ -702,8 +703,8 @@ const ModuloContableContent = () => {
     try {
       await exportService.exportAccounting('pdf')
       toast.success('Reporte contable PDF descargado')
-    } catch {
-      toast.error('Error al exportar reporte contable')
+    } catch (error) {
+      toast.error(mensajeDeError(error, 'Error al exportar reporte contable'))
     }
   }
 
@@ -811,7 +812,7 @@ const ModuloContableContent = () => {
       // 4. Traemos la lista de movimientos recientes
       const transaccionesResp = await getMovimientosLedger({ limit: 50 });
       if (transaccionesResp && transaccionesResp.data) {
-        setMovimientos(ocultarPagosClientePanelContable(transaccionesResp.data.map(mapMovimientoLedger)));
+        setMovimientos(ocultarPagosClientePanelContable(listaDeRespuesta(transaccionesResp).map(mapMovimientoLedger)));
       }
 
       // 5. Historial de Cierres (Real)
@@ -1811,7 +1812,7 @@ const ModuloContableContent = () => {
                                   })
 
                                   const movimientosCaja = Array.isArray(resp?.data)
-                                    ? resp.data.map(mapTransaccion)
+                                    ? listaDeRespuesta(resp).map(mapTransaccion)
                                     : []
 
                                   const ingresos = movimientosCaja
@@ -1855,7 +1856,7 @@ const ModuloContableContent = () => {
                                   const codigoCaja = String((c)?.codigo || '').toUpperCase()
                                   const omitRefs = codigoCaja === 'CAJA-PRINCIPAL' || codigoCaja === 'CAJA-BANCO'
 
-                                  const base = resp.data.filter((m: ApiTransaccion) => {
+                                  const base = listaDeRespuesta(resp).filter((m: ApiTransaccion) => {
                                     if (!omitRefs) return true
                                     const ref = String(m?.tipoReferencia || '').toUpperCase()
                                     return ref !== 'CUOTA_INICIAL' && ref !== 'RESTAURACION_CUOTA_INICIAL' && ref !== 'ABONO_DEUDA'

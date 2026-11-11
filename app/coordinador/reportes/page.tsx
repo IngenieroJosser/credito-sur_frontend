@@ -11,7 +11,8 @@ import DetalleReporteOperativoModal from '@/components/reportes/DetalleReporteOp
 import { TimeFilter, TimeFilterPeriod } from '@/components/ui/TimeFilter'
 import { useReportesCoordinador } from '@/hooks/useReportesCoordinador'
 import { toast } from 'sonner'
-import { Skeleton, SkeletonTabla } from '@/components/ui/Skeleton'
+import { Skeleton, SkeletonTabla } from '@/components/ui/Skeleton'
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 
 const ReportesCoordinador = () => {
   const router = useRouter()
@@ -54,8 +55,8 @@ const ReportesCoordinador = () => {
     try {
       await exportReport({ period, routeId }, 'excel')
       toast.success('Reporte Excel exportado correctamente')
-    } catch {
-      toast.error('Error al exportar el reporte en Excel')
+    } catch (error) {
+      toast.error(mensajeDeError(error, 'Error al exportar el reporte en Excel'))
     } finally {
       setExporting(false)
     }
@@ -66,8 +67,8 @@ const ReportesCoordinador = () => {
     try {
       await exportReport({ period, routeId }, 'pdf')
       toast.success('Reporte PDF exportado correctamente')
-    } catch {
-      toast.error('Error al exportar el reporte en PDF')
+    } catch (error) {
+      toast.error(mensajeDeError(error, 'Error al exportar el reporte en PDF'))
     } finally {
       setExporting(false)
     }

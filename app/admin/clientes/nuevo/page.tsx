@@ -9,6 +9,8 @@ import { clientesService, CrearClienteDto } from '@/services/clientes-service';
 import { NivelRiesgo } from '@/types/enums';
 import { Save, User, Phone, Mail, MapPin, Briefcase, Shield, AlertCircle, ChevronRight, ArrowLeft, Camera } from 'lucide-react';
 import { FileUploader } from '@/components/ui/FileUploader';
+import { mensajeDeError } from '@/lib/mensaje-de-error'
+import { useBorradorDeFormulario } from '@/hooks/useBorradorDeFormulario'
 
 interface ClienteFormData {
   nombres: string;
@@ -51,6 +53,20 @@ const ScoreMeter = ({ score }: { score: number }) => {
   );
 };
 
+/**
+ * Cómo es el formulario sin tocar.
+ *
+ * Se saca a una constante porque ahora lo usan tres sitios: el estado inicial,
+ * el gancho del borrador —que lo compara para no «recuperar» un formulario
+ * vacío— y el reinicio después de guardar. Teniéndolo escrito tres veces, basta
+ * con que uno se desactualice para que el borrador crea que hay algo escrito
+ * cuando no lo hay.
+ */
+const FORMULARIO_VACIO: ClienteFormData = {
+  nombres: '', apellidos: '', dni: '', telefono: '', correo: '', direccion: '', referencia: '',
+  puntaje: 100, nivelRiesgo: 'VERDE', enListaNegra: false, razonListaNegra: '', rutaId: '', observaciones: ''
+};
+
 const ClienteFormPage = () => {
   const router = useRouter();
   const pathname = usePathname();
@@ -58,10 +74,34 @@ const ClienteFormPage = () => {
 
   const [isSaving, setIsSaving] = useState(false)
 
-  const [formData, setFormData] = useState<ClienteFormData>({
-    nombres: '', apellidos: '', dni: '', telefono: '', correo: '', direccion: '', referencia: '',
-    puntaje: 100, nivelRiesgo: 'VERDE', enListaNegra: false, razonListaNegra: '', rutaId: '', observaciones: ''
-  });
+  const [formData, setFormData] = useState<ClienteFormData>(FORMULARIO_VACIO);
+
+  /**
+   * Lo escrito sobrevive a una recarga.
+   *
+   * Medido: recargar a mitad de llenar este formulario lo dejaba en blanco, y
+   * son cinco secciones. La recarga no es un accidente raro —el móvil gira, el
+   * navegador descarta la pestaña, alguien le da a F5 «porque se quedó
+   * pegado»— y volver a escribir la cédula y la dirección de alguien que está
+   * esperando de pie es el desgaste que hace que la gente deje de usar el
+   * sistema.
+   *
+   * Las fotos y los documentos NO se recuperan: son archivos y no caben en el
+   * almacenamiento del navegador. El aviso lo dice.
+   */
+  const borrador = useBorradorDeFormulario(
+    'cliente-nuevo',
+    formData,
+    FORMULARIO_VACIO,
+  );
+  const [borradorAvisado, setBorradorAvisado] = useState(false);
+
+  useEffect(() => {
+    if (!borrador.recuperado || borradorAvisado) return;
+    setFormData(borrador.recuperado);
+    setBorradorAvisado(true);
+    toast.success('Se recuperó lo que habías escrito. Las fotos sí hay que volver a subirlas.');
+  }, [borrador.recuperado, borradorAvisado]);
 
   const sections = [
     { id: 'personal', label: 'Datos Personales', icon: <User className="h-4 w-4" /> },
@@ -130,14 +170,19 @@ const ClienteFormPage = () => {
             creadoPorId: userData.id || undefined,
           }
           await clientesService.crear(nuevoCliente)
+          // El borrador se borra AQUÍ y no al salir de la pantalla: si quedara,
+          // el siguiente cliente aparecería con los datos del anterior ya
+          // puestos, y eso es peor que perder el borrador —se registra a una
+          // persona con la dirección de otra—.
+          borrador.limpiar()
           toast.success('Cliente creado exitosamente')
 
           const rolUsuario = userData.rol
           const destino = rolUsuario === 'COBRADOR' ? '/cobranzas' : '/admin/clientes'
 
           router.push(destino)
-        } catch {
-          toast.error('Error al crear el cliente. Verifique los datos.')
+        } catch (error) {
+          toast.error(mensajeDeError(error, 'Error al crear el cliente. Verifique los datos.'))
         } finally {
           setIsSaving(false)
         }

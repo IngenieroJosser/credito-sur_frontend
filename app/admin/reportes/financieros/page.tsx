@@ -28,7 +28,9 @@ import {
   toBogotaDateTimeOffsetIso,
 } from '@/lib/rutas-core'
 import { Skeleton, SkeletonTabla } from '@/components/ui/Skeleton'
-import { logger } from '@/lib/logger'
+import { logger } from '@/lib/logger'
+import { mensajeDeError } from '@/lib/mensaje-de-error'
+import { listaDeRespuesta } from '@/lib/lista-de-respuesta'
 
 // Interfaces
 interface FinancialSummary {
@@ -127,8 +129,8 @@ const ReportesFinancierosPage = () => {
     try {
       await exportService.exportFinancialReport('excel')
       toast.success('Reporte financiero Excel descargado')
-    } catch {
-      toast.error('Error al exportar reporte financiero')
+    } catch (error) {
+      toast.error(mensajeDeError(error, 'Error al exportar reporte financiero'))
     }
   }
 
@@ -136,8 +138,8 @@ const ReportesFinancierosPage = () => {
     try {
       await exportService.exportFinancialReport('pdf')
       toast.success('Reporte financiero PDF descargado')
-    } catch {
-      toast.error('Error al exportar reporte financiero')
+    } catch (error) {
+      toast.error(mensajeDeError(error, 'Error al exportar reporte financiero'))
     }
   }
 
@@ -301,7 +303,7 @@ const ReportesFinancierosPage = () => {
           dias[key] = { ingresos: 0, cobros: 0, egresos: 0 }
           range.push(dd)
         }
-        ingRes.data.filter(isIngresoOperativoMovimiento).forEach(t => {
+        listaDeRespuesta(ingRes).filter(isIngresoOperativoMovimiento).forEach(t => {
           const key = normalizeDateKey(t.fecha)
           if (dias[key]) dias[key].ingresos += getIngresoOperativoMovimiento(t)
         })
@@ -311,7 +313,7 @@ const ReportesFinancierosPage = () => {
             const key = normalizeDateKey(t.fecha)
             if (dias[key]) dias[key].cobros += getCobroMovimiento(t)
           })
-        egreRes.data.forEach(t => {
+        listaDeRespuesta(egreRes).forEach(t => {
           const key = normalizeDateKey(t.fecha)
           if (dias[key]) dias[key].egresos += Number(t.totalDebito || 0)
         })
@@ -402,11 +404,11 @@ const ReportesFinancierosPage = () => {
                 limit: 1000,
               }),
             ])
-            const prevIng7 = prevIng7Res.data.filter(isIngresoOperativoMovimiento).reduce((acc, t) => acc + getIngresoOperativoMovimiento(t), 0)
+            const prevIng7 = listaDeRespuesta(prevIng7Res).filter(isIngresoOperativoMovimiento).reduce((acc, t) => acc + getIngresoOperativoMovimiento(t), 0)
             const prevCobro7 = prevCobro7Res.data
               .filter((t) => String(t.origenGestion || '').toUpperCase() !== 'CIERRE_PENDIENTE')
               .reduce((acc, t) => acc + getCobroMovimiento(t), 0)
-            const prevEgr7 = prevEgre7Res.data.reduce((acc, t) => acc + Number(t.totalDebito || 0), 0)
+            const prevEgr7 = listaDeRespuesta(prevEgre7Res).reduce((acc, t) => acc + Number(t.totalDebito || 0), 0)
             const ingresosPerc7 = prevIng7 > 0 ? ((totalIngresos7 - prevIng7) / prevIng7) * 100 : (totalIngresos7 > 0 ? 100 : 0)
             const cobrosPerc7 = prevCobro7 > 0 ? ((totalCobros7 - prevCobro7) / prevCobro7) * 100 : (totalCobros7 > 0 ? 100 : 0)
             const egresosPerc7 = prevEgr7 > 0 ? ((totalEgresos7 - prevEgr7) / prevEgr7) * 100 : (totalEgresos7 > 0 ? 100 : 0)
@@ -436,7 +438,7 @@ const ReportesFinancierosPage = () => {
             days.push(new Date(iter))
             iter.setDate(iter.getDate() + 1)
           }
-          ingResAll.data.filter(isIngresoOperativoMovimiento).forEach(t => {
+          listaDeRespuesta(ingResAll).filter(isIngresoOperativoMovimiento).forEach(t => {
             const key = normalizeDateKey(t.fecha)
             if (dayMap[key]) dayMap[key].ingresos += getIngresoOperativoMovimiento(t)
           })
@@ -446,7 +448,7 @@ const ReportesFinancierosPage = () => {
               const key = normalizeDateKey(t.fecha)
               if (dayMap[key]) dayMap[key].cobros += getCobroMovimiento(t)
             })
-          egreResAll.data.forEach(t => {
+          listaDeRespuesta(egreResAll).forEach(t => {
             const key = normalizeDateKey(t.fecha)
             if (dayMap[key]) dayMap[key].egresos += Number(t.totalDebito || 0)
           })
@@ -478,7 +480,7 @@ const ReportesFinancierosPage = () => {
             months.push({ key, label })
             iter.setMonth(iter.getMonth() + 1, 1)
           }
-          ingResAll.data.filter(isIngresoOperativoMovimiento).forEach(t => {
+          listaDeRespuesta(ingResAll).filter(isIngresoOperativoMovimiento).forEach(t => {
             const d = new Date(t.fecha)
             const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`
             if (monthMap[key]) monthMap[key].ingresos += getIngresoOperativoMovimiento(t)
@@ -490,7 +492,7 @@ const ReportesFinancierosPage = () => {
               const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`
               if (monthMap[key]) monthMap[key].cobros += getCobroMovimiento(t)
             })
-          egreResAll.data.forEach(t => {
+          listaDeRespuesta(egreResAll).forEach(t => {
             const d = new Date(t.fecha)
             const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`
             if (monthMap[key]) monthMap[key].egresos += Number(t.totalDebito || 0)

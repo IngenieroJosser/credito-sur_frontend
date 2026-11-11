@@ -23,7 +23,8 @@ import {
   type CuentaVencida,
 } from '@/services/vencidas-service'
 import { toast } from 'sonner'
-import { SkeletonTabla } from '@/components/ui/Skeleton'
+import { SkeletonTabla } from '@/components/ui/Skeleton'
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 
 type ViewMode = 'list' | 'grid'
 
@@ -73,9 +74,9 @@ function CuentasVencidasContent() {
       })
       setCuentas(response.cuentas)
       setTotales({ totalVencido: response.totales.totalVencido, diasPromedioVencimiento: response.totales.diasPromedioVencimiento })
-    } catch {
+    } catch (error) {
       setError('Error al cargar las cuentas vencidas')
-      toast.error('No se pudieron cargar las cuentas vencidas')
+      toast.error(mensajeDeError(error, 'No se pudieron cargar las cuentas vencidas'))
     } finally {
       setLoading(false)
     }

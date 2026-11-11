@@ -101,8 +101,8 @@ const HistorialPagosPage = () => {
     try {
       await exportService.exportPayments('excel')
       toast.success('Historial de pagos Excel descargado')
-    } catch {
-      toast.error('Error al exportar historial de pagos')
+    } catch (error) {
+      toast.error(mensajeDeError(error, 'Error al exportar historial de pagos'))
     }
   }
 
@@ -110,8 +110,8 @@ const HistorialPagosPage = () => {
     try {
       await exportService.exportPayments('pdf')
       toast.success('Historial de pagos PDF descargado')
-    } catch {
-      toast.error('Error al exportar historial de pagos')
+    } catch (error) {
+      toast.error(mensajeDeError(error, 'Error al exportar historial de pagos'))
     }
   }
 

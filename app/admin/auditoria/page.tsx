@@ -12,7 +12,8 @@ import { exportService } from '@/services/export-service'
 import { toast } from 'sonner'
 import { ExportButton } from '@/components/ui/ExportButton'
 import { usePermission } from '@/hooks/usePermission'
-import { SkeletonTabla } from '@/components/ui/Skeleton'
+import { SkeletonTabla } from '@/components/ui/Skeleton'
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 
 const AuditoriaSistemaPage = () => {
   const { can, canForPath } = usePermission()
@@ -115,16 +116,16 @@ const AuditoriaSistemaPage = () => {
     try {
       await exportService.exportAudit('excel')
       toast.success('Log de auditoría Excel descargado')
-    } catch {
-      toast.error('Error al exportar log de auditoría')
+    } catch (error) {
+      toast.error(mensajeDeError(error, 'Error al exportar log de auditoría'))
     }
   }
   const handleExportPDF = async () => {
     try {
       await exportService.exportAudit('pdf')
       toast.success('Log de auditoría PDF descargado')
-    } catch {
-      toast.error('Error al exportar log de auditoría')
+    } catch (error) {
+      toast.error(mensajeDeError(error, 'Error al exportar log de auditoría'))
     }
   }
 

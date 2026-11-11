@@ -113,8 +113,8 @@ const RegistroPagoPage = () => {
       })
       // Pre-rellenar el monto con el total del saldo
       setMonto(formatCOPInputValue(String(Math.round(Number(data.saldoPendiente ?? 0)))))
-    } catch {
-      toast.error('Préstamo no encontrado. Verifique el ID e intente de nuevo.')
+    } catch (error) {
+      toast.error(mensajeDeError(error, 'Préstamo no encontrado. Verifique el ID e intente de nuevo.'))
     } finally {
       setLoadingPrestamo(false)
     }

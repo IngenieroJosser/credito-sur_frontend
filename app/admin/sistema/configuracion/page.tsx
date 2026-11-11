@@ -43,8 +43,8 @@ const ConfiguracionSistemaPage = () => {
     try {
       const data = await configuracionService.getConfiguracion();
       setConfig(data);
-    } catch {
-      toast.error('Error al cargar la configuración');
+    } catch (error) {
+      toast.error(mensajeDeError(error, 'Error al cargar la configuración'));
     } finally {
       setLoading(false);
     }
@@ -61,9 +61,9 @@ const ConfiguracionSistemaPage = () => {
       setConfig({ ...config, [key]: value });
       await configuracionService.updateConfiguracion({ [key]: value });
       toast.success('Configuración actualizada');
-    } catch {
+    } catch (error) {
       setConfig(originalConfig);
-      toast.error('Error al actualizar la configuración');
+      toast.error(mensajeDeError(error, 'Error al actualizar la configuración'));
     }
   };
 
