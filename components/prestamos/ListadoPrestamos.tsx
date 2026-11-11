@@ -51,7 +51,8 @@ import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { usePageFocusRefresh } from '@/hooks/usePageFocusRefresh'
 import type { EstadoPrestamo } from '@/types/enums'
 import type { PrestamoDelListado } from '@/types/domain'
-import { idDelPrestamoCreado } from '@/lib/creditos/prestamo-creado'
+import { idDelPrestamoCreado } from '@/lib/creditos/prestamo-creado'
+import Tooltip from '@/components/ui/Tooltip'
 
 interface Filtros {
   estado: string
@@ -523,16 +524,18 @@ const ListadoPrestamosElegante = () => {
                 label="Exportar"
                 className="!px-4 !py-2 text-sm"
               />
-              <button
-                onClick={handleRefresh}
-                disabled={refreshing}
-                className="p-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 transition-colors disabled:opacity-50"
-                title="Actualizar lista"
-              >
-                <RefreshCw
-                  className={`h-4 w-4 text-slate-600 ${refreshing ? 'animate-spin' : ''}`}
-                />
-              </button>
+              <Tooltip texto="Actualizar lista">
+                <button aria-label="Actualizar lista"
+                  onClick={handleRefresh}
+                  disabled={refreshing}
+                  className="p-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 transition-colors disabled:opacity-50"
+                  title="Actualizar lista"
+                >
+                  <RefreshCw
+                    className={`h-4 w-4 text-slate-600 ${refreshing ? 'animate-spin' : ''}`}
+                  />
+                </button>
+              </Tooltip>
               {puedeCrear && (
                 <button
                   onClick={() => setShowCrearCreditoModal(true)}

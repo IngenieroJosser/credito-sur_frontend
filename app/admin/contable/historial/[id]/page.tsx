@@ -18,7 +18,8 @@ import {
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import MoneyAmount from '@/components/contable/MoneyAmount'
-import { getHistorialCierres } from '@/services/contabilidad-service'
+import { getHistorialCierres } from '@/services/contabilidad-service'
+import Tooltip from '@/components/ui/Tooltip'
 
 interface CierreDetalle {
   id: string; fecha: string; caja: string; responsable: string;
@@ -115,12 +116,16 @@ export default function DetalleCierrePage({ params }: { params: Promise<{ id: st
           </div>
           
           <div className="flex gap-2">
-            <button className="p-2 text-slate-500 hover:text-slate-900 hover:bg-white rounded-xl border border-transparent hover:border-slate-200 transition-all" title="Imprimir">
-                <Printer className="h-5 w-5" />
-            </button>
-            <button className="p-2 text-slate-500 hover:text-slate-900 hover:bg-white rounded-xl border border-transparent hover:border-slate-200 transition-all" title="Descargar PDF">
-                <Download className="h-5 w-5" />
-            </button>
+            <Tooltip texto="Imprimir">
+              <button aria-label="Imprimir" className="p-2 text-slate-500 hover:text-slate-900 hover:bg-white rounded-xl border border-transparent hover:border-slate-200 transition-all" title="Imprimir">
+                  <Printer className="h-5 w-5" />
+              </button>
+            </Tooltip>
+            <Tooltip texto="Descargar PDF">
+              <button aria-label="Descargar PDF" className="p-2 text-slate-500 hover:text-slate-900 hover:bg-white rounded-xl border border-transparent hover:border-slate-200 transition-all" title="Descargar PDF">
+                  <Download className="h-5 w-5" />
+              </button>
+            </Tooltip>
           </div>
         </div>
 

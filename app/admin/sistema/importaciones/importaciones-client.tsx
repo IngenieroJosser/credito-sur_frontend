@@ -13,7 +13,8 @@ import { PlantillasCard } from './components/PlantillasCard';
 import { ArchivoValidadorCard } from './components/ArchivoValidadorCard';
 import { ValidationResult } from './components/ValidationResult';
 import { HistorialLotesCard } from './components/HistorialLotesCard';
-import EstadoContableCard from '@/components/contable/EstadoContableCard';
+import EstadoContableCard from '@/components/contable/EstadoContableCard';
+import Tooltip from '@/components/ui/Tooltip'
 
 export const ImportacionesClient = () => {
   const [reporteActivo, setReporteActivo] = useState<'clientes' | 'inventario' | null>(null);
@@ -171,14 +172,16 @@ export const ImportacionesClient = () => {
               )}
               {isConfirming ? 'Importando...' : 'Confirmar importación'}
             </button>
-            <button
-              type="button"
-              onClick={closeReporte}
-              className="rounded-xl p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
-              title="Cerrar"
-            >
-              <XCircle className="h-6 w-6" />
-            </button>
+            <Tooltip texto="Cerrar">
+              <button aria-label="Cerrar"
+                type="button"
+                onClick={closeReporte}
+                className="rounded-xl p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                title="Cerrar"
+              >
+                <XCircle className="h-6 w-6" />
+              </button>
+            </Tooltip>
           </div>
         </div>
 

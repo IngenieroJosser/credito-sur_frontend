@@ -25,6 +25,7 @@ import {
 import { toast } from 'sonner'
 import { SkeletonTabla } from '@/components/ui/Skeleton'
 import { mensajeDeError } from '@/lib/mensaje-de-error'
+import Tooltip from '@/components/ui/Tooltip'
 
 type ViewMode = 'list' | 'grid'
 
@@ -128,13 +129,15 @@ function CuentasVencidasContent() {
               <span className="text-slate-400 ml-2">({cuentasFiltradas.length} registros)</span>
             </p>
           </div>
-          <button
-            onClick={fetchCuentasVencidas}
-            className="p-2 text-slate-400 hover:text-blue-600 bg-white border border-slate-200 rounded-xl shadow-sm transition-all self-start"
-            title="Actualizar"
-          >
-            <RefreshCw className={cn('h-5 w-5', loading && 'animate-spin')} />
-          </button>
+          <Tooltip texto="Actualizar">
+            <button aria-label="Actualizar"
+              onClick={fetchCuentasVencidas}
+              className="p-2 text-slate-400 hover:text-blue-600 bg-white border border-slate-200 rounded-xl shadow-sm transition-all self-start"
+              title="Actualizar"
+            >
+              <RefreshCw className={cn('h-5 w-5', loading && 'animate-spin')} />
+            </button>
+          </Tooltip>
         </div>
 
         {/* Métricas */}

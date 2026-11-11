@@ -1,6 +1,7 @@
 import React, { useRef, useState, ChangeEvent, DragEvent } from 'react';
 import { UploadCloud, CheckCircle2, FileSpreadsheet, XCircle } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from 'sonner';
+import Tooltip from '@/components/ui/Tooltip'
 
 interface ArchivoValidadorCardProps {
   title: string;
@@ -137,15 +138,17 @@ export const ArchivoValidadorCard: React.FC<ArchivoValidadorCardProps> = ({
                 {formatFileSize(selectedFile.size)} · listo para validar · límite {maxSizeMB} MB
               </p>
             </div>
-            <button
-              type="button"
-              onClick={clearSelectedFile}
-              disabled={loading}
-              className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-white hover:text-slate-700 disabled:opacity-50"
-              title="Quitar archivo"
-            >
-              <XCircle className="h-5 w-5" />
-            </button>
+            <Tooltip texto="Quitar archivo">
+              <button aria-label="Quitar archivo"
+                type="button"
+                onClick={clearSelectedFile}
+                disabled={loading}
+                className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-white hover:text-slate-700 disabled:opacity-50"
+                title="Quitar archivo"
+              >
+                <XCircle className="h-5 w-5" />
+              </button>
+            </Tooltip>
           </div>
         )}
 
