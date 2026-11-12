@@ -123,9 +123,7 @@ import {
 
 import { mapAsignacionesToVisitasLite } from '@/lib/ruta-visitas-mapper'
 import {
-  buildRecaudosHoyMapByPrestamoId,
   computeMontoCuotaPendienteDespuesDeRecaudo,
-  indexPagosByPrestamoId,
   mergeVisitasPreservingLocalRecaudo,
 } from '@/lib/ruta-recaudos'
 import { mapWithConcurrency } from '@/lib/async-utils'
@@ -415,16 +413,17 @@ const RutaClientLoaded = ({
       const resp = await rutasService.obtenerVisitasDelDia(rutaId, hoyBogotaKey)
       setDailyVisitsHoy(resp)
 
-      // Usar helper compartido para construir fuente completa de KPI
-      const pagosResp = await pagosService.obtenerPagos({ limit: 5000 })
-      const pagos = pagosResp?.pagos || pagosResp || []
-
+      // Usar helper compartido para construir fuente completa de KPI.
+      //
+      // Ya no se pide el historial de pagos: `daily-visits` trae el recaudo de
+      // hoy y la fecha del último pago por crédito, que es lo único que el
+      // helper usaba de esa lista. Eran 25 peticiones y megas de datos para
+      // recalcular lo que el servidor ya había calculado.
       const result = await buildRutaHoyOperativa({
         ruta: rutaData || initialRuta,
         dailyVisits: resp,
         hoyBogotaKey,
         cobradorId: rutaData?.cobradorId || initialRuta?.cobradorId || '',
-        pagos,
       })
 
       setVisitasRutaHoyKpi(result.kpiItems)
@@ -507,17 +506,15 @@ const RutaClientLoaded = ({
         concurrency: 6,
       })
 
-      // 2. Obtener todos los pagos recientes de forma masiva para evitar N peticiones API
-      const pagosRecientesResp = await pagosService.obtenerPagos({ limit: 1000 })
-      const todosPagos = pagosRecientesResp?.pagos || pagosRecientesResp || []
-
-      const recaudosHoyMap = buildRecaudosHoyMapByPrestamoId(todosPagos, hoyBogota, {
-        includeCierrePendiente: false,
-      })
-
-      const { totalHistoricoByPrestamoId, ultimoPagoDateByPrestamoId } =
-        indexPagosByPrestamoId(todosPagos)
-
+      // 2. El recaudo de hoy, el total pagado y la fecha del último pago ya
+      // vienen en cada visita: `buildRutaHoyOperativa` los pone desde los
+      // campos que manda `daily-visits` por crédito.
+      //
+      // Antes se recalculaban aquí indexando `obtenerPagos({ limit: 1000 })`, y
+      // ese límite los dejaba MAL: con 64.088 pagos en la base, pedir 1.000
+      // trae solo los más recientes, así que el "total histórico" de cualquier
+      // crédito cuyos pagos quedaran fuera de esos 1.000 salía por debajo de lo
+      // que el cliente había pagado de verdad.
       const actualizadas = await mapWithConcurrency(
         visitasEnriquecidasConCuotas,
         async (v: VisitaRuta) => {
@@ -526,9 +523,9 @@ const RutaClientLoaded = ({
 
           try {
             const prestamoId = v.prestamoId
-            const totalHoy = Number(recaudosHoyMap[prestamoId] || 0)
-            const totalHistorico = Number(totalHistoricoByPrestamoId[prestamoId] || 0)
-            const ultimoPagoDate = Number(ultimoPagoDateByPrestamoId[prestamoId] || 0)
+            const totalHoy = Number(v.recaudadoDelDia || 0)
+            const totalHistorico = Number(v.recaudadoTotalClient || 0)
+            const ultimoPagoDate = Number(v.fechaUltimoPago || 0)
 
             // 2. Usar valores ya enriquecidos por el helper compartido
             let montoCuotaReal = v.montoCuota
@@ -1253,16 +1250,14 @@ const RutaClientLoaded = ({
       setLoadingMisCreditos(true)
       const resp = await rutasService.obtenerVisitasDelDia(rutaId, hoyBogotaKey)
 
-      // Usar helper compartido para construir fuente completa de KPI
-      const pagosResp = await pagosService.obtenerPagos({ limit: 5000 })
-      const pagos = pagosResp?.pagos || pagosResp || []
-
+      // Usar helper compartido para construir fuente completa de KPI.
+      // Sin historial de pagos: `daily-visits` ya trae recaudo de hoy y fecha
+      // del último pago por crédito.
       const result = await buildRutaHoyOperativa({
         ruta: rutaData || initialRuta,
         dailyVisits: resp,
         hoyBogotaKey,
         cobradorId: rutaData?.cobradorId || initialRuta?.cobradorId || '',
-        pagos,
       })
 
       // Para "Mis clientes", mostrar kpiItems (obligaciones completas) enriquecidas

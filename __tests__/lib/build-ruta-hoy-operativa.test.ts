@@ -239,4 +239,123 @@ describe('buildRutaHoyOperativa', () => {
 
     expect(stats.recaudo).toBe(0)
   })
+
+  /**
+   * Lo cobrado hoy y la fecha del ultimo pago llegan del SERVIDOR.
+   *
+   * Eran los dos unicos datos por los que esta pantalla se descargaba el
+   * historial COMPLETO de pagos. Medido al entrar como cobrador con 64.088
+   * pagos en la base: 5.918 KB en 52 peticiones, 26 de ellas
+   * `/payments?page=N&limit=200`. En el telefono del cobrador, con datos
+   * moviles, eso es el historial entero de la financiera cada vez que abre la
+   * app.
+   *
+   * Y era trabajo repetido: `getDailyVisits` ya cargaba los pagos de hoy de la
+   * ruta. Solo los agrupaba por cliente, y aqui hacen falta por credito.
+   */
+  describe('cuando el servidor manda el recaudo por credito', () => {
+    it('usa recaudadoHoy del servidor y NO necesita la lista de pagos', async () => {
+      const { kpiItems: items } = await correr([
+        obligacion({
+          prestamo: {
+            id: 'prestamo-1',
+            numeroPrestamo: 'PRES-001',
+            frecuenciaPago: 'DIARIO',
+            saldoPendiente: 300_000,
+            recaudadoHoy: 7_000,
+            fechaUltimoPago: 1_700_000_000_000,
+          },
+        }),
+      ])
+
+      const v = items.find((x) => x.prestamoId === 'prestamo-1')
+      expect(v?.recaudadoDelDia).toBe(7_000)
+      expect(v?.fechaUltimoPago).toBe(1_700_000_000_000)
+    })
+
+    it('un credito sin cobro hoy queda en cero, no en blanco', async () => {
+      // Cero es un dato —no se le ha cobrado hoy— y la pantalla lo pinta como
+      // tal. `undefined` dejaria la celda vacia, que se lee como «no se sabe».
+      const { kpiItems: items } = await correr([
+        obligacion({
+          prestamo: {
+            id: 'prestamo-1',
+            numeroPrestamo: 'PRES-001',
+            frecuenciaPago: 'DIARIO',
+            saldoPendiente: 300_000,
+            recaudadoHoy: 0,
+            fechaUltimoPago: 0,
+          },
+        }),
+      ])
+
+      const v = items.find((x) => x.prestamoId === 'prestamo-1')
+      expect(v?.recaudadoDelDia).toBe(0)
+    })
+
+    it('usa recaudadoTotal del servidor como total pagado del credito', async () => {
+      // Antes `recaudadoTotalClient` quedaba fijo en 0 en este camino, y un 0
+      // en dinero no se lee como «no se sabe» sino como «no ha pagado nada».
+      const { kpiItems: items } = await correr([
+        obligacion({
+          prestamo: {
+            id: 'prestamo-1',
+            numeroPrestamo: 'PRES-001',
+            frecuenciaPago: 'DIARIO',
+            saldoPendiente: 300_000,
+            recaudadoHoy: 7_000,
+            fechaUltimoPago: 1_700_000_000_000,
+            recaudadoTotal: 125_000,
+          },
+        }),
+      ])
+
+      const v = items.find((x) => x.prestamoId === 'prestamo-1')
+      expect(v?.recaudadoTotalClient).toBe(125_000)
+    })
+
+    it('el servidor manda y la lista de pagos se ignora', async () => {
+      // Si llegaran las dos cosas, el servidor es la fuente: tiene los pagos
+      // de hoy de la ruta con sus filtros, incluido el cierre pendiente.
+      const { kpiItems: items } = await correr(
+        [
+          obligacion({
+            prestamo: {
+              id: 'prestamo-1',
+              numeroPrestamo: 'PRES-001',
+              frecuenciaPago: 'DIARIO',
+              saldoPendiente: 300_000,
+              recaudadoHoy: 7_000,
+            },
+          }),
+        ],
+        [
+          {
+            prestamoId: 'prestamo-1',
+            montoTotal: 99_000,
+            fechaPago: HOY + 'T10:00:00-05:00',
+          },
+        ],
+      )
+
+      expect(items.find((x) => x.prestamoId === 'prestamo-1')?.recaudadoDelDia).toBe(7_000)
+    })
+
+    it('sin los campos del servidor sigue calculando desde los pagos', async () => {
+      // El camino de antes, que hace falta para la copia guardada sin conexion:
+      // puede traer respuestas de antes de este cambio.
+      const { kpiItems: items } = await correr(
+        [obligacion()],
+        [
+          {
+            prestamoId: 'prestamo-1',
+            montoTotal: 4_000,
+            fechaPago: HOY + 'T10:00:00-05:00',
+          },
+        ],
+      )
+
+      expect(items.find((x) => x.prestamoId === 'prestamo-1')?.recaudadoDelDia).toBe(4_000)
+    })
+  })
 })

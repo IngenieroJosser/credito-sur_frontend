@@ -46,7 +46,6 @@ import {
 import { buildRutaHoyOperativa } from '@/lib/rutas/build-ruta-hoy-operativa'
 import { rutasService } from '@/services/rutas-service'
 import { clientesService } from '@/services/clientes-service'
-import { pagosService } from '@/services/pagos-service'
 import { useNotification } from '@/components/providers/NotificationProvider'
 import { usePermission } from '@/hooks/usePermission'
 import { offlineStore } from '@/lib/offline/offlineDb'
@@ -378,51 +377,66 @@ export const RutasPageView = ({
     const hoyKey = getBogotaDateKey(new Date())
     const newSummaries: Record<string, ResumenDiarioDeRuta> = {}
 
-    // Obtener pagos una sola vez para todas las rutas
-    const pagosResp = await pagosService.obtenerPagos({ limit: 5000 })
-    const pagos = pagosResp?.pagos || pagosResp || []
-    const dailyVisitsByRoute = await rutasService.obtenerVisitasDelDiaEnLote(
-      rutas.map((ruta) => ruta.id),
-      hoyKey,
-    )
+    try {
+      // Ya no se baja el historial de pagos: `daily-visits` trae por crédito el
+      // recaudo de hoy, el total pagado y la fecha del último pago, que es todo
+      // lo que `buildRutaHoyOperativa` leía de esa lista. Para una sola ruta eran
+      // 25 peticiones; aquí se pedían UNA vez para todas, pero igual de grandes.
+      const dailyVisitsByRoute = await rutasService.obtenerVisitasDelDiaEnLote(
+        rutas.map((ruta) => ruta.id),
+        hoyKey,
+      )
 
-    await Promise.all(
-      rutas.map(async (ruta) => {
-        try {
-          const dailyVisits = dailyVisitsByRoute[ruta.id]
-          if (!dailyVisits) {
-            throw new Error('La ruta no fue incluida en la respuesta del lote')
+      await Promise.all(
+        rutas.map(async (ruta) => {
+          try {
+            const dailyVisits = dailyVisitsByRoute[ruta.id]
+            if (!dailyVisits) {
+              throw new Error('La ruta no fue incluida en la respuesta del lote')
+            }
+
+            // Usar helper compartido para construir fuente completa de KPI
+            const result = await buildRutaHoyOperativa({
+              ruta,
+              dailyVisits,
+              hoyBogotaKey: hoyKey,
+              cobradorId: ruta.cobradorId || '',
+            })
+
+            const clientesOperativosHoy = new Set(
+              result.visibleItems.map((v) => v.clienteId).filter(Boolean),
+            ).size
+
+            newSummaries[ruta.id] = {
+              meta: result.stats.meta,
+              recaudo: result.stats.recaudo,
+              pendiente: result.stats.pendiente,
+              eficiencia: result.stats.eficiencia,
+              clientesOperativosHoy,
+              visitasOperativasHoy: result.visibleItems,
+              obligacionesKpiHoy: result.kpiItems,
+            }
+          } catch (e) {
+            console.warn(`Error fetching daily summary for route ${ruta.id}:`, e)
           }
+        }),
+      )
 
-          // Usar helper compartido para construir fuente completa de KPI
-          const result = await buildRutaHoyOperativa({
-            ruta,
-            dailyVisits,
-            hoyBogotaKey: hoyKey,
-            cobradorId: ruta.cobradorId || '',
-            pagos,
-          })
-
-          const clientesOperativosHoy = new Set(
-            result.visibleItems.map((v) => v.clienteId).filter(Boolean),
-          ).size
-
-          newSummaries[ruta.id] = {
-            meta: result.stats.meta,
-            recaudo: result.stats.recaudo,
-            pendiente: result.stats.pendiente,
-            eficiencia: result.stats.eficiencia,
-            clientesOperativosHoy,
-            visitasOperativasHoy: result.visibleItems,
-            obligacionesKpiHoy: result.kpiItems,
-          }
-        } catch (e) {
-          console.warn(`Error fetching daily summary for route ${ruta.id}:`, e)
-        }
-      }),
-    )
-
-    setDailySummaries(newSummaries)
+      setDailySummaries(newSummaries)
+    } catch (e) {
+      // Sin este catch el fallo era invisible. `obtenerVisitasDelDiaEnLote`
+      // pedía `POST /routes/daily-visits/batch`, que NO existía en el backend
+      // (404 medido contra el servidor en marcha), así que esta función se
+      // cortaba aquí y las tarjetas se quedaban con las cifras del LISTADO
+      // (`ruta.metaDelDia`, `ruta.cobranzaDelDia`) mientras el detalle mostraba
+      // las operativas: la misma ruta con dos metas según dónde se mirara. El
+      // endpoint ya existe; este aviso es para que la próxima vez se vea.
+      showNotification(
+        'error',
+        mensajeDeError(e, 'No se pudo cargar el resumen del día de las rutas.'),
+        'Error',
+      )
+    }
   }, [])
 
   // Formatea numero con puntos de miles: 200000 -> '200.000'

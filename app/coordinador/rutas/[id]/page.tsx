@@ -792,7 +792,17 @@ const LegacyDetalleRutaPage = () => {
 
         const saldo = await obtenerSaldoDisponibleRuta(rutaId, fechaClave)
 
-        const pagosResp = await pagosService.obtenerPagos({ limit: 1000 })
+        // Solo los pagos de la jornada que se está mirando: es lo único que
+        // `pagosDelDia` conserva unas líneas más abajo.
+        //
+        // El `limit: 1000` de antes no solo traía de más, traía de MENOS: con
+        // 64.091 pagos en la base, pedir los 1.000 más recientes podía no
+        // incluir ninguno del día consultado si ese día era viejo, y la
+        // pantalla mostraba la jornada sin pagos.
+        const pagosResp = await pagosService.obtenerPagos({
+          fechaOperativa: fechaClave,
+          limit: 5000,
+        })
 
         const pagosData = pagosResp?.pagos || pagosResp || []
 

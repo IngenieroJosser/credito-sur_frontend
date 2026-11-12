@@ -719,15 +719,23 @@ const VistaCobrador = () => {
           logger.log('[Mis clientes] Usando ruta actual + buildRutaHoyOperativa:', rutaActual.id)
           const hoyBogota = hoyBogotaKey
           const resp = await rutasService.obtenerVisitasDelDia(rutaActual.id, hoyBogota)
-          const pagosResp = await pagosService.obtenerPagos({ limit: 5000 })
-          const pagos = pagosResp?.pagos || pagosResp || []
 
+          // Sin `pagos`: lo cobrado hoy y la fecha del último pago vienen
+          // dentro de las obligaciones (`prestamo.recaudadoHoy` y
+          // `prestamo.fechaUltimoPago`), que es lo único que se usaba de esa
+          // lista.
+          //
+          // Antes aquí había un `obtenerPagos({ limit: 5000 })`, que pide al
+          // servidor de 200 en 200. Medido al entrar como cobrador con 64.088
+          // pagos en la base: 5.918 KB en 52 peticiones, 26 de ellas
+          // `/payments?page=N&limit=200`. En el teléfono, con datos móviles,
+          // era el historial entero de la financiera cada vez que abría la app,
+          // y crecía con cada pago registrado.
           const result = await buildRutaHoyOperativa({
             ruta: rutaActual,
             dailyVisits: resp,
             hoyBogotaKey,
             cobradorId: rutaActual.cobradorId || cobradorId,
-            pagos,
           })
 
           setMisCreditos(result.kpiItems)
@@ -1290,21 +1298,15 @@ const VistaCobrador = () => {
             // tres listas propias de esta pantalla. Los KPI que el helper ya calcula
             // (`kpiItems`, `visibleItems`, `stats`) se siguen derivando abajo con los
             // nombres que esta vista usa.
-            let pagosData: unknown[] = []
-            try {
-              const pagosResp = await pagosService.obtenerPagos({ limit: 5000 })
-              pagosData = pagosResp?.pagos || pagosResp || []
-            } catch {
-              // Sin pagos la ruta se muestra igual, con el recaudo del dia en cero.
-              pagosData = []
-            }
-
+            // Sin `pagos`: lo cobrado hoy y la fecha del último pago vienen
+            // dentro de las obligaciones. Aquí había otro
+            // `obtenerPagos({ limit: 5000 })` —el historial completo, de 200
+            // en 200— por esos dos datos que el servidor ya tenía calculados.
             const operativaHoy = await buildRutaHoyOperativa({
               ruta: rutaCompletaAutoritativa,
               dailyVisits,
               hoyBogotaKey,
               cobradorId: rutaCompletaAutoritativa?.cobradorId || userSession.id,
-              pagos: pagosData as never[],
             })
 
             // Las dos listas salen del helper. El filtro que habia aqui ya era
@@ -1583,21 +1585,27 @@ const VistaCobrador = () => {
         // Enriquecer con recaudo HOY para poder marcar correctamente como 'pagado'
         // (y evitar que una visita ya cobrada aparezca como pendiente tras refresh).
         try {
-          const pagosResp = await pagosService.obtenerPagos({ limit: 5000 })
+          // Solo los pagos de ESTA ruta.
+          //
+          // Este camino no pasa por `daily-visits` —arma las visitas desde las
+          // asignaciones—, así que no recibe `recaudadoHoy` ni
+          // `fechaUltimoPago` del servidor y tiene que calcularlos. Pero no
+          // necesita los pagos de las demás rutas: los dos mapas que construye
+          // abajo se consultan por el `prestamoId` de las visitas de esta ruta.
+          //
+          // Antes pedía `{ limit: 5000 }`, o sea todos. Medido con 64.088 pagos
+          // en la base: 5.918 KB en 52 peticiones al entrar, 26 de ellas
+          // `/payments?page=N&limit=200`.
+          const pagosResp = await pagosService.obtenerPagos({
+            rutaId: String(rutaCompletaAutoritativa?.id || ''),
+            limit: 5000,
+          })
           const pagosData = pagosResp?.pagos || pagosResp || []
 
-          console.table(
-            pagosData.map((p) => ({
-              id: p.id,
-              clienteId: p.clienteId,
-              prestamoId: p.prestamoId,
-              cuotaId: p.detalles?.[0]?.cuotaId,
-              montoTotal: p.montoTotal,
-              tipoRegistro: p.tipoRegistro,
-              fechaPago: p.fechaPago,
-              origenGestion: p.origenGestion,
-            })),
-          )
+          // Aquí había un `console.table` con TODOS los pagos. Con 64.088 en la
+          // base eso son 64.088 filas a la consola del navegador en cada
+          // refresco de la ruta, y el navegador se queda pegado: la consola
+          // guarda cada fila para poder mostrarla. Es depuración que se quedó.
 
           const recaudosHoyMap = buildRecaudosHoyMapByPrestamoId(pagosData, hoyKey, {
             includeCierrePendiente: false,

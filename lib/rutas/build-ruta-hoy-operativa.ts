@@ -342,8 +342,85 @@ export async function buildRutaHoyOperativa({
   // 4. Aplicar pagos por prestamoId
   let visitasOperativasConPagos = visitasOperativasVivas
 
+  /**
+   * Lo cobrado hoy y la fecha del último pago, del SERVIDOR si los manda.
+   *
+   * ── Por qué ─────────────────────────────────────────────────────────────
+   *
+   * Estos dos datos eran el único motivo por el que esta pantalla se
+   * descargaba el historial COMPLETO de pagos. Medido al entrar como cobrador
+   * con 64.088 pagos en la base: 5.918 KB en 52 peticiones, 26 de ellas
+   * `/payments?page=N&limit=200`, porque `obtenerPagos({ limit: 5000 })` pide
+   * al servidor de 200 en 200. En el teléfono del cobrador, con datos
+   * móviles, eso es el historial entero de la financiera cada vez que abre la
+   * app, y crece con cada pago que se registra.
+   *
+   * Y era trabajo repetido: `getDailyVisits` ya cargaba los pagos de hoy de la
+   * ruta para calcular su recaudo. Solo los agrupaba por cliente, y aquí hacen
+   * falta por crédito —un cliente puede tener dos créditos en la ruta y haber
+   * pagado solo uno—. Ahora el servidor los manda por crédito, en
+   * `prestamo.recaudadoHoy`, `prestamo.recaudadoTotal` y
+   * `prestamo.fechaUltimoPago`.
+   *
+   * ── Por qué se conserva el camino viejo ─────────────────────────────────
+   *
+   * Si ninguna obligación trae los campos, se calculan desde `pagos` como
+   * antes.
+   *
+   * Hoy NINGUNA pantalla pasa `pagos`: las siete llamadas se quedaron sin ese
+   * argumento al quitarles la descarga del historial. Y la copia para trabajar
+   * sin conexión tampoco lo alimenta —sus almacenes son `prestamos`, `cuotas`
+   * y `rutas`; no guarda respuestas de `daily-visits`—. O sea que esta rama no
+   * se alcanza desde la aplicación; la sostienen las pruebas.
+   *
+   * Se deja porque `pagos` es parte de la firma del helper y la rama es el
+   * comportamiento correcto para quien la use. Lo que no se deja es el
+   * comentario anterior, que decía que cubría la copia offline: no la cubre, y
+   * un comentario que promete lo que el código no hace cuesta más que el
+   * código muerto.
+   */
+  const recaudadoDelServidor = new Map<string, number>()
+  const ultimoPagoDelServidor = new Map<string, number>()
+  const totalDelServidor = new Map<string, number>()
+  for (const o of obligacionesJornada) {
+    const prestamo = (o.prestamo || {}) as PrestamoParcial & {
+      recaudadoHoy?: number
+      fechaUltimoPago?: number
+      recaudadoTotal?: number
+    }
+    const pid = String(prestamo.id || o.prestamoId || '')
+    if (!pid) continue
+    if (typeof prestamo.recaudadoHoy === 'number') {
+      recaudadoDelServidor.set(pid, prestamo.recaudadoHoy)
+    }
+    if (typeof prestamo.fechaUltimoPago === 'number') {
+      ultimoPagoDelServidor.set(pid, prestamo.fechaUltimoPago)
+    }
+    if (typeof prestamo.recaudadoTotal === 'number') {
+      totalDelServidor.set(pid, prestamo.recaudadoTotal)
+    }
+  }
+  const servidorTraeLosDatos =
+    recaudadoDelServidor.size > 0 || ultimoPagoDelServidor.size > 0
+
   const pagosData = pagosParam || []
-  if (pagosData.length > 0) {
+  if (servidorTraeLosDatos) {
+    visitasOperativasConPagos = visitasOperativasVivas.map((v) => {
+      const pid = String(v?.prestamoId || '')
+      return {
+        ...v,
+        recaudadoDelDia: recaudadoDelServidor.get(pid) ?? 0,
+        // El total histórico pagado del crédito, que el servidor manda en
+        // `prestamo.recaudadoTotal`. Estaba fijo en 0, y un 0 en dinero no se
+        // lee como "no se sabe" sino como "no ha pagado nada".
+        recaudadoTotalClient: totalDelServidor.get(pid) ?? 0,
+        recaudadoPeriodo: 0,
+        fechaUltimoPago: pid
+          ? (ultimoPagoDelServidor.get(pid) ?? Number(v?.fechaUltimoPago || 0))
+          : Number(v?.fechaUltimoPago || 0),
+      }
+    })
+  } else if (pagosData.length > 0) {
     const recaudosHoyMap = buildRecaudosHoyMapByPrestamoId(pagosData, hoyBogotaKey, {
       includeCierrePendiente: false,
     })

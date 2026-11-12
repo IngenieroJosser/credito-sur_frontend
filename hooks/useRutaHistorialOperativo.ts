@@ -51,7 +51,17 @@ export const useRutaHistorialOperativo = ({
 
     const loadPagos = async () => {
       try {
-        const pagosResp = await pagosService.obtenerPagos({ limit: 5000 })
+        // Acotado al cobrador de la ruta. Esta caché alimenta `fetchPagos` de
+        // `useRutaHistorial`, y sus dos usos descartan acto seguido todo pago
+        // de otro cobrador (`p.cobradorId === cobradorIdActual`), así que el
+        // resultado es el mismo sin bajarse los de toda la financiera.
+        //
+        // Cubre varios días a la vez (la ventana del historial), así que aquí
+        // no sirve `fechaOperativa`: eso es para `loadDay`, que sí pide uno.
+        const pagosResp = await pagosService.obtenerPagos({
+          ...(cobradorId ? { cobradorId } : {}),
+          limit: 5000,
+        })
         const pagosData = (pagosResp)?.pagos || pagosResp || []
         setPagosCache(Array.isArray(pagosData) ? pagosData : [])
         pagosCacheRef.current = Array.isArray(pagosData) ? pagosData : []
@@ -62,7 +72,7 @@ export const useRutaHistorialOperativo = ({
     }
 
     void loadPagos()
-  }, [rutaId])
+  }, [rutaId, cobradorId])
 
   const loadDay = useCallback(async (fechaClave: string) => {
     if (!rutaId) {
@@ -83,7 +93,13 @@ export const useRutaHistorialOperativo = ({
       const visitasResp = await rutasService.obtenerVisitasDelDia(rutaId, fechaClave)
       const saldoRuta = await obtenerSaldoDisponibleRuta(rutaId, fechaClave)
 
-      const pagosResp = await pagosService.obtenerPagos({ limit: 5000 })
+      // Solo los pagos del día que se está mirando. Antes se pedía el historial
+      // completo (`limit: 5000`, 25 peticiones con la base llena) para después
+      // descartar en el navegador todo lo que no fuera de esta fecha.
+      const pagosResp = await pagosService.obtenerPagos({
+        fechaOperativa: fechaClave,
+        limit: 5000,
+      })
       const pagosData = (pagosResp)?.pagos || pagosResp || []
 
       // Habia una rama de respaldo que leia `visitasResp.resumen.obligaciones`. Ahi no

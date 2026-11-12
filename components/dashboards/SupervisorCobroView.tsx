@@ -1,7 +1,6 @@
 'use client'
 import { formatFechaBogota } from '@/lib/format-date'
 
-import type { PagoParcial } from '@/types/domain'
 
 import type { DailyVisitsResponse } from '@/services/rutas-service'
 import type { CrearCreditoModalData } from '@/lib/creditos/crear-prestamo-payload'
@@ -122,7 +121,7 @@ import {
   pagosService,
 } from '@/services/pagos-service'
 
-import { computeMontoCuotaPendienteDespuesDeRecaudo, indexPagosByPrestamoId } from '@/lib/ruta-recaudos'
+import { computeMontoCuotaPendienteDespuesDeRecaudo } from '@/lib/ruta-recaudos'
 
 import { obtenerSaldoDisponibleRuta, obtenerSaldoCajaSupervisor, getRutaCierreHoy, registrarGasto, solicitarBase } from '@/services/contabilidad-service'
 
@@ -874,15 +873,14 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
         rutaId as string,
         hoyBogotaKey,
       )
-      const pagosResp = await pagosService.obtenerPagos({ limit: 5000 })
-      const pagos = (pagosResp)?.pagos || pagosResp || []
-
+      // Sin historial de pagos: `daily-visits` ya trae el recaudo de hoy y la
+      // fecha del último pago por crédito, que es lo único que el helper leía
+      // de esa lista.
       const result = await buildRutaHoyOperativa({
         ruta,
         dailyVisits: visitasResp,
         hoyBogotaKey,
         cobradorId,
-        pagos,
       })
 
       setMisCreditos(result.kpiItems)
@@ -986,23 +984,21 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
         let visitasRaw: VisitaRuta[] = []
         let dailyVisitsData: DailyVisitsResponse | null = null
-        let pagosRecientes: PagoParcial[] = []
         let helperResult: RutaHoyOperativaResult | null = null
 
         try {
           const visitasDia = await rutasService.obtenerVisitasDelDia(ruta.id, hoyKey)
           dailyVisitsData = visitasDia
 
-          // Usar helper compartido para construir fuente completa de KPI
-          const pagosRecientesResp = await pagosService.obtenerPagos({ limit: 5000 })
-          pagosRecientes = (pagosRecientesResp)?.pagos || pagosRecientesResp || []
-
+          // Usar helper compartido para construir fuente completa de KPI.
+          // Sin historial de pagos: `daily-visits` trae por crédito el recaudo
+          // de hoy, el total pagado y la fecha del último pago, que es todo lo
+          // que esta pantalla sacaba de esa lista.
           helperResult = await buildRutaHoyOperativa({
             ruta,
             dailyVisits: visitasDia,
             hoyBogotaKey,
             cobradorId: ruta.cobradorId,
-            pagos: pagosRecientes,
           })
 
           const getCuotasByPrestamoId = await crearProveedorCuotasEnLote(
@@ -1068,15 +1064,45 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
           })
         }
 
-        const { totalHistoricoByPrestamoId, ultimoPagoDateByPrestamoId } = indexPagosByPrestamoId(pagosRecientes)
+        // El total pagado y la fecha del último pago de cada crédito, tal como
+        // los manda `daily-visits`. Antes salían de indexar el historial
+        // completo de pagos en el navegador.
+        //
+        // Si la agenda diaria falló (el `catch` de arriba deja `visitasRaw` del
+        // detalle de la ruta), `dailyVisitsData` es null y estos campos se
+        // dejan sin poner, no en 0: un 0 en dinero se lee como "no ha pagado
+        // nada". Se usa `undefined` y no `null` porque es lo que el tipo
+        // declara (`recaudadoTotalClient?: number`), y los consumidores ya lo
+        // absorben con `Number(x || 0)`, así que el comportamiento no cambia.
+        const totalPorPrestamo = new Map<string, number>()
+        const ultimoPagoPorPrestamo = new Map<string, number>()
+        for (const o of dailyVisitsData?.obligaciones || []) {
+          const prestamo = (o?.prestamo || {}) as {
+            id?: string
+            recaudadoTotal?: number
+            fechaUltimoPago?: number
+          }
+          const pid = String(prestamo.id || o?.prestamoId || '')
+          if (!pid) continue
+          if (typeof prestamo.recaudadoTotal === 'number') {
+            totalPorPrestamo.set(pid, prestamo.recaudadoTotal)
+          }
+          if (typeof prestamo.fechaUltimoPago === 'number') {
+            ultimoPagoPorPrestamo.set(pid, prestamo.fechaUltimoPago)
+          }
+        }
 
         let finales = visitasRaw.map((v) => {
           const pid = v?.prestamoId
           if (!pid) return v
           return {
             ...v,
-            recaudadoTotalClient: Number(totalHistoricoByPrestamoId[pid] || 0),
-            fechaUltimoPago: Number(ultimoPagoDateByPrestamoId[pid] || 0),
+            recaudadoTotalClient: totalPorPrestamo.has(pid)
+              ? Number(totalPorPrestamo.get(pid))
+              : undefined,
+            fechaUltimoPago: ultimoPagoPorPrestamo.has(pid)
+              ? Number(ultimoPagoPorPrestamo.get(pid))
+              : undefined,
           }
         })
 

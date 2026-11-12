@@ -190,6 +190,20 @@ export const pagosService = {
     prestamoId?: string;
     clienteId?: string;
     rutaId?: string;
+    /** El cobrador de los pagos. */
+    cobradorId?: string;
+    /**
+     * Los pagos de UN día operativo, en hora de Bogotá (YYYY-MM-DD).
+     *
+     * Es la forma de acotar las pantallas que trabajan por jornada. Acotarlas
+     * por `rutaId` NO sirve: esa columna de `Pago` se añadió sin relleno, así
+     * que todo pago anterior la tiene en NULL, y `filterPagosDelDiaByRuta`
+     * tiene un camino de respaldo por crédito justo para ellos.
+     *
+     * El servidor cuenta el día igual que `daily-visits`: el pago normal por
+     * `fechaPago` y el de cierre pendiente por su `fechaOperativaRuta`.
+     */
+    fechaOperativa?: string;
     page?: number;
     limit?: number;
   }): Promise<PagosResponse> {
@@ -205,6 +219,9 @@ export const pagosService = {
       if (filtros?.prestamoId) params.set('prestamoId', filtros.prestamoId);
       if (filtros?.clienteId) params.set('clienteId', filtros.clienteId);
       if (filtros?.rutaId) params.set('rutaId', filtros.rutaId);
+      if (filtros?.cobradorId) params.set('cobradorId', filtros.cobradorId);
+      if (filtros?.fechaOperativa)
+        params.set('fechaOperativa', filtros.fechaOperativa);
       params.set('page', String(page));
       params.set('limit', String(backendPageSize));
       return apiRequest<PagosResponse>('GET', `/payments?${params.toString()}`);
