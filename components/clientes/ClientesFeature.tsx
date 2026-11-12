@@ -668,7 +668,22 @@ export default function ClientesFeature({
                                   : 'Cliente sin nombre'}
                                 {isPending && (
                                   <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-amber-100 text-[9px] font-black text-amber-700 uppercase tracking-tighter border border-amber-200">
-                                    {cliente.id?.includes('offline') ? 'OFFLINE' : 'PENDIENTE'}
+                                    {/*
+                                      * El id de un cliente creado sin señal es
+                                      * `temp-<marca de tiempo>` (lo acuñan
+                                      * `NuevoClienteModal` y `clientes-service`),
+                                      * nunca `offline-…`. Preguntando solo por
+                                      * «offline» la etiqueta salía siempre
+                                      * «PENDIENTE», que en este sistema
+                                      * significa «pendiente de aprobación» y no
+                                      * «todavía en este teléfono»: dos cosas
+                                      * distintas que el cobrador necesita
+                                      * distinguir.
+                                      */}
+                                    {cliente.id?.includes('temp') ||
+                                    cliente.id?.includes('offline')
+                                      ? 'SIN ENVIAR'
+                                      : 'PENDIENTE'}
                                   </span>
                                 )}
                               </div>

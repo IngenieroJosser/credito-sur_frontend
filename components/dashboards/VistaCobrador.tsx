@@ -1696,8 +1696,12 @@ const VistaCobrador = () => {
 
                 // `valorCuota` es lo que manda `GET /loans` y lo que guarda la
                 // copia local; `montoCuota` se conserva por si la fila vino de
-                // otro origen. El almacen `cuotas` esta vacio (ver syncManager),
-                // asi que hoy el valor sale de aqui.
+                // otro origen.
+                //
+                // El comentario que habia aqui decia que el almacen `cuotas`
+                // estaba vacio. Ya no lo esta: `descargarCuotasDePrestamos` lo
+                // llena con las cuotas de los 200 primeros creditos. Se corrige
+                // porque de ese supuesto colgaba la linea de abajo.
                 montoCuota: Number(proximaCuota?.monto || p?.valorCuota || 0),
 
                 saldoTotal: Number(p?.saldoPendiente || 0),
@@ -1727,6 +1731,31 @@ const VistaCobrador = () => {
                 clienteId: c.id,
 
                 prestamoId: p?.id,
+
+                /**
+                 * La cuota, que ya estaba calculada aqui arriba y no se
+                 * devolvia. Sin esto el cobrador NO PODIA COBRAR sin señal.
+                 *
+                 * `resolveCuotaIdLocal` busca `cuotaId`, `cuotaObjetivoId`,
+                 * `cuotaObjetivo.id`, `proximaCuota.id` y
+                 * `cuotaObjetivoPrestamoId`. Esta visita no traia ninguno de
+                 * los cinco, asi que devolvia cadena vacia y la guarda del
+                 * registro de pago cortaba con «Cuota no identificada… Recarga
+                 * la ruta e intentalo de nuevo» —justo lo que no se puede
+                 * hacer en la calle sin red—.
+                 *
+                 * Solo pasaba en arranque EN FRIO sin conexion: si la ruta se
+                 * habia cargado antes con señal, las visitas venian del
+                 * servidor y si traian la cuota. Por eso no saltaba en las
+                 * pruebas, que siempre entran con red.
+                 *
+                 * Se devuelve solo `cuotaId` y no la cuota entera: el `estado`
+                 * de `OfflineCuota` es `string` y el de `CuotaOperativa` una
+                 * union cerrada, asi que pasarla tal cual pedia un cast que
+                 * apagaria la comprobacion justo en la pantalla del dinero.
+                 * Con el id basta para desbloquear el cobro.
+                 */
+                cuotaId: proximaCuota?.id,
               }
             })
 
@@ -2951,6 +2980,26 @@ const VistaCobrador = () => {
             mensaje:
               resultado.message ||
               'El pago se reflejará en el recaudo y en el historial cuando sea aprobado.',
+            tipo: 'info',
+          })
+        } else if (resultado.esOffline) {
+          /**
+           * Sin esto el cobrador creia que el pago ya estaba en el servidor.
+           *
+           * `registrarPago` devuelve `esOffline: true` cuando el pago se quedo
+           * en la cola del telefono por falta de red, y la pantalla de
+           * registrar pago si lo pinta. Esta —la de la ruta, que es por donde
+           * se cobra en la calle— no lo leia: tras cobrar sin señal se veia el
+           * mismo acuse que con un pago confirmado, y la unica pista era el
+           * contador de la capsula flotante de arriba.
+           *
+           * Es justo el caso en el que hay que ser explicito: el dinero ya lo
+           * recibio, y necesita saber que todavia tiene que llegar al sistema.
+           */
+          setModalAlerta({
+            titulo: 'Pago guardado en el teléfono',
+            mensaje:
+              'No hay conexión, así que el pago quedó guardado aquí y se enviará solo cuando vuelva la señal. No lo registres otra vez.',
             tipo: 'info',
           })
         }

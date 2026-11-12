@@ -327,14 +327,34 @@ export const pagosService = {
     } catch (error) {
        if (esErrorDeRed(error)) {
          logger.log('[Offline Mode] Guardando pago en cola...');
+
+         /**
+          * El comprobante va por el parametro `file`, no dentro del cuerpo.
+          *
+          * Antes el `payload` entero —con el `File` dentro— se pasaba como
+          * `payload` y nada como `file`. Al reenviarlo, `syncManager` manda
+          * JSON y un `File` no sobrevive a `JSON.stringify`: llegaba como `{}`.
+          * Asi que un pago por transferencia hecho sin señal entraba al
+          * servidor SIN su soporte, que es justo el que lo justifica.
+          *
+          * La cola ya sabia hacerlo (`OfflineQueueItem.file` y la rama de
+          * FormData de `syncManager`); este camino era el unico que no la
+          * usaba. El resto del payload viaja igual, sin el archivo, para no
+          * duplicarlo.
+          */
          const tempId = `temp-pay-${Date.now()}`;
-         
+
+         const { comprobante, ...pagoSinArchivo } = payload as typeof payload & {
+           comprobante?: File | null;
+         };
+
          await syncService.enqueueOperation(
            'pago',
            '/payments',
            'POST',
-           payload,
-           `Pago Offline $${payload.montoTotal}`
+           comprobante ? pagoSinArchivo : payload,
+           `Pago Offline $${payload.montoTotal}`,
+           comprobante || undefined,
          );
 
          // Se devuelve el pago optimista, pero SIN desglose.

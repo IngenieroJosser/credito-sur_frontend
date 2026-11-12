@@ -619,8 +619,27 @@ export default function OfflineIndicator() {
       >
         <div className="space-y-4">
           <p className="text-sm text-slate-600">
-            Esta acción eliminará todos los datos locales y forzará una resincronización completa. Úsalo solo en casos de emergencia.
+            Esta acción borra del teléfono los clientes, créditos, cuotas, rutas,
+            productos, cajas y usuarios guardados, y vuelve a descargarlos del
+            servidor. Lo que esté esperando a subir NO se pierde.
           </p>
+
+          {/*
+            * Sin conexión esto deja al cobrador tirado en la calle.
+            *
+            * `clearLocalData()` vacía la copia local y después recarga la
+            * página; si no hay red, la descarga que debería reponerla no
+            * ocurre y se queda sin clientes, sin créditos y sin cuotas, que es
+            * justo lo que necesita para trabajar. El texto decía «forzará una
+            * resincronización completa», y eso solo es verdad con señal.
+            */}
+          {!browserOnline || !backendReachable ? (
+            <p className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-sm font-medium text-amber-800">
+              Ahora mismo no hay conexión, así que los datos no se podrían volver
+              a descargar y te quedarías sin la ruta. Hazlo cuando tengas señal.
+            </p>
+          ) : null}
+
           <div className="flex justify-end gap-2">
             <button
               onClick={() => setIsClearModalOpen(false)}
@@ -630,8 +649,8 @@ export default function OfflineIndicator() {
             </button>
             <button
               onClick={handleClear}
-              disabled={isClearing}
-              className="px-4 py-2 rounded-lg bg-rose-600 text-white hover:bg-rose-700 transition-colors disabled:opacity-50"
+              disabled={isClearing || !browserOnline || !backendReachable}
+              className="px-4 py-2 rounded-lg bg-rose-600 text-white hover:bg-rose-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isClearing ? 'Limpiando...' : 'Limpiar'}
             </button>
