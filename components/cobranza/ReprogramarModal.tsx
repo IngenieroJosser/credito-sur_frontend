@@ -51,9 +51,14 @@ export default function ReprogramarModal({ visita, onClose, onConfirm }: Reprogr
   const [isSubmitting, setIsSubmitting] = useState(false)
   // Escape para salir y el foco en el primer campo al abrir. El hook lleva
   // una pila, asi que con modales anidados Escape cierra solo el de encima.
-  useModalDialog({
+  const { alTocarElFondo } = useModalDialog({
     onClose: onClose,
   })
+
+  // Un toque fuera borraba la fecha elegida y el motivo escrito. Mismo helper
+  // que `PagoModal`: el fondo solo cierra si no hay nada que perder.
+  const hayDatosSinGuardar =
+    (reprogramFecha || '').trim() !== '' || reprogramMotivo.trim() !== ''
 
   // Validar si la fecha seleccionada supera el límite
   const diasSeleccionados = reprogramFecha
@@ -100,7 +105,7 @@ export default function ReprogramarModal({ visita, onClose, onConfirm }: Reprogr
       <div
         className="fixed inset-0 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
         style={{ zIndex: MODAL_Z_INDEX }}
-        onClick={onClose}
+        onClick={(evento) => alTocarElFondo(evento, hayDatosSinGuardar)}
       >
         <div
           className="flex w-full flex-col overflow-hidden bg-white shadow-2xl animate-in zoom-in-95 duration-200 h-[100dvh] sm:h-auto sm:max-h-[90vh] rounded-none sm:rounded-3xl sm:max-w-md"

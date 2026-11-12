@@ -192,3 +192,125 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .animate-in { animation: none; }
 }
+
+/* ==========================================================================
+   Microinteracciones: que se note que estás tocando algo.
+
+   Por qué aquí y no en cada botón: medido, el proyecto tiene ~686 botones y
+   solo 73 llevaban `active:scale`. O sea que nueve de cada diez no daban
+   ninguna señal al pulsarlos. En escritorio se disimula con el `hover:`, pero
+   en el teléfono del cobrador NO HAY hover: se toca y, hasta que la pantalla
+   cambia, no pasa nada visible. Esa es justo la pausa en la que la gente
+   vuelve a pulsar.
+
+   Tocarlos uno a uno habría sido una migración de 686 archivos que ademas se
+   desincroniza al primer botón nuevo. Esto aplica a todos a la vez, y lo que
+   ya tenía su propia animación sigue mandando: una clase de Tailwind
+   (`active:scale-95`) gana por especificidad a un selector de elemento.
+
+   Criterios, que son los de siempre para que esto no moleste:
+
+   - Solo se animan `transform`, `opacity`, color, borde y sombra. Nunca `all`:
+     eso arrastra propiedades de maquetación y obliga al navegador a recalcular
+     posiciones en cada fotograma.
+   - Duraciones cortas (120-200 ms). Por encima de ~250 ms una respuesta al
+     toque deja de sentirse como respuesta y empieza a sentirse como lentitud.
+   - El `hover:` va dentro de `@media (hover: hover)`. Sin eso, en una pantalla
+     táctil el estado de hover se queda PEGADO después de tocar, y el botón
+     parece resaltado sin motivo.
+   - Nada de esto se aplica a un elemento deshabilitado: si no responde, no
+     debe fingir que responde.
+   - Y todo se apaga con `prefers-reduced-motion`, que es preferencia del
+     sistema de quien usa la app, no un detalle opcional.
+   ========================================================================== */
+
+:root {
+  /* Un solo juego de tiempos y curvas, para que todo se mueva igual. */
+  --mov-rapido: 120ms;
+  --mov-normal: 180ms;
+  --mov-suave: cubic-bezier(0.2, 0, 0, 1);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  button,
+  a[href],
+  [role='button'],
+  summary,
+  input[type='checkbox'],
+  input[type='radio'] {
+    transition:
+      transform var(--mov-rapido) var(--mov-suave),
+      background-color var(--mov-normal) var(--mov-suave),
+      border-color var(--mov-normal) var(--mov-suave),
+      color var(--mov-normal) var(--mov-suave),
+      box-shadow var(--mov-normal) var(--mov-suave),
+      opacity var(--mov-normal) var(--mov-suave);
+  }
+
+  /* El acuse del toque: se hunde un poco mientras el dedo está encima. */
+  button:not(:disabled):not([aria-disabled='true']):active,
+  a[href]:active,
+  [role='button']:not([aria-disabled='true']):active,
+  summary:active {
+    transform: scale(0.97);
+  }
+
+  /* En escritorio, un apunte de que el cursor está encima. */
+  @media (hover: hover) and (pointer: fine) {
+    button:not(:disabled):not([aria-disabled='true']):hover,
+    [role='button']:not([aria-disabled='true']):hover {
+      transform: translateY(-1px);
+    }
+
+    button:not(:disabled):not([aria-disabled='true']):active,
+    [role='button']:not([aria-disabled='true']):active {
+      transform: scale(0.97);
+    }
+  }
+
+  /* Los campos acompañan el foco en vez de saltar. */
+  input,
+  select,
+  textarea {
+    transition:
+      border-color var(--mov-normal) var(--mov-suave),
+      box-shadow var(--mov-normal) var(--mov-suave),
+      background-color var(--mov-normal) var(--mov-suave);
+  }
+}
+
+/*
+  El foco se ve SIEMPRE, se mueva o no la interfaz.
+
+  Medido: 128 `outline-none` en el proyecto, 8 de ellos sin nada que los
+  reemplace —foco invisible— y solo 14 `focus-visible` contra 117 `focus:`.
+  Esto es la red de abajo: si un elemento no define su propio anillo, recibe
+  este. `:focus-visible` y no `:focus` para que no salte al hacer clic con el
+  ratón, solo al navegar con el teclado.
+*/
+:focus-visible {
+  outline: 2px solid var(--primary, #08557f);
+  outline-offset: 2px;
+  border-radius: 0.25rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button,
+  a[href],
+  [role='button'],
+  summary,
+  input,
+  select,
+  textarea {
+    transition: none;
+  }
+
+  button:active,
+  a[href]:active,
+  [role='button']:active,
+  summary:active,
+  button:hover,
+  [role='button']:hover {
+    transform: none;
+  }
+}

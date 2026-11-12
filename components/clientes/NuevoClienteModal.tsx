@@ -43,6 +43,7 @@ interface NuevoClienteModalProps {
 import { useAuth } from '@/hooks/useAuth'
 import Tooltip from '@/components/ui/Tooltip'
 import { useModalDialog } from '@/hooks/use-modal-dialog'
+import { useBorradorDeFormulario } from '@/hooks/useBorradorDeFormulario'
 import { EstadoAprobacion } from '@/types/enums'
 import { NivelRiesgo } from '@/types/enums'
 import { BARRA_DE_ARRASTRE, FONDO_HOJA_MODAL } from '@/lib/ui/hoja-modal'
@@ -65,6 +66,27 @@ type ArchivosOriginales = {
   documentoFrente: ArchivoDeCliente | null
   documentoReverso: ArchivoDeCliente | null
   comprobanteDomicilio: ArchivoDeCliente | null
+}
+
+/**
+ * El formulario en blanco.
+ *
+ * `useBorradorDeFormulario` lo compara con lo guardado para no restaurar —ni
+ * avisar de— un borrador que en realidad esta vacio.
+ */
+const FORMULARIO_VACIO = {
+  dni: '',
+  nombres: '',
+  apellidos: '',
+  telefono: '',
+  correo: '',
+  direccion: '',
+  referencia: '',
+  referencia1Nombre: '',
+  referencia1Telefono: '',
+  referencia2Nombre: '',
+  referencia2Telefono: '',
+  enListaNegra: false,
 }
 
 export default function NuevoClienteModal({
@@ -91,6 +113,36 @@ export default function NuevoClienteModal({
     referencia2Telefono: cliente?.referencia2Telefono || '',
     enListaNegra: cliente?.enListaNegra || false,
   })
+
+  /**
+   * Lo escrito sobrevive a una recarga.
+   *
+   * Este es EXACTAMENTE el caso para el que se escribio
+   * `useBorradorDeFormulario`: su propio comentario habla del movil que gira y
+   * del navegador que descarta la pestaña, y de volver a escribir la cedula y
+   * la direccion de alguien que esta esperando de pie. Lo tenia 1 de 15
+   * formularios largos, y no este, que es el del cobrador en la calle.
+   *
+   * Solo al CREAR. Restaurar un borrador encima de un cliente que se esta
+   * editando pondria los datos de otra persona sobre los suyos, que es peor
+   * que perder lo escrito.
+   */
+  const borrador = useBorradorDeFormulario(
+    'cliente-nuevo-modal',
+    formulario,
+    FORMULARIO_VACIO,
+  )
+  const [borradorAvisado, setBorradorAvisado] = useState(false)
+
+  useEffect(() => {
+    if (esEdicion || !borrador.recuperado || borradorAvisado) return
+    setFormulario(borrador.recuperado)
+    setBorradorAvisado(true)
+    showNotification(
+      'success',
+      'Se recupero lo que habias escrito. Las fotos si hay que volver a subirlas.',
+    )
+  }, [esEdicion, borrador.recuperado, borradorAvisado, showNotification])
 
   const [archivosCargados, setArchivosCargados] = useState<{
     fotoPerfil: UploadResponse | null
@@ -301,6 +353,7 @@ export default function NuevoClienteModal({
           ? { ...cliente, ...formulario, ...(resultado ?? {}) }
           : { ...formulario, ...resultado! },
       )
+      borrador.limpiar()
       onClose()
     } catch (error) {
       console.error('[NuevoClienteModal] Error:', error)
@@ -363,6 +416,7 @@ export default function NuevoClienteModal({
             // completa en el tipo del prop, arriba.
           })
 
+          borrador.limpiar()
           onClose()
           return
         } catch (queueError) {

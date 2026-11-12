@@ -1,6 +1,6 @@
 'use client'
 
-import { mensajeDeError } from '@/lib/mensaje-de-error'
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 import type { CuotaOperativa } from '@/lib/types/cobranza'
 import type {
   PagoDeCliente,
@@ -9,7 +9,7 @@ import { SkeletonDetalle } from '@/components/ui/Skeleton'
 
 import { logger } from '@/lib/logger'
 
-import React, { useEffect, useState, type ReactNode } from 'react'
+import React, { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { createPortal } from 'react-dom'
 import { useParams, useRouter } from 'next/navigation'
@@ -102,28 +102,43 @@ export default function ClienteDetalleSupervisorPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    const fetch = async () => {
-      try {
-        const data = await clientesService.obtenerPorId(id)
-        if (data) {
-           // Asegurar campos para UI
-           setClienteData({ 
-                ...data, 
-                prestamos: (data).prestamos || [], 
-                pagos: (data).pagos || []
-           })
-        } else {
-           setError('Cliente no encontrado')
-        }
-      } catch {
-        setError('Error al cargar cliente')
-      } finally {
-        setIsLoading(false)
+  /**
+   * Recargar los datos del cliente, sin tocar lo que haya en el formulario.
+   *
+   * Se saca a su propia función porque el refresco en tiempo real hacía
+   * `window.location.reload()`: la página ENTERA. Esta pantalla tiene 19
+   * campos y es donde el supervisor registra pagos, así que cualquier cobrador
+   * de la empresa que registrara un pago disparaba `pagos_actualizados` y le
+   * borraba el monto a medio escribir. Era el único de los nueve
+   * `window.location.reload()` del proyecto que convivía con un formulario.
+   *
+   * Refrescar solo `clienteData` es seguro: el formulario vive en estados
+   * aparte (`metodoPago`, `comprobanteTransferencia`, `creditType`…) y no se
+   * inicializa desde aquí, así que no se pisa nada de lo escrito.
+   */
+  const cargarCliente = useCallback(async () => {
+    try {
+      const data = await clientesService.obtenerPorId(id)
+      if (data) {
+         // Asegurar campos para UI
+         setClienteData({
+              ...data,
+              prestamos: (data).prestamos || [],
+              pagos: (data).pagos || []
+         })
+      } else {
+         setError('Cliente no encontrado')
       }
+    } catch {
+      setError('Error al cargar cliente')
+    } finally {
+      setIsLoading(false)
     }
-    if (id) fetch()
   }, [id])
+
+  useEffect(() => {
+    if (id) void cargarCliente()
+  }, [id, cargarCliente])
 
   // Estos dos hooks van antes de los returns tempranos.
   //
@@ -168,12 +183,8 @@ export default function ClienteDetalleSupervisorPage() {
     }
   }, [comprobanteTransferencia, metodoPago])
 
-  // Tiempo real: refrescar automáticamente cuando haya cambios
-  useRealtimeData(['pagos_actualizados', 'clientes_actualizados'], () => {
-    if (typeof window !== 'undefined') {
-      window.location.reload()
-    }
-  })
+  // Tiempo real: refrescar los datos, no la página.
+  useRealtimeData(['pagos_actualizados', 'clientes_actualizados'], cargarCliente)
 
   if (isLoading) {
     return (

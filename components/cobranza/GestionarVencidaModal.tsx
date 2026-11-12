@@ -107,9 +107,22 @@ export default function GestionarVencidaModal({ cuenta, onClose, onConfirm }: Ge
   const [isLoading, setIsLoading] = useState(false)
   // Escape para salir y foco al abrir. El hook lleva una pila, asi que con
   // modales anidados Escape cierra solo el de encima.
-  useModalDialog({
+  const { alTocarElFondo } = useModalDialog({
     onClose: onClose,
   })
+
+  /**
+   * Lo que se perderia si el fondo cerrara el dialogo.
+   *
+   * Aqui se decide la prorroga, el castigo o el seguimiento de una cuenta
+   * vencida, con su monto de interes y su justificacion escrita. Un toque
+   * fuera de la tarjeta lo borraba todo. `PagoModal` ya lo habia resuelto y
+   * dejo el motivo escrito; esto solo reusa el mismo helper.
+   */
+  const hayDatosSinGuardar =
+    montoInteres.trim() !== '' ||
+    diasGracia.trim() !== '' ||
+    comentarios.trim() !== ''
 
 
   const cfg = DECISION_CONFIG[decision]
@@ -146,12 +159,12 @@ export default function GestionarVencidaModal({ cuenta, onClose, onConfirm }: Ge
       <div
         className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
         style={{ zIndex: 2147483600 }}
-        onClick={onClose}
+        onClick={(evento) => alTocarElFondo(evento, hayDatosSinGuardar)}
       />
       <div
         className="fixed inset-0 flex items-end sm:items-center justify-center p-0 sm:p-4"
         style={{ zIndex: 2147483601 }}
-        onClick={onClose}
+        onClick={(evento) => alTocarElFondo(evento, hayDatosSinGuardar)}
       >
         <div
           className="bg-white shadow-2xl w-full overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col border border-slate-100 h-[100dvh] sm:h-auto sm:max-h-[90vh] rounded-none sm:rounded-3xl sm:max-w-lg"
