@@ -93,6 +93,18 @@ export default function CreacionCreditoArticulo({
   const [listaClientes, setListaClientes] = useState<Cliente[]>([]);
   const [listaArticulos, setListaArticulos] = useState<Articulo[]>([]);
   const [loadingDatos, setLoadingDatos] = useState(true);
+
+  /**
+   * El guardado tiene su PROPIO estado, separado de `loadingDatos`.
+   *
+   * `confirmarCredito` ponia `setLoadingDatos(true)`, y ese es el estado que
+   * decide si la pantalla muestra el esqueleto de carga inicial. Resultado: al
+   * pulsar «Confirmar y Crear», el formulario entero desaparecia y lo
+   * sustituia un esqueleto, como si estuviera cargando de cero.
+   *
+   * Y el boton seguia activo, asi que dos toques creaban dos creditos.
+   */
+  const [guardando, setGuardando] = useState(false);
   const [esContado, setEsContado] = useState(false);
   const [notasInput, setNotasInput] = useState('');
 
@@ -312,7 +324,7 @@ export default function CreacionCreditoArticulo({
     }
 
     try {
-      setLoadingDatos(true);
+      setGuardando(true);
       
       // Intentar obtener el perfil del usuario actual
       let creadorId = resolveCurrentUserId();
@@ -381,7 +393,7 @@ export default function CreacionCreditoArticulo({
       console.error('Error al crear crédito de artículo:', error);
       showNotification('error', mensajeDeError(error, 'No se pudo crear el crédito. Verifique los datos.'));
     } finally {
-      setLoadingDatos(false);
+      setGuardando(false);
     }
   };
 
@@ -910,11 +922,12 @@ export default function CreacionCreditoArticulo({
               
               <button
                 onClick={step < 4 ? siguientePaso : confirmarCredito}
+                disabled={guardando}
                 className={`px-8 py-2.5 rounded-xl font-black transition-all shadow-sm flex items-center gap-2 border bg-white ${
                   step < 4 ? 'border-slate-200 text-slate-800 hover:bg-slate-50' : 'border-blue-200 text-[#08557f] hover:bg-blue-50 shadow-blue-100'
                 }`}
               >
-                {step < 4 ? 'Siguiente' : 'Confirmar y Crear'}
+                {step < 4 ? 'Siguiente' : guardando ? 'Creando…' : 'Confirmar y Crear'}
                 {step < 4 ? <ArrowLeft className="w-4 h-4 rotate-180" /> : <CheckCircle2 className="w-4 h-4" />}
               </button>
             </div>

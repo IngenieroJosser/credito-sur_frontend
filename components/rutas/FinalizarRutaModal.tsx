@@ -1,9 +1,10 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { AlertTriangle, ArrowRight, CheckCircle2, Info, ShieldAlert, XCircle } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { MODAL_Z_INDEX, Portal } from '@/components/dashboards/shared/CobradorElements'
-import { useModalDialog } from '@/hooks/use-modal-dialog'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 import { BARRA_DE_ARRASTRE, FONDO_HOJA_MODAL } from '@/lib/ui/hoja-modal'
 
 type AusenteConNota = {
@@ -44,6 +45,23 @@ export function FinalizarRutaModal({
   // Escape para salir. El hook lleva una pila, asi que con modales anidados
   // Escape cierra solo el de encima. Va antes del return temprano porque los
   // hooks no pueden ir despues.
+  /**
+   * Que no se finalice la ruta dos veces.
+   *
+   * `confirmarFinalizarRuta` emite por socket y espera la respuesta del
+   * servidor con el modal abierto y el boton activo. En el movil del cobrador,
+   * con mala señal, esa espera se nota y se vuelve a pulsar.
+   *
+   * La guarda vive aqui y no en quien llama porque el modal es quien sabe que
+   * ya se confirmo. Se reinicia al abrirlo, para que un fallo no deje el boton
+   * muerto la proxima vez.
+   */
+  const [enviando, setEnviando] = useState(false)
+
+  useEffect(() => {
+    if (open) setEnviando(false)
+  }, [open])
+
   useModalDialog({
     abierto: open,
     onClose,
@@ -202,16 +220,18 @@ export function FinalizarRutaModal({
               Cancelar
             </button>
             <button
+              disabled={enviando}
               onClick={() => {
                 if (requiereDobleConfirmacion && !doubleConfirm) {
                   onRequestDoubleConfirm()
                   return
                 }
+                setEnviando(true)
                 onConfirm()
               }}
-              className={`flex-1 rounded-xl py-3 text-sm font-bold text-white shadow-xl transition-all active:scale-95 ${doubleConfirm ? 'bg-red-600 shadow-red-600/20 hover:bg-red-700' : 'bg-slate-900 shadow-slate-900/20 hover:bg-slate-800'}`}
+              className={`flex-1 rounded-xl py-3 text-sm font-bold text-white shadow-xl transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100 ${doubleConfirm ? 'bg-red-600 shadow-red-600/20 hover:bg-red-700' : 'bg-slate-900 shadow-slate-900/20 hover:bg-slate-800'}`}
             >
-              {doubleConfirm ? 'Sí, finalizar' : 'Confirmar'}
+              {enviando ? 'Finalizando…' : doubleConfirm ? 'Sí, finalizar' : 'Confirmar'}
             </button>
           </div>
         </div>

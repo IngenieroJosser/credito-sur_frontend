@@ -11,7 +11,8 @@ import {
   ChevronRight, ChevronDown, Search, Filter
 } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
-import { formatCurrency, cn, formatMilesCOP } from '@/lib/utils';
+import { formatCurrency, cn, formatMilesCOP, parseCOPInputToNumber } from '@/lib/utils';
+import { montoEnPalabras } from '@/lib/dinero';
 import { calcularInteresSimple } from '@/lib/interes';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal';
@@ -656,6 +657,26 @@ const CreacionPrestamoElegante = ({ initialClienteId, isModal }: { initialClient
                           />
                           <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium">COP</span>
                         </div>
+                        {/*
+                          * El importe escrito, debajo del campo.
+                          *
+                          * Entre los puntos de miles, 1.000.000 y 10.000.000 se
+                          * parecen demasiado, y aquí no había NINGÚN tope ni
+                          * aviso: un cero de más pasaba al paso 3, al 4, y el
+                          * crédito se creaba por diez veces lo previsto.
+                          *
+                          * Se escribe en palabras en vez de avisar por encima
+                          * de una cifra porque para elegir esa cifra haría
+                          * falta saber qué es un monto normal, y los datos de
+                          * prueba están sembrados con valores uniformes. Esto
+                          * no necesita umbral: quien quiso poner un millón lee
+                          * «diez millones de pesos» y lo ve.
+                          */}
+                        {montoEnPalabras(parseCOPInputToNumber(montoTotalInput)) ? (
+                          <p className="text-xs font-medium text-slate-500 first-letter:uppercase">
+                            {montoEnPalabras(parseCOPInputToNumber(montoTotalInput))}
+                          </p>
+                        ) : null}
                       </div>
 
                       <div className="space-y-3">

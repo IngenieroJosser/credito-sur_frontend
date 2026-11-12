@@ -13,6 +13,7 @@ import {
   Loader2
 } from 'lucide-react'
 import { formatCOPInputValue, formatCurrency, formatLoanTerm, parseCOPInputToNumber } from '@/lib/utils'
+import { montoEnPalabras } from '@/lib/dinero'
 import { calcularPrestamoPreview, repartoConInteresConocido } from '@/lib/creditos/preview-credito'
 import { Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
 import { clientesService, Cliente } from '@/services/clientes-service'
@@ -448,6 +449,16 @@ export default function CrearCreditoModal({
                           placeholder="0"
                         />
                       </div>
+                      {/*
+                        * El importe en palabras: entre los puntos de miles,
+                        * 1.000.000 y 10.000.000 se parecen, y aquí no había
+                        * ningún aviso al crear deuda.
+                        */}
+                      {montoEnPalabras(parseCOPInputToNumber(montoPrestamoInput)) ? (
+                        <p className="mt-1.5 text-xs font-medium text-slate-500 first-letter:uppercase">
+                          {montoEnPalabras(parseCOPInputToNumber(montoPrestamoInput))}
+                        </p>
+                      ) : null}
                     </div>
                     <div>
                       <FieldLabel required>Tipo de Interés</FieldLabel>
