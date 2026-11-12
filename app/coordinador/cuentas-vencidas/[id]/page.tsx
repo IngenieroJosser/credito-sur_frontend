@@ -124,13 +124,24 @@ export default function DetalleCuentaVencidaPage({
                     </p>
                 </div>
 
-                <div className="mt-8 flex gap-4">
-                    <button className="flex-1 py-3 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-all text-sm">
-                        Acuerdo de Pago Final
-                    </button>
-                    <button className="flex-1 py-3 bg-rose-600 text-white font-bold rounded-xl hover:bg-rose-700 transition-all text-sm">
-                        Castigar Cartera
-                    </button>
+                {/*
+                  * Mismos dos botones muertos que tenía la copia de admin:
+                  * «Acuerdo de Pago Final» y «Castigar Cartera» sin `onClick`,
+                  * sobre un expediente con datos reales. Se corrigen igual en
+                  * las dos pantallas, que son copias la una de la otra.
+                  */}
+                <div className="mt-8">
+                    <Link
+                        href="/cuentas-vencidas"
+                        className="inline-flex items-center justify-center w-full py-3 px-4 bg-[#08557f] text-white font-bold rounded-xl hover:bg-[#064460] transition-all text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#08557f] focus-visible:ring-offset-2"
+                    >
+                        Registrar la decisión de esta cuenta
+                    </Link>
+                    <p className="mt-3 text-xs text-slate-500 leading-relaxed">
+                        La prórroga, el seguimiento, el cobro jurídico y la baja por
+                        pérdida se registran desde el listado de cuentas vencidas. Lo
+                        que se elija queda como solicitud y se aplica cuando se aprueba.
+                    </p>
                 </div>
             </section>
         </div>

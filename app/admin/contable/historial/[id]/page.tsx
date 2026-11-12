@@ -10,7 +10,6 @@ import {
   ArrowLeft, 
   Receipt, 
   Printer, 
-  Download, 
   CheckCircle2, 
   AlertCircle, 
   User, 
@@ -18,7 +17,7 @@ import {
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import MoneyAmount from '@/components/contable/MoneyAmount'
-import { getHistorialCierres } from '@/services/contabilidad-service'
+import { getHistorialCierres } from '@/services/contabilidad-service'
 import Tooltip from '@/components/ui/Tooltip'
 
 interface CierreDetalle {
@@ -116,14 +115,20 @@ export default function DetalleCierrePage({ params }: { params: Promise<{ id: st
           </div>
           
           <div className="flex gap-2">
-            <Tooltip texto="Imprimir">
-              <button aria-label="Imprimir" className="p-2 text-slate-500 hover:text-slate-900 hover:bg-white rounded-xl border border-transparent hover:border-slate-200 transition-all" title="Imprimir">
+            {/*
+              * Los dos botones de aquí, «Imprimir» y «Descargar PDF», no
+              * tenían `onClick`: se veían activos y no hacían nada. Queda uno
+              * solo y de verdad; el diálogo de impresión del navegador ya
+              * ofrece «Guardar como PDF». El `title` nativo también sobraba:
+              * ya va envuelto en el `Tooltip` propio, que sí se ve en el móvil.
+              */}
+            <Tooltip texto="Imprimir o guardar como PDF">
+              <button
+                aria-label="Imprimir o guardar como PDF"
+                onClick={() => window.print()}
+                className="p-2 text-slate-500 hover:text-slate-900 hover:bg-white rounded-xl border border-transparent hover:border-slate-200 transition-all"
+              >
                   <Printer className="h-5 w-5" />
-              </button>
-            </Tooltip>
-            <Tooltip texto="Descargar PDF">
-              <button aria-label="Descargar PDF" className="p-2 text-slate-500 hover:text-slate-900 hover:bg-white rounded-xl border border-transparent hover:border-slate-200 transition-all" title="Descargar PDF">
-                  <Download className="h-5 w-5" />
               </button>
             </Tooltip>
           </div>

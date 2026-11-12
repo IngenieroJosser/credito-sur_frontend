@@ -18,7 +18,7 @@ import { usuariosService } from '@/services/usuarios-service'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { formatRoleLabel } from '@/lib/display-labels'
 import { categoriasPorTipo } from '@/lib/contable/categorias-movimiento'
-import Tooltip from '@/components/ui/Tooltip'
+import Tooltip from '@/components/ui/Tooltip'
 import { listaDeRespuesta } from '@/lib/lista-de-respuesta'
 
 interface CajaDetalle {
@@ -678,9 +678,17 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
                   </div>
                 </div>
 
-                <p className="text-xs text-slate-500 font-medium">
-                  Este modal es solo frontend (mock). No persiste cambios en base de datos.
-                </p>
+                {/*
+                  * Aquí había un aviso que decía «Este modal es solo frontend
+                  * (mock). No persiste cambios en base de datos», y era FALSO:
+                  * `handleRegistrarMovimiento` llama a `createTransaccion`,
+                  * que hace `POST /accounting/transacciones` con clave de
+                  * idempotencia y cola offline.
+                  *
+                  * O sea que el cartel mentía en la dirección peligrosa:
+                  * invitaba al contador a pulsar «Guardar» para probar, y cada
+                  * prueba creaba un movimiento real en la caja. Se quita.
+                  */}
               </div>
 
               <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-3">

@@ -628,10 +628,18 @@ const RegistrarPagoClientePage = () => {
                     <label className="text-sm font-bold text-slate-700 mb-3 block">
                       Método de Pago
                     </label>
-                    <button
-                      type="button"
-                      className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-slate-900 bg-slate-50 text-slate-900"
-                    >
+                    {/*
+                      * Esto era un `<button>` sin `onClick`, con un punto de
+                      * radio dibujado al lado. Efectivo es el ÚNICO método de
+                      * esta pantalla, así que no había nada que elegir: el
+                      * botón no se podía pulsar y el radio sugería que existían
+                      * otras opciones escondidas.
+                      *
+                      * Ahora es lo que siempre fue —un panel informativo— y lo
+                      * dice. Sin semántica de botón, un lector de pantalla deja
+                      * de anunciar un control que no hace nada.
+                      */}
+                    <div className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-slate-900 bg-slate-50 text-slate-900">
                       <div className="shrink-0 p-2 bg-slate-900 rounded-full text-white">
                         <Wallet className="h-5 w-5" />
                       </div>
@@ -641,12 +649,10 @@ const RegistrarPagoClientePage = () => {
                           Pago directo al cobrador
                         </p>
                       </div>
-                      <div className="ml-auto">
-                        <div className="h-5 w-5 rounded-full border-2 border-slate-900 bg-slate-900 flex items-center justify-center">
-                          <div className="h-2 w-2 bg-white rounded-full" />
-                        </div>
-                      </div>
-                    </button>
+                      <span className="ml-auto text-xs font-bold text-slate-500">
+                        Único método
+                      </span>
+                    </div>
                   </div>
 
                   {/* Input Monto */}

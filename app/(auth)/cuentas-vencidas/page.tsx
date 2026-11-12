@@ -59,7 +59,7 @@ import { offlineStore } from '@/lib/offline/offlineDb'
 import { resolveRiesgoObligacion } from '@/lib/rutas/riesgo-obligacion'
 import Paginador from '@/components/ui/Paginador'
 import { SkeletonTabla } from '@/components/ui/Skeleton'
-import { mensajeDeError } from '@/lib/mensaje-de-error'
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 import { DECISIONES_CUENTA_VENCIDA } from '@/lib/display-labels'
 import Tooltip from '@/components/ui/Tooltip'
 
@@ -774,8 +774,35 @@ function CuentasVencidasContent() {
             setSelectedCuenta(null)
           }}
           onConfirm={(data) => {
-            setShowCastigoModal(false)
-            setSelectedCuenta(null)
+            /**
+             * Esto NO llamaba a nada.
+             *
+             * El `onConfirm` recibía los datos y solo cerraba el diálogo. El
+             * contador elegía el tipo de castigo, escribía la justificación
+             * —que el modal exige con `disabled={!motivo}`— y confirmaba; la
+             * cuenta seguía viva en cartera, contando como recuperable, y no
+             * aparecía ni un aviso de error. La pantalla le decía que sí.
+             *
+             * A diecinueve líneas de aquí, el `onConfirm` del otro modal ya
+             * hacía lo correcto, así que esto se enchufa a la MISMA función en
+             * vez de abrir un segundo camino: `handleSaveDecision` manda la
+             * decisión con respaldo offline, avisa, cierra los dos diálogos y
+             * recarga la lista.
+             *
+             * El tipo de castigo va dentro de los comentarios a propósito: el
+             * backend registra el castigo como una solicitud de aprobación
+             * (`BAJA_POR_PERDIDA`) y no distingue total de parcial, así que
+             * quien aprueba necesita leerlo. OJO: el modal ofrece «Castigo
+             * Parcial» sin un campo donde escribir el monto, y el servidor
+             * trata las dos opciones igual.
+             */
+            void handleSaveDecision({
+              decision: 'CASTIGAR',
+              montoInteres: 0,
+              comentarios: `${
+                data.tipoCastigo === 'PARCIAL' ? 'Castigo parcial' : 'Castigo total'
+              }: ${data.motivo}`,
+            })
           }}
         />
       )}

@@ -16,7 +16,6 @@ import {
   CheckCircle,
   MessageSquare,
   CreditCard,
-  Filter,
   Plus,
   ExternalLink,
   Camera,
@@ -639,12 +638,11 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
                     {prestamos.length} préstamos registrados
                   </p>
                 </div>
-                <div className="flex gap-3">
-                  <button className="px-4 py-2 border border-slate-200 rounded-xl hover:bg-slate-50 transition-all duration-200 text-sm font-bold text-slate-700 flex items-center gap-2">
-                    <Filter className="w-4 h-4" />
-                    Filtrar
-                  </button>
-                </div>
+                {/*
+                  * Aquí había un botón «Filtrar» sin `onClick`. No existe
+                  * ningún filtro en esta vista —la palabra solo aparecía en el
+                  * propio botón—, así que prometía algo inexistente. Se quita.
+                  */}
               </div>
 
               <div className="space-y-4">

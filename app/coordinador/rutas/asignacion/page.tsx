@@ -7,7 +7,6 @@ import {
   User,
   Route,
   Eye,
-  ChevronRight,
   ChevronDown,
   ChevronUp
 } from 'lucide-react'
@@ -250,10 +249,13 @@ const AsignacionCobradoresPage = () => {
                         </span>
                       </div>
                     </div>
-                    <button className="inline-flex h-8 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-bold text-slate-700 hover:border-slate-300 hover:bg-slate-50 transition-all shadow-sm">
-                      <span>Reasignar</span>
-                      <ChevronRight className="h-3 w-3 text-slate-400" />
-                    </button>
+                    {/*
+                      * Aquí había un botón «Reasignar» sin `onClick`. La
+                      * palabra «reasignar» no aparece en ninguna otra parte
+                      * del proyecto: no era una función a medio conectar, era
+                      * un botón decorativo que prometía algo que no existe.
+                      * Se quita en vez de dejarlo invitando a pulsar.
+                      */}
                   </div>
                 </div>
               ))}
