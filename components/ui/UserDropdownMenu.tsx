@@ -349,7 +349,7 @@ export default function UserDropdownMenu({ user, onLogout }: UserDropdownMenuPro
                   <h3 className="text-lg font-bold text-slate-900">Cerrar sesión</h3>
                   <p className="mt-1 text-sm text-slate-600">¿Seguro que deseas cerrar sesión?</p>
                 </div>
-                <button
+                <button aria-label="Cerrar menú"
                   type="button"
                   onClick={() => {
                     if (isLoggingOut) return

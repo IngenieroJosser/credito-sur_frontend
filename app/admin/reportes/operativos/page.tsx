@@ -423,7 +423,7 @@ const ReportesOperativosPage = () => {
                           - Admin -> /admin/rutas/ID
                           - Coordinador -> /coordinador/rutas/ID
                       */}
-                      <button
+                      <button aria-label="Ver detalle"
                         onClick={() => router.push(`${basePath}/rutas/${item.id}`)}
                         className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                         title="Ver Detalles"

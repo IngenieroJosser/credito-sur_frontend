@@ -443,7 +443,7 @@ const PerfilUsuarioPage = () => {
       {mounted && isPasswordModalOpen && createPortal(
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
           <div className="bg-white rounded-2xl w-full max-w-lg border border-slate-200 shadow-2xl p-8 transform scale-100 animate-in zoom-in-95 duration-200 relative">
-            <button 
+            <button aria-label="Cerrar" 
               onClick={() => setIsPasswordModalOpen(false)}
               className="shrink-0 absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
             >

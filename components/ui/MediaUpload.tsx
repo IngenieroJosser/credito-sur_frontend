@@ -404,7 +404,7 @@ export default function MediaUpload({
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <h3 className="text-lg font-bold text-slate-900">Archivo muy grande</h3>
-              <button
+              <button aria-label="Cerrar"
                 onClick={() => setShowErrorModal(false)}
                 className="shrink-0 p-2 -mr-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
               >

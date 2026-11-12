@@ -267,7 +267,7 @@ export default function GastoModal({ isOpen, onClose, onConfirm, cobradorId, rut
                        <CheckCircle2 className="w-3 h-3" />
                        Adjunto
                      </span>
-                     <button
+                     <button aria-label="Quitar comprobante"
                        type="button"
                        onClick={() => {
                          setComprobante(null)

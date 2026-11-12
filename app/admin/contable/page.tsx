@@ -1546,7 +1546,7 @@ const ModuloContableContent = () => {
                     />
 
                     {busqueda.trim() && (
-                      <button
+                      <button aria-label="Limpiar búsqueda"
                         type="button"
                         onClick={() => setBusqueda('')}
                         className="absolute right-2 top-1/2 inline-flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
@@ -1666,7 +1666,7 @@ const ModuloContableContent = () => {
                           />
                         </td>
                         <td className="px-4 py-2 align-middle text-center">
-                          <button
+                          <button aria-label="Ver Asiento Contable"
                             onClick={() => {
                               setMovimientoSeleccionado(m)
                               setShowVerMovimientoModal(true)
@@ -1927,7 +1927,7 @@ const ModuloContableContent = () => {
                   <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Cajas</p>
                   <h3 className="text-lg font-bold text-slate-900">Crear Caja</h3>
                 </div>
-                <button
+                <button aria-label="Cerrar"
                   type="button"
                   onClick={() => setShowCrearCajaModal(false)}
                   className="shrink-0 p-2 rounded-2xl hover:bg-slate-100 text-slate-500"
@@ -2035,7 +2035,7 @@ const ModuloContableContent = () => {
                   <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Cajas</p>
                   <h3 className="text-lg font-bold text-slate-900">Editar Caja</h3>
                 </div>
-                <button
+                <button aria-label="Cerrar"
                   type="button"
                   onClick={() => {
                     setShowEditarCajaModal(false)
@@ -2166,7 +2166,7 @@ const ModuloContableContent = () => {
                   <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Movimientos</p>
                   <h3 className="text-lg font-bold text-slate-900">Registrar Movimiento</h3>
                 </div>
-                <button
+                <button aria-label="Cerrar"
                   type="button"
                   onClick={() => setShowRegistrarMovimientoModal(false)}
                   className="shrink-0 p-2 rounded-2xl hover:bg-slate-100 text-slate-500"
@@ -2437,7 +2437,7 @@ const ModuloContableContent = () => {
                   <h3 className="text-lg font-bold text-slate-900">Detalle de Movimiento</h3>
                   {/* ID Oculto por solicitud del usuario */}
                 </div>
-                <button
+                <button aria-label="Cerrar"
                   onClick={() => setShowVerMovimientoModal(false)}
                   className="shrink-0 p-2 rounded-2xl hover:bg-slate-100 text-slate-500"
                 >
@@ -2615,7 +2615,7 @@ const ModuloContableContent = () => {
                     <h3 className="text-lg font-bold text-slate-900">Detalle de Caja</h3>
                     {/* <p className="text-xs font-bold text-slate-500">{cajaSeleccionada.id}</p> */}
                 </div>
-                <button
+                <button aria-label="Cerrar"
                   onClick={() => setShowVerCajaModal(false)}
                   className="shrink-0 p-2 rounded-2xl hover:bg-slate-100 text-slate-500"
                 >
@@ -2884,7 +2884,7 @@ const ModuloContableContent = () => {
                        Consulta detallada
                     </p>
                 </div>
-                <button
+                <button aria-label="Cerrar"
                   onClick={() => { setShowDetalleModal(false); setMovimientosDetalle([]); setCajaSeleccionada(null); setSaldoRutaSeleccionada(null); }}
                   className="shrink-0 p-2 rounded-2xl hover:bg-slate-100 text-slate-500 transition-colors"
                 >
@@ -3316,7 +3316,7 @@ const ModuloContableContent = () => {
                                            )}>
                                                AUTOMÁTICO
                                            </span>
-                                           <button 
+                                           <button aria-label="Ver Detalles de Consolidación" 
                                               onClick={() => {
                                                   setArqueoSeleccionado(c);
                                                   setShowVerArqueoModal(true);
@@ -3660,7 +3660,7 @@ const ModuloContableContent = () => {
                             </p>
                         </div>
                     </div>
-                    <button 
+                    <button aria-label="Cerrar" 
                         onClick={() => setShowVerArqueoModal(false)} 
                         className="shrink-0 p-2.5 rounded-full hover:bg-slate-100 text-slate-400 transition-all active:scale-90"
                     >

@@ -757,7 +757,7 @@ export default function ClientesFeature({
 
                         <td className="px-6 py-4 text-right">
                           <div className="flex items-center justify-end gap-2">
-                            <button
+                            <button aria-label="Ver expediente"
                               onClick={(e) => {
                                 e.stopPropagation()
                                 setSelectedClientId(cliente.id)
@@ -769,7 +769,7 @@ export default function ClientesFeature({
                               <Eye className="h-5 w-5" />
                             </button>
                             {puedeEditar && (
-                              <button
+                              <button aria-label="Editar cliente"
                                 onClick={(e) => {
                                   e.stopPropagation()
                                   setClientToEdit(cliente)
@@ -782,7 +782,7 @@ export default function ClientesFeature({
                               </button>
                             )}
                             {puedeEliminar && (
-                              <button
+                              <button aria-label="Eliminar"
                                 onClick={() => handleDeleteClick(cliente)}
                                 className="shrink-0 p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg"
                               >
@@ -914,7 +914,7 @@ export default function ClientesFeature({
                       </div>
                     )}
                     <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-                      <button
+                      <button aria-label="Ver detalle"
                         onClick={(e) => {
                           e.stopPropagation()
                           setSelectedClientId(cliente.id)
@@ -925,7 +925,7 @@ export default function ClientesFeature({
                         <Eye className="h-5 w-5" />
                       </button>
                       {puedeEditar && (
-                        <button
+                        <button aria-label="Editar cliente"
                           onClick={(e) => {
                             e.stopPropagation()
                             setClientToEdit(cliente)
@@ -938,7 +938,7 @@ export default function ClientesFeature({
                         </button>
                       )}
                       {puedeEliminar && (
-                        <button
+                        <button aria-label="Eliminar cliente"
                           onClick={(e) => {
                             e.stopPropagation()
                             handleDeleteClick(cliente)

@@ -1418,7 +1418,7 @@ const UserManagementPage = () => {
               </div>
 
               <div className="hidden md:flex bg-slate-50/50 p-1 rounded-2xl border border-slate-200 shrink-0">
-                <button
+                <button aria-label="Ver como cuadrícula"
                   onClick={() => setViewMode("grid")}
                   className={cn(
                     "p-2 rounded-lg transition-all",
@@ -1429,7 +1429,7 @@ const UserManagementPage = () => {
                 >
                   <LayoutGrid className="h-4 w-4" />
                 </button>
-                <button
+                <button aria-label="Ver como lista"
                   onClick={() => setViewMode("list")}
                   className={cn(
                     "p-2 rounded-lg transition-all",
@@ -1526,7 +1526,7 @@ const UserManagementPage = () => {
                           </td>
                           <td className="px-8 py-5 text-right">
                             <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                              <button
+                              <button aria-label="Ver detalle"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleOpenDetailModal(user);
@@ -1547,7 +1547,7 @@ const UserManagementPage = () => {
                                 <Eye className="h-4 w-4" />
                               </button>
                               {puedeEditar && (
-                                <button
+                                <button aria-label="Editar"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     handleOpenEditModal(user);
@@ -1569,7 +1569,7 @@ const UserManagementPage = () => {
                                 </button>
                               )}
                               {puedeGestionarPermisos && (
-                                <button
+                                <button aria-label="Permisos"
                                   onClick={() =>
                                     handleOpenPermissionsModal(user)
                                   }
@@ -1587,14 +1587,14 @@ const UserManagementPage = () => {
                                 <>
                                   {user.estado === EstadoUsuario.ARCHIVADO ? (
                                     <>
-                                      <button
+                                      <button aria-label="Restaurar"
                                         onClick={() => handleOpenRestoreModal(user)}
                                         className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
                                         title="Restaurar"
                                       >
                                         <RotateCcw className="h-4 w-4" />
                                       </button>
-                                      <button
+                                      <button aria-label="Ocultar definitivamente"
                                         onClick={() => handleOpenHideModal(user)}
                                         className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
                                         title="Ocultar definitivamente"
@@ -1626,7 +1626,7 @@ const UserManagementPage = () => {
                                           <CheckCircle2 className="h-4 w-4" />
                                         )}
                                       </button>
-                                      <button
+                                      <button aria-label="Archivar"
                                         onClick={() => handleOpenArchiveModal(user)}
                                         className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
                                         title="Archivar"
@@ -1731,7 +1731,7 @@ const UserManagementPage = () => {
                     </div>
 
                     <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100 mt-auto">
-                      <button
+                      <button aria-label="Ver detalle"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleOpenDetailModal(user);
@@ -1751,7 +1751,7 @@ const UserManagementPage = () => {
                       >
                         <Eye className="h-4 w-4" />
                       </button>
-                      <button
+                      <button aria-label="Editar"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleOpenEditModal(user);
@@ -1771,7 +1771,7 @@ const UserManagementPage = () => {
                       >
                         <Edit2 className="h-4 w-4" />
                       </button>
-                      <button
+                      <button aria-label="Permisos"
                         onClick={() => handleOpenPermissionsModal(user)}
                         className="p-2 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors"
                         title="Permisos"
@@ -1784,14 +1784,14 @@ const UserManagementPage = () => {
                       </button>
                       {user.estado === EstadoUsuario.ARCHIVADO ? (
                         <>
-                          <button
+                          <button aria-label="Restaurar"
                             onClick={() => handleOpenRestoreModal(user)}
                             className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
                             title="Restaurar"
                           >
                             <RotateCcw className="h-4 w-4" />
                           </button>
-                          <button
+                          <button aria-label="Ocultar definitivamente"
                             onClick={() => handleOpenHideModal(user)}
                             className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
                             title="Ocultar definitivamente"
@@ -1821,7 +1821,7 @@ const UserManagementPage = () => {
                               <CheckCircle2 className="h-4 w-4" />
                             )}
                           </button>
-                          <button
+                          <button aria-label="Archivar"
                             onClick={() => handleOpenArchiveModal(user)}
                             className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
                             title="Archivar"
@@ -2525,7 +2525,7 @@ const UserManagementPage = () => {
 
                   {/* RIGHT SIDE - DETAILED CONTENT */}
                   <div className="flex-1 min-w-0 p-6 lg:p-8 xl:p-10 overflow-y-auto bg-white relative text-slate-900">
-                    <button
+                    <button aria-label="Cerrar"
                       onClick={() => setIsDetailModalOpen(false)}
                       className="shrink-0 absolute top-6 right-6 p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-900 transition-all z-20"
                     >
@@ -2757,7 +2757,7 @@ const UserManagementPage = () => {
                                   de {detalle.actividadReciente.length}
                                 </span>
                                 <div className="flex gap-2">
-                                  <button
+                                  <button aria-label="Página anterior"
                                     onClick={() =>
                                       setActividadPage((p) =>
                                         Math.max(1, p - 1),
@@ -2768,7 +2768,7 @@ const UserManagementPage = () => {
                                   >
                                     <ChevronLeft className="h-3 w-3" />
                                   </button>
-                                  <button
+                                  <button aria-label="Página siguiente"
                                     onClick={() =>
                                       setActividadPage((p) =>
                                         Math.min(
@@ -3197,7 +3197,7 @@ const UserManagementPage = () => {
                                   de {detalle.actividadReciente.length}
                                 </span>
                                 <div className="flex gap-2">
-                                  <button
+                                  <button aria-label="Página anterior"
                                     onClick={() =>
                                       setActividadPage((p) =>
                                         Math.max(1, p - 1),
@@ -3208,7 +3208,7 @@ const UserManagementPage = () => {
                                   >
                                     <ChevronLeft className="h-3 w-3" />
                                   </button>
-                                  <button
+                                  <button aria-label="Página siguiente"
                                     onClick={() =>
                                       setActividadPage((p) =>
                                         Math.min(

@@ -627,7 +627,7 @@ export default function CreacionCreditoArticulo({
                                 <span className="text-xs font-bold w-4 text-center">{item.cantidad}</span>
                                 <button onClick={() => handleCambiarCantidad(item.id, 1)} className="w-5 h-5 flex items-center justify-center text-slate-500 hover:text-slate-900">+</button>
                               </div>
-                              <button onClick={() => handleRemoverArticulo(item.id)} className="text-rose-400 hover:text-rose-600 p-1">
+                              <button aria-label="Eliminar" onClick={() => handleRemoverArticulo(item.id)} className="text-rose-400 hover:text-rose-600 p-1">
                                 <Trash2 className="w-4 h-4" />
                               </button>
                             </div>

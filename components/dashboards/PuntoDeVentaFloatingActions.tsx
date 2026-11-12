@@ -488,7 +488,7 @@ export default function PuntoDeVentaFloatingActions() {
                     Directorio completo de clientes en el sistema
                   </p>
                 </div>
-                <button
+                <button aria-label="Cerrar"
                   onClick={() => setShowClientesModal(false)}
                   className="shrink-0 p-2 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
                 >
@@ -579,7 +579,7 @@ export default function PuntoDeVentaFloatingActions() {
                             <span className={cn('w-1.5 h-1.5 rounded-full', riesgoStyle.dot)} />
                             {tieneMora ? 'EN MORA' : cliente.nivelRiesgo || 'VERDE'}
                           </div>
-                          <button
+                          <button aria-label="Ver perfil completo"
                             onClick={(e) => {
                               e.stopPropagation()
                               setShowClienteDetalle(cliente.id)
@@ -604,7 +604,7 @@ export default function PuntoDeVentaFloatingActions() {
                   {clientesFiltrados.length}
                 </span>
                 <div className="flex items-center gap-1">
-                  <button
+                  <button aria-label="Página anterior"
                     onClick={() => setClientesPage((p) => Math.max(1, p - 1))}
                     disabled={clientesPage === 1}
                     className="p-1.5 rounded-lg hover:bg-white border border-transparent hover:border-slate-200 text-slate-500 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
@@ -614,7 +614,7 @@ export default function PuntoDeVentaFloatingActions() {
                   <span className="text-xs font-bold text-slate-700 px-2">
                     {clientesPage} / {clientesTotalPages}
                   </span>
-                  <button
+                  <button aria-label="Página siguiente"
                     onClick={() => setClientesPage((p) => Math.min(clientesTotalPages, p + 1))}
                     disabled={clientesPage === clientesTotalPages}
                     className="p-1.5 rounded-lg hover:bg-white border border-transparent hover:border-slate-200 text-slate-500 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
@@ -657,7 +657,7 @@ export default function PuntoDeVentaFloatingActions() {
                     Historial de créditos de artículos del punto de venta
                   </p>
                 </div>
-                <button
+                <button aria-label="Cerrar"
                   onClick={() => setShowVentasModal(false)}
                   className="shrink-0 p-2 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
                 >
@@ -797,7 +797,7 @@ export default function PuntoDeVentaFloatingActions() {
                   {ventasFiltradas.length}
                 </span>
                 <div className="flex items-center gap-1">
-                  <button
+                  <button aria-label="Página anterior"
                     onClick={() => setVentasPage((p) => Math.max(1, p - 1))}
                     disabled={ventasPage === 1}
                     className="p-1.5 rounded-lg hover:bg-white border border-transparent hover:border-slate-200 text-slate-500 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
@@ -807,7 +807,7 @@ export default function PuntoDeVentaFloatingActions() {
                   <span className="text-xs font-bold text-slate-700 px-2">
                     {ventasPage} / {ventasTotalPages}
                   </span>
-                  <button
+                  <button aria-label="Página siguiente"
                     onClick={() => setVentasPage((p) => Math.min(ventasTotalPages, p + 1))}
                     disabled={ventasPage === ventasTotalPages}
                     className="p-1.5 rounded-lg hover:bg-white border border-transparent hover:border-slate-200 text-slate-500 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
@@ -835,7 +835,7 @@ export default function PuntoDeVentaFloatingActions() {
                 <h3 className="font-black text-slate-900">Detalle de venta</h3>
                 <p className="text-xs text-slate-500 font-mono">{showVentaDetalle.id}</p>
               </div>
-              <button
+              <button aria-label="Cerrar"
                 onClick={() => setShowVentaDetalle(null)}
                 className="shrink-0 p-2 rounded-xl hover:bg-slate-100 text-slate-400"
               >

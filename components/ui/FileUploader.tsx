@@ -231,7 +231,7 @@ export const FileUploader: React.FC<FileUploaderProps> = ({
                   </span>
                 </div>
               </div>
-              <button
+              <button aria-label="Eliminar archivo"
                 type="button"
                 onClick={() => removeFile(index)}
                 className="p-1 hover:bg-red-50 rounded-full text-gray-400 hover:text-red-500 transition-colors"

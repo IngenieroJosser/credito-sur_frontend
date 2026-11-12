@@ -562,7 +562,7 @@ const SyncStatusPage = () => {
                             <td className="px-6 py-4 text-center">
                               <div className="flex items-center justify-center gap-1">
                                 {item.status === 'failed' && (
-                                  <button 
+                                  <button aria-label="Reintentar" 
                                     onClick={() => handleRetry(item.id)}
                                     className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors"
                                     title="Reintentar"
@@ -570,7 +570,7 @@ const SyncStatusPage = () => {
                                     <RefreshCw className="w-4 h-4" />
                                   </button>
                                 )}
-                                <button 
+                                <button aria-label="Eliminar" 
                                   onClick={() => handleRemove(item.id)}
                                   className="p-2 hover:bg-rose-50 text-rose-400 hover:text-rose-600 rounded-lg transition-colors"
                                   title="Eliminar"

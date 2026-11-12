@@ -201,10 +201,10 @@ function CuentasVencidasContent() {
             />
           </div>
           <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
-            <button onClick={() => setViewMode('list')} className={cn('p-2 rounded-lg transition-all', viewMode === 'list' ? 'bg-slate-100 text-primary shadow-sm' : 'text-slate-400')}>
+            <button aria-label="Ver como lista" onClick={() => setViewMode('list')} className={cn('p-2 rounded-lg transition-all', viewMode === 'list' ? 'bg-slate-100 text-primary shadow-sm' : 'text-slate-400')}>
               <List className="h-4 w-4" />
             </button>
-            <button onClick={() => setViewMode('grid')} className={cn('p-2 rounded-lg transition-all', viewMode === 'grid' ? 'bg-slate-100 text-primary shadow-sm' : 'text-slate-400')}>
+            <button aria-label="Ver como cuadrícula" onClick={() => setViewMode('grid')} className={cn('p-2 rounded-lg transition-all', viewMode === 'grid' ? 'bg-slate-100 text-primary shadow-sm' : 'text-slate-400')}>
               <LayoutGrid className="h-4 w-4" />
             </button>
           </div>

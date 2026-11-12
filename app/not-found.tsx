@@ -192,7 +192,7 @@ const NotFoundPage = () => {
                     />
                   </div>
                   {searchQuery && (
-                    <button
+                    <button aria-label="Limpiar búsqueda"
                       onClick={() => setSearchQuery('')}
                       className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded-lg transition-colors"
                     >

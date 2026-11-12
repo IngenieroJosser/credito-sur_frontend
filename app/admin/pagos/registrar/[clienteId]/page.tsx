@@ -244,7 +244,7 @@ const RegistrarPagoClientePage = () => {
         <div className="relative z-10 w-full p-8 space-y-8">
           {/* Header Artículo */}
           <div className="flex items-center gap-4">
-            <button
+            <button aria-label="Volver"
               onClick={() => router.back()}
               className="shrink-0 p-2 bg-white rounded-full shadow-sm hover:bg-slate-100 transition-colors"
             >
@@ -498,7 +498,7 @@ const RegistrarPagoClientePage = () => {
       <div className="relative z-10 w-full p-8 space-y-8">
         {/* Header con botón de regreso */}
         <div className="flex items-center gap-4">
-          <button
+          <button aria-label="Volver"
             onClick={() => router.back()}
             className="shrink-0 p-2 bg-white rounded-full shadow-sm hover:bg-slate-100 transition-colors"
           >

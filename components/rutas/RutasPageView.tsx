@@ -1257,7 +1257,7 @@ export const RutasPageView = ({
 
             {!rutasBasePath.includes('/coordinador') && !rutasBasePath.includes('/admin') && (
               <div className="flex gap-1 bg-slate-100 p-1 rounded-xl">
-                <button
+                <button aria-label="Ver como cuadrícula"
                   onClick={() => setVista('grid')}
                   className={cn(
                     'p-2.5 rounded-lg transition-all',
@@ -1268,7 +1268,7 @@ export const RutasPageView = ({
                 >
                   <LayoutGrid className="h-5 w-5" />
                 </button>
-                <button
+                <button aria-label="Ver como lista"
                   onClick={() => setVista('list')}
                   className={cn(
                     'p-2.5 rounded-lg transition-all',
@@ -1449,7 +1449,7 @@ export const RutasPageView = ({
                         {/* Botones de acción (siempre visibles) */}
                         <div className="flex items-center gap-1">
                           {!readOnly && (
-                            <button
+                            <button aria-label="Editar"
                               onClick={(e) => {
                                 e.stopPropagation()
                                 handleEditClick(ruta)
@@ -1496,7 +1496,7 @@ export const RutasPageView = ({
                             <Eye className="h-4 w-4" />
                           </Link>
                           {showRecolectar && (
-                            <button
+                            <button aria-label="Recolectar dinero"
                               onClick={(e) => {
                                 e.stopPropagation()
                                 handleRecolectarDinero(ruta)
@@ -1646,7 +1646,7 @@ export const RutasPageView = ({
                           </td>
                           <td className="px-6 py-4 text-right">
                             <div className="flex items-center justify-end gap-2">
-                              <button
+                              <button aria-label="Ver detalle"
                                 onClick={(e) => {
                                   e.stopPropagation()
                                   router.push(`${rutasBasePath}/${ruta.id}`)
@@ -1657,7 +1657,7 @@ export const RutasPageView = ({
                                 <Eye className="w-4 h-4" />
                               </button>
                               {!readOnly && (
-                                <button
+                                <button aria-label="Editar"
                                   onClick={(e) => {
                                     e.stopPropagation()
                                     handleEditClick(ruta)
@@ -1692,7 +1692,7 @@ export const RutasPageView = ({
                                 </button>
                               )}
                               {showRecolectar && (
-                                <button
+                                <button aria-label="Recolectar dinero"
                                   type="button"
                                   onClick={(e) => {
                                     e.preventDefault()
@@ -1816,7 +1816,7 @@ export const RutasPageView = ({
                       className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <button
+                      <button aria-label="Ver detalle"
                         onClick={(e) => {
                           e.stopPropagation()
                           router.push(`${rutasBasePath}/${ruta.id}`)
@@ -1827,7 +1827,7 @@ export const RutasPageView = ({
                         <Eye className="w-4 h-4" />
                       </button>
                       {!readOnly && puedeEditar && (
-                        <button
+                        <button aria-label="Editar"
                           onClick={(e) => {
                             e.stopPropagation()
                             handleEditClick(ruta)
@@ -1860,7 +1860,7 @@ export const RutasPageView = ({
                         </button>
                       )}
                       {showRecolectar && (
-                        <button
+                        <button aria-label="Recolectar dinero"
                           type="button"
                           onClick={(e) => {
                             e.preventDefault()
@@ -1922,7 +1922,7 @@ export const RutasPageView = ({
                     </p>
                   </div>
                 </div>
-                <button
+                <button aria-label="Cerrar"
                   onClick={() => setShowModal(false)}
                   className="shrink-0 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
                 >
@@ -2209,7 +2209,7 @@ export const RutasPageView = ({
                               value={clienteSearch}
                               onChange={(e) => setClienteSearch(e.target.value)}
                             />
-                            <button
+                            <button aria-label="Cerrar"
                               onClick={() => {
                                 setIsAddingCliente(false)
                                 setClienteSearch('')
@@ -2452,7 +2452,7 @@ export const RutasPageView = ({
                   <p className="text-emerald-100 text-xs">{routeForTransfer.nombre}</p>
                 </div>
               </div>
-              <button
+              <button aria-label="Cerrar"
                 onClick={() => setShowRecolectarModal(false)}
                 className="p-1 rounded-full hover:bg-white/20 transition-colors"
               >
@@ -2556,7 +2556,7 @@ export const RutasPageView = ({
                 <Wallet className="h-5 w-5 text-blue-600" />
                 <h3 className="text-sm font-bold text-slate-900">Seleccionar Caja Principal</h3>
               </div>
-              <button
+              <button aria-label="Cerrar"
                 onClick={() => setShowSelectPrincipalModal(false)}
                 className="shrink-0 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
               >

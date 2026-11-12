@@ -376,7 +376,7 @@ export default function CuentasMoraFeature() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <button
+            <button aria-label="Actualizar"
               onClick={() => { fetchData(); fetchEstadisticas() }}
               className="p-2 text-slate-400 hover:text-blue-600 bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-all"
               title="Actualizar"
@@ -473,10 +473,10 @@ export default function CuentasMoraFeature() {
             />
           </div>
           <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
-            <button onClick={() => setViewMode('list')} className={cn('p-2 rounded-lg transition-all', viewMode === 'list' ? 'bg-white text-primary shadow-sm' : 'text-slate-400')}>
+            <button aria-label="Ver como lista" onClick={() => setViewMode('list')} className={cn('p-2 rounded-lg transition-all', viewMode === 'list' ? 'bg-white text-primary shadow-sm' : 'text-slate-400')}>
               <List className="h-4 w-4" />
             </button>
-            <button onClick={() => setViewMode('grid')} className={cn('p-2 rounded-lg transition-all', viewMode === 'grid' ? 'bg-white text-primary shadow-sm' : 'text-slate-400')}>
+            <button aria-label="Ver como cuadrícula" onClick={() => setViewMode('grid')} className={cn('p-2 rounded-lg transition-all', viewMode === 'grid' ? 'bg-white text-primary shadow-sm' : 'text-slate-400')}>
               <LayoutGrid className="h-4 w-4" />
             </button>
           </div>
@@ -566,7 +566,7 @@ export default function CuentasMoraFeature() {
                         </td>
                         {puedeVerPerfil && (
                           <td className="px-6 py-4 text-right">
-                            <button
+                            <button aria-label="Ver Perfil"
                               onClick={() => handleVerCliente(cuenta.cliente.id || cuenta.clienteId)}
                               className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                               title="Ver Perfil"

@@ -1077,7 +1077,7 @@ export default function RevisionesPage() {
           </div>
 
           <div className="flex gap-2">
-            <button onClick={() => handleOpenDetail(item)} disabled={isProcessing} className="shrink-0 p-2 border border-slate-200 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors">
+            <button aria-label="Ver detalle" onClick={() => handleOpenDetail(item)} disabled={isProcessing} className="shrink-0 p-2 border border-slate-200 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors">
               <Eye className="h-4 w-4" />
             </button>
             {!isReviewMode ? (
@@ -1201,7 +1201,7 @@ export default function RevisionesPage() {
           </div>
 
           <div className="flex gap-2">
-            <button
+            <button aria-label="Ver detalle"
               onClick={() => handleOpenAlertaCliente(alerta)}
               className="rounded-xl border border-slate-200 p-2 text-slate-400 transition-colors hover:bg-slate-50 hover:text-slate-600"
               title="Ver detalle"

@@ -160,7 +160,7 @@ export default function ListaConflictos() {
                       )}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button
+                      <button aria-label="Ver detalles y resolver"
                         onClick={() => setSelectedConflict(c)}
                         className="p-2 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors"
                         title="Ver detalles y resolver"
@@ -185,7 +185,7 @@ export default function ListaConflictos() {
                 <AlertTriangle className="w-5 h-5 text-amber-500" />
                 Detalles del Conflicto
               </h2>
-              <button
+              <button aria-label="Cerrar"
                 onClick={() => setSelectedConflict(null)}
                 className="shrink-0 p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-400 hover:text-slate-600"
               >

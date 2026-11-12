@@ -87,7 +87,7 @@ export const Toast = ({ id, type, title, message, duration = 4000, onClose }: To
             {message}
           </p>
         </div>
-        <button
+        <button aria-label="Cerrar aviso"
           onClick={() => {
             setIsExiting(true)
             setTimeout(() => onClose(id), 300)

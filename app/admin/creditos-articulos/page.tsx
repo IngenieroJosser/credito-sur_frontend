@@ -490,7 +490,7 @@ export default function CreditosArticulosPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button
+                      <button aria-label="Ver detalle"
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation()
@@ -527,7 +527,7 @@ export default function CreditosArticulosPage() {
                 Mostrando <span className="font-bold text-slate-700">{indicePrimero + 1}</span> a <span className="font-bold text-slate-700">{Math.min(indiceUltimo, filteredCreditos.length)}</span> de <span className="font-bold text-slate-700">{filteredCreditos.length}</span> resultados
               </p>
               <div className="flex items-center gap-2">
-                <button
+                <button aria-label="Página anterior"
                   onClick={() => cambiarPagina(paginaActual - 1)}
                   disabled={paginaActual === 1}
                   className="p-1.5 rounded-lg hover:bg-white hover:shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all border border-transparent hover:border-slate-200"
@@ -549,7 +549,7 @@ export default function CreditosArticulosPage() {
                     </button>
                   ))}
                 </div>
-                <button
+                <button aria-label="Página siguiente"
                   onClick={() => cambiarPagina(paginaActual + 1)}
                   disabled={paginaActual === totalPaginas}
                   className="p-1.5 rounded-lg hover:bg-white hover:shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all"

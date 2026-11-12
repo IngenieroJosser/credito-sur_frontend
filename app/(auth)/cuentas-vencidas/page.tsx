@@ -499,7 +499,7 @@ function CuentasVencidasContent() {
             />
           </div>
           <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
-            <button
+            <button aria-label="Ver como lista"
               onClick={() => setViewMode('list')}
               className={cn(
                 'p-2 rounded-lg transition-all',
@@ -508,7 +508,7 @@ function CuentasVencidasContent() {
             >
               <List className="h-4 w-4" />
             </button>
-            <button
+            <button aria-label="Ver como cuadrícula"
               onClick={() => setViewMode('grid')}
               className={cn(
                 'p-2 rounded-lg transition-all',

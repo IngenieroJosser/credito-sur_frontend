@@ -267,7 +267,7 @@ export default function SolicitudesCobradorPage() {
                     </td>
                     <td className="px-6 py-4 text-slate-500 italic text-xs">{sol.comentarioAdmin || '-'}</td>
                     <td className="px-6 py-4 text-right">
-                      <button
+                      <button aria-label="Ver detalle"
                         type="button"
                         className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                         title="Ver Detalle"

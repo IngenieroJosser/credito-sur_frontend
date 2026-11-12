@@ -1708,7 +1708,7 @@ const LegacyDetalleRutaPage = () => {
                 <span className="text-orange-500">Gasto</span>
               </h3>
 
-              <button
+              <button aria-label="Cerrar"
                 onClick={() => setIsGastoModalOpen(false)}
                 className="text-slate-400 hover:text-slate-600 transition-colors"
               >

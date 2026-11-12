@@ -845,7 +845,7 @@ export default function ArticulosContent() {
                         <div
                           className={`flex items-center justify-end gap-2 ${!esReadOnly ? 'opacity-0 group-hover:opacity-100' : ''} transition-opacity`}
                         >
-                          <button
+                          <button aria-label="Ver detalle"
                             type="button"
                             onClick={() => openDetalle(articulo)}
                             className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
@@ -854,7 +854,7 @@ export default function ArticulosContent() {
                             <Eye className="w-4 h-4" />
                           </button>
                           {puedeEditar && (
-                            <button
+                            <button aria-label="Editar"
                               type="button"
                               onClick={() => openEditar(articulo)}
                               className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
@@ -864,7 +864,7 @@ export default function ArticulosContent() {
                             </button>
                           )}
                           {puedeEliminar && (
-                            <button
+                            <button aria-label="Archivar"
                               onClick={() => handleEliminar(articulo)}
                               className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
                               title="Archivar"
@@ -982,7 +982,7 @@ export default function ArticulosContent() {
 
                 {/* Acciones */}
                 <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
-                  <button
+                  <button aria-label="Ver detalle"
                     type="button"
                     onClick={() => openDetalle(articulo)}
                     className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
@@ -991,7 +991,7 @@ export default function ArticulosContent() {
                     <Eye className="w-4 h-4" />
                   </button>
                   {puedeEditar && (
-                    <button
+                    <button aria-label="Editar"
                       type="button"
                       onClick={() => openEditar(articulo)}
                       className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
@@ -1001,7 +1001,7 @@ export default function ArticulosContent() {
                     </button>
                   )}
                   {puedeEliminar && (
-                    <button
+                    <button aria-label="Archivar"
                       onClick={() => handleEliminar(articulo)}
                       className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
                       title="Archivar"
@@ -1064,7 +1064,7 @@ export default function ArticulosContent() {
                   {showEditarModal ? 'Editar Artículo' : 'Nuevo Artículo'}
                 </h3>
               </div>
-              <button
+              <button aria-label="Cerrar"
                 type="button"
                 onClick={() => {
                   setShowNuevoModal(false)
@@ -1450,7 +1450,7 @@ export default function ArticulosContent() {
                   {esReadOnly ? 'Detalles del Artículo' : 'Detalle del Artículo'}
                 </h3>
               </div>
-              <button
+              <button aria-label="Cerrar"
                 type="button"
                 onClick={() => {
                   setShowDetalleModal(false)

@@ -27,15 +27,62 @@ import * as path from 'path'
 
 const RAIZ = path.join(__dirname, '..', '..')
 
-/** Un `<button>` cuyo contenido es solo un componente de icono. */
-const BOTON_DE_ICONO =
-  // Sin el flag `s`: el objetivo de TypeScript que usa `next build` no lo
-  // admite, y `tsc --noEmit` del proyecto si, asi que el error solo aparecia
-  // al construir. Resulta que no hacia falta: `s` solo cambia que `.` case
-  // con el salto de linea, y aqui no hay ningun `.` suelto. El primer intento
-  // de arreglarlo cambiando `.` por `[\s\S]*?` fue peor: dejaba pasar los
-  // botones CON texto y daba 406 falsos positivos.
-  /<button\b[^>]*>\s*(?:\{[^}]*\})?\s*<([A-Z][A-Za-z0-9]*)\s[^>]*\/>\s*<\/button>/g
+/**
+ * Los `<button>` cuyo contenido es solo un componente de icono.
+ *
+ * Esto NO se puede hacer con una expresion regular, y la version anterior era
+ * la prueba: usaba
+ *
+ *     /<button\b[^>]*>\s*(?:\{[^}]*\})?\s*<([A-Z][A-Za-z0-9]*)\s[^>]*\/>…/
+ *
+ * y `[^>]*` se detiene en el PRIMER `>`, que en
+ * `onClick={() => cerrar()}` es el de la flecha. Medido: 496 de 711 botones
+ * del proyecto llevan una funcion flecha en su apertura, asi que la prueba no
+ * los veia. Pasaba por no mirar, no por estar bien: con un lector que respeta
+ * las llaves aparecen 190 botones de solo icono, y 70 sin nada que los nombre.
+ *
+ * El cierre de la etiqueta se busca contando `{` y `}`, de modo que un `>`
+ * dentro de una interpolacion no lo confunde.
+ */
+function cierreDeEtiqueta(fuente: string, desde: number): number {
+  let profundidad = 0
+  for (let i = desde; i < fuente.length; i += 1) {
+    const c = fuente[i]
+    if (c === '{') profundidad += 1
+    else if (c === '}') profundidad -= 1
+    else if (c === '>' && profundidad === 0) return i
+  }
+  return -1
+}
+
+type BotonDeIcono = { icono: string; apertura: string; indice: number }
+
+function botonesDeIcono(fuente: string): BotonDeIcono[] {
+  const salida: BotonDeIcono[] = []
+
+  for (const hallado of fuente.matchAll(/<button[^A-Za-z]/g)) {
+    const inicio = hallado.index ?? 0
+    const finApertura = cierreDeEtiqueta(fuente, inicio + hallado[0].length)
+    if (finApertura < 0) continue
+
+    const cierra = fuente.indexOf('</button>', finApertura)
+    if (cierra < 0) continue
+
+    const cuerpo = fuente.slice(finApertura + 1, cierra).trim()
+    // Un unico componente autocerrado y nada mas: `<X className="…" />`. Si
+    // lleva texto al lado, el boton ya se explica solo.
+    const icono = /^<([A-Z][A-Za-z0-9]*)[^<>]*\/>$/.exec(cuerpo)
+    if (!icono) continue
+
+    salida.push({
+      icono: icono[1],
+      apertura: fuente.slice(inicio, finApertura + 1),
+      indice: inicio,
+    })
+  }
+
+  return salida
+}
 
 function pantallas(): string[] {
   const salida: string[] = []
@@ -65,16 +112,15 @@ describe('las pantallas se entienden y se usan con el dedo', () => {
       const fuente = fs.readFileSync(archivo, 'utf8')
       const relativo = path.relative(RAIZ, archivo).replace(/\\/g, '/')
 
-      for (const hallado of fuente.matchAll(BOTON_DE_ICONO)) {
-        const etiqueta = hallado[0]
+      for (const boton of botonesDeIcono(fuente)) {
         // `aria-label` basta: el lector de pantalla ya tiene el nombre.
-        if (etiqueta.includes('aria-label')) continue
+        if (boton.apertura.includes('aria-label')) continue
         // O un <Tooltip> envolviéndolo, que además se ve.
-        const antes = fuente.slice(Math.max(0, hallado.index - 220), hallado.index)
+        const antes = fuente.slice(Math.max(0, boton.indice - 220), boton.indice)
         if (antes.includes('<Tooltip')) continue
 
-        const linea = fuente.slice(0, hallado.index).split('\n').length
-        mudos.push(`${relativo}:${linea} -> <${hallado[1]} /> sin ayuda`)
+        const linea = fuente.slice(0, boton.indice).split('\n').length
+        mudos.push(`${relativo}:${linea} -> <${boton.icono} /> sin ayuda`)
       }
     }
 
@@ -91,6 +137,59 @@ describe('las pantallas se entienden y se usan con el dedo', () => {
       : 'ninguno'
 
     expect(informe).toBe('ninguno')
+  })
+
+  it('la misma acción no se nombra de dos formas distintas', () => {
+    /**
+     * Las etiquetas salieron en buena parte del `title` que ya tenía cada
+     * botón, escrito por quien hizo la pantalla. Eso trae el texto bueno, y
+     * también sus variantes: aparecieron «Ver detalle», «Ver detalles»,
+     * «Ver Detalles» y «Ver Detalle» para el mismo botón según la pantalla, y
+     * «Recolectar Dinero» con mayúscula en medio.
+     *
+     * Para un lector de pantalla son cuatro acciones distintas. Y para quien
+     * usa el sistema es la queja de siempre: en una parte se ve una cosa y en
+     * otra, otra.
+     *
+     * Se comparan sin tildes, sin mayúsculas y sin la `s` del plural: lo que se
+     * persigue son las variantes de la MISMA etiqueta, no dos acciones que de
+     * verdad se llaman parecido.
+     */
+    const porClave = new Map<string, Set<string>>()
+
+    const clave = (texto: string) =>
+      texto
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[̀-ͯ]/g, '')
+        .trim()
+        .replace(/s$/, '')
+
+    for (const archivo of pantallas()) {
+      const fuente = fs.readFileSync(archivo, 'utf8')
+      for (const hallado of fuente.matchAll(/aria-label="([^"]*)"/g)) {
+        const k = clave(hallado[1])
+        if (!porClave.has(k)) porClave.set(k, new Set())
+        porClave.get(k)?.add(hallado[1])
+      }
+    }
+
+    const grupos = [...porClave.values()]
+      .filter((v) => v.size > 1)
+      .map((v) => [...v].sort().join('  /  '))
+
+    const informe = grupos.length
+      ? [
+          'Estas etiquetas nombran la misma acción de varias formas. Para quien',
+          'usa un lector de pantalla son acciones distintas:',
+          '',
+          ...grupos.map((g) => `  - ${g}`),
+          '',
+          'Elige una y úsala en todas las pantallas.',
+        ].join('\n')
+      : 'ninguna'
+
+    expect(informe).toBe('ninguna')
   })
 
   describe('los diálogos abren desde abajo en el móvil', () => {

@@ -542,7 +542,7 @@ export default function ClienteInfoModal({
           style={{ zIndex: MODAL_Z_INDEX + 10 }}
           onClick={() => setFotoExpandida(null)}
         >
-          <button
+          <button aria-label="Cerrar"
             className="absolute top-4 right-4 p-2 bg-white/20 rounded-full text-white hover:bg-white/30 transition"
             onClick={() => setFotoExpandida(null)}
           >
@@ -573,7 +573,7 @@ export default function ClienteInfoModal({
                 <h4 className="mt-1 text-lg font-black text-slate-900">Cliente no ubicado</h4>
                 <p className="mt-1 text-xs font-semibold text-slate-500">{visita.cliente}</p>
               </div>
-              <button
+              <button aria-label="Cerrar"
                 type="button"
                 disabled={alertaSubmitting}
                 onClick={() => setAlertaOpen(false)}

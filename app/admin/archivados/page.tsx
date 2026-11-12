@@ -406,7 +406,7 @@ export default function ArchivadosPage() {
                       </td>
                       <td className="px-8 py-5 whitespace-nowrap text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <button
+                          <button aria-label="Ver detalle"
                             onClick={() => {
                               if (item.tipo === 'cliente') setDetalleClienteId(item.entidadId)
                               else if (item.tipo === 'prestamo') setDetallePrestamoId(item.entidadId)
@@ -417,7 +417,7 @@ export default function ArchivadosPage() {
                           >
                             <Eye className="w-4 h-4" />
                           </button>
-                          <button 
+                          <button aria-label="Restaurar" 
                             onClick={() => {
                               setSelectedItem(item)
                               setIsRestoreModalOpen(true)
@@ -428,7 +428,7 @@ export default function ArchivadosPage() {
                             <RotateCcw className="w-4 h-4" />
                           </button>
 
-                          <button
+                          <button aria-label="Quitar de archivados"
                             onClick={() => {
                               setSelectedHideItem(item)
                               setIsHideModalOpen(true)

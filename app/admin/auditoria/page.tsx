@@ -390,7 +390,7 @@ const AuditoriaSistemaPage = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button
+                      <button aria-label="Ver detalle"
                         onClick={() => setSelectedLog(log)}
                         className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                         title="Ver Detalle"
@@ -507,7 +507,7 @@ const AuditoriaSistemaPage = () => {
                 <span className="text-blue-600">Detalle del</span>
                 <span className="text-orange-500">Evento</span>
               </h3>
-              <button
+              <button aria-label="Cerrar"
                 onClick={() => setSelectedLog(null)}
                 className="shrink-0 p-2 hover:bg-slate-200/50 rounded-full transition-colors"
               >

@@ -860,7 +860,7 @@ const ListadoPrestamosElegante = () => {
                               className="flex items-center justify-end gap-1"
                               onClick={(e) => e.stopPropagation()}
                             >
-                              <button
+                              <button aria-label="Ver detalle"
                                 onClick={() => irADetallePrestamo(prestamo.id)}
                                 className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
                                 title="Ver detalle"
@@ -870,7 +870,7 @@ const ListadoPrestamosElegante = () => {
                               {can('CREDITOS_EDIT') ||
                               can('LOANS_EDIT') ||
                               canForPath(baseRoute) ? (
-                                <button
+                                <button aria-label="Editar préstamo"
                                   onClick={() => setIdPrestamoAEditar(prestamo.id)}
                                   className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
                                   title="Editar préstamo"
@@ -878,7 +878,7 @@ const ListadoPrestamosElegante = () => {
                                   <Edit2 className="h-4 w-4" />
                                 </button>
                               ) : null}
-                              <button
+                              <button aria-label="Exportar Historial Pagos (PDF)"
                                 onClick={(e) => {
                                   e.stopPropagation()
                                   handleExportPaymentsByPrestamo(prestamo.id)
@@ -892,7 +892,7 @@ const ListadoPrestamosElegante = () => {
                                 can('LOANS_DELETE') ||
                                 canForPath(baseRoute)) &&
                               prestamo.estado !== 'PENDIENTE_APROBACION' ? (
-                                <button
+                                <button aria-label="Marcar como pérdida"
                                   onClick={() => setPrestamoAEliminar(prestamo.id)}
                                   className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
                                   title="Marcar como pérdida"
@@ -1055,7 +1055,7 @@ const ListadoPrestamosElegante = () => {
                       className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <button
+                      <button aria-label="Ver detalle"
                         onClick={() => irADetallePrestamo(prestamo.id)}
                         className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
                         title="Ver detalle"
@@ -1063,7 +1063,7 @@ const ListadoPrestamosElegante = () => {
                         <Eye className="h-4 w-4" />
                       </button>
                       {can('CREDITOS_EDIT') || can('LOANS_EDIT') || canForPath(baseRoute) ? (
-                        <button
+                        <button aria-label="Editar préstamo"
                           onClick={() => setIdPrestamoAEditar(prestamo.id)}
                           className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
                           title="Editar préstamo"
@@ -1071,7 +1071,7 @@ const ListadoPrestamosElegante = () => {
                           <Edit2 className="h-4 w-4" />
                         </button>
                       ) : null}
-                      <button
+                      <button aria-label="Exportar Historial Pagos (PDF)"
                         onClick={(e) => {
                           e.stopPropagation()
                           handleExportPaymentsByPrestamo(prestamo.id)
@@ -1083,7 +1083,7 @@ const ListadoPrestamosElegante = () => {
                       </button>
                       {(can('CREDITOS_DELETE') || can('LOANS_DELETE') || canForPath(baseRoute)) &&
                       prestamo.estado !== 'PENDIENTE_APROBACION' ? (
-                        <button
+                        <button aria-label="Marcar como pérdida"
                           onClick={() => setPrestamoAEliminar(prestamo.id)}
                           className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
                           title="Marcar como pérdida"

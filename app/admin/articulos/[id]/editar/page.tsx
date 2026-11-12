@@ -374,7 +374,7 @@ export default function EditarArticuloPage({ params }: { params: Promise<{ id: s
                                 {formatCurrency(p.precio / p.meses)}
                               </td>
                               <td className="px-4 py-3 text-right">
-                                <button
+                                <button aria-label="Eliminar"
                                   type="button"
                                   onClick={() => removePrecioCuota(index)}
                                   className="shrink-0 text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded-md transition-colors"

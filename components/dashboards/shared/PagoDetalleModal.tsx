@@ -749,7 +749,7 @@ export default function PagoDetalleModal({ isOpen, onClose, metadata }: PagoDeta
             className="max-w-[90vw] max-h-[90vh] object-contain rounded-2xl shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           />
-          <button
+          <button aria-label="Cerrar"
             onClick={() => setImgExpanded(false)}
             className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors"
           >

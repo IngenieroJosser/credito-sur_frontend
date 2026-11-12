@@ -182,14 +182,14 @@ export const ValidationResult: React.FC<ValidationResultProps> = ({ resultado, o
           Mostrando {((currentPage - 1) * itemsPerPage) + 1} a {Math.min(currentPage * itemsPerPage, totalItems)} de {totalItems}
         </span>
         <div className="flex gap-2">
-          <button
+          <button aria-label="Página anterior"
             onClick={() => setPage(Math.max(1, currentPage - 1))}
             disabled={currentPage === 1}
             className="shrink-0 p-1 rounded-md hover:bg-slate-200 disabled:opacity-50 transition-colors"
           >
             <ChevronLeft className="h-5 w-5" />
           </button>
-          <button
+          <button aria-label="Página siguiente"
             onClick={() => setPage(Math.min(totalPages, currentPage + 1))}
             disabled={currentPage === totalPages}
             className="shrink-0 p-1 rounded-md hover:bg-slate-200 disabled:opacity-50 transition-colors"

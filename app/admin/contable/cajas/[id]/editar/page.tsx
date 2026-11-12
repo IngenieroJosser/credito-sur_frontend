@@ -91,7 +91,7 @@ export default function EditarCajaPage({ params }: { params: Promise<{ id: strin
       <div className="relative z-10 w-full p-6 md:p-8 space-y-8">
         {/* Header */}
         <div className="flex items-center gap-4">
-          <button 
+          <button aria-label="Volver" 
             onClick={() => router.back()}
             className="p-2 hover:bg-white rounded-full transition-colors border border-transparent hover:border-slate-200 shadow-sm hover:shadow"
           >

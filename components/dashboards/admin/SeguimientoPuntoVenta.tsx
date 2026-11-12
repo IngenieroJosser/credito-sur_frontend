@@ -958,7 +958,7 @@ export default function SeguimientoPuntoVenta() {
                             </span>
                           </td>
                           <td className="px-4 py-3 text-center">
-                            <button
+                            <button aria-label="Ver detalle"
                               onClick={() => abrirDetalle(venta)}
                               className="p-1.5 rounded-lg hover:bg-orange-50 text-slate-400 hover:text-orange-600 transition-colors"
                               title="Ver detalle"
@@ -1007,7 +1007,7 @@ export default function SeguimientoPuntoVenta() {
                             <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
                             {cfg.label}
                           </span>
-                          <button
+                          <button aria-label="Ver detalle"
                             onClick={() => abrirDetalle(venta)}
                             className="shrink-0 p-1.5 rounded-lg bg-slate-50 hover:bg-orange-50 text-slate-400 hover:text-orange-600 transition-colors"
                           >
@@ -1055,7 +1055,7 @@ export default function SeguimientoPuntoVenta() {
                   {ventasFiltradas.length}
                 </span>
                 <div className="flex items-center gap-1">
-                  <button
+                  <button aria-label="Página anterior"
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
                     disabled={page === 1}
                     className="p-1.5 rounded-lg hover:bg-white border border-transparent hover:border-slate-200 text-slate-500 disabled:opacity-30 transition-all"
@@ -1065,7 +1065,7 @@ export default function SeguimientoPuntoVenta() {
                   <span className="text-xs font-bold text-slate-700 px-3">
                     {page} / {totalPages}
                   </span>
-                  <button
+                  <button aria-label="Página siguiente"
                     onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                     disabled={page === totalPages}
                     className="p-1.5 rounded-lg hover:bg-white border border-transparent hover:border-slate-200 text-slate-500 disabled:opacity-30 transition-all"
@@ -1110,7 +1110,7 @@ export default function SeguimientoPuntoVenta() {
                     />
                     {estadoCfg(ventaDetalle.estado).label}
                   </span>
-                  <button
+                  <button aria-label="Cerrar"
                     onClick={() => setVentaDetalle(null)}
                     className="p-2 rounded-xl hover:bg-white/50 text-slate-400 hover:text-slate-600 transition-colors"
                   >

@@ -305,7 +305,7 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
       <div className="relative z-10 w-full mx-auto space-y-8">
         {/* Header */}
         <div className="flex items-center gap-4">
-          <button 
+          <button aria-label="Volver" 
             onClick={() => router.back()}
             className="p-2 hover:bg-white rounded-full transition-colors border border-transparent hover:border-slate-200 shadow-sm hover:shadow"
           >
@@ -469,7 +469,7 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
                   <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Caja</p>
                   <h3 className="text-lg font-bold text-slate-900">Editar Configuración</h3>
                 </div>
-                <button
+                <button aria-label="Cerrar"
                   type="button"
                   onClick={() => setShowEditarCajaModal(false)}
                   className="shrink-0 p-2 rounded-xl hover:bg-slate-100 text-slate-500"
@@ -551,7 +551,7 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
                   <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Movimientos</p>
                   <h3 className="text-lg font-bold text-slate-900">Registrar Movimiento</h3>
                 </div>
-                <button
+                <button aria-label="Cerrar"
                   type="button"
                   onClick={() => setShowRegistrarMovimientoModal(false)}
                   className="shrink-0 p-2 rounded-xl hover:bg-slate-100 text-slate-500"
@@ -610,7 +610,7 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
                                   <CheckCircle2 className="h-5 w-5" />
                                </button>
                              </Tooltip>
-                             <button 
+                             <button aria-label="Cancelar" 
                                 type="button"
                                 onClick={() => setIsCreatingCategory(false)}
                                 className="shrink-0 p-3 bg-slate-100 text-slate-500 rounded-xl hover:bg-slate-200 transition-colors"

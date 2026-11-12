@@ -123,7 +123,7 @@ export default function SelectCategoria({
           >
             {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
           </button>
-          <button
+          <button aria-label="Cancelar"
             type="button"
             onClick={() => setShowCreate(false)}
             className="shrink-0 p-2 bg-slate-100 text-slate-500 rounded-lg hover:bg-slate-200 transition-colors"

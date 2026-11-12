@@ -260,7 +260,7 @@ const ReportesOperativosSupervisorPage = () => {
                       {item.nuevosClientes}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button
+                      <button aria-label="Ver detalle"
                         onClick={() => router.push(`/supervisor/rutas/${item.id}`)}
                         className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                         title="Ver Detalles"

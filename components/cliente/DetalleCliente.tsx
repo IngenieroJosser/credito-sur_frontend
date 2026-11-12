@@ -825,7 +825,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
                             Monto
                           </p>
                         </div>
-                        <button
+                        <button aria-label="Abrir en una pestaña nueva"
                           onClick={() => setPagoADetalle(pago)}
                           className="p-2 text-slate-400 hover:text-slate-900 transition-colors"
                         >

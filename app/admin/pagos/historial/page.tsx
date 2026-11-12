@@ -758,7 +758,7 @@ const HistorialPagosPage = () => {
                     <h3 className="text-sm font-black text-slate-900">{gastoDetalle.numero}</h3>
                   </div>
                 </div>
-                <button onClick={() => setGastoDetalle(null)} className="shrink-0 p-2 hover:bg-slate-100 rounded-full transition-colors">
+                <button aria-label="Cerrar" onClick={() => setGastoDetalle(null)} className="shrink-0 p-2 hover:bg-slate-100 rounded-full transition-colors">
                   <X className="h-4 w-4 text-slate-400" />
                 </button>
               </div>

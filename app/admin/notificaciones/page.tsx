@@ -894,7 +894,7 @@ export default function NotificacionesPage() {
                       </div>
 
                       <div className="flex items-center gap-1">
-                        <button
+                        <button aria-label="Ver detalle"
                           onClick={() => handleOpenDetail(notif)}
                           className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
                           title="Ver detalles"
