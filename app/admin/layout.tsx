@@ -422,32 +422,66 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       PUNTO_DE_VENTA: '/punto-de-venta',
     }
 
-    const hasAllowedAdminRoute = (() => {
-      if (!pathname?.startsWith('/admin')) return false
+    /**
+     * La raiz de cada rol. Entrar en la de OTRO es lo que se corta.
+     *
+     * Antes esta comprobacion solo miraba `/admin`, asi que un cobrador que
+     * escribia a mano `/coordinador/reportes` entraba. No veia datos —el
+     * backend devuelve 403, que es lo correcto— pero se quedaba en una pantalla
+     * que no es suya, con un aviso de permisos y un boton de «Reintentar» que
+     * no le iba a servir nunca.
+     *
+     * Las rutas limpias compartidas (`/clientes`, `/creditos`…) no empiezan por
+     * ninguna de estas raices, asi que no las toca: siguen dependiendo del menu
+     * como hasta ahora.
+     */
+    const RAICES_DE_ROL = [
+      '/admin',
+      '/coordinador',
+      '/supervisor',
+      '/cobranzas',
+      '/contador',
+      '/punto-de-venta',
+    ]
 
-      const allHrefs = navigation.flatMap((n) => [
-        n.href,
-        ...(n.submodulos?.map((s) => s.href) ?? []),
-      ])
-      const allowedAdminBases = allHrefs.filter(
-        (h) => typeof h === 'string' && h.startsWith('/admin'),
-      )
+    const bajo = (ruta: string, raiz: string) =>
+      ruta === raiz || ruta.startsWith(`${raiz}/`)
 
-      // Revisar tambien si la ruta /admin actual tiene una URL limpia equivalente en el menu lateral
-      // e.g. /admin/creditos is allowed if /creditos is in the sidebar (via rewrites)
-      const cleanPath = pathname.replace(/^\/admin/, '')
-      const allowedCleanBases = allHrefs.filter(
-        (h) => typeof h === 'string' && !h.startsWith('/admin') && h !== '#' && h !== '/',
-      )
+    // La raiz propia sale del destino de su rol: CONTADOR va a
+    // `/contador/contable`, y su raiz es `/contador`.
+    const destino = roleRedirects[user.rol]
+    const raizPropia = destino
+      ? RAICES_DE_ROL.find((r) => bajo(destino, r))
+      : undefined
 
-      return (
-        allowedAdminBases.some((base) => pathname === base || pathname.startsWith(`${base}/`)) ||
-        allowedCleanBases.some((base) => cleanPath === base || cleanPath.startsWith(`${base}/`))
+    const enRaizAjena =
+      !!pathname &&
+      RAICES_DE_ROL.some((r) => r !== raizPropia && bajo(pathname, r))
+
+    /**
+     * Si la ruta actual esta en el menu del usuario, se respeta aunque caiga
+     * bajo la raiz de otro rol: el menu se arma con sus permisos, y es la misma
+     * comprobacion que ya se hacia para `/admin`.
+     */
+    const rutaEnSuMenu = (() => {
+      if (!pathname) return false
+
+      const allHrefs = navigation
+        .flatMap((n) => [n.href, ...(n.submodulos?.map((s) => s.href) ?? [])])
+        .filter((h): h is string => typeof h === 'string' && h !== '#' && h !== '/')
+
+      // La misma pantalla se sirve con prefijo y sin el (`/admin/creditos` y
+      // `/creditos`), asi que se compara de las dos formas.
+      const raizActual = RAICES_DE_ROL.find((r) => bajo(pathname, r))
+      const cleanPath = raizActual ? pathname.slice(raizActual.length) || '/' : pathname
+
+      return allHrefs.some(
+        (base) => bajo(pathname, base) || bajo(cleanPath, base),
       )
     })()
 
-    if (roleRedirects[user.rol] && pathname?.startsWith('/admin') && !hasAllowedAdminRoute) {
-      router.replace(roleRedirects[user.rol])
+    if (destino && enRaizAjena && !rutaEnSuMenu) {
+      router.replace(destino)
     }
   }, [authChecked, navigation, pathname, router, user?.rol])
   // El menú se cierra al navegar SOLO en móvil.
