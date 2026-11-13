@@ -19,6 +19,7 @@ import { aprobacionesService, type Aprobacion } from '@/services/aprobaciones-se
 
 import { SkeletonTabla } from '@/components/ui/Skeleton'
 import Tooltip from '@/components/ui/Tooltip'
+import GrupoDeFiltros from '@/components/filtros/GrupoDeFiltros'
 interface SolicitudDinero {
   id: string
   fecha: string
@@ -193,31 +194,18 @@ export default function SolicitudesCobradorPage() {
 
           {showFilters && (
             <div className="mt-4 pt-4 border-t border-slate-200">
-              <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Estado</div>
-              <div className="flex flex-wrap gap-2">
-                {(
-                  [
-                    { key: 'TODAS' as const, label: 'Todas' },
-                    { key: 'PENDIENTE' as const, label: 'Pendientes' },
-                    { key: 'APROBADO' as const, label: 'Aprobadas' },
-                    { key: 'RECHAZADO' as const, label: 'Rechazadas' },
-                  ]
-                ).map((item) => (
-                  <button
-                    key={item.key}
-                    type="button"
-                    onClick={() => setEstadoFiltro(item.key)}
-                    className={cn(
-                      'px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all border',
-                      estadoFiltro === item.key
-                        ? 'bg-slate-900 text-white border-slate-900 shadow-lg shadow-slate-900/20'
-                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                    )}
-                  >
-                    {item.label}
-                  </button>
-                ))}
-              </div>
+              <GrupoDeFiltros
+                sinMarco
+                nombre="Estado"
+                valor={estadoFiltro}
+                onChange={(v) => setEstadoFiltro(v as typeof estadoFiltro)}
+                opciones={[
+                  { id: 'TODAS', label: 'Todas' },
+                  { id: 'PENDIENTE', label: 'Pendientes' },
+                  { id: 'APROBADO', label: 'Aprobadas' },
+                  { id: 'RECHAZADO', label: 'Rechazadas' },
+                ]}
+              />
             </div>
           )}
         </div>

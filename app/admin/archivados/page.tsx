@@ -21,6 +21,7 @@ import { SkeletonTabla } from '@/components/ui/Skeleton'
 import BotonAccion from '@/components/ui/BotonAccion'
 import { Selector } from '@/components/ui/Selector'
 import Tooltip from '@/components/ui/Tooltip'
+import GrupoDeFiltros from '@/components/filtros/GrupoDeFiltros'
 
 interface ArchivedItem {
   id: string
@@ -300,29 +301,19 @@ export default function ArchivadosPage() {
               />
             </div>
           )}
-          <div className="flex items-center gap-1.5 flex-wrap bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
-            <Filter className="h-3.5 w-3.5 text-slate-400 shrink-0 mr-1" />
-            
-            {[ 
+          <GrupoDeFiltros
+            nombre="Tipo"
+            icono={<Filter className="h-3.5 w-3.5" />}
+            valor={tipoFiltro}
+            onChange={setTipoFiltro}
+            opciones={[
               { id: 'todos', label: 'Todos' },
               { id: 'cliente', label: 'Clientes' },
               { id: 'prestamo', label: 'Préstamos' },
               { id: 'producto', label: 'Productos' },
-              { id: 'usuario', label: 'Usuarios' }
-            ].map((filtro) => (
-              <button
-                key={filtro.id}
-                onClick={() => setTipoFiltro(filtro.id)}
-                className={`px-3 py-1.5 text-[11px] font-bold rounded-xl transition-all whitespace-nowrap ${
-                  tipoFiltro === filtro.id 
-                    ? 'bg-primary text-white shadow-md shadow-primary/20' 
-                    : 'bg-slate-100/50 text-slate-600 hover:bg-slate-200/70 border border-slate-200'
-                }`}
-              >
-                {filtro.label}
-              </button>
-            ))}
-          </div>
+              { id: 'usuario', label: 'Usuarios' },
+            ]}
+          />
         </div>
 
         {/* Content */}

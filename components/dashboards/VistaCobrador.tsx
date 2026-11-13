@@ -227,6 +227,13 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import type { DailyVisitsResponse } from '@/services/rutas-service'
 import type { ContextoRegularizacion } from '@/types/rutas/cierre-pendiente'
 import { estadoVisitaClasses, prioridadColor } from '@/lib/display-labels'
+import GrupoDeFiltros from '@/components/filtros/GrupoDeFiltros'
+import {
+  aPeriodoDeFiltro,
+  OPCIONES_DE_PERIODO,
+  PERIODO_POR_DEFECTO,
+  type PeriodoDeFiltro,
+} from '@/lib/filtros/periodo-de-ruta'
 
 interface OperacionCaja {
   id: string
@@ -400,7 +407,7 @@ const VistaCobrador = () => {
 
   const [showMisClientes, setShowMisClientes] = useState(false)
 
-  const [periodoRutaFiltro, setPeriodoRutaFiltro] = useState<PeriodoRuta | 'TODOS'>('TODOS')
+  const [periodoRutaFiltro, setPeriodoRutaFiltro] = useState<PeriodoDeFiltro>(PERIODO_POR_DEFECTO)
 
   const [periodoCards, setPeriodoCards] = useState<'HOY' | 'SEM' | 'MES' | 'AÑO'>('HOY')
   // Ref para evitar stale closures en useCallback que no tienen periodoCards en sus deps
@@ -3683,31 +3690,13 @@ const VistaCobrador = () => {
                     </div>
 
                     <div className="flex gap-2 overflow-x-auto pb-1">
-                      {[
-                        { key: 'TODOS' as const, label: 'Todo' },
-
-                        { key: 'DIA' as const, label: 'Día' },
-
-                        { key: 'SEMANA' as const, label: 'Semanal' },
-
-                        { key: 'QUINCENA' as const, label: 'Quincenal' },
-
-                        { key: 'MES' as const, label: 'Mensual' },
-                      ].map((item) => (
-                        <button
-                          key={item.key}
-
-                          onClick={() => setPeriodoRutaFiltro(item.key)}
-
-                          className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all border ${
-                            periodoRutaFiltro === item.key
-                              ? 'bg-[#08557f] text-white border-[#08557f] shadow-lg shadow-[#08557f]/20'
-                              : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                          }`}
-                        >
-                          {item.label}
-                        </button>
-                      ))}
+                      <GrupoDeFiltros
+                        sinMarco
+                        nombre="Periodo"
+                        valor={periodoRutaFiltro}
+                        onChange={(v) => setPeriodoRutaFiltro(aPeriodoDeFiltro(v))}
+                        opciones={OPCIONES_DE_PERIODO}
+                      />
                     </div>
                   </div>
                 </div>

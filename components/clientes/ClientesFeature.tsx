@@ -36,6 +36,7 @@ import { WifiOff } from 'lucide-react'
 import { ExportButton } from '@/components/ui/ExportButton'
 import { exportService } from '@/services/export-service'
 import Tooltip from '@/components/ui/Tooltip'
+import GrupoDeFiltros from '@/components/filtros/GrupoDeFiltros'
 
 // Tipos locales
 type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA'
@@ -512,34 +513,33 @@ export default function ClientesFeature({
 
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white sm:bg-white/80 sm:backdrop-blur-sm p-4 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
           <div className="flex flex-col gap-4 md:flex-row md:items-center">
+            {/*
+              * La primera opcion decia «Estado: Todos» porque el grupo no
+              * llevaba nombre y habia que meterlo dentro de la etiqueta del
+              * chip. `GrupoDeFiltros` pinta el nombre del grupo, asi que el
+              * chip vuelve a decir solo «Todos».
+              */}
             <div className="flex items-center gap-1.5 flex-wrap">
-              <Filter className="h-3.5 w-3.5 text-slate-400 shrink-0 mr-1" />
-
-              {[
-                { id: 'all', label: 'Estado: Todos' },
-                { id: 'PENDIENTE', label: 'Pendientes' },
-                { id: 'AL_DIA', label: 'Al día' },
-                { id: 'LEVE', label: 'Leve' },
-                { id: 'PRECAUCION', label: 'Precaución' },
-                { id: 'MODERADO', label: 'Moderado' },
-                { id: 'CRITICO', label: 'Crítico' },
-                { id: 'LISTA_NEGRA', label: 'Lista Negra' },
-              ].map((filtro) => (
-                <button
-                  key={filtro.id}
-                  onClick={() => {
-                    setFilterRiesgo(filtro.id)
-                    setCurrentPage(1)
-                  }}
-                  className={`px-3 py-1.5 text-[11px] font-bold rounded-xl transition-all whitespace-nowrap ${
-                    filterRiesgo === filtro.id
-                      ? 'bg-primary text-white shadow-md shadow-primary/20'
-                      : 'bg-slate-100/50 text-slate-600 hover:bg-slate-200/70 border border-slate-200'
-                  }`}
-                >
-                  {filtro.label}
-                </button>
-              ))}
+              <GrupoDeFiltros
+                sinMarco
+                nombre="Estado"
+                icono={<Filter className="h-3.5 w-3.5" />}
+                valor={filterRiesgo}
+                onChange={(v) => {
+                  setFilterRiesgo(v)
+                  setCurrentPage(1)
+                }}
+                opciones={[
+                  { id: 'all', label: 'Todos' },
+                  { id: 'PENDIENTE', label: 'Pendientes' },
+                  { id: 'AL_DIA', label: 'Al día' },
+                  { id: 'LEVE', label: 'Leve' },
+                  { id: 'PRECAUCION', label: 'Precaución' },
+                  { id: 'MODERADO', label: 'Moderado' },
+                  { id: 'CRITICO', label: 'Crítico' },
+                  { id: 'LISTA_NEGRA', label: 'Lista Negra' },
+                ]}
+              />
 
               <div className="h-4 w-px bg-slate-200 mx-1 md:block hidden" />
 

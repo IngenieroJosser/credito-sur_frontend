@@ -19,6 +19,7 @@ import { useNotification } from '@/components/providers/NotificationProvider'
 import type { PrestamoDelListadoParcial } from '@/types/domain'
 import { idDelPrestamoCreado } from '@/lib/creditos/prestamo-creado'
 import { Selector } from '@/components/ui/Selector'
+import GrupoDeFiltros from '@/components/filtros/GrupoDeFiltros'
 import Tooltip from '@/components/ui/Tooltip'
 
 /**
@@ -353,53 +354,40 @@ export default function CreditosArticulosPage() {
               </div>
             )}
 
-            {/* Filtro de Estado */}
-            <div className="flex items-center gap-1.5 flex-wrap bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
-              <Filter className="h-3.5 w-3.5 text-slate-400 shrink-0 mr-1" />
-              {[
+            {/*
+              * Los dos grupos de abajo empezaban los dos por un chip que decia
+              * exactamente «Todos», y lo unico que los distinguia era el icono
+              * gris de 14 px del principio. `GrupoDeFiltros` exige el nombre de
+              * la dimension y lo pinta, asi que ahora se leen «ESTADO Todos
+              * Activos...» y «RIESGO Todos Al dia...».
+              */}
+            <GrupoDeFiltros
+              nombre="Estado"
+              icono={<Filter className="h-3.5 w-3.5" />}
+              valor={estadoFiltro}
+              onChange={setEstadoFiltro}
+              opciones={[
                 { id: 'todos', label: 'Todos' },
                 { id: 'ACTIVO', label: 'Activos' },
                 { id: 'PENDIENTE_APROBACION', label: 'Pendientes' },
                 { id: 'EN_MORA', label: 'En Mora' },
-                { id: 'PAGADO', label: 'Pagados' }
-              ].map((filtro) => (
-                <button
-                  key={filtro.id}
-                  onClick={() => setEstadoFiltro(filtro.id)}
-                  className={`px-3 py-1.5 text-[11px] font-bold rounded-xl transition-all whitespace-nowrap ${
-                    estadoFiltro === filtro.id
-                      ? 'bg-primary text-white shadow-md shadow-primary/20'
-                      : 'bg-slate-100/50 text-slate-600 hover:bg-slate-200/70 border border-slate-200'
-                  }`}
-                >
-                  {filtro.label}
-                </button>
-              ))}
-            </div>
+                { id: 'PAGADO', label: 'Pagados' },
+              ]}
+            />
 
-            {/* Filtro de Riesgo */}
-            <div className="flex items-center gap-1.5 flex-wrap bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
-              <AlertCircle className="h-3.5 w-3.5 text-slate-400 shrink-0 mr-1" />
-              {[
+            <GrupoDeFiltros
+              nombre="Riesgo"
+              icono={<AlertCircle className="h-3.5 w-3.5" />}
+              valor={riesgoFiltro}
+              onChange={setRiesgoFiltro}
+              opciones={[
                 { id: 'todos', label: 'Todos' },
                 { id: 'VERDE', label: 'Al día' },
                 { id: 'AMARILLO', label: 'Precaución' },
                 { id: 'ROJO', label: 'Rojo' },
-                { id: 'LISTA_NEGRA', label: 'Lista Negra' }
-              ].map((filtro) => (
-                <button
-                  key={filtro.id}
-                  onClick={() => setRiesgoFiltro(filtro.id)}
-                  className={`px-3 py-1.5 text-[11px] font-bold rounded-xl transition-all whitespace-nowrap ${
-                    riesgoFiltro === filtro.id
-                      ? 'bg-primary text-white shadow-md shadow-primary/20'
-                      : 'bg-slate-100/50 text-slate-600 hover:bg-slate-200/70 border border-slate-200'
-                  }`}
-                >
-                  {filtro.label}
-                </button>
-              ))}
-            </div>
+                { id: 'LISTA_NEGRA', label: 'Lista Negra' },
+              ]}
+            />
           </div>
         </div>
 

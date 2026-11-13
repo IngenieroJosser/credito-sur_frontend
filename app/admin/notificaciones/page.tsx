@@ -38,6 +38,7 @@ import { CapaAccion } from '@/components/ui/PantallaCarga'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Selector } from '@/components/ui/Selector'
 import Tooltip from '@/components/ui/Tooltip'
+import GrupoDeFiltros from '@/components/filtros/GrupoDeFiltros'
 
 // MOCKS ELIMINADOS - La aplicación solo funciona con datos reales del backend
 
@@ -684,7 +685,21 @@ export default function NotificacionesPage() {
           <div className="bg-white/80 backdrop-blur-xl rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
             {/* Tabs y Filtros */}
             <div className="border-b border-slate-100 p-4 flex flex-col gap-4">
-              <div className="flex bg-slate-100/50 p-1 rounded-xl">
+              {/*
+                * Estas tres pestanas y el grupo de categorias de mas abajo
+                * empiezan las dos por un boton que dice «Todas». El grupo de
+                * categorias si llevaba su nombre encima; estas no, asi que en
+                * la pantalla se veian dos «Todas» y solo uno decia de que.
+                */}
+              <div>
+                <p className="mb-3 pl-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  Filtrar por lectura
+                </p>
+              <div
+                role="group"
+                aria-label="Filtrar por lectura"
+                className="flex bg-slate-100/50 p-1 rounded-xl"
+              >
                 <button
                   onClick={() => setFilter('TODAS')}
                   className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
@@ -740,38 +755,29 @@ export default function NotificacionesPage() {
                   </button>
                 )}
               </div>
+              </div>
 
               <div className="flex flex-col gap-6">
                 {/* Tipo de Notificación */}
                 <div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 pl-1">Filtrar por Categoría</p>
-                  <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-                    {(
-                      [
-                        { key: 'TODOS' as const, label: 'Todas' },
-                        { key: 'PRESTAMO' as const, label: 'Préstamos' },
-                        { key: 'CLIENTE' as const, label: 'Clientes' },
-                        { key: 'GASTO' as const, label: 'Gastos' },
-                        { key: 'SOLICITUD_DINERO' as const, label: 'Bases' },
-                        { key: 'PAGO' as const, label: 'Pagos' },
-                        { key: 'REGULARIZADAS' as const, label: 'Regularizadas' },
-                        { key: 'MORA' as const, label: 'Mora' },
-                        { key: 'SISTEMA' as const, label: 'Sistema' },
-                      ]
-                    ).map((t) => (
-                      <button
-                        key={t.key}
-                        onClick={() => setTipoFilter(t.key)}
-                        className={`px-5 py-2 rounded-xl text-xs font-bold transition-all border whitespace-nowrap ${
-                          tipoFilter === t.key
-                            ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-100'
-                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                        }`}
-                      >
-                        {t.label}
-                      </button>
-                    ))}
-                  </div>
+                  <GrupoDeFiltros
+                    sinMarco
+                    nombre="Categoría"
+                    className="overflow-x-auto pb-1 scrollbar-hide"
+                    valor={tipoFilter}
+                    onChange={(v) => setTipoFilter(v as typeof tipoFilter)}
+                    opciones={[
+                      { id: 'TODOS', label: 'Todas' },
+                      { id: 'PRESTAMO', label: 'Préstamos' },
+                      { id: 'CLIENTE', label: 'Clientes' },
+                      { id: 'GASTO', label: 'Gastos' },
+                      { id: 'SOLICITUD_DINERO', label: 'Bases' },
+                      { id: 'PAGO', label: 'Pagos' },
+                      { id: 'REGULARIZADAS', label: 'Regularizadas' },
+                      { id: 'MORA', label: 'Mora' },
+                      { id: 'SISTEMA', label: 'Sistema' },
+                    ]}
+                  />
                 </div>
 
                 {/* Filtro de Ruta + Búsqueda */}

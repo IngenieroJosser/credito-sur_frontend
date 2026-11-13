@@ -136,6 +136,13 @@ import { crearProveedorCuotasEnLote } from '@/lib/rutas/cuotas-en-lote'
 import { resolveVisitaBaseRegularizacion } from '@/lib/rutas/resolve-visita-base-regularizacion'
 import { buildRutaHoyOperativa } from '@/lib/rutas/build-ruta-hoy-operativa'
 import type { ContextoRegularizacion } from '@/types/rutas/cierre-pendiente'
+import GrupoDeFiltros from '@/components/filtros/GrupoDeFiltros'
+import {
+  aPeriodoDeFiltro,
+  OPCIONES_DE_PERIODO,
+  PERIODO_POR_DEFECTO,
+  type PeriodoDeFiltro,
+} from '@/lib/filtros/periodo-de-ruta'
 import {
   riesgoBadgeClasses,
   estadoVisitaClasses,
@@ -298,9 +305,7 @@ const RutaClientLoaded = ({
     setContextoRegularizacion(null)
   }, [])
 
-  const [periodoRutaFiltro, setPeriodoRutaFiltro] = useState<
-    'TODOS' | 'DIA' | 'SEMANA' | 'QUINCENA' | 'MES'
-  >('TODOS')
+  const [periodoRutaFiltro, setPeriodoRutaFiltro] = useState<PeriodoDeFiltro>(PERIODO_POR_DEFECTO)
 
   const [gruposColapsados, setGruposColapsados] = useState<Record<string, boolean>>({})
   const toggleGrupo = useCallback((key: string) => {
@@ -1545,31 +1550,13 @@ const RutaClientLoaded = ({
                 </div>
 
                 <div className="flex gap-2 overflow-x-auto pb-1 items-center">
-                  {[
-                    { key: 'TODOS' as const, label: 'Todo' },
-
-                    { key: 'DIA' as const, label: 'Día' },
-
-                    { key: 'SEMANA' as const, label: 'Semanal' },
-
-                    { key: 'QUINCENA' as const, label: 'Quincenal' },
-
-                    { key: 'MES' as const, label: 'Mensual' },
-                  ].map((item) => (
-                    <button
-                      key={item.key}
-
-                      onClick={() => setPeriodoRutaFiltro(item.key)}
-
-                      className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all border ${
-                        periodoRutaFiltro === item.key
-                          ? 'bg-[#08557f] text-white border-[#08557f] shadow-lg shadow-[#08557f]/20'
-                          : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                      }`}
-                    >
-                      {item.label}
-                    </button>
-                  ))}
+                  <GrupoDeFiltros
+                    sinMarco
+                    nombre="Periodo"
+                    valor={periodoRutaFiltro}
+                    onChange={(v) => setPeriodoRutaFiltro(aPeriodoDeFiltro(v))}
+                    opciones={OPCIONES_DE_PERIODO}
+                  />
                 </div>
               </div>
             </div>

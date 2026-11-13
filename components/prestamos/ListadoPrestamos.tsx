@@ -54,6 +54,7 @@ import type { PrestamoDelListado } from '@/types/domain'
 import { idDelPrestamoCreado } from '@/lib/creditos/prestamo-creado'
 import Tooltip from '@/components/ui/Tooltip'
 
+import GrupoDeFiltros from '@/components/filtros/GrupoDeFiltros'
 interface Filtros {
   estado: string
   cliente: string
@@ -691,32 +692,23 @@ const ListadoPrestamosElegante = () => {
                 hideLabel={true}
               />
 
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <Filter className="h-3.5 w-3.5 text-slate-400 shrink-0 mr-1" />
-
-                {[
+              <GrupoDeFiltros
+                sinMarco
+                nombre="Estado"
+                icono={<Filter className="h-3.5 w-3.5" />}
+                valor={filtros.estado ?? 'todos'}
+                disabled={cargando}
+                onChange={(estado) => {
+                  setFiltros((prev) => ({ ...prev, estado }))
+                  setPaginaActual(1)
+                }}
+                opciones={[
                   { id: 'todos', label: 'Todos' },
                   { id: 'ACTIVO', label: 'Activos' },
                   { id: 'EN_MORA', label: 'En Mora' },
                   { id: 'PAGADO', label: 'Pagados' },
-                ].map((filtro) => (
-                  <button
-                    key={filtro.id}
-                    onClick={() => {
-                      setFiltros((prev) => ({ ...prev, estado: filtro.id }))
-                      setPaginaActual(1)
-                    }}
-                    disabled={cargando}
-                    className={`px-3 py-1.5 text-[11px] font-bold rounded-xl transition-all whitespace-nowrap ${
-                      filtros.estado === filtro.id
-                        ? 'bg-primary text-white shadow-md shadow-primary/20'
-                        : 'bg-slate-100/50 text-slate-600 hover:bg-slate-200/70 border border-slate-200'
-                    }`}
-                  >
-                    {filtro.label}
-                  </button>
-                ))}
-              </div>
+                ]}
+              />
             </div>
           </div>
 

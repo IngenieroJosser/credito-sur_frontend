@@ -16,6 +16,7 @@ import { SkeletonTabla } from '@/components/ui/Skeleton'
 import { mensajeDeError } from '@/lib/mensaje-de-error'
 import Tooltip from '@/components/ui/Tooltip'
 
+import GrupoDeFiltros from '@/components/filtros/GrupoDeFiltros'
 const AuditoriaSistemaPage = () => {
   const { can, canForPath } = usePermission()
   const permitido = useMemo(
@@ -310,24 +311,32 @@ const AuditoriaSistemaPage = () => {
                 </button>
               ))}
             </div>
-            <div className="flex gap-1 w-full md:w-auto overflow-x-auto p-1 bg-slate-100 rounded-xl border border-slate-200">
-              {['Todas', 'Ruta Centro', 'Ruta Norte', 'Ruta Este', 'Ruta Sur - Expansión']
-                .filter((label) => label === 'Todas' || rutas.some((r) => r.nombre === label))
-                .map((label) => (
-                  <button
-                    key={label}
-                    onClick={() => setFiltroRuta(label)}
-                    className={cn(
-                      'px-4 py-2 rounded-lg text-xs font-bold tracking-wide transition-all duration-300',
-                      filtroRuta === label
-                        ? 'bg-white text-slate-900 shadow-sm'
-                        : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50',
-                    )}
-                  >
-                    {label}
-                  </button>
-                ))}
-            </div>
+            {/*
+              * Las rutas del filtro salen de las rutas que hay, no de una lista
+              * escrita a mano.
+              *
+              * Aqui estaban los cuatro nombres —«Ruta Centro», «Ruta Norte»,
+              * «Ruta Este», «Ruta Sur - Expansion»— cruzados contra las reales
+              * con un `.filter`. La pantalla ya cargaba las rutas de verdad en
+              * `rutas` para traducir los ids de los registros, asi que una ruta
+              * nueva salia en la tabla y NO se podia filtrar; y el dia que a una
+              * de esas cuatro le cambien el nombre, su chip desaparece sin que
+              * nada falle.
+              */}
+            <GrupoDeFiltros
+              nombre="Ruta"
+              className="w-full md:w-auto"
+              valor={filtroRuta}
+              onChange={setFiltroRuta}
+              opciones={[
+                { id: 'Todas', label: 'Todas' },
+                ...rutas
+                  .map((r) => r.nombre)
+                  .filter((nombre): nombre is string => Boolean(nombre))
+                  .sort((a, b) => a.localeCompare(b, 'es'))
+                  .map((nombre) => ({ id: nombre, label: nombre })),
+              ]}
+            />
           </div>
 
           {/* Tabla - Desktop */}
