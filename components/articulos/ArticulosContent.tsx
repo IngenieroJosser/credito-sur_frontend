@@ -66,6 +66,7 @@ import IngresoMercanciaModal from '@/components/articulos/IngresoMercanciaModal'
 import { exportService } from '@/services/export-service'
 import { formatErrorForComponent } from '@/lib/api/api'
 import BotonAccion from '@/components/ui/BotonAccion'
+import { Selector } from '@/components/ui/Selector'
 
 // Interfaces
 interface PrecioCuota {
@@ -1229,19 +1230,18 @@ export default function ArticulosContent() {
                     <p className="text-sm font-bold text-slate-900">Opciones de cuotas</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <select
-                      value={nuevaCuota.meses}
-                      onChange={(e) =>
-                        setNuevaCuota((p) => ({ ...p, meses: Number(e.target.value) }))
+                    <Selector
+                      value={String(nuevaCuota.meses)}
+                      onChange={(v) =>
+                        setNuevaCuota((p) => ({ ...p, meses: Number(v) }))
                       }
-                      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-900"
-                    >
-                      {PLAZOS_ARTICULO_MESES.map((m) => (
-                        <option key={m} value={m}>
-                          {m} mes{m > 1 ? 'es' : ''}
-                        </option>
-                      ))}
-                    </select>
+                      etiqueta="Plazo"
+                      className="px-3 py-2 text-sm font-bold text-slate-900"
+                      opciones={PLAZOS_ARTICULO_MESES.map((m) => ({
+                        value: String(m),
+                        label: `${m} mes${m > 1 ? 'es' : ''}`,
+                      }))}
+                    />
                     <div className="relative">
                       <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
                       <input
@@ -1297,22 +1297,20 @@ export default function ArticulosContent() {
                               repetido || sinPrecio ? 'bg-rose-50' : ''
                             }`}
                           >
-                            <select
-                              value={p.meses}
-                              onChange={(e) =>
-                                actualizarPrecioCuota(idx, { meses: Number(e.target.value) })
+                            <Selector
+                              value={String(p.meses)}
+                              onChange={(v) =>
+                                actualizarPrecioCuota(idx, { meses: Number(v) })
                               }
-                              aria-label={`Plazo de la opción ${idx + 1}`}
-                              className={`rounded-xl border bg-white px-3 py-2 text-sm font-bold text-slate-900 ${
+                              etiqueta={`Plazo de la opción ${idx + 1}`}
+                              className={`px-3 py-2 text-sm font-bold text-slate-900 ${
                                 repetido ? 'border-rose-400' : 'border-slate-200'
                               }`}
-                            >
-                              {opcionesDeMesesParaPlazo(p.meses).map((m) => (
-                                <option key={m} value={m}>
-                                  {m} mes{m > 1 ? 'es' : ''}
-                                </option>
-                              ))}
-                            </select>
+                              opciones={opcionesDeMesesParaPlazo(p.meses).map((m) => ({
+                                value: String(m),
+                                label: `${m} mes${m > 1 ? 'es' : ''}`,
+                              }))}
+                            />
                             <div className="flex items-center gap-3">
                               <div className="relative">
                                 <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />

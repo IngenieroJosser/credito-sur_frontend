@@ -50,6 +50,7 @@ import { FrecuenciaPago } from '@/types/enums'
 // de pantalla; en el esquema la columna es `creadoEn`). El estado guarda la
 // respuesta del endpoint, no el objeto de presentacion.
 import type { Cliente as ClienteDelServicio } from '@/services/clientes-service'
+import { Selector } from '@/components/ui/Selector'
 
 const MODAL_Z_INDEX = 2147483647
 
@@ -80,6 +81,17 @@ export default function ClienteDetalleSupervisorPage() {
   const [montoPrestamoInput, setMontoPrestamoInput] = useState('')
   const [tasaInteresInput, setTasaInteresInput] = useState('')
   const [cuotasPrestamoInput, setCuotasPrestamoInput] = useState('')
+  /**
+   * La frecuencia que elige el supervisor.
+   *
+   * No existia. El desplegable de «Frecuencia de Pago» NO tenia `value` ni
+   * `onChange` —era decorativo— y el envio mandaba
+   * `frecuenciaPago: FrecuenciaPago.SEMANAL` fijo. O sea que se podia elegir
+   * «Mensual» y el credito se creaba SEMANAL, sin un solo aviso.
+   */
+  const [frecuenciaPrestamo, setFrecuenciaPrestamo] = useState<FrecuenciaPago>(
+    FrecuenciaPago.SEMANAL,
+  )
   const [cuotaInicialArticuloInput, setCuotaInicialArticuloInput] = useState('')
 
   const [formularioNuevoCliente, setFormularioNuevoCliente] = useState({
@@ -685,12 +697,18 @@ export default function ClienteDetalleSupervisorPage() {
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <label className="block text-sm font-bold text-slate-700 mb-2">Frecuencia de Pago</label>
-                          <select className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900">
-                            <option>Diario</option>
-                            <option>Semanal</option>
-                            <option>Quincenal</option>
-                            <option>Mensual</option>
-                          </select>
+                          <Selector
+                            value={frecuenciaPrestamo}
+                            onChange={(v) => setFrecuenciaPrestamo(v as FrecuenciaPago)}
+                            etiqueta="Frecuencia de Pago"
+                            className="bg-slate-50 font-medium text-slate-900"
+                            opciones={[
+                              { value: FrecuenciaPago.DIARIO, label: 'Diario' },
+                              { value: FrecuenciaPago.SEMANAL, label: 'Semanal' },
+                              { value: FrecuenciaPago.QUINCENAL, label: 'Quincenal' },
+                              { value: FrecuenciaPago.MENSUAL, label: 'Mensual' },
+                            ]}
+                          />
                         </div>
                         <div>
                           <label className="block text-sm font-bold text-slate-700 mb-2">Cuotas</label>
@@ -724,13 +742,17 @@ export default function ClienteDetalleSupervisorPage() {
                         </div>
                         <div>
                           <label className="block text-sm font-bold text-slate-700 mb-2">Cuotas</label>
-                          <select className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900">
-                            <option>3 cuotas</option>
-                            <option>6 cuotas</option>
-                            <option>12 cuotas</option>
-                            <option>18 cuotas</option>
-                            <option>24 cuotas</option>
-                          </select>
+                          <Selector
+                            value={cuotasPrestamoInput}
+                            onChange={setCuotasPrestamoInput}
+                            etiqueta="Cuotas"
+                            placeholder="Elige cuántas cuotas"
+                            className="bg-slate-50 font-medium text-slate-900"
+                            opciones={[3, 6, 12, 18, 24].map((n) => ({
+                              value: String(n),
+                              label: `${n} cuotas`,
+                            }))}
+                          />
                         </div>
                       </div>
                     </>
@@ -785,7 +807,7 @@ export default function ClienteDetalleSupervisorPage() {
                             tasaInteresMora: 5, // Default
                             plazoMeses: Math.max(1, Math.ceil(cuotas / 4)), // Estimado si es semanal
                             cantidadCuotas: cuotas,
-                            frecuenciaPago: FrecuenciaPago.SEMANAL,
+                            frecuenciaPago: frecuenciaPrestamo,
                             fechaInicio: toBogotaDateTimeOffsetIso(new Date()),
                             creadoPorId,
                             tipoAmortizacion: TipoAmortizacion.INTERES_SIMPLE,
