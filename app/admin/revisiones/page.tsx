@@ -73,6 +73,7 @@ import {
   resumenAprobacionOperativa,
 } from '@/lib/aprobaciones/presentacion-aprobacion'
 import { DECISIONES_CUENTA_VENCIDA } from '@/lib/display-labels'
+import { Selector } from '@/components/ui/Selector'
 
 // Configuración de categorías con meta visual
 // `icon` es un componente de lucide-react, no `any`: `LucideIcon` es el tipo que la propia
@@ -1258,16 +1259,20 @@ export default function RevisionesPage() {
 
           <div className="flex flex-wrap gap-3 flex-1">
             <div className="relative">
-              <select
+              <Selector
                 value={filtroRuta}
-                onChange={(e) => setFiltroRuta(e.target.value)}
-                className="appearance-none pl-10 pr-8 py-2 rounded-xl text-xs font-medium border border-slate-200 bg-white text-slate-700 hover:border-slate-300 transition-colors cursor-pointer focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900/20"
-              >
-                <option value="">Todas las rutas</option>
-                {rutas.map(ruta => (
-                  <option key={ruta.id} value={ruta.id}>{ruta.nombre || ruta.codigo}</option>
-                ))}
-              </select>
+                onChange={setFiltroRuta}
+                etiqueta="Filtrar por ruta"
+                placeholder="Todas las rutas"
+                className="pl-10 pr-8 py-2 text-xs font-medium"
+                opciones={[
+                  { value: '', label: 'Todas las rutas' },
+                  ...rutas.map((ruta) => ({
+                    value: ruta.id,
+                    label: ruta.nombre || ruta.codigo,
+                  })),
+                ]}
+              />
               <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
             </div>
 

@@ -11,6 +11,7 @@ import { Save, User, Phone, Mail, MapPin, Briefcase, Shield, AlertCircle, Chevro
 import { FileUploader } from '@/components/ui/FileUploader';
 import { mensajeDeError } from '@/lib/mensaje-de-error'
 import { useBorradorDeFormulario } from '@/hooks/useBorradorDeFormulario'
+import { Selector } from '@/components/ui/Selector'
 
 interface ClienteFormData {
   nombres: string;
@@ -472,11 +473,22 @@ const ClienteFormPage = () => {
                         </div>
                         <div>
                           <label className="block text-sm font-bold text-slate-700 mb-2">Nivel de Riesgo Manual</label>
-                          <select name="nivelRiesgo" value={formData.nivelRiesgo} onChange={handleInputChange} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-900/20 focus:border-slate-900 transition-all font-medium text-slate-900">
-                            <option value="VERDE">Verde (Bajo Riesgo)</option>
-                            <option value="AMARILLO">Amarillo (Riesgo Medio)</option>
-                            <option value="ROJO">Rojo (Alto Riesgo)</option>
-                          </select>
+                          <Selector
+                            name="nivelRiesgo"
+                            value={formData.nivelRiesgo}
+                            onChange={(v) =>
+                              handleInputChange({
+                                target: { name: 'nivelRiesgo', value: v },
+                              } as React.ChangeEvent<HTMLInputElement>)
+                            }
+                            etiqueta="Nivel de Riesgo Manual"
+                            className="font-medium text-slate-900"
+                            opciones={[
+                              { value: 'VERDE', label: 'Verde (Bajo Riesgo)' },
+                              { value: 'AMARILLO', label: 'Amarillo (Riesgo Medio)' },
+                              { value: 'ROJO', label: 'Rojo (Alto Riesgo)' },
+                            ]}
+                          />
                         </div>
                       </div>
                     )}
@@ -493,10 +505,22 @@ const ClienteFormPage = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label className="block text-sm font-bold text-slate-700 mb-2">Asignar Ruta</label>
-                      <select name="rutaId" value={formData.rutaId} onChange={handleInputChange} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-900/20 focus:border-slate-900 transition-all font-medium text-slate-900">
-                        <option value="">Seleccionar Ruta...</option>
-                        {rutasDisponibles.map(ruta => (<option key={ruta.id} value={ruta.id}>{ruta.nombre}</option>))}
-                      </select>
+                      <Selector
+                        name="rutaId"
+                        value={formData.rutaId}
+                        onChange={(v) =>
+                          handleInputChange({
+                            target: { name: 'rutaId', value: v },
+                          } as React.ChangeEvent<HTMLInputElement>)
+                        }
+                        etiqueta="Asignar Ruta"
+                        placeholder="Seleccionar Ruta..."
+                        className="font-medium text-slate-900"
+                        opciones={rutasDisponibles.map((ruta) => ({
+                          value: ruta.id,
+                          label: ruta.nombre,
+                        }))}
+                      />
                       <p className="mt-1 text-xs text-slate-500 font-medium">El cliente será visitado por el cobrador asignado a esta ruta.</p>
                     </div>
                     <div className="md:col-span-2">

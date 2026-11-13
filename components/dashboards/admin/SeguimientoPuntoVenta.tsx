@@ -30,6 +30,7 @@ import { prestamosService } from '@/services/prestamos-service'
 import { pagosService } from '@/services/pagos-service'
 import { usuariosService, type Usuario } from '@/services/usuarios-service'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { Selector } from '@/components/ui/Selector'
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -740,40 +741,40 @@ export default function SeguimientoPuntoVenta() {
             {/* Estado */}
             <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
               <Filter className="h-3.5 w-3.5 text-slate-400" />
-              <select
+              <Selector
                 value={filtroEstado}
-                onChange={(e) => {
-                  setFiltroEstado(e.target.value)
+                onChange={(v) => {
+                  setFiltroEstado(v)
                   setPage(1)
                 }}
-                className="text-sm font-bold text-slate-700 bg-transparent border-none outline-none cursor-pointer"
-              >
-                <option value="TODOS">Todos los estados</option>
-                <option value="ACTIVO">Activo</option>
-                <option value="PENDIENTE">Pendiente</option>
-                <option value="PENDIENTE_APROBACION">En Aprobación</option>
-                <option value="COMPLETADO">Completado</option>
-              </select>
+                etiqueta="Filtrar por estado"
+                className="border-0 bg-transparent px-0 py-0 text-sm font-bold text-slate-700"
+                opciones={[
+                  { value: 'TODOS', label: 'Todos los estados' },
+                  { value: 'ACTIVO', label: 'Activo' },
+                  { value: 'PENDIENTE', label: 'Pendiente' },
+                  { value: 'PENDIENTE_APROBACION', label: 'En Aprobación' },
+                  { value: 'COMPLETADO', label: 'Completado' },
+                ]}
+              />
             </div>
 
             {/* Usuario Punto de Venta */}
             <div className="flex items-center gap-1.5 bg-orange-50 border border-orange-200 rounded-xl px-3 py-2">
               <Users className="h-3.5 w-3.5 text-orange-500" />
-              <select
+              <Selector
                 value={filtroVendedor}
-                onChange={(e) => {
-                  setFiltroVendedor(e.target.value)
+                onChange={(valor) => {
+                  setFiltroVendedor(valor)
                   setPage(1)
                 }}
-                className="max-w-[220px] text-sm font-bold text-orange-700 bg-transparent border-none outline-none cursor-pointer"
-              >
-                <option value="TODOS">Todos los puntos de venta</option>
-                {vendedoresFiltro.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.nombre}
-                  </option>
-                ))}
-              </select>
+                etiqueta="Filtrar por punto de venta"
+                className="max-w-[220px] border-0 bg-transparent px-0 py-0 text-sm font-bold text-orange-700"
+                opciones={[
+                  { value: 'TODOS', label: 'Todos los puntos de venta' },
+                  ...vendedoresFiltro.map((v) => ({ value: v.id, label: v.nombre })),
+                ]}
+              />
             </div>
 
             {/* Fechas */}

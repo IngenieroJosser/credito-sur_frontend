@@ -20,6 +20,7 @@ import { formatShortDateTime, formatShortDate } from "@/lib/utils/format";
 import { buildBogotaOffsetIsoFromKey, normalizeDateKey } from '@/lib/rutas-core'
 import BotonAccion from '@/components/ui/BotonAccion'
 import { SkeletonTabla } from '@/components/ui/Skeleton';
+import { Selector } from '@/components/ui/Selector'
 
 import {
   Search,
@@ -2012,22 +2013,21 @@ const UserManagementPage = () => {
                         Rol
                       </FieldLabel>
                       <div className="relative">
-                        <select
+                        <Selector
                           value={formData.rol}
-                          onChange={(e) =>
+                          onChange={(v) =>
                             setFormData({
                               ...formData,
-                              rol: e.target.value as RolUsuario,
+                              rol: v as RolUsuario,
                             })
                           }
-                          className="w-full px-4 py-3 border border-slate-200 rounded-2xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 appearance-none text-sm font-medium text-slate-900"
-                        >
-                          {roles.map((role) => (
-                            <option key={role.id} value={role.id}>
-                              {role.label}
-                            </option>
-                          ))}
-                        </select>
+                          etiqueta="Rol del usuario"
+                          className="rounded-2xl bg-slate-50 text-sm font-medium text-slate-900"
+                          opciones={roles.map((role) => ({
+                            value: role.id,
+                            label: role.label,
+                          }))}
+                        />
                         <ChevronDown className="absolute right-4 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
                       </div>
                     </div>
@@ -2216,22 +2216,21 @@ const UserManagementPage = () => {
                         Rol
                       </FieldLabel>
                       <div className="relative">
-                        <select
+                        <Selector
                           value={formData.rol}
-                          onChange={(e) =>
+                          onChange={(v) =>
                             setFormData({
                               ...formData,
-                              rol: e.target.value as RolUsuario,
+                              rol: v as RolUsuario,
                             })
                           }
-                          className="w-full px-4 py-3 border border-slate-200 rounded-2xl bg-slate-50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 appearance-none text-sm font-medium text-slate-900"
-                        >
-                          {roles.map((role) => (
-                            <option key={role.id} value={role.id}>
-                              {role.label}
-                            </option>
-                          ))}
-                        </select>
+                          etiqueta="Rol del usuario"
+                          className="rounded-2xl bg-slate-50 text-sm font-medium text-slate-900"
+                          opciones={roles.map((role) => ({
+                            value: role.id,
+                            label: role.label,
+                          }))}
+                        />
                         <ChevronDown className="absolute right-4 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
                       </div>
                     </div>

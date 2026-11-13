@@ -36,6 +36,7 @@ import { formatMilesCOP } from '@/lib/utils'
 import BotonAccion from '@/components/ui/BotonAccion'
 import { CapaAccion } from '@/components/ui/PantallaCarga'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { Selector } from '@/components/ui/Selector'
 
 // MOCKS ELIMINADOS - La aplicación solo funciona con datos reales del backend
 
@@ -788,22 +789,21 @@ export default function NotificacionesPage() {
                       )}
                       
                       <div className="md:w-48">
-                        <select 
+                        <Selector
                           value={sortBy}
-                          onChange={(e) => {
-                            // `e.target.value` es un `string`: se comprueba en vez de
-                            // afirmarlo. Los valores posibles son las llaves de ORDENES,
-                            // que es de donde se dibujan las opciones.
-                            if (esOrden(e.target.value)) setSortBy(e.target.value)
+                          onChange={(v) => {
+                            // El valor sigue comprobandose en vez de afirmarse: los
+                            // posibles son las llaves de ORDENES, que es de donde se
+                            // dibujan las opciones.
+                            if (esOrden(v)) setSortBy(v)
                           }}
-                          className="w-full h-[42px] px-4 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 transition-all cursor-pointer"
-                        >
-                          {Object.entries(ORDENES).map(([valor, etiqueta]) => (
-                            <option key={valor} value={valor}>
-                              {etiqueta}
-                            </option>
-                          ))}
-                        </select>
+                          etiqueta="Ordenar por"
+                          className="h-[42px] text-sm font-bold text-slate-700"
+                          opciones={Object.entries(ORDENES).map(([valor, etiqueta]) => ({
+                            value: valor,
+                            label: etiqueta,
+                          }))}
+                        />
                       </div>
                     </div>
 

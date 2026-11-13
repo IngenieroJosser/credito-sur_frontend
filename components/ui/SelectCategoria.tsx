@@ -5,6 +5,7 @@ import { categoriasService, Categoria } from '@/services/categorias-service';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import FieldLabel from '@/components/ui/FieldLabel';
 import { logger } from '@/lib/logger';
+import { Selector } from '@/components/ui/Selector'
 
 interface SelectCategoriaProps {
   tipo: string; // 'CLIENTE', 'GASTO', etc.
@@ -133,22 +134,25 @@ export default function SelectCategoria({
         </div>
       ) : (
         <div className="relative">
-          <select
+          {/*
+            * Este componente se llamaba «SelectCategoria» y por dentro era un
+            * `<select>` NATIVO con `appearance-none` y una flecha SVG dibujada
+            * encima: cambiaba la flecha, pero la lista de opciones seguia
+            * siendola del sistema operativo. Ahora usa el selector propio, asi
+            * que la flecha de adorno tambien sobra.
+            */}
+          <Selector
             value={value || ''}
-            onChange={(e) => onChange(e.target.value)}
+            onChange={onChange}
             disabled={disabled || loading}
-            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900 disabled:opacity-50 appearance-none"
-          >
-            <option value="">{loading ? 'Cargando...' : placeholder}</option>
-            {categorias.map(cat => (
-              <option key={cat.id} value={cat.id}>{cat.nombre}</option>
-            ))}
-          </select>
-          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
-             <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20">
-               <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" fillRule="evenodd"></path>
-             </svg>
-          </div>
+            etiqueta="Categoria"
+            placeholder={loading ? 'Cargando...' : placeholder}
+            className="bg-slate-50 font-medium text-slate-900"
+            opciones={categorias.map((cat) => ({
+              value: cat.id,
+              label: cat.nombre,
+            }))}
+          />
         </div>
       )}
     </div>
