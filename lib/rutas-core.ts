@@ -622,6 +622,67 @@ export const getBogotaDateKey = (date: Date | string | number): string => {
   }
 }
 
+/**
+ * Hoy en Bogota, como `Date`, para hacer cuentas de dias.
+ *
+ * `getBogotaNowKey()` ya daba la llave `YYYY-MM-DD`, pero para sumar o restar
+ * dias hace falta un `Date`, y ahi es donde cinco sitios del sistema hacian
+ * esto:
+ *
+ *     const hoy = new Date()
+ *     hoy.setHours(0, 0, 0, 0)
+ *
+ * Eso es hoy segun el reloj del DISPOSITIVO. Con el huso mal puesto —un
+ * Android recien formateado, el de alguien que viajo— o en el cambio de dia,
+ * el «hoy» sale corrido, y en este sistema de ahi salen los dias vencidos de
+ * una cuenta, el limite para reprogramar un cobro y los dias que le quedan a
+ * una prorroga.
+ *
+ * La fecha se arma AL MEDIODIA a proposito: `new Date('2026-11-13')` se
+ * interpreta como medianoche UTC, que en Bogota es el dia anterior a las
+ * 19:00. Trabajar a mediodia deja cinco horas de margen por cada lado y el dia
+ * no se corre nunca. Es el mismo cuidado que tiene `CampoFecha`.
+ */
+export const hoyEnBogota = (): Date => {
+  const llave = getBogotaNowKey()
+  if (!llave) {
+    // Sin zona resoluble, el reloj local es peor pero mejor que nada.
+    const d = new Date()
+    d.setHours(12, 0, 0, 0)
+    return d
+  }
+  const [yyyy, mm, dd] = llave.split('-').map(Number)
+  return new Date(yyyy, mm - 1, dd, 12, 0, 0, 0)
+}
+
+/**
+ * Cuantos dias de calendario hay de `desde` a `hasta`, en Bogota.
+ *
+ * Positivo si `hasta` es posterior. Devuelve `null` si alguna de las dos no se
+ * puede resolver: aqui un cero significaria «el mismo dia», y eso no es lo
+ * mismo que «no se sabe» —es la regla de que un cero en una cifra no es un
+ * hueco, aplicada a los dias—.
+ *
+ * Las dos fechas se llevan a su llave de Bogota y se arman al mediodia, asi
+ * que el resultado es una diferencia de DIAS DEL CALENDARIO y no de horas: de
+ * las 23:00 del lunes a la 01:00 del martes es 1, no 0.
+ */
+export const diasEntreEnBogota = (
+  desde: string | Date | null | undefined,
+  hasta: string | Date | null | undefined,
+): number | null => {
+  const llaveDesde = desde instanceof Date ? getBogotaDateKey(desde) : normalizeDateKey(desde)
+  const llaveHasta = hasta instanceof Date ? getBogotaDateKey(hasta) : normalizeDateKey(hasta)
+  if (!llaveDesde || !llaveHasta) return null
+
+  const aMediodia = (llave: string) => {
+    const [y, m, d] = llave.split('-').map(Number)
+    return new Date(y, m - 1, d, 12, 0, 0, 0).getTime()
+  }
+
+  const ms = aMediodia(llaveHasta) - aMediodia(llaveDesde)
+  return Math.round(ms / 86_400_000)
+}
 export const normalizeDateKey = (raw: string | null | undefined): string => {
   // Normaliza un valor (YYYY-MM-DD, ISO string o Date-like) a llave Bogotá YYYY-MM-DD.
   // Si es ISO, toma el componente de fecha; si no, intenta parsear a Date.

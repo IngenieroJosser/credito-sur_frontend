@@ -53,7 +53,10 @@ import {
   type DecisionCastigo,
 } from '@/services/vencidas-service'
 import { exportService } from '@/services/export-service'
-import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
+import { toBogotaDateTimeOffsetIso,
+  diasEntreEnBogota,
+  getBogotaNowKey,
+} from '@/lib/rutas-core'
 import { toast } from 'sonner'
 import { offlineStore } from '@/lib/offline/offlineDb'
 import { resolveRiesgoObligacion } from '@/lib/rutas/riesgo-obligacion'
@@ -67,12 +70,27 @@ type ViewMode = 'list' | 'grid'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
+/**
+ * Cuantos dias lleva vencida una cuenta.
+ *
+ * Antes el «hoy» salia de `new Date()` con `setHours(0,0,0,0)`: el dia del
+ * DISPOSITIVO. Con el huso mal puesto o en el cambio de dia, esta cifra sale
+ * corrida, y de ella salen la severidad de la cuenta y la decision de
+ * castigarla.
+ *
+ * Devuelve `number` y no `number | null` a proposito, medido: el unico sitio
+ * que la llama ya garantiza una fecha —`p.fechaFin || <hoy>`—, asi que el caso
+ * de «no se sabe» no ocurre. Hacerla nullable obligaria a cambiar el tipo
+ * `CuentaVencida.diasVencidos` y todo lo que lo lee, para cubrir un caso que
+ * nadie puede provocar.
+ *
+ * El cero del guarda vale «vencio hoy», que seria una mentira: si algun dia
+ * otro sitio llama a esto con una fecha vacia, lo que hay que arreglar es esa
+ * llamada.
+ */
 function diasVencidosDesde(fecha: string): number {
-  const hoy = new Date()
-  hoy.setHours(0, 0, 0, 0)
-  const d = new Date(fecha)
-  d.setHours(0, 0, 0, 0)
-  return Math.max(0, Math.ceil((hoy.getTime() - d.getTime()) / (1000 * 60 * 60 * 24)))
+  const dias = diasEntreEnBogota(fecha, getBogotaNowKey())
+  return Math.max(0, dias ?? 0)
 }
 
 function severidadVencida(dias: number): { label: string; badge: string; barColor: string } {

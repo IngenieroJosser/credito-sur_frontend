@@ -5,7 +5,9 @@ import { X, Clock, AlertTriangle, CheckCircle2, Calendar, Loader2 } from 'lucide
 import { VisitaRuta } from '@/lib/types/cobranza'
 import Portal, { MODAL_Z_INDEX } from '@/components/ui/Portal'
 import FieldLabel from '@/components/ui/FieldLabel'
-import { getBogotaDateKey } from '@/lib/rutas-core'
+import { getBogotaDateKey,
+  hoyEnBogota,
+} from '@/lib/rutas-core'
 import Tooltip from '@/components/ui/Tooltip'
 import { useModalDialog } from '@/hooks/use-modal-dialog'
 import { CampoFecha } from '@/components/ui/CampoFecha'
@@ -30,8 +32,11 @@ const LIMITES_DIAS: Record<string, number> = {
 export default function ReprogramarModal({ visita, onClose, onConfirm }: ReprogramarModalProps) {
   // Validación de límite de días
   const limite = LIMITES_DIAS[visita.periodoRuta] ?? 30
-  const hoy = new Date()
-  hoy.setHours(0, 0, 0, 0)
+  // `hoyEnBogota()` y no `new Date()` con `setHours(0,0,0,0)`: de aqui salen
+  // la fecha minima y la maxima a las que se puede reprogramar un cobro, y con
+  // el huso del telefono mal puesto se podia elegir una fecha que el backend
+  // rechaza, o quedaba prohibida una valida.
+  const hoy = hoyEnBogota()
   const maxFecha = new Date(hoy)
   maxFecha.setDate(maxFecha.getDate() + limite)
   const maxFechaStr = getBogotaDateKey(maxFecha)

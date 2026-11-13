@@ -189,6 +189,8 @@ import {
   toBogotaDateTimeOffsetIso,
   computeDiasMoraFromCuotas,
   frecuenciaToPeriodoRuta,
+  hoyEnBogota,
+  getBogotaNowKey,
 } from '@/lib/rutas-core'
 import { mapAsignacionesToVisitasLite } from '@/lib/ruta-visitas-mapper'
 import {
@@ -2155,10 +2157,20 @@ const VistaCobrador = () => {
   const visitasCobrador = useMemo(() => {
     // Calcular inicio del período actual según frecuencia del crédito
 
+    /*
+      * El inicio del periodo actual —el lunes de esta semana, el 1 o el 16 de
+      * esta quincena, el 1 de este mes— para filtrar las visitas.
+      *
+      * `hoyEnBogota()` y no `new Date()` con `setHours(0,0,0,0)`: ese «hoy»
+      * era el del telefono, asi que con el huso mal puesto o en el cambio de
+      * dia el periodo arrancaba en otra fecha y la ruta salia con otras
+      * visitas. Viene armado al mediodia, asi que `setDate` no corre el dia.
+      *
+      * `toKey` lee el dia del `Date` ya resuelto en Bogota, asi que aqui si
+      * es correcto usar `getFullYear`/`getMonth`/`getDate`.
+      */
     const getInicioPeriodoStr = (periodo: string): string => {
-      const hoy = new Date()
-
-      hoy.setHours(0, 0, 0, 0)
+      const hoy = hoyEnBogota()
 
       const toKey = (d: Date) =>
         `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -2187,20 +2199,12 @@ const VistaCobrador = () => {
         return toKey(m)
       }
 
-      return (() => {
-        const d = new Date()
-        return toKey(d)
-      })() // DIA = hoy
+      return getBogotaNowKey() // DIA = hoy, en Bogota
     }
 
-    const hoyLocal = new Date()
-
-    hoyLocal.setHours(0, 0, 0, 0)
-
-    const toKey = (d: Date) =>
-      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-
-    const hoyStr = toKey(hoyLocal)
+    // El dia de hoy en Bogota. Se llamaba `hoyLocal` y lo era: salia de
+    // `new Date()` con el huso del telefono.
+    const hoyStr = getBogotaNowKey()
 
     const filtradas = (visitasBase || []).map((v: VisitaRuta) => ({
       ...v,

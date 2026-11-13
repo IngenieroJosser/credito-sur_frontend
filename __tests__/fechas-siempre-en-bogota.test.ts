@@ -121,4 +121,88 @@ describe('las fechas van siempre en hora de Bogota', () => {
 
     expect(informe).toBe('')
   })
+
+  /**
+   * El otro lado de la misma regla: el «hoy» que sale del reloj del aparato.
+   *
+   * Esta prueba empezó vigilando solo `toLocale*String`, y por eso no vio lo
+   * que de verdad costaba dinero. Había CINCO sitios haciendo esto:
+   *
+   *     const hoy = new Date()
+   *     hoy.setHours(0, 0, 0, 0)
+   *
+   * Eso es hoy según el DISPOSITIVO, no según Bogotá. Y de ahí salían:
+   *
+   *   los días vencidos de una cuenta        `(auth)/cuentas-vencidas`
+   *   el límite para reprogramar un cobro    `ReprogramarModal`
+   *   los días que le quedan a una prórroga  `CobradorElements`
+   *   el inicio del periodo de la ruta       `VistaCobrador`, dos veces
+   *
+   * Con el huso mal puesto —un Android recién formateado, el de alguien que
+   * viajó— o en el cambio de día, todas esas cifras salen corridas un día, y
+   * deciden si se cobra hoy y con cuánto recargo.
+   *
+   * Lo que SÍ vale es normalizar una fecha concreta —`new Date(fecha)` con su
+   * `setHours`— cuando el otro lado de la comparación se normaliza igual: el
+   * desplazamiento se cancela y se comparan dos días del calendario. Lo que no
+   * vale es que uno de los dos lados sea «ahora» del aparato.
+   */
+  const HOY_DEL_APARATO = /^\s*([A-Za-z_$][\w$]*)\.setHours\(\s*0,\s*0,\s*0,\s*0\s*\)/
+
+  /** Si la variable del `setHours` se declaró como `new Date()` sin argumentos. */
+  function esAhoraDelAparato(lineas: string[], i: number): string | null {
+    const encontrado = HOY_DEL_APARATO.exec(lineas[i])
+    if (!encontrado) return null
+    const variable = encontrado[1]
+    const antes = lineas.slice(Math.max(0, i - 6), i).join('\n')
+    const declarada = new RegExp(
+      `(?:const|let|var)\\s+${variable}\\s*=\\s*new Date\\(\\s*\\)`,
+    ).test(antes)
+    return declarada ? variable : null
+  }
+
+  it('ningún «hoy» sale del reloj del dispositivo', () => {
+    const infractores: string[] = []
+
+    for (const archivo of archivos) {
+      const relativo = path.relative(RAIZ, archivo).replace(/\\/g, '/')
+      if (PERMITIDOS.has(relativo)) continue
+
+      const lineas = fs.readFileSync(archivo, 'utf8').split('\n')
+      lineas.forEach((_, i) => {
+        const variable = esAhoraDelAparato(lineas, i)
+        if (variable) infractores.push(`${relativo}:${i + 1} -> ${variable}`)
+      })
+    }
+
+    const informe = infractores.length
+      ? [
+          'Estos «hoy» salen del reloj DEL DISPOSITIVO:',
+          '',
+          ...infractores.map((i) => `  - ${i}`),
+          '',
+          'Usa `hoyEnBogota()` si necesitas un `Date` para sumar o restar',
+          'días, `getBogotaNowKey()` si te basta la llave YYYY-MM-DD, o',
+          '`diasEntreEnBogota(desde, hasta)` para una diferencia de días. Los',
+          'tres están en `@/lib/rutas-core` y tienen pruebas con el huso del',
+          'proceso cambiado.',
+        ].join('\n')
+      : ''
+
+    expect(informe).toBe('')
+  })
+
+  it('y ese lector ve el defecto cuando se le pone delante', () => {
+    // Comprobada al revés, con las dos formas: la que está mal y la que no.
+    const mal = ['const hoy = new Date()', 'hoy.setHours(0, 0, 0, 0)']
+    const bien = [
+      'const limite = new Date(visita.fechaProrroga)',
+      'limite.setHours(0, 0, 0, 0)',
+    ]
+
+    expect({
+      elMalo: esAhoraDelAparato(mal, 1),
+      elBueno: esAhoraDelAparato(bien, 1),
+    }).toEqual({ elMalo: 'hoy', elBueno: null })
+  })
 })

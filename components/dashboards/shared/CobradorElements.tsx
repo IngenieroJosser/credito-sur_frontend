@@ -18,7 +18,10 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { VisitaRuta, EstadoVisita } from '@/lib/types/cobranza'
 import { formatCurrency } from '@/lib/utils'
-import { resolveCuotaAcumuladaOperativa, resolveCuotaNormalOperativa } from '@/lib/rutas-core'
+import { resolveCuotaAcumuladaOperativa, resolveCuotaNormalOperativa,
+  diasEntreEnBogota,
+  getBogotaNowKey,
+} from '@/lib/rutas-core'
 import Tooltip from '@/components/ui/Tooltip'
 import { Selector } from '@/components/ui/Selector'
 
@@ -503,11 +506,9 @@ function VisitaCardContent({
         (() => {
           const diasRestantes = (() => {
             if (!visita.fechaProrroga) return null
-            const hoy = new Date()
-            hoy.setHours(0, 0, 0, 0)
-            const limite = new Date(visita.fechaProrroga)
-            limite.setHours(0, 0, 0, 0)
-            return Math.ceil((limite.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24))
+            // En hora de Bogota: antes el «hoy» era el del telefono, asi que
+            // una prorroga podia verse como vencida un dia antes de estarlo.
+            return diasEntreEnBogota(getBogotaNowKey(), visita.fechaProrroga)
           })()
           const color =
             diasRestantes === null || diasRestantes < 0
