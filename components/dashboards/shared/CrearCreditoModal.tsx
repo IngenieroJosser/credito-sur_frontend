@@ -25,6 +25,7 @@ import FieldLabel from '@/components/ui/FieldLabel'
 import { useAuth } from '@/hooks/useAuth'
 import Tooltip from '@/components/ui/Tooltip'
 import { useModalDialog } from '@/hooks/use-modal-dialog'
+import { Selector } from '@/components/ui/Selector'
 
 interface CrearCreditoModalProps {
   isOpen: boolean
@@ -419,18 +420,17 @@ export default function CrearCreditoModal({
             <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-5">
               <div>
                 <FieldLabel required>Cliente</FieldLabel>
-                <select
+                <Selector
                   value={clienteCreditoId}
-                  onChange={(e) => setClienteCreditoId(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700"
-                >
-                  <option value="">Selecciona un cliente</option>
-                  {clientes.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.nombres} {c.apellidos}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setClienteCreditoId}
+                  etiqueta="Cliente"
+                  placeholder="Selecciona un cliente"
+                  className="text-sm font-bold text-slate-700"
+                  opciones={clientes.map((c) => ({
+                    value: c.id,
+                    label: c.nombres + ' ' + c.apellidos,
+                  }))}
+                />
               </div>
 
               {creditType === 'prestamo' ? (
@@ -462,14 +462,16 @@ export default function CrearCreditoModal({
                     </div>
                     <div>
                       <FieldLabel required>Tipo de Interés</FieldLabel>
-                      <select
+                      <Selector
                         value={tipoInteres}
-                        onChange={(e) => setTipoInteres(e.target.value as TipoAmortizacion)}
-                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
-                      >
-                        <option value={TipoAmortizacion.INTERES_SIMPLE}>Interés Simple</option>
-                        <option value={TipoAmortizacion.INTERES_PLANO}>Amortización</option>
-                      </select>
+                        onChange={(v) => setTipoInteres(v as TipoAmortizacion)}
+                        etiqueta="Tipo de interés"
+                        className="bg-slate-50 p-3 font-medium text-slate-900"
+                        opciones={[
+                          { value: TipoAmortizacion.INTERES_SIMPLE, label: 'Interés Simple' },
+                          { value: TipoAmortizacion.INTERES_PLANO, label: 'Amortización' },
+                        ]}
+                      />
                     </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -499,20 +501,21 @@ export default function CrearCreditoModal({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <FieldLabel required>Frecuencia de Pago</FieldLabel>
-                      <select
-                         value={frecuenciaPago}
-                         onChange={(e) => {
-                           const val = e.target.value
-                           setFrecuenciaPago(val)
-                           setFechaPrimerCobro(getDefaultFirstCollectionDate(val))
-                         }}
-                         className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
-                      >
-                        <option value="DIARIO">Diario</option>
-                        <option value="SEMANAL">Semanal</option>
-                        <option value="QUINCENAL">Quincenal</option>
-                        <option value="MENSUAL">Mensual</option>
-                      </select>
+                      <Selector
+                        value={frecuenciaPago}
+                        onChange={(val) => {
+                          setFrecuenciaPago(val)
+                          setFechaPrimerCobro(getDefaultFirstCollectionDate(val))
+                        }}
+                        etiqueta="Frecuencia de pago"
+                        className="bg-slate-50 p-3 font-medium text-slate-900"
+                        opciones={[
+                          { value: 'DIARIO', label: 'Diario' },
+                          { value: 'SEMANAL', label: 'Semanal' },
+                          { value: 'QUINCENAL', label: 'Quincenal' },
+                          { value: 'MENSUAL', label: 'Mensual' },
+                        ]}
+                      />
                     </div>
                     <div>
                       <FieldLabel required>Fecha Crédito</FieldLabel>
@@ -654,48 +657,48 @@ export default function CrearCreditoModal({
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <FieldLabel required>Artículo</FieldLabel>
-                      <select
+                      <Selector
                         value={articuloSeleccionadoId}
-                        onChange={(e) => {
-                          setArticuloSeleccionadoId(e.target.value)
+                        onChange={(v) => {
+                          setArticuloSeleccionadoId(v)
                           setPlanArticuloIndex(null)
                           setEsContado(Boolean(defaultVentaContado || lockVentaContado))
                         }}
-                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-bold text-slate-900"
-                      >
-                        <option value="">Seleccionar artículo...</option>
-                        {articulos.map((articulo) => (
-                          <option key={articulo.id} value={articulo.id}>
-                            {articulo.nombre}
-                          </option>
-                        ))}
-                      </select>
+                        etiqueta="Artículo"
+                        placeholder="Seleccionar artículo..."
+                        className="bg-slate-50 p-3 font-bold text-slate-900"
+                        opciones={articulos.map((articulo) => ({
+                          value: articulo.id,
+                          label: articulo.nombre,
+                        }))}
+                      />
                     </div>
 
                     <div>
                       {!esContado && (
                         <>
                           <FieldLabel required className="mt-3">Plazo (Meses)</FieldLabel>
-                          <select
-                            value={planArticuloIndex !== null ? planArticuloIndex : ''}
-                            onChange={(e) => {
-                              const idx = e.target.value ? parseInt(e.target.value) : null
-                              setPlanArticuloIndex(idx)
+                          <Selector
+                            value={planArticuloIndex !== null ? String(planArticuloIndex) : ''}
+                            onChange={(v) => {
+                              setPlanArticuloIndex(v ? parseInt(v) : null)
                             }}
-                            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-bold text-slate-900"
                             disabled={!articuloSeleccionadoId}
-                          >
-                            <option value="">Seleccionar plazo...</option>
-                            {articuloSeleccionado?.opcionesCuotas.map((op, idx) => {
-                              const meses = Number(op.numeroCuotas)
-                              if (isNaN(meses)) return null
-                              return (
-                                <option key={idx} value={idx}>
-                                  {meses} {meses === 1 ? 'Mes' : 'Meses'} - Total: {formatCurrency(op.precioTotal)}
-                                </option>
-                              )
-                            })}
-                          </select>
+                            etiqueta="Plazo del artículo"
+                            placeholder="Seleccionar plazo..."
+                            className="bg-slate-50 p-3 font-bold text-slate-900"
+                            opciones={(articuloSeleccionado?.opcionesCuotas ?? [])
+                              .map((op, idx) => ({ op, idx, meses: Number(op.numeroCuotas) }))
+                              .filter(({ meses }) => !isNaN(meses))
+                              .map(({ op, idx, meses }) => ({
+                                value: String(idx),
+                                label:
+                                  meses +
+                                  (meses === 1 ? ' Mes' : ' Meses') +
+                                  ' - Total: ' +
+                                  formatCurrency(op.precioTotal),
+                              }))}
+                          />
                         </>
                       )}
                     </div>
@@ -705,20 +708,21 @@ export default function CrearCreditoModal({
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <FieldLabel required>Frecuencia de Pago</FieldLabel>
-                        <select
-                           value={frecuenciaPago}
-                           onChange={(e) => {
-                             const val = e.target.value
-                             setFrecuenciaPago(val)
-                             setFechaPrimerCobro(getDefaultFirstCollectionDate(val))
-                           }}
-                           className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-bold text-slate-900"
-                        >
-                          <option value="DIARIO">Diaria</option>
-                          <option value="SEMANAL">Semanal</option>
-                          <option value="QUINCENAL">Quincenal</option>
-                          <option value="MENSUAL">Mensual</option>
-                        </select>
+                        <Selector
+                          value={frecuenciaPago}
+                          onChange={(val) => {
+                            setFrecuenciaPago(val)
+                            setFechaPrimerCobro(getDefaultFirstCollectionDate(val))
+                          }}
+                          etiqueta="Frecuencia de pago"
+                          className="bg-slate-50 p-3 font-bold text-slate-900"
+                          opciones={[
+                            { value: 'DIARIO', label: 'Diaria' },
+                            { value: 'SEMANAL', label: 'Semanal' },
+                            { value: 'QUINCENAL', label: 'Quincenal' },
+                            { value: 'MENSUAL', label: 'Mensual' },
+                          ]}
+                        />
                       </div>
                       <div>
                         <FieldLabel required>Cuota Inicial</FieldLabel>
