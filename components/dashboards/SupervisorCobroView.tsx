@@ -2374,6 +2374,16 @@ const handleRegistrarPago = useCallback(async (
 
 
         <header className="space-y-4">
+          {/*
+            * El nombre de la pantalla, para un lector de pantalla.
+            *
+            * Esta vista no tenia ningun `<h1>`: su titulo mas grande era el
+            * `<h2>` con el nombre del supervisor, que no dice donde esta.
+            * Quien la recorre con el teclado no tenia forma de saberlo. Se
+            * pone visualmente oculto para no cambiar nada de lo que se ve:
+            * la cabecera ya ensena de que va con el avatar y el nombre.
+            */}
+          <h1 className="sr-only">Cobro de la ruta</h1>
 
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
 
