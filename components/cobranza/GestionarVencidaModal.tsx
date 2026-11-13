@@ -197,7 +197,7 @@ export default function GestionarVencidaModal({ cuenta, onClose, onConfirm }: Ge
               <Tooltip texto="Cerrar">
                 <button
                   onClick={onClose}
-                  className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors"
+                  className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 inline-flex items-center justify-center"
                   aria-label="Cerrar"
                 >
                   <X className="h-4 w-4" />
@@ -391,7 +391,7 @@ export default function GestionarVencidaModal({ cuenta, onClose, onConfirm }: Ge
           <div className="px-6 py-5 bg-slate-50 border-t border-slate-100 flex gap-3 shrink-0">
             <button
               onClick={onClose}
-              className="flex-1 py-3.5 px-4 rounded-2xl text-slate-600 font-black text-[10px] uppercase tracking-widest bg-white border border-slate-200 hover:bg-slate-100 transition-colors"
+              className="flex-1 min-h-[44px] py-3.5 px-4 rounded-2xl text-slate-600 font-black text-[10px] uppercase tracking-widest bg-white border border-slate-200 hover:bg-slate-100 transition-colors"
             >
               Cancelar
             </button>

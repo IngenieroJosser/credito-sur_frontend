@@ -128,7 +128,7 @@ export default function ReprogramarModal({ visita, onClose, onConfirm }: Reprogr
               <Tooltip texto="Cerrar">
                 <button
                   onClick={onClose}
-                  className="p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
+                  className="p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 inline-flex items-center justify-center"
                   type="button"
                   aria-label="Cerrar"
                 >

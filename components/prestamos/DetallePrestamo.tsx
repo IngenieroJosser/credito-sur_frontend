@@ -781,8 +781,158 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
               </div>
             )}
 
-            {/* Tabla de Amortización */}
-            <div className="overflow-x-auto">
+            {/*
+              * El plan de pagos tiene ONCE columnas. En un teléfono de
+              * 390 px eso es una tabla que se arrastra en horizontal para
+              * leer una cuota, y la cuota es justo el dato por el que se
+              * entra aquí.
+              *
+              * Así que con el dedo va en tarjetas, una por cuota, con lo
+              * que de verdad se consulta —el número, el vencimiento, lo
+              * que toca pagar y en qué estado está— y el reparto de
+              * capital e interés debajo. En escritorio sigue la tabla,
+              * que ahí sí cabe y se compara de un vistazo.
+              */}
+            <div className="divide-y divide-slate-100 md:hidden">
+              {cuotasConSaldoUI.map((cuota) => {
+                const esCuotaActual =
+                  cuotaActual && cuota.numero === cuotaActual.numero
+                const montoPagado = Number(cuota?.montoPagado ?? 0)
+                const montoCuota = Number(
+                  cuota?.monto ??
+                    Number(cuota?.montoCapital || 0) +
+                      Number(cuota?.montoInteres || 0),
+                )
+                const pendienteCuota = Math.max(0, montoCuota - montoPagado)
+
+                return (
+                  <div
+                    key={cuota.numero}
+                    className={cn(
+                      'px-4 py-4',
+                      esCuotaActual &&
+                        'bg-blue-50/60 ring-1 ring-inset ring-blue-200',
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                          {esCuotaActual ? (
+                            <span
+                              className="h-1.5 w-1.5 rounded-full bg-blue-500"
+                              aria-hidden
+                            />
+                          ) : null}
+                          Cuota {cuota.numero}
+                        </p>
+                        <p className="mt-0.5 text-sm font-bold text-slate-700">
+                          {formatDate(cuota.fecha)}
+                        </p>
+                      </div>
+                      <span
+                        className={cn(
+                          'shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wide',
+                          getCuotaEstadoColor(cuota.estadoUI),
+                        )}
+                      >
+                        {cuota.estadoUI}
+                      </span>
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2">
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                          Cuota
+                        </p>
+                        <Cifra
+                          valor={montoCuota}
+                          tamano="normal"
+                          className="font-bold text-slate-900"
+                        />
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                          Pendiente
+                        </p>
+                        {/* Sin abono NO se pinta un cero: ahi no se sabe,
+                            y un "$ 0" se lee como "no debe nada". */}
+                        {montoPagado > 0 ? (
+                          <Cifra
+                            valor={pendienteCuota}
+                            tamano="normal"
+                            className="font-bold text-slate-700"
+                          />
+                        ) : (
+                          <p className="text-sm font-bold text-slate-400">—</p>
+                        )}
+                      </div>
+                      {montoPagado > 0 ? (
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                            Abonado
+                          </p>
+                          <Cifra
+                            valor={montoPagado}
+                            tamano="normal"
+                            className="font-bold text-amber-700"
+                          />
+                        </div>
+                      ) : null}
+                      {cuota.fechaPago ? (
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                            Fecha de pago
+                          </p>
+                          <p className="text-sm font-bold text-slate-600">
+                            {formatFechaPagoBogota(cuota.fechaPago)}
+                          </p>
+                        </div>
+                      ) : null}
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-slate-100 pt-2 text-[11px] font-semibold">
+                      <span className="text-blue-700">
+                        Capital{' '}
+                        {cuota.montoCapital != null
+                          ? formatCurrency(cuota.montoCapital)
+                          : '—'}
+                      </span>
+                      <span className="text-violet-700">
+                        Interés{' '}
+                        {cuota.montoInteres != null
+                          ? formatCurrency(cuota.montoInteres)
+                          : '—'}
+                      </span>
+                      <span className="text-slate-500">
+                        Saldo {formatCurrency(cuota.saldoRestante)}
+                      </span>
+                    </div>
+
+                    {String(cuota.estadoVisita || '').toLowerCase() ===
+                    'ausente' ? (
+                      <div className="mt-3 rounded-xl border border-rose-100 bg-rose-50 px-3 py-2">
+                        <p className="text-[10px] font-black uppercase tracking-wide text-rose-700">
+                          Visita ausente
+                        </p>
+                        {cuota.notasVisita ? (
+                          <p className="mt-0.5 text-[11px] font-semibold text-slate-600">
+                            {cuota.notasVisita}
+                          </p>
+                        ) : null}
+                        {cuota.cobradorVisita ? (
+                          <p className="text-[10px] text-slate-400">
+                            {cuota.cobradorVisita}
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Tabla de Amortización: de tableta hacia arriba. */}
+            <div className="hidden overflow-x-auto md:block">
             <table className="min-w-full divide-y divide-slate-200">
               <thead className="bg-slate-50/50">
                 <tr>

@@ -1,6 +1,5 @@
 'use client'
 import { formatFechaBogota } from '@/lib/format-date'
-import { logger } from '@/lib/logger'
 
 import { useMemo, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
@@ -11,15 +10,14 @@ import {
   Clock,
   CheckCircle2,
   XCircle,
-  Eye,
   ChevronLeft,
 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import { aprobacionesService, type Aprobacion } from '@/services/aprobaciones-service'
 
 import { SkeletonTabla } from '@/components/ui/Skeleton'
-import Tooltip from '@/components/ui/Tooltip'
 import GrupoDeFiltros from '@/components/filtros/GrupoDeFiltros'
+import Cifra from '@/components/ui/Cifra'
 interface SolicitudDinero {
   id: string
   fecha: string
@@ -211,7 +209,65 @@ export default function SolicitudesCobradorPage() {
         </div>
 
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
+          {/*
+            * El cobrador mira esto en el telefono, y la tabla tiene seis
+            * columnas: en 390 px hay que arrastrarla en horizontal para
+            * ver el monto y el estado, que es lo unico que se viene a
+            * consultar. Con el dedo va en tarjetas; de tableta hacia
+            * arriba sigue la tabla.
+            */}
+          <div className="divide-y divide-slate-100 md:hidden">
+            {loadingSolicitudes ? (
+              <p className="px-5 py-12 text-center font-medium text-slate-400">
+                Cargando solicitudes...
+              </p>
+            ) : (
+              solicitudesFiltradas.map((sol) => (
+                <div key={sol.id} className="px-5 py-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                        {formatFechaBogota(sol.fecha, {
+                          weekday: 'short',
+                          day: 'numeric',
+                          month: 'short',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </p>
+                      <p className="mt-0.5 text-sm font-bold text-slate-900">
+                        {sol.descripcion}
+                      </p>
+                    </div>
+                    <span
+                      className={cn(
+                        'inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-bold',
+                        getEstadoColor(sol.estado),
+                      )}
+                    >
+                      {getEstadoIcon(sol.estado)}
+                      {sol.estado}
+                    </span>
+                  </div>
+
+                  <Cifra
+                    valor={sol.monto}
+                    tamano="normal"
+                    classNameCaja="mt-2"
+                    className="font-bold text-slate-900"
+                  />
+
+                  {sol.comentarioAdmin ? (
+                    <p className="mt-2 border-t border-slate-100 pt-2 text-xs italic text-slate-500">
+                      {sol.comentarioAdmin}
+                    </p>
+                  ) : null}
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full text-sm text-left">
               <thead className="bg-slate-50/50 text-slate-500 font-bold border-b border-slate-200">
                 <tr>
@@ -220,13 +276,12 @@ export default function SolicitudesCobradorPage() {
                   <th className="px-6 py-4">Monto</th>
                   <th className="px-6 py-4">Estado</th>
                   <th className="px-6 py-4">Comentarios</th>
-                  <th className="px-6 py-4 text-right">Detalle</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {loadingSolicitudes ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-slate-400 font-medium">
+                    <td colSpan={5} className="px-6 py-12 text-center text-slate-400 font-medium">
                       Cargando solicitudes...
                     </td>
                   </tr>
@@ -255,20 +310,7 @@ export default function SolicitudesCobradorPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-slate-500 italic text-xs">{sol.comentarioAdmin || '-'}</td>
-                    <td className="px-6 py-4 text-right">
-                      <Tooltip texto="Ver Detalle">
-                        <button aria-label="Ver detalle"
-                          type="button"
-                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          onClick={() => {
-                            // Placeholder: detalle modal más adelante
-                            logger.log('Ver detalle solicitud:', sol.id)
-                          }}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </button>
-                      </Tooltip>
-                    </td>
+
                   </tr>
                 ))}
               </tbody>

@@ -293,7 +293,7 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
               <h4 className="text-lg text-slate-900">{error}</h4>
               <button
                 onClick={onClose}
-                className="px-6 py-2 bg-slate-100 text-slate-600 rounded-xl"
+                className="px-6 py-2 bg-slate-100 text-slate-600 rounded-xl min-h-[44px] sm:min-h-0 inline-flex items-center"
               >
                 Cerrar
               </button>
@@ -323,7 +323,7 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
                   <Tooltip texto="Cerrar">
                     <button
                       onClick={onClose}
-                      className="shrink-0 p-2 bg-white border border-slate-200 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-colors"
+                      className="shrink-0 p-2 bg-white border border-slate-200 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-colors min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 inline-flex items-center justify-center"
                       aria-label="Cerrar"
                     >
                       <X className="h-5 w-5" />

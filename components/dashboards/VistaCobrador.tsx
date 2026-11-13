@@ -3595,7 +3595,7 @@ const VistaCobrador = () => {
                 <button
                   onClick={() => setShowRutaProvisional(true)}
 
-                  className="px-4 py-2 bg-blue-100 text-[#08557f] border border-blue-200 hover:bg-blue-200 rounded-xl flex items-center gap-2 font-bold shadow-sm transition-colors"
+                  className="px-4 min-h-[44px] sm:min-h-0 sm:py-2 bg-blue-100 text-[#08557f] border border-blue-200 hover:bg-blue-200 rounded-xl flex items-center gap-2 font-bold shadow-sm transition-colors"
                 >
                   <Search className="h-4 w-4" />
 
@@ -3609,7 +3609,7 @@ const VistaCobrador = () => {
                     setShowMisClientes(false)
                   }}
 
-                  className={`px-4 py-2 border rounded-xl flex items-center gap-2 font-medium shadow-sm transition-colors ${
+                  className={`px-4 min-h-[44px] sm:min-h-0 sm:py-2 border rounded-xl flex items-center gap-2 font-medium shadow-sm transition-colors ${
                     !showHistory
                       ? 'bg-[#08557f] text-white border-[#08557f]'
                       : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
@@ -3627,7 +3627,7 @@ const VistaCobrador = () => {
                     setShowMisClientes(false)
                   }}
 
-                  className={`px-4 py-2 border rounded-xl flex items-center gap-2 font-medium shadow-sm transition-colors ${
+                  className={`px-4 min-h-[44px] sm:min-h-0 sm:py-2 border rounded-xl flex items-center gap-2 font-medium shadow-sm transition-colors ${
                     showHistory
                       ? 'bg-[#08557f] text-white border-[#08557f]'
                       : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
@@ -3645,7 +3645,7 @@ const VistaCobrador = () => {
                     setShowHistory(false)
                   }}
 
-                  className={`px-4 py-2 border rounded-xl flex items-center gap-2 font-medium shadow-sm transition-colors ${
+                  className={`px-4 min-h-[44px] sm:min-h-0 sm:py-2 border rounded-xl flex items-center gap-2 font-medium shadow-sm transition-colors ${
                     showMisClientes
                       ? 'bg-[#08557f] text-white border-[#08557f]'
                       : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
@@ -3663,7 +3663,7 @@ const VistaCobrador = () => {
 
                   disabled={!rutaOperable}
 
-                  className={`px-4 py-2 border rounded-xl flex items-center gap-2 font-bold shadow-sm transition-colors ${
+                  className={`px-4 min-h-[44px] sm:min-h-0 sm:py-2 border rounded-xl flex items-center gap-2 font-bold shadow-sm transition-colors ${
                     isCheckingActivacion || !rutaOperable
                       ? 'bg-emerald-100 text-emerald-800 border-emerald-200 cursor-not-allowed opacity-70'
                       : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
@@ -3835,7 +3835,7 @@ const VistaCobrador = () => {
                                     setShowEstadoCuentaModal(true)
                                   }}
 
-                                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all active:scale-95 text-[11px] font-bold bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+                                  className="inline-flex min-h-[44px] items-center gap-1 rounded-lg px-3 sm:min-h-0 sm:py-1.5 transition-all active:scale-95 text-[11px] font-bold bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
                                 >
                                   <FileTextIcon className="h-3.5 w-3.5 text-slate-400" />
                                   Estado
@@ -3942,7 +3942,7 @@ const VistaCobrador = () => {
 
                                         disabled={!rutaOperable}
 
-                                        className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all active:scale-95 text-[11px] font-bold ${!rutaOperable ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+                                        className={`inline-flex min-h-[44px] items-center gap-1 rounded-lg px-3 sm:min-h-0 sm:py-1.5 transition-all active:scale-95 text-[11px] font-bold ${!rutaOperable ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
                                       >
                                         <DollarSign className="h-3.5 w-3.5" />
                                         Pago
@@ -3964,7 +3964,7 @@ const VistaCobrador = () => {
 
                                         disabled={!rutaOperable}
 
-                                        className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all active:scale-95 text-[11px] font-bold ${!rutaOperable ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed' : 'bg-emerald-600 text-white hover:bg-emerald-700'}`}
+                                        className={`inline-flex min-h-[44px] items-center gap-1 rounded-lg px-3 sm:min-h-0 sm:py-1.5 transition-all active:scale-95 text-[11px] font-bold ${!rutaOperable ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed' : 'bg-emerald-600 text-white hover:bg-emerald-700'}`}
                                       >
                                         <Wallet className="h-3.5 w-3.5" />
                                         Abono
@@ -3983,7 +3983,7 @@ const VistaCobrador = () => {
 
                                         disabled={!rutaOperable}
 
-                                        className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border transition-all active:scale-95 text-[11px] font-bold ${!rutaOperable ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                                        className={`inline-flex min-h-[44px] items-center gap-1 rounded-lg px-3 sm:min-h-0 sm:py-1.5 border transition-all active:scale-95 text-[11px] font-bold ${!rutaOperable ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
                                       >
                                         <FileTextIcon className="h-3.5 w-3.5 text-slate-400" />
                                         Estado
@@ -4029,7 +4029,7 @@ const VistaCobrador = () => {
                                               : 'Solicitar reprogramación'
                                         }
 
-                                        className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border transition-all active:scale-95 text-[11px] font-bold ${!rutaOperable || (visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now())) ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                                        className={`inline-flex min-h-[44px] items-center gap-1 rounded-lg px-3 sm:min-h-0 sm:py-1.5 border transition-all active:scale-95 text-[11px] font-bold ${!rutaOperable || (visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now())) ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
                                       >
                                         <Calendar className="h-3.5 w-3.5 text-slate-400" />
                                         Repro.

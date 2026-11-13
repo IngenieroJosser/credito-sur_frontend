@@ -263,7 +263,7 @@ export default function ClienteInfoModal({
             <Tooltip texto="Cerrar">
               <button
                 onClick={onClose}
-                className="shrink-0 ml-3 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors shrink-0"
+                className="shrink-0 ml-3 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors shrink-0 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 inline-flex items-center justify-center"
                 aria-label="Cerrar"
               >
                 <X className="h-5 w-5" />
@@ -545,7 +545,7 @@ export default function ClienteInfoModal({
           onClick={() => setFotoExpandida(null)}
         >
           <button aria-label="Cerrar"
-            className="absolute top-4 right-4 p-2 bg-white/20 rounded-full text-white hover:bg-white/30 transition"
+            className="absolute top-4 right-4 p-2 bg-white/20 rounded-full text-white hover:bg-white/30 transition min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 inline-flex items-center justify-center"
             onClick={() => setFotoExpandida(null)}
           >
             <X className="w-6 h-6" />
@@ -579,7 +579,7 @@ export default function ClienteInfoModal({
                 type="button"
                 disabled={alertaSubmitting}
                 onClick={() => setAlertaOpen(false)}
-                className="shrink-0 rounded-full bg-slate-100 p-2 text-slate-500 transition hover:bg-slate-200 disabled:opacity-60"
+                className="shrink-0 rounded-full bg-slate-100 p-2 text-slate-500 transition hover:bg-slate-200 disabled:opacity-60 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 inline-flex items-center justify-center"
               >
                 <X className="h-5 w-5" />
               </button>

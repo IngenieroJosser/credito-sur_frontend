@@ -180,7 +180,7 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm, montoCuota
               <Tooltip texto="Cerrar">
                 <button 
                   onClick={onClose}
-                  className="p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
+                  className="p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 inline-flex items-center justify-center"
                   type="button"
                   aria-label="Cerrar"
                 >
@@ -315,7 +315,7 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm, montoCuota
                             setComprobanteTransferencia(null)
                             setComprobanteTransferenciaPreviewUrl(null)
                           }}
-                          className="px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-100"
+                          className="px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-100 min-h-[44px] sm:min-h-0 inline-flex items-center"
                         >
                           Quitar
                         </button>

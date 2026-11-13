@@ -120,7 +120,7 @@ export default function DetalleMoraModal({
             <Tooltip texto="Cerrar">
               <button
                 onClick={onClose}
-                className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all"
+                className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 inline-flex items-center justify-center"
                 aria-label="Cerrar"
               >
                 <X className="h-5 w-5" />
