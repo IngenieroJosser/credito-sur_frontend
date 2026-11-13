@@ -81,8 +81,14 @@ describe('Los plazos de un crédito de artículo', () => {
     // Con el estado inicial en 1 mes, el desplegable mostraba «3 meses» pero el
     // estado seguía en 1: pulsar Agregar sin tocarlo guardaba un plazo de un mes
     // que nadie eligió. Ahora arrancan en el primero de la lista.
+    // `app/admin/articulos/nuevo/page.tsx` ya no está en esta lista: era una
+    // SEGUNDA implementación del mismo formulario —415 líneas— al lado del
+    // modal de `ArticulosContent`, que es el que usa todo el mundo y el único
+    // que comprueba permisos. Se retiró con `@deprecated` + redirección, el
+    // mismo trato que ya tenían sus hermanas de cobrador y supervisor.
+    //
+    // Los que quedan son los dos formularios de verdad.
     const formularios = [
-      path.join(RAIZ, 'app', 'admin', 'articulos', 'nuevo', 'page.tsx'),
       path.join(RAIZ, 'app', 'admin', 'articulos', '[id]', 'editar', 'page.tsx'),
       path.join(RAIZ, 'components', 'articulos', 'ArticulosContent.tsx'),
     ]
