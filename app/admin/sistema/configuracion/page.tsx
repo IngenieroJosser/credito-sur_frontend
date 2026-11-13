@@ -136,10 +136,13 @@ const ConfiguracionSistemaPage = () => {
               {/*
                 Aquí había un interruptor verde fijo, sin onClick y sin ningún
                 campo detrás: se podía pulsar creyendo que se apagaba la réplica.
-                La réplica SÍ existe (MirrorSyncModule copia cada cambio al VPS),
-                pero no se enciende desde la pantalla: depende de MIRROR_SYNC_ENABLED,
-                MIRROR_VPS_URL y MIRROR_SYNC_TOKEN en el servidor. Y tampoco es un
-                respaldo: es una copia en vivo, fila a fila.
+                La réplica SÍ existe (el outbox manda cada cambio al VPS), pero
+                no se enciende desde la pantalla: depende de MIRROR_VPS_URL y
+                MIRROR_SYNC_TOKEN en el servidor. Y tampoco es un respaldo: es
+                una copia en vivo, fila a fila.
+
+                MIRROR_SYNC_ENABLED ya no hace falta: era el interruptor que
+                decidía si se montaba la cola de BullMQ, y la cola se quitó.
 
                 Su estado de verdad ya lo muestra la pantalla de Sincronización
                 (consulta /configuracion/colas/status), así que se enlaza en vez

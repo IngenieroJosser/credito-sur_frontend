@@ -18,7 +18,6 @@ import { offlineStore } from '@/lib/offline/offlineDb'
 import type { OfflineQueueItem, SyncMeta } from '@/lib/offline/offlineDb'
 import ListaConflictos from '@/components/conflictos/ListaConflictos'
 import BotonAccion from '@/components/ui/BotonAccion'
-import { baseApi } from '@/lib/api/baseUrl'
 import Tooltip from '@/components/ui/Tooltip'
 
 /**
@@ -59,7 +58,6 @@ const SyncStatusPage = () => {
   const [serverQueueJobs, setServerQueueJobs] = useState<TrabajoDeCola[]>([])
   const [expandedServerJobId, setExpandedServerJobId] = useState<string | null>(null)
 
-  const bullBoardUrl = `${baseApi()}/configuracion/colas`
 
   const loadServerQueueStatus = useCallback(async () => {
     if (rol !== 'SUPER_ADMINISTRADOR' || !isOnline) {
@@ -82,7 +80,7 @@ const SyncStatusPage = () => {
 
       if (res?.enabled === false) {
         setServerQueueEnabled(false)
-        setServerQueueReason(res?.reason || 'BullMQ/MirrorSync deshabilitado')
+        setServerQueueReason(res?.reason || 'La replica al espejo no esta configurada')
         setServerQueueCounts(null)
         setServerQueueJobs([])
         return
@@ -191,10 +189,10 @@ const SyncStatusPage = () => {
       return (
         <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-black text-slate-700 uppercase tracking-wider">Cola del Servidor (BullMQ)</span>
+            <span className="text-xs font-black text-slate-700 uppercase tracking-wider">Réplica al espejo</span>
             <span className="text-[11px] font-bold text-slate-400">Deshabilitada</span>
           </div>
-          <div className="mt-2 text-xs font-bold text-slate-500">{serverQueueReason || 'BullMQ no está activo en este entorno.'}</div>
+          <div className="mt-2 text-xs font-bold text-slate-500">{serverQueueReason || 'La réplica al espejo no está configurada en este entorno.'}</div>
         </div>
       )
     }
@@ -202,33 +200,32 @@ const SyncStatusPage = () => {
     return (
       <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-black text-slate-700 uppercase tracking-wider">Cola del Servidor (BullMQ)</span>
-          <Tooltip texto="Abrir Bull Board">
-            <button
-              onClick={() => window.open(bullBoardUrl, '_blank', 'noopener,noreferrer')}
-              className="text-[11px] font-bold text-slate-500 hover:text-slate-700"
-            >
-              Ver detalles
-            </button>
-          </Tooltip>
+          <span className="text-xs font-black text-slate-700 uppercase tracking-wider">Réplica al espejo</span>
+          {/*
+            Aqui habia un boton «Ver detalles» que abria Bull Board, el panel
+            de la cola de BullMQ, en una pestaña nueva y con su propia
+            contraseña. Se fue con la cola: la replica la lleva ahora el
+            outbox, que es una tabla de Postgres, y lo que haga falta mirar
+            esta en la tabla de abajo.
+          */}
         </div>
 
         <div className="grid grid-cols-4 gap-2 mt-2">
           <div className="bg-white border border-slate-200 rounded-lg p-2 text-center">
             <div className="text-sm font-black text-slate-900">{serverQueueCounts?.waiting ?? 0}</div>
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Waiting</div>
+            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pendientes</div>
           </div>
           <div className="bg-white border border-slate-200 rounded-lg p-2 text-center">
             <div className="text-sm font-black text-slate-900">{serverQueueCounts?.active ?? 0}</div>
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Active</div>
+            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Enviando</div>
           </div>
           <div className="bg-white border border-slate-200 rounded-lg p-2 text-center">
             <div className="text-sm font-black text-slate-900">{serverQueueCounts?.delayed ?? 0}</div>
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Delayed</div>
+            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">En espera</div>
           </div>
           <div className="bg-white border border-slate-200 rounded-lg p-2 text-center">
             <div className="text-sm font-black text-slate-900">{serverQueueCounts?.failed ?? 0}</div>
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Failed</div>
+            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Fallidos</div>
           </div>
         </div>
 
@@ -237,7 +234,7 @@ const SyncStatusPage = () => {
             <thead>
               <tr className="text-slate-500">
                 <th className="text-left font-black uppercase tracking-wider py-2 pr-2">Estado</th>
-                <th className="text-left font-black uppercase tracking-wider py-2 pr-2">Job</th>
+                <th className="text-left font-black uppercase tracking-wider py-2 pr-2">Evento</th>
                 <th className="text-right font-black uppercase tracking-wider py-2 pr-2">Intentos</th>
                 <th className="text-right font-black uppercase tracking-wider py-2">Fecha</th>
               </tr>
