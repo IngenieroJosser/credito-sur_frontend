@@ -90,6 +90,7 @@ import DeudorasCobradorCard from '@/components/contable/DeudorasCobradorCard'
 import FieldLabel from '@/components/ui/FieldLabel'
 import BotonAccion from '@/components/ui/BotonAccion'
 import { listaDeRespuesta } from '@/lib/lista-de-respuesta'
+import { Selector } from '@/components/ui/Selector'
 
 // --- TIPOS DE DATOS ---
 // Definimos la estructura de nuestras "Cajas".
@@ -1489,34 +1490,38 @@ const ModuloContableContent = () => {
                   <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                     Clase de movimiento
                   </div>
-                  <select
+                  <Selector
                     value={filtroTipo}
-                    onChange={(e) => setFiltroTipo(e.target.value as typeof filtroTipo)}
-                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
-                  >
-                    <option value="TODOS">Todas las clases</option>
-                    <option value="INGRESO">Ingresos contables</option>
-                    <option value="EGRESO">Egresos</option>
-                    <option value="TRANSFERENCIA">Transferencias / recepción entre cajas</option>
-                    <option value="DEUDA_COBRADOR">Deudas de cobradores</option>
-                  </select>
+                    onChange={(v) => setFiltroTipo(v as typeof filtroTipo)}
+                    etiqueta="Clase de movimiento"
+                    className="rounded-2xl px-4 py-2.5 text-xs font-bold text-slate-700 shadow-sm"
+                    opciones={[
+                      { value: 'TODOS', label: 'Todas las clases' },
+                      { value: 'INGRESO', label: 'Ingresos contables' },
+                      { value: 'EGRESO', label: 'Egresos' },
+                      { value: 'TRANSFERENCIA', label: 'Transferencias / recepción entre cajas' },
+                      { value: 'DEUDA_COBRADOR', label: 'Deudas de cobradores' },
+                    ]}
+                  />
                 </div>
 
                 <div className="space-y-1.5 md:col-span-3">
                   <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                     Origen / Fuente
                   </div>
-                  <select
+                  <Selector
                     value={filtroOrigen}
-                    onChange={(e) => setFiltroOrigen(e.target.value as OrigenMovimientoContable)}
-                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
-                  >
-                    <option value="TODOS">Todas las fuentes</option>
-                    <option value="EMPRESA">Empresa / Oficina</option>
-                    <option value="COBRADOR">Cobrador / Ruta</option>
-                    <option value="CLIENTE">Cliente</option>
-                    <option value="SISTEMA">Sistema</option>
-                  </select>
+                    onChange={(v) => setFiltroOrigen(v as OrigenMovimientoContable)}
+                    etiqueta="Origen o fuente"
+                    className="rounded-2xl px-4 py-2.5 text-xs font-bold text-slate-700 shadow-sm"
+                    opciones={[
+                      { value: 'TODOS', label: 'Todas las fuentes' },
+                      { value: 'EMPRESA', label: 'Empresa / Oficina' },
+                      { value: 'COBRADOR', label: 'Cobrador / Ruta' },
+                      { value: 'CLIENTE', label: 'Cliente' },
+                      { value: 'SISTEMA', label: 'Sistema' },
+                    ]}
+                  />
                 </div>
 
                 <div className="space-y-1.5 md:col-span-3">
@@ -1969,18 +1974,18 @@ const ModuloContableContent = () => {
 
                   <div className="space-y-2">
                     <FieldLabel required>Responsable</FieldLabel>
-                    <select
+                    <Selector
                       value={crearCajaForm.responsableId}
-                      onChange={(e) => setCrearCajaForm((p) => ({ ...p, responsableId: e.target.value }))}
-                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
-                    >
-                      <option value="">Seleccionar responsable...</option>
-                      {usuariosList.map((u) => (
-                        <option key={u.id} value={u.id}>
-                          {u.nombres} {u.apellidos} ({formatRoleLabel(u.rol)})
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(v) => setCrearCajaForm((p) => ({ ...p, responsableId: v }))}
+                      etiqueta="Responsable"
+                      placeholder="Seleccionar responsable..."
+                      className="rounded-2xl px-4 py-3 text-sm font-medium text-slate-900"
+                      opciones={usuariosList.map((u) => ({
+                        value: u.id,
+                        label:
+                          u.nombres + ' ' + u.apellidos + ' (' + formatRoleLabel(u.rol) + ')',
+                      }))}
+                    />
                   </div>
 
                   <div className="space-y-2 md:col-span-2">
@@ -2059,56 +2064,60 @@ const ModuloContableContent = () => {
                   </div>
                   <div className="space-y-2">
                     <FieldLabel required>Responsable</FieldLabel>
-                    <select
+                    <Selector
                       value={editarCajaForm.responsableId}
-                      onChange={(e) => setEditarCajaForm((p) => ({ ...p, responsableId: e.target.value }))}
-                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
-                    >
-                      <option value="">Seleccionar responsable...</option>
-                      {usuariosList.map((u) => (
-                        <option key={u.id} value={u.id}>
-                          {u.nombres} {u.apellidos} ({formatRoleLabel(u.rol)})
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(v) => setEditarCajaForm((p) => ({ ...p, responsableId: v }))}
+                      etiqueta="Responsable"
+                      placeholder="Seleccionar responsable..."
+                      className="rounded-2xl px-4 py-3 text-sm font-medium text-slate-900"
+                      opciones={usuariosList.map((u) => ({
+                        value: u.id,
+                        label:
+                          u.nombres + ' ' + u.apellidos + ' (' + formatRoleLabel(u.rol) + ')',
+                      }))}
+                    />
                   </div>
 
                   {cajaSeleccionada.tipo === 'RUTA' && (
                     <div className="space-y-2 md:col-span-2">
                       <FieldLabel required>Ruta</FieldLabel>
-                      <select
+                      <Selector
                         value={editarCajaForm.rutaId}
-                        onChange={(e) => setEditarCajaForm((p) => ({ ...p, rutaId: e.target.value }))}
-                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
-                      >
-                        <option value="">Seleccionar ruta...</option>
-                        {(Array.isArray(rutasDisponibles) ? rutasDisponibles : []).map((r) => {
-                          const responsableNombre = usuariosList.find(u => u.id === r.cobradorId)?.nombres || 'Sin asignar';
-                          return (
-                            <option key={r.id} value={r.id}>
-                                {r.nombre} • {responsableNombre}
-                            </option>
-                          )
-                        })}
-                      </select>
+                        onChange={(v) => setEditarCajaForm((p) => ({ ...p, rutaId: v }))}
+                        etiqueta="Ruta"
+                        placeholder="Seleccionar ruta..."
+                        className="rounded-2xl px-4 py-3 text-sm font-medium text-slate-900"
+                        opciones={(Array.isArray(rutasDisponibles) ? rutasDisponibles : []).map(
+                          (r) => ({
+                            value: r.id,
+                            label:
+                              r.nombre +
+                              ' • ' +
+                              (usuariosList.find((u) => u.id === r.cobradorId)?.nombres ||
+                                'Sin asignar'),
+                          }),
+                        )}
+                      />
                     </div>
                   )}
 
                   <div className="space-y-2">
                     <FieldLabel required>Estado</FieldLabel>
-                    <select
+                    <Selector
                       value={editarCajaForm.estado}
-                      onChange={(e) =>
+                      onChange={(v) =>
                         setEditarCajaForm((p) => ({
                           ...p,
-                          estado: e.target.value as Caja['estado'],
+                          estado: v as Caja['estado'],
                         }))
                       }
-                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
-                    >
-                      <option value="ABIERTA">ABIERTA</option>
-                      <option value="CERRADA">CERRADA</option>
-                    </select>
+                      etiqueta="Estado de la caja"
+                      className="rounded-2xl px-4 py-3 text-sm font-medium text-slate-900"
+                      opciones={[
+                        { value: 'ABIERTA', label: 'Abierta' },
+                        { value: 'CERRADA', label: 'Cerrada' },
+                      ]}
+                    />
                   </div>
 
                   <div className="space-y-2">
@@ -2222,17 +2231,21 @@ const ModuloContableContent = () => {
                     </FieldLabel>
                     <div className="relative">
                         <Wallet className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                        <select
+                        <Selector
                           value={movimientoForm.cajaId}
-                          onChange={(e) => setMovimientoForm((p) => ({ ...p, cajaId: e.target.value }))}
-                          className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-sm font-semibold text-slate-700 focus:bg-white transition-all shadow-sm"
-                        >
-                          <option value="">Seleccionar caja destino...</option>
-                          {cajasOrdenadas
-                            .map(c => (
-                              <option key={c.id} value={c.id}>{c.nombre} (Saldo: {formatCurrency(Math.abs(Number(c.saldo || 0)))})</option>
-                          ))}
-                        </select>
+                          onChange={(v) => setMovimientoForm((p) => ({ ...p, cajaId: v }))}
+                          etiqueta="Caja destino"
+                          placeholder="Seleccionar caja destino..."
+                          className="pl-9 pr-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm"
+                          opciones={cajasOrdenadas.map((c) => ({
+                            value: c.id,
+                            label:
+                              c.nombre +
+                              ' (Saldo: ' +
+                              formatCurrency(Math.abs(Number(c.saldo || 0))) +
+                              ')',
+                          }))}
+                        />
                     </div>
                   </div>
 
@@ -2240,17 +2253,21 @@ const ModuloContableContent = () => {
                     <FieldLabel required className="text-xs font-black text-slate-500 uppercase ml-1 mb-1.5">Origen del Capital</FieldLabel>
                     <div className="relative">
                         <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                        <select
+                        <Selector
                           value={movimientoForm.origen}
-                          onChange={(e) => {
-                            const val = e.target.value as 'EMPRESA' | 'COBRADOR';
-                            setMovimientoForm((p) => ({ ...p, origen: val }));
+                          onChange={(v) => {
+                            setMovimientoForm((p) => ({
+                              ...p,
+                              origen: v as 'EMPRESA' | 'COBRADOR',
+                            }));
                           }}
-                          className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-sm font-semibold text-slate-700 focus:bg-white transition-all shadow-sm"
-                        >
-                          <option value="EMPRESA">Externo (Gasto/Ingreso)</option>
-                          <option value="COBRADOR">Transferencia entre Cajas</option>
-                        </select>
+                          etiqueta="Origen del capital"
+                          className="pl-9 pr-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm"
+                          opciones={[
+                            { value: 'EMPRESA', label: 'Externo (Gasto/Ingreso)' },
+                            { value: 'COBRADOR', label: 'Transferencia entre Cajas' },
+                          ]}
+                        />
                     </div>
                   </div>
                 </div>
@@ -2268,21 +2285,25 @@ const ModuloContableContent = () => {
                       <FieldLabel required className="text-[10px] font-bold text-orange-700 uppercase ml-1 mb-1.5">
                         {movimientoForm.tipo === 'INGRESO' ? '¿De qué caja sale el dinero?' : '¿A qué caja va el dinero?'}
                       </FieldLabel>
-                      <select
+                      <Selector
                           value={movimientoForm.cajaOrigenId}
-                          onChange={(e) => setMovimientoForm((p) => ({ ...p, cajaOrigenId: e.target.value }))}
-                          className="w-full px-4 py-2.5 rounded-xl border border-orange-200 bg-white text-sm font-bold text-slate-900 shadow-sm focus:ring-2 focus:ring-orange-200 transition-all font-mono"
-                      >
-                          <option value="">--- SELECCIONAR CAJA ---</option>
-                          {cajasOrdenadas
-                            .map(c => (
-                            <option key={c.id} value={c.id} disabled={c.id === movimientoForm.cajaId}>
-                              {c.nombre}
-                              {c.id === movimientoForm.cajaId ? ' (Seleccionada como destino)' : ''}
-                              {` (Saldo: ${formatCurrency(Math.abs(Number(c.saldo || 0)))})`}
-                            </option>
-                          ))}
-                      </select>
+                          onChange={(v) => setMovimientoForm((p) => ({ ...p, cajaOrigenId: v }))}
+                          etiqueta="Caja de origen"
+                          placeholder="--- SELECCIONAR CAJA ---"
+                          className="border-orange-200 px-4 py-2.5 font-mono text-sm font-bold text-slate-900 shadow-sm"
+                          opciones={cajasOrdenadas.map((c) => ({
+                            value: c.id,
+                            disabled: c.id === movimientoForm.cajaId,
+                            label:
+                              c.nombre +
+                              (c.id === movimientoForm.cajaId
+                                ? ' (Seleccionada como destino)'
+                                : '') +
+                              ' (Saldo: ' +
+                              formatCurrency(Math.abs(Number(c.saldo || 0))) +
+                              ')',
+                          }))}
+                      />
                     </div>
                     <p className="text-[10px] text-orange-600/80 font-medium italic">
                       {movimientoForm.tipo === 'INGRESO' 
