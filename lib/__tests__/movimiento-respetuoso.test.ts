@@ -41,6 +41,39 @@ describe('el movimiento de la interfaz', () => {
     expect(fuente).toMatch(/:active\s*\{[^}]*transform:\s*scale\(0?\.9/)
   })
 
+  it('cubre lo interactivo que NO es un botón', () => {
+    // El usuario lo pidió explícitamente: la respuesta al toque no es solo de
+    // los botones, es de todo con lo que se interactúa.
+    //
+    // Se apunta a los marcadores que este proyecto usa DE VERDAD, medidos:
+    // `cursor-pointer` aparece 50 veces y los atributos `role` solo 2 en todo
+    // el código, así que una capa que dependiera de ARIA no cubriría casi
+    // nada. Las filas y tarjetas pulsables entran por `cursor-pointer`.
+    for (const selector of [
+      '.cursor-pointer',
+      "[role='switch']",
+      "[role='tab']",
+      "[role='menuitem']",
+      "[role='option']",
+      "[tabindex='0']",
+      'label',
+      "input[type='checkbox']",
+    ]) {
+      expect(fuente).toContain(selector)
+    }
+  })
+
+  it('una tarjeta grande no se hunde como un botón pequeño', () => {
+    // Un 3 % de encogimiento en una superficie grande se ve como un salto.
+    // Objetivos pequeños 0.97; superficies grandes 0.99.
+    expect(fuente).toMatch(/\.cursor-pointer:active\s*\{\s*transform:\s*scale\(0\.99\)/)
+  })
+
+  it('las etiquetas no escalan', () => {
+    // Escalar texto se ve barato, y una `<label>` suele ser ancha.
+    expect(fuente).toMatch(/label:active\s*\{\s*transform:\s*none/)
+  })
+
   it('el hover va detrás de `hover: hover`', () => {
     // Sin esta guarda, en una pantalla táctil el hover se queda PEGADO
     // después de tocar y el botón parece resaltado sin motivo.
