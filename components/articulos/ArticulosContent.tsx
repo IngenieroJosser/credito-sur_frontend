@@ -68,6 +68,7 @@ import { formatErrorForComponent } from '@/lib/api/api'
 import BotonAccion from '@/components/ui/BotonAccion'
 import { Selector } from '@/components/ui/Selector'
 import Tooltip from '@/components/ui/Tooltip'
+import Cifra from '@/components/ui/Cifra'
 
 // Interfaces
 interface PrecioCuota {
@@ -645,9 +646,11 @@ export default function ArticulosContent() {
                   )}
                 </div>
                 <p className="text-sm font-medium text-slate-500">Valor Inventario</p>
-                <h3 className="text-2xl font-bold text-slate-900 mt-1">
-                  {formatCurrency(valorInventario)}
-                </h3>
+                <Cifra
+                  valor={valorInventario}
+                  tamano="grande"
+                  className="font-bold text-slate-900 mt-1"
+                />
               </div>
             )}
           </div>

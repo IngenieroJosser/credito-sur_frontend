@@ -21,6 +21,7 @@ import { idDelPrestamoCreado } from '@/lib/creditos/prestamo-creado'
 import { Selector } from '@/components/ui/Selector'
 import GrupoDeFiltros from '@/components/filtros/GrupoDeFiltros'
 import Tooltip from '@/components/ui/Tooltip'
+import Cifra from '@/components/ui/Cifra'
 
 /**
  * Una fila de esta tabla.
@@ -315,7 +316,11 @@ export default function CreditosArticulosPage() {
               </div>
               <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded-full border border-slate-200">Cartera</span>
             </div>
-            <div className="text-2xl font-bold text-slate-900 mb-1">{formatCurrency(stats.valorTotal)}</div>
+            <Cifra
+              valor={stats.valorTotal}
+              tamano="grande"
+              className="font-bold text-slate-900 mb-1"
+            />
             <p className="text-xs font-medium text-slate-500">Valor total financiado</p>
           </div>
         </div>

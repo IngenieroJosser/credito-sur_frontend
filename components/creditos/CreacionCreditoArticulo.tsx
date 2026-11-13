@@ -30,6 +30,7 @@ import { FrecuenciaPago } from '@/types/enums'
 import { SkeletonFormulario } from '@/components/ui/Skeleton'
 import { Selector } from '@/components/ui/Selector'
 import { CampoFecha } from '@/components/ui/CampoFecha'
+import Cifra from '@/components/ui/Cifra'
 // Esta pantalla declaraba su propia copia de este tipo (la tercera del proyecto: hay
 // otra en `lib/types/cobranza.ts`, ensanchada con `| string`). Los valores son los del
 // enum, y `crearPrestamo` pide el enum, asi que el literal no le valia y habia que
@@ -794,7 +795,11 @@ export default function CreacionCreditoArticulo({
                      <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100">
                        <p className="text-xs font-bold text-slate-400 uppercase mb-1">Valor Estimado de Cuota</p>
                        <div className="flex items-baseline gap-2">
-                         <span className="text-3xl font-black text-slate-900">{formatCurrency(resumenFinanciero.valorCuota)}</span>
+                         <Cifra
+                           valor={resumenFinanciero.valorCuota}
+                           tamano="enorme"
+                           className="font-black text-slate-900"
+                         />
                          <span className="text-sm text-slate-500 font-medium capitalize">/ {frecuenciaPago.toLowerCase()}</span>
                        </div>
                      </div>
@@ -847,7 +852,11 @@ export default function CreacionCreditoArticulo({
                         <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Plan Seleccionado</h4>
                         <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
                            <div className="flex items-baseline gap-2 mb-1">
-                              <span className="text-2xl font-black text-slate-900">{formatCurrency(resumenFinanciero.valorCuota)}</span>
+                              <Cifra
+                                valor={resumenFinanciero.valorCuota}
+                                tamano="grande"
+                                className="font-black text-slate-900"
+                              />
                               <span className="text-sm font-bold text-slate-500 lowercase">/ {frecuenciaPago.toLowerCase()}</span>
                            </div>
                            <p className="text-xs font-bold text-blue-600 uppercase">{numeroCuotas} Cuotas en Total</p>

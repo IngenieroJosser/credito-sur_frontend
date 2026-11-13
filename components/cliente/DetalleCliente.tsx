@@ -27,6 +27,7 @@ import DetallePrestamoModal from "@/components/prestamos/DetallePrestamoModal";
 import PagoDetalleModal from "@/components/dashboards/shared/PagoDetalleModal";
 import type { ArchivoMultimediaPago } from '@/services/pagos-service';
 import Tooltip from '@/components/ui/Tooltip';
+import Cifra from '@/components/ui/Cifra'
 
 
 // Interfaces alineadas con Prisma y el Dominio
@@ -471,9 +472,11 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
                     Crédito Total
                   </p>
                 </div>
-                <p className="whitespace-nowrap text-[clamp(1.5rem,3vw,1.875rem)] font-bold leading-tight text-slate-900">
-                  {formatCurrency(totales.totalPrestamos)}
-                </p>
+                <Cifra
+                  valor={totales.totalPrestamos}
+                  tamano="enorme"
+                  className="font-bold text-slate-900"
+                />
               </div>
               <div className="flex items-center justify-between">
                 <span
@@ -495,9 +498,11 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
                     Saldo Pendiente
                   </p>
                 </div>
-                <p className="whitespace-nowrap text-[clamp(1.5rem,3vw,1.875rem)] font-bold leading-tight text-slate-900">
-                  {formatCurrency(totales.totalPendiente)}
-                </p>
+                <Cifra
+                  valor={totales.totalPendiente}
+                  tamano="enorme"
+                  className="font-bold text-slate-900"
+                />
               </div>
               <div className="flex items-center justify-between">
                 <div className="text-xs text-slate-500 flex items-center font-medium">
@@ -563,9 +568,11 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
                     Mora Acumulada
                   </p>
                 </div>
-                <p className="whitespace-nowrap text-[clamp(1.5rem,3vw,1.875rem)] font-bold leading-tight text-red-600">
-                  {formatCurrency(totales.totalMoraInteres)}
-                </p>
+                <Cifra
+                  valor={totales.totalMoraInteres}
+                  tamano="enorme"
+                  className="font-bold text-red-600"
+                />
               </div>
               <div className="text-xs font-medium text-slate-500">
                 {totales.totalCuotasVencidas} cuotas con retraso
@@ -737,9 +744,11 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
                       </div>
 
                       <div className="text-right">
-                        <p className="text-2xl font-bold text-slate-900">
-                          {formatCurrency(prestamo.montoTotal)}
-                        </p>
+                        <Cifra
+                          valor={prestamo.montoTotal}
+                          tamano="grande"
+                          className="font-bold text-slate-900"
+                        />
                         <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">
                           Monto Total
                         </p>

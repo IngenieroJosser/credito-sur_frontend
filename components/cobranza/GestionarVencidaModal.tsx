@@ -23,6 +23,7 @@ import { formatCurrency, cn, formatCOPDecimalTypingInputValue, formatCOPDecimalB
 import Tooltip from '@/components/ui/Tooltip'
 import { DECISIONES_CUENTA_VENCIDA } from '@/lib/display-labels'
 import { useModalDialog } from '@/hooks/use-modal-dialog'
+import Cifra from '@/components/ui/Cifra'
 
 interface CuentaVencida {
   id: string
@@ -214,7 +215,11 @@ export default function GestionarVencidaModal({ cuenta, onClose, onConfirm }: Ge
               </div>
               <div className="flex-1">
                 <div className="text-[9px] font-black text-rose-500 uppercase tracking-widest">Saldo Vencido</div>
-                <div className="text-2xl font-black text-slate-900">{formatCurrency(cuenta.saldoPendiente)}</div>
+                <Cifra
+                  valor={cuenta.saldoPendiente}
+                  tamano="grande"
+                  className="font-black text-slate-900"
+                />
                 <div className="text-xs text-slate-500 font-medium">{cuenta.cliente.nombre} · {cuenta.ruta || 'Sin ruta'}</div>
               </div>
             </div>

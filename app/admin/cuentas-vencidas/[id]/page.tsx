@@ -6,9 +6,9 @@ import { use, useState, useEffect } from 'react';
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { ChevronLeft, Archive, User } from 'lucide-react';
 import Link from 'next/link';
-import { formatCurrency } from '@/lib/utils';
 import { vencidasService, CuentaVencida } from '@/services/vencidas-service';
 import ArchivarCuentaModal from '@/components/prestamos/ArchivarCuentaModal';
+import Cifra from '@/components/ui/Cifra'
 
 export default function DetalleCuentaVencidaPage({ 
   params 
@@ -139,7 +139,11 @@ export default function DetalleCuentaVencidaPage({
                 <div className="grid grid-cols-2 gap-8">
                     <div>
                         <p className="text-xs font-bold text-slate-400 uppercase mb-1">Monto a Castigar</p>
-                        <p className="text-2xl font-bold text-rose-600 font-mono tracking-tighter">{formatCurrency(cuenta.saldoPendiente)}</p>
+                        <Cifra
+                          valor={cuenta.saldoPendiente}
+                          tamano="grande"
+                          className="font-bold text-rose-600 font-mono tracking-tighter"
+                        />
                     </div>
                     <div>
                         <p className="text-xs font-bold text-slate-400 uppercase mb-1">Fecha Vencimiento</p>

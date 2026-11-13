@@ -19,6 +19,7 @@ import { useModalDialog } from '@/hooks/use-modal-dialog'
 import type { OpcionCuotas } from '@/services/articulos-service'
 import { Selector } from '@/components/ui/Selector'
 import { CampoFecha } from '@/components/ui/CampoFecha'
+import Cifra from '@/components/ui/Cifra'
 
 interface EditarPrestamoModalProps {
   id: string;
@@ -596,7 +597,11 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
                         />
                       </div>
                     ) : (
-                      <p className="text-3xl font-black text-slate-900 tabular-nums tracking-tighter leading-none">{formatCurrency(monto)}</p>
+                      <Cifra
+                        valor={monto}
+                        tamano="enorme"
+                        className="font-black text-slate-900 tabular-nums tracking-tighter leading-none"
+                      />
                     )}
                   </div>
 

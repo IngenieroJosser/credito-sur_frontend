@@ -50,6 +50,7 @@ import TipoCreditoIndicador from '@/components/creditos/TipoCreditoIndicador'
 import { formatFechaBogota, formatFechaHumanaBogota } from '@/lib/format-date'
 import { Selector } from '@/components/ui/Selector'
 import { CampoFecha } from '@/components/ui/CampoFecha'
+import Cifra from '@/components/ui/Cifra'
 
 export interface NotificacionDetalleModalProps {
   isOpen: boolean
@@ -2195,9 +2196,11 @@ export default function NotificacionDetalleModal({
                     <p className="text-[10px] font-black uppercase tracking-widest text-orange-600 mb-1">
                       Monto del Gasto
                     </p>
-                    <h4 className="text-3xl font-black text-slate-900 tabular-nums">
-                      {formatCurrency(editedDetails?.monto || safeMeta?.monto)}
-                    </h4>
+                    <Cifra
+                      valor={editedDetails?.monto || safeMeta?.monto}
+                      tamano="enorme"
+                      className="font-black text-slate-900"
+                    />
                   </div>
                   <div className="pt-1">
                     <p className="text-[10px] font-black text-orange-600 uppercase mb-2">

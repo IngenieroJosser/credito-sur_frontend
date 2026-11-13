@@ -5,6 +5,7 @@ import { DollarSign, Target, Receipt, Wallet } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { RolUsuario } from '@/types/enums'
 import Tooltip from '@/components/ui/Tooltip'
+import Cifra from '@/components/ui/Cifra'
 
 // ─────────────────────────────────────────────────
 // Tipos
@@ -111,9 +112,11 @@ export function RutaStatsCards({ rutaStats, periodo = 'HOY', userRol }: RutaStat
               Recaudo {labelPeriodo(periodo, 'capital')}
             </p>
             <div className="flex items-baseline gap-2 mt-2 min-w-0 flex-wrap">
-              <h3 className="text-2xl font-bold text-slate-900 tabular-nums break-words min-w-0">
-                {formatCurrency(recaudo)}
-              </h3>
+              <Cifra
+                valor={recaudo}
+                tamano="grande"
+                className="font-bold text-slate-900 break-words min-w-0"
+              />
               <Tooltip texto={`${AYUDA_EFECTIVIDAD} Es la misma cifra de la tarjeta de Efectividad.`}>
                 <span
                   tabIndex={0}
@@ -182,9 +185,11 @@ export function RutaStatsCards({ rutaStats, periodo = 'HOY', userRol }: RutaStat
               Gastos {labelPeriodo(periodo, 'capital')}
             </p>
             <div className="flex items-baseline gap-2 mt-2 min-w-0 flex-wrap">
-              <h3 className="text-2xl font-bold text-slate-900 tabular-nums break-words min-w-0">
-                {formatCurrency(rutaStats.gastos)}
-              </h3>
+              <Cifra
+                valor={rutaStats.gastos}
+                tamano="grande"
+                className="font-bold text-slate-900 break-words min-w-0"
+              />
             </div>
           </div>
           <div className="shrink-0 p-3 bg-rose-50 rounded-xl border border-rose-100 group-hover:scale-110 transition-transform shrink-0">
@@ -207,9 +212,11 @@ export function RutaStatsCards({ rutaStats, periodo = 'HOY', userRol }: RutaStat
               {baseLabel}
             </p>
             <div className="flex items-baseline gap-2 mt-2 min-w-0 flex-wrap">
-              <h3 className="text-2xl font-bold text-slate-900 tabular-nums break-words min-w-0">
-                {formatCurrency(rutaStats.base)}
-              </h3>
+              <Cifra
+                valor={rutaStats.base}
+                tamano="grande"
+                className="font-bold text-slate-900 break-words min-w-0"
+              />
             </div>
           </div>
           <div className="shrink-0 p-3 bg-amber-50 rounded-xl border border-amber-100 group-hover:scale-110 transition-transform shrink-0">

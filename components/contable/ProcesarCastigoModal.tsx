@@ -2,11 +2,12 @@
 
 import React, { useState } from 'react'
 import { X, Archive, AlertTriangle, FileText, CheckCircle, Calculator } from 'lucide-react'
-import { formatCurrency, cn } from '@/lib/utils'
+import { cn } from '@/lib/utils'
 import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 import { createPortal } from 'react-dom'
 import Tooltip from '@/components/ui/Tooltip'
 import { useModalDialog } from '@/hooks/use-modal-dialog'
+import Cifra from '@/components/ui/Cifra'
 
 interface CastigoData {
   cuentaId: string
@@ -95,7 +96,11 @@ export default function ProcesarCastigoModal({ cuenta, onClose, onConfirm }: Pro
                <div className="flex justify-between items-start mb-4">
                   <div className="min-w-0">
                     <div className="text-[10px] font-black text-rose-600 uppercase tracking-widest mb-1">Saldo a Castigar</div>
-                    <div className="text-3xl font-black text-rose-700 break-words tabular-nums">{formatCurrency(cuenta.saldoPendiente)}</div>
+                    <Cifra
+                      valor={cuenta.saldoPendiente}
+                      tamano="enorme"
+                      className="font-black text-rose-700 break-words tabular-nums"
+                    />
                   </div>
                   <AlertTriangle className="w-8 h-8 text-rose-400 opacity-50" />
                </div>

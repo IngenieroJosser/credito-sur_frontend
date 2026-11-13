@@ -25,6 +25,7 @@ import { formatCurrency } from '@/lib/utils'
 import PagoDetalleModal from '@/components/dashboards/shared/PagoDetalleModal'
 import Tooltip from '@/components/ui/Tooltip'
 import { useModalDialog } from '@/hooks/use-modal-dialog'
+import Cifra from '@/components/ui/Cifra'
 
 export interface PagoRegularizadoNotifModalProps {
   isOpen: boolean
@@ -150,9 +151,11 @@ export default function PagoRegularizadoNotifModal({
               <p className="text-[10px] font-black uppercase tracking-widest text-white/55">
                 Monto recibido
               </p>
-              <p className="mt-1 text-4xl font-black tabular-nums">
-                {formatCurrency(monto)}
-              </p>
+              <Cifra
+                valor={monto}
+                tamano="enorme"
+                className="mt-1 font-black"
+              />
               <p className="mt-2 text-xs font-semibold text-white/70">
                 El dinero entra a caja en la fecha real del pago, pero se asocia operativamente a la jornada regularizada.
               </p>

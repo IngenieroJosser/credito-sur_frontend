@@ -51,6 +51,7 @@ import { useModalDialog } from '@/hooks/use-modal-dialog'
 import TipoCreditoIndicador from '@/components/creditos/TipoCreditoIndicador'
 import { resolverTipoCreditoDeEntidad } from '@/lib/creditos/tipo-credito'
 import { formatFechaBogota, formatFechaHumanaBogota } from '@/lib/format-date'
+import Cifra from '@/components/ui/Cifra'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -354,9 +355,11 @@ export default function PagoDetalleModal({ isOpen, onClose, metadata }: PagoDeta
                 </label>
                 <MetodoBadge metodo={metodoPago} />
               </div>
-              <p className="text-4xl font-black text-slate-900 tabular-nums mb-3">
-                {formatCurrency(monto)}
-              </p>
+              <Cifra
+                valor={monto}
+                tamano="enorme"
+                className="font-black text-slate-900 mb-3"
+              />
 
               {quedoPagado && (
                 <div className="shrink-0 flex items-center gap-2 p-3 bg-emerald-50 rounded-xl border border-emerald-100">
@@ -465,9 +468,11 @@ export default function PagoDetalleModal({ isOpen, onClose, metadata }: PagoDeta
                     <p className="text-[10px] text-emerald-600 font-bold uppercase mb-1">
                       Interés Recaudado
                     </p>
-                    <p className="text-3xl font-black text-emerald-700 tabular-nums">
-                      {formatCurrency(interesRec)}
-                    </p>
+                    <Cifra
+                      valor={interesRec}
+                      tamano="enorme"
+                      className="font-black text-emerald-700"
+                    />
                     <p className="text-[10px] text-emerald-500 font-medium mt-1">
                       {capitalRec > 0
                         ? `${((interesRec / (capitalRec + interesRec)) * 100).toFixed(1)}% del pago total`

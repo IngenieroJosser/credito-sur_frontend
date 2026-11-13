@@ -38,6 +38,7 @@ import { SkeletonTablero } from '@/components/ui/Skeleton'
 import { mensajeDeError } from '@/lib/mensaje-de-error'
 import Tooltip from '@/components/ui/Tooltip'
 
+import Cifra from '@/components/ui/Cifra'
 const ReportesOperativosPage = () => {
   const router = useRouter()
   const pathname = usePathname()
@@ -274,9 +275,11 @@ const ReportesOperativosPage = () => {
                   Recaudo Total
                 </p>
               </div>
-              <h3 className="whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold text-slate-900 mt-2 leading-tight">
-                {formatCurrency(totalRecaudo)}
-              </h3>
+              <Cifra
+                valor={totalRecaudo}
+                tamano="grande"
+                className="font-bold text-slate-900 mt-2"
+              />
             </div>
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100">

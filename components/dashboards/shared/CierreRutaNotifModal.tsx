@@ -21,6 +21,7 @@ import { formatCurrency, cn } from '@/lib/utils'
 import { parseCierreRutaNotif, type NotificacionDeCierreRuta } from '@/lib/notificaciones/cierre-ruta'
 import Tooltip from '@/components/ui/Tooltip'
 import { useModalDialog } from '@/hooks/use-modal-dialog'
+import Cifra from '@/components/ui/Cifra'
 
 export interface CierreRutaNotifModalProps {
   isOpen: boolean
@@ -167,9 +168,11 @@ export default function CierreRutaNotifModal({
             {/* Recaudo grande */}
             <div className="relative z-10 mt-5">
               <p className="text-white/60 text-[10px] font-black uppercase tracking-widest mb-1">Recaudo Final</p>
-              <p className="text-3xl font-black text-white tabular-nums tracking-tight">
-                {formatCurrency(recaudo)}
-              </p>
+              <Cifra
+                valor={recaudo}
+                tamano="enorme"
+                className="font-black text-white tracking-tight"
+              />
             </div>
           </div>
 

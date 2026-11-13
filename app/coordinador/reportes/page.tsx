@@ -14,6 +14,7 @@ import { toast } from 'sonner'
 import { Skeleton, SkeletonTabla } from '@/components/ui/Skeleton'
 import { mensajeDeError } from '@/lib/mensaje-de-error'
 
+import Cifra from '@/components/ui/Cifra'
 const ReportesCoordinador = () => {
   const router = useRouter()
   const pathname = usePathname()
@@ -173,7 +174,11 @@ const ReportesCoordinador = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm transition-all hover:shadow-md">
             <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Recaudo Total</p>
-            <h3 className="text-2xl font-bold text-slate-900 mt-1">{formatCurrency(totalRecaudo)}</h3>
+            <Cifra
+              valor={totalRecaudo}
+              tamano="grande"
+              className="font-bold text-slate-900 mt-1"
+            />
             <div className="mt-2 flex items-center gap-2">
               <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 text-[10px] font-bold rounded-full">{porcentajeGlobal}% eficiencia</span>
             </div>

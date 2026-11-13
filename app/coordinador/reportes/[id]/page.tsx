@@ -8,6 +8,7 @@ import { ChevronLeft, BarChart3, TrendingUp, Users, Calendar, ArrowRight, Dollar
 import Link from 'next/link';
 import { formatCurrency, cn } from '@/lib/utils';
 import { reportesCoordinadorService } from '@/services/reportes-coordinador-service';
+import Cifra from '@/components/ui/Cifra'
 
 interface ReporteDetalle {
   id: string; ruta: string; cobrador: string; fecha: string;
@@ -119,7 +120,11 @@ export default function DetalleReporteOperativoPage({
               <DollarSign className="w-5 h-5 text-emerald-500" />
             </div>
             <div className="space-y-2">
-              <h3 className="text-3xl font-bold text-slate-900">{formatCurrency(reporte.recaudado)}</h3>
+              <Cifra
+                valor={reporte.recaudado}
+                tamano="enorme"
+                className="font-bold text-slate-900"
+              />
               <p className="text-sm text-slate-500 font-bold uppercase">Meta: {formatCurrency(reporte.meta)}</p>
             </div>
             <div className="mt-5 w-full bg-slate-100 h-3 rounded-full overflow-hidden">

@@ -24,7 +24,7 @@ import {
   ChevronDown,
 } from 'lucide-react'
 
-import { formatCurrency, isUuid } from '@/lib/utils'
+import { isUuid } from '@/lib/utils'
 
 import { useRouter } from 'next/navigation'
 
@@ -149,6 +149,7 @@ import {
   prioridadColor,
   riesgoOperativoLabel,
 } from '@/lib/display-labels'
+import Cifra from '@/components/ui/Cifra'
 
 interface GastoRuta {
   id: string
@@ -1392,9 +1393,11 @@ const RutaClientLoaded = ({
                     Efectivo Entregado
                   </p>
 
-                  <div className="text-3xl font-bold text-slate-900">
-                    {formatCurrency(Number(estadisticas?.efectivoEntregado || 0))}
-                  </div>
+                  <Cifra
+                    valor={Number(estadisticas?.efectivoEntregado || 0)}
+                    tamano="enorme"
+                    className="font-bold text-slate-900"
+                  />
 
                   <p className="text-xs text-slate-400 mt-1">Total recolectado de esta ruta</p>
                 </div>

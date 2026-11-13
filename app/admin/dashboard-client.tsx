@@ -23,6 +23,7 @@ import { toast } from 'sonner';
 import { prestamosService } from '@/services/prestamos-service';
 import { buildCrearPrestamoPayload } from '@/lib/creditos/crear-prestamo-payload';
 import { mensajeDeError } from '@/lib/mensaje-de-error';
+import Cifra from '@/components/ui/Cifra'
 
 interface MetricItem {
   title: string;
@@ -213,9 +214,24 @@ export function DashboardClient({ data }: DashboardClientProps) {
               </div>
               
               <div className="space-y-2 relative z-10">
-                <div className="text-3xl font-black text-slate-900 tracking-tight truncate leading-tight" title={metric.isCurrency ? formatCurrency(Number(metric.value)) : String(metric.value)}>
-                  {metric.isCurrency ? formatCurrency(Number(metric.value)) : metric.value}
-                </div>
+                {/*
+                  * Aqui la cifra se RECORTABA: `truncate` mas el importe
+                  * completo en `title`. No se salia de la tarjeta, pero en un
+                  * telefono no hay donde pasar el raton, asi que el numero
+                  * quedaba cortado y sin forma de verlo entero. `Cifra` lo
+                  * encoge hasta 14 px antes de recortar nada.
+                  */}
+                {metric.isCurrency ? (
+                  <Cifra
+                    valor={Number(metric.value)}
+                    tamano="enorme"
+                    className="font-black text-slate-900 tracking-tight"
+                  />
+                ) : (
+                  <div className="text-3xl font-black text-slate-900 tracking-tight truncate leading-tight">
+                    {metric.value}
+                  </div>
+                )}
                 {metric.subValue && (
                   <div className="text-[11px] font-bold text-slate-500/80 uppercase tracking-wide flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>

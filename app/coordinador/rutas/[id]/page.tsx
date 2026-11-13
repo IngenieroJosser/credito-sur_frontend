@@ -113,6 +113,7 @@ import {
   PERIODO_POR_DEFECTO,
   type PeriodoDeFiltro,
 } from '@/lib/filtros/periodo-de-ruta'
+import Cifra from '@/components/ui/Cifra'
 
 // Interfaces de datos
 
@@ -1219,9 +1220,11 @@ const LegacyDetalleRutaPage = () => {
                     Recaudado Hoy
                   </p>
 
-                  <div className="text-3xl font-bold text-slate-900">
-                    {formatCurrency(rutaActual?.estadisticas?.cobranzaDelDia || 0)}
-                  </div>
+                  <Cifra
+                    valor={rutaActual?.estadisticas?.cobranzaDelDia || 0}
+                    tamano="enorme"
+                    className="font-bold text-slate-900"
+                  />
 
                   <p className="text-xs text-slate-400 mt-1">
                     Meta: {formatCurrency(rutaActual?.estadisticas?.metaDelDia || 0)}

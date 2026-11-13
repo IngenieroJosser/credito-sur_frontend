@@ -23,6 +23,7 @@ import { resolveCurrentUserId } from '@/lib/creditos/crear-prestamo-payload';
 import { FrecuenciaPago, NivelRiesgo, TipoAmortizacion } from '@/types/enums';
 import { Selector } from '@/components/ui/Selector'
 import { CampoFecha } from '@/components/ui/CampoFecha'
+import Cifra from '@/components/ui/Cifra'
 
 // Interfaces alineadas con Prisma (Simuladas para Frontend)
 
@@ -842,7 +843,11 @@ const CreacionPrestamoElegante = ({ initialClienteId, isModal }: { initialClient
                               <div className="bg-blue-50 p-4 rounded-xl mt-4">
                                  <div className="flex justify-between items-center">
                                     <span className="text-blue-700 font-bold">Cuota {form.frecuenciaPago.toLowerCase()}</span>
-                                    <span className="text-2xl font-black text-blue-900">{formatCurrency(resumenPrestamo.valorCuota)}</span>
+                                    <Cifra
+                                      valor={resumenPrestamo.valorCuota}
+                                      tamano="grande"
+                                      className="font-black text-blue-900"
+                                    />
                                  </div>
                               </div>
                            </div>

@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { formatCurrency, cn } from '@/lib/utils';
 import { Modal } from '@/components/ui/Modal';
+import Cifra from '@/components/ui/Cifra'
 
 interface DetalleReporteOperativoModalProps {
   id: string;
@@ -103,7 +104,11 @@ export default function DetalleReporteOperativoModal({ id, onClose }: DetalleRep
               </div>
             </div>
             <div className="flex items-baseline gap-2">
-               <h3 className="text-3xl font-black text-slate-900 tracking-tight">{formatCurrency(reporte.finanzas.totalRecaudado)}</h3>
+               <Cifra
+                 valor={reporte.finanzas.totalRecaudado}
+                 tamano="enorme"
+                 className="font-black text-slate-900 tracking-tight"
+               />
                <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
                   {reporte.finanzas.eficiencia}% Meta
                </span>
@@ -118,7 +123,11 @@ export default function DetalleReporteOperativoModal({ id, onClose }: DetalleRep
               <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Gastos Op.</p>
               <ArrowDownLeft className="w-4 h-4 text-rose-500" />
             </div>
-            <h3 className="text-2xl font-black text-slate-900 tracking-tight">{formatCurrency(reporte.finanzas.gastosOperativos)}</h3>
+            <Cifra
+              valor={reporte.finanzas.gastosOperativos}
+              tamano="grande"
+              className="font-black text-slate-900 tracking-tight"
+            />
             <p className="mt-1 text-xs text-slate-500 font-bold uppercase">
                Salidas de Caja
             </p>

@@ -20,6 +20,7 @@ import {
 import { formatCurrency } from '@/lib/utils'
 import { prestamosService } from '@/services/prestamos-service'
 import ArchivarCuentaModal from '@/components/prestamos/ArchivarCuentaModal'
+import Cifra from '@/components/ui/Cifra'
 
 interface MoraDetalle {
   id: string
@@ -246,15 +247,27 @@ export default function DetalleCuentaMoraPage({ params }: { params: Promise<{ id
                     </div>
                     <div>
                         <p className="text-sm text-slate-500 mb-1">Capital Vencido</p>
-                        <p className="text-2xl font-bold text-slate-900">{formatCurrency(data.mora.capitalVencido)}</p>
+                        <Cifra
+                          valor={data.mora.capitalVencido}
+                          tamano="grande"
+                          className="font-bold text-slate-900"
+                        />
                     </div>
                     <div>
                         <p className="text-sm text-slate-500 mb-1">Interés Mora</p>
-                        <p className="text-2xl font-bold text-slate-900">{formatCurrency(data.mora.interesMora)}</p>
+                        <Cifra
+                          valor={data.mora.interesMora}
+                          tamano="grande"
+                          className="font-bold text-slate-900"
+                        />
                     </div>
                     <div>
                         <p className="text-sm text-slate-500 mb-1">Total a Pagar Ya</p>
-                        <p className="text-3xl font-bold text-slate-900">{formatCurrency(data.mora.totalPagarYa)}</p>
+                        <Cifra
+                          valor={data.mora.totalPagarYa}
+                          tamano="enorme"
+                          className="font-bold text-slate-900"
+                        />
                     </div>
                 </div>
 

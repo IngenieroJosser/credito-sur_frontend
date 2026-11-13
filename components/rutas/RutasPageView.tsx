@@ -68,6 +68,7 @@ import { estaPendienteDeActivacion } from '@/lib/rutas/pendiente-de-activacion'
 import { SkeletonTablero } from '@/components/ui/Skeleton'
 import { Selector } from '@/components/ui/Selector'
 import Tooltip from '@/components/ui/Tooltip'
+import Cifra from '@/components/ui/Cifra'
 
 /**
  * La ruta del listado. La forma la define `RutaDeLista` en `types/domain.ts`.
@@ -2483,9 +2484,11 @@ export const RutasPageView = ({
                 {saldoDisponibleRecolectar === null ? (
                   <div className="flex items-center gap-2 text-slate-400 text-sm" />
                 ) : (
-                  <p className="text-2xl font-bold text-emerald-700">
-                    {formatCurrency(saldoDisponibleRecolectar)}
-                  </p>
+                  <Cifra
+                    valor={saldoDisponibleRecolectar}
+                    tamano="grande"
+                    className="font-bold text-emerald-700"
+                  />
                 )}
                 <p className="text-xs text-slate-400 mt-1">
                   Sera enviado a la <strong>Caja de Oficina</strong>

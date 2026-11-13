@@ -5,6 +5,7 @@ import { Calendar, User, FileText, TrendingUp, Package, Image as ImageIcon, Chev
 import { formatCurrency, cn, resolveMediaUrl } from '@/lib/utils';
 import ClientePortalModal from '@/components/cliente/ClientePortalModal';
 import { getBogotaDateKey, normalizeDateKey } from '@/lib/rutas-core'
+import Cifra from '@/components/ui/Cifra'
 // imports de permiso/servicios de mora removidos: la asignación se hace en Cuentas en Mora
 
 const formatDate = (dateStr: string | undefined | null): string => {
@@ -409,13 +410,21 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
         <div className="grid grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4">
           <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between h-28">
              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{isArticle ? 'Valor del Artículo' : 'Monto Prestado'}</span>
-             <p className="text-2xl font-bold text-slate-900 tracking-tight">{formatCurrency(isArticle ? valorArticuloTotal : prestamo.montoPrestamo)}</p>
+             <Cifra
+               valor={isArticle ? valorArticuloTotal : prestamo.montoPrestamo}
+               tamano="grande"
+               className="font-bold text-slate-900 tracking-tight"
+             />
           </div>
 
           {isArticle && (
             <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between h-28">
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">A Financiar</span>
-              <p className="text-2xl font-bold text-slate-900 tracking-tight">{formatCurrency(prestamo.montoPrestamo)}</p>
+              <Cifra
+                valor={prestamo.montoPrestamo}
+                tamano="grande"
+                className="font-bold text-slate-900 tracking-tight"
+              />
             </div>
           )}
 
@@ -436,31 +445,51 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                <span className="text-[10px] font-black text-emerald-600/70 uppercase tracking-widest">Abonado a la Fecha</span>
                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">{progresoPorcentaje}%</span>
              </div>
-             <p className="text-2xl font-bold text-emerald-700 tracking-tight">{formatCurrency(montoAbonado)}</p>
+             <Cifra
+               valor={montoAbonado}
+               tamano="grande"
+               className="font-bold text-emerald-700 tracking-tight"
+             />
           </div>
 
           {/* Saldo Pendiente */}
           <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between h-28">
              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Saldo Pendiente</span>
-             <p className="text-2xl font-bold text-rose-600 tracking-tight">{formatCurrency(prestamo.saldoPendiente)}</p>
+             <Cifra
+               valor={prestamo.saldoPendiente}
+               tamano="grande"
+               className="font-bold text-rose-600 tracking-tight"
+             />
           </div>
 
           {/* Interés Total */}
           <div className="bg-amber-50/50 p-5 rounded-2xl border border-amber-100 shadow-sm flex flex-col justify-between h-28">
              <span className="text-[10px] font-black text-amber-600/70 uppercase tracking-widest">Interés Total</span>
-             <p className="text-2xl font-bold text-amber-700 tracking-tight">{formatCurrency(prestamo.interesTotal || 0)}</p>
+             <Cifra
+               valor={prestamo.interesTotal || 0}
+               tamano="grande"
+               className="font-bold text-amber-700 tracking-tight"
+             />
           </div>
 
           {/* Capital Pagado */}
           <div className="bg-blue-50/50 p-5 rounded-2xl border border-blue-100 shadow-sm flex flex-col justify-between h-28">
              <span className="text-[10px] font-black text-blue-600/70 uppercase tracking-widest">Capital Pagado</span>
-             <p className="text-2xl font-bold text-blue-700 tracking-tight">{formatCurrency(capitalPagadoUI || 0)}</p>
+             <Cifra
+               valor={capitalPagadoUI || 0}
+               tamano="grande"
+               className="font-bold text-blue-700 tracking-tight"
+             />
           </div>
 
           {/* Interés Pagado */}
           <div className="bg-violet-50/50 p-5 rounded-2xl border border-violet-100 shadow-sm flex flex-col justify-between h-28">
              <span className="text-[10px] font-black text-violet-600/70 uppercase tracking-widest">Interés Pagado</span>
-             <p className="text-2xl font-bold text-violet-700 tracking-tight">{formatCurrency(interesPagadoUI || 0)}</p>
+             <Cifra
+               valor={interesPagadoUI || 0}
+               tamano="grande"
+               className="font-bold text-violet-700 tracking-tight"
+             />
           </div>
 
           {/* Frecuencia (now Row 2) */}
@@ -559,7 +588,11 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
           {isArticle && (
           <div className="bg-orange-50/70 p-5 rounded-2xl border border-orange-200 shadow-sm flex flex-col justify-between h-28">
              <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest">Cuota Inicial</span>
-             <p className="text-2xl font-bold text-orange-700 tracking-tight">{formatCurrency(prestamo.cuotaInicial || 0)}</p>
+             <Cifra
+               valor={prestamo.cuotaInicial || 0}
+               tamano="grande"
+               className="font-bold text-orange-700 tracking-tight"
+             />
           </div>
           )}
           

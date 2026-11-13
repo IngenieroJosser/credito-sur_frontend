@@ -5,8 +5,8 @@ import { SkeletonDetalle } from '@/components/ui/Skeleton'
 import { use, useState, useEffect } from 'react';
 import { ChevronLeft, AlertCircle, Calendar, Phone, MapPin, User } from 'lucide-react';
 import Link from 'next/link';
-import { formatCurrency } from '@/lib/utils';
 import { prestamosService } from '@/services/prestamos-service';
+import Cifra from '@/components/ui/Cifra'
 
 interface CuentaMora {
   id: string;
@@ -146,7 +146,11 @@ export default function DetalleCuentaMoraPage({
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8 py-8 border-y border-slate-100">
                     <div>
                         <p className="text-xs font-bold text-slate-400 uppercase mb-1">Monto en Mora</p>
-                        <p className="text-2xl font-bold text-rose-600">{formatCurrency(cuenta.montoMora)}</p>
+                        <Cifra
+                          valor={cuenta.montoMora}
+                          tamano="grande"
+                          className="font-bold text-rose-600"
+                        />
                     </div>
                     <div>
                         <p className="text-xs font-bold text-slate-400 uppercase mb-1">Cuotas Vencidas</p>

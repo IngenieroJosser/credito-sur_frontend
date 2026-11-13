@@ -32,6 +32,7 @@ import { logger } from '@/lib/logger'
 import { mensajeDeError } from '@/lib/mensaje-de-error'
 import { listaDeRespuesta } from '@/lib/lista-de-respuesta'
 
+import Cifra from '@/components/ui/Cifra'
 // Interfaces
 interface FinancialSummary {
   entradasCaja: number;
@@ -605,7 +606,11 @@ const ReportesFinancierosPage = () => {
                 </div>
                 <p className="min-w-0 text-xs font-bold text-slate-500 uppercase tracking-wider leading-tight">Flujo Neto de Caja</p>
               </div>
-              <h3 className={`whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold mt-2 leading-tight ${summary.entradasCaja < 0 ? 'text-rose-600' : 'text-slate-900'}`}>{formatCurrency(summary.entradasCaja)}</h3>
+              <Cifra
+                valor={summary.entradasCaja}
+                tamano="grande"
+                className={`font-bold mt-2 ${summary.entradasCaja < 0 ? 'text-rose-600' : 'text-slate-900'}`}
+              />
             </div>
             <p className="text-xs font-semibold text-slate-400">Entradas menos salidas/reversos de caja del periodo</p>
           </div>
@@ -618,7 +623,11 @@ const ReportesFinancierosPage = () => {
                 </div>
                 <p className="min-w-0 text-xs font-bold text-slate-500 uppercase tracking-wider leading-tight">Ingresos de Cartera</p>
               </div>
-              <h3 className="whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold text-slate-900 mt-2 leading-tight">{formatCurrency(summary.ingresos)}</h3>
+              <Cifra
+                valor={summary.ingresos}
+                tamano="grande"
+                className="font-bold text-slate-900 mt-2"
+              />
             </div>
             {trendIngresos !== null && (
               <div className={`flex items-center text-xs font-bold w-fit max-w-full px-2 py-1 rounded-full border ${trendIngresos >= 0 ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-rose-600 bg-rose-50 border-rose-100'}`}>
@@ -637,7 +646,11 @@ const ReportesFinancierosPage = () => {
                 </div>
                 <p className="min-w-0 text-xs font-bold text-slate-500 uppercase tracking-wider leading-tight">Cobros de Cuotas</p>
               </div>
-              <h3 className="whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold text-slate-900 mt-2 leading-tight">{formatCurrency(summary.cobros)}</h3>
+              <Cifra
+                valor={summary.cobros}
+                tamano="grande"
+                className="font-bold text-slate-900 mt-2"
+              />
             </div>
             {trendCobros !== null && (
               <div className={`flex items-center text-xs font-bold w-fit max-w-full px-2 py-1 rounded-full border ${trendCobros >= 0 ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-rose-600 bg-rose-50 border-rose-100'}`}>
@@ -655,7 +668,11 @@ const ReportesFinancierosPage = () => {
                 </div>
                 <p className="min-w-0 text-xs font-bold text-slate-500 uppercase tracking-wider leading-tight">Gastos Operativos</p>
               </div>
-              <h3 className="whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold text-slate-900 mt-2 leading-tight">{formatCurrency(summary.egresos)}</h3>
+              <Cifra
+                valor={summary.egresos}
+                tamano="grande"
+                className="font-bold text-slate-900 mt-2"
+              />
             </div>
             {trendEgresos !== null && (
               <div className={`flex items-center text-xs font-bold w-fit max-w-full px-2 py-1 rounded-full border ${trendEgresos >= 0 ? 'text-rose-600 bg-rose-50 border-rose-100' : 'text-emerald-600 bg-emerald-50 border-emerald-100'}`}>
@@ -673,7 +690,11 @@ const ReportesFinancierosPage = () => {
                 </div>
                 <p className="min-w-0 text-xs font-bold text-slate-500 uppercase tracking-wider leading-tight">Utilidad Operativa</p>
               </div>
-              <h3 className={`whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold mt-2 leading-tight ${summary.utilidadOperativa < 0 ? 'text-rose-600' : 'text-slate-900'}`}>{formatCurrency(summary.utilidadOperativa)}</h3>
+              <Cifra
+                valor={summary.utilidadOperativa}
+                tamano="grande"
+                className={`font-bold mt-2 ${summary.utilidadOperativa < 0 ? 'text-rose-600' : 'text-slate-900'}`}
+              />
             </div>
             <p className="text-xs font-semibold text-slate-400">Interés + mora + margen de artículos menos gastos</p>
           </div>
@@ -686,7 +707,11 @@ const ReportesFinancierosPage = () => {
                 </div>
                 <p className="min-w-0 text-xs font-bold text-slate-500 uppercase tracking-wider leading-tight">Provisión de Cartera</p>
               </div>
-              <h3 className="whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold text-slate-900 mt-2 leading-tight">{formatCurrency(summary.provisionCartera)}</h3>
+              <Cifra
+                valor={summary.provisionCartera}
+                tamano="grande"
+                className="font-bold text-slate-900 mt-2"
+              />
             </div>
             <p className="text-xs font-semibold text-slate-400">Reserva para préstamos en mora/incumplimiento</p>
           </div>
@@ -699,7 +724,11 @@ const ReportesFinancierosPage = () => {
                 </div>
                 <p className="min-w-0 text-xs font-bold text-slate-500 uppercase tracking-wider leading-tight">Utilidad Neta Estimada</p>
               </div>
-              <h3 className={`whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold mt-2 leading-tight ${summary.utilidadNeta < 0 ? 'text-rose-600' : 'text-slate-900'}`}>{formatCurrency(summary.utilidadNeta)}</h3>
+              <Cifra
+                valor={summary.utilidadNeta}
+                tamano="grande"
+                className={`font-bold mt-2 ${summary.utilidadNeta < 0 ? 'text-rose-600' : 'text-slate-900'}`}
+              />
             </div>
             {/* Cero no es "Rentable": es que no hubo movimiento en el periodo.
                 Antes cualquier valor >= 0 se etiquetaba como rentable y un dia

@@ -7,6 +7,7 @@ import { ChevronLeft, User, Phone, CreditCard, TrendingUp, DollarSign } from 'lu
 import Link from 'next/link';
 import { formatCurrency } from '@/lib/utils';
 import { clientesService } from '@/services/clientes-service';
+import Cifra from '@/components/ui/Cifra'
 
 interface ClienteDetalle {
   id: string;
@@ -181,7 +182,11 @@ export default function DetalleClienteCoordinadorPage({
                             <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Saldo Activo</p>
                             <DollarSign className="w-4 h-4 text-orange-500" />
                         </div>
-                        <h3 className="text-2xl font-bold text-slate-900">{formatCurrency(cliente.saldoActual)}</h3>
+                        <Cifra
+                          valor={cliente.saldoActual}
+                          tamano="grande"
+                          className="font-bold text-slate-900"
+                        />
                         <p className="text-xs text-slate-500 font-medium">{cliente.prestamosActivos} Operación vigente</p>
                     </div>
                     <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
@@ -189,7 +194,11 @@ export default function DetalleClienteCoordinadorPage({
                             <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Total Colocado</p>
                             <CreditCard className="w-4 h-4 text-blue-500" />
                         </div>
-                        <h3 className="text-2xl font-bold text-slate-900">{formatCurrency(cliente.totalPrestado)}</h3>
+                        <Cifra
+                          valor={cliente.totalPrestado}
+                          tamano="grande"
+                          className="font-bold text-slate-900"
+                        />
                         <p className="text-xs text-slate-500 font-medium">Histórico acumulado</p>
                     </div>
                 </div>
