@@ -92,6 +92,7 @@ import BotonAccion from '@/components/ui/BotonAccion'
 import { listaDeRespuesta } from '@/lib/lista-de-respuesta'
 import { Selector } from '@/components/ui/Selector'
 import { CampoFecha } from '@/components/ui/CampoFecha'
+import Tooltip from '@/components/ui/Tooltip'
 
 // --- TIPOS DE DATOS ---
 // Definimos la estructura de nuestras "Cajas".
@@ -1552,14 +1553,15 @@ const ModuloContableContent = () => {
                     />
 
                     {busqueda.trim() && (
-                      <button aria-label="Limpiar búsqueda"
-                        type="button"
-                        onClick={() => setBusqueda('')}
-                        className="absolute right-2 top-1/2 inline-flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
-                        title="Limpiar búsqueda"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
+                      <Tooltip texto="Limpiar búsqueda">
+                        <button aria-label="Limpiar búsqueda"
+                          type="button"
+                          onClick={() => setBusqueda('')}
+                          className="absolute right-2 top-1/2 inline-flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </Tooltip>
                     )}
                   </div>
                 </div>
@@ -1672,16 +1674,17 @@ const ModuloContableContent = () => {
                           />
                         </td>
                         <td className="px-4 py-2 align-middle text-center">
-                          <button aria-label="Ver Asiento Contable"
-                            onClick={() => {
-                              setMovimientoSeleccionado(m)
-                              setShowVerMovimientoModal(true)
-                            }}
-                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors inline-flex"
-                            title="Ver Asiento Contable"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </button>
+                          <Tooltip texto="Ver Asiento Contable">
+                            <button aria-label="Ver Asiento Contable"
+                              onClick={() => {
+                                setMovimientoSeleccionado(m)
+                                setShowVerMovimientoModal(true)
+                              }}
+                              className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors inline-flex"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </button>
+                          </Tooltip>
                         </td>
                       </tr>
                     )
@@ -1728,12 +1731,13 @@ const ModuloContableContent = () => {
                       <div className="text-sm font-extrabold text-slate-900 truncate">{c.nombre}</div>
                       <div className="mt-1 text-xs text-slate-500 font-medium">{c.responsable}</div>
                       {c.rutaId && (
-                        <div 
-                          className="mt-1 text-[10px] text-blue-600 font-bold bg-blue-50 inline-block px-1.5 py-0.5 rounded border border-blue-100"
-                          title="Caja asociada a Ruta"
-                        >
-                          Ruta
-                        </div>
+                        <Tooltip texto="Caja asociada a Ruta">
+                          <div 
+                            className="mt-1 text-[10px] text-blue-600 font-bold bg-blue-50 inline-block px-1.5 py-0.5 rounded border border-blue-100"
+                          >
+                            Ruta
+                          </div>
+                        </Tooltip>
                       )}
                     </div>
                     <div className="text-right shrink-0 flex flex-col items-end gap-2">
@@ -3336,16 +3340,17 @@ const ModuloContableContent = () => {
                                            )}>
                                                AUTOMÁTICO
                                            </span>
-                                           <button aria-label="Ver Detalles de Consolidación" 
-                                              onClick={() => {
-                                                  setArqueoSeleccionado(c);
-                                                  setShowVerArqueoModal(true);
-                                              }}
-                                              className="p-1.5 rounded-full hover:bg-slate-100 text-slate-400 hover:text-blue-600 transition-colors"
-                                              title="Ver Detalles de Consolidación"
-                                           >
-                                               <Eye className="w-4 h-4" />
-                                           </button>
+                                           <Tooltip texto="Ver Detalles de Consolidación">
+                                             <button aria-label="Ver Detalles de Consolidación" 
+                                                onClick={() => {
+                                                    setArqueoSeleccionado(c);
+                                                    setShowVerArqueoModal(true);
+                                                }}
+                                                className="p-1.5 rounded-full hover:bg-slate-100 text-slate-400 hover:text-blue-600 transition-colors"
+                                             >
+                                                 <Eye className="w-4 h-4" />
+                                             </button>
+                                           </Tooltip>
                                        </div>
                                    </div>
                                ))}

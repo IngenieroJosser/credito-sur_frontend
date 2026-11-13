@@ -22,6 +22,7 @@ import BotonAccion from '@/components/ui/BotonAccion'
 import { SkeletonTabla } from '@/components/ui/Skeleton';
 import { Selector } from '@/components/ui/Selector'
 import { CampoFecha } from '@/components/ui/CampoFecha'
+import Tooltip from '@/components/ui/Tooltip'
 
 import {
   Search,
@@ -1528,34 +1529,13 @@ const UserManagementPage = () => {
                           </td>
                           <td className="px-8 py-5 text-right">
                             <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                              <button aria-label="Ver detalle"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleOpenDetailModal(user);
-                                }}
-                                className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                title="Ver detalle"
-                                disabled={
-                                  user.rol === "SUPER_ADMINISTRADOR" &&
-                                  currentUserRole !== "SUPER_ADMINISTRADOR"
-                                }
-                                style={
-                                  user.rol === "SUPER_ADMINISTRADOR" &&
-                                  currentUserRole !== "SUPER_ADMINISTRADOR"
-                                    ? { pointerEvents: "none", opacity: 0.5 }
-                                    : {}
-                                }
-                              >
-                                <Eye className="h-4 w-4" />
-                              </button>
-                              {puedeEditar && (
-                                <button aria-label="Editar"
+                              <Tooltip texto="Ver detalle">
+                                <button aria-label="Ver detalle"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handleOpenEditModal(user);
+                                    handleOpenDetailModal(user);
                                   }}
-                                  className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                                  title="Editar"
+                                  className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                                   disabled={
                                     user.rol === "SUPER_ADMINISTRADOR" &&
                                     currentUserRole !== "SUPER_ADMINISTRADOR"
@@ -1567,43 +1547,69 @@ const UserManagementPage = () => {
                                       : {}
                                   }
                                 >
-                                  <Edit2 className="h-4 w-4" />
+                                  <Eye className="h-4 w-4" />
                                 </button>
+                              </Tooltip>
+                              {puedeEditar && (
+                                <Tooltip texto="Editar">
+                                  <button aria-label="Editar"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleOpenEditModal(user);
+                                    }}
+                                    className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                                    disabled={
+                                      user.rol === "SUPER_ADMINISTRADOR" &&
+                                      currentUserRole !== "SUPER_ADMINISTRADOR"
+                                    }
+                                    style={
+                                      user.rol === "SUPER_ADMINISTRADOR" &&
+                                      currentUserRole !== "SUPER_ADMINISTRADOR"
+                                        ? { pointerEvents: "none", opacity: 0.5 }
+                                        : {}
+                                    }
+                                  >
+                                    <Edit2 className="h-4 w-4" />
+                                  </button>
+                                </Tooltip>
                               )}
                               {puedeGestionarPermisos && (
-                                <button aria-label="Permisos"
-                                  onClick={() =>
-                                    handleOpenPermissionsModal(user)
-                                  }
-                                  className="p-2 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors"
-                                  title="Permisos"
-                                  disabled={
-                                    user.rol === "SUPER_ADMINISTRADOR" &&
-                                    currentUserRole !== "SUPER_ADMINISTRADOR"
-                                  }
-                                >
-                                  <Key className="h-4 w-4" />
-                                </button>
+                                <Tooltip texto="Permisos">
+                                  <button aria-label="Permisos"
+                                    onClick={() =>
+                                      handleOpenPermissionsModal(user)
+                                    }
+                                    className="p-2 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors"
+                                    disabled={
+                                      user.rol === "SUPER_ADMINISTRADOR" &&
+                                      currentUserRole !== "SUPER_ADMINISTRADOR"
+                                    }
+                                  >
+                                    <Key className="h-4 w-4" />
+                                  </button>
+                                </Tooltip>
                               )}
                               {puedeEliminar && (
                                 <>
                                   {user.estado === EstadoUsuario.ARCHIVADO ? (
                                     <>
-                                      <button aria-label="Restaurar"
-                                        onClick={() => handleOpenRestoreModal(user)}
-                                        className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-                                        title="Restaurar"
-                                      >
-                                        <RotateCcw className="h-4 w-4" />
-                                      </button>
-                                      <button aria-label="Ocultar definitivamente"
-                                        onClick={() => handleOpenHideModal(user)}
-                                        className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                                        title="Ocultar definitivamente"
-                                        disabled={user.rol === "SUPER_ADMINISTRADOR"}
-                                      >
-                                        <Trash2 className="h-4 w-4" />
-                                      </button>
+                                      <Tooltip texto="Restaurar">
+                                        <button aria-label="Restaurar"
+                                          onClick={() => handleOpenRestoreModal(user)}
+                                          className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                                        >
+                                          <RotateCcw className="h-4 w-4" />
+                                        </button>
+                                      </Tooltip>
+                                      <Tooltip texto="Ocultar definitivamente">
+                                        <button aria-label="Ocultar definitivamente"
+                                          onClick={() => handleOpenHideModal(user)}
+                                          className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                                          disabled={user.rol === "SUPER_ADMINISTRADOR"}
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </button>
+                                      </Tooltip>
                                     </>
                                   ) : (
                                     <>
@@ -1628,14 +1634,15 @@ const UserManagementPage = () => {
                                           <CheckCircle2 className="h-4 w-4" />
                                         )}
                                       </button>
-                                      <button aria-label="Archivar"
-                                        onClick={() => handleOpenArchiveModal(user)}
-                                        className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                                        title="Archivar"
-                                        disabled={user.rol === "SUPER_ADMINISTRADOR"}
-                                      >
-                                        <Archive className="h-4 w-4" />
-                                      </button>
+                                      <Tooltip texto="Archivar">
+                                        <button aria-label="Archivar"
+                                          onClick={() => handleOpenArchiveModal(user)}
+                                          className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                                          disabled={user.rol === "SUPER_ADMINISTRADOR"}
+                                        >
+                                          <Archive className="h-4 w-4" />
+                                        </button>
+                                      </Tooltip>
                                     </>
                                   )}
                                 </>
@@ -1733,74 +1740,79 @@ const UserManagementPage = () => {
                     </div>
 
                     <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100 mt-auto">
-                      <button aria-label="Ver detalle"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleOpenDetailModal(user);
-                        }}
-                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        title="Ver detalle"
-                        disabled={
-                          user.rol === "SUPER_ADMINISTRADOR" &&
-                          currentUserRole !== "SUPER_ADMINISTRADOR"
-                        }
-                        style={
-                          user.rol === "SUPER_ADMINISTRADOR" &&
-                          currentUserRole !== "SUPER_ADMINISTRADOR"
-                            ? { pointerEvents: "none", opacity: 0.5 }
-                            : {}
-                        }
-                      >
-                        <Eye className="h-4 w-4" />
-                      </button>
-                      <button aria-label="Editar"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleOpenEditModal(user);
-                        }}
-                        className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                        title="Editar"
-                        disabled={
-                          user.rol === "SUPER_ADMINISTRADOR" &&
-                          currentUserRole !== "SUPER_ADMINISTRADOR"
-                        }
-                        style={
-                          user.rol === "SUPER_ADMINISTRADOR" &&
-                          currentUserRole !== "SUPER_ADMINISTRADOR"
-                            ? { pointerEvents: "none", opacity: 0.5 }
-                            : {}
-                        }
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </button>
-                      <button aria-label="Permisos"
-                        onClick={() => handleOpenPermissionsModal(user)}
-                        className="p-2 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors"
-                        title="Permisos"
-                        disabled={
-                          user.rol === "SUPER_ADMINISTRADOR" &&
-                          currentUserRole !== "SUPER_ADMINISTRADOR"
-                        }
-                      >
-                        <Key className="h-4 w-4" />
-                      </button>
+                      <Tooltip texto="Ver detalle">
+                        <button aria-label="Ver detalle"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenDetailModal(user);
+                          }}
+                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          disabled={
+                            user.rol === "SUPER_ADMINISTRADOR" &&
+                            currentUserRole !== "SUPER_ADMINISTRADOR"
+                          }
+                          style={
+                            user.rol === "SUPER_ADMINISTRADOR" &&
+                            currentUserRole !== "SUPER_ADMINISTRADOR"
+                              ? { pointerEvents: "none", opacity: 0.5 }
+                              : {}
+                          }
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
+                      </Tooltip>
+                      <Tooltip texto="Editar">
+                        <button aria-label="Editar"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenEditModal(user);
+                          }}
+                          className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                          disabled={
+                            user.rol === "SUPER_ADMINISTRADOR" &&
+                            currentUserRole !== "SUPER_ADMINISTRADOR"
+                          }
+                          style={
+                            user.rol === "SUPER_ADMINISTRADOR" &&
+                            currentUserRole !== "SUPER_ADMINISTRADOR"
+                              ? { pointerEvents: "none", opacity: 0.5 }
+                              : {}
+                          }
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </button>
+                      </Tooltip>
+                      <Tooltip texto="Permisos">
+                        <button aria-label="Permisos"
+                          onClick={() => handleOpenPermissionsModal(user)}
+                          className="p-2 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors"
+                          disabled={
+                            user.rol === "SUPER_ADMINISTRADOR" &&
+                            currentUserRole !== "SUPER_ADMINISTRADOR"
+                          }
+                        >
+                          <Key className="h-4 w-4" />
+                        </button>
+                      </Tooltip>
                       {user.estado === EstadoUsuario.ARCHIVADO ? (
                         <>
-                          <button aria-label="Restaurar"
-                            onClick={() => handleOpenRestoreModal(user)}
-                            className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-                            title="Restaurar"
-                          >
-                            <RotateCcw className="h-4 w-4" />
-                          </button>
-                          <button aria-label="Ocultar definitivamente"
-                            onClick={() => handleOpenHideModal(user)}
-                            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                            title="Ocultar definitivamente"
-                            disabled={user.rol === "SUPER_ADMINISTRADOR"}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+                          <Tooltip texto="Restaurar">
+                            <button aria-label="Restaurar"
+                              onClick={() => handleOpenRestoreModal(user)}
+                              className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                            >
+                              <RotateCcw className="h-4 w-4" />
+                            </button>
+                          </Tooltip>
+                          <Tooltip texto="Ocultar definitivamente">
+                            <button aria-label="Ocultar definitivamente"
+                              onClick={() => handleOpenHideModal(user)}
+                              className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                              disabled={user.rol === "SUPER_ADMINISTRADOR"}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </Tooltip>
                         </>
                       ) : (
                         <>
@@ -1823,14 +1835,15 @@ const UserManagementPage = () => {
                               <CheckCircle2 className="h-4 w-4" />
                             )}
                           </button>
-                          <button aria-label="Archivar"
-                            onClick={() => handleOpenArchiveModal(user)}
-                            className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                            title="Archivar"
-                            disabled={user.rol === "SUPER_ADMINISTRADOR"}
-                          >
-                            <Archive className="h-4 w-4" />
-                          </button>
+                          <Tooltip texto="Archivar">
+                            <button aria-label="Archivar"
+                              onClick={() => handleOpenArchiveModal(user)}
+                              className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                              disabled={user.rol === "SUPER_ADMINISTRADOR"}
+                            >
+                              <Archive className="h-4 w-4" />
+                            </button>
+                          </Tooltip>
                         </>
                       )}
                     </div>
@@ -2437,10 +2450,11 @@ const UserManagementPage = () => {
                           {selectedUser.nombres.charAt(0)}
                           {selectedUser.apellidos.charAt(0)}
                         </div>
-                        <div
-                          className="absolute bottom-4 right-2 w-5 h-5 bg-emerald-500 rounded-full border-[3px] border-white"
-                          title="Usuario Activo"
-                        ></div>
+                        <Tooltip texto="Usuario Activo">
+                          <div
+                            className="absolute bottom-4 right-2 w-5 h-5 bg-emerald-500 rounded-full border-[3px] border-white"
+                          ></div>
+                        </Tooltip>
                       </div>
                       <h2 className="text-xl font-bold text-slate-900 text-center leading-tight">
                         {selectedUser.nombres}

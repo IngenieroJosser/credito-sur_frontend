@@ -28,6 +28,7 @@ import { esErrorDeRed } from '@/lib/offline/conRespaldoOffline';
 import { apiClient } from '@/lib/api/apiClient';
 import { formatRoleLabel } from '@/lib/display-labels';
 import { rutaDeRol } from '@/lib/auth/rutaPorRol';
+import Tooltip from '@/components/ui/Tooltip'
 
 interface LoginFormData {
   nombres: string;
@@ -636,13 +637,14 @@ const LoginPage = () => {
               <div className="w-full border-t border-gray-200"></div>
             </div>
             <div className="relative flex justify-center">
-              <span
-                className="px-3 bg-white text-xs text-gray-400 cursor-default select-none"
-                onClick={handleVersionClick}
-                title=""
-              >
-                Versión Alpha 1.5
-              </span>
+              <Tooltip texto="">
+                <span
+                  className="px-3 bg-white text-xs text-gray-400 cursor-default select-none"
+                  onClick={handleVersionClick}
+                >
+                  Versión Alpha 1.5
+                </span>
+              </Tooltip>
             </div>
           </div>
 

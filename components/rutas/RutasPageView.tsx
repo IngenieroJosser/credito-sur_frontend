@@ -67,6 +67,7 @@ import { estaPendienteDeActivacion } from '@/lib/rutas/pendiente-de-activacion'
 
 import { SkeletonTablero } from '@/components/ui/Skeleton'
 import { Selector } from '@/components/ui/Selector'
+import Tooltip from '@/components/ui/Tooltip'
 
 /**
  * La ruta del listado. La forma la define `RutaDeLista` en `types/domain.ts`.
@@ -1461,16 +1462,17 @@ export const RutasPageView = ({
                         {/* Botones de acción (siempre visibles) */}
                         <div className="flex items-center gap-1">
                           {!readOnly && (
-                            <button aria-label="Editar"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleEditClick(ruta)
-                              }}
-                              className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
-                              title="Editar"
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </button>
+                            <Tooltip texto="Editar">
+                              <button aria-label="Editar"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleEditClick(ruta)
+                                }}
+                                className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </button>
+                            </Tooltip>
                           )}
                           {!readOnly && (
                             <button
@@ -1508,17 +1510,18 @@ export const RutasPageView = ({
                             <Eye className="h-4 w-4" />
                           </Link>
                           {showRecolectar && (
-                            <button aria-label="Recolectar dinero"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleRecolectarDinero(ruta)
-                              }}
-                              disabled={processingTransfer}
-                              className="p-2 text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-600/30"
-                              title="Recolectar Dinero"
-                            >
-                              <Wallet className="h-4 w-4" />
-                            </button>
+                            <Tooltip texto="Recolectar Dinero">
+                              <button aria-label="Recolectar dinero"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleRecolectarDinero(ruta)
+                                }}
+                                disabled={processingTransfer}
+                                className="p-2 text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-600/30"
+                              >
+                                <Wallet className="h-4 w-4" />
+                              </button>
+                            </Tooltip>
                           )}
                         </div>
                       </div>
@@ -1658,27 +1661,29 @@ export const RutasPageView = ({
                           </td>
                           <td className="px-6 py-4 text-right">
                             <div className="flex items-center justify-end gap-2">
-                              <button aria-label="Ver detalle"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  router.push(`${rutasBasePath}/${ruta.id}`)
-                                }}
-                                className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                title="Ver detalle"
-                              >
-                                <Eye className="w-4 h-4" />
-                              </button>
-                              {!readOnly && (
-                                <button aria-label="Editar"
+                              <Tooltip texto="Ver detalle">
+                                <button aria-label="Ver detalle"
                                   onClick={(e) => {
                                     e.stopPropagation()
-                                    handleEditClick(ruta)
+                                    router.push(`${rutasBasePath}/${ruta.id}`)
                                   }}
-                                  className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                                  title="Editar"
+                                  className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                                 >
-                                  <Pencil className="w-4 h-4" />
+                                  <Eye className="w-4 h-4" />
                                 </button>
+                              </Tooltip>
+                              {!readOnly && (
+                                <Tooltip texto="Editar">
+                                  <button aria-label="Editar"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleEditClick(ruta)
+                                    }}
+                                    className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                                  >
+                                    <Pencil className="w-4 h-4" />
+                                  </button>
+                                </Tooltip>
                               )}
                               {!readOnly && (
                                 <button
@@ -1704,19 +1709,20 @@ export const RutasPageView = ({
                                 </button>
                               )}
                               {showRecolectar && (
-                                <button aria-label="Recolectar dinero"
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.preventDefault()
-                                    e.stopPropagation()
-                                    handleRecolectarDinero(ruta)
-                                  }}
-                                  disabled={processingTransfer}
-                                  className="p-2 text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors"
-                                  title="Recolectar Dinero"
-                                >
-                                  <Wallet className="w-4 h-4" />
-                                </button>
+                                <Tooltip texto="Recolectar Dinero">
+                                  <button aria-label="Recolectar dinero"
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault()
+                                      e.stopPropagation()
+                                      handleRecolectarDinero(ruta)
+                                    }}
+                                    disabled={processingTransfer}
+                                    className="p-2 text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors"
+                                  >
+                                    <Wallet className="w-4 h-4" />
+                                  </button>
+                                </Tooltip>
                               )}
                             </div>
                           </td>
@@ -1828,27 +1834,29 @@ export const RutasPageView = ({
                       className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <button aria-label="Ver detalle"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          router.push(`${rutasBasePath}/${ruta.id}`)
-                        }}
-                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        title="Ver detalle"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      {!readOnly && puedeEditar && (
-                        <button aria-label="Editar"
+                      <Tooltip texto="Ver detalle">
+                        <button aria-label="Ver detalle"
                           onClick={(e) => {
                             e.stopPropagation()
-                            handleEditClick(ruta)
+                            router.push(`${rutasBasePath}/${ruta.id}`)
                           }}
-                          className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                          title="Editar"
+                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                         >
-                          <Pencil className="w-4 h-4" />
+                          <Eye className="w-4 h-4" />
                         </button>
+                      </Tooltip>
+                      {!readOnly && puedeEditar && (
+                        <Tooltip texto="Editar">
+                          <button aria-label="Editar"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleEditClick(ruta)
+                            }}
+                            className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                        </Tooltip>
                       )}
                       {!readOnly && (
                         <button
@@ -1872,19 +1880,20 @@ export const RutasPageView = ({
                         </button>
                       )}
                       {showRecolectar && (
-                        <button aria-label="Recolectar dinero"
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault()
-                            e.stopPropagation()
-                            handleRecolectarDinero(ruta)
-                          }}
-                          disabled={processingTransfer}
-                          className="p-2 text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors"
-                          title="Recolectar Dinero"
-                        >
-                          <Wallet className="w-4 h-4" />
-                        </button>
+                        <Tooltip texto="Recolectar Dinero">
+                          <button aria-label="Recolectar dinero"
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              handleRecolectarDinero(ruta)
+                            }}
+                            disabled={processingTransfer}
+                            className="p-2 text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors"
+                          >
+                            <Wallet className="w-4 h-4" />
+                          </button>
+                        </Tooltip>
                       )}
                     </div>
                   </div>

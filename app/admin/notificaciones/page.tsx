@@ -37,6 +37,7 @@ import BotonAccion from '@/components/ui/BotonAccion'
 import { CapaAccion } from '@/components/ui/PantallaCarga'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Selector } from '@/components/ui/Selector'
+import Tooltip from '@/components/ui/Tooltip'
 
 // MOCKS ELIMINADOS - La aplicación solo funciona con datos reales del backend
 
@@ -894,13 +895,14 @@ export default function NotificacionesPage() {
                       </div>
 
                       <div className="flex items-center gap-1">
-                        <button aria-label="Ver detalle"
-                          onClick={() => handleOpenDetail(notif)}
-                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
-                          title="Ver detalles"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </button>
+                        <Tooltip texto="Ver detalles">
+                          <button aria-label="Ver detalle"
+                            onClick={() => handleOpenDetail(notif)}
+                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
+                        </Tooltip>
 
                          {!notif.leida && (
                            <BotonAccion

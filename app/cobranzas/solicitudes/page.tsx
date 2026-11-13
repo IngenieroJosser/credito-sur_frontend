@@ -18,6 +18,7 @@ import { formatCurrency, cn } from '@/lib/utils'
 import { aprobacionesService, type Aprobacion } from '@/services/aprobaciones-service'
 
 import { SkeletonTabla } from '@/components/ui/Skeleton'
+import Tooltip from '@/components/ui/Tooltip'
 interface SolicitudDinero {
   id: string
   fecha: string
@@ -267,17 +268,18 @@ export default function SolicitudesCobradorPage() {
                     </td>
                     <td className="px-6 py-4 text-slate-500 italic text-xs">{sol.comentarioAdmin || '-'}</td>
                     <td className="px-6 py-4 text-right">
-                      <button aria-label="Ver detalle"
-                        type="button"
-                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        title="Ver Detalle"
-                        onClick={() => {
-                          // Placeholder: detalle modal más adelante
-                          logger.log('Ver detalle solicitud:', sol.id)
-                        }}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </button>
+                      <Tooltip texto="Ver Detalle">
+                        <button aria-label="Ver detalle"
+                          type="button"
+                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          onClick={() => {
+                            // Placeholder: detalle modal más adelante
+                            logger.log('Ver detalle solicitud:', sol.id)
+                          }}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
+                      </Tooltip>
                     </td>
                   </tr>
                 ))}

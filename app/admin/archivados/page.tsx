@@ -20,6 +20,7 @@ import Paginador from '@/components/ui/Paginador'
 import { SkeletonTabla } from '@/components/ui/Skeleton'
 import BotonAccion from '@/components/ui/BotonAccion'
 import { Selector } from '@/components/ui/Selector'
+import Tooltip from '@/components/ui/Tooltip'
 
 interface ArchivedItem {
   id: string
@@ -405,38 +406,41 @@ export default function ArchivadosPage() {
                       </td>
                       <td className="px-8 py-5 whitespace-nowrap text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <button aria-label="Ver detalle"
-                            onClick={() => {
-                              if (item.tipo === 'cliente') setDetalleClienteId(item.entidadId)
-                              else if (item.tipo === 'prestamo') setDetallePrestamoId(item.entidadId)
-                              else if (item.tipo === 'producto') setDetalleProductoId(item.entidadId)
-                            }}
-                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="Ver detalles"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          <button aria-label="Restaurar" 
-                            onClick={() => {
-                              setSelectedItem(item)
-                              setIsRestoreModalOpen(true)
-                            }}
-                            className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-                            title="Restaurar"
-                          >
-                            <RotateCcw className="w-4 h-4" />
-                          </button>
+                          <Tooltip texto="Ver detalles">
+                            <button aria-label="Ver detalle"
+                              onClick={() => {
+                                if (item.tipo === 'cliente') setDetalleClienteId(item.entidadId)
+                                else if (item.tipo === 'prestamo') setDetallePrestamoId(item.entidadId)
+                                else if (item.tipo === 'producto') setDetalleProductoId(item.entidadId)
+                              }}
+                              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                          </Tooltip>
+                          <Tooltip texto="Restaurar">
+                            <button aria-label="Restaurar" 
+                              onClick={() => {
+                                setSelectedItem(item)
+                                setIsRestoreModalOpen(true)
+                              }}
+                              className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                            >
+                              <RotateCcw className="w-4 h-4" />
+                            </button>
+                          </Tooltip>
 
-                          <button aria-label="Quitar de archivados"
-                            onClick={() => {
-                              setSelectedHideItem(item)
-                              setIsHideModalOpen(true)
-                            }}
-                            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                            title="Quitar de archivados"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          <Tooltip texto="Quitar de archivados">
+                            <button aria-label="Quitar de archivados"
+                              onClick={() => {
+                                setSelectedHideItem(item)
+                                setIsHideModalOpen(true)
+                              }}
+                              className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </Tooltip>
                         </div>
                       </td>
                     </tr>

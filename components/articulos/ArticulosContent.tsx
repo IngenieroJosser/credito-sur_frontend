@@ -67,6 +67,7 @@ import { exportService } from '@/services/export-service'
 import { formatErrorForComponent } from '@/lib/api/api'
 import BotonAccion from '@/components/ui/BotonAccion'
 import { Selector } from '@/components/ui/Selector'
+import Tooltip from '@/components/ui/Tooltip'
 
 // Interfaces
 interface PrecioCuota {
@@ -731,21 +732,22 @@ export default function ArticulosContent() {
                       </th>
                     )}
                     <th className="px-6 py-4 text-center text-xs font-bold text-slate-500 uppercase tracking-wider">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setStockSort((prev) =>
-                            prev === 'asc' ? 'desc' : prev === 'desc' ? null : 'asc',
-                          )
-                        }
-                        className="inline-flex items-center justify-center gap-2 w-full hover:text-slate-700"
-                        title="Ordenar por stock"
-                      >
-                        Stock
-                        <span className="text-[10px] font-black text-slate-400">
-                          {stockSort === 'asc' ? '▲' : stockSort === 'desc' ? '▼' : ''}
-                        </span>
-                      </button>
+                      <Tooltip texto="Ordenar por stock">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setStockSort((prev) =>
+                              prev === 'asc' ? 'desc' : prev === 'desc' ? null : 'asc',
+                            )
+                          }
+                          className="inline-flex items-center justify-center gap-2 w-full hover:text-slate-700"
+                        >
+                          Stock
+                          <span className="text-[10px] font-black text-slate-400">
+                            {stockSort === 'asc' ? '▲' : stockSort === 'desc' ? '▼' : ''}
+                          </span>
+                        </button>
+                      </Tooltip>
                     </th>
                     <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">
                       Acciones
@@ -846,32 +848,35 @@ export default function ArticulosContent() {
                         <div
                           className={`flex items-center justify-end gap-2 ${!esReadOnly ? 'opacity-0 group-hover:opacity-100' : ''} transition-opacity`}
                         >
-                          <button aria-label="Ver detalle"
-                            type="button"
-                            onClick={() => openDetalle(articulo)}
-                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="Ver detalle"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          {puedeEditar && (
-                            <button aria-label="Editar"
+                          <Tooltip texto="Ver detalle">
+                            <button aria-label="Ver detalle"
                               type="button"
-                              onClick={() => openEditar(articulo)}
-                              className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                              title="Editar"
+                              onClick={() => openDetalle(articulo)}
+                              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                             >
-                              <Pencil className="w-4 h-4" />
+                              <Eye className="w-4 h-4" />
                             </button>
+                          </Tooltip>
+                          {puedeEditar && (
+                            <Tooltip texto="Editar">
+                              <button aria-label="Editar"
+                                type="button"
+                                onClick={() => openEditar(articulo)}
+                                className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </button>
+                            </Tooltip>
                           )}
                           {puedeEliminar && (
-                            <button aria-label="Archivar"
-                              onClick={() => handleEliminar(articulo)}
-                              className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                              title="Archivar"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            <Tooltip texto="Archivar">
+                              <button aria-label="Archivar"
+                                onClick={() => handleEliminar(articulo)}
+                                className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </Tooltip>
                           )}
                         </div>
                       </td>
@@ -983,32 +988,35 @@ export default function ArticulosContent() {
 
                 {/* Acciones */}
                 <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
-                  <button aria-label="Ver detalle"
-                    type="button"
-                    onClick={() => openDetalle(articulo)}
-                    className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                    title="Ver detalle"
-                  >
-                    <Eye className="w-4 h-4" />
-                  </button>
-                  {puedeEditar && (
-                    <button aria-label="Editar"
+                  <Tooltip texto="Ver detalle">
+                    <button aria-label="Ver detalle"
                       type="button"
-                      onClick={() => openEditar(articulo)}
-                      className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                      title="Editar"
+                      onClick={() => openDetalle(articulo)}
+                      className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                     >
-                      <Pencil className="w-4 h-4" />
+                      <Eye className="w-4 h-4" />
                     </button>
+                  </Tooltip>
+                  {puedeEditar && (
+                    <Tooltip texto="Editar">
+                      <button aria-label="Editar"
+                        type="button"
+                        onClick={() => openEditar(articulo)}
+                        className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                    </Tooltip>
                   )}
                   {puedeEliminar && (
-                    <button aria-label="Archivar"
-                      onClick={() => handleEliminar(articulo)}
-                      className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                      title="Archivar"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <Tooltip texto="Archivar">
+                      <button aria-label="Archivar"
+                        onClick={() => handleEliminar(articulo)}
+                        className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </Tooltip>
                   )}
                 </div>
               </div>

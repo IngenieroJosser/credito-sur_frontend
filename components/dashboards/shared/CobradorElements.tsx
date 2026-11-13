@@ -325,34 +325,35 @@ function VisitaCardContent({
         </p>
 
         {/* Botón ver detalles */}
-        <button
-          type="button"
-          data-action="ver-cliente"
-          data-testid={`ver-cliente-${visita.id}`}
-          onPointerDownCapture={(e) => {
-            e.stopPropagation()
-          }}
-          onMouseDownCapture={(e) => {
-            e.stopPropagation()
-          }}
-          onClickCapture={(e) => {
-            e.stopPropagation()
-
-            logger.log('[StaticVisitaItem] click capture ojo', {
-              id: visita.id,
-              clienteId: visita.clienteId,
-              prestamoId: visita.prestamoId,
-              cliente: visita.cliente,
-            })
-
-            onVerCliente?.(visita)
-          }}
-          className="relative z-20 pointer-events-auto p-2.5 sm:p-2 bg-slate-100/60 rounded-lg hover:bg-white text-slate-400 hover:text-[#08557f] transition-all border border-transparent hover:border-slate-200 shrink-0 active:scale-95 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center cursor-pointer"
-          title="Ver expediente del cliente"
-          aria-label={`Ver detalle de ${visita.cliente}`}
-        >
-          <Eye className="w-5 h-5 pointer-events-none" />
-        </button>
+        <Tooltip texto="Ver expediente del cliente">
+          <button
+            type="button"
+            data-action="ver-cliente"
+            data-testid={`ver-cliente-${visita.id}`}
+            onPointerDownCapture={(e) => {
+              e.stopPropagation()
+            }}
+            onMouseDownCapture={(e) => {
+              e.stopPropagation()
+            }}
+            onClickCapture={(e) => {
+              e.stopPropagation()
+  
+              logger.log('[StaticVisitaItem] click capture ojo', {
+                id: visita.id,
+                clienteId: visita.clienteId,
+                prestamoId: visita.prestamoId,
+                cliente: visita.cliente,
+              })
+  
+              onVerCliente?.(visita)
+            }}
+            className="relative z-20 pointer-events-auto p-2.5 sm:p-2 bg-slate-100/60 rounded-lg hover:bg-white text-slate-400 hover:text-[#08557f] transition-all border border-transparent hover:border-slate-200 shrink-0 active:scale-95 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center cursor-pointer"
+            aria-label={`Ver detalle de ${visita.cliente}`}
+          >
+            <Eye className="w-5 h-5 pointer-events-none" />
+          </button>
+        </Tooltip>
       </div>
 
       {/* Fila 2: badges | acciones | KPIs (en PC como antes; en móvil apilado) */}

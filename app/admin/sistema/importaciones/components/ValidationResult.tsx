@@ -4,6 +4,7 @@ import { AlertCircle, AlertTriangle, CheckCircle, ChevronLeft, ChevronRight, Fil
 import { ResultadoValidacion } from '@/types/importaciones';
 import { formatCurrency } from '@/lib/utils';
 import ImpactoCajaPreview from './ImpactoCajaPreview';
+import Tooltip from '@/components/ui/Tooltip'
 
 interface ValidationResultProps {
   resultado: ResultadoValidacion;
@@ -295,7 +296,9 @@ export const ValidationResult: React.FC<ValidationResultProps> = ({ resultado, o
               <div key={hoja} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100">
                 <span className="font-bold text-sm text-slate-700">{hoja}</span>
                 <div className="flex gap-3 text-xs font-medium">
-                  <span className="text-emerald-600" title="Válidas">{stats.filasValidas} ✓</span>
+                  <Tooltip texto="Válidas">
+                    <span className="text-emerald-600">{stats.filasValidas} ✓</span>
+                  </Tooltip>
                   <span className="text-red-600" title="Con Error">{stats.filasConError} ✗</span>
                 </div>
               </div>

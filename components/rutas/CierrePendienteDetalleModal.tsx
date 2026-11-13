@@ -1103,14 +1103,15 @@ export function CierrePendienteDetalleModal({
                           Exportar detalle
                         </button>
                       ) : permissions?.canExportarDetalle ? (
-                        <button
-                          type="button"
-                          disabled
-                          title="Función no disponible todavía"
-                          className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          Exportar detalle
-                        </button>
+                        <Tooltip texto="Función no disponible todavía">
+                          <button
+                            type="button"
+                            disabled
+                            className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            Exportar detalle
+                          </button>
+                        </Tooltip>
                       ) : null}
 
                       {permissions?.canSolicitarCorreccion && handlers?.onSolicitarCorreccion ? (
@@ -1122,14 +1123,15 @@ export function CierrePendienteDetalleModal({
                           Solicitar corrección al cobrador
                         </button>
                       ) : permissions?.canSolicitarCorreccion ? (
-                        <button
-                          type="button"
-                          disabled
-                          title="Función no disponible todavía"
-                          className="w-full rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm font-bold text-amber-800 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          Solicitar corrección al cobrador
-                        </button>
+                        <Tooltip texto="Función no disponible todavía">
+                          <button
+                            type="button"
+                            disabled
+                            className="w-full rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm font-bold text-amber-800 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            Solicitar corrección al cobrador
+                          </button>
+                        </Tooltip>
                       ) : null}
 
                       {puedeCerrarJornada && (

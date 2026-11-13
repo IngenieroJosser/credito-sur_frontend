@@ -3,6 +3,7 @@
 import React, { useCallback, useState } from 'react';
 import { UploadCloud, X, File, Image as ImageIcon, Film, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import Tooltip from '@/components/ui/Tooltip'
 
 interface FileUploaderProps {
   files?: File[];
@@ -231,14 +232,15 @@ export const FileUploader: React.FC<FileUploaderProps> = ({
                   </span>
                 </div>
               </div>
-              <button aria-label="Eliminar archivo"
-                type="button"
-                onClick={() => removeFile(index)}
-                className="p-1 hover:bg-red-50 rounded-full text-gray-400 hover:text-red-500 transition-colors"
-                title="Eliminar archivo"
-              >
-                <X className="w-4 h-4" />
-              </button>
+              <Tooltip texto="Eliminar archivo">
+                <button aria-label="Eliminar archivo"
+                  type="button"
+                  onClick={() => removeFile(index)}
+                  className="p-1 hover:bg-red-50 rounded-full text-gray-400 hover:text-red-500 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </Tooltip>
             </div>
           ))}
         </div>

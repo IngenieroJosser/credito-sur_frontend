@@ -644,16 +644,17 @@ export default function ClienteDetalleSupervisorPage() {
                       <DollarSign className="h-6 w-6 mx-auto mb-2" />
                       <div className="font-bold text-sm">Préstamo en Efectivo</div>
                     </button>
-                    <button
-                      type="button"
-                      disabled
-                      title="Los créditos de artículo requieren seleccionar producto y plan desde el modal completo."
-                      className="shrink-0 p-4 rounded-xl border-2 border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed transition-all"
-                    >
-                      <ShoppingBag className="h-6 w-6 mx-auto mb-2" />
-                      <div className="font-bold text-sm">Crédito por Artículo</div>
-                      <div className="mt-1 text-[10px] font-semibold">Usa Créditos Artículos</div>
-                    </button>
+                    <Tooltip texto="Los créditos de artículo requieren seleccionar producto y plan desde el modal completo.">
+                      <button
+                        type="button"
+                        disabled
+                        className="shrink-0 p-4 rounded-xl border-2 border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed transition-all"
+                      >
+                        <ShoppingBag className="h-6 w-6 mx-auto mb-2" />
+                        <div className="font-bold text-sm">Crédito por Artículo</div>
+                        <div className="mt-1 text-[10px] font-semibold">Usa Créditos Artículos</div>
+                      </button>
+                    </Tooltip>
                   </div>
                 </div>
 

@@ -177,7 +177,6 @@ export const ImportacionesClient = () => {
                 type="button"
                 onClick={closeReporte}
                 className="rounded-xl p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
-                title="Cerrar"
               >
                 <XCircle className="h-6 w-6" />
               </button>

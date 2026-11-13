@@ -74,6 +74,7 @@ import {
 } from '@/lib/aprobaciones/presentacion-aprobacion'
 import { DECISIONES_CUENTA_VENCIDA } from '@/lib/display-labels'
 import { Selector } from '@/components/ui/Selector'
+import Tooltip from '@/components/ui/Tooltip'
 
 // Configuración de categorías con meta visual
 // `icon` es un componente de lucide-react, no `any`: `LucideIcon` es el tipo que la propia
@@ -1202,13 +1203,14 @@ export default function RevisionesPage() {
           </div>
 
           <div className="flex gap-2">
-            <button aria-label="Ver detalle"
-              onClick={() => handleOpenAlertaCliente(alerta)}
-              className="rounded-xl border border-slate-200 p-2 text-slate-400 transition-colors hover:bg-slate-50 hover:text-slate-600"
-              title="Ver detalle"
-            >
-              <Eye className="h-4 w-4" />
-            </button>
+            <Tooltip texto="Ver detalle">
+              <button aria-label="Ver detalle"
+                onClick={() => handleOpenAlertaCliente(alerta)}
+                className="rounded-xl border border-slate-200 p-2 text-slate-400 transition-colors hover:bg-slate-50 hover:text-slate-600"
+              >
+                <Eye className="h-4 w-4" />
+              </button>
+            </Tooltip>
             <button
               onClick={() => {
                 setResolveAlertaCliente(alerta)

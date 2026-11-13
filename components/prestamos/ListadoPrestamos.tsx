@@ -529,7 +529,6 @@ const ListadoPrestamosElegante = () => {
                   onClick={handleRefresh}
                   disabled={refreshing}
                   className="p-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 transition-colors disabled:opacity-50"
-                  title="Actualizar lista"
                 >
                   <RefreshCw
                     className={`h-4 w-4 text-slate-600 ${refreshing ? 'animate-spin' : ''}`}
@@ -860,45 +859,49 @@ const ListadoPrestamosElegante = () => {
                               className="flex items-center justify-end gap-1"
                               onClick={(e) => e.stopPropagation()}
                             >
-                              <button aria-label="Ver detalle"
-                                onClick={() => irADetallePrestamo(prestamo.id)}
-                                className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                                title="Ver detalle"
-                              >
-                                <Eye className="h-4 w-4" />
-                              </button>
+                              <Tooltip texto="Ver detalle">
+                                <button aria-label="Ver detalle"
+                                  onClick={() => irADetallePrestamo(prestamo.id)}
+                                  className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </button>
+                              </Tooltip>
                               {can('CREDITOS_EDIT') ||
                               can('LOANS_EDIT') ||
                               canForPath(baseRoute) ? (
-                                <button aria-label="Editar préstamo"
-                                  onClick={() => setIdPrestamoAEditar(prestamo.id)}
-                                  className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
-                                  title="Editar préstamo"
-                                >
-                                  <Edit2 className="h-4 w-4" />
-                                </button>
+                                <Tooltip texto="Editar préstamo">
+                                  <button aria-label="Editar préstamo"
+                                    onClick={() => setIdPrestamoAEditar(prestamo.id)}
+                                    className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
+                                  >
+                                    <Edit2 className="h-4 w-4" />
+                                  </button>
+                                </Tooltip>
                               ) : null}
-                              <button aria-label="Exportar Historial Pagos (PDF)"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleExportPaymentsByPrestamo(prestamo.id)
-                                }}
-                                className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
-                                title="Exportar Historial Pagos (PDF)"
-                              >
-                                <FileDown className="h-4 w-4" />
-                              </button>
+                              <Tooltip texto="Exportar Historial Pagos (PDF)">
+                                <button aria-label="Exportar Historial Pagos (PDF)"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleExportPaymentsByPrestamo(prestamo.id)
+                                  }}
+                                  className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
+                                >
+                                  <FileDown className="h-4 w-4" />
+                                </button>
+                              </Tooltip>
                               {(can('CREDITOS_DELETE') ||
                                 can('LOANS_DELETE') ||
                                 canForPath(baseRoute)) &&
                               prestamo.estado !== 'PENDIENTE_APROBACION' ? (
-                                <button aria-label="Marcar como pérdida"
-                                  onClick={() => setPrestamoAEliminar(prestamo.id)}
-                                  className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
-                                  title="Marcar como pérdida"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </button>
+                                <Tooltip texto="Marcar como pérdida">
+                                  <button aria-label="Marcar como pérdida"
+                                    onClick={() => setPrestamoAEliminar(prestamo.id)}
+                                    className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                </Tooltip>
                               ) : null}
                             </div>
                           </td>
@@ -1055,41 +1058,45 @@ const ListadoPrestamosElegante = () => {
                       className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <button aria-label="Ver detalle"
-                        onClick={() => irADetallePrestamo(prestamo.id)}
-                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                        title="Ver detalle"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </button>
-                      {can('CREDITOS_EDIT') || can('LOANS_EDIT') || canForPath(baseRoute) ? (
-                        <button aria-label="Editar préstamo"
-                          onClick={() => setIdPrestamoAEditar(prestamo.id)}
-                          className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
-                          title="Editar préstamo"
+                      <Tooltip texto="Ver detalle">
+                        <button aria-label="Ver detalle"
+                          onClick={() => irADetallePrestamo(prestamo.id)}
+                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
                         >
-                          <Edit2 className="h-4 w-4" />
+                          <Eye className="h-4 w-4" />
                         </button>
+                      </Tooltip>
+                      {can('CREDITOS_EDIT') || can('LOANS_EDIT') || canForPath(baseRoute) ? (
+                        <Tooltip texto="Editar préstamo">
+                          <button aria-label="Editar préstamo"
+                            onClick={() => setIdPrestamoAEditar(prestamo.id)}
+                            className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </button>
+                        </Tooltip>
                       ) : null}
-                      <button aria-label="Exportar Historial Pagos (PDF)"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleExportPaymentsByPrestamo(prestamo.id)
-                        }}
-                        className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
-                        title="Exportar Historial Pagos (PDF)"
-                      >
-                        <FileDown className="h-4 w-4" />
-                      </button>
+                      <Tooltip texto="Exportar Historial Pagos (PDF)">
+                        <button aria-label="Exportar Historial Pagos (PDF)"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleExportPaymentsByPrestamo(prestamo.id)
+                          }}
+                          className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
+                        >
+                          <FileDown className="h-4 w-4" />
+                        </button>
+                      </Tooltip>
                       {(can('CREDITOS_DELETE') || can('LOANS_DELETE') || canForPath(baseRoute)) &&
                       prestamo.estado !== 'PENDIENTE_APROBACION' ? (
-                        <button aria-label="Marcar como pérdida"
-                          onClick={() => setPrestamoAEliminar(prestamo.id)}
-                          className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
-                          title="Marcar como pérdida"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        <Tooltip texto="Marcar como pérdida">
+                          <button aria-label="Marcar como pérdida"
+                            onClick={() => setPrestamoAEliminar(prestamo.id)}
+                            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </Tooltip>
                       ) : null}
                     </div>
                   </div>

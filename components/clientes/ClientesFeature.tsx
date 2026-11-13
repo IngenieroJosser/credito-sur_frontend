@@ -35,6 +35,7 @@ import { offlineStore } from '@/lib/offline/offlineDb'
 import { WifiOff } from 'lucide-react'
 import { ExportButton } from '@/components/ui/ExportButton'
 import { exportService } from '@/services/export-service'
+import Tooltip from '@/components/ui/Tooltip'
 
 // Tipos locales
 type NivelRiesgo = 'VERDE' | 'AMARILLO' | 'ROJO' | 'LISTA_NEGRA'
@@ -772,29 +773,31 @@ export default function ClientesFeature({
 
                         <td className="px-6 py-4 text-right">
                           <div className="flex items-center justify-end gap-2">
-                            <button aria-label="Ver expediente"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setSelectedClientId(cliente.id)
-                                setIsDetailsModalOpen(true)
-                              }}
-                              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                              title="Ver expediente"
-                            >
-                              <Eye className="h-5 w-5" />
-                            </button>
-                            {puedeEditar && (
-                              <button aria-label="Editar cliente"
+                            <Tooltip texto="Ver expediente">
+                              <button aria-label="Ver expediente"
                                 onClick={(e) => {
                                   e.stopPropagation()
-                                  setClientToEdit(cliente)
-                                  setIsEditModalOpen(true)
+                                  setSelectedClientId(cliente.id)
+                                  setIsDetailsModalOpen(true)
                                 }}
-                                className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
-                                title="Editar cliente"
+                                className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
                               >
-                                <Pencil className="h-5 w-5" />
+                                <Eye className="h-5 w-5" />
                               </button>
+                            </Tooltip>
+                            {puedeEditar && (
+                              <Tooltip texto="Editar cliente">
+                                <button aria-label="Editar cliente"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setClientToEdit(cliente)
+                                    setIsEditModalOpen(true)
+                                  }}
+                                  className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"
+                                >
+                                  <Pencil className="h-5 w-5" />
+                                </button>
+                              </Tooltip>
                             )}
                             {puedeEliminar && (
                               <button aria-label="Eliminar"
@@ -940,29 +943,31 @@ export default function ClientesFeature({
                         <Eye className="h-5 w-5" />
                       </button>
                       {puedeEditar && (
-                        <button aria-label="Editar cliente"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setClientToEdit(cliente)
-                            setIsEditModalOpen(true)
-                          }}
-                          className="p-2 text-slate-400"
-                          title="Editar cliente"
-                        >
-                          <Pencil className="h-5 w-5" />
-                        </button>
+                        <Tooltip texto="Editar cliente">
+                          <button aria-label="Editar cliente"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setClientToEdit(cliente)
+                              setIsEditModalOpen(true)
+                            }}
+                            className="p-2 text-slate-400"
+                          >
+                            <Pencil className="h-5 w-5" />
+                          </button>
+                        </Tooltip>
                       )}
                       {puedeEliminar && (
-                        <button aria-label="Eliminar cliente"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleDeleteClick(cliente)
-                          }}
-                          className="p-2 text-slate-400"
-                          title="Eliminar cliente"
-                        >
-                          <Trash2 className="h-5 w-5" />
-                        </button>
+                        <Tooltip texto="Eliminar cliente">
+                          <button aria-label="Eliminar cliente"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDeleteClick(cliente)
+                            }}
+                            className="p-2 text-slate-400"
+                          >
+                            <Trash2 className="h-5 w-5" />
+                          </button>
+                        </Tooltip>
                       )}
                     </div>
                   </div>

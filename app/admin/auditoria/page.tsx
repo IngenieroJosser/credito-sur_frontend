@@ -14,6 +14,7 @@ import { ExportButton } from '@/components/ui/ExportButton'
 import { usePermission } from '@/hooks/usePermission'
 import { SkeletonTabla } from '@/components/ui/Skeleton'
 import { mensajeDeError } from '@/lib/mensaje-de-error'
+import Tooltip from '@/components/ui/Tooltip'
 
 const AuditoriaSistemaPage = () => {
   const { can, canForPath } = usePermission()
@@ -390,13 +391,14 @@ const AuditoriaSistemaPage = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button aria-label="Ver detalle"
-                        onClick={() => setSelectedLog(log)}
-                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        title="Ver Detalle"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </button>
+                      <Tooltip texto="Ver Detalle">
+                        <button aria-label="Ver detalle"
+                          onClick={() => setSelectedLog(log)}
+                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
+                      </Tooltip>
                     </td>
                   </tr>
                 ))}

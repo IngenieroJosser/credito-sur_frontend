@@ -6,6 +6,7 @@ import { useNotification } from '@/components/providers/NotificationProvider';
 import FieldLabel from '@/components/ui/FieldLabel';
 import { logger } from '@/lib/logger';
 import { Selector } from '@/components/ui/Selector'
+import Tooltip from '@/components/ui/Tooltip'
 
 interface SelectCategoriaProps {
   tipo: string; // 'CLIENTE', 'GASTO', etc.
@@ -89,15 +90,16 @@ export default function SelectCategoria({
     <div className="space-y-2">
       <div className="flex justify-between items-center">
         <FieldLabel required={required} className="mb-0">{label}</FieldLabel>
-        <button
-          type="button"
-          onClick={() => setShowCreate(true)}
-          className="inline-flex items-center gap-1 px-2 py-1 text-xs font-bold text-blue-600 hover:text-blue-700 rounded-lg hover:bg-blue-50 transition-colors"
-          title="Crear categoría"
-        >
-          <Plus className="w-3 h-3" />
-          Crear
-        </button>
+        <Tooltip texto="Crear categoría">
+          <button
+            type="button"
+            onClick={() => setShowCreate(true)}
+            className="inline-flex items-center gap-1 px-2 py-1 text-xs font-bold text-blue-600 hover:text-blue-700 rounded-lg hover:bg-blue-50 transition-colors"
+          >
+            <Plus className="w-3 h-3" />
+            Crear
+          </button>
+        </Tooltip>
       </div>
 
       {showCreate ? (

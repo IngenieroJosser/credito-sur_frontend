@@ -19,6 +19,7 @@ import { useNotification } from '@/components/providers/NotificationProvider'
 import type { PrestamoDelListadoParcial } from '@/types/domain'
 import { idDelPrestamoCreado } from '@/lib/creditos/prestamo-creado'
 import { Selector } from '@/components/ui/Selector'
+import Tooltip from '@/components/ui/Tooltip'
 
 /**
  * Una fila de esta tabla.
@@ -491,17 +492,18 @@ export default function CreditosArticulosPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button aria-label="Ver detalle"
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setCreditoDetalleId(credito.detalleId)
-                        }}
-                        className="inline-block p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        title="Ver detalle"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
+                      <Tooltip texto="Ver detalle">
+                        <button aria-label="Ver detalle"
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setCreditoDetalleId(credito.detalleId)
+                          }}
+                          className="inline-block p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                      </Tooltip>
                     </td>
                   </tr>
                 ))}

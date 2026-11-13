@@ -133,7 +133,6 @@ function CuentasVencidasContent() {
             <button aria-label="Actualizar"
               onClick={fetchCuentasVencidas}
               className="p-2 text-slate-400 hover:text-blue-600 bg-white border border-slate-200 rounded-xl shadow-sm transition-all self-start"
-              title="Actualizar"
             >
               <RefreshCw className={cn('h-5 w-5', loading && 'animate-spin')} />
             </button>

@@ -144,7 +144,6 @@ export const ArchivoValidadorCard: React.FC<ArchivoValidadorCardProps> = ({
                 onClick={clearSelectedFile}
                 disabled={loading}
                 className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-white hover:text-slate-700 disabled:opacity-50"
-                title="Quitar archivo"
               >
                 <XCircle className="h-5 w-5" />
               </button>

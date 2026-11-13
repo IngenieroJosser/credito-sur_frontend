@@ -49,6 +49,7 @@ import SupervisorFloatingActionsGate from '@/components/dashboards/SupervisorFlo
 import { cerrarSesion } from '@/services/autenticacion-service'
 import BotonAccion from '@/components/ui/BotonAccion'
 import type { SidebarModulo } from '@/lib/types/autenticacion-type'
+import Tooltip from '@/components/ui/Tooltip'
 
 interface NavigationItem {
   name: string
@@ -899,15 +900,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           } ${asideDesktopVisible ? 'lg:translate-x-0' : 'lg:-translate-x-full'} lg:block ${isPageLoaded ? 'opacity-100' : 'opacity-0'}`}
           style={{ opacity: isPageLoaded ? 1 : 0 }}
         >
-          <button
-            type="button"
-            onClick={toggleAsideDesktop}
-            aria-label="Ocultar menú lateral"
-            title="Ocultar menú lateral"
-            className="hidden lg:inline-flex absolute right-0 top-5 translate-x-1/2 h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-md hover:text-blue-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-          >
-            <PanelLeftClose className="h-4 w-4" />
-          </button>
+          <Tooltip texto="Ocultar menú lateral">
+            <button
+              type="button"
+              onClick={toggleAsideDesktop}
+              aria-label="Ocultar menú lateral"
+              className="hidden lg:inline-flex absolute right-0 top-5 translate-x-1/2 h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-md hover:text-blue-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            >
+              <PanelLeftClose className="h-4 w-4" />
+            </button>
+          </Tooltip>
           <nav className="p-6 h-full overflow-y-auto custom-scrollbar">
             <div className="space-y-6">
               {/* Info del usuario en sidebar móvil */}
@@ -1068,15 +1070,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       )}
 
       {showSidebar && !asideDesktopVisible && (
-        <button
-          type="button"
-          onClick={toggleAsideDesktop}
-          aria-label="Mostrar menú lateral"
-          title="Mostrar menú lateral"
-          className="hidden lg:inline-flex fixed left-0 top-24 z-[46] h-11 w-9 items-center justify-center rounded-r-lg border border-l-0 border-slate-200 bg-white text-slate-500 shadow-md hover:text-blue-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-        >
-          <PanelLeftOpen className="h-4 w-4" />
-        </button>
+        <Tooltip texto="Mostrar menú lateral">
+          <button
+            type="button"
+            onClick={toggleAsideDesktop}
+            aria-label="Mostrar menú lateral"
+            className="hidden lg:inline-flex fixed left-0 top-24 z-[46] h-11 w-9 items-center justify-center rounded-r-lg border border-l-0 border-slate-200 bg-white text-slate-500 shadow-md hover:text-blue-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+          >
+            <PanelLeftOpen className="h-4 w-4" />
+          </button>
+        </Tooltip>
       )}
 
       {/* Contenido principal animado */}

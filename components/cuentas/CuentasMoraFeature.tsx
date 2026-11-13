@@ -35,6 +35,7 @@ import { exportService } from '@/services/export-service'
 import { toast } from 'sonner'
 import { SkeletonTarjetas } from '@/components/ui/Skeleton'
 import { estadoDeError, mensajeDeError } from '@/lib/mensaje-de-error'
+import Tooltip from '@/components/ui/Tooltip'
 
 type NivelRiesgo = 'VERDE' | 'LEVE' | 'PRECAUCION' | 'ROJO' | 'LISTA_NEGRA'
 type EstadoPrestamo = 'EN_MORA' | 'INCUMPLIDO' | 'PERDIDA'
@@ -376,13 +377,14 @@ export default function CuentasMoraFeature() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <button aria-label="Actualizar"
-              onClick={() => { fetchData(); fetchEstadisticas() }}
-              className="p-2 text-slate-400 hover:text-blue-600 bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-all"
-              title="Actualizar"
-            >
-              <RefreshCw className={cn('h-5 w-5', isDataLoading && 'animate-spin')} />
-            </button>
+            <Tooltip texto="Actualizar">
+              <button aria-label="Actualizar"
+                onClick={() => { fetchData(); fetchEstadisticas() }}
+                className="p-2 text-slate-400 hover:text-blue-600 bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-all"
+              >
+                <RefreshCw className={cn('h-5 w-5', isDataLoading && 'animate-spin')} />
+              </button>
+            </Tooltip>
             {puedeExportar && (
               <ExportButton label="Exportar" onExportExcel={handleExportExcel} onExportPDF={handleExportPDF} />
             )}
@@ -566,13 +568,14 @@ export default function CuentasMoraFeature() {
                         </td>
                         {puedeVerPerfil && (
                           <td className="px-6 py-4 text-right">
-                            <button aria-label="Ver Perfil"
-                              onClick={() => handleVerCliente(cuenta.cliente.id || cuenta.clienteId)}
-                              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                              title="Ver Perfil"
-                            >
-                              <User className="w-4 h-4" />
-                            </button>
+                            <Tooltip texto="Ver Perfil">
+                              <button aria-label="Ver Perfil"
+                                onClick={() => handleVerCliente(cuenta.cliente.id || cuenta.clienteId)}
+                                className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              >
+                                <User className="w-4 h-4" />
+                              </button>
+                            </Tooltip>
                           </td>
                         )}
                       </tr>

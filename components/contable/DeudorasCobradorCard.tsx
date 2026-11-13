@@ -470,16 +470,17 @@ export default function DeudorasCobradorCard() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <div
-              role="button"
-              tabIndex={0}
-              onClick={e => { e.stopPropagation(); cargar() }}
-              onKeyDown={e => e.key === 'Enter' && cargar()}
-              className="p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-300 cursor-pointer"
-              title="Actualizar"
-            >
-              <RefreshCw className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />
-            </div>
+            <Tooltip texto="Actualizar">
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={e => { e.stopPropagation(); cargar() }}
+                onKeyDown={e => e.key === 'Enter' && cargar()}
+                className="p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-300 cursor-pointer"
+              >
+                <RefreshCw className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />
+              </div>
+            </Tooltip>
             {expanded
               ? <ChevronUp className="h-4 w-4 text-slate-400" />
               : <ChevronDown className="h-4 w-4 text-slate-400" />}
@@ -546,15 +547,16 @@ export default function DeudorasCobradorCard() {
                         </div>
 
                         {puedeAbonar && (
-                          <button
-                            type="button"
-                            onClick={e => { e.stopPropagation(); setModalAbono(d) }}
-                            className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-emerald-100 transition-all"
-                            title="Registrar abono"
-                          >
-                            <Plus className="h-3 w-3 stroke-[3]" />
-                            Abono
-                          </button>
+                          <Tooltip texto="Registrar abono">
+                            <button
+                              type="button"
+                              onClick={e => { e.stopPropagation(); setModalAbono(d) }}
+                              className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-emerald-100 transition-all"
+                            >
+                              <Plus className="h-3 w-3 stroke-[3]" />
+                              Abono
+                            </button>
+                          </Tooltip>
                         )}
 
                         {expandedRow === d.cobradorId
@@ -594,15 +596,16 @@ export default function DeudorasCobradorCard() {
                                   {formatFechaEventoDeuda(d.eventos[0]?.fecha || '')} · {d.eventos.length} evento(s)
                                 </p>
                               </div>
-                              <button
-                                type="button"
-                                onClick={(e) => { e.stopPropagation(); setModalDetalle(d) }}
-                                className="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 transition-all"
-                                title="Ver detalle completo"
-                              >
-                                <Eye className="h-3.5 w-3.5" />
-                                Ver detalle
-                              </button>
+                              <Tooltip texto="Ver detalle completo">
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); setModalDetalle(d) }}
+                                  className="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 transition-all"
+                                >
+                                  <Eye className="h-3.5 w-3.5" />
+                                  Ver detalle
+                                </button>
+                              </Tooltip>
                             </div>
                           </div>
                         )}

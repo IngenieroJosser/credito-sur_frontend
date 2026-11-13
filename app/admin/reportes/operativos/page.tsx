@@ -36,6 +36,7 @@ import { computeOperationalMetaByRouteIdsForTimeFilter } from '@/lib/dashboard-o
 import { toast } from 'sonner'
 import { SkeletonTablero } from '@/components/ui/Skeleton'
 import { mensajeDeError } from '@/lib/mensaje-de-error'
+import Tooltip from '@/components/ui/Tooltip'
 
 const ReportesOperativosPage = () => {
   const router = useRouter()
@@ -363,13 +364,14 @@ const ReportesOperativosPage = () => {
               Desglose por Ruta
             </h3>
             <div className="flex items-center gap-3">
-              <button
-                onClick={() => router.push(`${basePath}/rutas`)}
-                className="text-xs font-bold text-slate-700 hover:text-slate-900 hover:underline transition-colors whitespace-nowrap"
-                title="Ver lista completa"
-              >
-                Ver todo
-              </button>
+              <Tooltip texto="Ver lista completa">
+                <button
+                  onClick={() => router.push(`${basePath}/rutas`)}
+                  className="text-xs font-bold text-slate-700 hover:text-slate-900 hover:underline transition-colors whitespace-nowrap"
+                >
+                  Ver todo
+                </button>
+              </Tooltip>
             </div>
           </div>
           <div className="overflow-x-auto">
@@ -423,13 +425,14 @@ const ReportesOperativosPage = () => {
                           - Admin -> /admin/rutas/ID
                           - Coordinador -> /coordinador/rutas/ID
                       */}
-                      <button aria-label="Ver detalle"
-                        onClick={() => router.push(`${basePath}/rutas/${item.id}`)}
-                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        title="Ver Detalles"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </button>
+                      <Tooltip texto="Ver Detalles">
+                        <button aria-label="Ver detalle"
+                          onClick={() => router.push(`${basePath}/rutas/${item.id}`)}
+                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
+                      </Tooltip>
                     </td>
                   </tr>
                 ))}

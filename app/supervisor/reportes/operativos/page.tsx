@@ -12,6 +12,7 @@ import {
   type RoutePerformance,
 } from '@/services/reportes-coordinador-service'
 import { SkeletonTablero } from '@/components/ui/Skeleton'
+import Tooltip from '@/components/ui/Tooltip'
 
 const ReportesOperativosSupervisorPage = () => {
   const router = useRouter()
@@ -260,13 +261,14 @@ const ReportesOperativosSupervisorPage = () => {
                       {item.nuevosClientes}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button aria-label="Ver detalle"
-                        onClick={() => router.push(`/supervisor/rutas/${item.id}`)}
-                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        title="Ver Detalles"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </button>
+                      <Tooltip texto="Ver Detalles">
+                        <button aria-label="Ver detalle"
+                          onClick={() => router.push(`/supervisor/rutas/${item.id}`)}
+                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
+                      </Tooltip>
                     </td>
                   </tr>
                 ))}

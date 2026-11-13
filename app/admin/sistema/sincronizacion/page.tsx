@@ -19,6 +19,7 @@ import type { OfflineQueueItem, SyncMeta } from '@/lib/offline/offlineDb'
 import ListaConflictos from '@/components/conflictos/ListaConflictos'
 import BotonAccion from '@/components/ui/BotonAccion'
 import { baseApi } from '@/lib/api/baseUrl'
+import Tooltip from '@/components/ui/Tooltip'
 
 /**
  * Un trabajo de la cola del servidor, tal como lo lista
@@ -202,13 +203,14 @@ const SyncStatusPage = () => {
       <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
         <div className="flex items-center justify-between">
           <span className="text-xs font-black text-slate-700 uppercase tracking-wider">Cola del Servidor (BullMQ)</span>
-          <button
-            onClick={() => window.open(bullBoardUrl, '_blank', 'noopener,noreferrer')}
-            className="text-[11px] font-bold text-slate-500 hover:text-slate-700"
-            title="Abrir Bull Board"
-          >
-            Ver detalles
-          </button>
+          <Tooltip texto="Abrir Bull Board">
+            <button
+              onClick={() => window.open(bullBoardUrl, '_blank', 'noopener,noreferrer')}
+              className="text-[11px] font-bold text-slate-500 hover:text-slate-700"
+            >
+              Ver detalles
+            </button>
+          </Tooltip>
         </div>
 
         <div className="grid grid-cols-4 gap-2 mt-2">
@@ -265,45 +267,46 @@ const SyncStatusPage = () => {
                   const isExpanded = expandedServerJobId === String(j.id)
 
                   const baseRow = (
-                    <tr
-                      key={`${j.state}-${j.id}`}
-                      className="text-slate-700 hover:bg-white/60 cursor-pointer"
-                      onClick={() =>
-                        setExpandedServerJobId((prev) => (prev === String(j.id) ? null : String(j.id)))
-                      }
-                      title="Click para ver detalle"
-                    >
-                      <td className="py-2 pr-2 align-top">
-                        <span className={`px-2 py-0.5 rounded-md border font-black ${stateClass}`}>{stateLabel}</span>
-                      </td>
-                      <td className="py-2 pr-2 align-top">
-                        <div className="font-bold text-slate-900">#{String(j.id)}</div>
-                        {(j.model || j.action) && (
-                          <div className="text-[10px] text-slate-500 font-black uppercase tracking-wider">
-                            {j.model || '—'} {j.action ? `/${j.action}` : ''}
-                          </div>
-                        )}
-                        {j.failedReason ? (
-                          <div className="text-[10px] text-rose-600 truncate max-w-[380px]" title={j.failedReason}>
-                            {j.failedReason}
-                          </div>
-                        ) : (
-                          <div className="text-[10px] text-slate-400 truncate max-w-[380px]" title={j.name}>
-                            {j.name}
-                          </div>
-                        )}
-                      </td>
-                      <td className="py-2 pr-2 text-right font-black text-slate-900 align-top">{j.attemptsMade ?? '-'}</td>
-                      <td className="py-2 text-right text-slate-500 font-bold align-top">
-                        {j.timestamp
-                          ? formatHoraBogota(j.timestamp, {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                              hour12: true,
-                            })
-                          : '-'}
-                      </td>
-                    </tr>
+                    <Tooltip texto="Click para ver detalle">
+                      <tr
+                        key={`${j.state}-${j.id}`}
+                        className="text-slate-700 hover:bg-white/60 cursor-pointer"
+                        onClick={() =>
+                          setExpandedServerJobId((prev) => (prev === String(j.id) ? null : String(j.id)))
+                        }
+                      >
+                        <td className="py-2 pr-2 align-top">
+                          <span className={`px-2 py-0.5 rounded-md border font-black ${stateClass}`}>{stateLabel}</span>
+                        </td>
+                        <td className="py-2 pr-2 align-top">
+                          <div className="font-bold text-slate-900">#{String(j.id)}</div>
+                          {(j.model || j.action) && (
+                            <div className="text-[10px] text-slate-500 font-black uppercase tracking-wider">
+                              {j.model || '—'} {j.action ? `/${j.action}` : ''}
+                            </div>
+                          )}
+                          {j.failedReason ? (
+                            <div className="text-[10px] text-rose-600 truncate max-w-[380px]" title={j.failedReason}>
+                              {j.failedReason}
+                            </div>
+                          ) : (
+                            <div className="text-[10px] text-slate-400 truncate max-w-[380px]" title={j.name}>
+                              {j.name}
+                            </div>
+                          )}
+                        </td>
+                        <td className="py-2 pr-2 text-right font-black text-slate-900 align-top">{j.attemptsMade ?? '-'}</td>
+                        <td className="py-2 text-right text-slate-500 font-bold align-top">
+                          {j.timestamp
+                            ? formatHoraBogota(j.timestamp, {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                hour12: true,
+                              })
+                            : '-'}
+                        </td>
+                      </tr>
+                    </Tooltip>
                   )
 
                   const expandedRow = isExpanded ? (
@@ -379,16 +382,17 @@ const SyncStatusPage = () => {
               <Clock className="w-4 h-4 text-slate-400" />
               <span className="text-sm font-bold text-slate-700" suppressHydrationWarning>{clientTime}</span>
             </div>
-            <button 
-              onClick={handleDownload}
-              disabled={isSyncing || !isOnline}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 disabled:opacity-50 transition-all font-bold text-sm shadow-sm active:scale-95"
-              title="Descargar datos del servidor para trabajar offline"
-            >
-              <Download className="w-4 h-4" />
-              <span className="hidden sm:inline">Descargar Datos</span>
-              <span className="sm:hidden">Descargar</span>
-            </button>
+            <Tooltip texto="Descargar datos del servidor para trabajar offline">
+              <button 
+                onClick={handleDownload}
+                disabled={isSyncing || !isOnline}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 disabled:opacity-50 transition-all font-bold text-sm shadow-sm active:scale-95"
+              >
+                <Download className="w-4 h-4" />
+                <span className="hidden sm:inline">Descargar Datos</span>
+                <span className="sm:hidden">Descargar</span>
+              </button>
+            </Tooltip>
             <button 
               onClick={handleSyncNow}
               disabled={isSyncing || !isOnline}
@@ -562,21 +566,23 @@ const SyncStatusPage = () => {
                             <td className="px-6 py-4 text-center">
                               <div className="flex items-center justify-center gap-1">
                                 {item.status === 'failed' && (
-                                  <button aria-label="Reintentar" 
-                                    onClick={() => handleRetry(item.id)}
-                                    className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors"
-                                    title="Reintentar"
-                                  >
-                                    <RefreshCw className="w-4 h-4" />
-                                  </button>
+                                  <Tooltip texto="Reintentar">
+                                    <button aria-label="Reintentar" 
+                                      onClick={() => handleRetry(item.id)}
+                                      className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors"
+                                    >
+                                      <RefreshCw className="w-4 h-4" />
+                                    </button>
+                                  </Tooltip>
                                 )}
-                                <button aria-label="Eliminar" 
-                                  onClick={() => handleRemove(item.id)}
-                                  className="p-2 hover:bg-rose-50 text-rose-400 hover:text-rose-600 rounded-lg transition-colors"
-                                  title="Eliminar"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
+                                <Tooltip texto="Eliminar">
+                                  <button aria-label="Eliminar" 
+                                    onClick={() => handleRemove(item.id)}
+                                    className="p-2 hover:bg-rose-50 text-rose-400 hover:text-rose-600 rounded-lg transition-colors"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </Tooltip>
                               </div>
                             </td>
                           </tr>

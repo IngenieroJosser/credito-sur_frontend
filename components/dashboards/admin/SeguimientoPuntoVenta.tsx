@@ -32,6 +32,7 @@ import { usuariosService, type Usuario } from '@/services/usuarios-service'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Selector } from '@/components/ui/Selector'
 import { CampoFecha } from '@/components/ui/CampoFecha'
+import Tooltip from '@/components/ui/Tooltip'
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -956,13 +957,14 @@ export default function SeguimientoPuntoVenta() {
                             </span>
                           </td>
                           <td className="px-4 py-3 text-center">
-                            <button aria-label="Ver detalle"
-                              onClick={() => abrirDetalle(venta)}
-                              className="p-1.5 rounded-lg hover:bg-orange-50 text-slate-400 hover:text-orange-600 transition-colors"
-                              title="Ver detalle"
-                            >
-                              <Eye className="h-4 w-4" />
-                            </button>
+                            <Tooltip texto="Ver detalle">
+                              <button aria-label="Ver detalle"
+                                onClick={() => abrirDetalle(venta)}
+                                className="p-1.5 rounded-lg hover:bg-orange-50 text-slate-400 hover:text-orange-600 transition-colors"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </button>
+                            </Tooltip>
                           </td>
                         </tr>
                       )

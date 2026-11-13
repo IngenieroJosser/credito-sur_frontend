@@ -6,6 +6,7 @@ import { AlertTriangle, CheckCircle, XCircle, Eye, AlertCircle, RefreshCw } from
 import { apiRequest } from "@/lib/api/api";
 import { toast } from "sonner";
 import { SkeletonTabla } from '@/components/ui/Skeleton'
+import Tooltip from '@/components/ui/Tooltip'
 
 interface SyncConflict {
   id: string;
@@ -160,13 +161,14 @@ export default function ListaConflictos() {
                       )}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button aria-label="Ver detalles y resolver"
-                        onClick={() => setSelectedConflict(c)}
-                        className="p-2 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors"
-                        title="Ver detalles y resolver"
-                      >
-                        <Eye className="w-5 h-5" />
-                      </button>
+                      <Tooltip texto="Ver detalles y resolver">
+                        <button aria-label="Ver detalles y resolver"
+                          onClick={() => setSelectedConflict(c)}
+                          className="p-2 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors"
+                        >
+                          <Eye className="w-5 h-5" />
+                        </button>
+                      </Tooltip>
                     </td>
                   </tr>
                 ))}

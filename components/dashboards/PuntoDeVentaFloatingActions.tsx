@@ -38,6 +38,7 @@ import ClientePortalModal from '@/components/cliente/ClientePortalModal'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { logger } from '@/lib/logger'
 import { CampoFecha } from '@/components/ui/CampoFecha'
+import Tooltip from '@/components/ui/Tooltip'
 
 interface VentaReciente {
   id: string
@@ -580,16 +581,17 @@ export default function PuntoDeVentaFloatingActions() {
                             <span className={cn('w-1.5 h-1.5 rounded-full', riesgoStyle.dot)} />
                             {tieneMora ? 'EN MORA' : cliente.nivelRiesgo || 'VERDE'}
                           </div>
-                          <button aria-label="Ver perfil completo"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setShowClienteDetalle(cliente.id)
-                            }}
-                            className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600 transition-colors"
-                            title="Ver perfil completo"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </button>
+                          <Tooltip texto="Ver perfil completo">
+                            <button aria-label="Ver perfil completo"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setShowClienteDetalle(cliente.id)
+                              }}
+                              className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600 transition-colors"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </button>
+                          </Tooltip>
                         </div>
                       </div>
                     )

@@ -267,17 +267,18 @@ export default function GastoModal({ isOpen, onClose, onConfirm, cobradorId, rut
                        <CheckCircle2 className="w-3 h-3" />
                        Adjunto
                      </span>
-                     <button aria-label="Quitar comprobante"
-                       type="button"
-                       onClick={() => {
-                         setComprobante(null)
-                         setComprobantePreviewUrl(null)
-                       }}
-                       className="p-1.5 bg-white/90 rounded-lg border border-slate-200 text-slate-500 hover:text-rose-600 hover:border-rose-200 transition-all shadow-sm"
-                       title="Quitar comprobante"
-                     >
-                       <X className="w-3.5 h-3.5" />
-                     </button>
+                     <Tooltip texto="Quitar comprobante">
+                       <button aria-label="Quitar comprobante"
+                         type="button"
+                         onClick={() => {
+                           setComprobante(null)
+                           setComprobantePreviewUrl(null)
+                         }}
+                         className="p-1.5 bg-white/90 rounded-lg border border-slate-200 text-slate-500 hover:text-rose-600 hover:border-rose-200 transition-all shadow-sm"
+                       >
+                         <X className="w-3.5 h-3.5" />
+                       </button>
+                     </Tooltip>
                    </div>
                  </div>
                ) : (
