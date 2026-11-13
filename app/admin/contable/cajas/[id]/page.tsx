@@ -20,6 +20,7 @@ import { formatRoleLabel } from '@/lib/display-labels'
 import { categoriasPorTipo } from '@/lib/contable/categorias-movimiento'
 import Tooltip from '@/components/ui/Tooltip'
 import { listaDeRespuesta } from '@/lib/lista-de-respuesta'
+import { Selector } from '@/components/ui/Selector'
 
 interface CajaDetalle {
   id: string
@@ -490,18 +491,17 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-bold text-slate-700">Responsable</label>
-                    <select
+                    <Selector
                       value={editForm.responsable}
-                      onChange={(e) => setEditForm((p) => ({ ...p, responsable: e.target.value }))}
-                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
-                    >
-                      <option value="">Seleccionar responsable...</option>
-                      {usuariosAutorizados.map((u) => (
-                        <option key={u.id} value={u.nombre}>
-                          {u.nombre} ({formatRoleLabel(u.rol)})
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(v) => setEditForm((p) => ({ ...p, responsable: v }))}
+                      etiqueta="Responsable"
+                      placeholder="Seleccionar responsable..."
+                      className="text-sm font-medium text-slate-900"
+                      opciones={usuariosAutorizados.map((u) => ({
+                        value: u.nombre,
+                        label: u.nombre + ' (' + formatRoleLabel(u.rol) + ')',
+                      }))}
+                    />
                   </div>
                   <div className="space-y-2 md:col-span-2">
                     <label className="text-sm font-bold text-slate-700">Saldo Inicial (referencia)</label>
@@ -619,26 +619,30 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
                              </button>
                         </div>
                     ) : (
-                        <select
-                        value={movimientoForm.categoria}
-                        onChange={(e) => {
-                            if (e.target.value === 'NUEVA_CATEGORIA') {
-                                setIsCreatingCategory(true)
-                                setNuevaCategoria('')
+                        <Selector
+                          value={movimientoForm.categoria}
+                          onChange={(v) => {
+                            if (v === 'NUEVA_CATEGORIA') {
+                              setIsCreatingCategory(true)
+                              setNuevaCategoria('')
                             } else {
-                                setMovimientoForm((p) => ({ ...p, categoria: e.target.value }))
+                              setMovimientoForm((p) => ({ ...p, categoria: v }))
                             }
-                        }}
-                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
-                        >
-                        <option value="">Seleccione una categoría...</option>
-                        {(movimientoForm.tipo === 'INGRESO' ? categoriasIngreso : categoriasEgreso).map((cat) => (
-                            <option key={cat.id} value={cat.id}>
-                            {cat.label}
-                            </option>
-                        ))}
-                        <option value="NUEVA_CATEGORIA" className="font-bold text-blue-600 bg-blue-50">+ Crear nueva categoría...</option>
-                        </select>
+                          }}
+                          etiqueta="Categoría del movimiento"
+                          placeholder="Seleccione una categoría..."
+                          className="text-sm font-medium text-slate-900"
+                          opciones={[
+                            ...(movimientoForm.tipo === 'INGRESO'
+                              ? categoriasIngreso
+                              : categoriasEgreso
+                            ).map((cat) => ({ value: cat.id, label: cat.label })),
+                            {
+                              value: 'NUEVA_CATEGORIA',
+                              label: '+ Crear nueva categoría...',
+                            },
+                          ]}
+                        />
                     )}
                   </div>
 

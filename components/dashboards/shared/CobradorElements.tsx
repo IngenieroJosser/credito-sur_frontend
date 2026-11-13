@@ -10,7 +10,6 @@ import {
   Phone,
   GripVertical,
   XCircle,
-  ChevronDown,
   Timer,
   CheckCircle2,
 } from 'lucide-react'
@@ -21,6 +20,7 @@ import { VisitaRuta, EstadoVisita } from '@/lib/types/cobranza'
 import { formatCurrency } from '@/lib/utils'
 import { resolveCuotaAcumuladaOperativa, resolveCuotaNormalOperativa } from '@/lib/rutas-core'
 import Tooltip from '@/components/ui/Tooltip'
+import { Selector } from '@/components/ui/Selector'
 
 export const MODAL_Z_INDEX = 2147483600
 
@@ -735,45 +735,38 @@ export function SeleccionClienteModal({
                 {subtitulo}
               </label>
               <div className="relative">
-                <select
-                  autoFocus
-                  defaultValue=""
-                  className="w-full p-4 rounded-2xl border-2 border-slate-100 bg-slate-50 text-slate-900 font-bold focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 outline-none transition-all appearance-none cursor-pointer"
-                  onChange={(e) => {
-                    const visita = visitas.find((v) => v.id === e.target.value)
+                <Selector
+                  value=""
+                  onChange={(id) => {
+                    const visita = visitas.find((v) => v.id === id)
                     if (visita) onSelect(visita)
                   }}
-                >
-                  <option value="" disabled className="text-slate-400 bg-white">
-                    Seleccionar de la lista...
-                  </option>
-                  {visitas.map((v) => {
+                  etiqueta="Cliente de la lista"
+                  placeholder="Seleccionar de la lista..."
+                  className="rounded-2xl border-2 border-slate-100 bg-slate-50 p-4 font-bold text-slate-900"
+                  opciones={visitas.map((v) => {
                     const tipoCred =
-                      v.tipoPrestamo === 'ARTICULO'
+                      v.tipoPrestamo === "ARTICULO"
                         ? v.articuloNombre
-                          ? `Artículo: ${v.articuloNombre}`
-                          : 'Artículo'
-                        : 'Efectivo'
+                          ? "Artículo: " + v.articuloNombre
+                          : "Artículo"
+                        : "Efectivo"
                     const periodoCred =
-                      v.periodoRuta === 'DIA'
-                        ? 'Diario'
-                        : v.periodoRuta === 'SEMANA'
-                          ? 'Semanal'
-                          : v.periodoRuta === 'QUINCENA'
-                            ? 'Quincenal'
-                            : v.periodoRuta === 'MES'
-                              ? 'Mensual'
+                      v.periodoRuta === "DIA"
+                        ? "Diario"
+                        : v.periodoRuta === "SEMANA"
+                          ? "Semanal"
+                          : v.periodoRuta === "QUINCENA"
+                            ? "Quincenal"
+                            : v.periodoRuta === "MES"
+                              ? "Mensual"
                               : v.periodoRuta
-                    return (
-                      <option key={v.id} value={v.id} className="text-slate-900 bg-white">
-                        {`${v.cliente} — ${tipoCred} · ${periodoCred}`}
-                      </option>
-                    )
+                    return {
+                      value: v.id,
+                      label: v.cliente + " — " + tipoCred + " · " + periodoCred,
+                    }
                   })}
-                </select>
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                  <ChevronDown className="h-5 w-5" />
-                </div>
+                />
               </div>
             </div>
             <button
