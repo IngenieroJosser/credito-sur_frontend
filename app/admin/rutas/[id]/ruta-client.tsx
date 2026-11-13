@@ -151,6 +151,7 @@ import {
 } from '@/lib/display-labels'
 import Cifra from '@/components/ui/Cifra'
 import AyudaContextual from '@/components/ui/AyudaContextual'
+import { useHoyBogota } from '@/hooks/use-hoy-bogota'
 
 interface GastoRuta {
   id: string
@@ -224,40 +225,15 @@ const RutaClientLoaded = ({
     cargarDetalle,
   } = useCierrePendienteDetalle(rutaId)
 
-  const computeHoyBogotaKey = useCallback(() => {
-    const d = new Date()
-    return (
-      getBogotaDateKey(d) ||
-      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-    )
-  }, [])
-
-  const [hoyBogotaKey, setHoyBogotaKey] = useState<string>(() => computeHoyBogotaKey())
+  /*
+    * El dia de hoy en Bogota, y que cambie solo a medianoche.
+    *
+    * Aqui habia treinta lineas —un `useCallback`, un `useState` y un
+    * `useEffect` que se reprograma— escritas IGUAL en las tres pantallas que
+    * muestran una ruta. Ahora estan en `useHoyBogota`, con sus pruebas.
+    */
+  const hoyBogotaKey = useHoyBogota()
   const [dailyVisitsHoy, setDailyVisitsHoy] = useState<DailyVisitsResponse | null>(null)
-
-  useEffect(() => {
-    let timeout: ReturnType<typeof setTimeout> | undefined
-
-    const msHastaMedianocheBogota = () => {
-      const ahora = new Date()
-      const key = getBogotaDateKey(ahora)
-      if (!key) return 60_000
-      const nextMidnight = new Date(`${key}T24:00:00-05:00`).getTime()
-      return Math.max(1_000, nextMidnight - ahora.getTime())
-    }
-
-    const programar = () => {
-      timeout = setTimeout(() => {
-        setHoyBogotaKey(computeHoyBogotaKey())
-        programar()
-      }, msHastaMedianocheBogota())
-    }
-
-    programar()
-    return () => {
-      if (timeout) clearTimeout(timeout)
-    }
-  }, [computeHoyBogotaKey])
   const [rutaStatsCards, setRutaStatsCards] = useState<{
     recaudo: number
     meta: number

@@ -73,6 +73,7 @@ import {
   normalizeDateKey,
   shouldExcludeVisitaFromOperationalMeta,
   shouldIncludeVisitaInRutaHoyKpis,
+  isTodayOrPastBogota,
 } from '@/lib/rutas-core'
 import {
   isPagoConfirmadoParaRecaudo,
@@ -1078,16 +1079,26 @@ const LegacyDetalleRutaPage = () => {
       filtradas = filtradas.filter((v) => v.periodoRuta === periodoRutaFiltro)
     }
 
-    const isTodayOrMora = (dateStr: string) => {
-      if (!dateStr) return true
-      const f = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr
-      const [year, month, day] = f.split('-').map(Number)
-      if (!year || !month || !day) return true
-      const d = new Date(year, month - 1, day, 0, 0, 0, 0)
-      const hoy = new Date()
-      hoy.setHours(0, 0, 0, 0)
-      return d.getTime() <= hoy.getTime()
-    }
+    /*
+      * Aqui habia una copia propia de esta regla que resolvia el «hoy» con el
+      * reloj del DISPOSITIVO:
+      *
+      *     const d = new Date(year, month - 1, day, 0, 0, 0, 0)
+      *     const hoy = new Date(); hoy.setHours(0, 0, 0, 0)
+      *     return d.getTime() <= hoy.getTime()
+      *
+      * El desplazamiento se cancela entre las dos fechas, asi que comparaba
+      * bien dos dias del calendario. Lo que estaba mal es CUAL dia es hoy: el
+      * del telefono, no el de Bogota. Con el huso mal puesto —un Android
+      * recien formateado, el de alguien que viajo— o en el cambio de dia, esta
+      * pantalla mostraba la ruta de otro dia. Y este proyecto tiene la regla
+      * escrita: todas las fechas van en hora de Bogota.
+      *
+      * `isTodayOrPastBogota` es el ayudante compartido, y es el que ya usaba la
+      * pantalla del supervisor.
+      */
+    const isTodayOrMora = (dateStr: string) =>
+      !dateStr || isTodayOrPastBogota(dateStr)
 
     const filterByDate = (v: VisitaRuta) => searchQuery || isTodayOrMora(v.proximaVisita)
 

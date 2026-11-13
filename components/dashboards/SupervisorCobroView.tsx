@@ -177,6 +177,7 @@ import {
   PERIODO_POR_DEFECTO,
   type PeriodoDeFiltro,
 } from '@/lib/filtros/periodo-de-ruta'
+import { useHoyBogota } from '@/hooks/use-hoy-bogota'
 
 
 
@@ -616,37 +617,14 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
   const [showHistory, setShowHistory] = useState(false)
 
-  const computeHoyBogotaKey = useCallback(() => {
-    const d = new Date()
-    return getBogotaDateKey(d)
-      || `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-  }, [])
-
-  const [hoyBogotaKey, setHoyBogotaKey] = useState<string>(() => computeHoyBogotaKey())
-
-  useEffect(() => {
-    let timeout: ReturnType<typeof setTimeout> | undefined
-
-    const msHastaMedianocheBogota = () => {
-      const ahora = new Date()
-      const key = getBogotaDateKey(ahora)
-      if (!key) return 60_000
-      const nextMidnight = new Date(`${key}T24:00:00-05:00`).getTime()
-      return Math.max(1_000, nextMidnight - ahora.getTime())
-    }
-
-    const programar = () => {
-      timeout = setTimeout(() => {
-        setHoyBogotaKey(computeHoyBogotaKey())
-        programar()
-      }, msHastaMedianocheBogota())
-    }
-
-    programar()
-    return () => {
-      if (timeout) clearTimeout(timeout)
-    }
-  }, [computeHoyBogotaKey])
+  /*
+    * El dia de hoy en Bogota, y que cambie solo a medianoche.
+    *
+    * Aqui habia treinta lineas —un `useCallback`, un `useState` y un
+    * `useEffect` que se reprograma— escritas IGUAL en las tres pantallas que
+    * muestran una ruta. Ahora estan en `useHoyBogota`, con sus pruebas.
+    */
+  const hoyBogotaKey = useHoyBogota()
 
 
   const [historialRefreshKey, setHistorialRefreshKey] = useState(0)
