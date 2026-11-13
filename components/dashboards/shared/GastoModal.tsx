@@ -11,6 +11,7 @@ import { rutasService } from '@/services/rutas-service'
 import { getBogotaDateKey } from '@/lib/rutas-core'
 import Tooltip from '@/components/ui/Tooltip'
 import { useModalDialog } from '@/hooks/use-modal-dialog'
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 
 interface GastoModalProps {
   isOpen: boolean
@@ -79,7 +80,7 @@ export default function GastoModal({ isOpen, onClose, onConfirm, cobradorId, rut
         }
       } catch (error) {
         console.error('Error al cargar saldo:', error)
-        setErrorSaldo('No se pudo verificar el saldo disponible')
+        setErrorSaldo(mensajeDeError(error, 'No se pudo verificar el saldo disponible'))
       } finally {
         setLoadingSaldo(false)
       }

@@ -37,7 +37,7 @@ export default function ListaConflictos() {
       setConflictos(res);
     } catch (error) {
       console.error("Error cargando conflictos", error);
-      toast.error("Error vinculando con el servidor de conflictos");
+      toast.error(mensajeDeError(error, "Error vinculando con el servidor de conflictos"));
     } finally {
       setLoading(false);
     }

@@ -219,7 +219,7 @@ function CuentasVencidasContent() {
       } catch {
         /* ignore */
       }
-      setError('Error al cargar las cuentas vencidas')
+      setError(mensajeDeError(err, 'Error al cargar las cuentas vencidas'))
       toast.error('No se pudieron cargar las cuentas vencidas')
     } finally {
       setLoading(false)

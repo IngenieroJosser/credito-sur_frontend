@@ -322,7 +322,7 @@ export default function NotificacionesPage() {
         setError(null)
       } catch (err) {
         console.error('Error cargando notificaciones:', err)
-        setError('No se pudieron cargar las notificaciones. Verifica tu conexión o intenta más tarde.')
+        setError(mensajeDeError(err, 'No se pudieron cargar las notificaciones. Verifica tu conexión o intenta más tarde.'))
       } finally {
         setIsLoading(false)
       }

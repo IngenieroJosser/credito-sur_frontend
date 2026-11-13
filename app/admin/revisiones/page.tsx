@@ -503,7 +503,7 @@ export default function RevisionesPage() {
       if (alertasData.status === 'fulfilled') setAlertasCliente(alertasData.value)
     } catch (error) {
       console.error('Error cargando revisiones:', error)
-      toast.error('Error al cargar las revisiones')
+      toast.error(mensajeDeError(error, 'Error al cargar las revisiones'))
     } finally {
       setLoading(false)
     }
@@ -645,7 +645,7 @@ export default function RevisionesPage() {
       setSelectedAlertaCliente(detalle)
     } catch (error) {
       console.error('[Revisiones] Error cargando alerta de cliente:', error)
-      toast.error('No se pudo cargar el detalle completo de la alerta')
+      toast.error(mensajeDeError(error, 'No se pudo cargar el detalle completo de la alerta'))
     }
   }
 

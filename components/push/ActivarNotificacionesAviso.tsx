@@ -144,6 +144,13 @@ export default function ActivarNotificacionesAviso({ abierto, onCerrar }: Activa
         titulo="No se pudieron activar"
         onCerrar={cerrar}
         acciones={
+          /*
+            * Aqui no hace falta `disabled`, y TypeScript lo demuestra: en esta
+            * rama `estado` solo puede valer 'error', asi que comparar con
+            * 'activando' es codigo muerto. Lo que protege del doble toque es
+            * que `activar` empieza poniendo el estado en 'activando', y con ese
+            * estado este aviso pinta otra rama: el boton deja de existir.
+            */
           <button type="button" onClick={activar} className={BOTON_AVISO_PRINCIPAL}>
             Reintentar
           </button>

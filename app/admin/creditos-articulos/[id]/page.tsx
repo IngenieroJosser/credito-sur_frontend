@@ -68,7 +68,7 @@ export default function CreditoDetallePage() {
         });
       } catch (err) {
         console.error('Error cargando crédito:', err);
-        setError('No se pudo cargar el crédito');
+        setError(mensajeDeError(err, 'No se pudo cargar el crédito'));
       } finally {
         setLoading(false);
       }

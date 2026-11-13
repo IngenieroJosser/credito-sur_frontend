@@ -17,6 +17,7 @@ import Tooltip from '@/components/ui/Tooltip'
 import type { PrestamoDelListado } from '@/types/domain'
 import { useModalDialog } from '@/hooks/use-modal-dialog'
 import AyudaContextual from '@/components/ui/AyudaContextual'
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 
 interface EstadoCuentaModalProps {
   visita: VisitaRuta
@@ -143,8 +144,8 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
         } else {
           setError('No se encontró información del crédito.')
         }
-      } catch {
-        setError('Error de comunicación.')
+      } catch (error) {
+        setError(mensajeDeError(error, 'Error de comunicación.'))
       } finally {
         setLoading(false)
       }

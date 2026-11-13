@@ -91,8 +91,8 @@ const AuditoriaSistemaPage = () => {
         rutaNombre: r.entidad?.toLowerCase() === 'ruta' ? rutaMap.get(r.entidadId) || '' : '',
       }))
       setLogs(items)
-    } catch {
-      setError('No se pudo cargar auditoria')
+    } catch (error) {
+      setError(mensajeDeError(error, 'No se pudo cargar auditoria'))
     } finally {
       setLoading(false)
     }

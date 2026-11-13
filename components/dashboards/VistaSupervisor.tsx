@@ -119,7 +119,7 @@ const VistaSupervisor = () => {
         // y la persona se quedaba esperando un contrato que nunca bajó.
         try {
           await exportService.exportContrato(prestamo.id);
-        } catch {
+        } catch (error) {
           toast.warning('El crédito quedó creado, pero no se pudo descargar el contrato', {
             description: 'Descárguelo desde el detalle del crédito.',
           });

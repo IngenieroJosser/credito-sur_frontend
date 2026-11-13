@@ -838,7 +838,7 @@ const ModuloContableContent = () => {
       }
     } catch (error) {
       console.error('Error cargando datos contables:', error);
-      toast.error('Hubo un problema cargando la información financiera.');
+      toast.error(mensajeDeError(error, 'Hubo un problema cargando la información financiera.'));
     } finally {
       setIsLoading(false);
     }
@@ -1092,7 +1092,7 @@ const ModuloContableContent = () => {
       showNotification('success', 'La caja ha sido creada correctamente', 'Caja Creada')
     } catch (error) {
       console.error('Error creating caja:', error)
-      showNotification('error', 'No se pudo crear la caja', 'Error')
+      showNotification('error', mensajeDeError(error, 'No se pudo crear la caja'), 'Error')
     } finally {
       setCreandoCaja(false)
     }
@@ -1138,7 +1138,7 @@ const ModuloContableContent = () => {
       showNotification('success', 'La información de la caja ha sido actualizada', 'Caja Actualizada')
     } catch (error) {
       console.error('Error updating caja:', error)
-      showNotification('error', 'No se pudo actualizar la caja', 'Error')
+      showNotification('error', mensajeDeError(error, 'No se pudo actualizar la caja'), 'Error')
     }
   }
 

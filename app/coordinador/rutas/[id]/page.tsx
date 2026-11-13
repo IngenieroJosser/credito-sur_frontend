@@ -285,7 +285,7 @@ const LegacyDetalleRutaPage = () => {
 
       showNotification(
         'error',
-        'No se pudieron cargar las obligaciones operativas de la ruta.',
+        mensajeDeError(e, 'No se pudieron cargar las obligaciones operativas de la ruta.'),
         'Error',
       )
     } finally {
@@ -1152,6 +1152,9 @@ const LegacyDetalleRutaPage = () => {
               {errorCarga || 'Revisa la conexión e intentalo de nuevo.'}
             </p>
             <button
+              // `disabled` mientras carga: sin esto, dos toques seguidos
+              // lanzan dos cargas de la ruta a la vez.
+              disabled={isLoading}
               onClick={async () => {
                 setIsLoading(true)
                 await cargarRuta()
@@ -2072,7 +2075,7 @@ const LegacyDetalleRutaPage = () => {
             } catch (error) {
               console.error('Error al crear crédito:', error)
 
-              showNotification('error', 'No se pudo crear el crédito', 'Error')
+              showNotification('error', mensajeDeError(error, 'No se pudo crear el crédito'), 'Error')
             }
           }}
         />

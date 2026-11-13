@@ -346,8 +346,8 @@ const ListadoPrestamosElegante = () => {
         'Archivo compatible con importaciones generado',
         'Exportación Exitosa',
       )
-    } catch {
-      showNotification('error', 'Error al exportar. Intente de nuevo.', 'Error')
+    } catch (error) {
+      showNotification('error', mensajeDeError(error, 'Error al exportar. Intente de nuevo.'), 'Error')
     }
   }
 
@@ -360,8 +360,8 @@ const ListadoPrestamosElegante = () => {
         search: filtros.busqueda || undefined,
       })
       showNotification('success', 'Archivo descargado correctamente', 'Exportación Exitosa')
-    } catch {
-      showNotification('error', 'Error al exportar. Intente de nuevo.', 'Error')
+    } catch (error) {
+      showNotification('error', mensajeDeError(error, 'Error al exportar. Intente de nuevo.'), 'Error')
     }
   }
 
@@ -370,8 +370,8 @@ const ListadoPrestamosElegante = () => {
       showNotification('info', 'Generando Historial de Pagos...', 'Exportando')
       await exportService.exportPayments('pdf', { prestamoId })
       showNotification('success', 'Historial guardado exitosamente', 'Exito')
-    } catch {
-      showNotification('error', 'No se pudo exportar el historial de pagos', 'Error')
+    } catch (error) {
+      showNotification('error', mensajeDeError(error, 'No se pudo exportar el historial de pagos'), 'Error')
     }
   }
 

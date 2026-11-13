@@ -953,7 +953,7 @@ const UserManagementPage = () => {
           });
           // No mostramos toast aquí — se mostrará uno solo al final con todo el resultado
         } catch (e) {
-          showNotification('error', 'Fallo el cambio de contrasena', 'Error Critico');
+          showNotification('error', mensajeDeError(e, 'Fallo el cambio de contrasena'), 'Error Critico');
           throw e;
         }
       }

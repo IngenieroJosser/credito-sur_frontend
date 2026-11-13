@@ -21,6 +21,7 @@ import { Selector } from '@/components/ui/Selector'
 import { CampoFecha } from '@/components/ui/CampoFecha'
 import Cifra from '@/components/ui/Cifra'
 import AyudaContextual from '@/components/ui/AyudaContextual'
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 
 interface EditarPrestamoModalProps {
   id: string;
@@ -228,7 +229,7 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
         });
       } catch (err) {
         console.error('Error cargando préstamo para editar:', err);
-        showNotification('error', 'No se pudo cargar el préstamo', 'Error');
+        showNotification('error', mensajeDeError(err, 'No se pudo cargar el préstamo'), 'Error');
       } finally {
         setFetching(false);
       }

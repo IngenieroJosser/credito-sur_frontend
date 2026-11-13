@@ -7,6 +7,7 @@ import FieldLabel from '@/components/ui/FieldLabel';
 import { logger } from '@/lib/logger';
 import { Selector } from '@/components/ui/Selector'
 import Tooltip from '@/components/ui/Tooltip'
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 
 interface SelectCategoriaProps {
   tipo: string; // 'CLIENTE', 'GASTO', etc.
@@ -79,8 +80,8 @@ export default function SelectCategoria({
       setNewCatName('');
       setShowCreate(false);
       showNotification('success', 'Categoría creada', 'Éxito');
-    } catch {
-      showNotification('error', 'Error al crear categoría', 'Error');
+    } catch (error) {
+      showNotification('error', mensajeDeError(error, 'Error al crear categoría'), 'Error');
     } finally {
       setCreating(false);
     }

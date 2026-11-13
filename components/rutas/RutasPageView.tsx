@@ -718,8 +718,8 @@ export const RutasPageView = ({
       }
 
       showNotification('success', 'Estado de la ruta actualizado', 'Éxito')
-    } catch {
-      showNotification('error', 'No se pudo cambiar el estado', 'Error')
+    } catch (error) {
+      showNotification('error', mensajeDeError(error, 'No se pudo cambiar el estado'), 'Error')
     }
   }
   const handleRecolectarDinero = async (ruta: Ruta) => {
@@ -745,7 +745,7 @@ export const RutasPageView = ({
       setCajaRutaIdRecolectar(cajaRuta?.id || null)
     } catch (e) {
       console.error('Error cargando saldo:', e)
-      setErrorRecolectar('No se pudo cargar el saldo de la ruta')
+      setErrorRecolectar(mensajeDeError(e, 'No se pudo cargar el saldo de la ruta'))
     }
   }
 
@@ -822,8 +822,8 @@ export const RutasPageView = ({
       } else {
         showNotification('success', `Dinero enviado a ${destino.nombre}`, 'Éxito')
       }
-    } catch {
-      showNotification('error', 'No se pudo completar la transferencia', 'Error')
+    } catch (error) {
+      showNotification('error', mensajeDeError(error, 'No se pudo completar la transferencia'), 'Error')
     } finally {
       setProcessingTransfer(false)
     }
@@ -846,8 +846,8 @@ export const RutasPageView = ({
         // Se avisa solo en desarrollo, que es donde sirve.
         logger.warn('Fallo el refresco del listado de rutas', error)
       }
-    } catch {
-      showNotification('error', 'No se pudo mover el cliente', 'Error')
+    } catch (error) {
+      showNotification('error', mensajeDeError(error, 'No se pudo mover el cliente'), 'Error')
     }
   }
 
@@ -866,8 +866,8 @@ export const RutasPageView = ({
         await loadClientesRuta(editingId)
       }
       await fetchRutas()
-    } catch {
-      showNotification('error', 'No se pudo mover el crédito', 'Error')
+    } catch (error) {
+      showNotification('error', mensajeDeError(error, 'No se pudo mover el crédito'), 'Error')
     }
   }
 
@@ -899,8 +899,8 @@ export const RutasPageView = ({
         // Se avisa solo en desarrollo, que es donde sirve.
         logger.warn('Fallo el refresco del listado de rutas', error)
       }
-    } catch {
-      showNotification('error', 'No se pudo asignar el cliente', 'Error')
+    } catch (error) {
+      showNotification('error', mensajeDeError(error, 'No se pudo asignar el cliente'), 'Error')
     } finally {
       setAsignandoClienteId(null)
     }
@@ -2636,7 +2636,7 @@ export const RutasPageView = ({
             }
           } catch (error) {
             console.error('Error al crear crédito:', error)
-            showNotification('error', 'No se pudo crear el crédito', 'Error')
+            showNotification('error', mensajeDeError(error, 'No se pudo crear el crédito'), 'Error')
           }
         }}
       />

@@ -27,6 +27,7 @@ import { toast } from 'sonner'
 
 import { SkeletonFormulario } from '@/components/ui/Skeleton'
 import { Selector } from '@/components/ui/Selector'
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 
 // Types
 interface PrecioCuota {
@@ -125,7 +126,7 @@ export default function EditarArticuloPage({ params }: { params: Promise<{ id: s
       router.push('/admin/articulos')
     } catch (err) {
       console.error('Error guardando artículo:', err)
-      toast.error('Error al guardar el artículo')
+      toast.error(mensajeDeError(err, 'Error al guardar el artículo'))
     } finally {
       setLoading(false)
     }

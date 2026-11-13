@@ -10,6 +10,7 @@ import { usuariosService } from '@/services/usuarios-service'
 import { formatRoleLabel } from '@/lib/display-labels'
 import { toast } from 'sonner'
 import { Selector } from '@/components/ui/Selector'
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 
 export default function EditarCajaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -69,7 +70,7 @@ export default function EditarCajaPage({ params }: { params: Promise<{ id: strin
       router.push(`/contable/cajas/${id}`)
     } catch (err) {
       console.error('Error guardando caja:', err)
-      toast.error('Error al guardar la caja')
+      toast.error(mensajeDeError(err, 'Error al guardar la caja'))
     } finally {
       setSaving(false)
     }

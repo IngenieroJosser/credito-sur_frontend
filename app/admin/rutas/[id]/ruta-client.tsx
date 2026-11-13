@@ -708,7 +708,7 @@ const RutaClientLoaded = ({
           // supervisor en esta pantalla recibia 403.
           await exportService.exportRutaCobrador('excel', initialRuta.id)
         } catch (e) {
-          toast.error('No se pudo exportar el reporte de ruta a Excel')
+          toast.error(mensajeDeError(e, 'No se pudo exportar el reporte de ruta a Excel'))
           console.error('Error exportando ruta CSV:', e)
         }
       }
@@ -718,7 +718,7 @@ const RutaClientLoaded = ({
           // Ver la nota del export a Excel de arriba.
           await exportService.exportRutaCobrador('pdf', initialRuta.id)
         } catch (e) {
-          toast.error('No se pudo exportar el reporte de ruta a PDF')
+          toast.error(mensajeDeError(e, 'No se pudo exportar el reporte de ruta a PDF'))
           console.error('Error exportando ruta PDF:', e)
         }
       }
@@ -1271,7 +1271,7 @@ const RutaClientLoaded = ({
       setMisCreditos(result.kpiItems)
     } catch (e) {
       console.error('Error cargando mis clientes (ruta admin):', e)
-      toast.error('No se pudieron cargar las obligaciones operativas de la ruta.')
+      toast.error(mensajeDeError(e, 'No se pudieron cargar las obligaciones operativas de la ruta.'))
     } finally {
       setLoadingMisCreditos(false)
     }
@@ -2392,7 +2392,7 @@ const RutaClientLoaded = ({
             } catch (error) {
               console.error('Error al crear crédito:', error)
 
-              showNotification('error', 'No se pudo crear el crédito', 'Error')
+              showNotification('error', mensajeDeError(error, 'No se pudo crear el crédito'), 'Error')
             }
           }}
         />

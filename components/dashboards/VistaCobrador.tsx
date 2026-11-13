@@ -978,7 +978,7 @@ const VistaCobrador = () => {
           return
         }
 
-        toast.error('No se pudieron cargar los clientes asignados.')
+        toast.error(mensajeDeError(e, 'No se pudieron cargar los clientes asignados.'))
       } finally {
         setLoadingMisCreditos(false)
       }
@@ -2443,7 +2443,7 @@ const VistaCobrador = () => {
               toast.success('Orden de ruta sincronizado')
             } catch (error) {
               console.error('Error guardando reordenamiento:', error)
-              toast.error('No se pudo guardar el orden en el servidor')
+              toast.error(mensajeDeError(error, 'No se pudo guardar el orden en el servidor'))
             }
           }
         }

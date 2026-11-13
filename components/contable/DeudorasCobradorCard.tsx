@@ -12,6 +12,7 @@ import { useNotification } from '@/components/providers/NotificationProvider'
 import { Skeleton } from '@/components/ui/Skeleton'
 import Tooltip from '@/components/ui/Tooltip'
 import { Selector } from '@/components/ui/Selector'
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 
 // Utilidades locales para inputs COP (sin importar las del lib para evitar circularidades)
 function fmtCOPInput(val: string): string {
@@ -413,8 +414,8 @@ export default function DeudorasCobradorCard() {
 
       showNotification('success', 'Abono registrado correctamente', 'Éxito');
       await cargar();
-    } catch {
-      showNotification('error', 'Error al registrar el abono', 'Error');
+    } catch (error) {
+      showNotification('error', mensajeDeError(error, 'Error al registrar el abono'), 'Error');
     }
   }
 

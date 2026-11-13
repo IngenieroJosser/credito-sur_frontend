@@ -147,7 +147,7 @@ const PerfilUsuarioPage = () => {
         }
       }
       setError(null)
-    } catch {
+    } catch (error) {
       logger.warn('Perfil: usando datos locales (sin red o backend no disponible).')
       try {
         const userStr = localStorage.getItem('user')
@@ -172,7 +172,7 @@ const PerfilUsuarioPage = () => {
           return
         }
       } catch { /* ignore */ }
-      setError('No se pudo cargar la información del perfil.')
+      setError(mensajeDeError(error, 'No se pudo cargar la información del perfil.'))
     } finally {
       setIsLoading(false)
     }

@@ -142,8 +142,8 @@ export default function ClienteDetalleSupervisorPage() {
       } else {
          setError('Cliente no encontrado')
       }
-    } catch {
-      setError('Error al cargar cliente')
+    } catch (error) {
+      setError(mensajeDeError(error, 'Error al cargar cliente'))
     } finally {
       setIsLoading(false)
     }

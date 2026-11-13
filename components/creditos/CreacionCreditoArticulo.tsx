@@ -124,7 +124,7 @@ export default function CreacionCreditoArticulo({
         setListaArticulos(articulos);
       } catch (error) {
         console.error("Error cargando datos", error);
-        showNotification('error', 'Error al cargar clientes o artículos');
+        showNotification('error', mensajeDeError(error, 'Error al cargar clientes o artículos'));
       } finally {
         setLoadingDatos(false);
       }

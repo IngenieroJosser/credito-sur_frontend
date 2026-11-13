@@ -26,6 +26,7 @@ import {
   normalizeDateKey,
   resolveFechaEfectivaCuota,
 } from '@/lib/rutas-core'
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 
 export default function ClienteDetallePage() {
   const params = useParams();
@@ -43,7 +44,7 @@ export default function ClienteDetallePage() {
         setClienteData(cliente);
       } catch (err) {
         console.error('Error cargando cliente:', err);
-        setError('No se pudo cargar el cliente');
+        setError(mensajeDeError(err, 'No se pudo cargar el cliente'));
       } finally {
         setIsLoading(false);
       }

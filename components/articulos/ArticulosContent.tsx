@@ -338,7 +338,7 @@ export default function ArticulosContent() {
       showNotification('success', 'Archivo compatible con importaciones generado.', 'Exportación')
     } catch (error) {
       console.error('Error exporting inventory:', error)
-      showNotification('error', 'No se pudo exportar el inventario.', 'Error')
+      showNotification('error', mensajeDeError(error, 'No se pudo exportar el inventario.'), 'Error')
     } finally {
       setExportLoading(false)
     }
@@ -352,7 +352,7 @@ export default function ArticulosContent() {
         fetchArticulos()
       } catch (error) {
         console.error('Error deleting product', error)
-        showNotification('error', 'No se pudo archivar el artículo', 'Error')
+        showNotification('error', mensajeDeError(error, 'No se pudo archivar el artículo'), 'Error')
       } finally {
         setShowEliminarModal(false)
         setArticuloSeleccionado(null)

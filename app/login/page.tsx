@@ -600,6 +600,9 @@ const LoginPage = () => {
                 <div className="mt-4">
                   <button
                     type="button"
+                    // Como los otros tres botones de esta pantalla: dos toques
+                    // seguidos abrian dos sesiones sin conexion.
+                    disabled={isLoading}
                     onClick={handleOfflineAccess}
                     className="w-full group relative overflow-hidden"
                   >

@@ -2190,7 +2190,7 @@ const handleRegistrarPago = useCallback(async (
             console.error('Error al asignar cliente a la ruta:', assignError)
 
             toast.warning(
-              mensajeDeError(assignError, 'El crédito se creó, pero no se pudo confirmar la asignación del cliente a la ruta.'),
+              'El crédito se creó, pero no se pudo confirmar la asignación del cliente a la ruta.',
             )
           }
         }

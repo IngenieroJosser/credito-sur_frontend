@@ -693,7 +693,7 @@ export default function CreditosArticulosPage() {
                 if (loanId) {
                   try {
                     await exportService.exportContrato(loanId)
-                  } catch {
+                  } catch (error) {
                     showNotification('warning', 'Crédito creado. No se pudo descargar el contrato automáticamente.', 'Contrato')
                   }
                 }

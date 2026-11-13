@@ -9,6 +9,7 @@ import Link from 'next/link';
 import DetallePrestamo, { PrestamoDetalle } from '@/components/prestamos/DetallePrestamo';
 import { prestamosService } from '@/services/prestamos-service';
 import { formatLoanTerm } from '@/lib/utils';
+import { mensajeDeError } from '@/lib/mensaje-de-error'
 
 export default function PrestamoDetallePage() {
   const params = useParams();
@@ -75,7 +76,7 @@ export default function PrestamoDetallePage() {
         });
       } catch (err) {
         console.error('Error cargando préstamo:', err);
-        setError('No se pudo cargar el préstamo');
+        setError(mensajeDeError(err, 'No se pudo cargar el préstamo'));
       } finally {
         setLoading(false);
       }
