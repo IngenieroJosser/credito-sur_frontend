@@ -379,3 +379,160 @@ body {
     transform: none;
   }
 }
+
+/* ==========================================================================
+   Controles que dejan de parecerse al navegador.
+
+   Van en CSS y no en un componente porque NINGUNO de los que hay tenia estilo
+   propio —medido: 0 usos de `appearance-none` y 0 de `accent-*` en todo el
+   proyecto—, asi que una regla aqui los cubre todos a la vez y de forma
+   identica, sin migrar doce archivos que se desincronizarian con el primer
+   campo nuevo.
+   ========================================================================== */
+
+/*
+  Las flechitas del campo numerico.
+
+  Chrome y Safari dibujan dos flechas diminutas dentro del campo; Firefox, otra
+  cosa. Son objetivos de 10 px al lado de un importe, asi que en el movil se
+  pulsan sin querer. Los cinco campos `type="number"` de este proyecto son de
+  dinero y plazos: se escriben, no se incrementan de uno en uno.
+*/
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/*
+  La casilla de verificacion.
+
+  La nativa es azul en Windows, azul-gris en macOS, y de otro tamaño en cada
+  Android. Esta es la misma en todos y usa el color de la marca.
+*/
+input[type='checkbox']:not([data-nativa]) {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 1.15rem;
+  height: 1.15rem;
+  flex-shrink: 0;
+  border: 2px solid rgb(203 213 225); /* slate-300 */
+  border-radius: 0.375rem;
+  background-color: #fff;
+  cursor: pointer;
+  display: inline-grid;
+  place-content: center;
+}
+
+input[type='checkbox']:not([data-nativa])::before {
+  content: '';
+  width: 0.65rem;
+  height: 0.65rem;
+  transform: scale(0);
+  transform-origin: center;
+  /* El tick, dibujado con una mascara: no hace falta ni SVG ni fuente. */
+  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+  background-color: #fff;
+}
+
+input[type='checkbox']:not([data-nativa]):checked {
+  background-color: var(--primary, #08557f);
+  border-color: var(--primary, #08557f);
+}
+
+input[type='checkbox']:not([data-nativa]):checked::before {
+  transform: scale(1);
+}
+
+input[type='checkbox']:not([data-nativa]):disabled {
+  cursor: not-allowed;
+  background-color: rgb(241 245 249); /* slate-100 */
+  border-color: rgb(226 232 240); /* slate-200 */
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  input[type='checkbox']:not([data-nativa])::before {
+    transition: transform var(--mov-rapido) var(--mov-suave);
+  }
+}
+
+/*
+  El relleno amarillo de Chrome al autocompletar.
+
+  Medido: `:autofill` tenia CERO ocurrencias en todo el proyecto, sobre unos
+  229 campos, el de entrar incluido. Chrome pinta el fondo de amarillo y se
+  salta el color del campo, asi que un formulario cuidado se rompe solo con
+  que el navegador recuerde un dato.
+
+  Se resuelve con una sombra interior enorme, que es la unica forma de ganarle
+  al fondo que impone el navegador.
+*/
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 1000px #fff inset;
+  box-shadow: 0 0 0 1000px #fff inset;
+  -webkit-text-fill-color: rgb(15 23 42); /* slate-900 */
+  caret-color: rgb(15 23 42);
+  transition: background-color 9999s ease-in-out 0s;
+}
+
+/*
+  La barra de desplazamiento.
+
+  `scrollbar-hide` se usaba en 8 sitios y NO estaba definida en ninguna parte:
+  ni en este archivo, ni en `tailwind.config.ts` (que no tiene plugins), ni
+  como dependencia. Tailwind v4 no la genera sola, asi que esas ocho barras
+  salian nativas. Aqui se define, y de paso las demas dejan de ser las del
+  sistema: habia tres soluciones distintas e incoherentes repartidas.
+*/
+@utility scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+@media (pointer: fine) {
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background-color: rgb(203 213 225); /* slate-300 */
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(148 163 184); /* slate-400 */
+  }
+}
+
+/*
+  El texto de ayuda de los campos.
+
+  Medido: de unos 229 campos, 78 definian el color del placeholder y el resto
+  se quedaba con el gris por defecto, que no es el mismo en Chrome, Safari y
+  Firefox. Esta es la red de abajo: quien defina el suyo, manda.
+*/
+input::placeholder,
+textarea::placeholder {
+  color: rgb(148 163 184); /* slate-400 */
+  opacity: 1; /* Firefox lo baja a 0.54 por su cuenta. */
+}
