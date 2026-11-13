@@ -48,6 +48,7 @@ import {
 } from '@/lib/creditos/preview-credito'
 import TipoCreditoIndicador from '@/components/creditos/TipoCreditoIndicador'
 import { formatFechaBogota, formatFechaHumanaBogota } from '@/lib/format-date'
+import { Selector } from '@/components/ui/Selector'
 
 export interface NotificacionDetalleModalProps {
   isOpen: boolean
@@ -1436,10 +1437,10 @@ export default function NotificacionDetalleModal({
                     </label>
                     {isEditingMode ? (
                       isArticle && articuloData?.opcionesCuotas?.length ? (
-                        <select
-                          value={planIndex !== null ? planIndex : ''}
-                          onChange={(e) => {
-                            const idx = e.target.value ? parseInt(e.target.value) : null
+                        <Selector
+                          value={planIndex !== null ? String(planIndex) : ''}
+                          onChange={(valorPlan) => {
+                            const idx = valorPlan ? parseInt(valorPlan) : null
                             setPlanIndex(idx)
                             if (idx !== null && articuloData) {
                               const op = articuloData.opcionesCuotas?.[idx]
@@ -1456,20 +1457,21 @@ export default function NotificacionDetalleModal({
                               setAutoCuotas(true)
                             }
                           }}
-                          className="w-full bg-white border border-blue-200 text-slate-900 rounded-xl px-4 py-2 text-sm font-black outline-none focus:ring-2 focus:ring-blue-500/20"
-                        >
-                          <option value="">Seleccionar plazo...</option>
-                          {articuloData.opcionesCuotas.map((op, i: number) => {
-                            const meses = Number(op.numeroCuotas)
-                            if (isNaN(meses)) return null
-                            return (
-                              <option key={i} value={i}>
-                                {meses} {meses === 1 ? 'Mes' : 'Meses'} - Total:{' '}
-                                {formatCurrency(op.precioTotal)}
-                              </option>
-                            )
-                          })}
-                        </select>
+                          etiqueta="Plazo del plan"
+                          placeholder="Seleccionar plazo..."
+                          className="border-blue-200 px-4 py-2 text-sm font-black text-slate-900"
+                          opciones={articuloData.opcionesCuotas
+                            .map((op, i: number) => ({ op, i, meses: Number(op.numeroCuotas) }))
+                            .filter(({ meses }) => !isNaN(meses))
+                            .map(({ op, i, meses }) => ({
+                              value: String(i),
+                              label:
+                                meses +
+                                (meses === 1 ? ' Mes' : ' Meses') +
+                                ' - Total: ' +
+                                formatCurrency(op.precioTotal),
+                            }))}
+                        />
                       ) : (
                         <p className="text-base font-black text-slate-900">
                           {formatLoanTerm({
@@ -1519,7 +1521,7 @@ export default function NotificacionDetalleModal({
                       Frecuencia de Pago
                     </label>
                     {isEditingMode ? (
-                      <select
+                      <Selector
                         value={
                           editedDetails?.frecuenciaPago ||
                           safeMeta?.frecuenciaPago ||
@@ -1527,17 +1529,19 @@ export default function NotificacionDetalleModal({
                           safeMeta?.frecuencia ||
                           'DIARIO'
                         }
-                        onChange={(e) => {
-                          setEditedDetails({ ...editedDetails, frecuenciaPago: e.target.value })
+                        onChange={(v) => {
+                          setEditedDetails({ ...editedDetails, frecuenciaPago: v })
                           setAutoCuotas(true)
                         }}
-                        className="w-full bg-white border border-blue-200 text-slate-900 rounded-xl px-4 py-2 text-sm font-black outline-none focus:ring-2 focus:ring-blue-500/20"
-                      >
-                        <option value="DIARIO">DIARIO</option>
-                        <option value="SEMANAL">SEMANAL</option>
-                        <option value="QUINCENAL">QUINCENAL</option>
-                        <option value="MENSUAL">MENSUAL</option>
-                      </select>
+                        etiqueta="Frecuencia de pago"
+                        className="border-blue-200 px-4 py-2 text-sm font-black text-slate-900"
+                        opciones={[
+                          { value: 'DIARIO', label: 'Diario' },
+                          { value: 'SEMANAL', label: 'Semanal' },
+                          { value: 'QUINCENAL', label: 'Quincenal' },
+                          { value: 'MENSUAL', label: 'Mensual' },
+                        ]}
+                      />
                     ) : (
                       <div className="inline-flex items-center gap-2 bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">
                         {editedDetails?.frecuenciaPago ||
@@ -1556,25 +1560,27 @@ export default function NotificacionDetalleModal({
                       Tipo de Amortización
                     </label>
                     {isEditingMode ? (
-                      <select
+                      <Selector
                         value={
                           editedDetails?.tipoAmortizacion ||
                           safeMeta?.tipoAmortizacion ||
                           'INTERES_SIMPLE'
                         }
-                        onChange={(e) =>
+                        onChange={(v) =>
                           setEditedDetails({
                             ...editedDetails,
-                            tipoAmortizacion: e.target.value,
+                            tipoAmortizacion: v,
                             montoTotal: 0,
                             interesTotal: 0,
                           })
                         }
-                        className="w-full bg-white border border-blue-200 text-slate-900 rounded-xl px-4 py-2 text-sm font-black outline-none focus:ring-2 focus:ring-blue-500/20"
-                      >
-                        <option value="INTERES_SIMPLE">Interés simple</option>
-                        <option value="FRANCESA">Amortizable</option>
-                      </select>
+                        etiqueta="Tipo de amortización"
+                        className="border-blue-200 px-4 py-2 text-sm font-black text-slate-900"
+                        opciones={[
+                          { value: 'INTERES_SIMPLE', label: 'Interés simple' },
+                          { value: 'FRANCESA', label: 'Amortizable' },
+                        ]}
+                      />
                     ) : (
                       <p className="text-sm font-black text-slate-900">
                         {String(
