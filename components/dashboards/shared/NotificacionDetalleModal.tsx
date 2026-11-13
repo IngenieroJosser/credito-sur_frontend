@@ -51,6 +51,7 @@ import { formatFechaBogota, formatFechaHumanaBogota } from '@/lib/format-date'
 import { Selector } from '@/components/ui/Selector'
 import { CampoFecha } from '@/components/ui/CampoFecha'
 import Cifra from '@/components/ui/Cifra'
+import AyudaContextual from '@/components/ui/AyudaContextual'
 
 export interface NotificacionDetalleModalProps {
   isOpen: boolean
@@ -834,7 +835,7 @@ export default function NotificacionDetalleModal({
                     </div>
 
                     <div>
-                      <span className="text-slate-500">Fecha operativa</span>
+                      <span className="text-slate-500">Fecha operativa<AyudaContextual ayuda="fechaOperativa" de="la fecha operativa" tamano="pequeno" /></span>
                       <p className="font-semibold text-slate-900">
                         {scalarText(meta.fechaOperativa)}
                       </p>
@@ -1520,7 +1521,7 @@ export default function NotificacionDetalleModal({
                 {!isArticle || !esContado ? (
                   <div>
                     <label className="text-[10px] text-blue-600 uppercase font-black block mb-1">
-                      Frecuencia de Pago
+                      Frecuencia de Pago<AyudaContextual ayuda="frecuenciaDePago" de="la frecuencia de pago" tamano="pequeno" />
                     </label>
                     {isEditingMode ? (
                       <Selector
@@ -1680,7 +1681,7 @@ export default function NotificacionDetalleModal({
                       <>
                         <div>
                           <label className="text-[9px] text-blue-500 uppercase font-black block mb-0.5">
-                            Cuota Inicial
+                            Cuota Inicial<AyudaContextual ayuda="cuotaInicialDeArticulo" de="la cuota inicial" tamano="pequeno" />
                           </label>
                           {isEditingMode ? (
                             <input
@@ -1765,7 +1766,7 @@ export default function NotificacionDetalleModal({
                     )}
                     <div>
                       <label className="text-[10px] text-blue-600 uppercase font-black block mb-1">
-                        Fecha Inicio
+                        Fecha Inicio<AyudaContextual ayuda="fechaInicio" de="la fecha de inicio" tamano="pequeno" />
                       </label>
                       {isEditingMode ? (
                                                 <CampoFecha

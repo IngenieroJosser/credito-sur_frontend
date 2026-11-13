@@ -276,7 +276,10 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm, montoCuota
                   <div>
                     <div className="flex items-center gap-1.5">
                       <FieldLabel>Nota para revisión</FieldLabel>
-                      <AyudaContextual texto="Agrega información que ayude a verificar la transferencia, por ejemplo quién la realizó o una aclaración del comprobante." />
+                      <AyudaContextual
+                        de="la referencia de la transferencia"
+                        texto="Agrega información que ayude a verificar la transferencia, por ejemplo quién la realizó o una aclaración del comprobante."
+                      />
                     </div>
                     <textarea
                       value={notasTransferencia}

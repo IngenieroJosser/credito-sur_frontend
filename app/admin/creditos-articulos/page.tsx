@@ -22,6 +22,7 @@ import { Selector } from '@/components/ui/Selector'
 import GrupoDeFiltros from '@/components/filtros/GrupoDeFiltros'
 import Tooltip from '@/components/ui/Tooltip'
 import Cifra from '@/components/ui/Cifra'
+import AyudaContextual from '@/components/ui/AyudaContextual'
 
 /**
  * Una fila de esta tabla.
@@ -597,7 +598,7 @@ export default function CreditosArticulosPage() {
 
                 {/* Riesgo */}
                 <div className="mb-3">
-                  <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Nivel de Riesgo</div>
+                  <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Nivel de Riesgo<AyudaContextual ayuda="riesgoDelCliente" de="el nivel de riesgo" tamano="pequeno" /></div>
                   <span className={`inline-flex items-center text-xs px-2 py-1 rounded font-bold ${getRiesgoColor(credito.riesgo)}`}>
                     {riesgoClienteLabel(credito.riesgo)}
                   </span>

@@ -30,6 +30,7 @@ import { pagosService, type DescomposicionPago } from '@/services/pagos-service'
 import { offlineStore } from '@/lib/offline/offlineDb'
 import { resolveCobradorIdForRouteAction } from '@/lib/rutas-core'
 import { MetodoPago } from '@/types/enums'
+import AyudaContextual from '@/components/ui/AyudaContextual'
 
 type TipoProducto = 'PRESTAMO_EFECTIVO' | 'CREDITO_ARTICULO'
 
@@ -586,7 +587,7 @@ const RegistrarPagoClientePage = () => {
 
                 <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-100">
                   <div>
-                    <p className="text-xs font-bold text-slate-500 mb-1">Saldo Pendiente</p>
+                    <p className="text-xs font-bold text-slate-500 mb-1">Saldo Pendiente<AyudaContextual ayuda="saldoPendiente" de="el saldo pendiente" tamano="pequeno" /></p>
                     <p className="font-bold text-slate-900">
                       {formatCurrency(producto.saldoPendiente)}
                     </p>

@@ -52,6 +52,7 @@ import { FrecuenciaPago } from '@/types/enums'
 import type { Cliente as ClienteDelServicio } from '@/services/clientes-service'
 import { Selector } from '@/components/ui/Selector'
 import { MODAL_Z_INDEX } from '@/components/ui/Portal'
+import AyudaContextual from '@/components/ui/AyudaContextual'
 
 
 function Portal({ children }: { children: ReactNode }) {
@@ -697,7 +698,7 @@ export default function ClienteDetalleSupervisorPage() {
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-sm font-bold text-slate-700 mb-2">Frecuencia de Pago</label>
+                          <label className="block text-sm font-bold text-slate-700 mb-2">Frecuencia de Pago<AyudaContextual ayuda="frecuenciaDePago" de="la frecuencia de pago" tamano="pequeno" /></label>
                           <Selector
                             value={frecuenciaPrestamo}
                             onChange={(v) => setFrecuenciaPrestamo(v as FrecuenciaPago)}
@@ -728,7 +729,7 @@ export default function ClienteDetalleSupervisorPage() {
                     <>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-sm font-bold text-slate-700 mb-2">Cuota Inicial</label>
+                          <label className="block text-sm font-bold text-slate-700 mb-2">Cuota Inicial<AyudaContextual ayuda="cuotaInicialDeArticulo" de="la cuota inicial" tamano="pequeno" /></label>
                           <div className="relative">
                             <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
                             <input

@@ -24,6 +24,7 @@ import { FrecuenciaPago, NivelRiesgo, TipoAmortizacion } from '@/types/enums';
 import { Selector } from '@/components/ui/Selector'
 import { CampoFecha } from '@/components/ui/CampoFecha'
 import Cifra from '@/components/ui/Cifra'
+import AyudaContextual from '@/components/ui/AyudaContextual'
 
 // Interfaces alineadas con Prisma (Simuladas para Frontend)
 
@@ -648,7 +649,7 @@ const CreacionPrestamoElegante = ({ initialClienteId, isModal }: { initialClient
                       <div className="space-y-3">
                         <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
                           <DollarSign className="w-4 h-4 text-slate-400" />
-                          Monto a Solicitar
+                          Monto a Solicitar<AyudaContextual ayuda="montoPrestado" de="el monto a solicitar" tamano="pequeno" />
                         </label>
                         <div className="relative">
                           <input
@@ -725,7 +726,7 @@ const CreacionPrestamoElegante = ({ initialClienteId, isModal }: { initialClient
 
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                       <div className="space-y-2">
-                        <label className="text-sm font-bold text-slate-700">Tipo de Interés</label>
+                        <label className="text-sm font-bold text-slate-700">Tipo de Interés<AyudaContextual ayuda="tipoDeInteres" de="el tipo de interés" tamano="pequeno" /></label>
                         <div className="relative">
                           <Selector
                             name="tipoInteres"
@@ -761,7 +762,7 @@ const CreacionPrestamoElegante = ({ initialClienteId, isModal }: { initialClient
                       </div>
 
                       <div className="space-y-2">
-                        <label className="text-sm font-bold text-slate-700">Frecuencia de Pago</label>
+                        <label className="text-sm font-bold text-slate-700">Frecuencia de Pago<AyudaContextual ayuda="frecuenciaDePago" de="la frecuencia de pago" tamano="pequeno" /></label>
                         <div className="relative">
                           <Selector
                             name="frecuenciaPago"

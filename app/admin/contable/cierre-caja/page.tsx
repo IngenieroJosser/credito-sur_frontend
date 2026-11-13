@@ -16,6 +16,7 @@ import { getEntradaCajaFisica, getSalidaCajaFisica } from '@/lib/contabilidad-cl
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { toast } from 'sonner';
 import { CampoFecha } from '@/components/ui/CampoFecha'
+import AyudaContextual from '@/components/ui/AyudaContextual'
 
 /**
  * El saldo de una caja, que llega como numero o como texto con separadores.
@@ -628,7 +629,7 @@ export default function CierreCajaPage() {
                 <div class="section-title">Información general</div>
                 <div class="grid">
                   <div class="item">
-                    <div class="label">Fecha operativa</div>
+                    <div class="label">Fecha operativa<AyudaContextual ayuda="fechaOperativa" de="la fecha operativa" tamano="pequeno" /></div>
                     <div class="value">${data.fechaOperativa ?? form.fechaOperativa}</div>
                   </div>
                   <div class="item">
@@ -1298,7 +1299,7 @@ export default function CierreCajaPage() {
                       type="button"
                       onClick={() => setFiltroTipo('ARQUEO')}
                       className={cn("text-xs font-bold px-3 py-1.5 rounded-xl transition-colors", filtroTipo === 'ARQUEO' ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-50")}
-                    >Arqueos</button>
+                    >Arqueos<AyudaContextual ayuda="arqueoDeCaja" de="un arqueo de caja" tamano="pequeno" /></button>
                     <button
                       type="button"
                       onClick={() => setFiltroTipo('CONSOLIDACION')}
@@ -1503,7 +1504,7 @@ export default function CierreCajaPage() {
                   <div className="flex flex-wrap gap-4">
                     {selectedCierre.fechaOperativa && (
                       <div className="flex-1 min-w-[150px]">
-                        <div className="text-[10px] font-bold text-slate-400 uppercase">Fecha operativa</div>
+                        <div className="text-[10px] font-bold text-slate-400 uppercase">Fecha operativa<AyudaContextual ayuda="fechaOperativa" de="la fecha operativa" tamano="pequeno" /></div>
                         <div className="text-sm font-bold text-slate-900">{selectedCierre.fechaOperativa}</div>
                       </div>
                     )}

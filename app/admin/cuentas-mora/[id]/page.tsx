@@ -21,6 +21,7 @@ import { formatCurrency } from '@/lib/utils'
 import { prestamosService } from '@/services/prestamos-service'
 import ArchivarCuentaModal from '@/components/prestamos/ArchivarCuentaModal'
 import Cifra from '@/components/ui/Cifra'
+import AyudaContextual from '@/components/ui/AyudaContextual'
 
 interface MoraDetalle {
   id: string
@@ -242,7 +243,7 @@ export default function DetalleCuentaMoraPage({ params }: { params: Promise<{ id
                 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div>
-                        <p className="text-sm text-slate-500 mb-1">Días de Atraso</p>
+                        <p className="text-sm text-slate-500 mb-1">Días de Atraso<AyudaContextual ayuda="diasEnMora" de="los días de atraso" tamano="pequeno" /></p>
                         <p className="text-3xl font-bold text-slate-900">{data.mora.diasAtraso}</p>
                     </div>
                     <div>
@@ -254,7 +255,7 @@ export default function DetalleCuentaMoraPage({ params }: { params: Promise<{ id
                         />
                     </div>
                     <div>
-                        <p className="text-sm text-slate-500 mb-1">Interés Mora</p>
+                        <p className="text-sm text-slate-500 mb-1">Interés Mora<AyudaContextual ayuda="interesPorMora" de="el interés por mora" tamano="pequeno" /></p>
                         <Cifra
                           valor={data.mora.interesMora}
                           tamano="grande"

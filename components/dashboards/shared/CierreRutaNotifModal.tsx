@@ -22,6 +22,7 @@ import { parseCierreRutaNotif, type NotificacionDeCierreRuta } from '@/lib/notif
 import Tooltip from '@/components/ui/Tooltip'
 import { useModalDialog } from '@/hooks/use-modal-dialog'
 import Cifra from '@/components/ui/Cifra'
+import AyudaContextual from '@/components/ui/AyudaContextual'
 
 export interface CierreRutaNotifModalProps {
   isOpen: boolean
@@ -149,7 +150,7 @@ export default function CierreRutaNotifModal({
                   {badgeInfo.label}
                 </div>
                 <p className="text-white/70 text-[10px] font-bold mt-1 uppercase tracking-widest">
-                  Cierre de Ruta
+                  Cierre de Ruta<AyudaContextual ayuda="cierreDeRuta" de="el cierre de ruta" tamano="pequeno" />
                 </p>
               </div>
             </div>

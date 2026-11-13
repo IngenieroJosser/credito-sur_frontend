@@ -31,6 +31,7 @@ import { SkeletonFormulario } from '@/components/ui/Skeleton'
 import { Selector } from '@/components/ui/Selector'
 import { CampoFecha } from '@/components/ui/CampoFecha'
 import Cifra from '@/components/ui/Cifra'
+import AyudaContextual from '@/components/ui/AyudaContextual'
 // Esta pantalla declaraba su propia copia de este tipo (la tercera del proyecto: hay
 // otra en `lib/types/cobranza.ts`, ensanchada con `| string`). Los valores son los del
 // enum, y `crearPrestamo` pide el enum, asi que el literal no le valia y habia que
@@ -711,7 +712,7 @@ export default function CreacionCreditoArticulo({
                         </div>
    
                         <div className="space-y-2">
-                          <label className="text-xs font-bold text-slate-700 uppercase">Frecuencia de Pago</label>
+                          <label className="text-xs font-bold text-slate-700 uppercase">Frecuencia de Pago<AyudaContextual ayuda="frecuenciaDePago" de="la frecuencia de pago" tamano="pequeno" /></label>
                           <Selector
                             value={frecuenciaPago}
                             onChange={(v) => setFrecuenciaPago(v as FrecuenciaPago)}
@@ -727,7 +728,7 @@ export default function CreacionCreditoArticulo({
                         </div>
    
                         <div className="space-y-2">
-                          <FieldLabel required className="text-xs font-bold text-slate-700 uppercase mb-0">Cuota Inicial</FieldLabel>
+                          <FieldLabel required className="text-xs font-bold text-slate-700 uppercase mb-0" ayuda="cuotaInicialDeArticulo" deAyuda="la cuota inicial">Cuota Inicial</FieldLabel>
                           <div className="relative">
                             <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                             <input

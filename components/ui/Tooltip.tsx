@@ -48,13 +48,26 @@ interface TooltipProps {
   children: ReactElement
   /** Por defecto sale arriba; si no cabe, se coloca abajo solo. */
   lado?: Lado
+  /**
+   * Abrir y cerrar al PULSAR, en vez de al pasar por encima.
+   *
+   * Es lo que necesita un `?` de ayuda, que esta ahi justamente para que lo
+   * pulsen: con el toque largo de 400 ms —que es lo correcto cuando la ayuda
+   * acompana a un boton que hace otra cosa— un `?` parece no responder.
+   */
+  abrirAlPulsar?: boolean
 }
 
 /** Milisegundos de pulsación para que cuente como «toque largo». */
 const ESPERA_TOQUE_LARGO = 400
 
 
-export default function Tooltip({ texto, children, lado = 'arriba' }: TooltipProps) {
+export default function Tooltip({
+  texto,
+  children,
+  lado = 'arriba',
+  abrirAlPulsar = false,
+}: TooltipProps) {
   const id = useId()
   const punteroGrueso = usePunteroGrueso()
   const [visible, setVisible] = useState(false)
@@ -148,35 +161,53 @@ export default function Tooltip({ texto, children, lado = 'arriba' }: TooltipPro
   // La alternativa -envolver el control en un <span>- si romperia la
   // maquetacion de los botones con `flex-1` o `w-full`, que hay unos
   // cuantos, asi que clonar es lo correcto aqui.
+  const propsDelAncla = (abrirAlPulsar
+      ? {
+          'aria-describedby': visible ? id : undefined,
+          'aria-expanded': visible,
+          onClick: (evento: React.MouseEvent<HTMLElement>) => {
+            propio<React.MouseEvent>('onClick')?.(evento)
+            if (visible) ocultar()
+            else mostrar(evento.currentTarget)
+          },
+          // El foco no la abre aqui: con el clic ya abierta, enfocar volveria
+          // a abrirla y el segundo clic la cerraria y la abriria de nuevo.
+          onBlur: (evento: React.FocusEvent) => {
+            propio<React.FocusEvent>('onBlur')?.(evento)
+            if (!punteroGrueso) ocultar()
+          },
+        }
+      : {
+          'aria-describedby': visible ? id : undefined,
+          onMouseEnter: (evento: React.MouseEvent<HTMLElement>) => {
+            propio<React.MouseEvent>('onMouseEnter')?.(evento)
+            mostrar(evento.currentTarget)
+          },
+          onMouseLeave: (evento: React.MouseEvent) => {
+            propio<React.MouseEvent>('onMouseLeave')?.(evento)
+            ocultar()
+          },
+          onFocus: (evento: React.FocusEvent<HTMLElement>) => {
+            propio<React.FocusEvent>('onFocus')?.(evento)
+            mostrar(evento.currentTarget)
+          },
+          onBlur: (evento: React.FocusEvent) => {
+            propio<React.FocusEvent>('onBlur')?.(evento)
+            ocultar()
+          },
+          onTouchStart: (evento: React.TouchEvent<HTMLElement>) => {
+            propio<React.TouchEvent>('onTouchStart')?.(evento)
+            iniciarToqueLargo(evento.currentTarget)
+          },
+          onTouchEnd: (evento: React.TouchEvent) => {
+            propio<React.TouchEvent>('onTouchEnd')?.(evento)
+            limpiarTemporizador()
+          },
+          onTouchCancel: ocultar,
+      }) as Record<string, unknown>
+
   // eslint-disable-next-line react-hooks/refs
-  const conAncla = cloneElement(children, {
-    'aria-describedby': visible ? id : undefined,
-    onMouseEnter: (evento: React.MouseEvent<HTMLElement>) => {
-      propio<React.MouseEvent>('onMouseEnter')?.(evento)
-      mostrar(evento.currentTarget)
-    },
-    onMouseLeave: (evento: React.MouseEvent) => {
-      propio<React.MouseEvent>('onMouseLeave')?.(evento)
-      ocultar()
-    },
-    onFocus: (evento: React.FocusEvent<HTMLElement>) => {
-      propio<React.FocusEvent>('onFocus')?.(evento)
-      mostrar(evento.currentTarget)
-    },
-    onBlur: (evento: React.FocusEvent) => {
-      propio<React.FocusEvent>('onBlur')?.(evento)
-      ocultar()
-    },
-    onTouchStart: (evento: React.TouchEvent<HTMLElement>) => {
-      propio<React.TouchEvent>('onTouchStart')?.(evento)
-      iniciarToqueLargo(evento.currentTarget)
-    },
-    onTouchEnd: (evento: React.TouchEvent) => {
-      propio<React.TouchEvent>('onTouchEnd')?.(evento)
-      limpiarTemporizador()
-    },
-    onTouchCancel: ocultar,
-  } as Record<string, unknown>)
+  const conAncla = cloneElement(children, propsDelAncla)
 
   // En el teléfono la explicación sale como hoja desde abajo. Se mira
   // `punteroGrueso` y no el tamaño: lo que decide es con qué se señala.

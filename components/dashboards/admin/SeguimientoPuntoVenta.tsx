@@ -33,6 +33,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { Selector } from '@/components/ui/Selector'
 import { CampoFecha } from '@/components/ui/CampoFecha'
 import Tooltip from '@/components/ui/Tooltip'
+import AyudaContextual from '@/components/ui/AyudaContextual'
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -1173,7 +1174,7 @@ export default function SeguimientoPuntoVenta() {
                   </div>
                   <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100">
                     <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">
-                      Cuota Inicial
+                      Cuota Inicial<AyudaContextual ayuda="cuotaInicialDeArticulo" de="la cuota inicial" tamano="pequeno" />
                     </p>
                     <p className="text-xl font-black text-emerald-800">
                       {formatCurrency(ventaDetalle.cuotaInicial)}
@@ -1181,7 +1182,7 @@ export default function SeguimientoPuntoVenta() {
                   </div>
                   <div className="bg-amber-50 rounded-2xl p-4 border border-amber-100">
                     <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest mb-1">
-                      Saldo Pendiente
+                      Saldo Pendiente<AyudaContextual ayuda="saldoPendiente" de="el saldo pendiente" tamano="pequeno" />
                     </p>
                     <p className="text-xl font-black text-amber-900">
                       {formatCurrency(ventaDetalle.saldoPendiente)}

@@ -16,6 +16,7 @@ import type { CuotaOperativa } from '@/lib/types/cobranza'
 import Tooltip from '@/components/ui/Tooltip'
 import type { PrestamoDelListado } from '@/types/domain'
 import { useModalDialog } from '@/hooks/use-modal-dialog'
+import AyudaContextual from '@/components/ui/AyudaContextual'
 
 interface EstadoCuentaModalProps {
   visita: VisitaRuta
@@ -336,7 +337,7 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
                       <div className="flex items-center gap-2 mb-1">
                         <Calendar className="w-4 h-4 text-slate-400" />
                         <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                          Fecha Inicio
+                          Fecha Inicio<AyudaContextual ayuda="fechaInicio" de="la fecha de inicio" tamano="pequeno" />
                         </span>
                       </div>
                       <div className="text-sm font-black text-slate-900 uppercase">
@@ -450,7 +451,7 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
                       </div>
                       <div className="text-right">
                         <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
-                          Saldo Pendiente
+                          Saldo Pendiente<AyudaContextual ayuda="saldoPendiente" de="el saldo pendiente" tamano="pequeno" />
                         </div>
                         <div className="text-xl font-black text-emerald-600">
                           ${formatMilesCOP(info.saldoRestante)}

@@ -7,6 +7,7 @@ import { ChevronLeft, Archive, User } from 'lucide-react';
 import Link from 'next/link';
 import { vencidasService, CuentaVencida } from '@/services/vencidas-service';
 import Cifra from '@/components/ui/Cifra'
+import AyudaContextual from '@/components/ui/AyudaContextual'
 
 export default function DetalleCuentaVencidaPage({ 
   params 
@@ -95,7 +96,7 @@ export default function DetalleCuentaVencidaPage({
 
                 <div className="grid grid-cols-2 gap-8">
                     <div>
-                        <p className="text-xs font-bold text-slate-400 uppercase mb-1">Monto a Castigar</p>
+                        <p className="text-xs font-bold text-slate-400 uppercase mb-1">Monto a Castigar<AyudaContextual ayuda="castigoDeCartera" de="el monto a castigar" tamano="pequeno" /></p>
                         <Cifra
                           valor={cuenta.saldoPendiente}
                           tamano="grande"
@@ -103,7 +104,7 @@ export default function DetalleCuentaVencidaPage({
                         />
                     </div>
                     <div>
-                        <p className="text-xs font-bold text-slate-400 uppercase mb-1">Fecha Vencimiento</p>
+                        <p className="text-xs font-bold text-slate-400 uppercase mb-1">Fecha Vencimiento<AyudaContextual ayuda="fechaVencimiento" de="la fecha de vencimiento" tamano="pequeno" /></p>
                         <p className="text-lg font-bold text-slate-900">{cuenta.fechaVencimiento}</p>
                     </div>
                 </div>

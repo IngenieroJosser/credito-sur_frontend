@@ -26,6 +26,7 @@ import { DECISIONES_CUENTA_VENCIDA } from '@/lib/display-labels'
 import { useModalDialog } from '@/hooks/use-modal-dialog'
 import { BARRA_DE_ARRASTRE, FONDO_HOJA_MODAL } from '@/lib/ui/hoja-modal'
 
+import AyudaContextual from '@/components/ui/AyudaContextual'
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
 export interface ProrrogaData {
@@ -247,7 +248,7 @@ export default function ProrrogaDetalleModal({
                 {/* Saldo */}
                 {saldoPendiente > 0 && (
                   <div className="bg-white/70 rounded-xl p-3">
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Saldo Pendiente</p>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Saldo Pendiente<AyudaContextual ayuda="saldoPendiente" de="el saldo pendiente" tamano="pequeno" /></p>
                     <p className="text-sm font-black text-rose-600">{formatCurrency(saldoPendiente)}</p>
                   </div>
                 )}

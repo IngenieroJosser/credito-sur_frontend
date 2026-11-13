@@ -9,6 +9,7 @@ import {
 import { formatCurrency, cn } from '@/lib/utils';
 import { Modal } from '@/components/ui/Modal';
 import Cifra from '@/components/ui/Cifra'
+import AyudaContextual from '@/components/ui/AyudaContextual'
 
 interface DetalleReporteOperativoModalProps {
   id: string;
@@ -84,7 +85,7 @@ export default function DetalleReporteOperativoModal({ id, onClose }: DetalleRep
             </div>
             <div className="flex items-center gap-6 text-xs border-t md:border-t-0 border-slate-200 pt-3 md:pt-0">
                 <div>
-                  <p className="text-slate-400 font-bold uppercase tracking-widest mb-0.5">Fecha Operativa</p>
+                  <p className="text-slate-400 font-bold uppercase tracking-widest mb-0.5">Fecha Operativa<AyudaContextual ayuda="fechaOperativa" de="la fecha operativa" tamano="pequeno" /></p>
                   <p className="font-bold text-slate-900">{reporte.fechaOperativa}</p>
                 </div>
                 <div>

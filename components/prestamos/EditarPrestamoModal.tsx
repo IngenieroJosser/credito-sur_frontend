@@ -20,6 +20,7 @@ import type { OpcionCuotas } from '@/services/articulos-service'
 import { Selector } from '@/components/ui/Selector'
 import { CampoFecha } from '@/components/ui/CampoFecha'
 import Cifra from '@/components/ui/Cifra'
+import AyudaContextual from '@/components/ui/AyudaContextual'
 
 interface EditarPrestamoModalProps {
   id: string;
@@ -648,7 +649,7 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
                   <div className="grid grid-cols-2 gap-3">
                     {!isArticle && (
                       <div className="space-y-1">
-                        <label className="text-[8px] text-slate-400 font-black uppercase tracking-widest block">Tipo de Interés</label>
+                        <label className="text-[8px] text-slate-400 font-black uppercase tracking-widest block">Tipo de Interés<AyudaContextual ayuda="tipoDeInteres" de="el tipo de interés" tamano="pequeno" /></label>
                         {isEditing ? (
                           <Selector
                             value={tipoAmortizacion}
@@ -673,7 +674,7 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
                       </div>
                     )}
                     <div className={`space-y-1 ${isArticle ? 'col-span-2' : ''}`}>
-                      <label className="text-[8px] text-slate-400 font-black uppercase tracking-widest block">Frecuencia de Pago</label>
+                      <label className="text-[8px] text-slate-400 font-black uppercase tracking-widest block">Frecuencia de Pago<AyudaContextual ayuda="frecuenciaDePago" de="la frecuencia de pago" tamano="pequeno" /></label>
                       {isEditing ? (
                         <Selector
                           value={frecuencia}
@@ -750,7 +751,7 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
                       </div>
                     )}
                     <div className="space-y-1">
-                      <label className="text-[8px] text-slate-400 font-black uppercase tracking-widest block">Fecha Inicio</label>
+                      <label className="text-[8px] text-slate-400 font-black uppercase tracking-widest block">Fecha Inicio<AyudaContextual ayuda="fechaInicio" de="la fecha de inicio" tamano="pequeno" /></label>
                                             <CampoFecha
                         value={fechaInicio}
                         onChange={() => {}}
@@ -767,7 +768,7 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="text-[7px] text-orange-400 uppercase font-black block">Cuota Inicial</label>
+                          <label className="text-[7px] text-orange-400 uppercase font-black block">Cuota Inicial<AyudaContextual ayuda="cuotaInicialDeArticulo" de="la cuota inicial" tamano="pequeno" /></label>
                           {isEditing ? (
                             <input
                               type="text"

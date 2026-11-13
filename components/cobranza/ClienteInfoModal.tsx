@@ -25,6 +25,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import Tooltip from '@/components/ui/Tooltip'
 import { useModalDialog } from '@/hooks/use-modal-dialog'
 import { Selector } from '@/components/ui/Selector'
+import AyudaContextual from '@/components/ui/AyudaContextual'
 
 // ── Tipos ──────────────────────────────────────────────────────────────────────
 
@@ -386,7 +387,7 @@ export default function ClienteInfoModal({
                 {/* Resumen financiero */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-orange-50 border border-orange-100 p-4 rounded-2xl">
-                    <p className="text-[10px] text-orange-600 font-black uppercase mb-1">Saldo Pendiente</p>
+                    <p className="text-[10px] text-orange-600 font-black uppercase mb-1">Saldo Pendiente<AyudaContextual ayuda="saldoPendiente" de="el saldo pendiente" tamano="pequeno" /></p>
                     <p className="text-orange-900 font-black text-xl">
                       {formatCurrency(visita.saldoTotal ?? 0)}
                     </p>
@@ -470,7 +471,7 @@ export default function ClienteInfoModal({
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-rose-50 border border-rose-100 p-4 rounded-2xl">
-                    <p className="text-[10px] text-rose-600 font-black uppercase mb-1">Acumulado vencido</p>
+                    <p className="text-[10px] text-rose-600 font-black uppercase mb-1">Acumulado vencido<AyudaContextual ayuda="cuotaAcumulada" de="el acumulado vencido" tamano="pequeno" /></p>
                     <p className="text-rose-900 font-black text-lg">
                       {formatCurrency(acumuladoVencido)}
                     </p>
@@ -493,7 +494,7 @@ export default function ClienteInfoModal({
                     'bg-slate-300'
                   }`} />
                   <div>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase">Nivel de Riesgo</p>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase">Nivel de Riesgo<AyudaContextual ayuda="riesgoDelCliente" de="el nivel de riesgo" tamano="pequeno" /></p>
                     <p className="font-black text-slate-800">{nivelRiesgoLabel}</p>
                   </div>
                   <div className="ml-auto text-right">

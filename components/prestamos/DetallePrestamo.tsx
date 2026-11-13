@@ -6,6 +6,7 @@ import { formatCurrency, cn, resolveMediaUrl } from '@/lib/utils';
 import ClientePortalModal from '@/components/cliente/ClientePortalModal';
 import { getBogotaDateKey, normalizeDateKey } from '@/lib/rutas-core'
 import Cifra from '@/components/ui/Cifra'
+import AyudaContextual from '@/components/ui/AyudaContextual'
 // imports de permiso/servicios de mora removidos: la asignación se hace en Cuentas en Mora
 
 const formatDate = (dateStr: string | undefined | null): string => {
@@ -429,7 +430,10 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
           )}
 
           <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between h-28">
-             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tipo de Interés</span>
+             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest inline-flex items-center gap-1">
+               Tipo de Interés
+               <AyudaContextual ayuda="tipoDeInteres" de="el tipo de interés" tamano="pequeno" />
+             </span>
              <p className="text-lg font-bold text-slate-900 tracking-tight">
                {prestamo.tipoAmortizacion === 'FRANCESA'
                  ? 'Amortización'
@@ -442,7 +446,10 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
           {/* Abonado */}
           <div className="bg-emerald-50/50 p-5 rounded-2xl border border-emerald-100 shadow-sm flex flex-col justify-between h-28">
              <div className="flex justify-between items-start">
-               <span className="text-[10px] font-black text-emerald-600/70 uppercase tracking-widest">Abonado a la Fecha</span>
+               <span className="text-[10px] font-black text-emerald-600/70 uppercase tracking-widest inline-flex items-center gap-1">
+                 Abonado a la Fecha
+                 <AyudaContextual ayuda="abonadoALaFecha" de="lo abonado a la fecha" tamano="pequeno" />
+               </span>
                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">{progresoPorcentaje}%</span>
              </div>
              <Cifra
@@ -454,7 +461,10 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
 
           {/* Saldo Pendiente */}
           <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between h-28">
-             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Saldo Pendiente</span>
+             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest inline-flex items-center gap-1">
+               Saldo Pendiente
+               <AyudaContextual ayuda="saldoPendiente" de="el saldo pendiente" tamano="pequeno" />
+             </span>
              <Cifra
                valor={prestamo.saldoPendiente}
                tamano="grande"
@@ -464,7 +474,10 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
 
           {/* Interés Total */}
           <div className="bg-amber-50/50 p-5 rounded-2xl border border-amber-100 shadow-sm flex flex-col justify-between h-28">
-             <span className="text-[10px] font-black text-amber-600/70 uppercase tracking-widest">Interés Total</span>
+             <span className="text-[10px] font-black text-amber-600/70 uppercase tracking-widest inline-flex items-center gap-1">
+               Interés Total
+               <AyudaContextual ayuda="interesTotal" de="el interés total" tamano="pequeno" />
+             </span>
              <Cifra
                valor={prestamo.interesTotal || 0}
                tamano="grande"
@@ -474,7 +487,10 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
 
           {/* Capital Pagado */}
           <div className="bg-blue-50/50 p-5 rounded-2xl border border-blue-100 shadow-sm flex flex-col justify-between h-28">
-             <span className="text-[10px] font-black text-blue-600/70 uppercase tracking-widest">Capital Pagado</span>
+             <span className="text-[10px] font-black text-blue-600/70 uppercase tracking-widest inline-flex items-center gap-1">
+               Capital Pagado
+               <AyudaContextual ayuda="capitalPagado" de="el capital pagado" tamano="pequeno" />
+             </span>
              <Cifra
                valor={capitalPagadoUI || 0}
                tamano="grande"
@@ -484,7 +500,10 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
 
           {/* Interés Pagado */}
           <div className="bg-violet-50/50 p-5 rounded-2xl border border-violet-100 shadow-sm flex flex-col justify-between h-28">
-             <span className="text-[10px] font-black text-violet-600/70 uppercase tracking-widest">Interés Pagado</span>
+             <span className="text-[10px] font-black text-violet-600/70 uppercase tracking-widest inline-flex items-center gap-1">
+               Interés Pagado
+               <AyudaContextual ayuda="interesPagado" de="el interés pagado" tamano="pequeno" />
+             </span>
              <Cifra
                valor={interesPagadoUI || 0}
                tamano="grande"
@@ -499,7 +518,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                    <TrendingUp className="w-4 h-4" />
                 </div>
                 <div>
-                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Frecuencia Pago</span>
+                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Frecuencia Pago<AyudaContextual ayuda="frecuenciaDePago" de="la frecuencia de pago" tamano="pequeno" /></span>
                    <span className="text-lg font-bold text-slate-900 capitalize block leading-none mt-1">{prestamo.frecuencia}</span>
                 </div>
              </div>
@@ -512,7 +531,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                    <Calendar className="w-4 h-4" />
                 </div>
                 <div>
-                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Fecha Inicio</span>
+                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Fecha Inicio<AyudaContextual ayuda="fechaInicio" de="la fecha de inicio" tamano="pequeno" /></span>
                    <span className="text-lg font-bold text-slate-900 block leading-none mt-1">{formatDate(prestamo.fechaInicio)}</span>
                 </div>
              </div>
@@ -527,7 +546,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                 </div>
                 <div>
                   <span className="text-[10px] font-black text-rose-700/80 uppercase tracking-widest block">
-                    Cuota vencida desde
+                    Cuota vencida desde<AyudaContextual ayuda="cuotaVencidaDesde" de="la cuota vencida" tamano="pequeno" />
                   </span>
                   <span className="text-lg font-bold text-rose-900 block leading-none mt-1">
                     {formatDate(cuotaVencidaDesdeKey)}
@@ -561,7 +580,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                 </div>
                 <div>
                   <span className="text-[10px] font-black text-blue-600/70 uppercase tracking-widest block">
-                    Primer cobro
+                    Primer cobro<AyudaContextual ayuda="primerCobro" de="el primer cobro" tamano="pequeno" />
                   </span>
                   <span className="text-lg font-bold text-blue-900 block leading-none mt-1">
                     {formatDate(prestamo.fechaPrimerCobro)}
@@ -587,7 +606,10 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
           {/* Cuota Inicial (Only for Articles) */}
           {isArticle && (
           <div className="bg-orange-50/70 p-5 rounded-2xl border border-orange-200 shadow-sm flex flex-col justify-between h-28">
-             <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest">Cuota Inicial</span>
+             <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest inline-flex items-center gap-1">
+               Cuota Inicial
+               <AyudaContextual ayuda="cuotaInicialDeArticulo" de="la cuota inicial" tamano="pequeno" />
+             </span>
              <Cifra
                valor={prestamo.cuotaInicial || 0}
                tamano="grande"
@@ -598,7 +620,10 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
           
           <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between h-28">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Interés por Mora</span>
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest inline-flex items-center gap-1">
+                Interés por Mora
+                <AyudaContextual ayuda="interesPorMora" de="el interés por mora" tamano="pequeno" />
+              </span>
               <AlertTriangle className="w-4 h-4 text-amber-600" />
             </div>
             <p className="text-2xl font-black text-rose-600 tracking-tight">—</p>
@@ -865,7 +890,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
               </h3>
               <dl className="space-y-4">
                 <div className="flex justify-between border-b border-slate-50 pb-2">
-                  <dt className="text-xs font-bold text-slate-400">Tipo de interés</dt>
+                  <dt className="text-xs font-bold text-slate-400">Tipo de interés<AyudaContextual ayuda="tipoDeInteres" de="el tipo de interés" tamano="pequeno" /></dt>
                   <dd className="text-sm font-bold text-slate-700">
                     {prestamo.tipoAmortizacion === 'FRANCESA'
                       ? 'Amortización (cuota fija)'
@@ -875,7 +900,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
                   </dd>
                 </div>
                 <div className="flex justify-between border-b border-slate-50 pb-2">
-                  <dt className="text-xs font-bold text-slate-400">Monto Prestado</dt>
+                  <dt className="text-xs font-bold text-slate-400">Monto Prestado<AyudaContextual ayuda="montoPrestado" de="el monto prestado" tamano="pequeno" /></dt>
                   <dd className="text-sm font-bold text-slate-700">{formatCurrency(prestamo.montoPrestamo)}</dd>
                 </div>
                 {prestamo.productoInfo && (
@@ -904,7 +929,7 @@ export default function DetallePrestamo({ prestamo }: DetallePrestamoProps) {
               </h3>
               <dl className="space-y-4">
                 <div className="flex justify-between border-b border-slate-50 pb-2">
-                  <dt className="text-xs font-bold text-slate-400">Tipo de interés</dt>
+                  <dt className="text-xs font-bold text-slate-400">Tipo de interés<AyudaContextual ayuda="tipoDeInteres" de="el tipo de interés" tamano="pequeno" /></dt>
                   <dd className="text-sm font-bold text-slate-700">
                     {prestamo.tipoAmortizacion === 'FRANCESA'
                       ? 'Amortización (cuota fija)'

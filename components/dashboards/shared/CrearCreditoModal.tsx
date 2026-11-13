@@ -27,6 +27,7 @@ import Tooltip from '@/components/ui/Tooltip'
 import { useModalDialog } from '@/hooks/use-modal-dialog'
 import { Selector } from '@/components/ui/Selector'
 import { CampoFecha } from '@/components/ui/CampoFecha'
+import AyudaContextual from '@/components/ui/AyudaContextual'
 
 interface CrearCreditoModalProps {
   isOpen: boolean
@@ -455,7 +456,7 @@ export default function CrearCreditoModal({
                 <>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <FieldLabel required>Monto del Préstamo</FieldLabel>
+                      <FieldLabel required ayuda="montoPrestado" deAyuda="el monto del préstamo">Monto del Préstamo</FieldLabel>
                       <div className="relative">
                         <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
                         <input
@@ -479,7 +480,7 @@ export default function CrearCreditoModal({
                       ) : null}
                     </div>
                     <div>
-                      <FieldLabel required>Tipo de Interés</FieldLabel>
+                      <FieldLabel required ayuda="tipoDeInteres" deAyuda="el tipo de interés">Tipo de Interés</FieldLabel>
                       <Selector
                         value={tipoInteres}
                         onChange={(v) => setTipoInteres(v as TipoAmortizacion)}
@@ -518,7 +519,7 @@ export default function CrearCreditoModal({
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <FieldLabel required>Frecuencia de Pago</FieldLabel>
+                      <FieldLabel required ayuda="frecuenciaDePago" deAyuda="la frecuencia de pago">Frecuencia de Pago</FieldLabel>
                       <Selector
                         value={frecuenciaPago}
                         onChange={(val) => {
@@ -580,7 +581,7 @@ export default function CrearCreditoModal({
                         <div className="bg-white/50 p-3 rounded-xl border border-blue-100">
                           <div className="text-[10px] text-blue-800 font-bold uppercase mb-1 flex items-center gap-1.5">
                             <DollarSign className="w-3 h-3" />
-                            Interés Total
+                            Interés Total<AyudaContextual ayuda="interesTotal" de="el interés total" tamano="pequeno" />
                           </div>
                           <div className="font-black text-blue-900 text-lg">
                             {formatCurrency(calculoPrestamo.intereses)}
@@ -636,7 +637,7 @@ export default function CrearCreditoModal({
                       {lockVentaContado
                         ? 'Selecciona el cliente y el artículo. No se generan cuotas ni plan de pagos.'
                         : allowVentaContadoOption
-                          ? <>Elige crédito por meses o marca <strong>Compra de Contado</strong>. En contado no se generan cuotas ni plan de pagos.</>
+                          ? <>Elige crédito por meses o marca <strong>Compra de Contado<AyudaContextual ayuda="ventaDeContado" de="una compra de contado" tamano="pequeno" /></strong>. En contado no se generan cuotas ni plan de pagos.</>
                           : 'Selecciona el artículo, plazo, frecuencia y fecha de primer cobro.'}
                     </p>
                   </div>
@@ -691,6 +692,14 @@ export default function CrearCreditoModal({
                       {!esContado && (
                         <>
                           <FieldLabel required className="mt-3">Plazo (Meses)</FieldLabel>
+                          <p className="mb-2 text-sm font-bold text-slate-700">
+                            Plazo del artículo
+                            <AyudaContextual
+                              ayuda="plazoEnMeses"
+                              de="el plazo del artículo"
+                              tamano="pequeno"
+                            />
+                          </p>
                           <Selector
                             value={planArticuloIndex !== null ? String(planArticuloIndex) : ''}
                             onChange={(v) => {
@@ -720,7 +729,7 @@ export default function CrearCreditoModal({
                   {!esContado && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <FieldLabel required>Frecuencia de Pago</FieldLabel>
+                        <FieldLabel required ayuda="frecuenciaDePago" deAyuda="la frecuencia de pago">Frecuencia de Pago</FieldLabel>
                         <Selector
                           value={frecuenciaPago}
                           onChange={(val) => {
@@ -738,7 +747,7 @@ export default function CrearCreditoModal({
                         />
                       </div>
                       <div>
-                        <FieldLabel required>Cuota Inicial</FieldLabel>
+                        <FieldLabel required ayuda="cuotaInicialDeArticulo" deAyuda="la cuota inicial">Cuota Inicial</FieldLabel>
                         <div className="relative">
                           <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
                           <input

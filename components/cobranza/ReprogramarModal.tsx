@@ -9,6 +9,7 @@ import { getBogotaDateKey } from '@/lib/rutas-core'
 import Tooltip from '@/components/ui/Tooltip'
 import { useModalDialog } from '@/hooks/use-modal-dialog'
 import { CampoFecha } from '@/components/ui/CampoFecha'
+import AyudaContextual from '@/components/ui/AyudaContextual'
 
 interface ReprogramarModalProps {
   visita: VisitaRuta
@@ -120,7 +121,7 @@ export default function ReprogramarModal({ visita, onClose, onConfirm }: Reprogr
                   <Calendar className="w-5 h-5 text-orange-600" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900">Solicitar reprogramación</h3>
+                  <h3 className="text-lg font-bold text-slate-900">Solicitar reprogramación<AyudaContextual ayuda="reprogramar" de="una reprogramación" /></h3>
                   <p className="text-xs text-slate-500 font-medium mt-0.5">{visita.cliente}</p>
                 </div>
               </div>

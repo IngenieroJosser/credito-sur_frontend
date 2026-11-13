@@ -28,6 +28,7 @@ import PagoDetalleModal from "@/components/dashboards/shared/PagoDetalleModal";
 import type { ArchivoMultimediaPago } from '@/services/pagos-service';
 import Tooltip from '@/components/ui/Tooltip';
 import Cifra from '@/components/ui/Cifra'
+import AyudaContextual from '@/components/ui/AyudaContextual'
 
 
 // Interfaces alineadas con Prisma y el Dominio
@@ -495,7 +496,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
                     <FileText className="w-4 h-4 text-amber-600" />
                   </div>
                   <p className="min-w-0 truncate text-xs font-bold text-slate-400 uppercase tracking-wider">
-                    Saldo Pendiente
+                    Saldo Pendiente<AyudaContextual ayuda="saldoPendiente" de="el saldo pendiente" tamano="pequeno" />
                   </p>
                 </div>
                 <Cifra

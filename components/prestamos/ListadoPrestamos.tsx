@@ -55,6 +55,7 @@ import { idDelPrestamoCreado } from '@/lib/creditos/prestamo-creado'
 import Tooltip from '@/components/ui/Tooltip'
 
 import GrupoDeFiltros from '@/components/filtros/GrupoDeFiltros'
+import AyudaContextual from '@/components/ui/AyudaContextual'
 interface Filtros {
   estado: string
   cliente: string
@@ -654,7 +655,7 @@ const ListadoPrestamosElegante = () => {
 
               <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
                 <p className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-2">
-                  Saldo Pendiente
+                  Saldo Pendiente<AyudaContextual ayuda="saldoPendiente" de="el saldo pendiente" tamano="pequeno" />
                 </p>
                 <p
                   className="text-lg font-bold text-slate-900 tracking-tight truncate"
@@ -727,7 +728,7 @@ const ListadoPrestamosElegante = () => {
                       Capital Prestado
                     </th>
                     <th className="px-6 py-4 font-bold tracking-wider text-slate-600 text-right">
-                      Saldo Pendiente
+                      Saldo Pendiente<AyudaContextual ayuda="saldoPendiente" de="el saldo pendiente" tamano="pequeno" />
                     </th>
                     <th className="px-6 py-4 font-bold tracking-wider text-slate-600 text-center">
                       Progreso
@@ -1006,7 +1007,7 @@ const ListadoPrestamosElegante = () => {
                       </div>
                       <div>
                         <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">
-                          Saldo Pendiente
+                          Saldo Pendiente<AyudaContextual ayuda="saldoPendiente" de="el saldo pendiente" tamano="pequeno" />
                         </div>
                         <div
                           className={cn(

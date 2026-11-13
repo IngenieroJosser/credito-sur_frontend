@@ -6,6 +6,7 @@ import { formatCOPInputValue } from '@/lib/utils'
 import { Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
 import Tooltip from '@/components/ui/Tooltip'
 import { useModalDialog } from '@/hooks/use-modal-dialog'
+import AyudaContextual from '@/components/ui/AyudaContextual'
 
 interface BaseModalProps {
   isOpen: boolean
@@ -64,7 +65,7 @@ export default function BaseModal({ isOpen, onClose, onConfirm }: BaseModalProps
               <div className="shrink-0 p-2 bg-emerald-100 rounded-lg text-emerald-600">
                 <Wallet className="h-5 w-5" />
               </div>
-              <h3 className="font-bold text-lg text-slate-900">Pedir Base</h3>
+              <h3 className="font-bold text-lg text-slate-900">Pedir Base<AyudaContextual ayuda="baseDeLaRuta" de="la base de la ruta" tamano="pequeno" /></h3>
             </div>
             <Tooltip texto="Cerrar">
               <button

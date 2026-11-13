@@ -69,6 +69,7 @@ import { SkeletonTablero } from '@/components/ui/Skeleton'
 import { Selector } from '@/components/ui/Selector'
 import Tooltip from '@/components/ui/Tooltip'
 import Cifra from '@/components/ui/Cifra'
+import AyudaContextual from '@/components/ui/AyudaContextual'
 
 /**
  * La ruta del listado. La forma la define `RutaDeLista` en `types/domain.ts`.
@@ -2386,7 +2387,7 @@ export const RutasPageView = ({
                                           {formatCurrency(p.saldoPendiente)}
                                         </p>
                                         <p className="text-[10px] text-slate-400">
-                                          Saldo pendiente
+                                          Saldo pendiente<AyudaContextual ayuda="saldoPendiente" de="el saldo pendiente" tamano="pequeno" />
                                         </p>
                                       </div>
                                     </div>
@@ -2463,7 +2464,11 @@ export const RutasPageView = ({
               <div className="flex items-center gap-3">
                 <Wallet className="h-5 w-5 text-white" />
                 <div>
-                  <h2 className="text-white font-bold text-base">Recolectar Dinero</h2>
+                  <h2 className="text-white font-bold text-base">Recolectar Dinero<AyudaContextual
+                      ayuda="recolectarDinero"
+                      de="recolectar dinero"
+                      className="text-white/70 hover:bg-white/15 hover:text-white"
+                    /></h2>
                   <p className="text-emerald-100 text-xs">{routeForTransfer.nombre}</p>
                 </div>
               </div>

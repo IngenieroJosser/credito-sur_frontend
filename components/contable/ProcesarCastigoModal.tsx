@@ -8,6 +8,7 @@ import { createPortal } from 'react-dom'
 import Tooltip from '@/components/ui/Tooltip'
 import { useModalDialog } from '@/hooks/use-modal-dialog'
 import Cifra from '@/components/ui/Cifra'
+import AyudaContextual from '@/components/ui/AyudaContextual'
 
 interface CastigoData {
   cuentaId: string
@@ -75,7 +76,7 @@ export default function ProcesarCastigoModal({ cuenta, onClose, onConfirm }: Pro
                 <Archive className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h3 className="text-xl font-bold text-slate-900">Procesar Castigo</h3>
+                <h3 className="text-xl font-bold text-slate-900">Procesar Castigo<AyudaContextual ayuda="castigoDeCartera" de="castigar la cartera" /></h3>
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Contabilidad de Cartera</p>
               </div>
             </div>
@@ -95,7 +96,7 @@ export default function ProcesarCastigoModal({ cuenta, onClose, onConfirm }: Pro
             <div className="p-5 bg-rose-50 rounded-2xl border border-rose-100">
                <div className="flex justify-between items-start mb-4">
                   <div className="min-w-0">
-                    <div className="text-[10px] font-black text-rose-600 uppercase tracking-widest mb-1">Saldo a Castigar</div>
+                    <div className="text-[10px] font-black text-rose-600 uppercase tracking-widest mb-1">Saldo a Castigar<AyudaContextual ayuda="castigoDeCartera" de="el saldo a castigar" tamano="pequeno" /></div>
                     <Cifra
                       valor={cuenta.saldoPendiente}
                       tamano="enorme"
@@ -110,7 +111,7 @@ export default function ProcesarCastigoModal({ cuenta, onClose, onConfirm }: Pro
                      <p className="font-bold text-rose-900">{cuenta.numeroPrestamo}</p>
                   </div>
                   <div>
-                     <p className="text-[10px] font-bold text-rose-500 uppercase">Días Vencidos</p>
+                     <p className="text-[10px] font-bold text-rose-500 uppercase">Días Vencidos<AyudaContextual ayuda="diasEnMora" de="los días vencidos" tamano="pequeno" /></p>
                      <p className="font-bold text-rose-900">{cuenta.diasVencidos} días</p>
                   </div>
                </div>
@@ -119,7 +120,7 @@ export default function ProcesarCastigoModal({ cuenta, onClose, onConfirm }: Pro
             {/* Opciones de Castigo */}
             <div className="space-y-4">
                <div>
-                  <label className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 block">Tipo de Castigo</label>
+                  <label className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 block">Tipo de Castigo<AyudaContextual ayuda="castigoDeCartera" de="el tipo de castigo" tamano="pequeno" /></label>
                   <div className="grid grid-cols-2 gap-3">
                      <button 
                         onClick={() => setTipoCastigo('TOTAL')}
@@ -148,14 +149,14 @@ export default function ProcesarCastigoModal({ cuenta, onClose, onConfirm }: Pro
                         <div className={cn("p-2 rounded-lg mb-3 inline-block", tipoCastigo === 'PARCIAL' ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-400")}>
                            <Calculator className="w-4 h-4" />
                         </div>
-                        <p className={cn("font-bold text-sm", tipoCastigo === 'PARCIAL' ? "text-blue-900" : "text-slate-600")}>Castigo Parcial</p>
+                        <p className={cn("font-bold text-sm", tipoCastigo === 'PARCIAL' ? "text-blue-900" : "text-slate-600")}>Castigo Parcial<AyudaContextual ayuda="castigoParcial" de="un castigo parcial" tamano="pequeno" /></p>
                         <p className="text-[10px] text-slate-400 mt-1">Ajuste manual</p>
                      </button>
                   </div>
                </div>
 
                <div>
-                 <label className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2 block">Motivo del Castigo</label>
+                 <label className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2 block">Motivo del Castigo<AyudaContextual ayuda="castigoDeCartera" de="el motivo del castigo" tamano="pequeno" /></label>
                  <textarea 
                     className="w-full h-24 p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500/10 outline-none text-sm text-slate-900 resize-none font-medium"
                     placeholder="Justificación contable..."

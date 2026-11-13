@@ -7,6 +7,7 @@ import { ChevronLeft, AlertCircle, Calendar, Phone, MapPin, User } from 'lucide-
 import Link from 'next/link';
 import { prestamosService } from '@/services/prestamos-service';
 import Cifra from '@/components/ui/Cifra'
+import AyudaContextual from '@/components/ui/AyudaContextual'
 
 interface CuentaMora {
   id: string;
@@ -157,7 +158,7 @@ export default function DetalleCuentaMoraPage({
                         <p className="text-2xl font-bold text-slate-900">{cuenta.cuotasVencidas}</p>
                     </div>
                     <div>
-                        <p className="text-xs font-bold text-slate-400 uppercase mb-1">Días de Atraso</p>
+                        <p className="text-xs font-bold text-slate-400 uppercase mb-1">Días de Atraso<AyudaContextual ayuda="diasEnMora" de="los días de atraso" tamano="pequeno" /></p>
                         <p className="text-2xl font-bold text-slate-900">{cuenta.diasMora}</p>
                     </div>
                 </div>

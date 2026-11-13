@@ -24,6 +24,7 @@ import Tooltip from '@/components/ui/Tooltip'
 import { DECISIONES_CUENTA_VENCIDA } from '@/lib/display-labels'
 import { useModalDialog } from '@/hooks/use-modal-dialog'
 import Cifra from '@/components/ui/Cifra'
+import AyudaContextual from '@/components/ui/AyudaContextual'
 
 interface CuentaVencida {
   id: string
@@ -214,7 +215,7 @@ export default function GestionarVencidaModal({ cuenta, onClose, onConfirm }: Ge
                 {cuenta.diasVencidos}d
               </div>
               <div className="flex-1">
-                <div className="text-[9px] font-black text-rose-500 uppercase tracking-widest">Saldo Vencido</div>
+                <div className="text-[9px] font-black text-rose-500 uppercase tracking-widest">Saldo Vencido<AyudaContextual ayuda="saldoPendiente" de="el saldo vencido" tamano="pequeno" /></div>
                 <Cifra
                   valor={cuenta.saldoPendiente}
                   tamano="grande"

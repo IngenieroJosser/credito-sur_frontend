@@ -187,7 +187,10 @@ export default function RutaHistorialOperativo({
                       <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-center">
                         <div className="flex items-center justify-center gap-1 text-[9px] font-black uppercase tracking-widest text-slate-400">
                           <span>Recaudo</span>
-                          <AyudaContextual texto="Suma de pagos confirmados asociados a esta jornada. Las transferencias pendientes de revisión no se incluyen." />
+                          <AyudaContextual
+                            de="lo recaudado en la jornada"
+                            texto="Suma de pagos confirmados asociados a esta jornada. Las transferencias pendientes de revisión no se incluyen."
+                          />
                         </div>
                         <p className="mt-1 text-xs font-black text-slate-900">
                           ${formatMilesCOP(data?.resumen?.recaudo || 0)}
@@ -206,7 +209,10 @@ export default function RutaHistorialOperativo({
                       <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-center">
                         <div className="flex items-center justify-center gap-1 text-[9px] font-black uppercase tracking-widest text-slate-400">
                           <span>Gestionados</span>
-                          <AyudaContextual texto="Obligaciones con un pago confirmado, visita ausente o reprogramación registrada durante la jornada." />
+                          <AyudaContextual
+                            de="las obligaciones gestionadas"
+                            texto="Obligaciones con un pago confirmado, visita ausente o reprogramación registrada durante la jornada."
+                          />
                         </div>
                         <p className="mt-1 text-xs font-black text-blue-700">
                           {data?.resumen?.visitados || 0}/{data?.resumen?.total || 0}

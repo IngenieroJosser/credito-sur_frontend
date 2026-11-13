@@ -37,6 +37,7 @@ import { MetodoPago } from '@/types/enums'
 import { toast } from 'sonner'
 import Image from 'next/image'
 import { resolveCobradorIdForRouteAction } from '@/lib/rutas-core'
+import AyudaContextual from '@/components/ui/AyudaContextual'
 
 interface ResumenCuota {
   capital: number
@@ -292,7 +293,7 @@ const RegistroPagoPage = () => {
                   </div>
                   <div className="space-y-3">
                     <div className="flex justify-between items-center py-2 border-b border-slate-50">
-                      <span className="text-sm font-medium text-slate-500">Saldo pendiente</span>
+                      <span className="text-sm font-medium text-slate-500">Saldo pendiente<AyudaContextual ayuda="saldoPendiente" de="el saldo pendiente" tamano="pequeno" /></span>
                       <span className="text-sm font-bold text-emerald-700">
                         {formatCurrency(prestamo.saldoPendiente)}
                       </span>
@@ -308,7 +309,7 @@ const RegistroPagoPage = () => {
                     )}
                     {prestamo.nivelRiesgo && (
                       <div className="flex justify-between items-center py-2">
-                        <span className="text-sm font-medium text-slate-500">Nivel de riesgo</span>
+                        <span className="text-sm font-medium text-slate-500">Nivel de riesgo<AyudaContextual ayuda="riesgoDelCliente" de="el nivel de riesgo" tamano="pequeno" /></span>
                         <span className={cn(
                           'px-2.5 py-0.5 rounded-full text-xs font-bold border',
                           prestamo.nivelRiesgo === 'ALTO' && 'bg-rose-50 text-rose-700 border-rose-100',

@@ -36,6 +36,7 @@ import { toast } from 'sonner'
 import { SkeletonTarjetas } from '@/components/ui/Skeleton'
 import { estadoDeError, mensajeDeError } from '@/lib/mensaje-de-error'
 import Tooltip from '@/components/ui/Tooltip'
+import AyudaContextual from '@/components/ui/AyudaContextual'
 
 type NivelRiesgo = 'VERDE' | 'LEVE' | 'PRECAUCION' | 'ROJO' | 'LISTA_NEGRA'
 type EstadoPrestamo = 'EN_MORA' | 'INCUMPLIDO' | 'PERDIDA'
@@ -545,7 +546,7 @@ export default function CuentasMoraFeature() {
                         </td>
                         <td className="px-6 py-4">
                           <div className="font-black text-slate-900">{formatCurrency(cuenta.montoTotalDeuda)}</div>
-                          <div className="text-[10px] text-slate-400 uppercase tracking-tight">Saldo pendiente</div>
+                          <div className="text-[10px] text-slate-400 uppercase tracking-tight">Saldo pendiente<AyudaContextual ayuda="saldoPendiente" de="el saldo pendiente" tamano="pequeno" /></div>
                         </td>
                         <td className="px-6 py-4">
                           {cuenta.montoMora > 0 ? (

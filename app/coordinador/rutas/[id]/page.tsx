@@ -114,6 +114,7 @@ import {
   type PeriodoDeFiltro,
 } from '@/lib/filtros/periodo-de-ruta'
 import Cifra from '@/components/ui/Cifra'
+import AyudaContextual from '@/components/ui/AyudaContextual'
 
 // Interfaces de datos
 
@@ -1197,6 +1198,11 @@ const LegacyDetalleRutaPage = () => {
                     className={`px-3 py-1 rounded-full text-xs font-bold border ${riesgoBadgeClasses(rutaActual?.nivelRiesgo || '')}`}
                   >
                     {riesgoOperativoLabel(rutaActual?.nivelRiesgo || '')}
+                    <AyudaContextual
+                      ayuda="riesgoOperativoDeLaRuta"
+                      de="el riesgo operativo de la ruta"
+                      tamano="pequeno"
+                    />
                   </span>
                 </div>
 

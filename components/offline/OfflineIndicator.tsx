@@ -35,6 +35,7 @@ type ActividadManual = {
 };
 import { hasValidOfflineSession, getOfflineSessionDaysRemaining, isSessionExpiringSoon } from '@/lib/auth/offlineAuth';
 import Tooltip from '@/components/ui/Tooltip';
+import AyudaContextual from '@/components/ui/AyudaContextual'
 
 export default function OfflineIndicator() {
   const {
@@ -414,6 +415,13 @@ export default function OfflineIndicator() {
 
                     <p className={`mt-1 text-xs font-semibold ${syncTone.descriptionText}`}>
                       {syncTone.description}
+                      {/* Que significa trabajar sin conexion, una vez y no en
+                          cada mensaje de estado. */}
+                      <AyudaContextual
+                        ayuda="trabajoSinConexion"
+                        de="trabajar sin conexión"
+                        tamano="pequeno"
+                      />
                     </p>
                   </div>
                 </div>
@@ -457,6 +465,11 @@ export default function OfflineIndicator() {
                 <div className={`rounded-2xl border ${syncTone.border} bg-white/[0.10] px-3 py-2.5`}>
                   <p className="text-[10px] font-black uppercase tracking-wide text-slate-600">
                     Pendientes
+                    <AyudaContextual
+                      ayuda="pendienteDeEnviar"
+                      de="lo que está pendiente de enviar"
+                      tamano="pequeno"
+                    />
                   </p>
                   <p className={`mt-1 text-lg font-black ${syncTone.metricText}`}>
                     {pendingOps}
@@ -571,6 +584,12 @@ export default function OfflineIndicator() {
                       <Trash2 className="h-3.5 w-3.5" />
                       Limpiar
                     </button>
+                  )}
+                  {shouldShowClearAction && (
+                    <AyudaContextual
+                      ayuda="limpiarDatosLocales"
+                      de="limpiar los datos de este teléfono"
+                    />
                   )}
                 </div>
               )}

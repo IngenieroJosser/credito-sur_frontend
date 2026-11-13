@@ -21,6 +21,7 @@ import Tooltip from '@/components/ui/Tooltip'
 import { useModalDialog } from '@/hooks/use-modal-dialog'
 import { BARRA_DE_ARRASTRE, FONDO_HOJA_MODAL } from '@/lib/ui/hoja-modal'
 
+import AyudaContextual from '@/components/ui/AyudaContextual'
 interface DetalleMoraModalProps {
   cuenta: {
     id: string
@@ -145,7 +146,7 @@ export default function DetalleMoraModal({
               <p className="text-2xl font-black text-slate-900">{cuenta.cuotasVencidas}</p>
             </div>
             <div>
-              <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Interés Mora</p>
+              <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Interés Mora<AyudaContextual ayuda="interesPorMora" de="el interés por mora" tamano="pequeno" /></p>
               <p className="text-xl font-black text-rose-600">{formatCurrency(cuenta.montoMora)}</p>
             </div>
             <div>

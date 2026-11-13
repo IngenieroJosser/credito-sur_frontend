@@ -150,6 +150,7 @@ import {
   riesgoOperativoLabel,
 } from '@/lib/display-labels'
 import Cifra from '@/components/ui/Cifra'
+import AyudaContextual from '@/components/ui/AyudaContextual'
 
 interface GastoRuta {
   id: string
@@ -1353,6 +1354,11 @@ const RutaClientLoaded = ({
               className={`px-3 py-1 rounded-full text-xs font-bold border ${riesgoBadgeClasses(nivelRiesgo)}`}
             >
               {riesgoOperativoLabel(nivelRiesgo)}
+              <AyudaContextual
+                ayuda="riesgoOperativoDeLaRuta"
+                de="el riesgo operativo de la ruta"
+                tamano="pequeno"
+              />
             </span>
           }
           subtitle={
@@ -1390,7 +1396,7 @@ const RutaClientLoaded = ({
               <div className="flex items-start justify-between">
                 <div className="min-w-0">
                   <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">
-                    Efectivo Entregado
+                    Efectivo Entregado<AyudaContextual ayuda="efectivoEntregado" de="el efectivo entregado" tamano="pequeno" />
                   </p>
 
                   <Cifra

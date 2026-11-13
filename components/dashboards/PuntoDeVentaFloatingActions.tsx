@@ -39,6 +39,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { logger } from '@/lib/logger'
 import { CampoFecha } from '@/components/ui/CampoFecha'
 import Tooltip from '@/components/ui/Tooltip'
+import AyudaContextual from '@/components/ui/AyudaContextual'
 
 interface VentaReciente {
   id: string
@@ -695,7 +696,7 @@ export default function PuntoDeVentaFloatingActions() {
                     <div className="flex items-center gap-2 mb-1">
                       <CreditCard className="h-3.5 w-3.5 text-emerald-500" />
                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                        Cuota Inicial
+                        Cuota Inicial<AyudaContextual ayuda="cuotaInicialDeArticulo" de="la cuota inicial" tamano="pequeno" />
                       </span>
                     </div>
                     <p className="text-sm font-black text-slate-900">
