@@ -1,25 +1,11 @@
-'use client'
-
-import AdminLayout from '../admin/layout'
-
 /**
- * ============================================================================
- * LAYOUT UNIFICADO PARA RUTAS PROTEGIDAS (PERMISSION-BASED ROUTING)
- * ============================================================================
- * 
- * @description
- * Layout compartido para todas las rutas del grupo (auth).
- * Reutiliza el AdminLayout existente que ya maneja:
- * - Sidebar dinámico basado en rol/permisos
- * - Header con notificaciones y perfil
- * - Variante sin sidebar para cobrador (hideSidebar)
- * - Validación de sesión
- * 
- * @architecture
- * Este grupo de rutas reemplaza gradualmente las carpetas por rol
- * (/admin/*, /coordinador/*, /supervisor/*, etc.) con rutas únicas
- * protegidas por permisos granulares.
+ * El armazon —cabecera, menu lateral, telon de entrada— lo monta
+ * `ArmazonDeLaApp` desde el layout RAIZ, para que no se desmonte al cruzar
+ * de un arbol a otro. Aqui estaba `AdminLayout`, y como los siete layouts del
+ * proyecto lo montaban cada uno por su cuenta, pasar de /admin a /contable
+ * tiraba la pantalla entera y la volvia a montar: eso es lo que se veia como
+ * una recarga. Este archivo se queda solo con lo que es suyo.
  */
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
-  return <AdminLayout>{children}</AdminLayout>
+  return <>{children}</>
 }

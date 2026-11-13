@@ -126,12 +126,62 @@ function esRutaActiva(href: string | undefined, actual: string | null | undefine
   return actual === href || actual.startsWith(`${href}/`)
 }
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+/** Marca de que el telón de entrada ya se mostró en esta sesión. */
+const TELON_YA_VISTO = 'credisur:telon-de-entrada-visto'
+
+export default function ArmazonAdmin({ children }: { children: React.ReactNode }) {
   const hideSidebar = false
   // Manejo de estado visual (menú lateral, notificaciones, confirmaciones)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [asideDesktopVisible, setAsideDesktopVisible] = useState(true)
-  const [isPageLoaded, setIsPageLoaded] = useState(false) // Efecto visual de entrada suave
+  /**
+   * El telón blanco de entrada, y por qué arranca ya levantado a veces.
+   *
+   * ── Lo que pasaba ─────────────────────────────────────────────────────────
+   *
+   * «Algunas veces al pasar o seleccionar otro módulo en el aside la pantalla
+   * entera se recarga». No se recarga: se desmonta y se vuelve a montar.
+   *
+   * Los SIETE layouts del proyecto —`(auth)`, `admin`, `cobranzas`,
+   * `contador`, `coordinador`, `punto-de-venta`, `supervisor`— devuelven este
+   * mismo componente, pero son siete ARCHIVOS, y Next.js guarda el estado de
+   * un layout por archivo, no por el componente que devuelve. Cruzar de uno a
+   * otro tira el árbol entero y monta otro `AdminLayout` desde cero:
+   * `isPageLoaded` vuelve a `false`, este telón blanco en `z-9999` tapa la
+   * pantalla, espera 300 ms y se desvanece en 1 s, y por el camino se vuelven
+   * a pedir las aprobaciones pendientes. Eso es lo que se ve como una recarga.
+   *
+   * Medido, de los menús laterales de los siete roles:
+   *
+   *   ADMIN                3 de 16 entradas cruzan de layout
+   *                        (/contable, /contable/cierre-caja, /pagos/historial)
+   *   SUPER_ADMINISTRADOR  3 de 20  (las mismas tres)
+   *   COBRADOR             1 de 3   (/notificaciones)
+   *   los otros cuatro     ninguna
+   *
+   * ── Lo que se hace ────────────────────────────────────────────────────────
+   *
+   * El telón existe para tapar el primer pintado al llegar del login, y para
+   * eso sigue. Lo que no tiene sentido es que se repita dentro de la misma
+   * sesión: ahí no hay nada que tapar, el usuario ya está dentro. Se marca en
+   * `sessionStorage` la primera vez y a partir de entonces arranca levantado.
+   *
+   * Se lee en el inicializador de `useState`, no en un efecto, para que el
+   * primer fotograma ya salga sin telón: en un efecto habría un parpadeo
+   * blanco de un fotograma, que es justo lo que se viene a quitar.
+   *
+   * `sessionStorage` y no `localStorage` a propósito: un F5 de verdad SÍ debe
+   * volver a verlo, que es para lo que está. Y si el navegador lo tiene
+   * bloqueado, el `catch` deja el comportamiento de antes, que no es peor.
+   */
+  const [isPageLoaded, setIsPageLoaded] = useState(() => {
+    if (typeof window === 'undefined') return false
+    try {
+      return sessionStorage.getItem(TELON_YA_VISTO) === '1'
+    } catch {
+      return false
+    }
+  })
 
   // Datos y estado de autenticación
   const [user, setUser] = useState<Usuario | null>(null)
@@ -395,7 +445,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       } finally {
         setAuthChecked(true)
         // Pequeño retardo para que la transición de entrada sea suave y se sienta premium
-        setTimeout(() => setIsPageLoaded(true), 300)
+        setTimeout(() => {
+          setIsPageLoaded(true)
+          // Y que no se repita al cruzar de layout dentro de la misma sesión.
+          try {
+            sessionStorage.setItem(TELON_YA_VISTO, '1')
+          } catch {
+            // Sin sessionStorage el telón vuelve a salir; no es peor que antes.
+          }
+        }, 300)
       }
     }
 

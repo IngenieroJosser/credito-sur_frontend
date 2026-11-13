@@ -1,5 +1,6 @@
 import * as fs from 'fs'
 import * as path from 'path'
+import { sinComentarios } from '@/lib/testing/sin-comentarios'
 
 /**
  * Que ninguna pantalla se descargue el historial completo de pagos.
@@ -71,35 +72,6 @@ const RAIZ = path.join(__dirname, '..', '..')
 
 /** `obtenerPagos({ ... })`, con su objeto de filtros. */
 const LLAMADA = /obtenerPagos\(\s*\{([^}]*)\}/g
-
-/**
- * Las líneas de comentario se borran antes de buscar.
- *
- * Sin esto, los comentarios que EXPLICAN este problema cuentan como el
- * problema: la primera versión de esta prueba acusó dos veces a
- * `VistaCobrador`, señalando justo las líneas donde se explica por qué ya no
- * pide el historial completo.
- */
-function sinComentarios(fuente: string): string {
-  // Se recorta línea por línea en vez de con una expresión: así no hace falta
-  // escribir el salto de línea dentro de un literal de expresión regular, que
-  // es donde se partió el primer intento.
-  const sinLinea = fuente
-    .split('\n')
-    .map((linea) => {
-      const marca = linea.indexOf('//')
-      return marca === -1 ? linea : linea.slice(0, marca)
-    })
-    .join('\n')
-
-  // Y los comentarios de bloque, que sí se pueden describir sin saltos.
-  return sinLinea.replace(/\/\*[\s\S]*?\*\//g, (m) =>
-    m
-      .split('\n')
-      .map(() => '')
-      .join('\n'),
-  )
-}
 
 /** Un límite que trae lo que haya: cualquier cosa por encima de 500. */
 const LIMITE_GRANDE = /limit:\s*(\d+)/

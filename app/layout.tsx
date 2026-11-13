@@ -9,6 +9,7 @@ import AvisosApp from "@/components/pwa/AvisosApp";
 import OfflineIndicatorWrapper from "../components/offline/OfflineIndicatorWrapper";
 import { Toaster } from "sonner";
 import { TOAST_Z_INDEX } from "@/components/ui/Portal";
+import ArmazonDeLaApp from "@/components/layout/ArmazonDeLaApp";
 
 const sora = Sora({
   variable: "--font-setting",
@@ -62,7 +63,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={`${sora.variable} antialiased`}>
         <NotificationProvider>
           <NotificacionesProvider>
-            {children}
+            <ArmazonDeLaApp>{children}</ArmazonDeLaApp>
             <OfflineIndicatorWrapper />
             {/* Sonner trae z-index 999.999.999, menos que cualquier modal
                 del sistema: sus avisos quedaban detras del modal desde el

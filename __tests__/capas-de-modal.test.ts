@@ -1,5 +1,6 @@
 import fs from 'fs'
 import path from 'path'
+import { sinComentarios } from '@/lib/testing/sin-comentarios'
 
 /**
  * Que cada modal declare SU capa, y que salga de la escala.
@@ -54,7 +55,10 @@ const POR_STYLE =
 /** Con su motivo, como el resto de las excepciones del proyecto. */
 const EXCEPCIONES = new Map<string, string>([
   [
-    'app/admin/layout.tsx',
+    // Era `app/admin/layout.tsx` hasta que el armazón salió de la carpeta de
+    // rutas para que no se desmontara al cruzar de árbol. La excepción se
+    // mueve con el archivo: anclarla al nombre tampoco es eterno.
+    'components/layout/ArmazonAdmin.tsx',
     'Es el menú lateral y su panel de notificaciones. Su escala es la que ' +
       'vigila `capas-z-index.test.ts` —nada de la página por encima del ' +
       'menú—, no la de los modales.',
@@ -216,7 +220,7 @@ describe('la escala vive en un solo sitio', () => {
     for (const carpeta of CARPETAS) {
       for (const archivo of archivosTsx(path.join(RAIZ, carpeta))) {
         const rel = path.relative(RAIZ, archivo).split(path.sep).join('/')
-        const fuente = fs.readFileSync(archivo, 'utf8')
+        const fuente = sinComentarios(fs.readFileSync(archivo, 'utf8'))
         if (/(?:export\s+)?const MODAL_Z_INDEX\s*=\s*\d/.test(fuente)) {
           definiciones.push(rel)
         }
