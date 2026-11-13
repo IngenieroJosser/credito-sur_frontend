@@ -66,6 +66,7 @@ import type { RutaDeLista } from '@/types/domain'
 import { estaPendienteDeActivacion } from '@/lib/rutas/pendiente-de-activacion'
 
 import { SkeletonTablero } from '@/components/ui/Skeleton'
+import { Selector } from '@/components/ui/Selector'
 
 /**
  * La ruta del listado. La forma la define `RutaDeLista` en `types/domain.ts`.
@@ -644,6 +645,17 @@ export const RutasPageView = ({
   ) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
+  }
+
+  /**
+   * Lo mismo que `handleInputChange`, pero por nombre y valor.
+   *
+   * El `Selector` propio devuelve el valor, no un evento del DOM. Fabricar un
+   * evento falso para reusar el manejador de arriba seria mentirle al tipo;
+   * esto es la misma linea sin el disfraz.
+   */
+  const cambiarCampo = (nombre: string, valor: string) => {
+    setFormData((prev) => ({ ...prev, [nombre]: valor }))
   }
 
   const handleSubmit = async (e: FormEvent) => {
@@ -2035,20 +2047,19 @@ export const RutasPageView = ({
                           </span>
                         </label>
                         <div className="relative">
-                          <select
+                          <Selector
+                            required
                             name="cobradorId"
                             value={formData.cobradorId}
-                            onChange={handleInputChange}
-                            className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 appearance-none"
-                            required
-                          >
-                            <option value="">Seleccione un cobrador</option>
-                            {cobradoresList.map((c) => (
-                              <option key={c.id} value={c.id}>
-                                {c.nombre}
-                              </option>
-                            ))}
-                          </select>
+                            onChange={(v) => cambiarCampo('cobradorId', v)}
+                            etiqueta="Cobrador"
+                            placeholder="Seleccione un cobrador"
+                            className="bg-slate-50 font-medium text-slate-900"
+                            opciones={cobradoresList.map((c) => ({
+                              value: c.id,
+                              label: c.nombre,
+                            }))}
+                          />
                           <User className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
                         </div>
                       </div>
@@ -2061,20 +2072,19 @@ export const RutasPageView = ({
                           </span>
                         </label>
                         <div className="relative">
-                          <select
+                          <Selector
+                            required
                             name="supervisorId"
                             value={formData.supervisorId}
-                            onChange={handleInputChange}
-                            className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 appearance-none"
-                            required
-                          >
-                            <option value="">Seleccione un supervisor</option>
-                            {supervisoresList.map((s) => (
-                              <option key={s.id} value={s.id}>
-                                {s.nombre} {s.rol ? `(${formatRoleLabel(s.rol)})` : ''}
-                              </option>
-                            ))}
-                          </select>
+                            onChange={(v) => cambiarCampo('supervisorId', v)}
+                            etiqueta="Supervisor"
+                            placeholder="Seleccione un supervisor"
+                            className="bg-slate-50 font-medium text-slate-900"
+                            opciones={supervisoresList.map((s) => ({
+                              value: s.id,
+                              label: `${s.nombre}${s.rol ? ` (${formatRoleLabel(s.rol)})` : ''}`,
+                            }))}
+                          />
                           <CheckCircle2 className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
                         </div>
                       </div>
@@ -2084,19 +2094,18 @@ export const RutasPageView = ({
                           Asignar coordinador
                         </label>
                         <div className="relative">
-                          <select
+                          <Selector
                             name="coordinadorId"
                             value={formData.coordinadorId}
-                            onChange={handleInputChange}
-                            className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 appearance-none"
-                          >
-                            <option value="">Seleccione un coordinador</option>
-                            {coordinadoresList.map((s) => (
-                              <option key={s.id} value={s.id}>
-                                {s.nombre} {s.rol ? `(${formatRoleLabel(s.rol)})` : ''}
-                              </option>
-                            ))}
-                          </select>
+                            onChange={(v) => cambiarCampo('coordinadorId', v)}
+                            etiqueta="Coordinador"
+                            placeholder="Seleccione un coordinador"
+                            className="bg-slate-50 font-medium text-slate-900"
+                            opciones={coordinadoresList.map((s) => ({
+                              value: s.id,
+                              label: `${s.nombre}${s.rol ? ` (${formatRoleLabel(s.rol)})` : ''}`,
+                            }))}
+                          />
                           <CheckCircle2 className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
                         </div>
                       </div>
@@ -2374,25 +2383,21 @@ export const RutasPageView = ({
                                     {/* Selector de ruta individual por crédito */}
                                     <div className="flex items-center gap-2">
                                       <div className="flex-1 relative">
-                                        <select
-                                          className="w-full text-xs pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-600 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                                        <Selector
                                           value={rutaDestinoMap[p.id] || ''}
-                                          onChange={(e) =>
+                                          onChange={(v) =>
                                             setRutaDestinoMap((prev) => ({
                                               ...prev,
-                                              [p.id]: e.target.value,
+                                              [p.id]: v,
                                             }))
                                           }
-                                        >
-                                          <option value="">Asignar a otra ruta...</option>
-                                          {rutas
+                                          etiqueta="Asignar a otra ruta"
+                                          placeholder="Asignar a otra ruta..."
+                                          className="pl-8 pr-3 py-1.5 text-xs text-slate-600"
+                                          opciones={rutas
                                             .filter((r) => r.id !== editingId)
-                                            .map((r) => (
-                                              <option key={r.id} value={r.id}>
-                                                {r.nombre}
-                                              </option>
-                                            ))}
-                                        </select>
+                                            .map((r) => ({ value: r.id, label: r.nombre }))}
+                                        />
                                         <ArrowRightLeft className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-400 pointer-events-none" />
                                       </div>
                                       <button
