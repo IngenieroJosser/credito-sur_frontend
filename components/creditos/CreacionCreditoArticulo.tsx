@@ -493,7 +493,7 @@ export default function CreacionCreditoArticulo({
 
                     <button
                         onClick={() => setShowNuevoClienteModal(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-white border border-blue-200 text-[#08557f] rounded-xl shadow-sm hover:bg-blue-50 transition-all text-sm font-bold active:scale-95"
+                        className="flex items-center gap-2 px-4 py-2 bg-white border border-blue-200 text-primary rounded-xl shadow-sm hover:bg-blue-50 transition-all text-sm font-bold active:scale-95"
                     >
                         <Plus className="w-4 h-4" />
                         Nuevo Cliente
@@ -572,7 +572,7 @@ export default function CreacionCreditoArticulo({
                                   onClick={() => setFiltroCategoria(cat)}
                                   className={`px-3 py-1.5 rounded-lg text-xs font-black whitespace-nowrap transition-all border ${
                                     filtroCategoria === cat
-                                      ? 'bg-white text-[#08557f] border-[#08557f] shadow-sm'
+                                      ? 'bg-white text-primary border-primary shadow-sm'
                                       : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
                                   }`}
                                 >
@@ -609,7 +609,7 @@ export default function CreacionCreditoArticulo({
                             <p className="text-slate-500 text-xs mb-3">Precio Contado: {formatCurrency(prod.precioBase)}</p>
                             <button 
                               onClick={() => handleAgregarArticulo(prod)}
-                              className="w-full py-2 bg-white text-[#08557f] border border-blue-200 rounded-lg text-xs font-black hover:bg-blue-50 transition-all flex items-center justify-center gap-2 active:scale-95"
+                              className="w-full py-2 bg-white text-primary border border-blue-200 rounded-lg text-xs font-black hover:bg-blue-50 transition-all flex items-center justify-center gap-2 active:scale-95"
                             >
                               <Plus className="w-3 h-3" /> Agregar
                             </button>
@@ -936,7 +936,7 @@ export default function CreacionCreditoArticulo({
                 onClick={step < 4 ? siguientePaso : confirmarCredito}
                 disabled={guardando}
                 className={`px-8 py-2.5 rounded-xl font-black transition-all shadow-sm flex items-center gap-2 border bg-white ${
-                  step < 4 ? 'border-slate-200 text-slate-800 hover:bg-slate-50' : 'border-blue-200 text-[#08557f] hover:bg-blue-50 shadow-blue-100'
+                  step < 4 ? 'border-slate-200 text-slate-800 hover:bg-slate-50' : 'border-blue-200 text-primary hover:bg-blue-50 shadow-blue-100'
                 }`}
               >
                 {step < 4 ? 'Siguiente' : guardando ? 'Creando…' : 'Confirmar y Crear'}

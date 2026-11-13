@@ -138,7 +138,7 @@ export default function DetalleCuentaVencidaPage({
                 <div className="mt-8">
                     <Link
                         href="/cuentas-vencidas"
-                        className="inline-flex items-center justify-center w-full py-3 px-4 bg-[#08557f] text-white font-bold rounded-xl hover:bg-[#064460] transition-all text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#08557f] focus-visible:ring-offset-2"
+                        className="inline-flex items-center justify-center w-full py-3 px-4 bg-primary text-white font-bold rounded-xl hover:bg-[#064460] transition-all text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                     >
                         Registrar la decisión de esta cuenta
                     </Link>

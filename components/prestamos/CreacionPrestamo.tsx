@@ -511,7 +511,7 @@ const CreacionPrestamoElegante = ({ initialClienteId, isModal }: { initialClient
                     <div className="flex items-center gap-3">
                       <button
                         onClick={() => setMostrarNuevoCliente(true)}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-white border border-blue-200 text-[#08557f] rounded-lg hover:bg-blue-50 transition-all duration-200 group shadow-sm font-black text-sm active:scale-95"
+                        className="flex items-center gap-2 px-4 py-2.5 bg-white border border-blue-200 text-primary rounded-lg hover:bg-blue-50 transition-all duration-200 group shadow-sm font-black text-sm active:scale-95"
                       >
                         <PlusCircle className="w-4 h-4" />
                         <span>Nuevo Cliente</span>
@@ -895,7 +895,7 @@ const CreacionPrestamoElegante = ({ initialClienteId, isModal }: { initialClient
                   <button
                     onClick={handleCrearPrestamo}
                     disabled={creandoPrestamo}
-                    className="flex items-center gap-2 px-8 py-2.5 bg-white border border-blue-200 text-[#08557f] rounded-xl font-black hover:bg-blue-50 disabled:opacity-50 transition-all shadow-sm shadow-blue-100"
+                    className="flex items-center gap-2 px-8 py-2.5 bg-white border border-blue-200 text-primary rounded-xl font-black hover:bg-blue-50 disabled:opacity-50 transition-all shadow-sm shadow-blue-100"
                   >
                     {creandoPrestamo ? 'Procesando...' : 'Crear Préstamo'}
                     {!creandoPrestamo && <CheckCircle className="w-4 h-4" />}

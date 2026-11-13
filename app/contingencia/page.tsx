@@ -67,7 +67,7 @@ const ContingenciaPage = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-gray-100 px-4 py-8">
       <div className="mx-auto flex max-w-lg flex-col items-center gap-8 text-center">
-        <div className="inline-flex items-center gap-2 rounded-full bg-[#08557f]/5 px-3 py-1 text-xs text-[#08557f] tracking-wide">
+        <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 px-3 py-1 text-xs text-primary tracking-wide">
           <WifiOff className="h-3 w-3" />
           <span>Modo contingencia</span>
         </div>
@@ -96,7 +96,7 @@ const ContingenciaPage = () => {
         <div className="flex flex-col items-center gap-3 w-full sm:flex-row sm:justify-center">
           <button
             onClick={seguirUsando}
-            className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-full bg-[#08557f] px-6 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#064063]"
+            className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#064063]"
           >
             <span>Seguir usando el sistema</span>
             <ArrowRight className="h-4 w-4" />

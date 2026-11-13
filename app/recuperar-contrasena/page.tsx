@@ -67,10 +67,10 @@ export default function RecuperarContrasenaPage() {
 
       {/* Fondo decorativo — idéntico al login */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 -left-24 w-96 h-96 bg-gradient-to-br from-[#08557f]/[0.02] to-transparent rounded-full blur-3xl" />
+        <div className="absolute top-1/4 -left-24 w-96 h-96 bg-gradient-to-br from-primary/[0.02] to-transparent rounded-full blur-3xl" />
         <div className="absolute bottom-1/4 -right-24 w-96 h-96 bg-gradient-to-tr from-[#fb851b]/[0.02] to-transparent rounded-full blur-3xl" />
-        <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-[#08557f]/5 to-transparent" />
-        <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-[#08557f]/5 to-transparent" />
+        <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-primary/5 to-transparent" />
+        <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-primary/5 to-transparent" />
       </div>
 
       <div className="w-full max-w-sm relative z-10">
@@ -90,7 +90,7 @@ export default function RecuperarContrasenaPage() {
             </div>
           </div>
           <h1 className="text-3xl font-light text-gray-800 mb-2">
-            <span className="font-normal text-[#08557f]">Credi</span>
+            <span className="font-normal text-primary">Credi</span>
             <span className="font-normal text-[#fb851b]">Sur</span>
           </h1>
           <p className="text-xs text-gray-400 uppercase tracking-wider mt-1">
@@ -115,12 +115,12 @@ export default function RecuperarContrasenaPage() {
                 onChange={e => { setCorreo(e.target.value); setError('') }}
                 onFocus={() => setFocusedField('correo')}
                 onBlur={() => setFocusedField(null)}
-                className="w-full pl-8 pr-4 py-3 bg-transparent border-0 border-b border-gray-200 focus:border-[#08557f] focus:outline-none transition-all duration-300 text-gray-700 placeholder-gray-400 text-sm"
+                className="w-full pl-8 pr-4 py-3 bg-transparent border-0 border-b border-gray-200 focus:border-primary focus:outline-none transition-all duration-300 text-gray-700 placeholder-gray-400 text-sm"
                 placeholder="Correo electrónico"
                 autoComplete="email"
                 disabled={cargando}
               />
-              <div className={`h-px bg-gradient-to-r from-[#08557f] to-transparent absolute bottom-0 left-0 transition-all duration-500 ${
+              <div className={`h-px bg-gradient-to-r from-primary to-transparent absolute bottom-0 left-0 transition-all duration-500 ${
                 focusedField === 'correo' ? 'w-full' : 'w-0'
               }`} />
             </div>
@@ -143,18 +143,18 @@ export default function RecuperarContrasenaPage() {
                 disabled={cargando}
                 className="w-full group relative overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <div className="absolute inset-0 bg-white border border-gray-200 rounded-lg transition-all duration-300 group-hover:border-[#08557f]" />
+                <div className="absolute inset-0 bg-white border border-gray-200 rounded-lg transition-all duration-300 group-hover:border-primary" />
                 <div className="relative py-3 px-4 flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-700 group-hover:text-[#08557f] transition-colors duration-300">
+                  <span className="text-sm font-medium text-gray-700 group-hover:text-primary transition-colors duration-300">
                     {cargando ? 'Enviando...' : 'Enviar código'}
                   </span>
                   <div className={`transition-all duration-300 ${cargando ? 'opacity-0' : 'opacity-100'}`}>
-                    <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-[#08557f] group-hover:translate-x-1 transition-all duration-300" />
+                    <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-primary group-hover:translate-x-1 transition-all duration-300" />
                   </div>
                 </div>
                 {cargando && (
                   <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                    <Loader2 className="w-4 h-4 text-[#08557f] animate-spin" />
+                    <Loader2 className="w-4 h-4 text-primary animate-spin" />
                   </div>
                 )}
               </button>
@@ -169,7 +169,7 @@ export default function RecuperarContrasenaPage() {
             {/* Aviso de correo enviado */}
             <div className="text-center">
               <div className="inline-flex items-center gap-2 text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-full px-4 py-2">
-                <Mail className="h-3.5 w-3.5 text-[#08557f]" />
+                <Mail className="h-3.5 w-3.5 text-primary" />
                 Código enviado a <span className="font-semibold text-gray-700">{correo}</span>
               </div>
             </div>
@@ -186,10 +186,10 @@ export default function RecuperarContrasenaPage() {
                 onBlur={() => setFocusedField(null)}
                 placeholder="• • • • • •"
                 required
-                className="w-full text-center tracking-[0.6em] text-3xl font-light py-3 bg-transparent border-0 border-b border-gray-200 focus:border-[#08557f] focus:outline-none transition-all duration-300 text-gray-800 placeholder-gray-200"
+                className="w-full text-center tracking-[0.6em] text-3xl font-light py-3 bg-transparent border-0 border-b border-gray-200 focus:border-primary focus:outline-none transition-all duration-300 text-gray-800 placeholder-gray-200"
                 disabled={cargando}
               />
-              <div className={`h-px bg-gradient-to-r from-[#08557f] to-transparent absolute bottom-0 left-0 transition-all duration-500 ${
+              <div className={`h-px bg-gradient-to-r from-primary to-transparent absolute bottom-0 left-0 transition-all duration-500 ${
                 focusedField === 'codigo' ? 'w-full' : 'w-0'
               }`} />
             </div>
@@ -210,7 +210,7 @@ export default function RecuperarContrasenaPage() {
                 placeholder="Nueva contraseña"
                 required
                 minLength={6}
-                className="w-full pl-8 pr-10 py-3 bg-transparent border-0 border-b border-gray-200 focus:border-[#08557f] focus:outline-none transition-all duration-300 text-gray-700 placeholder-gray-400 text-sm"
+                className="w-full pl-8 pr-10 py-3 bg-transparent border-0 border-b border-gray-200 focus:border-primary focus:outline-none transition-all duration-300 text-gray-700 placeholder-gray-400 text-sm"
                 disabled={cargando}
               />
               <button
@@ -220,7 +220,7 @@ export default function RecuperarContrasenaPage() {
               >
                 {verContrasena ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
-              <div className={`h-px bg-gradient-to-r from-[#08557f] to-transparent absolute bottom-0 left-0 transition-all duration-500 ${
+              <div className={`h-px bg-gradient-to-r from-primary to-transparent absolute bottom-0 left-0 transition-all duration-500 ${
                 focusedField === 'pass' ? 'w-full' : 'w-0'
               }`} />
             </div>
@@ -238,18 +238,18 @@ export default function RecuperarContrasenaPage() {
                 disabled={cargando}
                 className="w-full group relative overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <div className="absolute inset-0 bg-white border border-gray-200 rounded-lg transition-all duration-300 group-hover:border-[#08557f]" />
+                <div className="absolute inset-0 bg-white border border-gray-200 rounded-lg transition-all duration-300 group-hover:border-primary" />
                 <div className="relative py-3 px-4 flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-700 group-hover:text-[#08557f] transition-colors duration-300">
+                  <span className="text-sm font-medium text-gray-700 group-hover:text-primary transition-colors duration-300">
                     {cargando ? 'Verificando...' : 'Confirmar nueva contraseña'}
                   </span>
                   <div className={`transition-all duration-300 ${cargando ? 'opacity-0' : 'opacity-100'}`}>
-                    <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-[#08557f] group-hover:translate-x-1 transition-all duration-300" />
+                    <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-primary group-hover:translate-x-1 transition-all duration-300" />
                   </div>
                 </div>
                 {cargando && (
                   <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                    <Loader2 className="w-4 h-4 text-[#08557f] animate-spin" />
+                    <Loader2 className="w-4 h-4 text-primary animate-spin" />
                   </div>
                 )}
               </button>
@@ -282,12 +282,12 @@ export default function RecuperarContrasenaPage() {
               onClick={() => router.push('/login')}
               className="w-full group relative overflow-hidden"
             >
-              <div className="absolute inset-0 bg-white border border-gray-200 rounded-lg transition-all duration-300 group-hover:border-[#08557f]" />
+              <div className="absolute inset-0 bg-white border border-gray-200 rounded-lg transition-all duration-300 group-hover:border-primary" />
               <div className="relative py-3 px-4 flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700 group-hover:text-[#08557f] transition-colors duration-300">
+                <span className="text-sm font-medium text-gray-700 group-hover:text-primary transition-colors duration-300">
                   Ir al inicio de sesión
                 </span>
-                <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-[#08557f] group-hover:translate-x-1 transition-all duration-300" />
+                <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-primary group-hover:translate-x-1 transition-all duration-300" />
               </div>
             </button>
           </div>

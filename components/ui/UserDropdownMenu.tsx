@@ -178,7 +178,7 @@ export default function UserDropdownMenu({ user, onLogout }: UserDropdownMenuPro
             {initials}
           </div>
           <div className="hidden lg:block text-left">
-            <div className="text-sm font-medium text-gray-800 group-hover:text-[#08557f] transition-colors">
+            <div className="text-sm font-medium text-gray-800 group-hover:text-primary transition-colors">
               {fullName}
             </div>
             <div className="text-xs text-gray-500 flex items-center gap-1">
@@ -293,8 +293,8 @@ export default function UserDropdownMenu({ user, onLogout }: UserDropdownMenuPro
                   className="flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors group"
                   onClick={() => setShowMenu(false)}
                 >
-                  <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center mr-3 group-hover:bg-[#08557f]/10 transition-colors">
-                    <User className="h-4 w-4 text-gray-600 group-hover:text-[#08557f]" />
+                  <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center mr-3 group-hover:bg-primary/10 transition-colors">
+                    <User className="h-4 w-4 text-gray-600 group-hover:text-primary" />
                   </div>
                   <div>
                     <div className="font-medium">Mi perfil</div>
@@ -308,8 +308,8 @@ export default function UserDropdownMenu({ user, onLogout }: UserDropdownMenuPro
                     className="flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors group"
                     onClick={() => setShowMenu(false)}
                   >
-                    <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center mr-3 group-hover:bg-[#08557f]/10 transition-colors">
-                      <Settings className="h-4 w-4 text-gray-600 group-hover:text-[#08557f]" />
+                    <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center mr-3 group-hover:bg-primary/10 transition-colors">
+                      <Settings className="h-4 w-4 text-gray-600 group-hover:text-primary" />
                     </div>
                     <div>
                       <div className="font-medium">Configuración</div>

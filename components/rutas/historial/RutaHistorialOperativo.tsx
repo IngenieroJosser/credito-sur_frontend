@@ -153,7 +153,7 @@ export default function RutaHistorialOperativo({
                   <div className="flex items-center gap-3">
                     <div
                       className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs shadow-sm ${
-                        isExpanded ? 'bg-[#08557f] text-white' : 'bg-slate-100 text-slate-600'
+                        isExpanded ? 'bg-primary text-white' : 'bg-slate-100 text-slate-600'
                       }`}
                     >
                       {d}
@@ -294,7 +294,7 @@ export default function RutaHistorialOperativo({
                     <div className="flex items-center gap-3">
                       <div
                         className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs shadow-sm ${
-                          isMonthExpanded ? 'bg-[#08557f] text-white' : 'bg-slate-100 text-slate-600'
+                          isMonthExpanded ? 'bg-primary text-white' : 'bg-slate-100 text-slate-600'
                         }`}
                       >
                         {mm}
@@ -350,7 +350,7 @@ export default function RutaHistorialOperativo({
                               <div className="flex items-center gap-3">
                                 <div
                                   className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-[11px] ${
-                                    isDayExpanded ? 'bg-[#08557f] text-white' : 'bg-white border border-slate-200 text-slate-600'
+                                    isDayExpanded ? 'bg-primary text-white' : 'bg-white border border-slate-200 text-slate-600'
                                   }`}
                                 >
                                   {dd}

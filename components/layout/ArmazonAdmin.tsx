@@ -998,13 +998,13 @@ export default function ArmazonAdmin({ children }: { children: React.ReactNode }
                             onClick={() => toggleMenu(item.id!)}
                             className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-75 border group ${
                               isOpen || isActive
-                                ? 'text-[#08557f] bg-gray-50/50 font-medium border-gray-200'
-                                : 'text-gray-600 border-transparent hover:text-[#08557f] hover:bg-gray-50 hover:border-gray-200'
+                                ? 'text-primary bg-gray-50/50 font-medium border-gray-200'
+                                : 'text-gray-600 border-transparent hover:text-primary hover:bg-gray-50 hover:border-gray-200'
                             }`}
                           >
                             <div className="flex items-center gap-3">
                               <div
-                                className={`transition-colors ${isOpen || isActive ? 'text-[#08557f]' : 'text-gray-400 group-hover:text-[#08557f]'}`}
+                                className={`transition-colors ${isOpen || isActive ? 'text-primary' : 'text-gray-400 group-hover:text-primary'}`}
                               >
                                 {item.icon}
                               </div>
@@ -1029,7 +1029,7 @@ export default function ArmazonAdmin({ children }: { children: React.ReactNode }
                                     href={subItem.href}
                                     className={`flex items-center justify-between gap-3 px-3 py-2 rounded-lg transition-all duration-75 group border border-transparent ${
                                       isSubActive
-                                        ? 'text-[#08557f] bg-blue-50 font-medium'
+                                        ? 'text-primary bg-blue-50 font-medium'
                                         : 'text-gray-500 hover:text-blue-600 hover:bg-gray-50'
                                     } ${isNew ? 'modulo-nuevo-glow' : ''}`}
                                     onClick={() => handleModuleClick(subItem.id, subItem.isNew)}
@@ -1040,8 +1040,8 @@ export default function ArmazonAdmin({ children }: { children: React.ReactNode }
                                           isNew
                                             ? 'text-orange-500'
                                             : isSubActive
-                                              ? 'text-[#08557f]'
-                                              : 'text-gray-300 group-hover:text-[#08557f]'
+                                              ? 'text-primary'
+                                              : 'text-gray-300 group-hover:text-primary'
                                         }`}
                                       >
                                         {subItem.icon}
@@ -1074,8 +1074,8 @@ export default function ArmazonAdmin({ children }: { children: React.ReactNode }
                         href={item.href}
                         className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl transition-all duration-75 border group ${
                           isActive
-                            ? 'text-[#08557f] bg-gray-50/50 font-bold border-gray-200 shadow-sm'
-                            : 'text-gray-600 border-transparent hover:text-[#08557f] hover:bg-gray-50 hover:border-gray-200'
+                            ? 'text-primary bg-gray-50/50 font-bold border-gray-200 shadow-sm'
+                            : 'text-gray-600 border-transparent hover:text-primary hover:bg-gray-50 hover:border-gray-200'
                         } ${isNew ? 'modulo-nuevo-glow' : ''}`}
                         onClick={() => handleModuleClick(item.id, item.isNew)}
                       >
@@ -1085,8 +1085,8 @@ export default function ArmazonAdmin({ children }: { children: React.ReactNode }
                               isNew
                                 ? 'text-orange-500'
                                 : isActive
-                                  ? 'text-[#08557f]'
-                                  : 'text-gray-400 group-hover:text-[#08557f]'
+                                  ? 'text-primary'
+                                  : 'text-gray-400 group-hover:text-primary'
                             }`}
                           >
                             {item.icon}
@@ -1175,7 +1175,7 @@ export default function ArmazonAdmin({ children }: { children: React.ReactNode }
                 <div
                   className={`p-2 rounded-lg transition-all ${
                     pathname === item.href
-                      ? 'bg-gradient-to-br from-[#08557f] to-[#063a58] text-white shadow-md'
+                      ? 'bg-gradient-to-br from-primary to-primary-dark text-white shadow-md'
                       : 'text-gray-500 group-hover:bg-gray-100'
                   }`}
                 >
@@ -1183,7 +1183,7 @@ export default function ArmazonAdmin({ children }: { children: React.ReactNode }
                 </div>
                 <span
                   className={`text-xs mt-1 transition-colors ${
-                    pathname === item.href ? 'font-medium text-[#08557f]' : 'text-gray-600'
+                    pathname === item.href ? 'font-medium text-primary' : 'text-gray-600'
                   }`}
                 >
                   {item.name}
@@ -1222,7 +1222,7 @@ export default function ArmazonAdmin({ children }: { children: React.ReactNode }
           }}
         >
           <div
-            className="w-12 h-12 border-4 border-slate-100 border-t-[#08557f] border-r-[#08557f] rounded-full animate-spin"
+            className="w-12 h-12 border-4 border-slate-100 border-t-primary border-r-primary rounded-full animate-spin"
             style={{
               width: '48px',
               height: '48px',

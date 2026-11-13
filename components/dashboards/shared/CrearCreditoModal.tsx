@@ -464,7 +464,7 @@ export default function CrearCreditoModal({
                           inputMode="numeric"
                           value={montoPrestamoInput}
                           onChange={(e) => setMontoPrestamoInput(formatCOPInputValue(e.target.value))}
-                          className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-bold text-slate-900"
+                          className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary focus:ring-0 font-bold text-slate-900"
                           placeholder="0"
                         />
                       </div>
@@ -501,7 +501,7 @@ export default function CrearCreditoModal({
                           inputMode="decimal"
                           value={tasaInteresInput}
                           onChange={(e) => setTasaInteresInput(e.target.value.replace(/[^0-9.]/g, ''))}
-                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
+                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary focus:ring-0 font-medium text-slate-900"
                           placeholder="10.0"
                       />
                     </div>
@@ -512,7 +512,7 @@ export default function CrearCreditoModal({
                         inputMode="numeric"
                         value={cuotasPrestamoInput}
                         onChange={(e) => setCuotasPrestamoInput(e.target.value.replace(/\D/g, ''))}
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary focus:ring-0 font-medium text-slate-900"
                         placeholder="12"
                       />
                     </div>
@@ -755,7 +755,7 @@ export default function CrearCreditoModal({
                             inputMode="numeric"
                             value={cuotaInicialArticuloInput}
                             onChange={(e) => setCuotaInicialArticuloInput(formatCOPInputValue(e.target.value))}
-                            className={`w-full pl-10 pr-4 py-3 rounded-xl focus:border-[#08557f] focus:ring-0 font-bold text-slate-900 ${
+                            className={`w-full pl-10 pr-4 py-3 rounded-xl focus:border-primary focus:ring-0 font-bold text-slate-900 ${
                               cuotaInicialArticuloValida
                                 ? 'bg-slate-50 border border-slate-200'
                                 : 'bg-red-50 border border-red-300'
@@ -864,7 +864,7 @@ export default function CrearCreditoModal({
                           className={`w-full px-4 py-3 border rounded-xl focus:ring-0 font-medium text-slate-900 transition-colors ${
                             inputInvalido
                               ? 'border-red-400 bg-red-50 focus:border-red-500'
-                              : 'bg-slate-50 border-slate-200 focus:border-[#08557f]'
+                              : 'bg-slate-50 border-slate-200 focus:border-primary'
                           }`}
                         />
                         {esFechaPasada && (
@@ -901,7 +901,7 @@ export default function CrearCreditoModal({
               <div>
                 <FieldLabel>Notas (Opcional)</FieldLabel>
                 <textarea
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900 resize-none"
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary focus:ring-0 font-medium text-slate-900 resize-none"
                   rows={3}
                   placeholder="Observaciones adicionales..."
                   value={notasInput}

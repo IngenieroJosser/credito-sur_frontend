@@ -199,7 +199,7 @@ function shouldShowMoraBadge(visita: VisitaRuta): boolean {
 }
 
 function borderColor(nivelRiesgo: string | undefined, isSelected: boolean): string {
-  if (isSelected) return 'ring-2 ring-[#08557f] shadow-md bg-blue-50/30 border-[#08557f]'
+  if (isSelected) return 'ring-2 ring-primary shadow-md bg-blue-50/30 border-primary'
   switch (nivelRiesgo) {
     case 'bajo':
       return 'border-emerald-400 shadow-sm'
@@ -358,7 +358,7 @@ function VisitaCardContent({
   
               onVerCliente?.(visita)
             }}
-            className="relative z-20 pointer-events-auto p-2.5 sm:p-2 bg-slate-100/60 rounded-lg hover:bg-white text-slate-400 hover:text-[#08557f] transition-all border border-transparent hover:border-slate-200 shrink-0 active:scale-95 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center cursor-pointer"
+            className="relative z-20 pointer-events-auto p-2.5 sm:p-2 bg-slate-100/60 rounded-lg hover:bg-white text-slate-400 hover:text-primary transition-all border border-transparent hover:border-slate-200 shrink-0 active:scale-95 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center cursor-pointer"
             aria-label={`Ver detalle de ${visita.cliente}`}
           >
             <Eye className="w-5 h-5 pointer-events-none" />
@@ -459,7 +459,7 @@ function VisitaCardContent({
             </>
           )}
           <div className="w-px h-5 bg-slate-200" />
-          <span className="text-[9px] font-bold bg-[#08557f]/5 text-[#08557f] border border-[#08557f]/10 px-1.5 py-0.5 rounded-md uppercase">
+          <span className="text-[9px] font-bold bg-primary/5 text-primary border border-primary/10 px-1.5 py-0.5 rounded-md uppercase">
             {periodoLabel(visita.periodoRuta)}
           </span>
         </div>

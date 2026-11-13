@@ -484,7 +484,7 @@ const ListadoPrestamosElegante = () => {
           <p className="text-sm text-slate-600 mb-6">{error}</p>
           <button
             onClick={handleRefresh}
-            className="px-6 py-2 bg-[#08557f] text-white font-bold rounded-xl hover:bg-[#063a58] transition-colors flex items-center gap-2 mx-auto"
+            className="px-6 py-2 bg-primary text-white font-bold rounded-xl hover:bg-primary-dark transition-colors flex items-center gap-2 mx-auto"
           >
             <RefreshCw className="h-4 w-4" />
             Reintentar
@@ -555,7 +555,7 @@ const ListadoPrestamosElegante = () => {
           {refreshing && (
             <div className="fixed top-20 right-4 z-50">
               <div className="bg-white border border-slate-200 rounded-xl px-4 py-2 shadow-lg flex items-center gap-2">
-                <Loader2 className="h-4 w-4 text-[#08557f] animate-spin" />
+                <Loader2 className="h-4 w-4 text-primary animate-spin" />
                 <span className="text-xs font-bold text-slate-600">Actualizando datos...</span>
               </div>
             </div>
@@ -618,7 +618,7 @@ const ListadoPrestamosElegante = () => {
               </div>
 
               <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-                <p className="text-xs font-bold text-[#08557f] uppercase tracking-wider mb-2">
+                <p className="text-xs font-bold text-primary uppercase tracking-wider mb-2">
                   Capital Prestado
                 </p>
                 <p

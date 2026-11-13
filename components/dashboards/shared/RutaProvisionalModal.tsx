@@ -207,7 +207,7 @@ export default function RutaProvisionalModal({
             <button
               onClick={handleExportarTxt}
               disabled={visitas.length === 0}
-              className="flex-1 px-4 py-3 text-sm font-bold text-white bg-[#08557f] hover:bg-[#07476a] rounded-xl transition-colors shadow-md flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 px-4 py-3 text-sm font-bold text-white bg-primary hover:bg-[#07476a] rounded-xl transition-colors shadow-md flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Download className="w-4 h-4" />
               Exportar Ruta (.txt)

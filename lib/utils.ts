@@ -83,6 +83,25 @@ export const formatCOPInputValue = (raw: string) => {
   return formatMilesCOP(Number(digits))
 }
 
+/**
+ * Un importe YA numerico, para rellenar un campo de dinero.
+ *
+ * No es lo mismo que `formatCOPInputValue`, que recibe lo que la persona va
+ * teclando —una cadena con lo que sea dentro— y lo limpia. Esta recibe un
+ * numero que ya esta en el sistema y lo deja listo para el campo.
+ *
+ * El cero sale como campo VACIO, no como «0»: un campo que dice 0 se lee como
+ * un importe de cero pesos, y aqui lo que pasa es que no hay importe. Es la
+ * misma regla que `Cifra` con los huecos.
+ *
+ * Estaba escrita tres veces, identica, en `admin/notificaciones`, en
+ * `NotificacionDetalleModal` y en `EditarPrestamoModal`.
+ */
+export const formatCOPDesdeNumero = (valor: number | undefined | null) => {
+  if (valor === undefined || valor === null || valor === 0) return ''
+  return formatMilesCOP(valor)
+}
+
 export const parseCOPInputToNumber = (raw: string) => {
   const digits = raw.replace(/\D/g, '')
   return Number(digits || '0')

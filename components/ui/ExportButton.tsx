@@ -133,16 +133,16 @@ export const ExportButton = ({
         aria-busy={generando !== null}
         onClick={toggle}
         className={cn(
-          "flex items-center space-x-1 sm:space-x-2 px-3 sm:px-6 py-2.5 sm:py-3 bg-white hover:bg-slate-50 text-slate-700 rounded-xl shadow-sm border border-slate-200 hover:border-[#08557f]/30 transition-all font-medium group",
-          isOpen && "border-[#08557f]/30 bg-slate-50",
+          "flex items-center space-x-1 sm:space-x-2 px-3 sm:px-6 py-2.5 sm:py-3 bg-white hover:bg-slate-50 text-slate-700 rounded-xl shadow-sm border border-slate-200 hover:border-primary/30 transition-all font-medium group",
+          isOpen && "border-primary/30 bg-slate-50",
           !hasExportAction && "opacity-50 cursor-not-allowed hover:bg-white hover:border-slate-200",
           className
         )}
       >
         {generando ? (
-          <Loader2 className="h-4 w-4 animate-spin text-[#08557f]" aria-hidden="true" />
+          <Loader2 className="h-4 w-4 animate-spin text-primary" aria-hidden="true" />
         ) : (
-          <Download className="h-4 w-4 text-slate-400 group-hover:text-[#08557f] transition-colors" />
+          <Download className="h-4 w-4 text-slate-400 group-hover:text-primary transition-colors" />
         )}
         <span className="hidden sm:inline">
           {generando ? `Generando ${generando === 'excel' ? 'Excel' : 'PDF'}…` : label}

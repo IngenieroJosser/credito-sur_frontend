@@ -385,13 +385,13 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
                     <div className="flex items-center gap-4">
                       <div className="p-3 bg-white rounded-xl shadow-sm border border-blue-100">
                         {isArticle ? (
-                          <ShoppingBag className="w-6 h-6 text-[#08557f]" />
+                          <ShoppingBag className="w-6 h-6 text-primary" />
                         ) : (
-                          <Clock className="w-6 h-6 text-[#08557f]" />
+                          <Clock className="w-6 h-6 text-primary" />
                         )}
                       </div>
                       <div>
-                        <div className="text-[10px] font-bold text-[#08557f] uppercase tracking-widest mb-1">
+                        <div className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1">
                           {isArticle ? 'Artículo Financiado' : 'Préstamo'}
                         </div>
                         <div className="font-black text-slate-900 text-lg leading-tight uppercase">
@@ -400,7 +400,7 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-[10px] font-bold text-[#08557f] uppercase tracking-widest mb-1">
+                      <div className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1">
                         Valor Total
                       </div>
                       <div className="text-xl font-black text-slate-900">
@@ -461,7 +461,7 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
                     </div>
                     <div className="h-4 w-full bg-slate-100 rounded-full overflow-hidden mb-2">
                       <div
-                        className="h-full bg-[#08557f] rounded-full transition-all duration-1000"
+                        className="h-full bg-primary rounded-full transition-all duration-1000"
                         style={{
                           width: `${info.totalValue > 0 ? (info.totalPaid / info.totalValue) * 100 : 0}%`,
                         }}
@@ -533,7 +533,7 @@ export default function EstadoCuentaModal({ visita, onClose }: EstadoCuentaModal
                   <button
                     type="button"
                     onClick={onClose}
-                    className="w-full rounded-2xl bg-[#08557f] px-4 py-4 text-xs font-black text-white hover:bg-[#063a58] transition-all uppercase tracking-widest shadow-xl shadow-blue-900/10"
+                    className="w-full rounded-2xl bg-primary px-4 py-4 text-xs font-black text-white hover:bg-primary-dark transition-all uppercase tracking-widest shadow-xl shadow-blue-900/10"
                   >
                     Cerrar Estado de Cuenta
                   </button>

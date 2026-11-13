@@ -28,7 +28,7 @@ export default function AprobacionesRedirectPage() {
         <div className="relative mx-auto w-24 h-24">
           <div className="absolute inset-0 bg-blue-100 rounded-full animate-ping opacity-20" />
           <div className="relative flex items-center justify-center w-24 h-24 bg-blue-50 rounded-full border border-blue-100">
-            <ShieldCheck className="w-12 h-12 text-[#08557f]" />
+            <ShieldCheck className="w-12 h-12 text-primary" />
           </div>
         </div>
 
@@ -38,7 +38,7 @@ export default function AprobacionesRedirectPage() {
           </h1>
           <p className="text-slate-500 font-medium leading-relaxed text-sm">
             Las aprobaciones ahora se gestionan desde el módulo de{' '}
-            <span className="font-bold text-[#08557f]">Revisiones</span>, un centro dedicado donde
+            <span className="font-bold text-primary">Revisiones</span>, un centro dedicado donde
             puedes aprobar clientes, créditos, gastos y más en un solo lugar.
           </p>
         </div>
@@ -46,7 +46,7 @@ export default function AprobacionesRedirectPage() {
         <div className="flex flex-col gap-3">
           <button
             onClick={() => router.push('/admin/revisiones')}
-            className="w-full py-4 bg-[#08557f] text-white font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-blue-800 transition-all shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2 group"
+            className="w-full py-4 bg-primary text-white font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-blue-800 transition-all shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2 group"
           >
             Ir a Revisiones
             <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />

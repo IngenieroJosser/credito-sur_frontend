@@ -455,12 +455,12 @@ const LoginPage = () => {
       {/* --- FONDO DECORATIVO --- */}
       <div className="absolute inset-0 overflow-hidden">
         {/* Orbes de color difuminados */}
-        <div className="absolute top-1/4 -left-24 w-96 h-96 bg-gradient-to-br from-[#08557f]/[0.02] to-transparent rounded-full blur-3xl"></div>
+        <div className="absolute top-1/4 -left-24 w-96 h-96 bg-gradient-to-br from-primary/[0.02] to-transparent rounded-full blur-3xl"></div>
         <div className="absolute bottom-1/4 -right-24 w-96 h-96 bg-gradient-to-tr from-[#fb851b]/[0.02] to-transparent rounded-full blur-3xl"></div>
 
         {/* Líneas sutiles */}
-        <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-[#08557f]/5 to-transparent"></div>
-        <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-[#08557f]/5 to-transparent"></div>
+        <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-primary/5 to-transparent"></div>
+        <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-primary/5 to-transparent"></div>
       </div>
 
       {/* --- TARJETA DE LOGIN PRINCIPAL --- */}
@@ -483,7 +483,7 @@ const LoginPage = () => {
             </div>
           </div>
           <h1 className="text-3xl font-light text-gray-800 mb-2">
-            <span className="font-normal text-[#08557f]">Credi</span>
+            <span className="font-normal text-primary">Credi</span>
             <span className="font-normal text-[#fb851b]">Sur</span>
           </h1>
           <p className="text-xs text-gray-400 uppercase tracking-wider mt-4">Plataforma Financiera</p>
@@ -509,14 +509,14 @@ const LoginPage = () => {
                 onChange={handleInputChange}
                 onFocus={() => setFocusedField('usuario')}
                 onBlur={() => setFocusedField(null)}
-                className="w-full pl-8 pr-4 py-3 bg-transparent border-0 border-b border-gray-200 focus:border-[#08557f] focus:outline-none transition-all duration-300 text-gray-700 placeholder-gray-400 text-sm"
+                className="w-full pl-8 pr-4 py-3 bg-transparent border-0 border-b border-gray-200 focus:border-primary focus:outline-none transition-all duration-300 text-gray-700 placeholder-gray-400 text-sm"
                 placeholder="Usuario o correo"
                 autoComplete="username"
                 autoCapitalize="none"
                 disabled={isLoading}
               />
               {/* Línea animada inferior */}
-              <div className={`h-px bg-gradient-to-r from-[#08557f] to-transparent absolute bottom-0 left-0 transition-all duration-500 ${focusedField === 'usuario' ? 'w-full' : 'w-0'
+              <div className={`h-px bg-gradient-to-r from-primary to-transparent absolute bottom-0 left-0 transition-all duration-500 ${focusedField === 'usuario' ? 'w-full' : 'w-0'
                 }`}></div>
             </div>
 
@@ -536,7 +536,7 @@ const LoginPage = () => {
                 onChange={handleInputChange}
                 onFocus={() => setFocusedField('password')}
                 onBlur={() => setFocusedField(null)}
-                className="w-full pl-8 pr-12 py-3 bg-transparent border-0 border-b border-gray-200 focus:border-[#08557f] focus:outline-none transition-all duration-300 text-gray-700 placeholder-gray-400 text-sm"
+                className="w-full pl-8 pr-12 py-3 bg-transparent border-0 border-b border-gray-200 focus:border-primary focus:outline-none transition-all duration-300 text-gray-700 placeholder-gray-400 text-sm"
                 placeholder="Contraseña"
                 autoComplete="current-password"
                 disabled={isLoading}
@@ -554,7 +554,7 @@ const LoginPage = () => {
                   <Eye className="h-4 w-4" />
                 )}
               </button>
-              <div className={`h-px bg-gradient-to-r from-[#08557f] to-transparent absolute bottom-0 left-0 transition-all duration-500 ${focusedField === 'password' ? 'w-full' : 'w-0'
+              <div className={`h-px bg-gradient-to-r from-primary to-transparent absolute bottom-0 left-0 transition-all duration-500 ${focusedField === 'password' ? 'w-full' : 'w-0'
                 }`}></div>
             </div>
 
@@ -565,22 +565,22 @@ const LoginPage = () => {
                 disabled={isLoading}
                 className="w-full group relative overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <div className="absolute inset-0 bg-white border border-gray-200 rounded-lg transition-all duration-300 group-hover:border-[#08557f]"></div>
+                <div className="absolute inset-0 bg-white border border-gray-200 rounded-lg transition-all duration-300 group-hover:border-primary"></div>
 
                 <div className="relative py-3 px-4 flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-700 group-hover:text-[#08557f] transition-colors duration-300">
+                  <span className="text-sm font-medium text-gray-700 group-hover:text-primary transition-colors duration-300">
                     {isLoading ? 'Verificando...' : 'Acceder al Panel'}
                   </span>
                   <div className={`transition-all duration-300 ${isLoading ? 'opacity-0 translate-x-4' : 'opacity-100'
                     }`}>
-                    <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-[#08557f] group-hover:translate-x-1 transition-all duration-300" />
+                    <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-primary group-hover:translate-x-1 transition-all duration-300" />
                   </div>
                 </div>
 
                 {/* Spinner de carga (visible solo isLoading) */}
                 {isLoading && (
                   <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                    <div className="w-4 h-4 border border-gray-300 border-t-[#08557f] rounded-full animate-spin"></div>
+                    <div className="w-4 h-4 border border-gray-300 border-t-primary rounded-full animate-spin"></div>
                   </div>
                 )}
               </button>
@@ -625,7 +625,7 @@ const LoginPage = () => {
             <div className="text-center mt-4 animate-in fade-in duration-500">
               <a
                 href="/recuperar-contrasena"
-                className="text-xs text-[#08557f] hover:text-[#064d73] transition-colors duration-200 underline underline-offset-4"
+                className="text-xs text-primary hover:text-[#064d73] transition-colors duration-200 underline underline-offset-4"
               >
                 Recuperar contraseña de administrador
               </a>
@@ -730,7 +730,7 @@ const LoginPage = () => {
 
             <div className="flex flex-col items-center gap-3">
                <div 
-                   className="w-12 h-12 border-4 border-slate-100 border-t-[#08557f] border-r-[#08557f] rounded-full animate-spin"
+                   className="w-12 h-12 border-4 border-slate-100 border-t-primary border-r-primary rounded-full animate-spin"
                    style={{ 
                        width: '48px', 
                        height: '48px', 

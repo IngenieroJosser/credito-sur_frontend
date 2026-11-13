@@ -98,7 +98,7 @@ export default function DetalleMoraModal({
         onClick={e => e.stopPropagation()}
       >
         {/* ── Header ── */}
-        <div className="px-8 py-6 bg-gradient-to-br from-[#08557f] to-blue-800 relative overflow-hidden shrink-0">
+        <div className="px-8 py-6 bg-gradient-to-br from-primary to-blue-800 relative overflow-hidden shrink-0">
           <div className="absolute inset-0 opacity-10">
             <div className="absolute -right-10 -top-10 w-40 h-40 rounded-full bg-white blur-3xl" />
             <div className="absolute -left-4 bottom-0 w-32 h-32 rounded-full bg-blue-300 blur-2xl" />
@@ -193,7 +193,7 @@ export default function DetalleMoraModal({
             <div className="space-y-4">
               <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Información del Cliente</h4>
               <div className="flex items-start gap-4 p-5 bg-slate-50 rounded-2xl border border-slate-100">
-                <div className="w-12 h-12 bg-[#08557f] rounded-2xl flex items-center justify-center text-white text-lg font-black shadow-md shadow-blue-900/10 shrink-0">
+                <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center text-white text-lg font-black shadow-md shadow-blue-900/10 shrink-0">
                   {cuenta.cliente.nombre.charAt(0)}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -215,7 +215,7 @@ export default function DetalleMoraModal({
                         onClose()                          // cierra este modal primero
                         onVerCliente(cuenta.cliente.id!)  // luego abre el perfil con el ID correcto
                       }}
-                      className="mt-3 inline-flex items-center gap-1 text-[10px] font-black text-[#08557f] hover:underline uppercase tracking-widest"
+                      className="mt-3 inline-flex items-center gap-1 text-[10px] font-black text-primary hover:underline uppercase tracking-widest"
                     >
                       Ver Perfil Completo
                       <ChevronRight className="w-3 h-3" />
@@ -247,7 +247,7 @@ export default function DetalleMoraModal({
 
           {/* Acciones disponibles */}
           <div>
-            <h4 className="text-[10px] font-black text-[#08557f] uppercase tracking-[0.2em] mb-3">Acciones de Gestión</h4>
+            <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-3">Acciones de Gestión</h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* Asignar / Nueva Mora */}
               <button

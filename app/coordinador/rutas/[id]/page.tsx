@@ -1429,7 +1429,7 @@ const LegacyDetalleRutaPage = () => {
                           <div
                             className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs shadow-sm
 
-                                    ${isExpanded ? 'bg-[#08557f] text-white' : 'bg-slate-100 text-slate-600'}
+                                    ${isExpanded ? 'bg-primary text-white' : 'bg-slate-100 text-slate-600'}
 
                                 `}
                           >
@@ -1629,7 +1629,7 @@ const LegacyDetalleRutaPage = () => {
                     >
                       <div className="h-px flex-1 bg-slate-200"></div>
 
-                      <span className="flex items-center gap-2 text-[11px] font-black text-[#08557f] uppercase tracking-[0.25em] bg-blue-50/50 px-4 py-1.5 rounded-full border border-blue-100 shadow-sm whitespace-nowrap select-none group-hover:bg-blue-100/60 transition-colors">
+                      <span className="flex items-center gap-2 text-[11px] font-black text-primary uppercase tracking-[0.25em] bg-blue-50/50 px-4 py-1.5 rounded-full border border-blue-100 shadow-sm whitespace-nowrap select-none group-hover:bg-blue-100/60 transition-colors">
                         {label}
 
                         <span className="ml-1 bg-blue-600 text-white text-[9px] px-2 py-0.5 rounded-full">
@@ -1667,7 +1667,7 @@ const LegacyDetalleRutaPage = () => {
                                   handleAbrirEstadoCuenta(visita)
                                 }}
 
-                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white text-[#08557f] border border-[#08557f]/20 hover:bg-blue-50 transition-all shadow-sm active:scale-95 font-bold text-[11px]"
+                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white text-primary border border-primary/20 hover:bg-blue-50 transition-all shadow-sm active:scale-95 font-bold text-[11px]"
                               >
                                 <FileTextIcon className="h-3.5 w-3.5" />
                                 Estado
@@ -2393,7 +2393,7 @@ function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose:
                     <span className="text-[9px] font-black uppercase">Préstamos</span>
                   </div>
 
-                  <p className="text-sm font-black text-[#08557f]">
+                  <p className="text-sm font-black text-primary">
                     {prestamosActivosCount} Activos
                   </p>
                 </div>
@@ -2402,13 +2402,13 @@ function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose:
               {/* Contacto y Ubicación */}
 
               <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-blue-50 border border-blue-100">
-                <h5 className="text-[10px] font-black text-[#08557f] uppercase tracking-widest mb-3">
+                <h5 className="text-[10px] font-black text-primary uppercase tracking-widest mb-3">
                   Referencias / Contacto
                 </h5>
 
                 <div className="space-y-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-white rounded-xl flex items-center justify-center text-[#08557f] shadow-sm shrink-0">
+                    <div className="w-8 h-8 bg-white rounded-xl flex items-center justify-center text-primary shadow-sm shrink-0">
                       <Phone className="w-4 h-4" />
                     </div>
 
@@ -2418,7 +2418,7 @@ function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose:
                       <a
                         href={`tel:${clienteCompleto?.telefono || visita.telefono}`}
 
-                        className="text-sm font-black text-slate-900 hover:text-[#08557f] transition-colors"
+                        className="text-sm font-black text-slate-900 hover:text-primary transition-colors"
 
                         onClick={(e) => e.stopPropagation()}
                       >
@@ -2428,7 +2428,7 @@ function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose:
                   </div>
 
                   <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 bg-white rounded-xl flex items-center justify-center text-[#08557f] shadow-sm shrink-0">
+                    <div className="w-8 h-8 bg-white rounded-xl flex items-center justify-center text-primary shadow-sm shrink-0">
                       <MapPin className="w-4 h-4" />
                     </div>
 
@@ -2517,7 +2517,7 @@ function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose:
               <button
                 onClick={onClose}
 
-                className="w-full rounded-2xl bg-[#08557f] py-4 text-sm font-black text-white hover:bg-[#063a58] shadow-xl shadow-[#08557f]/20 transition-all uppercase tracking-widest active:scale-[0.98]"
+                className="w-full rounded-2xl bg-primary py-4 text-sm font-black text-white hover:bg-primary-dark shadow-xl shadow-primary/20 transition-all uppercase tracking-widest active:scale-[0.98]"
               >
                 Cerrar Expediente
               </button>

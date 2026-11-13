@@ -99,7 +99,7 @@ export default function DetalleReporteOperativoPage({
                 <ChevronLeft className="w-4 h-4" />
               </Link>
               <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-[#08557f]/10 text-[#08557f]">
+                <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
                   <BarChart3 className="w-4 h-4" />
                 </div>
                 <div>
@@ -183,7 +183,7 @@ export default function DetalleReporteOperativoPage({
           <div className="space-y-4">
             <section className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm">
               <h3 className="text-xs font-bold text-slate-800 uppercase tracking-widest mb-4 flex items-center gap-2">
-                <Calendar className="w-3.5 h-3.5 text-[#08557f]" />
+                <Calendar className="w-3.5 h-3.5 text-primary" />
                 Cuadre de Ruta
               </h3>
               <div className="space-y-3">
@@ -198,7 +198,7 @@ export default function DetalleReporteOperativoPage({
                 <div className="h-px bg-slate-50" />
                 <div className="flex justify-between items-center">
                   <span className="text-[10px] font-black text-slate-900 uppercase tracking-tighter">Liquidación Neta</span>
-                  <span className="text-lg font-black text-[#08557f] tracking-tighter">{formatCurrency(reporte.recaudado - reporte.gastosDia)}</span>
+                  <span className="text-lg font-black text-primary tracking-tighter">{formatCurrency(reporte.recaudado - reporte.gastosDia)}</span>
                 </div>
               </div>
             </section>

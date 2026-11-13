@@ -5,7 +5,12 @@ import {
   ChevronDown, ChevronUp, User, RefreshCw,
   ShieldAlert, AlertTriangle, Minus, Plus, Check, X, Eye, FileText
 } from 'lucide-react'
-import { formatCurrency, formatMilesCOP, cn } from '@/lib/utils'
+import {
+  cn,
+  formatCOPInputValue,
+  formatCurrency,
+  parseCOPInputToNumber,
+} from '@/lib/utils'
 import { getCajas, getDeudoresCobrador, registrarAbonoDeudaCobrador, type DeudaCobrador } from '@/services/contabilidad-service'
 import { useAuth } from '@/hooks/useAuth'
 import { useNotification } from '@/components/providers/NotificationProvider'
@@ -14,15 +19,10 @@ import Tooltip from '@/components/ui/Tooltip'
 import { Selector } from '@/components/ui/Selector'
 import { mensajeDeError } from '@/lib/mensaje-de-error'
 
-// Utilidades locales para inputs COP (sin importar las del lib para evitar circularidades)
-function fmtCOPInput(val: string): string {
-  const num = val.replace(/\D/g, '')
-  if (!num) return ''
-  return formatMilesCOP(Number(num))
-}
-function parseCOP(val: string): number {
-  return Number(val.replace(/\D/g, '')) || 0
-}
+// Aqui habia dos copias de las utilidades de dinero, con un comentario que
+// decia «sin importar las del lib para evitar circularidades». No habia
+// ninguna circularidad: este archivo ya importaba `formatMilesCOP` del mismo
+// `@/lib/utils` en la linea de arriba. Ahora usa las compartidas.
 
 function formatFechaEventoDeuda(fecha: string): string {
   const date = new Date(fecha)
@@ -56,7 +56,7 @@ function AbonoModal({ cobrador, onClose, onConfirm, cajas }: AbonoModalProps) {
   const cajaPrincipal = cajas.find((c) => String(c.codigo || '').toUpperCase() === 'CAJA-PRINCIPAL')
   const [cajaIdDestino, setCajaIdDestino] = useState<string>(cajaPrincipal?.id || '')
   const [loading, setLoading] = useState(false)
-  const monto = parseCOP(valorInput)
+  const monto = parseCOPInputToNumber(valorInput)
   const valido = monto > 0 && monto <= cobrador.totalDeuda
 
   const handleSubmit = async () => {
@@ -108,7 +108,7 @@ function AbonoModal({ cobrador, onClose, onConfirm, cajas }: AbonoModalProps) {
               inputMode="numeric"
               placeholder="$ 0"
               value={valorInput}
-              onChange={e => setValorInput(fmtCOPInput(e.target.value))}
+              onChange={e => setValorInput(formatCOPInputValue(e.target.value))}
               className="w-full text-2xl font-black text-slate-900 border border-slate-200 rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-300 focus:border-emerald-400 transition-all bg-slate-50"
             />
             {monto > cobrador.totalDeuda && (

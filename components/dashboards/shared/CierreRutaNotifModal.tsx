@@ -118,7 +118,7 @@ export default function CierreRutaNotifModal({
         <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-100 animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-300 overflow-hidden">
           
           {/* ── Header con gradiente tipo "Cierre de Ruta" ── */}
-          <div className="relative px-6 pt-7 pb-5 overflow-hidden bg-gradient-to-br from-[#08557f] to-blue-800">
+          <div className="relative px-6 pt-7 pb-5 overflow-hidden bg-gradient-to-br from-primary to-blue-800">
             {/* Fondo decorativo */}
             <div className="absolute inset-0 opacity-10">
               <div className="absolute -right-6 -top-6 w-32 h-32 rounded-full bg-white" />

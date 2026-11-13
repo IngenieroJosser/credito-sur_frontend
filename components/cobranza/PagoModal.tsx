@@ -206,7 +206,7 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm, montoCuota
                     onClick={() => setMetodoPago(MetodoPago.EFECTIVO)}
                     className={`py-3 rounded-xl border text-sm font-bold transition-colors ${
                       metodoPago === MetodoPago.EFECTIVO
-                        ? 'bg-[#08557f] text-white border-[#08557f]'
+                        ? 'bg-primary text-white border-primary'
                         : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                     }`}
                   >
@@ -217,7 +217,7 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm, montoCuota
                     onClick={() => setMetodoPago(MetodoPago.TRANSFERENCIA)}
                     className={`py-3 rounded-xl border text-sm font-bold transition-colors ${
                       metodoPago === MetodoPago.TRANSFERENCIA
-                        ? 'bg-[#08557f] text-white border-[#08557f]'
+                        ? 'bg-primary text-white border-primary'
                         : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                     }`}
                   >
@@ -244,7 +244,7 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm, montoCuota
                       setErrorMsg(null)
                     } : undefined}
                     readOnly={tipo === 'PAGO'}
-                    className={`w-full pl-10 pr-4 py-4 border-2 rounded-xl focus:ring-0 font-bold text-2xl text-slate-900 placeholder:text-slate-300 ${tipo === 'PAGO' ? 'bg-slate-50 border-slate-100 cursor-not-allowed' : 'bg-white border-slate-200 focus:border-[#08557f]'}`}
+                    className={`w-full pl-10 pr-4 py-4 border-2 rounded-xl focus:ring-0 font-bold text-2xl text-slate-900 placeholder:text-slate-300 ${tipo === 'PAGO' ? 'bg-slate-50 border-slate-100 cursor-not-allowed' : 'bg-white border-slate-200 focus:border-primary'}`}
                     placeholder="0"
                     autoFocus={tipo === 'ABONO'}
                   />
@@ -269,7 +269,7 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm, montoCuota
                       }}
                       maxLength={100}
                       autoComplete="off"
-                      className="w-full rounded-xl border-2 border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-900 outline-none transition-colors focus:border-[#08557f]"
+                      className="w-full rounded-xl border-2 border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-900 outline-none transition-colors focus:border-primary"
                       placeholder="Ej: 84729103"
                     />
                   </div>
@@ -286,7 +286,7 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm, montoCuota
                       onChange={(event) => setNotasTransferencia(event.target.value)}
                       maxLength={500}
                       rows={3}
-                      className="w-full resize-none rounded-xl border-2 border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 outline-none transition-colors focus:border-[#08557f]"
+                      className="w-full resize-none rounded-xl border-2 border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 outline-none transition-colors focus:border-primary"
                       placeholder="Ej: Transferencia realizada por un familiar del cliente"
                     />
                     <p className="mt-1 text-right text-[10px] font-bold text-slate-400">
@@ -301,7 +301,7 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm, montoCuota
                         <div className="flex items-center gap-2">
                           <p className="text-sm font-bold text-slate-900">Sube el comprobante</p>
                           {comprobanteTransferencia && (
-                            <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-[#08557f] border border-blue-100">
+                            <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-primary border border-blue-100">
                               ADJUNTO
                             </span>
                           )}
@@ -345,7 +345,7 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm, montoCuota
                         type="file"
                         accept="image/*"
                         onChange={handleFileChange}
-                        className="w-full max-w-full text-sm text-slate-600 file:mr-3 file:rounded-full file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:text-xs file:font-black file:text-[#08557f] hover:file:bg-blue-100 transition-all cursor-pointer sm:file:mr-4 sm:file:px-4"
+                        className="w-full max-w-full text-sm text-slate-600 file:mr-3 file:rounded-full file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:text-xs file:font-black file:text-primary hover:file:bg-blue-100 transition-all cursor-pointer sm:file:mr-4 sm:file:px-4"
                         required
                       />
                     </div>
@@ -372,7 +372,7 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm, montoCuota
                 (metodoPago === MetodoPago.TRANSFERENCIA &&
                   (!comprobanteTransferencia || !numeroReferencia.trim()))
               }
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#08557f] py-3.5 font-bold text-white shadow-lg shadow-[#08557f]/20 transition-all hover:bg-[#063a58] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100 sm:py-4"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3.5 font-bold text-white shadow-lg shadow-primary/20 transition-all hover:bg-primary-dark active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100 sm:py-4"
             >
               {isSubmitting ? (
                 <Loader2 className="h-5 w-5 animate-spin" />

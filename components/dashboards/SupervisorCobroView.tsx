@@ -2391,7 +2391,7 @@ const handleRegistrarPago = useCallback(async (
 
               <div className="relative">
 
-                <div className="w-12 h-12 bg-[#08557f] rounded-2xl flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-[#08557f]/20">
+                <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-primary/20">
 
                   {generarAvatar(userSession.nombres, userSession.apellidos)}
 
@@ -2475,7 +2475,7 @@ const handleRegistrarPago = useCallback(async (
 
                     onChange={(e) => setSearchQuery(e.target.value)}
 
-                    className="w-full pl-10 pr-4 py-3 rounded-xl bg-white border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#08557f]/20 focus:border-[#08557f] shadow-sm text-slate-900 placeholder:text-slate-400"
+                    className="w-full pl-10 pr-4 py-3 rounded-xl bg-white border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary shadow-sm text-slate-900 placeholder:text-slate-400"
 
                   />
 
@@ -2503,7 +2503,7 @@ const handleRegistrarPago = useCallback(async (
 
                       !showHistory 
 
-                        ? 'bg-[#08557f] text-white border-[#08557f]' 
+                        ? 'bg-primary text-white border-primary' 
 
                         : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
 
@@ -2519,7 +2519,7 @@ const handleRegistrarPago = useCallback(async (
 
                   <button
                     onClick={() => setShowRutaProvisional(true)}
-                    className="px-4 py-2 bg-blue-100 text-[#08557f] border border-blue-200 hover:bg-blue-200 rounded-xl flex items-center gap-2 font-medium shadow-sm transition-colors"
+                    className="px-4 py-2 bg-blue-100 text-primary border border-blue-200 hover:bg-blue-200 rounded-xl flex items-center gap-2 font-medium shadow-sm transition-colors"
                   >
                     <Search className="h-4 w-4" />
                     <span className="hidden md:inline">Ruta Provisional</span>
@@ -2539,7 +2539,7 @@ const handleRegistrarPago = useCallback(async (
 
                       showHistory 
 
-                        ? 'bg-[#08557f] text-white border-[#08557f]' 
+                        ? 'bg-primary text-white border-primary' 
 
                         : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
 
@@ -2569,7 +2569,7 @@ const handleRegistrarPago = useCallback(async (
 
                       showMisClientes
 
-                        ? 'bg-[#08557f] text-white border-[#08557f]'
+                        ? 'bg-primary text-white border-primary'
 
                         : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
 
@@ -2890,7 +2890,7 @@ const handleRegistrarPago = useCallback(async (
 
                               <div className="h-px flex-1 bg-slate-200" />
 
-                              <span className="flex items-center gap-2 text-[11px] font-black text-[#08557f] uppercase tracking-[0.25em] bg-blue-50/50 px-4 py-1.5 rounded-full border border-blue-100 shadow-sm whitespace-nowrap select-none group-hover:bg-blue-100/60 transition-colors">
+                              <span className="flex items-center gap-2 text-[11px] font-black text-primary uppercase tracking-[0.25em] bg-blue-50/50 px-4 py-1.5 rounded-full border border-blue-100 shadow-sm whitespace-nowrap select-none group-hover:bg-blue-100/60 transition-colors">
 
                                 {titulo}{' '}
 

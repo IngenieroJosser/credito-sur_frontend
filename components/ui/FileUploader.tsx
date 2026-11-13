@@ -163,8 +163,8 @@ export const FileUploader: React.FC<FileUploaderProps> = ({
         className={cn(
           "relative border-2 border-dashed rounded-lg p-6 transition-all duration-200 ease-in-out text-center cursor-pointer",
           isDragging
-            ? "border-[#08557f] bg-[#08557f]/5 scale-[1.02]"
-            : "border-gray-200 hover:border-[#08557f]/50 hover:bg-gray-50",
+            ? "border-primary bg-primary/5 scale-[1.02]"
+            : "border-gray-200 hover:border-primary/50 hover:bg-gray-50",
           error ? "border-red-200 bg-red-50/50" : ""
         )}
       >
@@ -179,7 +179,7 @@ export const FileUploader: React.FC<FileUploaderProps> = ({
         <div className="flex flex-col items-center justify-center space-y-2 pointer-events-none">
           <div className={cn(
             "p-3 rounded-full transition-colors",
-            isDragging ? "bg-[#08557f]/10 text-[#08557f]" : "bg-gray-100 text-gray-400"
+            isDragging ? "bg-primary/10 text-primary" : "bg-gray-100 text-gray-400"
           )}>
             <UploadCloud className="w-6 h-6" />
           </div>
@@ -211,10 +211,10 @@ export const FileUploader: React.FC<FileUploaderProps> = ({
           {currentFiles.map((file, index) => (
             <div
               key={`${file.name}-${index}`}
-              className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100 group hover:border-[#08557f]/20 transition-colors"
+              className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100 group hover:border-primary/20 transition-colors"
             >
               <div className="flex items-center gap-3 overflow-hidden">
-                <div className="p-2 bg-white rounded-md border border-gray-200 text-[#08557f]">
+                <div className="p-2 bg-white rounded-md border border-gray-200 text-primary">
                   {file.type.startsWith('image/') ? (
                     <ImageIcon className="w-4 h-4" />
                   ) : file.type.startsWith('video/') ? (

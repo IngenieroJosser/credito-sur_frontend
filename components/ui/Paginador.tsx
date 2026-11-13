@@ -40,7 +40,7 @@ export default function Paginador({
       'inline-flex items-center gap-1.5 rounded-lg border px-3.5 py-2',
       'text-sm font-semibold transition-colors',
       activo
-        ? 'border-slate-300 bg-white text-slate-700 hover:border-[#08557f] hover:bg-[#08557f] hover:text-white'
+        ? 'border-slate-300 bg-white text-slate-700 hover:border-primary hover:bg-primary hover:text-white'
         : 'cursor-not-allowed border-slate-200 bg-slate-50 text-slate-300',
     ].join(' ')
 

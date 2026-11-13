@@ -22,9 +22,9 @@ import {
   formatCOPInputValue,
   formatCurrency,
   formatLoanTerm,
-  formatMilesCOP,
   parseCOPInputToNumber,
   resolveMediaUrl,
+  formatCOPDesdeNumero,
 } from '@/lib/utils'
 import { normalizeDateKey } from '@/lib/rutas-core'
 import { aprobacionesService, type Aprobacion } from '@/services/aprobaciones-service'
@@ -1083,14 +1083,7 @@ export default function NotificacionDetalleModal({
     }
   }
 
-  const formatCOPInput = (val: number | undefined) => {
-    if (val === undefined || val === 0) return ''
-    return formatMilesCOP(val)
-  }
 
-  const parseCOPInput = (val: string) => {
-    return Number(val.replace(/\D/g, ''))
-  }
 
   const getIcon = (tipo: string) => {
     switch (tipo) {
@@ -1686,11 +1679,11 @@ export default function NotificacionDetalleModal({
                           {isEditingMode ? (
                             <input
                               type="text"
-                              value={formatCOPInput(
+                              value={formatCOPDesdeNumero(
                                 Number(editedDetails?.cuotaInicial ?? safeMeta?.cuotaInicial ?? 0),
                               )}
                               onChange={(e) => {
-                                const val = parseCOPInput(e.target.value)
+                                const val = parseCOPInputToNumber(e.target.value)
                                 const valorArticulo = Number(
                                   editedDetails?.valorArticulo ||
                                     safeMeta?.valorArticulo ||

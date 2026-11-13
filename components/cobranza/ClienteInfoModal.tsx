@@ -282,7 +282,7 @@ export default function ClienteInfoModal({
                 onClick={() => setTab(key)}
                 className={`py-3 text-xs font-black uppercase tracking-widest border-b-2 mr-6 transition-all ${
                   tab === key
-                    ? 'border-[#08557f] text-[#08557f]'
+                    ? 'border-primary text-primary'
                     : 'border-transparent text-slate-400 hover:text-slate-600'
                 }`}
               >
@@ -317,7 +317,7 @@ export default function ClienteInfoModal({
                         <p className="text-[10px] font-bold text-slate-400 uppercase mb-0.5">Teléfono</p>
                         <a
                           href={`tel:${visita.telefono}`}
-                          className="text-sm font-black text-[#08557f] hover:underline"
+                          className="text-sm font-black text-primary hover:underline"
                         >
                           {visita.telefono}
                         </a>
@@ -412,7 +412,7 @@ export default function ClienteInfoModal({
                   {nextPagoFecha && (
                     <div className="text-right">
                       <p className="text-[10px] text-slate-500 font-black uppercase mb-0.5">Próxima Fecha</p>
-                      <p className="text-[#08557f] font-bold text-sm">
+                      <p className="text-primary font-bold text-sm">
                         {formatFechaLargaUTC(nextPagoFecha)}
                       </p>
                     </div>
@@ -529,7 +529,7 @@ export default function ClienteInfoModal({
             <button
               type="button"
               onClick={onClose}
-              className="w-full rounded-2xl bg-[#08557f] py-4 text-sm font-black text-white hover:bg-[#063a58] shadow-xl shadow-[#08557f]/20 transition-all uppercase tracking-widest active:scale-[0.98]"
+              className="w-full rounded-2xl bg-primary py-4 text-sm font-black text-white hover:bg-primary-dark shadow-xl shadow-primary/20 transition-all uppercase tracking-widest active:scale-[0.98]"
             >
               Cerrar
             </button>

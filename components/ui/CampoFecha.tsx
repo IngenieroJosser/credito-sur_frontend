@@ -277,8 +277,8 @@ export function CampoFecha({
                 punteroGrueso ? 'h-11' : 'h-9',
                 bloqueada && 'cursor-not-allowed text-slate-300',
                 !bloqueada && !esElegida && 'text-slate-700 hover:bg-slate-100',
-                esHoy && !esElegida && 'ring-1 ring-inset ring-[#08557f]/40',
-                esElegida && 'bg-[#08557f] font-bold text-white',
+                esHoy && !esElegida && 'ring-1 ring-inset ring-primary/40',
+                esElegida && 'bg-primary font-bold text-white',
               )}
             >
               {f.getDate()}
@@ -291,7 +291,7 @@ export function CampoFecha({
         <button
           type="button"
           onClick={() => elegir(new Date())}
-          className="rounded-lg px-3 py-1.5 text-xs font-bold text-[#08557f] hover:bg-slate-100"
+          className="rounded-lg px-3 py-1.5 text-xs font-bold text-primary hover:bg-slate-100"
         >
           Hoy
         </button>
@@ -341,11 +341,11 @@ export function CampoFecha({
         }}
         className={cn(
           'flex w-full items-center justify-between gap-2 rounded-xl border bg-white px-4 py-3 text-left text-sm font-medium transition-colors',
-          'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#08557f] focus-visible:ring-offset-1',
+          'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1',
           disabled
             ? 'cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400'
             : 'border-slate-200 text-slate-900 hover:border-slate-300',
-          abierto && !disabled && 'border-[#08557f] ring-2 ring-[#08557f]/15',
+          abierto && !disabled && 'border-primary ring-2 ring-primary/15',
           className,
         )}
       >

@@ -6,7 +6,12 @@ import { X, Save, Clock, Edit3, Lock, User, Loader2, Package } from 'lucide-reac
 import { createPortal } from 'react-dom';
 import { useNotification } from '@/components/providers/NotificationProvider';
 import { useNotificaciones } from '@/components/providers/NotificacionesProvider';
-import { formatCurrency, formatLoanTerm, formatMilesCOP } from '@/lib/utils';
+import {
+  formatCOPDesdeNumero,
+  formatCurrency,
+  formatLoanTerm,
+  parseCOPInputToNumber,
+} from '@/lib/utils';
 import { prestamosService } from '@/services/prestamos-service';
 import { formatErrorForComponent } from '@/lib/api/api';
 import { articulosService } from '@/services/articulos-service';
@@ -29,12 +34,7 @@ interface EditarPrestamoModalProps {
   onSuccess?: () => void;
 }
 
-const formatCOPInput = (val: number | undefined) => {
-  if (val === undefined || val === 0) return '';
-  return formatMilesCOP(val);
-};
 
-const parseCOP = (val: string) => Number(val.replace(/\D/g, ''));
 
 // Aqui vivian dos formulas de dinero propias de esta pantalla
 // (`calcularAmortizacionPreview` y `calcularInteresPlanoPreview`). El resumen
@@ -593,8 +593,8 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
                         <input
                           type="text"
-                          value={formatCOPInput(monto)}
-                          onChange={(e) => setMonto(parseCOP(e.target.value))}
+                          value={formatCOPDesdeNumero(monto)}
+                          onChange={(e) => setMonto(parseCOPInputToNumber(e.target.value))}
                           className="w-full bg-slate-50 border border-slate-100 text-slate-900 rounded-2xl pl-7 pr-4 py-3 text-lg font-black outline-none focus:ring-2 focus:ring-blue-500/10 focus:bg-white transition-all shadow-inner"
                         />
                       </div>
@@ -773,8 +773,8 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
                           {isEditing ? (
                             <input
                               type="text"
-                              value={formatCOPInput(cuotaInicial)}
-                              onChange={(e) => setCuotaInicial(parseCOP(e.target.value))}
+                              value={formatCOPDesdeNumero(cuotaInicial)}
+                              onChange={(e) => setCuotaInicial(parseCOPInputToNumber(e.target.value))}
                               className="w-full bg-white border border-orange-200 text-slate-900 rounded-xl px-3 py-1.5 text-xs font-black outline-none focus:ring-1 focus:ring-orange-400"
                             />
                           ) : (

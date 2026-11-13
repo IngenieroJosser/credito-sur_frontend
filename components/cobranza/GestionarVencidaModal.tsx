@@ -73,8 +73,8 @@ const DECISION_CONFIG: Record<Decision, {
     label: DECISIONES_CUENTA_VENCIDA.PRORROGAR.label,
     description: DECISIONES_CUENTA_VENCIDA.PRORROGAR.efecto,
     icon: <Clock className="h-5 w-5" />,
-    activeColor: 'text-[#08557f]',
-    activeBorder: 'border-[#08557f]',
+    activeColor: 'text-primary',
+    activeBorder: 'border-primary',
     activeBg: 'bg-blue-50/50',
   },
   DEJAR_QUIETO: {
@@ -175,7 +175,7 @@ export default function GestionarVencidaModal({ cuenta, onClose, onConfirm }: Ge
           {/* ── Header ── */}
           <div className={cn(
             'px-7 py-5 relative overflow-hidden shrink-0 transition-colors duration-300',
-            decision === 'PRORROGAR' ? 'bg-gradient-to-br from-[#08557f] to-blue-800'
+            decision === 'PRORROGAR' ? 'bg-gradient-to-br from-primary to-blue-800'
             : decision === 'CASTIGAR'  ? 'bg-gradient-to-br from-rose-700 to-rose-900'
             : 'bg-gradient-to-br from-slate-700 to-slate-900'
           )}>
@@ -294,7 +294,7 @@ export default function GestionarVencidaModal({ cuenta, onClose, onConfirm }: Ge
                   >
                     <div className={cn(
                       'h-6 w-6 rounded-lg border-2 flex items-center justify-center transition-colors shrink-0',
-                      cobrarInteres ? 'bg-[#08557f] border-[#08557f]' : 'border-slate-300 bg-slate-50'
+                      cobrarInteres ? 'bg-primary border-primary' : 'border-slate-300 bg-slate-50'
                     )}>
                       {cobrarInteres && <Check className="w-4 h-4 text-white" />}
                     </div>
@@ -403,7 +403,7 @@ export default function GestionarVencidaModal({ cuenta, onClose, onConfirm }: Ge
                 (!isValid || isLoading || (requireComentario && !comentarios.trim()))
                   ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
                   : decision === 'PRORROGAR'
-                    ? 'bg-[#08557f] shadow-blue-900/20 hover:scale-[1.02] active:scale-95'
+                    ? 'bg-primary shadow-blue-900/20 hover:scale-[1.02] active:scale-95'
                     : decision === 'DEJAR_QUIETO'
                       ? 'bg-slate-700 shadow-slate-900/20 hover:bg-slate-800'
                       : 'bg-rose-600 shadow-rose-900/20 hover:bg-rose-700'

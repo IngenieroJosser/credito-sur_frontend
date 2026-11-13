@@ -32,7 +32,7 @@ export function Spinner({ tamano = 'md', className = '' }: SpinnerProps) {
     <span
       role="status"
       aria-label="Cargando"
-      className={`inline-block rounded-full border-[#08557f] border-t-transparent animate-spin ${MEDIDAS[tamano]} ${className}`}
+      className={`inline-block rounded-full border-primary border-t-transparent animate-spin ${MEDIDAS[tamano]} ${className}`}
     />
   )
 }

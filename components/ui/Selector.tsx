@@ -342,14 +342,14 @@ export function Selector<T extends string = string>({
                   ? 'cursor-not-allowed text-slate-300'
                   : 'cursor-pointer text-slate-700',
                 !opcion.disabled && indice === resaltada && 'bg-slate-100',
-                seleccionada && 'font-bold text-[#08557f]',
+                seleccionada && 'font-bold text-primary',
               )}
             >
               <span className="min-w-0 flex-1 truncate">
                 {opcion.contenido ?? opcion.label}
               </span>
               {seleccionada ? (
-                <Check className="h-4 w-4 shrink-0 text-[#08557f]" aria-hidden />
+                <Check className="h-4 w-4 shrink-0 text-primary" aria-hidden />
               ) : null}
             </div>
           )
@@ -383,11 +383,11 @@ export function Selector<T extends string = string>({
         onKeyDown={alTeclear}
         className={cn(
           'flex w-full items-center justify-between gap-2 rounded-xl border bg-white px-4 py-3 text-left text-sm font-medium transition-colors',
-          'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#08557f] focus-visible:ring-offset-1',
+          'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1',
           disabled
             ? 'cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400'
             : 'border-slate-200 text-slate-900 hover:border-slate-300',
-          abierto && !disabled && 'border-[#08557f] ring-2 ring-[#08557f]/15',
+          abierto && !disabled && 'border-primary ring-2 ring-primary/15',
           className,
         )}
       >

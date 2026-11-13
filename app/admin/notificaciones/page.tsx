@@ -32,7 +32,6 @@ import EditarPrestamoModal from '@/components/prestamos/EditarPrestamoModal'
 import { aprobacionesService } from '@/services/aprobaciones-service'
 import { TipoAprobacion } from '@/types/enums'
 import NotificacionDetalleModal, { type DetallesEditados } from '@/components/dashboards/shared/NotificacionDetalleModal'
-import { formatMilesCOP } from '@/lib/utils'
 import BotonAccion from '@/components/ui/BotonAccion'
 import { CapaAccion } from '@/components/ui/PantallaCarga'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -403,14 +402,7 @@ export default function NotificacionesPage() {
   }, [filter, tipoFilter, filterRuta, search, sortBy]);
 
   // Helper for formatted numeric inputs
-  const formatCOPInput = (val: number | undefined) => {
-    if (val === undefined || val === 0) return ''
-    return formatMilesCOP(val)
-  }
 
-  const parseCOPInput = (val: string) => {
-    return Number(val.replace(/\D/g, ''))
-  }
 
 
   const getIcon = (tipo: string) => {

@@ -248,7 +248,7 @@ const VistaSupervisor = () => {
           <p className="text-sm text-slate-600 mb-6">{error}</p>
           <button
             onClick={handleRefresh}
-            className="px-6 py-2 bg-[#08557f] text-white font-bold rounded-xl hover:bg-[#063a58] transition-colors flex items-center gap-2 mx-auto"
+            className="px-6 py-2 bg-primary text-white font-bold rounded-xl hover:bg-primary-dark transition-colors flex items-center gap-2 mx-auto"
           >
             <RefreshCw className="h-4 w-4" />
             Reintentar

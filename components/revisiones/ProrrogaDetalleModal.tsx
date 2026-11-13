@@ -91,7 +91,7 @@ const DECISION_CONFIG = {
   PRORROGAR: {
     label:   DECISIONES_CUENTA_VENCIDA.PRORROGAR.label,
     badge:   'bg-blue-100 text-blue-800 border-blue-200',
-    header:  'from-[#08557f] to-blue-800',
+    header:  'from-primary to-blue-800',
     section: 'bg-blue-50/60 border-blue-200',
     text:    'text-blue-700',
     accent:  'border-blue-400',

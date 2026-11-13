@@ -448,7 +448,7 @@ export default function ClienteDetalleSupervisorPage() {
                         onClick={() => setMetodoPago('EFECTIVO')}
                         className={`py-3 rounded-xl border text-sm font-bold transition-colors ${
                           metodoPago === 'EFECTIVO'
-                            ? 'bg-[#08557f] text-white border-[#08557f]'
+                            ? 'bg-primary text-white border-primary'
                             : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                         }`}
                       >
@@ -459,7 +459,7 @@ export default function ClienteDetalleSupervisorPage() {
                         onClick={() => setMetodoPago('TRANSFERENCIA')}
                         className={`py-3 rounded-xl border text-sm font-bold transition-colors ${
                           metodoPago === 'TRANSFERENCIA'
-                            ? 'bg-[#08557f] text-white border-[#08557f]'
+                            ? 'bg-primary text-white border-primary'
                             : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                         }`}
                       >
@@ -477,7 +477,7 @@ export default function ClienteDetalleSupervisorPage() {
                         inputMode="numeric"
                         value={montoPagoInput}
                         onChange={(e) => setMontoPagoInput(formatCOPInputValue(e.target.value))}
-                        className="w-full pl-10 pr-4 py-4 bg-white border-2 border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-bold text-2xl text-slate-900 placeholder:text-slate-300"
+                        className="w-full pl-10 pr-4 py-4 bg-white border-2 border-slate-200 rounded-xl focus:border-primary focus:ring-0 font-bold text-2xl text-slate-900 placeholder:text-slate-300"
                         placeholder="0"
                         autoFocus
                       />
@@ -509,7 +509,7 @@ export default function ClienteDetalleSupervisorPage() {
                             <div className="flex items-center gap-2">
                               <p className="text-sm font-bold text-slate-900">Sube el comprobante</p>
                               {comprobanteTransferencia && (
-                                <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-[#08557f] border border-blue-100">
+                                <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-primary border border-blue-100">
                                   ADJUNTO
                                 </span>
                               )}
@@ -592,7 +592,7 @@ export default function ClienteDetalleSupervisorPage() {
                       parseCOPInputToNumber(montoPagoInput) <= 0 ||
                       (metodoPago === 'TRANSFERENCIA' && !comprobanteTransferencia)
                     }
-                    className="w-full bg-[#08557f] text-white font-bold py-4 rounded-xl shadow-lg shadow-[#08557f]/20 hover:bg-[#063a58] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
+                    className="w-full bg-primary text-white font-bold py-4 rounded-xl shadow-lg shadow-primary/20 hover:bg-primary-dark active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
                   >
                     {isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <CheckCircle className="h-5 w-5" />}
                     {isSaving ? 'Registrando...' : 'Confirmar Pago'}
@@ -679,7 +679,7 @@ export default function ClienteDetalleSupervisorPage() {
                               inputMode="numeric"
                               value={montoPrestamoInput}
                               onChange={(e) => setMontoPrestamoInput(formatCOPInputValue(e.target.value))}
-                              className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-bold text-slate-900"
+                              className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary focus:ring-0 font-bold text-slate-900"
                               placeholder="0"
                             />
                           </div>
@@ -691,7 +691,7 @@ export default function ClienteDetalleSupervisorPage() {
                             inputMode="decimal"
                             value={tasaInteresInput}
                             onChange={(e) => setTasaInteresInput(e.target.value.replace(/[^0-9.]/g, ''))}
-                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
+                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary focus:ring-0 font-medium text-slate-900"
                             placeholder="5.0"
                           />
                         </div>
@@ -719,7 +719,7 @@ export default function ClienteDetalleSupervisorPage() {
                             inputMode="numeric"
                             value={cuotasPrestamoInput}
                             onChange={(e) => setCuotasPrestamoInput(e.target.value.replace(/\D/g, ''))}
-                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
+                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary focus:ring-0 font-medium text-slate-900"
                             placeholder="12"
                           />
                         </div>
@@ -737,7 +737,7 @@ export default function ClienteDetalleSupervisorPage() {
                               inputMode="numeric"
                               value={cuotaInicialArticuloInput}
                               onChange={(e) => setCuotaInicialArticuloInput(formatCOPInputValue(e.target.value))}
-                              className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
+                              className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary focus:ring-0 font-medium text-slate-900"
                               placeholder="0"
                             />
                           </div>
@@ -827,7 +827,7 @@ export default function ClienteDetalleSupervisorPage() {
                           setIsSaving(false);
                         }
                       }}
-                      className="flex-1 bg-[#08557f] text-white font-bold py-3.5 rounded-xl shadow-lg shadow-[#08557f]/20 hover:bg-[#063a58] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                      className="flex-1 bg-primary text-white font-bold py-3.5 rounded-xl shadow-lg shadow-primary/20 hover:bg-primary-dark active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                     >
                       {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                       {isSaving ? 'Creando...' : 'Crear Crédito'}
@@ -887,7 +887,7 @@ export default function ClienteDetalleSupervisorPage() {
                             dni: e.target.value.replace(/\D/g, ''),
                           }))
                         }
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900 placeholder:text-slate-400"
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary focus:ring-0 font-medium text-slate-900 placeholder:text-slate-400"
                         placeholder="Número de cédula (CC)"
                         required
                       />
@@ -904,7 +904,7 @@ export default function ClienteDetalleSupervisorPage() {
                             telefono: e.target.value.replace(/\D/g, ''),
                           }))
                         }
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900 placeholder:text-slate-400"
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary focus:ring-0 font-medium text-slate-900 placeholder:text-slate-400"
                         placeholder="Ej: 3001234567"
                         required
                       />
@@ -917,7 +917,7 @@ export default function ClienteDetalleSupervisorPage() {
                       <input
                         value={formularioNuevoCliente.nombres}
                         onChange={(e) => setFormularioNuevoCliente((prev) => ({ ...prev, nombres: e.target.value }))}
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary focus:ring-0 font-medium text-slate-900"
                         required
                       />
                     </div>
@@ -926,7 +926,7 @@ export default function ClienteDetalleSupervisorPage() {
                       <input
                         value={formularioNuevoCliente.apellidos}
                         onChange={(e) => setFormularioNuevoCliente((prev) => ({ ...prev, apellidos: e.target.value }))}
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900"
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary focus:ring-0 font-medium text-slate-900"
                         required
                       />
                     </div>
@@ -938,7 +938,7 @@ export default function ClienteDetalleSupervisorPage() {
                       type="email"
                       value={formularioNuevoCliente.correo}
                       onChange={(e) => setFormularioNuevoCliente((prev) => ({ ...prev, correo: e.target.value }))}
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900 placeholder:text-slate-400"
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary focus:ring-0 font-medium text-slate-900 placeholder:text-slate-400"
                       placeholder="correo@dominio.com"
                     />
                   </div>
@@ -948,7 +948,7 @@ export default function ClienteDetalleSupervisorPage() {
                     <input
                       value={formularioNuevoCliente.direccion}
                       onChange={(e) => setFormularioNuevoCliente((prev) => ({ ...prev, direccion: e.target.value }))}
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900 placeholder:text-slate-400"
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary focus:ring-0 font-medium text-slate-900 placeholder:text-slate-400"
                       placeholder="Dirección del cliente"
                     />
                   </div>
@@ -958,7 +958,7 @@ export default function ClienteDetalleSupervisorPage() {
                     <textarea
                       value={formularioNuevoCliente.referencia}
                       onChange={(e) => setFormularioNuevoCliente((prev) => ({ ...prev, referencia: e.target.value }))}
-                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#08557f] focus:ring-0 font-medium text-slate-900 placeholder:text-slate-400 resize-none"
+                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary focus:ring-0 font-medium text-slate-900 placeholder:text-slate-400 resize-none"
                       rows={3}
                       placeholder="Punto de referencia / observaciones"
                     />
@@ -976,7 +976,7 @@ export default function ClienteDetalleSupervisorPage() {
                             fotoPerfil: e.target.files?.[0] ?? null,
                           }))
                         }
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[#08557f] file:text-white file:text-xs file:font-bold hover:file:bg-[#063a58]"
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-primary file:text-white file:text-xs file:font-bold hover:file:bg-primary-dark"
                       />
                     </div>
                     <div>
@@ -990,7 +990,7 @@ export default function ClienteDetalleSupervisorPage() {
                             documentoFrente: e.target.files?.[0] ?? null,
                           }))
                         }
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[#08557f] file:text-white file:text-xs file:font-bold hover:file:bg-[#063a58]"
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-primary file:text-white file:text-xs file:font-bold hover:file:bg-primary-dark"
                       />
                     </div>
                     <div>
@@ -1004,7 +1004,7 @@ export default function ClienteDetalleSupervisorPage() {
                             documentoReverso: e.target.files?.[0] ?? null,
                           }))
                         }
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[#08557f] file:text-white file:text-xs file:font-bold hover:file:bg-[#063a58]"
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-primary file:text-white file:text-xs file:font-bold hover:file:bg-primary-dark"
                       />
                     </div>
                     <div>
@@ -1018,7 +1018,7 @@ export default function ClienteDetalleSupervisorPage() {
                             comprobanteDomicilio: e.target.files?.[0] ?? null,
                           }))
                         }
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[#08557f] file:text-white file:text-xs file:font-bold hover:file:bg-[#063a58]"
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-primary file:text-white file:text-xs file:font-bold hover:file:bg-primary-dark"
                       />
                     </div>
                   </div>
@@ -1033,7 +1033,7 @@ export default function ClienteDetalleSupervisorPage() {
                     </button>
                     <button
                       type="submit"
-                      className="flex-1 bg-[#08557f] text-white font-bold py-3.5 rounded-xl shadow-lg shadow-[#08557f]/20 hover:bg-[#063a58] active:scale-[0.98] transition-all"
+                      className="flex-1 bg-primary text-white font-bold py-3.5 rounded-xl shadow-lg shadow-primary/20 hover:bg-primary-dark active:scale-[0.98] transition-all"
                     >
                       Guardar Cliente
                     </button>
@@ -1059,8 +1059,8 @@ export default function ClienteDetalleSupervisorPage() {
             }}
             className={`flex items-center justify-between w-56 gap-3 ${isFabOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
           >
-            <span className="bg-[#08557f] text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg shadow-[#08557f]/20">Crear Crédito</span>
-            <div className="h-11 w-11 flex items-center justify-center rounded-full bg-white text-[#08557f] border border-[#08557f]/20 shadow-lg shadow-[#08557f]/10 hover:bg-[#f1f6fb] transition-all">
+            <span className="bg-primary text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg shadow-primary/20">Crear Crédito</span>
+            <div className="h-11 w-11 flex items-center justify-center rounded-full bg-white text-primary border border-primary/20 shadow-lg shadow-primary/10 hover:bg-[#f1f6fb] transition-all">
               <CreditCard className="h-5 w-5" />
             </div>
           </button>
@@ -1075,8 +1075,8 @@ export default function ClienteDetalleSupervisorPage() {
             }}
             className={`flex items-center justify-between w-56 gap-3 ${isFabOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
           >
-            <span className="bg-[#08557f] text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg shadow-[#08557f]/20">Registrar pago</span>
-            <div className="h-11 w-11 flex items-center justify-center rounded-full bg-white text-[#08557f] border border-[#08557f]/20 shadow-lg shadow-[#08557f]/10 hover:bg-[#f1f6fb] transition-all">
+            <span className="bg-primary text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg shadow-primary/20">Registrar pago</span>
+            <div className="h-11 w-11 flex items-center justify-center rounded-full bg-white text-primary border border-primary/20 shadow-lg shadow-primary/10 hover:bg-[#f1f6fb] transition-all">
               <DollarSign className="h-5 w-5" />
             </div>
           </button>
@@ -1089,8 +1089,8 @@ export default function ClienteDetalleSupervisorPage() {
             }}
             className={`flex items-center justify-between w-56 gap-3 ${isFabOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
           >
-            <span className="bg-[#08557f] text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg shadow-[#08557f]/20">Crear cliente</span>
-            <div className="h-11 w-11 flex items-center justify-center rounded-full bg-white text-[#08557f] border border-[#08557f]/20 shadow-lg shadow-[#08557f]/10 hover:bg-[#f1f6fb] transition-all">
+            <span className="bg-primary text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg shadow-primary/20">Crear cliente</span>
+            <div className="h-11 w-11 flex items-center justify-center rounded-full bg-white text-primary border border-primary/20 shadow-lg shadow-primary/10 hover:bg-[#f1f6fb] transition-all">
               <UserPlus className="h-5 w-5" />
             </div>
           </button>
@@ -1098,7 +1098,7 @@ export default function ClienteDetalleSupervisorPage() {
 
         <button
           onClick={() => setIsFabOpen((v) => !v)}
-          className="pointer-events-auto h-14 w-14 rounded-full bg-[#08557f] text-white shadow-xl shadow-[#08557f]/25 flex items-center justify-center border border-white/30"
+          className="pointer-events-auto h-14 w-14 rounded-full bg-primary text-white shadow-xl shadow-primary/25 flex items-center justify-center border border-white/30"
           aria-label={isFabOpen ? 'Cerrar acciones' : 'Abrir acciones'}
         >
           {isFabOpen ? <X className="h-6 w-6" /> : <Plus className="h-6 w-6" />}

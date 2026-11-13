@@ -19,9 +19,9 @@ interface FloatingActionMenuProps {
 const colorMap = {
   primary: {
     badge:
-      'bg-[#08557f]/90 text-white shadow-[0_8px_22px_rgba(8,85,127,0.28)]',
+      'bg-primary/90 text-white shadow-[0_8px_22px_rgba(8,85,127,0.28)]',
     icon:
-      'bg-white/[0.20] text-[#08557f] border-white/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_8px_24px_rgba(8,85,127,0.16)] hover:bg-white/[0.30]',
+      'bg-white/[0.20] text-primary border-white/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_8px_24px_rgba(8,85,127,0.16)] hover:bg-white/[0.30]',
   },
   orange: {
     badge:
@@ -154,8 +154,8 @@ export default function FloatingActionMenu({ actions }: FloatingActionMenuProps)
           onClick={() => setIsOpen((prev) => !prev)}
           className={`relative overflow-hidden rounded-full border border-white/20 p-4 text-white shadow-[0_18px_45px_rgba(8,85,127,0.38)] backdrop-blur-2xl transition-all duration-300 active:scale-95 pointer-events-auto ${
             isOpen
-              ? 'rotate-45 bg-[#063a58]/90'
-              : 'bg-[#08557f]/90 hover:scale-105 hover:bg-[#063a58]/95'
+              ? 'rotate-45 bg-primary-dark/90'
+              : 'bg-primary/90 hover:scale-105 hover:bg-primary-dark/95'
           }`}
           aria-label={isOpen ? 'Cerrar acciones' : 'Abrir acciones'}
         >
