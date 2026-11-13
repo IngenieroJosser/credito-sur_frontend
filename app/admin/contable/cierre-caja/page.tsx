@@ -1269,7 +1269,7 @@ export default function CierreCajaPage() {
         {/* ... Modal del Historial (Omitido para legibilidad, mantenemos el actual) ... */}
         {showHistorialModal && (
           <Portal>
-          <div className="fixed inset-0 flex items-end sm:items-center justify-center p-3 sm:p-6 md:p-8 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300" style={{ zIndex: MODAL_Z_INDEX }} onClick={() => setShowHistorialModal(false)}>
+          <div className="fixed inset-0 capa-modal flex items-end sm:items-center justify-center p-3 sm:p-6 md:p-8 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300" style={{ zIndex: MODAL_Z_INDEX }} onClick={() => setShowHistorialModal(false)}>
             <div className="w-full max-w-5xl 2xl:max-w-6xl max-h-[92vh] bg-white rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
               <div className="p-4 sm:p-6 md:p-7 border-b border-slate-100 bg-slate-50/60 flex items-center justify-between">
                 <div className="min-w-0">
@@ -1459,7 +1459,7 @@ export default function CierreCajaPage() {
 
         {showDetalleCierreModal && selectedCierre && (
           <Portal>
-          <div className="fixed inset-0 flex items-end sm:items-center justify-center p-3 sm:p-6 md:p-8 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300" style={{ zIndex: MODAL_Z_INDEX }} onClick={() => setShowDetalleCierreModal(false)}>
+          <div className="fixed inset-0 capa-modal flex items-end sm:items-center justify-center p-3 sm:p-6 md:p-8 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300" style={{ zIndex: MODAL_Z_INDEX }} onClick={() => setShowDetalleCierreModal(false)}>
             <div className="w-full max-w-4xl max-h-[92vh] bg-white rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
               <div className="p-4 sm:p-6 md:p-7 border-b border-slate-100 bg-slate-50/60 flex justify-between items-center gap-3">
                 <div className="min-w-0">

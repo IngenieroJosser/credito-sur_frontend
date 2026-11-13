@@ -220,7 +220,7 @@ export default function ReprogramacionDetalleModal({
   const [loadingContext, setLoadingContext] = useState(false)
   // Escape para salir y foco al abrir. El hook lleva una pila, asi que con
   // modales anidados Escape cierra solo el de encima.
-  useModalDialog({
+  const { capa } = useModalDialog({
     abierto: isOpen,
     onClose: onClose,
     // Modal de solo lectura: no hay campo que enfocar.
@@ -514,14 +514,14 @@ export default function ReprogramacionDetalleModal({
   return (
     <Portal>
       <div
-        className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
-        style={{ zIndex: 2147483600 }}
+        className="fixed inset-0 capa-modal bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
+        style={{ zIndex: capa }}
         onClick={onClose}
       />
 
       <div
         className={`${FONDO_HOJA_MODAL} `}
-        style={{ zIndex: 2147483601 }}
+        style={{ zIndex: capa }}
         onClick={onClose}
       >
         <div

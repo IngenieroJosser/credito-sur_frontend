@@ -192,7 +192,7 @@ export default function DetalleReporteFinancieroModal({ id, onClose }: DetalleRe
   const rowsPaginadas = rows.slice(start, end)
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200" onClick={onClose}>
+    <div className="fixed inset-0 capa-modal flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200" onClick={onClose}>
       <div className="bg-white rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200 flex flex-col" onClick={(e) => e.stopPropagation()}>
         
         {/* Header */}

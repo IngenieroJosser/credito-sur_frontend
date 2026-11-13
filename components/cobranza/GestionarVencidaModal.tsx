@@ -107,7 +107,7 @@ export default function GestionarVencidaModal({ cuenta, onClose, onConfirm }: Ge
   const [isLoading, setIsLoading] = useState(false)
   // Escape para salir y foco al abrir. El hook lleva una pila, asi que con
   // modales anidados Escape cierra solo el de encima.
-  const { alTocarElFondo } = useModalDialog({
+  const { alTocarElFondo, capa } = useModalDialog({
     onClose: onClose,
   })
 
@@ -157,13 +157,13 @@ export default function GestionarVencidaModal({ cuenta, onClose, onConfirm }: Ge
   return (
     <Portal>
       <div
-        className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
-        style={{ zIndex: 2147483600 }}
+        className="fixed inset-0 capa-modal bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
+        style={{ zIndex: capa }}
         onClick={(evento) => alTocarElFondo(evento, hayDatosSinGuardar)}
       />
       <div
         className="fixed inset-0 flex items-end sm:items-center justify-center p-0 sm:p-4"
-        style={{ zIndex: 2147483601 }}
+        style={{ zIndex: capa }}
         onClick={(evento) => alTocarElFondo(evento, hayDatosSinGuardar)}
       >
         <div

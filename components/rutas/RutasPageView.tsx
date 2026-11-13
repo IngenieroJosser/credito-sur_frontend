@@ -2451,7 +2451,7 @@ export const RutasPageView = ({
       {/* Modal de Recolectar Dinero con monto personalizable */}
       {showRecolectarModal && routeForTransfer && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200 motion-reduce:animate-none"
+          className="fixed inset-0 capa-modal flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200 motion-reduce:animate-none"
           onClick={() => setShowRecolectarModal(false)}
         >
           <div

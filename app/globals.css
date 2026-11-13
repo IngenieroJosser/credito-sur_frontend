@@ -611,3 +611,56 @@ details > summary::marker {
   display: none;
   content: '';
 }
+
+/*
+  ── Las capas, con nombre ───────────────────────────────────────────────────
+
+  Medido sobre el sistema entero: 86 modales a pantalla completa en 56
+  archivos. Solo 25 usaban la escala de `components/ui/Portal.tsx`; los otros
+  61 llevaban un numero escrito a mano —60, 70, 80, 90, 100, 9999,
+  2147483600, 2147483601, 2147483620, 2147483647— o ninguno.
+
+  Con eso, que un modal se abra delante o detras del que lo abrio depende de
+  que cifra eligio cada autor. El caso que lo delato: el modal del prestamo
+  se habia quedado en `z-[2147483620]`, que es la capa de los TOOLTIPS, y el
+  del cliente que se abre al pulsar su nombre no declaraba ninguna; salia por
+  detras, y como el de delante cierra al tocar su fondo, el clic para cerrar
+  el de arriba cerraba el de abajo y desaparecian los dos.
+
+  Estas utilidades son los mismos valores de `Portal.tsx` con un nombre, para
+  que en el JSX no haya que escribir ninguna cifra. Los dos sitios tienen que
+  decir lo mismo y lo vigila `__tests__/capas-z-index.test.ts`.
+
+  El orden, de abajo arriba:
+
+    capa-modal          un modal
+    capa-modal-encima   algo que se abre DENTRO de un modal (la foto de un
+                        documento a pantalla completa, un desplegable)
+    capa-accion         una accion en curso que no se puede interrumpir
+    capa-tooltip        la ayuda que explica un boton
+    capa-aviso          los avisos: siempre visibles
+    capa-alerta         confirmar / cancelar, que exige una respuesta
+*/
+@utility capa-modal {
+  z-index: 2147483600;
+}
+
+@utility capa-modal-encima {
+  z-index: 2147483610;
+}
+
+@utility capa-accion {
+  z-index: 2147483615;
+}
+
+@utility capa-tooltip {
+  z-index: 2147483620;
+}
+
+@utility capa-aviso {
+  z-index: 2147483640;
+}
+
+@utility capa-alerta {
+  z-index: 2147483647;
+}

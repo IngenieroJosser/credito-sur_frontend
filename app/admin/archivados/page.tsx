@@ -477,7 +477,7 @@ export default function ArchivadosPage() {
 
       {/* Restore Confirmation Modal */}
       {mounted && isRestoreModalOpen && selectedItem && createPortal(
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+        <div className="fixed inset-0 capa-modal bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-2xl w-full max-w-sm border border-slate-200 shadow-2xl p-8 transform scale-100 animate-in zoom-in-95 duration-200">
             <div className="flex flex-col items-center text-center">
               <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mb-4">
@@ -511,7 +511,7 @@ export default function ArchivadosPage() {
       )}
 
       {mounted && isHideModalOpen && selectedHideItem && createPortal(
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+        <div className="fixed inset-0 capa-modal bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-2xl w-full max-w-sm border border-slate-200 shadow-2xl p-8 transform scale-100 animate-in zoom-in-95 duration-200">
             <div className="flex flex-col items-center text-center">
               <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mb-4">

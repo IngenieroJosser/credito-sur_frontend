@@ -1,6 +1,20 @@
 'use client'
 
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { capaDeModal } from '@/components/ui/Portal'
+
+/**
+ * Entrar en la pila antes de pintar, no después.
+ *
+ * La capa del modal sale de su posición en la pila, así que si se calculara en
+ * un `useEffect` el primer fotograma se pintaría con la capa del modal de
+ * abajo: un parpadeo por detrás antes de ponerse delante. Con un efecto de
+ * layout el navegador no llega a pintar ese fotograma.
+ *
+ * En el servidor no hay layout que medir y React avisa si se usa, así que allí
+ * se cae al efecto normal, que no corre.
+ */
+const useEfectoDeLayout = typeof window === 'undefined' ? useEffect : useLayoutEffect
 
 const SELECTOR_ENFOCABLE = [
   'input:not([disabled]):not([type="hidden"])',
@@ -57,6 +71,8 @@ export function useModalDialog<T extends HTMLElement = HTMLDivElement>({
   // foco vuelve al principio de la página y hay que navegar de nuevo hasta el
   // botón que abrió el modal.
   const focoPrevioRef = useRef<HTMLElement | null>(null)
+  // Cuántos diálogos hay debajo de este. De aquí sale su capa.
+  const [profundidad, setProfundidad] = useState(0)
 
   // `onClose` suele venir como función inline, así que cambia en cada render.
   // Guardarla en una ref evita volver a suscribir el listener de teclado.
@@ -69,10 +85,11 @@ export function useModalDialog<T extends HTMLElement = HTMLDivElement>({
   // listener de teclado para que la pila refleje lo que está en pantalla incluso
   // en un diálogo con `cerrarConEscape` apagado: si no, un diálogo de encima que
   // no cierra con Escape dejaría que el de abajo se cerrara.
-  useEffect(() => {
+  useEfectoDeLayout(() => {
     if (!abierto) return
     const identidad = identidadRef.current
     pilaDeDialogos.push(identidad)
+    setProfundidad(pilaDeDialogos.length - 1)
     return () => {
       const i = pilaDeDialogos.lastIndexOf(identidad)
       if (i !== -1) pilaDeDialogos.splice(i, 1)
@@ -133,6 +150,19 @@ export function useModalDialog<T extends HTMLElement = HTMLDivElement>({
   return {
     contenedorRef,
     alTocarElFondo,
+    /**
+     * El z-index que le toca a este diálogo.
+     *
+     * Va en el elemento a pantalla completa del modal —el que lleva el
+     * `fixed inset-0`—, en `style`, no como clase: el valor depende de cuántos
+     * modales haya abiertos y Tailwind no puede generar una clase por número.
+     *
+     *     <div style={{ zIndex: capa }} className="fixed inset-0 …">
+     *
+     * Así un modal que se abre desde otro queda delante sin que nadie elija el
+     * número, y da igual si el mismo modal se abre suelto o anidado.
+     */
+    capa: capaDeModal(profundidad),
     propsDialogo: {
       role: 'dialog' as const,
       'aria-modal': true as const,

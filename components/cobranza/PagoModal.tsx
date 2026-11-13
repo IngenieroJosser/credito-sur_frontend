@@ -162,7 +162,7 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm, montoCuota
   return (
     <Portal>
       <div
-        className="fixed inset-0 flex items-end justify-center bg-slate-900/50 p-0 backdrop-blur-sm animate-in fade-in duration-200 sm:items-center sm:p-4"
+        className="fixed inset-0 capa-modal flex items-end justify-center bg-slate-900/50 p-0 backdrop-blur-sm animate-in fade-in duration-200 sm:items-center sm:p-4"
         style={{ zIndex: MODAL_Z_INDEX }}
         // Un toque fuera de la tarjeta cerraba el modal con el monto escrito y el
         // comprobante ya adjunto: habia que volver a tomar la foto. Ahora el

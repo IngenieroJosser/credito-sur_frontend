@@ -115,7 +115,7 @@ export default function PagoRegularizadoNotifModal({
   return (
     <Portal>
       <div
-        className="fixed inset-0 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/70 backdrop-blur-sm animate-in fade-in duration-200"
+        className="fixed inset-0 capa-modal flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/70 backdrop-blur-sm animate-in fade-in duration-200"
         style={{ zIndex: 9999 }}
         onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
       >

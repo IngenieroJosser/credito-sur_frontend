@@ -746,7 +746,7 @@ const HistorialPagosPage = () => {
         {/* Modal Detalle Gasto */}
         {gastoDetalle && (
           <Portal>
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200 motion-reduce:animate-none" onClick={() => setGastoDetalle(null)}>
+          <div className="fixed inset-0 capa-modal flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200 motion-reduce:animate-none" onClick={() => setGastoDetalle(null)}>
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md border border-slate-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200 ease-out motion-reduce:animate-none" onClick={(e) => e.stopPropagation()}>
               <div className="px-6 pt-6 pb-4 flex items-center justify-between border-b border-slate-100">
                 <div className="flex items-center gap-3">

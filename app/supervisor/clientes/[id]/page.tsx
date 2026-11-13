@@ -51,8 +51,8 @@ import { FrecuenciaPago } from '@/types/enums'
 // respuesta del endpoint, no el objeto de presentacion.
 import type { Cliente as ClienteDelServicio } from '@/services/clientes-service'
 import { Selector } from '@/components/ui/Selector'
+import { MODAL_Z_INDEX } from '@/components/ui/Portal'
 
-const MODAL_Z_INDEX = 2147483647
 
 function Portal({ children }: { children: ReactNode }) {
   if (typeof document === 'undefined') return null
@@ -409,7 +409,7 @@ export default function ClienteDetalleSupervisorPage() {
       {showPagoModal && (
         <Portal>
           <div
-            className="fixed inset-0 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
+            className="fixed inset-0 capa-modal flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
             style={{ zIndex: MODAL_Z_INDEX }}
             onClick={resetPagoModal}
           >
@@ -606,7 +606,7 @@ export default function ClienteDetalleSupervisorPage() {
       {showCreditoModal && (
         <Portal>
           <div
-            className="fixed inset-0 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
+            className="fixed inset-0 capa-modal flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
             style={{ zIndex: MODAL_Z_INDEX }}
             onClick={resetCreditoModal}
           >
@@ -842,7 +842,7 @@ export default function ClienteDetalleSupervisorPage() {
       {showNewClientModal && (
         <Portal>
           <div
-            className="fixed inset-0 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
+            className="fixed inset-0 capa-modal flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
             style={{ zIndex: MODAL_Z_INDEX }}
             onClick={resetNuevoClienteForm}
           >

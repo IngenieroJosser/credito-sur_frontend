@@ -58,7 +58,7 @@ export default function DetalleProductoModal({ id, onClose }: DetalleProductoMod
   if (!mounted) return null
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={handleClose}>
+    <div className="fixed inset-0 capa-modal flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={handleClose}>
       <div className={`fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity duration-200 ${visible ? 'opacity-100' : 'opacity-0'}`} />
 
       <div

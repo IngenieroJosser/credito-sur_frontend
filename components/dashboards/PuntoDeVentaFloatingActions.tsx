@@ -470,7 +470,7 @@ export default function PuntoDeVentaFloatingActions() {
 
       {showClientesModal && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
+          className="fixed inset-0 capa-modal flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
           onClick={() => setShowClientesModal(false)}
         >
           <div
@@ -640,7 +640,7 @@ export default function PuntoDeVentaFloatingActions() {
 
       {showVentasModal && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
+          className="fixed inset-0 capa-modal flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
           onClick={() => setShowVentasModal(false)}
         >
           <div
@@ -822,7 +822,7 @@ export default function PuntoDeVentaFloatingActions() {
 
       {showVentaDetalle && (
         <div
-          className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none"
+          className="fixed inset-0 capa-modal flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none"
           onClick={() => setShowVentaDetalle(null)}
         >
           <div

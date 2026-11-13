@@ -22,7 +22,17 @@ import { resolveCuotaAcumuladaOperativa, resolveCuotaNormalOperativa } from '@/l
 import Tooltip from '@/components/ui/Tooltip'
 import { Selector } from '@/components/ui/Selector'
 
-export const MODAL_Z_INDEX = 2147483600
+/**
+ * La capa de los modales se define en un solo sitio.
+ *
+ * Aquí estaba escrita otra vez, con el mismo valor, y de los modales que la
+ * importan la mitad la traía de aquí y la mitad de `components/ui/Portal`.
+ * Coincidían, así que no se veía; lo que provocaba es que nadie supiera cuál
+ * era la escala de verdad, y por eso 61 de los 86 modales acabaron con un
+ * número elegido a mano. Se re-exporta para no tocar a los que la importan de
+ * aquí, pero el valor vive en `Portal`, con el resto de las capas.
+ */
+export { MODAL_Z_INDEX } from '@/components/ui/Portal'
 
 // ── Portal ───────────────────────────────────────────────────────────────────
 
@@ -716,7 +726,7 @@ export function SeleccionClienteModal({
 }) {
   return (
     <Portal>
-      <div className="fixed inset-0 z-[2147483600] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="fixed inset-0 capa-modal flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
         <div className="bg-white sm:rounded-[2rem] rounded-t-[2rem] w-full sm:max-w-sm shadow-2xl animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200 overflow-hidden">
           <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
             <h3 className="font-bold text-lg text-slate-900 flex-1">{titulo}</h3>

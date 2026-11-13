@@ -1872,7 +1872,7 @@ const UserManagementPage = () => {
           <>
             {isCreateModalOpen && (
               <div
-                className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in duration-200"
+                className="fixed inset-0 capa-modal bg-slate-900/50 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200"
                 onClick={() => setIsCreateModalOpen(false)}
               >
                 <div
@@ -2073,7 +2073,7 @@ const UserManagementPage = () => {
             {/* Edit Modal */}
             {isEditModalOpen && (
               <div
-                className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in duration-200"
+                className="fixed inset-0 capa-modal bg-slate-900/50 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200"
                 onClick={() => setIsEditModalOpen(false)}
               >
                 <div
@@ -2276,7 +2276,7 @@ const UserManagementPage = () => {
             {/* Permissions Modal */}
             {isPermissionsModalOpen && selectedUser && (
               <div
-                className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in duration-200"
+                className="fixed inset-0 capa-modal bg-slate-900/50 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200"
                 onClick={() => setIsPermissionsModalOpen(false)}
               >
                 <div
@@ -2380,7 +2380,7 @@ const UserManagementPage = () => {
             {/* Delete Confirmation Modal */}
             {isDeleteModalOpen && selectedUser && (
               <div
-                className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200"
+                className="fixed inset-0 capa-modal bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
                 onClick={() => setIsDeleteModalOpen(false)}
               >
                 <div
@@ -2433,7 +2433,7 @@ const UserManagementPage = () => {
             {/* Detail Modal */}
             {isDetailModalOpen && selectedUser && (
               <div
-                className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in duration-200"
+                className="fixed inset-0 capa-modal bg-slate-900/50 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200"
                 onClick={() => setIsDetailModalOpen(false)}
               >
                 <div

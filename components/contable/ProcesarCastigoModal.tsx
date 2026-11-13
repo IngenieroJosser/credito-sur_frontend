@@ -30,7 +30,6 @@ interface ProcesarCastigoModalProps {
   onConfirm: (data: CastigoData) => void
 }
 
-const MODAL_Z_INDEX = 2147483600
 
 function Portal({ children }: { children: React.ReactNode }) {
   if (typeof document === 'undefined') return null
@@ -42,7 +41,7 @@ export default function ProcesarCastigoModal({ cuenta, onClose, onConfirm }: Pro
   const [tipoCastigo, setTipoCastigo] = useState('TOTAL')
   // Escape para salir y foco al abrir. El hook lleva una pila, asi que con
   // modales anidados Escape cierra solo el de encima.
-  useModalDialog({
+  const { capa } = useModalDialog({
     onClose: onClose,
   })
 
@@ -60,8 +59,8 @@ export default function ProcesarCastigoModal({ cuenta, onClose, onConfirm }: Pro
   return (
     <Portal>
       <div
-        className="fixed inset-0 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
-        style={{ zIndex: MODAL_Z_INDEX }}
+        className="fixed inset-0 capa-modal flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
+        style={{ zIndex: capa }}
         onClick={onClose}
       >
         <div

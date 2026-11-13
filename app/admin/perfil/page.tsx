@@ -441,7 +441,7 @@ const PerfilUsuarioPage = () => {
 
       {/* Password Update Modal */}
       {mounted && isPasswordModalOpen && createPortal(
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+        <div className="fixed inset-0 capa-modal bg-slate-900/50 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-2xl w-full max-w-lg border border-slate-200 shadow-2xl p-8 transform scale-100 animate-in zoom-in-95 duration-200 relative">
             <button aria-label="Cerrar" 
               onClick={() => setIsPasswordModalOpen(false)}

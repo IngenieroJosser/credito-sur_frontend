@@ -1006,8 +1006,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
                 typeof document !== "undefined" &&
                 createPortal(
                   <div
-                    className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200 motion-reduce:animate-none"
-                    style={{ zIndex: 2147483647 }}
+                    className="fixed inset-0 capa-modal-encima bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200 motion-reduce:animate-none"
                     onClick={() => {
                       setLightboxIndex(null);
                       setIsZoomed(false);
@@ -1126,7 +1125,7 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
 
       {/* Modal de Nuevo Comentario */}
       {isNoteModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 scrollbar-hide animate-in fade-in duration-200 motion-reduce:animate-none">
+        <div className="fixed inset-0 capa-modal-encima flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 scrollbar-hide animate-in fade-in duration-200 motion-reduce:animate-none">
           <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="p-6 border-b border-slate-100">
               <h3 className="text-xl font-bold text-slate-900">

@@ -1782,7 +1782,7 @@ const RutaClientLoaded = ({
       {/* Modales (Gasto, Pago, etc...) */}
 
       {isGastoModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none">
+        <div className="fixed inset-0 capa-modal flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none">
           <form onSubmit={handleGuardarGasto} className="p-6 space-y-4 bg-white rounded-lg">
             {/* Contenido simplificado gasto por brevedad de edicion */}
 

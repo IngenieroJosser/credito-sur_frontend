@@ -41,7 +41,6 @@ interface ClientePortalModalProps {
   rolUsuario?: string;
 }
 
-const MODAL_Z_INDEX = 2147483600;
 
 /**
  * El estado del prestamo, normalizado contra la union que la pantalla sabe pintar.
@@ -97,7 +96,7 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
   // efecto. Con `useState<any>` no habia forma de notarlo.
   // Escape para salir y foco al abrir. El hook lleva una pila, asi que con
   // modales anidados Escape cierra solo el de encima.
-  useModalDialog({
+  const { capa } = useModalDialog({
     onClose: onClose,
     // Modal de solo lectura: no hay campo que enfocar.
     enfocarAlAbrir: false,
@@ -334,7 +333,10 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
   if (!clienteData) {
     return (
       <Portal>
-        <div className="fixed inset-0 z-[2147483600] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none">
+        <div
+          style={{ zIndex: capa }}
+          className="fixed inset-0 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none"
+        >
            <div className="bg-white p-8 rounded-2xl flex flex-col items-center gap-4">
               <BarChart3 className="w-10 h-10 text-red-500" />
               <p className="font-bold text-slate-800">Cliente no encontrado</p>
@@ -349,7 +351,7 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
     <Portal>
       <div 
         className="fixed inset-0 flex items-end md:items-center justify-center p-0 md:p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
-        style={{ zIndex: MODAL_Z_INDEX }}
+        style={{ zIndex: capa }}
         onClick={onClose}
       >
         <div 

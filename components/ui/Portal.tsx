@@ -38,6 +38,53 @@ export const TOOLTIP_Z_INDEX = 2147483620
 export const TOAST_Z_INDEX = 2147483640
 export const ALERT_Z_INDEX = 2147483647
 
+/**
+ * Cuántos modales anidados cabe apilar antes de llegar a la capa siguiente.
+ *
+ * `MODAL_Z_INDEX` es la base y cada modal abierto encima suma uno, así que la
+ * banda va de 2147483600 a 2147483609 y `MODAL_ENCIMA_Z_INDEX` (610) sigue
+ * quedando por encima de toda ella.
+ *
+ * Diez es de sobra: la cadena más larga que existe hoy son tres —el modal del
+ * crédito, el del cliente que se abre al pulsar su nombre, y la foto del
+ * documento a pantalla completa—. A partir de ahí se queda en la última, que
+ * es preferible a pasarse de banda y colarse por encima de los avisos.
+ */
+export const MODALES_APILABLES = 10
+
+/**
+ * La capa de un modal según cuántos tenga debajo.
+ *
+ * ── Por qué hace falta ──────────────────────────────────────────────────────
+ *
+ * Medido sobre el sistema entero: 86 modales en 56 archivos, y solo 25
+ * usaban esta escala. Los otros 61 llevaban un número escrito a mano —60, 70,
+ * 80, 90, 100, 9999, 2147483600, 2147483601, 2147483620, 2147483647— o
+ * ninguno.
+ *
+ * Con eso, que un modal se abra DELANTE o DETRÁS del que lo abrió es cuestión
+ * de qué número eligió cada autor. El caso concreto que lo delató: el modal
+ * del préstamo se había quedado con `z-[2147483620]` —que es la capa de los
+ * tooltips, no la suya— y el modal del cliente que se abre al pulsar el
+ * nombre no declaraba ninguna. Resultado: el segundo se abría por detrás del
+ * primero, y como el de delante tiene su fondo pulsable, el clic para cerrar
+ * el de arriba cerraba en realidad el de abajo y se iban los dos.
+ *
+ * Elegir el número a mano no se puede arreglar eligiendo mejor el número: el
+ * mismo modal del cliente se abre suelto desde un listado y encima del modal
+ * del préstamo, así que no hay una cifra correcta. Lo que decide es cuántos
+ * hay debajo, y eso solo se sabe al abrirlo.
+ *
+ * `useModalDialog` ya lleva la pila de diálogos abiertos —la tiene para que
+ * Escape cierre solo el de encima—, así que devuelve también `capa`, que es
+ * esta función aplicada a su posición. Un modal que use el hook queda en su
+ * sitio sin que nadie elija nada.
+ */
+export function capaDeModal(profundidad: number): number {
+  const nivel = Math.min(Math.max(0, Math.trunc(profundidad)), MODALES_APILABLES - 1)
+  return MODAL_Z_INDEX + nivel
+}
+
 export default function Portal({ children }: { children: ReactNode }) {
   if (typeof document === 'undefined') return null
   return createPortal(children, document.body)

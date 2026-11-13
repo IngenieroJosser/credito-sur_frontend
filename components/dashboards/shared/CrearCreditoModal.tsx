@@ -348,7 +348,7 @@ export default function CrearCreditoModal({
   return (
     <Portal>
       <div
-        className="fixed inset-0 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
+        className="fixed inset-0 capa-modal flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
         style={{ zIndex: MODAL_Z_INDEX }}
         onMouseDown={(e) => { mouseDownTargetRef.current = e.target }}
         onMouseUp={(e) => {

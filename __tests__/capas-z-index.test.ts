@@ -40,6 +40,43 @@ const PERMITIDOS = new Map<string, string>([
 const Z = /z-\[(\d+)\]|(?:^|[\s"'`])z-(\d+)(?=[\s"'`]|$)/g
 const ES_PANTALLA_COMPLETA = /fixed[^"'`]*inset-0|inset-0[^"'`]*fixed/
 
+/**
+ * Las líneas y bloques de comentario se borran antes de buscar.
+ *
+ * Sin esto, los comentarios que EXPLICAN el problema cuentan como el problema:
+ * los de `Portal.tsx` y `DetallePrestamoModal.tsx` citan el `z-[2147483620]`
+ * que se quitó, y esta prueba los señalaba como si siguiera ahí. Es el mismo
+ * tropiezo que `sin-historial-completo.test.ts` ya documenta.
+ *
+ * Se recorta línea por línea en vez de con una expresión sobre todo el texto:
+ * así el número de línea del informe sigue siendo el de verdad.
+ */
+function sinComentarios(fuente: string): string {
+  let enBloque = false
+  return fuente
+    .split('\n')
+    .map((linea) => {
+      let salida = linea
+      if (enBloque) {
+        const cierre = salida.indexOf('*/')
+        if (cierre === -1) return ''
+        salida = salida.slice(cierre + 2)
+        enBloque = false
+      }
+      // Un bloque que abre y cierra en la misma línea.
+      salida = salida.replace(/\/\*[\s\S]*?\*\//g, '')
+      const apertura = salida.indexOf('/*')
+      if (apertura !== -1) {
+        salida = salida.slice(0, apertura)
+        enBloque = true
+      }
+      // Un `//` dentro de una URL no abre un comentario.
+      const marca = salida.replace(/https?:\/\//g, 'https_/_/').indexOf('//')
+      return marca === -1 ? salida : salida.slice(0, marca)
+    })
+    .join('\n')
+}
+
 function archivosTsx(dir: string): string[] {
   const salida: string[] = []
   for (const entrada of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -60,7 +97,7 @@ describe('capas: nada de la página por encima del menú lateral', () => {
         const rel = path.relative(RAIZ, archivo).split(path.sep).join('/')
         if (PERMITIDOS.has(rel)) continue
 
-        const lineas = fs.readFileSync(archivo, 'utf8').split('\n')
+        const lineas = sinComentarios(fs.readFileSync(archivo, 'utf8')).split('\n')
         lineas.forEach((linea, i) => {
           for (const m of linea.matchAll(Z)) {
             const valor = Number(m[1] ?? m[2])

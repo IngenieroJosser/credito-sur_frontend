@@ -43,7 +43,7 @@ export default function AusenteModal({ visita, onClose, onConfirm }: AusenteModa
 
   return (
     <Portal>
-      <div className="fixed inset-0 z-[2147483600] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="fixed inset-0 capa-modal flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
         <div className="bg-white sm:rounded-[2rem] rounded-t-[2rem] w-full sm:max-w-md shadow-2xl animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200 overflow-hidden">
           <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-rose-50/30">
             <h3 className="font-bold text-lg text-rose-900 flex items-center gap-2">

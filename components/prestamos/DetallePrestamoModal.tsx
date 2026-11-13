@@ -35,7 +35,7 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
   const [visible, setVisible] = useState(false);
   // Escape para salir y el foco en el primer campo al abrir. El hook lleva
   // una pila, asi que con modales anidados Escape cierra solo el de encima.
-  useModalDialog({
+  const { capa } = useModalDialog({
     onClose: onClose,
   })
 
@@ -262,7 +262,17 @@ export default function DetallePrestamoModal({ id, onClose, includeArchived = fa
     String(prestamo.tipoPrestamo || '').toUpperCase() === 'ARTICULO';
 
   return createPortal(
-    <div className="fixed inset-0 z-[2147483620] flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={handleClose}>
+    /* La capa sale de la pila de modales abiertos, no de un numero escrito
+       aqui: este modal abre el del cliente al pulsar su nombre, y antes se
+       habia quedado con `z-[2147483620]` —la capa de los TOOLTIPS—, por
+       encima de el. El del cliente salia por detras y, como este cierra al
+       tocar su fondo, el clic para cerrar el de arriba cerraba este y se
+       iban los dos. */
+    <div
+      style={{ zIndex: capa }}
+      className="fixed inset-0 flex items-end sm:items-center justify-center p-0 sm:p-4"
+      onClick={handleClose}
+    >
       {/* Backdrop */}
       <div className={`fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity duration-200 ${visible ? 'opacity-100' : 'opacity-0'}`} />
 

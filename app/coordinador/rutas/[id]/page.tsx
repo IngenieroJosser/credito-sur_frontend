@@ -1696,7 +1696,7 @@ const LegacyDetalleRutaPage = () => {
 
       {isGastoModalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none"
+          className="fixed inset-0 capa-modal flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none"
           onClick={() => setIsGastoModalOpen(false)}
         >
           <div
@@ -2214,7 +2214,7 @@ function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose:
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300"
+      className="fixed inset-0 capa-modal flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300"
 
       onClick={onClose}
     >

@@ -1930,7 +1930,7 @@ const ModuloContableContent = () => {
 
 
         {showCrearCajaModal && renderInPortal(
-          <div className="fixed inset-0 z-[2147483600] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none" onClick={() => setShowCrearCajaModal(false)}>
+          <div className="fixed inset-0 capa-modal flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none" onClick={() => setShowCrearCajaModal(false)}>
             <div className="w-full max-w-xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
                 <div className="min-w-0">
@@ -2038,7 +2038,7 @@ const ModuloContableContent = () => {
         )}
 
         {showEditarCajaModal && cajaSeleccionada && renderInPortal(
-          <div className="fixed inset-0 z-[2147483600] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none" onClick={() => setShowEditarCajaModal(false)}>
+          <div className="fixed inset-0 capa-modal flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none" onClick={() => setShowEditarCajaModal(false)}>
             <div className="w-full max-w-xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
                 <div className="min-w-0">
@@ -2173,7 +2173,7 @@ const ModuloContableContent = () => {
         )}
 
         {showRegistrarMovimientoModal && renderInPortal(
-          <div className="fixed inset-0 z-[2147483600] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none" onClick={() => setShowRegistrarMovimientoModal(false)}>
+          <div className="fixed inset-0 capa-modal flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none" onClick={() => setShowRegistrarMovimientoModal(false)}>
             <div className="w-full max-w-2xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
                 <div className="min-w-0">
@@ -2456,7 +2456,7 @@ const ModuloContableContent = () => {
 
 
         {showVerMovimientoModal && movimientoSeleccionado && renderInPortal(
-          <div className="fixed inset-0 z-[2147483600] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none" onClick={() => setShowVerMovimientoModal(false)}>
+          <div className="fixed inset-0 capa-modal flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none" onClick={() => setShowVerMovimientoModal(false)}>
             <div className="w-full max-w-lg rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
                 <div className="min-w-0">
@@ -2634,7 +2634,7 @@ const ModuloContableContent = () => {
 
 
         {showVerCajaModal && cajaSeleccionada && renderInPortal(
-          <div className="fixed inset-0 z-[2147483600] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none" onClick={() => setShowVerCajaModal(false)}>
+          <div className="fixed inset-0 capa-modal flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none" onClick={() => setShowVerCajaModal(false)}>
             <div className="w-full max-w-lg rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
                 <div className="min-w-0">
@@ -2885,7 +2885,7 @@ const ModuloContableContent = () => {
         
         {/* Modal de Detalle */}
         {showDetalleModal && renderInPortal(
-          <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none" onClick={() => { setShowDetalleModal(false); setMovimientosDetalle([]); setCajaSeleccionada(null); setSaldoRutaSeleccionada(null); }}>
+          <div className="fixed inset-0 capa-modal flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none" onClick={() => { setShowDetalleModal(false); setMovimientosDetalle([]); setCajaSeleccionada(null); setSaldoRutaSeleccionada(null); }}>
             <div className="w-full max-w-2xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
               {/* Modal Header */}
               <div className="p-6 border-b border-slate-100 flex items-center justify-between shrink-0">
@@ -3670,7 +3670,7 @@ const ModuloContableContent = () => {
         )}
         {/* Modal: Ver Detalle Arqueo */}
         {showVerArqueoModal && arqueoSeleccionado && renderInPortal(
-          <div className="fixed inset-0 z-[2147483647] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setShowVerArqueoModal(false)}>
+          <div className="fixed inset-0 capa-modal flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setShowVerArqueoModal(false)}>
             <div className="w-full max-w-xl rounded-[2.5rem] bg-white border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300" onClick={(e) => e.stopPropagation()}>
                 <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-50 to-white">
                     <div className="flex items-center gap-4">

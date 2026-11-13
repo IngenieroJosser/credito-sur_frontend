@@ -122,7 +122,7 @@ export default function RutaProvisionalModal({
           el conflicto por el orden del CSS generado, no por el orden en que se
           escriben. Si se cambia la hoja en `lib/ui/hoja-modal`, hay que
           cambiar también esta línea. */}
-      <div className="fixed inset-0 z-[2147483600] flex items-end justify-center p-0 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none sm:items-center sm:p-4">
+      <div className="fixed inset-0 capa-modal flex items-end justify-center p-0 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none sm:items-center sm:p-4">
         <div className="bg-white rounded-t-2xl max-h-[100dvh] pb-[env(safe-area-inset-bottom)] sm:rounded-[2rem] sm:max-h-[90dvh] sm:pb-0 w-full max-w-lg shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh] overflow-hidden">
           {/* La barra que indica «esto se cierra hacia abajo». Solo en móvil. */}
           <div className={BARRA_DE_ARRASTRE} aria-hidden="true" />

@@ -71,7 +71,7 @@ function AbonoModal({ cobrador, onClose, onConfirm, cajas }: AbonoModalProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200 motion-reduce:animate-none"
+      className="fixed inset-0 capa-modal flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200 motion-reduce:animate-none"
       onClick={onClose}
     >
       <div
@@ -204,7 +204,7 @@ function DetalleDeudaModal({ cobrador, onClose }: DetalleDeudaModalProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/50 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200 motion-reduce:animate-none"
+      className="fixed inset-0 capa-modal flex items-end sm:items-center justify-center bg-slate-900/50 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200 motion-reduce:animate-none"
       onClick={onClose}
     >
       <div
