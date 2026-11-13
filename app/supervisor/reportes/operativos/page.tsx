@@ -14,6 +14,7 @@ import {
 import { SkeletonTablero } from '@/components/ui/Skeleton'
 import Tooltip from '@/components/ui/Tooltip'
 import Cifra from '@/components/ui/Cifra'
+import VolverAtras from '@/components/ui/VolverAtras'
 
 const ReportesOperativosSupervisorPage = () => {
   const router = useRouter()
@@ -84,6 +85,13 @@ const ReportesOperativosSupervisorPage = () => {
       <div className="relative z-10 w-full space-y-8 p-8">
         <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between animate-in fade-in slide-in-from-bottom-4 duration-700">
           <div className="space-y-4">
+            {/*
+              * A esta pantalla se llega desde otra y no esta en el menu
+              * lateral de ningun rol, asi que sin esto solo se sale con el
+              * boton atras del navegador, que en la app instalada no
+              * siempre esta a la vista.
+              */}
+            <VolverAtras destino="/supervisor" texto="Volver al panel" className="-ml-3 mb-1" />
             <div className="inline-flex items-center gap-2 self-start px-3 py-1 rounded-full bg-slate-100 text-xs text-slate-600 tracking-wide font-bold border border-slate-200">
               <BarChart3 className="h-3.5 w-3.5" />
               <span>Reportes Operativos</span>

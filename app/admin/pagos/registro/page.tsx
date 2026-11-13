@@ -38,6 +38,7 @@ import { toast } from 'sonner'
 import Image from 'next/image'
 import { resolveCobradorIdForRouteAction } from '@/lib/rutas-core'
 import AyudaContextual from '@/components/ui/AyudaContextual'
+import VolverAtras from '@/components/ui/VolverAtras'
 
 interface ResumenCuota {
   capital: number
@@ -205,6 +206,13 @@ const RegistroPagoPage = () => {
       <div className="relative z-10 w-full space-y-8 p-8">
         <header className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between animate-in fade-in slide-in-from-bottom-4 duration-700">
           <div className="min-w-0">
+            {/*
+              * A esta pantalla se llega desde otra y no esta en el menu
+              * lateral de ningun rol, asi que sin esto solo se sale con el
+              * boton atras del navegador, que en la app instalada no
+              * siempre esta a la vista.
+              */}
+            <VolverAtras destino="/admin/pagos/historial" texto="Volver al historial" className="-ml-3 mb-1" />
             <div className="flex items-center gap-2 mb-2">
               <div className="shrink-0 p-2 bg-blue-600 rounded-lg shadow-md shadow-blue-600/20">
                 <Wallet className="w-6 h-6 text-white" />
