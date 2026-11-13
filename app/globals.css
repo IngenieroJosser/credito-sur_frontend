@@ -536,3 +536,78 @@ textarea::placeholder {
   color: rgb(148 163 184); /* slate-400 */
   opacity: 1; /* Firefox lo baja a 0.54 por su cuenta. */
 }
+
+/*
+  El agarre de redimensionar del area de texto.
+
+  Es el triangulito de rayas de la esquina inferior derecha, y lo dibuja el
+  navegador: distinto en cada uno, y en el movil no sirve para nada. Medido:
+  23 de las 31 areas de texto del proyecto lo mostraban.
+
+  Redimensionar en vertical SI se conserva —escribir un comentario largo en un
+  recuadro de tres lineas es incomodo—, pero en horizontal no: estirarlo a lo
+  ancho rompe la maquetacion de la tarjeta que lo contiene.
+
+  Quien ya pidio `resize-none` manda, porque la clase de Tailwind gana por
+  especificidad a este selector de elemento.
+*/
+textarea {
+  resize: vertical;
+}
+
+/*
+  Lo que el navegador dibuja dentro de un campo de archivo.
+
+  El boton «Examinar...» / «Choose file» lleva el texto en el IDIOMA DEL
+  NAVEGADOR, no en el de la aplicacion, y su aspecto es el del sistema. Los
+  campos que viven dentro de `FileUploader` y `MediaUpload` ya van ocultos tras
+  una interfaz propia; esta regla es para los nueve que estan sueltos.
+*/
+input[type='file'] {
+  color: transparent;
+}
+
+input[type='file']::file-selector-button,
+input[type='file']::-webkit-file-upload-button {
+  margin-right: 0.75rem;
+  cursor: pointer;
+  border: 1px solid rgb(226 232 240); /* slate-200 */
+  border-radius: 0.75rem;
+  background-color: #fff;
+  padding: 0.5rem 1rem;
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: rgb(51 65 85); /* slate-700 */
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  input[type='file']::file-selector-button {
+    transition:
+      background-color var(--mov-normal) var(--mov-suave),
+      border-color var(--mov-normal) var(--mov-suave);
+  }
+}
+
+input[type='file']::file-selector-button:hover {
+  background-color: rgb(248 250 252); /* slate-50 */
+  border-color: rgb(203 213 225); /* slate-300 */
+}
+
+/*
+  El triangulo de `<details>`.
+
+  Cada navegador dibuja el suyo, y en Safari ni siquiera es un triangulo. Queda
+  uno en el proyecto, en la vista previa del impacto en caja de una
+  importacion.
+*/
+details > summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+details > summary::-webkit-details-marker,
+details > summary::marker {
+  display: none;
+  content: '';
+}

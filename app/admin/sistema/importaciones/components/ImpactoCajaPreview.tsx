@@ -1,5 +1,5 @@
 import React from 'react'
-import { AlertTriangle, CheckCircle } from 'lucide-react'
+import { AlertTriangle, CheckCircle, ChevronRight } from 'lucide-react'
 import { ImpactoCaja } from '@/types/importaciones'
 
 const pesos = (valor: number) =>
@@ -127,8 +127,18 @@ export default function ImpactoCajaPreview({
             )}
           </div>
 
-          <details className="mt-3">
-            <summary className="cursor-pointer text-sm font-bold text-slate-700">
+          {/*
+            * El triangulo de `<details>` lo dibujaba el navegador: distinto en
+            * cada uno, y en Safari ni siquiera es un triangulo. Se oculta en
+            * `globals.css` y la flecha se pone aqui, con la misma que usa el
+            * resto del sistema, girando al abrir.
+            */}
+          <details className="group mt-3">
+            <summary className="flex cursor-pointer items-center gap-1.5 text-sm font-bold text-slate-700">
+              <ChevronRight
+                className="h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200 group-open:rotate-90 motion-reduce:transition-none"
+                aria-hidden
+              />
               Ver el detalle fila por fila ({impacto.movimientos.length})
             </summary>
             <div className="mt-2 max-h-64 overflow-auto rounded-xl border border-slate-200 bg-white">
