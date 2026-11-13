@@ -28,6 +28,7 @@ import { idDelPrestamoCreado } from '@/lib/creditos/prestamo-creado';
 import { FrecuenciaPago } from '@/types/enums'
 
 import { SkeletonFormulario } from '@/components/ui/Skeleton'
+import { Selector } from '@/components/ui/Selector'
 // Esta pantalla declaraba su propia copia de este tipo (la tercera del proyecto: hay
 // otra en `lib/types/cobranza.ts`, ensanchada con `| string`). Los valores son los del
 // enum, y `crearPrestamo` pide el enum, asi que el literal no le valia y habia que
@@ -578,15 +579,17 @@ export default function CreacionCreditoArticulo({
                             </div>
                           </div>
                           
-                          <select
+                          <Selector
                             value={ordenPrecio}
-                            onChange={(e) => setOrdenPrecio(e.target.value as 'asc' | 'desc' | 'none')}
-                            className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 bg-white focus:ring-2 focus:ring-blue-500/20"
-                          >
-                            <option value="none">Orden: Por Defecto</option>
-                            <option value="asc">Precio: Menor a Mayor</option>
-                            <option value="desc">Precio: Mayor a Menor</option>
-                          </select>
+                            onChange={(v) => setOrdenPrecio(v as 'asc' | 'desc' | 'none')}
+                            etiqueta="Ordenar por precio"
+                            className="rounded-lg px-3 py-1.5 text-xs font-bold text-slate-600"
+                            opciones={[
+                              { value: 'none', label: 'Orden: Por Defecto' },
+                              { value: 'asc', label: 'Precio: Menor a Mayor' },
+                              { value: 'desc', label: 'Precio: Mayor a Menor' },
+                            ]}
+                          />
                         </div>
                       </div>
                       
@@ -691,35 +694,34 @@ export default function CreacionCreditoArticulo({
                           <>
                             <div className="space-y-2">
                               <label className="text-xs font-bold text-slate-700 uppercase">Plazo (Meses)</label>
-                              <select
-                                value={numeroCuotas}
-                                onChange={(e) => setNumeroCuotas(Number(e.target.value))}
-                                className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 font-medium text-slate-900 focus:ring-2 focus:ring-blue-500/20"
-                              >
-                            {opcionesMesesDisponibles.length > 0 ? (
-                                opcionesMesesDisponibles.map(m => (
-                                    <option key={m} value={m}>
-                                        {m} {m === 1 ? 'Mes' : 'Meses'}
-                                    </option>
-                                ))
-                            ) : (
-                                <option value={0}>Seleccione artículos primero</option>
-                            )}
-                          </select>
+                              <Selector
+                                value={String(numeroCuotas)}
+                                onChange={(v) => setNumeroCuotas(Number(v))}
+                                etiqueta="Número de cuotas"
+                                disabled={opcionesMesesDisponibles.length === 0}
+                                placeholder="Seleccione artículos primero"
+                                className="bg-slate-50 font-medium text-slate-900"
+                                opciones={opcionesMesesDisponibles.map((m) => ({
+                                  value: String(m),
+                                  label: m + (m === 1 ? ' Mes' : ' Meses'),
+                                }))}
+                              />
                         </div>
    
                         <div className="space-y-2">
                           <label className="text-xs font-bold text-slate-700 uppercase">Frecuencia de Pago</label>
-                          <select
+                          <Selector
                             value={frecuenciaPago}
-                            onChange={(e) => setFrecuenciaPago(e.target.value as FrecuenciaPago)}
-                            className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 font-medium text-slate-900 focus:ring-2 focus:ring-blue-500/20"
-                          >
-                            <option value="DIARIO">Diario</option>
-                            <option value="SEMANAL">Semanal</option>
-                            <option value="QUINCENAL">Quincenal</option>
-                            <option value="MENSUAL">Mensual</option>
-                          </select>
+                            onChange={(v) => setFrecuenciaPago(v as FrecuenciaPago)}
+                            etiqueta="Frecuencia de Pago"
+                            className="bg-slate-50 font-medium text-slate-900"
+                            opciones={[
+                              { value: FrecuenciaPago.DIARIO, label: 'Diario' },
+                              { value: FrecuenciaPago.SEMANAL, label: 'Semanal' },
+                              { value: FrecuenciaPago.QUINCENAL, label: 'Quincenal' },
+                              { value: FrecuenciaPago.MENSUAL, label: 'Mensual' },
+                            ]}
+                          />
                         </div>
    
                         <div className="space-y-2">

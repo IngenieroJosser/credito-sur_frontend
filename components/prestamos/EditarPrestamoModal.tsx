@@ -691,10 +691,10 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
                   {isEditing && isArticle && opcionesCuotas.length > 0 ? (
                     <div className="space-y-1">
                       <label className="text-[8px] text-slate-400 font-black uppercase tracking-widest block">Plazo Total (Meses)</label>
-                      <select
-                        value={planIndex !== null ? planIndex : ''}
-                        onChange={(e) => {
-                          const idx = e.target.value ? parseInt(e.target.value) : null;
+                      <Selector
+                        value={planIndex !== null ? String(planIndex) : ''}
+                        onChange={(v) => {
+                          const idx = v ? parseInt(v) : null;
                           setPlanIndex(idx);
                           if (idx !== null) {
                             const op = opcionesCuotas[idx];
@@ -705,19 +705,21 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
                             setAutoCuotas(true);
                           }
                         }}
-                        className="w-full bg-slate-50 border border-slate-100 text-slate-900 rounded-2xl px-3 py-2 text-xs font-black outline-none focus:ring-2 focus:ring-blue-500/10 focus:bg-white"
-                      >
-                        <option value="">Seleccionar plazo...</option>
-                        {opcionesCuotas.map((op, i: number) => {
-                          const meses = Number(op.numeroCuotas);
-                          if (isNaN(meses)) return null;
-                          return (
-                            <option key={i} value={i}>
-                              {meses} {meses === 1 ? 'Mes' : 'Meses'} - Total: {formatCurrency(op.precioTotal)}
-                            </option>
-                          );
-                        })}
-                      </select>
+                        etiqueta="Plazo del plan"
+                        placeholder="Seleccionar plazo..."
+                        className="rounded-2xl bg-slate-50 px-3 py-2 text-xs font-black text-slate-900"
+                        opciones={opcionesCuotas
+                          .map((op, i: number) => ({ op, i, meses: Number(op.numeroCuotas) }))
+                          .filter(({ meses }) => !isNaN(meses))
+                          .map(({ op, i, meses }) => ({
+                            value: String(i),
+                            label:
+                              meses +
+                              (meses === 1 ? ' Mes' : ' Meses') +
+                              ' - Total: ' +
+                              formatCurrency(op.precioTotal),
+                          }))}
+                      />
                     </div>
                   ) : null}
 
