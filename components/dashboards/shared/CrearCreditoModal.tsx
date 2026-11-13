@@ -183,8 +183,25 @@ export default function CrearCreditoModal({
     'SUPER_ADMINISTRADOR',
   ].includes(String(user?.rol || '').toUpperCase())
   const hoyBogotaKey = getBogotaDateKey(new Date())
-  const hoyBogotaDateTimeMin = `${hoyBogotaKey}T00:00`
   const fechaCreditoKey = String(fechaCreditoInput || '').slice(0, 10) || hoyBogotaKey
+  /**
+   * La HORA del credito es la de creacion, no algo que se escriba.
+   *
+   * Este campo era un `datetime-local`, y medido: la hora no cambia ningun
+   * resultado. El backend guarda `fechaInicio` con su hora, pero todo lo que
+   * la lee pasa primero por el dia de Bogota —`calcularFechaVencimiento` y
+   * `calculateLoanEndDate` empiezan por `getBogotaDayKey`—, y las tres
+   * pantallas que la muestran (`DetallePrestamo`, `DetalleCliente` y el
+   * portal del cliente) la pintan con `formatDate`, sin hora.
+   *
+   * Asi que el control nativo ofrecia al administrador elegir unas horas y
+   * unos minutos que no significan nada, con el calendario y el reloj del
+   * sistema operativo encima. Queda el dia, con el calendario del sistema, y
+   * la hora sigue siendo la del momento de crearlo: para quien no puede
+   * cambiar la fecha es exactamente lo que ya pasaba, y el orden entre dos
+   * creditos del mismo dia se conserva.
+   */
+  const horaDeCreacion = String(fechaCreditoInput || '').slice(11) || '00:00'
 
   const puedeMostrarModoVenta = creditType === 'articulo' && allowVentaContadoOption && !lockVentaContado
 
@@ -520,17 +537,12 @@ export default function CrearCreditoModal({
                     </div>
                     <div>
                       <FieldLabel required>Fecha Crédito</FieldLabel>
-                      <input
-                         type="datetime-local"
-                         value={fechaCreditoInput}
-                         min={puedeUsarFechaAntiguaCredito ? undefined : hoyBogotaDateTimeMin}
-                         readOnly={!puedeUsarFechaAntiguaCredito}
-                         onChange={(e) => setFechaCreditoInput(e.target.value)}
-                         className={`w-full px-4 py-3 border rounded-xl focus:ring-0 font-medium transition-colors ${
-                           puedeUsarFechaAntiguaCredito
-                             ? 'bg-white border-slate-200 text-slate-900 focus:border-[#08557f]'
-                             : 'bg-slate-100 border-slate-200 text-slate-500 cursor-not-allowed focus:outline-none'
-                         }`}
+                      <CampoFecha
+                        value={fechaCreditoKey}
+                        onChange={(dia) => setFechaCreditoInput(`${dia}T${horaDeCreacion}`)}
+                        min={puedeUsarFechaAntiguaCredito ? undefined : hoyBogotaKey}
+                        disabled={!puedeUsarFechaAntiguaCredito}
+                        className="font-medium"
                       />
                     </div>
                   </div>
@@ -753,17 +765,12 @@ export default function CrearCreditoModal({
 
                   <div>
                     <FieldLabel required>Fecha Crédito</FieldLabel>
-                    <input
-                      type="datetime-local"
-                      value={fechaCreditoInput}
-                      min={puedeUsarFechaAntiguaCredito ? undefined : hoyBogotaDateTimeMin}
-                      readOnly={!puedeUsarFechaAntiguaCredito}
-                      onChange={(e) => setFechaCreditoInput(e.target.value)}
-                      className={`w-full px-4 py-3 border rounded-xl focus:ring-0 font-bold transition-colors ${
-                        puedeUsarFechaAntiguaCredito
-                          ? 'bg-white border-slate-200 text-slate-900 focus:border-[#08557f]'
-                          : 'bg-slate-100 border-slate-200 text-slate-500 cursor-not-allowed focus:outline-none'
-                      }`}
+                    <CampoFecha
+                      value={fechaCreditoKey}
+                      onChange={(dia) => setFechaCreditoInput(`${dia}T${horaDeCreacion}`)}
+                      min={puedeUsarFechaAntiguaCredito ? undefined : hoyBogotaKey}
+                      disabled={!puedeUsarFechaAntiguaCredito}
+                      className="font-bold"
                     />
                   </div>
 
@@ -841,7 +848,7 @@ export default function CrearCreditoModal({
                     const inputInvalido = esQuincenaInvalida || esDomingoInvalido || esFechaPasada || esAnteriorFechaCredito
                     return (
                       <div className="space-y-1">
-                                                <CampoFecha
+                        <CampoFecha
                           value={fechaPrimerCobro}
                           onChange={(valorFecha) => setFechaPrimerCobro(valorFecha)}
                           min={puedeUsarFechaAntiguaCredito ? undefined : hoyBogotaKey}
