@@ -17,6 +17,7 @@ import { logger } from '@/lib/logger'
 import Tooltip from '@/components/ui/Tooltip'
 import { useModalDialog } from '@/hooks/use-modal-dialog'
 import type { OpcionCuotas } from '@/services/articulos-service'
+import { Selector } from '@/components/ui/Selector'
 
 interface EditarPrestamoModalProps {
   id: string;
@@ -643,15 +644,17 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
                       <div className="space-y-1">
                         <label className="text-[8px] text-slate-400 font-black uppercase tracking-widest block">Tipo de Interés</label>
                         {isEditing ? (
-                          <select
+                          <Selector
                             value={tipoAmortizacion}
-                            onChange={(e) => setTipoAmortizacion(e.target.value as TipoAmortizacion)}
-                            className="w-full bg-slate-50 border border-slate-100 text-slate-900 rounded-2xl px-3 py-2 text-xs font-black outline-none focus:ring-2 focus:ring-blue-500/10 focus:bg-white"
-                          >
-                            <option value={TipoAmortizacion.INTERES_SIMPLE}>Interés Simple</option>
-                            <option value={TipoAmortizacion.INTERES_PLANO}>Amortización (cuota fija)</option>
-                            <option value={TipoAmortizacion.FRANCESA}>Amortización Francesa (Histórico)</option>
-                          </select>
+                            onChange={(v) => setTipoAmortizacion(v as TipoAmortizacion)}
+                            etiqueta="Tipo de amortización"
+                            className="rounded-2xl bg-slate-50 px-3 py-2 text-xs font-black text-slate-900"
+                            opciones={[
+                              { value: TipoAmortizacion.INTERES_SIMPLE, label: 'Interés Simple' },
+                              { value: TipoAmortizacion.INTERES_PLANO, label: 'Amortización (cuota fija)' },
+                              { value: TipoAmortizacion.FRANCESA, label: 'Amortización Francesa (Histórico)' },
+                            ]}
+                          />
                         ) : (
                           <p className="text-xs font-black text-slate-900">
                             {tipoAmortizacion === TipoAmortizacion.FRANCESA
@@ -666,16 +669,18 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
                     <div className={`space-y-1 ${isArticle ? 'col-span-2' : ''}`}>
                       <label className="text-[8px] text-slate-400 font-black uppercase tracking-widest block">Frecuencia de Pago</label>
                       {isEditing ? (
-                        <select
+                        <Selector
                           value={frecuencia}
-                          onChange={(e) => { setFrecuencia(e.target.value); setAutoCuotas(true); }}
-                          className="w-full bg-slate-50 border border-slate-100 text-slate-900 rounded-2xl px-3 py-2 text-xs font-black outline-none focus:ring-2 focus:ring-blue-500/10 focus:bg-white"
-                        >
-                          <option value="DIARIO">DIARIO</option>
-                          <option value="SEMANAL">SEMANAL</option>
-                          <option value="QUINCENAL">QUINCENAL</option>
-                          <option value="MENSUAL">MENSUAL</option>
-                        </select>
+                          onChange={(v) => { setFrecuencia(v); setAutoCuotas(true); }}
+                          etiqueta="Frecuencia de pago"
+                          className="rounded-2xl bg-slate-50 px-3 py-2 text-xs font-black text-slate-900"
+                          opciones={[
+                            { value: 'DIARIO', label: 'Diario' },
+                            { value: 'SEMANAL', label: 'Semanal' },
+                            { value: 'QUINCENAL', label: 'Quincenal' },
+                            { value: 'MENSUAL', label: 'Mensual' },
+                          ]}
+                        />
                       ) : (
                         <p className="text-xs font-black text-blue-600 uppercase tracking-wider">{frecuencia}</p>
                       )}

@@ -8,7 +8,7 @@ import {
   DollarSign, Percent, Clock,
   CheckCircle,
   PlusCircle,
-  ChevronRight, ChevronDown, Search, Filter
+  ChevronRight, Search, Filter
 } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { formatCurrency, cn, formatMilesCOP, parseCOPInputToNumber } from '@/lib/utils';
@@ -21,6 +21,7 @@ import { obtenerPerfil } from '@/services/autenticacion-service';
 import { prestamosService } from '@/services/prestamos-service';
 import { resolveCurrentUserId } from '@/lib/creditos/crear-prestamo-payload';
 import { FrecuenciaPago, NivelRiesgo, TipoAmortizacion } from '@/types/enums';
+import { Selector } from '@/components/ui/Selector'
 
 // Interfaces alineadas con Prisma (Simuladas para Frontend)
 
@@ -538,16 +539,18 @@ const CreacionPrestamoElegante = ({ initialClienteId, isModal }: { initialClient
                       <div className="flex items-center gap-2 w-full md:w-auto">
                         <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-xl border border-slate-200">
                           <Filter className="w-4 h-4 text-slate-400" />
-                          <select 
+                          <Selector
                             value={filtroRiesgo}
-                            onChange={(e) => setFiltroRiesgo(e.target.value as NivelRiesgo | 'TODOS')}
-                            className="bg-transparent border-none text-sm font-medium text-slate-700 focus:ring-0 cursor-pointer outline-none"
-                          >
-                            <option value="TODOS">Todos los riesgos</option>
-                            <option value="VERDE">Riesgo Bajo (Verde)</option>
-                            <option value="AMARILLO">Riesgo Medio (Amarillo)</option>
-                            <option value="ROJO">Riesgo Alto (Rojo)</option>
-                          </select>
+                            onChange={(v) => setFiltroRiesgo(v as NivelRiesgo | 'TODOS')}
+                            etiqueta="Filtrar por riesgo"
+                            className="border-0 bg-transparent px-0 py-0 text-sm font-medium text-slate-700"
+                            opciones={[
+                              { value: 'TODOS', label: 'Todos los riesgos' },
+                              { value: 'VERDE', label: 'Riesgo Bajo (Verde)' },
+                              { value: 'AMARILLO', label: 'Riesgo Medio (Amarillo)' },
+                              { value: 'ROJO', label: 'Riesgo Alto (Rojo)' },
+                            ]}
+                          />
                         </div>
                       </div>
                     </div>
@@ -722,34 +725,59 @@ const CreacionPrestamoElegante = ({ initialClienteId, isModal }: { initialClient
                       <div className="space-y-2">
                         <label className="text-sm font-bold text-slate-700">Tipo de Interés</label>
                         <div className="relative">
-                          <select
+                          <Selector
                             name="tipoInteres"
                             value={form.tipoInteres}
-                            onChange={handleInputChange}
-                            className="w-full pl-4 pr-10 py-2.5 rounded-xl border-slate-200 bg-white font-medium text-slate-900 focus:ring-2 focus:ring-slate-900/10 appearance-none cursor-pointer"
-                          >
-                            <option value="AMORTIZABLE">Amortizable</option>
-                            <option value="SIMPLE">Interés Simple</option>
-                          </select>
-                          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                            onChange={(v) =>
+                              handleInputChange({
+                                target: { name: 'tipoInteres', value: v },
+                              } as React.ChangeEvent<HTMLInputElement>)
+                            }
+                            etiqueta="Tipo de interés"
+                            className="font-medium text-slate-900"
+                            /*
+                              Aqui decia `value="AMORTIZABLE"` y `value="SIMPLE"`, y
+                              NINGUNO de los dos existe en `TipoAmortizacion`, cuyos
+                              valores son INTERES_SIMPLE, INTERES_PLANO y FRANCESA.
+                              Ese valor se manda al backend como `tipoAmortizacion`
+                              (linea ~375) y se compara en dos sitios contra
+                              `TipoAmortizacion.INTERES_SIMPLE`, asi que elegir
+                              «Amortizable» mandaba un valor que el enum no contempla
+                              y la comparacion no casaba nunca.
+
+                              El `<select>` nativo lo tapaba: entrega un `string` suelto
+                              y `handleInputChange` lo metia en el formulario sin que
+                              nadie comprobara nada. El tipado lo destapo al migrar,
+                              porque este selector es generico sobre el valor.
+                            */
+                            opciones={[
+                              { value: TipoAmortizacion.INTERES_PLANO, label: 'Amortizable (cuota fija)' },
+                              { value: TipoAmortizacion.INTERES_SIMPLE, label: 'Interés Simple' },
+                            ]}
+                          />
                         </div>
                       </div>
 
                       <div className="space-y-2">
                         <label className="text-sm font-bold text-slate-700">Frecuencia de Pago</label>
                         <div className="relative">
-                          <select
+                          <Selector
                             name="frecuenciaPago"
                             value={form.frecuenciaPago}
-                            onChange={handleInputChange}
-                            className="w-full pl-4 pr-10 py-2.5 rounded-xl border-slate-200 bg-white font-medium text-slate-900 focus:ring-2 focus:ring-slate-900/10 appearance-none cursor-pointer"
-                          >
-                            <option value="DIARIO">Diario</option>
-                            <option value="SEMANAL">Semanal</option>
-                            <option value="QUINCENAL">Quincenal</option>
-                            <option value="MENSUAL">Mensual</option>
-                          </select>
-                          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                            onChange={(v) =>
+                              handleInputChange({
+                                target: { name: 'frecuenciaPago', value: v },
+                              } as React.ChangeEvent<HTMLInputElement>)
+                            }
+                            etiqueta="Frecuencia de pago"
+                            className="font-medium text-slate-900"
+                            opciones={[
+                              { value: FrecuenciaPago.DIARIO, label: 'Diario' },
+                              { value: FrecuenciaPago.SEMANAL, label: 'Semanal' },
+                              { value: FrecuenciaPago.QUINCENAL, label: 'Quincenal' },
+                              { value: FrecuenciaPago.MENSUAL, label: 'Mensual' },
+                            ]}
+                          />
                         </div>
                       </div>
 
