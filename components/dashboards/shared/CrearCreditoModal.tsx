@@ -26,6 +26,7 @@ import { useAuth } from '@/hooks/useAuth'
 import Tooltip from '@/components/ui/Tooltip'
 import { useModalDialog } from '@/hooks/use-modal-dialog'
 import { Selector } from '@/components/ui/Selector'
+import { CampoFecha } from '@/components/ui/CampoFecha'
 
 interface CrearCreditoModalProps {
   isOpen: boolean
@@ -840,11 +841,10 @@ export default function CrearCreditoModal({
                     const inputInvalido = esQuincenaInvalida || esDomingoInvalido || esFechaPasada || esAnteriorFechaCredito
                     return (
                       <div className="space-y-1">
-                        <input
-                          type="date"
+                                                <CampoFecha
                           value={fechaPrimerCobro}
+                          onChange={(valorFecha) => setFechaPrimerCobro(valorFecha)}
                           min={puedeUsarFechaAntiguaCredito ? undefined : hoyBogotaKey}
-                          onChange={(e) => setFechaPrimerCobro(e.target.value)}
                           className={`w-full px-4 py-3 border rounded-xl focus:ring-0 font-medium text-slate-900 transition-colors ${
                             inputInvalido
                               ? 'border-red-400 bg-red-50 focus:border-red-500'

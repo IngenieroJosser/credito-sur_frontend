@@ -15,6 +15,7 @@ import { getBogotaDateKey } from '@/lib/rutas-core'
 import { getEntradaCajaFisica, getSalidaCajaFisica } from '@/lib/contabilidad-clasificacion'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { toast } from 'sonner';
+import { CampoFecha } from '@/components/ui/CampoFecha'
 
 /**
  * El saldo de una caja, que llega como numero o como texto con separadores.
@@ -1324,11 +1325,19 @@ export default function CierreCajaPage() {
                   <div className="md:col-span-4 flex items-center justify-between gap-3">
                     <label className="flex-1">
                       <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Desde</span>
-                      <input type="date" value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} className="w-full text-xs font-bold text-slate-700 bg-white border border-slate-200 rounded-xl px-3 py-2 outline-none shadow-sm" />
+                                            <CampoFecha
+                        value={fechaInicio}
+                        onChange={(valorFecha) => setFechaInicio(valorFecha)}
+                        className="w-full text-xs font-bold text-slate-700 bg-white border border-slate-200 rounded-xl px-3 py-2 outline-none shadow-sm"
+                      />
                     </label>
                     <label className="flex-1">
                       <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Hasta</span>
-                      <input type="date" value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} className="w-full text-xs font-bold text-slate-700 bg-white border border-slate-200 rounded-xl px-3 py-2 outline-none shadow-sm" />
+                                            <CampoFecha
+                        value={fechaFin}
+                        onChange={(valorFecha) => setFechaFin(valorFecha)}
+                        className="w-full text-xs font-bold text-slate-700 bg-white border border-slate-200 rounded-xl px-3 py-2 outline-none shadow-sm"
+                      />
                     </label>
                   </div>
                 </div>

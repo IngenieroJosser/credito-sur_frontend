@@ -31,6 +31,7 @@ import { pagosService } from '@/services/pagos-service'
 import { usuariosService, type Usuario } from '@/services/usuarios-service'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Selector } from '@/components/ui/Selector'
+import { CampoFecha } from '@/components/ui/CampoFecha'
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -778,24 +779,20 @@ export default function SeguimientoPuntoVenta() {
             </div>
 
             {/* Fechas */}
-            <input
-              type="date"
+                        <CampoFecha
               value={filtroFechaDesde}
-              onChange={(e) => {
-                setFiltroFechaDesde(e.target.value)
+              onChange={(valorFecha) => {
+                setFiltroFechaDesde(valorFecha)
                 setPage(1)
               }}
-              title="Desde"
               className="px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-orange-500/20 text-slate-700 font-medium"
             />
-            <input
-              type="date"
+                        <CampoFecha
               value={filtroFechaHasta}
-              onChange={(e) => {
-                setFiltroFechaHasta(e.target.value)
+              onChange={(valorFecha) => {
+                setFiltroFechaHasta(valorFecha)
                 setPage(1)
               }}
-              title="Hasta"
               className="px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-orange-500/20 text-slate-700 font-medium"
             />
 

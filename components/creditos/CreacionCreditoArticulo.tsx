@@ -29,6 +29,7 @@ import { FrecuenciaPago } from '@/types/enums'
 
 import { SkeletonFormulario } from '@/components/ui/Skeleton'
 import { Selector } from '@/components/ui/Selector'
+import { CampoFecha } from '@/components/ui/CampoFecha'
 // Esta pantalla declaraba su propia copia de este tipo (la tercera del proyecto: hay
 // otra en `lib/types/cobranza.ts`, ensanchada con `| string`). Los valores son los del
 // enum, y `crearPrestamo` pide el enum, asi que el literal no le valia y habia que
@@ -751,10 +752,9 @@ export default function CreacionCreditoArticulo({
    
                         <div className="space-y-2">
                           <label className="text-xs font-bold text-slate-700 uppercase">Fecha del Crédito</label>
-                          <input
-                            type="date"
+                                                    <CampoFecha
                             value={fechaInicio}
-                            onChange={(e) => setFechaInicio(e.target.value)}
+                            onChange={(valorFecha) => setFechaInicio(valorFecha)}
                             className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 font-medium text-slate-900 focus:ring-2 focus:ring-blue-500/20"
                           />
                         </div>

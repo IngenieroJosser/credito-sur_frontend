@@ -91,6 +91,7 @@ import FieldLabel from '@/components/ui/FieldLabel'
 import BotonAccion from '@/components/ui/BotonAccion'
 import { listaDeRespuesta } from '@/lib/lista-de-respuesta'
 import { Selector } from '@/components/ui/Selector'
+import { CampoFecha } from '@/components/ui/CampoFecha'
 
 // --- TIPOS DE DATOS ---
 // Definimos la estructura de nuestras "Cajas".
@@ -3210,20 +3211,18 @@ const ModuloContableContent = () => {
                         <div className="flex gap-2 mb-4 bg-slate-50 p-2 rounded-xl">
                             <div className="flex-1">
                                 <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Desde</label>
-                                <input 
-                                    type="date" 
-                                    value={fechaInicioModal}
-                                    onChange={(e) => setFechaInicioModal(e.target.value)}
-                                    className="w-full text-xs font-bold text-slate-700 bg-white border border-slate-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-blue-100 outline-none"
+                                                                <CampoFecha
+                                  value={fechaInicioModal}
+                                  onChange={(valorFecha) => setFechaInicioModal(valorFecha)}
+                                  className="w-full text-xs font-bold text-slate-700 bg-white border border-slate-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-blue-100 outline-none"
                                 />
                             </div>
                             <div className="flex-1">
                                 <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Hasta</label>
-                                <input 
-                                    type="date" 
-                                    value={fechaFinModal}
-                                    onChange={(e) => setFechaFinModal(e.target.value)}
-                                    className="w-full text-xs font-bold text-slate-700 bg-white border border-slate-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-blue-100 outline-none"
+                                                                <CampoFecha
+                                  value={fechaFinModal}
+                                  onChange={(valorFecha) => setFechaFinModal(valorFecha)}
+                                  className="w-full text-xs font-bold text-slate-700 bg-white border border-slate-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-blue-100 outline-none"
                                 />
                             </div>
                         </div>

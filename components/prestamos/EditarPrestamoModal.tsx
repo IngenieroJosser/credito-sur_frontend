@@ -18,6 +18,7 @@ import Tooltip from '@/components/ui/Tooltip'
 import { useModalDialog } from '@/hooks/use-modal-dialog'
 import type { OpcionCuotas } from '@/services/articulos-service'
 import { Selector } from '@/components/ui/Selector'
+import { CampoFecha } from '@/components/ui/CampoFecha'
 
 interface EditarPrestamoModalProps {
   id: string;
@@ -745,10 +746,9 @@ export default function EditarPrestamoModal({ id, onClose, onSuccess }: EditarPr
                     )}
                     <div className="space-y-1">
                       <label className="text-[8px] text-slate-400 font-black uppercase tracking-widest block">Fecha Inicio</label>
-                      <input
-                        type="date"
+                                            <CampoFecha
                         value={fechaInicio}
-                        readOnly
+                        onChange={() => {}}
                         className="w-full bg-slate-100 border border-slate-200 text-slate-500 rounded-2xl px-3 py-2 text-xs font-black outline-none cursor-not-allowed"
                       />
                     </div>

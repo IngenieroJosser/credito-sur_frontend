@@ -22,6 +22,7 @@ import { prestamosService } from '@/services/prestamos-service';
 import { resolveCurrentUserId } from '@/lib/creditos/crear-prestamo-payload';
 import { FrecuenciaPago, NivelRiesgo, TipoAmortizacion } from '@/types/enums';
 import { Selector } from '@/components/ui/Selector'
+import { CampoFecha } from '@/components/ui/CampoFecha'
 
 // Interfaces alineadas con Prisma (Simuladas para Frontend)
 
@@ -798,11 +799,14 @@ const CreacionPrestamoElegante = ({ initialClienteId, isModal }: { initialClient
 
                       <div className="space-y-2">
                         <label className="text-sm font-bold text-slate-700">Fecha del Crédito</label>
-                        <input
-                          type="date"
-                          name="fechaInicio"
+                        <CampoFecha
                           value={form.fechaInicio}
-                          onChange={handleInputChange}
+                          onChange={(v) =>
+                            handleInputChange({
+                              target: { name: 'fechaInicio', value: v },
+                            } as React.ChangeEvent<HTMLInputElement>)
+                          }
+                          name="fechaInicio"
                           className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-white font-medium text-slate-900 focus:ring-2 focus:ring-slate-900/10"
                         />
                       </div>

@@ -49,6 +49,7 @@ import {
 import TipoCreditoIndicador from '@/components/creditos/TipoCreditoIndicador'
 import { formatFechaBogota, formatFechaHumanaBogota } from '@/lib/format-date'
 import { Selector } from '@/components/ui/Selector'
+import { CampoFecha } from '@/components/ui/CampoFecha'
 
 export interface NotificacionDetalleModalProps {
   isOpen: boolean
@@ -1766,10 +1767,8 @@ export default function NotificacionDetalleModal({
                         Fecha Inicio
                       </label>
                       {isEditingMode ? (
-                        <input
-                          type="date"
-                          value={
-                            normalizeDateKey(
+                                                <CampoFecha
+                          value={normalizeDateKey(
                               String(
                                 editedDetails?.fechaInicio ||
                                   editedDetails?.fecha ||
@@ -1778,11 +1777,8 @@ export default function NotificacionDetalleModal({
                                   safeMetaDetalles?.fechaInicio ||
                                   '',
                               ),
-                            ) || ''
-                          }
-                          onChange={(e) =>
-                            setEditedDetails({ ...editedDetails, fechaInicio: e.target.value })
-                          }
+                            ) || ''}
+                          onChange={(valorFecha) => setEditedDetails({ ...editedDetails, fechaInicio: valorFecha })}
                           className="w-full bg-white border border-blue-200 text-slate-900 rounded-xl px-4 py-2 text-sm font-black outline-none focus:ring-2 focus:ring-blue-500/20"
                         />
                       ) : (

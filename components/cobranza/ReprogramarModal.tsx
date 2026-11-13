@@ -8,6 +8,7 @@ import FieldLabel from '@/components/ui/FieldLabel'
 import { getBogotaDateKey } from '@/lib/rutas-core'
 import Tooltip from '@/components/ui/Tooltip'
 import { useModalDialog } from '@/hooks/use-modal-dialog'
+import { CampoFecha } from '@/components/ui/CampoFecha'
 
 interface ReprogramarModalProps {
   visita: VisitaRuta
@@ -149,13 +150,10 @@ export default function ReprogramarModal({ visita, onClose, onConfirm }: Reprogr
             {/* Nueva fecha */}
             <div>
               <FieldLabel required>Nueva fecha de pago</FieldLabel>
-              <input
-                type="date"
+                            <CampoFecha
                 value={reprogramFecha}
-                min={minFechaStr}
-                max={maxFechaStr}
-                onChange={(e) => {
-                  const val = e.target.value
+                onChange={(valorFecha) => {
+                  const val = valorFecha
                   if (esDiario && val) {
                     // Si selecciona domingo, omitir
                     const dia = new Date(val + 'T12:00:00').getDay()
@@ -166,6 +164,8 @@ export default function ReprogramarModal({ visita, onClose, onConfirm }: Reprogr
                   }
                   setReprogramFecha(val)
                 }}
+                min={minFechaStr}
+                max={maxFechaStr}
                 className={`w-full px-4 py-3 border rounded-xl focus:ring-0 font-medium text-slate-900 transition-colors ${
                   excedeLimite || fechaAnteriorHoy || (esDiario && esDomingo)
                     ? 'border-red-400 bg-red-50 focus:border-red-500'

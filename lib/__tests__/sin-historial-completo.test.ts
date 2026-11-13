@@ -57,10 +57,14 @@ const EXCEPCIONES: Record<string, string> = {
     'necesita la fecha del ÚLTIMO pago de cada crédito, que es de todo el ' +
     'historial y no de un día; y son créditos de punto de venta, que no ' +
     'tienen ruta.',
-  'app/coordinador/rutas/[id]/page.tsx:544':
-    'agrega el total pagado histórico por CLIENTE, no por crédito, así que ' +
-    'no lo cubre `prestamo.recaudadoTotal` de `daily-visits`; acotar por ' +
-    'cobrador o por día cambiaría ese total.',
+  // Anclada al ARCHIVO y no a la línea: estaba en `:544`, alguien añadió un
+  // import arriba, la llamada bajó a la 545 y la excepción dejó de valer. La
+  // prueba de más abajo lo cazó, que para eso está, pero el número de línea no
+  // es un buen ancla para algo que vive meses.
+  'app/coordinador/rutas/[id]/page.tsx':
+    'la llamada de `pagosPorCliente` agrega el total pagado histórico por ' +
+    'CLIENTE, no por crédito, así que no lo cubre `prestamo.recaudadoTotal` ' +
+    'de `daily-visits`; acotar por cobrador o por día cambiaría ese total.',
 }
 
 const RAIZ = path.join(__dirname, '..', '..')

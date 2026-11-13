@@ -21,6 +21,7 @@ import { buildBogotaOffsetIsoFromKey, normalizeDateKey } from '@/lib/rutas-core'
 import BotonAccion from '@/components/ui/BotonAccion'
 import { SkeletonTabla } from '@/components/ui/Skeleton';
 import { Selector } from '@/components/ui/Selector'
+import { CampoFecha } from '@/components/ui/CampoFecha'
 
 import {
   Search,
@@ -2671,21 +2672,15 @@ const UserManagementPage = () => {
                                 Actividad Reciente
                               </h4>
                               <div className="flex items-center gap-2">
-                                <input
-                                  type="date"
-                                  className="text-[10px] px-2 py-1 border border-slate-200 rounded-md bg-white text-slate-700 font-medium"
+                                                                <CampoFecha
                                   value={filtroFechaInicio}
-                                  onChange={(e) =>
-                                    setFiltroFechaInicio(e.target.value)
-                                  }
-                                />
-                                <input
-                                  type="date"
+                                  onChange={(valorFecha) => setFiltroFechaInicio(valorFecha)}
                                   className="text-[10px] px-2 py-1 border border-slate-200 rounded-md bg-white text-slate-700 font-medium"
+                                />
+                                                                <CampoFecha
                                   value={filtroFechaFin}
-                                  onChange={(e) =>
-                                    setFiltroFechaFin(e.target.value)
-                                  }
+                                  onChange={(valorFecha) => setFiltroFechaFin(valorFecha)}
+                                  className="text-[10px] px-2 py-1 border border-slate-200 rounded-md bg-white text-slate-700 font-medium"
                                 />
                                 <BotonAccion
                                   className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded-md border border-blue-200 hover:bg-blue-100"

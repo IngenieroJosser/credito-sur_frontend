@@ -37,6 +37,7 @@ import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
 import ClientePortalModal from '@/components/cliente/ClientePortalModal'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { logger } from '@/lib/logger'
+import { CampoFecha } from '@/components/ui/CampoFecha'
 
 interface VentaReciente {
   id: string
@@ -717,25 +718,21 @@ export default function PuntoDeVentaFloatingActions() {
                     />
                   </div>
                   <div className="flex gap-2">
-                    <input
-                      type="date"
+                                        <CampoFecha
                       value={ventasFechaDesde}
-                      onChange={(e) => {
-                        setVentasFechaDesde(e.target.value)
+                      onChange={(valorFecha) => {
+                        setVentasFechaDesde(valorFecha)
                         setVentasPage(1)
                       }}
                       className="px-2 py-2 text-xs bg-white border border-slate-200 rounded-lg font-medium text-slate-600"
-                      title="Desde"
                     />
-                    <input
-                      type="date"
+                                        <CampoFecha
                       value={ventasFechaHasta}
-                      onChange={(e) => {
-                        setVentasFechaHasta(e.target.value)
+                      onChange={(valorFecha) => {
+                        setVentasFechaHasta(valorFecha)
                         setVentasPage(1)
                       }}
                       className="px-2 py-2 text-xs bg-white border border-slate-200 rounded-lg font-medium text-slate-600"
-                      title="Hasta"
                     />
                   </div>
                 </div>
