@@ -2,7 +2,7 @@
 
 import { SkeletonDetalle } from '@/components/ui/Skeleton'
 
-import React, { useState, useEffect } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import Link from 'next/link'
 import {
@@ -65,9 +65,9 @@ export default function DetalleCuentaMoraPage({ params }: { params: Promise<{ id
   const [loading, setLoading] = useState(true);
   const [showArchivarModal, setShowArchivarModal] = useState(false);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
+  const cargarDetalle = useCallback(
+    async ({ conEsqueleto }: { conEsqueleto: boolean }) => {
+      if (conEsqueleto) setLoading(true);
       try {
         const detalle = await prestamosService.obtenerPrestamoPorId(id);
         // Medido contra lo que devuelve GET /loans/:id (loans.service.ts:2036-2222):
@@ -116,21 +116,29 @@ export default function DetalleCuentaMoraPage({ params }: { params: Promise<{ id
         console.error('Error cargando detalle de mora:', err);
         setData(null);
       } finally {
-        setLoading(false);
+        if (conEsqueleto) setLoading(false);
       }
-    };
-    fetchData();
-  }, [id]);
+    },
+    [id],
+  );
+
+  useEffect(() => {
+    void cargarDetalle({ conEsqueleto: true });
+  }, [cargarDetalle]);
 
   // Tiempo real: refrescar automáticamente cuando haya cambios.
   //
   // Va antes de los returns tempranos: puesto después, mientras cargaba se
   // ejecutaba un hook menos que ya cargado, y en cuanto el número cambia entre
   // dos renders React tumba la pantalla con el error 310.
+  // Se vuelven a pedir los datos, no se recarga la pantalla. Antes esto era
+  // un `window.location.reload()`: la pagina ENTERA cada vez que cualquier
+  // cobrador registraba un pago, en la pantalla de una cuenta en mora.
+  //
+  // `conEsqueleto: false`: un refresco de fondo no debe borrar lo que se esta
+  // leyendo para poner un esqueleto encima.
   useRealtimeData(['pagos_actualizados'], () => {
-    if (typeof window !== 'undefined') {
-      window.location.reload()
-    }
+    void cargarDetalle({ conEsqueleto: false })
   })
 
 

@@ -1,15 +1,18 @@
 'use client'
-import { useRealtimeData } from '@/hooks/useRealtimeData';
 
 import ListadoPrestamosElegante from '@/components/prestamos/ListadoPrestamos';
 
+/**
+ * Aqui habia un `useRealtimeData(['prestamos_actualizados'], () =>
+ * window.location.reload())`: la pagina ENTERA cada vez que cualquiera
+ * registraba un credito.
+ *
+ * Era redundante, no solo brusco. `ListadoPrestamos` ya trae su propio
+ * `useRealtimeData` con los cuatro eventos y un refresco silencioso, mas un
+ * `usePageFocusRefresh` para cuando se vuelve a la pestana. Hacia lo mismo
+ * pero tirando la pantalla.
+ */
 export default function CoordinadorCreditosPage() {
-  // Tiempo real: refrescar automáticamente cuando haya cambios
-  useRealtimeData(['prestamos_actualizados'], () => {
-    if (typeof window !== 'undefined') {
-      window.location.reload()
-    }
-  })
 
   return (
     <div className="p-0">

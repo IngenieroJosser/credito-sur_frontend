@@ -7,7 +7,7 @@ import type {
   PrestamoDeCliente,
 } from '@/services/clientes-service'
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { useParams } from 'next/navigation';
 import { ChevronLeft, BarChart3, Smartphone, DollarSign } from 'lucide-react';
@@ -37,31 +37,34 @@ export default function ClienteDetallePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const cargarCliente = async () => {
-      try {
-        const cliente = await clientesService.obtenerPorId(id);
-        setClienteData(cliente);
-      } catch (err) {
-        console.error('Error cargando cliente:', err);
-        setError(mensajeDeError(err, 'No se pudo cargar el cliente'));
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    if (id) cargarCliente();
+  const cargarCliente = useCallback(async () => {
+    try {
+      const cliente = await clientesService.obtenerPorId(id);
+      setClienteData(cliente);
+      setError(null);
+    } catch (err) {
+      console.error('Error cargando cliente:', err);
+      setError(mensajeDeError(err, 'No se pudo cargar el cliente'));
+    } finally {
+      setIsLoading(false);
+    }
   }, [id]);
+
+  useEffect(() => {
+    if (id) void cargarCliente();
+  }, [id, cargarCliente]);
 
   // Tiempo real: refrescar automáticamente cuando haya cambios.
   //
   // Va antes de los returns tempranos: puesto después, mientras cargaba se
   // ejecutaba un hook menos que ya cargado, y en cuanto el número cambia entre
   // dos renders React tumba la pantalla con el error 310.
+  // Se vuelven a pedir los datos del cliente, no se recarga la pantalla.
+  // Antes esto era un `window.location.reload()`: la pagina ENTERA cada vez
+  // que cualquier cobrador de la empresa registraba un pago, con el scroll
+  // perdido y el telon de entrada otra vez.
   useRealtimeData(['pagos_actualizados', 'clientes_actualizados'], () => {
-    if (typeof window !== 'undefined') {
-      window.location.reload()
-    }
+    void cargarCliente()
   })
 
 
