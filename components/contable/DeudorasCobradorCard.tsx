@@ -11,6 +11,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useNotification } from '@/components/providers/NotificationProvider'
 import { Skeleton } from '@/components/ui/Skeleton'
 import Tooltip from '@/components/ui/Tooltip'
+import { Selector } from '@/components/ui/Selector'
 
 // Utilidades locales para inputs COP (sin importar las del lib para evitar circularidades)
 function fmtCOPInput(val: string): string {
@@ -125,18 +126,18 @@ function AbonoModal({ cobrador, onClose, onConfirm, cajas }: AbonoModalProps) {
             <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1.5">
               Caja destino
             </label>
-            <select
+            <Selector
               value={cajaIdDestino}
-              onChange={(e) => setCajaIdDestino(e.target.value)}
+              onChange={setCajaIdDestino}
               disabled={!cajas.length}
-              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold text-slate-700 shadow-sm focus:border-emerald-400 focus:ring-4 focus:ring-emerald-300/20 outline-none transition-all"
-            >
-              {cajas.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.nombre}{c.codigo ? ` (${c.codigo})` : ''}
-                </option>
-              ))}
-            </select>
+              etiqueta="Caja de destino"
+              placeholder={cajas.length ? 'Elige la caja' : 'No hay cajas disponibles'}
+              className="rounded-2xl text-xs font-bold text-slate-700 shadow-sm"
+              opciones={cajas.map((c) => ({
+                value: c.id,
+                label: `${c.nombre}${c.codigo ? ` (${c.codigo})` : ''}`,
+              }))}
+            />
           </div>
         </div>
 

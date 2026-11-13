@@ -19,6 +19,7 @@ import DetalleProductoModal from '@/components/articulos/DetalleProductoModal'
 import Paginador from '@/components/ui/Paginador'
 import { SkeletonTabla } from '@/components/ui/Skeleton'
 import BotonAccion from '@/components/ui/BotonAccion'
+import { Selector } from '@/components/ui/Selector'
 
 interface ArchivedItem {
   id: string
@@ -283,21 +284,19 @@ export default function ArchivadosPage() {
           {rutasDisponibles.length > 0 && (
             <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-slate-200 shadow-sm shrink-0">
               <MapPin className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-              <select
+              <Selector
                 value={rutaFiltro}
-                onChange={(e) => setRutaFiltro(e.target.value)}
-                className="min-w-0 max-w-[13rem] truncate bg-transparent text-[11px] font-bold text-slate-600 outline-none"
-              >
-                <option value="todas">Todas las rutas</option>
-                {rutasDisponibles.map((r) => (
-                  <option key={r} value={r}>
-                    {r}
-                  </option>
-                ))}
-                {sinRuta > 0 && (
-                  <option value="sin-ruta">Sin ruta ({sinRuta})</option>
-                )}
-              </select>
+                onChange={setRutaFiltro}
+                etiqueta="Filtrar por ruta"
+                className="min-w-0 max-w-[13rem] border-0 bg-transparent px-0 py-0 text-[11px] font-bold text-slate-600"
+                opciones={[
+                  { value: 'todas', label: 'Todas las rutas' },
+                  ...rutasDisponibles.map((r) => ({ value: r, label: r })),
+                  ...(sinRuta > 0
+                    ? [{ value: 'sin-ruta', label: `Sin ruta (${sinRuta})` }]
+                    : []),
+                ]}
+              />
             </div>
           )}
           <div className="flex items-center gap-1.5 flex-wrap bg-white p-2 rounded-xl border border-slate-200 shadow-sm">

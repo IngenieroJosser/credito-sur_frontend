@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react'
 import { Modal } from '@/components/ui/Modal'
 import { inventarioService } from '@/services/inventario-service'
 import { toast } from 'sonner'
+import { Selector } from '@/components/ui/Selector'
 
 type ArticuloLike = {
   id: string
@@ -102,18 +103,17 @@ export default function IngresoMercanciaModal({
       <div className="space-y-4">
         <div>
           <label className="block text-sm font-bold text-slate-700 mb-2">Artículo</label>
-          <select
+          <Selector
             value={articuloId}
-            onChange={(e) => setArticuloId(e.target.value)}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-bold text-slate-900 outline-none focus:border-primary"
-          >
-            <option value="">Seleccione un artículo</option>
-            {articulos.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.codigo} — {a.nombre}
-              </option>
-            ))}
-          </select>
+            onChange={setArticuloId}
+            etiqueta="Artículo"
+            placeholder="Seleccione un artículo"
+            className="text-sm font-bold text-slate-900"
+            opciones={articulos.map((a) => ({
+              value: a.id,
+              label: `${a.codigo} — ${a.nombre}`,
+            }))}
+          />
           {selected && (
             <p className="mt-2 text-xs text-slate-500 font-medium">
               Stock actual: <span className="font-black text-slate-900">{selected.stock}</span>

@@ -24,6 +24,7 @@ import { alertasClientesService } from '@/services/alertas-clientes-service'
 import { Skeleton } from '@/components/ui/Skeleton'
 import Tooltip from '@/components/ui/Tooltip'
 import { useModalDialog } from '@/hooks/use-modal-dialog'
+import { Selector } from '@/components/ui/Selector'
 
 // ── Tipos ──────────────────────────────────────────────────────────────────────
 
@@ -588,16 +589,18 @@ export default function ClienteInfoModal({
                 <span className="mb-1 block text-[10px] font-black uppercase tracking-widest text-slate-500">
                   Motivo <span className="text-red-500">*</span>
                 </span>
-                <select
+                <Selector
                   value={alertaForm.motivo}
-                  onChange={(e) => setAlertaForm((prev) => ({ ...prev, motivo: e.target.value }))}
-                  className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-3 text-sm font-bold text-slate-800 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
-                >
-                  <option value="NO_LOCALIZADO">No localizado</option>
-                  <option value="DIRECCION_INVALIDA">Dirección inválida</option>
-                  <option value="TELEFONO_SIN_RESPUESTA">Teléfono sin respuesta</option>
-                  <option value="POSIBLE_TRASLADO">Posible traslado</option>
-                </select>
+                  onChange={(v) => setAlertaForm((prev) => ({ ...prev, motivo: v }))}
+                  etiqueta="Motivo de la alerta"
+                  className="rounded-2xl text-sm font-bold text-slate-800"
+                  opciones={[
+                    { value: 'NO_LOCALIZADO', label: 'No localizado' },
+                    { value: 'DIRECCION_INVALIDA', label: 'Dirección inválida' },
+                    { value: 'TELEFONO_SIN_RESPUESTA', label: 'Teléfono sin respuesta' },
+                    { value: 'POSIBLE_TRASLADO', label: 'Posible traslado' },
+                  ]}
+                />
               </label>
 
               <label className="block">

@@ -18,6 +18,7 @@ import { exportService } from '@/services/export-service'
 import { useNotification } from '@/components/providers/NotificationProvider'
 import type { PrestamoDelListadoParcial } from '@/types/domain'
 import { idDelPrestamoCreado } from '@/lib/creditos/prestamo-creado'
+import { Selector } from '@/components/ui/Selector'
 
 /**
  * Una fila de esta tabla.
@@ -335,19 +336,19 @@ export default function CreditosArticulosPage() {
             {rutasDisponibles.length > 1 && (
               <div className="flex items-center gap-1.5 bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
                 <MapPin className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                <select
+                <Selector
                   value={rutaFiltro}
-                  onChange={(e) => {
-                    setRutaFiltro(e.target.value)
+                  onChange={(v) => {
+                    setRutaFiltro(v)
                     cambiarPagina(1)
                   }}
-                  className="min-w-0 max-w-[11rem] truncate bg-transparent text-xs font-bold text-slate-700 outline-none"
-                >
-                  <option value="todas">Todas las rutas</option>
-                  {rutasDisponibles.map((r) => (
-                    <option key={r} value={r}>{r}</option>
-                  ))}
-                </select>
+                  etiqueta="Filtrar por ruta"
+                  className="min-w-0 max-w-[11rem] border-0 bg-transparent px-0 py-0 text-xs font-bold text-slate-700"
+                  opciones={[
+                    { value: 'todas', label: 'Todas las rutas' },
+                    ...rutasDisponibles.map((r) => ({ value: r, label: r })),
+                  ]}
+                />
               </div>
             )}
 

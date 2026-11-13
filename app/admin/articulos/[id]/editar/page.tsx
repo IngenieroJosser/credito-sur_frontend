@@ -26,6 +26,7 @@ import { inventarioService } from '@/services/inventario-service'
 import { toast } from 'sonner'
 
 import { SkeletonFormulario } from '@/components/ui/Skeleton'
+import { Selector } from '@/components/ui/Selector'
 
 // Types
 interface PrecioCuota {
@@ -299,19 +300,17 @@ export default function EditarArticuloPage({ params }: { params: Promise<{ id: s
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                       <div>
                         <label className="block text-sm font-bold text-slate-700 mb-1">Meses</label>
-                        <select
-                          value={nuevaCuota.meses}
-                          onChange={(e) =>
-                            setNuevaCuota({ ...nuevaCuota, meses: Number(e.target.value) })
+                        <Selector
+                          value={String(nuevaCuota.meses)}
+                          onChange={(v) =>
+                            setNuevaCuota({ ...nuevaCuota, meses: Number(v) })
                           }
-                          className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900"
-                        >
-                          {PLAZOS_ARTICULO_MESES.map((m) => (
-                            <option key={m} value={m}>
-                              {m} Mes{m > 1 ? 'es' : ''}
-                            </option>
-                          ))}
-                        </select>
+                          etiqueta="Plazo en meses"
+                          opciones={PLAZOS_ARTICULO_MESES.map((m) => ({
+                            value: String(m),
+                            label: `${m} Mes${m > 1 ? 'es' : ''}`,
+                          }))}
+                        />
                       </div>
                       <div>
                         <label className="block text-sm font-bold text-slate-700 mb-1">

@@ -9,6 +9,7 @@ import { getCajaById, updateCaja } from '@/services/contabilidad-service'
 import { usuariosService } from '@/services/usuarios-service'
 import { formatRoleLabel } from '@/lib/display-labels'
 import { toast } from 'sonner'
+import { Selector } from '@/components/ui/Selector'
 
 export default function EditarCajaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -132,25 +133,24 @@ export default function EditarCajaPage({ params }: { params: Promise<{ id: strin
 
               <div className="space-y-2">
                 <label className="block text-sm font-bold text-slate-700">Responsable Principal</label>
-                <select
+                <Selector
                   value={formData.responsableId}
-                  onChange={(e) => {
-                    const user = usuariosAutorizados.find((u) => u.id === e.target.value)
+                  onChange={(v) => {
+                    const user = usuariosAutorizados.find((u) => u.id === v)
                     setFormData({
                       ...formData,
-                      responsableId: e.target.value,
+                      responsableId: v,
                       responsable: user?.nombre || '',
                     })
                   }}
-                  className="w-full rounded-xl border-slate-300 py-3 text-sm text-slate-900 focus:ring-2 focus:ring-blue-600 focus:border-transparent"
-                >
-                  <option value="">Seleccionar responsable...</option>
-                  {usuariosAutorizados.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.nombre} ({formatRoleLabel(u.rol)})
-                    </option>
-                  ))}
-                </select>
+                  etiqueta="Responsable de la caja"
+                  placeholder="Seleccionar responsable..."
+                  className="text-sm text-slate-900"
+                  opciones={usuariosAutorizados.map((u) => ({
+                    value: u.id,
+                    label: `${u.nombre} (${formatRoleLabel(u.rol)})`,
+                  }))}
+                />
                 <p className="text-xs text-slate-500">Usuario encargado de la custodia y arqueo de esta caja.</p>
               </div>
 
