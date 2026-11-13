@@ -64,6 +64,32 @@ export const RAICES_CON_ARMAZON = [
   '/coordinador',
   '/punto-de-venta',
   '/supervisor',
+  /*
+   * Las URL limpias que sirve el `rewrites` de `next.config.ts`.
+   *
+   * Esto se me paso al escribir la lista, y es un agujero de los que no
+   * fallan: `next.config.ts` sirve `/clientes` desde `app/admin/clientes`,
+   * `/users` desde `app/admin/users`, y asi con once rutas mas. Son URL de
+   * verdad —las usan redirecciones de pantallas retiradas y estan en enlaces
+   * de notificaciones viejas— pero no hay ningun `page.tsx` en `app/clientes`,
+   * asi que buscandolas por archivo no aparecen.
+   *
+   * `usePathname()` devuelve lo que ve el navegador —`/clientes`—, no el
+   * destino reescrito, asi que sin estas entradas esas diez pantallas se
+   * pintaban SIN cabecera y SIN menu lateral. Lo vigila
+   * `__tests__/armazon-de-la-app.test.ts`, que cruza esta lista con las
+   * fuentes del `rewrites`.
+   */
+  '/aprobaciones',
+  '/archivados',
+  '/clientes',
+  '/creditos',
+  '/prestamos',
+  '/revisiones',
+  '/rutas',
+  '/sistema',
+  '/solicitudes',
+  '/users',
   // Las pantallas de `app/(auth)`, que son las compartidas por permisos.
   '/articulos',
   '/auditoria',

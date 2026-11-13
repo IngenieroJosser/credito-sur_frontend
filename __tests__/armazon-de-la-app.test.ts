@@ -127,13 +127,57 @@ describe('la lista de rutas con armazón está completa', () => {
     expect(faltan).toEqual([])
   })
 
+  /**
+   * Las URL limpias del `rewrites`, que es el agujero que esta lista tenía.
+   *
+   * `next.config.ts` sirve `/clientes` desde `app/admin/clientes`, `/users`
+   * desde `app/admin/users`, y así con doce rutas. Son URL de verdad —las usan
+   * las redirecciones de las pantallas retiradas y hay enlaces de
+   * notificaciones viejas— pero no existe ningún `page.tsx` en `app/clientes`,
+   * así que buscándolas por archivo no aparecen.
+   *
+   * Y `usePathname()` devuelve lo que ve el navegador, `/clientes`, no el
+   * destino reescrito: una que falte en la lista se pinta sin cabecera y sin
+   * menú lateral. Faltaban diez.
+   */
+  const raicesDelRewrites = (): string[] => {
+    const config = fs.readFileSync(path.join(RAIZ, 'next.config.ts'), 'utf8')
+    const bloque = config.slice(config.indexOf('async rewrites()'))
+    const fuentes = [...bloque.matchAll(/source:\s*'(\/[^']*)'/g)].map(
+      (m) => `/${m[1].split('/')[1]}`,
+    )
+    return [...new Set(fuentes)]
+  }
+
+  it('cada URL limpia del `rewrites` está en la lista', () => {
+    const faltan = raicesDelRewrites().filter(
+      (f) => !RAICES_CON_ARMAZON.includes(f as never),
+    )
+
+    const informe = faltan.length
+      ? [
+          'Estas URL las sirve el `rewrites` y se pintarían sin armazón:',
+          '',
+          ...faltan.map((f) => `  - ${f}`),
+          '',
+          'Añádelas a RAICES_CON_ARMAZON en `ArmazonDeLaApp`.',
+        ].join('\n')
+      : 'ninguna'
+
+    expect(informe).toBe('ninguna')
+  })
+
   it('no sobra ninguna ruta en la lista', () => {
     // Si se borra una pantalla y su entrada se queda, mañana tapa otra cosa.
+    // Una entrada vale si existe su carpeta O si el `rewrites` la sirve.
+    const delRewrites = new Set(raicesDelRewrites())
+
     const existe = (raiz: string) => {
       const nombre = raiz.replace(/^\//, '')
       return (
         fs.existsSync(path.join(APP, nombre)) ||
-        fs.existsSync(path.join(APP, '(auth)', nombre))
+        fs.existsSync(path.join(APP, '(auth)', nombre)) ||
+        delRewrites.has(raiz)
       )
     }
     const sobran = RAICES_CON_ARMAZON.filter((r) => !existe(r))
