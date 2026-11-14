@@ -47,6 +47,15 @@ export interface CrearPrestamoDto {
   idempotencyKey?: string
   clienteId: string
   productoId?: string
+  /**
+   * Cuántas unidades del artículo se financian.
+   *
+   * Declarado y no `as any`: el backend valida con DTO, y lo que no está
+   * declarado allí lo descarta `whitelist` sin avisar. Aquí pasaba lo mismo al
+   * revés —la pantalla lo mandaba y el tipo no lo tenía—, y sin este campo el
+   * backend recalcula el monto con el precio de UNA unidad.
+   */
+  cantidadProducto?: number
   precioProductoId?: string
   tipoPrestamo: string
   monto: number

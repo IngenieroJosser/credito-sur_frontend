@@ -262,20 +262,28 @@ export default function CreacionCreditoArticulo({
   /**
    * Las unidades que el sistema NO va a sacar del inventario.
    *
-   * El backend acepta un `productoId` por prestamo y descuenta UNA unidad, asi
-   * que de todo lo seleccionado solo sale del stock una unidad del primer
-   * articulo. Esto nombra el resto para que se vea antes de confirmar.
+   * Antes era casi todo: el backend descontaba UNA unidad del PRIMER articulo
+   * y recalculaba el monto con el precio de una sola, asi que una venta de
+   * tres telefonos se cobraba como una y descontaba una.
+   *
+   * Eso ya esta arreglado en los dos lados: el prestamo lleva
+   * `cantidadProducto`, el precio del plan se multiplica por las unidades y el
+   * stock se descuenta —y se devuelve al rechazar— por esas mismas unidades.
+   *
+   * Lo que sigue sin poder representarse es un COMBO: varios articulos
+   * distintos en un solo credito. El modelo de precios es por producto y
+   * plazo (`PrecioProducto(productoId, meses)`) y el prestamo guarda un
+   * `precioProductoId`, asi que de los demas articulos no queda ni precio ni
+   * descuento de inventario. Esto los nombra antes de confirmar.
    */
   const unidadesSinDescontar = useMemo(() => {
-    const lineas: string[] = []
-    articulosSeleccionados.forEach((item, indice) => {
-      // Del primero se descuenta una unidad; de las demas, ninguna.
-      const sinDescontar = indice === 0 ? item.cantidad - 1 : item.cantidad
-      if (sinDescontar > 0) {
-        lineas.push(`${item.nombre}: ${sinDescontar} unidad${sinDescontar === 1 ? '' : 'es'}`)
-      }
-    })
-    return lineas
+    // Del primero se descuenta todo lo que se vende; de los demas, nada.
+    return articulosSeleccionados
+      .slice(1)
+      .map(
+        (item) =>
+          `${item.nombre}: ${item.cantidad} unidad${item.cantidad === 1 ? '' : 'es'}`,
+      )
   }, [articulosSeleccionados])
 
   // --- Handlers ---
@@ -363,8 +371,16 @@ export default function CreacionCreditoArticulo({
         console.error('Error al obtener usuario creador:', err);
       }
 
-      // El backend actual soporta un producto por préstamo. 
-      // Tomamos el primero de la lista para la creación formal.
+      /*
+       * El backend acepta UN producto por prestamo, con su cantidad.
+       *
+       * `cantidadProducto` es lo que arregla el fallo de dinero: sin el, el
+       * backend recalculaba el monto con el precio de UNA unidad del plan, asi
+       * que esta pantalla prometia el total de tres telefonos y se cobraba uno.
+       *
+       * Varios articulos distintos siguen sin poder representarse; el aviso del
+       * paso 4 los nombra.
+       */
       const articulo = articulosSeleccionados[0];
       const opcionPlan = esContado ? null : articulo.opcionesCuotas.find(o => o.numeroCuotas === numeroCuotas);
       
@@ -372,6 +388,7 @@ export default function CreacionCreditoArticulo({
         clienteId: clienteId,
         tipoPrestamo: 'ARTICULO',
         productoId: articulo.id,
+        cantidadProducto: articulo.cantidad,
         precioProductoId: opcionPlan ? opcionPlan.id : undefined,
         monto: resumenFinanciero.totalFinanciadoBruto,
         tasaInteres: esContado ? 0 : 0,
@@ -843,21 +860,23 @@ export default function CreacionCreditoArticulo({
                       * Lo que el sistema NO va a registrar, dicho antes de
                       * confirmar.
                       *
-                      * Esta pantalla deja elegir varios articulos y una
-                      * cantidad por cada uno, y cobra la suma de todos
-                      * —`monto: resumenFinanciero.totalFinanciadoBruto`—. Pero
-                      * el backend acepta UN `productoId` por prestamo y
-                      * descuenta UNA unidad de stock
-                      * (`descontarStockSiDisponible`: `stock: { decrement: 1 }`),
-                      * asi que de la venta de tres telefonos sale un telefono
-                      * del inventario. Los demas solo quedan en el texto de las
-                      * notas.
+                      * La cantidad del primer articulo ya se cobra y se
+                      * descuenta bien: el prestamo lleva `cantidadProducto`, el
+                      * precio del plan se multiplica por las unidades y el
+                      * stock baja —y vuelve al rechazar— por esas mismas
+                      * unidades.
                       *
-                      * No se quita la posibilidad de vender asi, porque eso es
-                      * una decision del negocio y puede ser un combo que de
-                      * verdad se vende. Lo que se quita es el silencio: quien
-                      * crea el credito ve que tiene que ajustar el inventario a
-                      * mano, y en que articulos.
+                      * Lo que queda es el COMBO: varios articulos distintos en
+                      * un solo credito. No es que falte cablear algo, es que el
+                      * modelo no lo representa: el precio es por producto y
+                      * plazo (`PrecioProducto(productoId, meses)`) y el prestamo
+                      * guarda UN `precioProductoId`. De los demas articulos no
+                      * queda precio, ni costo, ni descuento de inventario: solo
+                      * el texto de las notas.
+                      *
+                      * No se quita la posibilidad de venderlo asi, porque eso
+                      * es una decision del negocio. Lo que se quita es el
+                      * silencio.
                       */}
                     {unidadesSinDescontar.length > 0 && (
                       <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
@@ -865,9 +884,10 @@ export default function CreacionCreditoArticulo({
                           El inventario no se ajusta solo
                         </div>
                         <div className="text-sm font-bold text-amber-900">
-                          Se cobra todo, pero el sistema solo descuenta una
-                          unidad de{' '}
-                          {articulosSeleccionados[0]?.nombre}.
+                          Se cobra todo, pero el sistema solo registra y
+                          descuenta{' '}
+                          {articulosSeleccionados[0]?.cantidad}{' '}
+                          de {articulosSeleccionados[0]?.nombre}.
                         </div>
                         <ul className="mt-2 space-y-0.5 text-xs font-bold text-amber-800">
                           {unidadesSinDescontar.map((linea) => (
