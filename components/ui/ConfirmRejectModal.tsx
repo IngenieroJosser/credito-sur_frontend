@@ -4,6 +4,7 @@ import { useState, useRef } from 'react'
 import { X, AlertTriangle } from 'lucide-react'
 import { Portal, MODAL_Z_INDEX } from '@/components/dashboards/shared/CobradorElements'
 import Tooltip from '@/components/ui/Tooltip'
+import AyudaContextual from '@/components/ui/AyudaContextual'
 import { useModalDialog } from '@/hooks/use-modal-dialog'
 import { BARRA_DE_ARRASTRE, FONDO_HOJA_MODAL } from '@/lib/ui/hoja-modal'
 
@@ -80,7 +81,16 @@ export default function ConfirmRejectModal({
                 <AlertTriangle className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="font-bold text-slate-900 text-lg">{title}</h3>
+                <h3 className="font-bold text-slate-900 text-lg flex items-center gap-1">
+                  {title}
+                  {/* Rechazar no es marcar: deshace lo que la solicitud ya
+                      movió, y eso no se ve por ningún lado. */}
+                  <AyudaContextual
+                    ayuda="rechazarSolicitud"
+                    de="rechazar una solicitud"
+                    tamano="pequeno"
+                  />
+                </h3>
                 <p className="text-xs text-slate-600">Esta acción detendrá el proceso y se notificará al solicitante.</p>
               </div>
             </div>
@@ -94,7 +104,14 @@ export default function ConfirmRejectModal({
           </div>
 
           <div className="p-6 space-y-4">
-            <label className="text-xs font-bold text-rose-700">Razón del rechazo</label>
+            <label className="flex items-center gap-1 text-xs font-bold text-rose-700">
+              Razón del rechazo
+              <AyudaContextual
+                ayuda="motivoDelRechazo"
+                de="el motivo del rechazo"
+                tamano="pequeno"
+              />
+            </label>
             <textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}

@@ -222,16 +222,24 @@ export default function Tooltip({
               scroll. */}
           <div
             style={{ zIndex: TOOLTIP_Z_INDEX }}
-            className="fixed inset-0 flex items-end justify-center bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-150 motion-reduce:animate-none"
+            className="fixed inset-0 flex items-end justify-center bg-slate-900/30 backdrop-blur-sm animate-in fade-in duration-150 motion-reduce:animate-none"
             onClick={ocultar}
           >
+            {/*
+              * La hoja va en blanco, como el resto del sistema.
+              *
+              * Era `bg-slate-900/95` con texto blanco: un panel oscuro en una
+              * aplicación que no tiene ni una superficie oscura. Al abrirse
+              * desde abajo en el teléfono ocupa media pantalla, así que la
+              * diferencia no es un detalle.
+              */}
             <div
               id={id}
               role="tooltip"
-              className="w-full rounded-t-2xl bg-slate-900/95 px-5 pt-3 pb-[calc(1rem+env(safe-area-inset-bottom))] text-sm font-medium leading-relaxed text-white shadow-2xl animate-in slide-in-from-bottom duration-200 ease-out motion-reduce:animate-none"
+              className="w-full rounded-t-2xl border-t border-slate-200 bg-white px-5 pt-3 pb-[calc(1rem+env(safe-area-inset-bottom))] text-sm font-medium leading-relaxed text-slate-700 shadow-[0_-8px_30px_rgb(0,0,0,0.12)] animate-in slide-in-from-bottom duration-200 ease-out motion-reduce:animate-none"
             >
               <div
-                className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-white/30"
+                className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-slate-200"
                 aria-hidden="true"
               />
               {texto}
@@ -260,7 +268,9 @@ export default function Tooltip({
                   : 'translate(-50%, 0)',
               zIndex: TOOLTIP_Z_INDEX,
             }}
-            className="pointer-events-none max-w-[16rem] rounded-xl bg-slate-900/95 px-3 py-2 text-xs font-medium leading-snug text-white shadow-lg backdrop-blur-sm animate-in fade-in zoom-in-95 duration-150 motion-reduce:animate-none"
+            // Blanco con borde, como las tarjetas y los modales. El fondo
+            // oscuro de antes era la única superficie negra del sistema.
+            className="pointer-events-none max-w-[16rem] rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium leading-snug text-slate-700 shadow-[0_8px_30px_rgb(0,0,0,0.12)] animate-in fade-in zoom-in-95 duration-150 motion-reduce:animate-none"
           >
             {texto}
           </div>

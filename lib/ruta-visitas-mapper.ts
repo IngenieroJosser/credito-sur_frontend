@@ -106,6 +106,15 @@ type PrestamoDelMapeo = PrestamoParcial & {
   // Estos dos los agrega el backend de la jornada y `PrestamoCamposLeidos` no los tiene.
   recaudadoDelDia?: number | null
   recaudadoHoy?: number | null
+  /**
+   * Quien quedo acreditado con el pago de hoy.
+   *
+   * No siempre es el cobrador de la ruta: si un supervisor registra el pago,
+   * el backend le acredita a el —el dinero entra a su caja—. El recaudo de la
+   * ruta igual lo cuenta, pero sin esto el cobrador veia al cliente ya pagado
+   * sin saber quien habia pasado por ahi.
+   */
+  cobradoPor?: { id?: string; nombre?: string; rol?: string } | null
 }
 
 export type AsignacionDelMapeo = {
@@ -347,6 +356,7 @@ export const mapAsignacionesToVisitasLite = (params: {
         fechaOriginalVencimiento,
         apareceHoy,
         recaudadoDelDia,
+        cobradoPor: (prestamo)?.cobradoPor ?? null,
       }]
     })
   })

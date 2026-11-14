@@ -36,6 +36,7 @@ import { WifiOff } from 'lucide-react'
 import { ExportButton } from '@/components/ui/ExportButton'
 import { exportService } from '@/services/export-service'
 import Tooltip from '@/components/ui/Tooltip'
+import Insignia from '@/components/ui/Insignia'
 import {
   estadoDeEnvioDeCliente,
   etiquetaDeEstadoDeEnvio,
@@ -679,9 +680,13 @@ export default function ClientesFeature({
                                       explicacionDeEstadoDeEnvio(estadoDeEnvio) || ''
                                     }
                                   >
-                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-amber-100 text-[9px] font-black text-amber-700 uppercase tracking-tighter border border-amber-200">
+                                    <Insignia
+                                      tono={
+                                        estadoDeEnvio === 'SIN_ENVIAR' ? 'ambar' : 'azul'
+                                      }
+                                    >
                                       {etiquetaDeEstadoDeEnvio(estadoDeEnvio)}
-                                    </span>
+                                    </Insignia>
                                   </Tooltip>
                                 )}
                               </div>
@@ -890,10 +895,19 @@ export default function ClientesFeature({
                       <div>
                         <div className="font-bold text-slate-900 flex items-center gap-2">
                           {cliente.nombres} {cliente.apellidos}
+                          {/*
+                            * Dos tonos distintos a propósito: «sin enviar» es
+                            * algo que hay que resolver —ámbar— y «pendiente»
+                            * solo informa de que falta una aprobación —azul—.
+                            * Antes los dos eran el mismo rectángulo ámbar de
+                            * ocho píxeles.
+                            */}
                           {estadoDeEnvio && (
-                            <span className="px-1.5 py-0.5 rounded-md bg-amber-100 text-[8px] font-black text-amber-700 uppercase tracking-tighter">
+                            <Insignia
+                              tono={estadoDeEnvio === 'SIN_ENVIAR' ? 'ambar' : 'azul'}
+                            >
                               {etiquetaDeEstadoDeEnvio(estadoDeEnvio)}
-                            </span>
+                            </Insignia>
                           )}
                         </div>
                         <div className="text-xs text-slate-500 font-mono">CC: {cliente.dni}</div>

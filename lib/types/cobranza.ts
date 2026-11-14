@@ -108,6 +108,17 @@ export interface VisitaRuta {
   montoCuota: number
   saldoTotal: number
   recaudadoDelDia?: number
+  /**
+   * Quien quedo acreditado con el pago de hoy, si lo hubo.
+   *
+   * No siempre es el cobrador de la ruta: cuando un supervisor registra el
+   * pago, el backend le acredita a el porque el dinero entra a SU caja. El
+   * recaudo de la ruta igual lo cuenta —se filtra por ruta, no por cobrador—,
+   * pero sin este dato el cobrador veia al cliente ya pagado sin saber quien
+   * habia pasado por ahi, y su informe por cobrador no cuadraba con el avance
+   * de su ruta.
+   */
+  cobradoPor?: { id?: string; nombre?: string; rol?: string } | null
   recaudadoRegularizadoDespues?: number
   recaudadoTotalClient?: number
   recaudadoPeriodo?: number // Total pagado en el período actual (semana/quincena/mes/día)

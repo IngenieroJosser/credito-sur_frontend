@@ -702,21 +702,35 @@ export default function RevisionesPage() {
     }
   }
 
+  /**
+   * Rechaza, y devuelve lo que el servidor diga que se deshizo.
+   *
+   * Rechazar un crédito nuevo no es un cambio de estado: revierte el
+   * desembolso, devuelve el artículo al inventario y anula las cuotas. Esta
+   * pantalla contestaba «Solicitud rechazada» y ya, sin leer siquiera el
+   * mensaje del servidor, así que quien revisaba no tenía cómo saber si el
+   * televisor había vuelto al stock ni si la plata volvió a la caja.
+   */
   const enviarRechazo = async (
     item: Aprobacion,
     reason: string,
     resultadoRevision?: 'RECHAZADO_CON_DEUDA' | 'RECHAZADO_CON_REINTEGRO',
-  ) => {
+  ): Promise<string | null> => {
     if (item.tipoAprobacion === TipoAprobacion.REPROGRAMACION_CUOTA) {
       await prestamosService.rechazarReprogramacion(item.id, reason || undefined)
-      return
+      return null
     }
 
-    await aprobacionesService.rechazar(item.id, {
+    const respuesta = await aprobacionesService.rechazar(item.id, {
       type: item.tipoAprobacion as TipoAprobacion,
       motivoRechazo: reason,
       resultadoRevision,
     })
+
+    // El servidor manda la frase con los efectos; si no la trae —una versión
+    // anterior, o la cola offline— se queda el texto de siempre.
+    const mensaje = (respuesta as { message?: unknown } | null)?.message
+    return typeof mensaje === 'string' && mensaje.trim() ? mensaje : null
   }
 
   const handleRejectFromModal = async (
@@ -732,8 +746,8 @@ export default function RevisionesPage() {
 
     setProcessingId(item.id)
     try {
-      await enviarRechazo(item, reason, resultadoRevision)
-      toast.success('Solicitud rechazada')
+      const detalle = await enviarRechazo(item, reason, resultadoRevision)
+      toast.success(detalle || 'Solicitud rechazada')
       closeAllDetailModals()
       await loadData()
     } catch (error) {
@@ -810,8 +824,8 @@ export default function RevisionesPage() {
             ? 'RECHAZADO_CON_REINTEGRO'
             : undefined
 
-      await enviarRechazo(item, reason, resultadoRevision)
-      toast.success('Solicitud rechazada')
+      const detalle = await enviarRechazo(item, reason, resultadoRevision)
+      toast.success(detalle || 'Solicitud rechazada')
       setConfirmModal(null)
       await loadData()
     } catch (error) {

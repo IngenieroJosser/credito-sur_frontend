@@ -14,6 +14,7 @@ import {
   CheckCircle2,
 } from 'lucide-react'
 import TipoCreditoIndicador from '@/components/creditos/TipoCreditoIndicador'
+import AyudaContextual from '@/components/ui/AyudaContextual'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { VisitaRuta, EstadoVisita } from '@/lib/types/cobranza'
@@ -312,6 +313,16 @@ function VisitaCardContent({
     estadoVisitaNorm === 'reprogramada' ||
     estadoVisitaNorm === 'reprogramacion'
   const regularizadoDespues = Number(visita?.recaudadoRegularizadoDespues || 0)
+  /**
+   * El nombre de quien cobró, solo si no es el cobrador de esta ruta.
+   *
+   * Se compara contra `visita.cobradorId`, que es el responsable de la
+   * obligación. Si coinciden no se dice nada: lo normal no necesita rótulo.
+   */
+  const cobradoPorOtro =
+    visita?.cobradoPor?.id && visita.cobradoPor.id !== visita?.cobradorId
+      ? visita.cobradoPor.nombre || null
+      : null
   const esAbonoRegularizado =
     regularizadoDespues > 0 && String(visita?.estado || '').toLowerCase() !== 'pagado'
 
@@ -534,11 +545,30 @@ function VisitaCardContent({
 
       {/* Fila extra: monto pagado hoy (visible en historial) */}
       {(visita.recaudadoDelDia ?? 0) > 0 && (
-        <div className="mt-1 flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-50 border border-emerald-100 w-fit">
+        <div className="mt-1 flex flex-wrap items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-50 border border-emerald-100 w-fit">
           <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" />
           <span className="text-[9px] font-black text-emerald-700 uppercase tracking-wide">
             Pagó hoy: {formatMontoCompleto(visita.recaudadoDelDia ?? 0)}
           </span>
+          {/*
+            * Quién lo cobró, cuando no fue el cobrador de la ruta.
+            *
+            * Pasa cuando un supervisor registra el pago: el backend le
+            * acredita a él —el dinero entra a SU caja— y el cliente desaparecía
+            * de la lista del cobrador ya pagado, sin rastro de quién había
+            * pasado por ahí. El recaudo de la ruta sí lo cuenta, así que la
+            * meta no cambia; lo que faltaba era decirlo.
+            */}
+          {cobradoPorOtro && (
+            <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-emerald-600 normal-case">
+              · lo cobró {cobradoPorOtro}
+              <AyudaContextual
+                ayuda="cobradoPorOtro"
+                de="quién cobró"
+                tamano="pequeno"
+              />
+            </span>
+          )}
         </div>
       )}
 

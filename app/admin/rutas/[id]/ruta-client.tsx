@@ -1584,7 +1584,12 @@ const RutaClientLoaded = ({
                 */}
               <div className="mt-3 flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
                 <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                  Qué visitas se ven
+Qué visitas se ven
+                  <AyudaContextual
+                    ayuda="queVisitasSeVen"
+                    de="el filtro de visitas"
+                    tamano="pequeno"
+                  />
                 </div>
 
                 <div className="flex gap-2 overflow-x-auto pb-1 items-center">

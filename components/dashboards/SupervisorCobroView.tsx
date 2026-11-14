@@ -171,6 +171,7 @@ import { nombreDelCobrador } from '@/lib/rutas/nombre-cobrador'
 import type { ContextoRegularizacion } from '@/types/rutas/cierre-pendiente'
 import { isUuid } from '@/lib/utils'
 import GrupoDeFiltros from '@/components/filtros/GrupoDeFiltros'
+import AyudaContextual from '@/components/ui/AyudaContextual'
 import {
   aPeriodoDeFiltro,
   OPCIONES_DE_PERIODO,
@@ -1914,6 +1915,22 @@ const handleRegistrarPago = useCallback(async (
       return;
     }
 
+    /*
+     * El cobrador responsable de la ruta.
+     *
+     * OJO con lo que el backend hace con esto: en `payments.service.ts`, si
+     * quien registra es un SUPERVISOR, el `cobradorId` del pago se pisa con el
+     * id del supervisor —dos veces, de forma explícita— porque el dinero entra
+     * a SU caja. Así que este valor NO decide a quién se acredita el pago.
+     *
+     * Lo que sí pasa, medido: el recaudo y la meta de la ruta cuentan el pago
+     * igual, porque se calculan filtrando por `prestamo.rutaId` y no por
+     * cobrador. Lo que no lo cuenta es el informe POR COBRADOR, que es
+     * correcto: el efectivo lo tiene el supervisor.
+     *
+     * Para que eso deje de ser invisible, la jornada ahora devuelve
+     * `cobradoPor` y la tarjeta dice «lo cobró <nombre>».
+     */
     const cobradorResponsableId = resolveCobradorIdForRouteAction(
       rutaInfo?.cobradorId,
       userSession.id,
@@ -2618,7 +2635,12 @@ const handleRegistrarPago = useCallback(async (
                   <div className="mt-3 flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
 
                     <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                      Qué visitas se ven
+Qué visitas se ven
+                      <AyudaContextual
+                        ayuda="queVisitasSeVen"
+                        de="el filtro de visitas"
+                        tamano="pequeno"
+                      />
                     </div>
 
                     <div className="flex gap-2 overflow-x-auto pb-1">

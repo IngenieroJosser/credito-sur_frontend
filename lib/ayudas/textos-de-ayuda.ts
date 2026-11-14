@@ -154,6 +154,30 @@ export const TEXTOS_DE_AYUDA = {
   plazoEnMeses:
     'En cuántos meses se financia. La empresa financia a 3, 5 y 8 meses, y ' +
     'cada plazo tiene su propio precio.',
+
+  // ── La jornada de una ruta ───────────────────────────────────────────────
+
+  queVisitasSeVen:
+    'Qué parte de la jornada se enseña. «Por cobrar hoy» es la lista que ' +
+    'tiene delante quien está en la calle: deja fuera lo ya gestionado, lo ' +
+    'revertido y lo que no tiene saldo. «Ya atendidas hoy» es justo eso que ' +
+    'quedó fuera. «Toda la ruta» no esconde nada e incluye las de fecha ' +
+    'futura.',
+  cobradoPorOtro:
+    'Quién recibió el pago, cuando no fue el cobrador de la ruta. Pasa ' +
+    'cuando el supervisor sale a cobrar: el dinero entra a SU caja, así que ' +
+    'el pago queda a su nombre. El avance de la ruta lo cuenta igual.',
+
+  // ── Revisiones ───────────────────────────────────────────────────────────
+
+  rechazarSolicitud:
+    'Rechazar no es solo marcarla: deshace lo que la solicitud ya había ' +
+    'movido. En un crédito nuevo devuelve el desembolso a la caja, regresa ' +
+    'el artículo al inventario, anula las cuotas y oculta el crédito. Al ' +
+    'confirmar, el aviso dice exactamente qué se deshizo.',
+  motivoDelRechazo:
+    'Queda guardado con la solicitud y lo lee quien la creó. Es lo único ' +
+    'que le explica por qué se le devolvió.',
 } as const
 
 export type ClaveDeAyuda = keyof typeof TEXTOS_DE_AYUDA
