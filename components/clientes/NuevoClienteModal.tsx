@@ -509,8 +509,9 @@ export default function NuevoClienteModal({
                 </p>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div>
-                    <FieldLabel required>CC o Documento</FieldLabel>
+                    <FieldLabel htmlFor="nuevoclientemodal-cc-o-documento" required>CC o Documento</FieldLabel>
                     <input
+                      id="nuevoclientemodal-cc-o-documento"
                       type="text"
                       inputMode="numeric"
                       value={formulario.dni}
@@ -524,8 +525,9 @@ export default function NuevoClienteModal({
                     />
                   </div>
                   <div>
-                    <FieldLabel required>Teléfono</FieldLabel>
+                    <FieldLabel htmlFor="nuevoclientemodal-telefono" required>Teléfono</FieldLabel>
                     <input
+                      id="nuevoclientemodal-telefono"
                       type="text"
                       inputMode="numeric"
                       value={formulario.telefono}
@@ -539,8 +541,9 @@ export default function NuevoClienteModal({
                     />
                   </div>
                   <div>
-                    <FieldLabel required>Nombres</FieldLabel>
+                    <FieldLabel htmlFor="nuevoclientemodal-nombres" required>Nombres</FieldLabel>
                     <input
+                      id="nuevoclientemodal-nombres"
                       value={formulario.nombres}
                       onChange={(e) =>
                         setFormulario((prev) => ({ ...prev, nombres: e.target.value }))
@@ -550,8 +553,9 @@ export default function NuevoClienteModal({
                     />
                   </div>
                   <div>
-                    <FieldLabel required>Apellidos</FieldLabel>
+                    <FieldLabel htmlFor="nuevoclientemodal-apellidos" required>Apellidos</FieldLabel>
                     <input
+                      id="nuevoclientemodal-apellidos"
                       value={formulario.apellidos}
                       onChange={(e) =>
                         setFormulario((prev) => ({ ...prev, apellidos: e.target.value }))
@@ -561,8 +565,9 @@ export default function NuevoClienteModal({
                     />
                   </div>
                   <div>
-                    <FieldLabel>Correo (Opcional)</FieldLabel>
+                    <FieldLabel htmlFor="nuevoclientemodal-correo-opcional">Correo (Opcional)</FieldLabel>
                     <input
+                      id="nuevoclientemodal-correo-opcional"
                       type="email"
                       value={formulario.correo}
                       onChange={(e) =>
@@ -573,8 +578,9 @@ export default function NuevoClienteModal({
                     />
                   </div>
                   <div>
-                    <FieldLabel required>Dirección</FieldLabel>
+                    <FieldLabel htmlFor="nuevoclientemodal-direccion" required>Dirección</FieldLabel>
                     <input
+                      id="nuevoclientemodal-direccion"
                       value={formulario.direccion}
                       onChange={(e) =>
                         setFormulario((prev) => ({ ...prev, direccion: e.target.value }))
@@ -588,7 +594,14 @@ export default function NuevoClienteModal({
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                <FieldLabel className="mb-1">Referencias Personales</FieldLabel>
+                {/*
+                  * Esto encabeza una SECCIÓN, no un campo. Era un `<label>`
+                  * sin nada que etiquetar: un lector de pantalla lo anunciaba
+                  * como el nombre de un control inexistente.
+                  */}
+                <p className="mb-1 block text-sm font-bold text-slate-700">
+                  Referencias Personales
+                </p>
                 <p className="text-xs text-slate-400 mb-4">
                   Complete el nombre completo y teléfono de cada referencia
                 </p>
@@ -603,10 +616,11 @@ export default function NuevoClienteModal({
                   </p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
-                      <FieldLabel required className="text-xs text-slate-500 mb-1">
+                      <FieldLabel htmlFor="nuevoclientemodal-nombre-completo" required className="text-xs text-slate-500 mb-1">
                         Nombre Completo
                       </FieldLabel>
                       <input
+                        id="nuevoclientemodal-nombre-completo"
                         value={formulario.referencia1Nombre}
                         onChange={(e) =>
                           setFormulario((prev) => ({ ...prev, referencia1Nombre: e.target.value }))
@@ -617,10 +631,11 @@ export default function NuevoClienteModal({
                       />
                     </div>
                     <div>
-                      <FieldLabel required className="text-xs text-slate-500 mb-1">
+                      <FieldLabel htmlFor="nuevoclientemodal-telefono-2" required className="text-xs text-slate-500 mb-1">
                         Teléfono
                       </FieldLabel>
                       <input
+                        id="nuevoclientemodal-telefono-2"
                         type="text"
                         inputMode="numeric"
                         value={formulario.referencia1Telefono}
@@ -648,10 +663,11 @@ export default function NuevoClienteModal({
                   </p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
-                      <FieldLabel required className="text-xs text-slate-500 mb-1">
+                      <FieldLabel htmlFor="nuevoclientemodal-nombre-completo-2" required className="text-xs text-slate-500 mb-1">
                         Nombre Completo
                       </FieldLabel>
                       <input
+                        id="nuevoclientemodal-nombre-completo-2"
                         value={formulario.referencia2Nombre}
                         onChange={(e) =>
                           setFormulario((prev) => ({ ...prev, referencia2Nombre: e.target.value }))
@@ -662,10 +678,11 @@ export default function NuevoClienteModal({
                       />
                     </div>
                     <div>
-                      <FieldLabel required className="text-xs text-slate-500 mb-1">
+                      <FieldLabel htmlFor="nuevoclientemodal-telefono-3" required className="text-xs text-slate-500 mb-1">
                         Teléfono
                       </FieldLabel>
                       <input
+                        id="nuevoclientemodal-telefono-3"
                         type="text"
                         inputMode="numeric"
                         value={formulario.referencia2Telefono}

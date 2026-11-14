@@ -395,8 +395,15 @@ export default function CrearCreditoModal({
 
             {!hideTypeSelector ? (
               <div className="mb-6 rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                <FieldLabel required className="mb-3">Tipo de Crédito</FieldLabel>
-                <div className="grid grid-cols-2 gap-3">
+                {/* Grupo de botones: `aria-labelledby`, no `htmlFor`. */}
+                <FieldLabel id="credito-tipo" required className="mb-3">
+                  Tipo de Crédito
+                </FieldLabel>
+                <div
+                  role="group"
+                  aria-labelledby="credito-tipo"
+                  className="grid grid-cols-2 gap-3"
+                >
                   <button
                     type="button"
                     onClick={() => setCreditType('prestamo')}
@@ -438,8 +445,9 @@ export default function CrearCreditoModal({
 
             <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-5">
               <div>
-                <FieldLabel required>Cliente</FieldLabel>
+                <FieldLabel htmlFor="crearcreditomodal-cliente" required>Cliente</FieldLabel>
                 <Selector
+                  id="crearcreditomodal-cliente"
                   value={clienteCreditoId}
                   onChange={setClienteCreditoId}
                   etiqueta="Cliente"
@@ -456,10 +464,11 @@ export default function CrearCreditoModal({
                 <>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <FieldLabel required ayuda="montoPrestado" deAyuda="el monto del préstamo">Monto del Préstamo</FieldLabel>
+                      <FieldLabel htmlFor="crearcreditomodal-monto-del-prestamo" required ayuda="montoPrestado" deAyuda="el monto del préstamo">Monto del Préstamo</FieldLabel>
                       <div className="relative">
                         <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
                         <input
+                          id="crearcreditomodal-monto-del-prestamo"
                           type="text"
                           inputMode="numeric"
                           value={montoPrestamoInput}
@@ -480,8 +489,9 @@ export default function CrearCreditoModal({
                       ) : null}
                     </div>
                     <div>
-                      <FieldLabel required ayuda="tipoDeInteres" deAyuda="el tipo de interés">Tipo de Interés</FieldLabel>
+                      <FieldLabel htmlFor="crearcreditomodal-tipo-de-interes" required ayuda="tipoDeInteres" deAyuda="el tipo de interés">Tipo de Interés</FieldLabel>
                       <Selector
+                        id="crearcreditomodal-tipo-de-interes"
                         value={tipoInteres}
                         onChange={(v) => setTipoInteres(v as TipoAmortizacion)}
                         etiqueta="Tipo de interés"
@@ -495,8 +505,9 @@ export default function CrearCreditoModal({
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <FieldLabel required>Tasa de Interés (%)</FieldLabel>
+                      <FieldLabel htmlFor="crearcreditomodal-tasa-de-interes" required>Tasa de Interés (%)</FieldLabel>
                       <input
+                        id="crearcreditomodal-tasa-de-interes"
                           type="text"
                           inputMode="decimal"
                           value={tasaInteresInput}
@@ -506,8 +517,9 @@ export default function CrearCreditoModal({
                       />
                     </div>
                     <div>
-                      <FieldLabel required>Cuotas</FieldLabel>
+                      <FieldLabel htmlFor="crearcreditomodal-cuotas" required>Cuotas</FieldLabel>
                       <input
+                        id="crearcreditomodal-cuotas"
                         type="text"
                         inputMode="numeric"
                         value={cuotasPrestamoInput}
@@ -519,8 +531,9 @@ export default function CrearCreditoModal({
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <FieldLabel required ayuda="frecuenciaDePago" deAyuda="la frecuencia de pago">Frecuencia de Pago</FieldLabel>
+                      <FieldLabel htmlFor="crearcreditomodal-frecuencia-de-pago" required ayuda="frecuenciaDePago" deAyuda="la frecuencia de pago">Frecuencia de Pago</FieldLabel>
                       <Selector
+                        id="crearcreditomodal-frecuencia-de-pago"
                         value={frecuenciaPago}
                         onChange={(val) => {
                           setFrecuenciaPago(val)
@@ -537,8 +550,9 @@ export default function CrearCreditoModal({
                       />
                     </div>
                     <div>
-                      <FieldLabel required>Fecha Crédito</FieldLabel>
+                      <FieldLabel htmlFor="crearcreditomodal-fecha-credito" required>Fecha Crédito</FieldLabel>
                       <CampoFecha
+                        id="crearcreditomodal-fecha-credito"
                         value={fechaCreditoKey}
                         onChange={(dia) => setFechaCreditoInput(`${dia}T${horaDeCreacion}`)}
                         min={puedeUsarFechaAntiguaCredito ? undefined : hoyBogotaKey}
@@ -644,8 +658,15 @@ export default function CrearCreditoModal({
 
                   {puedeMostrarModoVenta && (
                   <div className="mt-3">
-                    <FieldLabel required>Modo de Venta</FieldLabel>
-                    <div className="flex items-center gap-2">
+                    {/* Grupo de botones: `aria-labelledby`, no `htmlFor`. */}
+                    <FieldLabel id="credito-modo-venta" required>
+                      Modo de Venta
+                    </FieldLabel>
+                    <div
+                      role="group"
+                      aria-labelledby="credito-modo-venta"
+                      className="flex items-center gap-2"
+                    >
                       <button
                         type="button"
                         onClick={() => { setEsContado(false) }}
@@ -670,8 +691,9 @@ export default function CrearCreditoModal({
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <FieldLabel required>Artículo</FieldLabel>
+                      <FieldLabel htmlFor="crearcreditomodal-articulo" required>Artículo</FieldLabel>
                       <Selector
+                        id="crearcreditomodal-articulo"
                         value={articuloSeleccionadoId}
                         onChange={(v) => {
                           setArticuloSeleccionadoId(v)
@@ -691,7 +713,7 @@ export default function CrearCreditoModal({
                     <div>
                       {!esContado && (
                         <>
-                          <FieldLabel required className="mt-3">Plazo (Meses)</FieldLabel>
+                          <FieldLabel htmlFor="crearcreditomodal-plazo-meses" required className="mt-3">Plazo (Meses)</FieldLabel>
                           <p className="mb-2 text-sm font-bold text-slate-700">
                             Plazo del artículo
                             <AyudaContextual
@@ -701,6 +723,7 @@ export default function CrearCreditoModal({
                             />
                           </p>
                           <Selector
+                            id="crearcreditomodal-plazo-meses"
                             value={planArticuloIndex !== null ? String(planArticuloIndex) : ''}
                             onChange={(v) => {
                               setPlanArticuloIndex(v ? parseInt(v) : null)
@@ -729,8 +752,9 @@ export default function CrearCreditoModal({
                   {!esContado && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <FieldLabel required ayuda="frecuenciaDePago" deAyuda="la frecuencia de pago">Frecuencia de Pago</FieldLabel>
+                        <FieldLabel htmlFor="crearcreditomodal-frecuencia-de-pago-2" required ayuda="frecuenciaDePago" deAyuda="la frecuencia de pago">Frecuencia de Pago</FieldLabel>
                         <Selector
+                          id="crearcreditomodal-frecuencia-de-pago-2"
                           value={frecuenciaPago}
                           onChange={(val) => {
                             setFrecuenciaPago(val)
@@ -747,10 +771,11 @@ export default function CrearCreditoModal({
                         />
                       </div>
                       <div>
-                        <FieldLabel required ayuda="cuotaInicialDeArticulo" deAyuda="la cuota inicial">Cuota Inicial</FieldLabel>
+                        <FieldLabel htmlFor="crearcreditomodal-cuota-inicial" required ayuda="cuotaInicialDeArticulo" deAyuda="la cuota inicial">Cuota Inicial</FieldLabel>
                         <div className="relative">
                           <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
                           <input
+                            id="crearcreditomodal-cuota-inicial"
                             type="text"
                             inputMode="numeric"
                             value={cuotaInicialArticuloInput}
@@ -773,8 +798,9 @@ export default function CrearCreditoModal({
                   )}
 
                   <div>
-                    <FieldLabel required>Fecha Crédito</FieldLabel>
+                    <FieldLabel htmlFor="crearcreditomodal-fecha-credito-2" required>Fecha Crédito</FieldLabel>
                     <CampoFecha
+                      id="crearcreditomodal-fecha-credito-2"
                       value={fechaCreditoKey}
                       onChange={(dia) => setFechaCreditoInput(`${dia}T${horaDeCreacion}`)}
                       min={puedeUsarFechaAntiguaCredito ? undefined : hoyBogotaKey}
@@ -843,7 +869,7 @@ export default function CrearCreditoModal({
 
               {!(creditType === 'articulo' && esContado) && (
                 <div>
-                  <FieldLabel required>Fecha Primer Cobro</FieldLabel>
+                  <FieldLabel htmlFor="crearcreditomodal-fecha-primer-cobro" required>Fecha Primer Cobro</FieldLabel>
                   {(() => {
                     const diaSeleccionado = fechaPrimerCobro
                       ? new Date(fechaPrimerCobro + 'T12:00:00').getDate()
@@ -858,6 +884,7 @@ export default function CrearCreditoModal({
                     return (
                       <div className="space-y-1">
                         <CampoFecha
+                          id="crearcreditomodal-fecha-primer-cobro"
                           value={fechaPrimerCobro}
                           onChange={(valorFecha) => setFechaPrimerCobro(valorFecha)}
                           min={puedeUsarFechaAntiguaCredito ? undefined : hoyBogotaKey}
@@ -899,8 +926,9 @@ export default function CrearCreditoModal({
               )}
 
               <div>
-                <FieldLabel>Notas (Opcional)</FieldLabel>
+                <FieldLabel htmlFor="crearcreditomodal-notas-opcional">Notas (Opcional)</FieldLabel>
                 <textarea
+                  id="crearcreditomodal-notas-opcional"
                   className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary focus:ring-0 font-medium text-slate-900 resize-none"
                   rows={3}
                   placeholder="Observaciones adicionales..."

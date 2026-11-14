@@ -514,7 +514,7 @@ export default function ClienteDetalleSupervisorPage() {
                     </div>
                   ) : (
                     <div>
-                      <FieldLabel required>A qué crédito se aplica</FieldLabel>
+                      <FieldLabel htmlFor="page-a-que-credito-se-aplica" required>A qué crédito se aplica</FieldLabel>
                       <Selector
                         value={prestamoPagoId}
                         onChange={setPrestamoPagoId}
@@ -567,6 +567,7 @@ export default function ClienteDetalleSupervisorPage() {
                     <div className="relative">
                       <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-6 w-6 text-slate-400" />
                       <input
+                        id="page-a-que-credito-se-aplica"
                         type="text"
                         inputMode="numeric"
                         value={montoPagoInput}

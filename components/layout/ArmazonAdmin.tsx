@@ -21,6 +21,7 @@ import { logger } from '@/lib/logger'
 import React, { useState, useEffect, useRef, useMemo } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import Image from 'next/image'
 import { createPortal } from 'react-dom'
 import {
@@ -540,6 +541,23 @@ export default function ArmazonAdmin({ children }: { children: React.ReactNode }
     })()
 
     if (destino && enRaizAjena && !rutaEnSuMenu) {
+      /*
+       * Se le dice por qué se movió.
+       *
+       * Antes el traslado era mudo: quien escribía a mano la dirección de otro
+       * módulo —o seguía un enlace viejo— aparecía de golpe en su propia
+       * pantalla sin saber si se había equivocado, si le habían quitado un
+       * permiso o si el sistema había fallado. Un traslado sin explicación es
+       * la versión silenciosa del «Acceso restringido».
+       *
+       * El aviso lleva `id` fijo: con dos redirecciones seguidas —pasa al
+       * cargar y al resolver el menú— saldría dos veces el mismo texto.
+       */
+      toast.info('Esa pantalla es de otro módulo', {
+        id: 'traslado-por-rol',
+        description:
+          'Te llevamos a la tuya. Si necesitas entrar ahí, pídele el permiso a tu administrador.',
+      })
       router.replace(destino)
     }
   }, [authChecked, navigation, pathname, router, user?.rol])

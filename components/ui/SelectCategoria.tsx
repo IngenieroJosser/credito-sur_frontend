@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useId } from 'react';
 import { Plus, X, Check, Loader2 } from 'lucide-react';
 import { categoriasService, Categoria } from '@/services/categorias-service';
 import { useNotification } from '@/components/providers/NotificationProvider';
@@ -87,10 +87,22 @@ export default function SelectCategoria({
     }
   };
 
+  // Un id propio por instancia: puede haber dos de estos en la misma
+  // pantalla y los ids son globales.
+  const idGenerado = useId()
+  const idDelSelector = `categoria-${idGenerado}`
+
   return (
     <div className="space-y-2">
       <div className="flex justify-between items-center">
-        <FieldLabel required={required} className="mb-0">{label}</FieldLabel>
+        {/*
+          * La etiqueta nombra al selector de mas abajo, no al boton de
+          * «Crear» que tiene al lado: entre los dos hay una fila de
+          * cabecera, asi que sin `htmlFor` no apuntaba a nada.
+          */}
+        <FieldLabel htmlFor={idDelSelector} required={required} className="mb-0">
+          {label}
+        </FieldLabel>
         <Tooltip texto="Crear categoría">
           <button
             type="button"
@@ -145,6 +157,7 @@ export default function SelectCategoria({
             * que la flecha de adorno tambien sobra.
             */}
           <Selector
+            id={idDelSelector}
             value={value || ''}
             onChange={onChange}
             disabled={disabled || loading}

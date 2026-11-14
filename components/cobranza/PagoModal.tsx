@@ -199,8 +199,20 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm, montoCuota
               </div>
 
               <div>
-                <FieldLabel required>Método de Pago</FieldLabel>
-                <div className="grid grid-cols-2 gap-2">
+                {/*
+                  * Esto NO es la etiqueta de un campo: encabeza un grupo de
+                  * botones. Por eso lleva `id` + `aria-labelledby` en el
+                  * grupo, y no `htmlFor`, que apuntaría a un control que no
+                  * existe.
+                  */}
+                <FieldLabel id="pago-metodo" required>
+                  Método de Pago
+                </FieldLabel>
+                <div
+                  role="group"
+                  aria-labelledby="pago-metodo"
+                  className="grid grid-cols-2 gap-2"
+                >
                   <button
                     type="button"
                     onClick={() => setMetodoPago(MetodoPago.EFECTIVO)}
@@ -227,7 +239,7 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm, montoCuota
               </div>
 
               <div>
-                <FieldLabel required>Monto Recibido</FieldLabel>
+                <FieldLabel htmlFor="pagomodal-monto-recibido" required>Monto Recibido</FieldLabel>
                 {tipo === 'ABONO' && (
                   <p className="mb-2 text-xs font-bold text-slate-500">
                     Mínimo permitido: ${formatMilesCOP(MONTO_MINIMO_ABONO_COP)}
@@ -235,7 +247,8 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm, montoCuota
                 )}
                 <div className="relative">
                   <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-6 w-6 text-slate-400" />
-                  <input 
+                  <input
+                    id="pagomodal-monto-recibido" 
                     type="text"
                     inputMode="numeric"
                     value={montoPagoInput}
@@ -259,8 +272,9 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm, montoCuota
               {metodoPago === MetodoPago.TRANSFERENCIA && (
                 <div className="space-y-4 pt-2">
                   <div>
-                    <FieldLabel required>Referencia bancaria</FieldLabel>
+                    <FieldLabel htmlFor="pagomodal-referencia-bancaria" required>Referencia bancaria</FieldLabel>
                     <input
+                      id="pagomodal-referencia-bancaria"
                       type="text"
                       value={numeroReferencia}
                       onChange={(event) => {
@@ -275,13 +289,14 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm, montoCuota
                   </div>
                   <div>
                     <div className="flex items-center gap-1.5">
-                      <FieldLabel>Nota para revisión</FieldLabel>
+                      <FieldLabel htmlFor="pagomodal-nota-para-revision">Nota para revisión</FieldLabel>
                       <AyudaContextual
                         de="la referencia de la transferencia"
                         texto="Agrega información que ayude a verificar la transferencia, por ejemplo quién la realizó o una aclaración del comprobante."
                       />
                     </div>
                     <textarea
+                      id="pagomodal-nota-para-revision"
                       value={notasTransferencia}
                       onChange={(event) => setNotasTransferencia(event.target.value)}
                       maxLength={500}
@@ -294,7 +309,7 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm, montoCuota
                     </p>
                   </div>
                   <div>
-                  <FieldLabel required>Comprobante</FieldLabel>
+                  <FieldLabel htmlFor="pagomodal-comprobante" required>Comprobante</FieldLabel>
                   <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1">
@@ -342,6 +357,7 @@ export default function PagoModal({ visita, tipo, onClose, onConfirm, montoCuota
 
                     <div className="mt-3">
                       <input
+                        id="pagomodal-comprobante"
                         type="file"
                         accept="image/*"
                         onChange={handleFileChange}

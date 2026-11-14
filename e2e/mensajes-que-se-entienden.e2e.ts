@@ -11,27 +11,36 @@ import { entrarComo } from './sesion'
 
 test.describe('Lo que la pantalla le dice a la persona', () => {
   /**
-   * Un permiso se nombra, no se escupe su código.
+   * Entrar en el módulo de otro rol te devuelve al tuyo, y te lo dice.
    *
-   * Medido: un cobrador que abría por error la pantalla del contador leía
-   * «Permiso requerido: CONTABLE_VIEW». El bloqueo funciona perfecto —se
-   * comprobó que no se filtra ni una cifra—, pero ese texto no le dice ni qué
-   * módulo es ni qué pedirle a su administrador.
+   * ── Lo que esta prueba exigía antes, y por qué cambió ─────────────────
    *
-   * El código se conserva aparte y en pequeño, porque para quien administra sí
-   * sirve: con él encuentra el permiso exacto sin adivinar la pantalla.
+   * Exigía la pantalla «Acceso restringido» de `ProtectedPage`, que nombra el
+   * permiso que falta («Ver Módulo Contable») y deja el código para soporte.
+   * Esa pantalla sigue existiendo y sigue estando bien.
+   *
+   * Lo que cambió es antes: `ArmazonAdmin` ahora saca al usuario de la raíz de
+   * otro rol y lo lleva a la suya, en vez de dejarlo en una pantalla que no es
+   * suya. Así que al bloqueo por permiso ya no se llega por esta vía.
+   *
+   * El traslado era MUDO, y eso se arregló con el mismo cambio que trajo esta
+   * prueba al día: quien escribe a mano la dirección de otro módulo aparecía
+   * de golpe en su pantalla sin saber si se había equivocado, si le habían
+   * quitado un permiso o si el sistema había fallado.
    */
-  test('el permiso que falta se nombra en español', async ({ page }) => {
+  test('el traslado a tu propio módulo no es mudo', async ({ page }) => {
     await entrarComo(page, 'COBRADOR')
     await page.goto('/contador', { waitUntil: 'domcontentloaded' })
-    await page.waitForTimeout(5000)
 
+    // Acaba en lo suyo, no en una pantalla ajena.
+    await expect
+      .poll(() => new URL(page.url()).pathname, { timeout: 30_000 })
+      .toBe('/cobranzas')
+
+    // Y se le dice por qué, con qué hacer si de verdad necesita entrar.
     const texto = (await page.locator('body').innerText()).replace(/\s+/g, ' ')
-
-    // El nombre que el propio sistema tiene guardado para ese permiso.
-    expect(texto).toContain('Ver Módulo Contable')
-    // Y el código sigue estando, para soporte.
-    expect(texto).toContain('CONTABLE_VIEW')
+    expect(texto).toContain('Esa pantalla es de otro módulo')
+    expect(texto).toContain('pídele el permiso a tu administrador')
   })
 
   /**

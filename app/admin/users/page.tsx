@@ -93,15 +93,28 @@ interface Role {
   icon: React.ReactNode;
 }
 
+/**
+ * La etiqueta de esta pantalla: la compartida con su tamaño propio.
+ *
+ * `htmlFor` pasa de largo porque es lo que une la etiqueta con su campo; sin
+ * el, un lector de pantalla anuncia el campo sin nombre y pulsar la etiqueta
+ * no lleva el cursor a ningun sitio.
+ */
 function FieldLabel({
   children,
   required = false,
+  htmlFor,
 }: {
   children: React.ReactNode;
   required?: boolean;
+  htmlFor?: string;
 }) {
   return (
-    <BaseFieldLabel required={required} className="text-xs text-slate-500 uppercase tracking-wider">
+    <BaseFieldLabel
+      htmlFor={htmlFor}
+      required={required}
+      className="text-xs text-slate-500 uppercase tracking-wider"
+    >
       {children}
     </BaseFieldLabel>
   );
@@ -1896,10 +1909,11 @@ const UserManagementPage = () => {
                   <div className="space-y-5">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <FieldLabel required>
+                        <FieldLabel htmlFor="page-nombres" required>
                           Nombres
                         </FieldLabel>
                         <input
+                          id="page-nombres"
                           type="text"
                           value={formData.nombres}
                           onChange={(e) =>
@@ -1913,10 +1927,11 @@ const UserManagementPage = () => {
                         />
                       </div>
                       <div>
-                        <FieldLabel required>
+                        <FieldLabel htmlFor="page-apellidos" required>
                           Apellidos
                         </FieldLabel>
                         <input
+                          id="page-apellidos"
                           type="text"
                           value={formData.apellidos}
                           onChange={(e) =>
@@ -1932,10 +1947,11 @@ const UserManagementPage = () => {
                     </div>
 
                     <div>
-                      <FieldLabel required>
+                      <FieldLabel htmlFor="page-correo-electronico" required>
                         Correo Electrónico
                       </FieldLabel>
                       <input
+                        id="page-correo-electronico"
                         type="email"
                         autoComplete="off"
                         value={formData.correo}
@@ -1948,12 +1964,13 @@ const UserManagementPage = () => {
                     </div>
 
                     <div>
-                      <FieldLabel required>
+                      <FieldLabel htmlFor="page-nombre-de-usuario" required>
                         Nombre de usuario
                       </FieldLabel>
                       <div className="relative">
                         <AtSign className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                         <input
+                          id="page-nombre-de-usuario"
                           type="text"
                           autoComplete="username"
                           value={formData.nombreUsuario}
@@ -1971,10 +1988,11 @@ const UserManagementPage = () => {
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <FieldLabel>
+                        <FieldLabel htmlFor="page-telefono">
                           Teléfono
                         </FieldLabel>
                         <input
+                          id="page-telefono"
                           type="tel"
                           inputMode="numeric"
                           value={formData.telefono}
@@ -1989,11 +2007,12 @@ const UserManagementPage = () => {
                         />
                       </div>
                       <div>
-                        <FieldLabel required>
+                        <FieldLabel htmlFor="page-contrasena" required>
                           Contraseña
                         </FieldLabel>
                         <div className="relative">
                           <input
+                            id="page-contrasena"
                             type={showPassword ? "text" : "password"}
                             autoComplete="new-password"
                             name={`new_pw_${Date.now()}`}
@@ -2023,11 +2042,12 @@ const UserManagementPage = () => {
                     </div>
 
                     <div>
-                      <FieldLabel required>
+                      <FieldLabel htmlFor="page-rol" required>
                         Rol
                       </FieldLabel>
                       <div className="relative">
                         <Selector
+                          id="page-rol"
                           value={formData.rol}
                           onChange={(v) =>
                             setFormData({
@@ -2097,10 +2117,11 @@ const UserManagementPage = () => {
                   <div className="space-y-5">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <FieldLabel required>
+                        <FieldLabel htmlFor="page-nombres-2" required>
                           Nombres
                         </FieldLabel>
                         <input
+                          id="page-nombres-2"
                           type="text"
                           value={formData.nombres}
                           onChange={(e) =>
@@ -2113,10 +2134,11 @@ const UserManagementPage = () => {
                         />
                       </div>
                       <div>
-                        <FieldLabel required>
+                        <FieldLabel htmlFor="page-apellidos-2" required>
                           Apellidos
                         </FieldLabel>
                         <input
+                          id="page-apellidos-2"
                           type="text"
                           value={formData.apellidos}
                           onChange={(e) =>
@@ -2131,10 +2153,11 @@ const UserManagementPage = () => {
                     </div>
 
                     <div>
-                      <FieldLabel required>
+                      <FieldLabel htmlFor="page-correo-electronico-2" required>
                         Correo Electrónico
                       </FieldLabel>
                       <input
+                        id="page-correo-electronico-2"
                         type="email"
                         autoComplete="off"
                         value={formData.correo}
@@ -2146,12 +2169,13 @@ const UserManagementPage = () => {
                     </div>
 
                     <div>
-                      <FieldLabel>
+                      <FieldLabel htmlFor="page-nombre-de-usuario-2">
                         Nombre de usuario
                       </FieldLabel>
                       <div className="relative">
                         <AtSign className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                         <input
+                          id="page-nombre-de-usuario-2"
                           type="text"
                           autoComplete="username"
                           value={formData.nombreUsuario}
@@ -2169,10 +2193,11 @@ const UserManagementPage = () => {
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <FieldLabel>
+                        <FieldLabel htmlFor="page-telefono-2">
                           Teléfono
                         </FieldLabel>
                         <input
+                          id="page-telefono-2"
                           type="tel"
                           inputMode="numeric"
                           value={formData.telefono}
@@ -2187,11 +2212,12 @@ const UserManagementPage = () => {
                       </div>
                       <div>
                         <div>
-                          <FieldLabel>
+                          <FieldLabel htmlFor="page-contrasena-2">
                             Contraseña
                           </FieldLabel>
                           <div className="relative">
                             <input
+                              id="page-contrasena-2"
                               type={showPassword ? "text" : "password"}
                               autoComplete="new-password"
                               name={`password_field_${Math.random()}`} // Hack para evitar autocompletado agresivo de Chrome
@@ -2226,7 +2252,7 @@ const UserManagementPage = () => {
                     </div>
 
                     <div>
-                      <FieldLabel required>
+                      <FieldLabel htmlFor="page-rol-2" required>
                         Rol
                       </FieldLabel>
                       <div className="relative">
@@ -2326,6 +2352,7 @@ const UserManagementPage = () => {
                               )}
                             </div>
                             <input
+                              id="page-rol-2"
                               type="checkbox"
                               className="hidden"
                               checked={selectedPermissions.includes(module.id)}

@@ -211,10 +211,11 @@ export default function EditarArticuloPage({ params }: { params: Promise<{ id: s
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="md:col-span-2">
-                      <FieldLabel required className="mb-1">
+                      <FieldLabel htmlFor="page-nombre-del-articulo" required className="mb-1">
                         Nombre del Artículo
                       </FieldLabel>
                       <input
+                        id="page-nombre-del-articulo"
                         type="text"
                         required
                         value={formData.nombre}
@@ -225,10 +226,11 @@ export default function EditarArticuloPage({ params }: { params: Promise<{ id: s
                     </div>
 
                     <div>
-                      <FieldLabel required className="mb-1">
+                      <FieldLabel htmlFor="page-codigo" required className="mb-1">
                         Código
                       </FieldLabel>
                       <input
+                        id="page-codigo"
                         type="text"
                         required
                         value={formData.codigo}
@@ -252,8 +254,9 @@ export default function EditarArticuloPage({ params }: { params: Promise<{ id: s
                     </div>
 
                     <div>
-                      <FieldLabel className="mb-1">Marca</FieldLabel>
+                      <FieldLabel htmlFor="page-marca" className="mb-1">Marca</FieldLabel>
                       <input
+                        id="page-marca"
                         type="text"
                         value={formData.marca}
                         onChange={(e) => setFormData({ ...formData, marca: e.target.value })}
@@ -263,8 +266,9 @@ export default function EditarArticuloPage({ params }: { params: Promise<{ id: s
                     </div>
 
                     <div>
-                      <FieldLabel className="mb-1">Modelo</FieldLabel>
+                      <FieldLabel htmlFor="page-modelo" className="mb-1">Modelo</FieldLabel>
                       <input
+                        id="page-modelo"
                         type="text"
                         value={formData.modelo}
                         onChange={(e) => setFormData({ ...formData, modelo: e.target.value })}
@@ -274,8 +278,9 @@ export default function EditarArticuloPage({ params }: { params: Promise<{ id: s
                     </div>
 
                     <div className="md:col-span-2">
-                      <FieldLabel className="mb-1">Descripción</FieldLabel>
+                      <FieldLabel htmlFor="page-descripcion" className="mb-1">Descripción</FieldLabel>
                       <textarea
+                        id="page-descripcion"
                         rows={3}
                         value={formData.descripcion}
                         onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
@@ -405,12 +410,13 @@ export default function EditarArticuloPage({ params }: { params: Promise<{ id: s
 
                   <div className="space-y-6">
                     <div>
-                      <FieldLabel required className="mb-2">
+                      <FieldLabel htmlFor="page-costo-unitario" required className="mb-2">
                         Costo Unitario
                       </FieldLabel>
                       <div className="relative">
                         <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                         <input
+                          id="page-costo-unitario"
                           type="text"
                           inputMode="numeric"
                           required
@@ -425,8 +431,9 @@ export default function EditarArticuloPage({ params }: { params: Promise<{ id: s
                     </div>
 
                     <div>
-                      <FieldLabel className="mb-2">Stock Actual</FieldLabel>
+                      <FieldLabel htmlFor="page-stock-actual" className="mb-2">Stock Actual</FieldLabel>
                       <input
+                        id="page-stock-actual"
                         type="text"
                         inputMode="numeric"
                         value={formData.stock}
@@ -439,8 +446,9 @@ export default function EditarArticuloPage({ params }: { params: Promise<{ id: s
                     </div>
 
                     <div>
-                      <FieldLabel className="mb-2">Stock Mínimo</FieldLabel>
+                      <FieldLabel htmlFor="page-stock-minimo" className="mb-2">Stock Mínimo</FieldLabel>
                       <input
+                        id="page-stock-minimo"
                         type="text"
                         inputMode="numeric"
                         value={formData.stockMinimo}

@@ -155,8 +155,9 @@ export default function ReprogramarModal({ visita, onClose, onConfirm }: Reprogr
 
             {/* Nueva fecha */}
             <div>
-              <FieldLabel required>Nueva fecha de pago</FieldLabel>
+              <FieldLabel htmlFor="reprogramarmodal-nueva-fecha-de-pago" required>Nueva fecha de pago</FieldLabel>
                             <CampoFecha
+                              id="reprogramarmodal-nueva-fecha-de-pago"
                 value={reprogramFecha}
                 onChange={(valorFecha) => {
                   const val = valorFecha
@@ -206,8 +207,9 @@ export default function ReprogramarModal({ visita, onClose, onConfirm }: Reprogr
 
             {/* Motivo */}
             <div>
-              <FieldLabel>Motivo</FieldLabel>
+              <FieldLabel htmlFor="reprogramarmodal-motivo">Motivo</FieldLabel>
               <textarea
+                id="reprogramarmodal-motivo"
                 value={reprogramMotivo}
                 onChange={(e) => setReprogramMotivo(e.target.value)}
                 rows={3}

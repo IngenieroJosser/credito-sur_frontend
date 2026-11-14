@@ -1092,10 +1092,11 @@ export default function ArticulosContent() {
             <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2 space-y-2">
-                  <FieldLabel required className="text-sm font-bold text-slate-700 mb-0">
+                  <FieldLabel htmlFor="articuloscontent-nombre" required className="text-sm font-bold text-slate-700 mb-0">
                     Nombre
                   </FieldLabel>
                   <input
+                    id="articuloscontent-nombre"
                     value={formData.nombre}
                     onChange={(e) => setFormData((p) => ({ ...p, nombre: e.target.value }))}
                     className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
@@ -1103,10 +1104,11 @@ export default function ArticulosContent() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <FieldLabel required className="text-sm font-bold text-slate-700 mb-0">
+                  <FieldLabel htmlFor="articuloscontent-codigo" required className="text-sm font-bold text-slate-700 mb-0">
                     Código
                   </FieldLabel>
                   <input
+                    id="articuloscontent-codigo"
                     value={formData.codigo}
                     onChange={(e) => setFormData((p) => ({ ...p, codigo: e.target.value }))}
                     className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
@@ -1135,8 +1137,9 @@ export default function ArticulosContent() {
                   )}
                 </div>
                 <div className="space-y-2">
-                  <FieldLabel className="text-sm font-bold text-slate-700 mb-0">Marca</FieldLabel>
+                  <FieldLabel htmlFor="articuloscontent-marca" className="text-sm font-bold text-slate-700 mb-0">Marca</FieldLabel>
                   <input
+                    id="articuloscontent-marca"
                     value={formData.marca}
                     onChange={(e) => setFormData((p) => ({ ...p, marca: e.target.value }))}
                     className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
@@ -1144,8 +1147,9 @@ export default function ArticulosContent() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <FieldLabel className="text-sm font-bold text-slate-700 mb-0">Modelo</FieldLabel>
+                  <FieldLabel htmlFor="articuloscontent-modelo" className="text-sm font-bold text-slate-700 mb-0">Modelo</FieldLabel>
                   <input
+                    id="articuloscontent-modelo"
                     value={formData.modelo}
                     onChange={(e) => setFormData((p) => ({ ...p, modelo: e.target.value }))}
                     className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
@@ -1153,12 +1157,13 @@ export default function ArticulosContent() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <FieldLabel required className="text-sm font-bold text-slate-700 mb-0">
+                  <FieldLabel htmlFor="articuloscontent-costo" required className="text-sm font-bold text-slate-700 mb-0">
                     Costo
                   </FieldLabel>
                   <div className="relative">
                     <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
                     <input
+                      id="articuloscontent-costo"
                       type="text"
                       inputMode="numeric"
                       value={formData.costo}
@@ -1171,12 +1176,13 @@ export default function ArticulosContent() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <FieldLabel required className="text-sm font-bold text-blue-700 mb-0">
+                  <FieldLabel htmlFor="articuloscontent-precio-de-contado" required className="text-sm font-bold text-blue-700 mb-0">
                     Precio de Contado
                   </FieldLabel>
                   <div className="relative">
                     <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-blue-400" />
                     <input
+                      id="articuloscontent-precio-de-contado"
                       type="text"
                       inputMode="numeric"
                       value={formData.precioContado}
@@ -1192,8 +1198,9 @@ export default function ArticulosContent() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <FieldLabel className="text-sm font-bold text-slate-700 mb-0">Stock</FieldLabel>
+                  <FieldLabel htmlFor="articuloscontent-stock" className="text-sm font-bold text-slate-700 mb-0">Stock</FieldLabel>
                   <input
+                    id="articuloscontent-stock"
                     inputMode="numeric"
                     value={formData.stock}
                     onChange={(e) =>
@@ -1204,10 +1211,11 @@ export default function ArticulosContent() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <FieldLabel className="text-sm font-bold text-slate-700 mb-0">
+                  <FieldLabel htmlFor="articuloscontent-stock-minimo" className="text-sm font-bold text-slate-700 mb-0">
                     Stock mínimo
                   </FieldLabel>
                   <input
+                    id="articuloscontent-stock-minimo"
                     inputMode="numeric"
                     value={formData.stockMinimo}
                     onChange={(e) =>
@@ -1219,10 +1227,11 @@ export default function ArticulosContent() {
                 </div>
                 {showEditarModal && (
                   <div className="md:col-span-2 space-y-2">
-                    <FieldLabel className="text-sm font-bold text-slate-700 mb-0">
+                    <FieldLabel htmlFor="articuloscontent-descripcion" className="text-sm font-bold text-slate-700 mb-0">
                       Descripción
                     </FieldLabel>
                     <textarea
+                      id="articuloscontent-descripcion"
                       value={formData.descripcion}
                       onChange={(e) => setFormData((p) => ({ ...p, descripcion: e.target.value }))}
                       className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 resize-none h-24"

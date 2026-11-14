@@ -1968,8 +1968,9 @@ const ModuloContableContent = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <FieldLabel required>Nombre</FieldLabel>
+                    <FieldLabel htmlFor="page-nombre" required>Nombre</FieldLabel>
                     <input
+                      id="page-nombre"
                       value={crearCajaForm.nombre}
                       onChange={(e) => setCrearCajaForm((p) => ({ ...p, nombre: e.target.value }))}
                       className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
@@ -1978,8 +1979,9 @@ const ModuloContableContent = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <FieldLabel required>Responsable</FieldLabel>
+                    <FieldLabel htmlFor="page-responsable" required>Responsable</FieldLabel>
                     <Selector
+                      id="page-responsable"
                       value={crearCajaForm.responsableId}
                       onChange={(v) => setCrearCajaForm((p) => ({ ...p, responsableId: v }))}
                       etiqueta="Responsable"
@@ -1994,10 +1996,11 @@ const ModuloContableContent = () => {
                   </div>
 
                   <div className="space-y-2 md:col-span-2">
-                    <FieldLabel required>Saldo inicial</FieldLabel>
+                    <FieldLabel htmlFor="page-saldo-inicial" required>Saldo inicial</FieldLabel>
                     <div className="relative">
                       <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
                       <input
+                        id="page-saldo-inicial"
                         type="text"
                         inputMode="numeric"
                         value={crearCajaForm.saldoInicialInput}
@@ -2060,16 +2063,18 @@ const ModuloContableContent = () => {
               <div className="p-6 space-y-5">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <FieldLabel required>Nombre</FieldLabel>
+                    <FieldLabel htmlFor="page-nombre-2" required>Nombre</FieldLabel>
                     <input
+                      id="page-nombre-2"
                       value={editarCajaForm.nombre}
                       onChange={(e) => setEditarCajaForm((p) => ({ ...p, nombre: e.target.value }))}
                       className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900"
                     />
                   </div>
                   <div className="space-y-2">
-                    <FieldLabel required>Responsable</FieldLabel>
+                    <FieldLabel htmlFor="page-responsable-2" required>Responsable</FieldLabel>
                     <Selector
+                      id="page-responsable-2"
                       value={editarCajaForm.responsableId}
                       onChange={(v) => setEditarCajaForm((p) => ({ ...p, responsableId: v }))}
                       etiqueta="Responsable"
@@ -2085,8 +2090,9 @@ const ModuloContableContent = () => {
 
                   {cajaSeleccionada.tipo === 'RUTA' && (
                     <div className="space-y-2 md:col-span-2">
-                      <FieldLabel required>Ruta</FieldLabel>
+                      <FieldLabel htmlFor="page-ruta" required>Ruta</FieldLabel>
                       <Selector
+                        id="page-ruta"
                         value={editarCajaForm.rutaId}
                         onChange={(v) => setEditarCajaForm((p) => ({ ...p, rutaId: v }))}
                         etiqueta="Ruta"
@@ -2107,7 +2113,7 @@ const ModuloContableContent = () => {
                   )}
 
                   <div className="space-y-2">
-                    <FieldLabel required>Estado</FieldLabel>
+                    <FieldLabel htmlFor="page-estado" required>Estado</FieldLabel>
                     <Selector
                       value={editarCajaForm.estado}
                       onChange={(v) =>
@@ -2133,6 +2139,7 @@ const ModuloContableContent = () => {
                     <div className="relative opacity-60">
                       <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
                       <input
+                        id="page-estado"
                         type="text"
                         readOnly
                         disabled
@@ -2229,7 +2236,11 @@ const ModuloContableContent = () => {
                 {/* Caja y Origen */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <FieldLabel required className="text-xs font-black text-slate-500 uppercase ml-1 mb-1.5">
+                    <FieldLabel
+                      htmlFor="movimiento-caja-afectada"
+                      required
+                      className="text-xs font-black text-slate-500 uppercase ml-1 mb-1.5"
+                    >
                         {movimientoForm.origen === 'COBRADOR' 
                            ? (movimientoForm.tipo === 'INGRESO' ? 'Caja Destino (Recibe)' : 'Caja Origen (Entrega)')
                            : 'Caja Afectada'}
@@ -2237,6 +2248,7 @@ const ModuloContableContent = () => {
                     <div className="relative">
                         <Wallet className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                         <Selector
+                          id="movimiento-caja-afectada"
                           value={movimientoForm.cajaId}
                           onChange={(v) => setMovimientoForm((p) => ({ ...p, cajaId: v }))}
                           etiqueta="Caja destino"
@@ -2255,10 +2267,11 @@ const ModuloContableContent = () => {
                   </div>
 
                   <div className="space-y-1.5">
-                    <FieldLabel required className="text-xs font-black text-slate-500 uppercase ml-1 mb-1.5">Origen del Capital</FieldLabel>
+                    <FieldLabel htmlFor="page-origen-del-capital" required className="text-xs font-black text-slate-500 uppercase ml-1 mb-1.5">Origen del Capital</FieldLabel>
                     <div className="relative">
                         <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                         <Selector
+                          id="page-origen-del-capital"
                           value={movimientoForm.origen}
                           onChange={(v) => {
                             setMovimientoForm((p) => ({
@@ -2287,10 +2300,15 @@ const ModuloContableContent = () => {
                        </span>
                     </div>
                     <div className="space-y-1.5">
-                      <FieldLabel required className="text-[10px] font-bold text-orange-700 uppercase ml-1 mb-1.5">
+                      <FieldLabel
+                        htmlFor="movimiento-caja-contrapartida"
+                        required
+                        className="text-[10px] font-bold text-orange-700 uppercase ml-1 mb-1.5"
+                      >
                         {movimientoForm.tipo === 'INGRESO' ? '¿De qué caja sale el dinero?' : '¿A qué caja va el dinero?'}
                       </FieldLabel>
                       <Selector
+                          id="movimiento-caja-contrapartida"
                           value={movimientoForm.cajaOrigenId}
                           onChange={(v) => setMovimientoForm((p) => ({ ...p, cajaOrigenId: v }))}
                           etiqueta="Caja de origen"
@@ -2324,10 +2342,19 @@ const ModuloContableContent = () => {
                     para que el backend asigne la cuenta correcta. */}
                 {movimientoForm.origen === 'EMPRESA' && (
                   <div className="space-y-1.5">
-                    <FieldLabel required className="text-xs font-bold text-slate-500 uppercase ml-1 mb-1.5">
+                    {/* Grupo de botones: `aria-labelledby`, no `htmlFor`. */}
+                    <FieldLabel
+                      id="movimiento-categoria"
+                      required
+                      className="text-xs font-bold text-slate-500 uppercase ml-1 mb-1.5"
+                    >
                       ¿Qué tipo de {movimientoForm.tipo === 'INGRESO' ? 'entrada' : 'salida'} es?
                     </FieldLabel>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div
+                      role="group"
+                      aria-labelledby="movimiento-categoria"
+                      className="grid grid-cols-1 sm:grid-cols-2 gap-2"
+                    >
                       {categoriasPorTipo(movimientoForm.tipo === 'INGRESO' ? 'INGRESO' : 'EGRESO').map((c) => {
                         const activa = movimientoForm.categoriaId === c.code
                         return (
@@ -2352,10 +2379,11 @@ const ModuloContableContent = () => {
                 )}
 
                 <div className="space-y-1.5">
-                  <FieldLabel required className="text-xs font-bold text-slate-500 uppercase ml-1 mb-1.5">Monto de Operación</FieldLabel>
+                  <FieldLabel htmlFor="page-monto-de-operacion" required className="text-xs font-bold text-slate-500 uppercase ml-1 mb-1.5">Monto de Operación</FieldLabel>
                   <div className="relative">
                     <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
                     <input
+                      id="page-monto-de-operacion"
                       type="text"
                       inputMode="numeric"
                       value={movimientoForm.montoInput}

@@ -818,10 +818,11 @@ export default function CreacionCreditoArticulo({
                         </div>
    
                         <div className="space-y-2">
-                          <FieldLabel required className="text-xs font-bold text-slate-700 uppercase mb-0" ayuda="cuotaInicialDeArticulo" deAyuda="la cuota inicial">Cuota Inicial</FieldLabel>
+                          <FieldLabel htmlFor="creacioncreditoarticulo-cuota-inicial" required className="text-xs font-bold text-slate-700 uppercase mb-0" ayuda="cuotaInicialDeArticulo" deAyuda="la cuota inicial">Cuota Inicial</FieldLabel>
                           <div className="relative">
                             <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                             <input
+                              id="creacioncreditoarticulo-cuota-inicial"
                               type="text"
                               inputMode="numeric"
                               value={cuotaInicial ? formatCOPInputValue(String(cuotaInicial)) : ''}
