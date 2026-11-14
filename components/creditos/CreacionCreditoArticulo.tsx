@@ -558,7 +558,17 @@ export default function CreacionCreditoArticulo({
                         <tr>
                           <th className="px-6 py-4 font-bold text-slate-700">Cliente</th>
                           <th className="px-6 py-4 font-bold text-slate-700">Identificación</th>
-                          <th className="px-6 py-4 font-bold text-slate-700">Saldo Disp.</th>
+                          {/*
+                            * Aquí había una columna «Saldo Disp.» que pintaba
+                            * `formatCurrency(10000000)`: diez millones fijos,
+                            * iguales para todos los clientes. No es un dato que
+                            * el sistema tenga —no existe cupo por cliente en
+                            * ninguna parte— sino un número escrito a mano en
+                            * una pantalla donde se decide cuánto prestar.
+                            *
+                            * Se quita, no se pone en cero: un cero ahí diría
+                            * «este cliente no tiene cupo», que es otra mentira.
+                            */}
                           <th className="px-6 py-4 font-bold text-slate-700 text-right">Acción</th>
                         </tr>
                       </thead>
@@ -581,7 +591,6 @@ export default function CreacionCreditoArticulo({
                               </div>
                             </td>
                             <td className="px-6 py-4 text-slate-600 font-medium">{cliente.dni}</td>
-                            <td className="px-6 py-4 text-emerald-600 font-bold">{formatCurrency(10000000)}</td>
                             <td className="px-6 py-4 text-right">
                               <div className={`inline-flex items-center justify-center w-6 h-6 rounded-full transition-all ${
                                 String(clienteId) === String(cliente.id) ? 'bg-blue-600 text-white scale-100' : 'border-2 border-slate-200 text-transparent scale-90'

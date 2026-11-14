@@ -523,22 +523,35 @@ export default function DeudorasCobradorCard() {
                 {deudoresActivos.map((d) => (
                   <div key={d.cobradorId} className="border border-slate-100 rounded-xl overflow-hidden">
 
-                    {/* Fila del cobrador */}
+                    {/*
+                      * Fila del cobrador. En el teléfono va en dos líneas.
+                      *
+                      * En una sola, el bloque de la derecha —cifra, «DEBE»,
+                      * botón de abono y flecha— es `shrink-0` y se lleva unos
+                      * 180 px de los 358 que deja la tarjeta en un móvil de
+                      * 390. Al nombre no le quedaba sitio: en la captura salía
+                      * «C...», una letra, con la cifra encima del rótulo.
+                      *
+                      * Quien lee esto necesita las dos cosas: a quién se le
+                      * debe y cuánto. Ninguna puede comerse a la otra.
+                      */}
                     <div
-                      className="flex items-center gap-3 px-4 py-3 bg-slate-50/60 hover:bg-slate-100/50 transition-colors cursor-pointer select-none"
+                      className="flex flex-col items-start gap-2 px-4 py-3 bg-slate-50/60 hover:bg-slate-100/50 transition-colors cursor-pointer select-none sm:flex-row sm:items-center sm:gap-3"
                       onClick={() => setExpandedRow(expandedRow === d.cobradorId ? null : d.cobradorId)}
                     >
-                      <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center shrink-0 border border-slate-200">
-                        <User className="h-3.5 w-3.5 text-slate-400" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-black text-slate-900 truncate">{d.nombreCobrador}</p>
-                        <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">
-                          {d.rol.replace('_', ' ')} · {d.totalEventos} evento(s)
-                        </p>
+                      <div className="flex w-full items-center gap-3 sm:w-auto sm:flex-1 sm:min-w-0">
+                        <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center shrink-0 border border-slate-200">
+                          <User className="h-3.5 w-3.5 text-slate-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-black text-slate-900 truncate">{d.nombreCobrador}</p>
+                          <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">
+                            {d.rol.replace('_', ' ')} · {d.totalEventos} evento(s)
+                          </p>
+                        </div>
                       </div>
 
-                      <div className="flex items-center gap-2 shrink-0">
+                      <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:shrink-0 sm:justify-end">
                         <div className="text-right">
                           <p className="text-sm font-black text-rose-600 flex items-center gap-0.5">
                             <Minus className="h-3 w-3 stroke-[3]" />

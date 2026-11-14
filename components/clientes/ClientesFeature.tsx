@@ -36,6 +36,11 @@ import { WifiOff } from 'lucide-react'
 import { ExportButton } from '@/components/ui/ExportButton'
 import { exportService } from '@/services/export-service'
 import Tooltip from '@/components/ui/Tooltip'
+import {
+  estadoDeEnvioDeCliente,
+  etiquetaDeEstadoDeEnvio,
+  explicacionDeEstadoDeEnvio,
+} from '@/lib/clientes/estado-de-envio'
 import GrupoDeFiltros from '@/components/filtros/GrupoDeFiltros'
 
 // Tipos locales
@@ -617,10 +622,11 @@ export default function ClientesFeature({
                   ))
                 ) : currentItems.length > 0 ? (
                   currentItems.map((cliente, index) => {
-                    const isPending =
-                      cliente.estadoAprobacion === 'PENDIENTE' ||
-                      cliente.id?.includes('offline') ||
-                      cliente.id?.includes('temp')
+                    // Las dos situaciones, decididas en un solo sitio:
+                    // `lib/clientes/estado-de-envio.ts`. La tarjeta de móvil
+                    // lee lo mismo.
+                    const estadoDeEnvio = estadoDeEnvioDeCliente(cliente)
+                    const isPending = estadoDeEnvio !== null
                     const diasMoraUI = getDiasMoraCliente(cliente)
                     const diasMoraConocidos = getDiasMoraOrNull(cliente)
                     const estadoCuenta = getEstadoCuentaFiltro(cliente)
@@ -667,25 +673,16 @@ export default function ClientesFeature({
                                 {cliente.nombres || cliente.apellidos
                                   ? `${cliente.nombres} ${cliente.apellidos}`
                                   : 'Cliente sin nombre'}
-                                {isPending && (
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-amber-100 text-[9px] font-black text-amber-700 uppercase tracking-tighter border border-amber-200">
-                                    {/*
-                                      * El id de un cliente creado sin señal es
-                                      * `temp-<marca de tiempo>` (lo acuñan
-                                      * `NuevoClienteModal` y `clientes-service`),
-                                      * nunca `offline-…`. Preguntando solo por
-                                      * «offline» la etiqueta salía siempre
-                                      * «PENDIENTE», que en este sistema
-                                      * significa «pendiente de aprobación» y no
-                                      * «todavía en este teléfono»: dos cosas
-                                      * distintas que el cobrador necesita
-                                      * distinguir.
-                                      */}
-                                    {cliente.id?.includes('temp') ||
-                                    cliente.id?.includes('offline')
-                                      ? 'SIN ENVIAR'
-                                      : 'PENDIENTE'}
-                                  </span>
+                                {estadoDeEnvio && (
+                                  <Tooltip
+                                    texto={
+                                      explicacionDeEstadoDeEnvio(estadoDeEnvio) || ''
+                                    }
+                                  >
+                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-amber-100 text-[9px] font-black text-amber-700 uppercase tracking-tighter border border-amber-200">
+                                      {etiquetaDeEstadoDeEnvio(estadoDeEnvio)}
+                                    </span>
+                                  </Tooltip>
                                 )}
                               </div>
                               <div className="text-xs text-slate-500 flex items-center mt-0.5 font-mono font-medium">
@@ -848,10 +845,16 @@ export default function ClientesFeature({
             ))}
           {!cargando &&
             currentItems.map((cliente, index) => {
-              const isPending =
-                cliente.estadoAprobacion === 'PENDIENTE' ||
-                cliente.id?.includes('offline') ||
-                cliente.id?.includes('temp')
+              /*
+               * Aquí estaba el fallo: esta tarjeta —la del teléfono, la que usa
+               * el cobrador— imprimía «OFFLINE» tanto para el cliente que
+               * todavía no salió del dispositivo como para el que ya está en el
+               * servidor esperando aprobación. En una captura de `/clientes` en
+               * móvil salían los 26 clientes de la base marcados «OFFLINE», y
+               * ninguno se había creado sin señal.
+               */
+              const estadoDeEnvio = estadoDeEnvioDeCliente(cliente)
+              const isPending = estadoDeEnvio !== null
               const diasMoraUI = Number(
                 diasMoraByClientId[String(cliente?.id || '')] ?? cliente?.diasMora ?? 0,
               )
@@ -887,9 +890,9 @@ export default function ClientesFeature({
                       <div>
                         <div className="font-bold text-slate-900 flex items-center gap-2">
                           {cliente.nombres} {cliente.apellidos}
-                          {isPending && (
+                          {estadoDeEnvio && (
                             <span className="px-1.5 py-0.5 rounded-md bg-amber-100 text-[8px] font-black text-amber-700 uppercase tracking-tighter">
-                              OFFLINE
+                              {etiquetaDeEstadoDeEnvio(estadoDeEnvio)}
                             </span>
                           )}
                         </div>

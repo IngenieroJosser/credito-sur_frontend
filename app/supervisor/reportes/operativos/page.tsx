@@ -33,6 +33,19 @@ const ReportesOperativosSupervisorPage = () => {
   const [totalRecaudo, setTotalRecaudo] = useState(0)
   const [totalObjetivo, setTotalObjetivo] = useState(0)
   const [porcentajeGlobal, setPorcentajeGlobal] = useState(0)
+  /*
+   * Los tres que faltaban.
+   *
+   * El endpoint ya los devuelve —`totalPrestamosNuevos`, `totalAfiliaciones`
+   * y `totalMontoPrestamosNuevos`— y la copia de esta misma pantalla para el
+   * admin los lee. Aquí estaban escritos a mano: «3 préstamos nuevos»,
+   * «3 clientes nuevos», «total colocado $450.000» y «en 2 rutas diferentes»,
+   * fijos, al lado de dos tarjetas que sí traían datos de verdad. Nada en la
+   * pantalla decía cuáles eran cuáles.
+   */
+  const [prestamosNuevos, setPrestamosNuevos] = useState(0)
+  const [montoPrestamosNuevos, setMontoPrestamosNuevos] = useState(0)
+  const [clientesNuevos, setClientesNuevos] = useState(0)
 
   const handleExportExcel = () => {
     reportesCoordinadorService.exportReport({ period }, 'excel').catch(console.error)
@@ -54,6 +67,9 @@ const ReportesOperativosSupervisorPage = () => {
       setTotalRecaudo(data.totalRecaudo || 0)
       setTotalObjetivo(data.totalMeta || 0)
       setPorcentajeGlobal(data.porcentajeGlobal || 0)
+      setPrestamosNuevos(data.totalPrestamosNuevos || 0)
+      setMontoPrestamosNuevos(data.totalMontoPrestamosNuevos || 0)
+      setClientesNuevos(data.totalAfiliaciones || 0)
     } catch (err) {
       console.error('Error cargando reportes operativos:', err)
     }
@@ -152,13 +168,15 @@ const ReportesOperativosSupervisorPage = () => {
                 </p>
               </div>
               <h3 className="whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold text-slate-900 mt-2 leading-tight">
-                3
+                {prestamosNuevos}
               </h3>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-medium text-slate-500">
                 Total colocado:{' '}
-                <span className="text-slate-900 font-bold">{formatCurrency(450000)}</span>
+                <span className="text-slate-900 font-bold">
+                  {formatCurrency(montoPrestamosNuevos)}
+                </span>
               </span>
             </div>
           </div>
@@ -174,11 +192,16 @@ const ReportesOperativosSupervisorPage = () => {
                 </p>
               </div>
               <h3 className="whitespace-nowrap text-[clamp(1.35rem,2.6vw,1.5rem)] font-bold text-slate-900 mt-2 leading-tight">
-                3
+                {clientesNuevos}
               </h3>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-500 font-medium">En 2 rutas diferentes</span>
+              <span className="text-xs text-slate-500 font-medium">
+                {/* «En 2 rutas diferentes» estaba escrito a mano. El número de
+                    rutas no viene en este reporte, así que se dice lo que sí
+                    se sabe. */}
+                En las rutas que supervisas
+              </span>
             </div>
           </div>
 
