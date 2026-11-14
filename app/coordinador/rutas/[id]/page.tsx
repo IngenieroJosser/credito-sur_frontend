@@ -73,8 +73,15 @@ import {
   normalizeDateKey,
   shouldExcludeVisitaFromOperationalMeta,
   shouldIncludeVisitaInRutaHoyKpis,
-  isTodayOrPastBogota,
+  debeMostrarseEnListaDeRuta,
 } from '@/lib/rutas-core'
+import { useHoyBogota } from '@/hooks/use-hoy-bogota'
+import {
+  aAlcanceDeVisita,
+  ALCANCE_POR_DEFECTO,
+  OPCIONES_DE_ALCANCE,
+  type AlcanceDeVisita,
+} from '@/lib/filtros/alcance-de-visita'
 import {
   isPagoConfirmadoParaRecaudo,
   isPagoCierrePendiente,
@@ -185,6 +192,23 @@ const LegacyDetalleRutaPage = () => {
   const [searchQuery, setSearchQuery] = useState('')
 
   const [periodoRutaFiltro, setPeriodoRutaFiltro] = useState<PeriodoDeFiltro>(PERIODO_POR_DEFECTO)
+  /**
+   * Qué parte de la jornada del cobrador se enseña.
+   *
+   * Arranca en `PENDIENTES`: la lista que el cobrador tiene delante. Antes
+   * esta pantalla preguntaba solo por la fecha —`isTodayOrMora`— y por eso
+   * enseñaba clientes ya cobrados o ya gestionados que el cobrador no veía, sin
+   * decirlo. El porqué está en `lib/filtros/alcance-de-visita.ts`.
+   */
+  const [alcanceVisitas, setAlcanceVisitas] = useState<AlcanceDeVisita>(ALCANCE_POR_DEFECTO)
+  /**
+   * Hoy en Bogotá, y recalculado al cambiar el día.
+   *
+   * Antes el memo de abajo tomaba el día con `getBogotaDateKey(new Date())`
+   * dentro de sí mismo: sin dependencia, la pantalla se quedaba con el día en
+   * que se montó.
+   */
+  const hoyBogotaDeLaLista = useHoyBogota()
 
   const [rutaActual, setRutaActual] = useState<{
     id?: string
@@ -1069,9 +1093,15 @@ const LegacyDetalleRutaPage = () => {
         v.direccion.toLowerCase().includes(searchQuery.toLowerCase()),
     )
 
-    // FILTRO CRÍTICO: Si ya pagó, no debe aparecer en la lista de gestión pendiente
-
-    filtradas = filtradas.filter((v) => v.estado !== 'pagado')
+    /*
+     * Aquí había un `filtradas.filter((v) => v.estado !== 'pagado')` rotulado
+     * «FILTRO CRÍTICO». Lo hace ya `debeMostrarseEnListaDeRuta` con
+     * `PENDIENTES`, que es el valor por defecto, y además mira el estado de
+     * gestión, lo revertido y el saldo, no solo esa cadena.
+     *
+     * Dejarlo aquí arriba rompía el filtro nuevo: con «Ya atendidas hoy» se
+     * quitaban antes justo las visitas que se querían ver.
+     */
 
     // Aplicar filtro de periodo
 
@@ -1094,13 +1124,16 @@ const LegacyDetalleRutaPage = () => {
       * pantalla mostraba la ruta de otro dia. Y este proyecto tiene la regla
       * escrita: todas las fechas van en hora de Bogota.
       *
-      * `isTodayOrPastBogota` es el ayudante compartido, y es el que ya usaba la
-      * pantalla del supervisor.
+      * `isTodayOrPastBogota` era el ayudante compartido de la fecha, pero la
+      * fecha no era toda la regla: el cobrador usaba
+      * `isVisitaExigibleHoy`, que además deja fuera lo ya gestionado, lo
+      * revertido y lo sin saldo. De ahí que esta pantalla enseñara clientes
+      * que él no tenía. Ahora las dos van por
+      * `debeMostrarseEnListaDeRuta`, y la diferencia es un filtro con su
+      * nombre.
       */
-    const isTodayOrMora = (dateStr: string) =>
-      !dateStr || isTodayOrPastBogota(dateStr)
-
-    const filterByDate = (v: VisitaRuta) => searchQuery || isTodayOrMora(v.proximaVisita)
+    const filterByDate = (v: VisitaRuta) =>
+      searchQuery || debeMostrarseEnListaDeRuta(v, hoyBogotaDeLaLista, alcanceVisitas)
 
     const ordenadas = ordenarVisitasRutaActual(filtradas)
 
@@ -1114,8 +1147,20 @@ const LegacyDetalleRutaPage = () => {
       DIA: ordenadas.filter((v) => v.periodoRuta === 'DIA' && filterByDate(v)),
     }
 
-    return { visitasAgrupadas: agrupar, totalMostradas: filtradas.length }
-  }, [visitasCobrador, searchQuery, periodoRutaFiltro])
+    /*
+     * Lo mostrado se cuenta de los grupos, no de `filtradas`.
+     *
+     * Antes era `filtradas.length`, que es el conteo de ANTES de aplicar
+     * `filterByDate`: con visitas que no pasaban ese filtro, los cuatro grupos
+     * salían vacíos y el aviso de «no se encontraron visitas» no aparecía,
+     * porque el contador decía que sí había. La pantalla quedaba en blanco sin
+     * explicación.
+     */
+    const totalEnGrupos =
+      agrupar.MES.length + agrupar.QUINCENA.length + agrupar.SEMANA.length + agrupar.DIA.length
+
+    return { visitasAgrupadas: agrupar, totalMostradas: totalEnGrupos }
+  }, [visitasCobrador, searchQuery, periodoRutaFiltro, alcanceVisitas, hoyBogotaDeLaLista])
 
   const handleGuardarGasto = (e: React.FormEvent) => {
     e.preventDefault()
@@ -1297,6 +1342,26 @@ const LegacyDetalleRutaPage = () => {
                     valor={periodoRutaFiltro}
                     onChange={(v) => setPeriodoRutaFiltro(aPeriodoDeFiltro(v))}
                     opciones={OPCIONES_DE_PERIODO}
+                  />
+                </div>
+              </div>
+
+              {/*
+                * Qué parte de la jornada se ve. Arranca en la lista del
+                * cobrador; lo ya atendido está a un toque y con su nombre.
+                */}
+              <div className="mt-3 flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
+                <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Qué visitas se ven
+                </div>
+
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  <GrupoDeFiltros
+                    sinMarco
+                    nombre="Qué visitas se ven"
+                    valor={alcanceVisitas}
+                    onChange={(v) => setAlcanceVisitas(aAlcanceDeVisita(v))}
+                    opciones={OPCIONES_DE_ALCANCE}
                   />
                 </div>
               </div>

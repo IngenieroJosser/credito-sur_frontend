@@ -5,6 +5,10 @@ import type { ClienteCierrePendiente } from '@/types/rutas/cierre-pendiente'
 import type { CuotaOperativa, VisitaParcial } from '@/lib/types/cobranza'
 import type { PrestamoParcial, RutaDeLista } from '@/types/domain'
 import type { ContextoRegularizacion } from '@/types/rutas/cierre-pendiente'
+import {
+  ALCANCE_POR_DEFECTO,
+  type AlcanceDeVisita,
+} from '@/lib/filtros/alcance-de-visita'
 
 /**
  * Saca el id de la cuota objetivo de un objeto de visita.
@@ -942,6 +946,76 @@ export const isVisitaExigibleHoy = (
 
   if (!proximaKey) return true
   return proximaKey <= hoyBogotaKey
+}
+
+/**
+ * Una visita que YA se atendió hoy.
+ *
+ * Es el otro lado de `isVisitaExigibleHoy`, y está escrita en positivo a
+ * propósito: la negación de la regla exigible mete también lo que no tiene
+ * nada que ver con el día de hoy —un crédito sin saldo, una fecha futura— y
+ * eso no es «atendido», es «no toca».
+ *
+ * Atendido significa que alguien pasó por ahí hoy: se recaudó algo, o quedó un
+ * estado de gestión escrito (pagado, gestionado, reprogramado, ausente), o se
+ * revirtió o rechazó un pago. Lo revertido entra a propósito: es justo lo que
+ * quien supervisa tiene que ver.
+ *
+ * La fecha efectiva tiene que ser de hoy o anterior. Sin esa guarda, una
+ * visita con fecha de la semana que viene y un estado viejo de gestión se
+ * colaría en la jornada de hoy.
+ */
+export const visitaAtendidaHoy = (
+  visita: VisitaParcial | null | undefined,
+  hoyBogotaKey: string,
+): boolean => {
+  if (!visita) return false
+
+  const proximaKey = visita?.proximaVisita ? normalizeDateKey(String(visita.proximaVisita)) : ''
+  const prorrogaKey = visita?.fechaProrroga ? normalizeDateKey(String(visita.fechaProrroga)) : ''
+  const fechaEfectivaKey = visita?.enProrroga ? prorrogaKey || proximaKey : proximaKey
+  if (fechaEfectivaKey && hoyBogotaKey && fechaEfectivaKey > hoyBogotaKey) return false
+
+  if (Number(visita?.recaudadoDelDia || 0) > 0) return true
+
+  const estadoGestionRaw = String(visita?.estadoGestion || visita?.estadoVisita || '').toUpperCase()
+  const estado = String(visita?.estado || '')
+    .toLowerCase()
+    .replace(/\s+/g, '_')
+
+  return (
+    estadoGestionRaw.includes('PAGAD') ||
+    estadoGestionRaw.includes('GESTION') ||
+    estadoGestionRaw.includes('REPROGRAM') ||
+    estadoGestionRaw.includes('AUSENTE') ||
+    estadoGestionRaw.includes('REVERT') ||
+    estadoGestionRaw.includes('RECHAZ') ||
+    Boolean(visita?.esRevertido) ||
+    estado === 'pagado' ||
+    estado === 'reprogramado' ||
+    estado.includes('revert') ||
+    estado.includes('rechaz')
+  )
+}
+
+/**
+ * La única regla que decide qué visitas se enseñan en una lista de ruta.
+ *
+ * Antes había tres, una por pantalla, y ninguna lo decía: el porqué y la
+ * medición están en `lib/filtros/alcance-de-visita.ts`. Aquí solo vive la
+ * decisión, para que las tres pantallas la compartan.
+ *
+ * `PENDIENTES` es la lista del cobrador, y es el valor por defecto en todas.
+ */
+export const debeMostrarseEnListaDeRuta = (
+  visita: VisitaParcial | null | undefined,
+  hoyBogotaKey: string,
+  alcance: AlcanceDeVisita = ALCANCE_POR_DEFECTO,
+): boolean => {
+  if (!visita) return false
+  if (alcance === 'TODAS') return true
+  if (alcance === 'ATENDIDAS') return visitaAtendidaHoy(visita, hoyBogotaKey)
+  return isVisitaExigibleHoy(visita, hoyBogotaKey)
 }
 
 export const shouldMarkVisitaAsPagado = (params: {

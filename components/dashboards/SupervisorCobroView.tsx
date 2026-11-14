@@ -143,7 +143,7 @@ import {
   getBogotaDateKey,
   getBogotaRangeByPeriod,
   isCuotaNoPagada,
-  isTodayOrPastBogota,
+  debeMostrarseEnListaDeRuta,
   isVisitaExigibleHoy,
   normalizeDateKey,
   resolveFechaEfectivaCuota,
@@ -177,6 +177,12 @@ import {
   PERIODO_POR_DEFECTO,
   type PeriodoDeFiltro,
 } from '@/lib/filtros/periodo-de-ruta'
+import {
+  aAlcanceDeVisita,
+  ALCANCE_POR_DEFECTO,
+  OPCIONES_DE_ALCANCE,
+  type AlcanceDeVisita,
+} from '@/lib/filtros/alcance-de-visita'
 import { useHoyBogota } from '@/hooks/use-hoy-bogota'
 
 
@@ -629,6 +635,16 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
 
   const [historialRefreshKey, setHistorialRefreshKey] = useState(0)
   const [periodoRutaFiltro, setPeriodoRutaFiltro] = useState<PeriodoDeFiltro>(PERIODO_POR_DEFECTO)
+  /**
+   * Qué parte de la jornada del cobrador se enseña.
+   *
+   * Arranca en `PENDIENTES`, que es la lista que el cobrador tiene delante.
+   * Antes esta pantalla usaba una regla más ancha —`montoCuota > 0 ||
+   * isTodayOrMora(...)`— sin decirlo, así que enseñaba clientes que el
+   * cobrador no veía y otros con fecha futura. El porqué está en
+   * `lib/filtros/alcance-de-visita.ts`.
+   */
+  const [alcanceVisitas, setAlcanceVisitas] = useState<AlcanceDeVisita>(ALCANCE_POR_DEFECTO)
   const refreshHistorialOperativo = useCallback(() => { setHistorialRefreshKey((prev) => prev + 1) }, [])
   const [showMisClientes, setShowMisClientes] = useState(false)
 
@@ -2587,6 +2603,33 @@ const handleRegistrarPago = useCallback(async (
 
                   </div>
 
+                  {/*
+                    * Qué parte de la jornada se ve.
+                    *
+                    * Antes esta pantalla enseñaba una lista más ancha que la
+                    * del cobrador y no lo decía. Ahora la diferencia es una
+                    * decisión con su nombre, y arranca en la lista de él.
+                    */}
+                  <div className="mt-3 flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
+
+                    <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                      Qué visitas se ven
+                    </div>
+
+                    <div className="flex gap-2 overflow-x-auto pb-1">
+
+                      <GrupoDeFiltros
+                        sinMarco
+                        nombre="Qué visitas se ven"
+                        valor={alcanceVisitas}
+                        onChange={(v) => setAlcanceVisitas(aAlcanceDeVisita(v))}
+                        opciones={OPCIONES_DE_ALCANCE}
+                      />
+
+                    </div>
+
+                  </div>
+
                 </div>
 
               )}
@@ -2830,12 +2873,8 @@ const handleRegistrarPago = useCallback(async (
 
 
 
-                      const isTodayOrMora = (dateStr: string) => {
-                        if (!dateStr) return true;
-                        return isTodayOrPastBogota(dateStr);
-                      };
-
-                      const filterByDate = (v: VisitaRuta) => searchQuery || Number(v.montoCuota) > 0 || isTodayOrMora(v.proximaVisita);
+                      const filterByDate = (v: VisitaRuta) =>
+                        searchQuery || debeMostrarseEnListaDeRuta(v, hoyBogotaKey, alcanceVisitas);
 
                       const porPeriodo = {
                         DIA: visitasCobrador.filter(v => v.periodoRuta === 'DIA' && filterByDate(v)),

@@ -174,7 +174,7 @@ import {
   getBogotaDateKey,
   getBogotaRangeByPeriod,
   isCuotaNoPagada,
-  isTodayOrPastBogota,
+  debeMostrarseEnListaDeRuta,
   isVisitaExigibleHoy,
   normalizeDateKey,
   resolveFechaEfectivaCuota,
@@ -3829,13 +3829,18 @@ const VistaCobrador = () => {
                   })()}
 
                   {(() => {
-                    const isTodayOrMora = (dateStr: string) => {
-                      if (!dateStr) return true
-                      return isTodayOrPastBogota(dateStr)
-                    }
-
+                    /*
+                     * La lista del cobrador va siempre con `PENDIENTES`, y no
+                     * lleva el filtro de alcance que sí tienen el supervisor y
+                     * el coordinador: volver a enseñarle un cliente que ya
+                     * pagó hoy lo manda a cobrarle dos veces.
+                     *
+                     * El `isTodayOrMora` que vivía aquí era código muerto
+                     * —`filterByDate` ya no lo llamaba— y era la copia que
+                     * dejaba ver la diferencia entre las tres reglas.
+                     */
                     const filterByDate = (v: VisitaParcial) =>
-                      searchQuery || isVisitaExigibleHoy(v, hoyBogotaKey)
+                      searchQuery || debeMostrarseEnListaDeRuta(v, hoyBogotaKey, 'PENDIENTES')
 
                     const porPeriodo = {
                       DIA: visitasCobrador.filter(
