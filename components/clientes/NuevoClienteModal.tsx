@@ -333,11 +333,24 @@ export default function NuevoClienteModal({
         resultado = await clientesService.crear(payload)
       }
 
+      /*
+       * El aviso dice qué pasa DESPUÉS, no solo que se envió.
+       *
+       * Un cliente recién creado no tiene ruta: en este sistema la ruta la
+       * lleva el crédito (`Prestamo.rutaId`) y `AsignacionRuta` se deriva de
+       * los créditos (ver `sincronizar-asignaciones.ts`). Y las listas del
+       * cobrador y del supervisor filtran por asignación activa.
+       *
+       * Resultado: quien lo crea no lo vuelve a ver en su lista, y lo normal
+       * es pensar que no se guardó y crearlo otra vez. Esto lo dice antes de
+       * que pase.
+       */
       showNotification(
         'success',
         esEdicion
           ? 'El cliente ha sido actualizado exitosamente'
-          : 'Solicitud de cliente enviada correctamente',
+          : 'Solicitud enviada. El cliente entra a tu ruta cuando se le cree ' +
+            'el crédito: hasta entonces no sale en tu lista.',
         esEdicion ? 'Cliente Actualizado' : 'Solicitud Enviada',
       )
 

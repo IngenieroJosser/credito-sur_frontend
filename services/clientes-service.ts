@@ -196,6 +196,17 @@ export interface CrearClienteDto {
   puntaje?: number
   enListaNegra?: boolean
   creadoPorId?: string
+  /**
+   * OJO: el backend lo DESCARTA al crear y al actualizar.
+   *
+   * No es un olvido: en este sistema la ruta la lleva el crédito
+   * (`Prestamo.rutaId`) y `AsignacionRuta` se deriva de los créditos del
+   * cliente —lo hace `sincronizar-asignaciones.ts`—. Un cliente sin crédito
+   * no tiene ruta, a propósito.
+   *
+   * Mandarlo aquí no asigna nada. Para que el cliente entre a una ruta hay
+   * que crearle el crédito en esa ruta.
+   */
   rutaId?: string
   observaciones?: string
   /**
@@ -248,6 +259,7 @@ export interface ActualizarClienteDto {
   puntaje?: number
   dni?: string // Permitir dni si es editable
   enListaNegra?: boolean
+  /** Igual que en `CrearClienteDto`: el backend lo descarta. Ver la nota de allá. */
   rutaId?: string
   /** Igual que en `CrearClienteDto`: el backend lo descarta en silencio. Ver la nota de alla. */
   categoriaId?: string
