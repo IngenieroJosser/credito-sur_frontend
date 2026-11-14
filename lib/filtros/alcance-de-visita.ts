@@ -3,34 +3,42 @@
  *
  * ── Lo que pasaba ───────────────────────────────────────────────────────────
  *
- * Las tres pantallas que miran la ruta de un cobrador —la del cobrador, la del
- * supervisor y la del coordinador— decidían con TRES reglas distintas a qué
+ * Las tres pantallas que trabajan la ruta de un cobrador —la del cobrador, la
+ * del supervisor y la del coordinador— decidían con TRES reglas distintas a qué
  * clientes enseñaba cada una, y ninguna lo decía en pantalla:
  *
  *   cobrador      isVisitaExigibleHoy(v, hoy)
  *   supervisor    Number(v.montoCuota) > 0 || isTodayOrMora(v.proximaVisita)
  *   coordinador   isTodayOrMora(v.proximaVisita)
  *
- * `isVisitaExigibleHoy` es la regla compartida y la más estricta: deja fuera
- * lo ya gestionado hoy, lo revertido o rechazado, lo que no tiene saldo y lo
- * que ya se cobró en esta pasada. `isTodayOrMora` solo pregunta por la fecha.
+ * `isVisitaExigibleHoy` es la regla compartida y la más estricta: deja fuera lo
+ * ya gestionado hoy, lo revertido o rechazado, lo que no tiene saldo y lo que
+ * ya se cobró en esta pasada. `isTodayOrMora` solo pregunta por la fecha.
  *
- * Así que el supervisor y el coordinador veían clientes que el cobrador no
- * tenía en su lista —unos porque ya estaban cobrados, otros porque su fecha es
- * futura y solo tenían cuota—, y la diferencia no estaba escrita en ningún
- * sitio: era el resultado de que cada pantalla se escribió aparte.
+ * ── Por qué importa más de lo que parecía ───────────────────────────────────
+ *
+ * Las tres son pantallas de TRABAJO, no de consulta. El supervisor y el
+ * coordinador registran pagos desde ahí (`pagosService.registrarPago`), y el
+ * supervisor además lo hace contra su propia caja —`SupervisorCobroView` lo
+ * resuelve así de forma explícita, y `cajas.service.ts` le reconoce la caja de
+ * la ruta que supervisa—. O sea que sale a cobrar a las rutas que lleva.
+ *
+ * Entonces no eran tres vistas del mismo trabajo con distinto detalle: eran dos
+ * personas que pueden cobrar en la misma ruta el mismo día viendo dos listas
+ * distintas de clientes, sin que ninguna de las dos pudiera saber en qué se
+ * diferenciaban.
  *
  * ── Por qué un filtro y no «la regla buena» ─────────────────────────────────
  *
- * Unificar sin más, con la regla del cobrador, escondía trabajo que el
- * supervisor SÍ tiene que ver: su responsabilidad es seguimiento y reportes
- * (`credisur.md`), y para eso necesita ver lo que ya se atendió hoy. Dejar la
- * regla ancha para él escondía lo contrario: que su lista no es la lista del
- * cobrador.
+ * Unificar sin más con la regla estricta escondía lo que ya se atendió hoy, y
+ * eso hace falta: para el seguimiento del supervisor (`credisur.md`) y para que
+ * quien llega a una ruta ya empezada vea lo que se hizo. Dejar la regla ancha
+ * escondía lo contrario: que la lista no es la de quien está cobrando.
  *
- * Entonces la diferencia pasa a ser una decisión visible, con su botón, y el
- * valor por defecto es la lista del cobrador: lo que ve el supervisor al
- * entrar es lo que su cobrador tiene delante.
+ * Así que la diferencia pasa a ser una decisión visible, con su botón, y el
+ * valor por defecto es el trabajo del día: lo que queda por cobrar. Es lo mismo
+ * que ve el cobrador en su pantalla, y lo demás está a un toque y con su
+ * nombre, así que no esconde a nadie.
  *
  * La pantalla del cobrador NO lleva este filtro, y es a propósito: volver a
  * enseñarle un cliente que ya pagó hoy lo manda a cobrarle dos veces, que es
@@ -41,17 +49,19 @@
 export type AlcanceDeVisita = 'PENDIENTES' | 'ATENDIDAS' | 'TODAS'
 
 /**
- * Por defecto, la lista del cobrador.
+ * Por defecto, lo que queda por cobrar hoy.
  *
- * Quien supervisa entra viendo lo mismo que tiene delante quien cobra; lo
- * demás está a un toque y con su nombre.
+ * Es la misma lista que tiene delante el cobrador de la ruta; lo demás está a
+ * un toque y con su nombre.
  */
 export const ALCANCE_POR_DEFECTO: AlcanceDeVisita = 'PENDIENTES'
 
 export const OPCIONES_DE_ALCANCE: Array<{ id: AlcanceDeVisita; label: string }> = [
   { id: 'PENDIENTES', label: 'Por cobrar hoy' },
   { id: 'ATENDIDAS', label: 'Ya atendidas hoy' },
-  { id: 'TODAS', label: 'Todas' },
+  // «Todas» dice de qué: incluye las de fecha futura, que es justo lo que la
+  // regla ancha del supervisor enseñaba sin decirlo.
+  { id: 'TODAS', label: 'Toda la ruta' },
 ]
 
 /**

@@ -17,15 +17,18 @@ import { sinComentarios } from '@/lib/testing/sin-comentarios'
  *   coordinador   isTodayOrMora(v.proximaVisita)
  *
  * Las tres se llamaban `filterByDate` y las tres estaban escritas dentro del
- * JSX de su pantalla, así que la diferencia no se veía desde ningún sitio. El
- * resultado: el supervisor y el coordinador supervisaban una lista que no era
- * la del cobrador, y nadie podía decir en qué se diferenciaban.
+ * JSX de su pantalla, así que la diferencia no se veía desde ningún sitio.
+ *
+ * Y las tres son pantallas de TRABAJO: el supervisor y el coordinador
+ * registran pagos desde ahí, y el supervisor sale a cobrar en las rutas que
+ * lleva, contra su propia caja. O sea que eran dos personas que pueden cobrar
+ * en la misma ruta el mismo día viendo dos listas distintas de clientes.
  *
  * ── Lo que se exige ahora ───────────────────────────────────────────────────
  *
  * La decisión vive en `debeMostrarseEnListaDeRuta`, con tres alcances con
- * nombre, y el valor por defecto en las tres pantallas es `PENDIENTES`: la
- * lista del cobrador. Ver más es una decisión visible, con su botón.
+ * nombre, y el valor por defecto en las tres pantallas es `PENDIENTES`: lo que
+ * queda por cobrar hoy. Ver más es una decisión visible, con su botón.
  */
 const RAIZ = path.join(__dirname, '..', '..')
 
@@ -88,7 +91,7 @@ describe('las pantallas de ruta no tienen su propia regla', () => {
     expect(cobrador).not.toContain('OPCIONES_DE_ALCANCE')
   })
 
-  it('el supervisor y el coordinador arrancan en la lista del cobrador', () => {
+  it('el supervisor y el coordinador arrancan en lo que queda por cobrar', () => {
     for (const rel of [
       'components/dashboards/SupervisorCobroView.tsx',
       'app/coordinador/rutas/[id]/page.tsx',
@@ -191,7 +194,7 @@ describe('debeMostrarseEnListaDeRuta', () => {
     montoCuota: 50000,
   } as const
 
-  it('PENDIENTES es la lista del cobrador', () => {
+  it('PENDIENTES es lo que queda por cobrar hoy', () => {
     expect(debeMostrarseEnListaDeRuta(pendienteDeHoy, HOY, 'PENDIENTES')).toBe(true)
     expect(debeMostrarseEnListaDeRuta(yaCobradaHoy, HOY, 'PENDIENTES')).toBe(false)
     expect(debeMostrarseEnListaDeRuta(conFechaFutura, HOY, 'PENDIENTES')).toBe(false)

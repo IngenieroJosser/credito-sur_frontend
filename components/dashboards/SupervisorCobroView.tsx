@@ -636,12 +636,17 @@ const SupervisorCobroView = ({ rutaId }: { rutaId?: string }) => {
   const [historialRefreshKey, setHistorialRefreshKey] = useState(0)
   const [periodoRutaFiltro, setPeriodoRutaFiltro] = useState<PeriodoDeFiltro>(PERIODO_POR_DEFECTO)
   /**
-   * Qué parte de la jornada del cobrador se enseña.
+   * Qué parte de la jornada se enseña.
    *
-   * Arranca en `PENDIENTES`, que es la lista que el cobrador tiene delante.
-   * Antes esta pantalla usaba una regla más ancha —`montoCuota > 0 ||
-   * isTodayOrMora(...)`— sin decirlo, así que enseñaba clientes que el
-   * cobrador no veía y otros con fecha futura. El porqué está en
+   * Arranca en `PENDIENTES`: lo que queda por cobrar hoy. Esta pantalla es de
+   * trabajo —el supervisor registra pagos desde aquí, contra su propia caja, en
+   * las rutas que lleva—, así que su lista por defecto tiene que ser la misma
+   * que tiene delante el cobrador de esa ruta.
+   *
+   * Antes usaba una regla más ancha —`montoCuota > 0 ||
+   * isTodayOrMora(...)`— sin decirlo: enseñaba clientes ya cobrados y otros con
+   * fecha futura, y dos personas que pueden cobrar en la misma ruta el mismo
+   * día veían dos listas distintas. El porqué está en
    * `lib/filtros/alcance-de-visita.ts`.
    */
   const [alcanceVisitas, setAlcanceVisitas] = useState<AlcanceDeVisita>(ALCANCE_POR_DEFECTO)

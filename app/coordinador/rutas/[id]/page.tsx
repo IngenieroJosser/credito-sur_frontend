@@ -193,12 +193,15 @@ const LegacyDetalleRutaPage = () => {
 
   const [periodoRutaFiltro, setPeriodoRutaFiltro] = useState<PeriodoDeFiltro>(PERIODO_POR_DEFECTO)
   /**
-   * Qué parte de la jornada del cobrador se enseña.
+   * Qué parte de la jornada se enseña.
    *
-   * Arranca en `PENDIENTES`: la lista que el cobrador tiene delante. Antes
-   * esta pantalla preguntaba solo por la fecha —`isTodayOrMora`— y por eso
-   * enseñaba clientes ya cobrados o ya gestionados que el cobrador no veía, sin
-   * decirlo. El porqué está en `lib/filtros/alcance-de-visita.ts`.
+   * Arranca en `PENDIENTES`: lo que queda por cobrar hoy, que es la lista que
+   * tiene delante el cobrador de la ruta. Esta pantalla también registra pagos,
+   * así que no es una consulta: es trabajo sobre la misma jornada.
+   *
+   * Antes preguntaba solo por la fecha —`isTodayOrMora`— y por eso enseñaba
+   * clientes ya cobrados o ya gestionados que el cobrador no veía, sin decirlo.
+   * El porqué está en `lib/filtros/alcance-de-visita.ts`.
    */
   const [alcanceVisitas, setAlcanceVisitas] = useState<AlcanceDeVisita>(ALCANCE_POR_DEFECTO)
   /**

@@ -1,13 +1,15 @@
 import * as fs from 'fs'
 import * as path from 'path'
 
+import { sinComentarios } from '@/lib/testing/sin-comentarios'
+
 /**
  * Que la venta de artículos cobre y descuente lo mismo.
  *
  * ── Lo que pasaba ───────────────────────────────────────────────────────────
  *
- * `CreacionCreditoArticulo` deja elegir varios artículos y una cantidad por
- * cada uno, y cobra la suma de todos. El backend, en cambio:
+ * `CreacionCreditoArticulo` dejaba elegir varios artículos y una cantidad por
+ * cada uno, y cobraba la suma de todos. El backend, en cambio:
  *
  *     precioTotal = Number(precioProducto.precio)   // ← de UNA unidad
  *     stock: { decrement: 1 }                       // ← UNA unidad
@@ -17,24 +19,22 @@ import * as path from 'path'
  * de los tres, el cliente firmaba por los tres y las cuotas se repartían sobre
  * el precio de uno.
  *
- * ── Lo que se arregló ───────────────────────────────────────────────────────
+ * ── Las dos mitades, arregladas ─────────────────────────────────────────────
  *
- * El préstamo lleva `cantidadProducto` (migración
- * `20261114120000_cantidad_producto_prestamo`, `DEFAULT 1`), el precio del plan
- * y el costo se multiplican por esas unidades, el stock exigido y descontado es
- * el que se vende, y las tres reversiones devuelven lo mismo que salió.
+ * **La cantidad** va de punta a punta: el préstamo lleva `cantidadProducto`
+ * (migración `20261114120000_cantidad_producto_prestamo`, `DEFAULT 1`), el
+ * precio del plan y el costo se multiplican por esas unidades, el stock exigido
+ * y descontado es el que se vende, y las tres reversiones devuelven lo mismo
+ * que salió.
  *
- * ── Lo que NO se arregló, y por qué ─────────────────────────────────────────
+ * **Varios artículos distintos** ya no se pueden elegir. El negocio no vende
+ * así —antes se hacían créditos de dos o tres artículos a la vez; hoy no— y el
+ * modelo tampoco sabe representarlo: el precio es por producto y plazo
+ * (`PrecioProducto(productoId, meses)`) y el préstamo guarda UN
+ * `precioProductoId`. Había un aviso contándolo en el paso 4; un aviso que
+ * explica un descuadre vale menos que no poder provocarlo.
  *
- * El COMBO: varios artículos distintos en un solo crédito. No es cablear algo
- * que falte, es que el modelo no lo representa: el precio es por producto y
- * plazo (`PrecioProducto(productoId, meses)`) y el préstamo guarda UN
- * `precioProductoId`. De los artículos siguientes no queda precio, ni costo, ni
- * descuento de inventario.
- *
- * Quitar esa posibilidad es una decisión del negocio, así que lo que se exige
- * aquí es que no sea en SILENCIO: quien crea el crédito ve, antes de confirmar,
- * qué unidades no va a registrar el sistema.
+ * Esta prueba vigila las dos mitades.
  */
 
 const RAIZ = path.join(__dirname, '..')
@@ -52,76 +52,56 @@ describe('la cantidad vendida llega al backend', () => {
     expect(fuente).toMatch(/cantidadProducto: articulo\.cantidad/)
   })
 
-  it('y sigue mandando un solo producto, que es el motivo del aviso', () => {
-    /*
-     * Si esto deja de ser verdad —porque el modelo ya acepte varios— el aviso
-     * sobra y hay que quitarlo, igual que esta prueba.
-     */
+  it('y manda un solo producto, que es lo que el modelo sabe guardar', () => {
     expect(fuente).toMatch(/productoId: articulo\.id/)
   })
-})
 
-describe('la venta de varios artículos avisa del inventario', () => {
-  const fuente = fs.readFileSync(PANTALLA, 'utf8')
-
-  it('sigue existiendo el cálculo de lo que no se descuenta', () => {
-    expect(fuente).toContain('unidadesSinDescontar')
-  })
-
-  it('el aviso se pinta cuando hay unidades sin descontar', () => {
-    // No basta con calcularlo: hay que enseñarlo. Si alguien quita el bloque y
-    // deja el cálculo, esto lo dice.
-    expect(fuente).toMatch(/unidadesSinDescontar\.length > 0 &&/)
-    expect(fuente).toMatch(/El inventario no se ajusta solo/)
-  })
-
-  it('y dice qué hacer, no solo que algo pasa', () => {
-    // Un aviso que no dice qué hacer deja a la persona igual que antes.
-    expect(fuente).toMatch(/Ajusta esas unidades en el inventario/)
+  it('la cantidad no pasa del stock', () => {
+    // Desde que la cantidad se descuenta de verdad, pasarse del stock es un
+    // error que el backend rechaza con el formulario ya lleno.
+    expect(fuente).toContain('const tope = Math.max(1, Number(p.stock) || 1)')
+    expect(fuente).toMatch(/Math\.min\(tope, Math\.max\(1, p\.cantidad \+ delta\)\)/)
   })
 })
 
-describe('la cuenta de unidades sin descontar', () => {
-  /**
-   * La misma fórmula que la pantalla, probada aparte.
-   *
-   * Antes era `cantidad - 1` del primer artículo más la cantidad entera del
-   * resto, porque del primero salía UNA unidad. Ahora del primero sale todo lo
-   * que se vende, así que lo que queda sin registrar son los artículos
-   * siguientes, enteros.
-   */
-  const sinDescontar = (articulos: Array<{ nombre: string; cantidad: number }>) =>
-    articulos.slice(1).map((item) => ({ nombre: item.nombre, unidades: item.cantidad }))
+describe('un crédito cubre un solo artículo', () => {
+  const fuente = sinComentarios(fs.readFileSync(PANTALLA, 'utf8'))
 
-  it('con un artículo y una unidad no hay nada que avisar', () => {
-    expect(sinDescontar([{ nombre: 'Teléfono', cantidad: 1 }])).toEqual([])
+  it('elegir otro artículo distinto no lo añade', () => {
+    /*
+     * La guarda está al principio de `handleAgregarArticulo` y corta antes de
+     * tocar el estado. Si alguien la quita, vuelve el combo —y con él un
+     * crédito que cobra tres artículos y registra uno—.
+     */
+    expect(fuente).toMatch(
+      /if \(articuloElegido && articuloElegido\.id !== articulo\.id\) \{/,
+    )
   })
 
-  it('con un artículo y tres unidades tampoco: las tres se descuentan', () => {
-    // Este es el caso que cambió. Antes avisaba de dos unidades a mano; ahora
-    // el sistema las descuenta.
-    expect(sinDescontar([{ nombre: 'Teléfono', cantidad: 3 }])).toEqual([])
+  it('y dice por qué, y qué hacer en su lugar', () => {
+    // «No se puede» a secas deja a la persona sin saber que lo que quiere
+    // —varias unidades— sí se puede.
+    expect(fuente).toContain('Un crédito cubre un solo artículo')
+    expect(fuente).toContain('sube la cantidad si son varias unidades del mismo')
   })
 
-  it('con dos artículos, del segundo no se registra nada', () => {
-    expect(
-      sinDescontar([
-        { nombre: 'Teléfono', cantidad: 1 },
-        { nombre: 'Televisor', cantidad: 1 },
-      ]),
-    ).toEqual([{ nombre: 'Televisor', unidades: 1 }])
+  it('ya no queda el aviso de ajustar el inventario a mano', () => {
+    /*
+     * Si vuelve, es que volvió el combo. Se comprueba sobre el texto sin
+     * comentarios porque la explicación de arriba del bloque cuenta que ese
+     * aviso existió.
+     */
+    expect(fuente).not.toContain('unidadesSinDescontar')
+    expect(fuente).not.toContain('El inventario no se ajusta solo')
   })
 
-  it('y con varios de cada uno, suma lo de todos menos el primero', () => {
-    expect(
-      sinDescontar([
-        { nombre: 'Teléfono', cantidad: 2 },
-        { nombre: 'Televisor', cantidad: 3 },
-        { nombre: 'Nevera', cantidad: 1 },
-      ]),
-    ).toEqual([
-      { nombre: 'Televisor', unidades: 3 },
-      { nombre: 'Nevera', unidades: 1 },
-    ])
+  it('y ese lector ve el defecto cuando se le pone delante', () => {
+    // Comprobada al revés: con el defecto fuera de un comentario sí se ve.
+    expect(sinComentarios('const x = unidadesSinDescontar')).toContain(
+      'unidadesSinDescontar',
+    )
+    expect(sinComentarios('// habia un unidadesSinDescontar')).not.toContain(
+      'unidadesSinDescontar',
+    )
   })
 })

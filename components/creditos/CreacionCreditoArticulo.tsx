@@ -259,60 +259,76 @@ export default function CreacionCreditoArticulo({
     return Number(resumenFinanciero.totalFinanciadoBruto || 0) - Number(costoTotal || 0)
   }, [articulosSeleccionados, resumenFinanciero.totalFinanciadoBruto])
 
-  /**
-   * Las unidades que el sistema NO va a sacar del inventario.
-   *
-   * Antes era casi todo: el backend descontaba UNA unidad del PRIMER articulo
-   * y recalculaba el monto con el precio de una sola, asi que una venta de
-   * tres telefonos se cobraba como una y descontaba una.
-   *
-   * Eso ya esta arreglado en los dos lados: el prestamo lleva
-   * `cantidadProducto`, el precio del plan se multiplica por las unidades y el
-   * stock se descuenta —y se devuelve al rechazar— por esas mismas unidades.
-   *
-   * Lo que sigue sin poder representarse es un COMBO: varios articulos
-   * distintos en un solo credito. El modelo de precios es por producto y
-   * plazo (`PrecioProducto(productoId, meses)`) y el prestamo guarda un
-   * `precioProductoId`, asi que de los demas articulos no queda ni precio ni
-   * descuento de inventario. Esto los nombra antes de confirmar.
-   */
-  const unidadesSinDescontar = useMemo(() => {
-    // Del primero se descuenta todo lo que se vende; de los demas, nada.
-    return articulosSeleccionados
-      .slice(1)
-      .map(
-        (item) =>
-          `${item.nombre}: ${item.cantidad} unidad${item.cantidad === 1 ? '' : 'es'}`,
-      )
-  }, [articulosSeleccionados])
+  /** El articulo del credito, si ya se eligio uno. */
+  const articuloElegido = articulosSeleccionados[0]
 
   // --- Handlers ---
 
+  /**
+   * Un credito cubre UN articulo, con su cantidad.
+   *
+   * ── Por que se cierra aqui ─────────────────────────────────────────────
+   *
+   * Esta pantalla dejaba elegir varios articulos distintos, y el negocio ya no
+   * vende asi (antes se hacian creditos de dos o tres articulos a la vez; hoy
+   * no). El problema es que el sistema tampoco puede representarlo: el precio
+   * es por producto y plazo —`PrecioProducto(productoId, meses)`— y el
+   * prestamo guarda UN `precioProductoId`. De los articulos siguientes no
+   * quedaba precio, ni costo, ni descuento de inventario: solo una linea de
+   * texto en las notas.
+   *
+   * Habia un aviso en el paso 4 contandolo. Un aviso que explica un descuadre
+   * es peor que no poder provocarlo, sobre todo cuando ya nadie lo necesita.
+   *
+   * La CANTIDAD si se queda, y ahora funciona de punta a punta: el prestamo
+   * lleva `cantidadProducto`, el precio del plan se multiplica por las
+   * unidades y el stock se descuenta —y se devuelve al rechazar— por esas
+   * mismas unidades.
+   */
   const handleAgregarArticulo = (articulo: Articulo) => {
-    setArticulosSeleccionados(prev => {
-      const existe = prev.find(p => p.id === articulo.id);
-      if (existe) {
-        return prev.map(p => p.id === articulo.id 
-          ? { ...p, cantidad: p.cantidad + 1 } 
-          : p
-        );
+    if (articuloElegido && articuloElegido.id !== articulo.id) {
+      return showNotification(
+        'warning',
+        `Un crédito cubre un solo artículo. Quita ${articuloElegido.nombre} si quieres cambiarlo, o sube la cantidad si son varias unidades del mismo.`,
+      )
+    }
+
+    setArticulosSeleccionados((prev) => {
+      if (!prev.length) {
+        return [
+          {
+            ...articulo,
+            cantidad: 1,
+            precioUnitarioCredito: articulo.precioBase,
+          },
+        ]
       }
-      return [...prev, { 
-        ...articulo, 
-        cantidad: 1, 
-        precioUnitarioCredito: articulo.precioBase
-      }];
-    });
-  };
+
+      // El mismo otra vez: sube la cantidad, sin pasarse del stock.
+      return prev.map((p) =>
+        p.id === articulo.id
+          ? { ...p, cantidad: Math.min(p.cantidad + 1, Math.max(1, p.stock)) }
+          : p,
+      )
+    })
+  }
 
   const handleRemoverArticulo = (id: string) => {
     setArticulosSeleccionados(prev => prev.filter(p => p.id !== id));
   };
 
+  /**
+   * Sube o baja la cantidad, sin pasarse de lo que hay en bodega.
+   *
+   * El tope importa desde que la cantidad se cobra y se descuenta de verdad:
+   * sin el, se llegaba al paso 4, se confirmaba y el backend respondia «stock
+   * insuficiente» con el formulario ya lleno.
+   */
   const handleCambiarCantidad = (id: string, delta: number) => {
     setArticulosSeleccionados(prev => prev.map(p => {
       if (p.id === id) {
-        const nuevaCantidad = Math.max(1, p.cantidad + delta);
+        const tope = Math.max(1, Number(p.stock) || 1);
+        const nuevaCantidad = Math.min(tope, Math.max(1, p.cantidad + delta));
         return { ...p, cantidad: nuevaCantidad };
       }
       return p;
@@ -323,7 +339,7 @@ export default function CreacionCreditoArticulo({
     if (step === 1 && !clienteId)
       return showNotification('warning', 'Seleccione un cliente');
     if (step === 2 && articulosSeleccionados.length === 0)
-      return showNotification('warning', 'Seleccione al menos un artículo');
+      return showNotification('warning', 'Elige el artículo del crédito');
     
     setAnimating(true);
     setTimeout(() => {
@@ -346,7 +362,7 @@ export default function CreacionCreditoArticulo({
     if (!clienteSeleccionado)
       return showNotification('warning', 'Seleccione un cliente');
     if (articulosSeleccionados.length === 0)
-      return showNotification('warning', 'Seleccione al menos un artículo');
+      return showNotification('warning', 'Elige el artículo del crédito');
     if (!esContado && !(cuotaInicial > 0)) {
       return showNotification(
         'warning',
@@ -660,14 +676,17 @@ export default function CreacionCreditoArticulo({
                       <div className="p-4 bg-slate-50 border-b border-slate-200">
                         <h3 className="font-bold text-slate-900 mb-6 flex items-center gap-2">
                           <ShoppingBag className="w-4 h-4 text-blue-600" />
-                          Artículos Seleccionados
+                          Artículo del crédito
                         </h3>
                       </div>
                       <div className="p-4 space-y-4 max-h-[400px] overflow-y-auto">
                         {articulosSeleccionados.length === 0 ? (
                           <div className="text-center py-8 text-slate-400">
                             <Package className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                            <p className="text-sm">No hay artículos seleccionados</p>
+                            <p className="text-sm">Sin artículo elegido</p>
+                            <p className="mt-1 text-xs">
+                              Un crédito cubre un artículo, con su cantidad.
+                            </p>
                           </div>
                         ) : (
                           articulosSeleccionados.map((item) => (
@@ -675,11 +694,37 @@ export default function CreacionCreditoArticulo({
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm font-bold text-slate-900 truncate">{item.nombre}</p>
                                 <p className="text-xs text-slate-500">{formatCurrency(item.precioBase)} c/u</p>
+                                {/*
+                                  * El stock se ensena aqui desde que la
+                                  * cantidad se cobra y se descuenta de
+                                  * verdad: es el tope, y saberlo antes
+                                  * evita llegar al paso 4 y que el backend
+                                  * conteste «stock insuficiente».
+                                  */}
+                                <p className="text-xs font-semibold text-slate-400">
+                                  {item.stock} en bodega
+                                </p>
                               </div>
                               <div className="flex items-center gap-2 bg-white rounded-lg border border-slate-200 px-1 py-0.5">
-                                <button onClick={() => handleCambiarCantidad(item.id, -1)} className="w-5 h-5 flex items-center justify-center text-slate-500 hover:text-slate-900">-</button>
-                                <span className="text-xs font-bold w-4 text-center">{item.cantidad}</span>
-                                <button onClick={() => handleCambiarCantidad(item.id, 1)} className="w-5 h-5 flex items-center justify-center text-slate-500 hover:text-slate-900">+</button>
+                                <button
+                                  type="button"
+                                  aria-label="Quitar una unidad"
+                                  disabled={item.cantidad <= 1}
+                                  onClick={() => handleCambiarCantidad(item.id, -1)}
+                                  className="w-5 h-5 flex items-center justify-center text-slate-500 transition-colors hover:text-slate-900 disabled:cursor-not-allowed disabled:text-slate-300"
+                                >
+                                  -
+                                </button>
+                                <span className="text-xs font-bold w-4 text-center tabular-nums">{item.cantidad}</span>
+                                <button
+                                  type="button"
+                                  aria-label="Añadir una unidad"
+                                  disabled={item.cantidad >= Math.max(1, Number(item.stock) || 1)}
+                                  onClick={() => handleCambiarCantidad(item.id, 1)}
+                                  className="w-5 h-5 flex items-center justify-center text-slate-500 transition-colors hover:text-slate-900 disabled:cursor-not-allowed disabled:text-slate-300"
+                                >
+                                  +
+                                </button>
                               </div>
                               <button aria-label="Eliminar" onClick={() => handleRemoverArticulo(item.id)} className="text-rose-400 hover:text-rose-600 p-1">
                                 <Trash2 className="w-4 h-4" />
@@ -857,50 +902,20 @@ export default function CreacionCreditoArticulo({
    
                   <div className="p-8 space-y-8">
                     {/*
-                      * Lo que el sistema NO va a registrar, dicho antes de
-                      * confirmar.
+                      * Aqui habia un aviso de que el inventario no se ajustaba
+                      * solo.
                       *
-                      * La cantidad del primer articulo ya se cobra y se
-                      * descuenta bien: el prestamo lleva `cantidadProducto`, el
-                      * precio del plan se multiplica por las unidades y el
-                      * stock baja —y vuelve al rechazar— por esas mismas
-                      * unidades.
+                      * Contaba que de una venta de varios articulos el sistema
+                      * cobraba todo y descontaba una unidad del primero. Las
+                      * dos mitades se arreglaron: la cantidad va de punta a
+                      * punta (`cantidadProducto`), y elegir varios articulos
+                      * distintos ya no se puede —ver `handleAgregarArticulo`—,
+                      * porque el negocio no vende asi y el modelo no sabe
+                      * representarlo.
                       *
-                      * Lo que queda es el COMBO: varios articulos distintos en
-                      * un solo credito. No es que falte cablear algo, es que el
-                      * modelo no lo representa: el precio es por producto y
-                      * plazo (`PrecioProducto(productoId, meses)`) y el prestamo
-                      * guarda UN `precioProductoId`. De los demas articulos no
-                      * queda precio, ni costo, ni descuento de inventario: solo
-                      * el texto de las notas.
-                      *
-                      * No se quita la posibilidad de venderlo asi, porque eso
-                      * es una decision del negocio. Lo que se quita es el
-                      * silencio.
+                      * Un aviso que explica un descuadre vale menos que no
+                      * poder provocarlo.
                       */}
-                    {unidadesSinDescontar.length > 0 && (
-                      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-                        <div className="mb-1 text-xs font-black uppercase tracking-widest text-amber-800">
-                          El inventario no se ajusta solo
-                        </div>
-                        <div className="text-sm font-bold text-amber-900">
-                          Se cobra todo, pero el sistema solo registra y
-                          descuenta{' '}
-                          {articulosSeleccionados[0]?.cantidad}{' '}
-                          de {articulosSeleccionados[0]?.nombre}.
-                        </div>
-                        <ul className="mt-2 space-y-0.5 text-xs font-bold text-amber-800">
-                          {unidadesSinDescontar.map((linea) => (
-                            <li key={linea}>· {linea}</li>
-                          ))}
-                        </ul>
-                        <div className="mt-2 text-xs font-semibold text-amber-800">
-                          Ajusta esas unidades en el inventario después de crear
-                          el crédito.
-                        </div>
-                      </div>
-                    )}
-
                     {margenEstimado < 0 && (
                       <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
                         <div className="text-xs font-black uppercase tracking-widest text-amber-800 mb-1">
