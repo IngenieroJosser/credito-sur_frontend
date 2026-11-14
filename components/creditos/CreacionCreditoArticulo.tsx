@@ -259,6 +259,25 @@ export default function CreacionCreditoArticulo({
     return Number(resumenFinanciero.totalFinanciadoBruto || 0) - Number(costoTotal || 0)
   }, [articulosSeleccionados, resumenFinanciero.totalFinanciadoBruto])
 
+  /**
+   * Las unidades que el sistema NO va a sacar del inventario.
+   *
+   * El backend acepta un `productoId` por prestamo y descuenta UNA unidad, asi
+   * que de todo lo seleccionado solo sale del stock una unidad del primer
+   * articulo. Esto nombra el resto para que se vea antes de confirmar.
+   */
+  const unidadesSinDescontar = useMemo(() => {
+    const lineas: string[] = []
+    articulosSeleccionados.forEach((item, indice) => {
+      // Del primero se descuenta una unidad; de las demas, ninguna.
+      const sinDescontar = indice === 0 ? item.cantidad - 1 : item.cantidad
+      if (sinDescontar > 0) {
+        lineas.push(`${item.nombre}: ${sinDescontar} unidad${sinDescontar === 1 ? '' : 'es'}`)
+      }
+    })
+    return lineas
+  }, [articulosSeleccionados])
+
   // --- Handlers ---
 
   const handleAgregarArticulo = (articulo: Articulo) => {
@@ -820,6 +839,48 @@ export default function CreacionCreditoArticulo({
                   </div>
    
                   <div className="p-8 space-y-8">
+                    {/*
+                      * Lo que el sistema NO va a registrar, dicho antes de
+                      * confirmar.
+                      *
+                      * Esta pantalla deja elegir varios articulos y una
+                      * cantidad por cada uno, y cobra la suma de todos
+                      * —`monto: resumenFinanciero.totalFinanciadoBruto`—. Pero
+                      * el backend acepta UN `productoId` por prestamo y
+                      * descuenta UNA unidad de stock
+                      * (`descontarStockSiDisponible`: `stock: { decrement: 1 }`),
+                      * asi que de la venta de tres telefonos sale un telefono
+                      * del inventario. Los demas solo quedan en el texto de las
+                      * notas.
+                      *
+                      * No se quita la posibilidad de vender asi, porque eso es
+                      * una decision del negocio y puede ser un combo que de
+                      * verdad se vende. Lo que se quita es el silencio: quien
+                      * crea el credito ve que tiene que ajustar el inventario a
+                      * mano, y en que articulos.
+                      */}
+                    {unidadesSinDescontar.length > 0 && (
+                      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                        <div className="mb-1 text-xs font-black uppercase tracking-widest text-amber-800">
+                          El inventario no se ajusta solo
+                        </div>
+                        <div className="text-sm font-bold text-amber-900">
+                          Se cobra todo, pero el sistema solo descuenta una
+                          unidad de{' '}
+                          {articulosSeleccionados[0]?.nombre}.
+                        </div>
+                        <ul className="mt-2 space-y-0.5 text-xs font-bold text-amber-800">
+                          {unidadesSinDescontar.map((linea) => (
+                            <li key={linea}>· {linea}</li>
+                          ))}
+                        </ul>
+                        <div className="mt-2 text-xs font-semibold text-amber-800">
+                          Ajusta esas unidades en el inventario después de crear
+                          el crédito.
+                        </div>
+                      </div>
+                    )}
+
                     {margenEstimado < 0 && (
                       <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
                         <div className="text-xs font-black uppercase tracking-widest text-amber-800 mb-1">

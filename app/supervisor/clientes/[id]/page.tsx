@@ -40,7 +40,7 @@ import { prestamosService } from '@/services/prestamos-service'
 import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
 import { resolveCurrentUserId } from '@/lib/creditos/crear-prestamo-payload'
 import { useNotification } from '@/components/providers/NotificationProvider'
-import { formatCOPInputValue, formatMilesCOP, parseCOPInputToNumber } from '@/lib/utils'
+import { formatCOPInputValue, formatMilesCOP, parseCOPInputToNumber, formatCurrency } from '@/lib/utils'
 import { TipoAmortizacion } from '@/types/enums'
 import BotonAccion from '@/components/ui/BotonAccion'
 import Tooltip from '@/components/ui/Tooltip'
@@ -53,6 +53,7 @@ import type { Cliente as ClienteDelServicio } from '@/services/clientes-service'
 import { Selector } from '@/components/ui/Selector'
 import { MODAL_Z_INDEX } from '@/components/ui/Portal'
 import AyudaContextual from '@/components/ui/AyudaContextual'
+import FieldLabel from '@/components/ui/FieldLabel'
 
 
 function Portal({ children }: { children: ReactNode }) {
@@ -75,6 +76,17 @@ export default function ClienteDetalleSupervisorPage() {
 
   const [metodoPago, setMetodoPago] = useState<'EFECTIVO' | 'TRANSFERENCIA'>('EFECTIVO')
   const [montoPagoInput, setMontoPagoInput] = useState('')
+  /**
+   * A que credito va el pago.
+   *
+   * Antes no existia: el envio hacia
+   * `prestamos.find(p => p.estado === 'ACTIVO' || p.estado === 'EN_MORA')` y
+   * se quedaba con el PRIMERO, sin decirlo. Un cliente con dos creditos
+   * activos —que es lo normal aqui: uno de efectivo y uno de articulo— recibia
+   * el pago en el que saliera primero del arreglo, y el supervisor no tenia
+   * forma de saber en cual.
+   */
+  const [prestamoPagoId, setPrestamoPagoId] = useState('')
   const [comprobanteTransferencia, setComprobanteTransferencia] = useState<File | null>(null)
   const [comprobanteTransferenciaPreviewUrl, setComprobanteTransferenciaPreviewUrl] = useState<string | null>(null)
 
@@ -326,10 +338,38 @@ export default function ClienteDetalleSupervisorPage() {
   const comentarios: Comentario[] = []
 
 
+  /**
+   * Los creditos a los que se le puede aplicar un pago.
+   *
+   * `montoPendiente` ya viene calculado arriba, y trae su propio cuidado: si
+   * el saldo del backend coincide con el capital y hay interes, usa el total
+   * con interes. Eso es lo que de verdad falta por cobrar.
+   */
+  const prestamosElegibles = prestamos.filter(
+    (pr) => pr.estado === 'ACTIVO' || pr.estado === 'EN_MORA',
+  )
+
+  /*
+   * Con un solo credito elegible se elige solo, y con varios NO.
+   *
+   * Es la diferencia que importa: elegir por el usuario cuando no hay
+   * alternativa es comodidad; elegir por el cuando hay dos es lo que hacia el
+   * codigo de antes, y eso es decidir a que cuenta va su dinero sin
+   * preguntarle.
+   */
+  const prestamoDelPago =
+    prestamosElegibles.length === 1
+      ? prestamosElegibles[0]
+      : prestamosElegibles.find((pr) => pr.id === prestamoPagoId)
+  const saldoDelPago = Number(prestamoDelPago?.montoPendiente ?? 0)
+  const montoDelPago = parseCOPInputToNumber(montoPagoInput)
+  const montoExcedeSaldo = saldoDelPago > 0 && montoDelPago > saldoDelPago
+
   const resetPagoModal = () => {
     setShowPagoModal(false)
     setMetodoPago('EFECTIVO')
     setMontoPagoInput('')
+    setPrestamoPagoId('')
     setComprobanteTransferencia(null)
     setComprobanteTransferenciaPreviewUrl((prev) => {
       if (prev) URL.revokeObjectURL(prev)
@@ -439,6 +479,60 @@ export default function ClienteDetalleSupervisorPage() {
                     <p className="font-bold text-slate-900 text-lg">{cliente.nombres} {cliente.apellidos}</p>
                     <p className="text-xs text-slate-400">CC: {cliente.dni}</p>
                   </div>
+
+                  {/*
+                    * A que credito va el pago.
+                    *
+                    * Antes esto no estaba y el envio se quedaba con el PRIMER
+                    * credito activo del arreglo, sin decirlo. Un cliente con
+                    * dos activos —lo normal aqui: uno de efectivo y uno de
+                    * articulo— recibia el pago en el que saliera primero.
+                    *
+                    * Con uno solo se ensena cual es, que tambien hacia falta:
+                    * el supervisor registraba un pago sin ver a que cuenta iba.
+                    */}
+                  {prestamosElegibles.length === 0 ? (
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                      <p className="text-sm font-bold text-amber-900">
+                        Este cliente no tiene créditos activos
+                      </p>
+                      <p className="mt-1 text-xs font-medium text-amber-800">
+                        No hay a dónde aplicar un pago. Antes este aviso salía
+                        después de escribir el monto y pulsar Confirmar.
+                      </p>
+                    </div>
+                  ) : prestamosElegibles.length === 1 ? (
+                    <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                      <p className="text-sm text-slate-500">Se aplica a</p>
+                      <p className="font-bold text-slate-900">
+                        {prestamosElegibles[0].producto}
+                      </p>
+                      <p className="text-xs font-semibold text-slate-500">
+                        Saldo pendiente{' '}
+                        {formatCurrency(Number(prestamosElegibles[0].montoPendiente || 0))}
+                      </p>
+                    </div>
+                  ) : (
+                    <div>
+                      <FieldLabel required>A qué crédito se aplica</FieldLabel>
+                      <Selector
+                        value={prestamoPagoId}
+                        onChange={setPrestamoPagoId}
+                        etiqueta="A qué crédito se aplica el pago"
+                        placeholder="Elige el crédito..."
+                        opciones={prestamosElegibles.map((pr) => ({
+                          value: pr.id,
+                          label: `${pr.producto} · saldo ${formatCurrency(Number(pr.montoPendiente || 0))}`,
+                        }))}
+                      />
+                      {!prestamoPagoId && (
+                        <p className="mt-2 text-xs font-bold text-amber-700">
+                          Este cliente tiene {prestamosElegibles.length} créditos
+                          activos: elige a cuál va el pago.
+                        </p>
+                      )}
+                    </div>
+                  )}
 
                   <div>
                     <label className="block text-sm font-bold text-slate-700 mb-2">Método de Pago</label>
@@ -555,15 +649,31 @@ export default function ClienteDetalleSupervisorPage() {
                     </div>
                   )}
 
+                  {/*
+                    * El monto contra el saldo. Esta pantalla no lo comprobaba:
+                    * se podia registrar un pago mayor que lo que el cliente
+                    * debe y el aviso llegaba del backend, o no llegaba. Es la
+                    * misma comprobacion que ya hace `PagoModal` del cobrador.
+                    */}
+                  {montoExcedeSaldo && (
+                    <p className="text-xs font-bold text-rose-600">
+                      El monto no puede exceder el saldo pendiente de este
+                      crédito ({formatCurrency(saldoDelPago)}).
+                    </p>
+                  )}
+
                   <BotonAccion
                     type="button"
                     onClick={async () => {
                       if (isSaving) return;
                       setIsSaving(true);
                       try {
-                        const prestamoActivo = prestamos.find(p => p.estado === 'ACTIVO' || p.estado === 'EN_MORA');
+                        // El que eligio el supervisor, no «el primero que
+                        // aparezca». El boton esta deshabilitado si no hay uno
+                        // elegido, asi que esto es una guarda y no un camino.
+                        const prestamoActivo = prestamoDelPago;
                         if (!prestamoActivo) {
-                          showNotification('error', 'El cliente no tiene préstamos activos para recibir pagos.');
+                          showNotification('error', 'Elige a qué crédito se aplica el pago.');
                           return;
                         }
 
@@ -589,7 +699,11 @@ export default function ClienteDetalleSupervisorPage() {
                     }}
                     disabled={
                       isSaving ||
-                      parseCOPInputToNumber(montoPagoInput) <= 0 ||
+                      montoDelPago <= 0 ||
+                      // Sin credito elegido no se puede registrar: antes el
+                      // envio cogia el primero activo por su cuenta.
+                      !prestamoDelPago ||
+                      montoExcedeSaldo ||
                       (metodoPago === 'TRANSFERENCIA' && !comprobanteTransferencia)
                     }
                     className="w-full bg-primary text-white font-bold py-4 rounded-xl shadow-lg shadow-primary/20 hover:bg-primary-dark active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
