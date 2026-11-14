@@ -32,10 +32,19 @@ import { sinComentarios } from '@/lib/testing/sin-comentarios'
  */
 const RAIZ = path.join(__dirname, '..', '..')
 
+/**
+ * Las CUATRO pantallas que trabajan la ruta de un cobrador.
+ *
+ * La del admin se sumó después: usaba `shouldShowVisitaEnRutaHoy`, que es
+ * `isVisitaExigibleHoy` con otro nombre, así que era la lista más estrecha de
+ * las cuatro y no tenía forma de enseñar lo ya cobrado —y desde ahí también se
+ * registran pagos—.
+ */
 const PANTALLAS_DE_RUTA = [
   'components/dashboards/VistaCobrador.tsx',
   'components/dashboards/SupervisorCobroView.tsx',
   'app/coordinador/rutas/[id]/page.tsx',
+  'app/admin/rutas/[id]/ruta-client.tsx',
 ]
 
 describe('las pantallas de ruta no tienen su propia regla', () => {
@@ -44,9 +53,14 @@ describe('las pantallas de ruta no tienen su propia regla', () => {
     texto: sinComentarios(fs.readFileSync(path.join(RAIZ, rel), 'utf8')),
   }))
 
-  it('encuentra las tres pantallas', () => {
+  it('encuentra las cuatro pantallas', () => {
     // Si una se renombra, esto lo dice en vez de pasar en vacío.
-    expect(fuentes.map((f) => f.texto.length > 1000)).toEqual([true, true, true])
+    expect(fuentes.map((f) => f.texto.length > 1000)).toEqual([
+      true,
+      true,
+      true,
+      true,
+    ])
   })
 
   it('ninguna define un `isTodayOrMora` propio', () => {
@@ -57,7 +71,7 @@ describe('las pantallas de ruta no tienen su propia regla', () => {
     expect(infractoras.join('\n')).toBe('')
   })
 
-  it('las tres deciden con `debeMostrarseEnListaDeRuta`', () => {
+  it('las cuatro deciden con `debeMostrarseEnListaDeRuta`', () => {
     const sinLaRegla = fuentes
       .filter((f) => !f.texto.includes('debeMostrarseEnListaDeRuta('))
       .map((f) => f.rel)
@@ -91,10 +105,11 @@ describe('las pantallas de ruta no tienen su propia regla', () => {
     expect(cobrador).not.toContain('OPCIONES_DE_ALCANCE')
   })
 
-  it('el supervisor y el coordinador arrancan en lo que queda por cobrar', () => {
+  it('las tres que no son del cobrador arrancan en lo que queda por cobrar', () => {
     for (const rel of [
       'components/dashboards/SupervisorCobroView.tsx',
       'app/coordinador/rutas/[id]/page.tsx',
+      'app/admin/rutas/[id]/ruta-client.tsx',
     ]) {
       const texto = fuentes.find((f) => f.rel === rel)!.texto
       // El estado nace en el valor por defecto compartido, no en una cadena

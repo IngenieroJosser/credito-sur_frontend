@@ -116,7 +116,7 @@ import {
   getBogotaRangeByPeriod,
   shouldExcludeVisitaFromOperationalMeta,
   shouldMarkVisitaAsPagado,
-  shouldShowVisitaEnRutaHoy,
+  debeMostrarseEnListaDeRuta,
   resolveCuotaNormalOperativa,
   resolveCuotaIdFromVisitaLike,
 } from '@/lib/rutas-core'
@@ -143,6 +143,12 @@ import {
   PERIODO_POR_DEFECTO,
   type PeriodoDeFiltro,
 } from '@/lib/filtros/periodo-de-ruta'
+import {
+  aAlcanceDeVisita,
+  ALCANCE_POR_DEFECTO,
+  OPCIONES_DE_ALCANCE,
+  type AlcanceDeVisita,
+} from '@/lib/filtros/alcance-de-visita'
 import {
   riesgoBadgeClasses,
   estadoVisitaClasses,
@@ -284,6 +290,16 @@ const RutaClientLoaded = ({
   }, [])
 
   const [periodoRutaFiltro, setPeriodoRutaFiltro] = useState<PeriodoDeFiltro>(PERIODO_POR_DEFECTO)
+  /**
+   * Qué parte de la jornada se enseña.
+   *
+   * Esta era la CUARTA pantalla que decide lo mismo, y la más estrecha:
+   * `shouldShowVisitaEnRutaHoy` es `isVisitaExigibleHoy`, así que el admin no
+   * tenía forma de ver lo que ya se cobró hoy —y desde aquí también se
+   * registran pagos—. Ahora va por la misma decisión que las otras tres, con
+   * su botón. El porqué está en `lib/filtros/alcance-de-visita.ts`.
+   */
+  const [alcanceVisitas, setAlcanceVisitas] = useState<AlcanceDeVisita>(ALCANCE_POR_DEFECTO)
 
   const [gruposColapsados, setGruposColapsados] = useState<Record<string, boolean>>({})
   const toggleGrupo = useCallback((key: string) => {
@@ -646,7 +662,15 @@ const RutaClientLoaded = ({
           exportarRutaDiariaPDF: async () => {},
         }
 
-      const hoyBogota = getBogotaDateKey(new Date())
+      /*
+       * El día sale de `useHoyBogota`, que ya está arriba (`hoyBogotaKey`).
+       *
+       * Aquí se tomaba con `getBogotaDateKey(new Date())` DENTRO del memo: la
+       * zona era la correcta, pero sin dependencia la pantalla se quedaba con
+       * el día en que se montó, y una ruta abierta de noche cambiaba de día
+       * sin que la lista se enterara.
+       */
+      const hoyBogota = hoyBogotaKey
 
       const pagosEnriquecidos = visitasCobrador.some((v) => v.recaudadoTotalClient !== undefined)
 
@@ -659,7 +683,7 @@ const RutaClientLoaded = ({
 
         if (!matchesSearch) return false
 
-        return shouldShowVisitaEnRutaHoy(v, hoyBogota)
+        return debeMostrarseEnListaDeRuta(v, hoyBogota, alcanceVisitas)
       })
 
       if (periodoRutaFiltro !== 'TODOS') {
@@ -712,7 +736,15 @@ const RutaClientLoaded = ({
         exportarRutaDiariaCSV,
         exportarRutaDiariaPDF,
       }
-    }, [visitasCobrador, searchQuery, periodoRutaFiltro, vistaRuta, initialRuta?.id])
+    }, [
+      visitasCobrador,
+      searchQuery,
+      periodoRutaFiltro,
+      alcanceVisitas,
+      hoyBogotaKey,
+      vistaRuta,
+      initialRuta?.id,
+    ])
 
   // Helpers para renderizar acciones según la vista
   const renderRutaActualActions = (visita: VisitaRuta) => (
@@ -1541,6 +1573,27 @@ const RutaClientLoaded = ({
                     valor={periodoRutaFiltro}
                     onChange={(v) => setPeriodoRutaFiltro(aPeriodoDeFiltro(v))}
                     opciones={OPCIONES_DE_PERIODO}
+                  />
+                </div>
+              </div>
+
+              {/*
+                * Qué visitas se ven. Arranca en lo que queda por cobrar, que
+                * es la lista de quien está en la calle; lo ya atendido está a
+                * un toque y con su nombre.
+                */}
+              <div className="mt-3 flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
+                <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Qué visitas se ven
+                </div>
+
+                <div className="flex gap-2 overflow-x-auto pb-1 items-center">
+                  <GrupoDeFiltros
+                    sinMarco
+                    nombre="Qué visitas se ven"
+                    valor={alcanceVisitas}
+                    onChange={(v) => setAlcanceVisitas(aAlcanceDeVisita(v))}
+                    opciones={OPCIONES_DE_ALCANCE}
                   />
                 </div>
               </div>
