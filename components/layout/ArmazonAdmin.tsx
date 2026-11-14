@@ -995,6 +995,18 @@ export default function ArmazonAdmin({ children }: { children: React.ReactNode }
                         <div key={item.id} className="space-y-1">
                           <button
                             type="button"
+                            /*
+                             * Que el botón diga si la sección está abierta.
+                             *
+                             * Faltaba, y es el único desplegable del sistema
+                             * sin decirlo: `Selector` y `CampoFecha` ya lo
+                             * llevan. Sin esto, quien navega con lector de
+                             * pantalla no sabe si pulsar abre o cierra, y una
+                             * prueba que navegue como una persona tampoco
+                             * puede saberlo.
+                             */
+                            aria-expanded={isOpen}
+                            aria-controls={`seccion-${item.id}`}
                             onClick={() => toggleMenu(item.id!)}
                             className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-75 border group ${
                               isOpen || isActive
@@ -1015,7 +1027,23 @@ export default function ArmazonAdmin({ children }: { children: React.ReactNode }
                             />
                           </button>
 
+                          {/*
+                            * Cerrada, la sección también sale del tabulador.
+                            *
+                            * Se cerraba solo con `max-h-0 opacity-0`, que la
+                            * esconde a la vista pero deja sus enlaces
+                            * enfocables y en el árbol de accesibilidad: el
+                            * tabulador se metía en un menú invisible y el
+                            * lector de pantalla leía enlaces que no están.
+                            *
+                            * `inert` apaga foco, puntero y accesibilidad de
+                            * todo lo de dentro, y `aria-hidden` lo dice
+                            * explícito.
+                            */}
                           <div
+                            id={`seccion-${item.id}`}
+                            inert={!isOpen}
+                            aria-hidden={!isOpen}
                             className={`overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}
                           >
                             <div className="pl-4 space-y-1 mt-1 border-l-2 border-gray-100 ml-4">

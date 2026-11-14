@@ -233,3 +233,52 @@ describe('las pantallas públicas salen desnudas', () => {
     }).toEqual({ adminCosas: false, contabler: false })
   })
 })
+
+/**
+ * Las secciones plegables del menú dicen si están abiertas, y cerradas no
+ * atrapan el tabulador.
+ *
+ * ── Cómo salió esto ────────────────────────────────────────────────────────
+ *
+ * Corriendo por primera vez `e2e/armazon-no-se-remonta.e2e.ts` —hasta hoy la
+ * base de datos estaba parada y nunca se había podido ejecutar—. El clic en
+ * «Movimientos» fallaba porque el enlace estaba en una sección cerrada: la
+ * sección se cerraba solo con `max-h-0 opacity-0`, que la esconde a la vista
+ * pero deja sus enlaces enfocables y en el árbol de accesibilidad.
+ *
+ * Para quien usa el sistema con teclado eso es un menú invisible por el que el
+ * tabulador se pasea; para un lector de pantalla, enlaces que no están. Y el
+ * botón de la sección no decía `aria-expanded`, siendo el único desplegable
+ * del sistema sin decirlo: `Selector` y `CampoFecha` ya lo llevaban.
+ */
+describe('el menú lateral dice lo que está abierto', () => {
+  const fuente = sinComentarios(
+    fs.readFileSync(
+      path.join(__dirname, '..', 'components', 'layout', 'ArmazonAdmin.tsx'),
+      'utf8',
+    ),
+  )
+
+  it('el botón de sección declara si está abierta', () => {
+    expect(fuente).toContain('aria-expanded={isOpen}')
+  })
+
+  it('y dice qué sección controla', () => {
+    // Sin `aria-controls` el estado se anuncia sin decir de qué.
+    expect(fuente).toContain('aria-controls={`seccion-${item.id}`}')
+    expect(fuente).toContain('id={`seccion-${item.id}`}')
+  })
+
+  it('la sección cerrada sale del tabulador y del lector', () => {
+    expect(fuente).toContain('inert={!isOpen}')
+    expect(fuente).toContain('aria-hidden={!isOpen}')
+  })
+
+  it('y ese lector ve el defecto cuando se le pone delante', () => {
+    // Comprobada al revés: lo que está solo en un comentario no cuenta.
+    expect(sinComentarios('const x = inert={!isOpen}')).toContain('inert={!isOpen}')
+    expect(sinComentarios('// antes no tenia inert={!isOpen}')).not.toContain(
+      'inert={!isOpen}',
+    )
+  })
+})
