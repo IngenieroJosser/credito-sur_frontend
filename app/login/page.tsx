@@ -353,17 +353,41 @@ const LoginPage = () => {
       console.error('Error en login:', err);
       // Manejamos el error de forma amigable (axios data vs generic error)
       let msg = mensajeDeError(err, 'Error al iniciar sesión');
+      /*
+       * El subtítulo del aviso.
+       *
+       * Estaba fijo en «Verifica tus credenciales» para CUALQUIER error, así
+       * que un corte de red o un bloqueo por intentos le decían a la persona
+       * que su contraseña estaba mal. Por defecto se queda como estaba —el
+       * caso normal es ese— y cada rama lo cambia si sabe algo mejor.
+       */
+      let detalle = 'Verifica tus credenciales';
 
       if (estadoDeError(err) === 401) {
         msg = 'Credenciales incorrectas';
+      } else if (estadoDeError(err) === 429) {
+        /*
+         * Demasiados intentos, que NO es una contraseña mala.
+         *
+         * El sistema limita los ingresos por IP para frenar la fuerza bruta, y
+         * en la oficina todos salen por la misma. Sin esta rama el aviso decía
+         * «Verifica tus credenciales» y la persona volvía a teclear una
+         * contraseña que estaba bien, gastando más intentos.
+         */
+        msg = mensajeDeError(
+          err,
+          'Demasiados intentos. Espera un momento y vuelve a entrar.',
+        );
+        detalle = 'No es la contraseña: es el límite de intentos';
       } else if (codigoDeError(err) === 'ECONNABORTED' || msg.includes('timeout')) {
         msg = 'El servidor está iniciando (Cold Start). Sigue intentando un momento más.';
       } else if (esErrorDeRed(err)) {
         msg = 'Sin conexión y sin sesión offline en este equipo. Conéctate al menos una vez para poder trabajar sin internet.';
+        detalle = 'El servidor no contestó';
       }
 
       setError(msg);
-      showToast(msg, '', 'error');
+      showToast(msg, detalle, 'error');
       setIsLoading(false);
     }
   };
@@ -419,7 +443,7 @@ const LoginPage = () => {
                   <p className={`text-xs ${styles.detail} mt-1`}>
                     {toast.type === 'success' && toast.userName
                       ? 'Redirigiendo a tu panel...'
-                      : 'Verifica tus credenciales'}
+                      : toast.userName || 'Verifica tus credenciales'}
                   </p>
 
                   {/* Barra de progreso de tiempo (solo éxito) */}

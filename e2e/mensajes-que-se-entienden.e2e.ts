@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
 import { entrarComo } from './sesion'
 
 /**
@@ -8,6 +8,19 @@ import { entrarComo } from './sesion'
  * persona sin saber qué hacer, y que por eso volvía a intentar lo mismo o
  * llamaba por teléfono.
  */
+
+/**
+ * Abre el formulario de cliente, que hoy es un modal.
+ *
+ * Antes estas pruebas iban a `/admin/clientes/nuevo`, una pantalla que se
+ * retiró —era una segunda copia del mismo formulario— y que hoy redirige al
+ * listado. Como el formulario no estaba, las pruebas se saltaban solas.
+ */
+async function abrirFormularioDeCliente(page: Page) {
+  await page.goto('/clientes', { waitUntil: 'domcontentloaded' })
+  await page.getByRole('button', { name: /nuevo cliente/i }).first().click()
+  await page.getByLabel(/^Nombres/i).first().waitFor({ timeout: 30_000 })
+}
 
 test.describe('Lo que la pantalla le dice a la persona', () => {
   /**
@@ -59,19 +72,19 @@ test.describe('Lo que la pantalla le dice a la persona', () => {
   test('recargar a mitad del formulario de cliente no pierde lo escrito', async ({
     page,
   }) => {
-    await entrarComo(page, 'SUPER_ADMINISTRADOR')
-    await page.goto('/admin/clientes/nuevo', { waitUntil: 'domcontentloaded' })
-    await page.waitForTimeout(3500)
+    await abrirFormularioDeCliente(page)
 
-    // Los dos campos de la primera sección, que es la que está abierta al
-    // entrar. Los de otras secciones no están en el DOM hasta pulsar su
-    // pestaña, y probarlos aquí mediría la navegación, no el borrador.
-    const nombres = page.getByPlaceholder(/Juan Carlos/i).first()
-    const apellidos = page.getByPlaceholder(/P[eé]rez/i).first()
-    test.skip(
-      !(await nombres.count()) || !(await apellidos.count()),
-      'no se encontraron los campos del formulario',
-    )
+    /*
+     * Por etiqueta, no por marcador de posición.
+     *
+     * Antes se buscaban por `getByPlaceholder`, y esos campos no tienen
+     * ninguno: la prueba no los encontraba y se SALTABA sola, así que llevaba
+     * tiempo sin comprobar nada. Tampoco podía buscarlos por etiqueta, porque
+     * las etiquetas no estaban unidas a sus campos —80 en 11 archivos—. Ya lo
+     * están.
+     */
+    const nombres = page.getByLabel(/^Nombres/i).first()
+    const apellidos = page.getByLabel(/^Apellidos/i).first()
 
     await nombres.fill('Yorleidy Prueba')
     await apellidos.fill('Moya Del Borrador')
@@ -79,12 +92,12 @@ test.describe('Lo que la pantalla le dice a la persona', () => {
     await page.waitForTimeout(1200)
 
     await page.reload({ waitUntil: 'domcontentloaded' })
-    await page.waitForTimeout(5000)
+    await abrirFormularioDeCliente(page)
 
-    expect(
-      await page.getByPlaceholder(/Juan Carlos/i).first().inputValue(),
-    ).toBe('Yorleidy Prueba')
-    expect(await page.getByPlaceholder(/P[eé]rez/i).first().inputValue()).toBe(
+    expect(await page.getByLabel(/^Nombres/i).first().inputValue()).toBe(
+      'Yorleidy Prueba',
+    )
+    expect(await page.getByLabel(/^Apellidos/i).first().inputValue()).toBe(
       'Moya Del Borrador',
     )
   })
@@ -98,25 +111,17 @@ test.describe('Lo que la pantalla le dice a la persona', () => {
    * queda nada.
    */
   test('un formulario vaciado a mano no deja borrador', async ({ page }) => {
-    await entrarComo(page, 'SUPER_ADMINISTRADOR')
-    await page.goto('/admin/clientes/nuevo', { waitUntil: 'domcontentloaded' })
-    await page.waitForTimeout(3500)
+    await abrirFormularioDeCliente(page)
 
-    const nombres = page.getByPlaceholder(/Juan Carlos/i).first()
-    test.skip(!(await nombres.count()), 'no se encontró el campo de nombres')
-
+    const nombres = page.getByLabel(/^Nombres/i).first()
     await nombres.fill('Algo que se va a borrar')
     await page.waitForTimeout(800)
     await nombres.fill('')
     await page.waitForTimeout(1200)
 
-    await page.goto('/admin/clientes', { waitUntil: 'domcontentloaded' })
-    await page.waitForTimeout(1500)
-    await page.goto('/admin/clientes/nuevo', { waitUntil: 'domcontentloaded' })
-    await page.waitForTimeout(4000)
+    await page.reload({ waitUntil: 'domcontentloaded' })
+    await abrirFormularioDeCliente(page)
 
-    expect(
-      await page.getByPlaceholder(/Juan Carlos/i).first().inputValue(),
-    ).toBe('')
+    expect(await page.getByLabel(/^Nombres/i).first().inputValue()).toBe('')
   })
 })
