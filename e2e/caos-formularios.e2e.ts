@@ -90,6 +90,33 @@ function botonDeGuardar(page: Page) {
     .first()
 }
 
+/**
+ * Abre el formulario de cliente, que hoy es un modal.
+ *
+ * Dos pruebas de este archivo iban a `/admin/clientes/nuevo`, una pantalla que
+ * se retiró —era una segunda copia del mismo formulario— y que hoy redirige al
+ * listado. Como allí no había ni campos ni botón de guardar, las dos se
+ * SALTABAN solas: aparecían en verde sin haber comprobado nada. Una de ellas
+ * es la del doble clic, que vigila que no se creen dos clientes.
+ */
+async function abrirFormularioDeCliente(page: Page) {
+  await page.goto('/clientes', { waitUntil: 'domcontentloaded' })
+  await page.getByRole('button', { name: /nuevo cliente/i }).first().click()
+  await page.getByLabel(/^Nombres/i).first().waitFor({ timeout: 30_000 })
+}
+
+/**
+ * Escribe en un campo buscándolo por su ETIQUETA.
+ *
+ * Antes se buscaban por marcador de posición y estos campos no tienen
+ * ninguno. Ahora cada etiqueta está unida a su campo, así que esto los
+ * encuentra de verdad.
+ */
+async function escribirPorEtiqueta(page: Page, etiqueta: RegExp, valor: string) {
+  const campo = page.getByLabel(etiqueta).first()
+  if (await campo.count()) await campo.fill(valor)
+}
+
 test.describe('Formularios con quien no escribe lo que se espera', () => {
   test.describe.configure({ mode: 'serial' })
 
@@ -172,26 +199,23 @@ test.describe('Formularios con quien no escribe lo que se espera', () => {
   }) => {
     await entrarComo(page, 'SUPER_ADMINISTRADOR')
 
-    const hallazgos = vigilar(page, 'clientes/nuevo con datos reales')
-    await page.goto('/admin/clientes/nuevo', { waitUntil: 'domcontentloaded' })
-    await page.waitForTimeout(2500)
+    const hallazgos = vigilar(page, 'formulario de cliente con datos reales')
+    await abrirFormularioDeCliente(page)
 
-    const escribir = async (placeholder: RegExp, valor: string) => {
-      const campo = page.getByPlaceholder(placeholder).first()
-      if (await campo.count()) await campo.fill(valor)
-    }
+    const escribir = (etiqueta: RegExp, valor: string) =>
+      escribirPorEtiqueta(page, etiqueta, valor)
 
     // El documento con los puntos de la cédula, el teléfono con prefijo, el
     // nombre en mayúsculas con tilde y apóstrofo, y la dirección pegada.
-    await escribir(/1\.020|documento|c[eé]dula/i, '1.020.345.678')
-    await escribir(/310 123|tel[eé]fono/i, '+57 (310) 123-4567')
-    await escribir(/Juan Carlos|nombres?/i, "MARÍA JOSÉ D'ANGELO")
-    await escribir(/P[eé]rez|apellidos?/i, 'ÑÁÑEZ MOYA')
+    await escribir(/documento|c[eé]dula|^CC/i, '1.020.345.678')
+    await escribir(/^tel[eé]fono/i, '+57 (310) 123-4567')
+    await escribir(/^Nombres/i, "MARÍA JOSÉ D'ANGELO")
+    await escribir(/^Apellidos/i, 'ÑÁÑEZ MOYA')
     await escribir(
-      /Calle, n[uú]mero|direcci[oó]n/i,
+      /^Direcci[oó]n/i,
       'Hola buenas, mi casa es la de la esquina frente a la tienda de doña Rosa, barrio El Carmen, al lado del poste azul. Gracias!!!',
     )
-    await escribir(/cliente@ejemplo|correo|email/i, 'MARIA JOSE@ejemplo .com')
+    await escribir(/^Correo/i, 'MARIA JOSE@ejemplo .com')
 
     const textoAntes = (await page.locator('body').innerText())
       .replace(/\s+/g, ' ')
@@ -304,19 +328,17 @@ test.describe('Formularios con quien no escribe lo que se espera', () => {
     const antes = await contar()
     test.skip(antes < 0, 'no se pudo contar los clientes')
 
-    await page.goto('/admin/clientes/nuevo', { waitUntil: 'domcontentloaded' })
-    await page.waitForTimeout(2500)
+    await abrirFormularioDeCliente(page)
 
     const unico = String(Date.now()).slice(-9)
-    const escribir = async (placeholder: RegExp, valor: string) => {
-      const campo = page.getByPlaceholder(placeholder).first()
-      if (await campo.count()) await campo.fill(valor)
-    }
-    await escribir(/1\.020|documento|c[eé]dula/i, unico)
-    await escribir(/310 123|tel[eé]fono/i, '3001234567')
-    await escribir(/Juan Carlos|nombres?/i, 'Doble')
-    await escribir(/P[eé]rez|apellidos?/i, 'Clic')
-    await escribir(/Calle, n[uú]mero|direcci[oó]n/i, 'Calle del doble clic 2')
+    const escribir = (etiqueta: RegExp, valor: string) =>
+      escribirPorEtiqueta(page, etiqueta, valor)
+
+    await escribir(/documento|c[eé]dula|^CC/i, unico)
+    await escribir(/^tel[eé]fono/i, '3001234567')
+    await escribir(/^Nombres/i, 'Doble')
+    await escribir(/^Apellidos/i, 'Clic')
+    await escribir(/^Direcci[oó]n/i, 'Calle del doble clic 2')
 
     const boton = botonDeGuardar(page)
     test.skip(!(await boton.count()), 'no se encontró botón de guardar')

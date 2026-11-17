@@ -570,12 +570,33 @@ export default function CreditosArticulosPage() {
             ))
           ) : creditosPaginados.length > 0 ? (
             creditosPaginados.map((credito) => (
-              <button
-                type="button"
+              /*
+                * La tarjeta es un `div`, no un `button`.
+                *
+                * Era un botón y dentro lleva otro —la ayuda «¿Qué es el nivel
+                * de riesgo?»—. Un botón dentro de otro es HTML inválido y en
+                * Next revienta la hidratación: la pantalla se cae con el
+                * diálogo de error. Lo encontró la prueba de los siete roles
+                * trabajando a la vez, y se confirmó en el navegador:
+                * `document.querySelectorAll('button button')` devolvía 8, uno
+                * por tarjeta.
+                *
+                * El patrón que lo arregla sin perder nada: la tarjeta se
+                * queda como contenedor y un botón invisible estirado encima
+                * (`absolute inset-0`) recoge el clic. Así la tarjeta entera
+                * sigue siendo pulsable y con teclado, y la ayuda —que va por
+                * encima— no queda dentro de él.
+                */
+              <div
                 key={credito.rowKey}
-                onClick={() => setCreditoDetalleId(credito.detalleId)}
-                className="block w-full text-left bg-white rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all"
+                className="relative bg-white rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all"
               >
+                <button
+                  type="button"
+                  onClick={() => setCreditoDetalleId(credito.detalleId)}
+                  aria-label={`Ver el crédito de ${credito.cliente}`}
+                  className="absolute inset-0 z-0 rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                />
                 {/* Header */}
                 <div className="flex items-start justify-between mb-3 pb-3 border-b border-slate-100">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -642,7 +663,7 @@ export default function CreditosArticulosPage() {
                   <div className="font-bold text-lg text-slate-900">{formatCurrency(credito.montoPendiente)}</div>
                   <div className="text-xs text-slate-500 mt-0.5">Total: {formatCurrency(credito.montoTotal)}</div>
                 </div>
-              </button>
+              </div>
             ))
           ) : (
             <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8">
