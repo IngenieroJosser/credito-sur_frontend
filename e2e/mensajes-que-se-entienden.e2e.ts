@@ -43,17 +43,27 @@ test.describe('Lo que la pantalla le dice a la persona', () => {
    */
   test('el traslado a tu propio módulo no es mudo', async ({ page }) => {
     await entrarComo(page, 'COBRADOR')
+
+    /*
+     * El aviso se busca con un localizador creado ANTES de navegar.
+     *
+     * Leer `body.innerText` después no sirve: el aviso se retira solo a los
+     * pocos segundos, y la primera versión de esta prueba lo buscaba cuando ya
+     * se había ido. Un localizador espera a que aparezca.
+     */
+    const aviso = page.getByText('Esa pantalla es de otro módulo')
+    const queHacer = page.getByText(/pídele el permiso a tu administrador/i)
+
     await page.goto('/contador', { waitUntil: 'domcontentloaded' })
 
-    // Acaba en lo suyo, no en una pantalla ajena.
+    // Se le dice por qué, y qué hacer si de verdad necesita entrar.
+    await expect(aviso).toBeVisible({ timeout: 30_000 })
+    await expect(queHacer).toBeVisible()
+
+    // Y acaba en lo suyo, no en una pantalla ajena.
     await expect
       .poll(() => new URL(page.url()).pathname, { timeout: 30_000 })
       .toBe('/cobranzas')
-
-    // Y se le dice por qué, con qué hacer si de verdad necesita entrar.
-    const texto = (await page.locator('body').innerText()).replace(/\s+/g, ' ')
-    expect(texto).toContain('Esa pantalla es de otro módulo')
-    expect(texto).toContain('pídele el permiso a tu administrador')
   })
 
   /**
@@ -72,6 +82,7 @@ test.describe('Lo que la pantalla le dice a la persona', () => {
   test('recargar a mitad del formulario de cliente no pierde lo escrito', async ({
     page,
   }) => {
+    await entrarComo(page, 'SUPER_ADMINISTRADOR')
     await abrirFormularioDeCliente(page)
 
     /*
@@ -111,6 +122,7 @@ test.describe('Lo que la pantalla le dice a la persona', () => {
    * queda nada.
    */
   test('un formulario vaciado a mano no deja borrador', async ({ page }) => {
+    await entrarComo(page, 'SUPER_ADMINISTRADOR')
     await abrirFormularioDeCliente(page)
 
     const nombres = page.getByLabel(/^Nombres/i).first()
