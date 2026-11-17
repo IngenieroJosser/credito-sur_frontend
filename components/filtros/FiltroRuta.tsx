@@ -18,6 +18,19 @@ interface FiltroRutaProps {
   selectedRutaId?: string | null
   className?: string
   showAllOption?: boolean
+  /**
+   * Añade un botón «Sin ruta» que busca los créditos huérfanos.
+   *
+   * Ningún crédito puede quedar sin ruta —no entra en la jornada de nadie:
+   * existe, genera mora y nadie va a cobrarlo—. Ya no se pueden crear así,
+   * pero los que quedaron de antes eran invisibles: ninguna pantalla los
+   * listaba. Medido al añadir esto en la base de desarrollo: 26 créditos sin
+   * ruta, 24 de ellos EN MORA.
+   *
+   * Va como opción y no siempre, porque en las pantallas donde la ruta es el
+   * contexto de trabajo —la jornada— no tiene sentido.
+   */
+  mostrarSinRuta?: boolean
   hideLabel?: boolean
   layout?: 'scroll' | 'wrap'
 }
@@ -27,6 +40,7 @@ export default function FiltroRuta({
   selectedRutaId = null,
   className = '',
   showAllOption = true,
+  mostrarSinRuta = false,
   hideLabel = false,
   layout = 'scroll'
 }: FiltroRutaProps) {
@@ -88,6 +102,23 @@ export default function FiltroRuta({
             )}
           >
             Todas
+          </button>
+        )}
+
+        {mostrarSinRuta && (
+          <button
+            onClick={() => onRutaChange('sin-ruta')}
+            disabled={loading}
+            title="Créditos que no están en ninguna ruta: nadie va a cobrarlos"
+            className={cn(
+              'px-3 py-1.5 text-[11px] font-bold rounded-xl transition-all whitespace-nowrap',
+              layout === 'scroll' && 'shrink-0',
+              selectedRutaId === 'sin-ruta'
+                ? 'bg-rose-600 text-white shadow-md shadow-rose-600/20'
+                : 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200',
+            )}
+          >
+            Sin ruta
           </button>
         )}
         

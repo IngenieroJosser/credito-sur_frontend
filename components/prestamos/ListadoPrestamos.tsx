@@ -176,7 +176,18 @@ const ListadoPrestamosElegante = () => {
           limite: 500,
         }
         if (filtros.busqueda) params.busqueda = filtros.busqueda
-        if (filtros.ruta !== 'todas') params.rutaId = filtros.ruta
+        /*
+         * «Sin ruta» no se le puede pedir a este informe: su filtro es un id
+         * de ruta. Mandárselo tal cual devolvería cero filas y los créditos
+         * huérfanos —que son casi todos morosos— se quedarían sin sus días de
+         * mora, que es justo el dato por el que se miran.
+         *
+         * Se pide el informe entero y el cruce se hace por id de crédito, que
+         * es como funciona de todos modos.
+         */
+        if (filtros.ruta !== 'todas' && filtros.ruta !== 'sin-ruta') {
+          params.rutaId = filtros.ruta
+        }
 
         // El endpoint devuelve SIEMPRE `{ prestamos, totales, total, pagina, limite }`
         // (PrestamosMoraResponseDto, responses.dto.ts:9). Aqui habia una cadena de tres
@@ -681,6 +692,12 @@ const ListadoPrestamosElegante = () => {
             </div>
 
             <div className="flex gap-3 w-full md:w-auto items-end flex-wrap">
+              {/*
+                * «Sin ruta» se ofrece aquí porque es el listado donde se
+                * administran los créditos. Un crédito sin ruta no entra en la
+                * jornada de nadie —existe, genera mora y nadie va a
+                * cobrarlo— y hasta ahora no se podía ni buscar.
+                */}
               <FiltroRuta
                 onRutaChange={(r) => {
                   setFiltros((prev) => ({ ...prev, ruta: r || 'todas' }))
@@ -689,6 +706,7 @@ const ListadoPrestamosElegante = () => {
                 selectedRutaId={filtros.ruta === 'todas' ? null : filtros.ruta}
                 className="w-full md:w-auto"
                 showAllOption={true}
+                mostrarSinRuta={true}
                 layout="wrap"
                 hideLabel={true}
               />

@@ -328,6 +328,62 @@ test.describe('Un cliente desaparece de la ruta cuando le toca', () => {
     ).toBeFalsy()
   })
 
+  /**
+   * Ningún crédito puede quedar sin ruta.
+   *
+   * Es una regla del negocio, y la base decía que no se cumplía: 25 de 60
+   * créditos vivos sin ruta, y cinco clientes con 8, 4, 4, 3 y 3 créditos
+   * cada uno sin una sola —la mayoría ya en mora—. Un crédito sin ruta no
+   * entra en la jornada de nadie: existe, genera mora y nadie va a cobrarlo.
+   *
+   * Esto comprueba la puerta por la API, que es la que de verdad protege.
+   */
+  test('la API no deja crear un crédito sin ruta', async ({ request }) => {
+    test.skip(!escenario, `sin escenario de pruebas: ${motivo}`)
+
+    // Un cliente recién creado y SIN aprobar: no tiene asignación de ruta,
+    // y en la petición tampoco se indica ninguna.
+    const h = { authorization: `Bearer ${t}` }
+    const cliente = await request.post(`${API}/clients`, {
+      headers: h,
+      data: {
+        nombres: 'Sin',
+        apellidos: 'Ruta',
+        dni: String(Date.now()).slice(-9),
+        telefono: '3000000002',
+        direccion: 'Calle sin ruta 1',
+      },
+      failOnStatusCode: false,
+    })
+    const cuerpo = await cliente.json().catch(() => null)
+    const clienteId = cuerpo?.clienteId || cuerpo?.id
+    test.skip(!clienteId, 'no se pudo crear el cliente de la prueba')
+
+    const credito = await request.post(`${API}/loans`, {
+      headers: h,
+      data: {
+        clienteId,
+        tipoPrestamo: 'EFECTIVO',
+        monto: 200000,
+        plazoMeses: 1,
+        cantidadCuotas: 4,
+        tasaInteres: 20,
+        frecuenciaPago: 'SEMANAL',
+        fechaInicio: new Date().toISOString(),
+      },
+      failOnStatusCode: false,
+    })
+
+    const texto = await credito.text().catch(() => '')
+    expect(
+      credito.status(),
+      `el crédito sin ruta tenía que rechazarse, y respondió ${credito.status()}: ${texto}`,
+    ).toBeGreaterThanOrEqual(400)
+
+    // Y dice qué hacer: quien lo crea tiene al cliente delante.
+    expect(texto.toLowerCase()).toContain('ruta')
+  })
+
   test('un cliente al que nadie le pagó sigue estando', async ({ request }) => {
     test.skip(!escenario, `sin escenario de pruebas: ${motivo}`)
     const e = escenario!
