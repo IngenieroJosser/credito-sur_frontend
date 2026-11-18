@@ -85,6 +85,27 @@ const HistorialPagosPage = () => {
 
   const [busqueda, setBusqueda] = useState('')
   const [paginaActual, setPaginaActual] = useState(1)
+  /*
+   * Cuanto se le pide al servidor de una vez.
+   *
+   * Eran 500 pagos y 500 gastos, y esta pantalla pagina EN LOCAL de veinte en
+   * veinte: con 2.000 pagos en el historial se veian 500, el paginador decia
+   * «25 paginas» y no habia manera de llegar al pago 501. Un techo silencioso,
+   * y en la pantalla donde se audita el dinero.
+   *
+   * Los dos endpoints mandan el total del conjunto —`paginacion.total` y
+   * `meta.total`— y los dos se tiraban a la basura. Ahora se guardan y el
+   * resumen del paginador DICE cuando lo que se ve es un tope.
+   *
+   * Lo correcto a futuro es paginar en el servidor: hay filtros que esta
+   * pantalla calcula en local (busqueda, cobrador, metodo), asi que antes hay
+   * que subirlos al backend.
+   */
+  const LIMITE_DE_LA_PETICION = 2000
+
+  const [totalPagosServidor, setTotalPagosServidor] = useState<number | null>(null)
+  const [totalGastosServidor, setTotalGastosServidor] = useState<number | null>(null)
+
   const [isLoading, setIsLoading] = useState(true)
   const [pagos, setPagos] = useState<Pago[]>([])
   const [showDetallePago, setShowDetallePago] = useState(false)
@@ -134,7 +155,13 @@ const HistorialPagosPage = () => {
   const loadPagos = useCallback(async () => {
       setIsLoading(true)
       try {
-        const resp = await pagosService.obtenerPagos({ limit: 500, rutaId: filtroRutaId || undefined })
+        const resp = await pagosService.obtenerPagos({
+          limit: LIMITE_DE_LA_PETICION,
+          rutaId: filtroRutaId || undefined,
+        })
+        // El total del conjunto, que llegaba y se tiraba: es lo unico que
+        // permite decir cuando lo que se ve es un tope y no todo.
+        setTotalPagosServidor(resp?.paginacion?.total ?? null)
         const data = resp?.pagos || resp || []
         const mapped: Pago[] = (Array.isArray(data) ? data : []).map((p: PagoParcial) => {
           const montoTotal = Number(p?.montoTotal ?? 0)
@@ -219,8 +246,12 @@ const HistorialPagosPage = () => {
   const loadGastos = useCallback(async () => {
     setIsLoadingGastos(true)
     try {
-      const resp = await getGastos({ limit: 500, rutaId: filtroRutaId || undefined })
+      const resp = await getGastos({
+        limit: LIMITE_DE_LA_PETICION,
+        rutaId: filtroRutaId || undefined,
+      })
       setGastos(resp.data || [])
+      setTotalGastosServidor(resp?.meta?.total ?? null)
     } catch {
       setGastos([])
     } finally {
@@ -351,10 +382,21 @@ const HistorialPagosPage = () => {
 
   const ITEMS_PER_PAGE = 20 // Mostrar más ítems ya que es tabla densa
   const totalPages = Math.max(1, Math.ceil(pagosFiltrados.length / ITEMS_PER_PAGE))
+
+  /*
+   * El resumen dice la verdad cuando el servidor tiene mas de lo que cabe.
+   * Sin esto, 500 de 2.000 se veia igual que 41 de 41.
+   */
+  const hayTopeDePagos = (totalPagosServidor ?? 0) > LIMITE_DE_LA_PETICION
+
   const paginaSegura = Math.min(Math.max(1, paginaActual), totalPages)
   const startIdx = (paginaSegura - 1) * ITEMS_PER_PAGE
   const endIdx = startIdx + ITEMS_PER_PAGE
   const pagosPaginados = pagosFiltrados.slice(startIdx, endIdx)
+
+  const resumenDelPaginador = hayTopeDePagos
+    ? `Mostrando ${pagosPaginados.length} · se cargaron ${pagosFiltrados.length} de ${totalPagosServidor} pagos · acote por ruta o fecha para ver el resto`
+    : `Mostrando ${pagosPaginados.length} de ${pagosFiltrados.length}`
 
   const kpis = (() => {
     const count = pagosFiltrados.length
@@ -573,7 +615,7 @@ const HistorialPagosPage = () => {
                 </tbody>
               </table>
             </div>
-            {pagosFiltrados.length > 0 && <PaginadorCompartido pagina={paginaSegura} totalPaginas={totalPages} onCambiar={setPaginaActual} resumen={`Mostrando ${pagosPaginados.length} de ${pagosFiltrados.length}`} className="px-4 py-3" />}
+            {pagosFiltrados.length > 0 && <PaginadorCompartido pagina={paginaSegura} totalPaginas={totalPages} onCambiar={setPaginaActual} resumen={resumenDelPaginador} className="px-4 py-3" />}
           </div>
           )}
 
@@ -628,7 +670,7 @@ const HistorialPagosPage = () => {
 
             {pagosFiltrados.length > 0 && (
               <div className="mt-2 rounded-xl overflow-hidden border border-slate-200">
-                <PaginadorCompartido pagina={paginaSegura} totalPaginas={totalPages} onCambiar={setPaginaActual} resumen={`Mostrando ${pagosPaginados.length} de ${pagosFiltrados.length}`} className="px-4 py-3" />
+                <PaginadorCompartido pagina={paginaSegura} totalPaginas={totalPages} onCambiar={setPaginaActual} resumen={resumenDelPaginador} className="px-4 py-3" />
               </div>
             )}
           </div>
@@ -650,6 +692,17 @@ const HistorialPagosPage = () => {
               <div className="bg-white border border-slate-200 rounded-xl p-4 col-span-2 md:col-span-1">
                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Registros</p>
                 <p className="text-xl font-black text-slate-900">{gastosFiltrados.length}</p>
+                {/*
+                  * Si el servidor tiene mas gastos de los que se pidieron, este
+                  * contador —y el «Total Gastos» de al lado— hablan solo de lo
+                  * cargado. Decirlo es la diferencia entre una cifra incompleta
+                  * y una cifra falsa.
+                  */}
+                {(totalGastosServidor ?? 0) > LIMITE_DE_LA_PETICION && (
+                  <p className="text-[10px] font-bold text-amber-600 mt-0.5">
+                    de {totalGastosServidor} · acote por ruta para ver el resto
+                  </p>
+                )}
               </div>
             </div>
 

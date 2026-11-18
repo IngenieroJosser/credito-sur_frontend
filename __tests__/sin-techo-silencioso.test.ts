@@ -44,7 +44,6 @@ const RAIZ = process.cwd()
 
 /** Pantallas que piden un bloque al servidor y paginan en local, sin avisar. */
 const DEUDA_TOLERADA = [
-  'app/admin/pagos/historial/page.tsx', // limit: 500 (pagos y gastos), pagina de 20
   'components/prestamos/ListadoPrestamos.tsx', // limite: 500
   'app/admin/creditos-articulos/page.tsx', // limit: 100
   'components/rutas/RutasPageView.tsx', // limit: 100, pagina de 9
@@ -116,13 +115,13 @@ describe('ninguna pantalla esconde datos sin decirlo', () => {
     expect(mora?.loDice).toBe(true)
   })
 
-  it('la deuda tolerada no crece a escondidas: las 7 siguen ahí o ya están arregladas', () => {
+  it('la deuda tolerada no crece a escondidas, y solo puede encoger', () => {
     // Una entrada que ya no existe —archivo renombrado o borrado— también hay
     // que quitarla, o la lista protege a un fantasma.
     const inexistentes = DEUDA_TOLERADA.filter(
       (rel) => !fs.existsSync(path.join(RAIZ, rel)),
     )
     expect(inexistentes).toEqual([])
-    expect(DEUDA_TOLERADA.length).toBeLessThanOrEqual(7)
+    expect(DEUDA_TOLERADA.length).toBeLessThanOrEqual(6)
   })
 })
