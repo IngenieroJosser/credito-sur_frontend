@@ -176,46 +176,39 @@ de forma obvia.
 Ordenados por lo que le cuesta al cliente. Cada uno trae evidencia medida y
 receta. **Ninguno está arreglado todavía.**
 
-### P1 — Las pantallas tienen techo silencioso de datos *(2 de 8 arregladas)*
+### P1 — Las pantallas tenían techo silencioso de datos *(CERRADO)*
 
-**Qué pasa.** Varias pantallas piden al servidor una página con un límite fijo y
-luego paginan **en local** sobre lo que trajeron. El paginador cuenta las filas
-cargadas, así que dice «10 páginas» y no hay forma de llegar a la fila 51.
+**Qué pasaba.** Ocho pantallas pedían al servidor un bloque con un límite fijo y
+paginaban **en local** sobre lo que trajeron. El paginador contaba las filas
+cargadas, así que decía «10 páginas» y no había forma de llegar a la fila 51.
 
-| pantalla | pide | pagina local | techo real |
-|---|---|---|---|
-| ~~`components/cuentas/CuentasMoraFeature.tsx`~~ | — | — | **arreglada** (`ccff7849`) |
-| ~~`app/admin/pagos/historial/page.tsx`~~ | — | — | **arreglada** (`452f985d`) |
-| `components/prestamos/ListadoPrestamos.tsx:176` | `limite: 500` | — | 500 créditos |
-| `app/admin/creditos-articulos/page.tsx:83` | `limit: 100` | 219 | 100 créditos |
-| `components/rutas/RutasPageView.tsx:481` | `limit: 100` | 9 (línea 897) | 100 rutas |
-| `components/dashboards/PuntoDeVentaFloatingActions.tsx:327,345` | — | 2 paginadores | revisar |
-| `components/dashboards/admin/SeguimientoPuntoVenta.tsx:544` | — | — | revisar |
-| `components/reportes/DetalleReporteFinancieroModal.tsx:190` | — | — | revisar |
+| pantalla | qué tenía | commit |
+|---|---|---|
+| `CuentasMoraFeature` | 50 cuentas, paginaba de 5 | `ccff7849` |
+| `admin/pagos/historial` | 500 pagos y 500 gastos, de 20 | `452f985d` |
+| `DetalleReporteFinancieroModal` | sumaba los primeros 10.000 movimientos del ledger | `74bb5e96` |
+| `SeguimientoPuntoVenta` | 200 créditos, y pedía 5.000 pagos para dos datos | `68e5cfe3` |
+| `ListadoPrestamos` | **no pasaba de la primera página**: 8 de 67 créditos | `e9299dd1` |
+| `admin/creditos-articulos` | 100 créditos, paginaba de 8 | `367ea6a1` |
+| `RutasPageView` | 100 rutas, de 9 | `367ea6a1` |
+| `PuntoDeVentaFloatingActions` | **20** ventas, de 5 | `367ea6a1` |
 
-**Por qué importa el día de la importación.** Hoy no se nota: hay 41 cuentas en
-mora y 67 créditos. Con la cartera del cliente, la pantalla de mora enseñará 50
-de 800 sin decir nada.
+**Cómo quedó.** Cada una compara lo cargado con el total que el servidor ya
+mandaba —`paginacion.total`, `meta.total`, `totales.totalRegistros`— y lo DICE
+cuando se queda corta. El informe financiero no avisa: pide todas las páginas,
+porque es la cuenta de resultados y ahí una cifra incompleta es una cifra falsa.
+El listado de créditos no tenía techo sino un paginador atascado, y ahora usa el
+total del servidor.
 
-**Mora** (`ccff7849`) **y el historial de pagos** (`452f985d`) **ya están
-arregladas**, y sirven de modelo: piden un bloque grande y, si el servidor tiene
-más, lo DICEN —mora compara con `totales.totalRegistros`; el historial con
-`paginacion.total` y `meta.total`, que llegaban y se tiraban—. No se paginó en el
-servidor porque el nivel de mora lo calcula el frontend —el `nivelRiesgo` del
-backend es el del CLIENTE— y filtrar por nivel sobre una página daría un filtro
-que miente; mientras ese nivel no viva en el backend, el filtro necesita el
-conjunto. **Quedan las otras siete.**
+**Lo que queda por hacer bien.** Paginación de servidor de verdad en las que
+filtran en el cliente (mora por nivel, el historial por cobrador y método): hay
+que subir esos filtros al backend primero. Mientras, el tope es honesto.
 
-**Receta.** Lo ideal es paginación de servidor: mandar `pagina`, usar el `total`
-del endpoint y quitar el `Math.ceil(x.length / N)`. Si algún filtro se calcula en
-el frontend, primero hay que subirlo al backend o aceptar el camino de mora
-(pedir un bloque grande y **decir** cuándo se queda corto). Lo que no vale es
-dejarlo callado.
-
-La centinela `__tests__/sin-techo-silencioso.test.ts` lleva la lista de las siete
-en código: al arreglar una, se quita de ahí.
-
----
+**La centinela.** `__tests__/sin-techo-silencioso.test.ts`, con la lista de deuda
+tolerada **vacía** y una prueba que exige que siga vacía. Reconoce el patrón
+—límite fijo, como número o constante, más paginador local— y exige las dos
+cosas que lo desactivan: leer el total del servidor y compararlo con el límite.
+Comprobada al revés.
 
 ### P2 — El desembolso podía salir de la caja equivocada *(ARREGLADO)*
 
@@ -587,19 +580,14 @@ saber si una cifra que ves es un defecto o son los datos.
 Si retomas esto sin más contexto, este orden es el que más valor da por hora, y
 está pensado para que el cliente pueda importar y probar:
 
-1. **P1, el techo de las pantallas.** Es lo único de esta lista que se rompe
-   solo el día de la importación y en silencio. Mora ya está hecha y sirve de
-   modelo junto al historial de pagos; **siguen seis**, y la lista vive en
-   `__tests__/sin-techo-silencioso.test.ts`: al arreglar una, se quita de ahí y
-   la prueba exige que siga arreglada.
-2. **P3, el barrido de pantallas sobre una build de producción.** Hasta que eso
+1. **P3, el barrido de pantallas sobre una build de producción.** Hasta que eso
    pase en verde no se puede afirmar que las 112 pantallas abren para los 7
    roles. Mira también la pista de `/coordinador/revisiones`.
-3. **P5 y P6**, que son mecánicos y se verifican con la zona de pruebas del
+2. **P5 y P6**, que son mecánicos y se verifican con la zona de pruebas del
    backend.
-4. **P4**, pantalla por pantalla y empezando por las de dinero. No en masa.
-5. **P7**, que es un minuto.
-6. Y lo del dueño: lo offline contra una build (§10.3) y las capturas (§10.2).
+3. **P4**, pantalla por pantalla y empezando por las de dinero. No en masa.
+4. **P7**, que es un minuto.
+5. Y lo del dueño: lo offline contra una build (§10.3) y las capturas (§10.2).
 
 Dos cosas que conviene hacer **antes** de tocar código, cada vez:
 
