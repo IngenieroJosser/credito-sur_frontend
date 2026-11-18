@@ -44,7 +44,13 @@ const RAIZ = process.cwd()
 
 /** Pantallas que piden un bloque al servidor y paginan en local, sin avisar. */
 const DEUDA_TOLERADA = [
-  'components/prestamos/ListadoPrestamos.tsx', // limite: 500
+  /*
+   * `ListadoPrestamos` ya no esta: su `limite: 500` es el cruce con el informe
+   * de mora para enriquecer las ocho filas que muestra, y se midio que no pone
+   * en riesgo ninguna cifra —`diasMora` solo se usa para clasificar, y
+   * `cuotasVencidas`, que `/loans` si manda, cubre el mismo caso—. Lo que si
+   * estaba roto era su paginador, y eso se arreglo aparte.
+   */
   'app/admin/creditos-articulos/page.tsx', // limit: 100
   'components/rutas/RutasPageView.tsx', // limit: 100, pagina de 9
   'components/dashboards/PuntoDeVentaFloatingActions.tsx', // dos paginadores
@@ -133,6 +139,6 @@ describe('ninguna pantalla esconde datos sin decirlo', () => {
       (rel) => !fs.existsSync(path.join(RAIZ, rel)),
     )
     expect(inexistentes).toEqual([])
-    expect(DEUDA_TOLERADA.length).toBeLessThanOrEqual(4)
+    expect(DEUDA_TOLERADA.length).toBeLessThanOrEqual(3)
   })
 })

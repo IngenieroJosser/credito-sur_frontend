@@ -404,9 +404,31 @@ const ListadoPrestamosElegante = () => {
     return true
   })
 
-  // Backend already paginates — don't slice again
+  // El backend ya paginó: aquí no se vuelve a cortar.
   const prestamosPaginados = prestamosFiltrados
-  const totalPaginas = Math.ceil(prestamosFiltrados.length / prestamosPorPagina)
+
+  /*
+   * Las páginas salen del TOTAL del servidor, no de las filas cargadas.
+   *
+   * Esto estaba roto, y no era un tope silencioso: era no poder pasar de
+   * página. La petición pide `limit: prestamosPorPagina` —ocho— y el servidor
+   * devuelve ocho, así que `Math.ceil(8 / 8)` daba UNA página; el botón de
+   * siguiente está `disabled={paginaActual === totalPaginas}`, de modo que con
+   * 67 créditos en la base solo se podía ver los ocho primeros.
+   *
+   * El servidor filtra y pagina de verdad —le van `estado`, `excluirEstados`,
+   * `ruta`, `search` y `page`—, así que su `paginacion.total` ya cuenta lo
+   * mismo que se está mirando.
+   *
+   * Dos filtros se resuelven en el cliente (EN_MORA y ACTIVO, que se deducen de
+   * las cuotas): con uno de ellos puesto, el total del servidor cuenta de más y
+   * alguna página puede salir corta. Es mejor que quedarse encerrado en la
+   * primera, y se nota porque el resumen dice cuántos resultados hay.
+   */
+  const totalPaginas = Math.max(
+    1,
+    Math.ceil((totalPrestamos || prestamosFiltrados.length) / prestamosPorPagina),
+  )
 
   const cambiarPagina = (pagina: number) => {
     setPaginaActual(pagina)
