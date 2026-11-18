@@ -38,7 +38,10 @@ import {
 import { clientesService } from '@/services/clientes-service'
 import { prestamosService } from '@/services/prestamos-service'
 import { toBogotaDateTimeOffsetIso } from '@/lib/rutas-core'
-import { resolveCurrentUserId } from '@/lib/creditos/crear-prestamo-payload'
+import {
+  buildCrearPrestamoPayload,
+  resolveCurrentUserId,
+} from '@/lib/creditos/crear-prestamo-payload'
 import { useNotification } from '@/components/providers/NotificationProvider'
 import { formatCOPInputValue, formatMilesCOP, parseCOPInputToNumber, formatCurrency } from '@/lib/utils'
 import { TipoAmortizacion } from '@/types/enums'
@@ -915,20 +918,47 @@ export default function ClienteDetalleSupervisorPage() {
                           const userData = userStr ? JSON.parse(userStr) : null;
                           const cuotas = Math.max(1, Number(cuotasPrestamoInput || 12));
                           const creadoPorId = userData?.id || resolveCurrentUserId();
-                          
-                          await prestamosService.crearPrestamo({
-                            clienteId: id,
-                            tipoPrestamo: 'EFECTIVO',
-                            monto: parseCOPInputToNumber(montoPrestamoInput),
-                            tasaInteres: Number(tasaInteresInput),
-                            tasaInteresMora: 5, // Default
-                            plazoMeses: Math.max(1, Math.ceil(cuotas / 4)), // Estimado si es semanal
-                            cantidadCuotas: cuotas,
-                            frecuenciaPago: frecuenciaPrestamo,
-                            fechaInicio: toBogotaDateTimeOffsetIso(new Date()),
-                            creadoPorId,
-                            tipoAmortizacion: TipoAmortizacion.INTERES_SIMPLE,
-                          });
+
+                          /*
+                           * Antes esto armaba su propio payload, y se habia
+                           * separado del resto en dos cifras de dinero:
+                           *
+                           *   tasaInteresMora: 5      todos los demas caminos
+                           *                           mandan 2. Era la unica
+                           *                           pantalla del sistema con
+                           *                           esa tasa, medido.
+                           *
+                           *   plazoMeses: Math.ceil(cuotas / 4)
+                           *                           «estimado si es semanal»,
+                           *                           escrito a mano y sin
+                           *                           mirar la frecuencia de
+                           *                           verdad; y el `ceil` es
+                           *                           justo lo que infla el
+                           *                           interes —45 cuotas
+                           *                           diarias pasaban a ser 2
+                           *                           meses en vez de 1,5, un
+                           *                           33% mas—.
+                           *
+                           * `buildCrearPrestamoPayload` deriva el plazo con
+                           * `derivarPlazoMeses`, la misma funcion que usa la
+                           * vista previa, asi que lo que se cobra es lo que se
+                           * mostro.
+                           */
+                          await prestamosService.crearPrestamo(
+                            buildCrearPrestamoPayload(
+                              {
+                                creditType: 'prestamo',
+                                clienteCreditoId: id,
+                                monto: parseCOPInputToNumber(montoPrestamoInput),
+                                tasaInteres: Number(tasaInteresInput),
+                                cuotas,
+                                frecuenciaPago: frecuenciaPrestamo,
+                                tipoAmortizacion: TipoAmortizacion.INTERES_SIMPLE,
+                                fechaInicio: toBogotaDateTimeOffsetIso(new Date()),
+                              },
+                              creadoPorId,
+                            ),
+                          );
 
                           showNotification('success', 'Crédito creado exitosamente');
                           // Recargar datos

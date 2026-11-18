@@ -1,3 +1,7 @@
+import * as fs from 'fs'
+import * as path from 'path'
+import { sinComentarios } from '@/lib/testing/sin-comentarios'
+
 import {
   buildCrearPrestamoPayload,
   buildVentaContadoPayload,
@@ -119,3 +123,71 @@ describe('buildCrearPrestamoPayload', () => {
     expect(payload).not.toHaveProperty('cuotaInicial');
   });
 });
+
+/**
+ * Nadie vuelve a armar el payload a mano.
+ *
+ * Habia seis copias de la matematica del credito en el frontend y todas se
+ * habian separado del backend. Quedaba una septima aqui, escondida donde no se
+ * miraba: el modal de crear credito del detalle de cliente del supervisor, que
+ * ningun barrido veia porque sus botones estan en un FAB detras de un
+ * `accept="image/*"` que cegaba al recortador de comentarios. Mandaba
+ * `tasaInteresMora: 5` —la unica pantalla del sistema con esa tasa, medido,
+ * contra el 2 de todas las demas— y `plazoMeses: Math.ceil(cuotas / 4)` con el
+ * comentario «estimado si es semanal»: sin mirar la frecuencia de verdad y con
+ * el redondeo que infla el interes hasta un 33%.
+ */
+describe('ninguna pantalla arma el payload de crear credito a mano', () => {
+  const RAIZ = path.join(__dirname, '..', '..')
+  const OMITIR = new Set(['node_modules', '.next', 'dist', 'coverage', '__tests__', 'e2e'])
+
+  const recorrer = (dir: string, acc: string[] = []): string[] => {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (e.name.startsWith('.') || OMITIR.has(e.name)) continue
+      const completo = path.join(dir, e.name)
+      if (e.isDirectory()) recorrer(completo, acc)
+      else if (e.name.endsWith('.tsx') || e.name.endsWith('.ts')) acc.push(completo)
+    }
+    return acc
+  }
+
+  const archivos = recorrer(RAIZ)
+
+  it('la centinela esta leyendo el proyecto', () => {
+    // Piso medido el 2026-11-18: 419 archivos .ts/.tsx fuera de pruebas.
+    expect(archivos.length).toBeGreaterThan(350)
+  })
+
+  it('nadie fija la tasa de mora por su cuenta', () => {
+    const culpables: string[] = []
+
+    for (const f of archivos) {
+      const codigo = sinComentarios(fs.readFileSync(f, 'utf8'))
+      // El origen unico y el formulario largo de creacion son los dos sitios
+      // donde la cifra vive a proposito.
+      const relativa = path.relative(RAIZ, f).split(path.sep).join('/')
+      if (relativa === 'lib/creditos/crear-prestamo-payload.ts') continue
+      if (relativa === 'components/prestamos/CreacionPrestamo.tsx') continue
+      if (relativa === 'components/creditos/CreacionCreditoArticulo.tsx') continue
+
+      if (/tasaInteresMora:\s*\d/.test(codigo)) {
+        culpables.push(relativa)
+      }
+    }
+
+    expect(culpables).toEqual([])
+  })
+
+  it('nadie deriva el plazo en meses con un redondeo propio', () => {
+    const culpables: string[] = []
+
+    for (const f of archivos) {
+      const codigo = sinComentarios(fs.readFileSync(f, 'utf8'))
+      if (/plazoMeses:[^,\r\n]*Math\.(ceil|round|floor)/.test(codigo)) {
+        culpables.push(path.relative(RAIZ, f).split(path.sep).join('/'))
+      }
+    }
+
+    expect(culpables).toEqual([])
+  })
+})
