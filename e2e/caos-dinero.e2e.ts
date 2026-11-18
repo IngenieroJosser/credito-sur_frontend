@@ -493,4 +493,134 @@ test.describe('El dinero bajo caos', () => {
 
     expect(`atravesó: ${pasaron.join(' | ') || 'nada'}`).toBe('atravesó: nada')
   })
+  /**
+   * Dos teléfonos cobrando el mismo crédito a la vez.
+   *
+   * No es un reintento —eso ya lo cubre la llave de idempotencia— sino dos
+   * personas de verdad: el cobrador en la puerta y el supervisor que pasó por
+   * ahí. En LAN es perfectamente posible, y es el caso donde un `saldo = saldo
+   * - monto` leído y escrito en dos transacciones se pisa a sí mismo.
+   *
+   * Se exige lo que de verdad importa: que no se cobre MÁS que la deuda.
+   * Cuántos entren y cuántos se rechacen es cosa del servidor; lo que no
+   * puede pasar es que cinco cobros de la deuda entera dejen al cliente
+   * pagando cinco veces.
+   */
+  test('cinco cobros de la deuda entera a la vez no cobran de más', async ({
+    request,
+  }) => {
+    test.skip(!escenario, `sin escenario de pruebas: ${motivo}`)
+    const t = await token(request, 'SUPER_ADMINISTRADOR')
+    const h = { authorization: `Bearer ${t}` }
+
+    const saldoDe = async () => {
+      const r = await request.get(`${API}/loans/${escenario!.prestamoId}`, {
+        headers: h,
+      })
+      const j = await r.json()
+      return Number(j.saldoPendiente ?? j.montoPendiente ?? 0)
+    }
+
+    const deuda = await saldoDe()
+    test.skip(deuda <= 0, 'el crédito de la prueba ya está saldado')
+
+    // Cada uno con SU llave: son dos aparatos, no un reintento.
+    const marca = Date.now()
+    const respuestas = await Promise.all(
+      [1, 2, 3, 4, 5].map((n) =>
+        request.post(`${API}/payments`, {
+          headers: h,
+          data: {
+            prestamoId: escenario!.prestamoId,
+            montoTotal: deuda,
+            metodoPago: 'EFECTIVO',
+            idempotencyKey: `e2e-carrera-${marca}-${n}`,
+          },
+          failOnStatusCode: false,
+        }),
+      ),
+    )
+
+    const aceptados = respuestas.filter((r) => r.status() < 400).length
+    const saldoFinal = await saldoDe()
+
+    // Uno entra; el resto se rechaza porque ya no hay deuda que cubrir.
+    expect(
+      `aceptados: ${aceptados}`,
+      'cinco cobros de la deuda entera no pueden entrar todos',
+    ).toBe('aceptados: 1')
+
+    // Y lo que de verdad no puede pasar: cobrar de más.
+    expect(saldoFinal).toBeGreaterThanOrEqual(0)
+  })
+
+  /**
+   * El otro lado de la misma carrera: cinco pagos PARCIALES a la vez.
+   *
+   * Aquí los cinco son legítimos y los cinco deben entrar. Lo que se vigila es
+   * que ninguno se pierda: si el saldo se lee y se escribe sin protección, dos
+   * pagos simultáneos dejan el saldo como si solo hubiera entrado uno, y el
+   * dinero está en la caja pero la deuda no bajó.
+   */
+  test('cinco pagos parciales a la vez: no se pierde ninguno', async ({
+    playwright,
+    request,
+  }) => {
+    const t = await token(request, 'SUPER_ADMINISTRADOR')
+    const h = { authorization: `Bearer ${t}` }
+
+    /*
+     * Crédito propio, no el compartido.
+     *
+     * La prueba de arriba lo deja saldado, así que esta se SALTABA sola —en
+     * verde, sin comprobar nada—, que es justo el agujero que este archivo
+     * lleva avisando desde su cabecera. Con su propio crédito, el orden deja
+     * de importar.
+     */
+    const pedir = await playwright.request.newContext()
+    const { escenario: propio, motivo: porQue } = await montarEscenario(pedir, t)
+    await pedir.dispose()
+    test.skip(!propio, `sin escenario propio: ${porQue}`)
+
+    const saldoDe = async () => {
+      const r = await request.get(`${API}/loans/${propio!.prestamoId}`, {
+        headers: h,
+      })
+      const j = await r.json()
+      return Number(j.saldoPendiente ?? j.montoPendiente ?? 0)
+    }
+
+    const antes = await saldoDe()
+
+    const parte = Math.floor(antes / 10)
+    test.skip(parte <= 0, 'la deuda es demasiado pequeña para repartirla')
+
+    const marca = Date.now()
+    const respuestas = await Promise.all(
+      [1, 2, 3, 4, 5].map((n) =>
+        request.post(`${API}/payments`, {
+          headers: h,
+          data: {
+            prestamoId: propio!.prestamoId,
+            montoTotal: parte,
+            metodoPago: 'EFECTIVO',
+            idempotencyKey: `e2e-parcial-${marca}-${n}`,
+          },
+          failOnStatusCode: false,
+        }),
+      ),
+    )
+
+    const aceptados = respuestas.filter((r) => r.status() < 400).length
+    const despues = await saldoDe()
+
+    /*
+     * El saldo tiene que haber bajado por CADA pago aceptado. La tolerancia de
+     * un peso es por el redondeo del reparto de cuotas, no por el conteo.
+     */
+    expect(
+      Math.abs(antes - aceptados * parte - despues),
+      `entraron ${aceptados} pagos de ${parte} y el saldo pasó de ${antes} a ${despues}`,
+    ).toBeLessThanOrEqual(1)
+  })
 })
