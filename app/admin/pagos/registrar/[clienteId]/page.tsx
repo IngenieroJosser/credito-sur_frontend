@@ -31,6 +31,8 @@ import { offlineStore } from '@/lib/offline/offlineDb'
 import { resolveCobradorIdForRouteAction } from '@/lib/rutas-core'
 import { MetodoPago } from '@/types/enums'
 import AyudaContextual from '@/components/ui/AyudaContextual'
+import { usePermission } from '@/hooks/usePermission'
+import { puedeCobrarEnOficina } from '@/lib/pagos/cobro-en-oficina'
 
 type TipoProducto = 'PRESTAMO_EFECTIVO' | 'CREDITO_ARTICULO'
 
@@ -58,6 +60,9 @@ const RegistrarPagoClientePage = () => {
   const params = useParams()
   const router = useRouter()
   const clienteId = params?.clienteId as string
+
+  const { rol } = usePermission()
+  const cobraEnOficina = puedeCobrarEnOficina(rol)
 
   const [loading, setLoading] = useState(true)
   const [cliente, setCliente] = useState<Cliente | null>(null)
@@ -646,8 +651,19 @@ const RegistrarPagoClientePage = () => {
                       </div>
                       <div className="text-left">
                         <p className="font-bold text-sm">Efectivo</p>
+                        {/*
+                          * Decia «Pago directo al cobrador» para todo el mundo,
+                          * y desde que la oficina registra pagos eso es falso
+                          * la mitad de las veces: el efectivo que recibe el
+                          * coordinador o el admin entra a CAJA-OFICINA, no a la
+                          * caja de la ruta. Lo decide el backend por el rol de
+                          * quien registra (`resolveCajaIngresoPago`), asi que
+                          * aqui se dice lo mismo que va a pasar.
+                          */}
                         <p className="text-xs text-slate-600 font-medium">
-                          Pago directo al cobrador
+                          {cobraEnOficina
+                            ? 'Lo recibe la oficina: entra a la caja de la oficina'
+                            : 'Pago directo al cobrador'}
                         </p>
                       </div>
                       <span className="ml-auto text-xs font-bold text-slate-500">

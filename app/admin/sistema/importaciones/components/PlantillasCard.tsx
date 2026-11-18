@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Download, FileSpreadsheet } from 'lucide-react';
 import { importacionesService } from '@/services/importaciones-service';
-import { toast } from 'sonner';
+import { toast } from 'sonner';
 import { mensajeDeError } from '@/lib/mensaje-de-error'
 
 export const PlantillasCard = () => {
@@ -83,10 +83,42 @@ export const PlantillasCard = () => {
           </button>
         </div>
         
-        <div className="p-3 bg-blue-50 rounded-xl border border-blue-100">
-          <p className="text-xs text-blue-800 font-medium leading-relaxed">
-            Utiliza únicamente estas plantillas para evitar errores de formato durante la validación.
-          </p>
+        {/*
+          * Aqui habia un aviso generico —«utiliza unicamente estas plantillas
+          * para evitar errores de formato»— que no contaba lo unico que de
+          * verdad atasca el estreno: el ORDEN.
+          *
+          * «Ruta codigo» es obligatoria en la hoja de clientes y «Codigo del
+          * articulo» en los creditos de articulo, y los dos desplegables solo
+          * se ponen si ya hay rutas o inventario. Quien llena el archivo antes
+          * de tener esas dos cosas recibe un error por cada fila.
+          *
+          * Los numeros no son adorno: es una secuencia, y cada paso necesita
+          * el anterior.
+          */}
+        <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
+          <p className="text-xs font-bold text-blue-900">En este orden</p>
+          <ol className="mt-2 space-y-1.5 text-xs text-blue-800 font-medium leading-relaxed">
+            <li>
+              <span className="font-bold">1.</span> Los <strong>cobradores</strong>, en
+              Usuarios.
+            </li>
+            <li>
+              <span className="font-bold">2.</span> Las <strong>rutas</strong>, con su
+              cobrador. Sin ruta nadie sale a cobrar, y la columna «Ruta código» de la
+              plantilla de clientes es obligatoria.
+            </li>
+            <li>
+              <span className="font-bold">3.</span> El <strong>inventario</strong>, solo
+              si va a cargar créditos de artículo.
+            </li>
+            <li>
+              <span className="font-bold">4.</span> Los{' '}
+              <strong>clientes y sus créditos</strong>. Descargue la plantilla después de
+              los pasos anteriores: trae los códigos de sus rutas y artículos en
+              desplegables.
+            </li>
+          </ol>
         </div>
       </div>
     </section>
