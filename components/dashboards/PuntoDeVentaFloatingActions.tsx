@@ -65,6 +65,16 @@ interface VentaReciente {
   observaciones?: string
 }
 
+/*
+ * Cuantos creditos de articulo se piden para el panel de ventas.
+ *
+ * Eran 20, y el panel pagina de cinco en cinco: quien atiende el punto de venta
+ * solo podia ver sus veinte ultimas ventas, con un paginador que decia «4
+ * paginas» y ni una palabra de que hubiera mas. `/loans` manda
+ * `paginacion.total`, asi que se puede decir.
+ */
+const VENTAS_POR_PETICION = 500
+
 const VENTAS_PER_PAGE = 5
 const CLIENTES_PER_PAGE = 5
 
@@ -200,6 +210,7 @@ export default function PuntoDeVentaFloatingActions() {
   const [ventasFechaDesde, setVentasFechaDesde] = useState('')
   const [ventasFechaHasta, setVentasFechaHasta] = useState('')
   const [ventasPage, setVentasPage] = useState(1)
+  const [totalVentasServidor, setTotalVentasServidor] = useState<number | null>(null)
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [loadingClientes, setLoadingClientes] = useState(false)
   const [clientesSearch, setClientesSearch] = useState('')
@@ -226,9 +237,11 @@ export default function PuntoDeVentaFloatingActions() {
     setVentasFechaHasta('')
     try {
       const [creditosData, ventasContadoData] = await Promise.all([
-        prestamosService.obtenerPrestamos({ tipo: 'ARTICULO', limit: 20 }),
+        prestamosService.obtenerPrestamos({ tipo: 'ARTICULO', limit: VENTAS_POR_PETICION }),
         salesService.obtenerVentasContado().catch(() => []),
       ])
+
+      setTotalVentasServidor(creditosData?.paginacion?.total ?? null)
 
       const soloArticulos = (creditosData?.prestamos || [])
         .filter((c: CreditoDeArticulo) => {
@@ -806,6 +819,16 @@ export default function PuntoDeVentaFloatingActions() {
                   </button>
                   <span className="text-xs font-bold text-slate-700 px-2">
                     {ventasPage} / {ventasTotalPages}
+                    {/*
+                      * Si el servidor tiene mas ventas de las que se pidieron,
+                      * se dice: el panel no puede dar a entender que eso es
+                      * todo lo que hay.
+                      */}
+                    {(totalVentasServidor ?? 0) > VENTAS_POR_PETICION && (
+                      <span className="ml-1 font-bold text-amber-600">
+                        (de {totalVentasServidor})
+                      </span>
+                    )}
                   </span>
                   <button aria-label="Página siguiente"
                     onClick={() => setVentasPage((p) => Math.min(ventasTotalPages, p + 1))}

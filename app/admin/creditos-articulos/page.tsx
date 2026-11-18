@@ -77,10 +77,23 @@ export default function CreditosArticulosPage() {
   const [paginaActual, setPaginaActual] = useState(1)
   const [itemsPorPagina] = useState(8)
 
+  /*
+   * Cuantos creditos se piden de una vez.
+   *
+   * Eran 100, y esta pantalla pagina en local de ocho en ocho: con mas de cien
+   * creditos de articulo se veian cien, el paginador decia «13 paginas» y no
+   * habia como llegar al 101. `/loans` manda `paginacion.total`, asi que se
+   * puede decir.
+   */
+  const CREDITOS_POR_PETICION = 1000
+
+  const [totalCreditosServidor, setTotalCreditosServidor] = useState<number | null>(null)
+
   const loadData = useCallback(async () => {
     setIsLoading(true)
     try {
-      const response = await loansService.getLoans({ limit: 100 })
+      const response = await loansService.getLoans({ limit: CREDITOS_POR_PETICION })
+      setTotalCreditosServidor(response?.paginacion?.total ?? null)
       const prestamos = (response?.prestamos || []).map((p: PrestamoDelListadoParcial, index: number) => {
         const detalleId = String(p.id || p.prestamoId || '')
         const rowKey = detalleId || String(p.numeroPrestamo || `credito-articulo-${index}`)
@@ -684,7 +697,11 @@ export default function CreditosArticulosPage() {
                 pagina={paginaActual}
                 totalPaginas={totalPaginas}
                 onCambiar={cambiarPagina}
-                resumen={`Mostrando ${indicePrimero + 1} a ${Math.min(indiceUltimo, filteredCreditos.length)} de ${filteredCreditos.length}`}
+                resumen={
+                  (totalCreditosServidor ?? 0) > CREDITOS_POR_PETICION
+                    ? `Mostrando ${indicePrimero + 1} a ${Math.min(indiceUltimo, filteredCreditos.length)} de ${filteredCreditos.length} · se cargaron ${CREDITOS_POR_PETICION} de ${totalCreditosServidor} créditos`
+                    : `Mostrando ${indicePrimero + 1} a ${Math.min(indiceUltimo, filteredCreditos.length)} de ${filteredCreditos.length}`
+                }
                 className="mt-0"
               />
             </div>

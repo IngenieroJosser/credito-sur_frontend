@@ -319,6 +319,7 @@ export const RutasPageView = ({
   // `false` la pantalla salia con la lista vacia. Eso hacia creer que no habia rutas
   // cuando solo estaban tardando, y llevaba a crear una que ya existia.
   const [loading, setLoading] = useState(true)
+  const [totalRutasServidor, setTotalRutasServidor] = useState<number | null>(null)
   const { showNotification } = useNotification()
   const [showModal, setShowModal] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -472,19 +473,29 @@ export const RutasPageView = ({
   // dependencia al objeto completo; al no coincidir con lo escrito, renuncia a
   // optimizar TODO este componente ("Compilation Skipped"). El cuerpo solo usa el id,
   // asi que la dependencia no cambia de significado.
+  /*
+   * Cuantas rutas se piden de una vez.
+   *
+   * Eran 100 y esta pantalla pagina en local de nueve en nueve: una empresa con
+   * mas de cien rutas veria cien, y el paginador no diria nada. `getAll`
+   * devuelve `meta.total`, asi que se puede decir.
+   */
+  const RUTAS_POR_PETICION = 500
+
   const currentUserId = currentUser?.id
   const fetchRutas = useCallback(async () => {
     setLoading(true)
     try {
       const isSupervisorPath = (rutasBasePath || '').toLowerCase().includes('/supervisor')
       const response = await routesService.getAll({
-        limit: 100,
+        limit: RUTAS_POR_PETICION,
         ...(isSupervisorPath && currentUserId ? { supervisorId: currentUserId } : {}),
       })
       // `getAll` devuelve `PaginatedRoutes`, o sea que `response.data` ya es el arreglo.
       // El segundo desempaquetado (`payload.data`) era de una forma doblemente envuelta
       // que no existe.
       const data = Array.isArray(response?.data) ? response.data : []
+      setTotalRutasServidor(response?.meta?.total ?? null)
 
       // Se acepta la respuesta aunque venga vacía: cero rutas es un resultado
       // válido (un supervisor sin rutas asignadas, o todas dadas de baja).
@@ -1896,7 +1907,11 @@ export const RutasPageView = ({
               pagina={currentPage}
               totalPaginas={totalPages}
               onCambiar={setCurrentPage}
-              resumen={`Mostrando ${currentRutas.length} de ${rutasFiltradas.length} resultados`}
+              resumen={
+                (totalRutasServidor ?? 0) > RUTAS_POR_PETICION
+                  ? `Mostrando ${currentRutas.length} de ${rutasFiltradas.length} · se cargaron ${RUTAS_POR_PETICION} de ${totalRutasServidor} rutas`
+                  : `Mostrando ${currentRutas.length} de ${rutasFiltradas.length} resultados`
+              }
               className="mt-0"
             />
           </div>
