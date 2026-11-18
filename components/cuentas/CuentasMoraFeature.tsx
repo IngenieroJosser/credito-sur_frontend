@@ -241,6 +241,29 @@ export default function CuentasMoraFeature() {
 
   // Paginacion local: la consulta ya trae un tope, esto solo parte lo que se ve.
   const CUENTAS_POR_PAGINA = 5
+
+  /*
+   * Cuantas cuentas se le piden al servidor de una vez.
+   *
+   * Eran 50, y encima esta pantalla pagina EN LOCAL de cinco en cinco: con 800
+   * morosos se veian 50 y el paginador decia «10 paginas», sin una palabra de
+   * que habia 750 mas. Un techo silencioso.
+   *
+   * No se pagina en el servidor porque el nivel de mora («LEVE», «ROJO»...) lo
+   * calcula el frontend con `calcularNivelMora` —el `nivelRiesgo` que manda el
+   * backend es el del CLIENTE, no el de la mora— y filtrar por nivel sobre una
+   * pagina daria un filtro que miente. Mientras el nivel no viva en el backend,
+   * el filtro necesita el conjunto.
+   *
+   * Pedir mas no le cuesta nada al servidor: desde que se arreglaron los
+   * totales, `obtenerPrestamosEnMora` ya trae y filtra TODOS los candidatos y
+   * solo despues corta la pagina. Lo unico que crece es el tamaño de la
+   * respuesta.
+   *
+   * Y si algun dia se pasa de aqui, la pantalla lo DICE (ver `hayTope`), que es
+   * lo que no hacia.
+   */
+  const LIMITE_DE_LA_PETICION = 1000
   const [pagina, setPagina] = useState(1)
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null)
   const [isClientModalOpen, setIsClientModalOpen] = useState(false)
@@ -255,7 +278,7 @@ export default function CuentasMoraFeature() {
         busqueda?: string
         nivelRiesgo?: NivelRiesgo
         rutaId?: string
-      } = { pagina: 1, limite: 50 }
+      } = { pagina: 1, limite: LIMITE_DE_LA_PETICION }
       if (busqueda) params.busqueda = busqueda
       if (filtroRiesgo !== 'TODOS') params.nivelRiesgo = filtroRiesgo
       if (filtroRuta) params.rutaId = filtroRuta
@@ -319,6 +342,20 @@ export default function CuentasMoraFeature() {
   )
 
   usePageFocusRefresh(() => { fetchData() })
+
+  /*
+   * El servidor tenia mas cuentas de las que cabian en la peticion.
+   *
+   * `totales.totalRegistros` es el conjunto completo —el backend lo calcula
+   * antes de cortar la pagina—, asi que comparado con lo que llego dice si se
+   * esta viendo todo. Es lo unico que faltaba para que el tope deje de ser
+   * silencioso: antes la pantalla mostraba 50 de 800 con la misma cara que
+   * mostraba 41 de 41.
+   */
+  const recibidas = cuentas.length
+  const hayTope =
+    (totales?.totalRegistros ?? 0) > LIMITE_DE_LA_PETICION &&
+    filtroNivel === 'TODOS'
 
   const totalPaginas = Math.max(1, Math.ceil(cuentas.length / CUENTAS_POR_PAGINA))
   const paginaSegura = Math.min(pagina, totalPaginas)
@@ -599,7 +636,11 @@ export default function CuentasMoraFeature() {
               pagina={paginaSegura}
               totalPaginas={totalPaginas}
               onCambiar={setPagina}
-              resumen={`${cuentas.length} cuenta(s) en mora`}
+              resumen={
+                hayTope
+                  ? `${recibidas} de ${totales?.totalRegistros} cuentas en mora · afine la búsqueda o el filtro de ruta para ver el resto`
+                  : `${recibidas} cuenta(s) en mora`
+              }
               className="px-6 pb-4"
             />
           </div>
@@ -681,7 +722,11 @@ export default function CuentasMoraFeature() {
             pagina={paginaSegura}
             totalPaginas={totalPaginas}
             onCambiar={setPagina}
-            resumen={`${cuentas.length} cuenta(s) en mora`}
+            resumen={
+              hayTope
+                ? `${recibidas} de ${totales?.totalRegistros} cuentas en mora · afine la búsqueda o el filtro de ruta para ver el resto`
+                : `${recibidas} cuenta(s) en mora`
+            }
           />
           </>
         )}
