@@ -8,6 +8,8 @@ import {
   TrendingDown,
   Calendar,
   LayoutDashboard,
+  Plus,
+  UserPlus,
 } from 'lucide-react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { TimeFilter, TimeFilterPeriod } from '@/components/ui/TimeFilter';
@@ -24,6 +26,7 @@ import { prestamosService } from '@/services/prestamos-service';
 import { buildCrearPrestamoPayload } from '@/lib/creditos/crear-prestamo-payload';
 import { mensajeDeError } from '@/lib/mensaje-de-error';
 import Cifra from '@/components/ui/Cifra'
+import Tooltip from '@/components/ui/Tooltip'
 
 interface MetricItem {
   title: string;
@@ -172,8 +175,38 @@ export function DashboardClient({ data }: DashboardClientProps) {
               onPeriodChange={handlePeriodChange} 
             />
             
-            {/* Botones de acción rápida */}
-            <ExportButton 
+            {/*
+              Botones de acción rápida.
+
+              `CrearCreditoModal` y `NuevoClienteModal` estaban montados al
+              final de este mismo archivo, con su `onConfirm` completo —POST,
+              aviso y `router.refresh()`—, y no había en toda la pantalla nada
+              que los abriera: eran dos funciones terminadas sin puerta. Esta
+              es la puerta.
+            */}
+            <Tooltip texto="Registrar un cliente nuevo sin salir del panel">
+              <button
+                type="button"
+                onClick={() => setShowNuevoClienteModal(true)}
+                className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 active:scale-95"
+              >
+                <UserPlus className="h-4 w-4 text-slate-400" />
+                <span className="hidden sm:inline">Cliente</span>
+              </button>
+            </Tooltip>
+
+            <Tooltip texto="Crear un crédito y enviarlo a revisión">
+              <button
+                type="button"
+                onClick={() => setShowCrearCreditoModal(true)}
+                className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-primary px-4 text-sm font-bold text-white shadow-sm transition-all hover:brightness-110 active:scale-95"
+              >
+                <Plus className="h-4 w-4" />
+                <span className="hidden sm:inline">Crédito</span>
+              </button>
+            </Tooltip>
+
+            <ExportButton
               label="Exportar" 
               onExportExcel={handleExportExcel} 
               onExportPDF={handleExportPDF} 
