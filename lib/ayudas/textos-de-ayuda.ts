@@ -164,9 +164,11 @@ export const TEXTOS_DE_AYUDA = {
     'quedó fuera. «Toda la ruta» no esconde nada e incluye las de fecha ' +
     'futura.',
   cobradoPorOtro:
-    'Quién recibió el pago, cuando no fue el cobrador de la ruta. Pasa ' +
-    'cuando el supervisor sale a cobrar: el dinero entra a SU caja, así que ' +
-    'el pago queda a su nombre. El avance de la ruta lo cuenta igual.',
+    'Quién recibió el pago, cuando no fue el cobrador de la ruta: el ' +
+    'supervisor que salió a cobrar, o «la oficina» si el cliente fue a pagar ' +
+    'a la sede. En los dos casos el dinero está en la caja de quien lo ' +
+    'recibió, así que no hay que pedirlo ni entregarlo al cierre. El avance ' +
+    'de la ruta lo cuenta igual.',
 
   // ── Revisiones ───────────────────────────────────────────────────────────
 

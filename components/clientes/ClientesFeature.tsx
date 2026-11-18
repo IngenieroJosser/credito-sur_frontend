@@ -25,7 +25,13 @@ import {
   Trash2,
   Calendar,
   Clock,
+  Banknote,
 } from 'lucide-react'
+import Link from 'next/link'
+import {
+  puedeCobrarEnOficina,
+  rutaDeRegistroDePago,
+} from '@/lib/pagos/cobro-en-oficina'
 import { formatCurrency, cn } from '@/lib/utils'
 import { Modal } from '@/components/ui/Modal'
 import FiltroRuta from '@/components/filtros/FiltroRuta'
@@ -60,7 +66,11 @@ export default function ClientesFeature({
   defaultFilterRiesgo = 'all',
   defaultFilterEstado = 'GENERAL',
 }: ClientesFeatureProps) {
-  const { can, canForPath } = usePermission()
+  const { can, canForPath, rol } = usePermission()
+
+  // El cliente que llega a pagar a la sede lo atiende la oficina, y su
+  // efectivo entra a CAJA-OFICINA. Ver `lib/pagos/cobro-en-oficina.ts`.
+  const cobraEnOficina = puedeCobrarEnOficina(rol)
 
   // Verificación de permisos más robusta
   const permitido = can('CLIENTES_VIEW') || canForPath(basePath)
@@ -786,6 +796,18 @@ export default function ClientesFeature({
                                 <Eye className="h-5 w-5" />
                               </button>
                             </Tooltip>
+                            {cobraEnOficina && (
+                              <Tooltip texto="Registrar un pago recibido en la oficina">
+                                <Link
+                                  aria-label="Registrar pago"
+                                  href={rutaDeRegistroDePago(cliente.id)}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
+                                >
+                                  <Banknote className="h-5 w-5" />
+                                </Link>
+                              </Tooltip>
+                            )}
                             {puedeEditar && (
                               <Tooltip texto="Editar cliente">
                                 <button aria-label="Editar cliente"
@@ -958,6 +980,18 @@ export default function ClientesFeature({
                       >
                         <Eye className="h-5 w-5" />
                       </button>
+                      {cobraEnOficina && (
+                        <Tooltip texto="Registrar un pago recibido en la oficina">
+                          <Link
+                            aria-label="Registrar pago"
+                            href={rutaDeRegistroDePago(cliente.id)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="flex min-h-[44px] min-w-[44px] items-center justify-center p-2 text-slate-400"
+                          >
+                            <Banknote className="h-5 w-5" />
+                          </Link>
+                        </Tooltip>
+                      )}
                       {puedeEditar && (
                         <Tooltip texto="Editar cliente">
                           <button aria-label="Editar cliente"

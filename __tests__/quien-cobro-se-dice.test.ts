@@ -104,3 +104,86 @@ describe('la regla del backend sigue siendo la que se documentó', () => {
     expect(rutas).toMatch(/prestamo:\s*\{\s*rutaId\s*\}/)
   })
 })
+
+/**
+ * El segundo caso en que no cobro el cobrador: el cliente pago en la OFICINA.
+ *
+ * Lo pidio el negocio —muchos clientes no esperan al cobrador y van a pagar a
+ * la sede, donde los recibe el coordinador— y es mas silencioso que el del
+ * supervisor, porque aqui el `cobradorId` del pago NO se pisa: se fuerza al
+ * cobrador de la RUTA para que el recaudo y la meta lo cuenten. Asi que por ese
+ * campo el pago de oficina es indistinguible de un cobro en la calle, y
+ * `cobradoPorOtro` —que compara contra `visita.cobradorId`— no se activaba
+ * nunca.
+ *
+ * La marca va en `origenGestion`, la pone el servidor por el rol de quien
+ * registra, y la ruta la traduce a un `cobradoPor` con el centinela `OFICINA`.
+ */
+describe('el pago recibido en la oficina se dice', () => {
+  const pagos = path.join(BACKEND, 'src', 'payments', 'payments.service.ts')
+  const rutas = path.join(BACKEND, 'src', 'routes', 'routes.service.ts')
+  const origen = path.join(BACKEND, 'src', 'payments', 'origen-de-gestion.ts')
+
+  it('existen los tres archivos que lo sostienen', () => {
+    for (const f of [pagos, rutas, origen]) {
+      expect(fs.existsSync(f)).toBe(true)
+    }
+  })
+
+  it('el pago nace marcado, y no copiando lo que mande el cliente', () => {
+    const fuente = sinComentarios(fs.readFileSync(pagos, 'utf8'))
+
+    // El DTO solo admite CIERRE_PENDIENTE, asi que copiar el campo tal cual
+    // era la via por la que la marca no podia entrar nunca.
+    expect(fuente).not.toMatch(/origenGestion: paymentDto\.origenGestion/)
+    expect(
+      (fuente.match(/origenGestion: resolverOrigenDeGestion\(/g) || []).length,
+    ).toBe(2)
+  })
+
+  it('el coordinador cuenta como oficina, y el cobrador y el supervisor no', () => {
+    const fuente = sinComentarios(fs.readFileSync(origen, 'utf8'))
+
+    expect(fuente).toMatch(/RolUsuario\.COORDINADOR/)
+    expect(fuente).toMatch(/RolUsuario\.ADMIN/)
+    expect(fuente).toMatch(/RolUsuario\.SUPER_ADMINISTRADOR/)
+    expect(fuente).not.toMatch(/RolUsuario\.COBRADOR/)
+    expect(fuente).not.toMatch(/RolUsuario\.SUPERVISOR/)
+  })
+
+  it('la ruta lo traduce a un `cobradoPor` que la tarjeta ya sabe pintar', () => {
+    const fuente = sinComentarios(fs.readFileSync(rutas, 'utf8'))
+
+    expect(fuente).toMatch(/origenGestion \|\| ''\)\.toUpperCase\(\) === ORIGEN_OFICINA/)
+    expect(fuente).toMatch(/nombre: 'la oficina'/)
+  })
+
+  it('y la ayuda de la tarjeta explica los DOS casos, no solo el del supervisor', () => {
+    const ayuda = fs.readFileSync(
+      path.join(RAIZ, 'lib', 'ayudas', 'textos-de-ayuda.ts'),
+      'utf8',
+    )
+    const texto = ayuda.split('cobradoPorOtro:')[1]?.slice(0, 600) || ''
+
+    expect(texto).toContain('supervisor')
+    expect(texto).toContain('oficina')
+  })
+
+  it('la oficina tiene por donde registrar: el boton y la pantalla real', () => {
+    // El rewrite `/pagos/:path*` sirve la pantalla del admin para todos los
+    // roles, y el gate de rol de `ArmazonAdmin` esta comentado a proposito,
+    // asi que lo unico que faltaba era la puerta.
+    const lista = sinComentarios(
+      fs.readFileSync(path.join(RAIZ, 'components', 'clientes', 'ClientesFeature.tsx'), 'utf8'),
+    )
+
+    expect(lista).toMatch(/rutaDeRegistroDePago\(cliente\.id\)/)
+    expect(lista).toMatch(/cobraEnOficina/)
+
+    expect(
+      fs.existsSync(
+        path.join(RAIZ, 'app', 'admin', 'pagos', 'registrar', '[clienteId]', 'page.tsx'),
+      ),
+    ).toBe(true)
+  })
+})
