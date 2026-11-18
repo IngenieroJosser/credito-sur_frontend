@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { uploadService, UploadResponse } from '@/services/upload-service';
 import { ALERT_Z_INDEX } from '@/components/ui/Portal';
 import Tooltip from '@/components/ui/Tooltip';
+import { mensajeDeError } from '@/lib/mensaje-de-error';
 
 export type UploadStatus = 'idle' | 'uploading' | 'success' | 'error';
 
@@ -89,9 +90,12 @@ export default function MediaUpload({
       // Quitar brillo de éxito luego
       setTimeout(() => setShowSuccess(false), 2000);
 
-    } catch {
+    } catch (error) {
       setStatus('error');
-      setErrorMessage('Error al subir el archivo. Intente nuevamente.');
+      // El motivo del backend, no «intente nuevamente»: aquí falla el tamaño
+      // del archivo, el formato o la sesión, y repetir el mismo archivo no
+      // arregla ninguno de los tres.
+      setErrorMessage(mensajeDeError(error, 'No se pudo subir el archivo.'));
       setShowErrorModal(true);
       
       // Resetear estado visual parcial
