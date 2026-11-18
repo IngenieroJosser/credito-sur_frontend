@@ -51,7 +51,6 @@ import {
 
 import ReprogramarModal from '@/components/cobranza/ReprogramarModal'
 
-import PagoModal from '@/components/cobranza/PagoModal'
 
 import EstadoCuentaModal from '@/components/cobranza/EstadoCuentaModal'
 
@@ -248,10 +247,22 @@ const LegacyDetalleRutaPage = () => {
 
   const [estadoCuentaVisita, setEstadoCuentaVisita] = useState<VisitaRuta | null>(null)
 
-  const [pagoVisita, setPagoVisita] = useState<{
-    visita: VisitaRuta
-    tipo: 'PAGO' | 'ABONO'
-  } | null>(null)
+  /*
+   * Aquí había un `pagoVisita` con su `PagoModal`, y los dos eran mentira:
+   * nada ponía ese estado —`setPagoVisita` solo se llamaba con `null`—, así
+   * que el modal no se abría nunca. Y si alguien le hubiera enganchado un
+   * botón, se habría encontrado con esto:
+   *
+   *     onConfirm={(monto, metodo) => { setPagoVisita(null) }}
+   *
+   * Es decir: el coordinador escribía el monto, confirmaba, el modal se
+   * cerraba y NO se registraba ningún pago.
+   *
+   * Si algún día el coordinador debe cobrar, el flujo completo está en
+   * `SupervisorCobroView` —cobrador responsable, cuota objetivo, clave de
+   * idempotencia y respaldo sin conexión—; copiar solo el modal deja un botón
+   * que no hace nada.
+   */
 
   const [visitaReprogramar, setVisitaReprogramar] = useState<VisitaRuta | null>(null)
 
@@ -1924,19 +1935,6 @@ Qué visitas se ven
         />
       )}
 
-      {pagoVisita && (
-        <PagoModal
-          visita={pagoVisita.visita}
-
-          tipo={pagoVisita.tipo}
-
-          onClose={() => setPagoVisita(null)}
-
-          onConfirm={(monto, metodo) => {
-            setPagoVisita(null)
-          }}
-        />
-      )}
 
       {visitaReprogramar && (
         <ReprogramarModal
