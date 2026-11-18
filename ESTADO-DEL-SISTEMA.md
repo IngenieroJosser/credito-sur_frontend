@@ -176,7 +176,7 @@ de forma obvia.
 Ordenados por lo que le cuesta al cliente. Cada uno trae evidencia medida y
 receta. **Ninguno está arreglado todavía.**
 
-### P1 — Las pantallas tienen techo silencioso de datos
+### P1 — Las pantallas tienen techo silencioso de datos *(1 de 8 arreglada)*
 
 **Qué pasa.** Varias pantallas piden al servidor una página con un límite fijo y
 luego paginan **en local** sobre lo que trajeron. El paginador cuenta las filas
@@ -197,17 +197,25 @@ cargadas, así que dice «10 páginas» y no hay forma de llegar a la fila 51.
 mora y 67 créditos. Con la cartera del cliente, la pantalla de mora enseñará 50
 de 800 sin decir nada.
 
-**Receta.** Pasar la paginación al servidor: mandar `pagina` en la petición, usar
-el `total` que ya devuelve el endpoint para el paginador, y quitar el
-`Math.ceil(x.length / N)`. En mora ya está medio hecho: `/reports/prestamos-mora`
-devuelve `totales.totalRegistros` sobre el conjunto completo (se arregló en
-`cdc47dd`), así que la pantalla puede mostrar el número verdadero hoy mismo.
-Mientras no se pagine en servidor, **como mínimo** avisar en pantalla de que se
-está viendo un tope.
+**Mora ya está arreglada** (`ccff7849`): pide 1000 y, si el servidor tiene más,
+el paginador lo dice comparando con `totales.totalRegistros`. No se paginó en el
+servidor porque el nivel de mora lo calcula el frontend —el `nivelRiesgo` del
+backend es el del CLIENTE— y filtrar por nivel sobre una página daría un filtro
+que miente; mientras ese nivel no viva en el backend, el filtro necesita el
+conjunto. **Quedan las otras siete.**
+
+**Receta.** Lo ideal es paginación de servidor: mandar `pagina`, usar el `total`
+del endpoint y quitar el `Math.ceil(x.length / N)`. Si algún filtro se calcula en
+el frontend, primero hay que subirlo al backend o aceptar el camino de mora
+(pedir un bloque grande y **decir** cuándo se queda corto). Lo que no vale es
+dejarlo callado.
+
+La centinela `__tests__/sin-techo-silencioso.test.ts` lleva la lista de las siete
+en código: al arreglar una, se quita de ahí.
 
 ---
 
-### P2 — El desembolso puede salir de la caja equivocada
+### P2 — El desembolso podía salir de la caja equivocada *(ARREGLADO)*
 
 **Qué pasa.** Al aprobar un crédito, la caja de la que sale el dinero se elige
 con la ruta **del cliente**, no la del crédito:
@@ -226,10 +234,11 @@ no es la del crédito. Lo dice el propio comentario del backend: «Equivocar la
 caja aquí no se nota en el momento: aparece al cierre de ruta, como un descuadre
 que nadie sabe de dónde salió».
 
-**Receta.** `prestamo` en ese ámbito es el resultado de `tx.prestamo.update(...)`,
-así que `prestamo.rutaId` está disponible (columna escalar). Cambiar a
-`prestamo.rutaId || prestamo.cliente?.asignacionesRuta?.[0]?.rutaId` —el respaldo
-solo para filas viejas sin ruta— y añadir prueba.
+**ARREGLADO** en `e7d6f09`: las dos cascadas empiezan por `prestamo.rutaId` y la
+asignación del cliente se queda solo como respaldo para filas viejas. Centinela
+en `src/approvals/caja-del-credito-no-del-cliente.spec.ts`, comprobada al revés:
+prohíbe que la asignación del cliente sea el primer valor y fija en dos las
+elecciones de caja, para que una tercera tenga que pasar por ahí.
 
 ---
 
@@ -574,18 +583,17 @@ Si retomas esto sin más contexto, este orden es el que más valor da por hora, 
 está pensado para que el cliente pueda importar y probar:
 
 1. **P1, el techo de las pantallas.** Es lo único de esta lista que se rompe
-   solo el día de la importación y en silencio. Empieza por
-   `CuentasMoraFeature` (el servidor ya le manda el total verdadero) y por
-   `admin/pagos/historial`.
-2. **P2, la caja del desembolso.** Son dos líneas y es dinero.
-3. **P3, el barrido de pantallas sobre una build de producción.** Hasta que eso
+   solo el día de la importación y en silencio. Mora ya está hecha y sirve de
+   modelo; siguen siete, y la más urgente es `admin/pagos/historial` (tope 500
+   en pagos y otros 500 en gastos).
+2. **P3, el barrido de pantallas sobre una build de producción.** Hasta que eso
    pase en verde no se puede afirmar que las 112 pantallas abren para los 7
    roles. Mira también la pista de `/coordinador/revisiones`.
-4. **P5 y P6**, que son mecánicos y se verifican con la zona de pruebas del
+3. **P5 y P6**, que son mecánicos y se verifican con la zona de pruebas del
    backend.
-5. **P4**, pantalla por pantalla y empezando por las de dinero. No en masa.
-6. **P7**, que es un minuto.
-7. Y lo del dueño: lo offline contra una build (§10.3) y las capturas (§10.2).
+4. **P4**, pantalla por pantalla y empezando por las de dinero. No en masa.
+5. **P7**, que es un minuto.
+6. Y lo del dueño: lo offline contra una build (§10.3) y las capturas (§10.2).
 
 Dos cosas que conviene hacer **antes** de tocar código, cada vez:
 
