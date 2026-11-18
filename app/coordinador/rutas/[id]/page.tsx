@@ -1,5 +1,5 @@
 'use client'
-import { formatFechaBogota, formatHoraBogota } from '@/lib/format-date'
+import { formatFechaBogota } from '@/lib/format-date'
 import { datosParaRegistro, mensajeDeError } from '@/lib/mensaje-de-error'
 
 import { clienteComoObjeto } from '@/types/obligacion-jornada'
@@ -14,9 +14,7 @@ import RutaClient from '../../../admin/rutas/[id]/ruta-client'
 
 import {
   XCircle,
-  Banknote,
   ArrowLeft,
-  Save,
   Search,
   FileText as FileTextIcon,
   History,
@@ -30,7 +28,7 @@ import {
   Plus,
 } from 'lucide-react'
 
-import { formatCOPInputValue, formatCurrency, formatMilesCOP, isUuid } from '@/lib/utils'
+import { formatCurrency, formatMilesCOP, isUuid } from '@/lib/utils'
 
 import Link from 'next/link'
 
@@ -73,6 +71,7 @@ import {
   shouldExcludeVisitaFromOperationalMeta,
   shouldIncludeVisitaInRutaHoyKpis,
   debeMostrarseEnListaDeRuta,
+  prorrogaActivaEnVisita,
 } from '@/lib/rutas-core'
 import { useHoyBogota } from '@/hooks/use-hoy-bogota'
 import {
@@ -112,7 +111,6 @@ import {
 import type { EstadisticasDeRuta, DailyVisitsResponse } from '@/services/rutas-service'
 import { resolveNivelRiesgoUi } from '@/lib/rutas/riesgo-obligacion'
 import type { Cuota, Pago } from '@/types/domain'
-import { Selector } from '@/components/ui/Selector'
 import GrupoDeFiltros from '@/components/filtros/GrupoDeFiltros'
 import {
   aPeriodoDeFiltro,
@@ -184,9 +182,7 @@ const LegacyDetalleRutaPage = () => {
 
   const porcentajeProgreso = progreso.total > 0 ? (progreso.visitados / progreso.total) * 100 : 0
 
-  const [isGastoModalOpen, setIsGastoModalOpen] = useState(false)
 
-  const [nuevoGasto, setNuevoGasto] = useState({ tipo: 'OPERATIVO', descripcion: '', valor: '' })
 
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -1176,21 +1172,6 @@ const LegacyDetalleRutaPage = () => {
     return { visitasAgrupadas: agrupar, totalMostradas: totalEnGrupos }
   }, [visitasCobrador, searchQuery, periodoRutaFiltro, alcanceVisitas, hoyBogotaDeLaLista])
 
-  const handleGuardarGasto = (e: React.FormEvent) => {
-    e.preventDefault()
-
-    const horaActual = formatHoraBogota(new Date(), {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
-    }, 'en-US')
-
-    logger.log('Guardando gasto:', { ...nuevoGasto, hora: horaActual })
-
-    setIsGastoModalOpen(false)
-
-    setNuevoGasto({ tipo: 'OPERATIVO', descripcion: '', valor: '' })
-  }
 
   if (isLoading) {
     return (
@@ -1756,17 +1737,63 @@ Qué visitas se ven
                             getPrioridadColor={prioridadColor}
 
                             actions={
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleAbrirEstadoCuenta(visita)
-                                }}
+                              <>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleAbrirEstadoCuenta(visita)
+                                  }}
 
-                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white text-primary border border-primary/20 hover:bg-blue-50 transition-all shadow-sm active:scale-95 font-bold text-[11px]"
-                              >
-                                <FileTextIcon className="h-3.5 w-3.5" />
-                                Estado
-                              </button>
+                                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white text-primary border border-primary/20 hover:bg-blue-50 transition-all shadow-sm active:scale-95 font-bold text-[11px]"
+                                >
+                                  <FileTextIcon className="h-3.5 w-3.5" />
+                                  Estado
+                                </button>
+
+                                {/*
+                                 * El modal de reprogramacion de esta pantalla
+                                 * siempre estuvo completo —llama a
+                                 * `solicitarReprogramacionCuota`— y el backend
+                                 * autoriza al COORDINADOR en
+                                 * `POST /loans/:id/reprogramacion`; lo que
+                                 * faltaba era el boton, que si existe en las
+                                 * pantallas de ruta de admin, cobrador y
+                                 * supervisor.
+                                 */}
+                                <Tooltip
+                                  texto={
+                                    prorrogaActivaEnVisita(visita)
+                                      ? 'No se puede reprogramar: la cuota ya tiene una prorroga activa'
+                                      : 'Solicitar reprogramacion de la cuota'
+                                  }
+                                >
+                                  {/*
+                                   * `aria-disabled` y no `disabled`: un boton
+                                   * deshabilitado no emite eventos de puntero,
+                                   * y entonces el tooltip que explica POR QUE
+                                   * no se puede reprogramar no saldria nunca.
+                                   * La guarda real esta en el `onClick`.
+                                   */}
+                                  <button
+                                    type="button"
+                                    aria-disabled={prorrogaActivaEnVisita(visita)}
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      if (prorrogaActivaEnVisita(visita)) return
+                                      setVisitaReprogramar(visita)
+                                    }}
+
+                                    className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border transition-all font-bold text-[11px] shadow-sm ${
+                                      prorrogaActivaEnVisita(visita)
+                                        ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed'
+                                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 active:scale-95'
+                                    }`}
+                                  >
+                                    <CalendarDays className="h-3.5 w-3.5 text-slate-400" />
+                                    Repro.
+                                  </button>
+                                </Tooltip>
+                              </>
                             }
                           />
                         ))}
@@ -1788,145 +1815,6 @@ Qué visitas se ven
         )}
       </div>
 
-      {isGastoModalOpen && (
-        <div
-          className="fixed inset-0 capa-modal flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none"
-          onClick={() => setIsGastoModalOpen(false)}
-        >
-          <div
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-              <h3 className="font-bold text-lg text-slate-900">
-                <span className="text-blue-600">Registrar</span>{' '}
-                <span className="text-orange-500">Gasto</span>
-              </h3>
-
-              <button aria-label="Cerrar"
-                onClick={() => setIsGastoModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 transition-colors"
-              >
-                <XCircle className="h-6 w-6" />
-              </button>
-            </div>
-
-            <form onSubmit={handleGuardarGasto} className="p-6 space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-slate-700">
-                  Tipo de Gasto
-                  <span className="ml-1 text-red-500" aria-label="obligatorio">
-                    *
-                  </span>
-                </label>
-
-                <Selector
-                  required
-                  value={nuevoGasto.tipo}
-                  onChange={(v) => setNuevoGasto({ ...nuevoGasto, tipo: v })}
-                  etiqueta="Tipo de gasto"
-                  className="bg-slate-50 font-medium text-slate-900"
-                  opciones={[
-                    { value: 'OPERATIVO', label: 'Operativo' },
-                    { value: 'TRANSPORTE', label: 'Transporte' },
-                    { value: 'OTRO', label: 'Otro' },
-                  ]}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-slate-700">
-                  Descripción
-                  <span className="ml-1 text-red-500" aria-label="obligatorio">
-                    *
-                  </span>
-                </label>
-
-                <textarea
-                  required
-
-                  rows={2}
-
-                  className="w-full px-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900 resize-none"
-
-                  placeholder="Detalles del gasto..."
-
-                  value={nuevoGasto.descripcion}
-
-                  onChange={(e) => setNuevoGasto({ ...nuevoGasto, descripcion: e.target.value })}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-slate-700">
-                  Valor
-                  <span className="ml-1 text-red-500" aria-label="obligatorio">
-                    *
-                  </span>
-                </label>
-
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">
-                    $
-                  </span>
-
-                  <input
-                    type="text"
-
-                    inputMode="numeric"
-
-                    required
-
-                    className="w-full pl-8 pr-4 py-2.5 rounded-xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all font-medium text-slate-900"
-
-                    placeholder="0"
-
-                    value={nuevoGasto.valor}
-
-                    onChange={(e) =>
-                      setNuevoGasto({ ...nuevoGasto, valor: formatCOPInputValue(e.target.value) })
-                    }
-                  />
-                </div>
-              </div>
-
-              <div className="p-3 bg-blue-50 rounded-xl flex items-start gap-3 border border-blue-100">
-                <div className="shrink-0 p-1.5 bg-blue-100 rounded-lg text-blue-600 mt-0.5">
-                  <Banknote className="h-4 w-4" />
-                </div>
-
-                <div className="text-xs text-blue-800">
-                  <p className="font-bold mb-0.5">Nota Importante</p>
-
-                  <p>
-                    Este gasto quedará en estado <strong>Pendiente de Aprobación</strong> hasta que
-                    el supervisor lo valide.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex gap-3 pt-4 mt-2 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setIsGastoModalOpen(false)}
-                  className="flex-1 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-50 transition-colors"
-                >
-                  Cancelar
-                </button>
-
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all flex items-center justify-center gap-2"
-                >
-                  <Save className="h-4 w-4" />
-
-                  <span>Guardar</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {estadoCuentaVisita && (
         <EstadoCuentaModal
@@ -2012,6 +1900,7 @@ Qué visitas se ven
           }}
         />
       )}
+
 
       {showClienteSelector && (
         <SeleccionClienteModal

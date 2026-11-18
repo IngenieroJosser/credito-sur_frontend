@@ -1,7 +1,11 @@
 import * as fs from 'fs'
 import * as path from 'path'
 
-import { debeMostrarseEnListaDeRuta, visitaAtendidaHoy } from '@/lib/rutas-core'
+import {
+  debeMostrarseEnListaDeRuta,
+  prorrogaActivaEnVisita,
+  visitaAtendidaHoy,
+} from '@/lib/rutas-core'
 import { sinComentarios } from '@/lib/testing/sin-comentarios'
 
 /**
@@ -274,5 +278,74 @@ describe('debeMostrarseEnListaDeRuta', () => {
     for (const alcance of ['PENDIENTES', 'ATENDIDAS', 'TODAS'] as const) {
       expect(debeMostrarseEnListaDeRuta(null, HOY, alcance)).toBe(false)
     }
+  })
+})
+
+
+/**
+ * La prorroga activa es la segunda regla que estaba escrita a mano dentro del
+ * JSX: la pantalla del admin la repetia tres veces (`onClick`, `disabled` y
+ * `className`) y la del coordinador no la tenia porque tampoco tenia el boton.
+ */
+describe('prorrogaActivaEnVisita', () => {
+  const AHORA = new Date('2026-11-17T15:00:00-05:00').getTime()
+
+  it('sin prorroga, no bloquea', () => {
+    expect(prorrogaActivaEnVisita({ enProrroga: false }, AHORA)).toBe(false)
+    expect(prorrogaActivaEnVisita({}, AHORA)).toBe(false)
+    expect(prorrogaActivaEnVisita(null, AHORA)).toBe(false)
+  })
+
+  it('en prorroga y la fecha nueva aun no llega: bloquea', () => {
+    expect(
+      prorrogaActivaEnVisita(
+        { enProrroga: true, fechaProrroga: '2026-11-20T00:00:00-05:00' },
+        AHORA,
+      ),
+    ).toBe(true)
+  })
+
+  it('en prorroga pero la fecha nueva ya vencio: se puede reprogramar', () => {
+    expect(
+      prorrogaActivaEnVisita(
+        { enProrroga: true, fechaProrroga: '2026-11-10T00:00:00-05:00' },
+        AHORA,
+      ),
+    ).toBe(false)
+  })
+
+  it('en prorroga sin fecha: bloquea, porque no hay fecha que comparar', () => {
+    expect(prorrogaActivaEnVisita({ enProrroga: true }, AHORA)).toBe(true)
+    expect(
+      prorrogaActivaEnVisita({ enProrroga: true, fechaProrroga: 'no-es-fecha' }, AHORA),
+    ).toBe(true)
+  })
+
+  it('ninguna pantalla de ruta vuelve a escribir la condicion a mano', () => {
+    const pantallas = [
+      'app/admin/rutas/[id]/ruta-client.tsx',
+      'app/coordinador/rutas/[id]/page.tsx',
+      'components/dashboards/VistaCobrador.tsx',
+      'components/dashboards/SupervisorCobroView.tsx',
+    ]
+
+    // La forma de la copia: `fechaProrroga` comparada con un reloj a mano.
+    const aMano = /fechaProrroga[\s\S]{0,80}?getTime\(\)\s*<\s*(Date\.now\(\)|ahora)/g
+
+    let vistos = 0
+    const culpables: string[] = []
+
+    for (const relativa of pantallas) {
+      const ruta = path.join(process.cwd(), relativa)
+      if (!fs.existsSync(ruta)) throw new Error(`No existe ${relativa}`)
+      const codigo = sinComentarios(fs.readFileSync(ruta, 'utf8'))
+      vistos += 1
+      const copias = codigo.match(aMano)
+      if (copias) culpables.push(`${relativa}: ${copias.length}`)
+    }
+
+    // Piso medido: la centinela tiene que estar mirando los cuatro ficheros.
+    expect(vistos).toBe(4)
+    expect(culpables).toEqual([])
   })
 })

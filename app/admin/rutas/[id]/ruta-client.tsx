@@ -60,7 +60,6 @@ import type { AsignacionDelMapeo } from '@/lib/ruta-visitas-mapper'
 
 import {
   StaticVisitaItem,
-  SeleccionClienteModal,
 } from '@/components/dashboards/shared/CobradorElements'
 
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal'
@@ -117,6 +116,7 @@ import {
   shouldExcludeVisitaFromOperationalMeta,
   shouldMarkVisitaAsPagado,
   debeMostrarseEnListaDeRuta,
+  prorrogaActivaEnVisita,
   resolveCuotaNormalOperativa,
   resolveCuotaIdFromVisitaLike,
 } from '@/lib/rutas-core'
@@ -210,11 +210,8 @@ const RutaClientLoaded = ({
     return () => clearInterval(t)
   }, [])
 
-  const [isGastoModalOpen, setIsGastoModalOpen] = useState(false)
-  const [nuevoGasto, setNuevoGasto] = useState({ tipo: 'OPERATIVO', descripcion: '', valor: '' })
 
   const [searchQuery, setSearchQuery] = useState('')
-  const [showFilters, setShowFilters] = useState(false)
   const [periodoCards, setPeriodoCards] = useState<'HOY' | 'SEM' | 'MES' | 'AÑO'>('HOY')
 
   const {
@@ -261,7 +258,16 @@ const RutaClientLoaded = ({
     return getBogotaRangeByPeriod(period)
   }, [])
 
-  const [showClienteSelector, setShowClienteSelector] = useState(false)
+  /*
+   * Aqui habia un `showClienteSelector` con su `SeleccionClienteModal`: la
+   * barra de acciones rapidas que preguntaba PRIMERO a que cliente, y luego
+   * abria pago, abono, reprogramacion o estado de cuenta. Nada la abria —solo
+   * habia llamadas de cierre—, porque la sustituyeron los botones por visita
+   * de cada tarjeta, que ya llevan el cliente consigo.
+   *
+   * El selector sigue vivo donde si tiene barra: `showClientSelector` en
+   * `VistaCobrador` y en `SupervisorCobroView`, con dos aperturas cada uno.
+   */
   const [showNewClientModal, setShowNewClientModal] = useState(false)
   const [showCrearCreditoModal, setShowCrearCreditoModal] = useState(false)
   const [selectedClienteForCredito, setSelectedClienteForCredito] = useState<VisitaRuta | null>(
@@ -808,31 +814,21 @@ const RutaClientLoaded = ({
         onClick={(e) => {
           e.stopPropagation()
           if (!rutaOperable) return
-          const isProrrogaVencida =
-            visita.enProrroga &&
-            visita.fechaProrroga &&
-            new Date(visita.fechaProrroga).getTime() < Date.now()
-          if (!visita.enProrroga || isProrrogaVencida) {
-            clearRegularizacionContext()
-            setVisitaReprogramar(visita)
-          }
+          if (prorrogaActivaEnVisita(visita)) return
+          clearRegularizacionContext()
+          setVisitaReprogramar(visita)
         }}
-        disabled={
-          !rutaOperable ||
-          (!!visita.enProrroga &&
-            !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < ahora))
-        }
+        disabled={!rutaOperable || prorrogaActivaEnVisita(visita, ahora)}
         title={
           !rutaOperable
             ? rutaCompletada
               ? 'Jornada completada'
               : 'Jornada sin activar'
-            : visita.enProrroga &&
-                !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < ahora)
+            : prorrogaActivaEnVisita(visita, ahora)
               ? 'No se puede reprogramar con prorroga activa'
               : 'Solicitar reprogramacion'
         }
-        className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border transition-all font-bold text-[11px] shadow-sm ${!rutaOperable || (visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < ahora)) ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 active:scale-95'}`}
+        className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border transition-all font-bold text-[11px] shadow-sm ${!rutaOperable || prorrogaActivaEnVisita(visita, ahora) ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 active:scale-95'}`}
       >
         <Calendar className="h-3.5 w-3.5 text-slate-400" />
         Repro.
@@ -885,11 +881,7 @@ const RutaClientLoaded = ({
     }
   }, [visitasCobrador, searchQuery, vistaRuta])
 
-  const [visitaSeleccionada, setVisitaSeleccionada] = useState<string | null>(null)
 
-  const [accionPendiente, setAccionPendiente] = useState<
-    'PAGO' | 'ABONO' | 'REPROGRAMAR' | 'ESTADO_CUENTA' | null
-  >(null)
 
   const [estadoCuentaVisita, setEstadoCuentaVisita] = useState<VisitaRuta | null>(null)
 
@@ -921,14 +913,6 @@ const RutaClientLoaded = ({
     (visita: VisitaRuta) => setEstadoCuentaVisita(visita),
     [setEstadoCuentaVisita],
   )
-
-  const handleGuardarGasto = (e: React.FormEvent) => {
-    e.preventDefault()
-
-    setIsGastoModalOpen(false)
-
-    setNuevoGasto({ tipo: 'OPERATIVO', descripcion: '', valor: '' })
-  }
 
   const [rutaActivadaHoy, setRutaActivadaHoy] = useState(false)
   const [loadingActivacionHoy, setLoadingActivacionHoy] = useState(false)
@@ -1811,17 +1795,6 @@ Qué visitas se ven
 
       {/* Modales (Gasto, Pago, etc...) */}
 
-      {isGastoModalOpen && (
-        <div className="fixed inset-0 capa-modal flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none">
-          <form onSubmit={handleGuardarGasto} className="p-6 space-y-4 bg-white rounded-lg">
-            {/* Contenido simplificado gasto por brevedad de edicion */}
-
-            <h3 className="font-bold">Registrar Gasto</h3>
-
-            <button type="submit">Guardar</button>
-          </form>
-        </div>
-      )}
 
       {/* Modal de Estado de Cuenta */}
 
@@ -2242,26 +2215,6 @@ Qué visitas se ven
         />
       )}
 
-      {showClienteSelector && (
-        <SeleccionClienteModal
-          visitas={visitasCobrador}
-
-          onSelect={(visita) => {
-            setShowClienteSelector(false)
-
-            if (accionPendiente === 'PAGO') handleAbrirPago(visita)
-            else if (accionPendiente === 'ABONO') handleAbrirAbono(visita)
-            else if (accionPendiente === 'REPROGRAMAR') {
-              clearRegularizacionContext()
-              setVisitaReprogramar(visita)
-            } else handleAbrirEstadoCuenta(visita)
-
-            setAccionPendiente(null)
-          }}
-
-          onClose={() => setShowClienteSelector(false)}
-        />
-      )}
 
       {detalleVisita &&
         (() => {

@@ -175,6 +175,7 @@ import {
   getBogotaRangeByPeriod,
   isCuotaNoPagada,
   debeMostrarseEnListaDeRuta,
+  prorrogaActivaEnVisita,
   isVisitaExigibleHoy,
   normalizeDateKey,
   resolveFechaEfectivaCuota,
@@ -320,39 +321,41 @@ const VistaCobrador = () => {
     setContextoRegularizacion(null)
   }, [])
 
-  const [showMoraModal, setShowMoraModal] = useState(false)
-
-  const [visitaMoraSeleccionada, setVisitaMoraSeleccionada] = useState<VisitaRuta | null>(null)
-
-  const [moraCuenta, setMoraCuenta] = useState<{
-    id: string
-
-    numeroPrestamo: string
-
-    cliente: { nombre: string; documento: string; telefono: string; direccion: string }
-
-    diasMora: number
-
-    montoMora: number
-
-    montoTotalDeuda: number
-
-    cuotasVencidas: number
-
-    ruta: string
-
-    cobrador: string
-
-    nivelRiesgo: string
-  } | null>(null)
+  /*
+   * Aqui vivian `showMoraModal`, `visitaMoraSeleccionada` y `moraCuenta`,
+   * tres estados para un modal que NO EXISTE en esta pantalla, con su
+   * cargador de 150 lineas mas abajo.
+   *
+   * Nada ponia `showMoraModal` en true —el setter no se llamaba ni una sola
+   * vez—, asi que el efecto salia por su primera linea siempre y `moraCuenta`
+   * no se leia en ningun sitio: no hay `DetalleMoraModal` en el JSX.
+   *
+   * El componente `components/cobranza/DetalleMoraModal.tsx` SI existe y esta
+   * terminado, pero no lo importa nadie. Si se quiere la funcion, hay que
+   * engancharlo a un boton y recuperar el cargador del historial; dejarlo
+   * apagado aqui solo alargaba la pantalla mas delicada del sistema.
+   */
 
   const [showNewClientModal, setShowNewClientModal] = useState(false)
 
-  const [showEditClientModal, setShowEditClientModal] = useState(false)
-  const [clientToEdit, setClientToEdit] = useState<Cliente | null>(null)
-
-  const [showDeleteClientModal, setShowDeleteClientModal] = useState(false)
-  const [clientToDelete, setClientToDelete] = useState<Cliente | null>(null)
+  /*
+   * Aqui habia dos modales de cliente, los dos inalcanzables: nada llamaba a
+   * `setShowEditClientModal` ni a `setShowDeleteClientModal` —ni para abrir ni
+   * para cerrar—, asi que las dos condiciones eran siempre falsas.
+   *
+   * No se reconectaron porque los dos casos no son iguales:
+   *
+   *  - BORRAR no puede ser del cobrador. `DELETE /clients/:id` solo autoriza a
+   *    SUPER_ADMINISTRADOR, ADMIN y COORDINADOR: el boton habria devuelto 403,
+   *    y el `catch` era un `console.error` sin aviso en pantalla, asi que el
+   *    cobrador habria visto el modal quedarse ahi, mudo.
+   *
+   *  - EDITAR si lo autoriza el backend (`PATCH /clients/:id` incluye a
+   *    COBRADOR), pero hoy el cobrador no tiene ninguna pantalla de clientes:
+   *    `ClientesFeature` —la que trae el lapiz de editar— solo la montan admin,
+   *    coordinador y supervisor. Darle esa puerta al cobrador es una decision
+   *    de permisos, no una reconexion.
+   */
 
   const [showReprogramModal, setShowReprogramModal] = useState(false)
 
@@ -3244,214 +3247,6 @@ const VistaCobrador = () => {
     visitaClienteSeleccionada?.cliente,
   ])
 
-  // Cargar detalle real de mora al abrir el modal
-
-  useEffect(() => {
-    const cargarDetalleMora = async () => {
-      if (!showMoraModal || !visitaMoraSeleccionada) {
-        setMoraCuenta(null)
-
-        return
-      }
-
-      const prestamoId = visitaMoraSeleccionada.prestamoId || visitaMoraSeleccionada.id
-
-      try {
-        // Declarado, no inferido: `let x = null` sin anotacion es un `any` EVOLUTIVO que
-        // `noImplicitAny` no marca. El tipo sale del servicio que lo llena.
-        let detalle: Awaited<ReturnType<typeof prestamosService.obtenerPrestamoPorId>> | null = null
-
-        try {
-          detalle = await prestamosService.obtenerPrestamoPorId(prestamoId)
-        } catch {
-          detalle = null
-        }
-
-        if (detalle) {
-          setMoraCuenta({
-            id: visitaMoraSeleccionada.id,
-
-            numeroPrestamo: detalle.numeroPrestamo || detalle.id || prestamoId,
-
-            cliente: {
-              // HALLAZGO: los cuatro `detalle.*` que siguen eran lecturas MUERTAS, y las
-              // cuatro tenian respaldo, asi que el respaldo era el valor real desde siempre.
-              // `Cliente` no tiene `nombre` (tiene `nombres` y `apellidos`) ni `documento`
-              // (tiene `dni`), y `Prestamo` no tiene `montoMora` ni `montoTotalDeuda`. Se leen
-              // los campos que SI existen, y el respaldo se queda donde estaba.
-              nombre:
-                `${detalle.cliente?.nombres || ''} ${detalle.cliente?.apellidos || ''}`.trim() ||
-                visitaMoraSeleccionada.cliente,
-
-              documento: detalle.cliente?.dni || 'N/A',
-
-              telefono: detalle.cliente?.telefono || visitaMoraSeleccionada.telefono,
-
-              direccion: detalle.cliente?.direccion || visitaMoraSeleccionada.direccion,
-            },
-
-            diasMora: Number(detalle.diasMora || 0),
-
-            montoMora: Number(
-              visitaMoraSeleccionada.saldoTotal - visitaMoraSeleccionada.montoCuota,
-            ),
-
-            montoTotalDeuda: Number(detalle.montoTotal ?? visitaMoraSeleccionada.saldoTotal),
-
-            cuotasVencidas: Number(detalle.cuotasVencidas || 0),
-
-            ruta: userSession?.rutaAsignada || 'Ruta Asignada',
-
-            cobrador: userSession?.nombres || 'Cobrador',
-
-            nivelRiesgo:
-              visitaMoraSeleccionada.nivelRiesgo === 'critico'
-                ? 'ROJO'
-                : visitaMoraSeleccionada.nivelRiesgo === 'moderado'
-                  ? 'AMARILLO'
-                  : 'VERDE',
-          })
-
-          return
-        }
-
-        const info = await prestamosService.obtenerPrestamoPorId(prestamoId)
-
-        const cuotas = await prestamosService.obtenerCuotas(prestamoId).catch(() => [])
-
-        const vencidas = (cuotas || []).filter((c: CuotaOperativa) => c.estado === 'VENCIDA')
-
-        const cuotasVencidas = vencidas.length
-
-        let diasMora = 0
-
-        if (vencidas.length > 0) {
-          const oldest = vencidas.reduce(
-            (min, c) =>
-              new Date(c.fechaVencimiento).getTime() < new Date(min.fechaVencimiento).getTime()
-                ? c
-                : min,
-            vencidas[0],
-          )
-
-          const freq = String(info?.frecuenciaPago || info?.frecuencia || '').toUpperCase()
-          if (freq === 'DIARIO') {
-            const oldestKey = normalizeDateKey(String(oldest.fechaVencimiento || ''))
-            const endKey = hoyBogotaKey
-            if (oldestKey && endKey) {
-              const start = new Date(`${oldestKey}T12:00:00-05:00`)
-              const end = new Date(`${endKey}T12:00:00-05:00`)
-              if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
-                let count = 0
-                const cur = new Date(start)
-                cur.setDate(cur.getDate() + 1)
-                while (cur.getTime() <= end.getTime()) {
-                  if (cur.getDay() !== 0) count++
-                  cur.setDate(cur.getDate() + 1)
-                }
-                diasMora = count
-              }
-            }
-          } else {
-            const oldestKey = normalizeDateKey(String(oldest.fechaVencimiento || ''))
-            const endKey = hoyBogotaKey
-            if (oldestKey && endKey) {
-              const start = new Date(`${oldestKey}T12:00:00-05:00`)
-              const end = new Date(`${endKey}T12:00:00-05:00`)
-              if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
-                const diff = Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
-                diasMora = diff > 0 ? diff : 0
-              }
-            }
-          }
-        }
-
-        const numeroPrestamo = info.numeroPrestamo || info.id || prestamoId
-
-        const montoTotalDeuda = Number(info.saldoPendiente ?? visitaMoraSeleccionada.saldoTotal)
-
-        const montoMora = Number(
-          info.moraAcumulada ??
-            Math.max(0, visitaMoraSeleccionada.saldoTotal - visitaMoraSeleccionada.montoCuota),
-        )
-
-        setMoraCuenta({
-          id: visitaMoraSeleccionada.id,
-
-          numeroPrestamo,
-
-          cliente: {
-            nombre: visitaMoraSeleccionada.cliente,
-
-            documento: info.cliente?.dni || 'N/A',
-
-            telefono: visitaMoraSeleccionada.telefono,
-
-            direccion: visitaMoraSeleccionada.direccion,
-          },
-
-          diasMora,
-
-          montoMora,
-
-          montoTotalDeuda,
-
-          cuotasVencidas,
-
-          ruta: userSession?.rutaAsignada || 'Ruta Asignada',
-
-          cobrador: userSession?.nombres || 'Cobrador',
-
-          nivelRiesgo:
-            visitaMoraSeleccionada.nivelRiesgo === 'critico'
-              ? 'ROJO'
-              : visitaMoraSeleccionada.nivelRiesgo === 'moderado'
-                ? 'AMARILLO'
-                : 'VERDE',
-        })
-      } catch {
-        setMoraCuenta({
-          id: visitaMoraSeleccionada.id,
-
-          numeroPrestamo: prestamoId,
-
-          cliente: {
-            nombre: visitaMoraSeleccionada.cliente,
-
-            documento: 'N/A',
-
-            telefono: visitaMoraSeleccionada.telefono,
-
-            direccion: visitaMoraSeleccionada.direccion,
-          },
-
-          diasMora: 0,
-
-          montoMora: Math.max(
-            0,
-            visitaMoraSeleccionada.saldoTotal - visitaMoraSeleccionada.montoCuota,
-          ),
-
-          montoTotalDeuda: visitaMoraSeleccionada.saldoTotal,
-
-          cuotasVencidas: 0,
-
-          ruta: userSession?.rutaAsignada || 'Ruta Asignada',
-
-          cobrador: userSession?.nombres || 'Cobrador',
-
-          nivelRiesgo:
-            visitaMoraSeleccionada.nivelRiesgo === 'critico'
-              ? 'ROJO'
-              : visitaMoraSeleccionada.nivelRiesgo === 'moderado'
-                ? 'AMARILLO'
-                : 'VERDE',
-        })
-      }
-    }
-
-    cargarDetalleMora()
-  }, [showMoraModal, visitaMoraSeleccionada, userSession])
 
   // Generar avatar del usuario
 
@@ -3979,11 +3774,7 @@ const VistaCobrador = () => {
                                           e.stopPropagation()
 
                                           if (!rutaOperable) return
-                                          const isProrrogaVencida =
-                                            visita.enProrroga &&
-                                            visita.fechaProrroga &&
-                                            new Date(visita.fechaProrroga).getTime() < Date.now()
-                                          if (visita.enProrroga && !isProrrogaVencida) return
+                                          if (prorrogaActivaEnVisita(visita)) return
 
                                           clearRegularizacionContext()
                                           setVisitaReprogramar(visita)
@@ -3992,29 +3783,19 @@ const VistaCobrador = () => {
                                         }}
 
                                         disabled={
-                                          !rutaOperable ||
-                                          (!!visita.enProrroga &&
-                                            !(
-                                              visita.fechaProrroga &&
-                                              new Date(visita.fechaProrroga).getTime() < Date.now()
-                                            ))
+                                          !rutaOperable || prorrogaActivaEnVisita(visita)
                                         }
                                         title={
                                           !rutaOperable
                                             ? rutaCompletada
                                               ? 'Jornada completada'
                                               : 'Jornada sin activar'
-                                            : visita.enProrroga &&
-                                                !(
-                                                  visita.fechaProrroga &&
-                                                  new Date(visita.fechaProrroga).getTime() <
-                                                    Date.now()
-                                                )
+                                            : prorrogaActivaEnVisita(visita)
                                               ? 'No se puede reprogramar con prórroga activa'
                                               : 'Solicitar reprogramación'
                                         }
 
-                                        className={`inline-flex min-h-[44px] items-center gap-1 rounded-lg px-3 sm:min-h-0 sm:py-1.5 border transition-all active:scale-95 text-[11px] font-bold ${!rutaOperable || (visita.enProrroga && !(visita.fechaProrroga && new Date(visita.fechaProrroga).getTime() < Date.now())) ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                                        className={`inline-flex min-h-[44px] items-center gap-1 rounded-lg px-3 sm:min-h-0 sm:py-1.5 border transition-all active:scale-95 text-[11px] font-bold ${!rutaOperable || prorrogaActivaEnVisita(visita) ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
                                       >
                                         <Calendar className="h-3.5 w-3.5 text-slate-400" />
                                         Repro.
@@ -4243,52 +4024,7 @@ const VistaCobrador = () => {
           />
         )}
 
-        {showEditClientModal && clientToEdit && (
-          <NuevoClienteModal
-            cliente={clientToEdit}
-            esEdicion={true}
-            onClose={() => {
-              setShowEditClientModal(false)
-              setClientToEdit(null)
-            }}
-            onClienteCreado={(updatedClient) => {
-              logger.log('Cliente actualizado:', updatedClient)
-              setShowEditClientModal(false)
-              setClientToEdit(null)
-              // Recargar clientes asignados
-              if (userSession?.id) {
-                cargarMisCreditosAsignados(userSession.id)
-              }
-            }}
-          />
-        )}
 
-        {showDeleteClientModal && clientToDelete && (
-          <ConfirmModal
-            isOpen={showDeleteClientModal}
-            onClose={() => {
-              setShowDeleteClientModal(false)
-              setClientToDelete(null)
-            }}
-            onConfirm={async () => {
-              try {
-                await clientesService.eliminar(clientToDelete.id)
-                setShowDeleteClientModal(false)
-                setClientToDelete(null)
-                // Recargar clientes asignados
-                if (userSession?.id) {
-                  cargarMisCreditosAsignados(userSession.id)
-                }
-              } catch (error) {
-                console.error('Error eliminando cliente:', error)
-              }
-            }}
-            title="Eliminar cliente"
-            message={`¿Estás seguro de que deseas eliminar al cliente ${clientToDelete.nombres} ${clientToDelete.apellidos}? Esta acción no se puede deshacer.`}
-            confirmText="Eliminar"
-            cancelText="Cancelar"
-          />
-        )}
 
         {showEstadoCuentaModal && visitaEstadoCuentaSeleccionada && (
           <EstadoCuentaModal

@@ -1018,6 +1018,30 @@ export const debeMostrarseEnListaDeRuta = (
   return isVisitaExigibleHoy(visita, hoyBogotaKey)
 }
 
+/**
+ * Una prórroga activa bloquea la reprogramación: ya se le movió la fecha a esa
+ * cuota y aún no ha vencido el plazo nuevo.
+ *
+ * Estaba escrita a mano tres veces dentro de la pantalla de ruta del admin —la
+ * condición completa, repetida en el `onClick`, en el `disabled` y en el
+ * `className`—, y la pantalla del coordinador la necesita igual. Vive aquí
+ * para que las dos digan lo mismo.
+ *
+ * Sin `fechaProrroga` la prórroga cuenta como activa: no hay fecha que
+ * comparar, así que no se puede afirmar que venció.
+ */
+export const prorrogaActivaEnVisita = (
+  visita: VisitaParcial | null | undefined,
+  ahoraMs: number = Date.now(),
+): boolean => {
+  if (!visita?.enProrroga) return false
+  const fecha = visita.fechaProrroga
+  if (!fecha) return true
+  const vence = new Date(fecha).getTime()
+  if (Number.isNaN(vence)) return true
+  return vence >= ahoraMs
+}
+
 export const shouldMarkVisitaAsPagado = (params: {
   saldoTotal?: unknown
   recaudadoHoy?: unknown
