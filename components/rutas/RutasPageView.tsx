@@ -54,7 +54,6 @@ import {
   getCajas,
   consolidarCaja,
   obtenerSaldoDisponibleRuta,
-  Caja,
 } from '@/services/contabilidad-service'
 import { prestamosService } from '@/services/prestamos-service'
 import { formatRoleLabel, riesgoOperativoLabel } from '@/lib/display-labels'
@@ -358,8 +357,22 @@ export const RutasPageView = ({
   const [coordinadoresList, setCoordinadoresList] = useState<
     { id: string; nombre: string; rol?: string }[]
   >([])
-  const [showSelectPrincipalModal, setShowSelectPrincipalModal] = useState(false)
-  const [principalOptions, setPrincipalOptions] = useState<Caja[]>([])
+  /*
+   * Aqui habia un `confirmarEnvioA(destinoId)` con su modal «Seleccionar Caja
+   * Principal», y los dos eran inalcanzables: nada llamaba a
+   * `setShowSelectPrincipalModal(true)` ni a `setPrincipalOptions(...)`, asi
+   * que la lista de cajas destino era siempre `[]`.
+   *
+   * Tampoco habria funcionado como decia: pedia elegir la caja destino y luego
+   * llamaba a `consolidarCaja(cajaRuta.id, undefined, key)` —cuyo segundo
+   * parametro es el MONTO, no el destino: `POST
+   * /accounting/cajas/:id/consolidar` no recibe destino ninguno— y acto
+   * seguido avisaba «Dinero enviado a {destino.nombre}», nombrando una caja
+   * que el backend nunca vio.
+   *
+   * El flujo que si funciona es `handleRecolectarDinero` ->
+   * `handleConfirmarRecolectar`, con saldo, monto y clave de idempotencia.
+   */
   const [processingTransfer, setProcessingTransfer] = useState(false)
   const [routeForTransfer, setRouteForTransfer] = useState<Ruta | null>(null)
   const showRecolectar = currentUser?.rol === 'SUPER_ADMINISTRADOR' || currentUser?.rol === 'ADMIN'
@@ -796,34 +809,6 @@ export const RutasPageView = ({
       await fetchRutas()
     } catch (e) {
       setErrorRecolectar(mensajeDeError(e, 'No se pudo recolectar. Intenta de nuevo.'))
-    } finally {
-      setProcessingTransfer(false)
-    }
-  }
-  const confirmarEnvioA = async (destinoId: string) => {
-    try {
-      setProcessingTransfer(true)
-      if (!routeForTransfer) return
-      const cajas = await getCajas()
-      const cajaRuta = cajas.find((c) => c.tipo === 'RUTA' && c.rutaId === routeForTransfer.id)
-      const destino = cajas.find((c) => c.id === destinoId)
-      if (!cajaRuta || !destino) return
-      const idempotencyKey = buildRecolectarIdempotencyKey(cajaRuta.id)
-      const result = await consolidarCaja(cajaRuta.id, undefined, idempotencyKey)
-      setShowSelectPrincipalModal(false)
-      setRouteForTransfer(null)
-
-      if (result?.idempotente) {
-        showNotification(
-          'info',
-          'Esta transferencia ya había sido procesada previamente.',
-          'Transferencia Idempotente',
-        )
-      } else {
-        showNotification('success', `Dinero enviado a ${destino.nombre}`, 'Éxito')
-      }
-    } catch (error) {
-      showNotification('error', mensajeDeError(error, 'No se pudo completar la transferencia'), 'Error')
     } finally {
       setProcessingTransfer(false)
     }
@@ -2566,54 +2551,6 @@ export const RutasPageView = ({
         </div>
       )}
 
-      {showSelectPrincipalModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
-          <div
-            className="absolute inset-0 bg-slate-900/30 backdrop-blur-sm transition-opacity"
-            onClick={() => setShowSelectPrincipalModal(false)}
-          />
-          <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl ring-1 ring-slate-900/5 transform transition-all animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
-              <div className="flex items-center gap-2">
-                <Wallet className="h-5 w-5 text-blue-600" />
-                <h3 className="text-sm font-bold text-slate-900">Seleccionar Caja Principal</h3>
-              </div>
-              <button aria-label="Cerrar"
-                onClick={() => setShowSelectPrincipalModal(false)}
-                className="shrink-0 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="p-6 space-y-3">
-              {principalOptions.map((caja) => (
-                <div
-                  key={caja.id}
-                  className="flex items-center justify-between p-3 rounded-xl border border-slate-200"
-                >
-                  <div className="min-w-0">
-                    <div className="text-sm font-bold text-slate-900">{caja.nombre}</div>
-                    <div className="text-xs text-slate-500 font-medium">
-                      Saldo: {formatCurrency(caja.saldo)}
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => confirmarEnvioA(caja.id)}
-                    disabled={processingTransfer}
-                    className="px-3 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 disabled:opacity-60"
-                  >
-                    Enviar a esta caja
-                  </button>
-                </div>
-              ))}
-            </div>
-            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 text-xs text-slate-500">
-              El dinero será transferido desde la caja de la ruta seleccionada a la caja principal
-              elegida.
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Modal de Crear Crédito */}
       <CrearCreditoModal

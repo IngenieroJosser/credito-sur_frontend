@@ -183,7 +183,6 @@ export default function ClientesFeature({
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null)
-  const [isClientModalOpen, setIsClientModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [clientToEdit, setClientToEdit] = useState<ClienteAdmin | null>(null)
 

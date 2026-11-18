@@ -28,7 +28,6 @@ import { notificacionesService, type Notificacion } from '@/services/notificacio
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import ConfirmApproveModal from '@/components/ui/ConfirmApproveModal'
 import ConfirmRejectModal from '@/components/ui/ConfirmRejectModal'
-import EditarPrestamoModal from '@/components/prestamos/EditarPrestamoModal'
 import { aprobacionesService } from '@/services/aprobaciones-service'
 import { TipoAprobacion } from '@/types/enums'
 import NotificacionDetalleModal, { type DetallesEditados } from '@/components/dashboards/shared/NotificacionDetalleModal'
@@ -340,8 +339,15 @@ export default function NotificacionesPage() {
   const [showApproveModalList, setShowApproveModalList] = useState(false)
   const [showRejectModalList, setShowRejectModalList] = useState(false)
   const [showMarkAllReadConfirm, setShowMarkAllReadConfirm] = useState(false)
-  const [prestamoModalOpen, setPrestamoModalOpen] = useState(false)
-  const [selectedPrestamoId, setSelectedPrestamoId] = useState<string | null>(null)
+  /*
+   * Aqui habia un `prestamoModalOpen` + `selectedPrestamoId` con su
+   * `EditarPrestamoModal`, y nada los ponia en true: las dos unicas llamadas
+   * a cada setter eran las de cerrar el propio modal.
+   *
+   * Es un camino abandonado, no una puerta que falte: una notificacion se abre
+   * con `handleOpenDetail` -> `NotificacionDetalleModal`, que es el que lleva
+   * el detalle y sus acciones.
+   */
   const [feedbackModal, setFeedbackModal] = useState<{titulo: string, mensaje: string, tipo: 'success' | 'danger'} | null>(null)
   /**
    * Que decision se esta aplicando ahora, o null.
@@ -990,20 +996,6 @@ export default function NotificacionesPage() {
         variant="info"
       />
 
-      {/* Modal de Edición/Detalle de Préstamo */}
-      {prestamoModalOpen && selectedPrestamoId && (
-        <EditarPrestamoModal
-          id={selectedPrestamoId}
-          onClose={() => {
-            setPrestamoModalOpen(false)
-            setSelectedPrestamoId(null)
-          }}
-          onSuccess={() => {
-            setPrestamoModalOpen(false)
-            setSelectedPrestamoId(null)
-          }}
-        />
-      )}
 
       {/* Modal de Feedback (Éxito/Error) */}
       {feedbackModal && (

@@ -255,7 +255,6 @@ export default function NotificacionDetalleModal({
   const [isEditingMode, setIsEditingMode] = useState(false)
   const [editedDetails, setEditedDetails] = useState<DetallesEditados>(notificacion?.detalles || {})
   const [actionComment, setActionComment] = useState('')
-  const [showApproveModal, setShowApproveModal] = useState(false)
   const [showRejectModal, setShowRejectModal] = useState(false)
   const [showRejectDeudaModal, setShowRejectDeudaModal] = useState(false)
   const [showRejectReintegroModal, setShowRejectReintegroModal] = useState(false)
