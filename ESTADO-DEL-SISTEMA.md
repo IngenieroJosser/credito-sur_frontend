@@ -554,7 +554,10 @@ saber si una cifra que ves es un defecto o son los datos.
   12 activos y la tabla 16.
 - 1 ruta («Ruta Centro - Norte») con 17 clientes y un cobrador.
 - 20 cuentas vencidas, $22.451.135.
-- 64.091 pagos históricos, de los que solo 91 tienen `rutaId`.
+- **85 pagos** en total. Ojo: circulaba la cifra de «64.091 pagos, 91 con
+  `rutaId`» y en esta base **no es cierta** —será de otra base o de antes de un
+  reinicio—. Lo que sí sigue valiendo es el invariante 8: la columna `rutaId` de
+  `Pago` se añadió sin relleno, así que no se puede filtrar un día por ella.
 
 ---
 

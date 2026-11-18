@@ -148,6 +148,16 @@ const estadoCfg = (estado: string) => {
 
 const PER_PAGE = 10
 
+/*
+ * Cuantos creditos de articulo se piden de una vez.
+ *
+ * Eran 200 y esta pantalla pagina en local de diez en diez: con mas ventas de
+ * articulo que eso se veian 200 y el paginador decia «20 paginas», sin una
+ * palabra de que habia mas. `/loans` manda `paginacion.total`, asi que se puede
+ * decir, y es lo que se hace ahora.
+ */
+const CREDITOS_POR_PETICION = 1000
+
 type Periodo = 'HOY' | 'SEM' | 'MES' | 'AÑO'
 
 const getUsuarioNombre = (usuario: Pick<Usuario, 'nombres' | 'apellidos' | 'correo'>) =>
@@ -195,6 +205,15 @@ type CreditoDePuntoDeVenta = {
    * esta pantalla habria significado pintar "[object Object]" como nombre del cliente.
    */
   cliente?: string | null
+  /**
+   * Cuando se le pago por ultima vez, o `null` si nunca.
+   *
+   * Lo manda `/loans` con una sola consulta agrupada. Es opcional porque el
+   * mismo tipo describe filas que pueden venir de una copia local sin ese
+   * campo, y `null` significa «nunca pago», que no es lo mismo que «no se
+   * sabe»: por eso no se rellena con una fecha de adorno.
+   */
+  ultimoPago?: string | null
   clienteDni?: string | null
   clienteTelefono?: string | null
   tipo?: string | null
@@ -243,6 +262,7 @@ type PagoDePuntoDeVenta = {
 
 export default function SeguimientoPuntoVenta() {
   const [ventas, setVentas] = useState<VentaPdv[]>([])
+  const [totalCreditosServidor, setTotalCreditosServidor] = useState<number | null>(null)
   const [usuariosPdv, setUsuariosPdv] = useState<Usuario[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -269,7 +289,7 @@ export default function SeguimientoPuntoVenta() {
       const hoyStr = getBogotaDateKey(new Date())
 
       const [resp, usuariosResp] = await Promise.all([
-        prestamosService.obtenerPrestamos({ tipo: 'ARTICULO', limit: 200 }),
+        prestamosService.obtenerPrestamos({ tipo: 'ARTICULO', limit: CREDITOS_POR_PETICION }),
         usuariosService.obtenerTodos().catch(() => []),
       ])
 
@@ -306,6 +326,8 @@ export default function SeguimientoPuntoVenta() {
       }
 
       // 1. Cargar todos los créditos de artículos (tipo ARTICULO)
+      setTotalCreditosServidor(resp?.paginacion?.total ?? null)
+
       const todosArticulos = (resp?.prestamos || []).filter((c: CreditoDePuntoDeVenta) => {
         const tipo = String(c.tipoPrestamo || c.tipo || '').toUpperCase()
         const tipoProducto = String(c.tipoProducto || '').toLowerCase()
@@ -317,8 +339,25 @@ export default function SeguimientoPuntoVenta() {
       // Los pagos se traen UNA vez y se indexan por crédito. Antes se pedían dentro del
       // bucle, uno por cada artículo: medido en esta pantalla, 50 llamadas a /payments de
       // las 69 que hacía, y 8,6 s en pintar.
+      /*
+       * Solo los pagos de HOY.
+       *
+       * Antes se pedia `limit: 5000` sin filtro de fecha, para quedarse con dos
+       * datos: lo pagado hoy y la fecha del ultimo pago.
+       *
+       * `obtenerPagos` pagina de 200 en 200 y pide tantas paginas como hagan
+       * falta para cubrir el limite, asi que el coste crece con el historico:
+       * medido hoy, con 85 pagos en la base, es UNA peticion; en cuanto pasen
+       * de 200 son varias, y con 5.000 o mas son VEINTICINCO. Y ahi cortaba, sin
+       * decirlo.
+       *
+       * Lo pagado hoy sale de aqui, acotado por `fechaOperativa` —que el
+       * servidor cuenta igual que la jornada de la ruta—, y la fecha del ultimo
+       * pago la manda ahora el propio credito (`ultimoPago`, una sola consulta
+       * agrupada en el backend).
+       */
       const pagosResp = await pagosService
-        .obtenerPagos({ limit: 5000 })
+        .obtenerPagos({ fechaOperativa: hoyStr, limit: 1000 })
         .catch(() => ({ pagos: [] as PagoDePuntoDeVenta[] }))
       const pagosPorPrestamo = new Map<string, PagoDePuntoDeVenta[]>()
       for (const p of (pagosResp?.pagos || []) as PagoDePuntoDeVenta[]) {
@@ -343,15 +382,16 @@ export default function SeguimientoPuntoVenta() {
             return fechaPagoKey === hoyStr ? sum + Number(p.montoTotal || 0) : sum
           }, 0)
 
-          let maxDate = 0
-          pagos.forEach((p: PagoDePuntoDeVenta) => {
-            const raw = p.fechaPago || p.creadoEn || ''
-            const time = new Date(raw).getTime()
-            if (!Number.isNaN(time) && time > maxDate) {
-              maxDate = time
-              fechaUltimoPago = raw
-            }
-          })
+          /*
+           * La fecha del ultimo pago la manda el credito.
+           *
+           * Antes se buscaba el maximo entre los pagos cargados, y por eso esta
+           * pantalla tenia que traerse 5.000 pagos sin filtro de fecha: con los
+           * de hoy, un credito que no pago hoy se habria quedado sin fecha, o
+           * peor, habria mostrado la de hoy. Ahora la calcula el backend con una
+           * sola consulta agrupada.
+           */
+          fechaUltimoPago = c.ultimoPago || undefined
         } catch {
           /* skip */
         }
@@ -1054,6 +1094,16 @@ export default function SeguimientoPuntoVenta() {
                 <span className="text-[11px] text-slate-400 font-medium">
                   {(page - 1) * PER_PAGE + 1}–{Math.min(page * PER_PAGE, ventasFiltradas.length)} de{' '}
                   {ventasFiltradas.length}
+                  {/*
+                    * Si el servidor tenia mas creditos de los que se pidieron,
+                    * se dice: el tope no puede ser invisible.
+                    */}
+                  {(totalCreditosServidor ?? 0) > CREDITOS_POR_PETICION && (
+                    <span className="ml-2 font-bold text-amber-600">
+                      · se cargaron {CREDITOS_POR_PETICION} de{' '}
+                      {totalCreditosServidor} créditos
+                    </span>
+                  )}
                 </span>
                 <div className="flex items-center gap-1">
                   <button aria-label="Página anterior"

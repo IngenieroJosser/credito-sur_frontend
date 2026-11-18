@@ -48,7 +48,6 @@ const DEUDA_TOLERADA = [
   'app/admin/creditos-articulos/page.tsx', // limit: 100
   'components/rutas/RutasPageView.tsx', // limit: 100, pagina de 9
   'components/dashboards/PuntoDeVentaFloatingActions.tsx', // dos paginadores
-  'components/dashboards/admin/SeguimientoPuntoVenta.tsx',
 ]
 
 const OMITIR = new Set(['node_modules', '.next', 'dist', 'coverage', '__tests__', 'e2e'])
@@ -74,8 +73,21 @@ const recorrer = (dir: string, acc: string[] = []): string[] => {
 const LIMITE_FIJO = /\b(limite|limit)\s*:\s*(\d+|[A-Z][A-Z_]{3,})/
 /** Un paginador que cuenta las filas que ya tiene en memoria. */
 const PAGINA_EN_LOCAL = /Math\.ceil\(\s*\w+\.length\s*\/\s*\w+/
-/** Lo que hace que el tope no sea silencioso. */
-const LO_DICE = /totalRegistros|hayTope|\btope\b|de \$\{total/
+/**
+ * Lo que hace que el tope no sea silencioso.
+ *
+ * Son DOS cosas, y las dos hacen falta: leer el total que manda el servidor y
+ * compararlo con el límite que se pidió. Una sola no basta —se puede leer el
+ * total y no usarlo, que es justo lo que pasaba antes en tres pantallas—.
+ *
+ * El primer intento buscaba nombres (`hayTope`, «tope») y se quedó ciego en
+ * cuanto una pantalla llamó a su aviso de otra forma; y buscar la palabra en un
+ * comentario no vale, porque esta prueba recorta los comentarios a propósito.
+ */
+const LEE_EL_TOTAL_DEL_SERVIDOR = /paginacion\??\.total|meta\??\.total|totalRegistros/
+const LO_COMPARA_CON_SU_LIMITE = />\s*[A-Z][A-Z_]{3,}\b/
+const loDice = (codigo: string) =>
+  LEE_EL_TOTAL_DEL_SERVIDOR.test(codigo) && LO_COMPARA_CON_SU_LIMITE.test(codigo)
 
 describe('ninguna pantalla esconde datos sin decirlo', () => {
   const archivos = recorrer(RAIZ)
@@ -90,7 +102,7 @@ describe('ninguna pantalla esconde datos sin decirlo', () => {
     .filter(({ codigo }) => LIMITE_FIJO.test(codigo) && PAGINA_EN_LOCAL.test(codigo))
     .map(({ f, codigo }) => ({
       rel: path.relative(RAIZ, f).split(path.sep).join('/'),
-      loDice: LO_DICE.test(codigo),
+      loDice: loDice(codigo),
     }))
 
   it('encuentra el patrón: hay pantallas con límite fijo y paginador local', () => {
@@ -121,6 +133,6 @@ describe('ninguna pantalla esconde datos sin decirlo', () => {
       (rel) => !fs.existsSync(path.join(RAIZ, rel)),
     )
     expect(inexistentes).toEqual([])
-    expect(DEUDA_TOLERADA.length).toBeLessThanOrEqual(5)
+    expect(DEUDA_TOLERADA.length).toBeLessThanOrEqual(4)
   })
 })

@@ -48,16 +48,21 @@ import { sinComentarios } from '@/lib/testing/sin-comentarios'
 /**
  * Las dos llamadas que SIGUEN sin acotar, con el motivo.
  *
- * No son deuda por hacer: son los dos casos donde ningún filtro disponible da
- * el mismo número, y cambiarlos en silencio movería dinero en pantalla.
+ * No son deuda por hacer: es el caso donde ningún filtro disponible da el mismo
+ * número, y cambiarlo en silencio movería dinero en pantalla. Eran dos; el otro
+ * se cerró añadiendo el agregado que le faltaba al servidor.
  *
  * Si se añade un agregado en el servidor que los cubra, se quitan de aquí.
  */
 const EXCEPCIONES: Record<string, string> = {
-  'components/dashboards/admin/SeguimientoPuntoVenta.tsx':
-    'necesita la fecha del ÚLTIMO pago de cada crédito, que es de todo el ' +
-    'historial y no de un día; y son créditos de punto de venta, que no ' +
-    'tienen ruta.',
+  /*
+   * Aquí estaba `SeguimientoPuntoVenta`, y su motivo era que «necesita la fecha
+   * del ÚLTIMO pago de cada crédito, que es de todo el historial y no de un
+   * día». La propia excepción decía qué hacía falta para quitarla —«si se añade
+   * un agregado en el servidor que los cubra»— y es lo que se hizo: `/loans`
+   * manda ahora `ultimoPago`, con una sola consulta agrupada. La pantalla pide
+   * solo los pagos de hoy.
+   */
   // Anclada al ARCHIVO y no a la línea: estaba en `:544`, alguien añadió un
   // import arriba, la llamada bajó a la 545 y la excepción dejó de valer. La
   // prueba de más abajo lo cazó, que para eso está, pero el número de línea no
