@@ -39,10 +39,32 @@
  * ningún falso negativo, y el día que lo dé, la prueba que lo note debe
  * arreglarlo AQUÍ y no por su cuenta otra vez.
  */
+/**
+ * Marca interna para el `/*` que no abre ningún comentario.
+ *
+ * El caso real: `accept="image/*,application/pdf"`. Ese `/*` abría aquí un
+ * bloque que no cerraba nunca, y entonces esta función devolvía el archivo en
+ * blanco DESDE ESA LÍNEA HASTA EL FINAL. Medido el 2026-11-17 en 8 archivos:
+ * `FileUploader.tsx` (230 líneas ciegas), `MediaUpload.tsx` (134),
+ * `GastoModal.tsx` (81), `PagoModal.tsx` (45), `app/admin/pagos/registro`
+ * (31), la pantalla de cliente del supervisor (5 apariciones),
+ * `ArmazonAdmin.tsx` y este mismo archivo.
+ *
+ * Lo encontró una centinela nueva al acusar como «modal que nadie abre» tres
+ * modales del supervisor cuyos botones existen —un FAB en la línea 1163—, pero
+ * estaban detrás del `image/*` de la 640. Es el defecto de toda centinela que
+ * da cero por no mirar, y aquí lo daba para todas a la vez.
+ *
+ * Un comentario de bloque de verdad nunca empieza por `/*"`, `/*'`, `` /*` ``
+ * ni `/*,`: esos solo salen dentro de una cadena.
+ */
+const GLOB_EN_CADENA = '\u0000GLOB\u0000'
+
 export function sinComentarios(fuente: string): string {
   let enBloque = false
 
   return fuente
+    .replace(/\/\*(?=["'`,])/g, GLOB_EN_CADENA)
     .split('\n')
     .map((linea) => {
       let salida = linea
@@ -70,4 +92,6 @@ export function sinComentarios(fuente: string): string {
       return marca === -1 ? salida : salida.slice(0, marca)
     })
     .join('\n')
+    .split(GLOB_EN_CADENA)
+    .join('/*')
 }
