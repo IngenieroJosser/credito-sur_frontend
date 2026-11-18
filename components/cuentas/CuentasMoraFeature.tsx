@@ -1,5 +1,4 @@
 'use client'
-import { logger } from '@/lib/logger'
 
 /**
  * ============================================================================
@@ -70,12 +69,31 @@ interface CuentaMora {
   tieneProrroga?: boolean
 }
 
-interface EstadisticasMora {
+/**
+ * Los totales que vienen CON las filas, en la misma respuesta.
+ *
+ * Antes esta pantalla pedia aparte `/reports/estadisticas-mora` y declaraba
+ * cinco campos —`totalDeudaRiesgo`, `totalClientesAfectados`,
+ * `clientesCriticos`, `variacionMensual`— que ese endpoint NO manda: el suyo
+ * se llama `deudaTotal`, `totalPrestamosMora` y `casosCriticos`. Los cinco
+ * valian `undefined`, el `??` caia al respaldo y la peticion entera se
+ * descartaba; encima la tarjeta decia 36 cuentas y la lista de abajo traia 41,
+ * porque la estadistica contaba la columna `estado = EN_MORA` y la lista
+ * calcula la mora de las CUOTAS.
+ *
+ * Y el respaldo sumaba `cuentas`, que es una PAGINA: con la cartera del cliente
+ * habria mostrado menos dinero del que hay. Medido en vencidas, que tenia el
+ * mismo defecto: con una pagina de 10 sobre 20 cuentas se escondia el 61% del
+ * saldo.
+ *
+ * `totales` lo calcula el backend sobre el conjunto filtrado completo, no sobre
+ * la pagina, y sale de la misma consulta que las filas: una cifra, un origen.
+ */
+interface TotalesMora {
   totalMora: number
-  totalDeudaRiesgo: number
-  totalClientesAfectados: number
-  clientesCriticos: number
-  variacionMensual: number
+  totalDeuda: number
+  totalCasosCriticos: number
+  totalRegistros: number
 }
 
 export type NivelMoraKey = 'VERDE' | 'LEVE' | 'PRECAUCION' | 'ROJO' | 'LISTA_NEGRA'
@@ -211,7 +229,7 @@ export default function CuentasMoraFeature() {
   const puedeVerPerfil = can('CUENTAS_MORA_VER_PERFIL') || rolesConAcceso.includes(rol || '')
 
   const [cuentas, setCuentas] = useState<CuentaMora[]>([])
-  const [estadisticas, setEstadisticas] = useState<EstadisticasMora | null>(null)
+  const [totales, setTotales] = useState<TotalesMora | null>(null)
   const [isStatsLoading, setIsStatsLoading] = useState(true)
   const [isDataLoading, setIsDataLoading] = useState(true)
 
@@ -242,12 +260,15 @@ export default function CuentasMoraFeature() {
       if (filtroRiesgo !== 'TODOS') params.nivelRiesgo = filtroRiesgo
       if (filtroRuta) params.rutaId = filtroRuta
 
-      const response = await apiRequest<{ prestamos?: CuentaMora[] }>(
-        'GET',
-        '/reports/prestamos-mora',
-        undefined,
-        { params },
-      )
+      const response = await apiRequest<{
+        prestamos?: CuentaMora[]
+        totales?: TotalesMora
+      }>('GET', '/reports/prestamos-mora', undefined, { params })
+
+      // Los totales viajan con las filas: el backend los calcula sobre el
+      // conjunto filtrado completo, no sobre la pagina.
+      setTotales(response?.totales ?? null)
+      setIsStatsLoading(false)
 
       // El endpoint devuelve SIEMPRE `{ prestamos, totales, total, pagina, limite }`
       // (PrestamosMoraResponseDto, responses.dto.ts:9). Aqui habia una cadena de tres
@@ -287,19 +308,6 @@ export default function CuentasMoraFeature() {
     }
   }, [busqueda, filtroRiesgo, filtroRuta, filtroNivel])
 
-  const fetchEstadisticas = async () => {
-    setIsStatsLoading(true)
-    try {
-      const items = await apiRequest<EstadisticasMora>('GET', '/reports/estadisticas-mora')
-      setEstadisticas(items)
-    } catch (err) {
-      logger.warn('[CuentasMora] No se pudieron cargar las estadísticas de mora:', err)
-    } finally {
-      setIsStatsLoading(false)
-    }
-  }
-
-  useEffect(() => { fetchEstadisticas() }, [])
   useEffect(() => {
     const t = setTimeout(() => fetchData(), 400)
     return () => clearTimeout(t)
@@ -307,10 +315,10 @@ export default function CuentasMoraFeature() {
 
   useRealtimeData(
     ['pagos_actualizados', 'prestamos_actualizados', 'dashboards_actualizados'],
-    () => { fetchData(); fetchEstadisticas() },
+    () => { fetchData() },
   )
 
-  usePageFocusRefresh(() => { fetchData(); fetchEstadisticas() })
+  usePageFocusRefresh(() => { fetchData() })
 
   const totalPaginas = Math.max(1, Math.ceil(cuentas.length / CUENTAS_POR_PAGINA))
   const paginaSegura = Math.min(pagina, totalPaginas)
@@ -340,10 +348,12 @@ export default function CuentasMoraFeature() {
     } catch (error) { toast.error(mensajeDeError(error, 'Error al exportar')) }
   }
 
-  const totalMora = estadisticas?.totalMora ?? cuentas.reduce((a, c) => a + c.montoMora, 0)
-  const totalDeuda = estadisticas?.totalDeudaRiesgo ?? cuentas.reduce((a, c) => a + c.montoTotalDeuda, 0)
-  const clientesAfectados = estadisticas?.totalClientesAfectados ?? cuentas.length
-  const clientesCriticos = estadisticas?.clientesCriticos
+  // Del mismo origen que las filas (ver la nota de `TotalesMora`). El respaldo
+  // sigue siendo la suma de lo cargado, para no escribir «$ 0» mientras llega.
+  const totalMora = totales?.totalMora ?? cuentas.reduce((a, c) => a + c.montoMora, 0)
+  const totalDeuda = totales?.totalDeuda ?? cuentas.reduce((a, c) => a + c.montoTotalDeuda, 0)
+  const clientesAfectados = totales?.totalRegistros ?? cuentas.length
+  const clientesCriticos = totales?.totalCasosCriticos
     ?? cuentas.filter(c => calcularNivelMora(c) === 'LISTA_NEGRA').length
 
   const porNivel: Partial<Record<NivelMoraKey, number>> = {}
@@ -380,7 +390,7 @@ export default function CuentasMoraFeature() {
           <div className="flex items-center gap-3">
             <Tooltip texto="Actualizar">
               <button aria-label="Actualizar"
-                onClick={() => { fetchData(); fetchEstadisticas() }}
+                onClick={() => { fetchData() }}
                 className="p-2 text-slate-400 hover:text-blue-600 bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-all"
               >
                 <RefreshCw className={cn('h-5 w-5', isDataLoading && 'animate-spin')} />
