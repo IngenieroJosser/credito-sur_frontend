@@ -1242,11 +1242,15 @@ export default function NotificacionDetalleModal({
                 Teléfono
               </label>
               <p className="text-sm font-black text-slate-800">
-                {editedDetails?.telefono ||
-                  safeMeta?.telefono ||
-                  editedDetails?.phone ||
-                  safeMeta?.phone ||
-                  'N/A'}
+                {/*
+                  * La cascada llevaba dos eslabones mas, `editedDetails?.phone`
+                  * y `safeMeta?.phone`, y `phone` NO existe en este sistema: ni
+                  * el backend lo manda ni el frontend lo escribe en ningun
+                  * sitio. El campo es `telefono`. Medido con un barrido de los
+                  * dos repos: eran las dos unicas lecturas de un campo que nadie
+                  * produce, y valian `undefined` siempre.
+                  */}
+                {editedDetails?.telefono || safeMeta?.telefono || 'N/A'}
               </p>
             </div>
           </div>
