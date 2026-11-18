@@ -49,7 +49,6 @@ const DEUDA_TOLERADA = [
   'components/rutas/RutasPageView.tsx', // limit: 100, pagina de 9
   'components/dashboards/PuntoDeVentaFloatingActions.tsx', // dos paginadores
   'components/dashboards/admin/SeguimientoPuntoVenta.tsx',
-  'components/reportes/DetalleReporteFinancieroModal.tsx',
 ]
 
 const OMITIR = new Set(['node_modules', '.next', 'dist', 'coverage', '__tests__', 'e2e'])
@@ -122,6 +121,6 @@ describe('ninguna pantalla esconde datos sin decirlo', () => {
       (rel) => !fs.existsSync(path.join(RAIZ, rel)),
     )
     expect(inexistentes).toEqual([])
-    expect(DEUDA_TOLERADA.length).toBeLessThanOrEqual(6)
+    expect(DEUDA_TOLERADA.length).toBeLessThanOrEqual(5)
   })
 })

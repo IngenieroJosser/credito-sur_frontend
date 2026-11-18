@@ -497,6 +497,60 @@ export async function getMovimientosLedger(filtros?: {
   }
 }
 
+/**
+ * TODOS los movimientos del periodo, no la primera pagina.
+ *
+ * ── Por que existe ──────────────────────────────────────────────────────────
+ *
+ * El informe financiero pedia `limit: 10000` y sumaba lo que llegara. Un
+ * periodo con mas movimientos que eso daba un informe con MENOS dinero del que
+ * hubo, sin una palabra: `meta.total` venia en la respuesta y se tiraba. Y no es
+ * una lista que se hojea, es la cuenta de resultados.
+ *
+ * Aqui se pide pagina a pagina hasta tener el conjunto. `agotado` dice si se
+ * llego al final: si el periodo es tan grande que ni asi cabe, quien llama tiene
+ * que AVISAR en pantalla en vez de pintar una cifra incompleta como si fuera la
+ * buena.
+ *
+ * El tope existe para que un filtro mal puesto no cuelgue el navegador pidiendo
+ * paginas eternamente; no para recortar un periodo normal.
+ */
+const PAGINAS_MAXIMAS_DE_LEDGER = 40
+const MOVIMIENTOS_POR_PAGINA = 5000
+
+export async function getTodosLosMovimientosLedger(filtros?: {
+  tipo?: string
+  cajaId?: string
+  accountCode?: string
+  accountPrefix?: string
+  fechaInicio?: string
+  fechaFin?: string
+}): Promise<{ movimientos: MovimientoLedger[]; total: number; agotado: boolean }> {
+  const movimientos: MovimientoLedger[] = []
+  let total = 0
+
+  for (let pagina = 1; pagina <= PAGINAS_MAXIMAS_DE_LEDGER; pagina += 1) {
+    const respuesta = await getMovimientosLedger({
+      ...filtros,
+      page: pagina,
+      limit: MOVIMIENTOS_POR_PAGINA,
+    })
+
+    const lote = Array.isArray(respuesta?.data) ? respuesta.data : []
+    movimientos.push(...lote)
+    total = Number(respuesta?.meta?.total ?? movimientos.length)
+
+    // Se para por lo que diga el servidor, y tambien si devuelve menos de lo
+    // pedido: las dos salidas, porque un `total` que no cuadre no puede
+    // convertir esto en un bucle infinito.
+    if (movimientos.length >= total || lote.length < MOVIMIENTOS_POR_PAGINA) {
+      return { movimientos, total, agotado: true }
+    }
+  }
+
+  return { movimientos, total, agotado: false }
+}
+
 export async function createTransaccion(data: {
   cajaId: string
   tipo: 'INGRESO' | 'EGRESO' | 'TRANSFERENCIA'

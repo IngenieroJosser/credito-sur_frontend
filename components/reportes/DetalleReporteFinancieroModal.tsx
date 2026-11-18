@@ -2,14 +2,13 @@
 import { formatFechaBogota, formatHoraBogota } from '@/lib/format-date'
 
 import { useMemo, useState, useEffect } from 'react'
-import { X, Calendar, LineChart } from 'lucide-react'
+import { X, Calendar, LineChart, AlertTriangle } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
-import { getMovimientosLedger } from '@/services/contabilidad-service'
+import { getTodosLosMovimientosLedger } from '@/services/contabilidad-service'
 import { buildBogotaOffsetIsoFromKey, getBogotaDateKey } from '@/lib/rutas-core'
 import Paginador from '@/components/ui/Paginador'
 import Tooltip from '@/components/ui/Tooltip'
 import { useModalDialog } from '@/hooks/use-modal-dialog'
-import { listaDeRespuesta } from '@/lib/lista-de-respuesta'
 
 interface DetalleReporteFinancieroModalProps {
   id: string
@@ -26,6 +25,12 @@ type DetalleRow = {
 }
 
 export default function DetalleReporteFinancieroModal({ id, onClose }: DetalleReporteFinancieroModalProps) {
+  /**
+   * El periodo tiene mas movimientos de los que se pueden traer ni paginando.
+   * Un informe de resultados incompleto tiene que DECIRLO: lo contrario es una
+   * cifra falsa con cara de buena.
+   */
+  const [informeIncompleto, setInformeIncompleto] = useState(false)
   const [periodoLabel, setPeriodoLabel] = useState<string>('')
   const [ingresos, setIngresos] = useState<Record<string, number>>({})
   const [gastos, setGastos] = useState<number>(0)
@@ -81,11 +86,26 @@ export default function DetalleReporteFinancieroModal({ id, onClose }: DetalleRe
         ? buildBogotaOffsetIsoFromKey(endKey, { hh: 23, mm: 59, ss: 59, ms: 999 })
         : ''
 
+      /*
+       * Se traen TODAS las paginas, no las primeras 10.000.
+       *
+       * Esto es la cuenta de resultados del periodo: si el periodo tiene mas
+       * movimientos que el tope, sumar lo que llegue da un informe con MENOS
+       * dinero del que hubo, y antes no se decia nada —`meta.total` venia en la
+       * respuesta y se tiraba—.
+       *
+       * `agotado: false` significa que ni paginando cabe: entonces el informe se
+       * marca como incompleto en pantalla, que es lo unico honesto.
+       */
       const [ingRes, egreRes, costoRes] = await Promise.all([
-        getMovimientosLedger({ accountPrefix: '3.', fechaInicio, fechaFin, limit: 10000 }),
-        getMovimientosLedger({ accountPrefix: '4.', fechaInicio, fechaFin, limit: 10000 }),
-        getMovimientosLedger({ accountPrefix: '5.', fechaInicio, fechaFin, limit: 10000 })
+        getTodosLosMovimientosLedger({ accountPrefix: '3.', fechaInicio, fechaFin }),
+        getTodosLosMovimientosLedger({ accountPrefix: '4.', fechaInicio, fechaFin }),
+        getTodosLosMovimientosLedger({ accountPrefix: '5.', fechaInicio, fechaFin })
       ])
+
+      setInformeIncompleto(
+        !ingRes.agotado || !egreRes.agotado || !costoRes.agotado,
+      )
 
       if (cancelado) return
 
@@ -93,7 +113,7 @@ export default function DetalleReporteFinancieroModal({ id, onClose }: DetalleRe
         '3.1': 0, '3.2': 0, '3.3': 0, '3.4': 0
       }
 
-      listaDeRespuesta(ingRes).forEach(t => {
+      ingRes.movimientos.forEach(t => {
         t.lineas.forEach(l => {
           if (String(l.accountCode).startsWith('3.')) {
             const prefix = String(l.accountCode).substring(0, 3)
@@ -105,8 +125,8 @@ export default function DetalleReporteFinancieroModal({ id, onClose }: DetalleRe
       })
 
       const ingresosTotales = Object.values(ingMap).reduce((a, b) => a + b, 0)
-      const gastosTotales = listaDeRespuesta(egreRes).reduce((acc, t) => acc + Number(t.totalDebito || 0), 0)
-      const costosTotales = listaDeRespuesta(costoRes).reduce((acc, t) => acc + Number(t.totalDebito || 0), 0)
+      const gastosTotales = egreRes.movimientos.reduce((acc, t) => acc + Number(t.totalDebito || 0), 0)
+      const costosTotales = costoRes.movimientos.reduce((acc, t) => acc + Number(t.totalDebito || 0), 0)
 
       const utilOperativa = ingresosTotales - gastosTotales - costosTotales
       const utilNeta = utilOperativa // Si hubiera impuestos o financieros irían acá
@@ -124,7 +144,7 @@ export default function DetalleReporteFinancieroModal({ id, onClose }: DetalleRe
         return { fecha, hora }
       }
 
-      const filasIng: DetalleRow[] = listaDeRespuesta(ingRes).map(t => {
+      const filasIng: DetalleRow[] = ingRes.movimientos.map(t => {
         const { fecha, hora } = formatFechaHora(t.fecha)
         return {
           label: t.descripcion || 'Movimiento',
@@ -135,7 +155,7 @@ export default function DetalleReporteFinancieroModal({ id, onClose }: DetalleRe
           hora
         }
       })
-      const filasEgr: DetalleRow[] = listaDeRespuesta(egreRes).map(t => {
+      const filasEgr: DetalleRow[] = egreRes.movimientos.map(t => {
         const { fecha, hora } = formatFechaHora(t.fecha)
         return {
           label: t.descripcion || 'Movimiento',
@@ -146,7 +166,7 @@ export default function DetalleReporteFinancieroModal({ id, onClose }: DetalleRe
           hora
         }
       })
-      const filasCos: DetalleRow[] = listaDeRespuesta(costoRes).map(t => {
+      const filasCos: DetalleRow[] = costoRes.movimientos.map(t => {
         const { fecha, hora } = formatFechaHora(t.fecha)
         return {
           label: t.descripcion || 'Movimiento',
@@ -209,6 +229,20 @@ export default function DetalleReporteFinancieroModal({ id, onClose }: DetalleRe
                 <span className="text-slate-700">{periodoLabel}</span>
               </p>
             </div>
+            {/*
+              * Un informe de resultados al que le faltan movimientos tiene que
+              * decirlo donde se lee la cifra, no en la consola.
+              */}
+            {informeIncompleto && (
+              <p className="mt-2 inline-flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">
+                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>
+                  El periodo tiene más movimientos de los que se pudieron traer:
+                  estas cifras están incompletas. Acote las fechas para verlo
+                  completo.
+                </span>
+              </p>
+            )}
           </div>
           <Tooltip texto="Cerrar">
             <button 
