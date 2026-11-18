@@ -20,7 +20,6 @@ interface Cobrador {
   nombre: string
   rutasAsignadas: number
   clientesTotales: number
-  capacidadMaxima: number
 }
 
 interface RutaAsignable {
@@ -52,15 +51,15 @@ const AsignacionCobradoresPage = () => {
       // `GET /routes/cobradores` manda `nombre` ya compuesto; el respaldo que armaba
       // `${c.nombres} ${c.apellidos}` leia campos que ese endpoint no devuelve.
       //
-      // `rutasAsignadas`, `clientesTotales` y `capacidadMaxima` TAMPOCO las manda, asi
-      // que estos tres valores son siempre 0, 0 y 120. Se dejan porque la pantalla los
-      // pinta; calcularlos de verdad es trabajo del backend.
+      // `rutasAsignadas` y `clientesTotales` ya llegan de verdad: los cuenta
+      // `GET /routes/cobradores`. Antes no los mandaba y esta pantalla los
+      // rellenaba con ceros y con una `capacidadMaxima: 120` inventada, asi que
+      // pintaba a todos los cobradores libres al 0%.
       setCobradores(cobradoresRes.map((c) => ({
         id: c.id,
         nombre: c.nombre,
-        rutasAsignadas: 0,
-        clientesTotales: 0,
-        capacidadMaxima: 120,
+        rutasAsignadas: c.rutasAsignadas ?? 0,
+        clientesTotales: c.clientesTotales ?? 0,
       })))
       const rutasList = rutasRes
       setRutas(rutasList.map((r) => ({
@@ -89,8 +88,7 @@ const AsignacionCobradoresPage = () => {
   // Tiempo real: refrescar cuando cambien rutas o cobradores
   useRealtimeData(['dashboards_actualizados', 'usuarios_actualizados'], loadData)
 
-  const capacidadUsada = (cobrador: Cobrador) =>
-    Math.round((cobrador.clientesTotales / cobrador.capacidadMaxima) * 100)
+
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -147,7 +145,6 @@ const AsignacionCobradoresPage = () => {
 
             <div className="space-y-3">
               {cobradores.map((cobrador) => {
-                const porcentaje = capacidadUsada(cobrador)
                 const esSeleccionado = cobradorSeleccionado === cobrador.id
 
                 return (
@@ -188,25 +185,28 @@ const AsignacionCobradoresPage = () => {
                             {cobrador.rutasAsignadas} rutas
                           </span>
                         </div>
+                        {/*
+                          * Aqui habia un «X% de capacidad» con su barra, y el
+                          * denominador era un `capacidadMaxima: 120` escrito a
+                          * mano en esta pantalla: no existe ninguna capacidad
+                          * en el modelo, asi que el porcentaje no medía nada.
+                          * Se queda la cifra que sí es real y ahora llega del
+                          * backend: cuántos clientes lleva cada cobrador, que
+                          * es lo que de verdad se compara al repartir.
+                          */}
                         <div className="flex items-center justify-between text-xs text-slate-500 font-medium">
                           <span>
-                            {cobrador.clientesTotales} clientes asignados
+                            {cobrador.clientesTotales === 1
+                              ? '1 cliente'
+                              : `${cobrador.clientesTotales} clientes`}
                           </span>
-                          <span className={cn(
-                            "font-bold",
-                            porcentaje > 90 ? "text-rose-600" : "text-slate-500"
-                          )}>
-                            {porcentaje}%
-                          </span>
-                        </div>
-                        <div className="mt-2 h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
-                          <div
-                            className={cn(
-                              "h-full rounded-full transition-all duration-500",
-                              porcentaje > 90 ? "bg-rose-500" : "bg-primary"
-                            )}
-                            style={{ width: `${Math.min(porcentaje, 100)}%` }}
-                          />
+                          {cobrador.clientesTotales > 0 && (
+                            <span className="font-bold text-slate-400">
+                              {Math.max(cobrador.rutasAsignadas, 1) > 1
+                                ? `${Math.round(cobrador.clientesTotales / cobrador.rutasAsignadas)} por ruta`
+                                : ''}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>

@@ -359,6 +359,15 @@ export interface Cobrador {
   nombre: string
   correo: string
   telefono?: string | null
+  /**
+   * Cuánta carga lleva. Van OPCIONALES a propósito: los cuenta
+   * `GET /routes/cobradores`, y este mismo tipo lo devuelve también
+   * `GET /routes/supervisores`, que no los manda. Declararlos obligatorios
+   * haría que un `supervisor.clientesTotales` compilara y valiera `undefined`,
+   * que es el error que ya costó varias pantallas en este proyecto.
+   */
+  rutasAsignadas?: number
+  clientesTotales?: number
 }
 
 export interface CreditosAsignadosResponse {
