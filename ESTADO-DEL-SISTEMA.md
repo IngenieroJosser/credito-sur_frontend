@@ -176,7 +176,7 @@ de forma obvia.
 Ordenados por lo que le cuesta al cliente. Cada uno trae evidencia medida y
 receta. **Ninguno está arreglado todavía.**
 
-### P1 — Las pantallas tienen techo silencioso de datos *(1 de 8 arreglada)*
+### P1 — Las pantallas tienen techo silencioso de datos *(2 de 8 arregladas)*
 
 **Qué pasa.** Varias pantallas piden al servidor una página con un límite fijo y
 luego paginan **en local** sobre lo que trajeron. El paginador cuenta las filas
@@ -184,8 +184,8 @@ cargadas, así que dice «10 páginas» y no hay forma de llegar a la fila 51.
 
 | pantalla | pide | pagina local | techo real |
 |---|---|---|---|
-| `components/cuentas/CuentasMoraFeature.tsx:258` | `limite: 50` | 5 (línea 243) | **50 cuentas en mora** |
-| `app/admin/pagos/historial/page.tsx:137,222` | `limit: 500` | 20 (línea 352) | 500 pagos y 500 gastos |
+| ~~`components/cuentas/CuentasMoraFeature.tsx`~~ | — | — | **arreglada** (`ccff7849`) |
+| ~~`app/admin/pagos/historial/page.tsx`~~ | — | — | **arreglada** (`452f985d`) |
 | `components/prestamos/ListadoPrestamos.tsx:176` | `limite: 500` | — | 500 créditos |
 | `app/admin/creditos-articulos/page.tsx:83` | `limit: 100` | 219 | 100 créditos |
 | `components/rutas/RutasPageView.tsx:481` | `limit: 100` | 9 (línea 897) | 100 rutas |
@@ -197,8 +197,10 @@ cargadas, así que dice «10 páginas» y no hay forma de llegar a la fila 51.
 mora y 67 créditos. Con la cartera del cliente, la pantalla de mora enseñará 50
 de 800 sin decir nada.
 
-**Mora ya está arreglada** (`ccff7849`): pide 1000 y, si el servidor tiene más,
-el paginador lo dice comparando con `totales.totalRegistros`. No se paginó en el
+**Mora** (`ccff7849`) **y el historial de pagos** (`452f985d`) **ya están
+arregladas**, y sirven de modelo: piden un bloque grande y, si el servidor tiene
+más, lo DICEN —mora compara con `totales.totalRegistros`; el historial con
+`paginacion.total` y `meta.total`, que llegaban y se tiraban—. No se paginó en el
 servidor porque el nivel de mora lo calcula el frontend —el `nivelRiesgo` del
 backend es el del CLIENTE— y filtrar por nivel sobre una página daría un filtro
 que miente; mientras ese nivel no viva en el backend, el filtro necesita el
@@ -584,8 +586,9 @@ está pensado para que el cliente pueda importar y probar:
 
 1. **P1, el techo de las pantallas.** Es lo único de esta lista que se rompe
    solo el día de la importación y en silencio. Mora ya está hecha y sirve de
-   modelo; siguen siete, y la más urgente es `admin/pagos/historial` (tope 500
-   en pagos y otros 500 en gastos).
+   modelo junto al historial de pagos; **siguen seis**, y la lista vive en
+   `__tests__/sin-techo-silencioso.test.ts`: al arreglar una, se quita de ahí y
+   la prueba exige que siga arreglada.
 2. **P3, el barrido de pantallas sobre una build de producción.** Hasta que eso
    pase en verde no se puede afirmar que las 112 pantallas abren para los 7
    roles. Mira también la pista de `/coordinador/revisiones`.
