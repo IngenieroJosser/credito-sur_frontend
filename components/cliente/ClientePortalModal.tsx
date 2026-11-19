@@ -34,6 +34,7 @@ import {
   resolveFechaEfectivaCuota,
   toBogotaDateTimeOffsetIso,
 } from '@/lib/rutas-core'
+import { textoCuotasDePagoCliente } from '@/lib/clientes/detalle-financiero'
 
 interface ClientePortalModalProps {
   clientId: string;
@@ -149,12 +150,12 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
                 
                 const prestamosBackend: PrestamoDeCliente[] = data.prestamos || [];
                 setPrestamos(prestamosBackend.map(p => {
-                    const cuotas = p.cuotas || [];
+                    const cuotas = p.cuotas;
                     const cuotasPagadas = cuotas.filter(
                       (c: CuotaOperativa) =>
                         c.estado === 'PAGADA' || c.estadoActual === 'PAGADA',
                     ).length;
-                    const totalCuotas = p.cantidadCuotas || cuotas.length || 0;
+                    const totalCuotas = p.cantidadCuotas;
 
                     const hoyKey = getBogotaDateKey(new Date())
                     const frecuencia = String(p.frecuenciaPago || 'DIARIO').toUpperCase()
@@ -172,17 +173,17 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
                         ? ('EN_MORA' as const)
                         : estadoPrestamoDeUi(p.estado)
                     
-                    const principal = Number(p.monto || 0);
-                    const tasa = Number(p.tasaInteres || 0);
-                    const meses = Number(p.plazoMeses || 1);
-                    let interesTotal = Number(p.interesTotal || 0);
+                    const principal = Number(p.monto);
+                    const tasa = Number(p.tasaInteres);
+                    const meses = Number(p.plazoMeses);
+                    let interesTotal = Number(p.interesTotal);
                     
                     if (interesTotal === 0 && tasa > 0 && meses > 0) {
                       interesTotal = (principal * tasa * meses) / 100;
                     }
                 
                     const montoTotal = principal + interesTotal;
-                    const saldoPendiente = Number(p.saldoPendiente || 0);
+                    const saldoPendiente = Number(p.saldoPendiente);
 
                     const moraAcumulada = cuotas.reduce(
                       (sum: number, c: CuotaOperativa) =>
@@ -194,16 +195,16 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
                         // Los `?? ''` los pidio el tipo: `PrestamoParcial` y `PagoParcial`
                         // los declaran opcionales (son parciales) y la UI los quiere
                         // obligatorios. Antes eran `any[]`, asi que nadie comprobaba nada.
-                        id: p.id ?? '',
+                        id: p.id,
                         producto: p.tipoPrestamo === 'ARTICULO' ? (p.producto?.nombre || 'Artículo') : 'Préstamo Efectivo',
                         montoTotal: montoTotal,
-                        montoPagado: Number(p.totalPagado || 0),
+                        montoPagado: Number(p.totalPagado),
                         montoPendiente: (saldoPendiente === principal && interesTotal > 0) ? montoTotal : saldoPendiente,
                         cuotasTotales: totalCuotas,
                         cuotasPagadas: cuotasPagadas,
                         cuotasPendientes: Math.max(0, totalCuotas - cuotasPagadas),
-                        fechaInicio: p.fechaInicio ?? '',
-                        fechaVencimiento: p.fechaFin ?? '',
+                        fechaInicio: p.fechaInicio,
+                        fechaVencimiento: p.fechaFin,
                         proximoPago:
                           cuotas.find((c: CuotaOperativa) => isCuotaNoPagada(c))
                             ?.fechaVencimiento ||
@@ -222,9 +223,9 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
                 
                 const pagosBackend: PagoDeCliente[] = data.pagos || [];
                 setPagos(pagosBackend.map(p => ({
-                    id: String(p.id ?? ''),
-                    fecha: p.fechaPago ?? '',
-                    monto: Number(p.montoTotal || 0),
+                    id: p.id,
+                    fecha: p.fechaPago,
+                    monto: Number(p.montoTotal),
                     // El `|| 1` de antes no era un respaldo: `pagos: true` no traia
                     // `detalles`, asi que TODOS los pagos mostraban "cuota 1". Ya llegan
                     // (ver el include de `findOne`).
@@ -232,20 +233,11 @@ export default function ClientePortalModal({ clientId, onClose, rolUsuario = 'co
                     // Se muestran todas las cuotas que cubrio el pago, no solo la
                     // primera: un pago puede repartirse entre varias y un solo numero
                     // seria mentira. Si no se sabe, no se inventa.
-                    cuota: (Array.isArray(p.detalles) ? p.detalles : [])
-                      // El tipo del detalle se DERIVA del pago, que ya lo declara.
-                      .map(
-                        (d: NonNullable<PagoDeCliente['detalles']>[number]) =>
-                          d?.cuota?.numeroCuota,
-                      )
-                      .filter(
-                        (n): n is number => typeof n === 'number',
-                      )
-                      .join(', ') || '—',
+                    cuota: textoCuotasDePagoCliente(p),
                     // El numero de pago puede llegar como numero y la UI lo quiere texto.
                     referencia:
-                      p.numeroPago == null ? undefined : String(p.numeroPago),
-                    metodo: p.metodoPago || 'EFECTIVO',
+                      String(p.numeroPago),
+                    metodo: p.metodoPago,
                     estado: 'confirmado',
                     icono: <DollarSign className="w-5 h-5" />
                 })));

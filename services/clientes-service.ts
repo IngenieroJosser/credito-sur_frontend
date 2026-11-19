@@ -27,31 +27,31 @@ export type { NivelRiesgo, EstadoAprobacion }
  * opcionales justamente porque esa consulta no las trae.
  */
 export type PrestamoDeCliente = {
-  id?: string
-  tipoPrestamo?: string | null
+  id: string
+  tipoPrestamo: string
   producto?: { nombre?: string | null } | null
-  estado?: string | null
-  monto?: number | string | null
+  estado: string
+  monto: number | string
   montoTotal?: number | string | null
-  saldoPendiente?: number | string | null
-  totalPagado?: number | string | null
-  interesTotal?: number | string | null
-  interesMoraPagado?: number | string | null
-  tasaInteres?: number | string | null
-  cantidadCuotas?: number | null
-  plazoMeses?: number | null
-  frecuenciaPago?: string | null
-  fechaInicio?: string | null
-  fechaFin?: string | null
-  cuotas?: CuotaOperativa[] | null
+  saldoPendiente: number | string
+  totalPagado: number | string
+  interesTotal: number | string
+  interesMoraPagado: number | string
+  tasaInteres: number | string
+  cantidadCuotas: number
+  plazoMeses: number
+  frecuenciaPago: string
+  fechaInicio: string
+  fechaFin: string
+  cuotas: CuotaOperativa[]
 }
 
 export type PagoDeCliente = {
-  id?: string
-  numeroPago?: string | number | null
-  fechaPago?: string | null
-  montoTotal?: number | string | null
-  metodoPago?: string | null
+  id: string
+  numeroPago: string | number
+  fechaPago: string
+  montoTotal: number | string
+  metodoPago: string
   /**
    * Los detalles del pago, con la cuota anidada.
    *
@@ -59,7 +59,7 @@ export type PagoDeCliente = {
    * eso. Se declara la forma igual porque las pantallas los leen (`detalles[0].cuota`), y
    * asi se ve que ese acceso es el que siempre acaba en el '1' por defecto.
    */
-  detalles?: Array<{ cuota?: { numeroCuota?: number | null } | null }> | null
+  detalles: Array<{ cuota?: { numeroCuota?: number | null } | null }>
   archivos?: ArchivoMultimediaPago[] | null
 }
 

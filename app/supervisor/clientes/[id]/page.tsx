@@ -57,6 +57,7 @@ import { Selector } from '@/components/ui/Selector'
 import { MODAL_Z_INDEX } from '@/components/ui/Portal'
 import AyudaContextual from '@/components/ui/AyudaContextual'
 import FieldLabel from '@/components/ui/FieldLabel'
+import { textoCuotasDePagoCliente } from '@/lib/clientes/detalle-financiero'
 
 
 function Portal({ children }: { children: ReactNode }) {
@@ -256,11 +257,11 @@ export default function ClienteDetalleSupervisorPage() {
   }
 
   const prestamos: Prestamo[] = (clienteData.prestamos || []).map((p) => {
-    const cuotas = p.cuotas || []
+    const cuotas = p.cuotas
     const cuotasPagadas = cuotas.filter(
       (c: CuotaOperativa) => c.estado === 'PAGADA' || c.estadoActual === 'PAGADA',
     ).length
-    const totalCuotas = p.cantidadCuotas || cuotas.length || 0
+    const totalCuotas = p.cantidadCuotas
 
     const hoyKey = getBogotaDateKey(new Date())
     const frecuencia = String(p.frecuenciaPago || 'DIARIO').toUpperCase()
@@ -273,23 +274,23 @@ export default function ClienteDetalleSupervisorPage() {
     const diasMora = computeDiasMoraFromCuotas(cuotas, hoyKey, frecuencia)
     const estadoUI = cuotasVencidas > 0 || diasMora > 0 ? 'EN_MORA' : p.estado
 
-    const principal = Number(p.monto || 0)
-    const tasa = Number(p.tasaInteres || 0)
-    const meses = Number(p.plazoMeses || 1)
-    let interesTotal = Number(p.interesTotal || 0)
+    const principal = Number(p.monto)
+    const tasa = Number(p.tasaInteres)
+    const meses = Number(p.plazoMeses)
+    let interesTotal = Number(p.interesTotal)
 
     if (interesTotal === 0 && tasa > 0 && meses > 0) {
       interesTotal = (principal * tasa * meses) / 100
     }
 
     const montoTotal = principal + interesTotal
-    const saldoPendiente = Number(p.saldoPendiente || 0)
+    const saldoPendiente = Number(p.saldoPendiente)
 
     return {
       id: p.id,
       producto: p.tipoPrestamo === 'ARTICULO' ? (p.producto?.nombre || 'Artículo') : 'Préstamo Efectivo',
       montoTotal: montoTotal,
-      montoPagado: Number(p.totalPagado || 0),
+      montoPagado: Number(p.totalPagado),
       montoPendiente: (saldoPendiente === principal && interesTotal > 0) ? montoTotal : saldoPendiente,
       cuotasTotales: totalCuotas,
       cuotasPagadas: cuotasPagadas,
@@ -304,7 +305,7 @@ export default function ClienteDetalleSupervisorPage() {
         p.fechaFin,
       estado: estadoUI,
       tasaInteres: tasa,
-      moraAcumulada: Number(p.interesMoraPagado || 0),
+      moraAcumulada: Number(p.interesMoraPagado),
       cuotasVencidas,
       diasMora,
       icono: <Smartphone className="w-5 h-5" />,
@@ -320,19 +321,19 @@ export default function ClienteDetalleSupervisorPage() {
 
       // `as Pago` al final, que tapaba justo esa diferencia.
 
-      id: p.id ?? '',
+      id: p.id,
 
-      fecha: p.fechaPago ?? '',
+      fecha: p.fechaPago,
 
-      monto: Number(p.montoTotal || 0),
+      monto: Number(p.montoTotal),
 
-      cuota: String(p.detalles?.[0]?.cuota?.numeroCuota || 1),
+      cuota: textoCuotasDePagoCliente(p),
 
-      metodo: p.metodoPago ?? '',
+      metodo: p.metodoPago,
 
       estado: 'confirmado' as const,
 
-      referencia: p.numeroPago == null ? undefined : String(p.numeroPago),
+      referencia: String(p.numeroPago),
       icono: <DollarSign className="w-5 h-5" />,
       archivos: p.archivos || [],
     } as Pago

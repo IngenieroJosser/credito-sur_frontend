@@ -14,6 +14,7 @@ import { ChevronLeft, BarChart3, Smartphone, DollarSign } from 'lucide-react';
 import ClienteDetalleElegante, { Cliente, Prestamo, Pago, Comentario } from '@/components/cliente/DetalleCliente';
 import Link from 'next/link';
 import { clientesService } from '@/services/clientes-service';
+import { textoCuotasDePagoCliente } from '@/lib/clientes/detalle-financiero';
 // El `Cliente` del SERVICIO, con alias: la vista (`DetalleCliente`) exporta otro
 // `Cliente` distinto, que es el de presentacion y exige `fechaRegistro` (un nombre
 // de pantalla; en el esquema la columna es `creadoEn`). El estado guarda la
@@ -110,11 +111,11 @@ export default function ClienteDetallePage() {
 
   // Mapeo de préstamos (si vienen del backend)
   const prestamos: Prestamo[] = (clienteData.prestamos || []).map((p: PrestamoDeCliente) => {
-    const cuotas = p.cuotas || [];
+    const cuotas = p.cuotas;
     const cuotasPagadas = cuotas.filter(
       (c: CuotaOperativa) => c.estado === 'PAGADA' || c.estadoActual === 'PAGADA',
     ).length;
-    const totalCuotas = p.cantidadCuotas || cuotas.length || 0;
+    const totalCuotas = p.cantidadCuotas;
 
     const hoyKey = getBogotaDateKey(new Date())
     const frecuencia = String(p.frecuenciaPago || 'DIARIO').toUpperCase()
@@ -128,10 +129,10 @@ export default function ClienteDetallePage() {
     const estadoUI = cuotasVencidas > 0 || diasMora > 0 ? 'EN_MORA' : p.estado
     
     // El backend devuelve Decimal como string/objeto, aseguramos conversión a número
-    const principal = Number(p.monto || 0);
-    const tasa = Number(p.tasaInteres || 0);
-    const meses = Number(p.plazoMeses || 0);
-    let interesTotal = Number(p.interesTotal || 0);
+    const principal = Number(p.monto);
+    const tasa = Number(p.tasaInteres);
+    const meses = Number(p.plazoMeses);
+    let interesTotal = Number(p.interesTotal);
     
     // Si el interés viene en 0 pero hay tasa y plazo, intentamos calcularlo localmente
     // para corregir visualmente préstamos antiguos mal calculados.
@@ -140,13 +141,13 @@ export default function ClienteDetallePage() {
     }
 
     const montoTotal = principal + interesTotal;
-    const saldoPendiente = Number(p.saldoPendiente || 0);
+    const saldoPendiente = Number(p.saldoPendiente);
     
     return {
       id: p.id,
       producto: p.tipoPrestamo === 'ARTICULO' ? (p.producto?.nombre || 'Artículo') : 'Préstamo Efectivo',
       montoTotal: montoTotal,
-      montoPagado: Number(p.totalPagado || 0),
+      montoPagado: Number(p.totalPagado),
       montoPendiente: (saldoPendiente === principal && interesTotal > 0) ? montoTotal : saldoPendiente,
       cuotasTotales: totalCuotas,
       cuotasPagadas: cuotasPagadas,
@@ -161,7 +162,7 @@ export default function ClienteDetallePage() {
         p.fechaFin,
       estado: estadoUI,
       tasaInteres: tasa,
-      moraAcumulada: Number(p.interesMoraPagado || 0),
+      moraAcumulada: Number(p.interesMoraPagado),
       cuotasVencidas,
       diasMora,
       icono: <Smartphone className="w-5 h-5" />,
@@ -175,15 +176,15 @@ export default function ClienteDetallePage() {
       // Los `?? ''` y el `String(...)`: el pago del backend trae estos campos nulables y
       // la `Pago` de la UI los declara obligatorios. Antes se resolvia con el `as Pago`
       // del final, que tapaba justo esa diferencia.
-      id: p.id ?? '',
-      fecha: p.fechaPago ?? '',
-      monto: Number(p.montoTotal || 0),
+      id: p.id,
+      fecha: p.fechaPago,
+      monto: Number(p.montoTotal),
       // `cuota` es TEXTO en la UI: un pago puede repartirse entre varias cuotas. Con el
       // `as Pago` esto pasaba como numero.
-      cuota: String(p.detalles?.[0]?.cuota?.numeroCuota ?? '—'),
-      metodo: p.metodoPago ?? '',
+      cuota: textoCuotasDePagoCliente(p),
+      metodo: p.metodoPago,
       estado: 'confirmado' as const,
-      referencia: p.numeroPago == null ? undefined : String(p.numeroPago),
+      referencia: String(p.numeroPago),
       icono: <DollarSign className="w-5 h-5" />,
       archivos: p.archivos || [],
     };
