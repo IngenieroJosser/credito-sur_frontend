@@ -400,6 +400,43 @@ un solo nombre de contrato, `telefono`.
 
 ---
 
+### P10 — La solicitud de base no tiene clave de idempotencia *(ABIERTO, es dinero)*
+
+**Qué pasa.** `solicitarBase` —el cobrador o el supervisor pidiendo efectivo para
+salir a la calle— manda `{monto, descripcion, cobradorId, rutaId}` y **ninguna
+clave**:
+
+- frontend: `services/contabilidad-service.ts:1065`
+- backend: `accounting.controller.ts:494` → `accounting.service.ts:1083`, que
+  hace `aprobacion.create(...)` sin comprobar duplicados.
+
+**Por qué importa.** Dos toques en el móvil —o un reintento de la cola sin
+conexión, que es el caso normal en la calle— crean **dos aprobaciones pendientes
+del mismo monto**. Si el aprobador aprueba las dos, el cobrador recibe la base
+dos veces.
+
+**Medido.** De las 46 llamadas del frontend que mueven dinero, 40 no pasan clave
+en el sitio de llamada, pero eso **no es el problema**: el servicio la genera
+cuando falta en `registrarPago` (`pagos-service.ts:279`), `crearPrestamo`
+(`prestamos-service.ts:262`), `registrarGasto`
+(`contabilidad-service.ts:1026`) y `consolidarCaja`
+(`contabilidad-service.ts:373`). **`solicitarBase` es la única que no la tiene
+en ningún sitio.**
+
+**La receta está escrita y probada en el mismo archivo.** `Aprobacion` ya tiene
+`idempotencyKey String? @unique` en el esquema, y `accounting.service.ts:735-790`
+—el registro de gasto— ya implementa el patrón completo: acepta la clave, busca
+una aprobación con ella, devuelve la existente con `idempotentReplay: true` si la
+encuentra, y si no crea con la clave puesta. Hay que copiar ese patrón en
+`solicitarBase` y que el frontend genere la clave con el `generarIdempotencyKey`
+que ya está en ese servicio.
+
+Y la cola sin conexión tiene que mandar **la misma** clave al reintentar, no una
+nueva: si no, la idempotencia no sirve de nada. `consolidarCaja` ya lo hace así
+(`buildRecolectarIdempotencyKey`), que es el ejemplo a seguir.
+
+---
+
 ### P8 — Pantallas bifurcadas por rol que divergen
 
 Un arreglo hay que hacerlo dos o tres veces, y en esta sesión se pagó ese precio
