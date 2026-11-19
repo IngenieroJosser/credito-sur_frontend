@@ -290,6 +290,35 @@ npx next start -p 3100            # un puerto libre, para no heredar un servidor
 E2E_BASE_URL=http://localhost:3100 npx playwright test e2e/pantallas-por-rol.e2e.ts --retries=0
 ```
 
+**Dos trampas del entorno que cuestan una hora cada una, aprendidas a golpes:**
+
+1. **El puerto del frontend no es libre: CORS solo admite 3000.** `main.ts:117`
+   permite `localhost:3000` y `127.0.0.1:3000`. Levantar la build en otro puerto
+   —3100, por ejemplo— hace que el navegador no pueda ni iniciar sesión: el
+   preflight vuelve sin `Access-Control-Allow-Origin` y el barrido muere con
+   `page.waitForResponse: Timeout 180000ms` en `entrarComo`, que parece un
+   backend lento y no lo es. Comprobado: con `Origin: http://localhost:3000`
+   llega la cabecera; con el 3100, no.
+
+   Si el 3000 está ocupado, la salida está prevista en el propio código: la
+   variable `CORS_ORIGINS` (`main.ts:111`, separada por comas) añade orígenes
+   para desarrollo. Hay que arrancar el backend con ella:
+
+   ```bash
+   CORS_ORIGINS="http://localhost:3100" RATE_LIMIT_DEFAULT_MAX=100000 npm run start:dev
+   ```
+
+2. **Parar la tarea del backend no libera el puerto.** El `nest start --watch`
+   deja un proceso hijo vivo, así que el 3001 sigue ocupado y el arranque
+   siguiente muere con `EADDRINUSE` —y lo peor: el que contesta es el proceso
+   VIEJO, con la configuración vieja, de modo que parece que la variable de
+   entorno no funcionó—. Hay que comprobar quién tiene el puerto y detener ese
+   PID antes de volver a arrancar:
+
+   ```powershell
+   Get-NetTCPConnection -LocalPort 3001 -State Listen | Select OwningProcess
+   ```
+
 **Las dos reglas que hacen que el resultado signifique algo:**
 
 1. **No recompilar ni editar nada mientras corre.** Ni el frontend —`next build`
