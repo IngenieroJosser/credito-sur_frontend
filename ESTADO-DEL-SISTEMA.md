@@ -64,25 +64,46 @@ de la API; no implica que exista una tarjeta que lo muestre.
 > incluye». El viejo 71,41 inflaba la mora con 1.665.000 que nadie va a cobrar
 > en esa ruta.
 >
-> **Lo que falta para cerrarlo: 15 pruebas de `src/routes` en rojo.** No se
-> relajo ninguna asercion. Clasificadas:
+> **Lo que falta para cerrarlo: de 15 pruebas en rojo quedan 6.**
+> `npx jest src/routes` -> **76 pasan, 6 fallan** (antes 68 y 15). No se relajo
+> ninguna asercion ni se toco el codigo de produccion mas que las dos
+> anotaciones de tipo.
 >
-> - unas fijan el MECANISMO viejo (`getDailyVisits` llamado una vez por ruta,
->   `asignacionRuta.findMany` no llamado). El refactor elimina esa llamada a
->   proposito: esas aserciones quedaron obsoletas y hay que reescribirlas
->   contra el mecanismo nuevo (una consulta por pagina), no borrarlas;
-> - otras fijan SEMANTICA de la jornada —la meta reconstruida cuando un ausente
->   paga despues, la cuota objetivo historica, el pago regularizado parcial, la
->   reprogramacion que no se propaga— y hoy revientan porque el doble no trae
->   los modelos que consulta la carga por lotes. Esas son las que de verdad
->   vigilan el dinero del cobrador: hay que darles los datos equivalentes y
->   comprobar que la asercion sigue pasando SIN tocarla. Si alguna no pasa, ahi
->   si hay un cambio de comportamiento que medir.
+> Las nueve que se recuperaron fallaban por datos que el doble no decia, no por
+> comportamiento. Se arreglo en un solo sitio, la factoria `makeService` de
+> `routes.service.spec.ts`, con el motivo escrito:
 >
-> En `routes.service.spec.ts` ya se anadieron valores neutros en la factoria
-> `makeService` para los modelos que el codigo nuevo consulta (tambien sin
-> commitear). Eso convirtio los 15 «Cannot read properties of undefined» en
-> aserciones de verdad, que es el paso previo a poder juzgarlas.
+> - el codigo viejo consultaba POR ruta, asi que toda fila devuelta era de esa
+>   ruta y el doble no tenia que decirlo. La carga por lotes pide una vez con
+>   `rutaId: { in: ids }` y luego AGRUPA por `rutaId` (los pagos, por
+>   `prestamo.rutaId`): sin ese campo, `agrupar` revienta;
+> - y `datos-visitas.ts:173` vuelve a filtrar en memoria los creditos de la
+>   asignacion con `p.rutaId === rutaId`. En produccion sobra pero es correcto
+>   —el `include` de Prisma trae todos los escalares—; en las pruebas descartaba
+>   TODOS los creditos y la visita salia vacia. **Esto fue lo que costo
+>   encontrar:** una sonda de seis lineas en `cargarVisitas` mostro
+>   `asignaciones=1 prestamos=[0]`, y ahi se vio.
+>
+> El relleno solo actua cuando la consulta pide UNA ruta. Con dos o mas en el
+> mismo `in` no hay forma de saber de cual es cada fila, y rellenar con la
+> primera las mete todas en esa ruta: justo el cruce entre rutas que vigila la
+> prueba del cliente compartido.
+>
+> **Las 6 que quedan necesitan una decision de diseno, no un arreglo:**
+>
+> | prueba | que fija | por que falla |
+> |---|---|---|
+> | `getDailyVisitsBatch` × 4 | que `getDailyVisits` se llame una vez por ruta, con su fecha y su actor | el refactor **elimina esa llamada a proposito**: ahora proyecta desde una consulta por pagina. La asercion quedo obsoleta y hay que reescribirla contra el mecanismo nuevo (p. ej. «una consulta de asignaciones por pagina, no por ruta»), no borrarla |
+> | «usa el resumen operativo diario como fuente de verdad para el avance del listado» | que el listado **no** llame a `asignacionRuta.findMany` | el refactor si las carga, por pagina. Misma decision |
+> | «consulta las visitas una vez y mantiene la ausencia en su propia ruta» | que un cliente compartido por dos rutas salga ausente en una y presente en la otra | con dos rutas en una sola consulta, el doble tiene que decir el `rutaId` de cada registro de visita. **Es la que mas importa**: vigila que la ausencia no se cruce entre rutas |
+>
+> Las tres primeras filas son la misma pregunta: **que invariante debe afirmar
+> la prueba ahora que no se consulta por ruta**. Eso lo decide quien diseno el
+> refactor. La ultima es datos del doble, y hay que dejarla verde antes de dar
+> el refactor por bueno.
+>
+> **Nada de esto esta commiteado**, ni el refactor ni mis dos arreglos: el
+> commit arrastraria las 764 lineas con 6 pruebas en rojo.
 
 Por orden. Lo de arriba es lo que está a medias; lo de abajo, lo que nadie ha
 mirado todavía.
