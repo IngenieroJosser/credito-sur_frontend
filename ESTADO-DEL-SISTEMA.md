@@ -6,12 +6,34 @@
 > lo que ya está arreglado (para no repetirlo) y lo que queda, con evidencia
 > medida y la receta de cada arreglo.
 >
-> **Última actualización:** 2026-11-18.
+> **Última actualización:** 2026-11-19.
 > **Alcance:** los dos repos, `credito-sur_backend` (NestJS + Prisma 7 +
 > PostgreSQL) y `credito-sur_frontend` (Next.js 16, App Router).
 > **Objetivo del dueño:** dejar el sistema al 100% para que el cliente empiece
 > pruebas e importación de datos. Se puede tocar backend, base de datos o lo que
 > haga falta.
+
+---
+
+## 0. Si retomas ahora, empieza por aquí
+
+Por orden. Lo de arriba es lo que está a medias; lo de abajo, lo que nadie ha
+mirado todavía.
+
+| # | Qué | Dónde |
+|---|---|---|
+| 1 | **Terminar el barrido de pantallas.** La última pasada encontró un solo defecto en 7 roles × 112 pantallas, se arregló, y la verificación alcanzó **2 de 7 roles** antes de cortarse. Hay que correr los 7 otra vez. La receta corta y las cinco trampas del entorno están en §P3 | §P3 |
+| 2 | **Decidir qué se hace con 4 créditos fantasma** de la base: ACTIVO, aprobados, dicen tener cuotas y no tienen ninguna. No es un defecto vivo —no se repiten desde agosto— pero el cliente los va a ver | §P16 |
+| 3 | **§P5: las consultas por ruta.** El listado sigue haciendo 6 consultas por ruta, y quedan 3 métodos multi-modelo sin revisar | §P5 |
+| 4 | **§P8: las 8 pantallas bifurcadas por rol.** Es la deuda que hace que cada arreglo haya que hacerlo dos o tres veces. Ya se pagó ese precio varias veces | §P8 |
+| 5 | **§P9: la deuda técnica para hablar con el dueño** (archivos de 4.300 líneas, 6 copias del formateo de pesos, 8 colores de botón primario) | §P9 |
+
+**Lo que ya NO hay que volver a mirar** (medido y escrito, con el límite de cada
+medición): el dinero escrito sin transacción (§P11, 7 de 7 revisadas), la
+idempotencia de la cola (§P10 y §P15), el alcance por rol en caja y rutas
+(§P12), los endpoints sin `@Roles` (§P14, 228 revisados), los botones mudos, los
+techos del servidor y la atomicidad de la importación (§P17), y el estado
+contable de la base (§P16).
 
 ---
 
@@ -238,6 +260,69 @@ elecciones de caja, para que una tercera tenga que pasar por ahí.
 ---
 
 ### P3 — El barrido de pantallas por rol ya corre; el límite de peticiones queda visible
+
+#### Pasada del 2026-11-19: los siete roles, y UN solo defecto en todo el sistema
+
+Corrida completa contra `next build --webpack` + `next start`, apuntando a un
+backend levantado aparte. **Resultado: en 7 roles x 112 pantallas apareció un
+único hallazgo distinto**, repetido en seis de los siete roles:
+
+```
+/login [consola] Access to fetch at 'https://credito-sur-backend.onrender.com/api-credisur'
+                 from origin 'http://localhost:3100' has been blocked by CORS policy
+/login [consola] Failed to load resource: net::ERR_FAILED
+```
+
+Era real y está arreglado: §P13, la URL del backend escrita a mano en el login.
+SUPER_ADMINISTRADOR pasó limpio porque entra antes de que empiece la vigilancia.
+
+**La verificación posterior quedó a medias y hay que rehacerla.** Se relanzó el
+barrido con el arreglo puesto y alcanzó **2 de los 7 roles (SUPER_ADMINISTRADOR
+y ADMIN), ambos sin hallazgos**, antes de que la sesión terminara y cortara el
+proceso. No está confirmado que los cinco restantes queden limpios. **Es lo
+primero que hay que correr al retomar.**
+
+#### Tres trampas más del entorno, de esa misma pasada
+
+3. **`npx next build` a secas FALLA.** Next 16 usa Turbopack por defecto y este
+   proyecto tiene configuración de webpack (la mete el PWA). El error es
+   `Build error occurred / Error: Call retries were exceeded`, y **sale con
+   código 0**, así que parece que funcionó: luego `next start` dice «Could not
+   find a production build». Hay que usar el script del repo, que ya lo trae:
+   `npm run build` (= `next build --webpack`).
+
+4. **En modo desarrollo este barrido no decide nada.** La primera pasada se hizo
+   con `next dev` y salieron decenas de `ERR_CONNECTION_REFUSED` y `ERR_ABORTED`
+   repartidos por todos los roles: era el servidor de desarrollo recompilando y
+   cayéndose, no la aplicación. Tiene que ser build de producción.
+
+5. **Si no se pueden matar procesos, no hace falta.** Puertos ocupados por
+   servidores viejos se esquivan levantando **todo en puertos nuevos**: un
+   backend más con `PORT=3003` y `CORS_ORIGINS=http://localhost:3101`, y el
+   frontend compilado con `NEXT_PUBLIC_BASE_URL=http://127.0.0.1:3003` sirviendo
+   en 3101. Varios backends contra la misma base conviven sin problema para un
+   barrido, que es casi todo lectura.
+
+**Receta corta para retomar (la que funcionó):**
+
+```bash
+# backend nuevo, en un puerto libre, con el origen del frontend permitido
+cd credito-sur_backend
+PORT=3003 CORS_ORIGINS=http://localhost:3101   RATE_LIMIT_DEFAULT_MAX=20000 RATE_LIMIT_HEAVY_MAX=20000 RATE_LIMIT_AUTH_MAX=2000   npx nest start
+
+# frontend compilado CONTRA ESE backend, servido en otro puerto libre
+cd credito-sur_frontend
+NEXT_PUBLIC_BASE_URL=http://127.0.0.1:3003 npx next build --webpack
+npx next start -p 3101
+
+# el barrido (tarda ~15 min; conviene dejarlo en segundo plano)
+E2E_BASE_URL=http://localhost:3101 npx playwright test e2e/pantallas-por-rol.e2e.ts --retries=0
+```
+
+Las credenciales de los siete roles están en `e2e/sesion.ts`, dentro del repo:
+el barrido corre sin configurar nada más.
+
+---
 
 **Medido el 2026-11-18 contra `next build` + `next start`.** Los siete roles
 terminaron el recorrido: 6 pasaron al primer intento y CONTADOR paso al reintento
