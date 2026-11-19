@@ -430,6 +430,22 @@ vista alternativa para móvil.
 
 ---
 
+## 4b. Medido y descartado. No lo "arregles"
+
+Estos casos **parecen** defectos, se midieron, y no lo son. Van aquí porque el
+siguiente que los encuentre va a querer tocarlos, y cambiarlos sería trabajo sin
+mover ningún resultado —lo que la regla §1.1 manda no hacer—. Si algún día la
+medición cambia, aquí está escrito qué habría que volver a comprobar.
+
+| caso | por qué parece un defecto | lo que dijo la medición |
+|---|---|---|
+| Los 201 `|| 0` sobre dinero | un cero se lee «no debe nada» | los 11 que caen sobre un campo no garantizado llegan todos: ver §P4 |
+| `CrearCreditoModal.tsx:302-306` deriva el plazo a mano (`cuotas/30`, `/4`, `/2`) | hay una función canónica, `derivarPlazoMeses` | los factores son **idénticos** a `CUOTAS_POR_MES` (30/4/2/1): no mueve ni un peso. Ojo: `CreacionPrestamo` usa 4,33 para SEMANAL **a propósito** y eso está documentado en `preview-credito.ts:104-109` — «no unificar sin hablarlo» |
+| `NotificacionDetalleModal.tsx:1900-1906`: si el tipo es FRANCESA calcula el interés como `monto × tasa/100`, ignorando el plazo; y si no, escribe «Total a Cobrar: $ 0» | es la pantalla donde se aprueba un crédito | **no se alcanza**: la aprobación guarda siempre `montoTotal = monto + interesTotal` (`loans.service.ts:4286`), así que la primera rama devuelve esa cifra. Y un crédito de monto cero ya se rechaza al crearlo (`918a3a2`) |
+| El `limite: 500` de `ListadoPrestamos` | huele a techo de datos | es el cruce con el informe de mora para enriquecer las ocho filas visibles; si el cruce no encuentra un crédito, la fila se queda con lo que mandó `/loans`, que ya trae `cuotasVencidas` y deduce el estado con la misma regla. Ninguna cifra depende de ese tope |
+| «Atrasados» y «activos» de `/loans` miran la columna `estado`, no solo las cuotas | las filas de abajo deducen la mora de las cuotas | se cambió, se midió que **no mueve ninguna cifra** en esta base, y `loans.service.spec.ts` afirma a propósito que la columna también cuenta. Se revirtió, con el motivo en el código |
+| Los cuatro agregados por ruta del informe operativo | 4 consultas × nº de rutas | los agrupó Codex en 4 consultas totales (`7b84ccb`), y se verificó contra la API que las cifras no se mueven: recaudo 2.630.000 y capital 5.000.000 coinciden con el panel, y la meta de «hoy» (1.068.539) con `metaDelDia` de `/routes` |
+
 ## 5. Lo que ya está arreglado. No lo repitas
 
 Un commit por defecto, con la medición en el cuerpo. `git show <hash>` cuenta la
