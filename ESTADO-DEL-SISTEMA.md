@@ -32,7 +32,7 @@ mirado todavía.
 |---|---|---|
 | 1 | **Investigar el timeout de login si reaparece.** Los siete roles ya completaron el recorrido tras el arreglo de URL, aunque no en una sola corrida. No se ha demostrado la causa de las esperas fallidas. | §P3 |
 | 2 | **Decidir qué se hace con 4 créditos fantasma** de la base: ACTIVO, aprobados, dicen tener cuotas y no tienen ninguna. No es un defecto vivo —no se repiten desde agosto— pero el cliente los va a ver | §P16 |
-| 3 | **§P5: las consultas por ruta.** El listado sigue haciendo 6 consultas por ruta, y quedan 3 métodos multi-modelo sin revisar | §P5 |
+| 3 | **§P5: las consultas por ruta.** El resumen de cierres ya se lee por página; quedan las estadísticas y las visitas por ruta con clientes. | §P5 |
 | 4 | **§P8: las 8 pantallas bifurcadas por rol.** Es la deuda que hace que cada arreglo haya que hacerlo dos o tres veces. Ya se pagó ese precio varias veces | §P8 |
 | 5 | **§P9: la deuda técnica para hablar con el dueño** (archivos de 4.300 líneas, 6 copias del formateo de pesos, 8 colores de botón primario) | §P9 |
 
@@ -475,6 +475,17 @@ ruta con clientes a una por página (ninguna si no hay asignaciones). La prueba
 con dos rutas y un cliente compartido midió dos llamadas antes y una después;
 la ausencia solo excluye al cliente de la meta de su ruta. No se modificaron
 la conciliación de cierres ni las llamadas internas de `getDailyVisits`.
+
+En la siguiente tanda se separó el **resumen de cierres** de la regularización.
+Antes, por ruta con caja activa, el listado hacía al menos cinco lecturas Prisma
+y un `updateMany`, además de recalcular deudas si encontraba pendientes. Ahora
+ejecuta un solo SELECT por página no vacía, sin actualizar jornadas ni deudas.
+Una jornada abierta de ayer sigue apareciendo como pendiente. Consultar el
+detalle de cierre o regularizar sigue usando el flujo operativo anterior.
+Las pruebas cuentan llamadas para 0, 1 y 50 rutas; el caso de PostgreSQL con
+datos sintéticos se activa con `PROBAR_CIERRES_POSTGRES=1` y `DATABASE_URL` local.
+Medición de solo lectura en desarrollo (1 ruta, 4 pendientes): 31,64 ms en la
+primera consulta y 1,81–2,26 ms en cinco repeticiones. No mide todo el endpoint.
 
 Cada una multiplica las consultas por el número de filas. Con la cartera del
 cliente esto es la diferencia entre una pantalla que abre y una que caduca.
