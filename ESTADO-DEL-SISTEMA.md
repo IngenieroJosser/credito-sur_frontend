@@ -25,6 +25,23 @@ el módulo compilado de Jest, falló exactamente la prueba que esperaba 450000.
 Sin la mutación pasaron las nueve pruebas de dashboard. Esto verifica el dato
 de la API; no implica que exista una tarjeta que lo muestre.
 
+> ### ATENCION: el arbol no compila (2026-11-19, 11:18)
+>
+> `npx tsc --noEmit` en el backend falla con **un** error, y no es de nadie que
+> lo haya roto al pasar: es un **refactor a medio terminar** del listado de
+> rutas (§P5) que quedo sin commitear.
+>
+> - `src/routes/routes.service.ts`: modificado, **−764 / +68 lineas**.
+> - `src/routes/datos-visitas.ts` (170 lineas) y
+>   `src/routes/estadisticas-listado.ts` (38 lineas): **nuevos, sin seguir en git**.
+> - El error: `routes.service.ts(1327,53) TS2345` — se le pasa `PrismaService`
+>   a un parametro que espera `TransactionClient`.
+>
+> Ultimo cambio en esos archivos: 9:08. Si retomas despues de eso, el refactor
+> esta parado y hay que terminarlo o descartarlo, **decidiendolo a proposito**:
+> son 764 lineas sacadas de un archivo de 7.000, y eso no se abandona a medias.
+> Antes de cualquier otra cosa, deja el `tsc` en verde.
+
 Por orden. Lo de arriba es lo que está a medias; lo de abajo, lo que nadie ha
 mirado todavía.
 
