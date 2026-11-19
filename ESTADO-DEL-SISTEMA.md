@@ -990,6 +990,98 @@ consecuencia visible de esas filas.
 
 ---
 
+### P19 — Los 19 principios de UX/UI: qué se puede aplicar aquí, medido
+
+Se pidió evaluar 19 conceptos de animación y UX, con la condición de que no
+generen problemas de rendimiento «porque esto va a tener muchos clientes y
+créditos» y es offline-first.
+
+**Lo que hay hoy, medido:**
+
+| qué | medición |
+|---|---|
+| librería de animación | **ninguna** (0 `framer-motion`; 33 dependencias en total) |
+| transiciones a mano | **1.028** (`transition-all` 564, `transition-colors` 464, `transform` 58, `opacity` 22) |
+| `prefers-reduced-motion` | **4** archivos, contra **34** que usan `motion-reduce` |
+| virtualización de listas | **ninguna** (0 `react-window`, `react-virtual`, `useVirtualizer`) |
+| peticiones de 1.000+ filas | 14 de `limit: 1000`, 10 de 500, 8 de 5.000, **5 de 10.000** |
+| la peor pantalla al pintar | `app/admin/auditoria/page.tsx:356` pinta `logsFiltrados.map(...)` **sin recortar**, desde una petición de 1.000 |
+
+**`transition-all` NO es un problema: medido, no lo toques.** De 500 atributos
+`className` con `transition-all`, **uno solo** tiene un `hover` que dispara
+layout —`app/not-found.tsx:283`, la página 404—. Los otros 499 solo cambian
+color, sombra, escala u opacidad, y ahí `transition-all` no cuesta nada.
+Barrerlos para poner la propiedad concreta no cambiaría ningún resultado.
+
+**El riesgo de rendimiento no es la animación: son las listas.** Sin
+virtualización y con peticiones de 1.000 a 10.000 filas, el coste está en el DOM
+que ya se pinta. Hoy no se nota porque la base de desarrollo tiene ~100
+clientes; con los datos del cliente sí. *Límite de la medición:* no se midió el
+tiempo de pintado real con miles de filas, solo el número de filas pedidas y
+que no se recortan antes de pintar.
+
+#### Los 19, en tres grupos
+
+**A. Cuestan cero en ejecución y es donde está el valor** (son leyes de
+información y de alcance, no movimiento):
+
+| # | principio | por qué aquí, con el dato |
+|---|---|---|
+| 8 | **Ley de Fitts** | **El de más valor del lote.** Ya está medido como defecto: 430 botones por debajo de 44px, y «Pago» y «Abono» del cobrador a ~27px, **pegados y haciendo cosas distintas**. Es el pulgar del cobrador en la calle: un toque errado registra dinero en el sitio equivocado |
+| 13 | **Von Restorff** | Hoy el sistema hace lo CONTRARIO: 8 colores distintos de botón primario y 60 sitios con el hex a mano teniendo el token. Si todo destaca, nada destaca |
+| 6 | **Umbral de Doherty** (<400 ms) | Es lo que ha venido guiando §P5: el listado hacía 6 consultas por ruta. Ya hay números que sirven de base (login 0,2 s) |
+| 10 | **Ley de Hick** | 140 `<select>` y el formulario de crear crédito; menos opciones visibles a la vez |
+| 18 | **Frecuencia de uso** | El cobrador hace Pago/Abono todo el día: van donde llega el pulgar, no en un menú |
+| 19 | **Regla del pico y el final** | El final de la jornada es el cierre, y hoy un reintento de arqueo produce un «conflicto» falso (§P15) |
+| 2 | **Conciencia del origen** | Que un modal parezca salir de donde se pulsó. Es `transform-origin` + escala/opacidad: compositor puro, gratis |
+
+**B. Son animación y son baratos SI tocan solo `transform` y `opacity`:**
+
+- **9 slow in/slow out** y **14 timing**: son la curva y la duración. Gratis, y
+  es lo que separa una transición tosca de una cuidada.
+- **15 movimiento interrumpible**: las transiciones CSS **ya lo dan gratis**
+  —interpolan desde el valor actual—. Lo que lo rompería es pasarse a
+  keyframes en JS. Aquí la recomendación es *no* cambiar de herramienta.
+- **7 anticipación**, **11 follow-through**, **16 acción secundaria**, **12
+  arcos**: correctos, pero solo en una o dos interacciones protagonistas
+  (registrar un pago). Repartidos por 112 pantallas son ruido.
+
+**C. Riesgosos o inapropiados para este producto:**
+
+- **3 staggering** — es el que choca con la medición: sin virtualización y con
+  listas de 1.000 filas, un escalonado son 1.000 animaciones. **Solo sobre
+  conjuntos acotados (≤12 elementos visibles), nunca en rutas, clientes,
+  créditos o auditoría.**
+- **5 rubber banding** — en web exige secuestrar el scroll; sobre una lista de
+  1.000 filas en el teléfono del cobrador es la receta para perder cuadros. Lo
+  nativo (`overscroll-behavior`) sí, el efecto imitado no.
+- **4 squash and stretch** y **1 exageración** — baratos pero **inapropiados**:
+  una cifra de dinero que rebota lee a juguete, y este producto necesita que la
+  cifra parezca exacta. No es rendimiento, es confianza.
+- **17 solid drawing** — es un principio de dibujo con volumen; en una interfaz
+  solo se traduce a mantener la luz y las sombras coherentes, que es asunto de
+  tokens y entra en Von Restorff.
+
+#### El orden que sale de la medición
+
+1. **Fitts** (430 botones, los de dinero primero) — es corrección de defectos,
+   no decoración.
+2. **Von Restorff** unificando el botón primario con el token que ya existe.
+3. **`prefers-reduced-motion` global**: hoy son 4 archivos contra 34 con
+   `motion-reduce`. Una regla en `globals.css` cubre las 112 pantallas.
+4. **Curva y duración** comunes (9 y 14) como dos variables CSS, aplicadas a lo
+   que ya transiciona: no añade elementos animados, mejora los 1.028 que hay.
+5. **Virtualizar** las listas que piden 1.000+ ANTES de añadir cualquier
+   movimiento por fila.
+6. Y entonces, si se quiere, 2/7/11/16 en la pantalla de registrar pago.
+
+**Offline-first:** la animación no afecta a la sincronización, pero sí al primer
+pintado, que en arranque frío ya carga la copia local. La regla es la misma que
+rige los artefactos: la pantalla tiene que estar legible **en reposo**, sin
+esperar a que nada entre.
+
+---
+
 ### P8 — Pantallas bifurcadas por rol que divergen
 
 Un arreglo hay que hacerlo dos o tres veces, y en esta sesión se pagó ese precio
