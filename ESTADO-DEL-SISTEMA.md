@@ -613,6 +613,51 @@ nada.
 
 ---
 
+### P15 — La cola sin conexión: medida entera, está sana *(NO HAY QUE HACER NADA)*
+
+Dos comprobaciones que conviene rehacer cuando se añadan operaciones.
+
+**1. Ningún endpoint encolado es un fantasma.** Se cruzaron las **52 llamadas a
+`enqueueOperation`** (49 tipos distintos) contra las **228 rutas reales** del
+backend, normalizando las interpolaciones y los `:param` a comodín: **0 que no existan**. Importa
+porque un endpoint inventado se reintenta para siempre y el trabajo del cobrador
+no llega nunca.
+
+Dos cosas que parecían defectos y no lo son, comprobadas:
+
+- Varios endpoints van **sin barra inicial** (`'loans'`, `loans/<id>/restore`).
+  Axios une `baseURL` y `url` insertando la barra, así que no rompe. No hace
+  falta tocarlo.
+- `arqueo_registrar` se encola con **dos endpoints distintos**, y los dos
+  existen: `POST /accounting/cajas/:id/arqueos` (`registrarArqueo`, solo roles de
+  oficina) y `POST /cajas/:cajaId/arqueos` (`confirmarArqueo`, que incluye
+  COBRADOR y SUPERVISOR: es la entrega de efectivo al cierre). **Son dos
+  operaciones distintas compartiendo nombre de tipo.** Hoy no cambia ningún
+  resultado —nada se comporta distinto según el tipo salvo la lista de
+  idempotentes, que no incluye ninguna— pero si algún día se les da trato por
+  tipo, hay que separarlas primero.
+
+**2. P10b contestado: duplicar un arqueo o un cierre NO puede duplicar dinero.**
+
+| operación | qué lo impide | qué pasa en el reintento |
+|---|---|---|
+| `arqueo_registrar` (cierre del cobrador) | índice único `cajaId_fechaOperativa` + comprobación explícita | 400 «Ya existe un arqueo para esta caja y fecha» |
+| `cierre_jornada_ruta` | máquina de estados: exige `PENDIENTE_CIERRE` | 409 «La jornada ya fue cerrada o regularizada» |
+
+Añadirles clave de idempotencia **no cambiaría ningún resultado**: la base y la
+máquina de estados ya los frenan. Es el caso contrario al de `solicitarBase`
+(§P10), donde nada los frenaba.
+
+**Lo que sí queda, y es ruido, no dinero.** La cola trata 400/409 como fallo
+**definitivo**: lo reporta a `/sync-conflicts/report-failed` y lo borra
+(`syncManager.ts:459-490`). Así que una respuesta perdida en una operación que
+SÍ se guardó deja un **conflicto de sincronización falso**, y alguien investiga
+un fallo que no ocurrió. Para arreglarlo de verdad haría falta que el backend
+distinguiera «409 porque ya está hecho» de «409 porque hay un conflicto real»;
+mientras tanto no se toca, porque ninguna cifra se mueve.
+
+---
+
 ### P8 — Pantallas bifurcadas por rol que divergen
 
 Un arreglo hay que hacerlo dos o tres veces, y en esta sesión se pagó ese precio
