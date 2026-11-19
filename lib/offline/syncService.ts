@@ -47,13 +47,40 @@ export const syncService = {
       'gasto_registrar',
       'transaccion_crear',
       'cliente_create',
-      'cliente_crear',
       'cliente_update',
-      'cliente_actualizar',
       'prestamo_create',
       'prestamo_crear',
       'venta_contado',
       'abono_deuda_cobrador',
+      /*
+       * La reprogramacion de una cuota crea una APROBACION, asi que un reintento
+       * de la cola la duplica: dos solicitudes pendientes para la misma cuota, y
+       * si el aprobador las aprueba las dos, la fecha se mueve dos veces.
+       *
+       * El backend ya la deduplica por clave —`solicitarReprogramacion` busca
+       * `aprobacion.findFirst({ where: { idempotencyKey } })` antes de crear— y
+       * las pantallas solo mandaban clave en el caso de cierre pendiente. Para el
+       * caso normal no habia ninguna, ni en el admin, ni en el cobrador, ni en el
+       * supervisor, ni en el coordinador.
+       *
+       * La clave se estampa AQUI, al encolar, y no en cada reintento: eso es lo
+       * que hace que el segundo intento sea el mismo que el primero. Es el motivo
+       * de que esta lista exista.
+       */
+      'prestamo_reprogramar',
+      /*
+       * Son DOS funciones distintas y las dos crean una aprobacion:
+       * `reprogramarPrestamo` encola `prestamo_reprogramar`, y
+       * `solicitarReprogramacionCuota` —la que llaman las cuatro pantallas de
+       * ruta— encola `reprogramacion_cuota_solicitar`. Anadir solo la primera
+       * dejaba sin proteger justo la que se usa.
+       */
+      'reprogramacion_cuota_solicitar',
+      /*
+       * `cliente_actualizar` y `cliente_crear` estaban en esta lista y NADIE los
+       * encola: los tipos de verdad son `cliente_update` y `cliente_create`, que
+       * tambien estan. Se quedan los dos fantasmas fuera.
+       */
     ]);
     const data =
       idempotentTypes.has(type) && payload && typeof payload === 'object' && !(payload instanceof FormData)
