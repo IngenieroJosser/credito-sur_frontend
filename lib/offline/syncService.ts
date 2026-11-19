@@ -77,6 +77,15 @@ export const syncService = {
        */
       'reprogramacion_cuota_solicitar',
       /*
+       * Pedir la base crea una APROBACION, y aprobarla saca el monto de
+       * CAJA-OFICINA y lo ingresa a la caja de ruta con su asiento de partida
+       * doble. Un reintento duplicaba la solicitud, y aprobar las dos entregaba
+       * la base dos veces. El backend ya la deduplica por clave:
+       * `solicitarBase` busca la aprobacion por `idempotencyKey` antes de
+       * crearla.
+       */
+      'base_solicitar',
+      /*
        * `cliente_actualizar` y `cliente_crear` estaban en esta lista y NADIE los
        * encola: los tipos de verdad son `cliente_update` y `cliente_create`, que
        * tambien estan. Se quedan los dos fantasmas fuera.

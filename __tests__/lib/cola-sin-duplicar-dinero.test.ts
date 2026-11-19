@@ -34,9 +34,11 @@ import { sinComentarios } from '@/lib/testing/sin-comentarios'
  * cuatro pantallas que la llaman solo mandaban clave en el caso de cierre
  * pendiente.
  *
- * Y sigue faltando `base_solicitar`, que es §P10 del documento de estado: ahí el
- * backend todavía no mira la clave, así que estamparla no serviría de nada hasta
- * que `solicitarBase` copie el patrón que ya usa el registro de gasto.
+ * `base_solicitar` era §P10 y ya está cerrado: `solicitarBase` copió el patrón
+ * del registro de gasto —busca la aprobación por `idempotencyKey` antes de
+ * crearla— y el controlador declara el campo, que sin declarar no habría
+ * llegado. Importa porque aprobar esa solicitud saca el monto de CAJA-OFICINA
+ * y lo ingresa a la caja de ruta: duplicarla entrega la base dos veces.
  */
 
 const RAIZ = process.cwd()
@@ -92,7 +94,6 @@ const GENERAN_SU_CLAVE: Record<string, string> = {
  * que una prueba pase: si aparece un tipo nuevo, es un defecto nuevo.
  */
 const PENDIENTE_CON_HALLAZGO: Record<string, string> = {
-  base_solicitar: 'P10: el backend aún no mira la clave en `solicitarBase`',
   /*
    * Estos dos NO están medidos como defecto, y por eso no se les estampó una
    * clave: el backend no la mira, así que ponerla no cambiaría ningún
