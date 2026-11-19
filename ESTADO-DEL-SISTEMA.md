@@ -252,22 +252,55 @@ frecuentes fueron `approvals/pending` (18), `notificaciones` (12), `routes` (7) 
 quito una duplicacion real: el shell pedia `approvals/pending` al iniciar el polling
 y otra vez al conectar el socket.
 
-**Receta.** Correrlo contra una build de producción, que además es la única forma
-de probar lo offline (el service worker se desactiva en desarrollo):
+#### Los dos hallazgos del super admin eran del entorno. Con evidencia
+
+Se repitieron en dos pasadas distintas, así que no eran azar, y aun así **no son
+del producto**:
+
+- **`/coordinador/perfil` → `Invalid or unexpected token`** (en otra pasada salió
+  en `/coordinador/revisiones`: cambia de pantalla porque el chunk culpable es el
+  del layout raíz, y lo pide la primera que llegue). La causa, medida: el HTML que
+  servía el puerto 3000 pedía `app/layout-8d7826654329e658.js` y en disco estaba
+  `app/layout-322ff4195a51a447.js`. **Otro hash**: el servidor seguía en pie
+  mientras alguien volvía a compilar, así que servía HTML de una build y estáticos
+  de otra. El navegador recibía un 500 de `text/plain` donde esperaba JavaScript
+  y lo intentaba parsear. De 32 chunks de esa página, **31 daban 200 y ese uno
+  daba 500**; al levantar un servidor nuevo sobre la misma build, los 32 dieron
+  200.
+- **`/admin/sistema/backups` → `net::ERR_ABORTED`**: esa ruta redirige a
+  `/sistema/backups` como las otras diecinueve, y el abort es la navegación
+  cortada por la redirección mientras `page.goto` aún cargaba.
+
+**La receta, con lo que costó aprenderla:**
 
 ```bash
+# 1. El limite de peticiones: el barrido hace 112 pantallas por rol a velocidad
+#    de maquina, y el limitador da 300/min POR USUARIO. Sin subirlo, los roles
+#    con mas pantallas se comen su cupo y el ultimo no puede ni entrar.
+cd credito-sur_backend
+RATE_LIMIT_DEFAULT_MAX=100000 RATE_LIMIT_HEAVY_MAX=100000 RATE_LIMIT_AUTH_MAX=5000 npm run start:dev
+
+# 2. Build y servidor de produccion. Es la unica forma de probar lo offline: el
+#    service worker se desactiva en desarrollo y se desregistra solo.
 cd credito-sur_frontend
-npm run build && npx next start -p 3000
-E2E_BASE_URL=http://localhost:3000 npx playwright test e2e/pantallas-por-rol.e2e.ts
+npm run build
+npx next start -p 3100            # un puerto libre, para no heredar un servidor viejo
+
+# 3. El barrido, sin reintentos para que el informe sea legible
+E2E_BASE_URL=http://localhost:3100 npx playwright test e2e/pantallas-por-rol.e2e.ts --retries=0
 ```
 
-Y **no editar ningún archivo mientras corre**: cada edición recompila y le rompe
-las sesiones.
+**Las dos reglas que hacen que el resultado signifique algo:**
 
-**Lo que falta para llamarlo verde completo:** ejecutar la pasada sin respuestas
-limitadas, separando el recorrido en tandas o usuarios de prueba con ventanas
-independientes. Los 429 ya no se confunden con pantallas rotas, pero si pueden dejar
-una pantalla sin sus datos durante este recorrido artificial.
+1. **No recompilar ni editar nada mientras corre.** Ni el frontend —`next build`
+   cambia los hashes y el servidor en pie se queda con los viejos, que es el
+   fantasma de arriba— ni el backend, porque `nest --watch` reinicia y le tira las
+   sesiones.
+2. **Arrancar el servidor DESPUÉS de la build**, y en un puerto que no tenga ya
+   otro `next start` viviendo de una build anterior.
+
+El informe por rol queda en `test-results/hallazgos-<ROL>.json`, con el resumen de
+cada pantalla, los hallazgos y el desglose de 429 por endpoint.
 
 ---
 
