@@ -394,7 +394,8 @@ const LoginPage = () => {
         );
         detalle = 'No es la contraseña: es el límite de intentos';
       } else if (codigoDeError(err) === 'ECONNABORTED' || msg.includes('timeout')) {
-        msg = 'El servidor está iniciando (Cold Start). Sigue intentando un momento más.';
+        msg = 'El servidor no respondió a tiempo. Intenta de nuevo en un momento.';
+        detalle = 'No se pudo verificar el acceso';
       } else if (esErrorDeRed(err)) {
         msg = 'Sin conexión y sin sesión offline en este equipo. Conéctate al menos una vez para poder trabajar sin internet.';
         detalle = 'El servidor no contestó';

@@ -17,12 +17,20 @@
 
 ## 0. Si retomas ahora, empieza por aquí
 
+Última verificación: barrido por rol completado en dos corridas (§P3).
+El backend suma todas las solicitudes de base pendientes, no solo las que
+aparecen entre las cinco revisiones más recientes. Medición del relevo: nueve
+solicitudes por $450.000 en desarrollo. Al forzar el resultado a cero solo en
+el módulo compilado de Jest, falló exactamente la prueba que esperaba 450000.
+Sin la mutación pasaron las nueve pruebas de dashboard. Esto verifica el dato
+de la API; no implica que exista una tarjeta que lo muestre.
+
 Por orden. Lo de arriba es lo que está a medias; lo de abajo, lo que nadie ha
 mirado todavía.
 
 | # | Qué | Dónde |
 |---|---|---|
-| 1 | **Terminar el barrido de pantallas.** La última pasada encontró un solo defecto en 7 roles × 112 pantallas, se arregló, y la verificación alcanzó **2 de 7 roles** antes de cortarse. Hay que correr los 7 otra vez. La receta corta y las cinco trampas del entorno están en §P3 | §P3 |
+| 1 | **Investigar el timeout de login si reaparece.** Los siete roles ya completaron el recorrido tras el arreglo de URL, aunque no en una sola corrida. No se ha demostrado la causa de las esperas fallidas. | §P3 |
 | 2 | **Decidir qué se hace con 4 créditos fantasma** de la base: ACTIVO, aprobados, dicen tener cuotas y no tienen ninguna. No es un defecto vivo —no se repiten desde agosto— pero el cliente los va a ver | §P16 |
 | 3 | **§P5: las consultas por ruta.** El listado sigue haciendo 6 consultas por ruta, y quedan 3 métodos multi-modelo sin revisar | §P5 |
 | 4 | **§P8: las 8 pantallas bifurcadas por rol.** Es la deuda que hace que cada arreglo haya que hacerlo dos o tres veces. Ya se pagó ese precio varias veces | §P8 |
@@ -276,11 +284,13 @@ backend levantado aparte. **Resultado: en 7 roles x 112 pantallas apareció un
 Era real y está arreglado: §P13, la URL del backend escrita a mano en el login.
 SUPER_ADMINISTRADOR pasó limpio porque entra antes de que empiece la vigilancia.
 
-**La verificación posterior quedó a medias y hay que rehacerla.** Se relanzó el
-barrido con el arreglo puesto y alcanzó **2 de los 7 roles (SUPER_ADMINISTRADOR
-y ADMIN), ambos sin hallazgos**, antes de que la sesión terminara y cortara el
-proceso. No está confirmado que los cinco restantes queden limpios. **Es lo
-primero que hay que correr al retomar.**
+**Verificación posterior (19 de noviembre).** En 14,7 minutos pasaron seis
+roles sin hallazgos ni 429. Punto de Venta agotó 180 s esperando la respuesta
+del login, también en el primer reintento individual. En una nueva corrida
+aislada con los servidores locales 3101/3003 pasó en 1,4 min: 22 pantallas
+cargadas, 89 redirecciones y cero 429. Esto cubre navegación, no exactitud
+de saldos ni funcionamiento offline. La captura del timeout no demostraba que
+el servidor estuviera arrancando ni que la contraseña fuera incorrecta.
 
 #### Tres trampas más del entorno, de esa misma pasada
 
@@ -459,6 +469,12 @@ significa «no se sabe», va `null` con esqueleto. Lo que **no** hay que hacer e
 un reemplazo masivo de los 201.
 
 ### P5 — Consultas dentro de un `.map` (N+1): avance medido
+
+Listado de rutas: la consulta de registros de visita del día pasa de una por
+ruta con clientes a una por página (ninguna si no hay asignaciones). La prueba
+con dos rutas y un cliente compartido midió dos llamadas antes y una después;
+la ausencia solo excluye al cliente de la meta de su ruta. No se modificaron
+la conciliación de cierres ni las llamadas internas de `getDailyVisits`.
 
 Cada una multiplica las consultas por el número de filas. Con la cartera del
 cliente esto es la diferencia entre una pantalla que abre y una que caduca.
@@ -1123,7 +1139,7 @@ saber si una cifra que ves es un defecto o son los datos.
 **El orden está en §0, al principio del documento.** Esta sección solo añade lo
 que conviene hacer *antes de tocar código*, cada vez.
 
-Para el detalle de los dos primeros puntos de §0: §P3 (terminar el barrido) y
+Para el detalle de los dos primeros puntos de §0: §P3 (timeout intermitente) y
 §P16 (los 4 créditos fantasma). Luego P5, P8 y lo del dueño —lo offline contra
 una build (§10.3) y las capturas (§10.2)—.
 
