@@ -80,6 +80,48 @@ de la API; no implica que exista una tarjeta que lo muestre.
 > SEGUNDA ruta, ahora si lo caza. Las tres comprobaciones al reves que se
 > hicieron: sin alcance del actor, sin deduplicar, y con el agrupado cruzado.
 
+> ### Y la revision del propio refactor encontro 4 defectos mas (`6a65323`)
+>
+> Se corrio **`/code-review high`** sobre el commit del refactor. Encontro cuatro
+> cosas, todas reales, en codigo recien commiteado. **Esto es la leccion: una
+> revision de diff ve lo que la investigacion dirigida no mira.**
+>
+> 1. **La mora estaba corregida a medias.** `findAll` acota la cartera a los
+>    creditos DE LA RUTA y `findOne` no: la misma ruta daba **67,91 en la lista y
+>    71,41 en el detalle**, y con ella `totalDeuda` y `prestamosActivos`. Y habia
+>    mas de lo que decia el informe: los pagos del dia del detalle iban por la
+>    asignacion del CLIENTE, asi que un pago sobre un credito del mismo cliente
+>    en OTRA ruta entraba en esta cobranza. Medido campo por campo con los dos
+>    backends en marcha: de **2.113 campos del detalle, 3 cambian**, y los tres
+>    quedan de acuerdo con la lista; los otros 2.110 identicos, asi que no se
+>    oculta nada en pantalla.
+> 2. **`proyectarRutas` recupera la tolerancia por ruta.** El batch anterior
+>    tenia un `try/catch` por ruta con el motivo escrito y el refactor lo
+>    perdio: el permiso se resuelve en el `where`, pero cualquier OTRO fallo de
+>    una sola ruta rechazaba la peticion entera, y el listado pide todas sus
+>    rutas de una vez. Una ruta con datos raros dejaba TODAS las tarjetas en
+>    blanco.
+> 3. **La cifra que el refactor cambia ya no esta sin vigilar.**
+>    `mora-de-la-ruta.spec.ts` (11 pruebas) fija lo vencido sobre el saldo, que
+>    una cuota futura o PAGADA no cuenta, el ausente de hoy —que si cuenta si
+>    pago—, el deduplicado por credito, que un PAGADO no pesa, el recorte por
+>    ruta en `datos-visitas.ts` y que el include del detalle lo acote.
+> 4. **`supervisorId` es anulable** y el DTO de crear ruta lo deja opcional: una
+>    ruta sin supervisor se puede crear, y entonces NINGUN supervisor ve su
+>    jornada. Hoy no ocurre (1 ruta viva, con supervisor) y el alcance es
+>    coherente con `findOne`, que ya acotaba igual. **Queda escrito, sin tocar**:
+>    si la importacion crea rutas sin supervisor, volver aqui.
+>
+> **Dos de mis propias centinelas pasaban en verde con el defecto puesto**, y las
+> dos por el mismo tipo de error de §1.4:
+>
+> - `rutaId: id` aparece **nueve veces** dentro de `findOne` —cajas, jornadas,
+>   registros—, asi que buscarlo suelto nunca miraba el include. Ahora se recorta
+>   el trozo que empieza en `prestamos: {` y se exige que llegue a los estados.
+> - el caso del deduplicado era **simetrico**: el mismo credito dos veces dobla
+>   saldo Y vencido, asi que el porcentaje salia identico. Ahora es asimetrico
+>   (12,5 % con deduplicado, 16,67 % sin el).
+
 Por orden. Lo de arriba es lo que está a medias; lo de abajo, lo que nadie ha
 mirado todavía.
 
