@@ -498,40 +498,118 @@ siguiente y reporta lo que no es.
 
 ---
 
-### P10 — La solicitud de base no tiene clave de idempotencia *(ABIERTO, es dinero)*
+### P10 — La solicitud de base no tenía clave de idempotencia *(CERRADO)*
 
-**Qué pasa.** `solicitarBase` —el cobrador o el supervisor pidiendo efectivo para
-salir a la calle— manda `{monto, descripcion, cobradorId, rutaId}` y **ninguna
-clave**:
+`solicitarBase` creaba una aprobación SOLICITUD_BASE_EFECTIVO sin mirar ninguna
+clave, y `base_solicitar` era **el único de los 49 tipos que encola la cola
+offline que mueve dinero y no estaba en `idempotentTypes`** — no lo estaba
+precisamente porque el backend no la miraba.
 
-- frontend: `services/contabilidad-service.ts:1065`
-- backend: `accounting.controller.ts:494` → `accounting.service.ts:1083`, que
-  hace `aprobacion.create(...)` sin comprobar duplicados.
+**Por qué era dinero.** Aprobar esa solicitud no es un trámite: saca el monto de
+CAJA-OFICINA con una transacción de EGRESO, lo ingresa a la caja de ruta con otra
+de INGRESO y registra el asiento de partida doble (`approvals.service.ts`). Dos
+solicitudes aprobadas entregan la base dos veces, y el descuadre aparece al
+cierre, lejos de su causa.
 
-**Por qué importa.** Dos toques en el móvil —o un reintento de la cola sin
-conexión, que es el caso normal en la calle— crean **dos aprobaciones pendientes
-del mismo monto**. Si el aprobador aprueba las dos, el cobrador recibe la base
-dos veces.
+**Qué se hizo** (`262849c` backend, `f3ed7228` frontend): el patrón del registro
+de gasto —buscar la aprobación por `idempotencyKey` antes de crearla, y
+guardarla con su clave—, el campo declarado en el `@Body()` del controlador (sin
+declararlo no habría llegado: la whitelist descarta lo no declarado), y
+`'base_solicitar'` añadido a `idempotentTypes`, que es donde se estampa la clave
+**una sola vez, al encolar**.
 
-**Medido.** De las 46 llamadas del frontend que mueven dinero, 40 no pasan clave
-en el sitio de llamada, pero eso **no es el problema**: el servicio la genera
-cuando falta en `registrarPago` (`pagos-service.ts:279`), `crearPrestamo`
-(`prestamos-service.ts:262`), `registrarGasto`
-(`contabilidad-service.ts:1026`) y `consolidarCaja`
-(`contabilidad-service.ts:373`). **`solicitarBase` es la única que no la tiene
-en ningún sitio.**
+Sin clave no se pregunta nada, a propósito: el coordinador que pide base dos
+veces en el día lo hace queriendo. La protección es contra el reintento de la
+cola.
 
-**La receta está escrita y probada en el mismo archivo.** `Aprobacion` ya tiene
-`idempotencyKey String? @unique` en el esquema, y `accounting.service.ts:735-790`
-—el registro de gasto— ya implementa el patrón completo: acepta la clave, busca
-una aprobación con ella, devuelve la existente con `idempotentReplay: true` si la
-encuentra, y si no crea con la clave puesta. Hay que copiar ese patrón en
-`solicitarBase` y que el frontend genere la clave con el `generarIdempotencyKey`
-que ya está en ese servicio.
+Guardado por `src/accounting/base-no-se-pide-dos-veces.spec.ts` (5 pruebas,
+comprobadas al revés).
 
-Y la cola sin conexión tiene que mandar **la misma** clave al reintentar, no una
-nueva: si no, la idempotencia no sirve de nada. `consolidarCaja` ya lo hace así
-(`buildRecolectarIdempotencyKey`), que es el ejemplo a seguir.
+---
+
+### P12 — El alcance por rol se aplicaba en unos sitios y en otros no *(2 cerrados)*
+
+**La clase.** El sistema tiene reglas de alcance escritas y probadas —un cobrador
+solo ve su ruta, un supervisor solo las que supervisa— pero aplicadas **método a
+método**. Donde faltan, el guard de roles deja pasar: sabe que eres SUPERVISOR,
+no si *esa* ruta es tuya.
+
+**Cómo se mide, y es lo que vale la pena repetir.** Con un doble de Prisma cuyo
+`findFirst` **respeta el `where`** que recibe, en vez de devolver siempre la
+misma fila. Así la prueba ejecuta el código en lugar de releerlo: si la consulta
+no acota, la fila ajena aparece y la escritura sigue. Un doble que devuelve
+siempre lo mismo pasa en verde con el defecto puesto.
+
+| caso | qué permitía | commit |
+|---|---|---|
+| `resolveActiveRouteCashContext` (accounting) | un COBRADOR pedía base y **cargaba un gasto a la caja de otra ruta**. El `where` salía `{id, eliminadoEn}` a secas; la guarda existía solo para SUPERVISOR | `3c06955` |
+| `update`, `remove`, `toggleActive`, `assignClient`, `removeClient` (routes) | un SUPERVISOR **leía** solo sus rutas (`findOne` sí acota) pero **escribía** sobre las de cualquiera: ni recibían el actor | `6f59d9d` |
+
+Editar una ruta no es cosmético: `UpdateRouteDto` admite `cobradorId`, o sea
+cambiar quién cobra una ruta ajena — y el dinero entra a la caja de quien cobra.
+Un gasto cargado a la caja de otro la deja corta, y el descuadre aparece en el
+cierre de quien no hizo nada.
+
+**El COORDINADOR y la oficina siguen sin filtro a propósito** y las dos pruebas
+lo comprueban: atienden cualquier ruta, y es regla del negocio (el cliente que
+paga en la sede).
+
+**Lo que queda por mirar de esta clase:** se listaron 27 escrituras que reciben
+un id del cliente sin pasar el actor; las dos de arriba eran las únicas que
+admitían un rol de campo. Las otras 25 son CRUD de oficina, donde operar sobre
+cualquier id es el objetivo. Conviene rehacer ese cruce cuando se añadan
+endpoints.
+
+---
+
+### P13 — La URL del backend escrita a mano *(CERRADO)*
+
+Lo encontró el barrido de pantallas (§P3) corriendo contra un build de
+producción apuntado a otro backend: `/login` salía con dos errores de CORS en la
+consola, en la pantalla por la que entra todo el mundo.
+
+- **El login** hacía `fetch('https://credito-sur-backend.onrender.com/...')` con
+  la URL fija, para despertar la instancia dormida de Render. En **cualquier**
+  build de producción llamaba a ese servidor en vez de al suyo. `lib/api/baseUrl.ts`
+  existe justo para esto y su comentario ya decía que había ocho archivos
+  calculándola por su cuenta: el login era el noveno.
+- **La CSP** (`lib/seguridad/csp.ts`) escribía los mismos orígenes a mano en
+  `connect-src`. No se nota mientras el sistema viva en Render y en local
+  —`localhost:*` y `127.0.0.1:*` ya están permitidos—, pero **el día que el
+  backend esté en otro dominio la CSP bloquea TODAS las llamadas de la app a su
+  propio backend**, y una pantalla sin datos no se parece en nada a esa causa.
+  Ahora añade el origen configurado y su equivalente de socket, y una variable
+  mal escrita no tumba la cabecera.
+
+Commit `51dfbf6c`, con 5 pruebas nuevas en `__tests__/seguridad/csp.test.ts`.
+
+---
+
+### P14 — Endpoints sin control de rol: medido, está limpio *(NO HAY QUE HACER NADA)*
+
+`RolesGuard` devuelve `true` cuando el método no tiene metadatos de `@Roles`
+(`if (!rolesRequeridos) return true`), así que un endpoint sin anotar queda
+abierto a los siete roles. Se barrieron los **228** endpoints: **215 acotados**,
+y los 13 restantes están justificados uno a uno — login y recuperación de
+contraseña (`@Publico`), push y notificaciones por usuario, el receptor del
+espejo (que tiene su propia firma HMAC con nonce y caducidad), `health`, y dos
+lecturas que se acotan dentro del servicio.
+
+**Y la lección del barrido, que vale más que el resultado:** el lector falló
+**tres veces** antes de decir la verdad, y cada vez pasaba o acusaba en silencio.
+
+1. Ventana de 25 líneas hacia abajo → un comentario de 25 líneas la agotó y
+   declaré abierto el `@Post()` de pagos, que sí tiene `@Roles`.
+2. Mirando solo hacia abajo → en `auth.controller.ts` el `@Roles` va **encima**
+   del verbo; los seis salieron como huecos y no lo eran.
+3. Parando la caminata hacia arriba en cualquier `)` → ese paréntesis cierra un
+   `@Roles(` de varias líneas, así que volvía a perderlo.
+
+La forma que sí funciona: recortar el miembro **desde el cierre del anterior
+(`^  \}$`, solo la llave) hasta la firma de verdad**, y mirar ese bloque entero.
+Y antes de creerse un «0 hallazgos», imprimir lo que el lector SÍ vio: cuando
+salió «26 de 27 sin ningún rol leído», el cero anterior quedó claro que no valía
+nada.
 
 ---
 
