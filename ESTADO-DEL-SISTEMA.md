@@ -429,6 +429,75 @@ un solo nombre de contrato, `telefono`.
 
 ---
 
+### P11 — Dinero escrito sin transacción *(CERRADO: 6 arregladas, 1 descartada con medición)*
+
+**La clase.** Un método que escribe en dos o más modelos de dinero sin
+`$transaction`: si falla a mitad, la mitad queda escrita. Medido con un lector
+que recorre el cuerpo real de cada método por profundidad de llaves: **7
+métodos**. Se revisaron los siete.
+
+| método | qué dejaba a medias | decisión | commit |
+|---|---|---|---|
+| `updateLoan` | `cuota.deleteMany` → cálculo → `createMany`: un fallo tras el borrado dejaba el crédito con **CERO cuotas**, y el borrado ya confirmado | transacción | `eb5914b` |
+| `approveLoan` | bucle de hasta 45 `cuota.update` + `prestamo.update`: medio calendario movido, y como el estado seguía PENDIENTE el reintento volvía a moverlo | transacción | `5d5fd09` |
+| `deleteLoan` | prestamo archivado + su `aprobacion` PENDIENTE sin cerrar | transacción | `79242fc` |
+| `rejectLoan` | prestamo RECHAZADO + su `aprobacion` PENDIENTE sin cerrar | transacción | `79242fc` |
+| `fixInterestCalculations` | interés subido en el crédito y repartido solo en algunas cuotas | transacción por crédito | `79242fc` |
+| `regularizarCentavos` | crédito descuadrado por el resto, o asiento con unas líneas redondeadas y otras no | transacción por crédito y por asiento | `79242fc` |
+| `procesarMoraAutomatica` | — | **no hace falta**, ver abajo | — |
+
+Un crédito sin cuotas no es un crédito a medias: no tiene meta, no entra en la
+jornada de ninguna ruta y no hay nada que cobrarle. Desaparece de la operación
+con su saldo intacto.
+
+**Por qué archivar y rechazar eran dinero, no cosmética.**
+`confirmarPrestamoProvisional` (`approvals.service.ts`) actualiza el préstamo
+**por id, sin comprobar `eliminadoEn` ni `estadoAprobacion`**. Una solicitud
+huérfana —préstamo archivado, aprobación todavía PENDIENTE— aprobada devuelve el
+crédito a ACTIVO y desembolsa. Y `archiveLoan`, el *otro* camino de archivado,
+ya hacía ese mismo par de escrituras dentro de una transacción: era el mismo
+par, decidido de dos maneras distintas.
+
+**Medido contra la base de desarrollo (2026-11-19):** 39 aprobaciones
+PENDIENTE, 4 de ellas de NUEVO_PRESTAMO, y **cero** sobre un préstamo borrado o
+rechazado, con 65 préstamos archivados y 65 rechazados en la tabla. El camino
+feliz cierra bien; lo que quedaba abierto era la ventana de fallo parcial.
+*Límite de la medición:* mira el estado de HOY, no si alguna vez ocurrió y se
+corrigió a mano.
+
+**Por qué `fixInterestCalculations` no se arreglaba solo.** La condición de
+entrada compara el interés correcto con `interesTotal`. Si el préstamo ya quedó
+actualizado y las cuotas no, el crédito **no vuelve a entrar nunca** y la
+diferencia se queda para siempre. Lo mismo en `regularizarCentavos`: `objetivo`
+se recalcula desde `totalAntes`, que ya sería el estado a medio escribir, así
+que la segunda corrida cuadraría el crédito contra un total distinto del
+original.
+
+**La que se descartó, y por qué.** `procesarMoraAutomatica` (6 escrituras):
+cada una es una fila suelta e independiente —una cuota a VENCIDA, un préstamo a
+EN_MORA, otro de vuelta a ACTIVO—, cada paso se recalcula desde su propia
+consulta y repetir la corrida converge al mismo estado. **No hay ninguna
+invariante que una dos escrituras**, así que una transacción no cambiaría ningún
+resultado y solo mantendría un bloqueo largo sobre miles de filas. Además cada
+fallo se anota en `resultado.errores` y la corrida sigue, que es justo lo que
+hace segura la ausencia de transacción. Queda escrito en una prueba para que
+nadie lo "arregle" sin volver a medir.
+
+**Centinelas.** `src/loans/editar-credito-no-borra-el-calendario.spec.ts` (18
+pruebas) y `src/accounting/regularizar-centavos-no-descuadra.spec.ts` (7). Las
+dos nuevas **se comprobaron al revés**: metiendo el defecto a mano (devolver un
+`tx.` a `this.prisma.`) fallan exactamente 2 de 22, una por defecto. Cada
+extractor de cuerpo de método lleva su piso medido (`expect(cuerpo.length)
+.toBeGreaterThan(...)`), que es lo que impide que pasen en verde por no mirar
+nada.
+
+**El lector está en el método §2.2** y vale la pena rehacerlo tal cual: recorre
+cada `async` por profundidad de llaves y cuenta las escrituras a modelos de
+dinero. Una ventana de caracteres fija —lo que probé primero— cruza al método
+siguiente y reporta lo que no es.
+
+---
+
 ### P10 — La solicitud de base no tiene clave de idempotencia *(ABIERTO, es dinero)*
 
 **Qué pasa.** `solicitarBase` —el cobrador o el supervisor pidiendo efectivo para
