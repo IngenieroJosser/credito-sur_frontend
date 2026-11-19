@@ -95,12 +95,14 @@ de la API; no implica que exista una tarjeta que lo muestre.
 > |---|---|---|
 > | `getDailyVisitsBatch` × 4 | que `getDailyVisits` se llame una vez por ruta, con su fecha y su actor | el refactor **elimina esa llamada a proposito**: ahora proyecta desde una consulta por pagina. La asercion quedo obsoleta y hay que reescribirla contra el mecanismo nuevo (p. ej. «una consulta de asignaciones por pagina, no por ruta»), no borrarla |
 > | «usa el resumen operativo diario como fuente de verdad para el avance del listado» | que el listado **no** llame a `asignacionRuta.findMany` | el refactor si las carga, por pagina. Misma decision |
-> | «consulta las visitas una vez y mantiene la ausencia en su propia ruta» | que un cliente compartido por dos rutas salga ausente en una y presente en la otra | con dos rutas en una sola consulta, el doble tiene que decir el `rutaId` de cada registro de visita. **Es la que mas importa**: vigila que la ausencia no se cruce entre rutas |
+> | «consulta las visitas una vez y mantiene la ausencia en su propia ruta» | que un cliente compartido por dos rutas salga ausente en una y presente en la otra | su INTENCION sigue siendo valida y es la mas importante de las seis, pero lo que afirma es el mecanismo: que la meta se calcula con `prestamo.findMany` filtrando por lista de clientes (`where.clienteId.in`). El refactor ya no hace esa consulta |
 >
-> Las tres primeras filas son la misma pregunta: **que invariante debe afirmar
-> la prueba ahora que no se consulta por ruta**. Eso lo decide quien diseno el
-> refactor. La ultima es datos del doble, y hay que dejarla verde antes de dar
-> el refactor por bueno.
+> **Las seis son la misma pregunta**: que invariante debe afirmar la prueba ahora
+> que no se consulta por ruta. Ninguna de las seis es un dato que falte en el
+> doble —eso ya se cerro, son las nueve recuperadas—: las seis afirman consultas
+> que el refactor eliminó a proposito. Reescribirlas es una decision de diseno,
+> y la intencion de cada una hay que conservarla: sobre todo la de la ausencia,
+> que vigila que no se cruce entre rutas.
 >
 > **Nada de esto esta commiteado**, ni el refactor ni mis dos arreglos: el
 > commit arrastraria las 764 lineas con 6 pruebas en rojo.
