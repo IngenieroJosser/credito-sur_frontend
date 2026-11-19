@@ -129,7 +129,8 @@ mirado todavía.
 |---|---|---|
 | 1 | **Investigar el timeout de login si reaparece.** Los siete roles ya completaron el recorrido tras el arreglo de URL, aunque no en una sola corrida. No se ha demostrado la causa de las esperas fallidas. | §P3 |
 | 2 | **Decidir qué se hace con 4 créditos fantasma** de la base: ACTIVO, aprobados, dicen tener cuotas y no tienen ninguna. No es un defecto vivo —no se repiten desde agosto— pero el cliente los va a ver | §P16 |
-| 3 | **§P5 cerrado en el listado** (`af52be0`): cierres, estadísticas y visitas se leen por página, no por ruta. Lo que queda de §P5 son los 3 métodos multi-modelo que nadie ha revisado | §P5 |
+| 3 | **§P20: el reporte financiero se baja el libro mayor para sumarlo** (516 KB con 1.202 asientos; ~20 MB proyectados con 50.000). Es el riesgo de escala real y se arregla en el servidor | §P20 |
+| 4 | **§P5 cerrado en el listado** (`af52be0`): cierres, estadísticas y visitas se leen por página, no por ruta. Lo que queda de §P5 son los 3 métodos multi-modelo que nadie ha revisado | §P5 |
 | 4 | **§P8: las 8 pantallas bifurcadas por rol.** Es la deuda que hace que cada arreglo haya que hacerlo dos o tres veces. Ya se pagó ese precio varias veces | §P8 |
 | 5 | **§P9: la deuda técnica para hablar con el dueño** (archivos de 4.300 líneas, 6 copias del formateo de pesos, 8 colores de botón primario) | §P9 |
 
@@ -1005,7 +1006,7 @@ créditos» y es offline-first.
 | `prefers-reduced-motion` | **4** archivos, contra **34** que usan `motion-reduce` |
 | virtualización de listas | **ninguna** (0 `react-window`, `react-virtual`, `useVirtualizer`) |
 | peticiones de 1.000+ filas | 14 de `limit: 1000`, 10 de 500, 8 de 5.000, **5 de 10.000** |
-| la peor pantalla al pintar | `app/admin/auditoria/page.tsx:356` pinta `logsFiltrados.map(...)` **sin recortar**, desde una petición de 1.000 |
+| la peor pantalla al pintar | **ninguna pinta miles de filas.** Se comprobó: la auditoría usa `LIMITE = 5` por página y «Mostrando N de TOTAL»; los `limit: 1000+` son todos *traer para sumar*, no para pintar |
 
 **`transition-all` NO es un problema: medido, no lo toques.** De 500 atributos
 `className` con `transition-all`, **uno solo** tiene un `hover` que dispara
@@ -1067,18 +1068,70 @@ información y de alcance, no movimiento):
 1. **Fitts** (430 botones, los de dinero primero) — es corrección de defectos,
    no decoración.
 2. **Von Restorff** unificando el botón primario con el token que ya existe.
-3. **`prefers-reduced-motion` global**: hoy son 4 archivos contra 34 con
-   `motion-reduce`. Una regla en `globals.css` cubre las 112 pantallas.
-4. **Curva y duración** comunes (9 y 14) como dos variables CSS, aplicadas a lo
-   que ya transiciona: no añade elementos animados, mejora los 1.028 que hay.
-5. **Virtualizar** las listas que piden 1.000+ ANTES de añadir cualquier
-   movimiento por fila.
+3. ~~`prefers-reduced-motion` global~~ **— ya estaba hecho.** `globals.css`
+   tiene cuatro bloques `prefers-reduced-motion`; los «4 archivos» de la
+   medición eran archivos, no cobertura: uno de ellos es el global.
+4. ~~Curva y duración como variables CSS~~ **— ya estaba hecho.** Existen
+   `--mov-rapido: 120ms`, `--mov-normal: 180ms` y
+   `--mov-suave: cubic-bezier(0.2, 0, 0, 1)`, aplicadas globalmente a los
+   botones, y las microinteracciones también (su comentario dice que de ~686
+   botones solo 73 llevaban `active:scale`).
+5. ~~Virtualizar las listas que piden 1.000+~~ **— medido, no hace falta y la
+   recomendación estaba mal fundada.** Ninguna pantalla pinta miles de filas:
+   la auditoría muestra 5 por página con su total, y todos los `limit: 1000+`
+   son `getMovimientosLedger` / `obtenerPagos` para **sumar**, no para pintar.
+   El riesgo de escala real está en §P20, y se arregla en el servidor.
 6. Y entonces, si se quiere, 2/7/11/16 en la pantalla de registrar pago.
 
 **Offline-first:** la animación no afecta a la sincronización, pero sí al primer
 pintado, que en arranque frío ya carga la copia local. La regla es la misma que
 rige los artefactos: la pantalla tiene que estar legible **en reposo**, sin
 esperar a que nada entre.
+
+---
+
+### P20 — El riesgo de escala real: sumar en el navegador *(ABIERTO)*
+
+Buscando qué virtualizar salió otra cosa, y es la que de verdad importa cuando
+entren los datos del cliente.
+
+**Qué pasa.** El reporte financiero y la pantalla contable **se bajan el libro
+mayor al navegador para sumarlo**: `getMovimientosLedger({ ..., limit: 10000 })`.
+No es para pintar filas —ninguna pantalla pinta miles— es para calcular totales
+en el cliente.
+
+**Medido contra `GET /accounting/ledger/movimientos`** con los 1.202 asientos que
+hay hoy:
+
+| `limit` | lo que baja el navegador |
+|---|---|
+| 100 | 108 KB |
+| 1.000 | **516 KB** |
+| 10.000 | 516 KB (topa en los asientos que existen) |
+
+Unos **430 bytes por movimiento**. Y `app/admin/reportes/financieros/page.tsx`
+dispara **hasta siete** de esas peticiones por carga (cuatro en paralelo en las
+líneas 292-295, tres más en 426-428, además de la 175 y las 392-405).
+
+**La proyección.** Con 50.000 líneas de asiento —un año de operación con miles de
+créditos— esa sola pantalla bajaría del orden de **20 MB**, y en el móvil de
+quien la abra. Hoy no se nota porque la base de desarrollo tiene 1.202 líneas,
+39 clientes y 67 créditos.
+
+**Lo que ya se hizo y por qué no basta.** Antes en esta sesión se arregló que el
+reporte sumaba **solo los primeros 10.000** movimientos y mentía en silencio:
+ahora `getTodosLosMovimientosLedger` pagina hasta agotarlos. Eso corrigió la
+cifra, pero **empeora el volumen**: antes se cortaba en 10.000, ahora se los
+trae todos.
+
+**El arreglo correcto es del servidor, no del navegador:** un endpoint que
+devuelva los agregados del período (por prefijo de cuenta y por tipo) en vez de
+los movimientos. El patrón ya existe en el repo —`journalLine.aggregate` se usa
+en el panel— y es la misma decisión que §P5: calcular donde están los datos.
+
+*Límite de la medición:* la proyección es lineal sobre los bytes por movimiento
+medidos; no se midió con 50.000 filas reales, ni el tiempo de parseo en un
+teléfono.
 
 ---
 
