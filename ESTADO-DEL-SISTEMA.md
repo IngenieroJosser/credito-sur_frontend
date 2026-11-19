@@ -37,10 +37,52 @@ de la API; no implica que exista una tarjeta que lo muestre.
 > - El error: `routes.service.ts(1327,53) TS2345` — se le pasa `PrismaService`
 >   a un parametro que espera `TransactionClient`.
 >
-> Ultimo cambio en esos archivos: 9:08. Si retomas despues de eso, el refactor
-> esta parado y hay que terminarlo o descartarlo, **decidiendolo a proposito**:
-> son 764 lineas sacadas de un archivo de 7.000, y eso no se abandona a medias.
-> Antes de cualquier otra cosa, deja el `tsc` en verde.
+> Ultimo cambio en esos archivos: 9:08.
+>
+> **Ya compila** (2026-11-19, 11:30): faltaba el tipo del cliente de Prisma en
+> los dos modulos nuevos. Llevaban `Prisma.TransactionClient`, que es el cliente
+> SIN extender; el de este proyecto es `TransaccionPrisma`, y el comentario de
+> `prisma.service.ts:170` describe exactamente este error. Ese arreglo sigue SIN
+> COMMITEAR, porque commitearlo arrastraria el refactor entero.
+>
+> **El refactor es CORRECTO y hay que terminarlo, no descartarlo. Medido asi:**
+> se levanto el codigo refactorizado en un puerto aparte y se comparo
+> `GET /routes` contra el codigo viejo, campo por campo: **340 campos, uno
+> solo cambia** — `porcentajeMora`, de 71,41 a 67,91.
+>
+> Y ese cambio es una CORRECCION, no una regresion:
+>
+> | la cartera de la ruta son... | creditos | saldo | vencido | mora% |
+> |---|---|---|---|---|
+> | todos los creditos de los clientes asignados | 34 | 15.254.990 | 10.893.913 | **71,41** (viejo) |
+> | solo los creditos CUYA RUTA es esta | 31 | 13.589.990 | 9.228.913 | **67,91** (refactor) |
+>
+> Los 3 de diferencia tienen **`rutaId` nulo**: no son de ninguna ruta. Contarlos
+> ahi contradice la invariante §3 del proyecto y su propia centinela
+> (`ruta-del-credito-no-del-cliente.spec.ts`): «un credito SIN ruta cuyo cliente
+> si esta en una se mostraba DENTRO de esa ruta, aunque ninguna jornada lo
+> incluye». El viejo 71,41 inflaba la mora con 1.665.000 que nadie va a cobrar
+> en esa ruta.
+>
+> **Lo que falta para cerrarlo: 15 pruebas de `src/routes` en rojo.** No se
+> relajo ninguna asercion. Clasificadas:
+>
+> - unas fijan el MECANISMO viejo (`getDailyVisits` llamado una vez por ruta,
+>   `asignacionRuta.findMany` no llamado). El refactor elimina esa llamada a
+>   proposito: esas aserciones quedaron obsoletas y hay que reescribirlas
+>   contra el mecanismo nuevo (una consulta por pagina), no borrarlas;
+> - otras fijan SEMANTICA de la jornada —la meta reconstruida cuando un ausente
+>   paga despues, la cuota objetivo historica, el pago regularizado parcial, la
+>   reprogramacion que no se propaga— y hoy revientan porque el doble no trae
+>   los modelos que consulta la carga por lotes. Esas son las que de verdad
+>   vigilan el dinero del cobrador: hay que darles los datos equivalentes y
+>   comprobar que la asercion sigue pasando SIN tocarla. Si alguna no pasa, ahi
+>   si hay un cambio de comportamiento que medir.
+>
+> En `routes.service.spec.ts` ya se anadieron valores neutros en la factoria
+> `makeService` para los modelos que el codigo nuevo consulta (tambien sin
+> commitear). Eso convirtio los 15 «Cannot read properties of undefined» en
+> aserciones de verdad, que es el paso previo a poder juzgarlas.
 
 Por orden. Lo de arriba es lo que está a medias; lo de abajo, lo que nadie ha
 mirado todavía.
