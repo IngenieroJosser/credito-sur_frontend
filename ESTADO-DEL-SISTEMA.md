@@ -1083,15 +1083,12 @@ saber si una cifra que ves es un defecto o son los datos.
 
 ## 11. Por dónde empezar
 
-Si retomas esto sin más contexto, este orden es el que más valor da por hora, y
-está pensado para que el cliente pueda importar y probar:
+**El orden está en §0, al principio del documento.** Esta sección solo añade lo
+que conviene hacer *antes de tocar código*, cada vez.
 
-1. **Terminar P5 en el listado de rutas.** El batch actual controla concurrencia,
-   pero no reduce el numero de consultas de `getDailyVisits`.
-2. **P8**, las pantallas bifurcadas por rol. El detalle de cliente ya se
-   unificó detrás de `lib/clientes/detalle-financiero.ts` (`e9d07621`); las que
-   siguen divergiendo están en la tabla de §P8.
-4. Y lo del dueño: lo offline contra una build (§10.3) y las capturas (§10.2).
+Para el detalle de los dos primeros puntos de §0: §P3 (terminar el barrido) y
+§P16 (los 4 créditos fantasma). Luego P5, P8 y lo del dueño —lo offline contra
+una build (§10.3) y las capturas (§10.2)—.
 
 Dos cosas que conviene hacer **antes** de tocar código, cada vez:
 
