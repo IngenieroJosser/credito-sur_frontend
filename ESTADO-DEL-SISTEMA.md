@@ -813,6 +813,43 @@ diez minutos, y o entra el archivo entero o no entra nada.
 
 ---
 
+### P18 — El panel decía 1 aprobación pendiente habiendo 39 *(CERRADO)*
+
+**Salió de contrastar el panel contra la API**, que es el método de §2.1 y el que
+más defectos ha dado.
+
+`GET /dashboard` → `metrics.pendingApprovals = 1`.
+`GET /approvals/pending` → `total: 39`.
+
+**La causa.** El contador y la lista de pendientes llevaban
+`creadoEn: { gte: startDate, lte: endDate }`: el período que el usuario elige
+arriba, por defecto «mes». Pero una solicitud pendiente es un **estado actual**,
+no un suceso del período — la que entró el mes pasado sigue esperando hoy. Con
+«hoy» seleccionado el panel habría dicho **0** teniendo 39.
+
+**La regla ya estaba escrita dos líneas más abajo**, en el mismo método, para la
+mora: *«sin filtro de período porque la mora es un estado ACTUAL del préstamo,
+no depende de cuándo se creó»*. Es el patrón de §1.6: la lógica correcta ya
+existía al lado y no se había aplicado aquí.
+
+**Por qué importa.** No es una cifra de estadística: se pinta como la
+**insignia** de una tarjeta de acceso rápido (`app/admin/page.tsx:319` y
+`app/coordinador/page.tsx:203`), donde un «1» se lee «tienes una cosa
+esperando». Las 39 eran 20 clientes nuevos, **9 solicitudes de base** (efectivo),
+4 créditos, 4 gastos, una reprogramación y un pago por transferencia.
+
+Commit `39fa520`, con 3 pruebas comprobadas al revés. La tercera vigila lo
+contrario: que el período siga mandando donde sí es un período (capital
+prestado, recaudo), para que el arreglo no se pase de ancho.
+
+**Lo que este contraste dejó medido, de paso:** la cabecera de `GET /loans` dice
+9 activos y la tabla trae 13 filas en ACTIVO. **No es un defecto de código**: la
+cabecera cuenta ACTIVO con saldo pendiente mayor que cero y sin cuota vencida, y
+los 4 de diferencia son exactamente los 4 créditos fantasma de §P16. Es la
+consecuencia visible de esas filas.
+
+---
+
 ### P8 — Pantallas bifurcadas por rol que divergen
 
 Un arreglo hay que hacerlo dos o tres veces, y en esta sesión se pagó ese precio
