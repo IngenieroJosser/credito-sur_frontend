@@ -271,24 +271,45 @@ una pantalla sin sus datos durante este recorrido artificial.
 
 ---
 
-### P4 — 185 lugares donde el dinero de la API cae a cero
+### P4 — Los `|| 0` sobre dinero: medido, es ruido *(CERRADO)*
 
-**Qué pasa.** `objeto.montoAlgo || 0` sobre un campo que viene de la API: si el
-campo no llega —porque el endpoint no lo manda, o porque cambió de nombre—, la
-pantalla escribe «$ 0» y eso se lee como «no debe nada». Es el mismo mecanismo
-que escondió la tarjeta de mora durante meses.
+**La cifra que circulaba —«185 sitios donde el dinero cae a cero»— exagera el
+problema.** Medido el 2026-11-19, con el tipo de cada campo en la mano:
 
-Medido: **185 ocurrencias** en `.tsx`. Ejemplos:
-`app/(auth)/cuentas-vencidas/page.tsx:193`, `app/admin/clientes/[id]/page.tsx:132`,
-`app/admin/contable/page.tsx:223`.
+- **201** ocurrencias de `algo.montoX || 0` sobre un campo de dinero, en 56
+  archivos;
+- de esas, **solo 11** caen sobre un campo que **ningún** tipo del proyecto
+  declara obligatorio. En las otras 190 el campo está declarado requerido en
+  algún sitio, así que el `|| 0` es defensa muerta: fea, pero no esconde nada.
+- Y de esas 11, las que se pueden comprobar contra la API **sí llegan**:
+  `recaudoRegularizadoHoy` viene en `/routes` (valor 0 real) y
+  `capitalPrestado` viene en `/dashboard` (5.000.000).
 
-**Receta.** No es un cambio masivo a ciegas. Por pantalla: comprobar si el campo
-existe de verdad en la respuesta (§2.1); si existe y puede ser cero legítimo,
-dejarlo; si no llega nunca, es un defecto como el de la tarjeta de mora; si
-significa «no se sabe», `null` + esqueleto (regla 1.5). Empezar por las pantallas
-de dinero: contable, cuentas vencidas, detalle de cliente.
+**Los 11 se comprobaron uno por uno contra la API local, y todos llegan:**
 
----
+| campo | comprobado en | resultado |
+|---|---|---|
+| `recaudoRegularizadoHoy` | `GET /routes` | llega (0 real) |
+| `capitalPrestado` | `GET /dashboard` | llega (5.000.000) |
+| `deudaFisica` y `saldoReal` | `GET /accounting/cierres` | llegan: 13 cierres con 5.410 · 27.500 · 938.539 |
+| `recaudadoTotalClient`, `saldoExigibleEnFechaOperativa` | — | los calcula el propio frontend; el `|| 0` es su valor por omisión |
+
+Los dos de los cierres eran los únicos sospechosos de verdad, porque salen de
+parsear una cadena (`RC:...|MT:...|SD:...`), y también llegan.
+
+**Conclusión: no hay nada que arreglar aquí.** Cambiar los 201 habría sido
+trabajo puro sin mover ningún resultado, que es justo lo que la regla §1.1 manda
+no hacer. Si algún día una de estas cifras sale en cero sin motivo, el camino
+está escrito: comprobar el campo contra la API antes de tocar la pantalla.
+
+**Lo ya arreglado de esta clase:** el detalle de cliente, donde tres pantallas
+mapeaban lo mismo con tres copias y una inventaba «cuota 1» (`e9d07621`), y los
+importes del respaldo sin conexión de cuentas vencidas (Codex).
+
+**La regla sigue siendo la de §1.5:** un cero en dinero se lee «no debe nada».
+Si el campo no llega nunca, es un defecto como el de la tarjeta de mora; si
+significa «no se sabe», va `null` con esqueleto. Lo que **no** hay que hacer es
+un reemplazo masivo de los 201.
 
 ### P5 — Consultas dentro de un `.map` (N+1): avance medido
 
@@ -605,11 +626,9 @@ está pensado para que el cliente pueda importar y probar:
 
 1. **Terminar P5 en el listado de rutas.** El batch actual controla concurrencia,
    pero no reduce el numero de consultas de `getDailyVisits`.
-2. **P4**, pantalla por pantalla y empezando por las de dinero. No en masa. El
-   respaldo offline de cuentas vencidas ya dejo de convertir dos campos obligatorios
-   en cero; el detalle de cliente sigue teniendo tres mapeos que deben unificarse.
-3. **Cerrar P3 sin 429**, partiendo el barrido en tandas o ventanas independientes;
-   no aumentando el limite de produccion para acomodar una prueba artificial.
+2. **P8**, las pantallas bifurcadas por rol. El detalle de cliente ya se
+   unificó detrás de `lib/clientes/detalle-financiero.ts` (`e9d07621`); las que
+   siguen divergiendo están en la tabla de §P8.
 4. Y lo del dueño: lo offline contra una build (§10.3) y las capturas (§10.2).
 
 Dos cosas que conviene hacer **antes** de tocar código, cada vez:
