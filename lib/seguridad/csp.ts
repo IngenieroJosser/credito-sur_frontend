@@ -32,6 +32,38 @@ const BACKEND_WS = 'wss://credito-sur-backend.onrender.com';
 const BACKEND_ALT = 'https://credito-sur-frontend.onrender.com';
 
 /**
+ * El backend CONFIGURADO también entra en `connect-src`.
+ *
+ * Los tres de arriba son los de este despliegue, escritos a mano. Mientras el
+ * sistema viva en Render y en local no se nota: `localhost:*` y `127.0.0.1:*`
+ * ya están permitidos. Pero el día que el backend esté en otro dominio —el
+ * servidor del cliente, un entorno de pruebas, la LAN de la oficina con nombre
+ * propio— la CSP bloquearía TODAS las llamadas de la app a su propio backend, y
+ * el síntoma (una pantalla sin datos) no se parece en nada a la causa.
+ *
+ * Se deriva de `NEXT_PUBLIC_BASE_URL`, que es de donde sale la URL de verdad
+ * (`lib/api/baseUrl.ts`), y se añade también su equivalente de socket: las
+ * notificaciones se conectan por `ws`/`wss` a esa misma raíz.
+ */
+function origenesConfigurados(): string[] {
+  const configurada = (process.env.NEXT_PUBLIC_BASE_URL || '').trim();
+  if (!configurada) return [];
+
+  try {
+    const { origin, protocol } = new URL(configurada);
+    const socket = origin.replace(
+      protocol,
+      protocol === 'https:' ? 'wss:' : 'ws:',
+    );
+    return [origin, socket];
+  } catch {
+    // Una variable mal escrita no puede tumbar la cabecera entera: sin ella la
+    // CSP sigue siendo la de siempre.
+    return [];
+  }
+}
+
+/**
  * En desarrollo hace falta 'unsafe-eval'.
  *
  * La recarga en caliente de Next (Fast Refresh) evalúa código en tiempo de
@@ -52,6 +84,8 @@ const BACKEND_ALT = 'https://credito-sur-frontend.onrender.com';
  */
 export function construirCsp(entorno: string | undefined = process.env.NODE_ENV): string {
   const evaluar = entorno !== 'production' ? " 'unsafe-eval'" : '';
+  const configurados = origenesConfigurados();
+  const extra = configurados.length > 0 ? ` ${configurados.join(' ')}` : '';
 
   return `
     default-src 'self';
@@ -59,7 +93,7 @@ export function construirCsp(entorno: string | undefined = process.env.NODE_ENV)
     style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
     img-src 'self' data: blob: https://res.cloudinary.com https:;
     font-src 'self' data: https://fonts.gstatic.com;
-    connect-src 'self' ${BACKEND} ${BACKEND_WS} ${BACKEND_ALT} https://fcm.googleapis.com https://res.cloudinary.com http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*;
+    connect-src 'self' ${BACKEND} ${BACKEND_WS} ${BACKEND_ALT}${extra} https://fcm.googleapis.com https://res.cloudinary.com http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*;
     worker-src 'self' blob:;
     manifest-src 'self';
     media-src 'self' https://res.cloudinary.com data: blob:;

@@ -1,6 +1,7 @@
 'use client'
 import { codigoDeError, estadoDeError, mensajeDeError } from '@/lib/mensaje-de-error'
 import { logger } from '@/lib/logger'
+import { baseApi } from '@/lib/api/baseUrl'
 
 /**
  * ============================================================================
@@ -110,12 +111,25 @@ const LoginPage = () => {
     }
   }, [searchParams]);
 
-  // Ping the backend directly from the browser on mount to wake up Render instances
-  // bypassing Vercel's 10-second timeout limits.
+  /*
+   * Despierta el backend desde el navegador nada más abrir el login.
+   *
+   * Render apaga las instancias que llevan rato sin tráfico y el primer
+   * arranque tarda; este aviso se adelanta a eso sin pasar por el servidor de
+   * Vercel, que corta a los 10 segundos.
+   *
+   * La URL sale de `baseApi()`, no escrita a mano: estaba fija en el backend de
+   * producción, así que CUALQUIER build de producción —el del cliente, uno de
+   * pruebas, el de esta máquina— llamaba a ese servidor en vez de al suyo. En
+   * un barrido de las 112 pantallas con el sistema apuntando a otro backend,
+   * `/login` salía con dos errores de CORS en la consola, en la pantalla por la
+   * que entra todo el mundo.
+   */
   useEffect(() => {
     if (process.env.NODE_ENV === 'production') {
-      fetch('https://credito-sur-backend.onrender.com/api-credisur', { method: 'GET' })
-        .catch((e) => logger.log('Ping para despertar el backend enviado.'));
+      fetch(baseApi(), { method: 'GET' }).catch(() =>
+        logger.log('Ping para despertar el backend enviado.'),
+      );
     }
   }, []);
 
