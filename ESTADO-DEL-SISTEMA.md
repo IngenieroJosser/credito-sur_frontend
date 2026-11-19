@@ -25,87 +25,60 @@ el módulo compilado de Jest, falló exactamente la prueba que esperaba 450000.
 Sin la mutación pasaron las nueve pruebas de dashboard. Esto verifica el dato
 de la API; no implica que exista una tarjeta que lo muestre.
 
-> ### ATENCION: el arbol no compila (2026-11-19, 11:18)
+> ### El refactor del listado de rutas quedo TERMINADO (2026-11-19, commit `af52be0`)
 >
-> `npx tsc --noEmit` en el backend falla con **un** error, y no es de nadie que
-> lo haya roto al pasar: es un **refactor a medio terminar** del listado de
-> rutas (§P5) que quedo sin commitear.
+> Estaba a medias y sin commitear: **−764 / +68 lineas** en
+> `routes.service.ts`, dos modulos nuevos sin seguir en git
+> (`datos-visitas.ts`, `estadisticas-listado.ts`), **el arbol sin compilar** y
+> **15 pruebas de `src/routes` en rojo**. Ahora: `tsc` limpio, `eslint` limpio,
+> **83 pruebas de rutas y 433 de la zona tocada, todas pasando**.
 >
-> - `src/routes/routes.service.ts`: modificado, **−764 / +68 lineas**.
-> - `src/routes/datos-visitas.ts` (170 lineas) y
->   `src/routes/estadisticas-listado.ts` (38 lineas): **nuevos, sin seguir en git**.
-> - El error: `routes.service.ts(1327,53) TS2345` — se le pasa `PrismaService`
->   a un parametro que espera `TransactionClient`.
+> **Compila.** Faltaba el tipo del cliente de Prisma en los dos modulos nuevos:
+> llevaban `Prisma.TransactionClient`, que es el cliente SIN extender. El de
+> este proyecto es `TransaccionPrisma`, y el comentario de
+> `prisma.service.ts:170` describe exactamente ese error. Si vuelve a aparecer
+> un `TS2345` con `PrismaService` no asignable a `TransactionClient`, es esto.
 >
-> Ultimo cambio en esos archivos: 9:08.
->
-> **Ya compila** (2026-11-19, 11:30): faltaba el tipo del cliente de Prisma en
-> los dos modulos nuevos. Llevaban `Prisma.TransactionClient`, que es el cliente
-> SIN extender; el de este proyecto es `TransaccionPrisma`, y el comentario de
-> `prisma.service.ts:170` describe exactamente este error. Ese arreglo sigue SIN
-> COMMITEAR, porque commitearlo arrastraria el refactor entero.
->
-> **El refactor es CORRECTO y hay que terminarlo, no descartarlo. Medido asi:**
-> se levanto el codigo refactorizado en un puerto aparte y se comparo
-> `GET /routes` contra el codigo viejo, campo por campo: **340 campos, uno
-> solo cambia** — `porcentajeMora`, de 71,41 a 67,91.
->
-> Y ese cambio es una CORRECCION, no una regresion:
+> **Cambia UNA cifra, y es una correccion.** Se levanto el codigo refactorizado
+> en un puerto aparte y se comparo `GET /routes` contra el codigo viejo campo
+> por campo: **340 campos, uno solo cambia** — `porcentajeMora`, 71,41 -> 67,91.
 >
 > | la cartera de la ruta son... | creditos | saldo | vencido | mora% |
 > |---|---|---|---|---|
 > | todos los creditos de los clientes asignados | 34 | 15.254.990 | 10.893.913 | **71,41** (viejo) |
 > | solo los creditos CUYA RUTA es esta | 31 | 13.589.990 | 9.228.913 | **67,91** (refactor) |
 >
-> Los 3 de diferencia tienen **`rutaId` nulo**: no son de ninguna ruta. Contarlos
-> ahi contradice la invariante §3 del proyecto y su propia centinela
-> (`ruta-del-credito-no-del-cliente.spec.ts`): «un credito SIN ruta cuyo cliente
-> si esta en una se mostraba DENTRO de esa ruta, aunque ninguna jornada lo
-> incluye». El viejo 71,41 inflaba la mora con 1.665.000 que nadie va a cobrar
-> en esa ruta.
+> Los 3 de diferencia tienen **`rutaId` nulo**: no son de ninguna ruta.
+> Contarlos ahi contradice la invariante §3 y su centinela
+> `ruta-del-credito-no-del-cliente.spec.ts`. El viejo 71,41 inflaba la mora con
+> 1.665.000 que nadie va a cobrar en esa ruta.
 >
-> **Lo que falta para cerrarlo: de 15 pruebas en rojo quedan 6.**
-> `npx jest src/routes` -> **76 pasan, 6 fallan** (antes 68 y 15). No se relajo
-> ninguna asercion ni se toco el codigo de produccion mas que las dos
-> anotaciones de tipo.
+> **Las pruebas, y lo que se aprendio.** Nueve de las quince fallaban por datos
+> que el doble no decia: el codigo viejo consultaba POR ruta, asi que toda fila
+> devuelta era de esa ruta y no hacia falta decirlo; la carga por lotes pide una
+> vez con `rutaId: { in: ids }` y luego AGRUPA por ese campo. Se rellena en la
+> factoria `makeService`, y **solo cuando la consulta pide UNA ruta**: con dos o
+> mas no hay forma de saber de cual es cada fila, y rellenar con la primera las
+> mete todas en esa ruta.
 >
-> Las nueve que se recuperaron fallaban por datos que el doble no decia, no por
-> comportamiento. Se arreglo en un solo sitio, la factoria `makeService` de
-> `routes.service.spec.ts`, con el motivo escrito:
+> Lo que costo encontrar: `datos-visitas.ts` vuelve a filtrar en memoria los
+> creditos de la asignacion con `p.rutaId === rutaId`. En produccion sobra pero
+> es correcto —el `include` de Prisma trae todos los escalares—; en las pruebas
+> los descartaba TODOS y la visita salia vacia. Lo mostro una sonda de seis
+> lineas: `asignaciones=1 prestamos=[0]`.
 >
-> - el codigo viejo consultaba POR ruta, asi que toda fila devuelta era de esa
->   ruta y el doble no tenia que decirlo. La carga por lotes pide una vez con
->   `rutaId: { in: ids }` y luego AGRUPA por `rutaId` (los pagos, por
->   `prestamo.rutaId`): sin ese campo, `agrupar` revienta;
-> - y `datos-visitas.ts:173` vuelve a filtrar en memoria los creditos de la
->   asignacion con `p.rutaId === rutaId`. En produccion sobra pero es correcto
->   —el `include` de Prisma trae todos los escalares—; en las pruebas descartaba
->   TODOS los creditos y la visita salia vacia. **Esto fue lo que costo
->   encontrar:** una sonda de seis lineas en `cargarVisitas` mostro
->   `asignaciones=1 prestamos=[0]`, y ahi se vio.
+> Las otras seis afirmaban consultas que el refactor elimina a proposito (el
+> espia de `getDailyVisits` por ruta, `asignacionRuta.findMany` no llamado, la
+> meta por lista de clientes). Se **reescribieron contra el mecanismo nuevo
+> conservando la intencion de cada una**; ninguna asercion se relajo.
 >
-> El relleno solo actua cuando la consulta pide UNA ruta. Con dos o mas en el
-> mismo `in` no hay forma de saber de cual es cada fila, y rellenar con la
-> primera las mete todas en esa ruta: justo el cruce entre rutas que vigila la
-> prueba del cliente compartido.
->
-> **Las 6 que quedan necesitan una decision de diseno, no un arreglo:**
->
-> | prueba | que fija | por que falla |
-> |---|---|---|
-> | `getDailyVisitsBatch` × 4 | que `getDailyVisits` se llame una vez por ruta, con su fecha y su actor | el refactor **elimina esa llamada a proposito**: ahora proyecta desde una consulta por pagina. La asercion quedo obsoleta y hay que reescribirla contra el mecanismo nuevo (p. ej. «una consulta de asignaciones por pagina, no por ruta»), no borrarla |
-> | «usa el resumen operativo diario como fuente de verdad para el avance del listado» | que el listado **no** llame a `asignacionRuta.findMany` | el refactor si las carga, por pagina. Misma decision |
-> | «consulta las visitas una vez y mantiene la ausencia en su propia ruta» | que un cliente compartido por dos rutas salga ausente en una y presente en la otra | su INTENCION sigue siendo valida y es la mas importante de las seis, pero lo que afirma es el mecanismo: que la meta se calcula con `prestamo.findMany` filtrando por lista de clientes (`where.clienteId.in`). El refactor ya no hace esa consulta |
->
-> **Las seis son la misma pregunta**: que invariante debe afirmar la prueba ahora
-> que no se consulta por ruta. Ninguna de las seis es un dato que falte en el
-> doble —eso ya se cerro, son las nueve recuperadas—: las seis afirman consultas
-> que el refactor eliminó a proposito. Reescribirlas es una decision de diseno,
-> y la intencion de cada una hay que conservarla: sobre todo la de la ausencia,
-> que vigila que no se cruce entre rutas.
->
-> **Nada de esto esta commiteado**, ni el refactor ni mis dos arreglos: el
-> commit arrastraria las 764 lineas con 6 pruebas en rojo.
+> **Y una leccion de §1.4, cobrada otra vez:** la prueba de la ausencia
+> compartida —la que vigila que una ausencia no se cruce entre rutas— **pasaba
+> en verde con el agrupado roto**. El registro de visita era de la PRIMERA ruta,
+> asi que el defecto «todo a la primera» (`agrupar(registros, () => ids[0])`)
+> daba el mismo resultado que el codigo correcto. Movido el registro a la
+> SEGUNDA ruta, ahora si lo caza. Las tres comprobaciones al reves que se
+> hicieron: sin alcance del actor, sin deduplicar, y con el agrupado cruzado.
 
 Por orden. Lo de arriba es lo que está a medias; lo de abajo, lo que nadie ha
 mirado todavía.
@@ -114,7 +87,7 @@ mirado todavía.
 |---|---|---|
 | 1 | **Investigar el timeout de login si reaparece.** Los siete roles ya completaron el recorrido tras el arreglo de URL, aunque no en una sola corrida. No se ha demostrado la causa de las esperas fallidas. | §P3 |
 | 2 | **Decidir qué se hace con 4 créditos fantasma** de la base: ACTIVO, aprobados, dicen tener cuotas y no tienen ninguna. No es un defecto vivo —no se repiten desde agosto— pero el cliente los va a ver | §P16 |
-| 3 | **§P5: las consultas por ruta.** El resumen de cierres ya se lee por página; quedan las estadísticas y las visitas por ruta con clientes. | §P5 |
+| 3 | **§P5 cerrado en el listado** (`af52be0`): cierres, estadísticas y visitas se leen por página, no por ruta. Lo que queda de §P5 son los 3 métodos multi-modelo que nadie ha revisado | §P5 |
 | 4 | **§P8: las 8 pantallas bifurcadas por rol.** Es la deuda que hace que cada arreglo haya que hacerlo dos o tres veces. Ya se pagó ese precio varias veces | §P8 |
 | 5 | **§P9: la deuda técnica para hablar con el dueño** (archivos de 4.300 líneas, 6 copias del formateo de pesos, 8 colores de botón primario) | §P9 |
 
@@ -122,8 +95,24 @@ mirado todavía.
 medición): el dinero escrito sin transacción (§P11, 7 de 7 revisadas), la
 idempotencia de la cola (§P10 y §P15), el alcance por rol en caja y rutas
 (§P12), los endpoints sin `@Roles` (§P14, 228 revisados), los botones mudos, los
-techos del servidor y la atomicidad de la importación (§P17), y el estado
-contable de la base (§P16).
+techos del servidor y la atomicidad de la importación (§P17), el estado
+contable de la base (§P16), las cifras del panel contra sus listas (§P18) y el
+listado de rutas por página (§0, `af52be0`).
+
+**Y una herramienta que se evaluó y se descartó, para no repetir la búsqueda:**
+los plugins comunitarios *anti-slop* y *thermos*. Ninguno es de Anthropic.
+«Thermos» son dos cosas: un plugin de revisión que **duplica** `/code-review`
+—que ya viene de fábrica, con nivel `ultra` multi-agente— y cuya «regla de las
+1.000 líneas» dispararía sobre `routes.service.ts` y `VistaCobrador.tsx`, que ya
+están medidos en §P9; y `claude-thermos`, un proxy de caché de prompts, que no
+resuelve ningún cuello de botella medido aquí. «Anti-slop» no es un plugin sino
+una docena con ese nombre, y casi todos van contra «comentarios obsoletos e
+identificadores verbosos»: **eso choca con la convención de este repo**, que
+lleva la medición escrita dentro del comentario y es justo lo que permite el
+relevo entre agentes. Además son plugins de Claude Code: **Codex no los lee**,
+así que no sirven como configuración compartida. Lo compartido es este md.
+Si se quiere algo que se cumpla *siempre*, el mecanismo correcto es un hook de
+`settings.json` que corra `tsc` + `eslint` + la zona de pruebas tocada.
 
 ---
 
