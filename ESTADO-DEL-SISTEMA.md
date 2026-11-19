@@ -237,13 +237,20 @@ elecciones de caja, para que una tercera tenga que pasar por ahí.
 
 ---
 
-### P3 — El barrido de pantallas por rol nunca se ha podido validar
+### P3 — El barrido de pantallas por rol ya corre; el límite de peticiones queda visible
 
-**Qué pasa.** `e2e/pantallas-por-rol.e2e.ts` abre las 112 pantallas con los 7
-roles. Corrido en `next dev` devuelve ~50 «problemas» por rol, pero casi todos
-son artefactos del modo desarrollo: `Internal Next.js error: Router action
-dispatched before initialization` y `page.goto: Timeout 90000ms exceeded` en la
-primera compilación de una ruta.
+**Medido el 2026-11-18 contra `next build` + `next start`.** Los siete roles
+terminaron el recorrido: 6 pasaron al primer intento y CONTADOR paso al reintento
+despues de que el primer login agotara sus 180 s. No reaparecio el antiguo
+`Invalid or unexpected token` de `/coordinador/revisiones`.
+
+El recorrido produjo **156 respuestas 429**. No se subio el limite para esconderlas:
+la prueba hace 112 recargas completas por usuario y cada recarga vuelve a montar el
+shell. Una repeticion aislada de ADMIN midio 65 respuestas limitadas; las mas
+frecuentes fueron `approvals/pending` (18), `notificaciones` (12), `routes` (7) y
+`loans` (6). El informe ahora guarda el desglose por metodo y endpoint. Tambien se
+quito una duplicacion real: el shell pedia `approvals/pending` al iniciar el polling
+y otra vez al conectar el socket.
 
 **Receta.** Correrlo contra una build de producción, que además es la única forma
 de probar lo offline (el service worker se desactiva en desarrollo):
@@ -257,8 +264,10 @@ E2E_BASE_URL=http://localhost:3000 npx playwright test e2e/pantallas-por-rol.e2e
 Y **no editar ningún archivo mientras corre**: cada edición recompila y le rompe
 las sesiones.
 
-**Pista que sí merece revisión:** `/coordinador/revisiones [excepcion] Invalid or
-unexpected token`. Los demás roles no la dan.
+**Lo que falta para llamarlo verde completo:** ejecutar la pasada sin respuestas
+limitadas, separando el recorrido en tandas o usuarios de prueba con ventanas
+independientes. Los 429 ya no se confunden con pantallas rotas, pero si pueden dejar
+una pantalla sin sus datos durante este recorrido artificial.
 
 ---
 
@@ -281,16 +290,20 @@ de dinero: contable, cuentas vencidas, detalle de cliente.
 
 ---
 
-### P5 — Consultas dentro de un `.map` (N+1)
+### P5 — Consultas dentro de un `.map` (N+1): avance medido
 
 Cada una multiplica las consultas por el número de filas. Con la cartera del
 cliente esto es la diferencia entre una pantalla que abre y una que caduca.
 
-- `src/accounting/accounting.service.ts:565` — `ruta.findMany` + `caja.findFirst`
-- `src/reports/reports.service.ts:737` — `prestamo.findUnique` + `cuota.findFirst`
-- `src/reports/reports.service.ts:1004` — `prestamo.aggregate` + `cliente.count`
-- `src/routes/routes.service.ts:1212` — `asignacionRuta.findMany`
-- `src/routes/routes.service.ts:3503` — `pago.findMany`
+- **ARREGLADO `d2fb639`:** contabilidad resuelve las rutas de las cajas en lote.
+- **ARREGLADO `7b84ccb`:** reportes agrupa novedades de prestamos y clientes por
+  ruta; ademas los totales respetan las rutas visibles para el actor.
+- **ARREGLADO `14feab3`:** el listado de rutas reutiliza las asignaciones que ya
+  incluyo su consulta principal: elimina dos consultas por ruta (40 con 20 rutas).
+- **PENDIENTE:** `findAll` de rutas todavia ejecuta estadisticas y
+  `getDailyVisits` dentro del `map` de rutas. `getDailyVisitsBatch` limita la
+  concurrencia en tandas de seis, pero internamente sigue siendo N llamadas completas;
+  no es una consulta en lote real.
 
 **Receta.** Sacar la consulta del `map`: una sola consulta con `in: [...ids]` y un
 `Map` por id. Ya se hizo así en `getCobradores` (`01ab0f9`) y en los dos reportes
@@ -298,7 +311,7 @@ de mora y vencidas (`cdc47dd`).
 
 ---
 
-### P6 — Variables que guardan un cálculo y nadie usa
+### P6 — Variables que guardan un cálculo y nadie usa — CERRADO
 
 El patrón que escondía el contador correcto de la mora: alguien calculó algo, no
 lo usó, y le puso `_` delante para que el linter callara. **24 ocurrencias.** Las
@@ -312,20 +325,24 @@ huelen a cálculo perdido:
 - `src/payments/payments.service.ts:939` `_capitalTotalFinal`
 - `src/loans/loans.service.ts:3455,3458` `_estadoInicial`, `_estadoAprobacionInicial`
 
-**Receta.** Para cada una: o se usa, o se borra la consulta. Dejarla cuesta una
-consulta por petición y engaña al siguiente que lea.
+**ARREGLADO en `4b29165` y `6664856`.** Se eliminaron consultas, calculos y una
+implementacion duplicada de reparto de pagos que no alimentaban ninguna respuesta.
+Dos valores que si debian usarse ahora se validan: el monto normalizado del abono
+contable llega al servicio y una caja explicita para actores de ruta debe ser de tipo
+`RUTA`. El barrido final solo dejo coordenadas `_LC` de una plantilla Excel, no
+calculos de negocio.
 
 ---
 
-### P7 — Un campo que nadie produce
+### P7 — Un campo que nadie produce — CERRADO
 
 `components/dashboards/shared/NotificacionDetalleModal.tsx:1235-1236` lee
 `editedDetails?.phone` y `safeMeta?.phone`. **`phone` no existe** ni en el
 backend ni en el frontend: el proyecto usa `telefono`. Las dos lecturas valen
 siempre `undefined`.
 
-**Receta.** Ver qué debía mostrar y usar `telefono`, o quitar la lectura. Es el
-único caso que quedó de esta clase (barrido completo: 2 usos, 1 campo).
+**ARREGLADO en `e63debd3`.** El modal dejo de buscar `phone`; el proyecto conserva
+un solo nombre de contrato, `telefono`.
 
 ---
 
@@ -413,6 +430,11 @@ historia completa.
 | `9b056ad` | Ningún crédito sin ruta: ni al crearlo, ni al importarlo |
 | `0595718` | Un crédito que no empieza HOY nunca entraba a la ruta (26 huérfanos) |
 | `21fb215` | Entrar bien ya no gasta el cupo: la oficina se bloqueaba sola |
+| `d2fb639` | Las cajas resuelven sus rutas en lote |
+| `4b29165` | Se retiraron consultas y calculos sin consumidor |
+| `7b84ccb` | Los reportes agrupan novedades por ruta sin N+1 |
+| `14feab3` | El listado reutiliza asignaciones ya cargadas |
+| `6664856` | Las visitas dejan de calcular una fecha sin uso |
 
 ### Frontend
 
@@ -430,6 +452,7 @@ historia completa.
 | `26cb5289` | Un `image/*` dejaba ciegas a las centinelas |
 | `fad92848` | Dos teléfonos cobrando el mismo crédito a la vez |
 | `854f1c9f` | El modal de pago del coordinador no registraba nada |
+| `e63debd3` | El detalle de notificacion deja de leer `phone`, que no existe |
 
 ---
 
@@ -580,14 +603,14 @@ saber si una cifra que ves es un defecto o son los datos.
 Si retomas esto sin más contexto, este orden es el que más valor da por hora, y
 está pensado para que el cliente pueda importar y probar:
 
-1. **P3, el barrido de pantallas sobre una build de producción.** Hasta que eso
-   pase en verde no se puede afirmar que las 112 pantallas abren para los 7
-   roles. Mira también la pista de `/coordinador/revisiones`.
-2. **P5 y P6**, que son mecánicos y se verifican con la zona de pruebas del
-   backend.
-3. **P4**, pantalla por pantalla y empezando por las de dinero. No en masa.
-4. **P7**, que es un minuto.
-5. Y lo del dueño: lo offline contra una build (§10.3) y las capturas (§10.2).
+1. **Terminar P5 en el listado de rutas.** El batch actual controla concurrencia,
+   pero no reduce el numero de consultas de `getDailyVisits`.
+2. **P4**, pantalla por pantalla y empezando por las de dinero. No en masa. El
+   respaldo offline de cuentas vencidas ya dejo de convertir dos campos obligatorios
+   en cero; el detalle de cliente sigue teniendo tres mapeos que deben unificarse.
+3. **Cerrar P3 sin 429**, partiendo el barrido en tandas o ventanas independientes;
+   no aumentando el limite de produccion para acomodar una prueba artificial.
+4. Y lo del dueño: lo offline contra una build (§10.3) y las capturas (§10.2).
 
 Dos cosas que conviene hacer **antes** de tocar código, cada vez:
 

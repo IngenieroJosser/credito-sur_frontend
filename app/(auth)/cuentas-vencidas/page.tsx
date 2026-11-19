@@ -222,8 +222,10 @@ function CuentasVencidasContent() {
               },
               fechaVencimiento: p.fechaFin || '',
               diasVencidos,
-              saldoPendiente: p.saldoPendiente || 0,
-              montoOriginal: p.monto || 0,
+              // Ambos campos son obligatorios en OfflinePrestamo. Un `|| 0` aqui
+              // escondia una copia local incompleta como si el cliente no debiera nada.
+              saldoPendiente: p.saldoPendiente,
+              montoOriginal: p.monto,
               ruta: '',
               nivelRiesgo,
               estado: p.estado,

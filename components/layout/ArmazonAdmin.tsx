@@ -349,8 +349,8 @@ export default function ArmazonAdmin({ children }: { children: React.ReactNode }
     socket.on('prestamos_actualizados', handler)
     socket.on('dashboards_actualizados', handler)
 
-    // sync inmediato al engancharse (por si el polling aún no corrió)
-    fetchPending()
+    // La carga inicial ya pertenece al efecto de polling de arriba. Repetirla al
+    // conectar el socket hacia dos GET /approvals/pending por cada montaje del shell.
 
     return () => {
       socket.off('aprobaciones_actualizadas', handler)

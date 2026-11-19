@@ -54,9 +54,15 @@ for (const rol of ROLES) {
       const hallazgos: Hallazgo[] = []
       const recorrido = vigilar(page, 'global')
       let limitados = 0
+      const limitadosPorEndpoint = new Map<string, number>()
       const indicios: string[] = []
       page.on('response', (r) => {
-        if (r.status() === 429) limitados += 1
+        if (r.status() !== 429) return
+
+        limitados += 1
+        const url = new URL(r.url())
+        const endpoint = `${r.request().method()} ${url.pathname}`
+        limitadosPorEndpoint.set(endpoint, (limitadosPorEndpoint.get(endpoint) ?? 0) + 1)
       })
       const resumen: Array<{ pantalla: string; estado: string }> = []
 
@@ -120,6 +126,12 @@ for (const rol of ROLES) {
       console.log(
         `[${rol}] ${cargaron} pantallas cargaron, ${resumen.length - cargaron} redirigieron, ${limitados} respuestas 429`,
       )
+      const endpointsLimitados = [...limitadosPorEndpoint.entries()]
+        .map(([endpoint, cantidad]) => ({ endpoint, cantidad }))
+        .sort((a, b) => b.cantidad - a.cantidad || a.endpoint.localeCompare(b.endpoint))
+      for (const limitado of endpointsLimitados) {
+        console.log(`  ! ${limitado.endpoint}: ${limitado.cantidad} respuestas 429`)
+      }
       for (const r of resumen.filter((x) => x.estado !== 'cargó')) {
         console.log(`  · ${r.pantalla} → ${r.estado}`)
       }
@@ -129,7 +141,7 @@ for (const rol of ROLES) {
       mkdirSync('test-results', { recursive: true })
       writeFileSync(
         `test-results/hallazgos-${rol}.json`,
-        JSON.stringify({ rol, resumen, hallazgos, indicios }, null, 1),
+        JSON.stringify({ rol, resumen, hallazgos, indicios, endpointsLimitados }, null, 1),
       )
 
       const texto = hallazgos
