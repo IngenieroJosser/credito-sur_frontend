@@ -664,3 +664,54 @@ details > summary::marker {
 @utility capa-alerta {
   z-index: 2147483647;
 }
+
+/* ==========================================================================
+   Pantallas que se tocan: objetivo tactil y campos sin zoom.
+
+   Las tres cosas de aqui van en UN sitio y cubren las 112 pantallas. Hacerlo
+   botón por botón serían 458 ediciones, y en escritorio no hace falta: los
+   44px son la guía TACTIL, no la del ratón, y engordar las tablas densas del
+   administrador no mejora nada. De ahí `pointer: coarse`.
+
+   ── 1. El objetivo tactil ─────────────────────────────────────────────────
+
+   Medido: de 671 botones, 458 declaran una altura por debajo de 44px, y solo
+   30 traen `min-h-[44px]` (los del cobrador, que ya se arreglaron a mano). El
+   resto son pantallas de oficina que en una tableta se tocan igual.
+
+   El `min-width` se pone SOLO a los botones de un icono suelto
+   (`:has(> svg:only-child)`): a uno con texto, un ancho mínimo de 44px no le
+   hace falta y en una fila estrecha podría forzar scroll horizontal.
+
+   `.sin-objetivo-tactil` es la salida: para un control que de verdad deba ser
+   diminuto, se marca y se dice por qué.
+
+   ── 2. Los campos a 16px ──────────────────────────────────────────────────
+
+   Medido: 80 de 179 campos de texto estan por debajo de 16px y este archivo no
+   fijaba ninguno. Safari en iOS hace zoom al enfocar un campo de menos de
+   16px, y la pagina se queda desplazada. Por eso el `viewport` llevaba
+   `maximumScale: 1`, que lo tapaba BLOQUEANDO EL ZOOM DE PINZA a todo el
+   mundo: quien necesita agrandar para leer una cifra no podia. Se ataca la
+   causa aqui y se devuelve el zoom en `layout.tsx`.
+
+   En escritorio no se toca: ahi 14px es densidad buscada.
+   ========================================================================== */
+@media (pointer: coarse) {
+  button:not(.sin-objetivo-tactil),
+  [role='button']:not(.sin-objetivo-tactil),
+  summary:not(.sin-objetivo-tactil) {
+    min-height: 44px;
+  }
+
+  button:not(.sin-objetivo-tactil):has(> svg:only-child),
+  [role='button']:not(.sin-objetivo-tactil):has(> svg:only-child) {
+    min-width: 44px;
+  }
+
+  input:not([type='checkbox']):not([type='radio']):not([type='hidden']),
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}

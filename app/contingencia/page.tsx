@@ -96,7 +96,7 @@ const ContingenciaPage = () => {
         <div className="flex flex-col items-center gap-3 w-full sm:flex-row sm:justify-center">
           <button
             onClick={seguirUsando}
-            className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#064063]"
+            className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-primary-dark"
           >
             <span>Seguir usando el sistema</span>
             <ArrowRight className="h-4 w-4" />

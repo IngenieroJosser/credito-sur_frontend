@@ -95,13 +95,37 @@ describe('la regla del backend sigue siendo la que se documentó', () => {
   })
 
   it('y el recaudo de la ruta se sigue contando por ruta, no por cobrador', () => {
-    // Es lo que hace que la meta no se pierda. Si esto cambia a filtrar por
-    // `cobradorId`, el pago del supervisor desaparecería del avance del día.
+    /*
+     * Es lo que hace que la meta no se pierda. Si esto cambiara a filtrar por
+     * `cobradorId`, el pago del supervisor desapareceria del avance del dia.
+     *
+     * La consulta se MOVIO: antes era un `prestamo: { rutaId }` de Prisma en
+     * `routes.service.ts` y ahora el listado la hace en SQL dentro de
+     * `estadisticas-listado.ts`, por pagina en vez de por ruta. La intencion es
+     * la misma, asi que la prueba mira donde vive ahora, en los dos sitios que
+     * cuentan recaudo de una ruta: el listado y el detalle.
+     */
+    const listado = sinComentarios(
+      fs.readFileSync(
+        path.join(BACKEND, 'src', 'routes', 'estadisticas-listado.ts'),
+        'utf8',
+      ),
+    )
     const rutas = sinComentarios(
-      fs.readFileSync(path.join(BACKEND, 'src', 'routes', 'routes.service.ts'), 'utf8'),
+      fs.readFileSync(
+        path.join(BACKEND, 'src', 'routes', 'routes.service.ts'),
+        'utf8',
+      ),
     )
 
-    expect(rutas).toMatch(/prestamo:\s*\{\s*rutaId\s*\}/)
+    // El listado: el pago se une al prestamo y se agrupa por la ruta DEL
+    // PRESTAMO, no por quien cobro.
+    expect(listado).toMatch(/JOIN "Prestamo" l ON l\.id=p\."prestamoId"/)
+    expect(listado).toMatch(/l\."rutaId" IN/)
+    expect(listado).not.toMatch(/p\."cobradorId"/)
+
+    // El detalle: la misma regla, en Prisma.
+    expect(rutas).toMatch(/prestamo:\s*\{\s*rutaId(\s*\}|:\s*id\s*\})/)
   })
 })
 

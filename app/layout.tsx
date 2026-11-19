@@ -43,7 +43,16 @@ export const viewport: Viewport = {
   themeColor: "#08557f",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
+  /*
+   * Sin `maximumScale`: el zoom de pinza se queda.
+   *
+   * Estaba en 1, que lo BLOQUEA. La razon de ponerlo suele ser el zoom
+   * automatico de Safari en iOS al enfocar un campo de menos de 16px —medido:
+   * 80 de 179 campos estaban por debajo—, pero taparlo asi le quita el zoom a
+   * todo el mundo, incluido quien necesita agrandar para leer una cifra. La
+   * causa se arregla en `globals.css`, que pone los campos a 16px en pantallas
+   * tactiles.
+   */
   // La app es de tema claro (todas las tarjetas son bg-white con textos oscuros).
   // Sin esto, un móvil con el SO en modo oscuro fuerza el foreground a casi
   // blanco y los textos sin color explícito quedan invisibles sobre las tarjetas.
