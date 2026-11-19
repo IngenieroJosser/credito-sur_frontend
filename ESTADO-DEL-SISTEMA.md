@@ -658,6 +658,76 @@ mientras tanto no se toca, porque ninguna cifra se mueve.
 
 ---
 
+### P16 — Estado de la base antes de la importación *(medido, y hay 4 filas que avisar)*
+
+Medido contra la base de desarrollo el 2026-11-19, porque es justo lo que el
+dueño necesita saber antes de meter datos reales.
+
+**Lo que cuadra** (y conviene volver a correr después de importar):
+
+| comprobación | resultado |
+|---|---|
+| cuotas con centavos | **0** de 1.629 |
+| cuotas donde `capital + interés ≠ monto` | **0** |
+| líneas de asiento con centavos | **0** de 1.202 |
+| **asientos descuadrados** (debe ≠ haber) | **0** |
+| préstamos / pagos / cajas con centavos | **0** |
+| créditos vivos donde la suma de las cuotas ≠ la deuda | **0** de 57 |
+
+O sea: `regularizarCentavos` es hoy una herramienta sin nada que reparar, y el
+libro cuadra. *Límite:* son 1.629 cuotas de datos de desarrollo; esto hay que
+repetirlo con los datos del cliente.
+
+**Lo que NO cuadra, y son datos, no código: 4 créditos fantasma.**
+
+`ART-000034`, `ART-000042`, `ART-000047` y `ART-000048`, todos creados el
+2026-08-28: están **ACTIVO y APROBADO**, dicen `cantidadCuotas` 4, 12 y 24, y
+**no tienen ni una cuota**. Su `monto` es 0 con una cuota inicial de 100.000 a
+200.000. Son créditos que afirman un calendario que no existe.
+
+Se ven en las pantallas como créditos activos con **$ 0**, que por la regla de
+la casa se lee «activo y no debe nada» — y ahí se quedan para siempre, porque
+sin cuotas no hay nada que cobrar ni nada que los cierre.
+
+**No se han vuelto a producir:** de los 19 créditos creados desde septiembre,
+ninguno tiene esta forma; los 4 `monto = 0` son exactamente esos cuatro de
+agosto. Por eso **no se tocó el código**: no hay defecto activo que arreglar.
+Lo que hay que decidir es qué hacer con esas cuatro filas antes de que el
+cliente las vea. *Límite:* el DTO acepta `@Min(0)` para el monto, así que un
+crédito de monto 0 sigue siendo aceptable; lo que no se pudo reproducir es cómo
+quedó sin cuotas.
+
+---
+
+### P17 — Tres barridos más que salieron limpios *(NO HAY QUE HACER NADA)*
+
+Se escriben para que nadie los repita a ciegas.
+
+**Botones que no hacen nada: 0 de 671.** Se leyeron todas las etiquetas
+`<button>` equilibrando llaves (una etiqueta JSX lleva `{}` dentro, así que
+cortar en el primer `>` parte la etiqueta). Los 5 candidatos eran falsos: tres
+`disabled` a propósito, uno envuelto en `Tooltip` —que es quien lleva el
+manejador— y uno que mi lector encontró **dentro de un comentario**, por no
+filtrar comentarios teniendo `lib/testing/sin-comentarios.ts` justo para eso.
+Las Fases 1 y 2 del plan de UX están hechas, cada arreglo con su motivo escrito
+en el sitio.
+
+**Techos de datos en el servidor: ninguno muerde.** Hay 23 `take:` con número
+literal mayor que 20. El que parecía peligroso es el `take: 100` sobre las
+cuotas pendientes de cada crédito en la pantalla de ruta
+(`routes.service.ts:792` y `:1859`), **sin `orderBy`**. Dos mediciones lo
+cierran: el máximo real de cuotas por crédito es **30**, y
+`resolveCuotaObjetivoOperativa` **ordena en memoria** por fecha efectiva antes
+de elegir, así que el orden de la consulta no decide nada. *Límite:* un plan
+DIARIO pasa de 100 cuotas a partir de ~3,3 meses y nada lo prohíbe (`@Min(1)`,
+sin `@Max`). Si la importación trae planes diarios largos, hay que volver aquí.
+
+**La importación es atómica y tiene plazo de sobra.** Las cuatro transacciones
+de `importaciones.service.ts` llevan `{ maxWait: 60_000, timeout: 600_000 }`:
+diez minutos, y o entra el archivo entero o no entra nada.
+
+---
+
 ### P8 — Pantallas bifurcadas por rol que divergen
 
 Un arreglo hay que hacerlo dos o tres veces, y en esta sesión se pagó ese precio
