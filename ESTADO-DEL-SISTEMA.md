@@ -129,7 +129,8 @@ mirado todavía.
 |---|---|---|
 | 1 | **Investigar el timeout de login si reaparece.** Los siete roles ya completaron el recorrido tras el arreglo de URL, aunque no en una sola corrida. No se ha demostrado la causa de las esperas fallidas. | §P3 |
 | 2 | **Decidir qué se hace con 4 créditos fantasma** de la base: ACTIVO, aprobados, dicen tener cuotas y no tienen ninguna. No es un defecto vivo —no se repiten desde agosto— pero el cliente los va a ver | §P16 |
-| 3 | **§P20: el reporte financiero se baja el libro mayor para sumarlo** (516 KB con 1.202 asientos; ~20 MB proyectados con 50.000). Es el riesgo de escala real y se arregla en el servidor | §P20 |
+| 3 | **§P22: el gráfico mensual cuenta los meses en UTC**, no en Bogotá. Invisible en local (esta máquina es UTC-5), real en Render. 38 % de los pagos están en la franja que se desplaza | §P22 |
+| 4 | **§P20: el reporte financiero se baja el libro mayor para sumarlo** (516 KB con 1.202 asientos; ~20 MB proyectados con 50.000). Es el riesgo de escala real y se arregla en el servidor | §P20 |
 | 4 | **§P5 cerrado en el listado** (`af52be0`): cierres, estadísticas y visitas se leen por página, no por ruta. Lo que queda de §P5 son los 3 métodos multi-modelo que nadie ha revisado | §P5 |
 | 4 | **§P8: las 8 pantallas bifurcadas por rol.** Es la deuda que hace que cada arreglo haya que hacerlo dos o tres veces. Ya se pagó ese precio varias veces | §P8 |
 | 5 | **§P9: la deuda técnica para hablar con el dueño** (archivos de 4.300 líneas, 6 copias del formateo de pesos, 8 colores de botón primario) | §P9 |
@@ -1217,6 +1218,57 @@ ese endpoint** —solo `e2e/caos-dinero`—; la pantalla usa `getResumenFinancie
 del módulo contable, que sí tiene `utilidadOperativa`, `utilidadReal` y
 `gananciaNeta`. Si alguien lo cablea algún día, hay que rehacer la fórmula
 primero.
+
+---
+
+### P22 — El gráfico mensual cuenta los meses en UTC, no en Bogotá *(investigado, pendiente de corregir)*
+
+**Es el mismo método que §P21 y sale del mismo sitio.** Una vez que la evolución
+mensual ya devuelve cifras, la pregunta siguiente es si están en el mes
+correcto.
+
+`reports.service.ts:108-109` arma la ventana del año con `new Date(year, 0, 1)`
+y `new Date(year, 11, 31, 23, 59, 59)`, y reparte por mes con
+`p.fechaPago.getMonth()`. Las tres cosas leen la zona horaria **del proceso**.
+
+**Por qué no se ve aquí y sí en producción.** Medido: esta máquina corre en
+**UTC-5**, o sea hora de Bogotá, así que localmente el cálculo es correcto y
+**ningún pago cambia de mes**. El servidor de Render corre en **UTC**. Forzando
+`TZ=UTC` sobre el mismo código:
+
+| | esta máquina (UTC-5) | el servidor (UTC) |
+|---|---|---|
+| inicio del año | `2026-01-01T05:00Z` = 1 ene 00:00 Bogotá ✔ | `2026-01-01T00:00Z` = **31 dic 19:00 Bogotá** |
+| fin del año | `2027-01-01T04:59Z` ✔ | `2026-12-31T23:59Z` = **31 dic 18:59 Bogotá** |
+| un pago del 30 nov 23:30 Bogotá | `getMonth() = 10` (nov) ✔ | `getMonth() = 11` (**DICIEMBRE**) |
+
+**El tamaño del problema, medido.** De 85 pagos, **32 (38 %) ocurren entre las
+19:00 y medianoche** de Bogotá — en esta operación el cobro de la tarde es la
+norma, no la excepción. Esos son justo los que se desplazan. *Lo que hoy no
+ocurre:* ninguno de ellos cae el último día de un mes, así que la cifra actual
+no está mal; el defecto espera el primer cierre de mes con cobro nocturno.
+
+**El arreglo.** Los ayudantes ya existen y el resto del backend los usa:
+`getBogotaDayKey`, `getBogotaStartEndOfDayFromKey`, `formatBogotaOffsetIso`
+(`src/utils/date-utils.ts`). Es la regla de §3 del dominio —todo en hora de
+Bogotá— y estos tres `new Date(year, ...)` son **los únicos** del backend que la
+rompen: el barrido de `new Date(year,` no encontró ningún otro.
+
+---
+
+### P23 — Lo que se barrió en esta tanda y salió limpio
+
+- **`notIn` sobre columna anulable: 0 usos.** Tiene la misma trampa de tres
+  valores que §P21 (`NOT (col IN (...))` es UNKNOWN con NULL), así que se buscó;
+  no hay ninguno.
+- **`in: <variable>`: 81 usos, NO barridos, y el motivo.** El riesgo sería un
+  arreglo vacío, pero en Prisma `{ in: [] }` **no casa nada**, que es el lado
+  seguro: devuelve vacío en vez de todo. Revisar los 81 para confirmar que cada
+  variable puede o no estar vacía es mucho trabajo para un fallo que, si ocurre,
+  se ve como «no hay datos» y no como una cifra falsa. Queda anotado por si
+  alguien busca el origen de un listado vacío.
+- **Los pagos no tienen duplicados** y **el resumen contable «de hoy» en ceros
+  es correcto**: ver §P16.
 
 ---
 
