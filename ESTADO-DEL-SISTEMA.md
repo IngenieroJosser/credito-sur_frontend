@@ -1135,6 +1135,79 @@ teléfono.
 
 ---
 
+### P21 — El gráfico mensual mostraba ingresos CERO los doce meses *(CERRADO)*
+
+**Salió de preguntar si los reportes cuadran con el libro**, que es lo primero
+que va a comprobar el cliente al importar.
+
+`getMonthlyEvolution` —la evolución mensual del reporte financiero, que la
+pantalla **sí** usa (`app/admin/reportes/financieros/page.tsx:170`)— filtraba
+así:
+
+```ts
+NOT: { origenGestion: 'CIERRE_PENDIENTE' }
+```
+
+En SQL `NOT (columna = 'X')` vale **UNKNOWN** cuando la columna es NULL, y una
+fila UNKNOWN no pasa el `WHERE`. Y `origenGestion` es nulo en el cobro normal de
+la calle: **medido, 84 de 85 pagos**. Así que ese `NOT` dejaba fuera casi todos.
+
+**Medido contra la API, antes y después:**
+
+| mes | antes | después |
+|---|---|---|
+| may | 0 / 10.000 egresos | 521.666 |
+| jun | 0 / 1.000 | 109.165 |
+| ago | 0 / 45.000 | 4.490.000 |
+| sept | 0 / 64.000 | 105.000 |
+| oct | — | 27.500 |
+| nov | — | **2.630.000** |
+| **año** | **0** | **7.883.331** |
+
+O sea que el dueño veía **ingresos cero todos los meses y solo egresos**: un
+negocio que pierde dinero siempre. Y los 2.630.000 de noviembre coinciden con el
+`recaudo` del panel, que sale del libro contable por otro camino — eso es lo que
+confirma la cifra.
+
+**La clase, barrida entera.** 25 usos de `NOT` sobre columna anulable en el
+backend; 9 excluyen un valor concreto de `origenGestion`. **Los otros ocho ya
+usaban la forma correcta** —`OR: [{ origenGestion: null }, { origenGestion: {
+not: X } }]`—: alguien ya había aprendido esto y arregló siete sitios en
+`payments`, `routes` (×3), `datos-visitas` y `users` (×2). Este se quedó atrás y
+nada lo vigilaba. Los `{ not: null }` restantes están bien: Prisma los traduce a
+`IS NOT NULL`.
+
+**Medido además que las DOS formas pierden los NULL igual:** `NOT: { campo: X }`
+y `campo: { not: X }` devuelven 0 donde deben devolver 84. No hay una segura.
+
+Guardado por `src/reports/evolucion-mensual-no-pierde-pagos.spec.ts` (4
+pruebas), que vigila las dos cosas: la evolución, y que **ningún** filtro de
+`origenGestion` del backend se quede sin su alternativa — con **piso de 8** para
+que el barrido no pase en verde por no encontrar nada. Comprobadas al revés: con
+el `NOT` suelto caen 3 de 4, y quitando la guarda en `users.service` la
+centinela nombra el archivo. Commit `2ef841b`.
+
+**Y dos tropiezos propios que vale la pena no repetir:** la prueba acusaba
+**siete sitios correctos** porque derivaba la raíz de `__dirname` (jest corre
+desde la raíz del proyecto: ahora es explícita), y **se contaba a sí misma**
+porque el comentario cita el `NOT` que prohíbe (ahora lee sin comentarios, como
+`lib/testing/sin-comentarios.ts` en el frontend). Es la cuarta vez en la sesión
+que un `
+` de un script de Python entra como salto de línea real dentro de un
+literal de expresión regular de TypeScript: se arregla construyendo el patrón
+con `new RegExp('...')`.
+
+**Lo que se midió y NO se tocó:** `reports/financial/summary` da `egresos: 0` y
+`margen: 100` porque suma pagos (cobranza, que incluye el capital que vuelve)
+contra gastos operativos aprobados, y en noviembre hay 12 transacciones EGRESO
+por 5.000.000 que no entran. Es una cifra falsa, pero **ninguna pantalla llama a
+ese endpoint** —solo `e2e/caos-dinero`—; la pantalla usa `getResumenFinanciero`
+del módulo contable, que sí tiene `utilidadOperativa`, `utilidadReal` y
+`gananciaNeta`. Si alguien lo cablea algún día, hay que rehacer la fórmula
+primero.
+
+---
+
 ### P8 — Pantallas bifurcadas por rol que divergen
 
 Un arreglo hay que hacerlo dos o tres veces, y en esta sesión se pagó ese precio
