@@ -904,6 +904,18 @@ O sea: `regularizarCentavos` es hoy una herramienta sin nada que reparar, y el
 libro cuadra. *Límite:* son 1.629 cuotas de datos de desarrollo; esto hay que
 repetirlo con los datos del cliente.
 
+**Los pagos no tienen duplicados, comprobado uno por uno.** Se buscaron grupos
+con el MISMO crédito y el MISMO monto: salieron 7 grupos, y los tres que
+parecían un doble envío —5 pagos de 72.000 en el mismo segundo, 2 de 195.000 a
+un segundo de distancia, 2 de 165.000— **todos tienen claves de idempotencia
+distintas**, de las pruebas e2e (`e2e-parcial-…`) y de un script de simulación
+(`sim-roles-…`). O sea que son pagos deliberados y la idempotencia hizo su
+trabajo. Solo **2 de 85** pagos no llevan clave.
+
+**El resumen contable «de hoy» en ceros es correcto:** no hay pagos ni
+transacciones del 19 de noviembre (los últimos son del 17). Se comprobó porque
+un tablero en ceros es indistinguible de un tablero roto.
+
 **Lo que NO cuadra, y son datos, no código: 4 créditos fantasma.**
 
 `ART-000034`, `ART-000042`, `ART-000047` y `ART-000048`, todos creados el
