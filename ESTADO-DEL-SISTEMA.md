@@ -131,7 +131,7 @@ mirado todavía.
 | 2 | **Investigar el timeout de login si reaparece.** Los siete roles ya completaron el recorrido tras el arreglo de URL, aunque no en una sola corrida. No se ha demostrado la causa de las esperas fallidas. | §P3 |
 | 3 | **Decidir qué se hace con 4 créditos fantasma** de la base: ACTIVO, aprobados, dicen tener cuotas y no tienen ninguna. No es un defecto vivo —no se repiten desde agosto— pero el cliente los va a ver | §P16 |
 | 4 | **§P22 cerrado:** evolución mensual, agrupación de la gráfica y año de la exportación en calendario de Bogotá. | §P22 |
-| 5 | **§P20: el reporte financiero se baja el libro mayor para sumarlo** (516 KB con 1.202 asientos; ~20 MB proyectados con 50.000). Es el riesgo de escala real y se arregla en el servidor | §P20 |
+| 5 | **§P20: el reporte financiero se baja el libro mayor para sumarlo.** Investigado a fondo en **§P25**: el arreglo es seguro —las fórmulas coinciden por construcción— y lo que falta es la variante por día del resumen (516 KB con 1.202 asientos; ~20 MB proyectados con 50.000). Es el riesgo de escala real y se arregla en el servidor | §P20 |
 | 6 | **§P5 cerrado en el listado** (`af52be0`): cierres, estadísticas y visitas se leen por página, no por ruta. Lo que queda de §P5 son los 3 métodos multi-modelo que nadie ha revisado | §P5 |
 | 7 | **§P8: las 8 pantallas bifurcadas por rol.** Es la deuda que hace que cada arreglo haya que hacerlo dos o tres veces. Ya se pagó ese precio varias veces | §P8 |
 | 8 | **§P9: la deuda técnica para hablar con el dueño** (archivos de 4.300 líneas, 6 copias del formateo de pesos, 8 colores de botón primario) | §P9 |
@@ -1366,6 +1366,66 @@ barren**, y el motivo de cada grupo:
 
 Lo que sí había eran los tres sitios de `reports.service.ts` (§P22, cerrado),
 `lib/rutas-core.ts` en el frontend (cerrado) y §P24.
+
+---
+
+### P25 — §P20 investigado a fondo: el arreglo es seguro, y por qué
+
+Antes de construir nada se comprobó lo único que podía hacerlo peligroso: **si
+la fórmula de la pantalla y la del backend dan el mismo número.** Si no
+coincidieran, cambiar la pantalla movería una cifra sin saber cuál es la buena.
+
+**Lo que hace la pantalla hoy.** Baja hasta 10.000 movimientos del libro para
+producir **21 números** (7 días × 3 series), agrupándolos por día de Bogotá. Las
+llamadas del período (`limit: 10000`) hacen lo mismo sobre un mes o un año.
+
+**Coinciden, y no por casualidad.** Medido para el 17 de noviembre:
+
+| serie | fórmula de la pantalla | `accounting/resumen` |
+|---|---|---|
+| ingresos | 462.000 | 462.000 |
+| cobros | 2.630.000 | 2.630.000 |
+| egresos | 0 | 0 |
+
+Y coinciden **por construcción**, que es lo que importa: el `where` del backend
+que alimenta `cobranzaHoy` es `ledgerCobranzaNoRegularizadaWhere` —cuentas
+`1.1`/`1.2`, débito > 0, `referenceType: 'PAGO'` y **excluyendo los pagos
+regularizados**—, que es exactamente la regla del gráfico (solo PAGO, sin
+CIERRE_PENDIENTE).
+
+**Una alarma que resultó ser mía, y queda escrita para que nadie la repita.**
+Primero comparé contra `ledgerCashIncomeWhere` (PAGO + INGRESO +
+VENTA_ARTICULO) y salió una diferencia de **22 veces** en el año —174.846.664
+contra 7.946.664—; parecía que el panel contaba las ventas de artículo como
+cobranza. Era falso: ese constructor alimenta **`entradasCajaHoy`**, que está
+bien llamado, no `cobranzaHoy`. El error fue contar la posición en un
+`Promise.all` de 25 agregados en vez de mapear cada campo con su `where`. **Si
+hay que atribuir un número a una consulta en ese método, hay que mapearlo, no
+contarlo.**
+
+**El coste, medido, y lo que cambia el diseño:**
+
+| | hoy | cómo escala |
+|---|---|---|
+| `accounting/resumen` (1 día) | 1.262 B, 0,13 s | **constante** |
+| bajarse el libro de 7 días | 32.441 B, 0,055 s | **lineal**: ~430 B por movimiento |
+
+O sea que **para el gráfico de 7 días el cambio es marginal hoy** y hasta algo
+más lento. El problema está en las llamadas del **período**, cuyo tamaño no
+tiene tope: con 50.000 asientos, ~20 MB.
+
+**Lo que falta construir**, y es el trabajo de §P20: una variante **por día** de
+esas tres cifras sobre un rango, con los mismos `where` que ya usa el resumen.
+No hay que inventar reglas: hay que agrupar por día de Bogotá lo que ya está
+escrito. Y conviene que la prueba compare el total del nuevo endpoint contra el
+`resumen` del mismo rango: eso ata las dos implementaciones y evita que
+divergan.
+
+**Un detalle latente, anotado y sin tocar:** el «ingreso operativo» de la
+pantalla suma las líneas `3.1` y `3.2`, y el del backend es `3.` excluyendo
+`3.3` y `3.4`. Los prefijos que existen en la base son **`3.1`, `3.3` y `3.4`**
+—no hay `3.2`—, así que ambos dan hoy lo mismo: solo `3.1`. El día que aparezca
+una cuenta `3.2` o `3.5`, divergirán.
 
 ---
 
