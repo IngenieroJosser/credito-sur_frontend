@@ -127,7 +127,7 @@ mirado todavía.
 
 | # | Qué | Dónde |
 |---|---|---|
-| 1 | **§P24: la importación guarda los vencimientos a medianoche UTC**, así que cada cuota importada entra en mora el día en que toca pagarla. **Urgente: antes de que el cliente importe** | §P24 |
+| 1 | **§P24 cerrado** (`8cceef4`): la importación ya ancla los vencimientos a mediodía de Bogotá. **Lo que queda es decidir** si hay que migrar cuotas ya importadas antes del arreglo | §P24 |
 | 2 | **Investigar el timeout de login si reaparece.** Los siete roles ya completaron el recorrido tras el arreglo de URL, aunque no en una sola corrida. No se ha demostrado la causa de las esperas fallidas. | §P3 |
 | 3 | **Decidir qué se hace con 4 créditos fantasma** de la base: ACTIVO, aprobados, dicen tener cuotas y no tienen ninguna. No es un defecto vivo —no se repiten desde agosto— pero el cliente los va a ver | §P16 |
 | 4 | **§P22 cerrado:** evolución mensual, agrupación de la gráfica y año de la exportación en calendario de Bogotá. | §P22 |
@@ -1288,7 +1288,7 @@ No se cambió ningún asiento ni se recalculó la base.
 
 ---
 
-### P24 — La importación guarda los vencimientos a medianoche UTC: la cuota entra en mora el día que toca pagarla *(ABIERTO, urgente)*
+### P24 — La importación metía cada cuota en mora el día que toca pagarla *(CERRADO, `8cceef4`)*
 
 **El hallazgo más importante de esta tanda, y toca justo lo que viene: la
 importación de los datos del cliente.**
@@ -1329,9 +1329,21 @@ hace así: la convención del repo es `T12:00:00-05:00` —mediodía de Bogotá,
 UTC— y está en `loans.service.ts` (cinco sitios) y `mora.service.ts:80`. La
 importación se quedó fuera.
 
-**Lo que hay que decidir aparte del código:** las 88 cuotas que ya están. Son
-datos de desarrollo, así que probablemente no haya que migrarlas; si el cliente
-ya importó algo antes de arreglar esto, sí.
+**Arreglado** (`8cceef4`): se anclan las **tres** ramas de `leerFecha` —texto,
+`Date` que ya viene de Excel y serial de Excel— a mediodía de Bogotá. A esa hora
+el día UTC coincide con el de Bogotá, así que **todo lo que ya leía estas fechas
+con `getUTCDate()` o `toISOString().slice(0,10)` sigue viendo el mismo día**: es
+la dirección segura del arreglo, y hay una prueba que lo fija.
+
+7 pruebas nuevas en `cell-value.fecha.spec.ts`, **comprobadas al revés en las dos
+zonas** (local y UTC): con la medianoche de vuelta caen 6 de 13. Las 6 que ya
+existían pasaban igual antes y después, así que no fijaban nada de esto — por eso
+el defecto llevaba ahí tanto tiempo.
+
+**Lo que queda por decidir, y no es código:** las 88 cuotas que ya están en la
+base. Son datos de desarrollo, así que probablemente no haya que migrarlas; **si
+el cliente ya importó algo antes de este arreglo, sí hay que migrarlas**, porque
+el arreglo no toca lo ya escrito.
 
 ---
 
