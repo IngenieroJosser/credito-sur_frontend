@@ -71,20 +71,21 @@ test.describe('Sin señal', () => {
     await page.waitForTimeout(5_000)
 
     /*
-     * Cargar la pantalla COMO DOCUMENTO, estando en red.
+     * NO se carga la pantalla como documento a propósito.
      *
-     * `entrarComo` llega aquí por navegación del cliente (el router empuja la
-     * ruta), y la regla `NetworkFirst` del service worker guarda en la caché
-     * `paginas` las peticiones cuyo `request.mode === 'navigate'`. Sin un
-     * `goto` a esta URL, el documento de esta pantalla nunca entra en esa
-     * caché, y entonces un F5 sin red no tiene nada que servir.
+     * Así es como llega el cobrador: entra, el router lo deja en su pantalla, y
+     * en la calle pierde la señal y recarga. Medido con una sonda: ese caso
+     * **funciona** —la recarga sin red devuelve 200 y la app aparece con sus
+     * datos («CrediSur COBRADOR … Cobrador Principal»)—, así que la prueba
+     * afirma el escenario real y no una versión facilitada.
      *
-     * Eso es exactamente lo que se midió la primera vez que se corrió esta
-     * prueba: la recarga sin red devolvió `null`.
+     * En la primera corrida de esta prueba la recarga devolvió `null`, y
+     * parecía que hacía falta un `goto` previo. No era eso: era que el service
+     * worker no había terminado de tomar el control ni de cachear en la
+     * primerísima visita. De ahí la espera de abajo, que es lo que de verdad
+     * hacía falta.
      */
-    const urlDeTrabajo = page.url()
-    await page.goto(urlDeTrabajo, { waitUntil: 'domcontentloaded' })
-    await page.waitForTimeout(2_000)
+    await page.waitForTimeout(5_000)
 
     // ── 2. Sin red: recargar, que es el arranque en frío ─────────────────
     await context.setOffline(true)
