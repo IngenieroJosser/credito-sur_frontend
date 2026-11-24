@@ -69,6 +69,48 @@ describe('la pantalla de respaldos dice cuando falta el volcado', () => {
   })
 })
 
+describe('y lo dice ANTES de que haga falta, sin correr un respaldo', () => {
+  /*
+   * El aviso de arriba depende de `lastRun`: solo aparece despues del primer
+   * respaldo. El caso real es el contrario —una instalacion nueva dice «Sin
+   * respaldos» y no avisa de nada— asi que el dueño se enteraria el dia que
+   * necesite restaurar.
+   *
+   * Ahora el servidor ejecuta `pg_dump --version` al pedir el estado
+   * (`GET /backup/status` → `config.pgDumpDisponible`) y la pantalla lo pinta.
+   * Esto es lo que contestaria la consola de Render, que es de pago.
+   */
+  it('lee la comprobacion real del servidor', () => {
+    expect(FUENTE).toMatch(/pgDumpDisponible/)
+  })
+
+  it('la compara con `=== false`, no con una negacion', () => {
+    /*
+     * Mientras el estado carga el campo es `undefined`, y `!undefined` es
+     * `true`: con una negacion la alarma se pintaria en cada recarga, incluso
+     * en un servidor que si tiene pg_dump. Un aviso que sale siempre deja de
+     * leerse.
+     */
+    expect(FUENTE).toMatch(/pgDumpDisponible === false/)
+    expect(FUENTE).not.toMatch(/!status\?\.config\?\.pgDumpDisponible/)
+  })
+
+  it('el aviso cuenta la consecuencia, no solo que falta algo', () => {
+    const i = FUENTE.indexOf('noHayPgDump ?')
+    expect(i).toBeGreaterThan(0)
+    const bloque = FUENTE.slice(i, i + 900)
+    // Piso: si el recorte sale corto la prueba mira casi nada.
+    expect(bloque.length).toBeGreaterThan(400)
+    expect(bloque).toMatch(/no se restaura|con el que se restaura|restaura/i)
+    expect(bloque).toContain('PG_DUMP_PATH')
+  })
+
+  it('y cuando SI esta, lo dice en vez de callar', () => {
+    // Sin esto la pantalla no distingue «comprobado y esta» de «no se sabe».
+    expect(FUENTE).toMatch(/pgDumpVersion/)
+  })
+})
+
 describe('las otras dos rutas de respaldos siguen siendo la misma pantalla', () => {
   it.each([
     ['cobranzas', path.join(RAIZ, 'app', 'cobranzas', 'backups', 'page.tsx')],

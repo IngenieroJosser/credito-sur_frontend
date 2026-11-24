@@ -176,6 +176,58 @@ suyo. Dos consecuencias prácticas:
 
 ---
 
+## 0e. El build de produccion se rompio y se arreglo (2026-11-24)
+
+**Sintoma.** El build de Render fallo con **ocho errores TS2339**, todos el
+mismo: `Property 'cantidadProducto' does not exist on type ...` en
+`approvals.service.ts` (3), `loans.service.ts` (5).
+
+**El campo si existe:** `src/prisma/schema.prisma:298`, con su migracion
+`20261114120000_cantidad_producto_prestamo`. Lo que no lo tenia era el **cliente
+generado**, que es contra lo que `nest build` comprueba los tipos.
+
+**La causa, medida y no supuesta.** El comando de Render es
+`pnpm install --frozen-lockfile && pnpm build`, y en el log **no hay ni una
+linea `[prisma]`**. Reproducido en local: con `node_modules` al dia,
+`pnpm install --frozen-lockfile` responde «Already up to date» en menos de un
+segundo y **no ejecuta el `postinstall`**. Render conserva `node_modules` entre
+builds, asi que el cliente se quedo en la version anterior al cambio de esquema
+y nadie lo regeneraba antes de compilar.
+
+`start:prod` si lo invocaba —se agrego en `4b23c3f` por una variante de esto—
+pero corre **despues** del build, y el build ya habia fallado.
+
+**Arreglo** (`b8e85bb`): encadenar `scripts/ensure-prisma-client.js` tambien al
+`build`. No se paga dos veces: el script guarda el hash del esquema junto al
+cliente y si coincide no hace nada. Medido: la regeneracion tarda **803 ms**.
+Centinela en `src/prisma/el-build-genera-el-cliente.spec.ts`, comprobada al
+reves.
+
+**Verificado en produccion:** el despliegue entro y `/health` contesta
+`commit: "e29b9ce"`, el mismo del repo, arrancado a las 19:23:38 UTC.
+
+### De paso: ahora se sabe que version corre produccion
+
+Hoy el build fallo y produccion siguio sirviendo el codigo anterior **sin que
+nada lo dijera**. `/health` devolvia solo `ok`, `status`, `service` y la hora.
+Con la consola de pago, la API es la unica via.
+
+`e29b9ce` le agrega **`commit`** (`RENDER_GIT_COMMIT` abreviado a siete
+caracteres, como `git log --oneline`) y **`arrancadoEn`**, que distingue «mi
+despliegue entro» de «el commit es el mismo porque el build fallo». El endpoint
+es publico, asi que no se expone nada mas del entorno; fuera de Render `commit`
+sale `null`.
+
+Como comprobar un despliegue de ahora en adelante:
+
+```
+curl -s https://credito-sur-backend.onrender.com/api-credisur/health
+```
+
+y comparar `commit` con `git log --oneline -1`.
+
+---
+
 ## 0d. Nota de operación: los respaldos y `PG_DUMP_PATH`
 
 **Para quien administre el Render.** Las cuentas de Render y Vercel **no son del
@@ -188,6 +240,34 @@ panel.
 `execFileAsync` (`backup.service.ts:35`), así que vale un nombre que esté en el
 `PATH` o una ruta absoluta. Por defecto es `'pg_dump'`, o sea «búscalo en el
 PATH». Los argumentos que usa son `--format=c --file <ruta> <DATABASE_URL>`.
+
+### Ya no hace falta la consola: la pantalla lo contesta (2026-11-24)
+
+El dueño confirmo dos cosas: **`PG_DUMP_PATH` no esta en las variables de
+entorno**, y **la consola (shell) de Render es de pago**, asi que nadie puede
+entrar a escribir `pg_dump --version`.
+
+Asi que la comprobacion se metio en la aplicacion (`ca258a5`):
+`GET /backup/status` ejecuta `pg_dump --version` —que no toca la base de datos—
+y contesta `pgDumpDisponible`, `pgDumpVersion` y `pgDumpError`. La pantalla de
+respaldos lo pinta al abrirse, **sin generar ningun respaldo**.
+
+Eso cambia el orden de abajo: **el paso 1 ya no pide consola**. Se abre
+`/admin/sistema/backups` y la tarjeta de estado dice una de dos cosas:
+
+- «Volcado SQL disponible · pg_dump (PostgreSQL) NN.N» → **no hay que configurar
+  nada**, el valor por defecto ya funciona.
+- «Este servidor no puede generar el volcado SQL: no encuentra `pg_dump` en
+  `pg_dump`» → entonces sigue el paso 2.
+
+Antes el aviso solo salia **despues** del primer respaldo (dependia de
+`lastRun`), y el caso real es el contrario: una instalacion nueva dice «Sin
+respaldos» y no avisa de nada, asi que el dueño se enteraria el dia que
+necesite restaurar.
+
+Dato medido que conviene tener presente: en la maquina de desarrollo hay
+**PostgreSQL 18.1 instalado y `pg_dump` NO esta en el PATH** (ENOENT). «Esta
+instalado» y «el servicio lo encuentra» no son lo mismo, ni aqui ni en Render.
 
 ### Los tres pasos, en orden
 

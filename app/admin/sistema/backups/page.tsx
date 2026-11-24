@@ -27,7 +27,20 @@ type BackupRun = {
 
 const BackupsSistemaPage = () => {
 
-  const [status, setStatus] = useState<{ lastRun: BackupRun | null } | null>(null)
+  /*
+   * `config` lo manda `GET /backup/status` y aquí se descartaba: el tipo solo
+   * declaraba `lastRun`, así que `pgDumpDisponible` se perdía al llegar.
+   */
+  const [status, setStatus] = useState<{
+    lastRun: BackupRun | null
+    config?: {
+      backupDir?: string | null
+      pgDumpPath?: string | null
+      pgDumpDisponible?: boolean | null
+      pgDumpVersion?: string | null
+      pgDumpError?: string | null
+    } | null
+  } | null>(null)
   const [history, setHistory] = useState<BackupRun[]>([])
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
@@ -67,13 +80,25 @@ const BackupsSistemaPage = () => {
    * todo —ahí el mensaje de fallo ya se ve— ni cuando está en proceso.
    */
   const sinVolcado = lastRun?.estado === 'EXITOSO' && !lastRun?.filePath
+  /*
+   * Lo mismo, pero SIN tener que correr un respaldo primero.
+   *
+   * `sinVolcado` solo se sabe después del primer respaldo, y el caso real es el
+   * contrario: una instalación nueva dice «Sin respaldos» y no avisa de nada,
+   * así que el dueño se enteraría el día que necesite restaurar. El servidor
+   * ahora ejecuta `pg_dump --version` al pedir el estado y contesta si está.
+   *
+   * `=== false` a propósito, no `!`: mientras el estado carga el campo es
+   * `undefined`, y un `!undefined` pintaría la alarma en cada recarga.
+   */
+  const noHayPgDump = status?.config?.pgDumpDisponible === false
 
   const loadAll = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
       const [s, h] = await Promise.all([
-        apiRequest<{ lastRun: BackupRun | null }>('GET', '/backup/status', undefined, { cacheTTL: 0 }),
+        apiRequest<typeof status>('GET', '/backup/status', undefined, { cacheTTL: 0 }),
         apiRequest<{ items: BackupRun[] }>('GET', '/backup/history', undefined, { cacheTTL: 0, params: { limit: 20 } }),
       ])
       setStatus(s || null)
@@ -256,6 +281,37 @@ const BackupsSistemaPage = () => {
                   Estado: {lastRun?.estado ? lastRun.estado : '—'}
                   {sinVolcado ? ' · sin volcado SQL' : null}
                 </div>
+                {/*
+                  * Si el servidor puede hacer el volcado, dicho ANTES de que
+                  * haga falta.
+                  *
+                  * Se comprueba de verdad —el servidor ejecuta `pg_dump
+                  * --version`— porque la ruta configurada no dice nada: el
+                  * valor por defecto es «pg_dump», o sea «búscalo en el PATH»,
+                  * y si no está ahí el respaldo sale EXITOSO con el Excel y sin
+                  * la parte con la que se restaura la base.
+                  *
+                  * Esto es lo que la consola de Render contestaría, y esa
+                  * consola es de pago.
+                  */}
+                {noHayPgDump ? (
+                  <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
+                    Este servidor no puede generar el volcado SQL: no encuentra
+                    <code className="mx-1 rounded bg-amber-100 px-1">pg_dump</code>
+                    en
+                    <code className="mx-1 rounded bg-amber-100 px-1">
+                      {status?.config?.pgDumpPath || 'pg_dump'}
+                    </code>
+                    . Los respaldos seguirán generando el Excel, pero con él no
+                    se restaura PostgreSQL. Se arregla con la variable
+                    <code className="mx-1 rounded bg-amber-100 px-1">PG_DUMP_PATH</code>
+                    en el servidor.
+                  </p>
+                ) : status?.config?.pgDumpVersion ? (
+                  <p className="mt-2 text-xs font-medium text-slate-400">
+                    Volcado SQL disponible · {status.config.pgDumpVersion}
+                  </p>
+                ) : null}
                 {/*
                   * El aviso del servidor, que antes se tiraba.
                   *
