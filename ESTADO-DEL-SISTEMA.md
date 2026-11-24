@@ -127,13 +127,14 @@ mirado todavía.
 
 | # | Qué | Dónde |
 |---|---|---|
-| 1 | **Investigar el timeout de login si reaparece.** Los siete roles ya completaron el recorrido tras el arreglo de URL, aunque no en una sola corrida. No se ha demostrado la causa de las esperas fallidas. | §P3 |
-| 2 | **Decidir qué se hace con 4 créditos fantasma** de la base: ACTIVO, aprobados, dicen tener cuotas y no tienen ninguna. No es un defecto vivo —no se repiten desde agosto— pero el cliente los va a ver | §P16 |
-| 3 | **§P22 cerrado:** evolución mensual, agrupación de la gráfica y año de la exportación en calendario de Bogotá. | §P22 |
-| 4 | **§P20: el reporte financiero se baja el libro mayor para sumarlo** (516 KB con 1.202 asientos; ~20 MB proyectados con 50.000). Es el riesgo de escala real y se arregla en el servidor | §P20 |
-| 4 | **§P5 cerrado en el listado** (`af52be0`): cierres, estadísticas y visitas se leen por página, no por ruta. Lo que queda de §P5 son los 3 métodos multi-modelo que nadie ha revisado | §P5 |
-| 4 | **§P8: las 8 pantallas bifurcadas por rol.** Es la deuda que hace que cada arreglo haya que hacerlo dos o tres veces. Ya se pagó ese precio varias veces | §P8 |
-| 5 | **§P9: la deuda técnica para hablar con el dueño** (archivos de 4.300 líneas, 6 copias del formateo de pesos, 8 colores de botón primario) | §P9 |
+| 1 | **§P24: la importación guarda los vencimientos a medianoche UTC**, así que cada cuota importada entra en mora el día en que toca pagarla. **Urgente: antes de que el cliente importe** | §P24 |
+| 2 | **Investigar el timeout de login si reaparece.** Los siete roles ya completaron el recorrido tras el arreglo de URL, aunque no en una sola corrida. No se ha demostrado la causa de las esperas fallidas. | §P3 |
+| 3 | **Decidir qué se hace con 4 créditos fantasma** de la base: ACTIVO, aprobados, dicen tener cuotas y no tienen ninguna. No es un defecto vivo —no se repiten desde agosto— pero el cliente los va a ver | §P16 |
+| 4 | **§P22 cerrado:** evolución mensual, agrupación de la gráfica y año de la exportación en calendario de Bogotá. | §P22 |
+| 5 | **§P20: el reporte financiero se baja el libro mayor para sumarlo** (516 KB con 1.202 asientos; ~20 MB proyectados con 50.000). Es el riesgo de escala real y se arregla en el servidor | §P20 |
+| 6 | **§P5 cerrado en el listado** (`af52be0`): cierres, estadísticas y visitas se leen por página, no por ruta. Lo que queda de §P5 son los 3 métodos multi-modelo que nadie ha revisado | §P5 |
+| 7 | **§P8: las 8 pantallas bifurcadas por rol.** Es la deuda que hace que cada arreglo haya que hacerlo dos o tres veces. Ya se pagó ese precio varias veces | §P8 |
+| 8 | **§P9: la deuda técnica para hablar con el dueño** (archivos de 4.300 líneas, 6 copias del formateo de pesos, 8 colores de botón primario) | §P9 |
 
 **Lo que ya NO hay que volver a mirar** (medido y escrito, con el límite de cada
 medición): el dinero escrito sin transacción (§P11, 7 de 7 revisadas), la
@@ -1284,6 +1285,75 @@ No se cambió ningún asiento ni se recalculó la base.
   alguien busca el origen de un listado vacío.
 - **Los pagos no tienen duplicados** y **el resumen contable «de hoy» en ceros
   es correcto**: ver §P16.
+
+---
+
+### P24 — La importación guarda los vencimientos a medianoche UTC: la cuota entra en mora el día que toca pagarla *(ABIERTO, urgente)*
+
+**El hallazgo más importante de esta tanda, y toca justo lo que viene: la
+importación de los datos del cliente.**
+
+**Dos convenciones conviviendo.** Medido sobre las 1.629 cuotas de la base:
+
+| hora UTC del vencimiento | cuotas | en Bogotá es… |
+|---|---|---|
+| 17:00 | 1.541 | **mediodía del mismo día** ✔ |
+| 00:00 | **88** | **19:00 del día ANTERIOR** |
+
+Las 88 son de 7 créditos, y **4 de ellos vienen de la importación**
+(`IMP-…`, con `loteImportacionId`).
+
+**La consecuencia, comprobada fila por fila** (¿se lee ya vencida contra el
+inicio de su propio día en Bogotá?):
+
+```
+IMP-1032435189-1 | día UTC 2026-08-07 | día Bogotá 2026-08-06 | vencida su propio día: TRUE
+IMP-1032435189-1 | día UTC 2026-08-14 | día Bogotá 2026-08-13 | vencida su propio día: TRUE
+… las 88, todas TRUE
+cuotas a 17:00 UTC                                            | vencida su propio día: FALSE
+```
+
+O sea: **una cuota importada está en mora el día en que toca pagarla.** Eso mueve
+la mora, la meta del día y el semáforo del cliente, y pone al cobrador a
+perseguir a alguien que no está atrasado. Con la cartera real del cliente serían
+todas sus cuotas, no 88.
+
+**La causa**, en `importaciones.service.ts:2121`:
+
+```ts
+const fechaVencimiento = new Date(cred.fechaPrimerCobro || fechaCredito);
+```
+
+Un `"2026-08-07"` del Excel se interpreta como **medianoche UTC**. La app no lo
+hace así: la convención del repo es `T12:00:00-05:00` —mediodía de Bogotá, 17:00
+UTC— y está en `loans.service.ts` (cinco sitios) y `mora.service.ts:80`. La
+importación se quedó fuera.
+
+**Lo que hay que decidir aparte del código:** las 88 cuotas que ya están. Son
+datos de desarrollo, así que probablemente no haya que migrarlas; si el cliente
+ya importó algo antes de arreglar esto, sí.
+
+---
+
+### P23b — Lo demás del reloj local: medido y descartado
+
+El barrido completo dio **174 lecturas del reloj local** (31 backend, 143
+frontend), 14 constructores locales y 135 `toLocale*` sin `timeZone`. **No se
+barren**, y el motivo de cada grupo:
+
+- `setDate(d.getDate() + n)` **es seguro**: sumar días a un instante da el mismo
+  instante más 24 h en cualquier zona, y Colombia no tiene horario de verano.
+  Eso es la mayoría del backend.
+- Las que construyen una clave de día parten de un instante **ya anclado**
+  —`dayStartBogota` (05:00Z) o `T12:00:00-05:00`— y a esas horas el día UTC
+  coincide con el de Bogotá. Comprobado uno a uno en `dashboard.service.ts` y en
+  el contador de días hábiles de `reports.service.ts:283-286`, que además lleva
+  el motivo escrito en el código.
+- Los `toLocale*` sin `timeZone` son de **formato**: desplazan como mucho una
+  etiqueta, y el usuario real está en Colombia.
+
+Lo que sí había eran los tres sitios de `reports.service.ts` (§P22, cerrado),
+`lib/rutas-core.ts` en el frontend (cerrado) y §P24.
 
 ---
 
