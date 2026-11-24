@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 :root {
   --background: #ffffff;
@@ -6,6 +6,14 @@
   --primary: #08557f;
   --primary-dark: #063a58;
   --primary-light: #0a6a9e;
+  /*
+    Autocompletado del navegador. El relleno tiene que ser OPACO: se pinta
+    encima del color del navegador, no del fondo de la pagina.
+  */
+  --relleno-autofill: #ffffff;
+  --texto-autofill: #0f172a;
+  --anillo-autofill: #dbeafe;
+  --anillo-autofill-foco: #3b82f6;
   --secondary: #fb851b;
   --success: #10b981;
   --danger: #ef4444;
@@ -92,17 +100,39 @@ body {
 
 /* ── Animación campanita de notificaciones ─────────────── */
 @keyframes bell-ring {
-  0%   { transform: rotate(0deg); }
-  10%  { transform: rotate(18deg); }
-  20%  { transform: rotate(-16deg); }
-  30%  { transform: rotate(14deg); }
-  40%  { transform: rotate(-12deg); }
-  50%  { transform: rotate(9deg); }
-  60%  { transform: rotate(-7deg); }
-  70%  { transform: rotate(5deg); }
-  80%  { transform: rotate(-3deg); }
-  90%  { transform: rotate(2deg); }
-  100% { transform: rotate(0deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  10% {
+    transform: rotate(18deg);
+  }
+  20% {
+    transform: rotate(-16deg);
+  }
+  30% {
+    transform: rotate(14deg);
+  }
+  40% {
+    transform: rotate(-12deg);
+  }
+  50% {
+    transform: rotate(9deg);
+  }
+  60% {
+    transform: rotate(-7deg);
+  }
+  70% {
+    transform: rotate(5deg);
+  }
+  80% {
+    transform: rotate(-3deg);
+  }
+  90% {
+    transform: rotate(2deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
 }
 
 .bell-ringing {
@@ -113,7 +143,8 @@ body {
 /* Módulo NUEVO en el sidebar: resplandece hasta que se ingresa a él. Sirve
    cuando el badge "NUEVO" queda tapado por el ancho del aside. */
 @keyframes glow-nuevo {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 0 0 0 rgba(249, 115, 22, 0);
     background-color: rgba(255, 247, 237, 0.35);
   }
@@ -158,39 +189,51 @@ body {
   }
 
   .fade-in,
-  .fade-in-0 { --tw-enter-opacity: 0; }
+  .fade-in-0 {
+    --tw-enter-opacity: 0;
+  }
 
-  .zoom-in-95 { --tw-enter-scale: 0.95; }
+  .zoom-in-95 {
+    --tw-enter-scale: 0.95;
+  }
 
-  .slide-in-from-top-1 { --tw-enter-translate-y: -0.25rem; }
-  .slide-in-from-top-2 { --tw-enter-translate-y: -0.5rem; }
-  .slide-in-from-bottom-2 { --tw-enter-translate-y: 0.5rem; }
-  .slide-in-from-bottom-4 { --tw-enter-translate-y: 1rem; }
+  .slide-in-from-top-1 {
+    --tw-enter-translate-y: -0.25rem;
+  }
+  .slide-in-from-top-2 {
+    --tw-enter-translate-y: -0.5rem;
+  }
+  .slide-in-from-bottom-2 {
+    --tw-enter-translate-y: 0.5rem;
+  }
+  .slide-in-from-bottom-4 {
+    --tw-enter-translate-y: 1rem;
+  }
 
   /* Reafirma la duración cuando el marcado usa las clases duration-*. */
-  .duration-150 { animation-duration: 150ms; }
-  .duration-200 { animation-duration: 200ms; }
-  .duration-300 { animation-duration: 300ms; }
+  .duration-150 {
+    animation-duration: 150ms;
+  }
+  .duration-200 {
+    animation-duration: 200ms;
+  }
+  .duration-300 {
+    animation-duration: 300ms;
+  }
 }
 
 @keyframes enter {
   from {
     opacity: var(--tw-enter-opacity, 1);
-    transform: translate3d(
-        var(--tw-enter-translate-x, 0),
-        var(--tw-enter-translate-y, 0),
-        0
-      )
-      scale3d(
-        var(--tw-enter-scale, 1),
-        var(--tw-enter-scale, 1),
-        1
-      );
+    transform: translate3d(var(--tw-enter-translate-x, 0), var(--tw-enter-translate-y, 0), 0)
+      scale3d(var(--tw-enter-scale, 1), var(--tw-enter-scale, 1), 1);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-in { animation: none; }
+  .animate-in {
+    animation: none;
+  }
 }
 
 /* ==========================================================================
@@ -472,16 +515,60 @@ input[type='checkbox']:not([data-nativa]):disabled {
   Se resuelve con una sombra interior enorme, que es la unica forma de ganarle
   al fondo que impone el navegador.
 */
-input:-webkit-autofill,
-input:-webkit-autofill:hover,
-input:-webkit-autofill:focus,
-textarea:-webkit-autofill,
-select:-webkit-autofill {
-  -webkit-box-shadow: 0 0 0 1000px #fff inset;
-  box-shadow: 0 0 0 1000px #fff inset;
-  -webkit-text-fill-color: rgb(15 23 42); /* slate-900 */
-  caret-color: rgb(15 23 42);
+input:is(:autofill, :-webkit-autofill),
+textarea:is(:autofill, :-webkit-autofill),
+select:is(:autofill, :-webkit-autofill) {
+  /*
+    El relleno va en una sombra INTERIOR enorme porque es la unica forma de
+    ganarle al fondo que el navegador impone con `!important`. `100vmax` en vez
+    de los `1000px` de antes: en una pantalla muy grande 1000px se podian
+    quedar cortos.
+
+    Y el anillo de 2px no es decoracion: al tapar el amarillo se le quita a la
+    persona la unica señal de que el navegador rellono ese campo. El anillo la
+    devuelve sin mover el diseño (una sombra interior no empuja nada, al
+    contrario que cambiar `border-width` o `padding`).
+  */
+  box-shadow:
+    inset 0 0 0 2px var(--anillo-autofill),
+    inset 0 0 0 100vmax var(--relleno-autofill);
+  /* El navegador no fija `-webkit-text-fill-color`, asi que este si se puede. */
+  -webkit-text-fill-color: var(--texto-autofill);
+  /* El cursor sigue al `color` del navegador, que no se puede cambiar. */
+  caret-color: var(--texto-autofill);
+  /*
+    Esto se queda tal cual estaba. Existia para matar la transicion con la que
+    Chrome pinta el amarillo, y NO se quita: no tengo forma de comprobar aqui
+    que sin ella no vuelve el destello -haria falta un autocompletado real del
+    navegador-, y no borro algo cuya equivalencia no puedo medir.
+  */
   transition: background-color 9999s ease-in-out 0s;
+}
+
+/*
+  El foco de un campo autocompletado, que estaba ROTO.
+
+  La regla de arriba pone `box-shadow`, y el anillo de foco de este proyecto
+  TAMBIEN es `box-shadow`: son las clases `focus:ring-*` de Tailwind. Medido:
+  **22 campos de texto en 12 archivos** las usan, y hay 99 `outline-none`
+  repartidos. O sea que al enfocar un campo que el navegador habia rellenado, la
+  sombra del autofill reemplazaba el anillo y no quedaba NINGUN indicador de
+  foco. Pasa en el formulario de entrar, que es justo el que todo el mundo tiene
+  autocompletado.
+
+  Se arregla con `outline`, que no es `box-shadow` y por tanto no entra en
+  conflicto. La especificidad alcanza para ganarle a `focus:outline-none`:
+  `input` + `:is(:autofill,...)` + `:focus-visible` da (0,2,1) contra el (0,2,0)
+  de una clase con `:focus`.
+
+  `:focus-visible` y no `:focus` para no pintarlo al hacer clic con el raton,
+  que es la razon de ser de ese selector.
+*/
+input:is(:autofill, :-webkit-autofill):focus-visible,
+textarea:is(:autofill, :-webkit-autofill):focus-visible,
+select:is(:autofill, :-webkit-autofill):focus-visible {
+  outline: 2px solid var(--anillo-autofill-foco);
+  outline-offset: 2px;
 }
 
 /*
