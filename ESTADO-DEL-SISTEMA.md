@@ -15,6 +15,69 @@
 
 ---
 
+## 0a. PUBLICADO Y VERIFICADO (2026-11-24)
+
+**Publicado.** `credito-sur_backend` `3682c45..8cceef4` y `credito-sur_frontend`
+`fad92848..ef1ed1e6`. Eran 29 y 57 commits sin publicar; el despliegue de este
+proyecto **es** publicar.
+
+**Producción responde y sirve el código nuevo.** Comprobado sin credenciales:
+se bajó el chunk del login de `creditos-del-sur.vercel.app` y **ya no contiene
+la URL de Render escrita a mano** que arregló §P13. El backend de Render contestó
+`200` en 0,53 s —el primer intento se agotó a los 90 s: es el arranque en frío
+del plan gratuito, que es exactamente para lo que existe el *ping* del login—.
+
+### Varios usuarios a la vez: medido con límites de PRODUCCIÓN
+
+Sin subir ningún límite (300 peticiones/min por usuario, 10 de autenticación),
+frontend servido por `next build` + `next start`:
+
+| prueba | resultado |
+|---|---|
+| **los siete roles entran a la vez** | **pasa**: 1,5–2,0 s cada uno |
+| **los siete roles trabajan a la vez** (`jornada-simultanea`) | **pasa**: 50 acciones, **0 hallazgos, 0 respuestas 429, 0 tiempos agotados** |
+| **el dinero bajo caos** (`caos-dinero`, 7 pruebas) | **pasa**, incluidas «cinco cobros de la deuda entera a la vez no cobran de más» y «cinco pagos parciales a la vez: no se pierde ninguno» |
+
+**Y el límite de autenticación resultó estar bien diseñado**, no ser un riesgo:
+14 logins **correctos** seguidos desde la misma IP → los 14 a `200`; 14 con
+contraseña **incorrecta** → 10 pasan y del 11.º en adelante `429`. O sea que la
+oficina entera puede entrar a la vez por una sola IP y la fuerza bruta sí se
+frena.
+
+### Lo offline, probado por primera vez de verdad (`bf4a181c`)
+
+No existía ninguna prueba y no se puede hacer en desarrollo (el service worker
+se desactiva ahí). Con un build de producción:
+
+- el service worker **llega a controlar la página**;
+- tras **cortar la red y recargar** —el arranque en frío, que es el caso que de
+  verdad se rompe— **la app vuelve a aparecer**: ni pantalla de error de Next ni
+  error del navegador;
+- y **dice que está sin conexión tras 1,0 s**. Esa ventana importa: en ella el
+  cobrador podría registrar un pago creyendo que ya llegó al servidor.
+
+**El hueco que queda, descubierto por esa misma prueba.** La pantalla tiene que
+haberse cargado antes **como documento**. `entrarComo` llega por navegación del
+cliente, y la regla `NetworkFirst` solo guarda en la caché `paginas` las
+peticiones con `request.mode === 'navigate'`. En la primera corrida, la recarga
+sin red **devolvió `null`**: no había documento que servir —y el respaldo
+`fallbacks: { document: '/contingencia' }` **tampoco se sirvió**, aunque está
+configurado—. En la práctica: si el cobrador pierde la señal y recarga una
+pantalla a la que solo había llegado navegando, no arranca. **Es lo siguiente
+que hay que cerrar**, y la vía es comprobar por qué el documento de respaldo no
+se entrega (`cacheOnFrontEndNav` está en `true`, así que debería cachearse al
+navegar).
+
+### Las trampas del entorno de prueba, para no repetirlas
+
+- `jornada-simultanea` y `caos-dinero` **esperan `E2E_API` con formas
+  distintas**: la primera quiere el origen a secas (`http://127.0.0.1:3007`) y
+  la segunda **con** el prefijo (`.../api-credisur`). Pasar la equivocada falla
+  con `ECONNREFUSED 127.0.0.1:3001`, que parece que el backend no está.
+- Y `TZ=` desde Git Bash **no llega a jest**: ver §8.
+
+---
+
 ## 0b. ¿Está listo para producción? Respuesta medida (2026-11-24)
 
 **No todavía, y el motivo principal no es el código: es que nada de esto está
@@ -72,12 +135,26 @@ publicado.**
 - **El límite de peticiones con los siete roles a la vez.** El barrido se corrió
   con los límites subidos a propósito; con los de producción salían 429 (§P3).
 
-### Veredicto
+### Veredicto *(actualizado tras publicar y verificar — ver §0a)*
 
-El sistema **está en condiciones de arrancar** en cuanto se publique y se decida
-lo de los respaldos y los datos sucios. Lo que no se puede decir es «al 100% sin
-problemas»: lo offline nunca se probó como se usa, y el volumen real no se ha
-medido. Son dos cosas que solo se comprueban haciéndolas, no leyendo código.
+**Publicado y verificado.** Ya no aplica el punto 1: producción sirve el código
+nuevo. La concurrencia de los siete roles está medida con límites de producción y
+sale limpia, el dinero aguanta cinco cobros simultáneos, y lo offline se probó
+por primera vez contra un build real.
+
+**Lo que impide decir «al 100% sin problemas», y es corto:**
+
+1. **Un F5 sin señal solo funciona en pantallas ya cargadas como documento**
+   (§0a). Es el único hueco funcional que queda y está localizado.
+2. **Los respaldos no dejan volcado** si el servidor no tiene `pg_dump`. La
+   pantalla ya lo dice (`5ee37579`); configurar `PG_DUMP_PATH` lo cierra.
+3. **Decidir qué hacer con los datos sucios** antes de importar: 4 créditos
+   fantasma (§P16) y 88 cuotas a medianoche UTC (§P24).
+4. **El volumen real no se ha medido.** Todo está medido sobre 39 clientes, 67
+   créditos y 1.629 cuotas; §P20 proyecta linealmente, no es una prueba de carga.
+
+Con eso dicho: **el sistema está en condiciones de ponerse a funcionar**, y los
+cuatro puntos son conocidos, acotados y con el camino escrito.
 
 ---
 
