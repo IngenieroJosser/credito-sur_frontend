@@ -15,6 +15,72 @@
 
 ---
 
+## 0b. ¿Está listo para producción? Respuesta medida (2026-11-24)
+
+**No todavía, y el motivo principal no es el código: es que nada de esto está
+publicado.**
+
+### Lo que SÍ está listo, comprobado
+
+| comprobación | resultado |
+|---|---|
+| el backend compila para producción (`nest build`) | **sí**, exit 0 |
+| el frontend compila (`next build --webpack`) | **sí**, «Compiled successfully» |
+| `tsc --noEmit` en los dos repos | **limpio** |
+| migraciones de Prisma | **53 aplicadas, base al día** |
+| arranque sin variables críticas | **falla ruidosamente**: `env.validation.ts` exige `DATABASE_URL` y `JWT_SECRET` (≥32 caracteres) y explica cuál falta |
+| pruebas | **8.645** frontend · backend verde en la zona tocada |
+| barrido de 7 roles × 112 pantallas | **completado**, sin hallazgos tras los arreglos (§P3) |
+| endpoints sin control de rol | **0 reales** de 228 (§P14) |
+| libro contable | **0 asientos descuadrados**, 0 centavos (§P16) |
+| pagos duplicados | **ninguno** (§P16) |
+
+### Lo que lo impide, en orden
+
+1. **NADA ESTÁ PUBLICADO.** `git status` dice **29 commits del backend y 57 del
+   frontend por delante de `origin/main`**. Render y Vercel están sirviendo
+   código anterior a todo este trabajo: sin los arreglos de dinero, sin el de la
+   importación, sin el de las fechas. **Publicar es el despliegue** (§Despliegue
+   sin acceso al panel), así que hasta que se empuje, en producción no hay nada
+   de esto. *Esta decisión es del dueño: publicar dispara el despliegue.*
+
+2. **Las copias de seguridad no dejan nada con que restaurar** si el servidor no
+   tiene `pg_dump` —y Render no lo trae por defecto—. El respaldo es un `.xlsx`
+   de las tablas, que **no restaura PostgreSQL**. La pantalla ya lo dice
+   (`5ee37579`), pero el hecho sigue: para tener respaldo propio hay que
+   configurar `PG_DUMP_PATH` en el servidor. *Atenuante:* el Postgres
+   administrado de Render tiene sus propias copias automáticas; esto es el
+   respaldo que el dueño se descarga.
+
+3. **Decidir qué se hace con los datos sucios** antes de importar: los 4
+   créditos fantasma (§P16) y las 88 cuotas a medianoche UTC (§P24), que son
+   anteriores al arreglo.
+
+4. **§P20 sigue abierto**: el reporte financiero se baja el libro mayor al
+   navegador para sumarlo. No impide arrancar —hoy son 516 KB— pero con la
+   cartera real crece sin tope (§P25 tiene la investigación hecha y el camino).
+
+### Lo que NO se ha verificado nunca, y conviene saberlo
+
+- **Lo offline contra un build de producción.** El service worker se desactiva
+  en desarrollo, así que todo lo offline que se ha arreglado está probado por
+  pruebas unitarias y por lectura, **no con el teléfono sin señal sobre un
+  `next start`**. Es un requisito explícito del dueño y está sin tocar (§10.3).
+- **Volumen real.** Todas las mediciones son sobre 39 clientes, 67 créditos y
+  1.629 cuotas. Las proyecciones de §P20 son lineales sobre bytes medidos, no
+  pruebas de carga.
+- **El límite de peticiones con los siete roles a la vez.** El barrido se corrió
+  con los límites subidos a propósito; con los de producción salían 429 (§P3).
+
+### Veredicto
+
+El sistema **está en condiciones de arrancar** en cuanto se publique y se decida
+lo de los respaldos y los datos sucios. Lo que no se puede decir es «al 100% sin
+problemas»: lo offline nunca se probó como se usa, y el volumen real no se ha
+medido. Son dos cosas que solo se comprueban haciéndolas, no leyendo código.
+
+---
+
 ## 0. Si retomas ahora, empieza por aquí
 
 Última verificación: barrido por rol completado en dos corridas (§P3).
