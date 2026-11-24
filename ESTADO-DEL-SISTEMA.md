@@ -90,6 +90,92 @@ anotado, no es un bloqueo.
 
 ---
 
+## 0c. Volumen medido de verdad, y los 4 créditos resueltos (2026-11-24)
+
+### Los 4 «créditos fantasma» NO eran fantasma: eran ventas de contado
+
+Se pidió borrarlos. **No se borraron, y con razón.** Al mirar a qué estaban
+enganchados, cada uno tiene:
+
+- una **transacción** `INGRESO / CUOTA_INICIAL` de 100.000 a 200.000 → **ese
+  dinero entró a caja**;
+- un **asiento `VENTA_ARTICULO`** completo: ingreso por venta (cuenta `3.4`) y
+  salida del artículo del inventario (`5.1` contra `1.5`, por 400.000 a
+  2.000.000);
+- una aprobación NUEVO_PRESTAMO APROBADO.
+
+No tienen cuotas porque **no hay nada que cobrar**: el artículo se pagó al
+contado. Borrar las filas habría quitado **600.000 de ingresos y 2.880.000 de
+costo** de los libros y dejado 4 asientos apuntando a un crédito inexistente —
+y el libro hoy cuadra exacto.
+
+**El defecto no eran los datos, era el estado:** figuraban `ACTIVO`, o sea
+créditos vivos con `$ 0`. El camino correcto de hoy (`POST /sales/cash`) ni
+siquiera crea un `Prestamo`; estos 4 son de agosto, del camino viejo.
+
+**Qué se hizo:** marcarlos `PAGADO` en una transacción, con una nota en cada uno
+explicando por qué. Medido antes y después:
+
+| | antes | después |
+|---|---|---|
+| cabecera: activos | 9 | **9** |
+| filas en ACTIVO | **13** | **9** |
+| pagados | 7 | 11 |
+| asientos descuadrados | 0 | **0** |
+| créditos vivos sin cuotas | 4 | **0** |
+
+**Y eso cierra la discrepancia de §P18**: la cabecera decía 9 y la tabla 13.
+Eran exactamente estos cuatro. Ahora coinciden.
+
+### Volumen: medido con una base aparte, no proyectado
+
+Se creó `credito_sur_carga` (base **separada**, para no contaminar las cifras de
+desarrollo) con las 53 migraciones y **20 rutas, 2.000 clientes, 3.000 créditos,
+90.000 cuotas y 30.000 pagos** — unas 55 veces las cuotas y 350 veces los pagos
+de desarrollo.
+
+| endpoint | desarrollo | carga | veredicto |
+|---|---|---|---|
+| `loans?limit=50` | 0,33 s / 47 KB | 0,38 s / 43 KB | **aguanta**: está paginado |
+| `accounting/resumen` | 0,12 s / 1,3 KB | 0,26 s / 1,2 KB | **aguanta**: tamaño constante |
+| `reports/financial/monthly` | 0,04 s | 0,27 s | **aguanta** |
+| `dashboard` | 0,19 s | **1,33 s** | pasa el umbral de Doherty (400 ms), usable |
+| `routes` | 0,29 s / 13 KB | **1,47 s / 635 KB** | **no aguantaba** |
+
+**`/routes` arreglado** (`93a958f`): la fila se armaba con `{ ...ruta }` y eso
+esparcía `asignaciones` entera — los 100 clientes de **cada** ruta, 33.764 bytes
+por ruta. El listado solo necesita el número, y lo lee de `clientesAsignados`;
+la lista la pide el detalle. **635 KB → 15 KB, un 97,6 % menos**, y la
+comparación campo por campo dio **0 campos con valor distinto**.
+
+**Lo que queda medido y NO arreglado, a propósito:**
+
+- **El tiempo de `/routes` sigue en 1,34 s.** El coste es la consulta, que aún
+  carga las 2.000 asignaciones para contarlas; `_count.asignaciones` ya viene en
+  la respuesta, así que la vía es contar sin traer — pero las asignaciones
+  también deciden qué rutas entran en la proyección, así que es un cambio más
+  grande que el del tamaño.
+- **El `dashboard` en 1,33 s.** Por encima del umbral de Doherty pero usable; la
+  causa son sus ~25 agregados en paralelo.
+- *Límite de la medición:* los 30.000 pagos sintéticos **no tienen asientos
+  contables**, así que esto no mide el libro mayor con volumen. §P20/§P25 sigue
+  siendo la proyección, no una medición.
+
+### Sobre los paneles de Render y Vercel
+
+**No son cuentas del dueño**, así que no hay acceso a los paneles — ni mío ni
+suyo. Dos consecuencias prácticas:
+
+1. Todo arreglo tiene que funcionar **solo publicando en el repo**, que es como
+   se ha trabajado.
+2. **`PG_DUMP_PATH` lo tiene que configurar quien administre el Render.** Es la
+   variable que hace que el respaldo deje un volcado restaurable; sin ella el
+   respaldo solo produce un `.xlsx`, que no restaura PostgreSQL. La pantalla ya
+   lo dice (`5ee37579`). Es lo único de esta lista que no se puede cerrar desde
+   el código.
+
+---
+
 ## 0b. ¿Está listo para producción? Respuesta medida (2026-11-24)
 
 **No todavía, y el motivo principal no es el código: es que nada de esto está
@@ -160,12 +246,14 @@ por primera vez contra un build real.
    **— medido y descartado:** la pantalla del cobrador sobrevive al F5 sin red
    con sus datos, y el respaldo funciona. Lo único que queda es que una ruta
    nunca abierta sale en blanco (§0a), que no es un escenario del cobrador.
-2. **Los respaldos no dejan volcado** si el servidor no tiene `pg_dump`. La
-   pantalla ya lo dice (`5ee37579`); configurar `PG_DUMP_PATH` lo cierra.
-3. **Decidir qué hacer con los datos sucios** antes de importar: 4 créditos
-   fantasma (§P16) y 88 cuotas a medianoche UTC (§P24).
-4. **El volumen real no se ha medido.** Todo está medido sobre 39 clientes, 67
-   créditos y 1.629 cuotas; §P20 proyecta linealmente, no es una prueba de carga.
+2. **Los respaldos no dejan volcado** si el servidor no tiene `pg_dump`.
+   **Depende de quien administre el Render**, que no es el dueño (§0c).
+3. ~~Decidir qué hacer con los datos sucios~~ **— los 4 créditos resueltos**
+   (§0c): eran ventas de contado y se cerraron como PAGADO sin tocar los libros.
+   Quedan las 88 cuotas a medianoche UTC (§P24), anteriores al arreglo.
+4. ~~El volumen real no se ha medido~~ **— medido con 90.000 cuotas y 30.000
+   pagos** (§0c): todo aguanta salvo `/routes`, ya arreglado (635 KB → 15 KB).
+   Queda el tiempo de `/routes` y del `dashboard`, ~1,3 s, usable.
 
 Con eso dicho: **el sistema está en condiciones de ponerse a funcionar**, y los
 cuatro puntos son conocidos, acotados y con el camino escrito.
