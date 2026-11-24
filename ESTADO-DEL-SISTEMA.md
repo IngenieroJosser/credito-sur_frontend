@@ -176,6 +176,70 @@ suyo. Dos consecuencias prácticas:
 
 ---
 
+## 0d. Nota de operación: los respaldos y `PG_DUMP_PATH`
+
+**Para quien administre el Render.** Las cuentas de Render y Vercel **no son del
+dueño**, así que esto no se puede cerrar desde el repo: hay que hacerlo en el
+panel.
+
+### Qué es la variable
+
+`PG_DUMP_PATH` es **la ruta al ejecutable `pg_dump`**. El código la pasa a
+`execFileAsync` (`backup.service.ts:35`), así que vale un nombre que esté en el
+`PATH` o una ruta absoluta. Por defecto es `'pg_dump'`, o sea «búscalo en el
+PATH». Los argumentos que usa son `--format=c --file <ruta> <DATABASE_URL>`.
+
+### Los tres pasos, en orden
+
+1. **Comprobar si ya está.** En la consola del servicio: `pg_dump --version`.
+   Los entornos nativos de Render incluyen paquetes de cliente de PostgreSQL,
+   pero **no garantizan que la versión case** con la base. Si responde y su
+   versión mayor es **igual o superior** a la del servidor, **no hay que
+   configurar nada**: el valor por defecto ya funciona.
+2. **Si la versión es menor, falla:** `pg_dump` se niega a trabajar contra un
+   servidor más nuevo que él. El valor sería entonces la ruta absoluta a un
+   binario que case, en la ubicación estándar de Debian/Ubuntu:
+
+   ```
+   /usr/lib/postgresql/<MAJOR>/bin/pg_dump
+   ```
+
+   con `<MAJOR>` = la versión mayor del Postgres **de producción** (la de
+   desarrollo es 18.1). En el entorno nativo **no se pueden instalar paquetes
+   del sistema**, así que si ese binario no existe en la imagen, la vía es
+   Docker — Render publica un ejemplo con los clientes instalados,
+   `render-examples/pg-toolkit`.
+3. **Y lo que de verdad hace falta además de la variable.** Verificado leyendo
+   el código:
+
+   - el volcado se escribe **en disco**, en `BACKUP_DIR` (por defecto
+     `<cwd>/backups`);
+   - el único destino posible es `LOCAL` —el enum `BackupDestino` tiene **un
+     solo valor**— y **no se sube a ningún sitio**: no hay S3 ni equivalente;
+   - la descarga (`GET /backup/:id/download`) lee del disco y devuelve **404**
+     si el archivo no está;
+   - **no hay respaldo programado**: no existe ningún `@Cron` de backup, solo el
+     botón manual.
+
+   En el entorno nativo de Render **el disco es efímero**: en cada despliegue o
+   reinicio el archivo desaparece y la descarga pasa a dar 404. Así que el
+   volcado solo sirve si **se descarga en el momento**, o si se monta un **disco
+   persistente** y `BACKUP_DIR` apunta a él.
+
+### Recomendación
+
+- Si `pg_dump` está y la versión sirve: **no tocar nada**.
+- Si no está: lo que resuelve no es la variable, es **el disco persistente** (o
+  descargar el volcado al generarlo).
+- Y tener presente que **el Postgres administrado de Render ya hace sus propias
+  copias automáticas**, que son el plan de recuperación real. El respaldo de la
+  aplicación es «llevarme una copia», no el seguro contra un desastre.
+
+La pantalla ya no miente sobre esto (`5ee37579`): si el volcado no se generó, lo
+dice junto al estado y nombra la variable.
+
+---
+
 ## 0b. ¿Está listo para producción? Respuesta medida (2026-11-24)
 
 **No todavía, y el motivo principal no es el código: es que nada de esto está
