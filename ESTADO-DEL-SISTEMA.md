@@ -176,6 +176,108 @@ suyo. Dos consecuencias prácticas:
 
 ---
 
+## 0g. `/clients` tardaba 12 segundos, y era la cuenta de la mora
+
+El hallazgo mas gordo del dia, y el que de verdad habria molestado al cliente.
+
+### Lo que se midio
+
+Con la base de carga (20 rutas, 2.000 clientes, 3.000 creditos, 90.000 cuotas,
+30.000 pagos):
+
+```
+/clients     11,3 · 14,8 · 12,0 · 13,1 · 11,3 · 12,0 s     (1.082.467 bytes)
+/routes       4,0 ·  4,9 ·  4,3 s
+/dashboard    5,8 ·  4,6 ·  5,0 s
+/loans        0,09 s
+/payments     0,03 s
+```
+
+Dos cosas de entrada:
+
+1. **`/clients` no acepta paginacion de ningun tipo.** El controlador solo
+   admite `nivelRiesgo`, `ruta`, `search` y `forCredit`: no hay `limit`, ni
+   `page`, ni `skip`. Devuelve **siempre todos los clientes de la empresa**.
+   `?limit=20` se ignora y llegan los 2.000.
+2. Y tardaba doce segundos de forma **consistente**, con poca varianza —al
+   contrario que `/routes`, donde el ruido de la maquina tapaba todo—.
+
+### No era la base de datos
+
+Las consultas, medidas con el mismo cliente que usa la aplicacion:
+
+```
+cliente.findMany (como en el servicio)        113 ms   2.000 filas
+DISTINCT ON cuota mas vieja                   236 ms   3.000 filas
+las 4 cuentas/agregados                         3 ms
+```
+
+**~350 ms de 12.000.** Con una sonda dentro de `getAllClients` salio donde
+estaba:
+
+```
+SONDA /clients  5 consultas=435ms  2 consultas raw=269ms
+                pegar relaciones=41ms  transformar=11891ms  ordenar=1ms
+                TOTAL=12637ms
+```
+
+**El 94% en el `map` que transforma cada cliente**: ~6 ms por cliente, de JS
+puro.
+
+### La causa: la mora se contaba dia por dia
+
+`calcularDiasMoraOperativos`, para la frecuencia **DIARIO** —la normal en este
+negocio—, recorria **un dia a la vez** desde el vencimiento hasta hoy, y cada
+vuelta llamaba a:
+
+- `shiftBogotaKey` → construye una fecha **y formatea con `Intl`**,
+- `buildBogotaNoon` otra vez,
+- `getBogotaWeekday` → **formatea otra vez**.
+
+Dos llamadas a `Intl` por cada dia de atraso. Con clientes de 160 a 264 dias
+—los de la base de carga— son ~320 llamadas por cliente y **640.000 en una sola
+peticion**. Y el coste **crece con la antiguedad de la cartera**, que es lo
+unico que aumenta solo con el tiempo: cuanto mas vieja la mora, mas lento el
+listado.
+
+### El arreglo, y por que no cambia ningun numero
+
+Forma cerrada: los dias del rango menos los domingos que caen dentro, con
+aritmetica de enteros. Vale porque **Colombia no tiene horario de verano** —por
+eso todo el repo ancla al mediodia de Bogota con `-05:00` fijo—, asi que una
+clave `YYYY-MM-DD` se convierte a numero de dia y a dia de la semana sin
+formateadores.
+
+La equivalencia **no se razona, se comprueba**:
+`src/loans/mora-sin-recorrer-los-dias.spec.ts` copia el bucle original como
+implementacion de referencia y compara las dos sobre 6 vencimientos en dias de
+la semana distintos x 204 dias x 6 frecuencias, mas rangos de ocho años. Y una
+asercion **cuenta las llamadas reales a `Intl`**: de cientos a dos.
+
+### Resultado medido
+
+```
+antes:    11,3 - 14,8 s
+despues:   0,71 - 1,41 s        → entre 10x y 15x
+```
+
+Y la respuesta es **identica**: se compararon el antes y el despues campo por
+campo, **54.000 campos, cero cambian**, mismas estadisticas, mismo tamaño exacto
+(1.082.467 bytes).
+
+`/routes` y `/dashboard` **siguen en 4-5 s**: su coste esta en otro sitio —las
+90.000 cuotas de §0f— y queda abierto.
+
+### Lo que sigue abierto aqui
+
+- **`/clients` devuelve todos los clientes de la empresa.** Con 2.000 son 1 MB;
+  con 10.000 seran ~5 MB en cada carga de la pantalla. El tiempo ya esta
+  arreglado, el **tamaño no**. Hace falta paginacion de verdad en el
+  controlador, y eso toca la pantalla que lo consume.
+- `/routes` y `/dashboard`, 4-5 s (§0f).
+
+---
+
 ## 0f. El tiempo de `/routes`: medido, y la correccion obvia NO sirve
 
 Quedaba abierta «la otra mitad» del hallazgo de `/routes`: el payload ya se
@@ -508,8 +610,59 @@ por primera vez contra un build real.
    pagos** (§0c): todo aguanta salvo `/routes`, ya arreglado (635 KB → 15 KB).
    Queda el tiempo de `/routes` y del `dashboard`, ~1,3 s, usable.
 
-Con eso dicho: **el sistema está en condiciones de ponerse a funcionar**, y los
-cuatro puntos son conocidos, acotados y con el camino escrito.
+### Actualizacion del 2026-11-24, por la tarde: lo que cambio
+
+Dos cosas invalidan parte de lo de arriba, y conviene leerlas antes que nada.
+
+**1. El punto 4 estaba equivocado.** Decia «queda el tiempo de `/routes` y del
+`dashboard`, ~1,3 s, usable». Ese 1,3 **no se reprodujo**. Sembrada otra vez la
+misma base de carga:
+
+| endpoint | medido hoy | estado |
+|---|---|---|
+| `/clients` | 11,3-14,8 s → **0,71-1,41 s** | **arreglado** (§0g) |
+| `/routes` | **4,0-5,7 s** | abierto, causa medida (§0f) |
+| `/dashboard` | **4,1-5,8 s** | abierto, misma causa |
+| `/loans` | 0,09 s | bien |
+| `/payments` | 0,03 s | bien |
+
+El de clientes era el peor y ya esta: la mora se contaba dia por dia con dos
+llamadas a `Intl` por dia de atraso (§0g). Los otros dos siguen en cuatro o
+cinco segundos, con la causa localizada y escrita.
+
+**2. El build de produccion estaba roto y nadie lo sabia** (§0e). Fallaba con
+ocho errores de tipos y produccion seguia sirviendo el codigo anterior **sin
+decirlo**. Ya esta arreglado, y ahora `/health` y `/api/ping` publican el
+`commit` que corre cada uno, asi que esto se comprueba con un `curl`.
+
+### Veredicto, a esta hora
+
+**Se puede poner a funcionar, y hay dos cosas que conviene arreglar antes de
+meter la cartera entera.**
+
+Lo que esta bien y comprobado: el dinero (transacciones, idempotencia, libro
+cuadrado, cinco cobros simultaneos), los roles, lo offline del cobrador contra
+un build real, la concurrencia de los siete roles con limites de produccion, y
+los dos repos publicados y verificados por `commit`.
+
+Lo que queda, en orden de lo que mas se va a notar:
+
+1. **`/routes` y `/dashboard`, 4-5 s con 2.000 clientes.** Son las dos pantallas
+   que el coordinador tiene abiertas todo el dia. Usable, molesto, y la causa
+   esta medida: las 90.000 filas de cuotas que `cargarVisitas` materializa
+   enteras (§0f). **No hay arreglo barato**: lo probado no mejora nada y
+   `cargarVisitas` lo comparten el listado y la pantalla del cobrador.
+2. **`/clients` manda TODOS los clientes de la empresa** en cada carga: 1 MB con
+   2.000, unos 5 MB con 10.000. El tiempo ya esta arreglado; el tamaño pide
+   paginacion de verdad en el controlador (§0g).
+3. **Los respaldos**, que dependen de `pg_dump` en el servidor. Ya no hace falta
+   la consola de pago para saberlo: la pantalla de respaldos lo dice al abrirse
+   (§0d).
+4. **Las 88 cuotas a medianoche UTC** anteriores al arreglo de fechas (§P24), y
+   **§P20**: el reporte financiero se baja el libro mayor al navegador.
+
+Ninguno de los cuatro impide operar. Los dos primeros se notan con volumen
+real, y por eso se dicen primero.
 
 ---
 
