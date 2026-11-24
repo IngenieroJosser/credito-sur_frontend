@@ -127,7 +127,7 @@ test.describe('Sin señal', () => {
       await page.waitForTimeout(1_000)
       avisa = patron.test((await page.locator('body').innerText()) || '')
     }
-    // eslint-disable-next-line no-console
+     
     console.log(
       `AVISO DE SIN CONEXION: ${avisa ? 'aparece' : 'NO aparece'} tras ${(
         (Date.now() - empezo) /
