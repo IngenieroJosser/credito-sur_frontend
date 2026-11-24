@@ -56,17 +56,29 @@ se desactiva ahí). Con un build de producción:
 - y **dice que está sin conexión tras 1,0 s**. Esa ventana importa: en ella el
   cobrador podría registrar un pago creyendo que ya llegó al servidor.
 
-**El hueco que queda, descubierto por esa misma prueba.** La pantalla tiene que
-haberse cargado antes **como documento**. `entrarComo` llega por navegación del
-cliente, y la regla `NetworkFirst` solo guarda en la caché `paginas` las
-peticiones con `request.mode === 'navigate'`. En la primera corrida, la recarga
-sin red **devolvió `null`**: no había documento que servir —y el respaldo
-`fallbacks: { document: '/contingencia' }` **tampoco se sirvió**, aunque está
-configurado—. En la práctica: si el cobrador pierde la señal y recarga una
-pantalla a la que solo había llegado navegando, no arranca. **Es lo siguiente
-que hay que cerrar**, y la vía es comprobar por qué el documento de respaldo no
-se entrega (`cacheOnFrontEndNav` está en `true`, así que debería cachearse al
-navegar).
+**Lo que primero parecía un hueco y no lo era.** La prueba empezó fallando con
+`null` al recargar sin red, y parecía que la pantalla tenía que haberse cargado
+antes como documento. Se midió con una sonda de cuatro casos y la conclusión es
+otra:
+
+| caso sin red | respuesta | qué se ve |
+|---|---|---|
+| **la pantalla del cobrador, F5** (llegando como llega él) | **200** | **la app con sus datos**: «CrediSur COBRADOR … Cobrador Principal» ✔ |
+| `/contingencia` directa | 200 | «Modo contingencia…» ✔ |
+| una URL que no es ruta de la app | 200 | «Modo contingencia…» ✔ **el respaldo funciona** |
+| una ruta real **nunca abierta** (`/admin/sistema/backups`) | 200 | **en blanco** |
+
+El `null` era de la **primerísima visita**, antes de que el service worker
+terminara de tomar el control y de cachear. Lo que hacía falta era esperar, no
+el `goto`: la prueba se reescribió para afirmar el escenario real y **pasa dos
+corridas seguidas** (`bfafdee8`). Y `/contingencia` **sí está precacheada** —337
+entradas en `sw.js`— y sí se entrega.
+
+**El único residuo, acotado:** una ruta real que el usuario **nunca abrió**
+devuelve 200 **en blanco** sin red, en vez de la página de contingencia. Para el
+cobrador no aplica —sus pantallas son su trabajo diario y quedan cacheadas al
+entrar— y para una pantalla de administración sin red no hay escenario. Queda
+anotado, no es un bloqueo.
 
 ### Las trampas del entorno de prueba, para no repetirlas
 
@@ -144,8 +156,10 @@ por primera vez contra un build real.
 
 **Lo que impide decir «al 100% sin problemas», y es corto:**
 
-1. **Un F5 sin señal solo funciona en pantallas ya cargadas como documento**
-   (§0a). Es el único hueco funcional que queda y está localizado.
+1. ~~Un F5 sin señal solo funciona en pantallas ya cargadas como documento~~
+   **— medido y descartado:** la pantalla del cobrador sobrevive al F5 sin red
+   con sus datos, y el respaldo funciona. Lo único que queda es que una ruta
+   nunca abierta sale en blanco (§0a), que no es un escenario del cobrador.
 2. **Los respaldos no dejan volcado** si el servidor no tiene `pg_dump`. La
    pantalla ya lo dice (`5ee37579`); configurar `PG_DUMP_PATH` lo cierra.
 3. **Decidir qué hacer con los datos sucios** antes de importar: 4 créditos
