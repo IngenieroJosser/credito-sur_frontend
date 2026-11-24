@@ -59,6 +59,14 @@ const BackupsSistemaPage = () => {
   }, [formatDateTime, lastRun])
 
   const lastRunSize = useMemo(() => formatBytes(lastRun?.fileSize), [formatBytes, lastRun?.fileSize])
+  /*
+   * Un respaldo que dice EXITOSO pero no dejó volcado.
+   *
+   * `filePath` es la ruta del dump: viene en `null` cuando `pg_dump` no estaba.
+   * Se mira junto al estado para no avisar de nada cuando el respaldo falló del
+   * todo —ahí el mensaje de fallo ya se ve— ni cuando está en proceso.
+   */
+  const sinVolcado = lastRun?.estado === 'EXITOSO' && !lastRun?.filePath
 
   const loadAll = useCallback(async () => {
     setLoading(true)
@@ -246,7 +254,36 @@ const BackupsSistemaPage = () => {
                 <div className="text-xl font-bold text-slate-900">{loading ? 'Cargando...' : lastRunLabel}</div>
                 <div className="text-xs text-slate-400 mt-1 font-medium">
                   Estado: {lastRun?.estado ? lastRun.estado : '—'}
+                  {sinVolcado ? ' · sin volcado SQL' : null}
                 </div>
+                {/*
+                  * El aviso del servidor, que antes se tiraba.
+                  *
+                  * `POST /backup/run` contesta `estado: EXITOSO` si el Excel se
+                  * generó: el volcado SQL es opcional a propósito y está escrito
+                  * así en `backup.service.ts`. Pero si `pg_dump` no está en el
+                  * servidor —y en Render no viene por defecto— la respuesta trae
+                  * `filePath: null` y un `error` explicando por qué, y esta
+                  * pantalla mostraba «Estado: EXITOSO» sin pintar ese campo. O
+                  * sea que decía que el respaldo estaba hecho mientras faltaba
+                  * justo la parte con la que se restaura.
+                  *
+                  * El campo ya llegaba y ya estaba tipado (`error?: string`):
+                  * solo faltaba enseñarlo.
+                  */}
+                {lastRun?.error ? (
+                  <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
+                    {lastRun.error}
+                  </p>
+                ) : null}
+                {sinVolcado ? (
+                  <p className="mt-2 text-xs font-medium text-amber-700">
+                    El Excel sí se generó, pero un respaldo sin volcado SQL no
+                    sirve para restaurar la base: hay que configurar
+                    <code className="mx-1 rounded bg-amber-100 px-1">PG_DUMP_PATH</code>
+                    en el servidor.
+                  </p>
+                ) : null}
               </div>
 
               <button
