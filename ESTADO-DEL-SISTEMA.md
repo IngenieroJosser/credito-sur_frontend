@@ -176,6 +176,115 @@ suyo. Dos consecuencias prácticas:
 
 ---
 
+## 0f. El tiempo de `/routes`: medido, y la correccion obvia NO sirve
+
+Quedaba abierta «la otra mitad» del hallazgo de `/routes`: el payload ya se
+recorto de 635 KB a 15 KB, pero el **tiempo** seguia anotado sin tocar. El plan
+escrito era quitar el `include` de `asignaciones` y contar con
+`_count.asignaciones`. **Medido, ese plan no sirve.** Esto es lo que se
+encontro.
+
+### Lo primero: el numero anterior era optimista
+
+La base de carga se volvio a sembrar igual (20 rutas, 2.000 clientes, 3.000
+creditos, 90.000 cuotas, 30.000 pagos) y `GET /routes` con el payload ya
+recortado dio, en seis corridas:
+
+```
+10,56 s · 5,97 s · 5,64 s · 6,92 s · 7,97 s · 7,28 s      (15.277 bytes, http 200)
+```
+
+o sea **5,6–10,5 s**, no los **1,34 s** que decia §P20. Ese 1,34 no se
+reprodujo. La pantalla del coordinador, que esta abierta todo el dia, tarda
+entre seis y diez segundos en cargar con este volumen.
+
+### Donde se va el tiempo (sonda en `findAll`, tres corridas)
+
+```
+consulta principal   447 /  44 /  56 ms
+cierres pendientes    42 /  11 /   3 ms
+activacion hoy         9 /   3 /   2 ms
+proyectarRutas      5376 / 2155 / 6541 ms   <-- 97-99 % del total
+recaudo contable      14 /   5 /   9 ms
+mapeo final            2 /   1 /   2 ms
+```
+
+**La consulta que lleva el `include` de asignaciones cuesta 44–447 ms.**
+Quitarlo ahorraria ~40 ms de una peticion de seis segundos: no cambia ningun
+resultado, asi que **no se hace**. El plan escrito antes estaba equivocado, y lo
+unico que lo demostro fue medirlo.
+
+### Y dentro de `proyectarRutas`: las 90.000 cuotas
+
+El trabajo esta en `cargarVisitas` (`src/routes/datos-visitas.ts`), en este
+`findMany`: asignaciones activas → `cliente` con `include` (todas las columnas)
+→ sus `prestamos` de la ruta → y las **`cuotas` de cada uno sin `select`**. Con
+este volumen son **2.000 clientes y 90.000 filas de cuotas de 15 columnas**.
+
+Medido por capas, con el mismo cliente que usa la aplicacion (adaptador `pg` +
+Prisma):
+
+```
+asignaciones + cliente + prestamos + cuotas     1.458 ms   2.000 filas
+asignaciones + cliente + prestamos (sin cuotas)   137 ms   2.000 filas
+asignaciones + cliente (sin prestamos)             74 ms
+solo asignaciones                                   9 ms
+```
+
+**El `include` de cuotas es el 91 % de esa consulta.**
+
+### No es la base de datos, y ningun indice lo arregla
+
+`explain (analyze, buffers)` sobre la lectura de las 90.000 cuotas:
+**73 ms**, `shared hit=1985`, cero lecturas de disco. Y los indices estan todos
+puestos: `cuotas_prestamoId_idx`, `cuotas_prestamoId_numeroCuota_key`,
+`cuotas_fechaVencimiento_idx`, `cuotas_estado_idx`, mas
+`Prestamo_rutaId_idx`.
+
+O sea: Postgres tarda 73 ms y el resto —mas de un segundo— se va en **Prisma
+materializando 90.000 objetos** y en el procesado en memoria posterior. **Un
+indice nuevo no cambiaria nada**, y por eso no se propone.
+
+### Las dos salidas obvias tampoco se pueden afirmar
+
+Se midieron, cinco corridas cada una:
+
+```
+include completo (15 columnas)      mediana 3.981 ms   min 1.367 ms   (1367/1378/3981/5751/6080)
+select de 7 columnas de cuota       mediana 3.316 ms   min 2.917 ms   (2917/3278/3316/3622/4801)
+solo cuotas no pagadas              mediana 5.127 ms   min 3.762 ms   (3762/5118/5127/5280/5951)
+```
+
+**La dispersion de UNA misma configuracion (1.367 → 6.080 ms) es mayor que
+cualquier diferencia entre configuraciones**, asi que en esta maquina no se
+puede decidir. Lo que si se ve es que el `select` reducido **no salio mas
+rapido** —probablemente porque Prisma cambia el plan de consultas anidadas— y
+que filtrar las pagadas salio peor. **Conclusion honesta: la correccion barata
+no esta demostrada; no se aplica sobre una medicion que no distingue.**
+
+### Lo que queda, y por que no se toca hoy
+
+El camino real es cargar **menos filas**, no menos columnas: por ejemplo la
+cuota que la jornada necesita por credito en vez de las treinta. Eso es un
+cambio de diseño de `cargarVisitas`, y `cargarVisitas` **lo comparten dos
+consumidores**: `proyectarRutas` (el listado) y `getDailyVisits`, que es la
+pantalla del cobrador **y la copia offline**. Recortar ahi es tocar un valor
+compartido que se interpreta distinto en cada pantalla, que es exactamente la
+clase de cambio que en este proyecto ya salio mal varias veces.
+
+Asi que queda **anotado y medido**, no hecho:
+
+- el techo del arreglo es grande (de ~6 s a ~1 s si las cuotas dejan de
+  cargarse enteras);
+- hay que rastrear antes **que campos de `cuota` consume de verdad** cada
+  camino: `proyectarVisitas`, `moraDelListado`, `estadisticas-listado.ts`,
+  `ruta-operational-rules.ts`, y lo que el frontend guarda offline
+  (`mapearPrestamoDescargado`);
+- y hay que medirlo en una maquina menos ruidosa, o con muchas mas corridas,
+  porque con esta varianza no se distingue una mejora de un ruido.
+
+---
+
 ## 0e. El build de produccion se rompio y se arreglo (2026-11-24)
 
 **Sintoma.** El build de Render fallo con **ocho errores TS2339**, todos el
