@@ -129,7 +129,7 @@ mirado todavía.
 |---|---|---|
 | 1 | **Investigar el timeout de login si reaparece.** Los siete roles ya completaron el recorrido tras el arreglo de URL, aunque no en una sola corrida. No se ha demostrado la causa de las esperas fallidas. | §P3 |
 | 2 | **Decidir qué se hace con 4 créditos fantasma** de la base: ACTIVO, aprobados, dicen tener cuotas y no tienen ninguna. No es un defecto vivo —no se repiten desde agosto— pero el cliente los va a ver | §P16 |
-| 3 | **§P22: el gráfico mensual cuenta los meses en UTC**, no en Bogotá. Invisible en local (esta máquina es UTC-5), real en Render. 38 % de los pagos están en la franja que se desplaza | §P22 |
+| 3 | **§P22 cerrado:** evolución mensual, agrupación de la gráfica y año de la exportación en calendario de Bogotá. | §P22 |
 | 4 | **§P20: el reporte financiero se baja el libro mayor para sumarlo** (516 KB con 1.202 asientos; ~20 MB proyectados con 50.000). Es el riesgo de escala real y se arregla en el servidor | §P20 |
 | 4 | **§P5 cerrado en el listado** (`af52be0`): cierres, estadísticas y visitas se leen por página, no por ruta. Lo que queda de §P5 son los 3 métodos multi-modelo que nadie ha revisado | §P5 |
 | 4 | **§P8: las 8 pantallas bifurcadas por rol.** Es la deuda que hace que cada arreglo haya que hacerlo dos o tres veces. Ya se pagó ese precio varias veces | §P8 |
@@ -1221,7 +1221,7 @@ primero.
 
 ---
 
-### P22 — El gráfico mensual cuenta los meses en UTC, no en Bogotá *(investigado, pendiente de corregir)*
+### P22 — El gráfico mensual contaba los meses en UTC, no en Bogotá *(cerrado)*
 
 **Es el mismo método que §P21 y sale del mismo sitio.** Una vez que la evolución
 mensual ya devuelve cifras, la pregunta siguiente es si están en el mes
@@ -1244,7 +1244,7 @@ y `new Date(year, 11, 31, 23, 59, 59)`, y reparte por mes con
 
 **El tamaño del problema, medido.** De 85 pagos, **32 (38 %) ocurren entre las
 19:00 y medianoche** de Bogotá — en esta operación el cobro de la tarde es la
-norma, no la excepción. Esos son justo los que se desplazan. *Lo que hoy no
+norma, no la excepción. Solo se desplazan si también es el último día del mes. *Lo que hoy no
 ocurre:* ninguno de ellos cae el último día de un mes, así que la cifra actual
 no está mal; el defecto espera el primer cierre de mes con cobro nocturno.
 
@@ -1253,6 +1253,21 @@ no está mal; el defecto espera el primer cierre de mes con cobro nocturno.
 (`src/utils/date-utils.ts`). Es la regla de §3 del dominio —todo en hora de
 Bogotá— y estos tres `new Date(year, ...)` son **los únicos** del backend que la
 rompen: el barrido de `new Date(year,` no encontró ningún otro.
+
+Seguimiento de P22 (antes de corregir): con `TZ=UTC`, el instante
+`2027-01-01T04:59:59.999Z` da año 2027 en el proceso y 2026 en Bogotá.
+Además del servicio mensual, el controlador elige el año y el mes inicial
+con el reloj local. La exportación usa el año local de su fecha inicial.
+La pantalla financiera solicita la evolución pero no lee su respuesta:
+agrupa ingresos, cobros y egresos del libro por el mes local del dispositivo.
+Por eso arreglar solo la API no arregla la gráfica que ve el usuario.
+
+**Verificado:** se corrigieron el servicio, los consumidores del año y los
+rangos de la pantalla. Se eliminó la petición mensual sin consumidor. El lote
+de reportes pasó con `TZ=UTC` (17 pruebas) y el de `rutas-core` con
+`TZ=Asia/Tokyo` (48). La regresión prueba tanto pagos como gastos a cada lado
+de medianoche y genera un Excel para el último instante del año operativo.
+No se cambió ningún asiento ni se recalculó la base.
 
 ---
 
@@ -1467,6 +1482,46 @@ Los siete usuarios de prueba están en `e2e/sesion.ts`.
 ---
 
 ## 8. Trampas del entorno. Cuestan una hora cada una
+
+### `TZ=x npx jest` NO cambia la zona horaria en este equipo
+
+**La más peligrosa de todas, porque no falla: pasa en verde.** Desde Git Bash en
+Windows, el prefijo `TZ=Asia/Tokyo npx jest` **no llega a jest**. Medido con una
+sonda de tres líneas dentro de una prueba:
+
+```
+TZ= undefined    offset= 300     <- UTC-5, la zona del equipo
+```
+
+O sea que toda corrida «en Tokio» o «en UTC» hecha así se ejecutó en hora de
+Bogotá y **no comprobó nada**. Nos engañó a los dos: un relevo reportó «48
+pruebas del frontend con la zona de Tokio» y «17 del backend en UTC», y yo
+intenté comprobar un arreglo de zona metiendo el defecto a mano y las pruebas
+siguieron pasando — concluí que la prueba era débil, y lo que fallaba era mi
+forma de invocarla.
+
+**La forma que sí funciona, desde PowerShell:**
+
+```powershell
+$env:TZ = 'Asia/Tokyo'   # o 'UTC', que es la de Render
+npx jest __tests__/lib/rutas-core.test.ts
+$env:TZ = $null
+```
+
+Comprobado: con eso la sonda dice `TZ= Asia/Tokyo  offset= -540`, y las dos
+comprobaciones al revés de los arreglos de zona **sí fallan** con el defecto
+puesto:
+
+- frontend, en Tokio: cae `inicia MENSUAL en Bogotá aunque el dispositivo ya
+  esté en enero`;
+- backend, en UTC: cae `cuenta noviembre y diciembre y consulta los límites
+  colombianos completos`.
+
+**Regla:** cualquier prueba de zona horaria se corre con `$env:TZ` desde
+PowerShell, y antes de creerse el verde se mete el defecto a mano. Si pasa igual,
+lo primero que hay que dudar es si la zona llegó.
+
+
 
 1. **`sed -i` destruye los CRLF** y dispara miles de errores de prettier. Usa
    `Edit`, o python con `io.open(..., newline='')` detectando el final de línea
