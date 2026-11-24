@@ -549,48 +549,15 @@ export const getBogotaRangeForFinancialPeriod = (
   const nowKey = getBogotaDateKey(now)
   if (!nowKey) return { inicio: '', fin: '' }
 
-  const baseNoon = new Date(`${nowKey}T12:00:00-05:00`)
-  const y = baseNoon.getFullYear()
-  const m = baseNoon.getMonth()
-  const d = baseNoon.getDate()
+  const [y, mes, d] = nowKey.split('-').map(Number)
+  let startKey = nowKey
+  if (period === 'SEMANAL') startKey = getBogotaDateKey(new Date(Date.UTC(y, mes - 1, d - 6, 17)))
+  if (period === 'MENSUAL') startKey = nowKey.slice(0, 7) + '-01'
+  if (period === 'TRIMESTRAL') startKey = getBogotaDateKey(new Date(Date.UTC(y, mes - 4, 1, 17)))
 
-  if (period === 'DIARIO') {
-    return {
-      inicio: buildBogotaOffsetIsoFromKey(nowKey, { hh: 0, mm: 0, ss: 0, ms: 0 }),
-      fin: toBogotaDateTimeOffsetIso(now),
-    }
-  }
-
-  if (period === 'SEMANAL') {
-    const start = new Date(y, m, d - 6, 12, 0, 0, 0)
-    const startKey = getBogotaDateKey(start)
-    return {
-      inicio: buildBogotaOffsetIsoFromKey(startKey, { hh: 0, mm: 0, ss: 0, ms: 0 }),
-      fin: toBogotaDateTimeOffsetIso(now),
-    }
-  }
-
-  if (period === 'MENSUAL') {
-    const start = new Date(y, m, 1, 12, 0, 0, 0)
-    const startKey = getBogotaDateKey(start)
-    return {
-      inicio: buildBogotaOffsetIsoFromKey(startKey, { hh: 0, mm: 0, ss: 0, ms: 0 }),
-      fin: toBogotaDateTimeOffsetIso(now),
-    }
-  }
-
-  if (period === 'TRIMESTRAL') {
-    const start = new Date(y, m - 3, 1, 12, 0, 0, 0)
-    const startKey = getBogotaDateKey(start)
-    return {
-      inicio: buildBogotaOffsetIsoFromKey(startKey, { hh: 0, mm: 0, ss: 0, ms: 0 }),
-      fin: toBogotaDateTimeOffsetIso(now),
-    }
-  }
-
-  const startYearKey = `${y}-01-01`
+  if (period === 'ANUAL') startKey = `${y}-01-01`
   return {
-    inicio: buildBogotaOffsetIsoFromKey(startYearKey, { hh: 0, mm: 0, ss: 0, ms: 0 }),
+    inicio: buildBogotaOffsetIsoFromKey(startKey, { hh: 0, mm: 0, ss: 0, ms: 0 }),
     fin: toBogotaDateTimeOffsetIso(now),
   }
 }

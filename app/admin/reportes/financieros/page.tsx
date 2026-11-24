@@ -16,7 +16,7 @@ import {
 import { formatCurrency } from '@/lib/utils'
 import { ExportButton } from '@/components/ui/ExportButton'
 import { TransactionalHighDetailChart } from '@/components/ui/TransactionalHighDetailChart'
-import { getMonthlyEvolution, getFinancialTargets } from '@/services/reportes-service'
+import { getFinancialTargets } from '@/services/reportes-service'
 import { getResumenFinanciero, getMovimientosLedger } from '@/services/contabilidad-service'
 import { exportService } from '@/services/export-service'
 import { toast } from 'sonner'
@@ -124,7 +124,6 @@ const ReportesFinancierosPage = () => {
   const [metaMargen, setMetaMargen] = useState<number | null>(null)
 
   const basePath = pathname?.startsWith('/contador') ? '/contador' : '/admin'
-  const yearLabel = new Date().getFullYear()
 
   const handleExportExcel = async () => {
     try {
@@ -165,9 +164,6 @@ const ReportesFinancierosPage = () => {
         ahora,
       )
 
-      const monthlyRespMaybe = periodo === 'DIARIO'
-        ? null
-        : await getMonthlyEvolution(ahora.getFullYear())
 
       const startKey = getBogotaDateKey(new Date(startDate))
       const endKey = getBogotaDateKey(new Date(endDate))
@@ -211,14 +207,13 @@ const ReportesFinancierosPage = () => {
       })
 
       const nowKey = getBogotaDateKey(ahora)
-      const baseNoon = new Date(`${nowKey}T12:00:00-05:00`)
-      const y = baseNoon.getFullYear()
-      const m = baseNoon.getMonth()
-      const d = baseNoon.getDate()
+      const [y, mes, d] = nowKey.split('-').map(Number)
+      const m = mes - 1
+      const mediodia = (mesBase: number, dia: number) => new Date(Date.UTC(y, mesBase, dia, 17))
 
       const getPrevRange = () => {
         if (periodo === 'DIARIO') {
-          const prevNoon = new Date(y, m, d - 1, 12, 0, 0, 0)
+          const prevNoon = mediodia(m, d - 1)
           const prevKey = getBogotaDateKey(prevNoon)
           return {
             inicio: buildBogotaOffsetIsoFromKey(prevKey, { hh: 0, mm: 0, ss: 0, ms: 0 }),
@@ -227,8 +222,8 @@ const ReportesFinancierosPage = () => {
         }
 
         if (periodo === 'MENSUAL') {
-          const prevStartNoon = new Date(y, m - 1, 1, 12, 0, 0, 0)
-          const prevEndNoon = new Date(y, m, 0, 12, 0, 0, 0)
+          const prevStartNoon = mediodia(m - 1, 1)
+          const prevEndNoon = mediodia(m, 0)
           const sKey = getBogotaDateKey(prevStartNoon)
           const eKey = getBogotaDateKey(prevEndNoon)
           return {
@@ -238,8 +233,8 @@ const ReportesFinancierosPage = () => {
         }
 
         if (periodo === 'SEMANAL') {
-          const prevStartNoon = new Date(y, m, d - 13, 12, 0, 0, 0)
-          const prevEndNoon = new Date(y, m, d - 7, 12, 0, 0, 0)
+          const prevStartNoon = mediodia(m, d - 13)
+          const prevEndNoon = mediodia(m, d - 7)
           const sKey = getBogotaDateKey(prevStartNoon)
           const eKey = getBogotaDateKey(prevEndNoon)
           return {
@@ -283,7 +278,7 @@ const ReportesFinancierosPage = () => {
       }
 
       if (periodo === 'DIARIO' || periodo === 'SEMANAL') {
-        const desde7Noon = new Date(y, m, d - 6, 12, 0, 0, 0)
+        const desde7Noon = mediodia(m, d - 6)
         const desde7Key = getBogotaDateKey(desde7Noon)
         const fechaInicio = buildBogotaOffsetIsoFromKey(desde7Key, { hh: 0, mm: 0, ss: 0, ms: 0 })
         const fechaFin = toBogotaDateTimeOffsetIso(ahora)
@@ -299,7 +294,7 @@ const ReportesFinancierosPage = () => {
         const range: Date[] = []
         for (let i = 0; i < 7; i++) {
           const dd = new Date(desde7Noon)
-          dd.setDate(desde7Noon.getDate() + i)
+          dd.setUTCDate(desde7Noon.getUTCDate() + i)
           const key = getBogotaDateKey(dd)
           dias[key] = { ingresos: 0, cobros: 0, egresos: 0 }
           range.push(dd)
@@ -379,8 +374,8 @@ const ReportesFinancierosPage = () => {
             gastosOperativos: totalEgresos7,
           })
 
-          const prevDesde7Noon = new Date(y, m, d - 13, 12, 0, 0, 0)
-          const prevFin7Noon = new Date(y, m, d - 7, 12, 0, 0, 0)
+          const prevDesde7Noon = mediodia(m, d - 13)
+          const prevFin7Noon = mediodia(m, d - 7)
           const prevDesde7Key = getBogotaDateKey(prevDesde7Noon)
           const prevFin7Key = getBogotaDateKey(prevFin7Noon)
           try {
@@ -437,7 +432,7 @@ const ReportesFinancierosPage = () => {
             const key = getBogotaDateKey(iter)
             dayMap[key] = { ingresos: 0, cobros: 0, egresos: 0, fecha: toBogotaDateTimeOffsetIso(iter) }
             days.push(new Date(iter))
-            iter.setDate(iter.getDate() + 1)
+            iter.setUTCDate(iter.getUTCDate() + 1)
           }
           listaDeRespuesta(ingResAll).filter(isIngresoOperativoMovimiento).forEach(t => {
             const key = normalizeDateKey(t.fecha)
@@ -468,34 +463,27 @@ const ReportesFinancierosPage = () => {
           })
           setMonthlyData(series)
         } else {
-          const startKey = getBogotaDateKey(new Date(`${startDate}`))
-          const startM = new Date(`${startKey}T12:00:00-05:00`)
-          const endM = new Date(ahora)
           const monthMap: Record<string, { ingresos: number; cobros: number; egresos: number }> = {}
           const months: { key: string; label: string }[] = []
-          const iter = new Date(startM.getFullYear(), startM.getMonth(), 1)
-          while (iter <= endM) {
-            const key = `${iter.getFullYear()}-${String(iter.getMonth()+1).padStart(2,'0')}`
-            const label = iter.toLocaleString('es-CO', { month: 'short' })
+          for (let i = 0; i < mes; i++) {
+            const fecha = mediodia(i, 1)
+            const key = getBogotaDateKey(fecha).slice(0, 7)
+            const label = formatFechaBogota(fecha, { month: 'short' })
             monthMap[key] = { ingresos: 0, cobros: 0, egresos: 0 }
             months.push({ key, label })
-            iter.setMonth(iter.getMonth() + 1, 1)
           }
           listaDeRespuesta(ingResAll).filter(isIngresoOperativoMovimiento).forEach(t => {
-            const d = new Date(t.fecha)
-            const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`
+            const key = getBogotaDateKey(t.fecha).slice(0, 7)
             if (monthMap[key]) monthMap[key].ingresos += getIngresoOperativoMovimiento(t)
           })
           cobroResAll.data
             .filter((t) => String(t.origenGestion || '').toUpperCase() !== 'CIERRE_PENDIENTE')
             .forEach(t => {
-              const d = new Date(t.fecha)
-              const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`
+              const key = getBogotaDateKey(t.fecha).slice(0, 7)
               if (monthMap[key]) monthMap[key].cobros += getCobroMovimiento(t)
             })
           listaDeRespuesta(egreResAll).forEach(t => {
-            const d = new Date(t.fecha)
-            const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`
+            const key = getBogotaDateKey(t.fecha).slice(0, 7)
             if (monthMap[key]) monthMap[key].egresos += Number(t.totalDebito || 0)
           })
           const series: MonthlyEvolution[] = months.map(m => {

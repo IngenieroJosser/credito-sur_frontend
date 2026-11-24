@@ -4,6 +4,7 @@ import {
   computeDiasMoraFromCuotaObjetivo,
   computeRutaHoyUiStatsFromVisitas,
   getEstadoRevisionOperacion,
+  getBogotaRangeForFinancialPeriod,
   isObligacionOperativaRuta,
   isPrestamoOperativo,
   isPrestamoRevertido,
@@ -16,6 +17,18 @@ import {
   shouldShowVisitaEnRutaHoy,
 } from '@/lib/rutas-core'
 import type { PrestamoParcial } from '@/types/domain'
+
+describe('calendario del reporte financiero', () => {
+  it.each([
+    ['ANUAL', '2026-01-01'], ['TRIMESTRAL', '2026-09-01'],
+    ['MENSUAL', '2026-12-01'], ['SEMANAL', '2026-12-25'], ['DIARIO', '2026-12-31'],
+  ] as const)('inicia %s en Bogotá aunque el dispositivo ya esté en enero', (periodo, dia) => {
+    const instante = new Date('2027-01-01T04:59:59.999Z')
+    const rango = getBogotaRangeForFinancialPeriod(periodo, instante)
+    expect(new Date(rango.inicio).getTime()).toBe(new Date(dia + 'T00:00:00-05:00').getTime())
+    expect(rango.fin.slice(0,10)).toBe('2026-12-31')
+  })
+})
 
 describe('validez operativa provisional', () => {
   it('permite prestamos pendientes como provisionales y excluye rechazados/revertidos', () => {
