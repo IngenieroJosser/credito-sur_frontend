@@ -2,6 +2,7 @@
 import { formatFechaBogota, formatHoraBogota } from '@/lib/format-date'
 import { mensajeDeError } from '@/lib/mensaje-de-error'
 import { logger } from '@/lib/logger'
+import { avisoDeCifraIncompleta } from '@/lib/contable/cifras-completas'
 
 /**
  * ============================================================================
@@ -88,7 +89,7 @@ import AnimacionCarga from '@/components/ui/AnimacionCarga'
 import Link from 'next/link'
 import DeudorasCobradorCard from '@/components/contable/DeudorasCobradorCard'
 import FieldLabel from '@/components/ui/FieldLabel'
-import BotonAccion from '@/components/ui/BotonAccion'
+import BotonAccion from '@/components/ui/BotonAccion'
 import { listaDeRespuesta } from '@/lib/lista-de-respuesta'
 import { Selector } from '@/components/ui/Selector'
 import { CampoFecha } from '@/components/ui/CampoFecha'
@@ -406,6 +407,16 @@ const ModuloContableContent = () => {
   } | null>(null)
   const [saldoRutaSeleccionada, setSaldoRutaSeleccionada] = useState<SaldoDisponibleRuta | null>(null)
   const [cajaHoyStats, setCajaHoyStats] = useState<{ ingresos: number; egresos: number } | null>(null)
+  /*
+   * Cuando una de las cifras del modal se calculo sumando una respuesta que
+   * llego al tope, y por tanto esta CORTA.
+   *
+   * Estas sumas se hacen en el navegador sobre lo que devuelve una peticion con
+   * `limit`. Si hay mas filas que el tope, el numero sale menor que el real y
+   * con pinta de dato bueno. Medido: 219 transacciones de una caja en un dia
+   * contra un tope de 500 -el 44%-, y crece con el numero de cobradores.
+   */
+  const [cifraIncompleta, setCifraIncompleta] = useState<string | null>(null)
   const [movimientoSeleccionado, setMovimientoSeleccionado] = useState<MovimientoContable | null>(null)
 
   const [showDetalleModal, setShowDetalleModal] = useState(false)
@@ -1755,11 +1766,15 @@ const ModuloContableContent = () => {
                           onClick={async () => {
                             setCajaSeleccionada(c)
                             setVerCajaRangoStats(null)
+                            setCifraIncompleta(null)
                             try {
                               const inicioKey = fechaInicioModal || ''
                               const finKey = fechaFinModal || ''
 
                               const respLedgerCaja = await getMovimientosLedger({ cajaId: c.id, limit: 5000 })
+                              // Si quedaron asientos sin traer, el saldo previo
+                              // y el total del rango salen cortos.
+                              setCifraIncompleta(avisoDeCifraIncompleta(respLedgerCaja))
                               const movimientosLedgerCaja = Array.isArray(respLedgerCaja?.data)
                                 ? respLedgerCaja.data
                                 : []
@@ -1820,6 +1835,10 @@ const ModuloContableContent = () => {
                                     fechaFin: hoyClave,
                                     limit: 500,
                                   })
+                                  setCifraIncompleta(
+                                    (previo) =>
+                                      previo || avisoDeCifraIncompleta(resp),
+                                  )
 
                                   const movimientosCaja = Array.isArray(resp?.data)
                                     ? listaDeRespuesta(resp).map(mapTransaccion)
@@ -1862,6 +1881,9 @@ const ModuloContableContent = () => {
 
                                 const params = { cajaId: c.id, fechaInicio: hoyClave, limit: 500 }
                                 const resp = await getTransacciones(params)
+                                setCifraIncompleta(
+                                  (previo) => previo || avisoDeCifraIncompleta(resp),
+                                )
                                 if (resp && Array.isArray(resp.data)) {
                                   const codigoCaja = String((c)?.codigo || '').toUpperCase()
                                   const omitRefs = codigoCaja === 'CAJA-PRINCIPAL' || codigoCaja === 'CAJA-BANCO'
@@ -2685,6 +2707,21 @@ const ModuloContableContent = () => {
                       amountClassName="text-4xl font-extrabold text-slate-900"
                       badgeClassName="text-[10px] px-3 py-1 tracking-widest"
                     />
+                    {/*
+                      Si alguna de las cifras de abajo se calculó sumando una
+                      respuesta que llegó al tope, sale CORTA. Antes no se
+                      decía: el número aparecía igual, con pinta de dato bueno.
+                      Es la misma regla de siempre aquí: una cifra que no se
+                      sabe entera no se presenta como si lo fuera.
+                    */}
+                    {cifraIncompleta ? (
+                      <p
+                        role="alert"
+                        className="mt-3 w-full rounded-lg bg-amber-50 px-3 py-2 text-center text-xs font-semibold text-amber-800"
+                      >
+                        {cifraIncompleta}
+                      </p>
+                    ) : null}
                     {verCajaRangoStats && (
                       <div className="mt-3 w-full flex flex-col items-center gap-1">
                         <p className="text-xs font-medium text-slate-500">Total registrado ({verCajaRangoStats.inicio} → {verCajaRangoStats.fin})</p>
