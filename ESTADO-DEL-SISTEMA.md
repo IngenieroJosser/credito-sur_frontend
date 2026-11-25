@@ -267,6 +267,49 @@ periodo anterior, **sin borrar nada**.
 
 Las otras seis vistas con periodo ya estaban bien y no se tocaron.
 
+### 6. La pantalla de respaldos decia que habia una copia en la nube  ← LEER
+
+La tarjeta derecha decia **«Nube VPS · Respaldo remoto · Conectado»**, con punto
+verde parpadeando, y bajo «Ultima sincronizacion» repetia la fecha del respaldo
+**local**. No existe: el enum `BackupDestino` tiene **un solo valor**, `LOCAL`,
+y no hay en todo el modulo una linea que suba un archivo a ningun sitio.
+
+Le decia al dueño que tenia una copia **fuera del servidor** de su financiera.
+Ahora dice la verdad: «Copia fuera del servidor · No configurada», con la ruta
+real, el aviso de que el disco de Render es **efimero** y que hay que descargar
+la copia en cuanto se genera, y que el plan de recuperacion real son las copias
+automaticas del Postgres administrado.
+
+Y al generar un respaldo, la pantalla **lo ofrece para descargar en el acto**
+en vez de dejarlo en una fila del historial.
+
+**`pg_dump` SI esta en produccion** (18.7, Debian): no hay que configurar
+`PG_DUMP_PATH`. Lo unico que queda del asunto es el disco efimero.
+
+### 7. Dos rotulos de estado mas que estaban escritos a mano
+
+Barrido sobre los 471 archivos `.tsx` buscando palabras de estado como texto
+fijo. De tres candidatos, **dos eran reales**:
+
+- **El login** tenia un punto verde con «En linea» marcado en el codigo como
+  «(Decorativo)». En la pantalla de entrar: con el servidor caido, quien no
+  puede entrar lee «En linea» y culpa a su contraseña. Ahora sale de
+  `useOnlineStatus`, que confirma con un ping real.
+- **Respaldos** decia «Activo» aunque `GET /backup/status` fallara.
+
+El tercero (`PushNotificationManager`) ya estaba bien y no se toco.
+
+### Verificacion final antes de las pruebas
+
+| comprobacion | resultado |
+|---|---|
+| 7 roles x 112 pantallas, en navegador | **las 7 pasan** |
+| pruebas del frontend | **8.673 en 104 suites** |
+| backend, zonas tocadas | dashboard, clientes, creditos, rutas, prisma, respaldos: **verde** |
+| `tsc --noEmit` y `eslint` en los dos repos | **limpios** |
+| build de los dos repos | **ok** |
+| produccion == repo | comprobado por `commit` en `/health` y `/api/ping` |
+
 ### Lo que NO esta resuelto, dicho claro
 
 1. **`/routes` y `/dashboard` siguen en 3-4 s** con 2.000 clientes. Usable,
