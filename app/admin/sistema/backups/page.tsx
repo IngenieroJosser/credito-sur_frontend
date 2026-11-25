@@ -45,6 +45,15 @@ const BackupsSistemaPage = () => {
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [running, setRunning] = useState(false)
+  /**
+   * El respaldo generado en ESTA sesión, para ofrecer su descarga al momento.
+   *
+   * No es un adorno: el archivo se queda en el disco del servidor y en Render
+   * ese disco es efímero. Un respaldo que no se descarga hoy no existe mañana,
+   * así que en cuanto se genera la pantalla lo pone delante en vez de dejarlo
+   * esperando en una fila del historial.
+   */
+  const [recienGenerado, setRecienGenerado] = useState<BackupRun | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [checkingIntegrity, setCheckingIntegrity] = useState(false)
   const [integrity, setIntegrity] = useState<{ todoEnOrden: boolean; problemas: string[]; revisadoEn?: string } | null>(null)
@@ -165,7 +174,22 @@ const BackupsSistemaPage = () => {
     setRunning(true)
     setError(null)
     try {
-      await apiRequest('POST', '/backup/run', undefined, { cacheTTL: 0, timeout: 15 * 60 * 1000 })
+      /*
+       * La respuesta se guarda, no se tira.
+       *
+       * `POST /backup/run` devuelve el registro recien creado, con su
+       * `id`. Antes se descartaba y solo se recargaba la lista. Se guarda
+       * para poder ofrecer la descarga EN EL MOMENTO: el archivo se queda
+       * en el disco del servidor y en Render ese disco es efimero, asi que
+       * un respaldo que no se descarga hoy no existe mañana.
+       */
+      const generado = await apiRequest<BackupRun>(
+        'POST',
+        '/backup/run',
+        undefined,
+        { cacheTTL: 0, timeout: 15 * 60 * 1000 },
+      )
+      if (generado?.id) setRecienGenerado(generado)
       await loadAll()
     } catch (e) {
       setError(mensajeDeError(e, 'No se pudo ejecutar el backup'))
@@ -308,6 +332,62 @@ const BackupsSistemaPage = () => {
                 <RefreshCw className="h-4 w-4 group-hover/btn:rotate-180 transition-transform duration-500" />
                 {running ? 'Ejecutando...' : 'Forzar respaldo manual'}
               </button>
+
+              {/*
+                Recién generado: descárgalo ya.
+
+                El respaldo se escribe en el disco del servidor, y en Render ese
+                disco es efímero: en el próximo despliegue el archivo deja de
+                estar y la descarga pasa a dar 404. Antes el botón generaba el
+                respaldo y no decía nada más; la descarga quedaba en una fila
+                del historial, que es justo donde no se mira.
+              */}
+              {recienGenerado && recienGenerado.estado === 'EXITOSO' ? (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                  <p className="text-xs font-bold text-emerald-800">
+                    Respaldo generado. Descárgalo ahora.
+                  </p>
+                  <p className="mt-1 text-xs font-medium text-emerald-700">
+                    El archivo vive en el disco de este servidor y desaparece en
+                    el próximo despliegue. Si no lo guardas en tu equipo, no
+                    queda copia.
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => downloadArtifact(recienGenerado.id, 'dump')}
+                      disabled={!recienGenerado.filePath || descargando !== null}
+                      className="inline-flex min-h-[44px] items-center gap-2 rounded-lg bg-emerald-700 px-3 text-xs font-bold text-white hover:bg-emerald-800 disabled:opacity-50"
+                    >
+                      {descargando === `${recienGenerado.id}:dump` ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Download className="h-3.5 w-3.5" />
+                      )}
+                      Volcado SQL
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => downloadArtifact(recienGenerado.id, 'xlsx')}
+                      disabled={descargando !== null}
+                      className="inline-flex min-h-[44px] items-center gap-2 rounded-lg border border-emerald-300 bg-white px-3 text-xs font-bold text-emerald-800 hover:bg-emerald-100 disabled:opacity-50"
+                    >
+                      {descargando === `${recienGenerado.id}:xlsx` ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Download className="h-3.5 w-3.5" />
+                      )}
+                      Excel
+                    </button>
+                  </div>
+                  {!recienGenerado.filePath ? (
+                    <p className="mt-2 text-xs font-semibold text-amber-800">
+                      Este respaldo no trae volcado SQL, así que con él no se
+                      restaura PostgreSQL: solo está el Excel.
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           </div>
 

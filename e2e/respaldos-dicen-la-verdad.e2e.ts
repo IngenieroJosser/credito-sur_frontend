@@ -90,4 +90,61 @@ test.describe('Respaldos', () => {
       page.getByRole('button', { name: /Verificar integridad/i }),
     ).toBeVisible()
   })
+
+  test('al generar un respaldo, lo ofrece para descargar en el momento', async ({
+    page,
+  }) => {
+    test.setTimeout(3 * 60_000)
+
+    await entrarComo(page, 'SUPER_ADMINISTRADOR')
+    await page.goto('/admin/sistema/backups')
+    await expect(
+      page.getByRole('heading', { name: /Respaldo y Recuperaci[oó]n/i }),
+    ).toBeVisible({ timeout: 30_000 })
+
+    /*
+     * Esto genera un respaldo DE VERDAD contra la base de desarrollo: escribe
+     * el Excel y una fila en `BackupRun`. Es lo que hace el boton, y es la
+     * unica forma de comprobar el flujo entero.
+     */
+    await page
+      .getByRole('button', { name: /Forzar respaldo manual/i })
+      .click()
+
+    /*
+     * Lo que se exige: que en cuanto termina, la descarga este DELANTE.
+     *
+     * Antes el boton generaba el respaldo y no decia nada mas; la descarga
+     * quedaba en una fila del historial. Y el archivo se escribe en el disco
+     * del servidor, que en Render es efimero: un respaldo que no se descarga
+     * hoy no existe mañana.
+     */
+    await expect(
+      page.getByText(/Respaldo generado\. Desc[aá]rgalo ahora\./i),
+    ).toBeVisible({ timeout: 2 * 60_000 })
+
+    /*
+     * Los botones se buscan DENTRO del bloque nuevo, no en toda la pagina.
+     *
+     * La primera version fallo por eso: «Excel» casa tambien con los botones
+     * de cada fila del historial, y Playwright se nego por ambiguedad -cuatro
+     * coincidencias-. El fallo era del localizador, no de la pantalla: el
+     * bloque habia aparecido y era la primera coincidencia.
+     */
+    const bloque = page
+      .locator('div')
+      .filter({ hasText: /Respaldo generado\. Desc[aá]rgalo ahora\./ })
+      .last()
+
+    await expect(
+      bloque.getByRole('button', { name: /Volcado SQL/i }),
+    ).toBeVisible()
+    await expect(
+      bloque.getByRole('button', { name: /^Excel$/i }),
+    ).toBeVisible()
+
+    // Y que diga por que corre prisa.
+    const cuerpo = await page.locator('body').innerText()
+    expect(cuerpo).toMatch(/desaparece en el pr[oó]ximo despliegue/i)
+  })
 })
