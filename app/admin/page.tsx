@@ -9,6 +9,7 @@ import { formatFechaBogota } from '@/lib/format-date'
 
 import PantallaCarga from '@/components/ui/PantallaCarga'
 import PanelDeError from '@/components/ui/PanelDeError'
+import AvisoActualizando from '@/components/ui/AvisoActualizando'
 import { logger } from '@/lib/logger'
 
 import { useEffect, useState, useRef, useCallback } from 'react';
@@ -191,12 +192,22 @@ export default function DashboardPage() {
      * arreglaron juntas.
      */
     errorCarga: string | null;
+    /*
+     * Cambiando de periodo CON datos ya en pantalla.
+     *
+     * Antes esto no existia: al cambiar de mes a año se hacia
+     * `dashboardData: null` y la pantalla se iba al esqueleto varios
+     * segundos. Ahora los datos se quedan, atenuados y con un aviso de que
+     * son del periodo anterior, hasta que llegan los nuevos.
+     */
+    actualizando: boolean;
   }>({
     isLoading: true,
     userData: null,
     dashboardData: null,
     shouldRedirect: null,
-    errorCarga: null
+    errorCarga: null,
+    actualizando: false
   });
 
   /** Sube con cada «Reintentar» y vuelve a disparar la carga. */
@@ -213,10 +224,20 @@ export default function DashboardPage() {
     let isMounted = true;
     
     // Al cambiar período: mostrar loading y borrar datos anteriores para no mostrar datos de otro período
+    /*
+     * Con datos en pantalla NO se borra nada: se marca que se esta
+     * actualizando. El esqueleto queda solo para la primera carga, cuando
+     * de verdad no hay nada que mostrar.
+     *
+     * El motivo original de borrarlos -«no mostrar datos de otro periodo»-
+     * sigue respetado: el aviso dice a las claras que las cifras de abajo
+     * son del periodo anterior, y el contenedor se atenua y no recibe
+     * clics.
+     */
     setState(prev => ({
       ...prev,
-      isLoading: true,
-      dashboardData: null,
+      isLoading: prev.dashboardData ? false : true,
+      actualizando: !!prev.dashboardData,
       errorCarga: null
     }));
 
@@ -246,7 +267,8 @@ export default function DashboardPage() {
               userData: parsedUser,
               dashboardData: null,
               shouldRedirect: routes[parsedUser.rol],
-              errorCarga: null
+              errorCarga: null,
+              actualizando: false
             });
           }
           return;
@@ -463,7 +485,8 @@ export default function DashboardPage() {
             userRole: parsedUser.rol?.replace('_', ' ') || 'Usuario'
           },
           shouldRedirect: null,
-          errorCarga: null
+          errorCarga: null,
+          actualizando: false
         });
       } catch (error) {
         console.error('Error cargando dashboard:', error);
@@ -475,6 +498,7 @@ export default function DashboardPage() {
           setState(prev => ({
             ...prev,
             isLoading: false,
+            actualizando: false,
             errorCarga: mensajeDeError(
               error,
               'No se pudo cargar el panel'
@@ -556,7 +580,13 @@ export default function DashboardPage() {
    * Va ANTES del `return null` de abajo: si hubo error no hay `dashboardData`,
    * y sin esto la pantalla se quedaba vacia.
    */
-  if (state.errorCarga) {
+  /*
+   * El panel de error COMPLETO es solo para cuando no hay nada que
+   * mostrar. Si ya habia datos, se conservan y el fallo se cuenta en una
+   * franja: vaciar la pantalla por un fallo al cambiar de periodo seria
+   * perder lo que la persona ya estaba leyendo.
+   */
+  if (state.errorCarga && !state.dashboardData) {
     return (
       <PanelDeError
         titulo="No se pudo cargar el panel"
@@ -570,6 +600,27 @@ export default function DashboardPage() {
     return null;
   }
 
-  return <DashboardClient data={state.dashboardData} />;
+  return (
+    <div className="relative">
+      {state.actualizando ? <AvisoActualizando periodo={period} /> : null}
+      {state.errorCarga ? (
+        <AvisoActualizando
+          periodo={period}
+          fallo={state.errorCarga}
+          onReintentar={() => setIntentoDeCarga((n) => n + 1)}
+        />
+      ) : null}
+      <div
+        className={
+          state.actualizando
+            ? 'pointer-events-none opacity-60 transition-opacity'
+            : 'transition-opacity'
+        }
+        aria-busy={state.actualizando}
+      >
+        <DashboardClient data={state.dashboardData} />
+      </div>
+    </div>
+  );
 }
 

@@ -4,6 +4,26 @@ import React from 'react';
 
 export type TimeFilterPeriod = 'today' | 'week' | 'month' | 'year';
 
+/**
+ * Los periodos, con sus dos etiquetas. UNA sola definicion.
+ *
+ * Estaban dentro del componente, asi que cualquier otra parte que necesitara
+ * decir «Mes» o «Año» tenia que escribirlo otra vez. Se exportan porque el
+ * aviso de «actualizando a <periodo>» las necesita, y dos copias de una
+ * etiqueta acaban divergiendo como ya paso con el formateo de pesos.
+ */
+export const PERIODOS = [
+  { id: 'today', label: 'Hoy', fullLabel: 'Hoy' },
+  { id: 'week', label: 'Sem', fullLabel: 'Semana' },
+  { id: 'month', label: 'Mes', fullLabel: 'Mes' },
+  { id: 'year', label: 'Año', fullLabel: 'Año' },
+] as const;
+
+/** El nombre largo de un periodo, para decirselo a la persona. */
+export function nombreDePeriodo(periodo: TimeFilterPeriod): string {
+  return PERIODOS.find((p) => p.id === periodo)?.fullLabel ?? String(periodo);
+}
+
 interface TimeFilterProps {
   activePeriod: TimeFilterPeriod;
   onPeriodChange: (period: TimeFilterPeriod) => void;
@@ -11,12 +31,7 @@ interface TimeFilterProps {
 }
 
 export function TimeFilter({ activePeriod, onPeriodChange, className = '' }: TimeFilterProps) {
-  const periods = [
-    { id: 'today', label: 'Hoy', fullLabel: 'Hoy' },
-    { id: 'week', label: 'Sem', fullLabel: 'Semana' },
-    { id: 'month', label: 'Mes', fullLabel: 'Mes' },
-    { id: 'year', label: 'Año', fullLabel: 'Año' },
-  ] as const;
+  const periods = PERIODOS;
 
   return (
     <div className={className}>

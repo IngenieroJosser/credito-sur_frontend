@@ -4,6 +4,7 @@ import { estadoDeError, mensajeDeError } from '@/lib/mensaje-de-error'
 
 import PantallaCarga from '@/components/ui/PantallaCarga'
 import PanelDeError from '@/components/ui/PanelDeError'
+import AvisoActualizando from '@/components/ui/AvisoActualizando'
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -113,12 +114,24 @@ export default function CoordinadorPage() {
      * dejaba en blanco. Y el servidor devolvia ceros en vez de fallar.
      */
     errorCarga: string | null
+    /*
+     * Cambiando de periodo con datos ya en pantalla.
+     *
+     * Aqui el problema era el contrario que en `/admin`: esta pantalla NO
+     * vaciaba nada y tampoco volvia a encender el `isLoading`, asi que al
+     * cambiar de mes a año se quedaba mostrando las cifras del periodo
+     * anterior **en silencio**, con el selector ya en el nuevo. Una cifra
+     * que dice ser de un periodo y es de otro es exactamente lo que este
+     * proyecto no permite.
+     */
+    actualizando: boolean
   }>({
     isLoading: true,
     userData: null,
     dashboardData: null,
     shouldRedirect: null,
     errorCarga: null,
+    actualizando: false,
   })
 
   /** Sube con cada «Reintentar» y vuelve a disparar la carga. */
@@ -126,6 +139,16 @@ export default function CoordinadorPage() {
 
   const initializeDashboard = useCallback(async () => {
     let isMounted = true
+    /*
+     * Con datos en pantalla se avisa de que se estan actualizando. Sin
+     * esto el cambio de periodo era invisible: las mismas cifras de antes
+     * bajo un selector que ya decia otra cosa.
+     */
+    setState((prev) => ({
+      ...prev,
+      actualizando: !!prev.dashboardData,
+      errorCarga: null,
+    }))
     const userStr = localStorage.getItem('user')
 
     if (!userStr) {
@@ -152,6 +175,7 @@ export default function CoordinadorPage() {
             dashboardData: null,
             shouldRedirect: ROLE_REDIRECT_MAP[parsedUser.rol] || '/login',
             errorCarga: null,
+            actualizando: false,
           })
         }
         return
@@ -307,6 +331,7 @@ export default function CoordinadorPage() {
           },
           shouldRedirect: null,
           errorCarga: null,
+          actualizando: false,
         })
       }
     } catch (error) {
@@ -326,6 +351,7 @@ export default function CoordinadorPage() {
         setState((prev) => ({
           ...prev,
           isLoading: false,
+          actualizando: false,
           errorCarga: mensajeDeError(error, 'No se pudo cargar el panel'),
         }))
       }
@@ -370,7 +396,9 @@ export default function CoordinadorPage() {
 
   // Va ANTES del `return null`: si hubo error no hay datos, y sin esto la
   // pantalla se quedaba vacia.
-  if (state.errorCarga) {
+  // El panel completo solo cuando no hay nada que mostrar; con datos en
+  // pantalla el fallo va en una franja y no se pierde lo que ya se leia.
+  if (state.errorCarga && !state.dashboardData) {
     return (
       <PanelDeError
         titulo="No se pudo cargar el panel"
@@ -384,5 +412,26 @@ export default function CoordinadorPage() {
     return null
   }
 
-  return <DashboardClient data={state.dashboardData} />
+  return (
+    <div className="relative">
+      {state.actualizando ? <AvisoActualizando periodo={period} /> : null}
+      {state.errorCarga ? (
+        <AvisoActualizando
+          periodo={period}
+          fallo={state.errorCarga}
+          onReintentar={() => setIntentoDeCarga((n) => n + 1)}
+        />
+      ) : null}
+      <div
+        className={
+          state.actualizando
+            ? 'pointer-events-none opacity-60 transition-opacity'
+            : 'transition-opacity'
+        }
+        aria-busy={state.actualizando}
+      >
+        <DashboardClient data={state.dashboardData} />
+      </div>
+    </div>
+  )
 }
