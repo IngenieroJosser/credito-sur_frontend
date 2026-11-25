@@ -246,6 +246,27 @@ curl -s https://creditos-del-sur.vercel.app/api/ping
 
 Los dos devuelven `commit`; comparar con `git log --oneline -1`.
 
+### 5. Cambiar de periodo ya no vacia la pantalla  ← CAMBIO VISIBLE
+
+Lo pidio el dueño. Medido: de las **ocho** vistas con selector de periodo, solo
+**dos** tenian problema, y cada una el contrario de la otra:
+
+- **`/admin`** hacia `dashboardData: null` al cambiar de mes a año: la pantalla
+  entera se iba al esqueleto varios segundos.
+- **`/coordinador`** no vaciaba nada **ni avisaba**: se quedaba con las cifras
+  del periodo anterior en silencio, con el selector ya en el nuevo.
+
+Ahora en las dos: los datos se quedan, **atenuados y sin recibir clics**, con
+una franja azul que dice «Actualizando a Año… las cifras de abajo son todavia
+las del periodo anterior». El esqueleto queda solo para la primera carga.
+
+**Que se vera en las pruebas:** al cambiar de periodo la pantalla no parpadea;
+sale la franja un momento y las cifras se actualizan en su sitio. Si la
+actualizacion falla, la franja se pone ambar y dice que lo que se ve es del
+periodo anterior, **sin borrar nada**.
+
+Las otras seis vistas con periodo ya estaban bien y no se tocaron.
+
 ### Lo que NO esta resuelto, dicho claro
 
 1. **`/routes` y `/dashboard` siguen en 3-4 s** con 2.000 clientes. Usable,
