@@ -6,9 +6,10 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { ArrowLeft, Search, X, Grid, ChevronRight, AlertCircle } from 'lucide-react'
 import { useState, useEffect } from 'react'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 
 const NotFoundPage = () => {
+  const router = useRouter()
   const [searchQuery, setSearchQuery] = useState('')
   const isVisible = true
   const [activeModule, setActiveModule] = useState<number | null>(null)
@@ -32,7 +33,9 @@ const NotFoundPage = () => {
     if (window.history.length > 1) {
       window.history.back()
     } else {
-      window.location.href = '/'
+      // `router.push`, no `location.href`: volver al inicio no tiene por
+      // que recargar la aplicacion entera.
+      router.push('/')
     }
   }
 

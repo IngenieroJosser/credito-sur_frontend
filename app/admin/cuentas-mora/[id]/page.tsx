@@ -3,6 +3,7 @@
 import { SkeletonDetalle } from '@/components/ui/Skeleton'
 
 import React, { useCallback, useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import Link from 'next/link'
 import {
@@ -59,6 +60,7 @@ interface MoraDetalle {
 }
 
 export default function DetalleCuentaMoraPage({ params }: { params: Promise<{ id: string }> }) {
+  const router = useRouter()
   const { id } = React.use(params);
   
   const [data, setData] = useState<MoraDetalle | null>(null);
@@ -198,7 +200,9 @@ export default function DetalleCuentaMoraPage({ params }: { params: Promise<{ id
           saldoPendiente={data.mora.totalPagarYa}
           onClose={() => setShowArchivarModal(false)}
           onSuccess={() => {
-            window.location.href = '/cuentas-mora';
+            // `router.push`, no `location.href`: cambiar de pantalla no tiene
+            // por que recargar la aplicacion entera.
+            router.push('/cuentas-mora');
           }}
         />
       )}

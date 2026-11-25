@@ -18,7 +18,6 @@ import { ExportButton } from '@/components/ui/ExportButton';
 import { TransactionalHighDetailChart } from '@/components/ui/TransactionalHighDetailChart';
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal';
 import NuevoClienteModal from '@/components/clientes/NuevoClienteModal';
-import { useRealtimeData } from '@/hooks/useRealtimeData';
 import { usePageFocusRefresh } from '@/hooks/usePageFocusRefresh';
 import { exportService } from '@/services/export-service';
 import { toast } from 'sonner';
@@ -76,6 +75,20 @@ interface DashboardData {
 
 interface DashboardClientProps {
   data: DashboardData;
+  /**
+   * Volver a pedir los datos, sin recargar nada.
+   *
+   * Hace falta porque `data` llega como PROP desde una pagina que es cliente
+   * entera (`app/admin/page.tsx` y `app/coordinador/page.tsx` la guardan en su
+   * estado). Lo que habia aqui era `router.refresh()`, que re-renderiza los
+   * componentes de servidor: en este arbol **no actualiza nada**, porque el
+   * dato no viene del servidor sino del estado del padre.
+   *
+   * O sea que crear un credito desde el panel no movia las cifras, y el
+   * refresco al volver a la pestaña tampoco hacia nada —salvo provocar un
+   * re-render que se ve—.
+   */
+  onDatosCambiados?: () => void;
 }
 
 /**
@@ -83,7 +96,10 @@ interface DashboardClientProps {
  * Este archivo se encarga de toda la magia visual y la interacción (modales, filtros, exportación).
  * Recibe los datos "limpios" desde el componente servidor para mantener el cliente ligero.
  */
-export function DashboardClient({ data }: DashboardClientProps) {
+export function DashboardClient({
+  data,
+  onDatosCambiados,
+}: DashboardClientProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -104,13 +120,20 @@ export function DashboardClient({ data }: DashboardClientProps) {
   const [showCrearCreditoModal, setShowCrearCreditoModal] = useState(false);
   const [showNuevoClienteModal, setShowNuevoClienteModal] = useState(false);
 
-  // Refrescar el Server Component cuando el backend emite cambios
-  const refreshDashboard = useCallback(() => router.refresh(), [router]);
-  useRealtimeData(
-    ['dashboards_actualizados', 'pagos_actualizados', 'prestamos_actualizados', 'clientes_actualizados'],
-    refreshDashboard,
-  );
-  usePageFocusRefresh(refreshDashboard, 60_000); // 60s throttle en dashboard (datos pesados)
+  /*
+   * El refresco de verdad: se lo pide al padre, que es quien tiene los datos.
+   *
+   * Ya NO hay aqui un `useRealtimeData`: las dos paginas que montan este
+   * componente se suscriben a los mismos eventos y refrescan su estado sin
+   * interrumpir la vista. Tenerlo tambien aqui era suscribirse dos veces al
+   * mismo socket para, encima, llamar a un `router.refresh()` que no
+   * actualizaba el dato.
+   */
+  const refreshDashboard = useCallback(() => {
+    onDatosCambiados?.();
+  }, [onDatosCambiados]);
+  // Al volver a la pestaña, con 60 s de margen: son datos pesados.
+  usePageFocusRefresh(refreshDashboard, 60_000);
 
   // Exportar resumen del dashboard usando exportService (ya implementado en backend)
   const handleExportExcel = async () => {
@@ -361,7 +384,7 @@ export function DashboardClient({ data }: DashboardClientProps) {
             await prestamosService.crearPrestamo(buildCrearPrestamoPayload(data));
             toast.success('Crédito creado y enviado a revisión.');
             setShowCrearCreditoModal(false);
-            router.refresh();
+            refreshDashboard();
           } catch (err) {
             const msg = mensajeDeError(err, 'No se pudo crear el crédito.');
             toast.error(Array.isArray(msg) ? msg.join(', ') : msg);

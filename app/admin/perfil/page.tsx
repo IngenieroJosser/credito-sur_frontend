@@ -257,7 +257,12 @@ const PerfilUsuarioPage = () => {
           <div className="flex flex-col items-center justify-center py-32">
             <AlertCircle className="h-12 w-12 text-rose-500 mb-4" />
             <h3 className="text-lg font-bold text-slate-900 mb-2">{error}</h3>
-            <button onClick={() => window.location.reload()} className="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors">
+            {/*
+              Recarga los DATOS, no la pagina. Antes era
+              `window.location.reload()`: para repetir una peticion se
+              recargaba todo y se perdia la posicion.
+            */}
+            <button onClick={() => void loadUserData()} className="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors">
               Reintentar
             </button>
           </div>

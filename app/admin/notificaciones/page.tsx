@@ -176,6 +176,15 @@ export default function NotificacionesPage() {
 
   const { notificaciones: globalNotifs } = useNotificaciones()
 
+  /*
+   * Sube con cada «Reintentar» y vuelve a disparar la carga.
+   *
+   * El boton hacia `window.location.reload()`: recargaba la PAGINA ENTERA para
+   * repetir una peticion. Se perdia la posicion, los filtros y todo lo que
+   * hubiera en pantalla.
+   */
+  const [intentoDeCarga, setIntentoDeCarga] = useState(0)
+
   useEffect(() => {
     const cargarNotificaciones = async () => {
       try {
@@ -329,7 +338,7 @@ export default function NotificacionesPage() {
     // Solo se arma el mapeo cuando globalNotifs trae datos; si viene vacío de verdad
     // se muestra el estado vacío en lugar de reintentar.
     cargarNotificaciones()
-  }, [globalNotifs])
+  }, [globalNotifs, intentoDeCarga])
 
   // Estados para modales y acciones
   const [selectedNotif, setSelectedNotif] = useState<NotificacionDeLista | null>(null)
@@ -848,7 +857,11 @@ export default function NotificacionesPage() {
                   <h3 className="text-lg font-bold text-slate-900 mb-2">{error}</h3>
                   <p className="text-slate-500 text-sm mb-6">Por favor, verifica tu conexión o intenta más tarde.</p>
                   <button
-                    onClick={() => window.location.reload()}
+                    onClick={() => {
+                      setError(null)
+                      setIsLoading(true)
+                      setIntentoDeCarga((n) => n + 1)
+                    }}
                     className="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors"
                   >
                     Reintentar

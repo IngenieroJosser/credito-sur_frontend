@@ -430,7 +430,10 @@ export default function CoordinadorPage() {
         }
         aria-busy={state.actualizando}
       >
-        <DashboardClient data={state.dashboardData} />
+        <DashboardClient
+          data={state.dashboardData}
+          onDatosCambiados={() => { void initializeDashboard() }}
+        />
       </div>
     </div>
   )

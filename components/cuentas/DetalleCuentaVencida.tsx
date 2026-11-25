@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Archive, ChevronLeft, User } from 'lucide-react'
 import { SkeletonDetalle } from '@/components/ui/Skeleton'
@@ -67,6 +68,7 @@ export default function DetalleCuentaVencida({
   prefijo = '',
   puedeArchivar = false,
 }: Props) {
+  const router = useRouter()
   const [cuenta, setCuenta] = useState<CuentaVencida | null>(null)
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -213,10 +215,16 @@ export default function DetalleCuentaVencida({
           saldoPendiente={cuenta.saldoPendiente || 0}
           onClose={() => setMostrarArchivar(false)}
           onSuccess={() => {
-            // Con `location.href` se recargaba la aplicación entera; el router
-            // cambia de pantalla y se queda todo montado.
+            /*
+             * Con `location.assign` se recargaba la aplicación entera; el
+             * router cambia de pantalla y se queda todo montado.
+             *
+             * El comentario que había aquí ya decía esto, pero la línea de
+             * abajo seguía siendo `window.location.assign(listado)`: el
+             * arreglo estaba escrito y sin hacer.
+             */
             setMostrarArchivar(false)
-            window.location.assign(listado)
+            router.push(listado)
           }}
         />
       ) : null}

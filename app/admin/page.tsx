@@ -618,7 +618,10 @@ export default function DashboardPage() {
         }
         aria-busy={state.actualizando}
       >
-        <DashboardClient data={state.dashboardData} />
+        <DashboardClient
+          data={state.dashboardData}
+          onDatosCambiados={() => { void refreshDashboard() }}
+        />
       </div>
     </div>
   );
