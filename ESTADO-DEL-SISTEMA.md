@@ -310,6 +310,75 @@ El tercero (`PushNotificationManager`) ya estaba bien y no se toco.
 | build de los dos repos | **ok** |
 | produccion == repo | comprobado por `commit` en `/health` y `/api/ping` |
 
+### 8. Cerrado lo que quedaba abierto (madrugada del 2026-11-25)
+
+**El periodo «Año» del tablero tardaba 114 SEGUNDOS.** No era lentitud, era
+inutilizable, y es justo el periodo al que se cambia desde «Mes». Dos causas:
+`processTrendData` cargaba TODAS las cuotas impagas de la historia cuando de
+cada credito solo la mas antigua puede salir elegida (60.000 filas → 3.000), y
+la rama mensual recalculaba la clave de dia por cuota y por bucket (~1,1
+millones de llamadas a `Intl` con «Año»). Ahora **0,87–1,04 s**, y las
+respuestas de los cuatro periodos son identicas campo por campo.
+
+**Los «3–4 segundos» de `/routes` y `/dashboard` eran ruido de medicion.** Se
+tomaron con la maquina ocupada (builds y Playwright a la vez). Medido en
+condiciones limpias, con los 2.000 clientes / 90.000 cuotas / 30.000 pagos:
+
+| endpoint | mediana |
+|---|---|
+| `/routes` | 1,21 s |
+| `/dashboard` (today) | 0,82 s |
+| `/dashboard` (year) | 1,05 s |
+| `/clients` | 0,68 s |
+| `/loans` | 0,09 s |
+| `/accounting/resumen` | 0,24 s |
+| `/payments`, `/approvals/pending` | < 0,04 s |
+
+**Todos por debajo de 1,3 s.** Eso cierra los puntos 1 y 2 de rendimiento, y
+evito un refactor arriesgado que no hacia falta.
+
+**Las 88 cuotas a medianoche UTC: corregidas.** Migracion
+`20261125030000_fechas_heredadas_a_mediodia_bogota`. Un timestamp a las
+`00:00:00` UTC en Bogota son las 19:00 del dia ANTERIOR, asi que esas cuotas
+vencian un dia antes: entraban en mora antes y salian en la jornada
+equivocada. Tambien 7 `Prestamo.fechaInicio` y 7 `fechaFin`. Verificado en
+desarrollo: de 88 a **0**, y las 1.637 cuotas al mediodia. No se tocan
+`cuotas.fechaPago` ni `Pago.fechaPago`: son instantes reales, no fechas de
+calendario.
+
+**Las sumas de la pantalla contable ya no mienten cuando se quedan cortas.**
+Calcula cifras de dinero sumando en el navegador respuestas con `limit`:
+medido, 219 transacciones de una caja en un dia contra un tope de 500 (44%), y
+301 asientos del libro contra 5.000. Cuando `meta.total` dice que faltan filas,
+la cifra sale con un aviso que da los dos numeros. **El arreglo de fondo -que
+las sume el servidor- NO se hizo**, y el motivo esta escrito: el calculo tiene
+tres ramas distintas y replicarlas mal mostraria cifras equivocadas, que es
+peor que la de hoy.
+
+### Lo unico que sigue abierto
+
+**`/clients` manda todos los clientes de la empresa**: 1 MB con 2.000, unos
+5 MB con 10.000. El tiempo ya esta arreglado (0,68 s); el tamaño no.
+
+Y no es solo el endpoint. Medido:
+
+- la pantalla **filtra y calcula sus estadisticas sobre el conjunto completo**
+  en el navegador (mora, vencidas, tres cubos por dias de atraso), y `diasMora`
+  **no esta materializado en ninguna columna**: paginar en el servidor obliga a
+  calcular la mora en SQL para poder filtrar y agregar por ella;
+- y la pantalla **guarda lo que recibe en IndexedDB** como copia offline, asi
+  que si recibe una pagina, la copia offline pasa a ser una pagina. Eso rompe
+  un requisito explicito del dueño.
+
+Se midio tambien el atajo: los cuatro campos de referencias son el 19% del
+payload, pero los lee la pantalla de DETALLE, que sin conexion se alimenta de
+esta misma copia. Quitarlos dejaria las referencias vacias para el cobrador en
+la calle. **No compensa.**
+
+El camino, para cuando haya tiempo y no sea la vispera de unas pruebas:
+paginacion real en el controlador + mora en SQL para los filtros y los
+agregados + una descarga aparte para la copia offline.
+
 ### Lo que NO esta resuelto, dicho claro
 
 1. **`/routes` y `/dashboard` siguen en 3-4 s** con 2.000 clientes. Usable,
