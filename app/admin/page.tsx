@@ -1,5 +1,5 @@
 'use client'
-import { estadoDeError } from '@/lib/mensaje-de-error'
+import { estadoDeError, mensajeDeError } from '@/lib/mensaje-de-error'
 import type {
   DelinquentAccount,
   TrendData,
@@ -8,6 +8,7 @@ import type { PrestamoDelListado } from '@/types/domain'
 import { formatFechaBogota } from '@/lib/format-date'
 
 import PantallaCarga from '@/components/ui/PantallaCarga'
+import PanelDeError from '@/components/ui/PanelDeError'
 import { logger } from '@/lib/logger'
 
 import { useEffect, useState, useRef, useCallback } from 'react';
@@ -180,12 +181,26 @@ export default function DashboardPage() {
     userData: UserData | null;
     dashboardData: FrontendDashboardData | null;
     shouldRedirect: string | null;
+    /*
+     * El motivo por el que no se pudo cargar.
+     *
+     * Antes no existia: el `catch` solo apagaba el `isLoading` y mas abajo
+     * `if (!state.dashboardData) return null` dejaba la pantalla EN BLANCO. Y
+     * el servidor, por su parte, devolvia ceros en vez de fallar, asi que lo
+     * normal era ver un negocio sin cartera ni cobranza. Las dos mitades se
+     * arreglaron juntas.
+     */
+    errorCarga: string | null;
   }>({
     isLoading: true,
     userData: null,
     dashboardData: null,
-    shouldRedirect: null
+    shouldRedirect: null,
+    errorCarga: null
   });
+
+  /** Sube con cada «Reintentar» y vuelve a disparar la carga. */
+  const [intentoDeCarga, setIntentoDeCarga] = useState(0);
 
   useEffect(() => {
     // Generar un ID único para esta petición
@@ -201,7 +216,8 @@ export default function DashboardPage() {
     setState(prev => ({
       ...prev,
       isLoading: true,
-      dashboardData: null
+      dashboardData: null,
+      errorCarga: null
     }));
 
     const initializeDashboard = async () => {
@@ -229,7 +245,8 @@ export default function DashboardPage() {
               isLoading: false,
               userData: parsedUser,
               dashboardData: null,
-              shouldRedirect: routes[parsedUser.rol]
+              shouldRedirect: routes[parsedUser.rol],
+              errorCarga: null
             });
           }
           return;
@@ -445,7 +462,8 @@ export default function DashboardPage() {
             userFullName: `${parsedUser.nombres} ${parsedUser.apellidos}`,
             userRole: parsedUser.rol?.replace('_', ' ') || 'Usuario'
           },
-          shouldRedirect: null
+          shouldRedirect: null,
+          errorCarga: null
         });
       } catch (error) {
         console.error('Error cargando dashboard:', error);
@@ -454,7 +472,14 @@ export default function DashboardPage() {
           localStorage.removeItem('user');
           router.replace('/');
         } else {
-          setState(prev => ({ ...prev, isLoading: false }));
+          setState(prev => ({
+            ...prev,
+            isLoading: false,
+            errorCarga: mensajeDeError(
+              error,
+              'No se pudo cargar el panel'
+            )
+          }));
         }
       }
     };
@@ -464,7 +489,7 @@ export default function DashboardPage() {
     return () => {
         isMounted = false;
     };
-  }, [router, period]); // Agregado period a las dependencias para recargar cuando cambia
+  }, [router, period, intentoDeCarga]); // `intentoDeCarga` sube con «Reintentar»
 
   // Función liviana de refresco para eventos RT (no resetea dashboardData, evita parpadeos)
   const refreshDashboard = useCallback(async () => {
@@ -522,6 +547,22 @@ export default function DashboardPage() {
   if (state.shouldRedirect) {
     return (
       <PantallaCarga texto="Te estamos redirigiendo..." />
+    );
+  }
+
+  /*
+   * El fallo se cuenta, no se esconde.
+   *
+   * Va ANTES del `return null` de abajo: si hubo error no hay `dashboardData`,
+   * y sin esto la pantalla se quedaba vacia.
+   */
+  if (state.errorCarga) {
+    return (
+      <PanelDeError
+        titulo="No se pudo cargar el panel"
+        mensaje={state.errorCarga}
+        onReintentar={() => setIntentoDeCarga((n) => n + 1)}
+      />
     );
   }
 

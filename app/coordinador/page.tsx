@@ -1,8 +1,9 @@
 'use client'
 import { formatFechaBogota } from '@/lib/format-date'
-import { estadoDeError } from '@/lib/mensaje-de-error'
+import { estadoDeError, mensajeDeError } from '@/lib/mensaje-de-error'
 
 import PantallaCarga from '@/components/ui/PantallaCarga'
+import PanelDeError from '@/components/ui/PanelDeError'
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -103,12 +104,25 @@ export default function CoordinadorPage() {
     userData: UserData | null
     dashboardData: FrontendDashboardData | null
     shouldRedirect: string | null
+    /*
+     * El motivo por el que no se pudo cargar.
+     *
+     * Aqui el agujero era doble: el `catch` no apagaba siquiera el `isLoading`
+     * -salvo en el 401-, asi que un fallo de red dejaba la pantalla cargando
+     * PARA SIEMPRE; y mas abajo `if (!state.dashboardData) return null` la
+     * dejaba en blanco. Y el servidor devolvia ceros en vez de fallar.
+     */
+    errorCarga: string | null
   }>({
     isLoading: true,
     userData: null,
     dashboardData: null,
     shouldRedirect: null,
+    errorCarga: null,
   })
+
+  /** Sube con cada «Reintentar» y vuelve a disparar la carga. */
+  const [intentoDeCarga, setIntentoDeCarga] = useState(0)
 
   const initializeDashboard = useCallback(async () => {
     let isMounted = true
@@ -137,6 +151,7 @@ export default function CoordinadorPage() {
             userData: parsedUser,
             dashboardData: null,
             shouldRedirect: ROLE_REDIRECT_MAP[parsedUser.rol] || '/login',
+            errorCarga: null,
           })
         }
         return
@@ -291,6 +306,7 @@ export default function CoordinadorPage() {
             userRole: 'COORDINADOR',
           },
           shouldRedirect: null,
+          errorCarga: null,
         })
       }
     } catch (error) {
@@ -300,6 +316,18 @@ export default function CoordinadorPage() {
         localStorage.removeItem('token')
         localStorage.removeItem('user')
         router.replace('/login')
+      } else {
+        /*
+         * Apagar el `isLoading` y DECIR el motivo.
+         *
+         * Sin el `else`, cualquier fallo que no fuera un 401 dejaba el
+         * esqueleto girando indefinidamente: no habia nada que lo apagara.
+         */
+        setState((prev) => ({
+          ...prev,
+          isLoading: false,
+          errorCarga: mensajeDeError(error, 'No se pudo cargar el panel'),
+        }))
       }
     }
     isMounted = false
@@ -338,6 +366,18 @@ export default function CoordinadorPage() {
 
   if (state.shouldRedirect) {
     return <PantallaCarga texto="Te estamos redirigiendo..." />
+  }
+
+  // Va ANTES del `return null`: si hubo error no hay datos, y sin esto la
+  // pantalla se quedaba vacia.
+  if (state.errorCarga) {
+    return (
+      <PanelDeError
+        titulo="No se pudo cargar el panel"
+        mensaje={state.errorCarga}
+        onReintentar={() => setIntentoDeCarga((n) => n + 1)}
+      />
+    )
   }
 
   if (!state.dashboardData) {

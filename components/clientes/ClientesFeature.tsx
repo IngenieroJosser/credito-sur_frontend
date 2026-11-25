@@ -1,7 +1,8 @@
 'use client'
-import { estadoDeError } from '@/lib/mensaje-de-error'
+import { estadoDeError, mensajeDeError } from '@/lib/mensaje-de-error'
 
 import Paginador from '@/components/ui/Paginador'
+import PanelDeError from '@/components/ui/PanelDeError'
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNotification } from '@/components/providers/NotificationProvider'
 import { clientesService, Cliente } from '@/services/clientes-service'
@@ -82,6 +83,20 @@ export default function ClientesFeature({
 
   const [clientes, setClientes] = useState<ClienteAdmin[]>(initialClientes)
   const [dataSource, setDataSource] = useState<'online' | 'offline'>('online')
+  /*
+   * El fallo cuando NO hay nada guardado en este equipo.
+   *
+   * Si la peticion falla y hay cache, se muestra el cache con su aviso de
+   * «datos guardados»: eso ya era honesto. Lo que faltaba era el otro caso
+   * —navegador nuevo, o cache vacio— donde la lista salia VACIA y se leia como
+   * «esta financiera no tiene clientes».
+   *
+   * Hasta hoy casi no pasaba porque el servidor, al fallar, devolvia
+   * `clientes: []` con las estadisticas en cero en vez de dar error. Eso se
+   * arreglo en el backend, asi que ahora el error llega de verdad y hay que
+   * contarlo.
+   */
+  const [errorSinCache, setErrorSinCache] = useState<string | null>(null)
   // Sin esto la lista no avisaba que estaba trayendo datos: tras una
   // importacion se quedaba mostrando 'No se encontraron resultados' y de golpe
   // aparecian los clientes, como si no se hubiera actualizado. El listado de
@@ -122,6 +137,7 @@ export default function ClientesFeature({
       // repintando clientes que ya no existen.
       if (Array.isArray(fresh)) {
         setClientes(fresh as ClienteAdmin[])
+        setErrorSinCache(null)
         offlineStore.saveMany('clientes', fresh as ClienteAdmin[]).catch(() => {})
         setDataSource('online')
         return
@@ -131,16 +147,22 @@ export default function ClientesFeature({
         setClientes(cached)
         setDataSource('offline')
       }
-    } catch {
-      offlineStore
-        .getAll<ClienteAdmin>('clientes')
-        .then((cached) => {
-          if (cached.length > 0) {
-            setClientes(cached)
-            setDataSource('offline')
-          }
-        })
-        .catch(() => {})
+    } catch (error) {
+      try {
+        const cached = await offlineStore.getAll<ClienteAdmin>('clientes')
+        if (cached.length > 0) {
+          setClientes(cached)
+          setDataSource('offline')
+        } else {
+          setErrorSinCache(
+            mensajeDeError(error, 'No se pudo cargar la lista de clientes'),
+          )
+        }
+      } catch {
+        setErrorSinCache(
+          mensajeDeError(error, 'No se pudo cargar la lista de clientes'),
+        )
+      }
     } finally {
       setCargando(false)
     }
@@ -474,6 +496,21 @@ export default function ClientesFeature({
             label="Exportar Clientes"
           />
         </div>
+
+        {/*
+          El fallo, cuando no hay ni un dato que mostrar.
+          Con datos en pantalla no se interrumpe: ahi vale el aviso de abajo.
+        */}
+        {errorSinCache && clientes.length === 0 && !cargando ? (
+          <PanelDeError
+            titulo="No se pudo cargar la lista de clientes"
+            mensaje={errorSinCache}
+            onReintentar={() => {
+              setErrorSinCache(null)
+              void refetch()
+            }}
+          />
+        ) : null}
 
         {dataSource === 'offline' && (
           <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-xs font-bold text-amber-700">
