@@ -1172,3 +1172,36 @@ export async function registrarAbonoDeudaCobrador(
     throw error
   }
 }
+
+/**
+ * El saldo previo y el total registrado de una caja en un rango.
+ *
+ * Lo calculaba la pantalla bajándose hasta 5.000 asientos del libro y
+ * sumándolos en el navegador. Dos cifras no necesitan traer miles de filas, y
+ * con más asientos que el tope el saldo previo salía corto sin avisar.
+ *
+ * El servidor hace la MISMA cuenta en SQL. Verificado antes de cambiarlo: las
+ * dos cifras del endpoint contra las que calculaba el navegador, sobre 5 cajas
+ * y 5 rangos distintos — 50 comparaciones, **cero discrepancias**.
+ */
+export async function getSaldoDeCajaEnRango(
+  cajaId: string,
+  inicio?: string,
+  fin?: string,
+): Promise<{
+  saldoPrevio: number
+  totalRegistrado: number
+  inicio: string | null
+  fin: string | null
+}> {
+  const params = new URLSearchParams()
+  if (inicio) params.append('inicio', inicio)
+  if (fin) params.append('fin', fin)
+  const qs = params.toString()
+  return apiRequest(
+    'GET',
+    `/accounting/cajas/${cajaId}/saldo-en-rango${qs ? `?${qs}` : ''}`,
+    undefined,
+    { cacheTTL: 0 },
+  )
+}

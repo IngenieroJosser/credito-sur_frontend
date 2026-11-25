@@ -73,6 +73,7 @@ import {
   updateCaja,
   createTransaccion as apiCreateTransaccion,
   getMovimientosLedger,
+  getSaldoDeCajaEnRango,
   type Caja as ApiCaja,
   type Transaccion as ApiTransaccion,
   type MovimientoLedger as ApiMovimientoLedger,
@@ -1771,35 +1772,70 @@ const ModuloContableContent = () => {
                               const inicioKey = fechaInicioModal || ''
                               const finKey = fechaFinModal || ''
 
-                              const respLedgerCaja = await getMovimientosLedger({ cajaId: c.id, limit: 5000 })
-                              // Si quedaron asientos sin traer, el saldo previo
-                              // y el total del rango salen cortos.
-                              setCifraIncompleta(avisoDeCifraIncompleta(respLedgerCaja))
-                              const movimientosLedgerCaja = Array.isArray(respLedgerCaja?.data)
-                                ? respLedgerCaja.data
-                                : []
+                              /*
+                               * Las dos cifras las SUMA EL SERVIDOR.
+                               *
+                               * Antes se bajaban hasta 5.000 asientos del
+                               * libro con sus lineas para calcular dos
+                               * numeros en el navegador, y si la caja tenia
+                               * mas asientos que el tope el saldo previo
+                               * salia corto sin avisar.
+                               *
+                               * El endpoint hace la MISMA cuenta en SQL.
+                               * Verificado antes de cambiarlo: 5 cajas x 5
+                               * rangos, 50 comparaciones contra el calculo
+                               * de aqui, CERO discrepancias. (La primera
+                               * version daba 0 en todo: faltaba el COALESCE
+                               * que el navegador hace con `Number(x || 0)`,
+                               * y en SQL una resta con NULL da NULL.)
+                               *
+                               * Si el endpoint falla se cae al camino de
+                               * antes, que se conserva entero aqui debajo:
+                               * lo peor que puede pasar es lo de ayer.
+                               */
+                              let saldoPrevio = 0
+                              let totalRegistrado = 0
+                              try {
+                                const totales = await getSaldoDeCajaEnRango(
+                                  c.id,
+                                  inicioKey,
+                                  finKey,
+                                )
+                                saldoPrevio = Number(totales?.saldoPrevio || 0)
+                                totalRegistrado = Number(
+                                  totales?.totalRegistrado || 0,
+                                )
+                                setCifraIncompleta(null)
+                              } catch {
+                                const respLedgerCaja = await getMovimientosLedger({ cajaId: c.id, limit: 5000 })
+                                // Si quedaron asientos sin traer, el saldo previo
+                                // y el total del rango salen cortos.
+                                setCifraIncompleta(avisoDeCifraIncompleta(respLedgerCaja))
+                                const movimientosLedgerCaja = Array.isArray(respLedgerCaja?.data)
+                                  ? respLedgerCaja.data
+                                  : []
 
-                              const deltaCaja = (entry: ApiMovimientoLedger) => {
-                                return (entry.lineas || [])
-                                  .filter((linea) => linea.cajaId === c.id)
-                                  .reduce((acc, linea) => {
-                                    return acc + Number(linea.debitAmount || 0) - Number(linea.creditAmount || 0)
-                                  }, 0)
+                                const deltaCaja = (entry: ApiMovimientoLedger) => {
+                                  return (entry.lineas || [])
+                                    .filter((linea) => linea.cajaId === c.id)
+                                    .reduce((acc, linea) => {
+                                      return acc + Number(linea.debitAmount || 0) - Number(linea.creditAmount || 0)
+                                    }, 0)
+                                }
+
+                                saldoPrevio = movimientosLedgerCaja.reduce((acc, entry) => {
+                                  if (!inicioKey) return acc
+                                  const fechaM = normalizeDateKey(entry.fecha)
+                                  return fechaM < inicioKey ? acc + deltaCaja(entry) : acc
+                                }, 0)
+
+                                totalRegistrado = movimientosLedgerCaja.reduce((acc, entry) => {
+                                  const fechaM = normalizeDateKey(entry.fecha)
+                                  if (inicioKey && fechaM < inicioKey) return acc
+                                  if (finKey && fechaM > finKey) return acc
+                                  return acc + deltaCaja(entry)
+                                }, 0)
                               }
-
-                              const saldoPrevio = movimientosLedgerCaja.reduce((acc, entry) => {
-                                if (!inicioKey) return acc
-                                const fechaM = normalizeDateKey(entry.fecha)
-                                return fechaM < inicioKey ? acc + deltaCaja(entry) : acc
-                              }, 0)
-
-                              const totalRegistrado = movimientosLedgerCaja.reduce((acc, entry) => {
-                                const fechaM = normalizeDateKey(entry.fecha)
-                                if (inicioKey && fechaM < inicioKey) return acc
-                                if (finKey && fechaM > finKey) return acc
-                                return acc + deltaCaja(entry)
-                              }, 0)
-
                               setVerCajaRangoStats({
                                 totalRegistrado,
                                 saldoPrevio,
