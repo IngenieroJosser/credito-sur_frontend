@@ -176,6 +176,106 @@ suyo. Dos consecuencias prácticas:
 
 ---
 
+## 0h. PARA LAS PRUEBAS DE MAÑANA (2026-11-25): lo que cambia y donde mirar
+
+Lo que se cerró hoy por la tarde, en orden de lo que se va a notar probando.
+
+### 1. El tablero decia 500 cuentas en mora habiendo 3.000  ← MIRAR ESTO
+
+`delinquentAccounts` se calculaba con un `findMany` de hasta **500** creditos
+(`take: 500`) y hasta **50** cuotas de cada uno (`take: 50`, sin orden), que se
+contaban en memoria. El numero **no podia pasar de 500**.
+
+```
+antes:   500        (tope)
+ahora: 3.000        (la verdad, contada en SQL)
+```
+
+**La cifra de mora del panel va a SUBIR.** No es un error nuevo: es que antes
+estaba recortada. Si en las pruebas el numero parece mas alto de lo esperado,
+esto es la razon.
+
+De los 191 valores que devuelve `/dashboard` cambia exactamente uno, ese.
+Vigilado por `src/dashboard/las-cuentas-en-mora-no-tienen-tope.spec.ts`.
+
+### 2. Las pantallas ya no muestran ceros cuando algo falla  ← CAMBIO VISIBLE
+
+Cuatro endpoints convertian un fallo de consulta en un dato falso:
+
+| endpoint | lo que decia al fallar |
+|---|---|
+| `/dashboard` | negocio sin cartera, sin cobranza y sin mora |
+| `getTrendData` | grafica vacia = «no hubo cobranza» (el incidente §P21) |
+| `/clients` | «la financiera no tiene clientes» |
+| `/loans` | cartera vacia y sin mora |
+
+Ahora **fallan de verdad**, y las pantallas lo cuentan con un panel que dice el
+motivo y ofrece reintentar (`components/ui/PanelDeError.tsx`).
+
+**Qué puede verse en las pruebas:** si la base o la red fallan un momento, donde
+antes salian ceros ahora saldra «No se pudo cargar…». **Eso es lo correcto**: un
+`$ 0` se lee «no debe nada». Si aparece ese panel, hay un fallo real detras —
+mirar los logs de Render, no la pantalla.
+
+De paso se arreglaron dos cosas de las pantallas:
+
+- `/admin` y `/coordinador` hacian `return null`: quedaban **en blanco**;
+- el del coordinador no apagaba el `isLoading` salvo en un 401, asi que un
+  fallo de red lo dejaba **cargando para siempre**.
+
+### 3. Mas rapido, sin cambiar ningun numero
+
+| endpoint | antes | ahora | comprobacion |
+|---|---|---|---|
+| `/clients` | 11,3-14,8 s | **0,71-1,41 s** | 54.000 campos comparados, 0 cambian |
+| `/dashboard` | 4,4-5,2 s | **2,7-3,8 s** | 191 valores, cambia 1 (el que mentia) |
+| `/routes` | 4,0-5,7 s | **3,6-4,4 s** | 660 campos, 0 cambian |
+
+Todo con 2.000 clientes, 3.000 creditos, 90.000 cuotas y 30.000 pagos.
+
+### 4. El build de produccion ya no puede fallar en silencio
+
+Esta mañana fallaba con ocho errores de tipos y produccion seguia sirviendo el
+codigo anterior sin decirlo. Arreglado (§0e), y ahora se comprueba con un
+`curl`:
+
+```
+curl -s https://credito-sur-backend.onrender.com/api-credisur/health
+curl -s https://creditos-del-sur.vercel.app/api/ping
+```
+
+Los dos devuelven `commit`; comparar con `git log --oneline -1`.
+
+### Lo que NO esta resuelto, dicho claro
+
+1. **`/routes` y `/dashboard` siguen en 3-4 s** con 2.000 clientes. Usable,
+   molesto. La causa esta medida (§0f, §0g) y lo que queda no tiene arreglo
+   barato.
+2. **`/clients` manda TODOS los clientes** en cada carga: 1 MB con 2.000, ~5 MB
+   con 10.000. El tiempo ya esta arreglado, el tamaño no. **Y no es solo el
+   endpoint:** la pantalla filtra y calcula sus estadisticas (mora, vencidas,
+   niveles de riesgo) sobre el conjunto completo en el navegador, asi que
+   paginar en el servidor obliga a mover tambien esas cifras. Es la razon por la
+   que no se hizo deprisa: ahi es donde se rompen los numeros.
+3. **Los respaldos**: abrir `/admin/sistema/backups` y leer la tarjeta de
+   estado, que ahora dice sola si el servidor puede hacer el volcado SQL (§0d).
+4. Las **88 cuotas a medianoche UTC** anteriores al arreglo de fechas (§P24) y
+   **§P20** (el reporte financiero se baja el libro mayor al navegador).
+
+### Barridos que salieron limpios (para no repetirlos)
+
+- **`NOT` sobre columnas nulables**, la clase de defecto que escondio 7.883.331
+  de cobranza: 165 columnas nulables en el esquema, 23 filtros `not` revisados,
+  **0 sospechosos**. El barrido se comprobo al reves metiendo el patron malo y
+  lo detecta.
+- **Topes que alimentan una cifra**: 66 `take: N` en el codigo, **uno solo
+  mentia** (el del tablero, arreglado). Los otros dos candidatos se midieron y
+  se descartaron con el dato: la reconciliacion de aprobaciones -0 creditos sin
+  fila de aprobacion en la base, y la importacion los crea ya APROBADOS- y la
+  hoja de auditoria del Excel -256 registros contra un tope de 50.000-.
+
+---
+
 ## 0g. `/clients` tardaba 12 segundos, y era la cuenta de la mora
 
 El hallazgo mas gordo del dia, y el que de verdad habria molestado al cliente.
