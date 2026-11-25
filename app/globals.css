@@ -12,7 +12,6 @@
   */
   --relleno-autofill: #ffffff;
   --texto-autofill: #0f172a;
-  --anillo-autofill: #dbeafe;
   --anillo-autofill-foco: #3b82f6;
   --secondary: #fb851b;
   --success: #10b981;
@@ -529,9 +528,16 @@ select:is(:autofill, :-webkit-autofill) {
     devuelve sin mover el diseño (una sombra interior no empuja nada, al
     contrario que cambiar `border-width` o `padding`).
   */
-  box-shadow:
-    inset 0 0 0 2px var(--anillo-autofill),
-    inset 0 0 0 100vmax var(--relleno-autofill);
+  /*
+    SIN anillo. Lo tuvo un dia: la guia de Chrome recomienda dejar una señal
+    no basada en color de que el navegador relleno el campo, y se puso un
+    borde interior de 2px. En pantalla se veia como un borde azul claro
+    alrededor de los campos de entrar, y el dueño lo pidio quitar. Manda eso:
+    la recomendacion era para no perder la pista del autocompletado, no una
+    regla de correccion, y el fondo blanco uniforme es lo que hace casi todo
+    el mundo.
+  */
+  box-shadow: inset 0 0 0 100vmax var(--relleno-autofill);
   /* El navegador no fija `-webkit-text-fill-color`, asi que este si se puede. */
   -webkit-text-fill-color: var(--texto-autofill);
   /* El cursor sigue al `color` del navegador, que no se puede cambiar. */

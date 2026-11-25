@@ -103,14 +103,23 @@ describe('el relleno del autofill sigue bien puesto', () => {
     expect(bloqueRelleno).not.toMatch(/inset 0 0 0 1000px/)
   })
 
-  it('deja una señal de que el campo se autocompletó', () => {
+  it('NO deja un anillo de color alrededor del campo', () => {
     /*
-     * Al tapar el amarillo se le quita a la persona la única pista de que el
-     * navegador rellenó ese campo. El anillo de 2px la devuelve, y no mueve el
-     * diseño: una sombra interior no empuja nada, al contrario que cambiar
-     * `border-width` o `padding`.
+     * Esta aserción estaba al revés y se cambió a petición del dueño.
+     *
+     * La guía de Chrome recomienda dejar una señal no basada en color de que
+     * el navegador rellenó el campo, y se había puesto un borde interior de
+     * 2px. En pantalla eso se veía como un borde azul claro alrededor de los
+     * campos de entrar, y el dueño lo pidió quitar.
+     *
+     * Manda eso: la recomendación era para no perder la pista del
+     * autocompletado, no una regla de corrección, y el fondo blanco uniforme
+     * es lo que hace casi todo el mundo. Lo que SÍ se queda es el relleno
+     * —que es lo que tapa el amarillo— y el foco visible, que es la parte de
+     * accesibilidad.
      */
-    expect(bloqueRelleno).toMatch(/inset 0 0 0 2px/)
+    expect(bloqueRelleno).not.toMatch(/inset 0 0 0 2px/)
+    expect(bloqueRelleno).toMatch(/inset 0 0 0 100vmax/)
   })
 
   it('el color del relleno es opaco', () => {

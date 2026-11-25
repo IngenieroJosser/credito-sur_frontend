@@ -4,7 +4,24 @@ import { AxiosRequestConfig } from 'axios';
 
 export interface DashboardMetrics {
   pendingApprovals: number;
+  /** Cuantas cuentas estan en mora. Contadas en SQL, sin tope. */
   delinquentAccounts: number;
+  /**
+   * Cuanto suman esas cuentas, con la MISMA regla que el conteo.
+   *
+   * La pantalla lo sacaba sumando la lista de detalle, que el servidor
+   * recorta a diez filas: con mas de diez cuentas en mora el importe y el
+   * contador de la misma tarjeta no se correspondian.
+   */
+  delinquentAmount?: number;
+  /**
+   * La cartera pendiente completa, que es contra lo que se mide la mora.
+   *
+   * El porcentaje se calculaba sobre `capitalPrestado`, que va filtrado por
+   * periodo mientras la mora es un estado actual: con «hoy» daba 0 -y salia
+   * un «> 0% del capital»- y con mes o año daba 115,5%.
+   */
+  carteraPendiente?: number;
   requestedBase: number;
   efficiency: number;
   capitalPrestado?: number;
