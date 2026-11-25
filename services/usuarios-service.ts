@@ -57,6 +57,7 @@ export interface UsuarioDetalleOperativo {
   usuarioId: string;
   rol: RolUsuario;
   metricas: {
+    puntoVenta?: { creditosCreados: number; clientesCreados: number };
     dineroCaja: number;
     recaudoDia: number;
     metaDiaria: number;

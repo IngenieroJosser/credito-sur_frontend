@@ -23,6 +23,12 @@ import { resolveCuotaAcumuladaOperativa, resolveCuotaNormalOperativa,
   diasEntreEnBogota,
   getBogotaNowKey,
 } from '@/lib/rutas-core'
+import {
+  badgeDeRiesgoSegunValor,
+  bordeDeRiesgoSegunValor,
+  etiquetaDeRiesgoSegunValor,
+  puntoDeRiesgoSegunValor,
+} from '@/lib/display-labels'
 import Tooltip from '@/components/ui/Tooltip'
 import { Selector } from '@/components/ui/Selector'
 
@@ -49,133 +55,44 @@ const formatMontoCompleto = (amount: number): string => formatCurrency(amount)
 
 // ── Helpers de color de semáforo ─────────────────────────────────────────────
 
-function dotColor(nivelRiesgo: string | undefined): string {
-  switch (nivelRiesgo) {
-    case 'bajo':
-      return 'bg-emerald-500'
-    case 'minimo':
-      return 'bg-emerald-500'
-    case 'leve':
-      return 'bg-blue-500'
-    case 'precaucion':
-      return 'bg-yellow-500'
-    case 'moderado':
-      return 'bg-orange-500'
-    case 'critico':
-      return 'bg-red-600'
-    case 'VERDE':
-      return 'bg-emerald-500'
-    case 'AMARILLO':
-      return 'bg-yellow-500'
-    case 'PRECAUCION':
-      return 'bg-yellow-500'
-    case 'ROJO':
-      return 'bg-red-600'
-    case 'ALTO_RIESGO':
-      return 'bg-red-600'
-    case 'LISTA_NEGRA':
-      return 'bg-red-600'
-    default:
-      return 'bg-slate-300'
-  }
-}
-
 function resolveNivelRiesgoForVisita(visita: VisitaRuta): string | undefined {
-  // Función puramente visual: solo retorna el riesgo ya calculado por el mapper/helper compartido
+  // Puramente visual: devuelve el riesgo que ya calculo el mapeador compartido.
   return visita?.nivelRiesgo
 }
 
-function nivelBadgeColor(nivelRiesgo: string | undefined): string {
-  switch (nivelRiesgo) {
-    case 'bajo':
-      return 'text-emerald-700 bg-emerald-50 border-emerald-100'
-    case 'minimo':
-      return 'text-emerald-700 bg-emerald-50 border-emerald-100'
-    case 'leve':
-      return 'text-blue-700 bg-blue-50 border-blue-100'
-    case 'precaucion':
-      return 'text-yellow-700 bg-yellow-50 border-yellow-200'
-    case 'moderado':
-      return 'text-orange-700 bg-orange-50 border-orange-100'
-    case 'critico':
-      return 'text-red-700 bg-red-50 border-red-100'
-    case 'VERDE':
-      return 'text-emerald-700 bg-emerald-50 border-emerald-100'
-    case 'AMARILLO':
-      return 'text-yellow-700 bg-yellow-50 border-yellow-200'
-    case 'PRECAUCION':
-      return 'text-yellow-700 bg-yellow-50 border-yellow-200'
-    case 'ROJO':
-      return 'text-red-700 bg-red-50 border-red-100'
-    case 'ALTO_RIESGO':
-      return 'text-red-700 bg-red-50 border-red-100'
-    case 'LISTA_NEGRA':
-      return 'text-red-700 bg-red-50 border-red-100'
-    default:
-      return 'text-slate-400 bg-slate-50 border-slate-200'
-  }
-}
+/*
+ * El color del nivel lo decide `lib/display-labels.ts`, no este archivo.
+ *
+ * Aqui habia tres `switch` de quince casos cada uno que mezclaban las TRES
+ * escalas -la del cliente, la operativa de la ruta y la de dias de mora- en la
+ * misma lista. Dos consecuencias, medidas antes de tocar nada:
+ *
+ *   - `LISTA_NEGRA` devolvia el MISMO rojo que `ROJO`, asi que un cliente al
+ *     que se decidio no prestarle se veia igual que uno con atraso grave.
+ *   - usaba `red-*` mientras el resto del sistema usa `rose-*`.
+ *
+ * Y las mayusculas llegaban de verdad: la rama de respaldo de
+ * `enrich-ruta-historial-riesgo` caia a `nivelRiesgoObligacion` -texto crudo
+ * del backend- con un `as` que no comprobaba nada. Eso se normalizo alli; esto
+ * usa el despachador, que ademas aguanta las dos formas sin mentir.
+ */
+const dotColor = (nivelRiesgo: string | undefined): string =>
+  puntoDeRiesgoSegunValor(nivelRiesgo)
 
-function nivelLabel(nivelRiesgo: string | undefined): string {
-  switch (nivelRiesgo) {
-    case 'bajo':
-      return 'Mínimo'
-    case 'minimo':
-      return 'Mínimo'
-    case 'leve':
-      return 'Leve'
-    case 'precaucion':
-      return 'Precaución'
-    case 'moderado':
-      return 'Moderado'
-    case 'critico':
-      return 'Crítico'
-    case 'VERDE':
-      return 'Mínimo'
-    case 'AMARILLO':
-      return 'Precaución'
-    case 'PRECAUCION':
-      return 'Precaución'
-    case 'ROJO':
-      return 'Crítico'
-    case 'ALTO_RIESGO':
-      return 'Crítico'
-    case 'LISTA_NEGRA':
-      return 'Crítico'
-    default:
-      return '—'
-  }
-}
+const nivelBadgeColor = (nivelRiesgo: string | undefined): string =>
+  badgeDeRiesgoSegunValor(nivelRiesgo)
 
-function nivelTitle(nivelRiesgo: string | undefined): string {
-  switch (nivelRiesgo) {
-    case 'bajo':
-      return 'Al día'
-    case 'minimo':
-      return 'Al día'
-    case 'leve':
-      return 'Riesgo leve'
-    case 'precaucion':
-      return 'Precaución'
-    case 'moderado':
-      return 'En mora'
-    case 'critico':
-      return 'Crítico / Lista negra'
-    case 'VERDE':
-      return 'Al día'
-    case 'AMARILLO':
-      return 'Precaución'
-    case 'PRECAUCION':
-      return 'Precaución'
-    case 'ROJO':
-      return 'Crítico / Lista negra'
-    case 'ALTO_RIESGO':
-      return 'Crítico / Lista negra'
-    case 'LISTA_NEGRA':
-      return 'Crítico / Lista negra'
-    default:
-      return ''
-  }
+const nivelLabel = (nivelRiesgo: string | undefined): string =>
+  etiquetaDeRiesgoSegunValor(nivelRiesgo)
+
+/*
+ * El titulo del punto decia «Critico / Lista negra» para los dos valores, que
+ * es justo la confusion que el resto de este arreglo deshace. Dice el nombre
+ * del nivel, el mismo que el distintivo de al lado.
+ */
+const nivelTitle = (nivelRiesgo: string | undefined): string => {
+  const nombre = etiquetaDeRiesgoSegunValor(nivelRiesgo)
+  return nombre === '—' ? '' : nombre
 }
 
 // Helpers para determinar estado visual de pagado y mora
@@ -202,37 +119,18 @@ function shouldShowMoraBadge(visita: VisitaRuta): boolean {
   )
 }
 
-function borderColor(nivelRiesgo: string | undefined, isSelected: boolean): string {
-  if (isSelected) return 'ring-2 ring-primary shadow-md bg-blue-50/30 border-primary'
-  switch (nivelRiesgo) {
-    case 'bajo':
-      return 'border-emerald-400 shadow-sm'
-    case 'minimo':
-      return 'border-emerald-400 shadow-sm'
-    case 'leve':
-      return 'border-blue-400 shadow-sm'
-    case 'precaucion':
-      return 'border-yellow-400 shadow-sm'
-    case 'moderado':
-      return 'border-orange-500 shadow-sm'
-    case 'critico':
-      return 'border-red-600 shadow-md'
-    case 'VERDE':
-      return 'border-emerald-400 shadow-sm'
-    case 'AMARILLO':
-      return 'border-yellow-400 shadow-sm'
-    case 'PRECAUCION':
-      return 'border-yellow-400 shadow-sm'
-    case 'ROJO':
-      return 'border-red-600 shadow-md'
-    case 'ALTO_RIESGO':
-      return 'border-red-600 shadow-md'
-    case 'LISTA_NEGRA':
-      return 'border-red-600 shadow-md'
-    default:
-      return 'border-slate-200'
-  }
-}
+/*
+ * El borde de la ficha, con la misma mezcla de escalas que las funciones de
+ * arriba y el mismo defecto: `LISTA_NEGRA`, `ROJO` y `ALTO_RIESGO` daban los
+ * tres el mismo `border-red-600`.
+ */
+const borderColor = (
+  nivelRiesgo: string | undefined,
+  isSelected: boolean,
+): string =>
+  isSelected
+    ? 'ring-2 ring-primary shadow-md bg-blue-50/30 border-primary'
+    : bordeDeRiesgoSegunValor(nivelRiesgo)
 
 function periodoLabel(periodo: string): string {
   switch (periodo) {

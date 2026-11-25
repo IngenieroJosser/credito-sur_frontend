@@ -3,6 +3,8 @@
 import { datosParaRegistro, estadoDeError, mensajeDeError } from '@/lib/mensaje-de-error';
 import Paginador from '@/components/ui/Paginador'
 import { logger } from '@/lib/logger'
+import DetalleUsuarioModal from '@/components/usuarios/DetalleUsuarioModal';
+import PanelDeError from '@/components/ui/PanelDeError';
 
 import React, { useState, useEffect } from "react";
 import { useRealtimeData } from '@/hooks/useRealtimeData';
@@ -10,18 +12,13 @@ import { createPortal } from "react-dom";
 
 import { useNotification } from '@/components/providers/NotificationProvider'
 import { permisosPorRol, type ModuloPermiso } from '@/lib/permissions'
-import type { RegistroAuditoria } from '@/services/auditoria-service'
 import { refreshSesion } from '@/services/autenticacion-service'
-import { useNotificaciones } from "@/components/providers/NotificacionesProvider";
 import { usuariosService } from "@/services/usuarios-service";
 import { RolUsuario, EstadoUsuario } from "@/types/enums";
-import { apiRequest } from "@/lib/api/api";
 import { formatShortDateTime, formatShortDate } from "@/lib/utils/format";
-import { buildBogotaOffsetIsoFromKey, normalizeDateKey } from '@/lib/rutas-core'
 import BotonAccion from '@/components/ui/BotonAccion'
 import { SkeletonTabla } from '@/components/ui/Skeleton';
 import { Selector } from '@/components/ui/Selector'
-import { CampoFecha } from '@/components/ui/CampoFecha'
 import Tooltip from '@/components/ui/Tooltip'
 
 import {
@@ -44,17 +41,7 @@ import {
   Archive,
   RotateCcw,
   Save,
-  ChevronLeft,
-  XCircle,
-  ChevronRight,
-  TrendingUp,
-  MapPin,
-  Calendar,
-  DollarSign,
-  Clock,
-  AlertCircle,
   CheckCircle2,
-  Wallet,
   ShoppingBag,
   AtSign,
 } from "lucide-react";
@@ -193,6 +180,19 @@ const GLOBAL_MODULE_CATALOG = (() => {
   return flattenedModules
 })()
 
+/**
+ * Partir «8 de sept, 07:47 PM» en sus dos mitades.
+ *
+ * No se cambia `formatShortDateTime`: lo usan otras pantallas y ahi el texto
+ * de una linea esta bien. Lo que cambia es como lo pinta ESTA tabla, que es la
+ * que no tiene ancho. Si no hay coma -«Nunca»- devuelve una sola parte.
+ */
+function partirFechaYHora(valor: string): string[] {
+  const corte = valor.indexOf(', ')
+  if (corte < 0) return [valor]
+  return [valor.slice(0, corte), valor.slice(corte + 2)]
+}
+
 const UserManagementPage = () => {
   const { showNotification } = useNotification();
 
@@ -200,7 +200,6 @@ const UserManagementPage = () => {
   const { user: currentUser, loading: authLoading } = useAuth();
   const currentUserRole: RolUsuario = currentUser?.rol as RolUsuario;
 
-  const { socket } = useNotificaciones();
 
   const { can, canForPath } = usePermission();
   const permitido = can("USUARIOS_VIEW") || canForPath("/users");
@@ -212,12 +211,12 @@ const UserManagementPage = () => {
   // --- ESTADO DE USUARIOS ---
   const [users, setUsers] = useState<User[]>([]);
 
-  /* Se quitó el return anticipado */
   const [loading, setLoading] = useState(true);
+  const [errorListado, setErrorListado] = useState<string | null>(null);
 
   const fetchUsers = async () => {
+    if (currentUserRole !== RolUsuario.SUPER_ADMINISTRADOR) return;
     try {
-      setLoading(true);
       const data = await usuariosService.obtenerTodos({ includeArchived: true });
       const mappedUsers: User[] = data.map((u) => ({
         id: u.id,
@@ -239,7 +238,9 @@ const UserManagementPage = () => {
           : [],
       }));
       setUsers(mappedUsers);
+      setErrorListado(null);
     } catch (error) {
+      setErrorListado(mensajeDeError(error, "No se pudo consultar el listado."));
       console.error("Error fetching users:", error);
       showNotification(
         "error",
@@ -282,71 +283,7 @@ const UserManagementPage = () => {
   // guardaba: se podia hacer clic varias veces y crear el usuario repetido.
   const [isCreatingUser, setIsCreatingUser] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [actividadPage, setActividadPage] = useState(1);
-  const actividadPerPage = 3;
-
-  const [detalle, setDetalle] = useState<{
-    dineroCaja: number;
-    recaudoDia: number;
-    metaDiaria: number;
-    porcentajeMeta: number;
-    rutaNombre: string;
-    zona: string;
-    progreso: number;
-    enMora: number;
-    gastosHoy: number;
-    actividadReciente: Array<{
-      time: string;
-      action: string;
-      detail: string;
-      amount?: string;
-      type: "in" | "out" | "neutral";
-    }>;
-    ingresosDia: number;
-    egresosDia: number;
-    balanceDia: number;
-    gastosCategorias: Array<{ categoria: string; monto: number }>;
-    rutasActivas: number;
-    rutasTotal: number;
-    rutasInactivas: number;
-    usuariosActivos: number;
-  }>({
-    dineroCaja: 0,
-    recaudoDia: 0,
-    metaDiaria: 0,
-    porcentajeMeta: 0,
-    rutaNombre: "",
-    zona: "",
-    progreso: 0,
-    enMora: 0,
-    gastosHoy: 0,
-    actividadReciente: [],
-    ingresosDia: 0,
-    egresosDia: 0,
-    balanceDia: 0,
-    gastosCategorias: [],
-    rutasActivas: 0,
-    rutasTotal: 0,
-    rutasInactivas: 0,
-    usuariosActivos: 0,
-  });
-
-  const [timelineCount, setTimelineCount] = useState(20);
-  const [timelinePage, setTimelinePage] = useState(1);
-  const [timelineLimit] = useState(20);
-  const [timelineLoading, setTimelineLoading] = useState(false);
-  const [filtroFechaInicio, setFiltroFechaInicio] = useState<string>("");
-  const [filtroFechaFin, setFiltroFechaFin] = useState<string>("");
-
   const availableModules = GLOBAL_MODULE_CATALOG
-
-  const asNumber = (...values: unknown[]) => {
-    for (const value of values) {
-      const parsed = Number(value)
-      if (Number.isFinite(parsed)) return parsed
-    }
-    return 0
-  }
 
   useEffect(() => {
     const timer = setTimeout(() => setMounted(true), 100);
@@ -397,6 +334,20 @@ const UserManagementPage = () => {
     estado: EstadoUsuario.ACTIVO,
   });
 
+  /*
+   * El sufijo del `name` de los campos de contraseña, calculado UNA vez.
+   *
+   * Eran `Date.now()` y `Math.random()` llamados en pleno render -el truco
+   * para que Chrome no autocomplete agresivamente-. Ademas de que el linter
+   * lo marca como funcion impura en render, cambiaba el `name` del campo en
+   * CADA pintado: React veia un campo distinto cada vez.
+   *
+   * Con `useState` de inicializacion perezosa se calcula al montar y se queda
+   * quieto, que es lo que el truco necesita.
+   */
+  const [sufijoAntiAutocompletado] = useState(
+    () => `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+  );
   const [showPassword, setShowPassword] = useState(false);
 
   const roles: Role[] = [
@@ -510,7 +461,15 @@ const UserManagementPage = () => {
 
   // PAGINACIÓN
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 6;
+  /*
+   * Diez por pagina, no seis.
+   *
+   * Medido en la pantalla: la empresa tiene OCHO usuarios, asi que con seis
+   * por pagina habia una segunda pagina con dos filas y habia que paginar para
+   * ver al cobrador. Diez los muestra todos y el paginador sigue ahi para
+   * cuando crezcan.
+   */
+  const itemsPerPage = 10;
 
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -562,157 +521,10 @@ const UserManagementPage = () => {
     logger.log("[EDIT_MODAL] Modal abierto, SearchTerm después:", searchTerm);
   };
 
-  const fetchAuditForUser = async (user: User) => {
-    try {
-      setTimelineLoading(true);
-      const params = new URLSearchParams();
-      params.set("page", "1");
-      params.set("limit", `${timelineLimit}`);
-      if (filtroFechaInicio) {
-        const key = normalizeDateKey(filtroFechaInicio);
-        if (key) {
-          params.set(
-            "startDate",
-            buildBogotaOffsetIsoFromKey(key, { hh: 0, mm: 0, ss: 0, ms: 0 }),
-          );
-        }
-      }
-      if (filtroFechaFin) {
-        const key = normalizeDateKey(filtroFechaFin);
-        if (key) {
-          params.set(
-            "endDate",
-            buildBogotaOffsetIsoFromKey(key, { hh: 23, mm: 59, ss: 59, ms: 999 }),
-          );
-        }
-      }
-      // El historial de auditoria del usuario: `RegistroAuditoria` ya existe.
-      const audit = await apiRequest<RegistroAuditoria[]>(
-        "GET",
-        `/audit/user/${user.id}?${params.toString()}`,
-      );
-      const roleFilters: Record<RolUsuario, string[]> = {
-        [RolUsuario.SUPER_ADMINISTRADOR]: [],
-        [RolUsuario.ADMIN]: [],
-        [RolUsuario.COORDINADOR]: ["ruta", "reporte", "prestamo", "cliente"],
-        [RolUsuario.SUPERVISOR]: ["ruta", "cliente", "visita"],
-        [RolUsuario.COBRADOR]: ["pago", "visita", "gasto", "ruta"],
-        [RolUsuario.CONTADOR]: [
-          "transaccion",
-          "arqueo",
-          "cierre",
-          "gasto",
-          "caja",
-        ],
-        [RolUsuario.PUNTO_DE_VENTA]: ["articulo", "prestamo", "cliente"],
-      };
-      const permissionEntityMap: Record<string, string[]> = {
-        usuarios: ["usuario"],
-        auditoria: ["audit", "registro", "log"],
-        clientes: ["cliente"],
-        rutas: ["ruta", "visita", "pago"],
-        "reportes-operativos": ["reporte"],
-        "prestamos-dinero": ["prestamo", "solicitud", "pago"],
-        contable: ["transaccion", "arqueo", "cierre", "gasto", "caja"],
-        tesoreria: ["caja", "transaccion"],
-        articulos: ["inventario", "articulo"],
-        notificaciones: ["notificacion"],
-      };
-      const allowedModules =
-        (selectedPermissions && selectedPermissions.length > 0)
-          ? selectedPermissions
-          : (availableModules || [])
-              .filter((m) => (m.roles || []).includes(user.rol))
-              .map((m) => m.id);
-      const permissionFilters = allowedModules.flatMap(
-        (id: string) => permissionEntityMap[id] || [],
-      );
-      const filtros = (
-        permissionFilters.length > 0
-          ? permissionFilters
-          : roleFilters[user.rol] || []
-      ).map((s) => s.toLowerCase());
-      const filtrados = filtros.length
-        ? (audit || []).filter((a) =>
-            filtros.some((f) => (a.entidad || "").toLowerCase().includes(f)),
-          )
-        : audit || [];
-      const timeline = filtrados.slice(0, timelineLimit).map((a) => ({
-        time: formatShortDateTime(a.creadoEn),
-        // El `a.action ||` que abria esta cascada era una lectura MUERTA: el registro de
-        // auditoria tiene `accion` en espanol (auditoria-service.ts:20), no `action`.
-        // Valia `undefined` siempre y el respaldo era el valor real.
-        action: a.accion,
-        detail: `${a.entidad} ${a.entidadId || ""}`.trim(),
-        type: "neutral" as const,
-      }));
-      setDetalle((d) => ({ ...d, actividadReciente: timeline }));
-      setTimelinePage(1);
-    } catch (e) {
-      console.error("Error cargando auditoría del usuario:", e);
-    } finally {
-      setTimelineLoading(false);
-    }
-  };
-
   const handleOpenDetailModal = (user: User) => {
     setSelectedUser(user);
-    setDetalle({
-      dineroCaja: 0,
-      recaudoDia: 0,
-      metaDiaria: 0,
-      porcentajeMeta: 0,
-      rutaNombre: "",
-      zona: "",
-      progreso: 0,
-      enMora: 0,
-      gastosHoy: 0,
-      actividadReciente: [],
-      ingresosDia: 0,
-      egresosDia: 0,
-      balanceDia: 0,
-      gastosCategorias: [],
-      rutasActivas: 0,
-      rutasTotal: 0,
-      rutasInactivas: 0,
-      usuariosActivos: 0,
-    });
-    setActividadPage(1);
     setIsDetailModalOpen(true);
-    (async () => {
-      try {
-        const detalleOperativo = await usuariosService.obtenerDetalleOperativo(user.id);
-        const metricas = detalleOperativo.metricas;
-        setDetalle({
-          dineroCaja: asNumber(metricas.dineroCaja),
-          recaudoDia: asNumber(metricas.recaudoDia),
-          metaDiaria: asNumber(metricas.metaDiaria),
-          porcentajeMeta: asNumber(metricas.porcentajeMeta),
-          rutaNombre: metricas.rutaNombre || "",
-          zona: metricas.zona || "",
-          progreso: asNumber(metricas.progreso),
-          enMora: asNumber(metricas.enMora),
-          gastosHoy: asNumber(metricas.gastosHoy),
-          actividadReciente: (metricas.actividadReciente || []).map((item) => ({
-            ...item,
-            time: item.time ? formatShortDateTime(item.time) : "",
-          })),
-          ingresosDia: asNumber(metricas.ingresosDia),
-          egresosDia: asNumber(metricas.egresosDia),
-          balanceDia: asNumber(metricas.balanceDia),
-          gastosCategorias: metricas.gastosCategorias || [],
-          rutasActivas: asNumber(metricas.rutasActivas),
-          rutasTotal: asNumber(metricas.rutasTotal),
-          rutasInactivas: asNumber(metricas.rutasInactivas),
-          usuariosActivos: asNumber(metricas.usuariosActivos),
-        });
-      } catch (e) {
-        console.error("Error cargando detalle operativo del usuario:", e);
-        fetchAuditForUser(user);
-      }
-    })();
   };
-
   const handleOpenPermissionsModal = (user: User) => {
     if (
       user.rol === RolUsuario.SUPER_ADMINISTRADOR &&
@@ -1220,7 +1032,12 @@ const UserManagementPage = () => {
 
   // Despues del guard de permisos, nunca antes: quien no puede ver esta pantalla
   // tampoco debe ver su esqueleto, que ya adelanta que hay una tabla de usuarios.
-  if (loading) {
+  if (!accesoRestringido && errorListado && users.length === 0) {
+    return <PanelDeError titulo="No se pudieron cargar los usuarios" mensaje={errorListado}
+      reintentando={loading} onReintentar={() => { setLoading(true); void fetchUsers(); }} />;
+  }
+
+  if (loading && !accesoRestringido) {
     return (
       <div className="p-4 sm:p-6">
         <SkeletonTabla filas={8} />
@@ -1325,7 +1142,13 @@ const UserManagementPage = () => {
                 key={index}
                 className="group relative overflow-hidden bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300"
               >
-                <div className="flex items-start justify-between">
+                {/*
+                  `gap-3` y `shrink-0`: medido en el navegador, a 1366 y a 1280
+                  de ancho el borde derecho de «ADMINISTRADORES» quedaba
+                  exactamente en el borde izquierdo del icono -hueco de 0 px-,
+                  que es lo que en una captura se lee como que se solapan.
+                */}
+                <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                       {stat.label}
@@ -1336,7 +1159,7 @@ const UserManagementPage = () => {
                   </div>
                   <div
                     className={cn(
-                      "p-3 rounded-2xl group-hover:scale-110 transition-transform duration-300",
+                      "p-3 rounded-2xl shrink-0 group-hover:scale-110 transition-transform duration-300",
                       stat.bgColor,
                       stat.color,
                     )}
@@ -1463,23 +1286,32 @@ const UserManagementPage = () => {
           {/* Vista Lista (Tabla) - Solo Desktop */}
           {viewMode === "list" ? (
             <div className="hidden md:block bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
+              {/*
+                Los margenes de esta tabla son mas estrechos que los del resto
+                de la pagina a proposito. Medido a 1280 de ancho -un portatil
+                normal-: la tabla pedia 1037 px y tenia 958, asi que la columna
+                de ACCIONES se quedaba 79 px fuera. Scrollaba, pero nada en la
+                pantalla decia que hubiera algo mas a la derecha, asi que los
+                botones de cada usuario simplemente no estaban. Bajando el
+                relleno horizontal entran las cinco columnas.
+              */}
               <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left">
                   <thead className="text-xs text-slate-500 uppercase bg-slate-50/50 border-b border-slate-200">
                     <tr>
-                      <th className="px-8 py-5 font-bold tracking-wider">
+                      <th className="px-5 py-5 font-bold tracking-wider">
                         Usuario
                       </th>
-                      <th className="px-6 py-5 font-bold tracking-wider">
+                      <th className="px-4 py-5 font-bold tracking-wider">
                         Rol
                       </th>
-                      <th className="px-6 py-5 font-bold tracking-wider">
+                      <th className="px-4 py-5 font-bold tracking-wider">
                         Estado
                       </th>
-                      <th className="px-6 py-5 font-bold tracking-wider">
+                      <th className="px-4 py-5 font-bold tracking-wider">
                         Último Acceso
                       </th>
-                      <th className="px-8 py-5 font-bold tracking-wider text-right">
+                      <th className="px-5 py-5 font-bold tracking-wider text-right">
                         Acciones
                       </th>
                     </tr>
@@ -1492,7 +1324,7 @@ const UserManagementPage = () => {
                           key={user.id}
                           className="hover:bg-slate-50/50 transition-colors group"
                         >
-                          <td className="px-8 py-5">
+                          <td className="px-5 py-5">
                             <div className="flex items-center gap-4">
                               <div className="w-10 h-10 bg-slate-100 rounded-2xl flex items-center justify-center border border-slate-200 text-slate-600 font-bold text-xs shadow-sm">
                                 {user.nombres.charAt(0)}
@@ -1509,7 +1341,7 @@ const UserManagementPage = () => {
                               </div>
                             </div>
                           </td>
-                          <td className="px-6 py-5">
+                          <td className="px-4 py-5">
                             <div className="flex items-center gap-3">
                               <div
                                 className={cn(
@@ -1527,7 +1359,7 @@ const UserManagementPage = () => {
                               </div>
                             </div>
                           </td>
-                          <td className="px-6 py-5">
+                          <td className="px-4 py-5">
                             <span
                               className={cn(
                                 "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold tracking-wide uppercase border",
@@ -1537,11 +1369,34 @@ const UserManagementPage = () => {
                               {getStatusText(user.estado)}
                             </span>
                           </td>
-                          <td className="px-6 py-5 text-slate-500 font-medium">
-                            {user.ultimoAcceso}
+                          <td className="px-4 py-5 font-medium">
+                            {/*
+                              La fecha y la hora, en dos lineas a proposito.
+                              Medido a 1280 de ancho: esta celda mide 103 px y
+                              el texto completo -«8 de sept, 07:47 PM»- pide
+                              unos 130, asi que el navegador lo partia donde le
+                              tocara. Forzar una linea devolveria el corte de
+                              la columna de Acciones, asi que se parte donde
+                              toca y la hora queda como dato secundario, que es
+                              lo que es en un ultimo acceso de hace dias.
+                            */}
+                            {partirFechaYHora(user.ultimoAcceso).map(
+                              (parte, i) => (
+                                <div
+                                  key={parte}
+                                  className={
+                                    i === 0
+                                      ? 'text-slate-600'
+                                      : 'text-xs text-slate-400'
+                                  }
+                                >
+                                  {parte}
+                                </div>
+                              ),
+                            )}
                           </td>
-                          <td className="px-8 py-5 text-right">
-                            <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                          <td className="px-5 py-5 text-right">
+                            <div className="flex items-center justify-end gap-2">
                               <Tooltip texto="Ver detalle">
                                 <button aria-label="Ver detalle"
                                   onClick={(e) => {
@@ -1672,7 +1527,6 @@ const UserManagementPage = () => {
           ) : null}
 
           {/* Vista Grid (Tarjetas) - Siempre visible en móviles, condicional en desktop */}
-          {(viewMode === "grid" || true) && (
             <div
               className={cn(
                 "grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500",
@@ -1864,7 +1718,6 @@ const UserManagementPage = () => {
                 );
               })}
             </div>
-          )}
 
           <div className="p-4 border-t border-slate-100 bg-white/50 rounded-2xl mt-4">
             <Paginador
@@ -2015,7 +1868,7 @@ const UserManagementPage = () => {
                             id="page-contrasena"
                             type={showPassword ? "text" : "password"}
                             autoComplete="new-password"
-                            name={`new_pw_${Date.now()}`}
+                            name={`new_pw_${sufijoAntiAutocompletado}`}
                             value={formData.password}
                             onChange={(e) =>
                               setFormData({
@@ -2220,7 +2073,8 @@ const UserManagementPage = () => {
                               id="page-contrasena-2"
                               type={showPassword ? "text" : "password"}
                               autoComplete="new-password"
-                              name={`password_field_${Math.random()}`} // Hack para evitar autocompletado agresivo de Chrome
+                              // Sufijo estable: ver `sufijoAntiAutocompletado`.
+                              name={`password_field_${sufijoAntiAutocompletado}`}
                               value={formData.password}
                               onChange={(e) =>
                                 setFormData({
@@ -2351,10 +2205,23 @@ const UserManagementPage = () => {
                                 <Check className="h-3.5 w-3.5 text-white stroke-[3]" />
                               )}
                             </div>
+                            {/*
+                              Sin `id` fijo: estaba escrito a mano como
+                              `page-rol-2` DENTRO del `.map()`, asi que los
+                              dieciocho permisos compartian el mismo
+                              identificador. Medido en el navegador: 17
+                              repetidos. Un id duplicado es HTML invalido y
+                              deja a un lector de pantalla sin saber que
+                              casilla esta anunciando.
+
+                              No hace falta ninguno: el `input` va DENTRO de
+                              su `label`, asi que la asociacion es implicita.
+                              Lo que si hace falta es decir que activa.
+                            */}
                             <input
-                              id="page-rol-2"
                               type="checkbox"
                               className="hidden"
+                              aria-label={module.label}
                               checked={selectedPermissions.includes(module.id)}
                               onChange={() => handleTogglePermission(module.id)}
                             />
@@ -2459,823 +2326,28 @@ const UserManagementPage = () => {
 
             {/* Detail Modal */}
             {isDetailModalOpen && selectedUser && (
-              <div
-                className="fixed inset-0 capa-modal bg-slate-900/50 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200"
-                onClick={() => setIsDetailModalOpen(false)}
-              >
-                <div
-                  className="bg-white rounded-2xl w-[min(96vw,1280px)] border border-slate-200 shadow-2xl p-0 transform scale-100 animate-in zoom-in-95 duration-200 relative overflow-hidden flex flex-col lg:flex-row max-h-[92vh]"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {/* LEFT SIDE - PROFILE SUMMARY */}
-                  <div className="lg:w-[320px] xl:w-[340px] bg-slate-50 border-b lg:border-b-0 lg:border-r border-slate-200 flex flex-col items-center p-6 lg:p-8 relative overflow-y-auto shrink-0">
-                    <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-br from-slate-200 to-slate-100 z-0 pointer-events-none mb-12"></div>
-
-                    <div className="relative z-10 mb-4 items-center flex flex-col mt-4">
-                      <div className="w-28 h-28 bg-white rounded-full p-1.5 shadow-xl mb-4 group ring-4 ring-slate-50">
-                        <div className="w-full h-full bg-slate-100 rounded-full flex items-center justify-center text-3xl font-bold text-slate-400 border border-slate-200 group-hover:bg-slate-200 transition-colors">
-                          {selectedUser.nombres.charAt(0)}
-                          {selectedUser.apellidos.charAt(0)}
-                        </div>
-                        <Tooltip texto="Usuario Activo">
-                          <div
-                            className="absolute bottom-4 right-2 w-5 h-5 bg-emerald-500 rounded-full border-[3px] border-white"
-                          ></div>
-                        </Tooltip>
-                      </div>
-                      <h2 className="text-xl font-bold text-slate-900 text-center leading-tight">
-                        {selectedUser.nombres}
-                        <br />
-                        <span className="text-slate-600 font-normal">
-                          {selectedUser.apellidos}
-                        </span>
-                      </h2>
-                    </div>
-
-                    <div className="mt-2 text-center w-full space-y-4 relative z-10">
-                      <span
-                        className={cn(
-                          "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border mb-4",
-                          roles.find((r) => r.id === selectedUser.rol)?.bgColor,
-                          roles.find((r) => r.id === selectedUser.rol)?.color,
-                          "border-transparent",
-                        )}
-                      >
-                        {roles.find((r) => r.id === selectedUser.rol)?.icon}
-                        {roles.find((r) => r.id === selectedUser.rol)?.nombre}
-                      </span>
-
-                      <div className="w-full h-px bg-slate-200/80 my-4"></div>
-
-                      <div className="space-y-3 w-full text-left px-2">
-                        <div className="flex items-center gap-3 group">
-                          <div className="p-2 bg-white rounded-lg border border-slate-200 text-slate-400 group-hover:border-blue-200 group-hover:text-blue-500 transition-colors shadow-sm">
-                            <AtSign className="w-4 h-4" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">
-                              Usuario
-                            </div>
-                            <div className="text-sm font-bold text-slate-700 break-words">
-                              {selectedUser.nombreUsuario || "No configurado"}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3 group">
-                          <div className="p-2 bg-white rounded-lg border border-slate-200 text-slate-400 group-hover:border-blue-200 group-hover:text-blue-500 transition-colors shadow-sm">
-                            <Mail className="w-4 h-4" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">
-                              Correo Electrónico
-                            </div>
-                            <div className="text-sm font-bold text-slate-700 break-words">
-                              {selectedUser.correo}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3 group">
-                          <div className="p-2 bg-white rounded-lg border border-slate-200 text-slate-400 group-hover:border-blue-200 group-hover:text-blue-500 transition-colors shadow-sm">
-                            <Users className="w-4 h-4" />
-                          </div>
-                          <div>
-                            <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">
-                              Teléfono
-                            </div>
-                            <div className="text-sm font-bold text-slate-700">
-                              {selectedUser.telefono || "No registrado"}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3 group">
-                          <div className="p-2 bg-white rounded-lg border border-slate-200 text-slate-400 group-hover:border-blue-200 group-hover:text-blue-500 transition-colors shadow-sm">
-                            <Clock className="w-4 h-4" />
-                          </div>
-                          <div>
-                            <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">
-                              Último Acceso
-                            </div>
-                            <div className="text-sm font-bold text-slate-700">
-                              {selectedUser.ultimoAcceso}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* RIGHT SIDE - DETAILED CONTENT */}
-                  <div className="flex-1 min-w-0 p-6 lg:p-8 xl:p-10 overflow-y-auto bg-white relative text-slate-900">
-                    <button aria-label="Cerrar"
-                      onClick={() => setIsDetailModalOpen(false)}
-                      className="shrink-0 absolute top-6 right-6 p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-900 transition-all z-20"
-                    >
-                      <XCircle className="w-6 h-6" />
-                    </button>
-
-                    <div className="space-y-6">
-                      <div className="flex items-start justify-between gap-4 pr-12">
-                        <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                          <LayoutGrid className="w-5 h-5 text-slate-400" />
-                          Detalles Operativos
-                        </h3>
-                        {selectedUser.estado === "ACTIVO" ? (
-                          <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-3 py-1 rounded-full">
-                            <span className="relative flex h-2 w-2">
-                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                            </span>
-                            ACTIVO
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-1.5 text-xs font-bold text-slate-500 bg-slate-100 border border-slate-200 px-3 py-1 rounded-full">
-                            INACTIVO
-                          </span>
-                        )}
-                      </div>
-
-                      {selectedUser.rol === "COBRADOR" ? (
-                        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                          {/* 1. RESUMEN FINANCIERO (TARJETAS GRANDES) */}
-                          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm relative overflow-hidden group hover:border-blue-300 transition-colors">
-                              <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform duration-500">
-                                <Wallet className="w-24 h-24 text-blue-600" />
-                              </div>
-                              <div className="relative z-10">
-                                <div className="flex items-center gap-2 text-slate-500 text-xs font-bold uppercase tracking-wider mb-2">
-                                  <Wallet className="w-3.5 h-3.5 text-blue-600" />
-                                  Dinero en Caja
-                                </div>
-                                <div className="text-3xl font-black tracking-tight text-slate-900 mb-1">
-                                  $ {detalle.dineroCaja.toLocaleString("es-CO")}
-                                </div>
-                                <div className="flex items-center gap-1 text-xs text-blue-700 bg-blue-50 w-fit px-2 py-0.5 rounded-lg border border-blue-100">
-                                  <TrendingUp className="w-3 h-3" />
-                                  <span className="font-semibold">
-                                    {detalle.porcentajeMeta}% vs meta
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-
-                            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm relative overflow-hidden group hover:border-blue-300 transition-colors">
-                              <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:scale-110 transition-transform duration-500 text-emerald-600">
-                                <Sparkles className="w-24 h-24" />
-                              </div>
-                              <div className="relative z-10">
-                                <div className="flex items-center gap-2 text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
-                                  <CheckCircle2 className="w-3.5 h-3.5" />
-                                  Recaudo del Día
-                                </div>
-                                <div className="text-3xl font-black tracking-tight text-slate-900 mb-1">
-                                  $ {detalle.recaudoDia.toLocaleString("es-CO")}
-                                </div>
-                                <div className="text-xs text-slate-500">
-                                  Meta diaria:{" "}
-                                  <span className="font-bold text-slate-700">
-                                    ${" "}
-                                    {detalle.metaDiaria.toLocaleString("es-CO")}
-                                  </span>{" "}
-                                  ({detalle.porcentajeMeta}%)
-                                </div>
-                                <div className="w-full h-1.5 bg-slate-100 rounded-full mt-3 overflow-hidden">
-                                  <div
-                                    className="h-full bg-emerald-500 rounded-full"
-                                    style={{
-                                      width: `${detalle.porcentajeMeta}%`,
-                                    }}
-                                  ></div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* 2. ESTADISTICAS DETALLADAS (GRID 3) */}
-                          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                            <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl hover:bg-slate-100 transition-colors">
-                              <div className="flex items-center gap-2 mb-1.5">
-                                <div className="p-1.5 bg-white rounded-md shadow-sm text-violet-600 border border-slate-100">
-                                  <MapPin className="w-3.5 h-3.5" />
-                                </div>
-                                <span className="text-[10px] font-bold text-slate-400 uppercase">
-                                  Ruta habilitada
-                                </span>
-                              </div>
-                              <div className="font-bold text-slate-900 text-sm">
-                                {detalle.zona || "—"}
-                              </div>
-                              <div className="text-[10px] text-slate-500 font-medium mt-0.5">
-                                {detalle.progreso}% completado hoy
-                              </div>
-                            </div>
-
-                            <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl hover:bg-slate-100 transition-colors">
-                              <div className="flex items-center gap-2 mb-1.5">
-                                <div className="p-1.5 bg-white rounded-md shadow-sm text-rose-600 border border-slate-100">
-                                  <AlertCircle className="w-3.5 h-3.5" />
-                                </div>
-                                <span className="text-[10px] font-bold text-slate-400 uppercase">
-                                  En Mora
-                                </span>
-                              </div>
-                              <div className="font-bold text-slate-900 text-sm">
-                                {detalle.enMora} Clientes
-                              </div>
-                              <div className="text-[10px] text-rose-600 font-bold mt-0.5">
-                                Atención requerida
-                              </div>
-                            </div>
-
-                            <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl hover:bg-slate-100 transition-colors">
-                              <div className="flex items-center gap-2 mb-1.5">
-                                <div className="p-1.5 bg-white rounded-md shadow-sm text-amber-600 border border-slate-100">
-                                  <DollarSign className="w-3.5 h-3.5" />
-                                </div>
-                                <span className="text-[10px] font-bold text-slate-400 uppercase">
-                                  Gastos
-                                </span>
-                              </div>
-                              <div className="font-bold text-slate-900 text-sm">
-                                $ {detalle.gastosHoy.toLocaleString("es-CO")}
-                              </div>
-                              <div className="text-[10px] text-slate-500 font-medium mt-0.5">
-                                Hoy
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* 3. ACTIVIDAD RECIENTE (TIMELINE) */}
-                          <div className="border border-slate-200 rounded-2xl overflow-hidden">
-                            <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                              <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide flex items-center gap-2">
-                                <Calendar className="w-3.5 h-3.5" />
-                                Actividad Reciente
-                              </h4>
-                              <div className="flex items-center gap-2">
-                                                                <CampoFecha
-                                  value={filtroFechaInicio}
-                                  onChange={(valorFecha) => setFiltroFechaInicio(valorFecha)}
-                                  className="text-[10px] px-2 py-1 border border-slate-200 rounded-md bg-white text-slate-700 font-medium"
-                                />
-                                                                <CampoFecha
-                                  value={filtroFechaFin}
-                                  onChange={(valorFecha) => setFiltroFechaFin(valorFecha)}
-                                  className="text-[10px] px-2 py-1 border border-slate-200 rounded-md bg-white text-slate-700 font-medium"
-                                />
-                                <BotonAccion
-                                  className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded-md border border-blue-200 hover:bg-blue-100"
-                                  onClick={async () => {
-                                    if (!selectedUser) return;
-                                    await fetchAuditForUser(selectedUser);
-                                    setTimelineCount(timelineLimit);
-                                  }}
-                                >
-                                  Aplicar
-                                </BotonAccion>
-                              </div>
-                            </div>
-                            <div className="bg-white p-0">
-                              {detalle.actividadReciente
-                                .slice(
-                                  (actividadPage - 1) * actividadPerPage,
-                                  actividadPage * actividadPerPage,
-                                )
-                                .map((item, idx) => (
-                                  <div
-                                    key={idx}
-                                    className="flex items-center gap-4 p-3 border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors"
-                                  >
-                                    <div className="w-20 text-[10px] font-bold text-slate-500 text-right leading-tight">
-                                      {item.time}
-                                    </div>
-                                    <div
-                                      className={cn(
-                                        "w-2 h-2 rounded-full ring-4 ring-white",
-                                        item.type === "in"
-                                          ? "bg-emerald-500"
-                                          : item.type === "out"
-                                            ? "bg-rose-500"
-                                            : "bg-slate-300",
-                                      )}
-                                    ></div>
-                                    <div className="flex-1 min-w-0">
-                                      <div className="text-xs font-bold text-slate-900">
-                                        {item.action}
-                                      </div>
-                                      <div className="text-[10px] text-slate-500 truncate">
-                                        {item.detail}
-                                      </div>
-                                    </div>
-                                    {item.amount && (
-                                      <div className="text-xs font-bold text-black px-2 py-0.5 rounded-md bg-slate-100">
-                                        {item.amount}
-                                      </div>
-                                    )}
-                                  </div>
-                                ))}
-                            </div>
-                            {detalle.actividadReciente.length >=
-                              actividadPerPage && (
-                              <div className="bg-slate-50 px-4 py-3 border-t border-slate-200 flex justify-between items-center">
-                                <span className="text-xs text-slate-500 font-medium">
-                                  Mostrando{" "}
-                                  {Math.min(
-                                    (actividadPage - 1) * actividadPerPage + 1,
-                                    detalle.actividadReciente.length,
-                                  )}{" "}
-                                  -{" "}
-                                  {Math.min(
-                                    actividadPage * actividadPerPage,
-                                    detalle.actividadReciente.length,
-                                  )}{" "}
-                                  de {detalle.actividadReciente.length}
-                                </span>
-                                <div className="flex gap-2">
-                                  <button aria-label="Página anterior"
-                                    onClick={() =>
-                                      setActividadPage((p) =>
-                                        Math.max(1, p - 1),
-                                      )
-                                    }
-                                    disabled={actividadPage === 1}
-                                    className="px-3 py-1 text-xs font-bold rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-slate-700"
-                                  >
-                                    <ChevronLeft className="h-3 w-3" />
-                                  </button>
-                                  <button aria-label="Página siguiente"
-                                    onClick={() =>
-                                      setActividadPage((p) =>
-                                        Math.min(
-                                          Math.ceil(
-                                            detalle.actividadReciente.length /
-                                              actividadPerPage,
-                                          ),
-                                          p + 1,
-                                        ),
-                                      )
-                                    }
-                                    disabled={
-                                      actividadPage >=
-                                      Math.ceil(
-                                        detalle.actividadReciente.length /
-                                          actividadPerPage,
-                                      )
-                                    }
-                                    className="px-3 py-1 text-xs font-bold rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-slate-700"
-                                  >
-                                    <ChevronRight className="h-3 w-3" />
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                          {selectedUser?.rol === RolUsuario.CONTADOR && (
-                            <>
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
-                                  <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">
-                                    Ingresos Hoy
-                                  </div>
-                                  <div className="text-2xl font-black text-slate-900">
-                                    ${" "}
-                                    {detalle.ingresosDia.toLocaleString(
-                                      "es-CO",
-                                    )}
-                                  </div>
-                                </div>
-                                <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
-                                  <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">
-                                    Egresos Hoy
-                                  </div>
-                                  <div className="text-2xl font-black text-slate-900">
-                                    ${" "}
-                                    {detalle.egresosDia.toLocaleString("es-CO")}
-                                  </div>
-                                </div>
-                                <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
-                                  <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">
-                                    Balance Hoy
-                                  </div>
-                                  <div className="text-2xl font-black text-slate-900">
-                                    ${" "}
-                                    {detalle.balanceDia.toLocaleString("es-CO")}
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
-                                <div className="text-[10px] font-bold text-slate-400 uppercase mb-3">
-                                  Top Gastos por Categoría
-                                </div>
-                                <div className="space-y-2">
-                                  {detalle.gastosCategorias.length === 0 && (
-                                    <div className="text-xs text-slate-500">
-                                      Sin gastos registrados hoy
-                                    </div>
-                                  )}
-                                  {detalle.gastosCategorias.map((g, i) => (
-                                    <div
-                                      key={i}
-                                      className="flex items-center justify-between text-sm"
-                                    >
-                                      <span className="font-medium text-slate-700">
-                                        {g.categoria}
-                                      </span>
-                                      <span className="font-bold">
-                                        $ {g.monto.toLocaleString("es-CO")}
-                                      </span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            </>
-                          )}
-                          {selectedUser?.rol === RolUsuario.COORDINADOR && (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                              <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
-                                <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">
-                                  Rutas habilitadas
-                                </div>
-                                  <div className="text-2xl font-black text-slate-900">
-                                  {detalle.rutasActivas}
-                                </div>
-                                <div className="text-[10px] text-slate-500 font-medium mt-0.5">
-                                  de {detalle.rutasTotal}
-                                </div>
-                              </div>
-                              <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
-                                <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">
-                                  Rutas inhabilitadas
-                                </div>
-                                  <div className="text-2xl font-black text-slate-900">
-                                  {detalle.rutasInactivas}
-                                </div>
-                              </div>
-                              <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
-                                <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">
-                                  Eficiencia Promedio
-                                </div>
-                                  <div className="text-2xl font-black text-slate-900">
-                                  {detalle.porcentajeMeta}%
-                                </div>
-                              </div>
-                              <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
-                                <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">
-                                  Recaudo Total Hoy
-                                </div>
-                                <div className="text-2xl font-black text-slate-900">
-                                  $ {detalle.recaudoDia.toLocaleString("es-CO")}
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                          {selectedUser?.rol === RolUsuario.PUNTO_DE_VENTA && (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                              <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
-                                <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">
-                                  Actividad Comercial
-                                </div>
-                                <div className="text-2xl font-black text-slate-900">
-                                  {detalle.actividadReciente.length}
-                                </div>
-                                <div className="text-[10px] text-slate-500 font-medium mt-0.5">
-                                  eventos relacionados
-                                </div>
-                              </div>
-                              <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
-                                <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">
-                                  Ventas / Créditos
-                                </div>
-                                <div className="text-2xl font-black text-slate-900">
-                                  $ {detalle.ingresosDia.toLocaleString("es-CO")}
-                                </div>
-                                <div className="text-[10px] text-slate-500 font-medium mt-0.5">
-                                  movimiento comercial del día
-                                </div>
-                              </div>
-                              <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
-                                <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">
-                                  Rol Operativo
-                                </div>
-                                <div className="text-2xl font-black text-slate-900">
-                                  Punto
-                                </div>
-                                <div className="text-[10px] text-slate-500 font-medium mt-0.5">
-                                  ventas de artículos y clientes
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                          {selectedUser?.rol === RolUsuario.SUPERVISOR && (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                              <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
-                                <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">
-                                  Rutas habilitadas
-                                </div>
-                                  <div className="text-2xl font-black text-slate-900">
-                                  {detalle.rutasActivas}
-                                </div>
-                                <div className="text-[10px] text-slate-500 font-medium mt-0.5">
-                                  de {detalle.rutasTotal}
-                                </div>
-                              </div>
-                              <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
-                                <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">
-                                  Rutas inhabilitadas
-                                </div>
-                                  <div className="text-2xl font-black text-slate-900">
-                                  {detalle.rutasInactivas}
-                                </div>
-                              </div>
-                              <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
-                                <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">
-                                  En Mora
-                                </div>
-                                  <div className="text-2xl font-black text-slate-900">
-                                  {detalle.enMora}
-                                </div>
-                              </div>
-                              <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
-                                <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">
-                                  Gastos Hoy
-                                </div>
-                                  <div className="text-2xl font-black text-slate-900">
-                                  $ {detalle.gastosHoy.toLocaleString("es-CO")}
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                          {(selectedUser?.rol === RolUsuario.ADMIN ||
-                            selectedUser?.rol ===
-                              RolUsuario.SUPER_ADMINISTRADOR) && (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                              <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
-                                <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">
-                                  Usuarios Activos
-                                </div>
-                                <div className="text-2xl font-black text-slate-900">
-                                  {detalle.usuariosActivos}
-                                </div>
-                                <div className="text-[10px] text-slate-500 font-medium mt-0.5">
-                                  activos en el sistema
-                                </div>
-                              </div>
-                              <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
-                                <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">
-                                  Recaudo Hoy
-                                </div>
-                                  <div className="text-2xl font-black text-slate-900">
-                                  $ {detalle.recaudoDia.toLocaleString("es-CO")}
-                                </div>
-                              </div>
-                              <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
-                                <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">
-                                  Meta Hoy
-                                </div>
-                                  <div className="text-2xl font-black text-slate-900">
-                                  $ {detalle.metaDiaria.toLocaleString("es-CO")}
-                                </div>
-                              </div>
-                              <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
-                                <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">
-                                  % Cumplimiento
-                                </div>
-                                  <div className="text-2xl font-black text-slate-900">
-                                  {detalle.porcentajeMeta}%
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                          {(selectedUser?.rol === RolUsuario.COORDINADOR ||
-                            selectedUser?.rol === RolUsuario.SUPERVISOR) && (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                            <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl hover:bg-slate-100 transition-colors">
-                              <div className="flex items-center gap-2 mb-1.5">
-                                <div className="p-1.5 bg-white rounded-md shadow-sm text-violet-600 border border-slate-100">
-                                  <MapPin className="w-3.5 h-3.5" />
-                                </div>
-                                <span className="text-[10px] font-bold text-slate-400 uppercase">
-                                  Resumen
-                                </span>
-                              </div>
-                              <div className="font-bold text-slate-900 text-sm">
-                                {detalle.rutaNombre}
-                              </div>
-                              <div className="text-[10px] text-slate-500 font-medium mt-0.5">
-                                {detalle.progreso}% avance
-                              </div>
-                            </div>
-                            <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl hover:bg-slate-100 transition-colors">
-                              <div className="flex items-center gap-2 mb-1.5">
-                                <div className="p-1.5 bg-white rounded-md shadow-sm text-rose-600 border border-slate-100">
-                                  <AlertCircle className="w-3.5 h-3.5" />
-                                </div>
-                                <span className="text-[10px] font-bold text-slate-400 uppercase">
-                                  En Mora
-                                </span>
-                              </div>
-                              <div className="font-bold text-slate-900 text-sm">
-                                {detalle.enMora} Clientes
-                              </div>
-                              <div className="text-[10px] text-rose-600 font-bold mt-0.5">
-                                Atención requerida
-                              </div>
-                            </div>
-                            <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl hover:bg-slate-100 transition-colors">
-                              <div className="flex items-center gap-2 mb-1.5">
-                                <div className="p-1.5 bg-white rounded-md shadow-sm text-amber-600 border border-slate-100">
-                                  <DollarSign className="w-3.5 h-3.5" />
-                                </div>
-                                <span className="text-[10px] font-bold text-slate-400 uppercase">
-                                  Gastos
-                                </span>
-                              </div>
-                              <div className="font-bold text-slate-900 text-sm">
-                                $ {detalle.gastosHoy.toLocaleString("es-CO")}
-                              </div>
-                              <div className="text-[10px] text-slate-500 font-medium mt-0.5">
-                                Hoy
-                              </div>
-                            </div>
-                          </div>
-                          )}
-                          <div className="border border-slate-200 rounded-2xl overflow-hidden">
-                            <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center">
-                              <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide flex items-center gap-2">
-                                <Calendar className="w-3.5 h-3.5" />
-                                Actividad Reciente
-                              </h4>
-                            </div>
-                            <div className="bg-white p-0">
-                              {detalle.actividadReciente
-                                .slice(
-                                  (actividadPage - 1) * actividadPerPage,
-                                  actividadPage * actividadPerPage,
-                                )
-                                .map((item, idx) => (
-                                  <div
-                                    key={idx}
-                                    className="flex items-center gap-4 p-3 border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors"
-                                  >
-                                    <div className="w-20 text-[10px] font-bold text-slate-500 text-right leading-tight">
-                                      {item.time}
-                                    </div>
-                                    <div
-                                      className={cn(
-                                        "w-2 h-2 rounded-full ring-4 ring-white",
-                                        item.type === "in"
-                                          ? "bg-emerald-500"
-                                          : item.type === "out"
-                                            ? "bg-rose-500"
-                                            : "bg-slate-300",
-                                      )}
-                                    ></div>
-                                    <div className="flex-1 min-w-0">
-                                      <div className="flex items-center gap-2">
-                                        <div className="text-xs font-bold text-slate-900">
-                                          {item.action}
-                                        </div>
-                                        <span
-                                          className={cn(
-                                            "text-[10px] px-1.5 py-0.5 rounded-md border",
-                                            item.action
-                                              .toLowerCase()
-                                              .includes("pago")
-                                              ? "bg-emerald-100 text-emerald-700 border-emerald-200"
-                                              : item.action
-                                                    .toLowerCase()
-                                                    .includes("gasto")
-                                                ? "bg-amber-100 text-amber-700 border-amber-200"
-                                                : item.action
-                                                      .toLowerCase()
-                                                      .includes("visita")
-                                                  ? "bg-indigo-100 text-indigo-700 border-indigo-200"
-                                                  : item.action
-                                                        .toLowerCase()
-                                                        .includes(
-                                                          "transaccion",
-                                                        ) ||
-                                                      item.action
-                                                        .toLowerCase()
-                                                        .includes("caja")
-                                                    ? "bg-sky-100 text-sky-700 border-sky-200"
-                                                    : item.action
-                                                          .toLowerCase()
-                                                          .includes("arqueo") ||
-                                                        item.action
-                                                          .toLowerCase()
-                                                          .includes("cierre")
-                                                      ? "bg-purple-100 text-purple-700 border-purple-200"
-                                                      : "bg-slate-100 text-slate-700 border-slate-200",
-                                          )}
-                                        >
-                                          {item.action
-                                            .toLowerCase()
-                                            .includes("pago")
-                                            ? "Pago"
-                                            : item.action
-                                                  .toLowerCase()
-                                                  .includes("gasto")
-                                              ? "Gasto"
-                                              : item.action
-                                                    .toLowerCase()
-                                                    .includes("visita")
-                                                ? "Visita"
-                                                : item.action
-                                                      .toLowerCase()
-                                                      .includes("transaccion")
-                                                  ? "Transacción"
-                                                  : item.action
-                                                        .toLowerCase()
-                                                        .includes("arqueo")
-                                                    ? "Arqueo"
-                                                    : item.action
-                                                          .toLowerCase()
-                                                          .includes("cierre")
-                                                      ? "Cierre"
-                                                      : item.action
-                                                            .toLowerCase()
-                                                            .includes("caja")
-                                                        ? "Caja"
-                                                        : "Evento"}
-                                        </span>
-                                      </div>
-                                      <div className="text-[10px] text-slate-500 truncate">
-                                        {item.detail}
-                                      </div>
-                                    </div>
-                                    {item.amount && (
-                                      <div className="text-xs font-bold text-black px-2 py-0.5 rounded-md bg-slate-100">
-                                        {item.amount}
-                                      </div>
-                                    )}
-                                  </div>
-                                ))}
-                            </div>
-                            {detalle.actividadReciente.length >=
-                              actividadPerPage && (
-                              <div className="bg-slate-50 px-4 py-3 border-t border-slate-200 flex justify-between items-center">
-                                <span className="text-xs text-slate-500 font-medium">
-                                  Mostrando{" "}
-                                  {Math.min(
-                                    (actividadPage - 1) * actividadPerPage + 1,
-                                    detalle.actividadReciente.length,
-                                  )}{" "}
-                                  -{" "}
-                                  {Math.min(
-                                    actividadPage * actividadPerPage,
-                                    detalle.actividadReciente.length,
-                                  )}{" "}
-                                  de {detalle.actividadReciente.length}
-                                </span>
-                                <div className="flex gap-2">
-                                  <button aria-label="Página anterior"
-                                    onClick={() =>
-                                      setActividadPage((p) =>
-                                        Math.max(1, p - 1),
-                                      )
-                                    }
-                                    disabled={actividadPage === 1}
-                                    className="px-3 py-1 text-xs font-bold rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-slate-700"
-                                  >
-                                    <ChevronLeft className="h-3 w-3" />
-                                  </button>
-                                  <button aria-label="Página siguiente"
-                                    onClick={() =>
-                                      setActividadPage((p) =>
-                                        Math.min(
-                                          Math.ceil(
-                                            detalle.actividadReciente.length /
-                                              actividadPerPage,
-                                          ),
-                                          p + 1,
-                                        ),
-                                      )
-                                    }
-                                    disabled={
-                                      actividadPage >=
-                                      Math.ceil(
-                                        detalle.actividadReciente.length /
-                                          actividadPerPage,
-                                      )
-                                    }
-                                    className="px-3 py-1 text-xs font-bold rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-slate-700"
-                                  >
-                                    <ChevronRight className="h-3 w-3" />
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <DetalleUsuarioModal
+                key={selectedUser.id}
+                usuario={selectedUser}
+                rolNombre={
+                  roles.find((r) => r.id === selectedUser.rol)?.nombre ??
+                  selectedUser.rol
+                }
+                rolIcono={roles.find((r) => r.id === selectedUser.rol)?.icon}
+                onCerrar={() => setIsDetailModalOpen(false)}
+                onEditar={puedeEditar ? () => {
+                  setIsDetailModalOpen(false);
+                  handleOpenEditModal(selectedUser);
+                } : undefined}
+                onPermisos={puedeGestionarPermisos ? () => {
+                  setIsDetailModalOpen(false);
+                  handleOpenPermissionsModal(selectedUser);
+                } : undefined}
+                onCambiarEstado={puedeEliminar && selectedUser.rol !== RolUsuario.SUPER_ADMINISTRADOR && selectedUser.estado !== EstadoUsuario.ARCHIVADO ? () => {
+                  setIsDetailModalOpen(false);
+                  handleOpenDeleteModal(selectedUser);
+                } : undefined}
+              />
             )}
           </>,
           document.body,

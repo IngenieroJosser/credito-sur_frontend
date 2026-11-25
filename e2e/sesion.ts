@@ -235,16 +235,30 @@ export async function marcaDeError(page: Page): Promise<string | null> {
   return null
 }
 
-/** Si Next está mostrando su pantalla de error en vez de la aplicación. */
+/**
+ * Si Next está mostrando su pantalla de error en vez de la aplicación.
+ *
+ * ── Lo que miraba antes ───────────────────────────────────────────────────────
+ *
+ * Tenía `nextjs-portal` el PRIMERO de su lista, y eso la rompía por los dos
+ * lados a la vez. Medido en el navegador:
+ *
+ *   - con `next dev`, `nextjs-portal` está SIEMPRE en el documento —es donde
+ *     Next monta su propio indicador— y su `shadowRoot` solo trae hojas de
+ *     estilo: cero diálogos y cero errores de consola. Así que esta función
+ *     decía «hay error» en todas las pantallas, siempre;
+ *   - con `next build` + `next start` ese elemento no existe nunca, así que la
+ *     marca no aportaba nada.
+ *
+ * O sea: en desarrollo fallaba sin mirar y en producción miraba sin ver. No se
+ * notaba porque Playwright reutiliza el servidor que encuentre en el 3000 y ahí
+ * llevaba tiempo corriendo un `next start`.
+ *
+ * Su hermana `marcaDeError` ya tenía esto resuelto —lo pone en un comentario y
+ * deja `nextjs-portal` al final, marcado «solo indicio»—, así que ahora
+ * las dos leen la MISMA lista y no puede volver a divergir.
+ */
 export async function hayPantallaDeError(page: Page): Promise<boolean> {
-  const marcas = [
-    'nextjs-portal',
-    '[data-nextjs-dialog]',
-    '#__next_error__',
-    'text=/Unhandled Runtime Error|Application error|Internal Server Error/i',
-  ]
-  for (const marca of marcas) {
-    if ((await page.locator(marca).count()) > 0) return true
-  }
-  return false
+  const marca = await marcaDeError(page)
+  return marca !== null && !marca.includes('solo indicio')
 }

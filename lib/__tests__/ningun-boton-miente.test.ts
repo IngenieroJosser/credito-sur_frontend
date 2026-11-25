@@ -83,11 +83,37 @@ function pantallas(): string[] {
 
 type Boton = { relativo: string; linea: number; apertura: string }
 
+/**
+ * Borrar los comentarios de bloque antes de buscar botones.
+ *
+ * Esto leía el archivo en crudo, comentarios incluidos, así que un comentario
+ * que MENCIONA la palabra «button» se contaba como un botón muerto. Pasó: al
+ * documentar en `cierre-caja` que la ayuda de «Arqueos» era un `<button>`
+ * dentro de otro botón, la prueba señaló esa línea del comentario.
+ *
+ * Un falso positivo aquí es caro: quien lo recibe va al archivo, no encuentra
+ * ningún botón, y la siguiente vez añade el archivo a `EXCEPCIONES` —y
+ * entonces deja de mirarse entero.
+ *
+ * Se sustituye por espacios en vez de recortar, para que los números de línea
+ * que sale a informar sigan siendo los del archivo de verdad.
+ *
+ * Solo los de bloque, no los de `//`: un `//` también aparece dentro de las
+ * URL de los literales de texto, y borrar hasta el fin de esa línea sí podría
+ * esconder un botón de verdad. Un `<button` escrito en un comentario de una
+ * línea queda, pues, sin cubrir; es el límite conocido de esto.
+ */
+function sinComentariosDeBloque(fuente: string): string {
+  return fuente.replace(/\/\*[\s\S]*?\*\//g, (bloque) =>
+    bloque.replace(/[^\n]/g, ' '),
+  )
+}
+
 function botonesSinAccion(): Boton[] {
   const salida: Boton[] = []
 
   for (const archivo of pantallas()) {
-    const fuente = fs.readFileSync(archivo, 'utf8')
+    const fuente = sinComentariosDeBloque(fs.readFileSync(archivo, 'utf8'))
     if (!fuente.includes('<button')) continue
     const relativo = path.relative(RAIZ, archivo).replace(/\\/g, '/')
     if (EXCEPCIONES.has(relativo)) continue

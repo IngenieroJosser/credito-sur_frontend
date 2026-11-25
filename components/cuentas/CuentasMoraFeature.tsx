@@ -14,6 +14,7 @@
  *   <CuentasMoraFeature />
  */
 
+import { nivelMoraBadgeClasses } from '@/lib/display-labels'
 import { useState, useEffect, useCallback } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { usePageFocusRefresh } from '@/hooks/usePageFocusRefresh'
@@ -121,12 +122,22 @@ function calcularNivelMora(cuenta: CuentaMora): NivelMoraKey {
   return 'VERDE'
 }
 
+/*
+ * Las claves de esta pantalla son la escala de DIAS DE MORA con los nombres de
+ * la del cliente puestos encima: mirando `NIVEL_LABEL`, `VERDE` es «Minimo» y
+ * `LISTA_NEGRA` es «Critico». No es el riesgo del cliente, aunque lo parezca.
+ *
+ * El distintivo, por tanto, sale de `nivelMoraBadgeClasses`. Antes estaba
+ * escrito a mano y divergia: `ROJO` en naranja aqui y en rosa en el resto,
+ * `PRECAUCION` en ambar aqui y en amarillo en el resto. La barra y el icono se
+ * quedan locales -son adornos de esta pantalla- pero con el tono de la escala.
+ */
 const NIVEL_COLORS: Record<string, { badge: string; bar: string; icon: string }> = {
-  VERDE:      { badge: 'bg-emerald-50 text-emerald-700 border-emerald-200', bar: 'bg-emerald-400', icon: 'text-emerald-500' },
-  LEVE:       { badge: 'bg-yellow-50  text-yellow-700  border-yellow-200',  bar: 'bg-yellow-400',  icon: 'text-yellow-600' },
-  PRECAUCION: { badge: 'bg-amber-50   text-amber-700   border-amber-200',   bar: 'bg-amber-500',   icon: 'text-amber-600'  },
-  ROJO:       { badge: 'bg-orange-50  text-orange-700  border-orange-200',  bar: 'bg-orange-500',  icon: 'text-orange-600' },
-  LISTA_NEGRA: { badge: 'bg-rose-50    text-rose-700    border-rose-200',    bar: 'bg-rose-600',    icon: 'text-rose-600'   },
+  VERDE:       { badge: nivelMoraBadgeClasses('minimo'),     bar: 'bg-emerald-400', icon: 'text-emerald-500' },
+  LEVE:        { badge: nivelMoraBadgeClasses('leve'),       bar: 'bg-blue-400',    icon: 'text-blue-600'    },
+  PRECAUCION:  { badge: nivelMoraBadgeClasses('precaucion'), bar: 'bg-yellow-500',  icon: 'text-yellow-600'  },
+  ROJO:        { badge: nivelMoraBadgeClasses('moderado'),   bar: 'bg-amber-500',   icon: 'text-amber-600'   },
+  LISTA_NEGRA: { badge: nivelMoraBadgeClasses('critico'),    bar: 'bg-rose-600',    icon: 'text-rose-600'    },
 }
 
 function NivelIcon({ nivel, className }: { nivel: string; className?: string }) {

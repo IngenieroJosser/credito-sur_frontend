@@ -58,17 +58,243 @@ export function humanizeEnumLabel(value?: string | null) {
  * Estaba duplicada, identica, en el detalle de ruta de admin y en el de coordinador. Es
  * presentacion, no un dato, y por eso vive aqui con las otras etiquetas.
  */
+/**
+ * UNA paleta para todos los distintivos de riesgo y mora.
+ *
+ * ── Por que ───────────────────────────────────────────────────────────────
+ *
+ * El dueño lo pidio asi: «revisar el tema de los riesgos de mora o vencidas
+ * para que todos tengan el mismo estilo, porque hay vistas con estilos
+ * diferentes».
+ *
+ * Y las habia. Medido sobre el repo, el riesgo del CLIENTE se pintaba en seis
+ * sitios con al menos TRES paletas:
+ *
+ *   creditos-articulos   emerald-600 / amber-600 / rose-600, lista negra gris
+ *   DetalleCliente       emerald-700 / amber-700 / rose-700, lista negra NEGRA
+ *   CobradorElements     emerald-700 / yellow-700 / **red**-700, y lista negra
+ *                        del MISMO rojo que «rojo», asi que un cliente en lista
+ *                        negra se veia igual que uno de riesgo alto
+ *
+ * ── Tres escalas, no una ─────────────────────────────────────────────────
+ *
+ * Lo que NO se hace es mezclarlas. Son tres cosas distintas y ya costo un
+ * susto confundirlas:
+ *
+ *   - el riesgo del CLIENTE: VERDE / AMARILLO / ROJO / LISTA_NEGRA;
+ *   - el riesgo OPERATIVO de una RUTA: PELIGRO_MINIMO ... ALTO_RIESGO;
+ *   - el nivel de MORA por dias: minimo / leve / precaucion / moderado /
+ *     critico.
+ *
+ * Cada una conserva sus valores y su significado. Lo que se comparte es el
+ * COLOR: un verde es el mismo verde en toda la aplicacion.
+ *
+ * Los tonos son los que ya usaba `riesgoBadgeClasses`, que era la unica
+ * centralizada: asi las pantallas de ruta no cambian de aspecto y son las
+ * sueltas las que se alinean.
+ */
+const PALETA = {
+  bien: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+  leve: 'bg-blue-100 text-blue-800 border-blue-200',
+  atencion: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+  moderado: 'bg-amber-100 text-amber-800 border-amber-200',
+  critico: 'bg-rose-100 text-rose-800 border-rose-200',
+  /*
+   * La lista negra NO es «critico mas fuerte»: es una decision del negocio de
+   * no prestarle a esa persona. Por eso es la unica solida, para que no se
+   * confunda con un atraso grave -que es lo que pasaba en CobradorElements,
+   * donde las dos salian del mismo rojo-.
+   */
+  bloqueado: 'bg-slate-800 text-white border-slate-800',
+  desconocido: 'bg-slate-100 text-slate-800 border-slate-200',
+} as const;
+
+/**
+ * El distintivo del riesgo de un CLIENTE.
+ *
+ * Acepta tambien la forma en minusculas que usan algunas pantallas, porque la
+ * habia y quitarla de golpe dejaria sin color a quien la pase.
+ */
+export function riesgoClienteBadgeClasses(riesgo?: string | null) {
+  switch (String(riesgo ?? '').toUpperCase()) {
+    case 'VERDE':
+      return PALETA.bien;
+    case 'AMARILLO':
+      return PALETA.atencion;
+    case 'ROJO':
+      return PALETA.critico;
+    case 'LISTA_NEGRA':
+      return PALETA.bloqueado;
+    default:
+      return PALETA.desconocido;
+  }
+}
+
+/** El nombre del riesgo de un cliente, en palabras. */
+export function riesgoClienteLabel(riesgo?: string | null) {
+  switch (String(riesgo ?? '').toUpperCase()) {
+    case 'VERDE':
+      return 'Al día';
+    case 'AMARILLO':
+      return 'En observación';
+    case 'ROJO':
+      return 'Riesgo alto';
+    case 'LISTA_NEGRA':
+      return 'Lista negra';
+    default:
+      return 'Sin evaluar';
+  }
+}
+
+/**
+ * El distintivo del nivel de MORA por dias (la escala en minusculas).
+ *
+ * La producen `calcularNivelMora` y compañia: minimo / leve / precaucion /
+ * moderado / critico.
+ */
+export function nivelMoraBadgeClasses(nivel?: string | null) {
+  switch (String(nivel ?? '').toLowerCase()) {
+    case 'minimo':
+      return PALETA.bien;
+    case 'leve':
+      return PALETA.leve;
+    case 'precaucion':
+      return PALETA.atencion;
+    case 'moderado':
+      return PALETA.moderado;
+    case 'critico':
+      return PALETA.critico;
+    default:
+      return PALETA.desconocido;
+  }
+}
+
+/** El nombre del nivel de mora por días, en palabras. */
+export function nivelMoraLabel(nivel?: string | null) {
+  switch (String(nivel ?? '').toLowerCase()) {
+    case 'minimo':
+      return 'Mínimo';
+    case 'leve':
+      return 'Leve';
+    case 'precaucion':
+      return 'Precaución';
+    case 'moderado':
+      return 'Moderado';
+    case 'critico':
+      return 'Crítico';
+    default:
+      return '—';
+  }
+}
+
+/**
+ * El distintivo cuando no se sabe de antemano QUE escala llega.
+ *
+ * Existe porque algunas pantallas -las del cobrador sobre todo- reciben el
+ * nivel ya calculado y puede venir de cualquiera de las tres: la del cliente,
+ * la operativa de la ruta o la de dias de mora. Habia una funcion que las
+ * mezclaba en un solo `switch` de quince casos, con el problema de que
+ * `LISTA_NEGRA` caia en el MISMO rojo que `ROJO`: un cliente al que se decidio
+ * no prestarle se veia igual que uno con atraso grave.
+ *
+ * Aqui se despacha a la escala que corresponde, y cada una conserva su
+ * significado.
+ */
+export function badgeDeRiesgoSegunValor(valor?: string | null) {
+  const v = String(valor ?? '').trim();
+  if (!v) return PALETA.desconocido;
+
+  // `bajo` es un alias historico de `minimo` que algunas vistas aun pasan.
+  const minusculas = v.toLowerCase();
+  if (minusculas === 'bajo') return PALETA.bien;
+  if (
+    ['minimo', 'leve', 'precaucion', 'moderado', 'critico'].includes(minusculas)
+  ) {
+    return nivelMoraBadgeClasses(minusculas);
+  }
+
+  const mayusculas = v.toUpperCase();
+  if (['VERDE', 'AMARILLO', 'ROJO', 'LISTA_NEGRA'].includes(mayusculas)) {
+    return riesgoClienteBadgeClasses(mayusculas);
+  }
+
+  return riesgoBadgeClasses(mayusculas);
+}
+
+/** El PUNTO de color del mismo nivel, para las listas compactas. */
+export function puntoDeRiesgoSegunValor(valor?: string | null) {
+  const clases = badgeDeRiesgoSegunValor(valor);
+  if (clases === PALETA.bien) return 'bg-emerald-500';
+  if (clases === PALETA.leve) return 'bg-blue-500';
+  if (clases === PALETA.atencion) return 'bg-yellow-500';
+  if (clases === PALETA.moderado) return 'bg-amber-500';
+  if (clases === PALETA.critico) return 'bg-rose-500';
+  if (clases === PALETA.bloqueado) return 'bg-slate-800';
+  return 'bg-slate-300';
+}
+
+/**
+ * El BORDE de una tarjeta del mismo nivel, para las fichas de la ruta.
+ *
+ * Es un borde solido de un tono, no el distintivo, asi que no puede salir de
+ * `PALETA`; lo que si sale de un solo sitio es QUE tono le toca a cada nivel,
+ * y aqui se mantiene en la misma familia que el distintivo. La sombra sigue la
+ * regla que ya tenia la pantalla del cobrador: mas marcada en los dos niveles
+ * que piden atencion.
+ */
+export function bordeDeRiesgoSegunValor(valor?: string | null) {
+  switch (badgeDeRiesgoSegunValor(valor)) {
+    case PALETA.bien:
+      return 'border-emerald-400 shadow-sm';
+    case PALETA.leve:
+      return 'border-blue-400 shadow-sm';
+    case PALETA.atencion:
+      return 'border-yellow-400 shadow-sm';
+    case PALETA.moderado:
+      return 'border-amber-500 shadow-sm';
+    case PALETA.critico:
+      return 'border-rose-600 shadow-md';
+    case PALETA.bloqueado:
+      return 'border-slate-800 shadow-md';
+    default:
+      return 'border-slate-200';
+  }
+}
+
+/** El NOMBRE del mismo nivel, despachado igual que el color. */
+export function etiquetaDeRiesgoSegunValor(valor?: string | null) {
+  const v = String(valor ?? '').trim();
+  if (!v) return '—';
+
+  const minusculas = v.toLowerCase();
+  if (minusculas === 'bajo') return nivelMoraLabel('minimo');
+  if (
+    ['minimo', 'leve', 'precaucion', 'moderado', 'critico'].includes(minusculas)
+  ) {
+    return nivelMoraLabel(minusculas);
+  }
+
+  const mayusculas = v.toUpperCase();
+  if (['VERDE', 'AMARILLO', 'ROJO', 'LISTA_NEGRA'].includes(mayusculas)) {
+    return riesgoClienteLabel(mayusculas);
+  }
+
+  return riesgoOperativoLabel(mayusculas);
+}
+
 export function riesgoBadgeClasses(riesgo: string) {
   // Se compara el valor tal cual, sin normalizar: los cinco que el backend produce
   // (`routes.service`) ya vienen en mayusculas y coinciden exactamente con estos casos. Se
   // comprobo antes de extraer, para que esto sea un movimiento y no un cambio.
+  // Mismos tonos de antes, ahora nombrados: esta funcion era la referencia y
+  // su aspecto no cambia.
   switch (riesgo) {
-    case 'PELIGRO_MINIMO': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
-    case 'LEVE_RETRASO': return 'bg-blue-100 text-blue-800 border-blue-200';
-    case 'PRECAUCION': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-    case 'RIESGO_MODERADO': return 'bg-amber-100 text-amber-800 border-amber-200';
-    case 'ALTO_RIESGO': return 'bg-rose-100 text-rose-800 border-rose-200';
-    default: return 'bg-slate-100 text-slate-800 border-slate-200';
+    case 'PELIGRO_MINIMO': return PALETA.bien;
+    case 'LEVE_RETRASO': return PALETA.leve;
+    case 'PRECAUCION': return PALETA.atencion;
+    case 'RIESGO_MODERADO': return PALETA.moderado;
+    case 'ALTO_RIESGO': return PALETA.critico;
+    default: return PALETA.desconocido;
   }
 }
 

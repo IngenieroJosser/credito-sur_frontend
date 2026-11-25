@@ -1,7 +1,6 @@
 'use client'
 import { estadoDeError, mensajeDeError } from '@/lib/mensaje-de-error'
 import type {
-  DelinquentAccount,
   TrendData,
 } from '@/services/dashboard-coordinador-service'
 import type { PrestamoDelListado } from '@/types/domain'
@@ -11,7 +10,7 @@ import PantallaCarga from '@/components/ui/PantallaCarga'
 import PanelDeError from '@/components/ui/PanelDeError'
 import AvisoActualizando from '@/components/ui/AvisoActualizando'
 import { logger } from '@/lib/logger'
-import { textoDeCarteraEnMora } from '@/lib/dashboard/cartera-en-mora'
+import { tarjetaDeCarteraEnMora } from '@/lib/dashboard/cartera-en-mora'
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRealtimeData } from '@/hooks/useRealtimeData';
@@ -293,35 +292,6 @@ export default function DashboardPage() {
         const capitalPrestado = Number(dashboard?.metrics?.capitalPrestado ?? 0);
         // Recaudo: viene directamente del backend filtrado por período (agrega pagos del período)
         const recaudo = Number(dashboard?.metrics?.recaudo ?? 0);
-        // Mora: número de préstamos EN_MORA ACTUALMENTE (sin filtro de fecha porque la mora
-        // ocurre en cualquier momento, no sólo en el período de creación del préstamo)
-        const moraCount = Number(dashboard?.metrics?.delinquentAccounts ?? 0);
-        // Monto en mora: suma de saldoPendiente de los préstamos en mora
-        /*
-         * El importe y la cartera los manda el SERVIDOR.
-         *
-         * Antes el importe se sumaba sobre `delinquentAccounts`, la lista de
-         * detalle, que el servidor recorta a diez filas: con mas de diez
-         * cuentas en mora el importe y el contador de la misma tarjeta no se
-         * correspondian. El `?? reduce` queda de respaldo por si la respuesta
-         * viene de una version anterior del backend.
-         */
-        const moraMonto = Number(
-          dashboard?.metrics?.delinquentAmount ??
-            (dashboard?.delinquentAccounts || []).reduce(
-              (acc: number, item: DelinquentAccount) =>
-                acc + Number(item.amountDue || 0),
-              0,
-            ),
-        );
-        const carteraPendiente = Number(
-          dashboard?.metrics?.carteraPendiente ?? 0,
-        );
-        const textoMora = textoDeCarteraEnMora({
-          cuentas: moraCount,
-          monto: moraMonto,
-          carteraPendiente,
-        });
         // Gastos operativos del período (excluye DEUDA_COBRADOR)
         const gastosPeriodo = resumen?.egresosHoy || 0;
         const utilidadPeriodo = typeof (resumen)?.utilidadReal === 'number'
@@ -348,9 +318,7 @@ export default function DashboardPage() {
           },
           {
             title: `Cartera en Mora`,
-            value: moraMonto,
-            subValue: textoMora,
-            isCurrency: true,
+            ...tarjetaDeCarteraEnMora(dashboard?.metrics),
             change: null, // La mora es un estado actual, no tiene variación vs período anterior
             icon: <AlertCircle className="h-4 w-4" />,
             color: '#f43f5e'
@@ -548,25 +516,12 @@ export default function DashboardPage() {
       if (!dashboard) return
       const capitalPrestado = Number(dashboard?.metrics?.capitalPrestado ?? 0)
       const recaudo = Number(dashboard?.metrics?.recaudo ?? 0)
-      const moraCount = Number(dashboard?.metrics?.delinquentAccounts ?? 0)
-      const moraMonto = Number(
-        dashboard?.metrics?.delinquentAmount ??
-          (dashboard?.delinquentAccounts || []).reduce(
-            (acc: number, item) => acc + Number(item.amountDue || 0),
-            0,
-          ),
-      )
-      const textoMora = textoDeCarteraEnMora({
-        cuentas: moraCount,
-        monto: moraMonto,
-        carteraPendiente: Number(dashboard?.metrics?.carteraPendiente ?? 0),
-      })
       const gastosPeriodo = resumen?.egresosHoy || 0
       const utilidadPeriodo = resumen?.gananciaNeta || 0
       const mainMetrics: MetricItem[] = [
         { title: `Capital Prestado (${PERIOD_LABEL[period]})`, value: capitalPrestado, isCurrency: true, change: null, icon: <CreditCard className="h-4 w-4" />, color: '#3b82f6' },
         { title: `Recaudo (${PERIOD_LABEL[period]})`, value: recaudo, subValue: recaudo > 0 ? `${formatCurrency(recaudo)} cobrado` : 'Sin pagos en el período', isCurrency: true, change: null, icon: <Target className="h-4 w-4" />, color: '#8b5cf6' },
-        { title: 'Cartera en Mora', value: moraMonto, subValue: textoMora, isCurrency: true, change: null, icon: <AlertCircle className="h-4 w-4" />, color: '#f43f5e' },
+        { title: 'Cartera en Mora', ...tarjetaDeCarteraEnMora(dashboard.metrics), change: null, icon: <AlertCircle className="h-4 w-4" />, color: '#f43f5e' },
         { title: `Gastos (${PERIOD_LABEL[period]})`, value: gastosPeriodo, subValue: `Utilidad: ${formatCurrency(utilidadPeriodo)}`, isCurrency: true, change: (period === 'today' && gastosPeriodo > 0 && resumen?.porcentajeEgresosVsAyer) ? resumen.porcentajeEgresosVsAyer : null, icon: <Banknote className="h-4 w-4" />, color: '#f59e0b' },
       ]
       const chartData = (dashboard?.trend || []).map((t) => ({ label: t.label, value: t.value }))

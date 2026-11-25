@@ -1,6 +1,6 @@
 import type { CuotaOperativa, EstadoVisita, VisitaRuta } from '@/lib/types/cobranza'
 import { resolveFechaEfectivaCuota, normalizeDateKey, isCuotaNoPagada, computeMontoExigibleHastaHoyFromCuotas, computeDiasMoraFromCuotas } from '@/lib/rutas-core'
-import { resolveRiesgoObligacion, resolveNivelRiesgoUi, type NivelRiesgoUi } from '@/lib/rutas/riesgo-obligacion'
+import { resolveRiesgoObligacion, resolveNivelRiesgoUi } from '@/lib/rutas/riesgo-obligacion'
 import { mapWithConcurrency } from '@/lib/async-utils'
 import { crearProveedorCuotasEnLote } from '@/lib/rutas/cuotas-en-lote'
 
@@ -49,9 +49,17 @@ export async function enrichRutaHistorialRiesgo({
       if (!live) {
         return {
           ...v,
-          nivelRiesgo: (v?.nivelRiesgo || v?.nivelRiesgoObligacion) as
-            | NivelRiesgoUi
-            | undefined,
+          /*
+           * `nivelRiesgoObligacion` es el texto CRUDO del backend -`VERDE`,
+           * `AMARILLO`, `ROJO`, `LISTA_NEGRA`-, no uno de los cinco niveles
+           * de la interfaz. Aqui habia un `as` que lo declaraba
+           * `NivelRiesgoUi` sin comprobarlo, asi que por esta rama llegaban
+           * mayusculas a las funciones de color del cobrador: `ROJO` se
+           * pintaba de rojo cuando le toca naranja, y `LISTA_NEGRA` salia
+           * identico a `ROJO`. Se normaliza, que es lo que el `as` fingia.
+           */
+          nivelRiesgo:
+            v?.nivelRiesgo || resolveNivelRiesgoUi(v?.nivelRiesgoObligacion),
           riesgoHistoricoUiCalculado: true,
           riesgoHistoricoUiSource: 'ruta-hoy-v1-fallback',
         }

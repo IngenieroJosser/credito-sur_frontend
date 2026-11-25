@@ -1,4 +1,9 @@
 'use client'
+import {
+  puntoDeRiesgoSegunValor,
+  riesgoClienteBadgeClasses,
+  riesgoClienteLabel,
+} from '@/lib/display-labels'
 import { formatFechaBogota } from '@/lib/format-date'
 
 import { mensajeDeError } from '@/lib/mensaje-de-error'
@@ -78,45 +83,18 @@ const VENTAS_POR_PETICION = 500
 const VENTAS_PER_PAGE = 5
 const CLIENTES_PER_PAGE = 5
 
-const getRiesgoStyle = (riesgo: string) => {
-  switch (riesgo) {
-    case 'VERDE':
-      return {
-        bg: 'bg-emerald-50',
-        text: 'text-emerald-700',
-        border: 'border-emerald-200',
-        dot: 'bg-emerald-500',
-      }
-    case 'AMARILLO':
-      return {
-        bg: 'bg-amber-50',
-        text: 'text-amber-700',
-        border: 'border-amber-200',
-        dot: 'bg-amber-500',
-      }
-    case 'ROJO':
-      return {
-        bg: 'bg-rose-50',
-        text: 'text-rose-700',
-        border: 'border-rose-200',
-        dot: 'bg-rose-500',
-      }
-    case 'LISTA_NEGRA':
-      return {
-        bg: 'bg-slate-100',
-        text: 'text-slate-700',
-        border: 'border-slate-300',
-        dot: 'bg-slate-600',
-      }
-    default:
-      return {
-        bg: 'bg-slate-50',
-        text: 'text-slate-600',
-        border: 'border-slate-200',
-        dot: 'bg-slate-400',
-      }
-  }
-}
+/*
+ * El color del riesgo del cliente sale de `lib/display-labels`.
+ *
+ * Aqui estaba otra vez, con dos diferencias frente al resto del sistema:
+ * `AMARILLO` en ambar donde los demas usan amarillo, y `LISTA_NEGRA` en un
+ * `slate-100` claro que la dejaba MAS suave que `ROJO` -al reves de lo que
+ * significa-.
+ */
+const getRiesgoStyle = (riesgo: string) => ({
+  badge: riesgoClienteBadgeClasses(riesgo),
+  dot: puntoDeRiesgoSegunValor(riesgo),
+})
 
 /** El estado de una venta reciente, normalizado contra la union que la tarjeta pinta. */
 const ESTADOS_DE_VENTA: readonly VentaReciente['estado'][] = [
@@ -587,13 +565,18 @@ export default function PuntoDeVentaFloatingActions() {
                           <div
                             className={cn(
                               'inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full border w-24 justify-center',
-                              riesgoStyle.bg,
-                              riesgoStyle.text,
-                              riesgoStyle.border,
+                              riesgoStyle.badge,
                             )}
                           >
                             <span className={cn('w-1.5 h-1.5 rounded-full', riesgoStyle.dot)} />
-                            {tieneMora ? 'EN MORA' : cliente.nivelRiesgo || 'VERDE'}
+                            {/*
+                              Decia el enum tal cual -«VERDE», «LISTA_NEGRA»-
+                              en la cara de quien atiende. Ahora dice el
+                              nombre, el mismo que en las demas pantallas.
+                            */}
+                            {tieneMora
+                              ? 'En mora'
+                              : riesgoClienteLabel(cliente.nivelRiesgo)}
                           </div>
                           <Tooltip texto="Ver perfil completo">
                             <button aria-label="Ver perfil completo"

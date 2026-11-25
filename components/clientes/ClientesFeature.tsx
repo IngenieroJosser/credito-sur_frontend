@@ -1,4 +1,9 @@
 'use client'
+import {
+  badgeDeRiesgoSegunValor,
+  etiquetaDeRiesgoSegunValor,
+  riesgoClienteBadgeClasses,
+} from '@/lib/display-labels'
 import { estadoDeError, mensajeDeError } from '@/lib/mensaje-de-error'
 
 import Paginador from '@/components/ui/Paginador'
@@ -233,41 +238,23 @@ export default function ClientesFeature({
     return 'bajo'
   }
 
-  const getEstadoMoraColor = (nivel: string) => {
-    switch (nivel) {
-      case 'bajo':
-        return 'text-emerald-700 bg-emerald-50 ring-emerald-600/20'
-      case 'leve':
-        return 'text-blue-700 bg-blue-50 ring-blue-600/20'
-      case 'precaucion':
-        return 'text-amber-700 bg-amber-50 ring-amber-600/20'
-      case 'moderado':
-        return 'text-orange-700 bg-orange-50 ring-orange-600/20'
-      case 'critico':
-        return 'text-red-700 bg-red-50 ring-red-600/20'
-      case 'lista_negra':
-        return 'text-slate-800 bg-slate-200 ring-slate-600/20'
-      default:
-        return 'text-slate-600 bg-slate-50 ring-slate-600/20'
-    }
-  }
+  /*
+   * El color y el nombre del nivel salen de `lib/display-labels`.
+   *
+   * Estaban aqui en dos `switch` con tonos propios -`precaucion` en ambar
+   * donde el resto usa amarillo, `critico` en `red` donde el resto usa
+   * `rose`- y, ademas, pintados con `ring-*` en vez del borde que usa el
+   * resto del sistema. La forma del distintivo tambien cuenta como estilo, asi
+   * que el marcado pasa a `border`.
+   *
+   * Se usa el despachador porque por aqui entran las dos formas: los cinco
+   * niveles de mora en minusculas y `lista_negra`, que es de la escala del
+   * cliente.
+   */
+  const getEstadoMoraColor = (nivel: string) => badgeDeRiesgoSegunValor(nivel)
 
-  const getEstadoMoraLabel = (nivel: string) => {
-    switch (nivel) {
-      case 'bajo':
-        return 'Al día'
-      case 'leve':
-        return 'Leve'
-      case 'precaucion':
-        return 'Precaución'
-      case 'moderado':
-        return 'Moderado'
-      case 'critico':
-        return 'Crítico'
-      default:
-        return '—'
-    }
-  }
+  const getEstadoMoraLabel = (nivel: string) =>
+    etiquetaDeRiesgoSegunValor(nivel)
 
   // Los dias de mora llegan YA en el listado (`clients.service.ts`: la consulta trae la
   // cuota impaga mas antigua de cada prestamo y calcula los dias ahi mismo).
@@ -469,16 +456,29 @@ export default function ClientesFeature({
               <span className="text-orange-500">Clientes</span>
             </h1>
           </div>
-          {puedeCrear && (
-            <button
-              onClick={() => setIsCreateModalOpen(true)}
-              className="inline-flex items-center gap-2 px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-xl hover:border-slate-400 hover:bg-slate-50 transition-all duration-200 shadow-sm font-bold text-sm"
-            >
-              <UserPlus className="w-4 h-4 text-slate-500 group-hover:text-slate-900 transition-colors" />
-              Nuevo Cliente
-            </button>
-          )}
-          <ExportButton
+          {/*
+            Los dos botones van juntos, a la derecha.
+
+            La fila es `justify-between` con TRES hijos —el titulo, «Nuevo
+            Cliente» y «Exportar Clientes»—, asi que el del medio quedaba
+            suelto en mitad de la cabecera, lejos del otro boton y lejos del
+            titulo. Agrupados, la cabecera vuelve a ser dos cosas: de que es
+            esta pantalla, y que se puede hacer en ella.
+
+            `group` en el boton porque el icono traia `group-hover:` sin
+            ningun `group` encima: ese hover no se disparaba nunca.
+          */}
+          <div className="flex flex-wrap items-center gap-3 md:justify-end">
+            {puedeCrear && (
+              <button
+                onClick={() => setIsCreateModalOpen(true)}
+                className="group inline-flex items-center gap-2 px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-xl hover:border-slate-400 hover:bg-slate-50 transition-all duration-200 shadow-sm font-bold text-sm"
+              >
+                <UserPlus className="w-4 h-4 text-slate-500 group-hover:text-slate-900 transition-colors" />
+                Nuevo Cliente
+              </button>
+            )}
+            <ExportButton
             onExportExcel={() =>
               exportService.exportClientes('excel', {
                 nivelRiesgo: filterRiesgo === 'LISTA_NEGRA' ? filterRiesgo : undefined,
@@ -493,8 +493,9 @@ export default function ClientesFeature({
                 search: searchTerm || undefined,
               })
             }
-            label="Exportar Clientes"
-          />
+              label="Exportar Clientes"
+            />
+          </div>
         </div>
 
         {/*
@@ -697,13 +698,14 @@ export default function ClientesFeature({
                               className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold shadow-sm ${
                                 isPending
                                   ? 'bg-amber-100 text-amber-700'
-                                  : cliente.nivelRiesgo === 'VERDE'
-                                    ? 'bg-emerald-100 text-emerald-700'
-                                    : cliente.nivelRiesgo === 'AMARILLO'
-                                      ? 'bg-amber-100 text-amber-700'
-                                      : cliente.nivelRiesgo === 'ROJO'
-                                        ? 'bg-rose-100 text-rose-700'
-                                        : 'bg-slate-100 text-slate-600'
+                                  : /*
+                                      Tenia tres ramas para cuatro valores:
+                                      `LISTA_NEGRA` caia al gris del final, el
+                                      mismo que «sin evaluar».
+                                    */
+                                    riesgoClienteBadgeClasses(
+                                      cliente.nivelRiesgo,
+                                    )
                               }`}
                             >
                               {isPending ? (
@@ -747,19 +749,19 @@ export default function ClientesFeature({
                           <div className="space-y-1">
                             {estadoCuenta === 'LISTA_NEGRA' ? (
                               <div
-                                className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset ${getEstadoMoraColor('lista_negra')}`}
+                                className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold border ${getEstadoMoraColor('lista_negra')}`}
                               >
                                 Lista Negra
                               </div>
                             ) : diasMoraConocidos === null ? (
                               // Aún no se sabe la mora: estado neutro, no "Al día".
-                              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset text-slate-500 bg-slate-50 ring-slate-600/20">
+                              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border border-slate-200 text-slate-500 bg-slate-50">
                                 <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-slate-400" />
                                 Calculando…
                               </div>
                             ) : (
                               <div
-                                className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ring-1 ring-inset ${getEstadoMoraColor(calcularNivelMora(diasMoraUI))}`}
+                                className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold border ${getEstadoMoraColor(calcularNivelMora(diasMoraUI))}`}
                               >
                                 {getEstadoMoraLabel(calcularNivelMora(diasMoraUI))}
                               </div>

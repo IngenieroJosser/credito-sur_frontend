@@ -212,8 +212,8 @@ const VistaSupervisor = () => {
       },
       {
         title: 'Cuentas en Mora',
-        value: String(metrics.delinquentAccounts || 0),
-        subValue: 'Préstamos en estado EN_MORA',
+        value: metrics.delinquentAccounts == null ? 'No disponible' : String(metrics.delinquentAccounts),
+        subValue: 'Créditos con cuotas vencidas impagas',
         change: null,
         icon: <AlertCircle className="h-4 w-4" />,
         color: '#ef4444',

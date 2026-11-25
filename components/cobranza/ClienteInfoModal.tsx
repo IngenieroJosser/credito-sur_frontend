@@ -1,5 +1,10 @@
 'use client'
 
+import {
+  nivelMoraBadgeClasses,
+  nivelMoraLabel,
+  puntoDeRiesgoSegunValor,
+} from '@/lib/display-labels'
 import { mensajeDeError } from '@/lib/mensaje-de-error'
 /**
  * Modal de Información del Cliente — Vista Cobrador
@@ -143,20 +148,16 @@ export default function ClienteInfoModal({
     return tipo.startsWith('image/') || /(jpg|jpeg|png|gif|webp)$/i.test(url)
   }
 
-  const nivelRiesgoLabel =
-    visita.nivelRiesgo === 'minimo'      ? 'Mínimo' :
-    visita.nivelRiesgo === 'leve'      ? 'Leve' :
-    (visita.nivelRiesgo as string) === 'precaucion' ? 'Precaución' :
-    visita.nivelRiesgo === 'moderado'  ? 'Moderado' :
-    visita.nivelRiesgo === 'critico'   ? 'Crítico' : '—'
-
-  const nivelRiesgoColor =
-    visita.nivelRiesgo === 'minimo'      ? 'bg-emerald-100 text-emerald-700' :
-    visita.nivelRiesgo === 'leve'      ? 'bg-yellow-100 text-yellow-700' :
-    (visita.nivelRiesgo as string) === 'precaucion' ? 'bg-amber-100 text-amber-700' :
-    visita.nivelRiesgo === 'moderado'  ? 'bg-orange-100 text-orange-700' :
-    visita.nivelRiesgo === 'critico'   ? 'bg-red-100 text-red-700' :
-    'bg-slate-100 text-slate-600'
+  /*
+   * El nombre y el color del nivel salen de `lib/display-labels`.
+   *
+   * Estaban en dos cadenas de ternarios con sus propios tonos: `leve` en
+   * amarillo, `precaucion` en ambar y `critico` en `red` -no en `rose`-, asi
+   * que el mismo nivel se veia de un color aqui y de otro en la lista de la
+   * ruta de la que se abre este modal.
+   */
+  const nivelRiesgoLabel = nivelMoraLabel(visita.nivelRiesgo)
+  const nivelRiesgoColor = nivelMoraBadgeClasses(visita.nivelRiesgo)
 
   const cuotaNormalOperativa = resolveCuotaNormalOperativa(visita)
   const acumuladoVencido = resolveCuotaAcumuladaOperativa(visita)
@@ -485,14 +486,11 @@ export default function ClienteInfoModal({
                 </div>
                 {/* Estado del crédito */}
                 <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm flex items-center gap-3">
-                  <div className={`w-3 h-3 rounded-full shrink-0 ${
-                    visita.nivelRiesgo === 'minimo'     ? 'bg-emerald-500' :
-                    visita.nivelRiesgo === 'leve'     ? 'bg-yellow-400'  :
-                    (visita.nivelRiesgo as string) === 'precaucion' ? 'bg-amber-400'  :
-                    visita.nivelRiesgo === 'moderado' ? 'bg-orange-500'  :
-                    visita.nivelRiesgo === 'critico'  ? 'bg-red-600'     :
-                    'bg-slate-300'
-                  }`} />
+                  <div
+                    className={`w-3 h-3 rounded-full shrink-0 ${puntoDeRiesgoSegunValor(
+                      visita.nivelRiesgo,
+                    )}`}
+                  />
                   <div>
                     <p className="text-[10px] text-slate-400 font-bold uppercase">Nivel de Riesgo<AyudaContextual ayuda="riesgoDelCliente" de="el nivel de riesgo" tamano="pequeno" /></p>
                     <p className="font-black text-slate-800">{nivelRiesgoLabel}</p>

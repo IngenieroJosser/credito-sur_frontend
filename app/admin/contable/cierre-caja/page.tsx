@@ -1,4 +1,5 @@
 'use client'
+import GrupoDeFiltros from '@/components/filtros/GrupoDeFiltros'
 import { formatFechaBogota } from '@/lib/format-date'
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
@@ -1289,39 +1290,55 @@ export default function CierreCajaPage() {
               </div>
               <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(92vh-90px)]">
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-3 mb-6">
-                  <div className="md:col-span-4 flex items-center gap-1 bg-white border border-slate-200 rounded-2xl p-1 shadow-sm">
-                    <button
-                      type="button"
-                      onClick={() => setFiltroTipo('TODOS')}
-                      className={cn("text-xs font-bold px-3 py-1.5 rounded-xl transition-colors", filtroTipo === 'TODOS' ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-50")}
-                    >Todos</button>
-                    <button
-                      type="button"
-                      onClick={() => setFiltroTipo('ARQUEO')}
-                      className={cn("text-xs font-bold px-3 py-1.5 rounded-xl transition-colors", filtroTipo === 'ARQUEO' ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-50")}
-                    >Arqueos<AyudaContextual ayuda="arqueoDeCaja" de="un arqueo de caja" tamano="pequeno" /></button>
-                    <button
-                      type="button"
-                      onClick={() => setFiltroTipo('CONSOLIDACION')}
-                      className={cn("text-xs font-bold px-3 py-1.5 rounded-xl transition-colors", filtroTipo === 'CONSOLIDACION' ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-50")}
-                    >Consolidaciones</button>
+                  {/*
+                    Los dos grupos de filtros llevan su NOMBRE a la vista.
+
+                    Estaban escritos a mano, uno al lado del otro, y entre los
+                    dos repetian el problema que `GrupoDeFiltros` existe para
+                    quitar: el primero empezaba por un «Todos» pelado, sin nada
+                    que dijera de que, y el segundo metia el nombre DENTRO del
+                    chip —«Estado: Todos»—, que es el apaño que delata que
+                    falta el rotulo.
+
+                    Y habia un fallo de verdad: la ayuda de «Arqueos» es un
+                    `<button>` y estaba DENTRO del boton del chip. Un boton
+                    dentro de otro es HTML invalido, y al pulsar la ayuda lo
+                    que respondia era el filtro. Ahora va al lado, fuera.
+                  */}
+                  <div className="md:col-span-4 flex items-center gap-1 rounded-2xl border border-slate-200 bg-white p-1 shadow-sm">
+                    <GrupoDeFiltros
+                      sinMarco
+                      nombre="Tipo"
+                      valor={filtroTipo}
+                      onChange={(v) =>
+                        setFiltroTipo(v as typeof filtroTipo)
+                      }
+                      opciones={[
+                        { id: 'TODOS', label: 'Todos' },
+                        { id: 'ARQUEO', label: 'Arqueos' },
+                        { id: 'CONSOLIDACION', label: 'Consolidaciones' },
+                      ]}
+                    />
+                    <AyudaContextual
+                      ayuda="arqueoDeCaja"
+                      de="un arqueo de caja"
+                      tamano="pequeno"
+                    />
                   </div>
-                  <div className="md:col-span-4 flex items-center gap-1 bg-white border border-slate-200 rounded-2xl p-1 shadow-sm">
-                    <button
-                      type="button"
-                      onClick={() => setEstadoFiltro('TODOS')}
-                      className={cn("text-xs font-bold px-3 py-1.5 rounded-xl transition-colors", estadoFiltro === 'TODOS' ? "bg-blue-50 text-blue-700" : "text-slate-600 hover:bg-slate-50")}
-                    >Estado: Todos</button>
-                    <button
-                      type="button"
-                      onClick={() => setEstadoFiltro('DESCUADRADA')}
-                      className={cn("text-xs font-bold px-3 py-1.5 rounded-xl transition-colors", estadoFiltro === 'DESCUADRADA' ? "bg-rose-50 text-rose-700" : "text-slate-600 hover:bg-slate-50")}
-                    >Descuadradas</button>
-                    <button
-                      type="button"
-                      onClick={() => setEstadoFiltro('CUADRADA')}
-                      className={cn("text-xs font-bold px-3 py-1.5 rounded-xl transition-colors", estadoFiltro === 'CUADRADA' ? "bg-emerald-50 text-emerald-700" : "text-slate-600 hover:bg-slate-50")}
-                    >Cuadradas</button>
+                  <div className="md:col-span-4 flex items-center gap-1 rounded-2xl border border-slate-200 bg-white p-1 shadow-sm">
+                    <GrupoDeFiltros
+                      sinMarco
+                      nombre="Estado"
+                      valor={estadoFiltro}
+                      onChange={(v) =>
+                        setEstadoFiltro(v as typeof estadoFiltro)
+                      }
+                      opciones={[
+                        { id: 'TODOS', label: 'Todos' },
+                        { id: 'DESCUADRADA', label: 'Descuadradas' },
+                        { id: 'CUADRADA', label: 'Cuadradas' },
+                      ]}
+                    />
                   </div>
                   <div className="md:col-span-4 flex items-center justify-between gap-3">
                     <label className="flex-1">

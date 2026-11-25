@@ -84,15 +84,40 @@ export default function FiltroRuta({
       {!hideLabel && (
         <div className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] pl-1">Filtrar por Ruta Operativa</div>
       )}
-      
-      <div className={cn(
-        "flex items-center gap-1.5",
-        layout === 'scroll' ? "flex-row overflow-x-auto pb-2 scrollbar-hide flex-nowrap min-w-0" : "flex-row flex-wrap"
-      )}>
+
+      <div
+        role="group"
+        aria-label="Filtrar por ruta operativa"
+        className={cn(
+          "flex items-center gap-1.5",
+          layout === 'scroll' ? "flex-row overflow-x-auto pb-2 scrollbar-hide flex-nowrap min-w-0" : "flex-row flex-wrap"
+        )}
+      >
+        {/*
+          * Cuando este filtro va SIN su titulo, el nombre se pone aqui, en
+          * linea, en vez de desaparecer.
+          *
+          * Lo describio el dueno con una captura: en el listado de clientes
+          * salia la fila «ESTADO · Todos · Pendientes · ... · Lista Negra ·
+          * Todas», con DOS pastillas marcadas. La ultima es de este filtro y
+          * no de Estado, pero como `hideLabel` le quitaba el nombre, se leia
+          * como una novena opcion de estado.
+          *
+          * Es exactamente el problema que `GrupoDeFiltros` ya resolvio —«dos
+          * botones Todos identicos y nada que diga cual quita que»—, solo que
+          * este componente se quedo fuera de aquel arreglo. Ahora lleva el
+          * mismo nombre en linea, con el mismo aspecto.
+          */}
+        {hideLabel && (
+          <span className="mr-0.5 shrink-0 text-[10px] font-black uppercase tracking-widest text-slate-400">
+            Ruta
+          </span>
+        )}
         {showAllOption && (
           <button
             onClick={() => onRutaChange(null)}
             disabled={loading}
+            aria-pressed={selectedRutaId === null}
             className={cn(
               "px-3 py-1.5 text-[11px] font-bold rounded-xl transition-all whitespace-nowrap",
               layout === 'scroll' && "shrink-0",
@@ -109,6 +134,7 @@ export default function FiltroRuta({
           <button
             onClick={() => onRutaChange('sin-ruta')}
             disabled={loading}
+            aria-pressed={selectedRutaId === 'sin-ruta'}
             title="Créditos que no están en ninguna ruta: nadie va a cobrarlos"
             className={cn(
               'px-3 py-1.5 text-[11px] font-bold rounded-xl transition-all whitespace-nowrap',
@@ -133,6 +159,7 @@ export default function FiltroRuta({
             <button
               key={ruta.id}
               onClick={() => onRutaChange(ruta.id)}
+              aria-pressed={selectedRutaId === ruta.id}
               className={cn(
                 "px-3 py-1.5 text-[11px] font-bold rounded-xl transition-all whitespace-nowrap",
                 layout === 'scroll' && "shrink-0",

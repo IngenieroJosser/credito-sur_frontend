@@ -2,6 +2,11 @@
 
 
 import { mensajeDeError } from '@/lib/mensaje-de-error'
+import {
+  puntoDeRiesgoSegunValor,
+  riesgoClienteBadgeClasses,
+  riesgoClienteLabel,
+} from '@/lib/display-labels'
 import Paginador from '@/components/ui/Paginador'
 import { useState, useEffect, useCallback } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
@@ -169,15 +174,6 @@ export default function CreditosArticulosPage() {
     }
   }
 
-  const riesgoClienteLabel = (riesgo: string) => {
-    switch (riesgo) {
-      case 'VERDE': return 'Al día'
-      case 'AMARILLO': return 'Precaución'
-      case 'ROJO': return 'Rojo'
-      case 'LISTA_NEGRA': return 'Lista Negra'
-      default: return riesgo || 'Sin riesgo'
-    }
-  }
 
   const getEstadoLabel = (estado: string) => {
     switch (estado) {
@@ -191,15 +187,11 @@ export default function CreditosArticulosPage() {
   }
 
   // Igual que arriba: llega como texto y el switch ya cubre lo desconocido.
-  const getRiesgoColor = (riesgo: string) => {
-    switch(riesgo) {
-      case 'VERDE': return 'text-emerald-600 bg-emerald-50 border-emerald-100 border'
-      case 'AMARILLO': return 'text-amber-600 bg-amber-50 border-amber-100 border'
-      case 'ROJO': return 'text-rose-600 bg-rose-50 border-rose-100 border'
-      case 'LISTA_NEGRA': return 'text-slate-600 bg-slate-100 border-slate-200 border'
-      default: return 'text-slate-600 bg-slate-50 border-slate-200 border'
-    }
-  }
+  // Una sola definicion para toda la aplicacion: `riesgoClienteBadgeClasses`.
+  // Aqui habia una copia con tonos propios (emerald-600 en vez de emerald-800,
+  // y la lista negra en gris claro, indistinguible de «sin evaluar»).
+  const getRiesgoColor = (riesgo: string) =>
+    `${riesgoClienteBadgeClasses(riesgo)} border`
 
   const getProductIcon = (producto: string, tipo: string) => {
     const p = producto.toLowerCase()
@@ -401,10 +393,16 @@ export default function CreditosArticulosPage() {
               onChange={setRiesgoFiltro}
               opciones={[
                 { id: 'todos', label: 'Todos' },
-                { id: 'VERDE', label: 'Al día' },
-                { id: 'AMARILLO', label: 'Precaución' },
-                { id: 'ROJO', label: 'Rojo' },
-                { id: 'LISTA_NEGRA', label: 'Lista Negra' },
+                /*
+                  Los nombres del filtro salen de la misma funcion que el
+                  distintivo. Antes estaban escritos a mano aqui y en una
+                  funcion local llamada `riesgoClienteLabel` -el mismo nombre
+                  que la canonica, tapandola-, y no coincidian: el filtro
+                  decia «Rojo» y la ficha «Riesgo alto».
+                */
+                ...(['VERDE', 'AMARILLO', 'ROJO', 'LISTA_NEGRA'] as const).map(
+                  (id) => ({ id, label: riesgoClienteLabel(id) }),
+                ),
               ]}
             />
           </div>
@@ -442,10 +440,9 @@ export default function CreditosArticulosPage() {
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 shadow-sm border ${
-                            credito.riesgo === 'ROJO' ? 'bg-rose-50 text-rose-500 border-rose-100' :
-                            credito.riesgo === 'AMARILLO' ? 'bg-amber-50 text-amber-500 border-amber-100' : 'bg-slate-50 text-slate-500 border-slate-200'
-                          }`}>
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 shadow-sm border ${riesgoClienteBadgeClasses(
+                          credito.riesgo,
+                        )}`}>
                           {getProductIcon(credito.producto, credito.tipoProducto || '')}
                         </div>
                         <div>
@@ -483,9 +480,8 @@ export default function CreditosArticulosPage() {
                         <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
                           <div
                             className={`h-full rounded-full transition-all duration-500 ${
-                              credito.riesgo === 'ROJO' ? 'bg-rose-500' :
-                              credito.riesgo === 'AMARILLO' ? 'bg-amber-500' :
-                              'bg-primary'
+                              /* `LISTA_NEGRA` se pintaba del azul de la marca, igual que al dia. */
+                              puntoDeRiesgoSegunValor(credito.riesgo)
                             }`}
                             style={{ width: `${credito.cuotasTotales > 0 ? (credito.cuotasPagadas / credito.cuotasTotales) * 100 : 0}%` }}
                           />
@@ -613,11 +609,9 @@ export default function CreditosArticulosPage() {
                 {/* Header */}
                 <div className="flex items-start justify-between mb-3 pb-3 border-b border-slate-100">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all shadow-sm border flex-shrink-0 ${
-                      credito.riesgo === 'ROJO' ? 'bg-rose-50 text-rose-500 border-rose-100' :
-                      credito.riesgo === 'AMARILLO' ? 'bg-amber-50 text-amber-500 border-amber-100' :
-                      'bg-slate-50 text-slate-500 border-slate-200'
-                    }`}>
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all shadow-sm border flex-shrink-0 ${riesgoClienteBadgeClasses(
+                      credito.riesgo,
+                    )}`}>
                       {getProductIcon(credito.producto, credito.tipoProducto || '')}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -660,9 +654,8 @@ export default function CreditosArticulosPage() {
                     <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
                       <div
                         className={`h-full rounded-full transition-all duration-500 ${
-                          credito.riesgo === 'ROJO' ? 'bg-rose-500' :
-                          credito.riesgo === 'AMARILLO' ? 'bg-amber-500' :
-                          'bg-primary'
+                          /* `LISTA_NEGRA` se pintaba del azul de la marca, igual que al dia. */
+                          puntoDeRiesgoSegunValor(credito.riesgo)
                         }`}
                         style={{ width: `${credito.cuotasTotales > 0 ? (credito.cuotasPagadas / credito.cuotasTotales) * 100 : 0}%` }}
                       />

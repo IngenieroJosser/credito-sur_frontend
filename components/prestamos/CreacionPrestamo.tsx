@@ -1,4 +1,8 @@
 'use client';
+import {
+  riesgoClienteBadgeClasses,
+  riesgoClienteLabel,
+} from '@/lib/display-labels'
 import { formatFechaBogota } from '@/lib/format-date'
 
 import { mensajeDeError } from '@/lib/mensaje-de-error';
@@ -597,12 +601,21 @@ const CreacionPrestamoElegante = ({ initialClienteId, isModal }: { initialClient
                                   {cliente.telefono}
                                 </td>
                                 <td className="px-6 py-4">
-                                  <span className={`inline-flex px-2 py-1 rounded-full text-xs font-bold ${
-                                    cliente.nivelRiesgo === 'VERDE' ? 'bg-emerald-100 text-emerald-700' :
-                                    cliente.nivelRiesgo === 'AMARILLO' ? 'bg-amber-100 text-amber-700' :
-                                    'bg-rose-100 text-rose-700'
-                                  }`}>
-                                    {cliente.nivelRiesgo}
+                                  {/*
+                                    Aqui el distintivo tenia tres ramas para
+                                    cuatro valores: `ROJO` y `LISTA_NEGRA`
+                                    caian las dos en el mismo rosa, asi que al
+                                    elegir a quien prestarle no se distinguia
+                                    un atraso grave de una persona a la que se
+                                    decidio no prestarle. Y el texto era el
+                                    enum tal cual: «LISTA_NEGRA».
+                                  */}
+                                  <span
+                                    className={`inline-flex px-2 py-1 rounded-full text-xs font-bold border ${riesgoClienteBadgeClasses(
+                                      cliente.nivelRiesgo,
+                                    )}`}
+                                  >
+                                    {riesgoClienteLabel(cliente.nivelRiesgo)}
                                   </span>
                                 </td>
                                 <td className="px-6 py-4 text-right">

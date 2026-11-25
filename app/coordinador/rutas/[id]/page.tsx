@@ -1,4 +1,8 @@
 'use client'
+import {
+  nivelMoraBadgeClasses,
+  nivelMoraLabel,
+} from '@/lib/display-labels'
 import { formatFechaBogota } from '@/lib/format-date'
 import { datosParaRegistro, mensajeDeError } from '@/lib/mensaje-de-error'
 
@@ -2150,27 +2154,21 @@ function ClienteDetalleModal({ visita, onClose }: { visita: VisitaRuta; onClose:
 
   const r = visita.nivelRiesgo
 
-  const riesgoColor =
-    r === 'minimo'
-      ? 'text-emerald-600 bg-emerald-50'
-      : r === 'leve'
-        ? 'text-blue-600 bg-blue-50'
-        : r === 'moderado'
-          ? 'text-orange-600 bg-orange-50'
-          : r === 'critico'
-            ? 'text-red-600 bg-red-50'
-            : 'text-slate-400 bg-slate-50'
-
-  const riesgoLabel =
-    r === 'minimo'
-      ? 'Peligro Mínimo'
-      : r === 'leve'
-        ? 'Leve Retraso'
-        : r === 'moderado'
-          ? 'Riesgo Moderado'
-          : r === 'critico'
-            ? 'Alto Riesgo'
-            : 'Riesgo Desconocido'
+  /*
+   * El color y el nombre del nivel salen de `lib/display-labels`.
+   *
+   * Dos cosas estaban mal aqui, no solo el estilo:
+   *
+   *   - `r` es `visita.nivelRiesgo`, o sea la escala de DIAS DE MORA, y las
+   *     etiquetas eran las de la escala OPERATIVA DE LA RUTA -«Peligro
+   *     Minimo», «Leve Retraso», «Alto Riesgo»-. Son dos escalas distintas
+   *     con el mismo apellido, y esta pantalla le ponia a una los nombres de
+   *     la otra.
+   *   - `precaucion` no estaba en la cadena, asi que un cliente en precaucion
+   *     caia al «Riesgo Desconocido» del final estando perfectamente sabido.
+   */
+  const riesgoColor = nivelMoraBadgeClasses(r)
+  const riesgoLabel = nivelMoraLabel(r)
 
   // Contar préstamos activos (no pagados ni cancelados)
 

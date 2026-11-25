@@ -9,6 +9,7 @@ import AvisoActualizando from '@/components/ui/AvisoActualizando'
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { DashboardClient } from '@/app/admin/dashboard-client'
+import { tarjetaDeCarteraEnMora } from '@/lib/dashboard/cartera-en-mora'
 import { TimeFilterPeriod } from '@/components/ui/TimeFilter'
 import {
   CreditCard,
@@ -190,10 +191,6 @@ export default function CoordinadorPage() {
       const prestamos = prestamosData.status === 'fulfilled' ? prestamosData.value : null
       const stats = prestamos?.estadisticas
 
-      const moraPercent =
-        stats && stats.montoTotal > 0
-          ? ((stats.moraTotal / stats.montoTotal) * 100).toFixed(1)
-          : '0'
 
       const mainMetrics: MetricItem[] = [
         {
@@ -215,9 +212,7 @@ export default function CoordinadorPage() {
         },
         {
           title: 'Cartera en Mora',
-          value: stats?.moraTotal || 0,
-          subValue: `${moraPercent}% del total · ${stats?.atrasados || 0} cuentas`,
-          isCurrency: true,
+          ...tarjetaDeCarteraEnMora(dashboard?.metrics),
           change: null,
           icon: <AlertCircle className="h-4 w-4" />,
           color: '#f43f5e',

@@ -1,4 +1,5 @@
 'use client'
+import { riesgoClienteBadgeClasses } from '@/lib/display-labels'
 import { formatFechaBogota } from '@/lib/format-date'
 
 /**
@@ -52,11 +53,18 @@ interface DetalleMoraModalProps {
   onRegistrarPago?: () => void
 }
 
+/*
+ * Esta si es la escala del CLIENTE, asi que el distintivo sale de
+ * `riesgoClienteBadgeClasses`. Divergia en dos valores: `AMARILLO` en ambar
+ * donde el resto usa amarillo, y `LISTA_NEGRA` en `slate-900` donde el resto
+ * usa `slate-800`. El fondo y el borde son de la tarjeta grande del modal, no
+ * del distintivo, y se quedan aqui.
+ */
 const RIESGO_CONFIG: Record<string, { badge: string; bg: string; border: string }> = {
-  VERDE:       { badge: 'bg-emerald-50 text-emerald-700',  bg: 'bg-emerald-50',  border: 'border-emerald-200' },
-  AMARILLO:    { badge: 'bg-amber-50  text-amber-700',     bg: 'bg-amber-50',    border: 'border-amber-200' },
-  ROJO:        { badge: 'bg-rose-50   text-rose-700',      bg: 'bg-rose-50',     border: 'border-rose-200' },
-  LISTA_NEGRA: { badge: 'bg-slate-900 text-white',         bg: 'bg-slate-900',   border: 'border-slate-700' },
+  VERDE:       { badge: riesgoClienteBadgeClasses('VERDE'),       bg: 'bg-emerald-50', border: 'border-emerald-200' },
+  AMARILLO:    { badge: riesgoClienteBadgeClasses('AMARILLO'),    bg: 'bg-yellow-50',  border: 'border-yellow-200' },
+  ROJO:        { badge: riesgoClienteBadgeClasses('ROJO'),        bg: 'bg-rose-50',    border: 'border-rose-200' },
+  LISTA_NEGRA: { badge: riesgoClienteBadgeClasses('LISTA_NEGRA'), bg: 'bg-slate-900',  border: 'border-slate-700' },
 }
 
 export default function DetalleMoraModal({

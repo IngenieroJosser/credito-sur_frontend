@@ -1,5 +1,6 @@
 "use client";
 import { formatFechaBogota } from '@/lib/format-date'
+import { riesgoClienteBadgeClasses } from '@/lib/display-labels'
 
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
@@ -267,20 +268,10 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
   };
 
   // Función para obtener color de riesgo
-  const getRiesgoColor = (riesgo: NivelRiesgo) => {
-    switch (riesgo) {
-      case "VERDE":
-        return "text-emerald-700 bg-emerald-50 border border-emerald-200";
-      case "AMARILLO":
-        return "text-amber-700 bg-amber-50 border border-amber-200";
-      case "ROJO":
-        return "text-rose-700 bg-rose-50 border border-rose-200";
-      case "LISTA_NEGRA":
-        return "text-white bg-slate-900 border border-slate-900";
-      default:
-        return "text-slate-700 bg-slate-50 border border-slate-200";
-    }
-  };
+  // Una sola definicion para toda la aplicacion: `riesgoClienteBadgeClasses`.
+  // Esta copia usaba otros tonos y pintaba la lista negra en negro solido.
+  const getRiesgoColor = (riesgo: NivelRiesgo) =>
+    `${riesgoClienteBadgeClasses(riesgo)} border`;
 
   // Función para obtener porcentaje de progreso
   const getProgressPercentage = (pagadas: number, totales: number) => {

@@ -1,4 +1,29 @@
-import { textoDeCarteraEnMora } from '@/lib/dashboard/cartera-en-mora'
+import { tarjetaDeCarteraEnMora, textoDeCarteraEnMora } from '@/lib/dashboard/cartera-en-mora'
+
+describe('la tarjeta usa métricas completas, no una muestra del detalle', () => {
+  it('muestra el importe de los doce créditos aunque solo haya diez visibles', () => {
+    const dashboard = {
+      metrics: { delinquentAccounts: 12, delinquentAmount: 1550, carteraPendiente: 3100 },
+      delinquentAccounts: Array.from({ length: 10 }, () => ({ amountDue: 100 })),
+    }
+    expect(tarjetaDeCarteraEnMora(dashboard.metrics)).toEqual({
+      value: 1550, isCurrency: true, subValue: '12 cuentas · 50,0% de la cartera',
+    })
+  })
+
+  it('una respuesta antigua sin importe no equivale a saldo cero', () => {
+    expect(tarjetaDeCarteraEnMora({ delinquentAccounts: 12 })).toEqual({
+      value: 'No disponible', isCurrency: false, subValue: '12 cuentas',
+    })
+    expect(tarjetaDeCarteraEnMora(undefined).subValue).toBeUndefined()
+  })
+
+  it('respeta un cero confirmado', () => {
+    expect(tarjetaDeCarteraEnMora({ delinquentAccounts: 0, delinquentAmount: 0 })).toEqual({
+      value: 0, isCurrency: true, subValue: 'Sin cuentas en mora',
+    })
+  })
+})
 
 /**
  * La tarjeta «Cartera en Mora» dice algo que se entiende.

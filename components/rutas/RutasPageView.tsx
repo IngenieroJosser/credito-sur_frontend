@@ -56,7 +56,11 @@ import {
   obtenerSaldoDisponibleRuta,
 } from '@/services/contabilidad-service'
 import { prestamosService } from '@/services/prestamos-service'
-import { formatRoleLabel, riesgoOperativoLabel } from '@/lib/display-labels'
+import {
+  formatRoleLabel,
+  riesgoBadgeClasses,
+  riesgoOperativoLabel,
+} from '@/lib/display-labels'
 import { buildCrearPrestamoPayload } from '@/lib/creditos/crear-prestamo-payload'
 import Paginador from '@/components/ui/Paginador'
 import { normalizarCodigoRuta } from '@/lib/rutas/codigo-ruta'
@@ -1038,24 +1042,18 @@ export const RutasPageView = ({
     [getRecaudoOperativoRuta, getMetaOperativoRuta],
   )
 
-  // Determine risk color classes
-  const getRiesgoColor = (riesgo: string) => {
-    if (!riesgo) return 'hidden'
-    switch (riesgo) {
-      case 'PELIGRO_MINIMO':
-        return 'bg-emerald-50 text-emerald-700 border-emerald-200'
-      case 'LEVE_RETRASO':
-        return 'bg-blue-50 text-blue-700 border-blue-200'
-      case 'PRECAUCION':
-        return 'bg-yellow-50 text-yellow-700 border-yellow-200'
-      case 'RIESGO_MODERADO':
-        return 'bg-amber-50 text-amber-700 border-amber-200'
-      case 'ALTO_RIESGO':
-        return 'bg-rose-50 text-rose-700 border-rose-200'
-      default:
-        return 'bg-slate-50 text-slate-600 border-slate-200'
-    }
-  }
+  /*
+   * El color del riesgo operativo sale de `lib/display-labels`.
+   *
+   * Aqui estaba la misma escala de cinco valores con los tonos un paso mas
+   * claros -`bg-emerald-50 text-emerald-700` contra el
+   * `bg-emerald-100 text-emerald-800` del resto-, asi que la MISMA ruta se
+   * veia de un color en esta pantalla y de otro en la siguiente. La cadena
+   * vacia sigue devolviendo `hidden`: quien llama cuenta con eso para no
+   * pintar el distintivo cuando no hay dato.
+   */
+  const getRiesgoColor = (riesgo: string) =>
+    riesgo ? riesgoBadgeClasses(riesgo) : 'hidden'
 
   if (!permitido) {
     return (
