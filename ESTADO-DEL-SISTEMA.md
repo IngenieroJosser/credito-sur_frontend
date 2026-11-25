@@ -278,8 +278,12 @@ Las otras seis vistas con periodo ya estaban bien y no se tocaron.
    niveles de riesgo) sobre el conjunto completo en el navegador, asi que
    paginar en el servidor obliga a mover tambien esas cifras. Es la razon por la
    que no se hizo deprisa: ahi es donde se rompen los numeros.
-3. **Los respaldos**: abrir `/admin/sistema/backups` y leer la tarjeta de
-   estado, que ahora dice sola si el servidor puede hacer el volcado SQL (§0d).
+3. ~~Los respaldos~~ **— contestado (§0d-bis): `pg_dump` SI esta en
+   produccion (18.7, Debian), no hay que configurar nada.** Lo que queda es que
+   el disco de Render es **efimero**: la copia hay que **descargarla en cuanto
+   se genera** o desaparece en el siguiente despliegue. La pantalla ya lo dice,
+   y de paso se quito la tarjeta «Nube VPS · Conectado», que afirmaba una copia
+   remota que no existe.
 4. Las **88 cuotas a medianoche UTC** anteriores al arreglo de fechas (§P24) y
    **§P20** (el reporte financiero se baja el libro mayor al navegador).
 
@@ -557,6 +561,61 @@ curl -s https://credito-sur-backend.onrender.com/api-credisur/health
 ```
 
 y comparar `commit` con `git log --oneline -1`.
+
+---
+
+## 0d-bis. RESUELTO: `pg_dump` SI esta, y la pantalla decia una mentira grave
+
+### 1. La pregunta del `pg_dump` esta contestada (2026-11-25)
+
+El dueño abrio la pantalla en produccion y dice:
+
+```
+Volcado SQL disponible · pg_dump (PostgreSQL) 18.7 (Debian 18.7-1.pgdg12+5)
+```
+
+**Esta disponible. NO hay que configurar `PG_DUMP_PATH`.** Todo lo que §0d
+explica sobre rutas y versiones queda como referencia por si algun dia cambia
+la imagen, pero el paso 2 y el 3 **no hacen falta**.
+
+Lo que queda del asunto de los respaldos no es el binario: es **el disco**.
+
+### 2. La pantalla decia que habia una copia en la nube, y no existe
+
+La tarjeta derecha decia **«Nube VPS · Respaldo remoto · Conectado»**, con un
+punto verde parpadeando y un escudo, y bajo «Ultima sincronizacion» repetia la
+fecha del respaldo **local**.
+
+Nada de eso existia. Comprobado en el codigo:
+
+- el enum `BackupDestino` tiene **un solo valor**, `LOCAL`;
+- y no hay en **todo** el modulo de respaldos una sola linea que suba un
+  archivo a ningun sitio: ni S3, ni SFTP, ni rsync, ni VPS.
+
+O sea que la pantalla le decia al dueño que tenia una copia **fuera del
+servidor** de su financiera cuando no la tiene. Y se juntaba con que el disco de
+Render es efimero: la copia que creia tener a salvo desaparece en cada
+despliegue.
+
+En una pantalla de respaldos esa es la frase mas cara de equivocar.
+
+**Ahora la tarjeta dice lo que pasa:** «Copia fuera del servidor · No
+configurada», con la ruta real donde se escribe el archivo, el aviso de que el
+disco es efimero y hay que descargar la copia en cuanto se genera, y que el plan
+de recuperacion real son **las copias automaticas del Postgres administrado de
+Render**. El boton de «Verificar integridad» —que si es real, consulta
+`/accounting/integridad`— se conserva bajo su propio titulo.
+
+Verificado **en el navegador**, no solo leyendo:
+`e2e/respaldos-dicen-la-verdad.e2e.ts`.
+
+### 3. Un detalle de permisos que conviene saber
+
+El endpoint lleva `@Permisos('backups')`. Medido contra la base de desarrollo:
+**el permiso existe pero no lo tiene asignado ningun rol**. El guard exime al
+SUPER_ADMINISTRADOR (`permisos.guard.ts:34`), asi que hoy **solo el
+superadministrador puede abrir esta pantalla**. No es un defecto —es una
+decision de permisos— pero si alguien con rol ADMIN dice que no la ve, es esto.
 
 ---
 
