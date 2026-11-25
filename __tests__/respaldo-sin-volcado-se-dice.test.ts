@@ -56,11 +56,21 @@ describe('la pantalla de respaldos dice cuando falta el volcado', () => {
   })
 
   it('y lo dice junto al estado, no en un sitio donde no se mire', () => {
-    const i = FUENTE.indexOf('Estado:')
+    /*
+     * El ancla cambió, y el motivo importa.
+     *
+     * Antes se miraba la cercanía a «Estado:», que era la etiqueta de la
+     * tarjeta «Nube VPS». Esa tarjeta estaba INVENTADA —no hay destino remoto
+     * en el sistema— y se quitó, así que ahora el estado del respaldo se lee
+     * en la tarjeta del servidor local, junto al tamaño.
+     *
+     * Lo que vigila esta prueba no cambia: que el aviso esté donde se mira el
+     * respaldo y no en otra tarjeta.
+     */
+    const i = FUENTE.indexOf('Último respaldo')
     expect(i).toBeGreaterThan(0)
-    // En el mismo bloque: si el aviso se fuera a otra tarjeta, «EXITOSO»
-    // seguiría leyéndose solo.
-    expect(FUENTE.slice(i, i + 900)).toMatch(/sinVolcado/)
+    expect(FUENTE.slice(i, i + 1600)).toMatch(/sinVolcado/)
+    expect(FUENTE.slice(i, i + 1600)).toMatch(/pgDumpDisponible|noHayPgDump/)
   })
 
   it('nombra PG_DUMP_PATH, que es lo que hay que configurar', () => {
@@ -108,6 +118,53 @@ describe('y lo dice ANTES de que haga falta, sin correr un respaldo', () => {
   it('y cuando SI esta, lo dice en vez de callar', () => {
     // Sin esto la pantalla no distingue «comprobado y esta» de «no se sabe».
     expect(FUENTE).toMatch(/pgDumpVersion/)
+  })
+})
+
+describe('la pantalla no inventa una copia remota', () => {
+  /*
+   * La tarjeta decia «Nube VPS · Respaldo remoto · Conectado», con un punto
+   * verde parpadeando y un escudo, y bajo «Ultima sincronizacion» repetia la
+   * fecha del respaldo LOCAL.
+   *
+   * Nada de eso existia. Comprobado en el codigo del backend: el enum
+   * `BackupDestino` tiene **un solo valor**, `LOCAL`, y no hay en todo el
+   * modulo de respaldos una linea que suba un archivo a ningun sitio —ni S3,
+   * ni SFTP, ni VPS—. La pantalla le decia al dueño que tenia una copia fuera
+   * del servidor de su financiera cuando no la tiene, y encima el disco de
+   * Render es efimero.
+   *
+   * En una pantalla de respaldos esa es la frase mas cara de equivocar.
+   */
+  it('no dice que hay una nube ni un respaldo remoto', () => {
+    expect(FUENTE).not.toMatch(/Nube VPS/)
+    expect(FUENTE).not.toMatch(/Respaldo remoto/)
+    expect(FUENTE).not.toMatch(/[ÚU]ltima sincronizaci[oó]n/)
+  })
+
+  it('no pinta un «Conectado» en verde que no corresponde a nada', () => {
+    expect(FUENTE).not.toMatch(/Conectado/)
+  })
+
+  it('dice donde queda de verdad el respaldo', () => {
+    expect(FUENTE).toMatch(/Solo en el disco de este servidor/)
+    // La ruta real, no una inventada: la manda el servidor en `config`.
+    expect(FUENTE).toMatch(/config\?\.backupDir/)
+  })
+
+  it('advierte de que el disco es efimero', () => {
+    /*
+     * Es lo unico que de verdad hay que saber: el archivo desaparece en cada
+     * despliegue, asi que o se descarga en el momento o no hay copia.
+     */
+    expect(FUENTE).toMatch(/ef[ií]mero/)
+    expect(FUENTE).toMatch(/descargarla|descargar/)
+  })
+
+  it('y dice cual es el plan de recuperacion real', () => {
+    // Las copias automaticas del Postgres administrado de Render.
+    expect(FUENTE).toContain('copias')
+    expect(FUENTE).toMatch(/autom[aá]ticas/)
   })
 })
 

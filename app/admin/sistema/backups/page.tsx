@@ -4,7 +4,7 @@ import { estadoDeError, mensajeDeError } from '@/lib/mensaje-de-error'
 import Paginador from '@/components/ui/Paginador'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Database, Cloud, RefreshCw, HardDrive, ShieldCheck, Clock, Download, Loader2 } from 'lucide-react'
+import { Database, Cloud, RefreshCw, HardDrive, ShieldCheck, Clock, Download, Loader2, AlertTriangle } from 'lucide-react'
 import Tooltip from '@/components/ui/Tooltip'
 import { apiRequest } from '@/lib/api/api'
 import { exportService } from '@/services/export-service'
@@ -239,7 +239,65 @@ const BackupsSistemaPage = () => {
                 <div className="text-xl font-bold text-slate-900">{loading ? 'Cargando...' : lastRunLabel}</div>
                 <div className="text-xs text-slate-400 mt-1 font-medium">
                   {lastRunSize ? `Tamaño: ${lastRunSize}` : 'Tamaño: —'}
+                  {sinVolcado ? ' · sin volcado SQL' : null}
                 </div>
+                {/*
+                  Si este servidor puede generar el volcado SQL, dicho ANTES de
+                  que haga falta y comprobado de verdad: el servidor ejecuta
+                  `pg_dump --version` al pedir el estado. La ruta configurada no
+                  dice nada —por defecto es «pg_dump», o sea «búscalo en el
+                  PATH»—, y si no está ahí el respaldo sale EXITOSO con el Excel
+                  y sin la parte con la que se restaura la base.
+
+                  Medido en producción el 2026-11-25: está, y es
+                  `pg_dump (PostgreSQL) 18.7 (Debian 18.7-1.pgdg12+5)`. No hay
+                  que configurar `PG_DUMP_PATH`.
+                */}
+                {noHayPgDump ? (
+                  <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
+                    Este servidor no puede generar el volcado SQL: no encuentra
+                    <code className="mx-1 rounded bg-amber-100 px-1">pg_dump</code>
+                    en
+                    <code className="mx-1 rounded bg-amber-100 px-1">
+                      {status?.config?.pgDumpPath || 'pg_dump'}
+                    </code>
+                    . Los respaldos seguirán generando el Excel, pero con él no
+                    se restaura PostgreSQL. Se arregla con la variable
+                    <code className="mx-1 rounded bg-amber-100 px-1">PG_DUMP_PATH</code>
+                    en el servidor.
+                  </p>
+                ) : status?.config?.pgDumpVersion ? (
+                  <p className="mt-2 text-xs font-medium text-slate-400">
+                    Volcado SQL disponible · {status.config.pgDumpVersion}
+                  </p>
+                ) : null}
+                {/*
+                  El aviso del servidor, que antes se tiraba. `POST /backup/run`
+                  contesta `estado: EXITOSO` si el Excel se generó: el volcado es
+                  opcional a propósito. El campo ya llegaba y ya estaba tipado;
+                  solo faltaba enseñarlo.
+                */}
+                {/*
+                  El error crudo del servidor, SALVO cuando repite lo que el
+                  aviso de arriba ya dijo mejor.
+
+                  Visto en pantalla: con `pg_dump` ausente se apilaban tres
+                  parrafos ambar diciendo lo mismo -el aviso propio, este error
+                  («[pg_dump no disponible] No se encontro pg_dump…») y la nota
+                  del Excel-. Tres veces el mismo mensaje se lee peor que una.
+                */}
+                {lastRun?.error &&
+                !(noHayPgDump && /pg_dump/i.test(lastRun.error)) ? (
+                  <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
+                    {lastRun.error}
+                  </p>
+                ) : null}
+                {sinVolcado ? (
+                  <p className="mt-2 text-xs font-medium text-amber-700">
+                    El Excel sí se generó, pero un respaldo sin volcado SQL no
+                    sirve para restaurar la base.
+                  </p>
+                ) : null}
               </div>
 
               <button
@@ -260,86 +318,73 @@ const BackupsSistemaPage = () => {
                   <Cloud className="h-6 w-6" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-slate-900">Nube VPS</h2>
-                  <p className="text-xs text-slate-500 font-medium">Respaldo remoto</p>
+                  <h2 className="text-lg font-bold text-slate-900">
+                    Copia fuera del servidor
+                  </h2>
+                  <p className="text-xs text-slate-500 font-medium">
+                    Dónde queda el respaldo
+                  </p>
                 </div>
               </div>
+              {/*
+                Esta tarjeta decía «Nube VPS · Respaldo remoto · Conectado», con
+                un punto verde parpadeando y un escudo, y bajo «Última
+                sincronización» repetía la fecha del respaldo LOCAL.
+
+                Nada de eso existía. Comprobado en el código: el enum
+                `BackupDestino` tiene **un solo valor**, `LOCAL`, y no hay en
+                todo el módulo de respaldos una sola línea que suba un archivo a
+                ningún sitio —ni S3, ni SFTP, ni VPS—. O sea que la pantalla le
+                decía al dueño que tenía una copia fuera del servidor de su
+                financiera cuando no la tiene.
+
+                En una pantalla de respaldos esa es la frase más cara de
+                equivocar, y encima se juntaba con que el disco de Render es
+                efímero. Así que la tarjeta pasa a decir lo que de verdad pasa.
+              */}
               <div className="flex items-center gap-2">
-                <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                <span className="text-xs font-bold text-emerald-600">Conectado</span>
+                <div className="h-2 w-2 rounded-full bg-amber-500"></div>
+                <span className="text-xs font-bold text-amber-600">
+                  No configurada
+                </span>
               </div>
             </div>
 
             <div className="space-y-4">
-              <div className="p-4 bg-slate-50/50 rounded-xl border border-slate-100">
+              <div className="p-4 bg-amber-50/60 rounded-xl border border-amber-100">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs uppercase tracking-wider text-slate-500 font-bold">Última sincronización</span>
-                  <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
+                  <span className="text-xs uppercase tracking-wider text-amber-700 font-bold">
+                    Dónde se guarda
+                  </span>
+                  <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
                 </div>
-                <div className="text-xl font-bold text-slate-900">{loading ? 'Cargando...' : lastRunLabel}</div>
-                <div className="text-xs text-slate-400 mt-1 font-medium">
-                  Estado: {lastRun?.estado ? lastRun.estado : '—'}
-                  {sinVolcado ? ' · sin volcado SQL' : null}
-                </div>
-                {/*
-                  * Si el servidor puede hacer el volcado, dicho ANTES de que
-                  * haga falta.
-                  *
-                  * Se comprueba de verdad —el servidor ejecuta `pg_dump
-                  * --version`— porque la ruta configurada no dice nada: el
-                  * valor por defecto es «pg_dump», o sea «búscalo en el PATH»,
-                  * y si no está ahí el respaldo sale EXITOSO con el Excel y sin
-                  * la parte con la que se restaura la base.
-                  *
-                  * Esto es lo que la consola de Render contestaría, y esa
-                  * consola es de pago.
-                  */}
-                {noHayPgDump ? (
-                  <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
-                    Este servidor no puede generar el volcado SQL: no encuentra
-                    <code className="mx-1 rounded bg-amber-100 px-1">pg_dump</code>
-                    en
-                    <code className="mx-1 rounded bg-amber-100 px-1">
-                      {status?.config?.pgDumpPath || 'pg_dump'}
-                    </code>
-                    . Los respaldos seguirán generando el Excel, pero con él no
-                    se restaura PostgreSQL. Se arregla con la variable
-                    <code className="mx-1 rounded bg-amber-100 px-1">PG_DUMP_PATH</code>
-                    en el servidor.
-                  </p>
-                ) : status?.config?.pgDumpVersion ? (
-                  <p className="mt-2 text-xs font-medium text-slate-400">
-                    Volcado SQL disponible · {status.config.pgDumpVersion}
-                  </p>
-                ) : null}
-                {/*
-                  * El aviso del servidor, que antes se tiraba.
-                  *
-                  * `POST /backup/run` contesta `estado: EXITOSO` si el Excel se
-                  * generó: el volcado SQL es opcional a propósito y está escrito
-                  * así en `backup.service.ts`. Pero si `pg_dump` no está en el
-                  * servidor —y en Render no viene por defecto— la respuesta trae
-                  * `filePath: null` y un `error` explicando por qué, y esta
-                  * pantalla mostraba «Estado: EXITOSO» sin pintar ese campo. O
-                  * sea que decía que el respaldo estaba hecho mientras faltaba
-                  * justo la parte con la que se restaura.
-                  *
-                  * El campo ya llegaba y ya estaba tipado (`error?: string`):
-                  * solo faltaba enseñarlo.
-                  */}
-                {lastRun?.error ? (
-                  <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
-                    {lastRun.error}
-                  </p>
-                ) : null}
-                {sinVolcado ? (
-                  <p className="mt-2 text-xs font-medium text-amber-700">
-                    El Excel sí se generó, pero un respaldo sin volcado SQL no
-                    sirve para restaurar la base: hay que configurar
-                    <code className="mx-1 rounded bg-amber-100 px-1">PG_DUMP_PATH</code>
-                    en el servidor.
-                  </p>
-                ) : null}
+                <p className="text-sm font-bold text-slate-900">
+                  Solo en el disco de este servidor
+                </p>
+                <p className="mt-1 text-xs font-medium text-slate-500">
+                  El respaldo se escribe en{' '}
+                  <code className="rounded bg-white/70 px-1">
+                    {status?.config?.backupDir || 'la carpeta de respaldos'}
+                  </code>
+                  . El sistema no tiene ningún destino remoto configurado: no se
+                  sube a ninguna parte.
+                </p>
+                <p className="mt-2 text-xs font-semibold text-amber-800">
+                  En Render el disco es efímero: en cada despliegue o reinicio
+                  estos archivos desaparecen. Para conservar una copia hay que
+                  descargarla desde el historial en cuanto se genera.
+                </p>
+                <p className="mt-2 text-xs font-medium text-slate-500">
+                  El PostgreSQL administrado de Render hace además sus propias
+                  copias automáticas: ese es el plan de recuperación ante un
+                  desastre. Esto de aquí es «llevarme una copia».
+                </p>
+              </div>
+
+              <div className="pt-1">
+                <span className="text-xs uppercase tracking-wider text-slate-500 font-bold">
+                  Integridad contable
+                </span>
               </div>
 
               <button
