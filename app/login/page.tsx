@@ -1,6 +1,7 @@
 'use client'
 import { codigoDeError, estadoDeError, mensajeDeError } from '@/lib/mensaje-de-error'
 import { logger } from '@/lib/logger'
+import { useOnlineStatus } from '@/hooks/use-online-status'
 import { baseApi } from '@/lib/api/baseUrl'
 
 /**
@@ -46,6 +47,15 @@ interface ToastState {
 
 
 const LoginPage = () => {
+  /**
+   * Si de verdad hay conexión, no si el navegador cree que la hay.
+   *
+   * `useOnlineStatus` confirma con un ping real contra `/api/ping`. Lo usa el
+   * indicador de abajo a la derecha, que hasta ahora era un punto verde fijo
+   * marcado en el código como «(Decorativo)».
+   */
+  const estaEnLinea = useOnlineStatus()
+
   // Manejamos los datos del formulario aquí
   const [formData, setFormData] = useState<LoginFormData>({
     nombres: '',
@@ -700,10 +710,30 @@ const LoginPage = () => {
           </div>
         </div>
 
-        {/* Indicador de estado del sistema (Decorativo) */}
-        <div className="fixed bottom-8 right-8 flex items-center space-x-2 opacity-40 hover:opacity-100 transition-opacity duration-300">
-          <div className="w-1.5 h-1.5 bg-green-400 rounded-full"></div>
-          <span className="text-xs text-gray-500">En línea</span>
+        {/*
+          Estado real de la conexion, no un adorno.
+
+          Esto estaba marcado en el codigo como «(Decorativo)»: un punto verde
+          fijo que decia «En linea» sin comprobar nada. Si el servidor esta
+          caido, alguien que no puede entrar lee «En linea» y concluye que falla
+          su contraseña. Y esta es justo la pantalla donde saber que no hay
+          conexion importa: debajo esta el boton de acceso sin conexion.
+
+          `useOnlineStatus` no se fia de `navigator.onLine`: confirma con un
+          ping real contra `/api/ping`.
+        */}
+        <div
+          className="fixed bottom-8 right-8 flex items-center space-x-2 opacity-40 hover:opacity-100 transition-opacity duration-300"
+          aria-live="polite"
+        >
+          <div
+            className={`w-1.5 h-1.5 rounded-full ${
+              estaEnLinea ? 'bg-green-400' : 'bg-amber-500'
+            }`}
+          ></div>
+          <span className="text-xs text-gray-500">
+            {estaEnLinea ? 'En línea' : 'Sin conexión'}
+          </span>
         </div>
       </div>
 

@@ -248,9 +248,27 @@ const BackupsSistemaPage = () => {
                   <p className="text-xs text-slate-500 font-medium">Base de datos principal</p>
                 </div>
               </div>
+              {/*
+                «Activo» solo si el servidor contestó.
+
+                Estaba escrito a mano, como el «Conectado» de la tarjeta de al
+                lado: si `GET /backup/status` fallaba, la pantalla mostraba el
+                error y, a su derecha, un punto verde diciendo que todo bien.
+                Ahora sale del dato: si no hay estado, no se afirma nada.
+              */}
               <div className="flex items-center gap-2">
-                <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                <span className="text-xs font-bold text-emerald-600">Activo</span>
+                <div
+                  className={`h-2 w-2 rounded-full ${
+                    status ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'
+                  }`}
+                ></div>
+                <span
+                  className={`text-xs font-bold ${
+                    status ? 'text-emerald-600' : 'text-slate-400'
+                  }`}
+                >
+                  {status ? 'Activo' : loading ? 'Comprobando…' : 'Sin datos'}
+                </span>
               </div>
             </div>
 
