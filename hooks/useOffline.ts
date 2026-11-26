@@ -6,6 +6,7 @@ import {
   checkRealConnectivity,
   setConnectivityResult,
 } from '@/lib/offline/connectivity';
+import { anotarChequeo } from '@/lib/offline/aviso-de-backend';
 
 export interface OfflineState {
   isOnline: boolean;
@@ -34,6 +35,23 @@ export function useOffline() {
   });
 
   const syncInProgress = useRef(false);
+  /** Chequeos seguidos que han fallado. Se pone a cero en cuanto uno acierta. */
+  const fallosSeguidos = useRef(0);
+
+  /**
+   * Pasar el resultado de un chequeo por la regla, y quedarse con la cuenta.
+   *
+   * La decision vive en `lib/offline/aviso-de-backend.ts`, con el motivo
+   * escrito y con sus pruebas: aqui solo se guarda el contador.
+   */
+  const pasarPorLaRegla = useCallback((respondio: boolean): boolean => {
+    const { fallos, disponible } = anotarChequeo(
+      fallosSeguidos.current,
+      respondio,
+    );
+    fallosSeguidos.current = fallos;
+    return disponible;
+  }, []);
   const browserOnlineRef = useRef(
     typeof navigator !== 'undefined' ? navigator.onLine : true,
   );
@@ -116,7 +134,7 @@ export function useOffline() {
       void checkRealConnectivity().then((backendOk) => {
         setState((prev) => ({
           ...prev,
-          backendReachable: backendOk,
+          backendReachable: pasarPorLaRegla(backendOk),
         }));
 
         setConnectivityResult(backendOk);
@@ -131,6 +149,13 @@ export function useOffline() {
     const handleOffline = () => {
       // Actualizar el ref inmediatamente antes del setState
       browserOnlineRef.current = false;
+      /*
+       * Sin red del navegador no hay duda ninguna, asi que esto SI es
+       * inmediato: la regla de los dos fallos es para el servidor que no
+       * contesta, no para el aparato que se quedo sin señal. Y se reinicia la
+       * cuenta para que al volver no arrastre fallos viejos.
+       */
+      fallosSeguidos.current = 0;
 
       // El evento offline actualiza browserOnline inmediatamente
       setState((prev) => ({ ...prev, browserOnline: false, isOnline: false, backendReachable: false }));
@@ -143,7 +168,10 @@ export function useOffline() {
 
     // Verificar conectividad real del backend al montar
     checkRealConnectivity().then((backendOk) => {
-      setState((prev) => ({ ...prev, backendReachable: backendOk }));
+      setState((prev) => ({
+        ...prev,
+        backendReachable: pasarPorLaRegla(backendOk),
+      }));
       setConnectivityResult(backendOk);
     });
 
@@ -179,10 +207,12 @@ export function useOffline() {
       // Si el navegador está online, verificar conectividad del backend
       const backendOk = await checkRealConnectivity();
 
+      const aMostrar = pasarPorLaRegla(backendOk);
+
       setState((prev) => {
-        if (prev.backendReachable !== backendOk) {
+        if (prev.backendReachable !== aMostrar) {
           setConnectivityResult(backendOk);
-          return { ...prev, backendReachable: backendOk };
+          return { ...prev, backendReachable: aMostrar };
         }
 
         return prev;
