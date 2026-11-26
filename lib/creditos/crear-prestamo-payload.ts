@@ -36,7 +36,6 @@ export type VentaContadoPayload = {
   clienteId: string
   productoId: string
   precioVenta: number
-  cajaId: string
   creadoPorId: string
   metodoPago: 'EFECTIVO' | 'TRANSFERENCIA'
   notas: string
@@ -153,15 +152,13 @@ export function buildCrearPrestamoPayload(
 export function buildVentaContadoPayload(
   data: CrearCreditoModalData,
   creadoPorId: string = resolveCurrentUserId(),
-  cajaId = '',
 ): VentaContadoPayload {
   return {
     clienteId: data.clienteCreditoId,
     productoId: data.articuloId || '',
     precioVenta: Number(data.monto || 0),
-    cajaId,
     creadoPorId: creadoPorId || resolveCurrentUserId(),
-    metodoPago: (data.metodoPago || 'EFECTIVO') as 'EFECTIVO' | 'TRANSFERENCIA',
+    metodoPago: data.metodoPago ?? 'EFECTIVO',
     notas: data.notas || 'Venta de artículo de contado',
   }
 }

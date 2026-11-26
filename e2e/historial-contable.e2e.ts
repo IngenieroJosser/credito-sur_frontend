@@ -90,7 +90,14 @@ test('historiales de resultado y movimientos de caja conservan su clasificación
   ] as const) {
     await page.getByText(tarjeta, { exact: true }).click()
     const modal = page.getByRole('dialog', { name: titulo })
-    await expect(modal.getByText(fila, { exact: true })).toBeVisible()
+    const concepto = modal.getByText(fila, { exact: true })
+    await expect(concepto).toBeVisible()
+    const tarjetaMovimiento = concepto.locator('xpath=ancestor::div[contains(@class, "rounded-lg") and contains(@class, "border-slate-200")][1]')
+    const anchos = await tarjetaMovimiento.evaluate((elemento) => {
+      const estilo = getComputedStyle(elemento)
+      return [estilo.borderTopWidth, estilo.borderRightWidth, estilo.borderBottomWidth, estilo.borderLeftWidth]
+    })
+    expect(new Set(anchos).size).toBe(1)
     await expect(modal.getByText(monto).first()).toBeVisible()
     await modal.getByRole('button', { name: 'Cerrar', exact: true }).click()
   }

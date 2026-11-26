@@ -290,7 +290,7 @@ export default function ProrrogaDetalleModal({
                   <MessageSquare className="h-4 w-4 text-slate-400" />
                   <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Observaciones</p>
                 </div>
-                <p className="text-sm text-slate-700 italic leading-relaxed border-l-2 border-slate-300 pl-3">
+                <p className="rounded-md bg-slate-50 p-3 text-sm text-slate-700 italic leading-relaxed">
                   &ldquo;{data.comentarios}&rdquo;
                 </p>
               </div>

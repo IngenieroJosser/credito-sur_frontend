@@ -53,6 +53,7 @@ interface CrearCreditoModalProps {
     cuotaInicialArticulo?: number
     notas?: string
     ventaContado?: boolean
+    metodoPago?: 'EFECTIVO' | 'TRANSFERENCIA'
   }) => void | Promise<void>
   defaultClienteId?: string
   defaultCreditType?: 'prestamo' | 'articulo'
@@ -170,6 +171,7 @@ export default function CrearCreditoModal({
   const [articuloSeleccionadoId, setArticuloSeleccionadoId] = useState<string>('')
   const [planArticuloIndex, setPlanArticuloIndex] = useState<number | null>(null)
   const [esContado, setEsContado] = useState(false)
+  const [metodoPago, setMetodoPago] = useState<'EFECTIVO' | 'TRANSFERENCIA'>('EFECTIVO')
 
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [articulos, setArticulos] = useState<Articulo[]>([])
@@ -342,6 +344,7 @@ export default function CrearCreditoModal({
     setPlanArticuloIndex(null)
     setFrecuenciaPago('DIARIO')
     setEsContado(nextCreditType === 'articulo' && (defaultVentaContado || lockVentaContado))
+    setMetodoPago('EFECTIVO')
     setNotasInput('')
     setFechaCreditoInput(toBogotaDateTimeLocalInputValue(new Date()))
     onClose()
@@ -687,6 +690,20 @@ export default function CrearCreditoModal({
                   </div>
                   )}
 
+                  {esContado && (
+                    <fieldset className="my-3">
+                      <legend className="mb-2 text-sm font-semibold text-slate-700">Método de pago</legend>
+                      <div className="grid grid-cols-2 gap-2">
+                        {([{ id: 'EFECTIVO', label: 'Efectivo' }, { id: 'TRANSFERENCIA', label: 'Transferencia' }] as const).map(({ id, label }) => (
+                          <label key={id} className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 has-[:checked]:border-emerald-300 has-[:checked]:bg-emerald-50">
+                            <input type="radio" name="metodo-pago-contado" value={id} checked={metodoPago === id} onChange={() => setMetodoPago(id)} />
+                            {label}
+                          </label>
+                        ))}
+                      </div>
+                    </fieldset>
+                  )}
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <FieldLabel htmlFor="crearcreditomodal-articulo" required>Artículo</FieldLabel>
@@ -1022,6 +1039,7 @@ export default function CrearCreditoModal({
                             plazoMeses: esContado ? 1 : mesesPlan,
                             cantidadCuotas: esContado ? 1 : (calculoCreditoArticulo?.numCuotas || 0),
                             ventaContado: esContado ? true : undefined,
+                            metodoPago: esContado ? metodoPago : undefined,
                             notas: notasInput.trim() || undefined,
                           }
                       

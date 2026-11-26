@@ -104,18 +104,17 @@ describe('buildCrearPrestamoPayload', () => {
         monto: 1_000_000,
         ventaContado: true,
         cuotaInicialArticulo: 0,
+        metodoPago: 'TRANSFERENCIA',
       },
       'vendedor-1',
-      'caja-pv-1',
     );
 
     expect(payload).toEqual({
       clienteId: 'cliente-1',
       productoId: 'producto-1',
       precioVenta: 1_000_000,
-      cajaId: 'caja-pv-1',
       creadoPorId: 'vendedor-1',
-      metodoPago: 'EFECTIVO',
+      metodoPago: 'TRANSFERENCIA',
       notas: 'Venta de artículo de contado',
     });
     expect(payload).not.toHaveProperty('tipoPrestamo');

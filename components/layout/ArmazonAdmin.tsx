@@ -838,7 +838,7 @@ export default function ArmazonAdmin({ children }: { children: React.ReactNode }
                                   if (!n.leida) marcarComoLeida(n.id)
                                   if (n.link) router.push(n.link)
                                 }}
-                                className={`p-4 hover:bg-gray-50 transition-colors cursor-pointer group relative ${!n.leida ? 'bg-blue-50/40 border-l-4 border-blue-500' : 'border-l-4 border-transparent'}`}
+                                className={`p-4 hover:bg-gray-50 transition-colors cursor-pointer group relative ${!n.leida ? 'bg-blue-50/60' : ''}`}
                               >
                                 <div className="flex items-start gap-3">
                                   <div

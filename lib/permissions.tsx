@@ -514,6 +514,7 @@ export const tieneAcceso = (rol: Rol, path: string, permisos?: string[]): boolea
   const norm = path.split('?')[0]?.split('#')[0] ?? path;
   if (['/perfil', '/notificaciones', '/perfil/notificaciones'].includes(norm)) return true;
   if (rol === 'SUPER_ADMINISTRADOR') return true;
+  if (rol === 'PUNTO_DE_VENTA' && norm.replace(/\/$/, '') === '/punto-de-venta') return true;
 
   // 1. Prioridad Absoluta: si el módulo está en el MENÚ del rol, tiene acceso.
   //

@@ -25,12 +25,35 @@ export type VentaContadoResponse = {
  */
 export interface VentaDeContado {
   id: string
+  clienteId: string | null
+  clienteDni: string | null
+  clienteTelefono: string | null
+  vendedorId: string
+  metodoPago: VentaContadoResponse['metodoPago'] | null
+  notas: string | null
   articulo?: string | null
-  descripcion?: string | null
-  monto?: number | string | null
-  fecha?: string | null
-  vendedor?: string | null
-  cliente?: string | null
+  descripcion: string
+  monto: number
+  fecha: string
+  vendedor: string | null
+  cliente: string | null
+}
+
+interface PaginaVentasContado {
+  ventas: VentaDeContado[]
+  paginacion: { pagina: number; limite: number; total: number; totalPaginas: number }
+}
+
+export function nombreArticuloDeVenta(venta: VentaDeContado): string {
+  return venta.articulo?.trim() ||
+    venta.descripcion?.replace(/^Venta de contado\s+(EFECTIVO|TRANSFERENCIA):\s*/i, '').trim() ||
+    'Artículo no informado'
+}
+
+export function etiquetaMetodoVenta(metodo: VentaDeContado['metodoPago'] | undefined): string {
+  if (metodo === 'EFECTIVO') return 'Efectivo'
+  if (metodo === 'TRANSFERENCIA') return 'Transferencia'
+  return 'No informado'
 }
 
 export const salesService = {
@@ -72,7 +95,15 @@ export const salesService = {
     }
   },
 
-  async obtenerVentasContado() {
-    return apiRequest<VentaDeContado[]>('GET', '/sales/cash')
+  async obtenerVentasContado({ pagina = 1, limite = 50, vendedorId, soloPuntoVenta = false }: {
+    pagina?: number
+    limite?: number
+    vendedorId?: string
+    soloPuntoVenta?: boolean
+  } = {}) {
+    const query = new URLSearchParams({ page: String(pagina), limit: String(limite) })
+    if (vendedorId) query.set('vendedorId', vendedorId)
+    if (soloPuntoVenta) query.set('soloPuntoVenta', 'true')
+    return apiRequest<PaginaVentasContado>('GET', `/sales/cash?${query}`)
   },
 }

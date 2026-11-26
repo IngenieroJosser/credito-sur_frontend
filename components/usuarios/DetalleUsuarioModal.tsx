@@ -21,6 +21,7 @@ import {
   Phone,
   Power,
   Route,
+  ShoppingBag,
   TrendingDown,
   TrendingUp,
   Users as UsersIcon,
@@ -139,6 +140,12 @@ const CIFRAS: Record<ClaveDeCifra, Cifra> = {
       n === 1 ? '1 crédito' : `${n.toLocaleString('es-CO')} créditos`,
     tono: 'sale',
     icono: <FileSignature className="h-4 w-4" />,
+  },
+  ventasContado: {
+    etiqueta: 'Ventas de contado',
+    unidad: (n) => (n === 1 ? '1 venta' : `${n.toLocaleString('es-CO')} ventas`),
+    tono: 'entra',
+    icono: <ShoppingBag className="h-4 w-4" />,
   },
   creditosAprobados: {
     etiqueta: 'Créditos aprobados',

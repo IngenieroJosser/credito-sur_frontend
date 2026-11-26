@@ -47,3 +47,14 @@ yarn-debug.log*
 yarn-error.log*
 capturas/
 e2e/.tmp-*
+
+# Artefactos privados de operación
+temp_token.json
+tok.txt
+*.xlsx
+*.xlsm
+mora.json
+ACTUALIZAR-INVENTARIO.py
+ACTUALIZAR-INVENTARIO.bat
+capturas-ux/
+.claude/

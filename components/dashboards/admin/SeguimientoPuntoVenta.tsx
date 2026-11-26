@@ -3,6 +3,7 @@ import { formatFechaBogota } from '@/lib/format-date'
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
+import { useModalDialog } from '@/hooks/use-modal-dialog'
 import {
   ShoppingBag,
   TrendingUp,
@@ -27,6 +28,7 @@ import {
 import { formatCurrency } from '@/lib/utils'
 import { getBogotaDateKey, getBogotaRangeByPeriod, normalizeDateKey } from '@/lib/rutas-core'
 import { prestamosService } from '@/services/prestamos-service'
+import { etiquetaMetodoVenta, nombreArticuloDeVenta, salesService, type VentaDeContado } from '@/services/sales-service'
 import { pagosService } from '@/services/pagos-service'
 import { usuariosService, type Usuario } from '@/services/usuarios-service'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -40,7 +42,9 @@ import AyudaContextual from '@/components/ui/AyudaContextual'
 interface VentaPdv {
   id: string
   cliente: string
-  clienteId: string
+  clienteId?: string
+  tipoOperacion: 'CREDITO' | 'CONTADO'
+  metodoPago?: VentaDeContado['metodoPago']
   clienteDni?: string
   clienteTelefono?: string
   articulo: string
@@ -55,7 +59,6 @@ interface VentaPdv {
   estado:
     | 'ACTIVO'
     | 'PENDIENTE'
-    | 'COMPLETADO'
     | 'PENDIENTE_APROBACION'
     | 'EN_MORA'
     | 'PAGADO'
@@ -118,10 +121,9 @@ const estadoCfg = (estado: string) => {
         border: 'border-blue-200',
         dot: 'bg-blue-400',
       }
-    case 'COMPLETADO':
     case 'PAGADO':
       return {
-        label: 'Completado',
+        label: 'Pagado',
         bg: 'bg-slate-50',
         text: 'text-slate-500',
         border: 'border-slate-200',
@@ -148,15 +150,37 @@ const estadoCfg = (estado: string) => {
 
 const PER_PAGE = 10
 
-/*
- * Cuantos creditos de articulo se piden de una vez.
- *
- * Eran 200 y esta pantalla pagina en local de diez en diez: con mas ventas de
- * articulo que eso se veian 200 y el paginador decia «20 paginas», sin una
- * palabra de que habia mas. `/loans` manda `paginacion.total`, asi que se puede
- * decir, y es lo que se hace ahora.
- */
-const CREDITOS_POR_PETICION = 1000
+function mapearVentaContado(venta: VentaDeContado): VentaPdv {
+  return {
+    id: venta.id,
+    cliente: venta.cliente || 'Cliente no informado',
+    clienteId: venta.clienteId ?? undefined,
+    clienteDni: venta.clienteDni ?? undefined,
+    clienteTelefono: venta.clienteTelefono ?? undefined,
+    articulo: nombreArticuloDeVenta(venta),
+    tipoOperacion: 'CONTADO',
+    metodoPago: venta.metodoPago,
+    montoTotal: venta.monto,
+    cuotaInicial: 0,
+    saldoPendiente: 0,
+    valorCuota: 0,
+    cuotas: 0,
+    cuotasPagadas: 0,
+    frecuencia: '',
+    tasaInteres: 0,
+    estado: 'PAGADO',
+    fechaVenta: venta.fecha,
+    fechaPrimerCobro: '',
+    vendedor: venta.vendedor || 'Vendedor no informado',
+    vendedorId: venta.vendedorId,
+    vendedorRol: 'PUNTO_DE_VENTA',
+    esVentaPdv: true,
+    observaciones: venta.notas ?? undefined,
+    pagadoHoy: 0,
+  }
+}
+
+const CREDITOS_POR_PETICION = 100
 
 type Periodo = 'HOY' | 'SEM' | 'MES' | 'AÑO'
 
@@ -261,7 +285,16 @@ type PagoDePuntoDeVenta = {
 }
 
 export default function SeguimientoPuntoVenta() {
-  const [ventas, setVentas] = useState<VentaPdv[]>([])
+  const [creditos, setCreditos] = useState<VentaPdv[]>([])
+  const [ventasContado, setVentasContado] = useState<VentaPdv[]>([])
+  const [paginaContado, setPaginaContado] = useState(0)
+  const [totalContado, setTotalContado] = useState(0)
+  const [cargandoContado, setCargandoContado] = useState(false)
+  const [errorContado, setErrorContado] = useState(false)
+  const ventas = useMemo(
+    () => [...creditos, ...ventasContado].sort((a, b) => Date.parse(b.fechaVenta) - Date.parse(a.fechaVenta)),
+    [creditos, ventasContado],
+  )
   const [totalCreditosServidor, setTotalCreditosServidor] = useState<number | null>(null)
   const [usuariosPdv, setUsuariosPdv] = useState<Usuario[]>([])
   const [loading, setLoading] = useState(true)
@@ -278,11 +311,35 @@ export default function SeguimientoPuntoVenta() {
 
   // Detalle
   const [ventaDetalle, setVentaDetalle] = useState<VentaPdv | null>(null)
+  const { contenedorRef, capa, propsDialogo } = useModalDialog({
+    abierto: ventaDetalle !== null,
+    onClose: () => setVentaDetalle(null),
+  })
   const [historialPagos, setHistorialPagos] = useState<PagoDePuntoDeVenta[]>([])
   const [loadingDetalle, setLoadingDetalle] = useState(false)
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
 
   // ─── Data Loading ─────────────────────────────────────────────────────────
+
+  const cargarVentasContado = useCallback(async (pagina = 1) => {
+    setCargandoContado(true)
+    setErrorContado(false)
+    try {
+      const resultado = await salesService.obtenerVentasContado({ pagina, limite: 50, soloPuntoVenta: true })
+      const nuevas = resultado.ventas.map(mapearVentaContado)
+      setVentasContado((actuales) => {
+        const unicas = new Map((pagina === 1 ? [] : actuales).map((venta) => [venta.id, venta]))
+        for (const venta of nuevas) unicas.set(venta.id, venta)
+        return [...unicas.values()]
+      })
+      setPaginaContado(pagina)
+      setTotalContado(resultado.paginacion.total)
+    } catch {
+      setErrorContado(true)
+    } finally {
+      setCargandoContado(false)
+    }
+  }, [])
 
   const cargarDatos = useCallback(async () => {
     try {
@@ -291,6 +348,7 @@ export default function SeguimientoPuntoVenta() {
       const [resp, usuariosResp] = await Promise.all([
         prestamosService.obtenerPrestamos({ tipo: 'ARTICULO', limit: CREDITOS_POR_PETICION }),
         usuariosService.obtenerTodos().catch(() => []),
+        cargarVentasContado(),
       ])
 
       const usuariosPuntoVenta = (usuariosResp || []).filter(
@@ -400,6 +458,7 @@ export default function SeguimientoPuntoVenta() {
 
         return {
           id: c.id,
+          tipoOperacion: 'CREDITO' as const,
           cliente: c.cliente || 'Sin nombre',
           clienteId: c.clienteId,
           // Los `?? undefined`: las dos columnas son nulables en la base y `VentaPdv` las
@@ -433,11 +492,11 @@ export default function SeguimientoPuntoVenta() {
         (v) => v.vendedorRol === 'PUNTO_DE_VENTA' || v.esVentaPdv,
       )
 
-      setVentas(soloVentasPdv)
+      setCreditos(soloVentasPdv)
     } catch (err) {
       console.error('[SeguimientoPdv] Error cargando datos:', err)
     }
-  }, [])
+  }, [cargarVentasContado])
 
   useEffect(() => {
     const init = async () => {
@@ -477,6 +536,8 @@ export default function SeguimientoPuntoVenta() {
 
   const abrirDetalle = useCallback(async (venta: VentaPdv) => {
     setVentaDetalle(venta)
+    setHistorialPagos([])
+    if (venta.tipoOperacion === 'CONTADO') return
     setLoadingDetalle(true)
     try {
       const resp = await pagosService.obtenerPagos({
@@ -651,7 +712,7 @@ export default function SeguimientoPuntoVenta() {
                 Seguimiento · Punto de Venta
               </h1>
               <p className="text-xs text-slate-500 font-medium">
-                Monitoreo de créditos de artículos creados por usuarios Punto de Venta.
+                Ventas de contado y créditos de artículos por vendedor.
               </p>
             </div>
           </div>
@@ -797,7 +858,8 @@ export default function SeguimientoPuntoVenta() {
                   { value: 'ACTIVO', label: 'Activo' },
                   { value: 'PENDIENTE', label: 'Pendiente' },
                   { value: 'PENDIENTE_APROBACION', label: 'En Aprobación' },
-                  { value: 'COMPLETADO', label: 'Completado' },
+                  { value: 'EN_MORA', label: 'En mora' },
+                  { value: 'PAGADO', label: 'Pagado' },
                 ]}
               />
             </div>
@@ -958,11 +1020,11 @@ export default function SeguimientoPuntoVenta() {
                             <span
                               className={`text-sm font-black ${venta.saldoPendiente > 0 ? 'text-amber-700' : 'text-emerald-600'}`}
                             >
-                              {formatCurrency(venta.saldoPendiente)}
+                              {venta.tipoOperacion === 'CONTADO' ? '—' : formatCurrency(venta.saldoPendiente)}
                             </span>
                           </td>
                           <td className="px-4 py-3">
-                            <div className="flex items-center gap-2">
+                            {venta.tipoOperacion === 'CONTADO' ? <span className="text-xs text-slate-500">—</span> : <div className="flex items-center gap-2">
                               <div className="w-16 bg-slate-200 rounded-full h-1.5">
                                 <div
                                   className={`h-1.5 rounded-full ${progreso >= 100 ? 'bg-emerald-500' : 'bg-orange-500'}`}
@@ -972,7 +1034,7 @@ export default function SeguimientoPuntoVenta() {
                               <span className="text-[11px] font-bold text-slate-600 whitespace-nowrap">
                                 {venta.cuotasPagadas}/{venta.cuotas}
                               </span>
-                            </div>
+                            </div>}
                           </td>
                           <td className="px-4 py-3">
                             {venta.pagadoHoy > 0 ? (
@@ -994,7 +1056,7 @@ export default function SeguimientoPuntoVenta() {
                               className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${cfg.bg} ${cfg.text} ${cfg.border}`}
                             >
                               <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
-                              {cfg.label}
+                              {venta.tipoOperacion === 'CONTADO' ? 'Contado' : cfg.label}
                             </span>
                           </td>
                           <td className="px-4 py-3 text-center">
@@ -1046,7 +1108,7 @@ export default function SeguimientoPuntoVenta() {
                             className={`inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${cfg.bg} ${cfg.text} ${cfg.border}`}
                           >
                             <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
-                            {cfg.label}
+                            {venta.tipoOperacion === 'CONTADO' ? 'Contado' : cfg.label}
                           </span>
                           <button aria-label="Ver detalle"
                             onClick={() => abrirDetalle(venta)}
@@ -1062,7 +1124,7 @@ export default function SeguimientoPuntoVenta() {
                         </span>
                         <span className="text-[10px] text-slate-400">·</span>
                         <span className="text-[11px] font-bold text-amber-700">
-                          Saldo: {formatCurrency(venta.saldoPendiente)}
+                          {venta.tipoOperacion === 'CONTADO' ? etiquetaMetodoVenta(venta.metodoPago) : `Saldo: ${formatCurrency(venta.saldoPendiente)}`}
                         </span>
                         {venta.pagadoHoy > 0 && (
                           <>
@@ -1073,7 +1135,7 @@ export default function SeguimientoPuntoVenta() {
                           </>
                         )}
                       </div>
-                      <div className="mt-1.5 flex items-center gap-2">
+                      {venta.tipoOperacion === 'CREDITO' && <div className="mt-1.5 flex items-center gap-2">
                         <div className="flex-1 bg-slate-200 rounded-full h-1">
                           <div
                             className={`h-1 rounded-full ${progreso >= 100 ? 'bg-emerald-500' : 'bg-orange-400'}`}
@@ -1083,7 +1145,7 @@ export default function SeguimientoPuntoVenta() {
                         <span className="text-[10px] font-bold text-slate-500">
                           {venta.cuotasPagadas}/{venta.cuotas}
                         </span>
-                      </div>
+                      </div>}
                     </div>
                   )
                 })}
@@ -1130,13 +1192,28 @@ export default function SeguimientoPuntoVenta() {
         </div>
       </div>
 
+      {(errorContado || ventasContado.length < totalContado) && (
+        <div className="mx-6 mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-100 bg-amber-50 px-4 py-3">
+          <p className="text-sm text-amber-900" role={errorContado ? 'alert' : undefined}>
+            {errorContado ? 'No se pudieron cargar todas las ventas de contado.' : `Resumen parcial: ${ventasContado.length} de ${totalContado} ventas de contado cargadas.`}
+          </p>
+          <button type="button" disabled={cargandoContado} onClick={() => cargarVentasContado(paginaContado + 1)} className="text-sm font-semibold text-blue-700 disabled:opacity-50">
+            {cargandoContado ? 'Cargando…' : errorContado ? 'Reintentar' : 'Cargar más ventas de contado'}
+          </button>
+        </div>
+      )}
+
       {/* ── Modal de Detalle ──────────────────────────────────────── */}
       {ventaDetalle && (
         <div
           className="fixed inset-0 capa-modal flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
+          style={{ zIndex: capa }}
           onClick={() => setVentaDetalle(null)}
         >
           <div
+            ref={contenedorRef}
+            {...propsDialogo}
+            aria-labelledby="seguimiento-venta-titulo"
             className="w-full max-w-2xl rounded-3xl bg-white shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[92vh]"
             onClick={(e) => e.stopPropagation()}
           >
@@ -1148,7 +1225,7 @@ export default function SeguimientoPuntoVenta() {
                     <ShoppingBag className="h-5 w-5 text-white" />
                   </div>
                   <div>
-                    <h3 className="font-black text-slate-900 text-base">{ventaDetalle.cliente}</h3>
+                    <h3 id="seguimiento-venta-titulo" className="font-black text-slate-900 text-base">{ventaDetalle.cliente}</h3>
                     <p className="text-xs text-slate-500 font-medium">{ventaDetalle.articulo}</p>
                   </div>
                 </div>
@@ -1159,7 +1236,7 @@ export default function SeguimientoPuntoVenta() {
                     <span
                       className={`w-2 h-2 rounded-full ${estadoCfg(ventaDetalle.estado).dot}`}
                     />
-                    {estadoCfg(ventaDetalle.estado).label}
+                    {ventaDetalle.tipoOperacion === 'CONTADO' ? 'Contado' : estadoCfg(ventaDetalle.estado).label}
                   </span>
                   <button aria-label="Cerrar"
                     onClick={() => setVentaDetalle(null)}
@@ -1208,6 +1285,14 @@ export default function SeguimientoPuntoVenta() {
                 </div>
               </section>
 
+              {ventaDetalle.tipoOperacion === 'CONTADO' ? (
+                <dl className="grid grid-cols-1 gap-3 rounded-lg border border-emerald-100 bg-emerald-50 p-4 sm:grid-cols-2">
+                  <div><dt className="text-sm text-emerald-800">Valor de la venta</dt><dd className="text-lg font-bold text-emerald-950">{formatCurrency(ventaDetalle.montoTotal)}</dd></div>
+                  <div><dt className="text-sm text-emerald-800">Método de pago</dt><dd className="font-semibold text-emerald-950">{etiquetaMetodoVenta(ventaDetalle.metodoPago)}</dd></div>
+                  <div><dt className="text-sm text-emerald-800">Fecha</dt><dd className="font-semibold text-emerald-950">{fmtDate(ventaDetalle.fechaVenta)}</dd></div>
+                  <div><dt className="text-sm text-emerald-800">Vendedor</dt><dd className="font-semibold text-emerald-950">{ventaDetalle.vendedor}</dd></div>
+                </dl>
+              ) : (<>
               {/* Desglose financiero */}
               <section>
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
@@ -1409,6 +1494,8 @@ export default function SeguimientoPuntoVenta() {
                   </div>
                 )}
               </section>
+
+              </>)}
 
               {ventaDetalle.observaciones && (
                 <section>

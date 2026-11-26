@@ -1,7 +1,5 @@
-'use client'
-
-import BackupsSistemaPage from '@/app/admin/sistema/backups/page'
+import { notFound } from 'next/navigation'
 
 export default function PuntoDeVentaBackupsPage() {
-  return <BackupsSistemaPage />
+  notFound()
 }

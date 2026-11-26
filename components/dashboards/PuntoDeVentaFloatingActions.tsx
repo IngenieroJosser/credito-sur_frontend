@@ -8,7 +8,7 @@ import { formatFechaBogota } from '@/lib/format-date'
 
 import { mensajeDeError } from '@/lib/mensaje-de-error'
 import type { CrearCreditoModalData } from '@/lib/creditos/crear-prestamo-payload'
-import type { VentaDeContado } from '@/services/sales-service'
+import { normalizeDateKey } from '@/lib/rutas-core'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ChevronLeft,
@@ -29,7 +29,7 @@ import { toast } from 'sonner'
 import { cn, formatCurrency } from '@/lib/utils'
 import { exportService } from '@/services/export-service'
 import { prestamosService } from '@/services/prestamos-service'
-import { salesService } from '@/services/sales-service'
+import { etiquetaMetodoVenta, nombreArticuloDeVenta, salesService, type VentaDeContado } from '@/services/sales-service'
 import { clientesService, Cliente } from '@/services/clientes-service'
 import {
   buildCrearPrestamoPayload,
@@ -62,6 +62,7 @@ interface VentaReciente {
   tasaInteres: number
   saldoPendiente: number
   tipo: 'CREDITO' | 'CONTADO'
+  metodoPago?: VentaDeContado['metodoPago']
   estado: 'ACTIVO' | 'PENDIENTE' | 'COMPLETADO' | 'PENDIENTE_APROBACION' | 'PAGADO' | 'EN_MORA'
   fecha: string
   fechaPrimerCobro: string
@@ -70,15 +71,7 @@ interface VentaReciente {
   observaciones?: string
 }
 
-/*
- * Cuantos creditos de articulo se piden para el panel de ventas.
- *
- * Eran 20, y el panel pagina de cinco en cinco: quien atiende el punto de venta
- * solo podia ver sus veinte ultimas ventas, con un paginador que decia «4
- * paginas» y ni una palabra de que hubiera mas. `/loans` manda
- * `paginacion.total`, asi que se puede decir.
- */
-const VENTAS_POR_PETICION = 500
+const VENTAS_POR_PETICION = 25
 
 const VENTAS_PER_PAGE = 5
 const CLIENTES_PER_PAGE = 5
@@ -188,7 +181,9 @@ export default function PuntoDeVentaFloatingActions() {
   const [ventasFechaDesde, setVentasFechaDesde] = useState('')
   const [ventasFechaHasta, setVentasFechaHasta] = useState('')
   const [ventasPage, setVentasPage] = useState(1)
-  const [totalVentasServidor, setTotalVentasServidor] = useState<number | null>(null)
+  const [loteVentas, setLoteVentas] = useState(0)
+  const [totalVentasServidor, setTotalVentasServidor] = useState(0)
+  const [errorVentas, setErrorVentas] = useState<string | null>(null)
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [loadingClientes, setLoadingClientes] = useState(false)
   const [clientesSearch, setClientesSearch] = useState('')
@@ -207,19 +202,25 @@ export default function PuntoDeVentaFloatingActions() {
     }
   }, [])
 
-  const fetchVentasRecientes = useCallback(async () => {
+  const fetchVentasRecientes = useCallback(async (pagina = 1) => {
     setLoadingVentas(true)
-    setVentasPage(1)
-    setVentasSearch('')
-    setVentasFechaDesde('')
-    setVentasFechaHasta('')
+    setErrorVentas(null)
+    if (pagina === 1) {
+      setLoteVentas(0)
+      setVentasRecientes([])
+      setTotalVentasServidor(0)
+      setVentasPage(1)
+      setVentasSearch('')
+      setVentasFechaDesde('')
+      setVentasFechaHasta('')
+    }
     try {
       const [creditosData, ventasContadoData] = await Promise.all([
-        prestamosService.obtenerPrestamos({ tipo: 'ARTICULO', limit: VENTAS_POR_PETICION }),
-        salesService.obtenerVentasContado().catch(() => []),
+        prestamosService.obtenerPrestamos({ tipo: 'ARTICULO', page: pagina, limit: VENTAS_POR_PETICION }),
+        salesService.obtenerVentasContado({ pagina, limite: VENTAS_POR_PETICION }),
       ])
 
-      setTotalVentasServidor(creditosData?.paginacion?.total ?? null)
+      setTotalVentasServidor((creditosData.paginacion?.total ?? 0) + ventasContadoData.paginacion.total)
 
       const soloArticulos = (creditosData?.prestamos || [])
         .filter((c: CreditoDeArticulo) => {
@@ -253,18 +254,14 @@ export default function PuntoDeVentaFloatingActions() {
           observaciones: c.observaciones || undefined,
         }))
 
-      const ventasContado = (ventasContadoData || []).map((v: VentaDeContado) => ({
+      const ventasContado = ventasContadoData.ventas.map((v) => ({
         id: v.id,
-        cliente: 'Cliente contado',
-        clienteId: undefined,
-        clienteDni: undefined,
-        clienteTelefono: undefined,
-        articulo:
-          v.descripcion?.replace(/^Venta de contado\s+(EFECTIVO|TRANSFERENCIA):\s*/i, '')?.trim() ||
-          'Venta contado',
-        // La venta de contado puede traer el monto como texto: se convierte, que es lo
-        // que el destino declara.
-        monto: Number(v.monto || 0),
+        cliente: v.cliente || 'Cliente no informado',
+        clienteId: v.clienteId ?? undefined,
+        clienteDni: v.clienteDni ?? undefined,
+        clienteTelefono: v.clienteTelefono ?? undefined,
+        articulo: nombreArticuloDeVenta(v),
+        monto: v.monto,
         cuotaInicial: 0,
         cuotas: 0,
         cuotasPagadas: 0,
@@ -273,20 +270,22 @@ export default function PuntoDeVentaFloatingActions() {
         tasaInteres: 0,
         saldoPendiente: 0,
         tipo: 'CONTADO' as const,
+        metodoPago: v.metodoPago,
         estado: 'COMPLETADO' as const,
-        fecha: v.fecha || '',
-        fechaPrimerCobro: v.fecha || '',
-        vendedor: v.vendedor || 'Sin asignar',
-        observaciones: undefined,
+        fecha: v.fecha,
+        fechaPrimerCobro: '',
+        vendedor: v.vendedor || 'Vendedor no informado',
+        observaciones: v.notas ?? undefined,
       }))
 
-      const todasLasVentas = [...soloArticulos, ...ventasContado]
-        .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
-        .slice(0, 20)
-
-      setVentasRecientes(todasLasVentas)
-    } catch {
-      setVentasRecientes([])
+      setVentasRecientes((anteriores) => {
+        const ventas = new Map((pagina === 1 ? [] : anteriores).map((venta) => [venta.id, venta]))
+        for (const venta of [...soloArticulos, ...ventasContado]) ventas.set(venta.id, venta)
+        return [...ventas.values()].sort((a, b) => Date.parse(b.fecha) - Date.parse(a.fecha))
+      })
+      setLoteVentas(pagina)
+    } catch (error) {
+      setErrorVentas(mensajeDeError(error, 'No se pudieron cargar las ventas.'))
     } finally {
       setLoadingVentas(false)
     }
@@ -316,8 +315,8 @@ export default function PuntoDeVentaFloatingActions() {
           v.id.toLowerCase().includes(q),
       )
     }
-    if (ventasFechaDesde) result = result.filter((v) => v.fecha >= ventasFechaDesde)
-    if (ventasFechaHasta) result = result.filter((v) => v.fecha <= `${ventasFechaHasta}T23:59:59`)
+    if (ventasFechaDesde) result = result.filter((v) => normalizeDateKey(v.fecha) >= ventasFechaDesde)
+    if (ventasFechaHasta) result = result.filter((v) => normalizeDateKey(v.fecha) <= ventasFechaHasta)
     return result
   }, [ventasRecientes, ventasSearch, ventasFechaDesde, ventasFechaHasta])
 
@@ -350,22 +349,25 @@ export default function PuntoDeVentaFloatingActions() {
       const esContado = Boolean(data.ventaContado)
       const isArticulo = data.creditType === 'articulo'
       let prestamo = null
+      let pendienteSincronizar = false
 
       if (esContado) {
         const payload = buildVentaContadoPayload(data, userSession?.id)
-        await salesService.registrarVentaContado(payload)
+        const venta = await salesService.registrarVentaContado(payload)
+        pendienteSincronizar = venta.numeroTransaccion === 'OFFLINE'
       } else {
         const payload = buildCrearPrestamoPayload(data, userSession?.id)
         prestamo = await prestamosService.crearPrestamo(payload)
+        pendienteSincronizar = Boolean(prestamo?.esOffline || prestamo?.id?.startsWith('temp-loan-'))
       }
 
-      toast.success(esContado ? 'Venta registrada' : 'Crédito creado', {
-        description: esContado
-          ? 'La venta de contado ha sido registrada exitosamente.'
-          : 'El crédito ha sido registrado exitosamente.',
-      })
+      if (pendienteSincronizar) {
+        toast.info(esContado ? 'Venta pendiente de sincronizar' : 'Crédito pendiente de sincronizar')
+      } else {
+        toast.success(esContado ? 'Venta registrada' : 'Crédito creado')
+      }
       setShowCreditoModal(false)
-      if (isArticulo && !esContado && prestamo?.id) {
+      if (isArticulo && !esContado && prestamo?.id && !pendienteSincronizar) {
         try {
           await exportService.exportContrato(prestamo.id)
         } catch (error) {
@@ -654,7 +656,7 @@ export default function PuntoDeVentaFloatingActions() {
                     Ventas Recientes
                   </h3>
                   <p className="text-xs text-slate-500 mt-1 ml-10">
-                    Historial de créditos de artículos del punto de venta
+                    Ventas de contado y créditos de artículos
                   </p>
                 </div>
                 <button aria-label="Cerrar"
@@ -785,6 +787,15 @@ export default function PuntoDeVentaFloatingActions() {
                 </div>
               )}
             </div>
+            {errorVentas && <p role="alert" className="px-6 py-2 text-sm text-rose-700">{errorVentas}</p>}
+            {(errorVentas || ventasRecientes.length < totalVentasServidor) && (
+              <div className="px-6 py-2 flex items-center justify-between gap-2 border-t border-slate-100">
+                {totalVentasServidor > 0 && <p className="text-xs text-slate-500">{ventasRecientes.length} de {totalVentasServidor} ventas cargadas</p>}
+                <button type="button" disabled={loadingVentas} onClick={() => fetchVentasRecientes(loteVentas + 1)} className="ml-auto text-sm font-semibold text-blue-700 disabled:opacity-50">
+                  {errorVentas ? 'Reintentar' : 'Cargar más ventas'}
+                </button>
+              </div>
+            )}
             {ventasFiltradas.length > 0 && (
               <div className="px-6 py-3 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between flex-shrink-0">
                 <span className="text-[10px] text-slate-400 font-medium">
@@ -802,16 +813,6 @@ export default function PuntoDeVentaFloatingActions() {
                   </button>
                   <span className="text-xs font-bold text-slate-700 px-2">
                     {ventasPage} / {ventasTotalPages}
-                    {/*
-                      * Si el servidor tiene mas ventas de las que se pidieron,
-                      * se dice: el panel no puede dar a entender que eso es
-                      * todo lo que hay.
-                      */}
-                    {(totalVentasServidor ?? 0) > VENTAS_POR_PETICION && (
-                      <span className="ml-1 font-bold text-amber-600">
-                        (de {totalVentasServidor})
-                      </span>
-                    )}
                   </span>
                   <button aria-label="Página siguiente"
                     onClick={() => setVentasPage((p) => Math.min(ventasTotalPages, p + 1))}
@@ -871,17 +872,17 @@ export default function PuntoDeVentaFloatingActions() {
                   </p>
                 </div>
                 <div>
-                  <p className="text-[10px] uppercase font-black text-slate-400">Saldo</p>
+                  <p className="text-[10px] uppercase font-black text-slate-400">{showVentaDetalle.tipo === 'CONTADO' ? 'Método de pago' : 'Saldo'}</p>
                   <p className="font-black text-slate-900">
-                    {formatCurrency(showVentaDetalle.saldoPendiente)}
+                    {showVentaDetalle.tipo === 'CONTADO' ? etiquetaMetodoVenta(showVentaDetalle.metodoPago) : formatCurrency(showVentaDetalle.saldoPendiente)}
                   </p>
                 </div>
-                <div>
+                {showVentaDetalle.tipo === 'CREDITO' && <div>
                   <p className="text-[10px] uppercase font-black text-slate-400">Cuotas</p>
                   <p className="font-black text-slate-900">
                     {showVentaDetalle.cuotasPagadas}/{showVentaDetalle.cuotas}
                   </p>
-                </div>
+                </div>}
                 <div>
                   <p className="text-[10px] uppercase font-black text-slate-400">Estado</p>
                   <p className="font-black text-slate-900">

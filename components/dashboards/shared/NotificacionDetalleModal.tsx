@@ -2004,7 +2004,7 @@ export default function NotificacionDetalleModal({
                     <p className="text-[10px] font-black text-emerald-600 uppercase mb-2">
                       Motivo de la Solicitud
                     </p>
-                    <p className="text-xs text-slate-700 font-medium leading-relaxed italic border-l-4 border-emerald-400 pl-3 py-1">
+                    <p className="rounded-md bg-emerald-50 p-3 text-xs text-slate-700 font-medium leading-relaxed italic">
                       {editedDetails?.motivo ||
                         editedDetails?.descripcion ||
                         safeMeta?.descripcion ||
@@ -2077,7 +2077,7 @@ export default function NotificacionDetalleModal({
                     />
                   </div>
                   {(editedDetails?.notas || safeMeta?.notas) && (
-                    <p className="border-l-4 border-blue-300 pl-3 text-xs font-medium text-slate-700">
+                    <p className="rounded-md bg-blue-50 p-3 text-xs font-medium text-slate-700">
                       {String(editedDetails?.notas || safeMeta?.notas)}
                     </p>
                   )}
@@ -2129,7 +2129,7 @@ export default function NotificacionDetalleModal({
                     <p className="text-[10px] font-black text-orange-600 uppercase mb-2">
                       Descripción del Gasto
                     </p>
-                    <p className="text-xs text-slate-700 font-medium leading-relaxed italic border-l-4 border-orange-400 pl-3 py-1">
+                    <p className="rounded-md bg-orange-50 p-3 text-xs text-slate-700 font-medium leading-relaxed italic">
                       {editedDetails?.descripcion || safeMeta?.descripcion || mensaje}
                     </p>
                   </div>

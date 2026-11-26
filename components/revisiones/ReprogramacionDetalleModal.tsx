@@ -310,7 +310,7 @@ export default function ReprogramacionDetalleModal({
             <MessageSquare className="h-4 w-4 text-slate-400" />
             <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Motivo</p>
           </div>
-          <p className="text-sm text-slate-700 font-medium leading-relaxed border-l-4 border-slate-300 pl-3">
+          <p className="rounded-md bg-slate-50 p-3 text-sm text-slate-700 font-medium leading-relaxed">
             {data.motivo}
           </p>
         </div>

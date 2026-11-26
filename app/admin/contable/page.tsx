@@ -2700,7 +2700,7 @@ const ModuloContableContent = () => {
                         </div>
 
                         {/* Utilidad Neta */}
-                        <div className="pt-2 border-t-2 border-indigo-300 flex items-center justify-between">
+                        <div className="pt-2 border-t border-slate-200 flex items-center justify-between">
                           <div className="text-sm font-black text-indigo-900">UTILIDAD NETA</div>
                           <MoneyAmount value={resumenUtilidadModal.totalUtilidad} amountClassName="text-sm font-black text-indigo-900" />
                         </div>
@@ -2919,8 +2919,7 @@ const ModuloContableContent = () => {
                               }
                               
                               return (
-                                <div key={m.id} className={cn('rounded-lg border border-l-4 border-slate-200 bg-white p-3 sm:p-4',
-                                  isPositivo ? 'border-l-emerald-300' : 'border-l-rose-300')}>
+                                <div key={m.id} className="rounded-lg border border-slate-200 bg-white p-3 sm:p-4">
                                   <div className="mb-3 flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
                                     <div className="flex min-w-0 items-start gap-2">
                                       <div className={cn(

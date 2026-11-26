@@ -68,6 +68,7 @@ export interface CuentaDeLaPersona {
 export type ClaveDeCifra =
   | 'pagosRegistrados'
   | 'creditosCreados'
+  | 'ventasContado'
   | 'creditosAprobados'
   | 'clientesCreados'
   | 'gastosRegistrados'
