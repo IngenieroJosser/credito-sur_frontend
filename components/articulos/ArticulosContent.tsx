@@ -1,4 +1,5 @@
 'use client'
+import { SkeletonTablero } from '@/components/ui/Skeleton'
 import { mensajeDeError } from '@/lib/mensaje-de-error'
 
 import Paginador from '@/components/ui/Paginador'
@@ -59,7 +60,6 @@ import { useNotificaciones } from '@/components/providers/NotificacionesProvider
 import { categoriasService, Categoria } from '@/services/categorias-service'
 import FieldLabel from '@/components/ui/FieldLabel'
 import SelectCategoria from '@/components/ui/SelectCategoria'
-import AnimacionCarga from '@/components/ui/AnimacionCarga'
 import { usePermission } from '@/hooks/usePermission'
 import { useRouter } from 'next/navigation'
 import IngresoMercanciaModal from '@/components/articulos/IngresoMercanciaModal'
@@ -527,7 +527,12 @@ export default function ArticulosContent() {
   }
 
   if (loading) {
-    return <AnimacionCarga texto={esReadOnly ? 'Cargando catálogo...' : 'Cargando inventario...'} />
+    // El esqueleto mantiene el sitio en vez de tapar la pantalla entera.
+    return (
+      <div className="min-h-screen bg-slate-50 p-4 sm:p-6">
+        <SkeletonTablero indicadores={4} />
+      </div>
+    )
   }
 
   return (

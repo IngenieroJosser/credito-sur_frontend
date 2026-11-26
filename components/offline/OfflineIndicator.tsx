@@ -123,118 +123,129 @@ export default function OfflineIndicator() {
     };
   }, []);
 
+/**
+ * El aspecto de cada estado, en el lenguaje del resto del sistema.
+ *
+ * ── Lo que habia ───────────────────────────────────────────────────────────
+ *
+ * Seis estados, y cada uno con TRECE clases escritas a mano: `panelTint`,
+ * `halo`, `ring`, `border`, `chip`, `iconText`, `titleText`,
+ * `descriptionText`, `metricText`... La capsula se dibujaba con cristal
+ * esmerilado -`backdrop-blur-[42px]`, `saturate-2.2`-, tres halos borrosos,
+ * doble borde, esquinas de 2rem y sombras de 90 px, encima de una interfaz
+ * que es blanca y plana.
+ *
+ * El dueño lo dijo corto: «me parece feo la verdad». Y ademas del aspecto
+ * traia dos problemas: el texto quedaba sobre un panel translucido, asi que
+ * su contraste dependia de lo que hubiera detras; y setenta y ocho clases de
+ * color escritas a mano divergen solas, que es lo que ya paso con los
+ * distintivos de riesgo.
+ *
+ * ── Lo que hay ahora ───────────────────────────────────────────────────────
+ *
+ * Una tarjeta solida, como `PanelDeError` o `AvisoActualizando`: fondo
+ * blanco, un borde de 1 px, sombra corta y UN color por estado, el del punto
+ * y el del distintivo. Cuatro campos en vez de trece.
+ */
+const TONOS = {
+  sinConexion: {
+    punto: 'bg-slate-400',
+    chip: 'bg-slate-100 text-slate-700 border-slate-200',
+    icono: 'text-slate-500',
+    borde: 'border-slate-200',
+  },
+  servidor: {
+    punto: 'bg-amber-500',
+    chip: 'bg-amber-50 text-amber-800 border-amber-200',
+    icono: 'text-amber-600',
+    borde: 'border-amber-200',
+  },
+  error: {
+    punto: 'bg-rose-500',
+    chip: 'bg-rose-50 text-rose-800 border-rose-200',
+    icono: 'text-rose-600',
+    borde: 'border-rose-200',
+  },
+  sincronizando: {
+    punto: 'bg-sky-500',
+    chip: 'bg-sky-50 text-sky-800 border-sky-200',
+    icono: 'text-sky-600',
+    borde: 'border-sky-200',
+  },
+  pendiente: {
+    punto: 'bg-amber-500',
+    chip: 'bg-amber-50 text-amber-800 border-amber-200',
+    icono: 'text-amber-600',
+    borde: 'border-amber-200',
+  },
+  estable: {
+    punto: 'bg-emerald-500',
+    chip: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+    icono: 'text-emerald-600',
+    borde: 'border-emerald-200',
+  },
+} as const
+
   const syncTone = useMemo(() => {
     if (!browserOnline) {
       return {
+        ...TONOS.sinConexion,
         label: 'Sin conexión',
         shortLabel: 'Offline',
-        description: 'Los cambios se guardarán localmente hasta recuperar conexión.',
+        description:
+          'Los cambios se guardarán localmente hasta recuperar conexión.',
         icon: WifiOff,
-        dot: 'bg-slate-300',
-        iconText: 'text-slate-100',
-        titleText: 'text-slate-950',
-        descriptionText: 'text-slate-700',
-        panelTint: 'from-slate-500/[0.24] via-white/[0.12] to-slate-900/[0.10]',
-        halo: 'bg-slate-400/30',
-        border: 'border-slate-300/40',
-        ring: 'ring-slate-300/30',
-        chip: 'border-slate-300/45 bg-slate-900/[0.18] text-slate-900',
-        metricText: 'text-slate-900',
-      };
+      }
     }
 
     if (browserOnline && !backendReachable) {
       return {
+        ...TONOS.servidor,
         label: 'Servidor no disponible',
-        shortLabel: 'Backend',
-        description: 'Tienes conexión, pero el servidor no respondió.',
+        shortLabel: 'Sin respuesta',
+        description:
+          'Tienes conexión, pero el servidor no respondió. Lo que hagas se guarda aquí y sube solo.',
         icon: AlertTriangle,
-        dot: 'bg-orange-500',
-        iconText: 'text-orange-500',
-        titleText: 'text-orange-950',
-        descriptionText: 'text-orange-800',
-        panelTint: 'from-orange-500/[0.26] via-white/[0.13] to-orange-900/[0.10]',
-        halo: 'bg-orange-400/35',
-        border: 'border-orange-300/45',
-        ring: 'ring-orange-300/35',
-        chip: 'border-orange-300/50 bg-orange-500/[0.18] text-orange-950',
-        metricText: 'text-orange-950',
-      };
+      }
     }
 
     if (failedOps > 0) {
       return {
+        ...TONOS.error,
         label: 'Sincronización con errores',
-        shortLabel: 'Error de sync',
+        shortLabel: 'Con errores',
         description: `${failedOps} operación${failedOps === 1 ? '' : 'es'} requiere${failedOps === 1 ? '' : 'n'} atención.`,
         icon: AlertTriangle,
-        dot: 'bg-rose-500',
-        iconText: 'text-rose-500',
-        titleText: 'text-rose-950',
-        descriptionText: 'text-rose-800',
-        panelTint: 'from-rose-500/[0.26] via-white/[0.13] to-rose-900/[0.10]',
-        halo: 'bg-rose-400/35',
-        border: 'border-rose-300/45',
-        ring: 'ring-rose-300/35',
-        chip: 'border-rose-300/50 bg-rose-500/[0.18] text-rose-950',
-        metricText: 'text-rose-950',
-      };
+      }
     }
 
     if (isSyncingVisible) {
       return {
+        ...TONOS.sincronizando,
         label: 'Sincronizando',
-        shortLabel: 'Sync activo',
+        shortLabel: 'Enviando',
         description: 'Estamos enviando los cambios pendientes.',
         icon: RefreshCw,
-        dot: 'bg-sky-500',
-        iconText: 'text-sky-500',
-        titleText: 'text-sky-950',
-        descriptionText: 'text-sky-800',
-        panelTint: 'from-sky-500/[0.26] via-white/[0.13] to-blue-900/[0.10]',
-        halo: 'bg-sky-400/35',
-        border: 'border-sky-300/45',
-        ring: 'ring-sky-300/35',
-        chip: 'border-sky-300/50 bg-sky-500/[0.18] text-sky-950',
-        metricText: 'text-sky-950',
-      };
+      }
     }
 
     if (pendingOps > 0 || activeManualActivities.length > 0) {
       return {
+        ...TONOS.pendiente,
         label: 'Cambios pendientes',
         shortLabel: `${pendingOps + activeManualActivities.length} pendientes`,
         description: 'Hay operaciones guardadas para sincronizar.',
         icon: CloudUpload,
-        dot: 'bg-amber-500',
-        iconText: 'text-amber-500',
-        titleText: 'text-amber-950',
-        descriptionText: 'text-amber-800',
-        panelTint: 'from-amber-500/[0.28] via-white/[0.13] to-orange-900/[0.10]',
-        halo: 'bg-amber-400/35',
-        border: 'border-amber-300/50',
-        ring: 'ring-amber-300/35',
-        chip: 'border-amber-300/50 bg-amber-500/[0.20] text-amber-950',
-        metricText: 'text-amber-950',
-      };
+      }
     }
 
     return {
-      label: 'Sincronización estable',
-      shortLabel: 'Sistema estable',
-      description: 'Todos los datos están al día.',
+      ...TONOS.estable,
+      label: 'Todo al día',
+      shortLabel: 'Al día',
+      description: 'No queda nada por sincronizar.',
       icon: CheckCircle,
-      dot: 'bg-emerald-500',
-      iconText: 'text-emerald-500',
-      titleText: 'text-emerald-950',
-      descriptionText: 'text-emerald-800',
-      panelTint: 'from-emerald-500/[0.26] via-white/[0.13] to-teal-900/[0.10]',
-      halo: 'bg-emerald-400/35',
-      border: 'border-emerald-300/45',
-      ring: 'ring-emerald-300/35',
-      chip: 'border-emerald-300/50 bg-emerald-500/[0.18] text-emerald-950',
-      metricText: 'text-emerald-950',
-    };
+    }
   }, [
     browserOnline,
     backendReachable,
@@ -386,34 +397,30 @@ export default function OfflineIndicator() {
 
         {/* Panel expandido */}
         {expanded && (
-          <div className={`relative mb-2 overflow-hidden rounded-[2rem] border ${syncTone.border} bg-white/[0.08] shadow-[0_28px_90px_rgba(15,23,42,0.24)] ring-1 ${syncTone.ring} backdrop-blur-[42px] backdrop-saturate-[2.2] animate-in fade-in slide-in-from-top-3 duration-300 pointer-events-auto`}>
-            <div className={`pointer-events-none absolute inset-0 rounded-[2rem] bg-gradient-to-br ${syncTone.panelTint}`} />
-            <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/95 to-transparent" />
-            <div className={`pointer-events-none absolute -top-20 left-8 h-44 w-44 rounded-full ${syncTone.halo} blur-3xl`} />
-            <div className={`pointer-events-none absolute -right-10 -top-10 h-44 w-44 rounded-full ${syncTone.halo} blur-3xl`} />
-            <div className="pointer-events-none absolute inset-[1px] rounded-[calc(2rem-1px)] border border-white/25" />
-
-            <div className="relative z-10 p-4">
+          <div
+            className={`pointer-events-auto mb-2 overflow-hidden rounded-2xl border bg-white shadow-lg ring-1 ring-slate-900/5 animate-in fade-in slide-in-from-top-2 duration-200 motion-reduce:animate-none ${syncTone.borde}`}
+          >
+            <div className="p-4">
               <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                 <div className="flex min-w-0 items-start gap-3">
-                  <div className={`relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/20 bg-white/[0.10] shadow-lg ${syncTone.halo}`}>
-                    <div className={`absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full ${syncTone.dot} shadow-[0_0_18px_currentColor]`} />
-                    <StatusIcon className={`h-5 w-5 ${syncTone.iconText} ${isSyncingVisible ? 'animate-spin' : ''}`} />
+                  <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-50 ring-1 ring-slate-200">
+                    <span className={`absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-white ${syncTone.punto}`} />
+                    <StatusIcon className={`h-5 w-5 ${syncTone.icono} ${isSyncingVisible ? 'animate-spin motion-reduce:animate-none' : ''}`} />
                   </div>
 
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h3 className={`text-sm font-black ${syncTone.titleText}`}>
+                      <h3 className="text-sm font-bold text-slate-900">
                         Estado del sistema
                       </h3>
 
-                      <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-black uppercase tracking-wide ${syncTone.chip}`}>
-                        <span className={`h-1.5 w-1.5 rounded-full ${syncTone.dot} shadow-[0_0_14px_currentColor]`} />
+                      <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${syncTone.chip}`}>
+                        <span className={`h-1.5 w-1.5 rounded-full ${syncTone.punto}`} />
                         {syncTone.shortLabel}
                       </span>
                     </div>
 
-                    <p className={`mt-1 text-xs font-semibold ${syncTone.descriptionText}`}>
+                    <p className="mt-1 text-xs font-medium text-slate-600">
                       {syncTone.description}
                       {/* Que significa trabajar sin conexion, una vez y no en
                           cada mensaje de estado. */}
@@ -461,104 +468,73 @@ export default function OfflineIndicator() {
                 </div>
               )}
 
-              <div className="mt-4 grid grid-cols-4 gap-2">
-                <div className={`rounded-2xl border ${syncTone.border} bg-white/[0.10] px-3 py-2.5`}>
-                  <p className="text-[10px] font-black uppercase tracking-wide text-slate-600">
-                    Pendientes
-                    <AyudaContextual
-                      ayuda="pendienteDeEnviar"
-                      de="lo que está pendiente de enviar"
-                      tamano="pequeno"
-                    />
-                  </p>
-                  <p className={`mt-1 text-lg font-black ${syncTone.metricText}`}>
-                    {pendingOps}
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-sky-300/45 bg-sky-500/[0.10] px-3 py-2.5">
-                  <p className="text-[10px] font-black uppercase tracking-wide text-sky-700">
-                    Sync
-                  </p>
-                  <p className="mt-1 text-lg font-black text-sky-700">
-                    {syncingOps}
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-rose-300/45 bg-rose-500/[0.10] px-3 py-2.5">
-                  <p className="text-[10px] font-black uppercase tracking-wide text-rose-700">
-                    Fallidos
-                  </p>
-                  <p className="mt-1 text-lg font-black text-rose-700">
-                    {failedOps}
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-amber-300/45 bg-amber-500/[0.10] px-3 py-2.5">
-                  <p className="text-[10px] font-black uppercase tracking-wide text-amber-700">
-                    Manuales
-                  </p>
-                  <p className="mt-1 text-lg font-black text-amber-700">
-                    {activeManualActivities.length}
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-4 max-h-56 space-y-2 overflow-y-auto pr-1 custom-scrollbar">
-                {visibleQueueItems.length === 0 ? (
-                  <div className="rounded-2xl border border-white/20 bg-white/[0.08] px-4 py-5 text-center">
-                    <p className="text-xs font-bold text-slate-600">
-                      No hay operaciones en cola
+              {/*
+                Las cuatro cifras, planas y con el mismo peso.
+                
+                Antes cada una traia su propio fondo translucido y su borde de
+                color, asi que competian entre si y con el titulo. Lo que
+                importa de estas cifras es un cero o un numero: el color
+                sobra, salvo en «Fallidos», que es lo unico que pide actuar.
+              */}
+              <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {[
+                  {
+                    etiqueta: 'Pendientes',
+                    valor: pendingOps,
+                    ayuda: 'pendienteDeEnviar' as const,
+                    de: 'lo que está pendiente de enviar',
+                    alerta: false,
+                  },
+                  {
+                    etiqueta: 'Enviando',
+                    valor: syncingOps,
+                    ayuda: undefined,
+                    de: undefined,
+                    alerta: false,
+                  },
+                  {
+                    etiqueta: 'Fallidos',
+                    valor: failedOps,
+                    // No hay ayuda escrita para esto todavia.
+                    ayuda: undefined,
+                    de: undefined,
+                    alerta: failedOps > 0,
+                  },
+                  {
+                    etiqueta: 'Manuales',
+                    valor: activeManualActivities.length,
+                    ayuda: undefined,
+                    de: undefined,
+                    alerta: false,
+                  },
+                ].map((m) => (
+                  <div
+                    key={m.etiqueta}
+                    className={`rounded-xl border px-3 py-2.5 ${
+                      m.alerta
+                        ? 'border-rose-200 bg-rose-50'
+                        : 'border-slate-200 bg-slate-50'
+                    }`}
+                  >
+                    <p className="flex items-center text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                      {m.etiqueta}
+                      {m.ayuda && (
+                        <AyudaContextual
+                          ayuda={m.ayuda}
+                          de={m.de}
+                          tamano="pequeno"
+                        />
+                      )}
+                    </p>
+                    <p
+                      className={`mt-1 text-lg font-bold tabular-nums ${
+                        m.alerta ? 'text-rose-700' : 'text-slate-900'
+                      }`}
+                    >
+                      {m.valor}
                     </p>
                   </div>
-                ) : (
-                  visibleQueueItems.slice(0, 8).map((item) => (
-                    <div
-                      key={item.id}
-                      className="rounded-2xl border border-white/20 bg-white/[0.09] px-3 py-2.5"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex min-w-0 items-start gap-2">
-                          {item.status === 'completed' ? (
-                            <CheckCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
-                          ) : item.status === 'failed' ? (
-                            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-rose-500" />
-                          ) : item.status === 'syncing' ? (
-                            <RefreshCw className="mt-0.5 h-3.5 w-3.5 shrink-0 animate-spin text-sky-500" />
-                          ) : (
-                            <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
-                          )}
-
-                          <div className="min-w-0">
-                            <p className="truncate text-xs font-bold text-slate-800">
-                              {item.description}
-                            </p>
-
-                            {/* `lastError` solo lo tienen los items de la cola: una
-                                actividad efimera no falla, se registra ya completada. */}
-                            {'lastError' in item && item.lastError && (
-                              <p className="mt-1 line-clamp-2 rounded-xl border border-rose-200/30 bg-rose-400/[0.08] px-2 py-1 text-[10px] font-medium text-rose-700">
-                                {item.lastError}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-
-                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wide ${
-                          item.status === 'pending'
-                            ? 'bg-amber-400/10 text-amber-700'
-                            : item.status === 'syncing'
-                              ? 'bg-sky-400/10 text-sky-700'
-                              : item.status === 'completed'
-                                ? 'bg-emerald-400/10 text-emerald-700'
-                                : 'bg-rose-400/10 text-rose-700'
-                        }`}>
-                          {item.status}
-                        </span>
-                      </div>
-                    </div>
-                  ))
-                )}
+                ))}
               </div>
 
               {(shouldShowSyncAction || shouldShowClearAction) && (
@@ -597,35 +573,47 @@ export default function OfflineIndicator() {
           </div>
         )}
 
-        {/* Cápsula colapsada */}
+        {/*
+          La capsula: solida, compacta y legible.
+
+          Era cristal esmerilado con `backdrop-blur-[42px]`, un halo borroso,
+          una linea de brillo y una sombra de 55 px. Sobre una interfaz blanca
+          y plana se veia sucia, y el texto quedaba sobre un fondo translucido
+          -o sea que su contraste dependia de lo que hubiera detras-.
+        */}
         <button
           type="button"
           onClick={handleExpand}
-          className={`pointer-events-auto relative mx-auto flex max-w-[min(94vw,28rem)] items-center gap-2 overflow-hidden rounded-full border ${syncTone.border} bg-white/[0.08] px-3.5 py-2.5 shadow-[0_18px_55px_rgba(15,23,42,0.22)] ring-1 ${syncTone.ring} backdrop-blur-[42px] backdrop-saturate-[2.2] transition-all duration-300 hover:scale-[1.015] hover:bg-white/[0.14] active:scale-[0.99]`}
-          aria-label={expanded ? 'Ocultar estado del sistema' : 'Mostrar estado del sistema'}
+          aria-expanded={expanded}
+          className={`pointer-events-auto mx-auto flex max-w-[min(94vw,28rem)] items-center gap-2 rounded-full border bg-white px-3.5 py-2 shadow-md ring-1 ring-slate-900/5 transition-colors duration-150 ease-out hover:bg-slate-50 motion-reduce:transition-none focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${syncTone.borde}`}
+          aria-label={
+            expanded ? 'Ocultar estado del sistema' : 'Mostrar estado del sistema'
+          }
         >
-          <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${syncTone.panelTint}`} />
-          <div className="pointer-events-none absolute inset-x-5 top-0 h-px bg-gradient-to-r from-transparent via-white/95 to-transparent" />
-          <div className={`pointer-events-none absolute -right-6 -top-10 h-24 w-24 rounded-full ${syncTone.halo} blur-2xl`} />
+          <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${syncTone.punto}`} />
 
-          <span className={`relative z-10 h-2.5 w-2.5 rounded-full ${syncTone.dot} shadow-[0_0_16px_currentColor]`} />
+          <StatusIcon
+            className={`h-4 w-4 shrink-0 ${syncTone.icono} ${
+              isSyncingVisible ? 'animate-spin motion-reduce:animate-none' : ''
+            }`}
+          />
 
-          <StatusIcon className={`relative z-10 h-4 w-4 ${syncTone.iconText} ${isSyncingVisible ? 'animate-spin' : ''}`} />
-
-          <span className={`relative z-10 max-w-[210px] truncate text-xs font-black ${syncTone.titleText}`}>
+          <span className="max-w-[210px] truncate text-xs font-bold text-slate-800">
             {syncTone.label}
           </span>
 
           {actionableOps > 0 && (
-            <span className={`relative z-10 rounded-full border px-2 py-0.5 text-[10px] font-black ${syncTone.chip}`}>
+            <span
+              className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold tabular-nums ${syncTone.chip}`}
+            >
               {actionableOps}
             </span>
           )}
 
           {expanded ? (
-            <ChevronUp className={`relative z-10 h-4 w-4 ${syncTone.iconText}`} />
+            <ChevronUp className="h-4 w-4 shrink-0 text-slate-400" />
           ) : (
-            <ChevronDown className={`relative z-10 h-4 w-4 ${syncTone.iconText}`} />
+            <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
           )}
         </button>
       </div>

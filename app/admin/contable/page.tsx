@@ -1,4 +1,5 @@
 'use client'
+import { SkeletonTablero } from '@/components/ui/Skeleton'
 import { formatFechaBogota, formatHoraBogota } from '@/lib/format-date'
 import { mensajeDeError } from '@/lib/mensaje-de-error'
 import { logger } from '@/lib/logger'
@@ -86,7 +87,6 @@ import { toast } from 'sonner'
 import { rutasService, type Ruta as ApiRuta } from '@/services/rutas-service'
 import { exportService } from '@/services/export-service'
 import { categoriasPorTipo, mensajeEfectoMovimiento } from '@/lib/contable/categorias-movimiento'
-import AnimacionCarga from '@/components/ui/AnimacionCarga'
 import Link from 'next/link'
 import DeudorasCobradorCard from '@/components/contable/DeudorasCobradorCard'
 import FieldLabel from '@/components/ui/FieldLabel'
@@ -1268,7 +1268,19 @@ const ModuloContableContent = () => {
 
 
   if (isLoading) {
-    return <AnimacionCarga texto="Cargando módulo contable..." />
+    /*
+     * Esqueleto, no spinner a pantalla completa.
+     *
+     * `AnimacionCarga` tapaba la pantalla entera y, al terminar, todo
+     * aparecia de golpe: no se sabia que se estaba cargando ni cuanto
+     * ocupaba. El esqueleto mantiene el sitio -titulo, las cifras de arriba y
+     * la tabla- asi que la pagina no da el salto al llegar los datos.
+     */
+    return (
+      <div className="min-h-screen bg-slate-50 p-4 sm:p-6">
+        <SkeletonTablero indicadores={4} />
+      </div>
+    )
   }
 
   return (

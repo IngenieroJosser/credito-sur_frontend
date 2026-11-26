@@ -114,8 +114,20 @@ describe('las ayudas salen de un solo sitio', () => {
       archivosTsx(path.join(RAIZ, c)).map((a) => fs.readFileSync(a, 'utf8')),
     ).join('\n')
 
+    /*
+     * Dos formas de pasarla, y las dos cuentan como uso.
+     *
+     * Esto solo reconocia el atributo de JSX —`ayuda="clave"`—, asi que el
+     * dia que una pantalla paso sus ayudas por un objeto de datos
+     * (`{ ayuda: 'pendienteDeEnviar' }`, y luego `ayuda={m.ayuda}`), la
+     * prueba acuso a esa clave de no usarse. Estaba usandose.
+     *
+     * Una centinela que pide quitar algo que SI se usa es peor que no
+     * tenerla: la siguiente persona la cree y borra la ayuda.
+     */
     const sinUsar = Object.keys(TEXTOS_DE_AYUDA).filter(
-      (clave) => !new RegExp(`ayuda=["']${clave}["']`).test(texto),
+      (clave) =>
+        !new RegExp(`ayuda\\s*[=:]\\s*["']${clave}["']`).test(texto),
     )
 
     const informe = sinUsar.length

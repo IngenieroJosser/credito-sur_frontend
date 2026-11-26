@@ -1,6 +1,7 @@
 'use client'
 
 
+import { SkeletonTablero } from '@/components/ui/Skeleton'
 import BarraDeFiltros from '@/components/filtros/BarraDeFiltros'
 import { mensajeDeError } from '@/lib/mensaje-de-error'
 import {
@@ -14,7 +15,6 @@ import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { usePathname } from 'next/navigation'
 import { AlertCircle, Armchair, Calendar, ChevronLeft, ChevronRight, CreditCard, Eye, Filter, MapPin, Package, Plus, Search, ShoppingBag, Smartphone, TrendingUp, Tv } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
-import AnimacionCarga from '@/components/ui/AnimacionCarga'
 import { loansServiceExt as loansService } from '@/services/loans-service'
 import { prestamosService } from '@/services/prestamos-service'
 import CrearCreditoModal from '@/components/dashboards/shared/CrearCreditoModal'
@@ -243,7 +243,12 @@ export default function CreditosArticulosPage() {
   }
 
   if (isLoading) {
-    return <AnimacionCarga texto="Cargando créditos de artículos..." />
+    // El esqueleto mantiene el sitio en vez de tapar la pantalla entera.
+    return (
+      <div className="min-h-screen bg-slate-50 p-4 sm:p-6">
+        <SkeletonTablero indicadores={4} />
+      </div>
+    )
   }
 
   return (

@@ -1,5 +1,6 @@
 'use client'
 
+import { Skeleton } from '@/components/ui/Skeleton'
 import { estadoDeError, mensajeDeError } from '@/lib/mensaje-de-error'
 import Paginador from '@/components/ui/Paginador'
 
@@ -278,7 +279,19 @@ const BackupsSistemaPage = () => {
                   <span className="text-xs uppercase tracking-wider text-slate-500 font-bold">Último respaldo</span>
                   <Clock className="h-3.5 w-3.5 text-slate-400" />
                 </div>
-                <div className="text-xl font-bold text-slate-900">{loading ? 'Cargando...' : lastRunLabel}</div>
+                {/*
+                  Un esqueleto del tamaño de la cifra, no la palabra
+                  «Cargando...». El texto ocupa otro ancho que el dato, asi
+                  que la tarjeta daba un salto al llegar; y «Cargando» en el
+                  sitio de una fecha se lee como si fuera el valor.
+                */}
+                {loading ? (
+                  <Skeleton className="h-7 w-40" />
+                ) : (
+                  <div className="text-xl font-bold text-slate-900">
+                    {lastRunLabel}
+                  </div>
+                )}
                 <div className="text-xs text-slate-400 mt-1 font-medium">
                   {lastRunSize ? `Tamaño: ${lastRunSize}` : 'Tamaño: —'}
                   {sinVolcado ? ' · sin volcado SQL' : null}
