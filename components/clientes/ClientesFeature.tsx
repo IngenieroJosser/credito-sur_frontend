@@ -34,11 +34,8 @@ import {
   Clock,
   Banknote,
 } from 'lucide-react'
-import Link from 'next/link'
-import {
-  puedeCobrarEnOficina,
-  rutaDeRegistroDePago,
-} from '@/lib/pagos/cobro-en-oficina'
+import { puedeCobrarEnOficina } from '@/lib/pagos/cobro-en-oficina'
+import { PagoOficinaModal } from '@/components/cobranza/PagoOficina'
 import { formatCurrency, cn } from '@/lib/utils'
 import { Modal } from '@/components/ui/Modal'
 import FiltroRuta from '@/components/filtros/FiltroRuta'
@@ -78,6 +75,7 @@ export default function ClientesFeature({
   // El cliente que llega a pagar a la sede lo atiende la oficina, y su
   // efectivo entra a CAJA-OFICINA. Ver `lib/pagos/cobro-en-oficina.ts`.
   const cobraEnOficina = puedeCobrarEnOficina(rol)
+  const [clienteParaCobro, setClienteParaCobro] = useState<ClienteAdmin | null>(null)
 
   // Verificación de permisos más robusta
   const permitido = can('CLIENTES_VIEW') || canForPath(basePath)
@@ -837,14 +835,14 @@ export default function ClientesFeature({
                             </Tooltip>
                             {cobraEnOficina && (
                               <Tooltip texto="Registrar un pago recibido en la oficina">
-                                <Link
-                                  aria-label="Registrar pago"
-                                  href={rutaDeRegistroDePago(cliente.id)}
-                                  onClick={(e) => e.stopPropagation()}
+<button
+                                  type="button"
+                                  aria-label="Registrar pago en oficina"
+                                  onClick={(e) => { e.stopPropagation(); setClienteParaCobro(cliente) }}
                                   className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
                                 >
                                   <Banknote className="h-5 w-5" />
-                                </Link>
+                                </button>
                               </Tooltip>
                             )}
                             {puedeEditar && (
@@ -1021,14 +1019,14 @@ export default function ClientesFeature({
                       </button>
                       {cobraEnOficina && (
                         <Tooltip texto="Registrar un pago recibido en la oficina">
-                          <Link
-                            aria-label="Registrar pago"
-                            href={rutaDeRegistroDePago(cliente.id)}
-                            onClick={(e) => e.stopPropagation()}
+<button
+                            type="button"
+                            aria-label="Registrar pago en oficina"
+                            onClick={(e) => { e.stopPropagation(); setClienteParaCobro(cliente) }}
                             className="flex min-h-[44px] min-w-[44px] items-center justify-center p-2 text-slate-400"
                           >
                             <Banknote className="h-5 w-5" />
-                          </Link>
+                          </button>
                         </Tooltip>
                       )}
                       {puedeEditar && (
@@ -1142,6 +1140,15 @@ export default function ClientesFeature({
             // Mismo caso que en la creacion: el modal ya avisa 'Cliente
             // Actualizado'. Este repetia el mismo titulo con otro texto.
           }}
+        />
+      )}
+
+      {cobraEnOficina && clienteParaCobro && (
+        <PagoOficinaModal
+          key={clienteParaCobro.id}
+          cliente={clienteParaCobro}
+          onClose={() => setClienteParaCobro(null)}
+          onRegistrado={() => { void refetch() }}
         />
       )}
 

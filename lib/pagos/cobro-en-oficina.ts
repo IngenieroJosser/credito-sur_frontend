@@ -36,6 +36,3 @@ export type RolDeOficina = (typeof ROLES_QUE_COBRAN_EN_OFICINA)[number]
 
 export const puedeCobrarEnOficina = (rol: string | null | undefined): boolean =>
   !!rol && (ROLES_QUE_COBRAN_EN_OFICINA as readonly string[]).includes(String(rol).toUpperCase())
-
-/** La pantalla real de registro, que el `rewrites` sirve para todos los roles. */
-export const rutaDeRegistroDePago = (clienteId: string) => `/pagos/registrar/${clienteId}`

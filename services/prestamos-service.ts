@@ -192,7 +192,7 @@ export const prestamosService = {
   /**
    * Obtener todos los préstamos con filtros
    */
-  async obtenerPrestamos(filtros?: FiltrosPrestamos): Promise<RespuestaPrestamos> {
+  async obtenerPrestamos(filtros?: FiltrosPrestamos, opciones?: { sinCache?: boolean }): Promise<RespuestaPrestamos> {
     const params = new URLSearchParams()
 
     if (filtros?.estado) params.append('estado', filtros.estado)
@@ -210,7 +210,7 @@ export const prestamosService = {
     const query = params.toString()
     const endpoint = query ? `/loans?${query}` : '/loans'
 
-    return apiRequest<RespuestaPrestamos>('GET', endpoint)
+    return apiRequest<RespuestaPrestamos>('GET', endpoint, undefined, opciones?.sinCache ? { cacheTTL: 0 } : undefined)
   },
 
   /**

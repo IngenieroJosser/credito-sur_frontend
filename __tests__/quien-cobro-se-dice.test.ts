@@ -193,15 +193,13 @@ describe('el pago recibido en la oficina se dice', () => {
     expect(texto).toContain('oficina')
   })
 
-  it('la oficina tiene por donde registrar: el boton y la pantalla real', () => {
-    // El rewrite `/pagos/:path*` sirve la pantalla del admin para todos los
-    // roles, y el gate de rol de `ArmazonAdmin` esta comentado a proposito,
-    // asi que lo unico que faltaba era la puerta.
+  it('la oficina registra desde el modal y conserva la URL anterior', () => {
     const lista = sinComentarios(
       fs.readFileSync(path.join(RAIZ, 'components', 'clientes', 'ClientesFeature.tsx'), 'utf8'),
     )
 
-    expect(lista).toMatch(/rutaDeRegistroDePago\(cliente\.id\)/)
+    expect(lista).toMatch(/setClienteParaCobro\(cliente\)/)
+    expect(lista).toMatch(/<PagoOficinaModal/)
     expect(lista).toMatch(/cobraEnOficina/)
 
     expect(
