@@ -1,8 +1,10 @@
 'use client'
 
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { Banknote, CheckCircle2, RefreshCw } from 'lucide-react'
 import { Modal } from '@/components/ui/Modal'
+import { Selector } from '@/components/ui/Selector'
+import FieldLabel from '@/components/ui/FieldLabel'
 import { mensajeDeError } from '@/lib/mensaje-de-error'
 import { formatCOPInputValue, formatCurrency, parseCOPInputToNumber } from '@/lib/utils'
 import { pagosService } from '@/services/pagos-service'
@@ -29,6 +31,7 @@ export function PagoOficina({ cliente, onRegistrado, enviandoRef }: Props & {
   enviandoRef?: { current: boolean }
 }) {
   const [carga, setCarga] = useState<{ creditos: PrestamoDelListado[] } | { error: string } | null>(null)
+  const idFormulario = useId()
   const [consulta, setConsulta] = useState(0)
   const [seleccion, setSeleccion] = useState('')
   const [monto, setMonto] = useState('')
@@ -130,24 +133,27 @@ export function PagoOficina({ cliente, onRegistrado, enviandoRef }: Props & {
             </div>
           ) : (
             <form className="space-y-4" onSubmit={registrar}>
-              <label className="block space-y-1 text-sm font-semibold">
-                <span>Crédito</span>
-                <select value={seleccion} className={campo} required disabled={enviando}
-                  onChange={(e) => { setSeleccion(e.target.value); setMonto(''); setErrorPago('') }}>
-                  <option value="" disabled>Selecciona el crédito que se va a pagar</option>
-                  {creditos.map((c) => <option key={c.id} value={c.id}>{c.numeroPrestamo} · {c.producto} · {formatCurrency(c.montoPendiente)}</option>)}
-                </select>
-              </label>
+              <div>
+                <FieldLabel htmlFor={`${idFormulario}-credito`} required>Crédito</FieldLabel>
+                <Selector id={`${idFormulario}-credito`} value={seleccion} className="w-full"
+                  etiqueta="Crédito" placeholder="Selecciona el crédito que se va a pagar" required disabled={enviando}
+                  opciones={creditos.map((c) => ({
+                    value: c.id,
+                    label: `${c.numeroPrestamo} · ${c.producto} · ${formatCurrency(c.montoPendiente)}`,
+                  }))}
+                  onChange={(id) => { setSeleccion(id); setMonto(''); setErrorPago('') }}
+                />
+              </div>
               {credito && <dl className="flex flex-wrap justify-between gap-2 border-y border-slate-200 py-3 text-sm">
                 <div><dt className="text-slate-600">Ruta</dt><dd className="font-semibold">{credito.rutaNombre}</dd></div>
                 <div><dt className="text-slate-600">Saldo pendiente</dt><dd className="font-semibold">{formatCurrency(credito.montoPendiente)}</dd></div>
                 <div><dt className="text-slate-600">Destino del efectivo</dt><dd className="font-semibold">Caja de Oficina</dd></div>
               </dl>}
-              <label className="block space-y-1 text-sm font-semibold">
-                <span>Monto recibido (COP)</span>
-                <input className={campo} inputMode="numeric" value={monto} required placeholder="0"
+              <div>
+                <FieldLabel htmlFor={`${idFormulario}-monto`} required>Monto recibido (COP)</FieldLabel>
+                <input id={`${idFormulario}-monto`} className={campo} inputMode="numeric" value={monto} required placeholder="0"
                   disabled={!credito || enviando} onChange={(e) => setMonto(formatCOPInputValue(e.target.value))} />
-              </label>
+              </div>
               {credito && importe > credito.montoPendiente && (
                 <p role="alert" className="text-sm text-rose-700">El pago no puede superar el saldo pendiente.</p>
               )}
