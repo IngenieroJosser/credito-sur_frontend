@@ -644,7 +644,17 @@ const ClienteDetalleElegante: React.FC<ClienteDetalleProps> = ({
                   */}
               </div>
 
-              <div className="space-y-4">
+              {/*
+                La lista de creditos tiene su PROPIO alto y su propio scroll.
+                
+                Cada credito ocupa una tarjeta grande -progreso, cuatro cifras
+                y un boton-, asi que con cuatro, que es lo normal en un
+                cliente con historia, la pantalla se iba muy lejos y el resto
+                de la ficha quedaba fuera de alcance. Acotada, se ven dos
+                enteras y se sabe que hay mas; y el encabezado con el numero
+                sigue arriba, a la vista.
+              */}
+              <div className="max-h-[32rem] space-y-4 overflow-y-auto pr-1">
                 {prestamos.map((prestamo) => (
                   <div
                     key={prestamo.id}

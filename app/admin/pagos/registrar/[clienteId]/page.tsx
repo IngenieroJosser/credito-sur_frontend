@@ -67,6 +67,14 @@ const RegistrarPagoClientePage = () => {
   const [loading, setLoading] = useState(true)
   const [cliente, setCliente] = useState<Cliente | null>(null)
   const [producto, setProducto] = useState<ProductoFinanciero | null>(null)
+  /*
+   * TODOS sus créditos, no solo el primero.
+   *
+   * Un cliente con cuatro créditos en mora —el caso que lo destapó— tiene que
+   * poder decir a cuál abona. Elegir por él es poner el dinero en el que no
+   * era, y eso no se ve hasta que alguien cuadra la cartera.
+   */
+  const [productos, setProductos] = useState<ProductoFinanciero[]>([])
 
   // Form states
   const [monto, setMonto] = useState('')
@@ -92,11 +100,53 @@ const RegistrarPagoClientePage = () => {
           direccion: clienteData.direccion || '',
         })
 
+        /*
+         * Los créditos de ESTE cliente, por su id.
+         *
+         * Antes iba `search: clienteId`, y `search` compara contra el número
+         * de préstamo, el nombre, el apellido, la cédula y el producto:
+         * nunca contra el id. Un UUID no coincide con ninguno, así que la
+         * respuesta venía VACÍA siempre y la oficina leía «No hay un crédito
+         * al que abonar» con un cliente de cuatro créditos en mora delante.
+         *
+         * El respaldo sin conexión de más abajo ya lo hacía bien
+         * (`by-clienteId`): fallaba justo el camino con señal.
+         *
+         * Y `limit: 1` tampoco servía: con varios créditos elegía uno al azar
+         * y el dinero podía acabar en el que no era. Se traen todos y, si hay
+         * más de uno, se elige.
+         */
         const prestamosResp = await prestamosService.obtenerPrestamos({
-          search: clienteId,
-          limit: 1,
+          clienteId,
+          limit: 20,
         })
-        const prestamo = prestamosResp?.prestamos?.[0]
+        const suyos = (prestamosResp?.prestamos ?? []).filter(
+          (p) => String(p.estado || '').toUpperCase() !== 'PAGADO',
+        )
+        setProductos(
+          suyos.map((prestamo) => {
+            const tipoPrestamoRaw = prestamo.tipoPrestamo || prestamo.producto || ''
+            const tipoPrestamo: string = String(tipoPrestamoRaw || '')
+            const esArticulo =
+              tipoPrestamo.toLowerCase() !== 'efectivo' &&
+              tipoPrestamo.toLowerCase() !== 'préstamo'
+            return {
+              id: prestamo.id,
+              tipo: esArticulo
+                ? ('CREDITO_ARTICULO' as const)
+                : ('PRESTAMO_EFECTIVO' as const),
+              codigo: prestamo.numeroPrestamo || prestamo.id,
+              descripcion: tipoPrestamo || 'Préstamo',
+              saldoPendiente:
+                Number(prestamo.montoPendiente) || prestamo.saldoPendiente || 0,
+              proximaCuota: prestamo.proximoPago || prestamo.fechaFin || '',
+              valorCuota: prestamo.valorCuota || 0,
+              diasMora: prestamo.diasMora || 0,
+              cobradorId: prestamo.cobradorId || undefined,
+            }
+          }),
+        )
+        const prestamo = suyos[0]
         if (prestamo) {
           const tipoPrestamoRaw = prestamo.tipoPrestamo || prestamo.producto || ''
           // `tipoPrestamo` y `producto` llegan siempre como texto en el
@@ -265,6 +315,54 @@ const RegistrarPagoClientePage = () => {
               </p>
             </div>
           </div>
+
+          {/*
+            A cuál de sus créditos se abona.
+            
+            Solo aparece si tiene más de uno: con uno solo preguntar sobra.
+            Con varios no se puede elegir por la persona, porque el dinero
+            acaba en el crédito que no era y eso no se nota hasta que alguien
+            cuadra la cartera.
+          */}
+          {productos.length > 1 && (
+            <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+              <p className="text-sm font-bold text-amber-900">
+                {cliente?.nombre} tiene {productos.length} créditos abiertos.
+                ¿A cuál se abona?
+              </p>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {productos.map((p) => {
+                  const elegido = producto?.id === p.id
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => setProducto(p)}
+                      aria-pressed={elegido}
+                      className={`rounded-xl border p-3 text-left transition-colors ${
+                        elegido
+                          ? 'border-amber-500 bg-white shadow-sm ring-2 ring-amber-500/30'
+                          : 'border-amber-200 bg-white/60 hover:bg-white'
+                      }`}
+                    >
+                      <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                        {p.codigo}
+                      </p>
+                      <p className="mt-0.5 text-sm font-bold text-slate-900 tabular-nums">
+                        {formatCurrency(p.saldoPendiente)} pendiente
+                      </p>
+                      <p className="text-xs font-medium text-slate-500">
+                        {p.descripcion}
+                        {p.diasMora > 0
+                          ? ` · ${p.diasMora} ${p.diasMora === 1 ? 'día' : 'días'} de mora`
+                          : ''}
+                      </p>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             {/* Columna Izquierda: Detalles del Artículo (Más visual) */}

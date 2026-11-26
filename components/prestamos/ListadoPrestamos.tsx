@@ -815,12 +815,21 @@ const ListadoPrestamosElegante = () => {
                           className="hover:bg-slate-50 transition-colors group cursor-pointer"
                         >
                           <td className="px-6 py-4">
+                            {/*
+                              Arriba la PERSONA, debajo el codigo.
+                              
+                              Estaba al reves: el numero de prestamo en negrita
+                              y el nombre pequeño debajo. Quien busca en esta
+                              lista busca a alguien -«el credito de Elsy»-, no
+                              una cadena como IMP-1032435189-4, que ademas no
+                              se puede leer de un vistazo.
+                            */}
                             <div className="flex flex-col">
                               <span className="font-bold text-slate-900 group-hover:text-slate-700 transition-colors">
-                                {prestamo.numeroPrestamo}
+                                {prestamo.cliente || prestamo.clienteNombre || 'Sin cliente'}
                               </span>
-                              <span className="text-xs font-medium text-slate-500">
-                                {prestamo.cliente || prestamo.clienteNombre || ''}
+                              <span className="text-xs font-medium text-slate-500 tabular-nums">
+                                {prestamo.numeroPrestamo}
                               </span>
                             </div>
                           </td>
@@ -997,11 +1006,12 @@ const ListadoPrestamosElegante = () => {
                     {/* Header del Card */}
                     <div className="flex items-start justify-between mb-3 pb-3 border-b border-slate-100">
                       <div className="flex-1 min-w-0">
+                        {/* La copia movil de la misma fila, con el mismo orden. */}
                         <div className="font-bold text-slate-900 truncate">
-                          {prestamo.numeroPrestamo}
+                          {prestamo.cliente || prestamo.clienteNombre || 'Sin cliente'}
                         </div>
-                        <div className="text-xs text-slate-500 font-medium mt-0.5">
-                          {prestamo.cliente || prestamo.clienteNombre || ''}
+                        <div className="mt-0.5 text-xs font-medium tabular-nums text-slate-500">
+                          {prestamo.numeroPrestamo}
                         </div>
                       </div>
                       <span

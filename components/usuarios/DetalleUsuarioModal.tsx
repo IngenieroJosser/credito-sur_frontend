@@ -213,7 +213,16 @@ function hace(iso: string): string {
   return meses === 1 ? 'hace un mes' : `hace ${meses} meses`
 }
 
-const POR_PAGINA = 6
+/*
+ * Cinco por pagina, y la lista con su propio alto.
+ *
+ * Con seis, la ficha medida en el navegador daba 918 px de alto sobre una
+ * ventana de 950: justo en el limite, y en un portatil de 768 se pasaba. El
+ * modal ya tiene tope y scroll propio, pero eso solo significa que para ver
+ * las cifras de arriba hay que subir otra vez. Acotando la lista, la ficha
+ * entera cabe y la actividad se recorre dentro de su caja.
+ */
+const POR_PAGINA = 5
 
 export function DetalleUsuarioModal({
   usuario,
@@ -709,7 +718,7 @@ export function DetalleUsuarioModal({
                       riel y el punto dicen que lo de arriba pasó después, que
                       es la única pregunta que se le hace a esta sección.
                     */}
-                    <ul className="mt-3 overflow-hidden rounded-xl bg-white ring-1 ring-slate-200">
+                    <ul className="mt-3 max-h-[22rem] overflow-y-auto rounded-xl bg-white ring-1 ring-slate-200">
                       {visibles.map((item, i) => (
                         <li
                           key={`${item.time}-${i}`}

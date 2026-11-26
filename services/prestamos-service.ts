@@ -98,6 +98,15 @@ export interface FiltrosPrestamos {
   limit?: number
   /** Estados a excluir de los resultados */
   excluirEstados?: string[]
+  /**
+   * Solo los créditos de este cliente.
+   *
+   * Es un id, no texto. `search` compara contra el número de préstamo, el
+   * nombre, el apellido, la cédula y el producto: mandarle un UUID no
+   * encuentra nada nunca, que es lo que le pasaba a la pantalla de cobrar en
+   * la oficina.
+   */
+  clienteId?: string
 }
 
 export interface EstadisticasPrestamos {
@@ -192,6 +201,7 @@ export const prestamosService = {
     if (filtros?.tipo) params.append('tipo', filtros.tipo)
     if (filtros?.page) params.append('page', filtros.page.toString())
     if (filtros?.limit) params.append('limit', filtros.limit.toString())
+    if (filtros?.clienteId) params.append('clienteId', filtros.clienteId)
     // Exclusiones: cada estado se envía como parámetro repetido al backend
     if (filtros?.excluirEstados?.length) {
       filtros.excluirEstados.forEach((e) => params.append('excluirEstado', e))

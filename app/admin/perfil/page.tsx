@@ -17,6 +17,18 @@ import { logger } from '@/lib/logger'
 import { Skeleton, SkeletonTexto } from '@/components/ui/Skeleton'
 import { mezclarPerfilEnCache } from '@/lib/auth/mezclar-perfil-en-cache'
 
+/**
+ * A dónde ir si NO hay de dónde volver.
+ *
+ * Solo para eso: la pantalla del perfil se abre desde cualquier parte —desde
+ * el menú de la foto, que está en todas—, así que llevar siempre al tablero
+ * del rol es equivocarse casi siempre. Quien venía de la ruta del día, de un
+ * cliente o de la caja perdía su sitio y tenía que volver a buscarlo.
+ *
+ * Este mapa se queda para el caso en que de verdad no haya historia: entrar
+ * con el enlace directo, abrir en una pestaña nueva, o llegar aquí justo
+ * después del login. Ahí `router.back()` sacaría de la aplicación.
+ */
 const VOLVER_RUTAS: Record<string, string> = {
   'SUPER_ADMINISTRADOR': '/admin',
   'ADMIN': '/admin',
@@ -273,7 +285,22 @@ const PerfilUsuarioPage = () => {
               <div className="min-w-0">
                 <button
                   type="button"
-                  onClick={() => router.push(volverRuta)}
+                  onClick={() => {
+                    /*
+                     * Volver es volver: a donde estabas, no al tablero.
+                     *
+                     * `window.history.length` se mira en el clic, no al
+                     * dibujar, para que no sea una lectura impura. Si vale 1
+                     * esta pantalla es la única de la pestaña y `back()`
+                     * sacaría de la aplicación; ahí sí toca el tablero.
+                     *
+                     * `router.back()` es lo que usa el resto del sistema
+                     * —artículos, cajas, notificaciones, registrar pago—; el
+                     * perfil era la excepción.
+                     */
+                    if (window.history.length > 1) router.back()
+                    else router.push(volverRuta)
+                  }}
                   className="mb-3 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-900"
                 >
                   <ChevronLeft className="h-4 w-4" />

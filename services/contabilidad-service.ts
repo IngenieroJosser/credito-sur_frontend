@@ -43,6 +43,13 @@ export interface Caja {
   saldoMaximo?: number
   estado: 'ABIERTA' | 'CERRADA'
   transacciones?: number
+  /**
+   * Cuando se ABRIO la caja.
+   *
+   * No es `ultimaActualizacion`: el detalle las confundia y ponia la fecha de
+   * la ultima modificacion bajo el rotulo «Fecha Apertura».
+   */
+  creadaEn?: string
   ultimaActualizacion: string
   /**
    * Rutas que supervisa esta caja. Solo viene en las cajas de tipo RUTA

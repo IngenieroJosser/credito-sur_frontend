@@ -153,8 +153,28 @@ export interface SyncResult {
  * —decenas— pero un admin podria traerse los 500 del limite. Con 200 se cubre el caso
  * real y no se dispara el numero de peticiones.
  */
-const CUOTAS_MAX_PRESTAMOS = 200
+/*
+ * Se bajan las cuotas de TODOS los creditos que se guardaron, sin tope.
+ *
+ * Aqui habia `CUOTAS_MAX_PRESTAMOS = 200`, elegido «porque cubre el caso
+ * real». No lo cubre: deja al credito 201 en adelante sin cuotas offline y
+ * sin que nada lo diga, y la app esta hecha para trabajar sin señal. Como el
+ * endpoint acepta 300 ids por peticion y aqui se mandan de 100 en 100, bajar
+ * mil creditos son diez peticiones, una sola vez, al descargar.
+ */
 const CUOTAS_POR_LOTE = 100
+
+/**
+ * Cuantos creditos como mucho entran en la copia local.
+ *
+ * El listado los sirve de 200 en 200 —el backend recorta cualquier `limit`
+ * mayor— asi que esto son paginas. El techo existe para que un admin con una
+ * cartera enorme no se baje el sistema entero al movil, pero si se alcanza se
+ * AVISA, en vez de recortar en silencio como hacia el `limit=500` de antes
+ * -que el backend convertia en 200 sin que nadie se enterara-.
+ */
+const PRESTAMOS_POR_PAGINA = 200
+const PRESTAMOS_MAXIMOS = 5000
 
 /**
  * Una fila de `/loans/:id/cuotas` convertida en la copia local de una cuota.
@@ -201,6 +221,35 @@ export function mapearCuotaDescargada(
  *
  * Un fallo en un prestamo no tumba el resto: se queda sin sus cuotas y ya.
  */
+/**
+ * Separar lo que sigue vivo de lo que el servidor dio por borrado.
+ *
+ * Con la sincronizacion incremental la respuesta trae las dos cosas: lo que
+ * cambio y lo que se borro -las filas con `eliminadoEn`-. Si no se separan,
+ * un credito borrado en la oficina se guarda como uno mas y sigue saliendo en
+ * la ruta del cobrador, que podria cobrarlo.
+ *
+ * Es una funcion aparte para poder probarla: dentro de `downloadAll` haria
+ * falta una base de datos y la red para comprobar una decision de tres lineas.
+ */
+export function separarBorrados<T extends { id?: string; eliminadoEn?: string | null }>(
+  filas: T[],
+): { vivos: T[]; borradosIds: string[] } {
+  const vivos: T[] = []
+  const borradosIds: string[] = []
+  for (const fila of filas) {
+    // Solo una marca de borrado de verdad cuenta: `null`, `undefined` y la
+    // cadena vacia significan «vivo», y confundirlos borraria la copia entera.
+    if (fila?.eliminadoEn) {
+      const id = String(fila.id || '')
+      if (id) borradosIds.push(id)
+    } else {
+      vivos.push(fila)
+    }
+  }
+  return { vivos, borradosIds }
+}
+
 async function descargarCuotasDePrestamos(ids: string[]): Promise<OfflineCuota[]> {
   const cuotas: OfflineCuota[] = []
 
@@ -637,18 +686,66 @@ export const syncManager = {
         if (!token) return 0
       }
 
-      const data = await apiRequest<{ prestamos?: PrestamoDelListadoParcial[] }>(
-        'GET',
-        '/loans?limit=500',
-        undefined,
-        {
-          timeout: 30000,
-          cacheTTL: 0,
-        },
-      )
+      /*
+       * Se piden TODAS las paginas, no una de 500.
+       *
+       * Antes era `GET /loans?limit=500`, y el backend recorta cualquier
+       * `limit` por encima de 200 (`getAllLoans`: `Math.min(..., 200)`). O
+       * sea que la copia local se quedaba en 200 creditos SIEMPRE, en
+       * silencio: ni un aviso, ni una pagina siguiente. Para un cobrador con
+       * su ruta daba igual; para la oficina, o para un cobrador de una ruta
+       * grande, faltaba cartera sin que nada lo dijera.
+       */
+      /*
+       * Solo lo que cambio desde la ultima bajada.
+       *
+       * Antes se traia la cartera entera en cada arranque y se REEMPLAZABA
+       * el almacen. Con una conexion mala -la de un cobrador en zona sin
+       * cobertura- eso es la diferencia entre una peticion de unos kilobytes
+       * y bajarse todo otra vez.
+       *
+       * `desde` sale del propio almacen (`lastSyncAt`, que `saveMany` ya
+       * guardaba). La primera vez no hay, y entonces se baja todo.
+       */
+      const metaPrestamos = await offlineStore.getSyncMeta('prestamos')
+      const desde = metaPrestamos?.lastSyncAt || null
+      const incremental = Boolean(desde)
+      const sufijoDesde = desde ? `&desde=${encodeURIComponent(desde)}` : ''
 
-      const prestamosRaw = data.prestamos || []
-      const prestamos: OfflinePrestamo[] = prestamosRaw.map(mapearPrestamoDescargado)
+      const prestamosRaw: PrestamoDelListadoParcial[] = []
+      for (
+        let pagina = 1;
+        prestamosRaw.length < PRESTAMOS_MAXIMOS;
+        pagina += 1
+      ) {
+        const data = await apiRequest<{ prestamos?: PrestamoDelListadoParcial[] }>(
+          'GET',
+          `/loans?limit=${PRESTAMOS_POR_PAGINA}&page=${pagina}${sufijoDesde}`,
+          undefined,
+          { timeout: 30000, cacheTTL: 0 },
+        )
+        const pagina_ = data.prestamos || []
+        prestamosRaw.push(...pagina_)
+        // Menos de una pagina entera significa que ya no hay mas.
+        if (pagina_.length < PRESTAMOS_POR_PAGINA) break
+      }
+
+      /*
+       * Lo borrado se QUITA, no se guarda.
+       *
+       * Con `desde` el servidor incluye las filas con `eliminadoEn`. Si se
+       * guardaran como las demas, un credito borrado en la oficina seguiria
+       * saliendo en la ruta del cobrador y podria cobrarse.
+       */
+      const { vivos: vivosRaw, borradosIds } = separarBorrados(prestamosRaw)
+
+      if (prestamosRaw.length >= PRESTAMOS_MAXIMOS) {
+        logger.warn(
+          `[Offline Sync] La copia local llego al techo de ${PRESTAMOS_MAXIMOS} creditos; puede faltar cartera sin conexion.`,
+        )
+      }
+
+      const prestamos: OfflinePrestamo[] = vivosRaw.map(mapearPrestamoDescargado)
 
       // Filtrar para guardar solo préstamos activos o en mora (excluir FINALIZADO, ARCHIVADO, RECHAZADO, etc.)
       const prestamosFiltrados = prestamos.filter(
@@ -659,7 +756,18 @@ export const syncManager = {
           p.estado === 'PENDIENTE',
       )
 
-      await offlineStore.saveMany('prestamos', prestamosFiltrados, true)
+      /*
+       * `overwrite` solo en la bajada COMPLETA. En la incremental hay que
+       * fusionar: lo que no cambio no viene en la respuesta y borrarlo
+       * dejaria la copia con solo lo de los ultimos minutos.
+       */
+      await offlineStore.saveMany('prestamos', prestamosFiltrados, !incremental)
+      if (borradosIds.length > 0) {
+        await offlineStore.deleteMany('prestamos', borradosIds)
+        logger.log(
+          `[Offline Sync] ${borradosIds.length} creditos borrados se quitaron de la copia local.`,
+        )
+      }
       await trackOfflineEvent('download', { storeName: 'prestamos', recordCount: prestamos.length })
 
       // Aqui habia un bucle que leia `p.cuotas` de cada fila del listado. Ese arreglo
@@ -671,15 +779,9 @@ export const syncManager = {
       // Se veia en el detalle de prestamo sin conexion: la tabla de cuotas salia
       // vacia siempre. Ahora se bajan de verdad, una peticion por credito y de a
       // cinco, solo para los que se guardan (ya filtrados a los estados operativos).
-      const idsParaCuotas = prestamosFiltrados
-        .slice(0, CUOTAS_MAX_PRESTAMOS)
-        .map((p) => p.id)
-        .filter(Boolean)
-      if (prestamosFiltrados.length > CUOTAS_MAX_PRESTAMOS) {
-        logger.warn(
-          `[Offline Sync] ${prestamosFiltrados.length} creditos en la copia local; se bajan las cuotas de los primeros ${CUOTAS_MAX_PRESTAMOS}.`,
-        )
-      }
+      // De TODOS los que se guardaron, sin recortar: un credito sin sus
+      // cuotas no se puede cobrar sin señal, que es para lo que existe esto.
+      const idsParaCuotas = prestamosFiltrados.map((p) => p.id).filter(Boolean)
       const allCuotas = await descargarCuotasDePrestamos(idsParaCuotas)
 
       if (allCuotas.length > 0) {

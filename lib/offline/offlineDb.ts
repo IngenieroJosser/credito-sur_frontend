@@ -365,6 +365,24 @@ export const offlineStore = {
     });
   },
 
+  /**
+   * Quitar varios registros por id.
+   *
+   * La sincronizacion incremental lo necesita: con `desde`, el servidor manda
+   * tambien lo BORRADO, y sin esto una fila borrada se quedaria viva en el
+   * aparato para siempre, porque no volveria a aparecer en ninguna respuesta
+   * posterior.
+   */
+  async deleteMany(store: StoreName, ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+    const db = await getOfflineDb();
+    const tx = db.transaction(store, 'readwrite');
+    for (const id of ids) {
+      await tx.store.delete(id);
+    }
+    await tx.done;
+  },
+
   // Obtener todos los registros de un store
   async getAll<T>(store: StoreName): Promise<T[]> {
     const db = await getOfflineDb();

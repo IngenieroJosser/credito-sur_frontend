@@ -1,4 +1,6 @@
 'use client'
+import { avisoDeCifraIncompleta } from '@/lib/contable/cifras-completas'
+import { formatFechaHumanaBogota } from '@/lib/format-date'
 import { formatHoraBogota } from '@/lib/format-date'
 import { mensajeDeError } from '@/lib/mensaje-de-error'
 
@@ -9,7 +11,9 @@ import { SkeletonDetalle } from '@/components/ui/Skeleton'
 import { createPortal } from 'react-dom'
 import { use, useCallback, useMemo, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Wallet, TrendingUp, TrendingDown, Calendar, User, DollarSign, CheckCircle, AlertCircle, XCircle, ArrowDownLeft, ArrowUpRight, CheckCircle2, X } from 'lucide-react'
+import { ArrowLeft, Wallet, TrendingUp, TrendingDown, Calendar, User, DollarSign, CheckCircle, AlertCircle, XCircle, ArrowDownLeft, ArrowUpRight, CheckCircle2, X,
+  Clock,
+} from 'lucide-react'
 import { formatCOPInputValue, parseCOPInputToNumber } from '@/lib/utils'
 import MoneyAmount from '@/components/contable/MoneyAmount'
 import { useNotification } from '@/components/providers/NotificationProvider'
@@ -29,7 +33,10 @@ interface CajaDetalle {
   tipo: string
   estado: string
   saldoActual: number
-  saldoInicial: number
+  /** El minimo que la caja deberia tener. Es un dato real del modelo. */
+  saldoMinimo: number
+  /** Cuando se abrio, que no es cuando se toco por ultima vez. */
+  ultimaActualizacion: string
   totalRegistradoRango: number
   saldoPrevioRango: number
   rangoInicio: string
@@ -63,6 +70,8 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
   const [showEditarCajaModal, setShowEditarCajaModal] = useState(false)
   const [showRegistrarMovimientoModal, setShowRegistrarMovimientoModal] = useState(false)
   const [editForm, setEditForm] = useState({ nombre: '', responsable: '', saldoInicialInput: '' })
+  /** Cuando el libro no cupo en la peticion, lo que hay que decirle a la persona. */
+  const [avisoCifras, setAvisoCifras] = useState<string | null>(null)
   const [movimientoForm, setMovimientoForm] = useState({
     tipo: 'INGRESO' as 'INGRESO' | 'EGRESO',
     categoria: '',
@@ -86,6 +95,21 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
 
       const cajaData = await getCajaById(id)
       const ledgerRes = await getMovimientosLedger({ cajaId: id, limit: 500 })
+
+      /*
+       * Si el libro tiene mas de 500 asientos, estas cifras salen CORTAS.
+       *
+       * Todo lo de abajo -ingresos, egresos, saldo previo, total del rango-
+       * se suma en el navegador sobre lo que trajo esa peticion. Medido en
+       * la base local: 124 y 310 asientos por caja, o sea que hoy no se
+       * alcanza; pero una caja de oficina con meses de movimiento si, y
+       * entonces el numero sale menor y con pinta de bueno.
+       *
+       * No se puede arreglar sumando mas rapido: se avisa, con los dos
+       * numeros, que es lo unico honesto mientras la suma no la haga el
+       * servidor.
+       */
+      setAvisoCifras(avisoDeCifraIncompleta(ledgerRes))
 
       const txEnRango = (t: MovimientoLedger) => {
         const key = new Date(t.fecha).toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
@@ -114,21 +138,31 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
           return s + debitos - creditos
         }, 0)
 
-      const ingresos = ledgerRes.data
-        .reduce((s, entry: MovimientoLedger) => {
-          const debitos = entry.lineas
-            .filter((linea) => linea.cajaId === id)
-            .reduce((acc, linea) => acc + Number(linea.debitAmount || 0), 0)
-          return s + debitos
+      /*
+       * «Ingresos Hoy» y «Egresos Hoy» son de HOY.
+       *
+       * Sumaban TODO el libro de la caja -hasta las 500 ultimas entradas- y
+       * lo mostraban bajo un rotulo que dice «Hoy». Una caja con meses de
+       * movimiento ponia su historico entero como si fuera la jornada, y a
+       * partir de ahi no habia forma de saber como habia ido el dia.
+       */
+      const esDeHoy = (entry: MovimientoLedger) =>
+        new Date(entry.fecha).toLocaleDateString('en-CA', {
+          timeZone: 'America/Bogota',
+        }) === hoyKey
+
+      const sumarLineas = (
+        entradas: MovimientoLedger[],
+        campo: 'debitAmount' | 'creditAmount',
+      ) =>
+        entradas.reduce((s, entry) => {
+          const lineas = entry.lineas.filter((linea) => linea.cajaId === id)
+          return s + lineas.reduce((acc, l) => acc + Number(l[campo] || 0), 0)
         }, 0)
 
-      const egresos = ledgerRes.data
-        .reduce((s, entry: MovimientoLedger) => {
-          const creditos = entry.lineas
-            .filter((linea) => linea.cajaId === id)
-            .reduce((acc, linea) => acc + Number(linea.creditAmount || 0), 0)
-          return s + creditos
-        }, 0)
+      const deHoy = (ledgerRes.data || []).filter(esDeHoy)
+      const ingresos = sumarLineas(deHoy, 'debitAmount')
+      const egresos = sumarLineas(deHoy, 'creditAmount')
 
       setCaja({
         id: cajaData?.id || id,
@@ -137,14 +171,23 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
         tipo: cajaData?.tipo || 'PRINCIPAL',
         estado: cajaData?.estado || 'ABIERTA',
         saldoActual,
-        saldoInicial: 0,
+        /*
+         * `saldoMinimo` es un dato REAL de la caja; `saldoInicial` no existe
+         * en el modelo. La pantalla lo enseñaba como «Saldo Inicial: $ 0»,
+         * que se lee «esta caja abrio sin dinero» en vez de «ese dato no
+         * existe». Es la regla de siempre: un cero en dinero no es un hueco.
+         */
+        saldoMinimo: Number(cajaData?.saldoMinimo) || 0,
         totalRegistradoRango,
         saldoPrevioRango,
         rangoInicio: ayerKey,
         rangoFin: hoyKey,
         ingresosDia: ingresos,
         egresosDia: egresos,
-        fechaApertura: cajaData?.ultimaActualizacion || '',
+        // La apertura es `creadaEn`. Antes iba `ultimaActualizacion`, o sea
+        // que una caja de agosto usada hoy decia que se abrio hoy.
+        fechaApertura: cajaData?.creadaEn || '',
+        ultimaActualizacion: cajaData?.ultimaActualizacion || '',
         movimientos: listaDeRespuesta(ledgerRes).map((entry) => mapLedgerCajaMovimiento(entry, id)),
       })
       setEditForm({ nombre: cajaData?.nombre || '', responsable: cajaData?.responsable || '', saldoInicialInput: '' })
@@ -357,6 +400,15 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
               </div>
             </div>
 
+            {avisoCifras && (
+              <p
+                role="status"
+                className="mt-6 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-900"
+              >
+                {avisoCifras}
+              </p>
+            )}
+
             <div className="grid grid-cols-2 gap-4 pt-6 border-t border-slate-100">
               <div className="p-4 bg-green-50 rounded-xl border border-green-100">
                 <div className="flex items-center gap-2 mb-2">
@@ -387,17 +439,49 @@ export default function DetalleCajaPage({ params }: { params: Promise<{ id: stri
                 <div className="flex items-center gap-3">
                   <Calendar className="h-5 w-5 text-slate-400" />
                   <div>
-                    <p className="text-sm font-medium text-slate-900">Fecha Apertura</p>
-                    <p className="text-sm text-slate-500">{caja.fechaApertura}</p>
+                    <p className="text-sm font-medium text-slate-900">Fecha de apertura</p>
+                    {/* Formateada: antes salia el ISO crudo con su zona. */}
+                    <p className="text-sm text-slate-500">
+                      {caja.fechaApertura
+                        ? formatFechaHumanaBogota(caja.fechaApertura)
+                        : 'No disponible'}
+                    </p>
                   </div>
                 </div>
+                {/*
+                  Aqui decia «Saldo Inicial: $ 0» siempre, y ese campo NO
+                  existe en el modelo `Caja`: estaba escrito a mano como cero.
+                  «$ 0» se lee «abrio sin dinero», no «ese dato no existe».
+                  En su lugar van dos que si son reales y sirven: cuando se
+                  toco por ultima vez, y el minimo que deberia tener.
+                */}
                 <div className="flex items-center gap-3">
-                  <DollarSign className="h-5 w-5 text-slate-400" />
+                  <Clock className="h-5 w-5 text-slate-400" />
                   <div>
-                    <p className="text-sm font-medium text-slate-900">Saldo Inicial</p>
-                    <MoneyAmount value={caja.saldoInicial} amountClassName="text-sm text-slate-500" />
+                    <p className="text-sm font-medium text-slate-900">
+                      Último movimiento
+                    </p>
+                    <p className="text-sm text-slate-500">
+                      {caja.ultimaActualizacion
+                        ? formatFechaHumanaBogota(caja.ultimaActualizacion)
+                        : 'Sin movimientos'}
+                    </p>
                   </div>
                 </div>
+                {caja.saldoMinimo > 0 && (
+                  <div className="flex items-center gap-3">
+                    <DollarSign className="h-5 w-5 text-slate-400" />
+                    <div>
+                      <p className="text-sm font-medium text-slate-900">
+                        Saldo mínimo
+                      </p>
+                      <MoneyAmount
+                        value={caja.saldoMinimo}
+                        amountClassName="text-sm text-slate-500"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
             

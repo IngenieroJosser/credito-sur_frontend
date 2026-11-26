@@ -1314,7 +1314,12 @@ const ModuloContableContent = () => {
               href="/pagos/historial"
               className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm"
             >
-              Ver cobranzas
+              {/*
+                Dice a dónde lleva: `/pagos/historial`. «Ver cobranzas» hacía
+                pensar en la operación del día —la ruta, lo que falta por
+                cobrar— y lo que abre es el registro de lo ya pagado.
+              */}
+              Ver historial de pagos
             </Link>
             <button
               type="button"
