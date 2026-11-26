@@ -60,7 +60,6 @@ import {
   Clock,
   History,
   X,
-  AlertTriangle,
   ArrowRightLeft,
   Search,
  Loader2,} from 'lucide-react'
@@ -89,7 +88,7 @@ import type { CierreHistorialItem } from '@/services/contabilidad-service'
 import { toast } from 'sonner'
 import { rutasService, type Ruta as ApiRuta } from '@/services/rutas-service'
 import { exportService } from '@/services/export-service'
-import { categoriasPorTipo, mensajeEfectoMovimiento } from '@/lib/contable/categorias-movimiento'
+import RegistrarMovimientoModal from '@/components/contable/RegistrarMovimientoModal'
 import Link from 'next/link'
 import DeudorasCobradorCard from '@/components/contable/DeudorasCobradorCard'
 import FieldLabel from '@/components/ui/FieldLabel'
@@ -405,6 +404,7 @@ const ModuloContableContent = () => {
   const [showVerArqueoModal, setShowVerArqueoModal] = useState(false)
   const [arqueoSeleccionado, setArqueoSeleccionado] = useState<HistorialCierre | null>(null)
   const [showRegistrarMovimientoModal, setShowRegistrarMovimientoModal] = useState(false)
+  const [cajaInicialMovimiento, setCajaInicialMovimiento] = useState('')
   const [showVerMovimientoModal, setShowVerMovimientoModal] = useState(false)
   const [showVerCajaModal, setShowVerCajaModal] = useState(false)
   const [cajaSeleccionada, setCajaSeleccionada] = useState<Caja | null>(null)
@@ -972,28 +972,6 @@ const ModuloContableContent = () => {
     }
   }, [userRole]);
 
-  /* Estado para movimientos */
-  const [movimientoForm, setMovimientoForm] = useState({
-    /**
-     * Solo INGRESO o EGRESO: son los dos unicos valores que los setters del formulario
-     * ponen. Estaba declarado con `MovimientoContable['tipo']`, que incluye
-     * DEUDA_COBRADOR, y ese valor no lo acepta `createTransaccion` (su `tipo` es
-     * INGRESO|EGRESO|TRANSFERENCIA): el `as any` de `tipoEnvio` tapaba justo eso.
-     */
-    tipo: 'INGRESO' as 'INGRESO' | 'EGRESO',
-    categoria: '',
-    categoriaId: '',
-    montoInput: '',
-    concepto: '',
-    referencia: '',
-    cajaId: '',
-    origen: 'EMPRESA' as 'EMPRESA' | 'COBRADOR',
-    estado: 'PENDIENTE' as MovimientoContable['estado'],
-    responsableId: '', // Debe seleccionarse un usuario válido
-    cajaOrigenId: '', // Para cuando origen es COBRADOR
-    accountCode: '', // Cuenta contable contrapartida
-  })
-
   // Filtrado de movimientos
   const movimientosFiltrados = movimientos.filter((mov) => {
     const textoBusqueda = busqueda.trim().toLowerCase()
@@ -1148,110 +1126,23 @@ const ModuloContableContent = () => {
     }
   }
 
-  const openRegistrarMovimiento = () => {
-    // Buscamos el ID real de la caja principal para el admin.
-    // Importante: Caja Banco también puede ser PRINCIPAL. Preferimos CAJA-PRINCIPAL si existe.
-    const cajaPrincipal = cajas.find((c: Caja) => c.codigo === 'CAJA-PRINCIPAL') || cajas.find(c => c.tipo === 'PRINCIPAL');
-    const defaultCaja = (userRole === 'ADMIN' || userRole === 'SUPER_ADMINISTRADOR') 
-        ? (cajaPrincipal?.id || '') 
-        : (cajas.find(c => c.tipo === 'RUTA')?.id || '')
-    
-    setMovimientoForm({
-      tipo: 'INGRESO',
-      categoria: '',
-      categoriaId: '',
-      montoInput: '',
-      concepto: '',
-      referencia: '',
-      cajaId: defaultCaja,
-      origen: 'EMPRESA',
-      estado: 'PENDIENTE',
-      responsableId: '',
-      cajaOrigenId: '',
-      accountCode: '',
-    })
-    setShowRegistrarMovimientoModal(true)
-  }
-
   const openRegistrarTransferencia = () => {
-    // Buscamos el ID real de la caja principal para el admin.
-    // Importante: Caja Banco también puede ser PRINCIPAL. Preferimos CAJA-PRINCIPAL si existe.
-    const cajaPrincipal = cajas.find((c: Caja) => c.codigo === 'CAJA-PRINCIPAL') || cajas.find(c => c.tipo === 'PRINCIPAL');
-    const defaultCaja = (userRole === 'ADMIN' || userRole === 'SUPER_ADMINISTRADOR') 
-        ? (cajaPrincipal?.id || '') 
-        : (cajas.find(c => c.tipo === 'RUTA')?.id || '')
-    
-    setMovimientoForm({
-      tipo: 'INGRESO',
-      categoria: 'TRANSFERENCIA', // Pre-seleccionamos que es transferencia
-      categoriaId: '',
-      montoInput: '',
-      concepto: 'Transferencia entre cajas manual',
-      referencia: '',
-      cajaId: defaultCaja,
-      origen: 'COBRADOR', // Esto activa el selector de caja origen/destino en el modal
-      estado: 'PENDIENTE',
-      responsableId: '',
-      cajaOrigenId: '',
-      accountCode: '',
-    })
+    const cajaInicial = userRole === 'ADMIN' || userRole === 'SUPER_ADMINISTRADOR'
+      ? cajas.find(c => c.codigo === 'CAJA-PRINCIPAL') ?? cajas.find(c => c.tipo === 'PRINCIPAL')
+      : cajas.find(c => c.tipo === 'RUTA')
+    setCajaInicialMovimiento(cajaInicial?.id ?? '')
     setShowRegistrarMovimientoModal(true)
   }
 
-  const handleRegistrarMovimiento = async () => {
-    const monto = parseCOPInputToNumber(movimientoForm.montoInput)
-    if (monto <= 0) {
-        showNotification('error', 'El monto debe ser mayor a 0', 'Validación');
-        return;
+  const handleRegistrarMovimiento = async (datos: Parameters<typeof apiCreateTransaccion>[0]) => {
+    const transaccion = await apiCreateTransaccion(datos)
+    if (transaccion === null) {
+      showNotification('info', 'El movimiento quedó pendiente de sincronización', 'Sin conexión')
+      return
     }
-    if (!movimientoForm.cajaId) {
-        showNotification('error', 'Debe seleccionar una caja', 'Validación');
-        return;
-    }
-    // En movimientos manuales no se exige 'responsableId' cuando el backend no lo necesita
-    // or if the backend infers it from the session.
-    // if (!movimientoForm.responsableId) { ... } // Removed validation as per request
 
-    try {
-      const tipoReferencia = (movimientoForm.categoriaId || movimientoForm.categoria || '').trim() || undefined;
-      const referenciaId = movimientoForm.referencia?.trim() ? movimientoForm.referencia.trim() : undefined;
-
-      // Usar apiCreateTransaccion con los datos del form
-      // Si es EGRESO con cobrador, invertimos los roles: 
-      // La oficina (cajaId) es el origen y el cobrador (cajaOrigenId) es el destino.
-      const isEgresoConsolidacion = movimientoForm.tipo === 'EGRESO' && movimientoForm.origen === 'COBRADOR';
-      
-      const tipoEnvio = movimientoForm.origen === 'COBRADOR'
-        ? 'TRANSFERENCIA'
-        : (movimientoForm.tipo)
-
-      await apiCreateTransaccion({
-        cajaId: isEgresoConsolidacion ? movimientoForm.cajaOrigenId : movimientoForm.cajaId,
-        tipo: tipoEnvio,
-        monto: monto,
-        // Eliminamos la lógica mágica de descripción automática para transferencias manuales
-        // para que el usuario siempre vea lo que escribió o un default claro.
-        descripcion: movimientoForm.concepto || (movimientoForm.origen === 'COBRADOR' ? (movimientoForm.tipo === 'INGRESO' ? 'Recepción de Ruta (Entrada)' : 'Entrega de Base a Ruta (Salida)') : 'Movimiento de Caja'),
-        tipoReferencia,
-        referenciaId,
-        cajaOrigenId: isEgresoConsolidacion ? movimientoForm.cajaId : (movimientoForm.origen === 'COBRADOR' ? movimientoForm.cajaOrigenId : undefined),
-        accountCode: movimientoForm.accountCode || undefined
-      })
-      
-      fetchData()
-      setShowRegistrarMovimientoModal(false)
-
-      showNotification('success', 'El movimiento contable ha sido registrado', 'Movimiento Registrado')
-    } catch (error) {
-      console.error('Error creating transaccion:', error)
-      // La cadena que habia aqui ponia `error?.response?.message` ANTES del
-      // `Array.isArray`, asi que cuando el backend mandaba la lista de campos del
-      // ValidationPipe el segundo termino la devolvia tal cual y el `join` no
-      // llegaba a correr: acababa en `String(array)`, con comas y sin espacios.
-      // `mensajeDeError` une la lista donde sea que venga.
-      const msg = mensajeDeError(error, 'No se pudo registrar el movimiento')
-      showNotification('error', msg, 'Error')
-    }
+    void fetchData()
+    showNotification('success', 'El movimiento contable ha sido registrado', 'Movimiento registrado')
   }
 
   const renderInPortal = (node: React.ReactNode) => {
@@ -2185,307 +2076,14 @@ const ModuloContableContent = () => {
           </div>
         )}
 
-        {showRegistrarMovimientoModal && renderInPortal(
-          <div className="fixed inset-0 capa-modal flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 motion-reduce:animate-none" onClick={() => setShowRegistrarMovimientoModal(false)}>
-            <div className="w-full max-w-2xl rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
-              <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-                <div className="min-w-0">
-                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Movimientos</p>
-                  <h3 className="text-lg font-bold text-slate-900">Registrar Movimiento</h3>
-                </div>
-                <button aria-label="Cerrar"
-                  type="button"
-                  onClick={() => setShowRegistrarMovimientoModal(false)}
-                  className="shrink-0 p-2 rounded-2xl hover:bg-slate-100 text-slate-500"
-                >
-                  <XCircle className="h-5 w-5" />
-                </button>
-              </div>
-
-              <div className="p-6 space-y-5">
-                {/* Tipo de Movimiento */}
-                <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                     setMovimientoForm((p) => ({ ...p, tipo: 'INGRESO', categoria: 'INGRESO', concepto: '', referencia: '', cajaOrigenId: '', origen: 'EMPRESA' }));
-                     // Limpiamos los campos que podrían causar confusión
-                  }}
-                  className={cn(
-                    'flex items-center justify-center gap-2 py-3 rounded-2xl border text-sm font-bold transition-colors shadow-sm',
-                    movimientoForm.tipo === 'INGRESO'
-                      ? 'bg-emerald-600 text-white border-emerald-600 ring-2 ring-emerald-100 ring-offset-2'
-                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                  )}
-                >
-                  <ArrowDownLeft className="h-4 w-4" />
-                  Ingreso
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                     setMovimientoForm((p) => ({ ...p, tipo: 'EGRESO', categoria: 'EGRESO', concepto: '', referencia: '', cajaOrigenId: '', origen: 'EMPRESA' }));
-                     // Limpiamos los campos
-                  }}
-                  className={cn(
-                    'flex items-center justify-center gap-2 py-3 rounded-2xl border text-sm font-bold transition-colors shadow-sm',
-                    movimientoForm.tipo === 'EGRESO'
-                      ? 'bg-rose-600 text-white border-rose-600 ring-2 ring-rose-100 ring-offset-2'
-                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                  )}
-                >
-                  <ArrowUpRight className="h-4 w-4" />
-                  Egreso
-                </button>
-                </div>
-
-                {/* Caja y Origen */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <FieldLabel
-                      htmlFor="movimiento-caja-afectada"
-                      required
-                      className="text-xs font-black text-slate-500 uppercase ml-1 mb-1.5"
-                    >
-                        {movimientoForm.origen === 'COBRADOR' 
-                           ? (movimientoForm.tipo === 'INGRESO' ? 'Caja Destino (Recibe)' : 'Caja Origen (Entrega)')
-                           : 'Caja Afectada'}
-                    </FieldLabel>
-                    <div className="relative">
-                        <Wallet className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                        <Selector
-                          id="movimiento-caja-afectada"
-                          value={movimientoForm.cajaId}
-                          onChange={(v) => setMovimientoForm((p) => ({ ...p, cajaId: v }))}
-                          etiqueta="Caja destino"
-                          placeholder="Seleccionar caja destino..."
-                          className="pl-9 pr-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm"
-                          opciones={cajasOrdenadas.map((c) => ({
-                            value: c.id,
-                            label:
-                              c.nombre +
-                              ' (Saldo: ' +
-                              formatCurrency(Math.abs(Number(c.saldo || 0))) +
-                              ')',
-                          }))}
-                        />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <FieldLabel htmlFor="page-origen-del-capital" required className="text-xs font-black text-slate-500 uppercase ml-1 mb-1.5">Origen del Capital</FieldLabel>
-                    <div className="relative">
-                        <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                        <Selector
-                          id="page-origen-del-capital"
-                          value={movimientoForm.origen}
-                          onChange={(v) => {
-                            setMovimientoForm((p) => ({
-                              ...p,
-                              origen: v as 'EMPRESA' | 'COBRADOR',
-                            }));
-                          }}
-                          etiqueta="Origen del capital"
-                          className="pl-9 pr-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm"
-                          opciones={[
-                            { value: 'EMPRESA', label: 'Externo (Gasto/Ingreso)' },
-                            { value: 'COBRADOR', label: 'Transferencia entre Cajas' },
-                          ]}
-                        />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Caso Especial: Consolidación / Transferencia entre Cajas */}
-                {movimientoForm.origen === 'COBRADOR' && (
-                  <div className="p-4 rounded-2xl bg-orange-50 border border-orange-100 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
-                    <div className="flex items-center gap-2 text-orange-800">
-                       <Zap className="h-4 w-4" />
-                       <span className="text-xs font-black uppercase tracking-tight">
-                         {movimientoForm.tipo === 'INGRESO' ? 'Caja que Entrega Capital' : 'Caja que Recibe Capital'}
-                       </span>
-                    </div>
-                    <div className="space-y-1.5">
-                      <FieldLabel
-                        htmlFor="movimiento-caja-contrapartida"
-                        required
-                        className="text-[10px] font-bold text-orange-700 uppercase ml-1 mb-1.5"
-                      >
-                        {movimientoForm.tipo === 'INGRESO' ? '¿De qué caja sale el dinero?' : '¿A qué caja va el dinero?'}
-                      </FieldLabel>
-                      <Selector
-                          id="movimiento-caja-contrapartida"
-                          value={movimientoForm.cajaOrigenId}
-                          onChange={(v) => setMovimientoForm((p) => ({ ...p, cajaOrigenId: v }))}
-                          etiqueta="Caja de origen"
-                          placeholder="--- SELECCIONAR CAJA ---"
-                          className="border-orange-200 px-4 py-2.5 font-mono text-sm font-bold text-slate-900 shadow-sm"
-                          opciones={cajasOrdenadas.map((c) => ({
-                            value: c.id,
-                            disabled: c.id === movimientoForm.cajaId,
-                            label:
-                              c.nombre +
-                              (c.id === movimientoForm.cajaId
-                                ? ' (Seleccionada como destino)'
-                                : '') +
-                              ' (Saldo: ' +
-                              formatCurrency(Math.abs(Number(c.saldo || 0))) +
-                              ')',
-                          }))}
-                      />
-                    </div>
-                    <p className="text-[10px] text-orange-600/80 font-medium italic">
-                      {movimientoForm.tipo === 'INGRESO' 
-                        ? 'Al guardar, se restará el monto de la caja seleccionada arriba y se sumará a la caja afectada.' 
-                        : 'Al guardar, se restará el monto de la caja afectada y se sumará a la caja seleccionada arriba.'}
-                    </p>
-                  </div>
-                )}
-
-                {/* Detalles Financieros */}
-                {/* Categoría: tarjetas con nombre claro + explicación de qué hace
-                    cada una. Se manda el CÓDIGO (p. ej. APORTE_CAPITAL), no un id,
-                    para que el backend asigne la cuenta correcta. */}
-                {movimientoForm.origen === 'EMPRESA' && (
-                  <div className="space-y-1.5">
-                    {/* Grupo de botones: `aria-labelledby`, no `htmlFor`. */}
-                    <FieldLabel
-                      id="movimiento-categoria"
-                      required
-                      className="text-xs font-bold text-slate-500 uppercase ml-1 mb-1.5"
-                    >
-                      ¿Qué tipo de {movimientoForm.tipo === 'INGRESO' ? 'entrada' : 'salida'} es?
-                    </FieldLabel>
-                    <div
-                      role="group"
-                      aria-labelledby="movimiento-categoria"
-                      className="grid grid-cols-1 sm:grid-cols-2 gap-2"
-                    >
-                      {categoriasPorTipo(movimientoForm.tipo === 'INGRESO' ? 'INGRESO' : 'EGRESO').map((c) => {
-                        const activa = movimientoForm.categoriaId === c.code
-                        return (
-                          <button
-                            key={c.code}
-                            type="button"
-                            onClick={() => setMovimientoForm(p => ({ ...p, categoriaId: c.code, categoria: c.code }))}
-                            className={cn(
-                              'text-left rounded-xl border p-3 transition-all min-w-0',
-                              activa
-                                ? 'border-blue-400 bg-blue-50 ring-2 ring-blue-100'
-                                : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50',
-                            )}
-                          >
-                            <div className="text-sm font-bold text-slate-900 break-words">{c.label}</div>
-                            <div className="text-[11px] text-slate-500 mt-0.5 leading-snug break-words">{c.efecto}</div>
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                <div className="space-y-1.5">
-                  <FieldLabel htmlFor="page-monto-de-operacion" required className="text-xs font-bold text-slate-500 uppercase ml-1 mb-1.5">Monto de Operación</FieldLabel>
-                  <div className="relative">
-                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-                    <input
-                      id="page-monto-de-operacion"
-                      type="text"
-                      inputMode="numeric"
-                      value={movimientoForm.montoInput}
-                      onChange={(e) => setMovimientoForm((p) => ({ ...p, montoInput: formatCOPInputValue(e.target.value) }))}
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white font-bold text-slate-900 placeholder:text-slate-300 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
-                      placeholder="0"
-                    />
-                  </div>
-                </div>
-
-                {/* Mensaje DINÁMICO: explica exactamente qué hará este movimiento
-                    con la categoría elegida (a qué cuenta va, si es ganancia o no). */}
-                {(() => {
-                  if (movimientoForm.origen === 'COBRADOR') {
-                    return (
-                      <div className="rounded-2xl border border-orange-100 bg-orange-50/70 px-4 py-3 text-xs font-semibold text-orange-800">
-                        Transferencia entre cajas: el dinero se mueve de una caja a otra. No cuenta como ingreso ni como gasto del negocio.
-                      </div>
-                    );
-                  }
-                  const cajaNombre = cajas.find(c => c.id === movimientoForm.cajaId)?.nombre;
-                  const { texto, alerta } = mensajeEfectoMovimiento({
-                    tipo: movimientoForm.tipo === 'INGRESO' ? 'INGRESO' : 'EGRESO',
-                    categoriaCode: movimientoForm.categoriaId,
-                    montoFmt: movimientoForm.montoInput ? `$${movimientoForm.montoInput}` : undefined,
-                    cajaNombre,
-                  });
-                  return (
-                    <div className={`rounded-2xl border px-4 py-3 text-xs font-semibold ${alerta ? 'border-amber-200 bg-amber-50/70 text-amber-800' : 'border-blue-100 bg-blue-50/70 text-blue-800'}`}>
-                      {texto}
-                    </div>
-                  );
-                })()}
-
-                {/* Alerta de fondos insuficientes */}
-                {(() => {
-                    const montoValue = parseCOPInputToNumber(movimientoForm.montoInput);
-                    const isTransfer = movimientoForm.origen === 'COBRADOR';
-                    let sourceCajaId = '';
-                    if (movimientoForm.tipo === 'EGRESO') {
-                        sourceCajaId = movimientoForm.cajaId;
-                    } else if (isTransfer && movimientoForm.tipo === 'INGRESO') {
-                        sourceCajaId = movimientoForm.cajaOrigenId;
-                    }
-
-                    const sourceCaja = cajas.find(c => c.id === sourceCajaId);
-                    if (sourceCajaId && sourceCaja && montoValue > sourceCaja.saldo) {
-                        return (
-                            <div className="shrink-0 mt-4 p-3 rounded-xl bg-red-50 border border-red-100 flex items-center gap-2 animate-pulse">
-                                <AlertTriangle className="h-4 w-4 text-red-600" />
-                                <span className="text-xs font-bold text-red-600 uppercase tracking-tight leading-none">
-                                    Fondos Insuficientes en {sourceCaja.nombre}
-                                </span>
-                            </div>
-                        );
-                    }
-                    return null;
-                })()}
-              </div>
-
-              <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowRegistrarMovimientoModal(false)}
-                  className="px-5 py-3 rounded-2xl border border-slate-200 bg-white text-sm font-bold text-slate-700 hover:bg-slate-50"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  onClick={handleRegistrarMovimiento}
-                  disabled={(() => {
-                    const montoValue = parseCOPInputToNumber(movimientoForm.montoInput);
-                    const isTransfer = movimientoForm.origen === 'COBRADOR';
-                    let sourceCajaId = '';
-                    if (movimientoForm.tipo === 'EGRESO') {
-                        sourceCajaId = movimientoForm.cajaId;
-                    } else if (isTransfer && movimientoForm.tipo === 'INGRESO') {
-                        sourceCajaId = movimientoForm.cajaOrigenId;
-                    }
-                    const sourceCaja = cajas.find(c => c.id === sourceCajaId);
-                    const hasInsufficientFunds = sourceCajaId && sourceCaja ? (montoValue > sourceCaja.saldo) : false;
-                    return (
-                        montoValue <= 0 ||
-                        (!movimientoForm.categoria && !movimientoForm.categoriaId) ||
-                        (isTransfer && !movimientoForm.cajaOrigenId) ||
-                        hasInsufficientFunds
-                    );
-                  })()}
-                  className="px-6 py-3 rounded-2xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  Guardar
-                </button>
-              </div>
-            </div>
-          </div>
+        {showRegistrarMovimientoModal && (
+          <RegistrarMovimientoModal
+            modoInicial="TRANSFERENCIA"
+            cajaInicial={cajaInicialMovimiento}
+            cajas={cajasOrdenadas}
+            onClose={() => setShowRegistrarMovimientoModal(false)}
+            onRegistrar={handleRegistrarMovimiento}
+          />
         )}
 
 
