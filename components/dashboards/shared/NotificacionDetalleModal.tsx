@@ -37,15 +37,11 @@ import AlertaClienteDetalleModal from '@/components/notificaciones/AlertaCliente
 import { alertasClientesService, type AlertaClienteParaDetalle } from '@/services/alertas-clientes-service'
 import { logger } from '@/lib/logger'
 import Tooltip from '@/components/ui/Tooltip'
-import { TipoAmortizacion } from '@/types/enums'
-import { totalDeSolicitud } from '@/lib/aprobaciones/total-de-solicitud'
+import { tipoAmortizacionDeSolicitud, totalDeSolicitud } from '@/lib/aprobaciones/total-de-solicitud'
+import { etiquetaTipoInteres, OPCIONES_TIPO_INTERES } from '@/lib/creditos/tipos-interes'
 import { useModalDialog } from '@/hooks/use-modal-dialog'
 import type { NotificacionParaDetalle } from '@/services/notificaciones-service'
-import {
-  calcularPrestamoPreview,
-  derivarPlazoMeses,
-  repartoConInteresConocido,
-} from '@/lib/creditos/preview-credito'
+import { derivarPlazoMeses, repartoConInteresConocido } from '@/lib/creditos/preview-credito'
 import TipoCreditoIndicador from '@/components/creditos/TipoCreditoIndicador'
 import { formatFechaBogota, formatFechaHumanaBogota } from '@/lib/format-date'
 import { Selector } from '@/components/ui/Selector'
@@ -941,6 +937,21 @@ export default function NotificacionDetalleModal({
       editedDetails?.tipoPrestamo === 'ARTICULO' ||
       safeMeta?.tipo === 'ARTICULO' ||
       safeMeta?.tipoPrestamo === 'ARTICULO')
+  const tipoInteresActual = tipoAmortizacionDeSolicitud(
+    editedDetails?.tipoAmortizacion ?? safeMeta?.tipoAmortizacion,
+  )
+  const totalPrestamo = isPrestamo && !isArticle
+    ? totalDeSolicitud({
+        montoTotal: editedDetails?.montoTotal,
+        interesTotal: editedDetails?.interesTotal,
+        monto: editedDetails?.monto,
+        cantidadCuotas: editedDetails?.cantidadCuotas ?? editedDetails?.cuotas,
+        tasaInteres: editedDetails?.tasaInteres ?? editedDetails?.porcentaje,
+        plazoMeses: editedDetails?.plazoMeses,
+        frecuenciaPago: editedDetails?.frecuenciaPago,
+        tipoAmortizacion: tipoInteresActual,
+      }, false)
+    : null
   const isApprovalNotification = Boolean(approvalType)
   const isNuevoCliente = approvalType === 'NUEVO_CLIENTE'
 
@@ -1560,11 +1571,8 @@ export default function NotificacionDetalleModal({
                     </label>
                     {isEditingMode ? (
                       <Selector
-                        value={
-                          editedDetails?.tipoAmortizacion ||
-                          safeMeta?.tipoAmortizacion ||
-                          'INTERES_SIMPLE'
-                        }
+                        value={tipoInteresActual}
+                        placeholder={etiquetaTipoInteres(tipoInteresActual)}
                         onChange={(v) =>
                           setEditedDetails({
                             ...editedDetails,
@@ -1575,18 +1583,11 @@ export default function NotificacionDetalleModal({
                         }
                         etiqueta="Tipo de amortización"
                         className="border-blue-200 px-4 py-2 text-sm font-black text-slate-900"
-                        opciones={[
-                          { value: 'INTERES_SIMPLE', label: 'Interés simple' },
-                          { value: 'FRANCESA', label: 'Amortizable' },
-                        ]}
+                        opciones={OPCIONES_TIPO_INTERES}
                       />
                     ) : (
                       <p className="text-sm font-black text-slate-900">
-                        {String(
-                          editedDetails?.tipoAmortizacion ||
-                            safeMeta?.tipoAmortizacion ||
-                            'INTERES_SIMPLE',
-                        ).replace(/_/g, ' ')}
+                        {etiquetaTipoInteres(tipoInteresActual)}
                       </p>
                     )}
                   </div>
@@ -1602,57 +1603,11 @@ export default function NotificacionDetalleModal({
                         Total a Pagar
                       </label>
                       <p className="text-lg font-black text-blue-900">
-                        {(() => {
-                          const total = (() => {
-                            const monto = Number(editedDetails?.monto || 0)
-                            const valorArticulo = Number(editedDetails?.valorArticulo || 0)
-                            const cuotaInicial = Number(editedDetails?.cuotaInicial || 0)
-                            const montoTotal = Number(editedDetails?.montoTotal || 0)
-                            const interesTotal = Number(editedDetails?.interesTotal || 0)
-                            const tasa = Number(
-                              editedDetails?.tasaInteres ?? editedDetails?.porcentaje ?? 0,
-                            )
-                            const meses = Math.max(1, Number(editedDetails?.plazoMeses || 1))
-                            const cuotas = Math.max(
-                              1,
-                              Number(editedDetails?.cuotas || editedDetails?.cantidadCuotas || 1),
-                            )
-                            const tipoAmort = String(
-                              editedDetails?.tipoAmortizacion || '',
-                            ).toUpperCase()
-
-                            if (montoTotal > 0) return montoTotal
-
-                            if (isArticle) {
-                              return valorArticulo > 0 ? valorArticulo : monto + cuotaInicial
-                            }
-
-                            if (interesTotal > 0) return monto + interesTotal
-
-                            // Misma formula que el modal de creacion. Antes aqui se
-                            // sumaba el interes sin truncar y FRANCESA se redondeaba,
-                            // asi que el total no coincidia con el que se guarda.
-                            const preview = calcularPrestamoPreview({
-                              monto,
-                              cuotas,
-                              tasa,
-                              meses:
-                                derivarPlazoMeses(
-                                  cuotas,
-                                  String(editedDetails?.frecuenciaPago || 'DIARIO'),
-                                ) || meses,
-                              tipoInteres:
-                                tipoAmort === 'FRANCESA'
-                                  ? TipoAmortizacion.FRANCESA
-                                  : tipoAmort === 'INTERES_PLANO'
-                                    ? TipoAmortizacion.INTERES_PLANO
-                                    : TipoAmortizacion.INTERES_SIMPLE,
-                            })
-
-                            return preview ? preview.total : monto
-                          })()
-                          return formatCurrency(isNaN(total) ? 0 : total)
-                        })()}
+                        {formatCurrency(
+                          totalPrestamo ??
+                            (pickNumber(editedDetails?.montoTotal, editedDetails?.valorArticulo) ||
+                              Number(editedDetails?.monto || 0) + Number(editedDetails?.cuotaInicial || 0)),
+                        )}
                       </p>
                     </div>
                     {isArticle && esContado ? (
@@ -1841,22 +1796,13 @@ export default function NotificacionDetalleModal({
                         </label>
                         <p className="text-lg font-black text-emerald-900">
                           {(() => {
-                            const montoTotal = Number(editedDetails?.montoTotal || 0)
+                            const montoTotal = totalPrestamo ?? Number(editedDetails?.montoTotal || 0)
                             const cuotas = Math.max(
                               1,
                               Number(editedDetails?.cuotas || editedDetails?.cantidadCuotas || 1),
                             )
                             const monto = Number(editedDetails?.monto || 0)
                             const interesTotal = Number(editedDetails?.interesTotal || 0)
-                            const tipoAmort = String(
-                              editedDetails?.tipoAmortizacion || '',
-                            ).toUpperCase()
-                            const tipoInteres =
-                              tipoAmort === 'FRANCESA'
-                                ? TipoAmortizacion.FRANCESA
-                                : tipoAmort === 'INTERES_PLANO'
-                                  ? TipoAmortizacion.INTERES_PLANO
-                                  : TipoAmortizacion.INTERES_SIMPLE
 
                             // El interes ya viene con la solicitud, o se deduce del
                             // total. Lo que falta es partirlo como lo va a partir el
@@ -1869,7 +1815,7 @@ export default function NotificacionDetalleModal({
                             const capital = monto > 0 ? monto : Math.max(0, montoTotal - interes)
 
                             const { valorCuota } = repartoConInteresConocido(
-                              tipoInteres,
+                              tipoInteresActual,
                               capital,
                               interes,
                               cuotas,
@@ -1884,27 +1830,7 @@ export default function NotificacionDetalleModal({
                           Total a Cobrar
                         </label>
                         <p className="text-lg font-black text-emerald-900">
-                          {(() => {
-                            const montoBase = Number(editedDetails?.montoTotal || 0)
-                            const monto = Number(editedDetails?.monto || 0)
-                            const tasa = Number(
-                              editedDetails?.tasaInteres ?? editedDetails?.porcentaje ?? 0,
-                            )
-                            const interesTotal = Number(editedDetails?.interesTotal || 0)
-                            const tipoAmort = String(
-                              editedDetails?.tipoAmortizacion || '',
-                            ).toUpperCase()
-
-                            if (montoBase > 0) return formatCurrency(montoBase)
-
-                            if (tipoAmort === 'FRANCESA' && monto > 0) {
-                              const interes =
-                                interesTotal > 0 ? interesTotal : Math.round(monto * (tasa / 100))
-                              return formatCurrency(monto + interes)
-                            }
-
-                            return formatCurrency(0)
-                          })()}
+                          {formatCurrency(totalPrestamo ?? Number(editedDetails?.montoTotal || 0))}
                         </p>
                       </div>
                     </div>

@@ -25,6 +25,7 @@ import { obtenerPerfil } from '@/services/autenticacion-service';
 import { prestamosService } from '@/services/prestamos-service';
 import { resolveCurrentUserId } from '@/lib/creditos/crear-prestamo-payload';
 import { FrecuenciaPago, NivelRiesgo, TipoAmortizacion } from '@/types/enums';
+import { OPCIONES_TIPO_INTERES } from '@/lib/creditos/tipos-interes';
 import { Selector } from '@/components/ui/Selector'
 import { CampoFecha } from '@/components/ui/CampoFecha'
 import Cifra from '@/components/ui/Cifra'
@@ -751,25 +752,7 @@ const CreacionPrestamoElegante = ({ initialClienteId, isModal }: { initialClient
                             }
                             etiqueta="Tipo de interés"
                             className="font-medium text-slate-900"
-                            /*
-                              Aqui decia `value="AMORTIZABLE"` y `value="SIMPLE"`, y
-                              NINGUNO de los dos existe en `TipoAmortizacion`, cuyos
-                              valores son INTERES_SIMPLE, INTERES_PLANO y FRANCESA.
-                              Ese valor se manda al backend como `tipoAmortizacion`
-                              (linea ~375) y se compara en dos sitios contra
-                              `TipoAmortizacion.INTERES_SIMPLE`, asi que elegir
-                              «Amortizable» mandaba un valor que el enum no contempla
-                              y la comparacion no casaba nunca.
-
-                              El `<select>` nativo lo tapaba: entrega un `string` suelto
-                              y `handleInputChange` lo metia en el formulario sin que
-                              nadie comprobara nada. El tipado lo destapo al migrar,
-                              porque este selector es generico sobre el valor.
-                            */
-                            opciones={[
-                              { value: TipoAmortizacion.INTERES_PLANO, label: 'Amortizable (cuota fija)' },
-                              { value: TipoAmortizacion.INTERES_SIMPLE, label: 'Interés Simple' },
-                            ]}
+                            opciones={OPCIONES_TIPO_INTERES}
                           />
                         </div>
                       </div>

@@ -1,4 +1,5 @@
 import { TipoAmortizacion } from '@/types/enums'
+import { tipoInteresRegistrado } from '@/lib/creditos/tipos-interes'
 import { calcularPrestamoPreview, derivarPlazoMeses } from '@/lib/creditos/preview-credito'
 
 /**
@@ -50,12 +51,8 @@ const primeroPositivo = (...valores: unknown[]): number => {
   return 0
 }
 
-export const tipoAmortizacionDeSolicitud = (valor: unknown): TipoAmortizacion => {
-  const texto = String(valor ?? '').toUpperCase()
-  if (texto === 'FRANCESA') return TipoAmortizacion.FRANCESA
-  if (texto === 'INTERES_PLANO') return TipoAmortizacion.INTERES_PLANO
-  return TipoAmortizacion.INTERES_SIMPLE
-}
+export const tipoAmortizacionDeSolicitud = (valor: unknown): TipoAmortizacion =>
+  tipoInteresRegistrado(valor) || TipoAmortizacion.INTERES_SIMPLE
 
 /**
  * Plazo en meses para el cálculo del interés.

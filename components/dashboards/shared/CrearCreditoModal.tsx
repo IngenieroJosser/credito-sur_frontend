@@ -20,6 +20,7 @@ import { clientesService, Cliente } from '@/services/clientes-service'
 import { articulosService, Articulo } from '@/services/articulos-service'
 import { offlineStore } from '@/lib/offline/offlineDb'
 import { TipoAmortizacion } from '@/types/enums'
+import { etiquetaTipoInteres, OPCIONES_TIPO_INTERES } from '@/lib/creditos/tipos-interes'
 import { getBogotaDateKey, toBogotaDateTimeLocalInputValue } from '@/lib/rutas-core'
 import FieldLabel from '@/components/ui/FieldLabel'
 import { useAuth } from '@/hooks/useAuth'
@@ -496,10 +497,7 @@ export default function CrearCreditoModal({
                         onChange={(v) => setTipoInteres(v as TipoAmortizacion)}
                         etiqueta="Tipo de interés"
                         className="bg-slate-50 p-3 font-medium text-slate-900"
-                        opciones={[
-                          { value: TipoAmortizacion.INTERES_SIMPLE, label: 'Interés Simple' },
-                          { value: TipoAmortizacion.INTERES_PLANO, label: 'Amortización' },
-                        ]}
+                        opciones={OPCIONES_TIPO_INTERES}
                       />
                     </div>
                   </div>
@@ -960,7 +958,7 @@ export default function CrearCreditoModal({
                     <div className="flex justify-between">
                       <span className="text-slate-600 font-medium">Sistema:</span>
                       <span className="font-bold text-slate-900">
-                        {tipoInteres === TipoAmortizacion.INTERES_PLANO ? 'Amortización' : 'Interés Simple'}
+                        {etiquetaTipoInteres(tipoInteres)}
                       </span>
                     </div>
                   )}
