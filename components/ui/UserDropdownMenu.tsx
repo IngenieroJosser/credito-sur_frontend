@@ -1,4 +1,5 @@
 'use client'
+import Tooltip from '@/components/ui/Tooltip'
 import { formatFechaBogota } from '@/lib/format-date'
 
 import React, { useState, useEffect, useRef } from 'react'
@@ -233,9 +234,9 @@ export default function UserDropdownMenu({ user, onLogout }: UserDropdownMenuPro
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-xs text-gray-500">Correo electrónico</div>
-                    <div className="text-sm font-medium text-gray-900 truncate" title={user.correo || 'Sin correo'}>
+                    <Tooltip texto={(user.correo || 'Sin correo') || ''}><div className="text-sm font-medium text-gray-900 truncate">
                       {user.correo || 'Sin correo'}
-                    </div>
+                    </div></Tooltip>
                   </div>
                 </div>
 

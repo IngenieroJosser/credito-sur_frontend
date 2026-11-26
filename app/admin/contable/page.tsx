@@ -1635,9 +1635,9 @@ const ModuloContableContent = () => {
                         </td>
                         <td className="px-4 py-2 align-middle">
                           <div className="flex flex-col">
-                            <span className="text-xs font-bold text-slate-900 truncate max-w-[200px]" title={conceptoLimpio || m.concepto}>
+                            <Tooltip texto={(conceptoLimpio || m.concepto) || ''}><span className="text-xs font-bold text-slate-900 truncate max-w-[200px]">
                               {String(conceptoLimpio || m.concepto).replace(/\$(\d+)/g, (match, p1) => formatCurrency(Number(p1)))}
-                            </span>
+                            </span></Tooltip>
                             {(m.referencia || m.referenciaId) && (
                               <span className="text-[10px] text-slate-400 font-medium">
                                 Ref: {m.referencia || m.referenciaId}
@@ -1656,16 +1656,16 @@ const ModuloContableContent = () => {
                               <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded w-fit">
                                 {m.accountCode}
                               </span>
-                              <span className="text-[10px] text-slate-500 truncate max-w-[150px]" title={m.accountName}>
+                              <Tooltip texto={(m.accountName) || ''}><span className="text-[10px] text-slate-500 truncate max-w-[150px]">
                                 {m.accountName}
-                              </span>
+                              </span></Tooltip>
                             </div>
                           ) : (
                             <span className="text-[10px] text-slate-400 italic">No asignada</span>
                           )}
                         </td>
                         <td className="px-4 py-2 align-middle">
-                          <span className="text-xs font-medium text-slate-700 truncate max-w-[120px] block" title={m.responsable}>
+                          <Tooltip texto={(m.responsable) || ''}><span className="text-xs font-medium text-slate-700 truncate max-w-[120px] block">
                             {(() => {
                               const r = m.responsable || '';
                               if (r === 'Sistema') return r;
@@ -1673,7 +1673,7 @@ const ModuloContableContent = () => {
                               const user = usuariosList.find(u => u.id === r);
                               return user ? `${user.nombres} ${user.apellidos}` : r;
                             })()}
-                          </span>
+                          </span></Tooltip>
                         </td>
                         <td className="px-4 py-2 align-middle text-right">
                           <MoneyAmount

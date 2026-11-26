@@ -1,4 +1,5 @@
 'use client'
+import Tooltip from '@/components/ui/Tooltip'
 import { esApiError } from '@/lib/api/api'
 
 import { datosParaRegistro, estadoDeError, mensajeDeError } from '@/lib/mensaje-de-error'
@@ -3769,7 +3770,13 @@ const VistaCobrador = () => {
                                         Estado
                                       </button>
 
-                                      <button
+                                      <Tooltip texto={!rutaOperable
+                                            ? rutaCompletada
+                                              ? 'Jornada completada'
+                                              : 'Jornada sin activar'
+                                            : prorrogaActivaEnVisita(visita)
+                                              ? 'No se puede reprogramar con prórroga activa'
+                                              : 'Solicitar reprogramación'}><button
                                         onClick={(e) => {
                                           e.stopPropagation()
 
@@ -3785,21 +3792,12 @@ const VistaCobrador = () => {
                                         disabled={
                                           !rutaOperable || prorrogaActivaEnVisita(visita)
                                         }
-                                        title={
-                                          !rutaOperable
-                                            ? rutaCompletada
-                                              ? 'Jornada completada'
-                                              : 'Jornada sin activar'
-                                            : prorrogaActivaEnVisita(visita)
-                                              ? 'No se puede reprogramar con prórroga activa'
-                                              : 'Solicitar reprogramación'
-                                        }
 
                                         className={`inline-flex min-h-[44px] items-center gap-1 rounded-lg px-3 sm:min-h-0 sm:py-1.5 border transition-all active:scale-95 text-[11px] font-bold ${!rutaOperable || prorrogaActivaEnVisita(visita) ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
                                       >
                                         <Calendar className="h-3.5 w-3.5 text-slate-400" />
                                         Repro.
-                                      </button>
+                                      </button></Tooltip>
                                     </>
                                   }
                                 />

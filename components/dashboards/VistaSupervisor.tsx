@@ -1,4 +1,5 @@
 'use client'
+import Tooltip from '@/components/ui/Tooltip'
 import { formatFechaBogota } from '@/lib/format-date'
 
 import { mensajeDeError } from '@/lib/mensaje-de-error'
@@ -331,9 +332,9 @@ const VistaSupervisor = () => {
               </div>
 
               <div className="space-y-2 relative z-10">
-                <div className="text-3xl font-black text-slate-900 tracking-tight truncate leading-tight" title={metric.value}>
+                <Tooltip texto={(metric.value) || ''}><div className="text-3xl font-black text-slate-900 tracking-tight truncate leading-tight">
                   {metric.value}
-                </div>
+                </div></Tooltip>
                 {metric.subValue && (
                   <div className="text-[11px] font-bold text-slate-500/80 uppercase tracking-wide flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>

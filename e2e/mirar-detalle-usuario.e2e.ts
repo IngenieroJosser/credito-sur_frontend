@@ -27,12 +27,35 @@ for (const [vista, width, height] of [['escritorio', 1440, 900], ['móvil', 375,
       const path = new URL(route.request().url()).pathname
       if (path.endsWith('/operational-detail')) {
         if (fallar) return route.fulfill({ status: 503, json: { message: 'No disponible' } })
-        return route.fulfill({ json: { usuarioId: admin.id, rol: admin.rol, metricas: {
-          usuariosActivos: 15, rutasActivas: 3, rutasTotal: 4, dineroCaja: 80000, balanceDia: 0,
+        /*
+         * La respuesta habla de ESTA persona.
+         *
+         * Antes este fixture devolvía `metricas` con `usuariosActivos: 15` y
+         * `dineroCaja: 80000` —cifras de todo el sistema— y la prueba
+         * comprobaba que el 15 saliera en pantalla. O sea que fijaba el
+         * defecto: el detalle de un usuario enseñando el tablero. El
+         * endpoint ya no devuelve eso.
+         */
+        return route.fulfill({ json: {
+          usuarioId: admin.id, rol: admin.rol,
+          hizo: {
+            desde: '2026-05-02T18:00:00Z', dias: 30,
+            pagosRegistrados: { cantidad: 0, monto: 0 },
+            creditosCreados: { cantidad: 0, monto: 0 },
+            creditosAprobados: { cantidad: 15, monto: 4500000 },
+            clientesCreados: { cantidad: 0, monto: null },
+            gastosRegistrados: { cantidad: 0, monto: 0 },
+            movimientosDeCaja: { cantidad: 0, monto: 0 },
+            arqueosDeCaja: { cantidad: 0, monto: null },
+            visitasRegistradas: { cantidad: 0, monto: null },
+            accionesEnElSistema: { cantidad: 7, monto: null },
+          },
+          aCargo: { rutasTotal: 0, rutasActivas: 0 },
+          cifras: ['creditosAprobados', 'accionesEnElSistema'],
           actividadReciente: Array.from({ length: 7 }, (_, i) => ({
             time: '2026-06-01T18:00:00Z', action: 'Actividad ' + (i + 1), detail: '', type: 'neutral',
           })),
-        } } })
+        } })
       }
       if (path.endsWith('/usuarios')) return route.fulfill({ json: [admin] })
       if (path.endsWith('/auth/perfil')) return route.fulfill({ json: admin })
@@ -46,8 +69,17 @@ for (const [vista, width, height] of [['escritorio', 1440, 900], ['móvil', 375,
     await expect(dialogo.getByText('Sin actividad registrada.')).toHaveCount(0)
     fallar = false
     await dialogo.getByRole('button', { name: 'Reintentar' }).click()
-    await expect(dialogo.getByText('15', { exact: true })).toBeVisible()
-    await expect(dialogo.getByRole('button', { name: 'Desactivar' })).toHaveCount(0)
+    // Lo que hizo ella: quince créditos aprobados, con su importe.
+    await expect(dialogo.getByText('15 créditos')).toBeVisible()
+    /*
+     * Y NADA del sistema. Si alguien vuelve a meter aquí el dinero en caja de
+     * la empresa, esto lo dice: el fixture ya no lo manda, así que la unica
+     * forma de que aparezca es que la pantalla se lo invente.
+     */
+    await expect(dialogo.getByText(/dinero en caja/i)).toHaveCount(0)
+    await expect(dialogo.getByText(/usuarios activos/i)).toHaveCount(0)
+    await expect(dialogo.getByRole('button', { name: 'Editar datos' })).toHaveCount(0)
+    await expect(dialogo.getByRole('button', { name: 'Permisos' })).toHaveCount(0)
     await expect(dialogo.locator('time').first()).toHaveAttribute('datetime', '2026-06-01T18:00:00Z')
     await dialogo.getByRole('button', { name: 'Siguiente' }).click()
     await expect(dialogo.getByText('Actividad 7')).toBeVisible()

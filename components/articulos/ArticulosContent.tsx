@@ -1283,20 +1283,17 @@ export default function ArticulosContent() {
                       `addPrecioCuota` sale sin agregar si el precio es 0. Queda
                       deshabilitado, que es lo mismo pero visible.
                     */}
-                    <button
+                    <Tooltip texto={(parseCOPInputToNumber(nuevaCuota.precio) <= 0
+                          ? 'Escribe el precio total de esa opción para agregarla'
+                          : undefined) || ''}><button
                       type="button"
                       onClick={addPrecioCuota}
                       disabled={parseCOPInputToNumber(nuevaCuota.precio) <= 0}
-                      title={
-                        parseCOPInputToNumber(nuevaCuota.precio) <= 0
-                          ? 'Escribe el precio total de esa opción para agregarla'
-                          : undefined
-                      }
                       className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-orange-500 text-white text-sm font-bold hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-orange-500"
                     >
                       <Plus className="h-4 w-4" />
                       Agregar
-                    </button>
+                    </button></Tooltip>
                   </div>
                 </div>
 

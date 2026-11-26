@@ -1,6 +1,7 @@
 'use client'
 
 
+import BarraDeFiltros from '@/components/filtros/BarraDeFiltros'
 import { mensajeDeError } from '@/lib/mensaje-de-error';
 // Con alias: esta pantalla ya tiene una variable local llamada `texto`.
 import { numero as numeroDeJson, objeto as objetoDeJson, texto as textoDeJson } from '@/lib/valores-de-api';
@@ -690,149 +691,95 @@ export default function NotificacionesPage() {
 
         <div className="w-full px-8">
           <div className="bg-white/80 backdrop-blur-xl rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-            {/* Tabs y Filtros */}
-            <div className="border-b border-slate-100 p-4 flex flex-col gap-4">
-              {/*
-                * Estas tres pestanas y el grupo de categorias de mas abajo
-                * empiezan las dos por un boton que dice «Todas». El grupo de
-                * categorias si llevaba su nombre encima; estas no, asi que en
-                * la pantalla se veian dos «Todas» y solo uno decia de que.
-                */}
-              <div>
-                <p className="mb-3 pl-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                  Filtrar por lectura
-                </p>
-              <div
-                role="group"
-                aria-label="Filtrar por lectura"
-                className="flex bg-slate-100/50 p-1 rounded-xl"
-              >
-                <button
-                  onClick={() => setFilter('TODAS')}
-                  className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-                    filter === 'TODAS' 
-                      ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200' 
-                      : 'text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  Todas
-                </button>
-                <button
-                  onClick={() => setFilter('NO_LEIDAS')}
-                  className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-                    filter === 'NO_LEIDAS' 
-                      ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200' 
-                      : 'text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  No leídas
-                </button>
-                <button
-                  onClick={() => setFilter('LEIDAS')}
-                  className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-                    filter === 'LEIDAS' 
-                      ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200' 
-                      : 'text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  Leídas
-                </button>
-                {canApprove && (
-                  <button
-                    onClick={() => setFilter('APROBADAS')}
-                    className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-                      filter === 'APROBADAS' 
-                        ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200' 
-                        : 'text-slate-500 hover:text-slate-700'
-                    }`}
-                  >
-                    Aprobadas
-                  </button>
-                )}
-                {canApprove && (
-                  <button
-                    onClick={() => setFilter('RECHAZADAS')}
-                    className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-                      filter === 'RECHAZADAS' 
-                        ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200' 
-                        : 'text-slate-500 hover:text-slate-700'
-                    }`}
-                  >
-                    Rechazadas
-                  </button>
-                )}
-              </div>
-              </div>
+            {/*
+              Tres filtros, cada uno en su linea, y el buscador en la suya.
 
-              <div className="flex flex-col gap-6">
-                {/* Tipo de Notificación */}
-                <div>
-                  <GrupoDeFiltros
-                    sinMarco
-                    nombre="Categoría"
-                    className="overflow-x-auto pb-1 scrollbar-hide"
-                    valor={tipoFilter}
-                    onChange={(v) => setTipoFilter(v as typeof tipoFilter)}
-                    opciones={[
-                      { id: 'TODOS', label: 'Todas' },
-                      { id: 'PRESTAMO', label: 'Préstamos' },
-                      { id: 'CLIENTE', label: 'Clientes' },
-                      { id: 'GASTO', label: 'Gastos' },
-                      { id: 'SOLICITUD_DINERO', label: 'Bases' },
-                      { id: 'PAGO', label: 'Pagos' },
-                      { id: 'REGULARIZADAS', label: 'Regularizadas' },
-                      { id: 'MORA', label: 'Mora' },
-                      { id: 'SISTEMA', label: 'Sistema' },
-                    ]}
+              Las pestanas de lectura estaban escritas a mano —cinco botones
+              con sus clases repetidas cinco veces— y medidas a 1366 de ancho
+              se partian en dos lineas. Ahora son `GrupoDeFiltros` como las
+              demas, asi que ademas traen `aria-pressed` y area tactil de
+              44 px, que a mano no tenian.
+            */}
+            <div className="border-b border-slate-100 p-4">
+              <BarraDeFiltros
+                className="border-0 bg-transparent p-0 shadow-none sm:bg-transparent sm:backdrop-blur-none"
+                buscador={
+                  <>
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <input
+                      type="text"
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Buscar notificación..."
+                      className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 text-sm text-slate-900 placeholder:text-slate-400 transition-all font-medium"
+                    />
+                  </>
+                }
+              >
+                <GrupoDeFiltros
+                  sinMarco
+                  nombre="Lectura"
+                  valor={filter}
+                  onChange={(v) => setFilter(v as typeof filter)}
+                  opciones={[
+                    { id: 'TODAS', label: 'Todas' },
+                    { id: 'NO_LEIDAS', label: 'No leídas' },
+                    { id: 'LEIDAS', label: 'Leídas' },
+                    ...(canApprove
+                      ? [
+                          { id: 'APROBADAS', label: 'Aprobadas' },
+                          { id: 'RECHAZADAS', label: 'Rechazadas' },
+                        ]
+                      : []),
+                  ]}
+                />
+
+                <GrupoDeFiltros
+                  sinMarco
+                  nombre="Categoría"
+                  valor={tipoFilter}
+                  onChange={(v) => setTipoFilter(v as typeof tipoFilter)}
+                  opciones={[
+                    { id: 'TODOS', label: 'Todas' },
+                    { id: 'PRESTAMO', label: 'Préstamos' },
+                    { id: 'CLIENTE', label: 'Clientes' },
+                    { id: 'GASTO', label: 'Gastos' },
+                    { id: 'SOLICITUD_DINERO', label: 'Bases' },
+                    { id: 'PAGO', label: 'Pagos' },
+                    { id: 'REGULARIZADAS', label: 'Regularizadas' },
+                    { id: 'MORA', label: 'Mora' },
+                    { id: 'SISTEMA', label: 'Sistema' },
+                  ]}
+                />
+
+                {canFilterByRoute && (
+                  <FiltroRuta
+                    onRutaChange={setFilterRuta}
+                    selectedRutaId={filterRuta}
+                    layout="wrap"
+                    showAllOption={true}
+                    hideLabel={true}
+                  />
+                )}
+
+                <div className="w-full sm:w-56">
+                  <Selector
+                    value={sortBy}
+                    onChange={(v) => {
+                      // El valor sigue comprobandose en vez de afirmarse: los
+                      // posibles son las llaves de ORDENES, que es de donde se
+                      // dibujan las opciones.
+                      if (esOrden(v)) setSortBy(v)
+                    }}
+                    etiqueta="Ordenar por"
+                    className="h-[42px] text-sm font-bold text-slate-700"
+                    opciones={Object.entries(ORDENES).map(([valor, etiqueta]) => ({
+                      value: valor,
+                      label: etiqueta,
+                    }))}
                   />
                 </div>
-
-                {/* Filtro de Ruta + Búsqueda */}
-                  <div className={`flex flex-col lg:flex-row lg:items-end justify-between gap-6`}>
-                    <div className="flex flex-col md:flex-row gap-4 flex-1">
-                      {canFilterByRoute && (
-                        <div className="flex-1 min-w-0">
-                          <FiltroRuta 
-                              onRutaChange={setFilterRuta} 
-                              selectedRutaId={filterRuta}
-                              layout="wrap"
-                              showAllOption={true}
-                              hideLabel={true}
-                          />
-                        </div>
-                      )}
-                      
-                      <div className="md:w-48">
-                        <Selector
-                          value={sortBy}
-                          onChange={(v) => {
-                            // El valor sigue comprobandose en vez de afirmarse: los
-                            // posibles son las llaves de ORDENES, que es de donde se
-                            // dibujan las opciones.
-                            if (esOrden(v)) setSortBy(v)
-                          }}
-                          etiqueta="Ordenar por"
-                          className="h-[42px] text-sm font-bold text-slate-700"
-                          opciones={Object.entries(ORDENES).map(([valor, etiqueta]) => ({
-                            value: valor,
-                            label: etiqueta,
-                          }))}
-                        />
-                      </div>
-                    </div>
-
-                    <div className={`relative w-full ${canFilterByRoute ? 'lg:w-80' : ''}`}>
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                      <input
-                        type="text"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        placeholder="Buscar notificación..."
-                        className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 text-sm text-slate-900 placeholder:text-slate-400 transition-all font-medium"
-                      />
-                    </div>
-                  </div>
-              </div>
+              </BarraDeFiltros>
             </div>
 
             {/* Lista */}

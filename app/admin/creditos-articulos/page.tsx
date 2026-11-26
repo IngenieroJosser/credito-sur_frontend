@@ -1,6 +1,7 @@
 'use client'
 
 
+import BarraDeFiltros from '@/components/filtros/BarraDeFiltros'
 import { mensajeDeError } from '@/lib/mensaje-de-error'
 import {
   puntoDeRiesgoSegunValor,
@@ -331,82 +332,90 @@ export default function CreditosArticulosPage() {
           </div>
         </div>
 
-        {/* Filters & Search */}
-        <div className="bg-white/80 backdrop-blur-sm p-4 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col md:flex-row gap-4 items-center justify-between animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
-          <div className="w-full md:w-96 buscador-3d">
-            <Search className="icon h-4 w-4" />
-            <input
-              type="text"
-              placeholder="Buscar por cliente, artículo o ID..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="buscador-3d-input"
-            />
-          </div>
+        {/*
+          Medido a 1366 de ancho: los dos grupos compartian fila con el
+          buscador y con el selector de ruta, y los DOS se partian en dos
+          lineas (49 px de alto cada uno). `BarraDeFiltros` les da una linea
+          a cada uno y baja el buscador cuando no cabe.
+        */}
+        <BarraDeFiltros
+          className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200"
+          buscador={
+            <div className="buscador-3d">
+              <Search className="icon h-4 w-4" />
+              <input
+                type="text"
+                placeholder="Buscar por cliente, artículo o ID..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="buscador-3d-input"
+              />
+            </div>
+          }
+        >
+          {/* El corte con el que se trabaja a diario. */}
+          {rutasDisponibles.length > 1 && (
+            <div className="flex w-fit items-center gap-1.5 rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
+              <MapPin className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+              <Selector
+                value={rutaFiltro}
+                onChange={(v) => {
+                  setRutaFiltro(v)
+                  cambiarPagina(1)
+                }}
+                etiqueta="Filtrar por ruta"
+                className="min-w-0 max-w-[11rem] border-0 bg-transparent px-0 py-0 text-xs font-bold text-slate-700"
+                opciones={[
+                  { value: 'todas', label: 'Todas las rutas' },
+                  ...rutasDisponibles.map((r) => ({ value: r, label: r })),
+                ]}
+              />
+            </div>
+          )}
 
-          <div className="flex flex-wrap gap-3 w-full md:w-auto">
-            {/* Filtro de Ruta: es el corte con el que se trabaja a diario */}
-            {rutasDisponibles.length > 1 && (
-              <div className="flex items-center gap-1.5 bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
-                <MapPin className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                <Selector
-                  value={rutaFiltro}
-                  onChange={(v) => {
-                    setRutaFiltro(v)
-                    cambiarPagina(1)
-                  }}
-                  etiqueta="Filtrar por ruta"
-                  className="min-w-0 max-w-[11rem] border-0 bg-transparent px-0 py-0 text-xs font-bold text-slate-700"
-                  opciones={[
-                    { value: 'todas', label: 'Todas las rutas' },
-                    ...rutasDisponibles.map((r) => ({ value: r, label: r })),
-                  ]}
-                />
-              </div>
-            )}
+          {/*
+            * Los dos grupos empezaban los dos por un chip que decia
+            * exactamente «Todos», y lo unico que los distinguia era el icono
+            * gris de 14 px del principio. `GrupoDeFiltros` exige el nombre de
+            * la dimension y lo pinta, asi que ahora se leen «ESTADO Todos
+            * Activos...» y «RIESGO Todos Al dia...».
+            */}
+          <GrupoDeFiltros
+            sinMarco
+            nombre="Estado"
+            icono={<Filter className="h-3.5 w-3.5" />}
+            valor={estadoFiltro}
+            onChange={setEstadoFiltro}
+            opciones={[
+              { id: 'todos', label: 'Todos' },
+              { id: 'ACTIVO', label: 'Activos' },
+              { id: 'PENDIENTE_APROBACION', label: 'Pendientes' },
+              { id: 'EN_MORA', label: 'En Mora' },
+              { id: 'PAGADO', label: 'Pagados' },
+            ]}
+          />
 
-            {/*
-              * Los dos grupos de abajo empezaban los dos por un chip que decia
-              * exactamente «Todos», y lo unico que los distinguia era el icono
-              * gris de 14 px del principio. `GrupoDeFiltros` exige el nombre de
-              * la dimension y lo pinta, asi que ahora se leen «ESTADO Todos
-              * Activos...» y «RIESGO Todos Al dia...».
-              */}
-            <GrupoDeFiltros
-              nombre="Estado"
-              icono={<Filter className="h-3.5 w-3.5" />}
-              valor={estadoFiltro}
-              onChange={setEstadoFiltro}
-              opciones={[
-                { id: 'todos', label: 'Todos' },
-                { id: 'ACTIVO', label: 'Activos' },
-                { id: 'PENDIENTE_APROBACION', label: 'Pendientes' },
-                { id: 'EN_MORA', label: 'En Mora' },
-                { id: 'PAGADO', label: 'Pagados' },
-              ]}
-            />
-
-            <GrupoDeFiltros
-              nombre="Riesgo"
-              icono={<AlertCircle className="h-3.5 w-3.5" />}
-              valor={riesgoFiltro}
-              onChange={setRiesgoFiltro}
-              opciones={[
-                { id: 'todos', label: 'Todos' },
-                /*
-                  Los nombres del filtro salen de la misma funcion que el
-                  distintivo. Antes estaban escritos a mano aqui y en una
-                  funcion local llamada `riesgoClienteLabel` -el mismo nombre
-                  que la canonica, tapandola-, y no coincidian: el filtro
-                  decia «Rojo» y la ficha «Riesgo alto».
-                */
-                ...(['VERDE', 'AMARILLO', 'ROJO', 'LISTA_NEGRA'] as const).map(
-                  (id) => ({ id, label: riesgoClienteLabel(id) }),
-                ),
-              ]}
-            />
-          </div>
-        </div>
+          <GrupoDeFiltros
+            sinMarco
+            nombre="Riesgo"
+            icono={<AlertCircle className="h-3.5 w-3.5" />}
+            valor={riesgoFiltro}
+            onChange={setRiesgoFiltro}
+            opciones={[
+              { id: 'todos', label: 'Todos' },
+              /*
+                Los nombres del filtro salen de la misma funcion que el
+                distintivo. Antes estaban escritos a mano aqui y en una
+                funcion local llamada `riesgoClienteLabel` -el mismo nombre
+                que la canonica, tapandola-, y no coincidian: el filtro
+                decia «Rojo» y la ficha «Riesgo alto».
+              */
+              ...(['VERDE', 'AMARILLO', 'ROJO', 'LISTA_NEGRA'] as const).map(
+                (id) => ({ id, label: riesgoClienteLabel(id) }),
+              ),
+            ]}
+          />
+        </BarraDeFiltros>
 
         {/* Tabla - Desktop */}
         <div className="hidden md:block bg-white/80 backdrop-blur-sm rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-200 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300">

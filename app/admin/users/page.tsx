@@ -16,7 +16,7 @@ import { refreshSesion } from '@/services/autenticacion-service'
 import { usuariosService } from "@/services/usuarios-service";
 import { RolUsuario, EstadoUsuario } from "@/types/enums";
 import { formatShortDateTime, formatShortDate } from "@/lib/utils/format";
-import BotonAccion from '@/components/ui/BotonAccion'
+import BotonAccion from '@/components/ui/BotonAccion'
 import { SkeletonTabla } from '@/components/ui/Skeleton';
 import { Selector } from '@/components/ui/Selector'
 import Tooltip from '@/components/ui/Tooltip'
@@ -1336,7 +1336,12 @@ const UserManagementPage = () => {
                                 </div>
                                 <div className="text-xs text-slate-500 flex items-center gap-1 mt-0.5 font-medium min-w-0">
                                   <Mail className="h-3 w-3 shrink-0" />
-                                  <span className="truncate" title={user.correo || undefined}>{user.correo}</span>
+                                  {/* El correo recortado: el completo con el
+                                      Tooltip del sistema, no con el `title`
+                                      del navegador. */}
+                                  <Tooltip texto={user.correo || ''}>
+                                    <span className="truncate">{user.correo}</span>
+                                  </Tooltip>
                                 </div>
                               </div>
                             </div>
@@ -1481,27 +1486,44 @@ const UserManagementPage = () => {
                                     </>
                                   ) : (
                                     <>
-                                      <button
-                                        onClick={() => handleOpenDeleteModal(user)}
-                                        className={cn(
-                                          "p-2 rounded-lg transition-colors",
-                                          user.estado === EstadoUsuario.ACTIVO
-                                            ? "text-slate-400 hover:text-slate-700 hover:bg-slate-100"
-                                            : "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50",
-                                        )}
-                                        title={
+                                      {/*
+                                        Con `Tooltip`, como sus cuatro
+                                        vecinos. Este se quedó con el `title`
+                                        nativo, así que al pasar el ratón
+                                        salía el recuadro amarillo del
+                                        navegador —otra fuente, otro color,
+                                        otro retardo— justo al lado de los que
+                                        sí usan el del sistema.
+                                      */}
+                                      <Tooltip
+                                        texto={
                                           user.estado === EstadoUsuario.ACTIVO
                                             ? "Desactivar"
                                             : "Activar"
                                         }
-                                        disabled={user.rol === "SUPER_ADMINISTRADOR"}
                                       >
-                                        {user.estado === EstadoUsuario.ACTIVO ? (
-                                          <EyeOff className="h-4 w-4" />
-                                        ) : (
-                                          <CheckCircle2 className="h-4 w-4" />
-                                        )}
-                                      </button>
+                                        <button
+                                          onClick={() => handleOpenDeleteModal(user)}
+                                          aria-label={
+                                            user.estado === EstadoUsuario.ACTIVO
+                                              ? "Desactivar"
+                                              : "Activar"
+                                          }
+                                          className={cn(
+                                            "p-2 rounded-lg transition-colors",
+                                            user.estado === EstadoUsuario.ACTIVO
+                                              ? "text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+                                              : "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50",
+                                          )}
+                                          disabled={user.rol === "SUPER_ADMINISTRADOR"}
+                                        >
+                                          {user.estado === EstadoUsuario.ACTIVO ? (
+                                            <EyeOff className="h-4 w-4" />
+                                          ) : (
+                                            <CheckCircle2 className="h-4 w-4" />
+                                          )}
+                                        </button>
+                                      </Tooltip>
                                       <Tooltip texto="Archivar">
                                         <button aria-label="Archivar"
                                           onClick={() => handleOpenArchiveModal(user)}
@@ -1550,9 +1572,11 @@ const UserManagementPage = () => {
                           <h3 className="font-bold text-slate-900 line-clamp-1">
                             {user.nombres} {user.apellidos}
                           </h3>
-                          <p className="text-xs text-slate-500 font-medium truncate" title={user.correo || undefined}>
-                            {user.correo}
-                          </p>
+                          <Tooltip texto={user.correo || ''}>
+                            <p className="text-xs text-slate-500 font-medium truncate">
+                              {user.correo}
+                            </p>
+                          </Tooltip>
                         </div>
                       </div>
                       <span
@@ -1683,25 +1707,36 @@ const UserManagementPage = () => {
                         </>
                       ) : (
                         <>
-                          <button
-                            onClick={() => handleOpenDeleteModal(user)}
-                            className={cn(
-                              "p-2 rounded-lg transition-colors",
+                          {/* La copia móvil del mismo botón, con el mismo arreglo. */}
+                          <Tooltip
+                            texto={
                               user.estado === EstadoUsuario.ACTIVO
-                                ? "text-slate-400 hover:text-slate-700 hover:bg-slate-100"
-                                : "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50",
-                            )}
-                            title={
-                              user.estado === EstadoUsuario.ACTIVO ? "Desactivar" : "Activar"
+                                ? "Desactivar"
+                                : "Activar"
                             }
-                            disabled={user.rol === "SUPER_ADMINISTRADOR"}
                           >
-                            {user.estado === EstadoUsuario.ACTIVO ? (
-                              <EyeOff className="h-4 w-4" />
-                            ) : (
-                              <CheckCircle2 className="h-4 w-4" />
-                            )}
-                          </button>
+                            <button
+                              onClick={() => handleOpenDeleteModal(user)}
+                              aria-label={
+                                user.estado === EstadoUsuario.ACTIVO
+                                  ? "Desactivar"
+                                  : "Activar"
+                              }
+                              className={cn(
+                                "p-2 rounded-lg transition-colors",
+                                user.estado === EstadoUsuario.ACTIVO
+                                  ? "text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+                                  : "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50",
+                              )}
+                              disabled={user.rol === "SUPER_ADMINISTRADOR"}
+                            >
+                              {user.estado === EstadoUsuario.ACTIVO ? (
+                                <EyeOff className="h-4 w-4" />
+                              ) : (
+                                <CheckCircle2 className="h-4 w-4" />
+                              )}
+                            </button>
+                          </Tooltip>
                           <Tooltip texto="Archivar">
                             <button aria-label="Archivar"
                               onClick={() => handleOpenArchiveModal(user)}
@@ -2334,19 +2369,33 @@ const UserManagementPage = () => {
                   selectedUser.rol
                 }
                 rolIcono={roles.find((r) => r.id === selectedUser.rol)?.icon}
+                rolDescripcion={
+                  roles.find((r) => r.id === selectedUser.rol)?.descripcion
+                }
+                rolColor={roles.find((r) => r.id === selectedUser.rol)?.color}
+                rolFondo={roles.find((r) => r.id === selectedUser.rol)?.bgColor}
                 onCerrar={() => setIsDetailModalOpen(false)}
-                onEditar={puedeEditar ? () => {
-                  setIsDetailModalOpen(false);
-                  handleOpenEditModal(selectedUser);
-                } : undefined}
-                onPermisos={puedeGestionarPermisos ? () => {
-                  setIsDetailModalOpen(false);
-                  handleOpenPermissionsModal(selectedUser);
-                } : undefined}
-                onCambiarEstado={puedeEliminar && selectedUser.rol !== RolUsuario.SUPER_ADMINISTRADOR && selectedUser.estado !== EstadoUsuario.ARCHIVADO ? () => {
-                  setIsDetailModalOpen(false);
-                  handleOpenDeleteModal(selectedUser);
-                } : undefined}
+                /*
+                 * Fuera «Editar datos» y «Permisos»: eran dos botones que
+                 * CERRABAN el detalle para abrir otro modal, así que lo que
+                 * prometían —hacerlo desde aquí— no pasaba. Esas dos acciones
+                 * ya están en la fila del listado, que es de donde se abre
+                 * este detalle.
+                 *
+                 * Lo que sí se queda es el estado, y ahora cambia de verdad
+                 * sin salir del modal.
+                 */
+                puedeCambiarEstado={
+                  puedeEliminar &&
+                  selectedUser.rol !== RolUsuario.SUPER_ADMINISTRADOR
+                }
+                onEstadoCambiado={(nuevo) => {
+                  setSelectedUser({
+                    ...selectedUser,
+                    estado: nuevo as EstadoUsuario,
+                  });
+                  fetchUsers();
+                }}
               />
             )}
           </>,

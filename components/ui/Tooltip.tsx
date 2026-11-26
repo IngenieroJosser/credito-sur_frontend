@@ -1,6 +1,6 @@
 'use client'
 
-import {
+import {
   cloneElement,
   isValidElement,
   useCallback,
@@ -206,8 +206,48 @@ export default function Tooltip({
           onTouchCancel: ocultar,
       }) as Record<string, unknown>
 
-  // eslint-disable-next-line react-hooks/refs
-  const conAncla = cloneElement(children, propsDelAncla)
+  /*
+   * Un control DESHABILITADO no dispara eventos de ratón.
+   *
+   * Medido en el navegador sobre el botón «Archivar» de un super
+   * administrador, que va deshabilitado: al pasar el ratón salían CERO
+   * tooltips. O sea que la ayuda desaparecía exactamente donde más falta
+   * hace, porque el texto de un control apagado casi siempre explica POR QUÉ
+   * lo está: «Domingo no laborable», «Solo puedes importar cuando la
+   * validación no tenga errores», «Escribe el precio total para agregarla».
+   *
+   * El `title` del navegador sí salía —lo pinta el navegador, no el JS—, así
+   * que al cambiarlos por este componente se perdió la explicación. Esto lo
+   * devuelve: cuando el hijo está deshabilitado, y SOLO entonces, los
+   * eventos se escuchan en una envoltura, que sí los recibe.
+   *
+   * Se envuelve solo en ese caso a propósito. Envolver siempre rompería la
+   * maquetación de los botones con `flex-1` o `w-full`, que es la razón por
+   * la que este componente clona en vez de envolver; un control apagado rara
+   * vez es uno de esos, y la envoltura hereda el ancho por si acaso.
+   */
+  const hijoDeshabilitado = Boolean(
+    (children.props as { disabled?: boolean })?.disabled,
+  )
+
+   
+  const conAncla = hijoDeshabilitado ? (
+    <span
+      className="inline-flex w-[inherit] max-w-full"
+      onMouseEnter={(evento) => mostrar(evento.currentTarget)}
+      onMouseLeave={ocultar}
+      onTouchStart={(evento) => iniciarToqueLargo(evento.currentTarget)}
+      onTouchEnd={limpiarTemporizador}
+      onTouchCancel={ocultar}
+    >
+      {cloneElement(children, {
+        'aria-describedby': visible ? id : undefined,
+      } as Record<string, unknown>)}
+    </span>
+  ) : (
+    // eslint-disable-next-line react-hooks/refs
+    cloneElement(children, propsDelAncla)
+  )
 
   // En el teléfono la explicación sale como hoja desde abajo. Se mira
   // `punteroGrueso` y no el tamaño: lo que decide es con qué se señala.

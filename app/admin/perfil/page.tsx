@@ -1,4 +1,5 @@
 'use client'
+import Tooltip from '@/components/ui/Tooltip'
 import { formatFechaBogota } from '@/lib/format-date'
 
 import { mensajeDeError } from '@/lib/mensaje-de-error'
@@ -313,7 +314,7 @@ const PerfilUsuarioPage = () => {
                   </div>
                   
                   <h2 className="text-xl font-bold text-slate-900 break-words max-w-full">{userFullName}</h2>
-                  <p className="text-sm text-slate-500 font-medium mb-4 break-all max-w-full" title={backendUser.correo || undefined}>{backendUser.correo}</p>
+                  <Tooltip texto={(backendUser.correo || undefined) || ''}><p className="text-sm text-slate-500 font-medium mb-4 break-all max-w-full">{backendUser.correo}</p></Tooltip>
                   
                   <div className="w-full pt-6 border-t border-slate-100 space-y-4">
                     <div className="flex items-center justify-between text-sm">
@@ -366,7 +367,7 @@ const PerfilUsuarioPage = () => {
                       </label>
                       <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100 min-w-0">
                         <div className="h-4 w-4 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-600 shrink-0">@</div>
-                        <span className="text-sm font-bold text-slate-900 truncate" title={backendUser.correo || undefined}>{backendUser.correo}</span>
+                        <Tooltip texto={(backendUser.correo || undefined) || ''}><span className="text-sm font-bold text-slate-900 truncate">{backendUser.correo}</span></Tooltip>
                       </div>
                     </div>
                   </div>

@@ -1,3 +1,4 @@
+import Tooltip from '@/components/ui/Tooltip'
 import { Banknote, CircleHelp, Package } from 'lucide-react'
 import {
   normalizarTipoCredito,
@@ -44,14 +45,13 @@ export default function TipoCreditoIndicador({
         : ''
 
   return (
-    <span
+    <Tooltip texto={(label) || ''}><span
       className={`inline-flex shrink-0 items-center gap-1.5 text-xs font-bold ${
         esArticulo ? 'text-orange-700' : esEfectivo ? 'text-emerald-700' : 'text-slate-500'
       } ${clasesModo} ${className}`}
-      title={label}
     >
       <Icon className={modo === 'compacto' ? 'h-2.5 w-2.5' : 'h-3.5 w-3.5'} aria-hidden="true" />
       {mostrarTexto ? <span>{label}</span> : <span className="sr-only">{label}</span>}
-    </span>
+    </span></Tooltip>
   )
 }

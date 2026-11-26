@@ -1,5 +1,6 @@
 'use client';
 
+import Tooltip from '@/components/ui/Tooltip'
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Eye,
@@ -171,13 +172,12 @@ export const HistorialLotesCard: React.FC<{ recargar?: number }> = ({ recargar }
                           Revisar y deshacer
                         </button>
                       ) : (
-                        <span
-                          title={lote.razonNoSePuedeDeshacer || ''}
+                        <Tooltip texto={(lote.razonNoSePuedeDeshacer || '') || ''}><span
                           className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-400"
                         >
                           <ShieldAlert className="h-3.5 w-3.5" />
                           No reversible
-                        </span>
+                        </span></Tooltip>
                       )}
                     </td>
                   </tr>

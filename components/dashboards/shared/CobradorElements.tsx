@@ -283,10 +283,9 @@ function VisitaCardContent({
         {/* Badges */}
         <div className="flex items-center gap-1 flex-wrap shrink-0">
           {/* Dot semáforo */}
-          <span
-            title={nivelTitle(nivelRiesgoUI)}
+          <Tooltip texto={(nivelTitle(nivelRiesgoUI)) || ''}><span
             className={`w-2 h-2 rounded-full shrink-0 ${dotColor(nivelRiesgoUI)}`}
-          />
+          /></Tooltip>
           {/* Badge nivel riesgo */}
           <span
             className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded border ${nivelBadgeColor(nivelRiesgoUI)}`}

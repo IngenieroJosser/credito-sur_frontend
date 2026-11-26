@@ -1115,14 +1115,11 @@ export const RutasPageView = ({
               </button>
             )}
             {!readOnly && currentUser?.rol !== 'COBRADOR' && (
-              <button
+              <Tooltip texto={esDiaNoLaboral
+                    ? 'Domingo no laborable: creación operativa deshabilitada'
+                    : 'Crear crédito'}><button
                 onClick={() => setShowCrearCreditoModal(true)}
                 disabled={esDiaNoLaboral}
-                title={
-                  esDiaNoLaboral
-                    ? 'Domingo no laborable: creación operativa deshabilitada'
-                    : 'Crear crédito'
-                }
                 className={cn(
                   'inline-flex items-center gap-2 px-6 py-2.5 rounded-xl transition-all duration-200 shadow-sm font-bold text-sm group',
                   esDiaNoLaboral
@@ -1132,7 +1129,7 @@ export const RutasPageView = ({
               >
                 <Plus className="w-4 h-4" />
                 <span>Crear Crédito</span>
-              </button>
+              </button></Tooltip>
             )}
           </div>
         </div>
@@ -1471,7 +1468,7 @@ export const RutasPageView = ({
                             </Tooltip>
                           )}
                           {!readOnly && (
-                            <button
+                            <Tooltip texto={ruta.estado === 'ACTIVA' ? 'Inhabilitar ruta' : 'Habilitar ruta'}><button
                               onClick={(e) => {
                                 e.stopPropagation()
                                 handleToggleEstado(ruta.id)
@@ -1482,16 +1479,13 @@ export const RutasPageView = ({
                                   ? 'text-slate-400 hover:text-rose-600 hover:bg-rose-50'
                                   : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50',
                               )}
-                              title={
-                                ruta.estado === 'ACTIVA' ? 'Inhabilitar ruta' : 'Habilitar ruta'
-                              }
                             >
                               {ruta.estado === 'ACTIVA' ? (
                                 <Trash2 className="h-4 w-4" />
                               ) : (
                                 <CheckCircle2 className="h-4 w-4" />
                               )}
-                            </button>
+                            </button></Tooltip>
                           )}
                           <Link
                             href={`${rutasBasePath}/${ruta.id}`}
@@ -1682,7 +1676,7 @@ export const RutasPageView = ({
                                 </Tooltip>
                               )}
                               {!readOnly && (
-                                <button
+                                <Tooltip texto={ruta.estado === 'ACTIVA' ? 'Inhabilitar ruta' : 'Habilitar ruta'}><button
                                   onClick={(e) => {
                                     e.stopPropagation()
                                     handleToggleEstado(ruta.id)
@@ -1693,16 +1687,13 @@ export const RutasPageView = ({
                                       ? 'text-slate-400 hover:text-rose-600 hover:bg-rose-50'
                                       : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50',
                                   )}
-                                  title={
-                                    ruta.estado === 'ACTIVA' ? 'Inhabilitar ruta' : 'Habilitar ruta'
-                                  }
                                 >
                                   {ruta.estado === 'ACTIVA' ? (
                                     <Trash2 className="w-4 h-4" />
                                   ) : (
                                     <CheckCircle2 className="w-4 h-4" />
                                   )}
-                                </button>
+                                </button></Tooltip>
                               )}
                               {showRecolectar && (
                                 <Tooltip texto="Recolectar Dinero">
@@ -1855,7 +1846,7 @@ export const RutasPageView = ({
                         </Tooltip>
                       )}
                       {!readOnly && (
-                        <button
+                        <Tooltip texto={ruta.estado === 'ACTIVA' ? 'Inhabilitar ruta' : 'Habilitar ruta'}><button
                           onClick={(e) => {
                             e.stopPropagation()
                             handleToggleEstado(ruta.id)
@@ -1866,14 +1857,13 @@ export const RutasPageView = ({
                               ? 'text-slate-400 hover:text-rose-600 hover:bg-rose-50'
                               : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50',
                           )}
-                          title={ruta.estado === 'ACTIVA' ? 'Inhabilitar ruta' : 'Habilitar ruta'}
                         >
                           {ruta.estado === 'ACTIVA' ? (
                             <Trash2 className="w-4 h-4" />
                           ) : (
                             <CheckCircle2 className="w-4 h-4" />
                           )}
-                        </button>
+                        </button></Tooltip>
                       )}
                       {showRecolectar && (
                         <Tooltip texto="Recolectar Dinero">

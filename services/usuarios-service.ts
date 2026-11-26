@@ -53,36 +53,56 @@ export interface ChangePasswordDto {
   contrasenaNueva: string;
 }
 
+/**
+ * Un recuento de la ficha, con su importe cuando lo lleva.
+ *
+ * `monto: null` no es cero: es «este recuento no va con dinero» —los clientes
+ * creados se cuentan, no se suman—.
+ */
+export interface CuentaDeLaPersona {
+  cantidad: number;
+  monto: number | null;
+}
+
+/** Las cifras que la ficha puede enseñar. El backend dice cuáles valen. */
+export type ClaveDeCifra =
+  | 'pagosRegistrados'
+  | 'creditosCreados'
+  | 'creditosAprobados'
+  | 'clientesCreados'
+  | 'gastosRegistrados'
+  | 'movimientosDeCaja'
+  | 'arqueosDeCaja'
+  | 'visitasRegistradas'
+  | 'accionesEnElSistema';
+
+/**
+ * El detalle de UNA persona.
+ *
+ * Antes esto traía `dineroCaja`, `balanceDia`, `usuariosActivos`… cifras de
+ * todo el sistema metidas en la ficha de alguien. Se quitaron: para ver el
+ * sistema está el tablero.
+ */
 export interface UsuarioDetalleOperativo {
   usuarioId: string;
   rol: RolUsuario;
-  metricas: {
-    puntoVenta?: { creditosCreados: number; clientesCreados: number };
-    dineroCaja: number;
-    recaudoDia: number;
-    metaDiaria: number;
-    porcentajeMeta: number;
-    rutaNombre: string;
-    zona: string;
-    progreso: number;
-    enMora: number;
-    gastosHoy: number;
-    actividadReciente: Array<{
-      time: string;
-      action: string;
-      detail: string;
-      amount?: string;
-      type: 'in' | 'out' | 'neutral';
-    }>;
-    ingresosDia: number;
-    egresosDia: number;
-    balanceDia: number;
-    gastosCategorias: Array<{ categoria: string; monto: number }>;
-    rutasActivas: number;
-    rutasTotal: number;
-    rutasInactivas: number;
-    usuariosActivos: number;
+  /** Lo que hizo esta persona en la ventana que indica `desde`. */
+  hizo: Record<ClaveDeCifra, CuentaDeLaPersona> & {
+    desde: string;
+    /** Cuántos días abarca, ya contados en el servidor. */
+    dias: number;
   };
+  /** Lo que tiene a su cargo ahora mismo. */
+  aCargo: { rutasTotal: number; rutasActivas: number };
+  /** Cuáles de esas cifras merecen salir, decidido en el servidor. */
+  cifras: ClaveDeCifra[];
+  actividadReciente: Array<{
+    time: string;
+    action: string;
+    detail: string;
+    amount?: string;
+    type: 'in' | 'out' | 'neutral';
+  }>;
 }
 
 export const usuariosService = {

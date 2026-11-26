@@ -1,4 +1,5 @@
 'use client'
+import Tooltip from '@/components/ui/Tooltip'
 import { formatFechaBogota } from '@/lib/format-date'
 
 
@@ -2822,7 +2823,13 @@ Qué visitas se ven
 
                                         </button>
 
-                                        <button
+                                        <Tooltip texto={!rutaOperable
+                                              ? rutaCompletada
+                                                ? 'Jornada completada'
+                                                : 'Jornada sin activar'
+                                              : prorrogaActivaEnVisita(visita)
+                                                ? 'No se puede reprogramar con prórroga activa'
+                                                : 'Solicitar reprogramación'}><button
 
                                           onClick={(e) => {
 
@@ -2841,15 +2848,6 @@ Qué visitas se ven
                                           disabled={
                                             !rutaOperable || prorrogaActivaEnVisita(visita)
                                           }
-                                          title={
-                                            !rutaOperable
-                                              ? rutaCompletada
-                                                ? 'Jornada completada'
-                                                : 'Jornada sin activar'
-                                              : prorrogaActivaEnVisita(visita)
-                                                ? 'No se puede reprogramar con prórroga activa'
-                                                : 'Solicitar reprogramación'
-                                          }
 
                                           className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border transition-all active:scale-95 text-[11px] font-bold ${!rutaOperable || prorrogaActivaEnVisita(visita) ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
 
@@ -2859,7 +2857,7 @@ Qué visitas se ven
 
                                           Repro.
 
-                                        </button>
+                                        </button></Tooltip>
 
                                       </>
 

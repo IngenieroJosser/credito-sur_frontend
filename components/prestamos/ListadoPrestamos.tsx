@@ -654,48 +654,44 @@ const ListadoPrestamosElegante = () => {
                 <p className="text-xs font-bold text-primary uppercase tracking-wider mb-2">
                   Capital Prestado
                 </p>
-                <p
+                <Tooltip texto={(formatCurrency(estadisticas.montoPrestado)) || ''}><p
                   className="text-lg font-bold text-slate-900 tracking-tight truncate"
-                  title={formatCurrency(estadisticas.montoPrestado)}
                 >
                   {formatCurrency(estadisticas.montoPrestado)}
-                </p>
+                </p></Tooltip>
               </div>
 
               <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
                 <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-2">
                   Ganancia Esperada
                 </p>
-                <p
+                <Tooltip texto={(formatCurrency(estadisticas.interesTotal)) || ''}><p
                   className="text-lg font-bold text-slate-900 tracking-tight truncate"
-                  title={formatCurrency(estadisticas.interesTotal)}
                 >
                   {formatCurrency(estadisticas.interesTotal)}
-                </p>
+                </p></Tooltip>
               </div>
 
               <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
                   Total a Cobrar
                 </p>
-                <p
+                <Tooltip texto={(formatCurrency(estadisticas.montoTotal)) || ''}><p
                   className="text-lg font-bold text-slate-900 tracking-tight truncate"
-                  title={formatCurrency(estadisticas.montoTotal)}
                 >
                   {formatCurrency(estadisticas.montoTotal)}
-                </p>
+                </p></Tooltip>
               </div>
 
               <div className="p-5 rounded-2xl border border-slate-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
                 <p className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-2">
                   Saldo Pendiente<AyudaContextual ayuda="saldoPendiente" de="el saldo pendiente" tamano="pequeno" />
                 </p>
-                <p
+                <Tooltip texto={(formatCurrency(estadisticas.montoPendiente)) || ''}><p
                   className="text-lg font-bold text-slate-900 tracking-tight truncate"
-                  title={formatCurrency(estadisticas.montoPendiente)}
                 >
                   {formatCurrency(estadisticas.montoPendiente)}
-                </p>
+                </p></Tooltip>
               </div>
             </div>
           )}

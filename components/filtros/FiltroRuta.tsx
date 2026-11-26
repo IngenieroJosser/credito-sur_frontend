@@ -1,5 +1,6 @@
 'use client'
 
+import Tooltip from '@/components/ui/Tooltip'
 import { useState, useEffect, useCallback } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
 import { cn } from '@/lib/utils'
@@ -131,11 +132,10 @@ export default function FiltroRuta({
         )}
 
         {mostrarSinRuta && (
-          <button
+          <Tooltip texto="Créditos que no están en ninguna ruta: nadie va a cobrarlos"><button
             onClick={() => onRutaChange('sin-ruta')}
             disabled={loading}
             aria-pressed={selectedRutaId === 'sin-ruta'}
-            title="Créditos que no están en ninguna ruta: nadie va a cobrarlos"
             className={cn(
               'px-3 py-1.5 text-[11px] font-bold rounded-xl transition-all whitespace-nowrap',
               layout === 'scroll' && 'shrink-0',
@@ -145,7 +145,7 @@ export default function FiltroRuta({
             )}
           >
             Sin ruta
-          </button>
+          </button></Tooltip>
         )}
         
         {loading ? (

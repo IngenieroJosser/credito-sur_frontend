@@ -1,5 +1,6 @@
 'use client'
 
+import Tooltip from '@/components/ui/Tooltip'
 import { datosParaRegistro, estadoDeError, mensajeDeError } from '@/lib/mensaje-de-error'
 import { Skeleton, SkeletonTablero } from '@/components/ui/Skeleton'
 
@@ -755,49 +756,43 @@ const RutaClientLoaded = ({
   // Helpers para renderizar acciones según la vista
   const renderRutaActualActions = (visita: VisitaRuta) => (
     <>
-      <button
+      <Tooltip texto={visita.pendienteAprobacion
+            ? 'Crédito pendiente de revisión'
+            : !rutaOperable
+              ? rutaCompletada
+                ? 'Jornada completada'
+                : 'Jornada sin activar'
+              : 'Registrar Pago'}><button
         onClick={(e) => {
           e.stopPropagation()
           if (visita.pendienteAprobacion || !rutaOperable) return
           handleAbrirPago(visita)
         }}
         disabled={visita.pendienteAprobacion || !rutaOperable}
-        title={
-          visita.pendienteAprobacion
+        className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] shadow-sm ${visita.pendienteAprobacion || !rutaOperable ? 'bg-slate-50 text-slate-300 border border-slate-100 opacity-50 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95'}`}
+      >
+        <DollarSign className="h-3.5 w-3.5" />
+        Pago
+      </button></Tooltip>
+      <Tooltip texto={visita.pendienteAprobacion
             ? 'Crédito pendiente de revisión'
             : !rutaOperable
               ? rutaCompletada
                 ? 'Jornada completada'
                 : 'Jornada sin activar'
-              : 'Registrar Pago'
-        }
-        className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] shadow-sm ${visita.pendienteAprobacion || !rutaOperable ? 'bg-slate-50 text-slate-300 border border-slate-100 opacity-50 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95'}`}
-      >
-        <DollarSign className="h-3.5 w-3.5" />
-        Pago
-      </button>
-      <button
+              : 'Registrar Abono'}><button
         onClick={(e) => {
           e.stopPropagation()
           if (visita.pendienteAprobacion || !rutaOperable) return
           handleAbrirAbono(visita)
         }}
         disabled={visita.pendienteAprobacion || !rutaOperable}
-        title={
-          visita.pendienteAprobacion
-            ? 'Crédito pendiente de revisión'
-            : !rutaOperable
-              ? rutaCompletada
-                ? 'Jornada completada'
-                : 'Jornada sin activar'
-              : 'Registrar Abono'
-        }
         className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all font-bold text-[11px] shadow-sm ${visita.pendienteAprobacion || !rutaOperable ? 'bg-slate-50 text-slate-300 border border-slate-100 opacity-50 cursor-not-allowed' : 'bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95'}`}
         style={{ backgroundColor: !rutaOperable && !rutaCompletada ? '#f97316' : undefined }}
       >
         <Wallet className="h-3.5 w-3.5" />
         Abono
-      </button>
+      </button></Tooltip>
       <button
         onClick={(e) => {
           e.stopPropagation()
@@ -810,7 +805,13 @@ const RutaClientLoaded = ({
         <FileTextIcon className="h-3.5 w-3.5 text-slate-400" />
         Estado
       </button>
-      <button
+      <Tooltip texto={!rutaOperable
+            ? rutaCompletada
+              ? 'Jornada completada'
+              : 'Jornada sin activar'
+            : prorrogaActivaEnVisita(visita, ahora)
+              ? 'No se puede reprogramar con prorroga activa'
+              : 'Solicitar reprogramacion'}><button
         onClick={(e) => {
           e.stopPropagation()
           if (!rutaOperable) return
@@ -819,20 +820,11 @@ const RutaClientLoaded = ({
           setVisitaReprogramar(visita)
         }}
         disabled={!rutaOperable || prorrogaActivaEnVisita(visita, ahora)}
-        title={
-          !rutaOperable
-            ? rutaCompletada
-              ? 'Jornada completada'
-              : 'Jornada sin activar'
-            : prorrogaActivaEnVisita(visita, ahora)
-              ? 'No se puede reprogramar con prorroga activa'
-              : 'Solicitar reprogramacion'
-        }
         className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border transition-all font-bold text-[11px] shadow-sm ${!rutaOperable || prorrogaActivaEnVisita(visita, ahora) ? 'bg-slate-50 text-slate-300 border-slate-100 opacity-50 cursor-not-allowed' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 active:scale-95'}`}
       >
         <Calendar className="h-3.5 w-3.5 text-slate-400" />
         Repro.
-      </button>
+      </button></Tooltip>
     </>
   )
 

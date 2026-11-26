@@ -1,4 +1,5 @@
 'use client'
+import BarraDeFiltros from '@/components/filtros/BarraDeFiltros'
 import {
   badgeDeRiesgoSegunValor,
   etiquetaDeRiesgoSegunValor,
@@ -564,62 +565,61 @@ export default function ClientesFeature({
           </div>
         </div>
 
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white sm:bg-white/80 sm:backdrop-blur-sm p-4 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center">
-            {/*
-              * La primera opcion decia «Estado: Todos» porque el grupo no
-              * llevaba nombre y habia que meterlo dentro de la etiqueta del
-              * chip. `GrupoDeFiltros` pinta el nombre del grupo, asi que el
-              * chip vuelve a decir solo «Todos».
-              */}
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <GrupoDeFiltros
-                sinMarco
-                nombre="Estado"
-                icono={<Filter className="h-3.5 w-3.5" />}
-                valor={filterRiesgo}
-                onChange={(v) => {
-                  setFilterRiesgo(v)
+        {/*
+          La colocacion la decide `BarraDeFiltros`, no esta pantalla.
+
+          Aqui estaban las mismas clases escritas a mano —cada grupo en su
+          linea, el buscador en la suya por debajo de 1536— con la medicion
+          anotada al lado. Era correcto y era una copia: en cuanto la misma
+          regla hiciera falta en otra pantalla, habria dos sitios donde
+          cambiarla. Vive en el componente, con la medicion dentro.
+        */}
+        <BarraDeFiltros
+          buscador={
+            <>
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Buscar cliente, cédula o teléfono..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value)
                   setCurrentPage(1)
                 }}
-                opciones={[
-                  { id: 'all', label: 'Todos' },
-                  { id: 'PENDIENTE', label: 'Pendientes' },
-                  { id: 'AL_DIA', label: 'Al día' },
-                  { id: 'LEVE', label: 'Leve' },
-                  { id: 'PRECAUCION', label: 'Precaución' },
-                  { id: 'MODERADO', label: 'Moderado' },
-                  { id: 'CRITICO', label: 'Crítico' },
-                  { id: 'LISTA_NEGRA', label: 'Lista Negra' },
-                ]}
+                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm font-medium text-primary transition-all placeholder:text-slate-400"
               />
+            </>
+          }
+        >
+          <GrupoDeFiltros
+            sinMarco
+            nombre="Estado"
+            icono={<Filter className="h-3.5 w-3.5" />}
+            valor={filterRiesgo}
+            onChange={(v) => {
+              setFilterRiesgo(v)
+              setCurrentPage(1)
+            }}
+            opciones={[
+              { id: 'all', label: 'Todos' },
+              { id: 'PENDIENTE', label: 'Pendientes' },
+              { id: 'AL_DIA', label: 'Al día' },
+              { id: 'LEVE', label: 'Leve' },
+              { id: 'PRECAUCION', label: 'Precaución' },
+              { id: 'MODERADO', label: 'Moderado' },
+              { id: 'CRITICO', label: 'Crítico' },
+              { id: 'LISTA_NEGRA', label: 'Lista Negra' },
+            ]}
+          />
 
-              <div className="h-4 w-px bg-slate-200 mx-1 md:block hidden" />
-
-              <FiltroRuta
-                onRutaChange={setFilterRuta}
-                selectedRutaId={filterRuta}
-                layout="wrap"
-                showAllOption={true}
-                hideLabel={true}
-              />
-            </div>
-          </div>
-
-          <div className="relative w-full md:w-80">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Buscar cliente, cédula o teléfono..."
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value)
-                setCurrentPage(1)
-              }}
-              className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm font-medium text-primary transition-all placeholder:text-slate-400"
-            />
-          </div>
-        </div>
+          <FiltroRuta
+            onRutaChange={setFilterRuta}
+            selectedRutaId={filterRuta}
+            layout="wrap"
+            showAllOption={true}
+            hideLabel={true}
+          />
+        </BarraDeFiltros>
 
         <div className="hidden md:block bg-white sm:bg-white/80 sm:backdrop-blur-sm border border-slate-200 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
           <div className="overflow-x-auto">
@@ -813,9 +813,9 @@ export default function ClientesFeature({
                             {cliente.correo && (
                               <div className="flex items-center text-xs font-medium text-slate-500 min-w-0">
                                 <Mail className="h-3 w-3 mr-2 text-slate-400 shrink-0" />
-                                <span className="truncate" title={cliente.correo || undefined}>
+                                <Tooltip texto={(cliente.correo || undefined) || ''}><span className="truncate">
                                   {cliente.correo}
-                                </span>
+                                </span></Tooltip>
                               </div>
                             )}
                           </div>

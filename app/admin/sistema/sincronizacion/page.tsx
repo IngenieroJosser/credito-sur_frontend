@@ -283,13 +283,13 @@ const SyncStatusPage = () => {
                             </div>
                           )}
                           {j.failedReason ? (
-                            <div className="text-[10px] text-rose-600 truncate max-w-[380px]" title={j.failedReason}>
+                            <Tooltip texto={(j.failedReason) || ''}><div className="text-[10px] text-rose-600 truncate max-w-[380px]">
                               {j.failedReason}
-                            </div>
+                            </div></Tooltip>
                           ) : (
-                            <div className="text-[10px] text-slate-400 truncate max-w-[380px]" title={j.name}>
+                            <Tooltip texto={(j.name) || ''}><div className="text-[10px] text-slate-400 truncate max-w-[380px]">
                               {j.name}
-                            </div>
+                            </div></Tooltip>
                           )}
                         </td>
                         <td className="py-2 pr-2 text-right font-black text-slate-900 align-top">{j.attemptsMade ?? '-'}</td>

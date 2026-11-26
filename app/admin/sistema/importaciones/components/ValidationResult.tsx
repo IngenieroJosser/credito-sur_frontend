@@ -299,7 +299,7 @@ export const ValidationResult: React.FC<ValidationResultProps> = ({ resultado, o
                   <Tooltip texto="Válidas">
                     <span className="text-emerald-600">{stats.filasValidas} ✓</span>
                   </Tooltip>
-                  <span className="text-red-600" title="Con Error">{stats.filasConError} ✗</span>
+                  <Tooltip texto="Con Error"><span className="text-red-600">{stats.filasConError} ✗</span></Tooltip>
                 </div>
               </div>
             ))}

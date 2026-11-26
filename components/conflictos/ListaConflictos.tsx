@@ -140,7 +140,7 @@ export default function ListaConflictos() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2 max-w-xs truncate text-red-600">
                         <AlertCircle className="w-4 h-4 shrink-0" />
-                        <span className="truncate" title={c.errorMotivo}>{c.errorMotivo}</span>
+                        <Tooltip texto={(c.errorMotivo) || ''}><span className="truncate">{c.errorMotivo}</span></Tooltip>
                       </div>
                     </td>
                     <td className="px-6 py-4">

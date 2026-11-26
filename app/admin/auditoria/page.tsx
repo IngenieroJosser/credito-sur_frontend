@@ -1,5 +1,6 @@
 'use client'
 
+import BarraDeFiltros from '@/components/filtros/BarraDeFiltros'
 import React, { useEffect, useState, useCallback } from 'react'
 import { useMemo } from 'react'
 import { useRealtimeData } from '@/hooks/useRealtimeData'
@@ -285,58 +286,69 @@ const AuditoriaSistemaPage = () => {
 
         {/* Filtros y Tabla */}
         <section className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300">
-          <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row gap-4 justify-between items-center">
-            <div className="w-full md:w-96 buscador-3d">
-              <Search className="icon h-4 w-4" />
-              <input
-                value={busqueda}
-                onChange={(e) => setBusqueda(e.target.value)}
-                placeholder="Buscar por usuario, acción o detalle..."
-                className="buscador-3d-input"
+          {/*
+            Medido a 1366 de ancho: el grupo de Ruta tenia 231 px y pedia 247,
+            asi que se partia en tres lineas (83 px de alto) compitiendo con
+            el buscador y con los niveles.
+
+            Y los niveles salian en crudo: «TODOS», «INFORMATIVO»,
+            «ADVERTENCIA», «CRITICO», el enum tal cual en mayusculas. Ahora
+            se leen como palabras.
+          */}
+          <div className="border-b border-slate-100 bg-slate-50/50 p-6">
+            <BarraDeFiltros
+              className="border-0 bg-transparent p-0 shadow-none sm:bg-transparent sm:backdrop-blur-none"
+              buscador={
+                <div className="buscador-3d">
+                  <Search className="icon h-4 w-4" />
+                  <input
+                    value={busqueda}
+                    onChange={(e) => setBusqueda(e.target.value)}
+                    placeholder="Buscar por usuario, acción o detalle..."
+                    className="buscador-3d-input"
+                  />
+                </div>
+              }
+            >
+              <GrupoDeFiltros
+                sinMarco
+                nombre="Nivel"
+                valor={filtroNivel}
+                onChange={(v) => setFiltroNivel(v as typeof filtroNivel)}
+                opciones={[
+                  { id: 'TODOS', label: 'Todos' },
+                  { id: 'INFORMATIVO', label: 'Informativo' },
+                  { id: 'ADVERTENCIA', label: 'Advertencia' },
+                  { id: 'CRITICO', label: 'Crítico' },
+                ]}
               />
-            </div>
-            <div className="flex gap-1 w-full md:w-auto overflow-x-auto p-1 bg-slate-100 rounded-xl border border-slate-200">
-              {(['TODOS', 'INFORMATIVO', 'ADVERTENCIA', 'CRITICO'] as const).map((nivel) => (
-                <button
-                  key={nivel}
-                  onClick={() => setFiltroNivel(nivel)}
-                  className={cn(
-                    'px-4 py-2 rounded-lg text-xs font-bold tracking-wide transition-all duration-300',
-                    filtroNivel === nivel
-                      ? 'bg-white text-slate-900 shadow-sm'
-                      : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50',
-                  )}
-                >
-                  {nivel}
-                </button>
-              ))}
-            </div>
-            {/*
-              * Las rutas del filtro salen de las rutas que hay, no de una lista
-              * escrita a mano.
-              *
-              * Aqui estaban los cuatro nombres —«Ruta Centro», «Ruta Norte»,
-              * «Ruta Este», «Ruta Sur - Expansion»— cruzados contra las reales
-              * con un `.filter`. La pantalla ya cargaba las rutas de verdad en
-              * `rutas` para traducir los ids de los registros, asi que una ruta
-              * nueva salia en la tabla y NO se podia filtrar; y el dia que a una
-              * de esas cuatro le cambien el nombre, su chip desaparece sin que
-              * nada falle.
-              */}
-            <GrupoDeFiltros
-              nombre="Ruta"
-              className="w-full md:w-auto"
-              valor={filtroRuta}
-              onChange={setFiltroRuta}
-              opciones={[
-                { id: 'Todas', label: 'Todas' },
-                ...rutas
-                  .map((r) => r.nombre)
-                  .filter((nombre): nombre is string => Boolean(nombre))
-                  .sort((a, b) => a.localeCompare(b, 'es'))
-                  .map((nombre) => ({ id: nombre, label: nombre })),
-              ]}
-            />
+
+              {/*
+                * Las rutas del filtro salen de las rutas que hay, no de una
+                * lista escrita a mano.
+                *
+                * Aqui estaban los cuatro nombres —«Ruta Centro», «Ruta
+                * Norte», «Ruta Este», «Ruta Sur - Expansion»— cruzados contra
+                * las reales con un `.filter`. La pantalla ya cargaba las
+                * rutas de verdad en `rutas` para traducir los ids de los
+                * registros, asi que una ruta nueva salia en la tabla y NO se
+                * podia filtrar.
+                */}
+              <GrupoDeFiltros
+                sinMarco
+                nombre="Ruta"
+                valor={filtroRuta}
+                onChange={setFiltroRuta}
+                opciones={[
+                  { id: 'Todas', label: 'Todas' },
+                  ...rutas
+                    .map((r) => r.nombre)
+                    .filter((nombre): nombre is string => Boolean(nombre))
+                    .sort((a, b) => a.localeCompare(b, 'es'))
+                    .map((nombre) => ({ id: nombre, label: nombre })),
+                ]}
+              />
+            </BarraDeFiltros>
           </div>
 
           {/* Tabla - Desktop */}
@@ -383,12 +395,11 @@ const AuditoriaSistemaPage = () => {
                         </span>
                       </div>
                     </td>
-                    <td
+                    <Tooltip texto={(log.detalle) || ''}><td
                       className="px-6 py-4 max-w-xs truncate text-slate-600 font-medium"
-                      title={log.detalle}
                     >
                       {log.detalle}
-                    </td>
+                    </td></Tooltip>
                     <td className="px-6 py-4 text-center">
                       <span
                         className={cn(

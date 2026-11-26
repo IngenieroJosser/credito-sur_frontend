@@ -1,4 +1,5 @@
 'use client'
+import BarraDeFiltros from '@/components/filtros/BarraDeFiltros'
 import { formatFechaBogota } from '@/lib/format-date'
 
 import { estadoDeError, mensajeDeError } from '@/lib/mensaje-de-error'
@@ -269,23 +270,31 @@ export default function ArchivadosPage() {
           </div>
         </div>
 
-        {/* Filters & Search */}
-        <div className="bg-white/80 backdrop-blur-sm p-4 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-200 flex flex-col md:flex-row gap-4 items-center justify-between animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
-          <div className="w-full md:w-96 buscador-3d">
-            <Search className="icon h-4 w-4" />
-            <input
-              type="text"
-              placeholder="Buscar por nombre o motivo..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="buscador-3d-input"
-            />
-          </div>
+        {/*
+          Medido a 1366 de ancho: el grupo de Tipo tenia 461 px y pedia 466,
+          asi que se partia en TRES lineas (85 px de alto). Con el buscador
+          en su propia fila entra de una.
+        */}
+        <BarraDeFiltros
+          className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200"
+          buscador={
+            <div className="buscador-3d">
+              <Search className="icon h-4 w-4" />
+              <input
+                type="text"
+                placeholder="Buscar por nombre o motivo..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="buscador-3d-input"
+              />
+            </div>
+          }
+        >
           {/* Filtro por ruta. Solo aparece si hay rutas que ofrecer: en una
               lista de productos y usuarios archivados no filtraria nada. */}
           {rutasDisponibles.length > 0 && (
-            <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-slate-200 shadow-sm shrink-0">
-              <MapPin className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+            <div className="flex w-fit items-center gap-2 rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
+              <MapPin className="h-3.5 w-3.5 shrink-0 text-slate-400" />
               <Selector
                 value={rutaFiltro}
                 onChange={setRutaFiltro}
@@ -301,7 +310,9 @@ export default function ArchivadosPage() {
               />
             </div>
           )}
+
           <GrupoDeFiltros
+            sinMarco
             nombre="Tipo"
             icono={<Filter className="h-3.5 w-3.5" />}
             valor={tipoFiltro}
@@ -314,7 +325,7 @@ export default function ArchivadosPage() {
               { id: 'usuario', label: 'Usuarios' },
             ]}
           />
-        </div>
+        </BarraDeFiltros>
 
         {/* Content */}
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">

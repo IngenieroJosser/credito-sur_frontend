@@ -158,12 +158,11 @@ export const ImportacionesClient = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button
+            <Tooltip texto={!canConfirm ? 'Solo puedes importar cuando la validación no tenga errores.' : 'Confirmar importación'}><button
               type="button"
               onClick={handleConfirmarImportacion}
               disabled={!canConfirm || isConfirming}
               className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm shadow-emerald-200 transition-all hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-              title={!canConfirm ? 'Solo puedes importar cuando la validación no tenga errores.' : 'Confirmar importación'}
             >
               {isConfirming ? (
                 <span className="h-4 w-4 rounded-full border-2 border-white/50 border-t-white animate-spin" />
@@ -171,7 +170,7 @@ export const ImportacionesClient = () => {
                 <UploadCloud className="h-4 w-4" />
               )}
               {isConfirming ? 'Importando...' : 'Confirmar importación'}
-            </button>
+            </button></Tooltip>
             <Tooltip texto="Cerrar">
               <button aria-label="Cerrar"
                 type="button"
